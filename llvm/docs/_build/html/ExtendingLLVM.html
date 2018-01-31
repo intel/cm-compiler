@@ -1,0 +1,364 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Extending LLVM: Adding instructions, intrinsics, types, etc. &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="How to set up LLVM-style RTTI for your class hierarchy" href="HowToSetUpLLVMStyleRTTI.html" />
+    <link rel="prev" title="Architecture &amp; Platform Information for Compiler Writers" href="CompilerWriterInfo.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="HowToSetUpLLVMStyleRTTI.html" title="How to set up LLVM-style RTTI for your class hierarchy"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="CompilerWriterInfo.html" title="Architecture &amp; Platform Information for Compiler Writers"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="extending-llvm-adding-instructions-intrinsics-types-etc">
+<h1>Extending LLVM: Adding instructions, intrinsics, types, etc.<a class="headerlink" href="#extending-llvm-adding-instructions-intrinsics-types-etc" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction-and-warning">
+<h2>Introduction and Warning<a class="headerlink" href="#introduction-and-warning" title="Permalink to this headline">¶</a></h2>
+<p>During the course of using LLVM, you may wish to customize it for your research
+project or for experimentation. At this point, you may realize that you need to
+add something to LLVM, whether it be a new fundamental type, a new intrinsic
+function, or a whole new instruction.</p>
+<p>When you come to this realization, stop and think. Do you really need to extend
+LLVM? Is it a new fundamental capability that LLVM does not support at its
+current incarnation or can it be synthesized from already pre-existing LLVM
+elements? If you are not sure, ask on the <a class="reference external" href="http://mail.cs.uiuc.edu/mailman/listinfo/llvmdev">LLVM-dev</a> list. The reason is that
+extending LLVM will get involved as you need to update all the different passes
+that you intend to use with your extension, and there are <code class="docutils literal"><span class="pre">many</span></code> LLVM analyses
+and transformations, so it may be quite a bit of work.</p>
+<p>Adding an <a class="reference internal" href="#intrinsic-function">intrinsic function</a> is far easier than adding an
+instruction, and is transparent to optimization passes.  If your added
+functionality can be expressed as a function call, an intrinsic function is the
+method of choice for LLVM extension.</p>
+<p>Before you invest a significant amount of effort into a non-trivial extension,
+<strong>ask on the list</strong> if what you are looking to do can be done with
+already-existing infrastructure, or if maybe someone else is already working on
+it. You will save yourself a lot of time and effort by doing so.</p>
+</div>
+<div class="section" id="adding-a-new-intrinsic-function">
+<span id="intrinsic-function"></span><h2>Adding a new intrinsic function<a class="headerlink" href="#adding-a-new-intrinsic-function" title="Permalink to this headline">¶</a></h2>
+<p>Adding a new intrinsic function to LLVM is much easier than adding a new
+instruction.  Almost all extensions to LLVM should start as an intrinsic
+function and then be turned into an instruction if warranted.</p>
+<ol class="arabic">
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/docs/LangRef.html</span></code>:</p>
+<p>Document the intrinsic.  Decide whether it is code generator specific and
+what the restrictions are.  Talk to other people about it so that you are
+sure it’s a good idea.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/IR/Intrinsics*.td</span></code>:</p>
+<p>Add an entry for your intrinsic.  Describe its memory access characteristics
+for optimization (this controls whether it will be DCE’d, CSE’d, etc). Note
+that any intrinsic using the <code class="docutils literal"><span class="pre">llvm_int_ty</span></code> type for an argument will
+be deemed by <code class="docutils literal"><span class="pre">tblgen</span></code> as overloaded and the corresponding suffix will
+be required on the intrinsic’s name.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Analysis/ConstantFolding.cpp</span></code>:</p>
+<p>If it is possible to constant fold your intrinsic, add support to it in the
+<code class="docutils literal"><span class="pre">canConstantFoldCallTo</span></code> and <code class="docutils literal"><span class="pre">ConstantFoldCall</span></code> functions.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/test/Regression/*</span></code>:</p>
+<p>Add test cases for your test cases to the test suite</p>
+</li>
+</ol>
+<p>Once the intrinsic has been added to the system, you must add code generator
+support for it.  Generally you must do the following steps:</p>
+<p>Add support to the .td file for the target(s) of your choice in
+<code class="docutils literal"><span class="pre">lib/Target/*/*.td</span></code>.</p>
+<blockquote>
+<div>This is usually a matter of adding a pattern to the .td file that matches the
+intrinsic, though it may obviously require adding the instructions you want to
+generate as well.  There are lots of examples in the PowerPC and X86 backend
+to follow.</div></blockquote>
+</div>
+<div class="section" id="adding-a-new-selectiondag-node">
+<h2>Adding a new SelectionDAG node<a class="headerlink" href="#adding-a-new-selectiondag-node" title="Permalink to this headline">¶</a></h2>
+<p>As with intrinsics, adding a new SelectionDAG node to LLVM is much easier than
+adding a new instruction.  New nodes are often added to help represent
+instructions common to many targets.  These nodes often map to an LLVM
+instruction (add, sub) or intrinsic (byteswap, population count).  In other
+cases, new nodes have been added to allow many targets to perform a common task
+(converting between floating point and integer representation) or capture more
+complicated behavior in a single node (rotate).</p>
+<ol class="arabic">
+<li><p class="first"><code class="docutils literal"><span class="pre">include/llvm/CodeGen/ISDOpcodes.h</span></code>:</p>
+<p>Add an enum value for the new SelectionDAG node.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">lib/CodeGen/SelectionDAG/SelectionDAG.cpp</span></code>:</p>
+<dl class="docutils">
+<dt>Add code to print the node to <code class="docutils literal"><span class="pre">getOperationName</span></code>.  If your new node can be</dt>
+<dd><p class="first last">evaluated at compile time when given constant arguments (such as an add of a
+constant with another constant), find the <code class="docutils literal"><span class="pre">getNode</span></code> method that takes the
+appropriate number of arguments, and add a case for your node to the switch
+statement that performs constant folding for nodes that take the same number
+of arguments as your new node.</p>
+</dd>
+</dl>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">lib/CodeGen/SelectionDAG/LegalizeDAG.cpp</span></code>:</p>
+<p>Add code to <a class="reference external" href="CodeGenerator.html#selectiondag_legalize">legalize, promote, and expand</a> the node as necessary.  At a
+minimum, you will need to add a case statement for your node in
+<code class="docutils literal"><span class="pre">LegalizeOp</span></code> which calls LegalizeOp on the node’s operands, and returns a
+new node if any of the operands changed as a result of being legalized.  It
+is likely that not all targets supported by the SelectionDAG framework will
+natively support the new node.  In this case, you must also add code in your
+node’s case statement in <code class="docutils literal"><span class="pre">LegalizeOp</span></code> to Expand your node into simpler,
+legal operations.  The case for <code class="docutils literal"><span class="pre">ISD::UREM</span></code> for expanding a remainder into
+a divide, multiply, and a subtract is a good example.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">lib/CodeGen/SelectionDAG/LegalizeDAG.cpp</span></code>:</p>
+<dl class="docutils">
+<dt>If targets may support the new node being added only at certain sizes, you</dt>
+<dd><p class="first last">will also need to add code to your node’s case statement in <code class="docutils literal"><span class="pre">LegalizeOp</span></code>
+to Promote your node’s operands to a larger size, and perform the correct
+operation.  You will also need to add code to <code class="docutils literal"><span class="pre">PromoteOp</span></code> to do this as
+well.  For a good example, see <code class="docutils literal"><span class="pre">ISD::BSWAP</span></code>, which promotes its operand to
+a wider size, performs the byteswap, and then shifts the correct bytes right
+to emulate the narrower byteswap in the wider type.</p>
+</dd>
+</dl>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">lib/CodeGen/SelectionDAG/LegalizeDAG.cpp</span></code>:</p>
+<p>Add a case for your node in <code class="docutils literal"><span class="pre">ExpandOp</span></code> to teach the legalizer how to
+perform the action represented by the new node on a value that has been split
+into high and low halves.  This case will be used to support your node with a
+64 bit operand on a 32 bit target.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">lib/CodeGen/SelectionDAG/DAGCombiner.cpp</span></code>:</p>
+<p>If your node can be combined with itself, or other existing nodes in a
+peephole-like fashion, add a visit function for it, and call that function
+from. There are several good examples for simple combines you can do;
+<code class="docutils literal"><span class="pre">visitFABS</span></code> and <code class="docutils literal"><span class="pre">visitSRL</span></code> are good starting places.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">lib/Target/PowerPC/PPCISelLowering.cpp</span></code>:</p>
+<p>Each target has an implementation of the <code class="docutils literal"><span class="pre">TargetLowering</span></code> class, usually in
+its own file (although some targets include it in the same file as the
+DAGToDAGISel).  The default behavior for a target is to assume that your new
+node is legal for all types that are legal for that target.  If this target
+does not natively support your node, then tell the target to either Promote
+it (if it is supported at a larger type) or Expand it.  This will cause the
+code you wrote in <code class="docutils literal"><span class="pre">LegalizeOp</span></code> above to decompose your new node into other
+legal nodes for this target.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">lib/Target/TargetSelectionDAG.td</span></code>:</p>
+<p>Most current targets supported by LLVM generate code using the DAGToDAG
+method, where SelectionDAG nodes are pattern matched to target-specific
+nodes, which represent individual instructions.  In order for the targets to
+match an instruction to your new node, you must add a def for that node to
+the list in this file, with the appropriate type constraints. Look at
+<code class="docutils literal"><span class="pre">add</span></code>, <code class="docutils literal"><span class="pre">bswap</span></code>, and <code class="docutils literal"><span class="pre">fadd</span></code> for examples.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">lib/Target/PowerPC/PPCInstrInfo.td</span></code>:</p>
+<p>Each target has a tablegen file that describes the target’s instruction set.
+For targets that use the DAGToDAG instruction selection framework, add a
+pattern for your new node that uses one or more target nodes.  Documentation
+for this is a bit sparse right now, but there are several decent examples.
+See the patterns for <code class="docutils literal"><span class="pre">rotl</span></code> in <code class="docutils literal"><span class="pre">PPCInstrInfo.td</span></code>.</p>
+</li>
+<li><p class="first">TODO: document complex patterns.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/test/Regression/CodeGen/*</span></code>:</p>
+<p>Add test cases for your new node to the test suite.
+<code class="docutils literal"><span class="pre">llvm/test/Regression/CodeGen/X86/bswap.ll</span></code> is a good example.</p>
+</li>
+</ol>
+</div>
+<div class="section" id="adding-a-new-instruction">
+<h2>Adding a new instruction<a class="headerlink" href="#adding-a-new-instruction" title="Permalink to this headline">¶</a></h2>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Adding instructions changes the bitcode format, and it will take some effort
+to maintain compatibility with the previous version. Only add an instruction
+if it is absolutely necessary.</p>
+</div>
+<ol class="arabic">
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/Instruction.def</span></code>:</p>
+<p>add a number for your instruction and an enum name</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/Instructions.h</span></code>:</p>
+<p>add a definition for the class that will represent your instruction</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/Support/InstVisitor.h</span></code>:</p>
+<p>add a prototype for a visitor to your new instruction type</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/AsmParser/Lexer.l</span></code>:</p>
+<p>add a new token to parse your instruction from assembly text file</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/AsmParser/llvmAsmParser.y</span></code>:</p>
+<p>add the grammar on how your instruction can be read and what it will
+construct as a result</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Bitcode/Reader/Reader.cpp</span></code>:</p>
+<p>add a case for your instruction and how it will be parsed from bitcode</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/VMCore/Instruction.cpp</span></code>:</p>
+<p>add a case for how your instruction will be printed out to assembly</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/VMCore/Instructions.cpp</span></code>:</p>
+<p>implement the class you defined in <code class="docutils literal"><span class="pre">llvm/include/llvm/Instructions.h</span></code></p>
+</li>
+<li><p class="first">Test your instruction</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Target/*</span></code>:</p>
+<p>add support for your instruction to code generators, or add a lowering pass.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/test/Regression/*</span></code>:</p>
+<p>add your test cases to the test suite.</p>
+</li>
+</ol>
+<p>Also, you need to implement (or modify) any analyses or passes that you want to
+understand this new instruction.</p>
+</div>
+<div class="section" id="adding-a-new-type">
+<h2>Adding a new type<a class="headerlink" href="#adding-a-new-type" title="Permalink to this headline">¶</a></h2>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Adding new types changes the bitcode format, and will break compatibility with
+currently-existing LLVM installations. Only add new types if it is absolutely
+necessary.</p>
+</div>
+<div class="section" id="adding-a-fundamental-type">
+<h3>Adding a fundamental type<a class="headerlink" href="#adding-a-fundamental-type" title="Permalink to this headline">¶</a></h3>
+<ol class="arabic">
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/Type.h</span></code>:</p>
+<p>add enum for the new type; add static <code class="docutils literal"><span class="pre">Type*</span></code> for this type</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/VMCore/Type.cpp</span></code>:</p>
+<p>add mapping from <code class="docutils literal"><span class="pre">TypeID</span></code> =&gt; <code class="docutils literal"><span class="pre">Type*</span></code>; initialize the static <code class="docutils literal"><span class="pre">Type*</span></code></p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/AsmReader/Lexer.l</span></code>:</p>
+<p>add ability to parse in the type from text assembly</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/AsmReader/llvmAsmParser.y</span></code>:</p>
+<p>add a token for that type</p>
+</li>
+</ol>
+</div>
+<div class="section" id="adding-a-derived-type">
+<h3>Adding a derived type<a class="headerlink" href="#adding-a-derived-type" title="Permalink to this headline">¶</a></h3>
+<ol class="arabic">
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/Type.h</span></code>:</p>
+<p>add enum for the new type; add a forward declaration of the type also</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/DerivedTypes.h</span></code>:</p>
+<p>add new class to represent new class in the hierarchy; add forward
+declaration to the TypeMap value type</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/VMCore/Type.cpp</span></code>:</p>
+<p>add support for derived type to:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">getTypeDescription</span><span class="p">(</span><span class="k">const</span> <span class="n">Type</span> <span class="o">&amp;</span><span class="n">Ty</span><span class="p">,</span>
+                               <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="k">const</span> <span class="n">Type</span><span class="o">*&gt;</span> <span class="o">&amp;</span><span class="n">TypeStack</span><span class="p">)</span>
+<span class="kt">bool</span> <span class="n">TypesEqual</span><span class="p">(</span><span class="k">const</span> <span class="n">Type</span> <span class="o">*</span><span class="n">Ty</span><span class="p">,</span> <span class="k">const</span> <span class="n">Type</span> <span class="o">*</span><span class="n">Ty2</span><span class="p">,</span>
+                <span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="k">const</span> <span class="n">Type</span><span class="o">*</span><span class="p">,</span> <span class="k">const</span> <span class="n">Type</span><span class="o">*&gt;</span> <span class="o">&amp;</span><span class="n">EqTypes</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>add necessary member functions for type, and factory methods</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/AsmReader/Lexer.l</span></code>:</p>
+<p>add ability to parse in the type from text assembly</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Bitcode/Writer/Writer.cpp</span></code>:</p>
+<p>modify <code class="docutils literal"><span class="pre">void</span> <span class="pre">BitcodeWriter::outputType(const</span> <span class="pre">Type</span> <span class="pre">*T)</span></code> to serialize your
+type</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Bitcode/Reader/Reader.cpp</span></code>:</p>
+<p>modify <code class="docutils literal"><span class="pre">const</span> <span class="pre">Type</span> <span class="pre">*BitcodeReader::ParseType()</span></code> to read your data type</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/VMCore/AsmWriter.cpp</span></code>:</p>
+<p>modify</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="n">calcTypeName</span><span class="p">(</span><span class="k">const</span> <span class="n">Type</span> <span class="o">*</span><span class="n">Ty</span><span class="p">,</span>
+                  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="k">const</span> <span class="n">Type</span><span class="o">*&gt;</span> <span class="o">&amp;</span><span class="n">TypeStack</span><span class="p">,</span>
+                  <span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="k">const</span> <span class="n">Type</span><span class="o">*</span><span class="p">,</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span> <span class="o">&amp;</span><span class="n">TypeNames</span><span class="p">,</span>
+                  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Result</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>to output the new derived type</p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="HowToSetUpLLVMStyleRTTI.html" title="How to set up LLVM-style RTTI for your class hierarchy"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="CompilerWriterInfo.html" title="Architecture &amp; Platform Information for Compiler Writers"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

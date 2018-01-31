@@ -1,0 +1,261 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>How To Cross-Compile Clang/LLVM using Clang/LLVM &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LLVM Command Guide" href="CommandGuide/index.html" />
+    <link rel="prev" title="How To Build On ARM" href="HowToBuildOnARM.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="CommandGuide/index.html" title="LLVM Command Guide"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="HowToBuildOnARM.html" title="How To Build On ARM"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="how-to-cross-compile-clang-llvm-using-clang-llvm">
+<h1>How To Cross-Compile Clang/LLVM using Clang/LLVM<a class="headerlink" href="#how-to-cross-compile-clang-llvm-using-clang-llvm" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This document contains information about building LLVM and
+Clang on host machine, targeting another platform.</p>
+<p>For more information on how to use Clang as a cross-compiler,
+please check <a class="reference external" href="http://clang.llvm.org/docs/CrossCompilation.html">http://clang.llvm.org/docs/CrossCompilation.html</a>.</p>
+<p>TODO: Add MIPS and other platforms to this document.</p>
+</div>
+<div class="section" id="cross-compiling-from-x86-64-to-arm">
+<h2>Cross-Compiling from x86_64 to ARM<a class="headerlink" href="#cross-compiling-from-x86-64-to-arm" title="Permalink to this headline">¶</a></h2>
+<p>In this use case, we’ll be using CMake and Ninja, on a Debian-based Linux
+system, cross-compiling from an x86_64 host (most Intel and AMD chips
+nowadays) to a hard-float ARM target (most ARM targets nowadays).</p>
+<p>The packages you’ll need are:</p>
+<blockquote>
+<div><ul class="simple">
+<li><code class="docutils literal"><span class="pre">cmake</span></code></li>
+<li><code class="docutils literal"><span class="pre">ninja-build</span></code> (from backports in Ubuntu)</li>
+<li><code class="docutils literal"><span class="pre">gcc-4.7-arm-linux-gnueabihf</span></code></li>
+<li><code class="docutils literal"><span class="pre">gcc-4.7-multilib-arm-linux-gnueabihf</span></code></li>
+<li><code class="docutils literal"><span class="pre">binutils-arm-linux-gnueabihf</span></code></li>
+<li><code class="docutils literal"><span class="pre">libgcc1-armhf-cross</span></code></li>
+<li><code class="docutils literal"><span class="pre">libsfgcc1-armhf-cross</span></code></li>
+<li><code class="docutils literal"><span class="pre">libstdc++6-armhf-cross</span></code></li>
+<li><code class="docutils literal"><span class="pre">libstdc++6-4.7-dev-armhf-cross</span></code></li>
+</ul>
+</div></blockquote>
+<div class="section" id="configuring-cmake">
+<h3>Configuring CMake<a class="headerlink" href="#configuring-cmake" title="Permalink to this headline">¶</a></h3>
+<p>For more information on how to configure CMake for LLVM/Clang,
+see <a class="reference internal" href="CMake.html"><span class="doc">Building LLVM with CMake</span></a>.</p>
+<dl class="docutils">
+<dt>The CMake options you need to add are:</dt>
+<dd><ul class="first last simple">
+<li><code class="docutils literal"><span class="pre">-DCMAKE_CROSSCOMPILING=True</span></code></li>
+<li><code class="docutils literal"><span class="pre">-DCMAKE_INSTALL_PREFIX=&lt;install-dir&gt;</span></code></li>
+<li><code class="docutils literal"><span class="pre">-DLLVM_TABLEGEN=&lt;path-to-host-bin&gt;/llvm-tblgen</span></code></li>
+<li><code class="docutils literal"><span class="pre">-DCLANG_TABLEGEN=&lt;path-to-host-bin&gt;/clang-tblgen</span></code></li>
+<li><code class="docutils literal"><span class="pre">-DLLVM_DEFAULT_TARGET_TRIPLE=arm-linux-gnueabihf</span></code></li>
+<li><code class="docutils literal"><span class="pre">-DLLVM_TARGET_ARCH=ARM</span></code></li>
+<li><code class="docutils literal"><span class="pre">-DLLVM_TARGETS_TO_BUILD=ARM</span></code></li>
+<li><code class="docutils literal"><span class="pre">-DCMAKE_CXX_FLAGS='-target</span> <span class="pre">armv7a-linux-gnueabihf</span> <span class="pre">-mcpu=cortex-a9</span> <span class="pre">-I/usr/arm-linux-gnueabihf/include/c++/4.7.2/arm-linux-gnueabihf/</span> <span class="pre">-I/usr/arm-linux-gnueabihf/include/</span> <span class="pre">-mfloat-abi=hard</span> <span class="pre">-ccc-gcc-name</span> <span class="pre">arm-linux-gnueabihf-gcc'</span></code></li>
+</ul>
+</dd>
+</dl>
+<p>The TableGen options are required to compile it with the host compiler,
+so you’ll need to compile LLVM (or at least <code class="docutils literal"><span class="pre">llvm-tblgen</span></code>) to your host
+platform before you start. The CXX flags define the target, cpu (which
+defaults to <code class="docutils literal"><span class="pre">fpu=VFP3</span></code> with NEON), and forcing the hard-float ABI. If you’re
+using Clang as a cross-compiler, you will <em>also</em> have to set <code class="docutils literal"><span class="pre">-ccc-gcc-name</span></code>,
+to make sure it picks the correct linker.</p>
+<p>Most of the time, what you want is to have a native compiler to the
+platform itself, but not others. It might not even be feasible to
+produce x86 binaries from ARM targets, so there’s no point in compiling
+all back-ends. For that reason, you should also set the
+<code class="docutils literal"><span class="pre">TARGETS_TO_BUILD</span></code> to only build the ARM back-end.</p>
+<p>You must set the <code class="docutils literal"><span class="pre">CMAKE_INSTALL_PREFIX</span></code>, otherwise a <code class="docutils literal"><span class="pre">ninja</span> <span class="pre">install</span></code>
+will copy ARM binaries to your root filesystem, which is not what you
+want.</p>
+</div>
+<div class="section" id="hacks">
+<h3>Hacks<a class="headerlink" href="#hacks" title="Permalink to this headline">¶</a></h3>
+<p>There are some bugs in current LLVM, which require some fiddling before
+running CMake:</p>
+<ol class="arabic">
+<li><p class="first">If you’re using Clang as the cross-compiler, there is a problem in
+the LLVM ARM back-end that is producing absolute relocations on
+position-independent code (<code class="docutils literal"><span class="pre">R_ARM_THM_MOVW_ABS_NC</span></code>), so for now, you
+should disable PIC:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>-DLLVM_ENABLE_PIC<span class="o">=</span>False
+</pre></div>
+</div>
+<p>This is not a problem, since Clang/LLVM libraries are statically
+linked anyway, it shouldn’t affect much.</p>
+</li>
+<li><p class="first">The ARM libraries won’t be installed in your system, and possibly
+not easily installable anyway, so you’ll have to build/download
+them separately. But the CMake prepare step, which checks for
+dependencies, will check the <em>host</em> libraries, not the <em>target</em>
+ones.</p>
+<p>A quick way of getting the libraries is to download them from
+a distribution repository, like Debian (<a class="reference external" href="http://packages.debian.org/wheezy/">http://packages.debian.org/wheezy/</a>),
+and download the missing libraries. Note that the <code class="docutils literal"><span class="pre">libXXX</span></code>
+will have the shared objects (<code class="docutils literal"><span class="pre">.so</span></code>) and the <code class="docutils literal"><span class="pre">libXXX-dev</span></code> will
+give you the headers and the static (<code class="docutils literal"><span class="pre">.a</span></code>) library. Just in
+case, download both.</p>
+<p>The ones you need for ARM are: <code class="docutils literal"><span class="pre">libtinfo</span></code>, <code class="docutils literal"><span class="pre">zlib1g</span></code>,
+<code class="docutils literal"><span class="pre">libxml2</span></code> and <code class="docutils literal"><span class="pre">liblzma</span></code>. In the Debian repository you’ll
+find downloads for all architectures.</p>
+<p>After you download and unpack all <code class="docutils literal"><span class="pre">.deb</span></code> packages, copy all
+<code class="docutils literal"><span class="pre">.so</span></code> and <code class="docutils literal"><span class="pre">.a</span></code> to a directory, make the appropriate
+symbolic links (if necessary), and add the relevant <code class="docutils literal"><span class="pre">-L</span></code>
+and <code class="docutils literal"><span class="pre">-I</span></code> paths to <code class="docutils literal"><span class="pre">-DCMAKE_CXX_FLAGS</span></code> above.</p>
+</li>
+</ol>
+</div>
+<div class="section" id="running-cmake-and-building">
+<h3>Running CMake and Building<a class="headerlink" href="#running-cmake-and-building" title="Permalink to this headline">¶</a></h3>
+<p>Finally, if you’re using your platform compiler, run:</p>
+<blockquote>
+<div><div class="highlight-bash"><div class="highlight"><pre><span></span>$ cmake -G Ninja &lt;source-dir&gt; &lt;options above&gt;
+</pre></div>
+</div>
+</div></blockquote>
+<p>If you’re using Clang as the cross-compiler, run:</p>
+<blockquote>
+<div><div class="highlight-bash"><div class="highlight"><pre><span></span>$ <span class="nv">CC</span><span class="o">=</span><span class="s1">&#39;clang&#39;</span> <span class="nv">CXX</span><span class="o">=</span><span class="s1">&#39;clang++&#39;</span> cmake -G Ninja &lt;source-dir&gt; &lt;options above&gt;
+</pre></div>
+</div>
+</div></blockquote>
+<p>If you have <code class="docutils literal"><span class="pre">clang</span></code>/<code class="docutils literal"><span class="pre">clang++</span></code> on the path, it should just work, and special
+Ninja files will be created in the build directory. I strongly suggest
+you to run <code class="docutils literal"><span class="pre">cmake</span></code> on a separate build directory, <em>not</em> inside the
+source tree.</p>
+<p>To build, simply type:</p>
+<blockquote>
+<div><div class="highlight-bash"><div class="highlight"><pre><span></span>$ ninja
+</pre></div>
+</div>
+</div></blockquote>
+<p>It should automatically find out how many cores you have, what are
+the rules that needs building and will build the whole thing.</p>
+<p>You can’t run <code class="docutils literal"><span class="pre">ninja</span> <span class="pre">check-all</span></code> on this tree because the created
+binaries are targeted to ARM, not x86_64.</p>
+</div>
+<div class="section" id="installing-and-using">
+<h3>Installing and Using<a class="headerlink" href="#installing-and-using" title="Permalink to this headline">¶</a></h3>
+<p>After the LLVM/Clang has built successfully, you should install it
+via:</p>
+<blockquote>
+<div><div class="highlight-bash"><div class="highlight"><pre><span></span>$ ninja install
+</pre></div>
+</div>
+</div></blockquote>
+<p>which will create a sysroot on the install-dir. You can then tar
+that directory into a binary with the full triple name (for easy
+identification), like:</p>
+<blockquote>
+<div><div class="highlight-bash"><div class="highlight"><pre><span></span>$ ln -sf &lt;install-dir&gt; arm-linux-gnueabihf-clang
+$ tar zchf arm-linux-gnueabihf-clang.tar.gz arm-linux-gnueabihf-clang
+</pre></div>
+</div>
+</div></blockquote>
+<p>If you copy that tarball to your target board, you’ll be able to use
+it for running the test-suite, for example. Follow the guidelines at
+<a class="reference external" href="http://llvm.org/docs/lnt/quickstart.html">http://llvm.org/docs/lnt/quickstart.html</a>, unpack the tarball in the
+test directory, and use options:</p>
+<blockquote>
+<div><div class="highlight-bash"><div class="highlight"><pre><span></span>$ ./sandbox/bin/python sandbox/bin/lnt runtest nt <span class="se">\</span>
+    --sandbox sandbox <span class="se">\</span>
+    --test-suite <span class="sb">`</span><span class="nb">pwd</span><span class="sb">`</span>/test-suite <span class="se">\</span>
+    --cc <span class="sb">`</span><span class="nb">pwd</span><span class="sb">`</span>/arm-linux-gnueabihf-clang/bin/clang <span class="se">\</span>
+    --cxx <span class="sb">`</span><span class="nb">pwd</span><span class="sb">`</span>/arm-linux-gnueabihf-clang/bin/clang++
+</pre></div>
+</div>
+</div></blockquote>
+<p>Remember to add the <code class="docutils literal"><span class="pre">-jN</span></code> options to <code class="docutils literal"><span class="pre">lnt</span></code> to the number of CPUs
+on your board. Also, the path to your clang has to be absolute, so
+you’ll need the <cite>pwd</cite> trick above.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="CommandGuide/index.html" title="LLVM Command Guide"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="HowToBuildOnARM.html" title="How To Build On ARM"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

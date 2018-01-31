@@ -1,0 +1,385 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>LLVMBuild Guide &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="How To Release LLVM To The Public" href="HowToReleaseLLVM.html" />
+    <link rel="prev" title="Creating an LLVM Project" href="Projects.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="HowToReleaseLLVM.html" title="How To Release LLVM To The Public"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="Projects.html" title="Creating an LLVM Project"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvmbuild-guide">
+<h1>LLVMBuild Guide<a class="headerlink" href="#llvmbuild-guide" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
+<li><a class="reference internal" href="#project-organization" id="id2">Project Organization</a></li>
+<li><a class="reference internal" href="#build-integration" id="id3">Build Integration</a></li>
+<li><a class="reference internal" href="#component-overview" id="id4">Component Overview</a></li>
+<li><a class="reference internal" href="#llvmbuild-format-reference" id="id5">LLVMBuild Format Reference</a></li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This document describes the <code class="docutils literal"><span class="pre">LLVMBuild</span></code> organization and files which
+we use to describe parts of the LLVM ecosystem. For description of
+specific LLVMBuild related tools, please see the command guide.</p>
+<p>LLVM is designed to be a modular set of libraries which can be flexibly
+mixed together in order to build a variety of tools, like compilers,
+JITs, custom code generators, optimization passes, interpreters, and so
+on. Related projects in the LLVM system like Clang and LLDB also tend to
+follow this philosophy.</p>
+<p>In order to support this usage style, LLVM has a fairly strict structure
+as to how the source code and various components are organized. The
+<code class="docutils literal"><span class="pre">LLVMBuild.txt</span></code> files are the explicit specification of that
+structure, and are used by the build systems and other tools in order to
+develop the LLVM project.</p>
+</div>
+<div class="section" id="project-organization">
+<h2><a class="toc-backref" href="#id2">Project Organization</a><a class="headerlink" href="#project-organization" title="Permalink to this headline">¶</a></h2>
+<p>The source code for LLVM projects using the LLVMBuild system (LLVM,
+Clang, and LLDB) is organized into <em>components</em>, which define the
+separate pieces of functionality that make up the project. These
+projects may consist of many libraries, associated tools, build tools,
+or other utility tools (for example, testing tools).</p>
+<p>For the most part, the project contents are organized around defining
+one main component per each subdirectory. Each such directory contains
+an <code class="docutils literal"><span class="pre">LLVMBuild.txt</span></code> which contains the component definitions.</p>
+<p>The component descriptions for the project as a whole are automatically
+gathered by the LLVMBuild tools. The tools automatically traverse the
+source directory structure to find all of the component description
+files. NOTE: For performance/sanity reasons, we only traverse into
+subdirectories when the parent itself contains an <code class="docutils literal"><span class="pre">LLVMBuild.txt</span></code>
+description file.</p>
+</div>
+<div class="section" id="build-integration">
+<h2><a class="toc-backref" href="#id3">Build Integration</a><a class="headerlink" href="#build-integration" title="Permalink to this headline">¶</a></h2>
+<p>The LLVMBuild files themselves are just a declarative way to describe
+the project structure. The actual building of the LLVM project is
+handled by another build system (currently we support both
+<a class="reference internal" href="MakefileGuide.html"><span class="doc">Makefiles</span></a> and <a class="reference internal" href="CMake.html"><span class="doc">CMake</span></a>).</p>
+<p>The build system implementation will load the relevant contents of the
+LLVMBuild files and use that to drive the actual project build.
+Typically, the build system will only need to load this information at
+“configure” time, and use it to generative native information. Build
+systems will also handle automatically reconfiguring their information
+when the contents of the <code class="docutils literal"><span class="pre">LLVMBuild.txt</span></code> files change.</p>
+<p>Developers generally are not expected to need to be aware of the details
+of how the LLVMBuild system is integrated into their build. Ideally,
+LLVM developers who are not working on the build system would only ever
+need to modify the contents of the <code class="docutils literal"><span class="pre">LLVMBuild.txt</span></code> description files
+(although we have not reached this goal yet).</p>
+<p>For more information on the utility tool we provide to help interfacing
+with the build system, please see the <a class="reference internal" href="CommandGuide/llvm-build.html"><span class="doc">llvm-build</span></a> documentation.</p>
+</div>
+<div class="section" id="component-overview">
+<h2><a class="toc-backref" href="#id4">Component Overview</a><a class="headerlink" href="#component-overview" title="Permalink to this headline">¶</a></h2>
+<p>As mentioned earlier, LLVM projects are organized into logical
+<em>components</em>. Every component is typically grouped into its own
+subdirectory. Generally, a component is organized around a coherent
+group of sources which have some kind of clear API separation from other
+parts of the code.</p>
+<p>LLVM primarily uses the following types of components:</p>
+<ul class="simple">
+<li><em>Libraries</em> - Library components define a distinct API which can be
+independently linked into LLVM client applications. Libraries typically
+have private and public header files, and may specify a link of required
+libraries that they build on top of.</li>
+<li><em>Build Tools</em> - Build tools are applications which are designed to be run
+as part of the build process (typically to generate other source files).
+Currently, LLVM uses one main build tool called <a class="reference internal" href="TableGen/index.html"><span class="doc">TableGen</span></a>
+to generate a variety of source files.</li>
+<li><em>Tools</em> - Command line applications which are built using the LLVM
+component libraries. Most LLVM tools are small and are primarily
+frontends to the library interfaces.</li>
+</ul>
+<p>Components are described using <code class="docutils literal"><span class="pre">LLVMBuild.txt</span></code> files in the directories
+that define the component. See the <a class="reference internal" href="#llvmbuild-format-reference">LLVMBuild Format Reference</a> section
+for information on the exact format of these files.</p>
+</div>
+<div class="section" id="llvmbuild-format-reference">
+<h2><a class="toc-backref" href="#id5">LLVMBuild Format Reference</a><a class="headerlink" href="#llvmbuild-format-reference" title="Permalink to this headline">¶</a></h2>
+<p>LLVMBuild files are written in a simple variant of the INI or configuration
+file format (<a class="reference external" href="http://en.wikipedia.org/wiki/INI_file">Wikipedia entry</a>). The format defines a list of sections
+each of which may contain some number of properties. A simple example of
+the file format is below:</p>
+<div class="highlight-ini"><div class="highlight"><pre><span></span><span class="c1">; Comments start with a semi-colon.</span>
+
+<span class="c1">; Sections are declared using square brackets.</span>
+<span class="k">[component_0]</span>
+
+<span class="c1">; Properties are declared using &#39;=&#39; and are contained in the previous section.</span>
+<span class="c1">;</span>
+<span class="c1">; We support simple string and boolean scalar values and list values, where</span>
+<span class="c1">; items are separated by spaces. There is no support for quoting, and so</span>
+<span class="c1">; property values may not contain spaces.</span>
+<span class="na">property_name</span> <span class="o">=</span> <span class="s">property_value</span>
+<span class="na">list_property_name</span> <span class="o">=</span> <span class="s">value_1 value_2 ... value_n</span>
+<span class="na">boolean_property_name</span> <span class="o">=</span> <span class="s">1 (or 0)</span>
+</pre></div>
+</div>
+<p>LLVMBuild files are expected to define a strict set of sections and
+properties. A typical component description file for a library
+component would look like the following example:</p>
+<div class="highlight-ini"><div class="highlight"><pre><span></span><span class="k">[component_0]</span>
+<span class="na">type</span> <span class="o">=</span> <span class="s">Library</span>
+<span class="na">name</span> <span class="o">=</span> <span class="s">Linker</span>
+<span class="na">parent</span> <span class="o">=</span> <span class="s">Libraries</span>
+<span class="na">required_libraries</span> <span class="o">=</span> <span class="s">Archive BitReader Core Support TransformUtils</span>
+</pre></div>
+</div>
+<p>A full description of the exact sections and properties which are
+allowed follows.</p>
+<p>Each file may define exactly one common component, named <code class="docutils literal"><span class="pre">common</span></code>. The
+common component may define the following properties:</p>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">subdirectories</span></code> <strong>[optional]</strong></p>
+<p>If given, a list of the names of the subdirectories from the current
+subpath to search for additional LLVMBuild files.</p>
+</li>
+</ul>
+<p>Each file may define multiple components. Each component is described by a
+section who name starts with <code class="docutils literal"><span class="pre">component</span></code>. The remainder of the section
+name is ignored, but each section name must be unique. Typically components
+are just number in order for files with multiple components
+(<code class="docutils literal"><span class="pre">component_0</span></code>, <code class="docutils literal"><span class="pre">component_1</span></code>, and so on).</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Section names not matching this format (or the <code class="docutils literal"><span class="pre">common</span></code> section) are
+currently unused and are disallowed.</p>
+</div>
+<p>Every component is defined by the properties in the section. The exact
+list of properties that are allowed depends on the component type.
+Components <strong>may not</strong> define any properties other than those expected
+by the component type.</p>
+<p>Every component must define the following properties:</p>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">type</span></code> <strong>[required]</strong></p>
+<p>The type of the component. Supported component types are detailed
+below. Most components will define additional properties which may be
+required or optional.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">name</span></code> <strong>[required]</strong></p>
+<p>The name of the component. Names are required to be unique across the
+entire project.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">parent</span></code> <strong>[required]</strong></p>
+<p>The name of the logical parent of the component. Components are
+organized into a logical tree to make it easier to navigate and
+organize groups of components. The parents have no semantics as far
+as the project build is concerned, however. Typically, the parent
+will be the main component of the parent directory.</p>
+<p>Components may reference the root pseudo component using <code class="docutils literal"><span class="pre">$ROOT</span></code> to
+indicate they should logically be grouped at the top-level.</p>
+</li>
+</ul>
+<p>Components may define the following properties:</p>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">dependencies</span></code> <strong>[optional]</strong></p>
+<p>If specified, a list of names of components which <em>must</em> be built
+prior to this one. This should only be exactly those components which
+produce some tool or source code required for building the component.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last"><code class="docutils literal"><span class="pre">Group</span></code> and <code class="docutils literal"><span class="pre">LibraryGroup</span></code> components have no semantics for the
+actual build, and are not allowed to specify dependencies.</p>
+</div>
+</li>
+</ul>
+<p>The following section lists the available component types, as well as
+the properties which are associated with that component.</p>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">type</span> <span class="pre">=</span> <span class="pre">Group</span></code></p>
+<p>Group components exist purely to allow additional arbitrary structuring
+of the logical components tree. For example, one might define a
+<code class="docutils literal"><span class="pre">Libraries</span></code> group to hold all of the root library components.</p>
+<p><code class="docutils literal"><span class="pre">Group</span></code> components have no additionally properties.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">type</span> <span class="pre">=</span> <span class="pre">Library</span></code></p>
+<p>Library components define an individual library which should be built
+from the source code in the component directory.</p>
+<p>Components with this type use the following properties:</p>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">library_name</span></code> <strong>[optional]</strong></p>
+<p>If given, the name to use for the actual library file on disk. If
+not given, the name is derived from the component name itself.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">required_libraries</span></code> <strong>[optional]</strong></p>
+<p>If given, a list of the names of <code class="docutils literal"><span class="pre">Library</span></code> or <code class="docutils literal"><span class="pre">LibraryGroup</span></code>
+components which must also be linked in whenever this library is
+used. That is, the link time dependencies for this component. When
+tools are built, the build system will include the transitive closure
+of all <code class="docutils literal"><span class="pre">required_libraries</span></code> for the components the tool needs.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">add_to_library_groups</span></code> <strong>[optional]</strong></p>
+<p>If given, a list of the names of <code class="docutils literal"><span class="pre">LibraryGroup</span></code> components which
+this component is also part of. This allows nesting groups of
+components.  For example, the <code class="docutils literal"><span class="pre">X86</span></code> target might define a library
+group for all of the <code class="docutils literal"><span class="pre">X86</span></code> components. That library group might
+then be included in the <code class="docutils literal"><span class="pre">all-targets</span></code> library group.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">installed</span></code> <strong>[optional]</strong> <strong>[boolean]</strong></p>
+<p>Whether this library is installed. Libraries that are not installed
+are only reported by <code class="docutils literal"><span class="pre">llvm-config</span></code> when it is run as part of a
+development directory.</p>
+</li>
+</ul>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">type</span> <span class="pre">=</span> <span class="pre">LibraryGroup</span></code></p>
+<p><code class="docutils literal"><span class="pre">LibraryGroup</span></code> components are a mechanism to allow easy definition of
+useful sets of related components. In particular, we use them to easily
+specify things like “all targets”, or “all assembly printers”.</p>
+<p>Components with this type use the following properties:</p>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">required_libraries</span></code> <strong>[optional]</strong></p>
+<p>See the <code class="docutils literal"><span class="pre">Library</span></code> type for a description of this property.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">add_to_library_groups</span></code> <strong>[optional]</strong></p>
+<p>See the <code class="docutils literal"><span class="pre">Library</span></code> type for a description of this property.</p>
+</li>
+</ul>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">type</span> <span class="pre">=</span> <span class="pre">TargetGroup</span></code></p>
+<p><code class="docutils literal"><span class="pre">TargetGroup</span></code> components are an extension of <code class="docutils literal"><span class="pre">LibraryGroup</span></code>s,
+specifically for defining LLVM targets (which are handled specially in a
+few places).</p>
+<p>The name of the component should always be the name of the target.</p>
+<p>Components with this type use the <code class="docutils literal"><span class="pre">LibraryGroup</span></code> properties in
+addition to:</p>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">has_asmparser</span></code> <strong>[optional]</strong> <strong>[boolean]</strong></p>
+<p>Whether this target defines an assembly parser.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">has_asmprinter</span></code> <strong>[optional]</strong> <strong>[boolean]</strong></p>
+<p>Whether this target defines an assembly printer.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">has_disassembler</span></code> <strong>[optional]</strong> <strong>[boolean]</strong></p>
+<p>Whether this target defines a disassembler.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">has_jit</span></code> <strong>[optional]</strong> <strong>[boolean]</strong></p>
+<p>Whether this target supports JIT compilation.</p>
+</li>
+</ul>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">type</span> <span class="pre">=</span> <span class="pre">Tool</span></code></p>
+<p><code class="docutils literal"><span class="pre">Tool</span></code> components define standalone command line tools which should be
+built from the source code in the component directory and linked.</p>
+<p>Components with this type use the following properties:</p>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">required_libraries</span></code> <strong>[optional]</strong></p>
+<p>If given, a list of the names of <code class="docutils literal"><span class="pre">Library</span></code> or <code class="docutils literal"><span class="pre">LibraryGroup</span></code>
+components which this tool is required to be linked with.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The values should be the component names, which may not always
+match up with the actual library names on disk.</p>
+</div>
+<p>Build systems are expected to properly include all of the libraries
+required by the linked components (i.e., the transitive closure of
+<code class="docutils literal"><span class="pre">required_libraries</span></code>).</p>
+<p>Build systems are also expected to understand that those library
+components must be built prior to linking – they do not also need
+to be listed under <code class="docutils literal"><span class="pre">dependencies</span></code>.</p>
+</li>
+</ul>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">type</span> <span class="pre">=</span> <span class="pre">BuildTool</span></code></p>
+<p><code class="docutils literal"><span class="pre">BuildTool</span></code> components are like <code class="docutils literal"><span class="pre">Tool</span></code> components, except that the
+tool is supposed to be built for the platform where the build is running
+(instead of that platform being targeted). Build systems are expected
+to handle the fact that required libraries may need to be built for
+multiple platforms in order to be able to link this tool.</p>
+<p><code class="docutils literal"><span class="pre">BuildTool</span></code> components currently use the exact same properties as
+<code class="docutils literal"><span class="pre">Tool</span></code> components, the type distinction is only used to differentiate
+what the tool is built for.</p>
+</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="HowToReleaseLLVM.html" title="How To Release LLVM To The Public"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="Projects.html" title="Creating an LLVM Project"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,1827 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Writing an LLVM Backend &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="How To Use Instruction Mappings" href="HowToUseInstrMappings.html" />
+    <link rel="prev" title="Auto-Vectorization in LLVM" href="Vectorizers.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="HowToUseInstrMappings.html" title="How To Use Instruction Mappings"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="Vectorizers.html" title="Auto-Vectorization in LLVM"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="writing-an-llvm-backend">
+<h1>Writing an LLVM Backend<a class="headerlink" href="#writing-an-llvm-backend" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+</div>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id3">Introduction</a><ul>
+<li><a class="reference internal" href="#audience" id="id4">Audience</a></li>
+<li><a class="reference internal" href="#prerequisite-reading" id="id5">Prerequisite Reading</a></li>
+<li><a class="reference internal" href="#basic-steps" id="id6">Basic Steps</a></li>
+<li><a class="reference internal" href="#preliminaries" id="id7">Preliminaries</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#target-machine" id="id8">Target Machine</a></li>
+<li><a class="reference internal" href="#target-registration" id="id9">Target Registration</a></li>
+<li><a class="reference internal" href="#register-set-and-register-classes" id="id10">Register Set and Register Classes</a><ul>
+<li><a class="reference internal" href="#defining-a-register" id="id11">Defining a Register</a></li>
+<li><a class="reference internal" href="#defining-a-register-class" id="id12">Defining a Register Class</a></li>
+<li><a class="reference internal" href="#implement-a-subclass-of-targetregisterinfo" id="id13">Implement a subclass of <code class="docutils literal"><span class="pre">TargetRegisterInfo</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#instruction-set" id="id14">Instruction Set</a><ul>
+<li><a class="reference internal" href="#instruction-operand-mapping" id="id15">Instruction Operand Mapping</a><ul>
+<li><a class="reference internal" href="#instruction-operand-name-mapping" id="id16">Instruction Operand Name Mapping</a></li>
+<li><a class="reference internal" href="#instruction-operand-types" id="id17">Instruction Operand Types</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#instruction-scheduling" id="id18">Instruction Scheduling</a></li>
+<li><a class="reference internal" href="#instruction-relation-mapping" id="id19">Instruction Relation Mapping</a></li>
+<li><a class="reference internal" href="#implement-a-subclass-of-targetinstrinfo" id="id20">Implement a subclass of <code class="docutils literal"><span class="pre">TargetInstrInfo</span></code></a></li>
+<li><a class="reference internal" href="#branch-folding-and-if-conversion" id="id21">Branch Folding and If Conversion</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#instruction-selector" id="id22">Instruction Selector</a><ul>
+<li><a class="reference internal" href="#the-selectiondag-legalize-phase" id="id23">The SelectionDAG Legalize Phase</a><ul>
+<li><a class="reference internal" href="#promote" id="id24">Promote</a></li>
+<li><a class="reference internal" href="#expand" id="id25">Expand</a></li>
+<li><a class="reference internal" href="#custom" id="id26">Custom</a></li>
+<li><a class="reference internal" href="#legal" id="id27">Legal</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#calling-conventions" id="id28">Calling Conventions</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#assembly-printer" id="id29">Assembly Printer</a></li>
+<li><a class="reference internal" href="#subtarget-support" id="id30">Subtarget Support</a></li>
+<li><a class="reference internal" href="#jit-support" id="id31">JIT Support</a><ul>
+<li><a class="reference internal" href="#machine-code-emitter" id="id32">Machine Code Emitter</a></li>
+<li><a class="reference internal" href="#target-jit-info" id="id33">Target JIT Info</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id3">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This document describes techniques for writing compiler backends that convert
+the LLVM Intermediate Representation (IR) to code for a specified machine or
+other languages.  Code intended for a specific machine can take the form of
+either assembly code or binary code (usable for a JIT compiler).</p>
+<p>The backend of LLVM features a target-independent code generator that may
+create output for several types of target CPUs — including X86, PowerPC,
+ARM, and SPARC.  The backend may also be used to generate code targeted at SPUs
+of the Cell processor or GPUs to support the execution of compute kernels.</p>
+<p>The document focuses on existing examples found in subdirectories of
+<code class="docutils literal"><span class="pre">llvm/lib/Target</span></code> in a downloaded LLVM release.  In particular, this document
+focuses on the example of creating a static compiler (one that emits text
+assembly) for a SPARC target, because SPARC has fairly standard
+characteristics, such as a RISC instruction set and straightforward calling
+conventions.</p>
+<div class="section" id="audience">
+<h3><a class="toc-backref" href="#id4">Audience</a><a class="headerlink" href="#audience" title="Permalink to this headline">¶</a></h3>
+<p>The audience for this document is anyone who needs to write an LLVM backend to
+generate code for a specific hardware or software target.</p>
+</div>
+<div class="section" id="prerequisite-reading">
+<h3><a class="toc-backref" href="#id5">Prerequisite Reading</a><a class="headerlink" href="#prerequisite-reading" title="Permalink to this headline">¶</a></h3>
+<p>These essential documents must be read before reading this document:</p>
+<ul class="simple">
+<li><a class="reference external" href="LangRef.html">LLVM Language Reference Manual</a> — a reference manual for
+the LLVM assembly language.</li>
+<li><a class="reference internal" href="CodeGenerator.html"><span class="doc">The LLVM Target-Independent Code Generator</span></a> — a guide to the components (classes and code
+generation algorithms) for translating the LLVM internal representation into
+machine code for a specified target.  Pay particular attention to the
+descriptions of code generation stages: Instruction Selection, Scheduling and
+Formation, SSA-based Optimization, Register Allocation, Prolog/Epilog Code
+Insertion, Late Machine Code Optimizations, and Code Emission.</li>
+<li><a class="reference internal" href="TableGen/index.html"><span class="doc">TableGen</span></a> — a document that describes the TableGen
+(<code class="docutils literal"><span class="pre">tblgen</span></code>) application that manages domain-specific information to support
+LLVM code generation.  TableGen processes input from a target description
+file (<code class="docutils literal"><span class="pre">.td</span></code> suffix) and generates C++ code that can be used for code
+generation.</li>
+<li><a class="reference internal" href="WritingAnLLVMPass.html"><span class="doc">Writing an LLVM Pass</span></a> — The assembly printer is a <code class="docutils literal"><span class="pre">FunctionPass</span></code>, as
+are several <code class="docutils literal"><span class="pre">SelectionDAG</span></code> processing steps.</li>
+</ul>
+<p>To follow the SPARC examples in this document, have a copy of <a class="reference external" href="http://www.sparc.org/standards/V8.pdf">The SPARC
+Architecture Manual, Version 8</a> for
+reference.  For details about the ARM instruction set, refer to the <a class="reference external" href="http://infocenter.arm.com/">ARM
+Architecture Reference Manual</a>.  For more about
+the GNU Assembler format (<code class="docutils literal"><span class="pre">GAS</span></code>), see <a class="reference external" href="http://sourceware.org/binutils/docs/as/index.html">Using As</a>, especially for the
+assembly printer.  “Using As” contains a list of target machine dependent
+features.</p>
+</div>
+<div class="section" id="basic-steps">
+<h3><a class="toc-backref" href="#id6">Basic Steps</a><a class="headerlink" href="#basic-steps" title="Permalink to this headline">¶</a></h3>
+<p>To write a compiler backend for LLVM that converts the LLVM IR to code for a
+specified target (machine or other language), follow these steps:</p>
+<ul class="simple">
+<li>Create a subclass of the <code class="docutils literal"><span class="pre">TargetMachine</span></code> class that describes
+characteristics of your target machine.  Copy existing examples of specific
+<code class="docutils literal"><span class="pre">TargetMachine</span></code> class and header files; for example, start with
+<code class="docutils literal"><span class="pre">SparcTargetMachine.cpp</span></code> and <code class="docutils literal"><span class="pre">SparcTargetMachine.h</span></code>, but change the file
+names for your target.  Similarly, change code that references “<code class="docutils literal"><span class="pre">Sparc</span></code>” to
+reference your target.</li>
+<li>Describe the register set of the target.  Use TableGen to generate code for
+register definition, register aliases, and register classes from a
+target-specific <code class="docutils literal"><span class="pre">RegisterInfo.td</span></code> input file.  You should also write
+additional code for a subclass of the <code class="docutils literal"><span class="pre">TargetRegisterInfo</span></code> class that
+represents the class register file data used for register allocation and also
+describes the interactions between registers.</li>
+<li>Describe the instruction set of the target.  Use TableGen to generate code
+for target-specific instructions from target-specific versions of
+<code class="docutils literal"><span class="pre">TargetInstrFormats.td</span></code> and <code class="docutils literal"><span class="pre">TargetInstrInfo.td</span></code>.  You should write
+additional code for a subclass of the <code class="docutils literal"><span class="pre">TargetInstrInfo</span></code> class to represent
+machine instructions supported by the target machine.</li>
+<li>Describe the selection and conversion of the LLVM IR from a Directed Acyclic
+Graph (DAG) representation of instructions to native target-specific
+instructions.  Use TableGen to generate code that matches patterns and
+selects instructions based on additional information in a target-specific
+version of <code class="docutils literal"><span class="pre">TargetInstrInfo.td</span></code>.  Write code for <code class="docutils literal"><span class="pre">XXXISelDAGToDAG.cpp</span></code>,
+where <code class="docutils literal"><span class="pre">XXX</span></code> identifies the specific target, to perform pattern matching and
+DAG-to-DAG instruction selection.  Also write code in <code class="docutils literal"><span class="pre">XXXISelLowering.cpp</span></code>
+to replace or remove operations and data types that are not supported
+natively in a SelectionDAG.</li>
+<li>Write code for an assembly printer that converts LLVM IR to a GAS format for
+your target machine.  You should add assembly strings to the instructions
+defined in your target-specific version of <code class="docutils literal"><span class="pre">TargetInstrInfo.td</span></code>.  You
+should also write code for a subclass of <code class="docutils literal"><span class="pre">AsmPrinter</span></code> that performs the
+LLVM-to-assembly conversion and a trivial subclass of <code class="docutils literal"><span class="pre">TargetAsmInfo</span></code>.</li>
+<li>Optionally, add support for subtargets (i.e., variants with different
+capabilities).  You should also write code for a subclass of the
+<code class="docutils literal"><span class="pre">TargetSubtarget</span></code> class, which allows you to use the <code class="docutils literal"><span class="pre">-mcpu=</span></code> and
+<code class="docutils literal"><span class="pre">-mattr=</span></code> command-line options.</li>
+<li>Optionally, add JIT support and create a machine code emitter (subclass of
+<code class="docutils literal"><span class="pre">TargetJITInfo</span></code>) that is used to emit binary code directly into memory.</li>
+</ul>
+<p>In the <code class="docutils literal"><span class="pre">.cpp</span></code> and <code class="docutils literal"><span class="pre">.h</span></code>. files, initially stub up these methods and then
+implement them later.  Initially, you may not know which private members that
+the class will need and which components will need to be subclassed.</p>
+</div>
+<div class="section" id="preliminaries">
+<h3><a class="toc-backref" href="#id7">Preliminaries</a><a class="headerlink" href="#preliminaries" title="Permalink to this headline">¶</a></h3>
+<p>To actually create your compiler backend, you need to create and modify a few
+files.  The absolute minimum is discussed here.  But to actually use the LLVM
+target-independent code generator, you must perform the steps described in the
+<a class="reference internal" href="CodeGenerator.html"><span class="doc">LLVM Target-Independent Code Generator</span></a> document.</p>
+<p>First, you should create a subdirectory under <code class="docutils literal"><span class="pre">lib/Target</span></code> to hold all the
+files related to your target.  If your target is called “Dummy”, create the
+directory <code class="docutils literal"><span class="pre">lib/Target/Dummy</span></code>.</p>
+<p>In this new directory, create a <code class="docutils literal"><span class="pre">Makefile</span></code>.  It is easiest to copy a
+<code class="docutils literal"><span class="pre">Makefile</span></code> of another target and modify it.  It should at least contain the
+<code class="docutils literal"><span class="pre">LEVEL</span></code>, <code class="docutils literal"><span class="pre">LIBRARYNAME</span></code> and <code class="docutils literal"><span class="pre">TARGET</span></code> variables, and then include
+<code class="docutils literal"><span class="pre">$(LEVEL)/Makefile.common</span></code>.  The library can be named <code class="docutils literal"><span class="pre">LLVMDummy</span></code> (for
+example, see the MIPS target).  Alternatively, you can split the library into
+<code class="docutils literal"><span class="pre">LLVMDummyCodeGen</span></code> and <code class="docutils literal"><span class="pre">LLVMDummyAsmPrinter</span></code>, the latter of which should be
+implemented in a subdirectory below <code class="docutils literal"><span class="pre">lib/Target/Dummy</span></code> (for example, see the
+PowerPC target).</p>
+<p>Note that these two naming schemes are hardcoded into <code class="docutils literal"><span class="pre">llvm-config</span></code>.  Using
+any other naming scheme will confuse <code class="docutils literal"><span class="pre">llvm-config</span></code> and produce a lot of
+(seemingly unrelated) linker errors when linking <code class="docutils literal"><span class="pre">llc</span></code>.</p>
+<p>To make your target actually do something, you need to implement a subclass of
+<code class="docutils literal"><span class="pre">TargetMachine</span></code>.  This implementation should typically be in the file
+<code class="docutils literal"><span class="pre">lib/Target/DummyTargetMachine.cpp</span></code>, but any file in the <code class="docutils literal"><span class="pre">lib/Target</span></code>
+directory will be built and should work.  To use LLVM’s target independent code
+generator, you should do what all current machine backends do: create a
+subclass of <code class="docutils literal"><span class="pre">LLVMTargetMachine</span></code>.  (To create a target from scratch, create a
+subclass of <code class="docutils literal"><span class="pre">TargetMachine</span></code>.)</p>
+<p>To get LLVM to actually build and link your target, you need to add it to the
+<code class="docutils literal"><span class="pre">TARGETS_TO_BUILD</span></code> variable.  To do this, you modify the configure script to
+know about your target when parsing the <code class="docutils literal"><span class="pre">--enable-targets</span></code> option.  Search
+the configure script for <code class="docutils literal"><span class="pre">TARGETS_TO_BUILD</span></code>, add your target to the lists
+there (some creativity required), and then reconfigure.  Alternatively, you can
+change <code class="docutils literal"><span class="pre">autotools/configure.ac</span></code> and regenerate configure by running
+<code class="docutils literal"><span class="pre">./autoconf/AutoRegen.sh</span></code>.</p>
+</div>
+</div>
+<div class="section" id="target-machine">
+<h2><a class="toc-backref" href="#id8">Target Machine</a><a class="headerlink" href="#target-machine" title="Permalink to this headline">¶</a></h2>
+<p><code class="docutils literal"><span class="pre">LLVMTargetMachine</span></code> is designed as a base class for targets implemented with
+the LLVM target-independent code generator.  The <code class="docutils literal"><span class="pre">LLVMTargetMachine</span></code> class
+should be specialized by a concrete target class that implements the various
+virtual methods.  <code class="docutils literal"><span class="pre">LLVMTargetMachine</span></code> is defined as a subclass of
+<code class="docutils literal"><span class="pre">TargetMachine</span></code> in <code class="docutils literal"><span class="pre">include/llvm/Target/TargetMachine.h</span></code>.  The
+<code class="docutils literal"><span class="pre">TargetMachine</span></code> class implementation (<code class="docutils literal"><span class="pre">TargetMachine.cpp</span></code>) also processes
+numerous command-line options.</p>
+<p>To create a concrete target-specific subclass of <code class="docutils literal"><span class="pre">LLVMTargetMachine</span></code>, start
+by copying an existing <code class="docutils literal"><span class="pre">TargetMachine</span></code> class and header.  You should name the
+files that you create to reflect your specific target.  For instance, for the
+SPARC target, name the files <code class="docutils literal"><span class="pre">SparcTargetMachine.h</span></code> and
+<code class="docutils literal"><span class="pre">SparcTargetMachine.cpp</span></code>.</p>
+<p>For a target machine <code class="docutils literal"><span class="pre">XXX</span></code>, the implementation of <code class="docutils literal"><span class="pre">XXXTargetMachine</span></code> must
+have access methods to obtain objects that represent target components.  These
+methods are named <code class="docutils literal"><span class="pre">get*Info</span></code>, and are intended to obtain the instruction set
+(<code class="docutils literal"><span class="pre">getInstrInfo</span></code>), register set (<code class="docutils literal"><span class="pre">getRegisterInfo</span></code>), stack frame layout
+(<code class="docutils literal"><span class="pre">getFrameInfo</span></code>), and similar information.  <code class="docutils literal"><span class="pre">XXXTargetMachine</span></code> must also
+implement the <code class="docutils literal"><span class="pre">getDataLayout</span></code> method to access an object with target-specific
+data characteristics, such as data type size and alignment requirements.</p>
+<p>For instance, for the SPARC target, the header file <code class="docutils literal"><span class="pre">SparcTargetMachine.h</span></code>
+declares prototypes for several <code class="docutils literal"><span class="pre">get*Info</span></code> and <code class="docutils literal"><span class="pre">getDataLayout</span></code> methods that
+simply return a class member.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">namespace</span> <span class="n">llvm</span> <span class="p">{</span>
+
+<span class="k">class</span> <span class="nc">Module</span><span class="p">;</span>
+
+<span class="k">class</span> <span class="nc">SparcTargetMachine</span> <span class="o">:</span> <span class="k">public</span> <span class="n">LLVMTargetMachine</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="n">DataLayout</span> <span class="n">DataLayout</span><span class="p">;</span>       <span class="c1">// Calculates type size &amp; alignment</span>
+  <span class="n">SparcSubtarget</span> <span class="n">Subtarget</span><span class="p">;</span>
+  <span class="n">SparcInstrInfo</span> <span class="n">InstrInfo</span><span class="p">;</span>
+  <span class="n">TargetFrameInfo</span> <span class="n">FrameInfo</span><span class="p">;</span>
+
+<span class="k">protected</span><span class="o">:</span>
+  <span class="k">virtual</span> <span class="k">const</span> <span class="n">TargetAsmInfo</span> <span class="o">*</span><span class="n">createTargetAsmInfo</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+  <span class="n">SparcTargetMachine</span><span class="p">(</span><span class="k">const</span> <span class="n">Module</span> <span class="o">&amp;</span><span class="n">M</span><span class="p">,</span> <span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">FS</span><span class="p">);</span>
+
+  <span class="k">virtual</span> <span class="k">const</span> <span class="n">SparcInstrInfo</span> <span class="o">*</span><span class="nf">getInstrInfo</span><span class="p">()</span> <span class="k">const</span> <span class="p">{</span><span class="k">return</span> <span class="o">&amp;</span><span class="n">InstrInfo</span><span class="p">;</span> <span class="p">}</span>
+  <span class="k">virtual</span> <span class="k">const</span> <span class="n">TargetFrameInfo</span> <span class="o">*</span><span class="nf">getFrameInfo</span><span class="p">()</span> <span class="k">const</span> <span class="p">{</span><span class="k">return</span> <span class="o">&amp;</span><span class="n">FrameInfo</span><span class="p">;</span> <span class="p">}</span>
+  <span class="k">virtual</span> <span class="k">const</span> <span class="n">TargetSubtarget</span> <span class="o">*</span><span class="nf">getSubtargetImpl</span><span class="p">()</span> <span class="k">const</span><span class="p">{</span><span class="k">return</span> <span class="o">&amp;</span><span class="n">Subtarget</span><span class="p">;</span> <span class="p">}</span>
+  <span class="k">virtual</span> <span class="k">const</span> <span class="n">TargetRegisterInfo</span> <span class="o">*</span><span class="nf">getRegisterInfo</span><span class="p">()</span> <span class="k">const</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="o">&amp;</span><span class="n">InstrInfo</span><span class="p">.</span><span class="n">getRegisterInfo</span><span class="p">();</span>
+  <span class="p">}</span>
+  <span class="k">virtual</span> <span class="k">const</span> <span class="n">DataLayout</span> <span class="o">*</span><span class="nf">getDataLayout</span><span class="p">()</span> <span class="k">const</span> <span class="p">{</span> <span class="k">return</span> <span class="o">&amp;</span><span class="n">DataLayout</span><span class="p">;</span> <span class="p">}</span>
+  <span class="k">static</span> <span class="kt">unsigned</span> <span class="nf">getModuleMatchQuality</span><span class="p">(</span><span class="k">const</span> <span class="n">Module</span> <span class="o">&amp;</span><span class="n">M</span><span class="p">);</span>
+
+  <span class="c1">// Pass Pipeline Configuration</span>
+  <span class="k">virtual</span> <span class="kt">bool</span> <span class="nf">addInstSelector</span><span class="p">(</span><span class="n">PassManagerBase</span> <span class="o">&amp;</span><span class="n">PM</span><span class="p">,</span> <span class="kt">bool</span> <span class="n">Fast</span><span class="p">);</span>
+  <span class="k">virtual</span> <span class="kt">bool</span> <span class="nf">addPreEmitPass</span><span class="p">(</span><span class="n">PassManagerBase</span> <span class="o">&amp;</span><span class="n">PM</span><span class="p">,</span> <span class="kt">bool</span> <span class="n">Fast</span><span class="p">);</span>
+<span class="p">};</span>
+
+<span class="p">}</span> <span class="c1">// end namespace llvm</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">getInstrInfo()</span></code></li>
+<li><code class="docutils literal"><span class="pre">getRegisterInfo()</span></code></li>
+<li><code class="docutils literal"><span class="pre">getFrameInfo()</span></code></li>
+<li><code class="docutils literal"><span class="pre">getDataLayout()</span></code></li>
+<li><code class="docutils literal"><span class="pre">getSubtargetImpl()</span></code></li>
+</ul>
+<p>For some targets, you also need to support the following methods:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">getTargetLowering()</span></code></li>
+<li><code class="docutils literal"><span class="pre">getJITInfo()</span></code></li>
+</ul>
+<p>Some architectures, such as GPUs, do not support jumping to an arbitrary
+program location and implement branching using masked execution and loop using
+special instructions around the loop body. In order to avoid CFG modifications
+that introduce irreducible control flow not handled by such hardware, a target
+must call <cite>setRequiresStructuredCFG(true)</cite> when being initialized.</p>
+<p>In addition, the <code class="docutils literal"><span class="pre">XXXTargetMachine</span></code> constructor should specify a
+<code class="docutils literal"><span class="pre">TargetDescription</span></code> string that determines the data layout for the target
+machine, including characteristics such as pointer size, alignment, and
+endianness.  For example, the constructor for <code class="docutils literal"><span class="pre">SparcTargetMachine</span></code> contains
+the following:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">SparcTargetMachine</span><span class="o">::</span><span class="n">SparcTargetMachine</span><span class="p">(</span><span class="k">const</span> <span class="n">Module</span> <span class="o">&amp;</span><span class="n">M</span><span class="p">,</span> <span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">FS</span><span class="p">)</span>
+  <span class="o">:</span> <span class="n">DataLayout</span><span class="p">(</span><span class="s">&quot;E-p:32:32-f128:128:128&quot;</span><span class="p">),</span>
+    <span class="n">Subtarget</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="n">FS</span><span class="p">),</span> <span class="n">InstrInfo</span><span class="p">(</span><span class="n">Subtarget</span><span class="p">),</span>
+    <span class="n">FrameInfo</span><span class="p">(</span><span class="n">TargetFrameInfo</span><span class="o">::</span><span class="n">StackGrowsDown</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Hyphens separate portions of the <code class="docutils literal"><span class="pre">TargetDescription</span></code> string.</p>
+<ul class="simple">
+<li>An upper-case “<code class="docutils literal"><span class="pre">E</span></code>” in the string indicates a big-endian target data model.
+A lower-case “<code class="docutils literal"><span class="pre">e</span></code>” indicates little-endian.</li>
+<li>“<code class="docutils literal"><span class="pre">p:</span></code>” is followed by pointer information: size, ABI alignment, and
+preferred alignment.  If only two figures follow “<code class="docutils literal"><span class="pre">p:</span></code>”, then the first
+value is pointer size, and the second value is both ABI and preferred
+alignment.</li>
+<li>Then a letter for numeric type alignment: “<code class="docutils literal"><span class="pre">i</span></code>”, “<code class="docutils literal"><span class="pre">f</span></code>”, “<code class="docutils literal"><span class="pre">v</span></code>”, or
+“<code class="docutils literal"><span class="pre">a</span></code>” (corresponding to integer, floating point, vector, or aggregate).
+“<code class="docutils literal"><span class="pre">i</span></code>”, “<code class="docutils literal"><span class="pre">v</span></code>”, or “<code class="docutils literal"><span class="pre">a</span></code>” are followed by ABI alignment and preferred
+alignment. “<code class="docutils literal"><span class="pre">f</span></code>” is followed by three values: the first indicates the size
+of a long double, then ABI alignment, and then ABI preferred alignment.</li>
+</ul>
+</div>
+<div class="section" id="target-registration">
+<h2><a class="toc-backref" href="#id9">Target Registration</a><a class="headerlink" href="#target-registration" title="Permalink to this headline">¶</a></h2>
+<p>You must also register your target with the <code class="docutils literal"><span class="pre">TargetRegistry</span></code>, which is what
+other LLVM tools use to be able to lookup and use your target at runtime.  The
+<code class="docutils literal"><span class="pre">TargetRegistry</span></code> can be used directly, but for most targets there are helper
+templates which should take care of the work for you.</p>
+<p>All targets should declare a global <code class="docutils literal"><span class="pre">Target</span></code> object which is used to
+represent the target during registration.  Then, in the target’s <code class="docutils literal"><span class="pre">TargetInfo</span></code>
+library, the target should define that object and use the <code class="docutils literal"><span class="pre">RegisterTarget</span></code>
+template to register the target.  For example, the Sparc registration code
+looks like this:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">Target</span> <span class="n">llvm</span><span class="o">::</span><span class="n">TheSparcTarget</span><span class="p">;</span>
+
+<span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="kt">void</span> <span class="n">LLVMInitializeSparcTargetInfo</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">RegisterTarget</span><span class="o">&lt;</span><span class="n">Triple</span><span class="o">::</span><span class="n">sparc</span><span class="p">,</span> <span class="cm">/*HasJIT=*/</span><span class="nb">false</span><span class="o">&gt;</span>
+    <span class="n">X</span><span class="p">(</span><span class="n">TheSparcTarget</span><span class="p">,</span> <span class="s">&quot;sparc&quot;</span><span class="p">,</span> <span class="s">&quot;Sparc&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This allows the <code class="docutils literal"><span class="pre">TargetRegistry</span></code> to look up the target by name or by target
+triple.  In addition, most targets will also register additional features which
+are available in separate libraries.  These registration steps are separate,
+because some clients may wish to only link in some parts of the target — the
+JIT code generator does not require the use of the assembler printer, for
+example.  Here is an example of registering the Sparc assembly printer:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="kt">void</span> <span class="n">LLVMInitializeSparcAsmPrinter</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">RegisterAsmPrinter</span><span class="o">&lt;</span><span class="n">SparcAsmPrinter</span><span class="o">&gt;</span> <span class="n">X</span><span class="p">(</span><span class="n">TheSparcTarget</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>For more information, see “<a class="reference external" href="/doxygen/TargetRegistry_8h-source.html">llvm/Target/TargetRegistry.h</a>”.</p>
+</div>
+<div class="section" id="register-set-and-register-classes">
+<h2><a class="toc-backref" href="#id10">Register Set and Register Classes</a><a class="headerlink" href="#register-set-and-register-classes" title="Permalink to this headline">¶</a></h2>
+<p>You should describe a concrete target-specific class that represents the
+register file of a target machine.  This class is called <code class="docutils literal"><span class="pre">XXXRegisterInfo</span></code>
+(where <code class="docutils literal"><span class="pre">XXX</span></code> identifies the target) and represents the class register file
+data that is used for register allocation.  It also describes the interactions
+between registers.</p>
+<p>You also need to define register classes to categorize related registers.  A
+register class should be added for groups of registers that are all treated the
+same way for some instruction.  Typical examples are register classes for
+integer, floating-point, or vector registers.  A register allocator allows an
+instruction to use any register in a specified register class to perform the
+instruction in a similar manner.  Register classes allocate virtual registers
+to instructions from these sets, and register classes let the
+target-independent register allocator automatically choose the actual
+registers.</p>
+<p>Much of the code for registers, including register definition, register
+aliases, and register classes, is generated by TableGen from
+<code class="docutils literal"><span class="pre">XXXRegisterInfo.td</span></code> input files and placed in <code class="docutils literal"><span class="pre">XXXGenRegisterInfo.h.inc</span></code>
+and <code class="docutils literal"><span class="pre">XXXGenRegisterInfo.inc</span></code> output files.  Some of the code in the
+implementation of <code class="docutils literal"><span class="pre">XXXRegisterInfo</span></code> requires hand-coding.</p>
+<div class="section" id="defining-a-register">
+<h3><a class="toc-backref" href="#id11">Defining a Register</a><a class="headerlink" href="#defining-a-register" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal"><span class="pre">XXXRegisterInfo.td</span></code> file typically starts with register definitions for
+a target machine.  The <code class="docutils literal"><span class="pre">Register</span></code> class (specified in <code class="docutils literal"><span class="pre">Target.td</span></code>) is used
+to define an object for each register.  The specified string <code class="docutils literal"><span class="pre">n</span></code> becomes the
+<code class="docutils literal"><span class="pre">Name</span></code> of the register.  The basic <code class="docutils literal"><span class="pre">Register</span></code> object does not have any
+subregisters and does not specify any aliases.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class Register&lt;string n&gt; {
+  string Namespace = &quot;&quot;;
+  string AsmName = n;
+  string Name = n;
+  int SpillSize = 0;
+  int SpillAlignment = 0;
+  list&lt;Register&gt; Aliases = [];
+  list&lt;Register&gt; SubRegs = [];
+  list&lt;int&gt; DwarfNumbers = [];
+}
+</pre></div>
+</div>
+<p>For example, in the <code class="docutils literal"><span class="pre">X86RegisterInfo.td</span></code> file, there are register definitions
+that utilize the <code class="docutils literal"><span class="pre">Register</span></code> class, such as:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def AL : Register&lt;&quot;AL&quot;&gt;, DwarfRegNum&lt;[0, 0, 0]&gt;;
+</pre></div>
+</div>
+<p>This defines the register <code class="docutils literal"><span class="pre">AL</span></code> and assigns it values (with <code class="docutils literal"><span class="pre">DwarfRegNum</span></code>)
+that are used by <code class="docutils literal"><span class="pre">gcc</span></code>, <code class="docutils literal"><span class="pre">gdb</span></code>, or a debug information writer to identify a
+register.  For register <code class="docutils literal"><span class="pre">AL</span></code>, <code class="docutils literal"><span class="pre">DwarfRegNum</span></code> takes an array of 3 values
+representing 3 different modes: the first element is for X86-64, the second for
+exception handling (EH) on X86-32, and the third is generic. -1 is a special
+Dwarf number that indicates the gcc number is undefined, and -2 indicates the
+register number is invalid for this mode.</p>
+<p>From the previously described line in the <code class="docutils literal"><span class="pre">X86RegisterInfo.td</span></code> file, TableGen
+generates this code in the <code class="docutils literal"><span class="pre">X86GenRegisterInfo.inc</span></code> file:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">static</span> <span class="k">const</span> <span class="kt">unsigned</span> <span class="n">GR8</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span> <span class="n">X86</span><span class="o">::</span><span class="n">AL</span><span class="p">,</span> <span class="p">...</span> <span class="p">};</span>
+
+<span class="k">const</span> <span class="kt">unsigned</span> <span class="n">AL_AliasSet</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span> <span class="n">X86</span><span class="o">::</span><span class="n">AX</span><span class="p">,</span> <span class="n">X86</span><span class="o">::</span><span class="n">EAX</span><span class="p">,</span> <span class="n">X86</span><span class="o">::</span><span class="n">RAX</span><span class="p">,</span> <span class="mi">0</span> <span class="p">};</span>
+
+<span class="k">const</span> <span class="n">TargetRegisterDesc</span> <span class="n">RegisterDescriptors</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="p">...</span>
+<span class="p">{</span> <span class="s">&quot;AL&quot;</span><span class="p">,</span> <span class="s">&quot;AL&quot;</span><span class="p">,</span> <span class="n">AL_AliasSet</span><span class="p">,</span> <span class="n">Empty_SubRegsSet</span><span class="p">,</span> <span class="n">Empty_SubRegsSet</span><span class="p">,</span> <span class="n">AL_SuperRegsSet</span> <span class="p">},</span> <span class="p">...</span>
+</pre></div>
+</div>
+<p>From the register info file, TableGen generates a <code class="docutils literal"><span class="pre">TargetRegisterDesc</span></code> object
+for each register.  <code class="docutils literal"><span class="pre">TargetRegisterDesc</span></code> is defined in
+<code class="docutils literal"><span class="pre">include/llvm/Target/TargetRegisterInfo.h</span></code> with the following fields:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">TargetRegisterDesc</span> <span class="p">{</span>
+  <span class="k">const</span> <span class="kt">char</span>     <span class="o">*</span><span class="n">AsmName</span><span class="p">;</span>      <span class="c1">// Assembly language name for the register</span>
+  <span class="k">const</span> <span class="kt">char</span>     <span class="o">*</span><span class="n">Name</span><span class="p">;</span>         <span class="c1">// Printable name for the reg (for debugging)</span>
+  <span class="k">const</span> <span class="kt">unsigned</span> <span class="o">*</span><span class="n">AliasSet</span><span class="p">;</span>     <span class="c1">// Register Alias Set</span>
+  <span class="k">const</span> <span class="kt">unsigned</span> <span class="o">*</span><span class="n">SubRegs</span><span class="p">;</span>      <span class="c1">// Sub-register set</span>
+  <span class="k">const</span> <span class="kt">unsigned</span> <span class="o">*</span><span class="n">ImmSubRegs</span><span class="p">;</span>   <span class="c1">// Immediate sub-register set</span>
+  <span class="k">const</span> <span class="kt">unsigned</span> <span class="o">*</span><span class="n">SuperRegs</span><span class="p">;</span>    <span class="c1">// Super-register set</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>TableGen uses the entire target description file (<code class="docutils literal"><span class="pre">.td</span></code>) to determine text
+names for the register (in the <code class="docutils literal"><span class="pre">AsmName</span></code> and <code class="docutils literal"><span class="pre">Name</span></code> fields of
+<code class="docutils literal"><span class="pre">TargetRegisterDesc</span></code>) and the relationships of other registers to the defined
+register (in the other <code class="docutils literal"><span class="pre">TargetRegisterDesc</span></code> fields).  In this example, other
+definitions establish the registers “<code class="docutils literal"><span class="pre">AX</span></code>”, “<code class="docutils literal"><span class="pre">EAX</span></code>”, and “<code class="docutils literal"><span class="pre">RAX</span></code>” as
+aliases for one another, so TableGen generates a null-terminated array
+(<code class="docutils literal"><span class="pre">AL_AliasSet</span></code>) for this register alias set.</p>
+<p>The <code class="docutils literal"><span class="pre">Register</span></code> class is commonly used as a base class for more complex
+classes.  In <code class="docutils literal"><span class="pre">Target.td</span></code>, the <code class="docutils literal"><span class="pre">Register</span></code> class is the base for the
+<code class="docutils literal"><span class="pre">RegisterWithSubRegs</span></code> class that is used to define registers that need to
+specify subregisters in the <code class="docutils literal"><span class="pre">SubRegs</span></code> list, as shown here:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class RegisterWithSubRegs&lt;string n, list&lt;Register&gt; subregs&gt; : Register&lt;n&gt; {
+  let SubRegs = subregs;
+}
+</pre></div>
+</div>
+<p>In <code class="docutils literal"><span class="pre">SparcRegisterInfo.td</span></code>, additional register classes are defined for SPARC:
+a <code class="docutils literal"><span class="pre">Register</span></code> subclass, <code class="docutils literal"><span class="pre">SparcReg</span></code>, and further subclasses: <code class="docutils literal"><span class="pre">Ri</span></code>, <code class="docutils literal"><span class="pre">Rf</span></code>,
+and <code class="docutils literal"><span class="pre">Rd</span></code>.  SPARC registers are identified by 5-bit ID numbers, which is a
+feature common to these subclasses.  Note the use of “<code class="docutils literal"><span class="pre">let</span></code>” expressions to
+override values that are initially defined in a superclass (such as <code class="docutils literal"><span class="pre">SubRegs</span></code>
+field in the <code class="docutils literal"><span class="pre">Rd</span></code> class).</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class SparcReg&lt;string n&gt; : Register&lt;n&gt; {
+  field bits&lt;5&gt; Num;
+  let Namespace = &quot;SP&quot;;
+}
+// Ri - 32-bit integer registers
+class Ri&lt;bits&lt;5&gt; num, string n&gt; :
+SparcReg&lt;n&gt; {
+  let Num = num;
+}
+// Rf - 32-bit floating-point registers
+class Rf&lt;bits&lt;5&gt; num, string n&gt; :
+SparcReg&lt;n&gt; {
+  let Num = num;
+}
+// Rd - Slots in the FP register file for 64-bit floating-point values.
+class Rd&lt;bits&lt;5&gt; num, string n, list&lt;Register&gt; subregs&gt; : SparcReg&lt;n&gt; {
+  let Num = num;
+  let SubRegs = subregs;
+}
+</pre></div>
+</div>
+<p>In the <code class="docutils literal"><span class="pre">SparcRegisterInfo.td</span></code> file, there are register definitions that
+utilize these subclasses of <code class="docutils literal"><span class="pre">Register</span></code>, such as:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def G0 : Ri&lt; 0, &quot;G0&quot;&gt;, DwarfRegNum&lt;[0]&gt;;
+def G1 : Ri&lt; 1, &quot;G1&quot;&gt;, DwarfRegNum&lt;[1]&gt;;
+...
+def F0 : Rf&lt; 0, &quot;F0&quot;&gt;, DwarfRegNum&lt;[32]&gt;;
+def F1 : Rf&lt; 1, &quot;F1&quot;&gt;, DwarfRegNum&lt;[33]&gt;;
+...
+def D0 : Rd&lt; 0, &quot;F0&quot;, [F0, F1]&gt;, DwarfRegNum&lt;[32]&gt;;
+def D1 : Rd&lt; 2, &quot;F2&quot;, [F2, F3]&gt;, DwarfRegNum&lt;[34]&gt;;
+</pre></div>
+</div>
+<p>The last two registers shown above (<code class="docutils literal"><span class="pre">D0</span></code> and <code class="docutils literal"><span class="pre">D1</span></code>) are double-precision
+floating-point registers that are aliases for pairs of single-precision
+floating-point sub-registers.  In addition to aliases, the sub-register and
+super-register relationships of the defined register are in fields of a
+register’s <code class="docutils literal"><span class="pre">TargetRegisterDesc</span></code>.</p>
+</div>
+<div class="section" id="defining-a-register-class">
+<h3><a class="toc-backref" href="#id12">Defining a Register Class</a><a class="headerlink" href="#defining-a-register-class" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal"><span class="pre">RegisterClass</span></code> class (specified in <code class="docutils literal"><span class="pre">Target.td</span></code>) is used to define an
+object that represents a group of related registers and also defines the
+default allocation order of the registers.  A target description file
+<code class="docutils literal"><span class="pre">XXXRegisterInfo.td</span></code> that uses <code class="docutils literal"><span class="pre">Target.td</span></code> can construct register classes
+using the following class:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class RegisterClass&lt;string namespace,
+list&lt;ValueType&gt; regTypes, int alignment, dag regList&gt; {
+  string Namespace = namespace;
+  list&lt;ValueType&gt; RegTypes = regTypes;
+  int Size = 0;  // spill size, in bits; zero lets tblgen pick the size
+  int Alignment = alignment;
+
+  // CopyCost is the cost of copying a value between two registers
+  // default value 1 means a single instruction
+  // A negative value means copying is extremely expensive or impossible
+  int CopyCost = 1;
+  dag MemberList = regList;
+
+  // for register classes that are subregisters of this class
+  list&lt;RegisterClass&gt; SubRegClassList = [];
+
+  code MethodProtos = [{}];  // to insert arbitrary code
+  code MethodBodies = [{}];
+}
+</pre></div>
+</div>
+<p>To define a <code class="docutils literal"><span class="pre">RegisterClass</span></code>, use the following 4 arguments:</p>
+<ul class="simple">
+<li>The first argument of the definition is the name of the namespace.</li>
+<li>The second argument is a list of <code class="docutils literal"><span class="pre">ValueType</span></code> register type values that are
+defined in <code class="docutils literal"><span class="pre">include/llvm/CodeGen/ValueTypes.td</span></code>.  Defined values include
+integer types (such as <code class="docutils literal"><span class="pre">i16</span></code>, <code class="docutils literal"><span class="pre">i32</span></code>, and <code class="docutils literal"><span class="pre">i1</span></code> for Boolean),
+floating-point types (<code class="docutils literal"><span class="pre">f32</span></code>, <code class="docutils literal"><span class="pre">f64</span></code>), and vector types (for example,
+<code class="docutils literal"><span class="pre">v8i16</span></code> for an <code class="docutils literal"><span class="pre">8</span> <span class="pre">x</span> <span class="pre">i16</span></code> vector).  All registers in a <code class="docutils literal"><span class="pre">RegisterClass</span></code>
+must have the same <code class="docutils literal"><span class="pre">ValueType</span></code>, but some registers may store vector data in
+different configurations.  For example a register that can process a 128-bit
+vector may be able to handle 16 8-bit integer elements, 8 16-bit integers, 4
+32-bit integers, and so on.</li>
+<li>The third argument of the <code class="docutils literal"><span class="pre">RegisterClass</span></code> definition specifies the
+alignment required of the registers when they are stored or loaded to
+memory.</li>
+<li>The final argument, <code class="docutils literal"><span class="pre">regList</span></code>, specifies which registers are in this class.
+If an alternative allocation order method is not specified, then <code class="docutils literal"><span class="pre">regList</span></code>
+also defines the order of allocation used by the register allocator.  Besides
+simply listing registers with <code class="docutils literal"><span class="pre">(add</span> <span class="pre">R0,</span> <span class="pre">R1,</span> <span class="pre">...)</span></code>, more advanced set
+operators are available.  See <code class="docutils literal"><span class="pre">include/llvm/Target/Target.td</span></code> for more
+information.</li>
+</ul>
+<p>In <code class="docutils literal"><span class="pre">SparcRegisterInfo.td</span></code>, three <code class="docutils literal"><span class="pre">RegisterClass</span></code> objects are defined:
+<code class="docutils literal"><span class="pre">FPRegs</span></code>, <code class="docutils literal"><span class="pre">DFPRegs</span></code>, and <code class="docutils literal"><span class="pre">IntRegs</span></code>.  For all three register classes, the
+first argument defines the namespace with the string “<code class="docutils literal"><span class="pre">SP</span></code>”.  <code class="docutils literal"><span class="pre">FPRegs</span></code>
+defines a group of 32 single-precision floating-point registers (<code class="docutils literal"><span class="pre">F0</span></code> to
+<code class="docutils literal"><span class="pre">F31</span></code>); <code class="docutils literal"><span class="pre">DFPRegs</span></code> defines a group of 16 double-precision registers
+(<code class="docutils literal"><span class="pre">D0-D15</span></code>).</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>// F0, F1, F2, ..., F31
+def FPRegs : RegisterClass&lt;&quot;SP&quot;, [f32], 32, (sequence &quot;F%u&quot;, 0, 31)&gt;;
+
+def DFPRegs : RegisterClass&lt;&quot;SP&quot;, [f64], 64,
+                            (add D0, D1, D2, D3, D4, D5, D6, D7, D8,
+                                 D9, D10, D11, D12, D13, D14, D15)&gt;;
+
+def IntRegs : RegisterClass&lt;&quot;SP&quot;, [i32], 32,
+    (add L0, L1, L2, L3, L4, L5, L6, L7,
+         I0, I1, I2, I3, I4, I5,
+         O0, O1, O2, O3, O4, O5, O7,
+         G1,
+         // Non-allocatable regs:
+         G2, G3, G4,
+         O6,        // stack ptr
+         I6,        // frame ptr
+         I7,        // return address
+         G0,        // constant zero
+         G5, G6, G7 // reserved for kernel
+    )&gt;;
+</pre></div>
+</div>
+<p>Using <code class="docutils literal"><span class="pre">SparcRegisterInfo.td</span></code> with TableGen generates several output files
+that are intended for inclusion in other source code that you write.
+<code class="docutils literal"><span class="pre">SparcRegisterInfo.td</span></code> generates <code class="docutils literal"><span class="pre">SparcGenRegisterInfo.h.inc</span></code>, which should
+be included in the header file for the implementation of the SPARC register
+implementation that you write (<code class="docutils literal"><span class="pre">SparcRegisterInfo.h</span></code>).  In
+<code class="docutils literal"><span class="pre">SparcGenRegisterInfo.h.inc</span></code> a new structure is defined called
+<code class="docutils literal"><span class="pre">SparcGenRegisterInfo</span></code> that uses <code class="docutils literal"><span class="pre">TargetRegisterInfo</span></code> as its base.  It also
+specifies types, based upon the defined register classes: <code class="docutils literal"><span class="pre">DFPRegsClass</span></code>,
+<code class="docutils literal"><span class="pre">FPRegsClass</span></code>, and <code class="docutils literal"><span class="pre">IntRegsClass</span></code>.</p>
+<p><code class="docutils literal"><span class="pre">SparcRegisterInfo.td</span></code> also generates <code class="docutils literal"><span class="pre">SparcGenRegisterInfo.inc</span></code>, which is
+included at the bottom of <code class="docutils literal"><span class="pre">SparcRegisterInfo.cpp</span></code>, the SPARC register
+implementation.  The code below shows only the generated integer registers and
+associated register classes.  The order of registers in <code class="docutils literal"><span class="pre">IntRegs</span></code> reflects
+the order in the definition of <code class="docutils literal"><span class="pre">IntRegs</span></code> in the target description file.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// IntRegs Register Class...</span>
+<span class="k">static</span> <span class="k">const</span> <span class="kt">unsigned</span> <span class="n">IntRegs</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="n">SP</span><span class="o">::</span><span class="n">L0</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">L1</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">L2</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">L3</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">L4</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">L5</span><span class="p">,</span>
+  <span class="n">SP</span><span class="o">::</span><span class="n">L6</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">L7</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">I0</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">I1</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">I2</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">I3</span><span class="p">,</span>
+  <span class="n">SP</span><span class="o">::</span><span class="n">I4</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">I5</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">O0</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">O1</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">O2</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">O3</span><span class="p">,</span>
+  <span class="n">SP</span><span class="o">::</span><span class="n">O4</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">O5</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">O7</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">G1</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">G2</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">G3</span><span class="p">,</span>
+  <span class="n">SP</span><span class="o">::</span><span class="n">G4</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">O6</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">I6</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">I7</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">G0</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">G5</span><span class="p">,</span>
+  <span class="n">SP</span><span class="o">::</span><span class="n">G6</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">G7</span><span class="p">,</span>
+<span class="p">};</span>
+
+<span class="c1">// IntRegsVTs Register Class Value Types...</span>
+<span class="k">static</span> <span class="k">const</span> <span class="n">MVT</span><span class="o">::</span><span class="n">ValueType</span> <span class="n">IntRegsVTs</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="n">MVT</span><span class="o">::</span><span class="n">i32</span><span class="p">,</span> <span class="n">MVT</span><span class="o">::</span><span class="n">Other</span>
+<span class="p">};</span>
+
+<span class="k">namespace</span> <span class="n">SP</span> <span class="p">{</span>   <span class="c1">// Register class instances</span>
+  <span class="n">DFPRegsClass</span>    <span class="n">DFPRegsRegClass</span><span class="p">;</span>
+  <span class="n">FPRegsClass</span>     <span class="n">FPRegsRegClass</span><span class="p">;</span>
+  <span class="n">IntRegsClass</span>    <span class="n">IntRegsRegClass</span><span class="p">;</span>
+<span class="p">...</span>
+  <span class="c1">// IntRegs Sub-register Classess...</span>
+  <span class="k">static</span> <span class="k">const</span> <span class="n">TargetRegisterClass</span><span class="o">*</span> <span class="k">const</span> <span class="n">IntRegsSubRegClasses</span> <span class="p">[]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="nb">NULL</span>
+  <span class="p">};</span>
+<span class="p">...</span>
+  <span class="c1">// IntRegs Super-register Classess...</span>
+  <span class="k">static</span> <span class="k">const</span> <span class="n">TargetRegisterClass</span><span class="o">*</span> <span class="k">const</span> <span class="n">IntRegsSuperRegClasses</span> <span class="p">[]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="nb">NULL</span>
+  <span class="p">};</span>
+<span class="p">...</span>
+  <span class="c1">// IntRegs Register Class sub-classes...</span>
+  <span class="k">static</span> <span class="k">const</span> <span class="n">TargetRegisterClass</span><span class="o">*</span> <span class="k">const</span> <span class="n">IntRegsSubclasses</span> <span class="p">[]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="nb">NULL</span>
+  <span class="p">};</span>
+<span class="p">...</span>
+  <span class="c1">// IntRegs Register Class super-classes...</span>
+  <span class="k">static</span> <span class="k">const</span> <span class="n">TargetRegisterClass</span><span class="o">*</span> <span class="k">const</span> <span class="n">IntRegsSuperclasses</span> <span class="p">[]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="nb">NULL</span>
+  <span class="p">};</span>
+
+  <span class="n">IntRegsClass</span><span class="o">::</span><span class="n">IntRegsClass</span><span class="p">()</span> <span class="o">:</span> <span class="n">TargetRegisterClass</span><span class="p">(</span><span class="n">IntRegsRegClassID</span><span class="p">,</span>
+    <span class="n">IntRegsVTs</span><span class="p">,</span> <span class="n">IntRegsSubclasses</span><span class="p">,</span> <span class="n">IntRegsSuperclasses</span><span class="p">,</span> <span class="n">IntRegsSubRegClasses</span><span class="p">,</span>
+    <span class="n">IntRegsSuperRegClasses</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">IntRegs</span><span class="p">,</span> <span class="n">IntRegs</span> <span class="o">+</span> <span class="mi">32</span><span class="p">)</span> <span class="p">{}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The register allocators will avoid using reserved registers, and callee saved
+registers are not used until all the volatile registers have been used.  That
+is usually good enough, but in some cases it may be necessary to provide custom
+allocation orders.</p>
+</div>
+<div class="section" id="implement-a-subclass-of-targetregisterinfo">
+<h3><a class="toc-backref" href="#id13">Implement a subclass of <code class="docutils literal"><span class="pre">TargetRegisterInfo</span></code></a><a class="headerlink" href="#implement-a-subclass-of-targetregisterinfo" title="Permalink to this headline">¶</a></h3>
+<p>The final step is to hand code portions of <code class="docutils literal"><span class="pre">XXXRegisterInfo</span></code>, which
+implements the interface described in <code class="docutils literal"><span class="pre">TargetRegisterInfo.h</span></code> (see
+<a class="reference internal" href="CodeGenerator.html#targetregisterinfo"><span class="std std-ref">The TargetRegisterInfo class</span></a>).  These functions return <code class="docutils literal"><span class="pre">0</span></code>, <code class="docutils literal"><span class="pre">NULL</span></code>, or
+<code class="docutils literal"><span class="pre">false</span></code>, unless overridden.  Here is a list of functions that are overridden
+for the SPARC implementation in <code class="docutils literal"><span class="pre">SparcRegisterInfo.cpp</span></code>:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">getCalleeSavedRegs</span></code> — Returns a list of callee-saved registers in the
+order of the desired callee-save stack frame offset.</li>
+<li><code class="docutils literal"><span class="pre">getReservedRegs</span></code> — Returns a bitset indexed by physical register
+numbers, indicating if a particular register is unavailable.</li>
+<li><code class="docutils literal"><span class="pre">hasFP</span></code> — Return a Boolean indicating if a function should have a
+dedicated frame pointer register.</li>
+<li><code class="docutils literal"><span class="pre">eliminateCallFramePseudoInstr</span></code> — If call frame setup or destroy pseudo
+instructions are used, this can be called to eliminate them.</li>
+<li><code class="docutils literal"><span class="pre">eliminateFrameIndex</span></code> — Eliminate abstract frame indices from
+instructions that may use them.</li>
+<li><code class="docutils literal"><span class="pre">emitPrologue</span></code> — Insert prologue code into the function.</li>
+<li><code class="docutils literal"><span class="pre">emitEpilogue</span></code> — Insert epilogue code into the function.</li>
+</ul>
+</div>
+</div>
+<div class="section" id="instruction-set">
+<span id="id1"></span><h2><a class="toc-backref" href="#id14">Instruction Set</a><a class="headerlink" href="#instruction-set" title="Permalink to this headline">¶</a></h2>
+<p>During the early stages of code generation, the LLVM IR code is converted to a
+<code class="docutils literal"><span class="pre">SelectionDAG</span></code> with nodes that are instances of the <code class="docutils literal"><span class="pre">SDNode</span></code> class
+containing target instructions.  An <code class="docutils literal"><span class="pre">SDNode</span></code> has an opcode, operands, type
+requirements, and operation properties.  For example, is an operation
+commutative, does an operation load from memory.  The various operation node
+types are described in the <code class="docutils literal"><span class="pre">include/llvm/CodeGen/SelectionDAGNodes.h</span></code> file
+(values of the <code class="docutils literal"><span class="pre">NodeType</span></code> enum in the <code class="docutils literal"><span class="pre">ISD</span></code> namespace).</p>
+<p>TableGen uses the following target description (<code class="docutils literal"><span class="pre">.td</span></code>) input files to
+generate much of the code for instruction definition:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">Target.td</span></code> — Where the <code class="docutils literal"><span class="pre">Instruction</span></code>, <code class="docutils literal"><span class="pre">Operand</span></code>, <code class="docutils literal"><span class="pre">InstrInfo</span></code>, and
+other fundamental classes are defined.</li>
+<li><code class="docutils literal"><span class="pre">TargetSelectionDAG.td</span></code> — Used by <code class="docutils literal"><span class="pre">SelectionDAG</span></code> instruction selection
+generators, contains <code class="docutils literal"><span class="pre">SDTC*</span></code> classes (selection DAG type constraint),
+definitions of <code class="docutils literal"><span class="pre">SelectionDAG</span></code> nodes (such as <code class="docutils literal"><span class="pre">imm</span></code>, <code class="docutils literal"><span class="pre">cond</span></code>, <code class="docutils literal"><span class="pre">bb</span></code>,
+<code class="docutils literal"><span class="pre">add</span></code>, <code class="docutils literal"><span class="pre">fadd</span></code>, <code class="docutils literal"><span class="pre">sub</span></code>), and pattern support (<code class="docutils literal"><span class="pre">Pattern</span></code>, <code class="docutils literal"><span class="pre">Pat</span></code>,
+<code class="docutils literal"><span class="pre">PatFrag</span></code>, <code class="docutils literal"><span class="pre">PatLeaf</span></code>, <code class="docutils literal"><span class="pre">ComplexPattern</span></code>.</li>
+<li><code class="docutils literal"><span class="pre">XXXInstrFormats.td</span></code> — Patterns for definitions of target-specific
+instructions.</li>
+<li><code class="docutils literal"><span class="pre">XXXInstrInfo.td</span></code> — Target-specific definitions of instruction templates,
+condition codes, and instructions of an instruction set.  For architecture
+modifications, a different file name may be used.  For example, for Pentium
+with SSE instruction, this file is <code class="docutils literal"><span class="pre">X86InstrSSE.td</span></code>, and for Pentium with
+MMX, this file is <code class="docutils literal"><span class="pre">X86InstrMMX.td</span></code>.</li>
+</ul>
+<p>There is also a target-specific <code class="docutils literal"><span class="pre">XXX.td</span></code> file, where <code class="docutils literal"><span class="pre">XXX</span></code> is the name of
+the target.  The <code class="docutils literal"><span class="pre">XXX.td</span></code> file includes the other <code class="docutils literal"><span class="pre">.td</span></code> input files, but
+its contents are only directly important for subtargets.</p>
+<p>You should describe a concrete target-specific class <code class="docutils literal"><span class="pre">XXXInstrInfo</span></code> that
+represents machine instructions supported by a target machine.
+<code class="docutils literal"><span class="pre">XXXInstrInfo</span></code> contains an array of <code class="docutils literal"><span class="pre">XXXInstrDescriptor</span></code> objects, each of
+which describes one instruction.  An instruction descriptor defines:</p>
+<ul class="simple">
+<li>Opcode mnemonic</li>
+<li>Number of operands</li>
+<li>List of implicit register definitions and uses</li>
+<li>Target-independent properties (such as memory access, is commutable)</li>
+<li>Target-specific flags</li>
+</ul>
+<p>The Instruction class (defined in <code class="docutils literal"><span class="pre">Target.td</span></code>) is mostly used as a base for
+more complex instruction classes.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class Instruction {
+  string Namespace = &quot;&quot;;
+  dag OutOperandList;    // A dag containing the MI def operand list.
+  dag InOperandList;     // A dag containing the MI use operand list.
+  string AsmString = &quot;&quot;; // The .s format to print the instruction with.
+  list&lt;dag&gt; Pattern;     // Set to the DAG pattern for this instruction.
+  list&lt;Register&gt; Uses = [];
+  list&lt;Register&gt; Defs = [];
+  list&lt;Predicate&gt; Predicates = [];  // predicates turned into isel match code
+  ... remainder not shown for space ...
+}
+</pre></div>
+</div>
+<p>A <code class="docutils literal"><span class="pre">SelectionDAG</span></code> node (<code class="docutils literal"><span class="pre">SDNode</span></code>) should contain an object representing a
+target-specific instruction that is defined in <code class="docutils literal"><span class="pre">XXXInstrInfo.td</span></code>.  The
+instruction objects should represent instructions from the architecture manual
+of the target machine (such as the SPARC Architecture Manual for the SPARC
+target).</p>
+<p>A single instruction from the architecture manual is often modeled as multiple
+target instructions, depending upon its operands.  For example, a manual might
+describe an add instruction that takes a register or an immediate operand.  An
+LLVM target could model this with two instructions named <code class="docutils literal"><span class="pre">ADDri</span></code> and
+<code class="docutils literal"><span class="pre">ADDrr</span></code>.</p>
+<p>You should define a class for each instruction category and define each opcode
+as a subclass of the category with appropriate parameters such as the fixed
+binary encoding of opcodes and extended opcodes.  You should map the register
+bits to the bits of the instruction in which they are encoded (for the JIT).
+Also you should specify how the instruction should be printed when the
+automatic assembly printer is used.</p>
+<p>As is described in the SPARC Architecture Manual, Version 8, there are three
+major 32-bit formats for instructions.  Format 1 is only for the <code class="docutils literal"><span class="pre">CALL</span></code>
+instruction.  Format 2 is for branch on condition codes and <code class="docutils literal"><span class="pre">SETHI</span></code> (set high
+bits of a register) instructions.  Format 3 is for other instructions.</p>
+<p>Each of these formats has corresponding classes in <code class="docutils literal"><span class="pre">SparcInstrFormat.td</span></code>.
+<code class="docutils literal"><span class="pre">InstSP</span></code> is a base class for other instruction classes.  Additional base
+classes are specified for more precise formats: for example in
+<code class="docutils literal"><span class="pre">SparcInstrFormat.td</span></code>, <code class="docutils literal"><span class="pre">F2_1</span></code> is for <code class="docutils literal"><span class="pre">SETHI</span></code>, and <code class="docutils literal"><span class="pre">F2_2</span></code> is for
+branches.  There are three other base classes: <code class="docutils literal"><span class="pre">F3_1</span></code> for register/register
+operations, <code class="docutils literal"><span class="pre">F3_2</span></code> for register/immediate operations, and <code class="docutils literal"><span class="pre">F3_3</span></code> for
+floating-point operations.  <code class="docutils literal"><span class="pre">SparcInstrInfo.td</span></code> also adds the base class
+<code class="docutils literal"><span class="pre">Pseudo</span></code> for synthetic SPARC instructions.</p>
+<p><code class="docutils literal"><span class="pre">SparcInstrInfo.td</span></code> largely consists of operand and instruction definitions
+for the SPARC target.  In <code class="docutils literal"><span class="pre">SparcInstrInfo.td</span></code>, the following target
+description file entry, <code class="docutils literal"><span class="pre">LDrr</span></code>, defines the Load Integer instruction for a
+Word (the <code class="docutils literal"><span class="pre">LD</span></code> SPARC opcode) from a memory address to a register.  The first
+parameter, the value 3 (<code class="docutils literal"><span class="pre">11</span></code><sub>2</sub>), is the operation value for this
+category of operation.  The second parameter (<code class="docutils literal"><span class="pre">000000</span></code><sub>2</sub>) is the
+specific operation value for <code class="docutils literal"><span class="pre">LD</span></code>/Load Word.  The third parameter is the
+output destination, which is a register operand and defined in the <code class="docutils literal"><span class="pre">Register</span></code>
+target description file (<code class="docutils literal"><span class="pre">IntRegs</span></code>).</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def LDrr : F3_1 &lt;3, 0b000000, (outs IntRegs:$dst), (ins MEMrr:$addr),
+                 &quot;ld [$addr], $dst&quot;,
+                 [(set i32:$dst, (load ADDRrr:$addr))]&gt;;
+</pre></div>
+</div>
+<p>The fourth parameter is the input source, which uses the address operand
+<code class="docutils literal"><span class="pre">MEMrr</span></code> that is defined earlier in <code class="docutils literal"><span class="pre">SparcInstrInfo.td</span></code>:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def MEMrr : Operand&lt;i32&gt; {
+  let PrintMethod = &quot;printMemOperand&quot;;
+  let MIOperandInfo = (ops IntRegs, IntRegs);
+}
+</pre></div>
+</div>
+<p>The fifth parameter is a string that is used by the assembly printer and can be
+left as an empty string until the assembly printer interface is implemented.
+The sixth and final parameter is the pattern used to match the instruction
+during the SelectionDAG Select Phase described in <a class="reference internal" href="CodeGenerator.html"><span class="doc">The LLVM Target-Independent Code Generator</span></a>.
+This parameter is detailed in the next section, <a class="reference internal" href="#instruction-selector"><span class="std std-ref">Instruction Selector</span></a>.</p>
+<p>Instruction class definitions are not overloaded for different operand types,
+so separate versions of instructions are needed for register, memory, or
+immediate value operands.  For example, to perform a Load Integer instruction
+for a Word from an immediate operand to a register, the following instruction
+class is defined:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def LDri : F3_2 &lt;3, 0b000000, (outs IntRegs:$dst), (ins MEMri:$addr),
+                 &quot;ld [$addr], $dst&quot;,
+                 [(set i32:$dst, (load ADDRri:$addr))]&gt;;
+</pre></div>
+</div>
+<p>Writing these definitions for so many similar instructions can involve a lot of
+cut and paste.  In <code class="docutils literal"><span class="pre">.td</span></code> files, the <code class="docutils literal"><span class="pre">multiclass</span></code> directive enables the
+creation of templates to define several instruction classes at once (using the
+<code class="docutils literal"><span class="pre">defm</span></code> directive).  For example in <code class="docutils literal"><span class="pre">SparcInstrInfo.td</span></code>, the <code class="docutils literal"><span class="pre">multiclass</span></code>
+pattern <code class="docutils literal"><span class="pre">F3_12</span></code> is defined to create 2 instruction classes each time
+<code class="docutils literal"><span class="pre">F3_12</span></code> is invoked:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>multiclass F3_12 &lt;string OpcStr, bits&lt;6&gt; Op3Val, SDNode OpNode&gt; {
+  def rr  : F3_1 &lt;2, Op3Val,
+                 (outs IntRegs:$dst), (ins IntRegs:$b, IntRegs:$c),
+                 !strconcat(OpcStr, &quot; $b, $c, $dst&quot;),
+                 [(set i32:$dst, (OpNode i32:$b, i32:$c))]&gt;;
+  def ri  : F3_2 &lt;2, Op3Val,
+                 (outs IntRegs:$dst), (ins IntRegs:$b, i32imm:$c),
+                 !strconcat(OpcStr, &quot; $b, $c, $dst&quot;),
+                 [(set i32:$dst, (OpNode i32:$b, simm13:$c))]&gt;;
+}
+</pre></div>
+</div>
+<p>So when the <code class="docutils literal"><span class="pre">defm</span></code> directive is used for the <code class="docutils literal"><span class="pre">XOR</span></code> and <code class="docutils literal"><span class="pre">ADD</span></code>
+instructions, as seen below, it creates four instruction objects: <code class="docutils literal"><span class="pre">XORrr</span></code>,
+<code class="docutils literal"><span class="pre">XORri</span></code>, <code class="docutils literal"><span class="pre">ADDrr</span></code>, and <code class="docutils literal"><span class="pre">ADDri</span></code>.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>defm XOR   : F3_12&lt;&quot;xor&quot;, 0b000011, xor&gt;;
+defm ADD   : F3_12&lt;&quot;add&quot;, 0b000000, add&gt;;
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">SparcInstrInfo.td</span></code> also includes definitions for condition codes that are
+referenced by branch instructions.  The following definitions in
+<code class="docutils literal"><span class="pre">SparcInstrInfo.td</span></code> indicate the bit location of the SPARC condition code.
+For example, the 10<sup>th</sup> bit represents the “greater than” condition for
+integers, and the 22<sup>nd</sup> bit represents the “greater than” condition for
+floats.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def ICC_NE  : ICC_VAL&lt; 9&gt;;  // Not Equal
+def ICC_E   : ICC_VAL&lt; 1&gt;;  // Equal
+def ICC_G   : ICC_VAL&lt;10&gt;;  // Greater
+...
+def FCC_U   : FCC_VAL&lt;23&gt;;  // Unordered
+def FCC_G   : FCC_VAL&lt;22&gt;;  // Greater
+def FCC_UG  : FCC_VAL&lt;21&gt;;  // Unordered or Greater
+...
+</pre></div>
+</div>
+<p>(Note that <code class="docutils literal"><span class="pre">Sparc.h</span></code> also defines enums that correspond to the same SPARC
+condition codes.  Care must be taken to ensure the values in <code class="docutils literal"><span class="pre">Sparc.h</span></code>
+correspond to the values in <code class="docutils literal"><span class="pre">SparcInstrInfo.td</span></code>.  I.e., <code class="docutils literal"><span class="pre">SPCC::ICC_NE</span> <span class="pre">=</span> <span class="pre">9</span></code>,
+<code class="docutils literal"><span class="pre">SPCC::FCC_U</span> <span class="pre">=</span> <span class="pre">23</span></code> and so on.)</p>
+<div class="section" id="instruction-operand-mapping">
+<h3><a class="toc-backref" href="#id15">Instruction Operand Mapping</a><a class="headerlink" href="#instruction-operand-mapping" title="Permalink to this headline">¶</a></h3>
+<p>The code generator backend maps instruction operands to fields in the
+instruction.  Operands are assigned to unbound fields in the instruction in the
+order they are defined.  Fields are bound when they are assigned a value.  For
+example, the Sparc target defines the <code class="docutils literal"><span class="pre">XNORrr</span></code> instruction as a <code class="docutils literal"><span class="pre">F3_1</span></code>
+format instruction having three operands.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def XNORrr  : F3_1&lt;2, 0b000111,
+                   (outs IntRegs:$dst), (ins IntRegs:$b, IntRegs:$c),
+                   &quot;xnor $b, $c, $dst&quot;,
+                   [(set i32:$dst, (not (xor i32:$b, i32:$c)))]&gt;;
+</pre></div>
+</div>
+<p>The instruction templates in <code class="docutils literal"><span class="pre">SparcInstrFormats.td</span></code> show the base class for
+<code class="docutils literal"><span class="pre">F3_1</span></code> is <code class="docutils literal"><span class="pre">InstSP</span></code>.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class InstSP&lt;dag outs, dag ins, string asmstr, list&lt;dag&gt; pattern&gt; : Instruction {
+  field bits&lt;32&gt; Inst;
+  let Namespace = &quot;SP&quot;;
+  bits&lt;2&gt; op;
+  let Inst{31-30} = op;
+  dag OutOperandList = outs;
+  dag InOperandList = ins;
+  let AsmString   = asmstr;
+  let Pattern = pattern;
+}
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">InstSP</span></code> leaves the <code class="docutils literal"><span class="pre">op</span></code> field unbound.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class F3&lt;dag outs, dag ins, string asmstr, list&lt;dag&gt; pattern&gt;
+    : InstSP&lt;outs, ins, asmstr, pattern&gt; {
+  bits&lt;5&gt; rd;
+  bits&lt;6&gt; op3;
+  bits&lt;5&gt; rs1;
+  let op{1} = 1;   // Op = 2 or 3
+  let Inst{29-25} = rd;
+  let Inst{24-19} = op3;
+  let Inst{18-14} = rs1;
+}
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">F3</span></code> binds the <code class="docutils literal"><span class="pre">op</span></code> field and defines the <code class="docutils literal"><span class="pre">rd</span></code>, <code class="docutils literal"><span class="pre">op3</span></code>, and <code class="docutils literal"><span class="pre">rs1</span></code>
+fields.  <code class="docutils literal"><span class="pre">F3</span></code> format instructions will bind the operands <code class="docutils literal"><span class="pre">rd</span></code>, <code class="docutils literal"><span class="pre">op3</span></code>, and
+<code class="docutils literal"><span class="pre">rs1</span></code> fields.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class F3_1&lt;bits&lt;2&gt; opVal, bits&lt;6&gt; op3val, dag outs, dag ins,
+           string asmstr, list&lt;dag&gt; pattern&gt; : F3&lt;outs, ins, asmstr, pattern&gt; {
+  bits&lt;8&gt; asi = 0; // asi not currently used
+  bits&lt;5&gt; rs2;
+  let op         = opVal;
+  let op3        = op3val;
+  let Inst{13}   = 0;     // i field = 0
+  let Inst{12-5} = asi;   // address space identifier
+  let Inst{4-0}  = rs2;
+}
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">F3_1</span></code> binds the <code class="docutils literal"><span class="pre">op3</span></code> field and defines the <code class="docutils literal"><span class="pre">rs2</span></code> fields.  <code class="docutils literal"><span class="pre">F3_1</span></code>
+format instructions will bind the operands to the <code class="docutils literal"><span class="pre">rd</span></code>, <code class="docutils literal"><span class="pre">rs1</span></code>, and <code class="docutils literal"><span class="pre">rs2</span></code>
+fields.  This results in the <code class="docutils literal"><span class="pre">XNORrr</span></code> instruction binding <code class="docutils literal"><span class="pre">$dst</span></code>, <code class="docutils literal"><span class="pre">$b</span></code>,
+and <code class="docutils literal"><span class="pre">$c</span></code> operands to the <code class="docutils literal"><span class="pre">rd</span></code>, <code class="docutils literal"><span class="pre">rs1</span></code>, and <code class="docutils literal"><span class="pre">rs2</span></code> fields respectively.</p>
+<div class="section" id="instruction-operand-name-mapping">
+<h4><a class="toc-backref" href="#id16">Instruction Operand Name Mapping</a><a class="headerlink" href="#instruction-operand-name-mapping" title="Permalink to this headline">¶</a></h4>
+<p>TableGen will also generate a function called getNamedOperandIdx() which
+can be used to look up an operand’s index in a MachineInstr based on its
+TableGen name.  Setting the UseNamedOperandTable bit in an instruction’s
+TableGen definition will add all of its operands to an enumeration in the
+llvm::XXX:OpName namespace and also add an entry for it into the OperandMap
+table, which can be queried using getNamedOperandIdx()</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>int DstIndex = SP::getNamedOperandIdx(SP::XNORrr, SP::OpName::dst); // =&gt; 0
+int BIndex = SP::getNamedOperandIdx(SP::XNORrr, SP::OpName::b);     // =&gt; 1
+int CIndex = SP::getNamedOperandIdx(SP::XNORrr, SP::OpName::c);     // =&gt; 2
+int DIndex = SP::getNamedOperandIdx(SP::XNORrr, SP::OpName::d);     // =&gt; -1
+
+...
+</pre></div>
+</div>
+<p>The entries in the OpName enum are taken verbatim from the TableGen definitions,
+so operands with lowercase names will have lower case entries in the enum.</p>
+<p>To include the getNamedOperandIdx() function in your backend, you will need
+to define a few preprocessor macros in XXXInstrInfo.cpp and XXXInstrInfo.h.
+For example:</p>
+<p>XXXInstrInfo.cpp:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#define GET_INSTRINFO_NAMED_OPS </span><span class="c1">// For getNamedOperandIdx() function</span>
+<span class="cp">#include</span> <span class="cpf">&quot;XXXGenInstrInfo.inc&quot;</span><span class="cp"></span>
+</pre></div>
+</div>
+<p>XXXInstrInfo.h:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#define GET_INSTRINFO_OPERAND_ENUM </span><span class="c1">// For OpName enum</span>
+<span class="cp">#include</span> <span class="cpf">&quot;XXXGenInstrInfo.inc&quot;</span><span class="cp"></span>
+
+<span class="k">namespace</span> <span class="n">XXX</span> <span class="p">{</span>
+  <span class="kt">int16_t</span> <span class="n">getNamedOperandIdx</span><span class="p">(</span><span class="kt">uint16_t</span> <span class="n">Opcode</span><span class="p">,</span> <span class="kt">uint16_t</span> <span class="n">NamedIndex</span><span class="p">);</span>
+<span class="p">}</span> <span class="c1">// End namespace XXX</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="instruction-operand-types">
+<h4><a class="toc-backref" href="#id17">Instruction Operand Types</a><a class="headerlink" href="#instruction-operand-types" title="Permalink to this headline">¶</a></h4>
+<p>TableGen will also generate an enumeration consisting of all named Operand
+types defined in the backend, in the llvm::XXX::OpTypes namespace.
+Some common immediate Operand types (for instance i8, i32, i64, f32, f64)
+are defined for all targets in <code class="docutils literal"><span class="pre">include/llvm/Target/Target.td</span></code>, and are
+available in each Target’s OpTypes enum.  Also, only named Operand types appear
+in the enumeration: anonymous types are ignored.
+For example, the X86 backend defines <code class="docutils literal"><span class="pre">brtarget</span></code> and <code class="docutils literal"><span class="pre">brtarget8</span></code>, both
+instances of the TableGen <code class="docutils literal"><span class="pre">Operand</span></code> class, which represent branch target
+operands:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def brtarget : Operand&lt;OtherVT&gt;;
+def brtarget8 : Operand&lt;OtherVT&gt;;
+</pre></div>
+</div>
+<p>This results in:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">namespace</span> <span class="n">X86</span> <span class="p">{</span>
+<span class="k">namespace</span> <span class="n">OpTypes</span> <span class="p">{</span>
+<span class="k">enum</span> <span class="n">OperandType</span> <span class="p">{</span>
+  <span class="p">...</span>
+  <span class="n">brtarget</span><span class="p">,</span>
+  <span class="n">brtarget8</span><span class="p">,</span>
+  <span class="p">...</span>
+  <span class="n">i32imm</span><span class="p">,</span>
+  <span class="n">i64imm</span><span class="p">,</span>
+  <span class="p">...</span>
+  <span class="n">OPERAND_TYPE_LIST_END</span>
+<span class="p">}</span> <span class="c1">// End namespace OpTypes</span>
+<span class="p">}</span> <span class="c1">// End namespace X86</span>
+</pre></div>
+</div>
+<p>In typical TableGen fashion, to use the enum, you will need to define a
+preprocessor macro:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#define GET_INSTRINFO_OPERAND_TYPES_ENUM </span><span class="c1">// For OpTypes enum</span>
+<span class="cp">#include</span> <span class="cpf">&quot;XXXGenInstrInfo.inc&quot;</span><span class="cp"></span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="instruction-scheduling">
+<h3><a class="toc-backref" href="#id18">Instruction Scheduling</a><a class="headerlink" href="#instruction-scheduling" title="Permalink to this headline">¶</a></h3>
+<p>Instruction itineraries can be queried using MCDesc::getSchedClass(). The
+value can be named by an enumemation in llvm::XXX::Sched namespace generated
+by TableGen in XXXGenInstrInfo.inc. The name of the schedule classes are
+the same as provided in XXXSchedule.td plus a default NoItinerary class.</p>
+</div>
+<div class="section" id="instruction-relation-mapping">
+<h3><a class="toc-backref" href="#id19">Instruction Relation Mapping</a><a class="headerlink" href="#instruction-relation-mapping" title="Permalink to this headline">¶</a></h3>
+<p>This TableGen feature is used to relate instructions with each other.  It is
+particularly useful when you have multiple instruction formats and need to
+switch between them after instruction selection.  This entire feature is driven
+by relation models which can be defined in <code class="docutils literal"><span class="pre">XXXInstrInfo.td</span></code> files
+according to the target-specific instruction set.  Relation models are defined
+using <code class="docutils literal"><span class="pre">InstrMapping</span></code> class as a base.  TableGen parses all the models
+and generates instruction relation maps using the specified information.
+Relation maps are emitted as tables in the <code class="docutils literal"><span class="pre">XXXGenInstrInfo.inc</span></code> file
+along with the functions to query them.  For the detailed information on how to
+use this feature, please refer to <a class="reference internal" href="HowToUseInstrMappings.html"><span class="doc">How To Use Instruction Mappings</span></a>.</p>
+</div>
+<div class="section" id="implement-a-subclass-of-targetinstrinfo">
+<h3><a class="toc-backref" href="#id20">Implement a subclass of <code class="docutils literal"><span class="pre">TargetInstrInfo</span></code></a><a class="headerlink" href="#implement-a-subclass-of-targetinstrinfo" title="Permalink to this headline">¶</a></h3>
+<p>The final step is to hand code portions of <code class="docutils literal"><span class="pre">XXXInstrInfo</span></code>, which implements
+the interface described in <code class="docutils literal"><span class="pre">TargetInstrInfo.h</span></code> (see <a class="reference internal" href="CodeGenerator.html#targetinstrinfo"><span class="std std-ref">The TargetInstrInfo class</span></a>).
+These functions return <code class="docutils literal"><span class="pre">0</span></code> or a Boolean or they assert, unless overridden.
+Here’s a list of functions that are overridden for the SPARC implementation in
+<code class="docutils literal"><span class="pre">SparcInstrInfo.cpp</span></code>:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">isLoadFromStackSlot</span></code> — If the specified machine instruction is a direct
+load from a stack slot, return the register number of the destination and the
+<code class="docutils literal"><span class="pre">FrameIndex</span></code> of the stack slot.</li>
+<li><code class="docutils literal"><span class="pre">isStoreToStackSlot</span></code> — If the specified machine instruction is a direct
+store to a stack slot, return the register number of the destination and the
+<code class="docutils literal"><span class="pre">FrameIndex</span></code> of the stack slot.</li>
+<li><code class="docutils literal"><span class="pre">copyPhysReg</span></code> — Copy values between a pair of physical registers.</li>
+<li><code class="docutils literal"><span class="pre">storeRegToStackSlot</span></code> — Store a register value to a stack slot.</li>
+<li><code class="docutils literal"><span class="pre">loadRegFromStackSlot</span></code> — Load a register value from a stack slot.</li>
+<li><code class="docutils literal"><span class="pre">storeRegToAddr</span></code> — Store a register value to memory.</li>
+<li><code class="docutils literal"><span class="pre">loadRegFromAddr</span></code> — Load a register value from memory.</li>
+<li><code class="docutils literal"><span class="pre">foldMemoryOperand</span></code> — Attempt to combine instructions of any load or
+store instruction for the specified operand(s).</li>
+</ul>
+</div>
+<div class="section" id="branch-folding-and-if-conversion">
+<h3><a class="toc-backref" href="#id21">Branch Folding and If Conversion</a><a class="headerlink" href="#branch-folding-and-if-conversion" title="Permalink to this headline">¶</a></h3>
+<p>Performance can be improved by combining instructions or by eliminating
+instructions that are never reached.  The <code class="docutils literal"><span class="pre">AnalyzeBranch</span></code> method in
+<code class="docutils literal"><span class="pre">XXXInstrInfo</span></code> may be implemented to examine conditional instructions and
+remove unnecessary instructions.  <code class="docutils literal"><span class="pre">AnalyzeBranch</span></code> looks at the end of a
+machine basic block (MBB) for opportunities for improvement, such as branch
+folding and if conversion.  The <code class="docutils literal"><span class="pre">BranchFolder</span></code> and <code class="docutils literal"><span class="pre">IfConverter</span></code> machine
+function passes (see the source files <code class="docutils literal"><span class="pre">BranchFolding.cpp</span></code> and
+<code class="docutils literal"><span class="pre">IfConversion.cpp</span></code> in the <code class="docutils literal"><span class="pre">lib/CodeGen</span></code> directory) call <code class="docutils literal"><span class="pre">AnalyzeBranch</span></code>
+to improve the control flow graph that represents the instructions.</p>
+<p>Several implementations of <code class="docutils literal"><span class="pre">AnalyzeBranch</span></code> (for ARM, Alpha, and X86) can be
+examined as models for your own <code class="docutils literal"><span class="pre">AnalyzeBranch</span></code> implementation.  Since SPARC
+does not implement a useful <code class="docutils literal"><span class="pre">AnalyzeBranch</span></code>, the ARM target implementation is
+shown below.</p>
+<p><code class="docutils literal"><span class="pre">AnalyzeBranch</span></code> returns a Boolean value and takes four parameters:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">MachineBasicBlock</span> <span class="pre">&amp;MBB</span></code> — The incoming block to be examined.</li>
+<li><code class="docutils literal"><span class="pre">MachineBasicBlock</span> <span class="pre">*&amp;TBB</span></code> — A destination block that is returned.  For a
+conditional branch that evaluates to true, <code class="docutils literal"><span class="pre">TBB</span></code> is the destination.</li>
+<li><code class="docutils literal"><span class="pre">MachineBasicBlock</span> <span class="pre">*&amp;FBB</span></code> — For a conditional branch that evaluates to
+false, <code class="docutils literal"><span class="pre">FBB</span></code> is returned as the destination.</li>
+<li><code class="docutils literal"><span class="pre">std::vector&lt;MachineOperand&gt;</span> <span class="pre">&amp;Cond</span></code> — List of operands to evaluate a
+condition for a conditional branch.</li>
+</ul>
+<p>In the simplest case, if a block ends without a branch, then it falls through
+to the successor block.  No destination blocks are specified for either <code class="docutils literal"><span class="pre">TBB</span></code>
+or <code class="docutils literal"><span class="pre">FBB</span></code>, so both parameters return <code class="docutils literal"><span class="pre">NULL</span></code>.  The start of the
+<code class="docutils literal"><span class="pre">AnalyzeBranch</span></code> (see code below for the ARM target) shows the function
+parameters and the code for the simplest case.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">bool</span> <span class="n">ARMInstrInfo</span><span class="o">::</span><span class="n">AnalyzeBranch</span><span class="p">(</span><span class="n">MachineBasicBlock</span> <span class="o">&amp;</span><span class="n">MBB</span><span class="p">,</span>
+                                 <span class="n">MachineBasicBlock</span> <span class="o">*&amp;</span><span class="n">TBB</span><span class="p">,</span>
+                                 <span class="n">MachineBasicBlock</span> <span class="o">*&amp;</span><span class="n">FBB</span><span class="p">,</span>
+                                 <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">MachineOperand</span><span class="o">&gt;</span> <span class="o">&amp;</span><span class="n">Cond</span><span class="p">)</span> <span class="k">const</span>
+<span class="p">{</span>
+  <span class="n">MachineBasicBlock</span><span class="o">::</span><span class="n">iterator</span> <span class="n">I</span> <span class="o">=</span> <span class="n">MBB</span><span class="p">.</span><span class="n">end</span><span class="p">();</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">I</span> <span class="o">==</span> <span class="n">MBB</span><span class="p">.</span><span class="n">begin</span><span class="p">()</span> <span class="o">||</span> <span class="o">!</span><span class="n">isUnpredicatedTerminator</span><span class="p">(</span><span class="o">--</span><span class="n">I</span><span class="p">))</span>
+    <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>If a block ends with a single unconditional branch instruction, then
+<code class="docutils literal"><span class="pre">AnalyzeBranch</span></code> (shown below) should return the destination of that branch in
+the <code class="docutils literal"><span class="pre">TBB</span></code> parameter.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="p">(</span><span class="n">LastOpc</span> <span class="o">==</span> <span class="n">ARM</span><span class="o">::</span><span class="n">B</span> <span class="o">||</span> <span class="n">LastOpc</span> <span class="o">==</span> <span class="n">ARM</span><span class="o">::</span><span class="n">tB</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">TBB</span> <span class="o">=</span> <span class="n">LastInst</span><span class="o">-&gt;</span><span class="n">getOperand</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="n">getMBB</span><span class="p">();</span>
+  <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>If a block ends with two unconditional branches, then the second branch is
+never reached.  In that situation, as shown below, remove the last branch
+instruction and return the penultimate branch in the <code class="docutils literal"><span class="pre">TBB</span></code> parameter.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="p">((</span><span class="n">SecondLastOpc</span> <span class="o">==</span> <span class="n">ARM</span><span class="o">::</span><span class="n">B</span> <span class="o">||</span> <span class="n">SecondLastOpc</span> <span class="o">==</span> <span class="n">ARM</span><span class="o">::</span><span class="n">tB</span><span class="p">)</span> <span class="o">&amp;&amp;</span>
+    <span class="p">(</span><span class="n">LastOpc</span> <span class="o">==</span> <span class="n">ARM</span><span class="o">::</span><span class="n">B</span> <span class="o">||</span> <span class="n">LastOpc</span> <span class="o">==</span> <span class="n">ARM</span><span class="o">::</span><span class="n">tB</span><span class="p">))</span> <span class="p">{</span>
+  <span class="n">TBB</span> <span class="o">=</span> <span class="n">SecondLastInst</span><span class="o">-&gt;</span><span class="n">getOperand</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="n">getMBB</span><span class="p">();</span>
+  <span class="n">I</span> <span class="o">=</span> <span class="n">LastInst</span><span class="p">;</span>
+  <span class="n">I</span><span class="o">-&gt;</span><span class="n">eraseFromParent</span><span class="p">();</span>
+  <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>A block may end with a single conditional branch instruction that falls through
+to successor block if the condition evaluates to false.  In that case,
+<code class="docutils literal"><span class="pre">AnalyzeBranch</span></code> (shown below) should return the destination of that
+conditional branch in the <code class="docutils literal"><span class="pre">TBB</span></code> parameter and a list of operands in the
+<code class="docutils literal"><span class="pre">Cond</span></code> parameter to evaluate the condition.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="p">(</span><span class="n">LastOpc</span> <span class="o">==</span> <span class="n">ARM</span><span class="o">::</span><span class="n">Bcc</span> <span class="o">||</span> <span class="n">LastOpc</span> <span class="o">==</span> <span class="n">ARM</span><span class="o">::</span><span class="n">tBcc</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Block ends with fall-through condbranch.</span>
+  <span class="n">TBB</span> <span class="o">=</span> <span class="n">LastInst</span><span class="o">-&gt;</span><span class="n">getOperand</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="n">getMBB</span><span class="p">();</span>
+  <span class="n">Cond</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">LastInst</span><span class="o">-&gt;</span><span class="n">getOperand</span><span class="p">(</span><span class="mi">1</span><span class="p">));</span>
+  <span class="n">Cond</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">LastInst</span><span class="o">-&gt;</span><span class="n">getOperand</span><span class="p">(</span><span class="mi">2</span><span class="p">));</span>
+  <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>If a block ends with both a conditional branch and an ensuing unconditional
+branch, then <code class="docutils literal"><span class="pre">AnalyzeBranch</span></code> (shown below) should return the conditional
+branch destination (assuming it corresponds to a conditional evaluation of
+“<code class="docutils literal"><span class="pre">true</span></code>”) in the <code class="docutils literal"><span class="pre">TBB</span></code> parameter and the unconditional branch destination
+in the <code class="docutils literal"><span class="pre">FBB</span></code> (corresponding to a conditional evaluation of “<code class="docutils literal"><span class="pre">false</span></code>”).  A
+list of operands to evaluate the condition should be returned in the <code class="docutils literal"><span class="pre">Cond</span></code>
+parameter.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">unsigned</span> <span class="n">SecondLastOpc</span> <span class="o">=</span> <span class="n">SecondLastInst</span><span class="o">-&gt;</span><span class="n">getOpcode</span><span class="p">();</span>
+
+<span class="k">if</span> <span class="p">((</span><span class="n">SecondLastOpc</span> <span class="o">==</span> <span class="n">ARM</span><span class="o">::</span><span class="n">Bcc</span> <span class="o">&amp;&amp;</span> <span class="n">LastOpc</span> <span class="o">==</span> <span class="n">ARM</span><span class="o">::</span><span class="n">B</span><span class="p">)</span> <span class="o">||</span>
+    <span class="p">(</span><span class="n">SecondLastOpc</span> <span class="o">==</span> <span class="n">ARM</span><span class="o">::</span><span class="n">tBcc</span> <span class="o">&amp;&amp;</span> <span class="n">LastOpc</span> <span class="o">==</span> <span class="n">ARM</span><span class="o">::</span><span class="n">tB</span><span class="p">))</span> <span class="p">{</span>
+  <span class="n">TBB</span> <span class="o">=</span>  <span class="n">SecondLastInst</span><span class="o">-&gt;</span><span class="n">getOperand</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="n">getMBB</span><span class="p">();</span>
+  <span class="n">Cond</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">SecondLastInst</span><span class="o">-&gt;</span><span class="n">getOperand</span><span class="p">(</span><span class="mi">1</span><span class="p">));</span>
+  <span class="n">Cond</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">SecondLastInst</span><span class="o">-&gt;</span><span class="n">getOperand</span><span class="p">(</span><span class="mi">2</span><span class="p">));</span>
+  <span class="n">FBB</span> <span class="o">=</span> <span class="n">LastInst</span><span class="o">-&gt;</span><span class="n">getOperand</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="n">getMBB</span><span class="p">();</span>
+  <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>For the last two cases (ending with a single conditional branch or ending with
+one conditional and one unconditional branch), the operands returned in the
+<code class="docutils literal"><span class="pre">Cond</span></code> parameter can be passed to methods of other instructions to create new
+branches or perform other operations.  An implementation of <code class="docutils literal"><span class="pre">AnalyzeBranch</span></code>
+requires the helper methods <code class="docutils literal"><span class="pre">RemoveBranch</span></code> and <code class="docutils literal"><span class="pre">InsertBranch</span></code> to manage
+subsequent operations.</p>
+<p><code class="docutils literal"><span class="pre">AnalyzeBranch</span></code> should return false indicating success in most circumstances.
+<code class="docutils literal"><span class="pre">AnalyzeBranch</span></code> should only return true when the method is stumped about what
+to do, for example, if a block has three terminating branches.
+<code class="docutils literal"><span class="pre">AnalyzeBranch</span></code> may return true if it encounters a terminator it cannot
+handle, such as an indirect branch.</p>
+</div>
+</div>
+<div class="section" id="instruction-selector">
+<span id="id2"></span><h2><a class="toc-backref" href="#id22">Instruction Selector</a><a class="headerlink" href="#instruction-selector" title="Permalink to this headline">¶</a></h2>
+<p>LLVM uses a <code class="docutils literal"><span class="pre">SelectionDAG</span></code> to represent LLVM IR instructions, and nodes of
+the <code class="docutils literal"><span class="pre">SelectionDAG</span></code> ideally represent native target instructions.  During code
+generation, instruction selection passes are performed to convert non-native
+DAG instructions into native target-specific instructions.  The pass described
+in <code class="docutils literal"><span class="pre">XXXISelDAGToDAG.cpp</span></code> is used to match patterns and perform DAG-to-DAG
+instruction selection.  Optionally, a pass may be defined (in
+<code class="docutils literal"><span class="pre">XXXBranchSelector.cpp</span></code>) to perform similar DAG-to-DAG operations for branch
+instructions.  Later, the code in <code class="docutils literal"><span class="pre">XXXISelLowering.cpp</span></code> replaces or removes
+operations and data types not supported natively (legalizes) in a
+<code class="docutils literal"><span class="pre">SelectionDAG</span></code>.</p>
+<p>TableGen generates code for instruction selection using the following target
+description input files:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">XXXInstrInfo.td</span></code> — Contains definitions of instructions in a
+target-specific instruction set, generates <code class="docutils literal"><span class="pre">XXXGenDAGISel.inc</span></code>, which is
+included in <code class="docutils literal"><span class="pre">XXXISelDAGToDAG.cpp</span></code>.</li>
+<li><code class="docutils literal"><span class="pre">XXXCallingConv.td</span></code> — Contains the calling and return value conventions
+for the target architecture, and it generates <code class="docutils literal"><span class="pre">XXXGenCallingConv.inc</span></code>,
+which is included in <code class="docutils literal"><span class="pre">XXXISelLowering.cpp</span></code>.</li>
+</ul>
+<p>The implementation of an instruction selection pass must include a header that
+declares the <code class="docutils literal"><span class="pre">FunctionPass</span></code> class or a subclass of <code class="docutils literal"><span class="pre">FunctionPass</span></code>.  In
+<code class="docutils literal"><span class="pre">XXXTargetMachine.cpp</span></code>, a Pass Manager (PM) should add each instruction
+selection pass into the queue of passes to run.</p>
+<p>The LLVM static compiler (<code class="docutils literal"><span class="pre">llc</span></code>) is an excellent tool for visualizing the
+contents of DAGs.  To display the <code class="docutils literal"><span class="pre">SelectionDAG</span></code> before or after specific
+processing phases, use the command line options for <code class="docutils literal"><span class="pre">llc</span></code>, described at
+<a class="reference internal" href="CodeGenerator.html#selectiondag-process"><span class="std std-ref">SelectionDAG Instruction Selection Process</span></a>.</p>
+<p>To describe instruction selector behavior, you should add patterns for lowering
+LLVM code into a <code class="docutils literal"><span class="pre">SelectionDAG</span></code> as the last parameter of the instruction
+definitions in <code class="docutils literal"><span class="pre">XXXInstrInfo.td</span></code>.  For example, in <code class="docutils literal"><span class="pre">SparcInstrInfo.td</span></code>,
+this entry defines a register store operation, and the last parameter describes
+a pattern with the store DAG operator.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def STrr  : F3_1&lt; 3, 0b000100, (outs), (ins MEMrr:$addr, IntRegs:$src),
+                 &quot;st $src, [$addr]&quot;, [(store i32:$src, ADDRrr:$addr)]&gt;;
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">ADDRrr</span></code> is a memory mode that is also defined in <code class="docutils literal"><span class="pre">SparcInstrInfo.td</span></code>:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def ADDRrr : ComplexPattern&lt;i32, 2, &quot;SelectADDRrr&quot;, [], []&gt;;
+</pre></div>
+</div>
+<p>The definition of <code class="docutils literal"><span class="pre">ADDRrr</span></code> refers to <code class="docutils literal"><span class="pre">SelectADDRrr</span></code>, which is a function
+defined in an implementation of the Instructor Selector (such as
+<code class="docutils literal"><span class="pre">SparcISelDAGToDAG.cpp</span></code>).</p>
+<p>In <code class="docutils literal"><span class="pre">lib/Target/TargetSelectionDAG.td</span></code>, the DAG operator for store is defined
+below:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def store : PatFrag&lt;(ops node:$val, node:$ptr),
+                    (st node:$val, node:$ptr), [{
+  if (StoreSDNode *ST = dyn_cast&lt;StoreSDNode&gt;(N))
+    return !ST-&gt;isTruncatingStore() &amp;&amp;
+           ST-&gt;getAddressingMode() == ISD::UNINDEXED;
+  return false;
+}]&gt;;
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">XXXInstrInfo.td</span></code> also generates (in <code class="docutils literal"><span class="pre">XXXGenDAGISel.inc</span></code>) the
+<code class="docutils literal"><span class="pre">SelectCode</span></code> method that is used to call the appropriate processing method
+for an instruction.  In this example, <code class="docutils literal"><span class="pre">SelectCode</span></code> calls <code class="docutils literal"><span class="pre">Select_ISD_STORE</span></code>
+for the <code class="docutils literal"><span class="pre">ISD::STORE</span></code> opcode.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">SDNode</span> <span class="o">*</span><span class="nf">SelectCode</span><span class="p">(</span><span class="n">SDValue</span> <span class="n">N</span><span class="p">)</span> <span class="p">{</span>
+  <span class="p">...</span>
+  <span class="n">MVT</span><span class="o">::</span><span class="n">ValueType</span> <span class="n">NVT</span> <span class="o">=</span> <span class="n">N</span><span class="p">.</span><span class="n">getNode</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">getValueType</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+  <span class="k">switch</span> <span class="p">(</span><span class="n">N</span><span class="p">.</span><span class="n">getOpcode</span><span class="p">())</span> <span class="p">{</span>
+  <span class="k">case</span> <span class="n">ISD</span><span class="o">::</span><span class="nl">STORE</span><span class="p">:</span> <span class="p">{</span>
+    <span class="k">switch</span> <span class="p">(</span><span class="n">NVT</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">default</span><span class="o">:</span>
+      <span class="k">return</span> <span class="n">Select_ISD_STORE</span><span class="p">(</span><span class="n">N</span><span class="p">);</span>
+      <span class="k">break</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">break</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="p">...</span>
+</pre></div>
+</div>
+<p>The pattern for <code class="docutils literal"><span class="pre">STrr</span></code> is matched, so elsewhere in <code class="docutils literal"><span class="pre">XXXGenDAGISel.inc</span></code>,
+code for <code class="docutils literal"><span class="pre">STrr</span></code> is created for <code class="docutils literal"><span class="pre">Select_ISD_STORE</span></code>.  The <code class="docutils literal"><span class="pre">Emit_22</span></code> method
+is also generated in <code class="docutils literal"><span class="pre">XXXGenDAGISel.inc</span></code> to complete the processing of this
+instruction.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">SDNode</span> <span class="o">*</span><span class="nf">Select_ISD_STORE</span><span class="p">(</span><span class="k">const</span> <span class="n">SDValue</span> <span class="o">&amp;</span><span class="n">N</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">SDValue</span> <span class="n">Chain</span> <span class="o">=</span> <span class="n">N</span><span class="p">.</span><span class="n">getOperand</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">Predicate_store</span><span class="p">(</span><span class="n">N</span><span class="p">.</span><span class="n">getNode</span><span class="p">()))</span> <span class="p">{</span>
+    <span class="n">SDValue</span> <span class="n">N1</span> <span class="o">=</span> <span class="n">N</span><span class="p">.</span><span class="n">getOperand</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+    <span class="n">SDValue</span> <span class="n">N2</span> <span class="o">=</span> <span class="n">N</span><span class="p">.</span><span class="n">getOperand</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+    <span class="n">SDValue</span> <span class="n">CPTmp0</span><span class="p">;</span>
+    <span class="n">SDValue</span> <span class="n">CPTmp1</span><span class="p">;</span>
+
+    <span class="c1">// Pattern: (st:void i32:i32:$src,</span>
+    <span class="c1">//           ADDRrr:i32:$addr)&lt;&lt;P:Predicate_store&gt;&gt;</span>
+    <span class="c1">// Emits: (STrr:void ADDRrr:i32:$addr, IntRegs:i32:$src)</span>
+    <span class="c1">// Pattern complexity = 13  cost = 1  size = 0</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">SelectADDRrr</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">N2</span><span class="p">,</span> <span class="n">CPTmp0</span><span class="p">,</span> <span class="n">CPTmp1</span><span class="p">)</span> <span class="o">&amp;&amp;</span>
+        <span class="n">N1</span><span class="p">.</span><span class="n">getNode</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">getValueType</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="n">MVT</span><span class="o">::</span><span class="n">i32</span> <span class="o">&amp;&amp;</span>
+        <span class="n">N2</span><span class="p">.</span><span class="n">getNode</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">getValueType</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="n">MVT</span><span class="o">::</span><span class="n">i32</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="n">Emit_22</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">STrr</span><span class="p">,</span> <span class="n">CPTmp0</span><span class="p">,</span> <span class="n">CPTmp1</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">...</span>
+</pre></div>
+</div>
+<div class="section" id="the-selectiondag-legalize-phase">
+<h3><a class="toc-backref" href="#id23">The SelectionDAG Legalize Phase</a><a class="headerlink" href="#the-selectiondag-legalize-phase" title="Permalink to this headline">¶</a></h3>
+<p>The Legalize phase converts a DAG to use types and operations that are natively
+supported by the target.  For natively unsupported types and operations, you
+need to add code to the target-specific <code class="docutils literal"><span class="pre">XXXTargetLowering</span></code> implementation to
+convert unsupported types and operations to supported ones.</p>
+<p>In the constructor for the <code class="docutils literal"><span class="pre">XXXTargetLowering</span></code> class, first use the
+<code class="docutils literal"><span class="pre">addRegisterClass</span></code> method to specify which types are supported and which
+register classes are associated with them.  The code for the register classes
+are generated by TableGen from <code class="docutils literal"><span class="pre">XXXRegisterInfo.td</span></code> and placed in
+<code class="docutils literal"><span class="pre">XXXGenRegisterInfo.h.inc</span></code>.  For example, the implementation of the
+constructor for the SparcTargetLowering class (in <code class="docutils literal"><span class="pre">SparcISelLowering.cpp</span></code>)
+starts with the following code:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">addRegisterClass</span><span class="p">(</span><span class="n">MVT</span><span class="o">::</span><span class="n">i32</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">IntRegsRegisterClass</span><span class="p">);</span>
+<span class="n">addRegisterClass</span><span class="p">(</span><span class="n">MVT</span><span class="o">::</span><span class="n">f32</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">FPRegsRegisterClass</span><span class="p">);</span>
+<span class="n">addRegisterClass</span><span class="p">(</span><span class="n">MVT</span><span class="o">::</span><span class="n">f64</span><span class="p">,</span> <span class="n">SP</span><span class="o">::</span><span class="n">DFPRegsRegisterClass</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>You should examine the node types in the <code class="docutils literal"><span class="pre">ISD</span></code> namespace
+(<code class="docutils literal"><span class="pre">include/llvm/CodeGen/SelectionDAGNodes.h</span></code>) and determine which operations
+the target natively supports.  For operations that do <strong>not</strong> have native
+support, add a callback to the constructor for the <code class="docutils literal"><span class="pre">XXXTargetLowering</span></code> class,
+so the instruction selection process knows what to do.  The <code class="docutils literal"><span class="pre">TargetLowering</span></code>
+class callback methods (declared in <code class="docutils literal"><span class="pre">llvm/Target/TargetLowering.h</span></code>) are:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">setOperationAction</span></code> — General operation.</li>
+<li><code class="docutils literal"><span class="pre">setLoadExtAction</span></code> — Load with extension.</li>
+<li><code class="docutils literal"><span class="pre">setTruncStoreAction</span></code> — Truncating store.</li>
+<li><code class="docutils literal"><span class="pre">setIndexedLoadAction</span></code> — Indexed load.</li>
+<li><code class="docutils literal"><span class="pre">setIndexedStoreAction</span></code> — Indexed store.</li>
+<li><code class="docutils literal"><span class="pre">setConvertAction</span></code> — Type conversion.</li>
+<li><code class="docutils literal"><span class="pre">setCondCodeAction</span></code> — Support for a given condition code.</li>
+</ul>
+<p>Note: on older releases, <code class="docutils literal"><span class="pre">setLoadXAction</span></code> is used instead of
+<code class="docutils literal"><span class="pre">setLoadExtAction</span></code>.  Also, on older releases, <code class="docutils literal"><span class="pre">setCondCodeAction</span></code> may not
+be supported.  Examine your release to see what methods are specifically
+supported.</p>
+<p>These callbacks are used to determine that an operation does or does not work
+with a specified type (or types).  And in all cases, the third parameter is a
+<code class="docutils literal"><span class="pre">LegalAction</span></code> type enum value: <code class="docutils literal"><span class="pre">Promote</span></code>, <code class="docutils literal"><span class="pre">Expand</span></code>, <code class="docutils literal"><span class="pre">Custom</span></code>, or
+<code class="docutils literal"><span class="pre">Legal</span></code>.  <code class="docutils literal"><span class="pre">SparcISelLowering.cpp</span></code> contains examples of all four
+<code class="docutils literal"><span class="pre">LegalAction</span></code> values.</p>
+<div class="section" id="promote">
+<h4><a class="toc-backref" href="#id24">Promote</a><a class="headerlink" href="#promote" title="Permalink to this headline">¶</a></h4>
+<p>For an operation without native support for a given type, the specified type
+may be promoted to a larger type that is supported.  For example, SPARC does
+not support a sign-extending load for Boolean values (<code class="docutils literal"><span class="pre">i1</span></code> type), so in
+<code class="docutils literal"><span class="pre">SparcISelLowering.cpp</span></code> the third parameter below, <code class="docutils literal"><span class="pre">Promote</span></code>, changes
+<code class="docutils literal"><span class="pre">i1</span></code> type values to a large type before loading.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">setLoadExtAction</span><span class="p">(</span><span class="n">ISD</span><span class="o">::</span><span class="n">SEXTLOAD</span><span class="p">,</span> <span class="n">MVT</span><span class="o">::</span><span class="n">i1</span><span class="p">,</span> <span class="n">Promote</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="expand">
+<h4><a class="toc-backref" href="#id25">Expand</a><a class="headerlink" href="#expand" title="Permalink to this headline">¶</a></h4>
+<p>For a type without native support, a value may need to be broken down further,
+rather than promoted.  For an operation without native support, a combination
+of other operations may be used to similar effect.  In SPARC, the
+floating-point sine and cosine trig operations are supported by expansion to
+other operations, as indicated by the third parameter, <code class="docutils literal"><span class="pre">Expand</span></code>, to
+<code class="docutils literal"><span class="pre">setOperationAction</span></code>:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">setOperationAction</span><span class="p">(</span><span class="n">ISD</span><span class="o">::</span><span class="n">FSIN</span><span class="p">,</span> <span class="n">MVT</span><span class="o">::</span><span class="n">f32</span><span class="p">,</span> <span class="n">Expand</span><span class="p">);</span>
+<span class="n">setOperationAction</span><span class="p">(</span><span class="n">ISD</span><span class="o">::</span><span class="n">FCOS</span><span class="p">,</span> <span class="n">MVT</span><span class="o">::</span><span class="n">f32</span><span class="p">,</span> <span class="n">Expand</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="custom">
+<h4><a class="toc-backref" href="#id26">Custom</a><a class="headerlink" href="#custom" title="Permalink to this headline">¶</a></h4>
+<p>For some operations, simple type promotion or operation expansion may be
+insufficient.  In some cases, a special intrinsic function must be implemented.</p>
+<p>For example, a constant value may require special treatment, or an operation
+may require spilling and restoring registers in the stack and working with
+register allocators.</p>
+<p>As seen in <code class="docutils literal"><span class="pre">SparcISelLowering.cpp</span></code> code below, to perform a type conversion
+from a floating point value to a signed integer, first the
+<code class="docutils literal"><span class="pre">setOperationAction</span></code> should be called with <code class="docutils literal"><span class="pre">Custom</span></code> as the third parameter:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">setOperationAction</span><span class="p">(</span><span class="n">ISD</span><span class="o">::</span><span class="n">FP_TO_SINT</span><span class="p">,</span> <span class="n">MVT</span><span class="o">::</span><span class="n">i32</span><span class="p">,</span> <span class="n">Custom</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>In the <code class="docutils literal"><span class="pre">LowerOperation</span></code> method, for each <code class="docutils literal"><span class="pre">Custom</span></code> operation, a case
+statement should be added to indicate what function to call.  In the following
+code, an <code class="docutils literal"><span class="pre">FP_TO_SINT</span></code> opcode will call the <code class="docutils literal"><span class="pre">LowerFP_TO_SINT</span></code> method:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">SDValue</span> <span class="n">SparcTargetLowering</span><span class="o">::</span><span class="n">LowerOperation</span><span class="p">(</span><span class="n">SDValue</span> <span class="n">Op</span><span class="p">,</span> <span class="n">SelectionDAG</span> <span class="o">&amp;</span><span class="n">DAG</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">switch</span> <span class="p">(</span><span class="n">Op</span><span class="p">.</span><span class="n">getOpcode</span><span class="p">())</span> <span class="p">{</span>
+  <span class="k">case</span> <span class="n">ISD</span><span class="o">::</span><span class="nl">FP_TO_SINT</span><span class="p">:</span> <span class="k">return</span> <span class="n">LowerFP_TO_SINT</span><span class="p">(</span><span class="n">Op</span><span class="p">,</span> <span class="n">DAG</span><span class="p">);</span>
+  <span class="p">...</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Finally, the <code class="docutils literal"><span class="pre">LowerFP_TO_SINT</span></code> method is implemented, using an FP register to
+convert the floating-point value to an integer.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">static</span> <span class="n">SDValue</span> <span class="nf">LowerFP_TO_SINT</span><span class="p">(</span><span class="n">SDValue</span> <span class="n">Op</span><span class="p">,</span> <span class="n">SelectionDAG</span> <span class="o">&amp;</span><span class="n">DAG</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">assert</span><span class="p">(</span><span class="n">Op</span><span class="p">.</span><span class="n">getValueType</span><span class="p">()</span> <span class="o">==</span> <span class="n">MVT</span><span class="o">::</span><span class="n">i32</span><span class="p">);</span>
+  <span class="n">Op</span> <span class="o">=</span> <span class="n">DAG</span><span class="p">.</span><span class="n">getNode</span><span class="p">(</span><span class="n">SPISD</span><span class="o">::</span><span class="n">FTOI</span><span class="p">,</span> <span class="n">MVT</span><span class="o">::</span><span class="n">f32</span><span class="p">,</span> <span class="n">Op</span><span class="p">.</span><span class="n">getOperand</span><span class="p">(</span><span class="mi">0</span><span class="p">));</span>
+  <span class="k">return</span> <span class="n">DAG</span><span class="p">.</span><span class="n">getNode</span><span class="p">(</span><span class="n">ISD</span><span class="o">::</span><span class="n">BITCAST</span><span class="p">,</span> <span class="n">MVT</span><span class="o">::</span><span class="n">i32</span><span class="p">,</span> <span class="n">Op</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="legal">
+<h4><a class="toc-backref" href="#id27">Legal</a><a class="headerlink" href="#legal" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">Legal</span></code> <code class="docutils literal"><span class="pre">LegalizeAction</span></code> enum value simply indicates that an operation
+<strong>is</strong> natively supported.  <code class="docutils literal"><span class="pre">Legal</span></code> represents the default condition, so it
+is rarely used.  In <code class="docutils literal"><span class="pre">SparcISelLowering.cpp</span></code>, the action for <code class="docutils literal"><span class="pre">CTPOP</span></code> (an
+operation to count the bits set in an integer) is natively supported only for
+SPARC v9.  The following code enables the <code class="docutils literal"><span class="pre">Expand</span></code> conversion technique for
+non-v9 SPARC implementations.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">setOperationAction</span><span class="p">(</span><span class="n">ISD</span><span class="o">::</span><span class="n">CTPOP</span><span class="p">,</span> <span class="n">MVT</span><span class="o">::</span><span class="n">i32</span><span class="p">,</span> <span class="n">Expand</span><span class="p">);</span>
+<span class="p">...</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">TM</span><span class="p">.</span><span class="n">getSubtarget</span><span class="o">&lt;</span><span class="n">SparcSubtarget</span><span class="o">&gt;</span><span class="p">().</span><span class="n">isV9</span><span class="p">())</span>
+  <span class="n">setOperationAction</span><span class="p">(</span><span class="n">ISD</span><span class="o">::</span><span class="n">CTPOP</span><span class="p">,</span> <span class="n">MVT</span><span class="o">::</span><span class="n">i32</span><span class="p">,</span> <span class="n">Legal</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="calling-conventions">
+<h3><a class="toc-backref" href="#id28">Calling Conventions</a><a class="headerlink" href="#calling-conventions" title="Permalink to this headline">¶</a></h3>
+<p>To support target-specific calling conventions, <code class="docutils literal"><span class="pre">XXXGenCallingConv.td</span></code> uses
+interfaces (such as <code class="docutils literal"><span class="pre">CCIfType</span></code> and <code class="docutils literal"><span class="pre">CCAssignToReg</span></code>) that are defined in
+<code class="docutils literal"><span class="pre">lib/Target/TargetCallingConv.td</span></code>.  TableGen can take the target descriptor
+file <code class="docutils literal"><span class="pre">XXXGenCallingConv.td</span></code> and generate the header file
+<code class="docutils literal"><span class="pre">XXXGenCallingConv.inc</span></code>, which is typically included in
+<code class="docutils literal"><span class="pre">XXXISelLowering.cpp</span></code>.  You can use the interfaces in
+<code class="docutils literal"><span class="pre">TargetCallingConv.td</span></code> to specify:</p>
+<ul class="simple">
+<li>The order of parameter allocation.</li>
+<li>Where parameters and return values are placed (that is, on the stack or in
+registers).</li>
+<li>Which registers may be used.</li>
+<li>Whether the caller or callee unwinds the stack.</li>
+</ul>
+<p>The following example demonstrates the use of the <code class="docutils literal"><span class="pre">CCIfType</span></code> and
+<code class="docutils literal"><span class="pre">CCAssignToReg</span></code> interfaces.  If the <code class="docutils literal"><span class="pre">CCIfType</span></code> predicate is true (that is,
+if the current argument is of type <code class="docutils literal"><span class="pre">f32</span></code> or <code class="docutils literal"><span class="pre">f64</span></code>), then the action is
+performed.  In this case, the <code class="docutils literal"><span class="pre">CCAssignToReg</span></code> action assigns the argument
+value to the first available register: either <code class="docutils literal"><span class="pre">R0</span></code> or <code class="docutils literal"><span class="pre">R1</span></code>.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>CCIfType&lt;[f32,f64], CCAssignToReg&lt;[R0, R1]&gt;&gt;
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">SparcCallingConv.td</span></code> contains definitions for a target-specific return-value
+calling convention (<code class="docutils literal"><span class="pre">RetCC_Sparc32</span></code>) and a basic 32-bit C calling convention
+(<code class="docutils literal"><span class="pre">CC_Sparc32</span></code>).  The definition of <code class="docutils literal"><span class="pre">RetCC_Sparc32</span></code> (shown below) indicates
+which registers are used for specified scalar return types.  A single-precision
+float is returned to register <code class="docutils literal"><span class="pre">F0</span></code>, and a double-precision float goes to
+register <code class="docutils literal"><span class="pre">D0</span></code>.  A 32-bit integer is returned in register <code class="docutils literal"><span class="pre">I0</span></code> or <code class="docutils literal"><span class="pre">I1</span></code>.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def RetCC_Sparc32 : CallingConv&lt;[
+  CCIfType&lt;[i32], CCAssignToReg&lt;[I0, I1]&gt;&gt;,
+  CCIfType&lt;[f32], CCAssignToReg&lt;[F0]&gt;&gt;,
+  CCIfType&lt;[f64], CCAssignToReg&lt;[D0]&gt;&gt;
+]&gt;;
+</pre></div>
+</div>
+<p>The definition of <code class="docutils literal"><span class="pre">CC_Sparc32</span></code> in <code class="docutils literal"><span class="pre">SparcCallingConv.td</span></code> introduces
+<code class="docutils literal"><span class="pre">CCAssignToStack</span></code>, which assigns the value to a stack slot with the specified
+size and alignment.  In the example below, the first parameter, 4, indicates
+the size of the slot, and the second parameter, also 4, indicates the stack
+alignment along 4-byte units.  (Special cases: if size is zero, then the ABI
+size is used; if alignment is zero, then the ABI alignment is used.)</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def CC_Sparc32 : CallingConv&lt;[
+  // All arguments get passed in integer registers if there is space.
+  CCIfType&lt;[i32, f32, f64], CCAssignToReg&lt;[I0, I1, I2, I3, I4, I5]&gt;&gt;,
+  CCAssignToStack&lt;4, 4&gt;
+]&gt;;
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">CCDelegateTo</span></code> is another commonly used interface, which tries to find a
+specified sub-calling convention, and, if a match is found, it is invoked.  In
+the following example (in <code class="docutils literal"><span class="pre">X86CallingConv.td</span></code>), the definition of
+<code class="docutils literal"><span class="pre">RetCC_X86_32_C</span></code> ends with <code class="docutils literal"><span class="pre">CCDelegateTo</span></code>.  After the current value is
+assigned to the register <code class="docutils literal"><span class="pre">ST0</span></code> or <code class="docutils literal"><span class="pre">ST1</span></code>, the <code class="docutils literal"><span class="pre">RetCC_X86Common</span></code> is
+invoked.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def RetCC_X86_32_C : CallingConv&lt;[
+  CCIfType&lt;[f32], CCAssignToReg&lt;[ST0, ST1]&gt;&gt;,
+  CCIfType&lt;[f64], CCAssignToReg&lt;[ST0, ST1]&gt;&gt;,
+  CCDelegateTo&lt;RetCC_X86Common&gt;
+]&gt;;
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">CCIfCC</span></code> is an interface that attempts to match the given name to the current
+calling convention.  If the name identifies the current calling convention,
+then a specified action is invoked.  In the following example (in
+<code class="docutils literal"><span class="pre">X86CallingConv.td</span></code>), if the <code class="docutils literal"><span class="pre">Fast</span></code> calling convention is in use, then
+<code class="docutils literal"><span class="pre">RetCC_X86_32_Fast</span></code> is invoked.  If the <code class="docutils literal"><span class="pre">SSECall</span></code> calling convention is in
+use, then <code class="docutils literal"><span class="pre">RetCC_X86_32_SSE</span></code> is invoked.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def RetCC_X86_32 : CallingConv&lt;[
+  CCIfCC&lt;&quot;CallingConv::Fast&quot;, CCDelegateTo&lt;RetCC_X86_32_Fast&gt;&gt;,
+  CCIfCC&lt;&quot;CallingConv::X86_SSECall&quot;, CCDelegateTo&lt;RetCC_X86_32_SSE&gt;&gt;,
+  CCDelegateTo&lt;RetCC_X86_32_C&gt;
+]&gt;;
+</pre></div>
+</div>
+<p>Other calling convention interfaces include:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">CCIf</span> <span class="pre">&lt;predicate,</span> <span class="pre">action&gt;</span></code> — If the predicate matches, apply the action.</li>
+<li><code class="docutils literal"><span class="pre">CCIfInReg</span> <span class="pre">&lt;action&gt;</span></code> — If the argument is marked with the “<code class="docutils literal"><span class="pre">inreg</span></code>”
+attribute, then apply the action.</li>
+<li><code class="docutils literal"><span class="pre">CCIfNest</span> <span class="pre">&lt;action&gt;</span></code> — If the argument is marked with the “<code class="docutils literal"><span class="pre">nest</span></code>”
+attribute, then apply the action.</li>
+<li><code class="docutils literal"><span class="pre">CCIfNotVarArg</span> <span class="pre">&lt;action&gt;</span></code> — If the current function does not take a
+variable number of arguments, apply the action.</li>
+<li><code class="docutils literal"><span class="pre">CCAssignToRegWithShadow</span> <span class="pre">&lt;registerList,</span> <span class="pre">shadowList&gt;</span></code> — similar to
+<code class="docutils literal"><span class="pre">CCAssignToReg</span></code>, but with a shadow list of registers.</li>
+<li><code class="docutils literal"><span class="pre">CCPassByVal</span> <span class="pre">&lt;size,</span> <span class="pre">align&gt;</span></code> — Assign value to a stack slot with the
+minimum specified size and alignment.</li>
+<li><code class="docutils literal"><span class="pre">CCPromoteToType</span> <span class="pre">&lt;type&gt;</span></code> — Promote the current value to the specified
+type.</li>
+<li><code class="docutils literal"><span class="pre">CallingConv</span> <span class="pre">&lt;[actions]&gt;</span></code> — Define each calling convention that is
+supported.</li>
+</ul>
+</div>
+</div>
+<div class="section" id="assembly-printer">
+<h2><a class="toc-backref" href="#id29">Assembly Printer</a><a class="headerlink" href="#assembly-printer" title="Permalink to this headline">¶</a></h2>
+<p>During the code emission stage, the code generator may utilize an LLVM pass to
+produce assembly output.  To do this, you want to implement the code for a
+printer that converts LLVM IR to a GAS-format assembly language for your target
+machine, using the following steps:</p>
+<ul class="simple">
+<li>Define all the assembly strings for your target, adding them to the
+instructions defined in the <code class="docutils literal"><span class="pre">XXXInstrInfo.td</span></code> file.  (See
+<a class="reference internal" href="#instruction-set"><span class="std std-ref">Instruction Set</span></a>.)  TableGen will produce an output file
+(<code class="docutils literal"><span class="pre">XXXGenAsmWriter.inc</span></code>) with an implementation of the <code class="docutils literal"><span class="pre">printInstruction</span></code>
+method for the <code class="docutils literal"><span class="pre">XXXAsmPrinter</span></code> class.</li>
+<li>Write <code class="docutils literal"><span class="pre">XXXTargetAsmInfo.h</span></code>, which contains the bare-bones declaration of
+the <code class="docutils literal"><span class="pre">XXXTargetAsmInfo</span></code> class (a subclass of <code class="docutils literal"><span class="pre">TargetAsmInfo</span></code>).</li>
+<li>Write <code class="docutils literal"><span class="pre">XXXTargetAsmInfo.cpp</span></code>, which contains target-specific values for
+<code class="docutils literal"><span class="pre">TargetAsmInfo</span></code> properties and sometimes new implementations for methods.</li>
+<li>Write <code class="docutils literal"><span class="pre">XXXAsmPrinter.cpp</span></code>, which implements the <code class="docutils literal"><span class="pre">AsmPrinter</span></code> class that
+performs the LLVM-to-assembly conversion.</li>
+</ul>
+<p>The code in <code class="docutils literal"><span class="pre">XXXTargetAsmInfo.h</span></code> is usually a trivial declaration of the
+<code class="docutils literal"><span class="pre">XXXTargetAsmInfo</span></code> class for use in <code class="docutils literal"><span class="pre">XXXTargetAsmInfo.cpp</span></code>.  Similarly,
+<code class="docutils literal"><span class="pre">XXXTargetAsmInfo.cpp</span></code> usually has a few declarations of <code class="docutils literal"><span class="pre">XXXTargetAsmInfo</span></code>
+replacement values that override the default values in <code class="docutils literal"><span class="pre">TargetAsmInfo.cpp</span></code>.
+For example in <code class="docutils literal"><span class="pre">SparcTargetAsmInfo.cpp</span></code>:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">SparcTargetAsmInfo</span><span class="o">::</span><span class="n">SparcTargetAsmInfo</span><span class="p">(</span><span class="k">const</span> <span class="n">SparcTargetMachine</span> <span class="o">&amp;</span><span class="n">TM</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">Data16bitsDirective</span> <span class="o">=</span> <span class="s">&quot;</span><span class="se">\t</span><span class="s">.half</span><span class="se">\t</span><span class="s">&quot;</span><span class="p">;</span>
+  <span class="n">Data32bitsDirective</span> <span class="o">=</span> <span class="s">&quot;</span><span class="se">\t</span><span class="s">.word</span><span class="se">\t</span><span class="s">&quot;</span><span class="p">;</span>
+  <span class="n">Data64bitsDirective</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>  <span class="c1">// .xword is only supported by V9.</span>
+  <span class="n">ZeroDirective</span> <span class="o">=</span> <span class="s">&quot;</span><span class="se">\t</span><span class="s">.skip</span><span class="se">\t</span><span class="s">&quot;</span><span class="p">;</span>
+  <span class="n">CommentString</span> <span class="o">=</span> <span class="s">&quot;!&quot;</span><span class="p">;</span>
+  <span class="n">ConstantPoolSection</span> <span class="o">=</span> <span class="s">&quot;</span><span class="se">\t</span><span class="s">.section </span><span class="se">\&quot;</span><span class="s">.rodata</span><span class="se">\&quot;</span><span class="s">,#alloc</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The X86 assembly printer implementation (<code class="docutils literal"><span class="pre">X86TargetAsmInfo</span></code>) is an example
+where the target specific <code class="docutils literal"><span class="pre">TargetAsmInfo</span></code> class uses an overridden methods:
+<code class="docutils literal"><span class="pre">ExpandInlineAsm</span></code>.</p>
+<p>A target-specific implementation of <code class="docutils literal"><span class="pre">AsmPrinter</span></code> is written in
+<code class="docutils literal"><span class="pre">XXXAsmPrinter.cpp</span></code>, which implements the <code class="docutils literal"><span class="pre">AsmPrinter</span></code> class that converts
+the LLVM to printable assembly.  The implementation must include the following
+headers that have declarations for the <code class="docutils literal"><span class="pre">AsmPrinter</span></code> and
+<code class="docutils literal"><span class="pre">MachineFunctionPass</span></code> classes.  The <code class="docutils literal"><span class="pre">MachineFunctionPass</span></code> is a subclass of
+<code class="docutils literal"><span class="pre">FunctionPass</span></code>.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;llvm/CodeGen/AsmPrinter.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/CodeGen/MachineFunctionPass.h&quot;</span><span class="cp"></span>
+</pre></div>
+</div>
+<p>As a <code class="docutils literal"><span class="pre">FunctionPass</span></code>, <code class="docutils literal"><span class="pre">AsmPrinter</span></code> first calls <code class="docutils literal"><span class="pre">doInitialization</span></code> to set
+up the <code class="docutils literal"><span class="pre">AsmPrinter</span></code>.  In <code class="docutils literal"><span class="pre">SparcAsmPrinter</span></code>, a <code class="docutils literal"><span class="pre">Mangler</span></code> object is
+instantiated to process variable names.</p>
+<p>In <code class="docutils literal"><span class="pre">XXXAsmPrinter.cpp</span></code>, the <code class="docutils literal"><span class="pre">runOnMachineFunction</span></code> method (declared in
+<code class="docutils literal"><span class="pre">MachineFunctionPass</span></code>) must be implemented for <code class="docutils literal"><span class="pre">XXXAsmPrinter</span></code>.  In
+<code class="docutils literal"><span class="pre">MachineFunctionPass</span></code>, the <code class="docutils literal"><span class="pre">runOnFunction</span></code> method invokes
+<code class="docutils literal"><span class="pre">runOnMachineFunction</span></code>.  Target-specific implementations of
+<code class="docutils literal"><span class="pre">runOnMachineFunction</span></code> differ, but generally do the following to process each
+machine function:</p>
+<ul class="simple">
+<li>Call <code class="docutils literal"><span class="pre">SetupMachineFunction</span></code> to perform initialization.</li>
+<li>Call <code class="docutils literal"><span class="pre">EmitConstantPool</span></code> to print out (to the output stream) constants which
+have been spilled to memory.</li>
+<li>Call <code class="docutils literal"><span class="pre">EmitJumpTableInfo</span></code> to print out jump tables used by the current
+function.</li>
+<li>Print out the label for the current function.</li>
+<li>Print out the code for the function, including basic block labels and the
+assembly for the instruction (using <code class="docutils literal"><span class="pre">printInstruction</span></code>)</li>
+</ul>
+<p>The <code class="docutils literal"><span class="pre">XXXAsmPrinter</span></code> implementation must also include the code generated by
+TableGen that is output in the <code class="docutils literal"><span class="pre">XXXGenAsmWriter.inc</span></code> file.  The code in
+<code class="docutils literal"><span class="pre">XXXGenAsmWriter.inc</span></code> contains an implementation of the <code class="docutils literal"><span class="pre">printInstruction</span></code>
+method that may call these methods:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">printOperand</span></code></li>
+<li><code class="docutils literal"><span class="pre">printMemOperand</span></code></li>
+<li><code class="docutils literal"><span class="pre">printCCOperand</span></code> (for conditional statements)</li>
+<li><code class="docutils literal"><span class="pre">printDataDirective</span></code></li>
+<li><code class="docutils literal"><span class="pre">printDeclare</span></code></li>
+<li><code class="docutils literal"><span class="pre">printImplicitDef</span></code></li>
+<li><code class="docutils literal"><span class="pre">printInlineAsm</span></code></li>
+</ul>
+<p>The implementations of <code class="docutils literal"><span class="pre">printDeclare</span></code>, <code class="docutils literal"><span class="pre">printImplicitDef</span></code>,
+<code class="docutils literal"><span class="pre">printInlineAsm</span></code>, and <code class="docutils literal"><span class="pre">printLabel</span></code> in <code class="docutils literal"><span class="pre">AsmPrinter.cpp</span></code> are generally
+adequate for printing assembly and do not need to be overridden.</p>
+<p>The <code class="docutils literal"><span class="pre">printOperand</span></code> method is implemented with a long <code class="docutils literal"><span class="pre">switch</span></code>/<code class="docutils literal"><span class="pre">case</span></code>
+statement for the type of operand: register, immediate, basic block, external
+symbol, global address, constant pool index, or jump table index.  For an
+instruction with a memory address operand, the <code class="docutils literal"><span class="pre">printMemOperand</span></code> method
+should be implemented to generate the proper output.  Similarly,
+<code class="docutils literal"><span class="pre">printCCOperand</span></code> should be used to print a conditional operand.</p>
+<p><code class="docutils literal"><span class="pre">doFinalization</span></code> should be overridden in <code class="docutils literal"><span class="pre">XXXAsmPrinter</span></code>, and it should be
+called to shut down the assembly printer.  During <code class="docutils literal"><span class="pre">doFinalization</span></code>, global
+variables and constants are printed to output.</p>
+</div>
+<div class="section" id="subtarget-support">
+<h2><a class="toc-backref" href="#id30">Subtarget Support</a><a class="headerlink" href="#subtarget-support" title="Permalink to this headline">¶</a></h2>
+<p>Subtarget support is used to inform the code generation process of instruction
+set variations for a given chip set.  For example, the LLVM SPARC
+implementation provided covers three major versions of the SPARC microprocessor
+architecture: Version 8 (V8, which is a 32-bit architecture), Version 9 (V9, a
+64-bit architecture), and the UltraSPARC architecture.  V8 has 16
+double-precision floating-point registers that are also usable as either 32
+single-precision or 8 quad-precision registers.  V8 is also purely big-endian.
+V9 has 32 double-precision floating-point registers that are also usable as 16
+quad-precision registers, but cannot be used as single-precision registers.
+The UltraSPARC architecture combines V9 with UltraSPARC Visual Instruction Set
+extensions.</p>
+<p>If subtarget support is needed, you should implement a target-specific
+<code class="docutils literal"><span class="pre">XXXSubtarget</span></code> class for your architecture.  This class should process the
+command-line options <code class="docutils literal"><span class="pre">-mcpu=</span></code> and <code class="docutils literal"><span class="pre">-mattr=</span></code>.</p>
+<p>TableGen uses definitions in the <code class="docutils literal"><span class="pre">Target.td</span></code> and <code class="docutils literal"><span class="pre">Sparc.td</span></code> files to
+generate code in <code class="docutils literal"><span class="pre">SparcGenSubtarget.inc</span></code>.  In <code class="docutils literal"><span class="pre">Target.td</span></code>, shown below, the
+<code class="docutils literal"><span class="pre">SubtargetFeature</span></code> interface is defined.  The first 4 string parameters of
+the <code class="docutils literal"><span class="pre">SubtargetFeature</span></code> interface are a feature name, an attribute set by the
+feature, the value of the attribute, and a description of the feature.  (The
+fifth parameter is a list of features whose presence is implied, and its
+default value is an empty array.)</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class SubtargetFeature&lt;string n, string a, string v, string d,
+                       list&lt;SubtargetFeature&gt; i = []&gt; {
+  string Name = n;
+  string Attribute = a;
+  string Value = v;
+  string Desc = d;
+  list&lt;SubtargetFeature&gt; Implies = i;
+}
+</pre></div>
+</div>
+<p>In the <code class="docutils literal"><span class="pre">Sparc.td</span></code> file, the <code class="docutils literal"><span class="pre">SubtargetFeature</span></code> is used to define the
+following features.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def FeatureV9 : SubtargetFeature&lt;&quot;v9&quot;, &quot;IsV9&quot;, &quot;true&quot;,
+                     &quot;Enable SPARC-V9 instructions&quot;&gt;;
+def FeatureV8Deprecated : SubtargetFeature&lt;&quot;deprecated-v8&quot;,
+                     &quot;V8DeprecatedInsts&quot;, &quot;true&quot;,
+                     &quot;Enable deprecated V8 instructions in V9 mode&quot;&gt;;
+def FeatureVIS : SubtargetFeature&lt;&quot;vis&quot;, &quot;IsVIS&quot;, &quot;true&quot;,
+                     &quot;Enable UltraSPARC Visual Instruction Set extensions&quot;&gt;;
+</pre></div>
+</div>
+<p>Elsewhere in <code class="docutils literal"><span class="pre">Sparc.td</span></code>, the <code class="docutils literal"><span class="pre">Proc</span></code> class is defined and then is used to
+define particular SPARC processor subtypes that may have the previously
+described features.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class Proc&lt;string Name, list&lt;SubtargetFeature&gt; Features&gt;
+  : Processor&lt;Name, NoItineraries, Features&gt;;
+
+def : Proc&lt;&quot;generic&quot;,         []&gt;;
+def : Proc&lt;&quot;v8&quot;,              []&gt;;
+def : Proc&lt;&quot;supersparc&quot;,      []&gt;;
+def : Proc&lt;&quot;sparclite&quot;,       []&gt;;
+def : Proc&lt;&quot;f934&quot;,            []&gt;;
+def : Proc&lt;&quot;hypersparc&quot;,      []&gt;;
+def : Proc&lt;&quot;sparclite86x&quot;,    []&gt;;
+def : Proc&lt;&quot;sparclet&quot;,        []&gt;;
+def : Proc&lt;&quot;tsc701&quot;,          []&gt;;
+def : Proc&lt;&quot;v9&quot;,              [FeatureV9]&gt;;
+def : Proc&lt;&quot;ultrasparc&quot;,      [FeatureV9, FeatureV8Deprecated]&gt;;
+def : Proc&lt;&quot;ultrasparc3&quot;,     [FeatureV9, FeatureV8Deprecated]&gt;;
+def : Proc&lt;&quot;ultrasparc3-vis&quot;, [FeatureV9, FeatureV8Deprecated, FeatureVIS]&gt;;
+</pre></div>
+</div>
+<p>From <code class="docutils literal"><span class="pre">Target.td</span></code> and <code class="docutils literal"><span class="pre">Sparc.td</span></code> files, the resulting
+<code class="docutils literal"><span class="pre">SparcGenSubtarget.inc</span></code> specifies enum values to identify the features,
+arrays of constants to represent the CPU features and CPU subtypes, and the
+<code class="docutils literal"><span class="pre">ParseSubtargetFeatures</span></code> method that parses the features string that sets
+specified subtarget options.  The generated <code class="docutils literal"><span class="pre">SparcGenSubtarget.inc</span></code> file
+should be included in the <code class="docutils literal"><span class="pre">SparcSubtarget.cpp</span></code>.  The target-specific
+implementation of the <code class="docutils literal"><span class="pre">XXXSubtarget</span></code> method should follow this pseudocode:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">XXXSubtarget</span><span class="o">::</span><span class="n">XXXSubtarget</span><span class="p">(</span><span class="k">const</span> <span class="n">Module</span> <span class="o">&amp;</span><span class="n">M</span><span class="p">,</span> <span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">FS</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Set the default features</span>
+  <span class="c1">// Determine default and user specified characteristics of the CPU</span>
+  <span class="c1">// Call ParseSubtargetFeatures(FS, CPU) to parse the features string</span>
+  <span class="c1">// Perform any additional operations</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="jit-support">
+<h2><a class="toc-backref" href="#id31">JIT Support</a><a class="headerlink" href="#jit-support" title="Permalink to this headline">¶</a></h2>
+<p>The implementation of a target machine optionally includes a Just-In-Time (JIT)
+code generator that emits machine code and auxiliary structures as binary
+output that can be written directly to memory.  To do this, implement JIT code
+generation by performing the following steps:</p>
+<ul class="simple">
+<li>Write an <code class="docutils literal"><span class="pre">XXXCodeEmitter.cpp</span></code> file that contains a machine function pass
+that transforms target-machine instructions into relocatable machine
+code.</li>
+<li>Write an <code class="docutils literal"><span class="pre">XXXJITInfo.cpp</span></code> file that implements the JIT interfaces for
+target-specific code-generation activities, such as emitting machine code and
+stubs.</li>
+<li>Modify <code class="docutils literal"><span class="pre">XXXTargetMachine</span></code> so that it provides a <code class="docutils literal"><span class="pre">TargetJITInfo</span></code> object
+through its <code class="docutils literal"><span class="pre">getJITInfo</span></code> method.</li>
+</ul>
+<p>There are several different approaches to writing the JIT support code.  For
+instance, TableGen and target descriptor files may be used for creating a JIT
+code generator, but are not mandatory.  For the Alpha and PowerPC target
+machines, TableGen is used to generate <code class="docutils literal"><span class="pre">XXXGenCodeEmitter.inc</span></code>, which
+contains the binary coding of machine instructions and the
+<code class="docutils literal"><span class="pre">getBinaryCodeForInstr</span></code> method to access those codes.  Other JIT
+implementations do not.</p>
+<p>Both <code class="docutils literal"><span class="pre">XXXJITInfo.cpp</span></code> and <code class="docutils literal"><span class="pre">XXXCodeEmitter.cpp</span></code> must include the
+<code class="docutils literal"><span class="pre">llvm/CodeGen/MachineCodeEmitter.h</span></code> header file that defines the
+<code class="docutils literal"><span class="pre">MachineCodeEmitter</span></code> class containing code for several callback functions
+that write data (in bytes, words, strings, etc.) to the output stream.</p>
+<div class="section" id="machine-code-emitter">
+<h3><a class="toc-backref" href="#id32">Machine Code Emitter</a><a class="headerlink" href="#machine-code-emitter" title="Permalink to this headline">¶</a></h3>
+<p>In <code class="docutils literal"><span class="pre">XXXCodeEmitter.cpp</span></code>, a target-specific of the <code class="docutils literal"><span class="pre">Emitter</span></code> class is
+implemented as a function pass (subclass of <code class="docutils literal"><span class="pre">MachineFunctionPass</span></code>).  The
+target-specific implementation of <code class="docutils literal"><span class="pre">runOnMachineFunction</span></code> (invoked by
+<code class="docutils literal"><span class="pre">runOnFunction</span></code> in <code class="docutils literal"><span class="pre">MachineFunctionPass</span></code>) iterates through the
+<code class="docutils literal"><span class="pre">MachineBasicBlock</span></code> calls <code class="docutils literal"><span class="pre">emitInstruction</span></code> to process each instruction and
+emit binary code.  <code class="docutils literal"><span class="pre">emitInstruction</span></code> is largely implemented with case
+statements on the instruction types defined in <code class="docutils literal"><span class="pre">XXXInstrInfo.h</span></code>.  For
+example, in <code class="docutils literal"><span class="pre">X86CodeEmitter.cpp</span></code>, the <code class="docutils literal"><span class="pre">emitInstruction</span></code> method is built
+around the following <code class="docutils literal"><span class="pre">switch</span></code>/<code class="docutils literal"><span class="pre">case</span></code> statements:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">switch</span> <span class="p">(</span><span class="n">Desc</span><span class="o">-&gt;</span><span class="n">TSFlags</span> <span class="o">&amp;</span> <span class="n">X86</span><span class="o">::</span><span class="n">FormMask</span><span class="p">)</span> <span class="p">{</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">Pseudo</span><span class="p">:</span>  <span class="c1">// for not yet implemented instructions</span>
+   <span class="p">...</span>               <span class="c1">// or pseudo-instructions</span>
+   <span class="k">break</span><span class="p">;</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">RawFrm</span><span class="p">:</span>  <span class="c1">// for instructions with a fixed opcode value</span>
+   <span class="p">...</span>
+   <span class="k">break</span><span class="p">;</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">AddRegFrm</span><span class="p">:</span> <span class="c1">// for instructions that have one register operand</span>
+   <span class="p">...</span>                 <span class="c1">// added to their opcode</span>
+   <span class="k">break</span><span class="p">;</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRMDestReg</span><span class="p">:</span><span class="c1">// for instructions that use the Mod/RM byte</span>
+   <span class="p">...</span>                 <span class="c1">// to specify a destination (register)</span>
+   <span class="k">break</span><span class="p">;</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRMDestMem</span><span class="p">:</span><span class="c1">// for instructions that use the Mod/RM byte</span>
+   <span class="p">...</span>                 <span class="c1">// to specify a destination (memory)</span>
+   <span class="k">break</span><span class="p">;</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRMSrcReg</span><span class="p">:</span> <span class="c1">// for instructions that use the Mod/RM byte</span>
+   <span class="p">...</span>                 <span class="c1">// to specify a source (register)</span>
+   <span class="k">break</span><span class="p">;</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRMSrcMem</span><span class="p">:</span> <span class="c1">// for instructions that use the Mod/RM byte</span>
+   <span class="p">...</span>                 <span class="c1">// to specify a source (memory)</span>
+   <span class="k">break</span><span class="p">;</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM0r</span><span class="p">:</span> <span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM1r</span><span class="p">:</span>  <span class="c1">// for instructions that operate on</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM2r</span><span class="p">:</span> <span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM3r</span><span class="p">:</span>  <span class="c1">// a REGISTER r/m operand and</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM4r</span><span class="p">:</span> <span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM5r</span><span class="p">:</span>  <span class="c1">// use the Mod/RM byte and a field</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM6r</span><span class="p">:</span> <span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM7r</span><span class="p">:</span>  <span class="c1">// to hold extended opcode data</span>
+   <span class="p">...</span>
+   <span class="k">break</span><span class="p">;</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM0m</span><span class="p">:</span> <span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM1m</span><span class="p">:</span>  <span class="c1">// for instructions that operate on</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM2m</span><span class="p">:</span> <span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM3m</span><span class="p">:</span>  <span class="c1">// a MEMORY r/m operand and</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM4m</span><span class="p">:</span> <span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM5m</span><span class="p">:</span>  <span class="c1">// use the Mod/RM byte and a field</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM6m</span><span class="p">:</span> <span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRM7m</span><span class="p">:</span>  <span class="c1">// to hold extended opcode data</span>
+   <span class="p">...</span>
+   <span class="k">break</span><span class="p">;</span>
+<span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">MRMInitReg</span><span class="p">:</span> <span class="c1">// for instructions whose source and</span>
+   <span class="p">...</span>                  <span class="c1">// destination are the same register</span>
+   <span class="k">break</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The implementations of these case statements often first emit the opcode and
+then get the operand(s).  Then depending upon the operand, helper methods may
+be called to process the operand(s).  For example, in <code class="docutils literal"><span class="pre">X86CodeEmitter.cpp</span></code>,
+for the <code class="docutils literal"><span class="pre">X86II::AddRegFrm</span></code> case, the first data emitted (by <code class="docutils literal"><span class="pre">emitByte</span></code>) is
+the opcode added to the register operand.  Then an object representing the
+machine operand, <code class="docutils literal"><span class="pre">MO1</span></code>, is extracted.  The helper methods such as
+<code class="docutils literal"><span class="pre">isImmediate</span></code>, <code class="docutils literal"><span class="pre">isGlobalAddress</span></code>, <code class="docutils literal"><span class="pre">isExternalSymbol</span></code>,
+<code class="docutils literal"><span class="pre">isConstantPoolIndex</span></code>, and <code class="docutils literal"><span class="pre">isJumpTableIndex</span></code> determine the operand type.
+(<code class="docutils literal"><span class="pre">X86CodeEmitter.cpp</span></code> also has private methods such as <code class="docutils literal"><span class="pre">emitConstant</span></code>,
+<code class="docutils literal"><span class="pre">emitGlobalAddress</span></code>, <code class="docutils literal"><span class="pre">emitExternalSymbolAddress</span></code>, <code class="docutils literal"><span class="pre">emitConstPoolAddress</span></code>,
+and <code class="docutils literal"><span class="pre">emitJumpTableAddress</span></code> that emit the data into the output stream.)</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">case</span> <span class="n">X86II</span><span class="o">::</span><span class="nl">AddRegFrm</span><span class="p">:</span>
+  <span class="n">MCE</span><span class="p">.</span><span class="n">emitByte</span><span class="p">(</span><span class="n">BaseOpcode</span> <span class="o">+</span> <span class="n">getX86RegNum</span><span class="p">(</span><span class="n">MI</span><span class="p">.</span><span class="n">getOperand</span><span class="p">(</span><span class="n">CurOp</span><span class="o">++</span><span class="p">).</span><span class="n">getReg</span><span class="p">()));</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">CurOp</span> <span class="o">!=</span> <span class="n">NumOps</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">const</span> <span class="n">MachineOperand</span> <span class="o">&amp;</span><span class="n">MO1</span> <span class="o">=</span> <span class="n">MI</span><span class="p">.</span><span class="n">getOperand</span><span class="p">(</span><span class="n">CurOp</span><span class="o">++</span><span class="p">);</span>
+    <span class="kt">unsigned</span> <span class="n">Size</span> <span class="o">=</span> <span class="n">X86InstrInfo</span><span class="o">::</span><span class="n">sizeOfImm</span><span class="p">(</span><span class="n">Desc</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">MO1</span><span class="p">.</span><span class="n">isImmediate</span><span class="p">())</span>
+      <span class="n">emitConstant</span><span class="p">(</span><span class="n">MO1</span><span class="p">.</span><span class="n">getImm</span><span class="p">(),</span> <span class="n">Size</span><span class="p">);</span>
+    <span class="k">else</span> <span class="p">{</span>
+      <span class="kt">unsigned</span> <span class="n">rt</span> <span class="o">=</span> <span class="n">Is64BitMode</span> <span class="o">?</span> <span class="n">X86</span><span class="o">::</span><span class="nl">reloc_pcrel_word</span>
+        <span class="p">:</span> <span class="p">(</span><span class="n">IsPIC</span> <span class="o">?</span> <span class="n">X86</span><span class="o">::</span><span class="nl">reloc_picrel_word</span> <span class="p">:</span> <span class="n">X86</span><span class="o">::</span><span class="n">reloc_absolute_word</span><span class="p">);</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">Opcode</span> <span class="o">==</span> <span class="n">X86</span><span class="o">::</span><span class="n">MOV64ri</span><span class="p">)</span>
+        <span class="n">rt</span> <span class="o">=</span> <span class="n">X86</span><span class="o">::</span><span class="n">reloc_absolute_dword</span><span class="p">;</span>  <span class="c1">// FIXME: add X86II flag?</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">MO1</span><span class="p">.</span><span class="n">isGlobalAddress</span><span class="p">())</span> <span class="p">{</span>
+        <span class="kt">bool</span> <span class="n">NeedStub</span> <span class="o">=</span> <span class="n">isa</span><span class="o">&lt;</span><span class="n">Function</span><span class="o">&gt;</span><span class="p">(</span><span class="n">MO1</span><span class="p">.</span><span class="n">getGlobal</span><span class="p">());</span>
+        <span class="kt">bool</span> <span class="n">isLazy</span> <span class="o">=</span> <span class="n">gvNeedsLazyPtr</span><span class="p">(</span><span class="n">MO1</span><span class="p">.</span><span class="n">getGlobal</span><span class="p">());</span>
+        <span class="n">emitGlobalAddress</span><span class="p">(</span><span class="n">MO1</span><span class="p">.</span><span class="n">getGlobal</span><span class="p">(),</span> <span class="n">rt</span><span class="p">,</span> <span class="n">MO1</span><span class="p">.</span><span class="n">getOffset</span><span class="p">(),</span> <span class="mi">0</span><span class="p">,</span>
+                          <span class="n">NeedStub</span><span class="p">,</span> <span class="n">isLazy</span><span class="p">);</span>
+      <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">MO1</span><span class="p">.</span><span class="n">isExternalSymbol</span><span class="p">())</span>
+        <span class="n">emitExternalSymbolAddress</span><span class="p">(</span><span class="n">MO1</span><span class="p">.</span><span class="n">getSymbolName</span><span class="p">(),</span> <span class="n">rt</span><span class="p">);</span>
+      <span class="k">else</span> <span class="nf">if</span> <span class="p">(</span><span class="n">MO1</span><span class="p">.</span><span class="n">isConstantPoolIndex</span><span class="p">())</span>
+        <span class="n">emitConstPoolAddress</span><span class="p">(</span><span class="n">MO1</span><span class="p">.</span><span class="n">getIndex</span><span class="p">(),</span> <span class="n">rt</span><span class="p">);</span>
+      <span class="k">else</span> <span class="nf">if</span> <span class="p">(</span><span class="n">MO1</span><span class="p">.</span><span class="n">isJumpTableIndex</span><span class="p">())</span>
+        <span class="n">emitJumpTableAddress</span><span class="p">(</span><span class="n">MO1</span><span class="p">.</span><span class="n">getIndex</span><span class="p">(),</span> <span class="n">rt</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+  <span class="k">break</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>In the previous example, <code class="docutils literal"><span class="pre">XXXCodeEmitter.cpp</span></code> uses the variable <code class="docutils literal"><span class="pre">rt</span></code>, which
+is a <code class="docutils literal"><span class="pre">RelocationType</span></code> enum that may be used to relocate addresses (for
+example, a global address with a PIC base offset).  The <code class="docutils literal"><span class="pre">RelocationType</span></code> enum
+for that target is defined in the short target-specific <code class="docutils literal"><span class="pre">XXXRelocations.h</span></code>
+file.  The <code class="docutils literal"><span class="pre">RelocationType</span></code> is used by the <code class="docutils literal"><span class="pre">relocate</span></code> method defined in
+<code class="docutils literal"><span class="pre">XXXJITInfo.cpp</span></code> to rewrite addresses for referenced global symbols.</p>
+<p>For example, <code class="docutils literal"><span class="pre">X86Relocations.h</span></code> specifies the following relocation types for
+the X86 addresses.  In all four cases, the relocated value is added to the
+value already in memory.  For <code class="docutils literal"><span class="pre">reloc_pcrel_word</span></code> and <code class="docutils literal"><span class="pre">reloc_picrel_word</span></code>,
+there is an additional initial adjustment.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">enum</span> <span class="n">RelocationType</span> <span class="p">{</span>
+  <span class="n">reloc_pcrel_word</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>    <span class="c1">// add reloc value after adjusting for the PC loc</span>
+  <span class="n">reloc_picrel_word</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>   <span class="c1">// add reloc value after adjusting for the PIC base</span>
+  <span class="n">reloc_absolute_word</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="c1">// absolute relocation; no additional adjustment</span>
+  <span class="n">reloc_absolute_dword</span> <span class="o">=</span> <span class="mi">3</span> <span class="c1">// absolute relocation; no additional adjustment</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="target-jit-info">
+<h3><a class="toc-backref" href="#id33">Target JIT Info</a><a class="headerlink" href="#target-jit-info" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">XXXJITInfo.cpp</span></code> implements the JIT interfaces for target-specific
+code-generation activities, such as emitting machine code and stubs.  At
+minimum, a target-specific version of <code class="docutils literal"><span class="pre">XXXJITInfo</span></code> implements the following:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">getLazyResolverFunction</span></code> — Initializes the JIT, gives the target a
+function that is used for compilation.</li>
+<li><code class="docutils literal"><span class="pre">emitFunctionStub</span></code> — Returns a native function with a specified address
+for a callback function.</li>
+<li><code class="docutils literal"><span class="pre">relocate</span></code> — Changes the addresses of referenced globals, based on
+relocation types.</li>
+<li>Callback function that are wrappers to a function stub that is used when the
+real target is not initially known.</li>
+</ul>
+<p><code class="docutils literal"><span class="pre">getLazyResolverFunction</span></code> is generally trivial to implement.  It makes the
+incoming parameter as the global <code class="docutils literal"><span class="pre">JITCompilerFunction</span></code> and returns the
+callback function that will be used a function wrapper.  For the Alpha target
+(in <code class="docutils literal"><span class="pre">AlphaJITInfo.cpp</span></code>), the <code class="docutils literal"><span class="pre">getLazyResolverFunction</span></code> implementation is
+simply:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">TargetJITInfo</span><span class="o">::</span><span class="n">LazyResolverFn</span> <span class="n">AlphaJITInfo</span><span class="o">::</span><span class="n">getLazyResolverFunction</span><span class="p">(</span>
+                                            <span class="n">JITCompilerFn</span> <span class="n">F</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">JITCompilerFunction</span> <span class="o">=</span> <span class="n">F</span><span class="p">;</span>
+  <span class="k">return</span> <span class="n">AlphaCompilationCallback</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>For the X86 target, the <code class="docutils literal"><span class="pre">getLazyResolverFunction</span></code> implementation is a little
+more complicated, because it returns a different callback function for
+processors with SSE instructions and XMM registers.</p>
+<p>The callback function initially saves and later restores the callee register
+values, incoming arguments, and frame and return address.  The callback
+function needs low-level access to the registers or stack, so it is typically
+implemented with assembler.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="HowToUseInstrMappings.html" title="How To Use Instruction Mappings"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="Vectorizers.html" title="Auto-Vectorization in LLVM"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

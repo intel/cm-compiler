@@ -1,0 +1,208 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial 5. Builtin Matrix and Vector Operations &#8212; CM 6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorial 6. Shared Local Memory and Thread Group" href="cmtutorial06.html" />
+    <link rel="prev" title="Tutorial 4. Using Media Walker with Thread Dependence" href="cmtutorial04.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="Intel Logo"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cmtutorial06.html" title="Tutorial 6. Shared Local Memory and Thread Group"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial04.html" title="Tutorial 4. Using Media Walker with Thread Dependence"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tutorial-5-builtin-matrix-and-vector-operations">
+<h1>Tutorial 5. Builtin Matrix and Vector Operations<a class="headerlink" href="#tutorial-5-builtin-matrix-and-vector-operations" title="Permalink to this headline">¶</a></h1>
+<p>In this tutorial, we show the usage of several more CM builtin operations
+for matrix and vector, such as select, merge, replicate, and cm_dp4.
+Refer to the CM spec for more operations and their specification, such as
+<code class="docutils literal"><span class="pre">format</span></code>.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1">#include &lt;cm/cm.h&gt;</span>
+
+<span class="o">//----------------------------------------------------------------------</span>
+<span class="o">//</span> <span class="n">Algorithm</span>
+<span class="o">//</span>
+<span class="o">//</span> <span class="n">Sepia</span> <span class="n">tone</span> <span class="n">conversion</span><span class="p">:</span>
+<span class="o">//</span> <span class="n">OutR</span> <span class="o">=</span> <span class="p">(</span><span class="n">InR</span> <span class="o">*</span> <span class="o">.</span><span class="mi">411</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">InG</span> <span class="o">*.</span><span class="mi">741</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">InB</span> <span class="o">*</span> <span class="o">.</span><span class="mi">201</span><span class="p">)</span>
+<span class="o">//</span> <span class="n">OutG</span> <span class="o">=</span> <span class="p">(</span><span class="n">InR</span> <span class="o">*</span> <span class="o">.</span><span class="mi">161</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">InG</span> <span class="o">*.</span><span class="mi">691</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">InB</span> <span class="o">*</span> <span class="o">.</span><span class="mi">161</span><span class="p">)</span>
+<span class="o">//</span> <span class="n">OutB</span> <span class="o">=</span> <span class="p">(</span><span class="n">InR</span> <span class="o">*</span> <span class="o">.</span><span class="mi">291</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">InG</span> <span class="o">*.</span><span class="mi">531</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">InB</span> <span class="o">*</span> <span class="o">.</span><span class="mi">101</span><span class="p">)</span>
+<span class="o">//</span>
+<span class="o">//</span> <span class="mi">8</span><span class="n">x8</span> <span class="n">pixels</span> <span class="n">are</span> <span class="n">processed</span> <span class="n">together</span>
+<span class="o">//----------------------------------------------------------------------</span>
+
+<span class="c1">#define ROWS    8</span>
+
+<span class="n">extern</span> <span class="s2">&quot;C&quot;</span> <span class="n">_GENX_MAIN_</span> <span class="n">void</span>
+<span class="n">sepia</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">INBUF</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">OUTBUF</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="n">ROWS</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="ow">in</span><span class="p">;</span>
+    <span class="n">matrix</span><span class="o">&lt;</span><span class="nb">float</span><span class="p">,</span> <span class="n">ROWS</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">in_float</span><span class="p">;</span>
+    <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="n">ROWS</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">out</span><span class="p">;</span>
+    <span class="n">vector</span><span class="o">&lt;</span><span class="nb">float</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">v</span><span class="p">;</span>
+    <span class="n">vector</span><span class="o">&lt;</span><span class="nb">float</span><span class="p">,</span> <span class="mi">6</span><span class="o">&gt;</span> <span class="n">w</span><span class="p">;</span>
+
+    <span class="n">vector</span><span class="o">&lt;</span><span class="nb">float</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">r</span><span class="p">;</span>
+    <span class="n">vector</span><span class="o">&lt;</span><span class="nb">float</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">g</span><span class="p">;</span>
+    <span class="n">vector</span><span class="o">&lt;</span><span class="nb">float</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">b</span><span class="p">;</span>
+
+    <span class="o">//</span> <span class="n">initialize</span> <span class="n">the</span> <span class="n">coefficients</span>
+    <span class="o">//</span> <span class="n">The</span> <span class="n">coefficients</span> <span class="n">are</span> <span class="nb">set</span> <span class="k">for</span> <span class="n">doing</span> <span class="n">dot</span><span class="o">-</span><span class="n">product</span> <span class="n">on</span> <span class="n">two</span> <span class="n">pixels</span>
+    <span class="o">//</span> <span class="p">[</span><span class="mf">0.201</span><span class="p">,</span> <span class="mf">0.741</span><span class="p">,</span> <span class="mf">0.411</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.201</span><span class="p">,</span> <span class="mf">0.741</span><span class="p">,</span> <span class="mf">0.411</span><span class="p">]</span>
+    <span class="o">//</span> <span class="n">refer</span> <span class="n">to</span> <span class="n">the</span> <span class="n">usage</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">loop</span>
+    <span class="n">r</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.201</span><span class="n">f</span><span class="p">;</span>
+    <span class="n">r</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.741</span><span class="n">f</span><span class="p">;</span>
+    <span class="n">r</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.411</span><span class="n">f</span><span class="p">;</span>
+    <span class="n">r</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">=</span> <span class="n">r</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">;</span>
+
+    <span class="n">g</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">=</span> <span class="n">g</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.161</span><span class="n">f</span><span class="p">;</span>
+    <span class="n">g</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">=</span> <span class="n">g</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.691</span><span class="n">f</span><span class="p">;</span>
+    <span class="n">g</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">=</span> <span class="n">g</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.361</span><span class="n">f</span><span class="p">;</span>
+    <span class="n">g</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">=</span> <span class="n">g</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">;</span>
+
+    <span class="n">b</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">=</span> <span class="n">b</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.101</span><span class="n">f</span><span class="p">;</span>
+    <span class="n">b</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">=</span> <span class="n">b</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.531</span><span class="n">f</span><span class="p">;</span>
+    <span class="n">b</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">=</span> <span class="n">b</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.291</span><span class="n">f</span><span class="p">;</span>
+    <span class="n">b</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">=</span> <span class="n">b</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span> <span class="o">=</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">;</span>
+
+    <span class="nb">int</span> <span class="n">h_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_x</span><span class="p">()</span> <span class="o">*</span> <span class="mi">24</span><span class="p">;</span>
+    <span class="nb">int</span> <span class="n">v_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_y</span><span class="p">()</span> <span class="o">*</span> <span class="n">ROWS</span><span class="p">;</span>
+    <span class="o">//</span> <span class="n">read</span> <span class="n">the</span> <span class="nb">input</span><span class="o">-</span><span class="n">image</span> <span class="n">pixel</span> <span class="n">block</span>
+    <span class="n">read</span><span class="p">(</span><span class="n">INBUF</span><span class="p">,</span> <span class="n">h_pos</span><span class="p">,</span> <span class="n">v_pos</span><span class="p">,</span> <span class="ow">in</span><span class="p">);</span>
+    <span class="o">//</span> <span class="n">convert</span> <span class="n">them</span> <span class="n">to</span> <span class="nb">float</span> <span class="n">values</span> <span class="k">for</span> <span class="n">computation</span>
+    <span class="n">in_float</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">&lt;</span><span class="nb">float</span><span class="p">,</span> <span class="n">ROWS</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span><span class="p">(</span><span class="ow">in</span><span class="p">);</span>
+
+    <span class="nb">int</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">;</span>
+    <span class="c1">#pragma unroll</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c1">#pragma unroll</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;=</span> <span class="mi">18</span><span class="p">;</span> <span class="n">j</span><span class="o">+=</span><span class="mi">6</span><span class="p">)</span> <span class="p">{</span>
+             <span class="o">//</span> <span class="n">every</span> <span class="n">iteration</span> <span class="n">works</span> <span class="n">on</span> <span class="n">two</span> <span class="n">pixels</span><span class="p">,</span> <span class="n">six</span> <span class="nb">input</span> <span class="n">values</span>
+             <span class="o">//</span> <span class="p">[</span><span class="n">B1</span><span class="p">,</span> <span class="n">G1</span><span class="p">,</span> <span class="n">R1</span><span class="p">,</span> <span class="n">B2</span><span class="p">,</span> <span class="n">G2</span><span class="p">,</span> <span class="n">R2</span><span class="p">]</span>
+             <span class="o">//</span> <span class="n">replicate</span> <span class="n">operation</span> <span class="n">expands</span> <span class="n">them</span> <span class="n">into</span> <span class="n">a</span> <span class="n">vector</span><span class="o">&lt;</span><span class="nb">float</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span>
+             <span class="o">//</span> <span class="p">[</span><span class="n">B1</span><span class="p">,</span> <span class="n">G1</span><span class="p">,</span> <span class="n">R1</span><span class="p">,</span> <span class="n">B2</span><span class="p">,</span> <span class="n">R1</span><span class="p">,</span> <span class="n">B2</span><span class="p">,</span> <span class="n">G2</span><span class="p">,</span> <span class="n">R2</span><span class="p">],</span>
+             <span class="o">//</span>
+             <span class="o">//</span> <span class="n">Explanation</span> <span class="n">of</span> <span class="n">the</span> <span class="n">replicate</span> <span class="n">operation</span><span class="p">:</span>
+             <span class="o">//</span>     <span class="n">According</span> <span class="n">to</span> <span class="n">the</span> <span class="n">spec</span> <span class="n">of</span> <span class="n">replicate</span><span class="o">&lt;</span><span class="n">REP</span><span class="p">,</span> <span class="n">VS</span><span class="p">,</span> <span class="n">W</span><span class="p">,</span> <span class="n">HS</span><span class="o">&gt;</span><span class="p">,</span>
+             <span class="o">//</span> <span class="n">here</span> <span class="n">the</span> <span class="n">REP</span> <span class="ow">is</span> <span class="mi">2</span><span class="p">,</span> <span class="n">W</span> <span class="ow">is</span> <span class="mi">4</span><span class="p">,</span> <span class="n">HS</span> <span class="ow">is</span> <span class="mi">1</span><span class="p">,</span> <span class="n">therefore</span><span class="p">,</span> <span class="n">first</span> <span class="n">time</span>
+             <span class="o">//</span> <span class="n">it</span> <span class="n">picks</span> <span class="mi">4</span> <span class="n">elements</span> <span class="n">starting</span> <span class="kn">from</span> <span class="nn">B1</span><span class="p">,</span> <span class="n">so</span> <span class="n">B1</span><span class="p">,</span> <span class="n">G1</span><span class="p">,</span> <span class="n">R1</span><span class="p">,</span> <span class="n">B2</span><span class="p">;</span>
+             <span class="o">//</span> <span class="n">second</span> <span class="n">time</span><span class="p">,</span> <span class="n">VS</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">move</span> <span class="n">two</span> <span class="n">element</span> <span class="n">ahead</span><span class="p">,</span> <span class="n">pick</span>
+             <span class="o">//</span> <span class="n">R1</span><span class="p">,</span> <span class="n">B2</span><span class="p">,</span> <span class="n">G2</span><span class="p">,</span> <span class="n">R2</span><span class="p">;</span>
+             <span class="o">//</span>
+             <span class="o">//</span> <span class="n">The</span> <span class="n">middle</span> <span class="n">elements</span> <span class="p">[</span><span class="n">B2</span><span class="p">,</span> <span class="n">R1</span><span class="p">]</span> <span class="n">do</span> <span class="ow">not</span> <span class="n">contribute</span> <span class="n">to</span> <span class="n">the</span> <span class="n">result</span>
+             <span class="o">//</span> <span class="n">because</span> <span class="n">the</span> <span class="n">corresponding</span> <span class="n">coefficients</span> <span class="n">are</span> <span class="n">zero</span><span class="o">.</span>
+             <span class="o">//</span>
+             <span class="o">//</span> <span class="n">Definition</span> <span class="n">of</span> <span class="n">cm_dp4</span><span class="p">:</span>
+             <span class="o">//</span>     <span class="n">cm_dp4</span> <span class="n">performs</span> <span class="n">the</span> <span class="mi">4</span><span class="o">-</span><span class="n">wide</span> <span class="n">dot</span> <span class="n">product</span> <span class="n">operation</span> <span class="k">for</span>
+             <span class="o">//</span> <span class="n">each</span> <span class="mi">4</span><span class="o">-</span><span class="nb">tuple</span> <span class="n">of</span> <span class="n">elements</span> <span class="ow">in</span> <span class="n">the</span> <span class="nb">input</span> <span class="n">vector</span><span class="o">/</span><span class="n">matrix</span>
+             <span class="o">//</span> <span class="n">parameters</span><span class="p">,</span> <span class="ow">and</span> <span class="n">sets</span> <span class="n">the</span> <span class="n">same</span> <span class="n">scalar</span> <span class="n">product</span> <span class="n">result</span> <span class="n">to</span> <span class="n">each</span>
+             <span class="o">//</span> <span class="n">element</span> <span class="n">of</span> <span class="n">the</span> <span class="n">corresponding</span> <span class="mi">4</span><span class="o">-</span><span class="nb">tuple</span> <span class="ow">in</span> <span class="n">the</span> <span class="k">return</span> <span class="n">value</span><span class="o">.</span>
+             <span class="o">//</span> <span class="n">so</span> <span class="ow">in</span> <span class="n">this</span> <span class="n">case</span><span class="p">,</span> <span class="n">cm_dp4</span> <span class="n">produces</span> <span class="n">two</span> <span class="n">scalar</span> <span class="n">values</span><span class="p">,</span> <span class="n">one</span> <span class="k">for</span>
+             <span class="o">//</span> <span class="n">each</span> <span class="n">pixel</span><span class="p">,</span> <span class="n">they</span> <span class="n">are</span> <span class="n">replicated</span> <span class="n">four</span> <span class="n">times</span><span class="p">,</span>
+             <span class="o">//</span> <span class="n">so</span> <span class="n">we</span> <span class="n">get</span> <span class="p">[</span><span class="n">ob1</span><span class="p">,</span> <span class="n">ob1</span><span class="p">,</span> <span class="n">ob1</span><span class="p">,</span> <span class="n">ob1</span><span class="p">,</span> <span class="n">ob2</span><span class="p">,</span> <span class="n">ob2</span><span class="p">,</span> <span class="n">ob2</span><span class="p">,</span> <span class="n">ob2</span><span class="p">]</span>
+             <span class="o">//</span>
+             <span class="o">//</span> <span class="n">Explanation</span> <span class="n">of</span> <span class="n">the</span> <span class="n">merge</span><span class="p">:</span>
+             <span class="o">//</span>     <span class="n">The</span> <span class="mi">2</span><span class="n">nd</span> <span class="n">parameter</span> <span class="n">of</span> <span class="n">the</span> <span class="n">merge</span> <span class="ow">is</span> <span class="n">a</span> <span class="n">bit</span><span class="o">-</span><span class="n">mask</span><span class="p">,</span>
+             <span class="o">//</span> <span class="mh">0x12</span> <span class="ow">is</span> <span class="mi">00010010</span><span class="p">,</span> <span class="n">so</span> <span class="n">we</span> <span class="n">end</span> <span class="k">with</span> <span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">ob1</span><span class="p">;</span> <span class="n">v</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="n">ob2</span><span class="p">;</span>
+             <span class="n">v</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">cm_dp4</span><span class="o">&lt;</span><span class="nb">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">in_float</span><span class="o">.</span><span class="n">replicate</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)),</span>
+                                   <span class="mh">0x12</span><span class="p">);</span>
+             <span class="o">//</span> <span class="mh">0x24</span> <span class="ow">is</span> <span class="mi">00100100</span><span class="p">,</span> <span class="n">so</span> <span class="n">we</span> <span class="n">end</span> <span class="k">with</span> <span class="n">v</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">og1</span><span class="p">;</span> <span class="n">v</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">=</span> <span class="n">og2</span><span class="p">;</span>
+             <span class="n">v</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">cm_dp4</span><span class="o">&lt;</span><span class="nb">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">in_float</span><span class="o">.</span><span class="n">replicate</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)),</span>
+                                   <span class="mh">0x24</span><span class="p">);</span>
+             <span class="o">//</span> <span class="mh">0x48</span> <span class="ow">is</span> <span class="mi">01001000</span><span class="p">,</span> <span class="n">so</span> <span class="n">we</span> <span class="n">end</span> <span class="k">with</span> <span class="n">v</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">or1</span><span class="p">;</span> <span class="n">v</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="o">=</span> <span class="n">or2</span><span class="p">;</span>
+             <span class="n">v</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">cm_dp4</span><span class="o">&lt;</span><span class="nb">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">in_float</span><span class="o">.</span><span class="n">replicate</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)),</span>
+                                   <span class="mh">0x48</span><span class="p">);</span>
+             <span class="o">//</span> <span class="n">pick</span> <span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="o">-</span><span class="mi">6</span><span class="p">]</span> <span class="ow">and</span> <span class="n">convert</span> <span class="n">them</span> <span class="n">to</span> <span class="n">uchar</span>
+             <span class="n">w</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+             <span class="o">//</span> <span class="n">write</span> <span class="n">two</span> <span class="n">pixels</span> <span class="n">to</span> <span class="n">the</span> <span class="n">output</span> <span class="n">matrix</span>
+             <span class="n">out</span><span class="o">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="o">=</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="mi">6</span><span class="o">&gt;</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">SAT</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="o">//</span> <span class="n">write</span> <span class="n">the</span> <span class="mi">8</span><span class="n">x8</span> <span class="n">pixels</span> <span class="n">to</span> <span class="n">the</span> <span class="n">output</span> <span class="n">image</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">OUTBUF</span><span class="p">,</span> <span class="n">h_pos</span><span class="p">,</span> <span class="n">v_pos</span><span class="p">,</span> <span class="n">out</span><span class="o">.</span><span class="n">select</span><span class="o">&lt;</span><span class="n">ROWS</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">());</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cmtutorial06.html" title="Tutorial 6. Shared Local Memory and Thread Group"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial04.html" title="Tutorial 4. Using Media Walker with Thread Dependence"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" >CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
+      Last updated on Tue Jan 2 15:16:27 2018 -0800.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

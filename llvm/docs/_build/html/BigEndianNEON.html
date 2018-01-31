@@ -1,0 +1,303 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Using ARM NEON instructions in big endian mode &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="GenX backend documentation" href="GenXIndex.html" />
+    <link rel="prev" title="Design and Usage of the InAlloca Attribute" href="InAlloca.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="GenXIndex.html" title="GenX backend documentation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="InAlloca.html" title="Design and Usage of the InAlloca Attribute"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="using-arm-neon-instructions-in-big-endian-mode">
+<h1>Using ARM NEON instructions in big endian mode<a class="headerlink" href="#using-arm-neon-instructions-in-big-endian-mode" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id5">Introduction</a><ul>
+<li><a class="reference internal" href="#example-c-level-intrinsics-assembly" id="id6">Example: C-level intrinsics -&gt; assembly</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#problem" id="id7">Problem</a></li>
+<li><a class="reference internal" href="#ldr-and-ld1" id="id8"><code class="docutils literal"><span class="pre">LDR</span></code> and <code class="docutils literal"><span class="pre">LD1</span></code></a></li>
+<li><a class="reference internal" href="#considerations" id="id9">Considerations</a><ul>
+<li><a class="reference internal" href="#llvm-ir-lane-ordering" id="id10">LLVM IR Lane ordering</a></li>
+<li><a class="reference internal" href="#aapcs" id="id11">AAPCS</a></li>
+<li><a class="reference internal" href="#alignment" id="id12">Alignment</a></li>
+<li><a class="reference internal" href="#summary" id="id13">Summary</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#implementation" id="id14">Implementation</a><ul>
+<li><a class="reference internal" href="#bitconverts" id="id15">Bitconverts</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id5">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>Generating code for big endian ARM processors is for the most part straightforward. NEON loads and stores however have some interesting properties that make code generation decisions less obvious in big endian mode.</p>
+<p>The aim of this document is to explain the problem with NEON loads and stores, and the solution that has been implemented in LLVM.</p>
+<p>In this document the term “vector” refers to what the ARM ABI calls a “short vector”, which is a sequence of items that can fit in a NEON register. This sequence can be 64 or 128 bits in length, and can constitute 8, 16, 32 or 64 bit items. This document refers to A64 instructions throughout, but is almost applicable to the A32/ARMv7 instruction sets also. The ABI format for passing vectors in A32 is sligtly different to A64. Apart from that, the same concepts apply.</p>
+<div class="section" id="example-c-level-intrinsics-assembly">
+<h3><a class="toc-backref" href="#id6">Example: C-level intrinsics -&gt; assembly</a><a class="headerlink" href="#example-c-level-intrinsics-assembly" title="Permalink to this headline">¶</a></h3>
+<p>It may be helpful first to illustrate how C-level ARM NEON intrinsics are lowered to instructions.</p>
+<p>This trivial C function takes a vector of four ints and sets the zero’th lane to the value “42”:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1">#include &lt;arm_neon.h&gt;</span>
+<span class="n">int32x4_t</span> <span class="n">f</span><span class="p">(</span><span class="n">int32x4_t</span> <span class="n">p</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">vsetq_lane_s32</span><span class="p">(</span><span class="mi">42</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>arm_neon.h intrinsics generate “generic” IR where possible (that is, normal IR instructions not <code class="docutils literal"><span class="pre">llvm.arm.neon.*</span></code> intrinsic calls). The above generates:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">define</span> <span class="o">&lt;</span><span class="mi">4</span> <span class="n">x</span> <span class="n">i32</span><span class="o">&gt;</span> <span class="nd">@f</span><span class="p">(</span><span class="o">&lt;</span><span class="mi">4</span> <span class="n">x</span> <span class="n">i32</span><span class="o">&gt;</span> <span class="o">%</span><span class="n">p</span><span class="p">)</span> <span class="p">{</span>
+  <span class="o">%</span><span class="n">vset_lane</span> <span class="o">=</span> <span class="n">insertelement</span> <span class="o">&lt;</span><span class="mi">4</span> <span class="n">x</span> <span class="n">i32</span><span class="o">&gt;</span> <span class="o">%</span><span class="n">p</span><span class="p">,</span> <span class="n">i32</span> <span class="mi">42</span><span class="p">,</span> <span class="n">i32</span> <span class="mi">0</span>
+  <span class="n">ret</span> <span class="o">&lt;</span><span class="mi">4</span> <span class="n">x</span> <span class="n">i32</span><span class="o">&gt;</span> <span class="o">%</span><span class="n">vset_lane</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Which then becomes the following trivial assembly:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">f</span><span class="p">:</span>                                      <span class="o">//</span> <span class="nd">@f</span>
+        <span class="n">movz</span>        <span class="n">w8</span><span class="p">,</span> <span class="c1">#0x2a</span>
+        <span class="n">ins</span>         <span class="n">v0</span><span class="o">.</span><span class="n">s</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">w8</span>
+        <span class="n">ret</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="problem">
+<h2><a class="toc-backref" href="#id7">Problem</a><a class="headerlink" href="#problem" title="Permalink to this headline">¶</a></h2>
+<p>The main problem is how vectors are represented in memory and in registers.</p>
+<p>First, a recap. The “endianness” of an item affects its representation in memory only. In a register, a number is just a sequence of bits - 64 bits in the case of AArch64 general purpose registers. Memory, however, is a sequence of addressable units of 8 bits in size. Any number greater than 8 bits must therefore be split up into 8-bit chunks, and endianness describes the order in which these chunks are laid out in memory.</p>
+<p>A “little endian” layout has the least significant byte first (lowest in memory address). A “big endian” layout has the <em>most</em> significant byte first. This means that when loading an item from big endian memory, the lowest 8-bits in memory must go in the most significant 8-bits, and so forth.</p>
+</div>
+<div class="section" id="ldr-and-ld1">
+<h2><a class="toc-backref" href="#id8"><code class="docutils literal"><span class="pre">LDR</span></code> and <code class="docutils literal"><span class="pre">LD1</span></code></a><a class="headerlink" href="#ldr-and-ld1" title="Permalink to this headline">¶</a></h2>
+<div class="figure align-right" id="id3">
+<img alt="_images/ARM-BE-ldr.png" src="_images/ARM-BE-ldr.png" />
+<p class="caption"><span class="caption-text">Big endian vector load using <code class="docutils literal"><span class="pre">LDR</span></code>.</span></p>
+</div>
+<p>A vector is a consecutive sequence of items that are operated on simultaneously. To load a 64-bit vector, 64 bits need to be read from memory. In little endian mode, we can do this by just performing a 64-bit load - <code class="docutils literal"><span class="pre">LDR</span> <span class="pre">q0,</span> <span class="pre">[foo]</span></code>. However if we try this in big endian mode, because of the byte swapping the lane indices end up being swapped! The zero’th item as laid out in memory becomes the n’th lane in the vector.</p>
+<div class="figure align-right" id="id4">
+<img alt="_images/ARM-BE-ld1.png" src="_images/ARM-BE-ld1.png" />
+<p class="caption"><span class="caption-text">Big endian vector load using <code class="docutils literal"><span class="pre">LD1</span></code>. Note that the lanes retain the correct ordering.</span></p>
+</div>
+<p>Because of this, the instruction <code class="docutils literal"><span class="pre">LD1</span></code> performs a vector load but performs byte swapping not on the entire 64 bits, but on the individual items within the vector. This means that the register content is the same as it would have been on a little endian system.</p>
+<p>It may seem that <code class="docutils literal"><span class="pre">LD1</span></code> should suffice to peform vector loads on a big endian machine. However there are pros and cons to the two approaches that make it less than simple which register format to pick.</p>
+<p>There are two options:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li>The content of a vector register is the same <em>as if</em> it had been loaded with an <code class="docutils literal"><span class="pre">LDR</span></code> instruction.</li>
+<li>The content of a vector register is the same <em>as if</em> it had been loaded with an <code class="docutils literal"><span class="pre">LD1</span></code> instruction.</li>
+</ol>
+</div></blockquote>
+<p>Because <code class="docutils literal"><span class="pre">LD1</span> <span class="pre">==</span> <span class="pre">LDR</span> <span class="pre">+</span> <span class="pre">REV</span></code> and similarly <code class="docutils literal"><span class="pre">LDR</span> <span class="pre">==</span> <span class="pre">LD1</span> <span class="pre">+</span> <span class="pre">REV</span></code> (on a big endian system), we can simulate either type of load with the other type of load plus a <code class="docutils literal"><span class="pre">REV</span></code> instruction. So we’re not deciding which instructions to use, but which format to use (which will then influence which instruction is best to use).</p>
+<div class="clearer docutils container">
+Note that throughout this section we only mention loads. Stores have exactly the same problems as their associated loads, so have been skipped for brevity.</div>
+</div>
+<div class="section" id="considerations">
+<h2><a class="toc-backref" href="#id9">Considerations</a><a class="headerlink" href="#considerations" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="llvm-ir-lane-ordering">
+<h3><a class="toc-backref" href="#id10">LLVM IR Lane ordering</a><a class="headerlink" href="#llvm-ir-lane-ordering" title="Permalink to this headline">¶</a></h3>
+<p>LLVM IR has first class vector types. In LLVM IR, the zero’th element of a vector resides at the lowest memory address. The optimizer relies on this property in certain areas, for example when concatenating vectors together. The intention is for arrays and vectors to have identical memory layouts - <code class="docutils literal"><span class="pre">[4</span> <span class="pre">x</span> <span class="pre">i8]</span></code> and <code class="docutils literal"><span class="pre">&lt;4</span> <span class="pre">x</span> <span class="pre">i8&gt;</span></code> should be represented the same in memory. Without this property there would be many special cases that the optimizer would have to cleverly handle.</p>
+<p>Use of <code class="docutils literal"><span class="pre">LDR</span></code> would break this lane ordering property. This doesn’t preclude the use of <code class="docutils literal"><span class="pre">LDR</span></code>, but we would have to do one of two things:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li>Insert a <code class="docutils literal"><span class="pre">REV</span></code> instruction to reverse the lane order after every <code class="docutils literal"><span class="pre">LDR</span></code>.</li>
+<li>Disable all optimizations that rely on lane layout, and for every access to an individual lane (<code class="docutils literal"><span class="pre">insertelement</span></code>/<code class="docutils literal"><span class="pre">extractelement</span></code>/<code class="docutils literal"><span class="pre">shufflevector</span></code>) reverse the lane index.</li>
+</ol>
+</div></blockquote>
+</div>
+<div class="section" id="aapcs">
+<h3><a class="toc-backref" href="#id11">AAPCS</a><a class="headerlink" href="#aapcs" title="Permalink to this headline">¶</a></h3>
+<p>The ARM procedure call standard (AAPCS) defines the ABI for passing vectors between functions in registers. It states:</p>
+<blockquote>
+<div><p>When a short vector is transferred between registers and memory it is treated as an opaque object. That is a short vector is stored in memory as if it were stored with a single <code class="docutils literal"><span class="pre">STR</span></code> of the entire register; a short vector is loaded from memory using the corresponding <code class="docutils literal"><span class="pre">LDR</span></code> instruction. On a little-endian system this means that element 0 will always contain the lowest addressed element of a short vector; on a big-endian system element 0 will contain the highest-addressed element of a short vector.</p>
+<p class="attribution">&mdash;Procedure Call Standard for the ARM 64-bit Architecture (AArch64), 4.1.2 Short Vectors</p>
+</div></blockquote>
+<p>The use of <code class="docutils literal"><span class="pre">LDR</span></code> and <code class="docutils literal"><span class="pre">STR</span></code> as the ABI defines has at least one advantage over <code class="docutils literal"><span class="pre">LD1</span></code> and <code class="docutils literal"><span class="pre">ST1</span></code>. <code class="docutils literal"><span class="pre">LDR</span></code> and <code class="docutils literal"><span class="pre">STR</span></code> are oblivious to the size of the individual lanes of a vector. <code class="docutils literal"><span class="pre">LD1</span></code> and <code class="docutils literal"><span class="pre">ST1</span></code> are not - the lane size is encoded within them. This is important across an ABI boundary, because it would become necessary to know the lane width the callee expects. Consider the following code:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">callee</span><span class="p">.</span><span class="n">c</span><span class="o">&gt;</span>
+<span class="kt">void</span> <span class="n">callee</span><span class="p">(</span><span class="n">uint32x2_t</span> <span class="n">v</span><span class="p">)</span> <span class="p">{</span>
+  <span class="p">...</span>
+<span class="p">}</span>
+
+<span class="o">&lt;</span><span class="n">caller</span><span class="p">.</span><span class="n">c</span><span class="o">&gt;</span>
+<span class="k">extern</span> <span class="kt">void</span> <span class="n">callee</span><span class="p">(</span><span class="n">uint32x2_t</span><span class="p">);</span>
+<span class="kt">void</span> <span class="nf">caller</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">callee</span><span class="p">(...);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>If <code class="docutils literal"><span class="pre">callee</span></code> changed its signature to <code class="docutils literal"><span class="pre">uint16x4_t</span></code>, which is equivalent in register content, if we passed as <code class="docutils literal"><span class="pre">LD1</span></code> we’d break this code until <code class="docutils literal"><span class="pre">caller</span></code> was updated and recompiled.</p>
+<p>There is an argument that if the signatures of the two functions are different then the behaviour should be undefined. But there may be functions that are agnostic to the lane layout of the vector, and treating the vector as an opaque value (just loading it and storing it) would be impossible without a common format across ABI boundaries.</p>
+<p>So to preserve ABI compatibility, we need to use the <code class="docutils literal"><span class="pre">LDR</span></code> lane layout across function calls.</p>
+</div>
+<div class="section" id="alignment">
+<h3><a class="toc-backref" href="#id12">Alignment</a><a class="headerlink" href="#alignment" title="Permalink to this headline">¶</a></h3>
+<p>In strict alignment mode, <code class="docutils literal"><span class="pre">LDR</span> <span class="pre">qX</span></code> requires its address to be 128-bit aligned, whereas <code class="docutils literal"><span class="pre">LD1</span></code> only requires it to be as aligned as the lane size. If we canonicalised on using <code class="docutils literal"><span class="pre">LDR</span></code>, we’d still need to use <code class="docutils literal"><span class="pre">LD1</span></code> in some places to avoid alignment faults (the result of the <code class="docutils literal"><span class="pre">LD1</span></code> would then need to be reversed with <code class="docutils literal"><span class="pre">REV</span></code>).</p>
+<p>Most operating systems however do not run with alignment faults enabled, so this is often not an issue.</p>
+</div>
+<div class="section" id="summary">
+<h3><a class="toc-backref" href="#id13">Summary</a><a class="headerlink" href="#summary" title="Permalink to this headline">¶</a></h3>
+<p>The following table summarises the instructions that are required to be emitted for each property mentioned above for each of the two solutions.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="37%" />
+<col width="37%" />
+<col width="25%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">&#160;</th>
+<th class="head"><code class="docutils literal"><span class="pre">LDR</span></code> layout</th>
+<th class="head"><code class="docutils literal"><span class="pre">LD1</span></code> layout</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>Lane ordering</td>
+<td><code class="docutils literal"><span class="pre">LDR</span> <span class="pre">+</span> <span class="pre">REV</span></code></td>
+<td><code class="docutils literal"><span class="pre">LD1</span></code></td>
+</tr>
+<tr class="row-odd"><td>AAPCS</td>
+<td><code class="docutils literal"><span class="pre">LDR</span></code></td>
+<td><code class="docutils literal"><span class="pre">LD1</span> <span class="pre">+</span> <span class="pre">REV</span></code></td>
+</tr>
+<tr class="row-even"><td>Alignment for strict mode</td>
+<td><code class="docutils literal"><span class="pre">LDR</span></code> / <code class="docutils literal"><span class="pre">LD1</span> <span class="pre">+</span> <span class="pre">REV</span></code></td>
+<td><code class="docutils literal"><span class="pre">LD1</span></code></td>
+</tr>
+</tbody>
+</table>
+<p>Neither approach is perfect, and choosing one boils down to choosing the lesser of two evils. The issue with lane ordering, it was decided, would have to change target-agnostic compiler passes and would result in a strange IR in which lane indices were reversed. It was decided that this was worse than the changes that would have to be made to support <code class="docutils literal"><span class="pre">LD1</span></code>, so <code class="docutils literal"><span class="pre">LD1</span></code> was chosen as the canonical vector load instruction (and by inference, <code class="docutils literal"><span class="pre">ST1</span></code> for vector stores).</p>
+</div>
+</div>
+<div class="section" id="implementation">
+<h2><a class="toc-backref" href="#id14">Implementation</a><a class="headerlink" href="#implementation" title="Permalink to this headline">¶</a></h2>
+<p>There are 3 parts to the implementation:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li>Predicate <code class="docutils literal"><span class="pre">LDR</span></code> and <code class="docutils literal"><span class="pre">STR</span></code> instructions so that they are never allowed to be selected to generate vector loads and stores. The exception is one-lane vectors <a class="footnote-reference" href="#id2" id="id1">[1]</a> - these by definition cannot have lane ordering problems so are fine to use <code class="docutils literal"><span class="pre">LDR</span></code>/<code class="docutils literal"><span class="pre">STR</span></code>.</li>
+<li>Create code generation patterns for bitconverts that create <code class="docutils literal"><span class="pre">REV</span></code> instructions.</li>
+<li>Make sure appropriate bitconverts are created so that vector values get passed over call boundaries as 1-element vectors (which is the same as if they were loaded with <code class="docutils literal"><span class="pre">LDR</span></code>).</li>
+</ol>
+</div></blockquote>
+<div class="section" id="bitconverts">
+<h3><a class="toc-backref" href="#id15">Bitconverts</a><a class="headerlink" href="#bitconverts" title="Permalink to this headline">¶</a></h3>
+<img alt="_images/ARM-BE-bitcastfail.png" class="align-right" src="_images/ARM-BE-bitcastfail.png" />
+<p>The main problem with the <code class="docutils literal"><span class="pre">LD1</span></code> solution is dealing with bitconverts (or bitcasts, or reinterpret casts). These are pseudo instructions that only change the compiler’s interpretation of data, not the underlying data itself. A requirement is that if data is loaded and then saved again (called a “round trip”), the memory contents should be the same after the store as before the load. If a vector is loaded and is then bitconverted to a different vector type before storing, the round trip will currently be broken.</p>
+<p>Take for example this code sequence:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">%</span><span class="mi">0</span> <span class="o">=</span> <span class="n">load</span> <span class="o">&lt;</span><span class="mi">4</span> <span class="n">x</span> <span class="n">i32</span><span class="o">&gt;</span> <span class="o">%</span><span class="n">x</span>
+<span class="o">%</span><span class="mi">1</span> <span class="o">=</span> <span class="n">bitcast</span> <span class="o">&lt;</span><span class="mi">4</span> <span class="n">x</span> <span class="n">i32</span><span class="o">&gt;</span> <span class="o">%</span><span class="mi">0</span> <span class="n">to</span> <span class="o">&lt;</span><span class="mi">2</span> <span class="n">x</span> <span class="n">i64</span><span class="o">&gt;</span>
+     <span class="n">store</span> <span class="o">&lt;</span><span class="mi">2</span> <span class="n">x</span> <span class="n">i64</span><span class="o">&gt;</span> <span class="o">%</span><span class="mi">1</span><span class="p">,</span> <span class="o">&lt;</span><span class="mi">2</span> <span class="n">x</span> <span class="n">i64</span><span class="o">&gt;*</span> <span class="o">%</span><span class="n">y</span>
+</pre></div>
+</div>
+<p>This would produce a code sequence such as that in the figure on the right. The mismatched <code class="docutils literal"><span class="pre">LD1</span></code> and <code class="docutils literal"><span class="pre">ST1</span></code> cause the stored data to differ from the loaded data.</p>
+<div class="clearer docutils container">
+When we see a bitcast from type <code class="docutils literal"><span class="pre">X</span></code> to type <code class="docutils literal"><span class="pre">Y</span></code>, what we need to do is to change the in-register representation of the data to be <em>as if</em> it had just been loaded by a <code class="docutils literal"><span class="pre">LD1</span></code> of type <code class="docutils literal"><span class="pre">Y</span></code>.</div>
+<img alt="_images/ARM-BE-bitcastsuccess.png" class="align-right" src="_images/ARM-BE-bitcastsuccess.png" />
+<p>Conceptually this is simple - we can insert a <code class="docutils literal"><span class="pre">REV</span></code> undoing the <code class="docutils literal"><span class="pre">LD1</span></code> of type <code class="docutils literal"><span class="pre">X</span></code> (converting the in-register representation to the same as if it had been loaded by <code class="docutils literal"><span class="pre">LDR</span></code>) and then insert another <code class="docutils literal"><span class="pre">REV</span></code> to change the representation to be as if it had been loaded by an <code class="docutils literal"><span class="pre">LD1</span></code> of type <code class="docutils literal"><span class="pre">Y</span></code>.</p>
+<p>For the previous example, this would be:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">LD1</span>   <span class="n">v0</span><span class="o">.</span><span class="mi">4</span><span class="n">s</span><span class="p">,</span> <span class="p">[</span><span class="n">x</span><span class="p">]</span>
+
+<span class="n">REV64</span> <span class="n">v0</span><span class="o">.</span><span class="mi">4</span><span class="n">s</span><span class="p">,</span> <span class="n">v0</span><span class="o">.</span><span class="mi">4</span><span class="n">s</span>                  <span class="o">//</span> <span class="n">There</span> <span class="ow">is</span> <span class="n">no</span> <span class="n">REV128</span> <span class="n">instruction</span><span class="p">,</span> <span class="n">so</span> <span class="n">it</span> <span class="n">must</span> <span class="n">be</span> <span class="n">synthesizedcd</span>
+<span class="n">EXT</span>   <span class="n">v0</span><span class="o">.</span><span class="mi">16</span><span class="n">b</span><span class="p">,</span> <span class="n">v0</span><span class="o">.</span><span class="mi">16</span><span class="n">b</span><span class="p">,</span> <span class="n">v0</span><span class="o">.</span><span class="mi">16</span><span class="n">b</span><span class="p">,</span> <span class="c1">#8    // with a REV64 then an EXT to swap the two 64-bit elements.</span>
+
+<span class="n">REV64</span> <span class="n">v0</span><span class="o">.</span><span class="mi">2</span><span class="n">d</span><span class="p">,</span> <span class="n">v0</span><span class="o">.</span><span class="mi">2</span><span class="n">d</span>
+<span class="n">EXT</span>   <span class="n">v0</span><span class="o">.</span><span class="mi">16</span><span class="n">b</span><span class="p">,</span> <span class="n">v0</span><span class="o">.</span><span class="mi">16</span><span class="n">b</span><span class="p">,</span> <span class="n">v0</span><span class="o">.</span><span class="mi">16</span><span class="n">b</span><span class="p">,</span> <span class="c1">#8</span>
+
+<span class="n">ST1</span>   <span class="n">v0</span><span class="o">.</span><span class="mi">2</span><span class="n">d</span><span class="p">,</span> <span class="p">[</span><span class="n">y</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>It turns out that these <code class="docutils literal"><span class="pre">REV</span></code> pairs can, in almost all cases, be squashed together into a single <code class="docutils literal"><span class="pre">REV</span></code>. For the example above, a <code class="docutils literal"><span class="pre">REV128</span> <span class="pre">4s</span></code> + <code class="docutils literal"><span class="pre">REV128</span> <span class="pre">2d</span></code> is actually a <code class="docutils literal"><span class="pre">REV64</span> <span class="pre">4s</span></code>, as shown in the figure on the right.</p>
+<table class="docutils footnote" frame="void" id="id2" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id1">[1]</a></td><td>One lane vectors may seem useless as a concept but they serve to distinguish between values held in general purpose registers and values held in NEON/VFP registers. For example, an <code class="docutils literal"><span class="pre">i64</span></code> would live in an <code class="docutils literal"><span class="pre">x</span></code> register, but <code class="docutils literal"><span class="pre">&lt;1</span> <span class="pre">x</span> <span class="pre">i64&gt;</span></code> would live in a <code class="docutils literal"><span class="pre">d</span></code> register.</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="GenXIndex.html" title="GenX backend documentation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="InAlloca.html" title="Design and Usage of the InAlloca Attribute"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

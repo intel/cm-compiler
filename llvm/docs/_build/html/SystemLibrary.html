@@ -1,0 +1,313 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>System Library &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Source Level Debugging with LLVM" href="SourceLevelDebugging.html" />
+    <link rel="prev" title="LLVM’s Optional Rich Disassembly Output" href="MarkedUpDisassembly.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="SourceLevelDebugging.html" title="Source Level Debugging with LLVM"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="MarkedUpDisassembly.html" title="LLVM’s Optional Rich Disassembly Output"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="system-library">
+<h1>System Library<a class="headerlink" href="#system-library" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="abstract">
+<h2>Abstract<a class="headerlink" href="#abstract" title="Permalink to this headline">¶</a></h2>
+<p>This document provides some details on LLVM’s System Library, located in the
+source at <code class="docutils literal"><span class="pre">lib/System</span></code> and <code class="docutils literal"><span class="pre">include/llvm/System</span></code>. The library’s purpose is
+to shield LLVM from the differences between operating systems for the few
+services LLVM needs from the operating system. Much of LLVM is written using
+portability features of standard C++. However, in a few areas, system dependent
+facilities are needed and the System Library is the wrapper around those system
+calls.</p>
+<p>By centralizing LLVM’s use of operating system interfaces, we make it possible
+for the LLVM tool chain and runtime libraries to be more easily ported to new
+platforms since (theoretically) only <code class="docutils literal"><span class="pre">lib/System</span></code> needs to be ported.  This
+library also unclutters the rest of LLVM from #ifdef use and special cases for
+specific operating systems. Such uses are replaced with simple calls to the
+interfaces provided in <code class="docutils literal"><span class="pre">include/llvm/System</span></code>.</p>
+<p>Note that the System Library is not intended to be a complete operating system
+wrapper (such as the Adaptive Communications Environment (ACE) or Apache
+Portable Runtime (APR)), but only provides the functionality necessary to
+support LLVM.</p>
+<p>The System Library was written by Reid Spencer who formulated the design based
+on similar work originating from the eXtensible Programming System (XPS).
+Several people helped with the effort; especially, Jeff Cohen and Henrik Bach
+on the Win32 port.</p>
+</div>
+<div class="section" id="keeping-llvm-portable">
+<h2>Keeping LLVM Portable<a class="headerlink" href="#keeping-llvm-portable" title="Permalink to this headline">¶</a></h2>
+<p>In order to keep LLVM portable, LLVM developers should adhere to a set of
+portability rules associated with the System Library. Adherence to these rules
+should help the System Library achieve its goal of shielding LLVM from the
+variations in operating system interfaces and doing so efficiently.  The
+following sections define the rules needed to fulfill this objective.</p>
+<div class="section" id="don-t-include-system-headers">
+<h3>Don’t Include System Headers<a class="headerlink" href="#don-t-include-system-headers" title="Permalink to this headline">¶</a></h3>
+<p>Except in <code class="docutils literal"><span class="pre">lib/System</span></code>, no LLVM source code should directly <code class="docutils literal"><span class="pre">#include</span></code> a
+system header. Care has been taken to remove all such <code class="docutils literal"><span class="pre">#includes</span></code> from LLVM
+while <code class="docutils literal"><span class="pre">lib/System</span></code> was being developed.  Specifically this means that header
+files like “<code class="docutils literal"><span class="pre">unistd.h</span></code>”, “<code class="docutils literal"><span class="pre">windows.h</span></code>”, “<code class="docutils literal"><span class="pre">stdio.h</span></code>”, and “<code class="docutils literal"><span class="pre">string.h</span></code>”
+are forbidden to be included by LLVM source code outside the implementation of
+<code class="docutils literal"><span class="pre">lib/System</span></code>.</p>
+<p>To obtain system-dependent functionality, existing interfaces to the system
+found in <code class="docutils literal"><span class="pre">include/llvm/System</span></code> should be used. If an appropriate interface is
+not available, it should be added to <code class="docutils literal"><span class="pre">include/llvm/System</span></code> and implemented in
+<code class="docutils literal"><span class="pre">lib/System</span></code> for all supported platforms.</p>
+</div>
+<div class="section" id="don-t-expose-system-headers">
+<h3>Don’t Expose System Headers<a class="headerlink" href="#don-t-expose-system-headers" title="Permalink to this headline">¶</a></h3>
+<p>The System Library must shield LLVM from <strong>all</strong> system headers. To obtain
+system level functionality, LLVM source must <code class="docutils literal"><span class="pre">#include</span> <span class="pre">&quot;llvm/System/Thing.h&quot;</span></code>
+and nothing else. This means that <code class="docutils literal"><span class="pre">Thing.h</span></code> cannot expose any system header
+files. This protects LLVM from accidentally using system specific functionality
+and only allows it via the <code class="docutils literal"><span class="pre">lib/System</span></code> interface.</p>
+</div>
+<div class="section" id="use-standard-c-headers">
+<h3>Use Standard C Headers<a class="headerlink" href="#use-standard-c-headers" title="Permalink to this headline">¶</a></h3>
+<p>The <strong>standard</strong> C headers (the ones beginning with “c”) are allowed to be
+exposed through the <code class="docutils literal"><span class="pre">lib/System</span></code> interface. These headers and the things they
+declare are considered to be platform agnostic. LLVM source files may include
+them directly or obtain their inclusion through <code class="docutils literal"><span class="pre">lib/System</span></code> interfaces.</p>
+</div>
+<div class="section" id="id1">
+<h3>Use Standard C++ Headers<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>The <strong>standard</strong> C++ headers from the standard C++ library and standard
+template library may be exposed through the <code class="docutils literal"><span class="pre">lib/System</span></code> interface. These
+headers and the things they declare are considered to be platform agnostic.
+LLVM source files may include them or obtain their inclusion through
+<code class="docutils literal"><span class="pre">lib/System</span></code> interfaces.</p>
+</div>
+<div class="section" id="high-level-interface">
+<h3>High Level Interface<a class="headerlink" href="#high-level-interface" title="Permalink to this headline">¶</a></h3>
+<p>The entry points specified in the interface of <code class="docutils literal"><span class="pre">lib/System</span></code> must be aimed at
+completing some reasonably high level task needed by LLVM. We do not want to
+simply wrap each operating system call. It would be preferable to wrap several
+operating system calls that are always used in conjunction with one another by
+LLVM.</p>
+<p>For example, consider what is needed to execute a program, wait for it to
+complete, and return its result code. On Unix, this involves the following
+operating system calls: <code class="docutils literal"><span class="pre">getenv</span></code>, <code class="docutils literal"><span class="pre">fork</span></code>, <code class="docutils literal"><span class="pre">execve</span></code>, and <code class="docutils literal"><span class="pre">wait</span></code>. The
+correct thing for <code class="docutils literal"><span class="pre">lib/System</span></code> to provide is a function, say
+<code class="docutils literal"><span class="pre">ExecuteProgramAndWait</span></code>, that implements the functionality completely.  what
+we don’t want is wrappers for the operating system calls involved.</p>
+<p>There must <strong>not</strong> be a one-to-one relationship between operating system
+calls and the System library’s interface. Any such interface function will be
+suspicious.</p>
+</div>
+<div class="section" id="no-unused-functionality">
+<h3>No Unused Functionality<a class="headerlink" href="#no-unused-functionality" title="Permalink to this headline">¶</a></h3>
+<p>There must be no functionality specified in the interface of <code class="docutils literal"><span class="pre">lib/System</span></code>
+that isn’t actually used by LLVM. We’re not writing a general purpose operating
+system wrapper here, just enough to satisfy LLVM’s needs. And, LLVM doesn’t
+need much. This design goal aims to keep the <code class="docutils literal"><span class="pre">lib/System</span></code> interface small and
+understandable which should foster its actual use and adoption.</p>
+</div>
+<div class="section" id="no-duplicate-implementations">
+<h3>No Duplicate Implementations<a class="headerlink" href="#no-duplicate-implementations" title="Permalink to this headline">¶</a></h3>
+<p>The implementation of a function for a given platform must be written exactly
+once. This implies that it must be possible to apply a function’s
+implementation to multiple operating systems if those operating systems can
+share the same implementation. This rule applies to the set of operating
+systems supported for a given class of operating system (e.g. Unix, Win32).</p>
+</div>
+<div class="section" id="no-virtual-methods">
+<h3>No Virtual Methods<a class="headerlink" href="#no-virtual-methods" title="Permalink to this headline">¶</a></h3>
+<p>The System Library interfaces can be called quite frequently by LLVM. In order
+to make those calls as efficient as possible, we discourage the use of virtual
+methods. There is no need to use inheritance for implementation differences, it
+just adds complexity. The <code class="docutils literal"><span class="pre">#include</span></code> mechanism works just fine.</p>
+</div>
+<div class="section" id="no-exposed-functions">
+<h3>No Exposed Functions<a class="headerlink" href="#no-exposed-functions" title="Permalink to this headline">¶</a></h3>
+<p>Any functions defined by system libraries (i.e. not defined by <code class="docutils literal"><span class="pre">lib/System</span></code>)
+must not be exposed through the <code class="docutils literal"><span class="pre">lib/System</span></code> interface, even if the header
+file for that function is not exposed. This prevents inadvertent use of system
+specific functionality.</p>
+<p>For example, the <code class="docutils literal"><span class="pre">stat</span></code> system call is notorious for having variations in the
+data it provides. <code class="docutils literal"><span class="pre">lib/System</span></code> must not declare <code class="docutils literal"><span class="pre">stat</span></code> nor allow it to be
+declared. Instead it should provide its own interface to discovering
+information about files and directories. Those interfaces may be implemented in
+terms of <code class="docutils literal"><span class="pre">stat</span></code> but that is strictly an implementation detail. The interface
+provided by the System Library must be implemented on all platforms (even those
+without <code class="docutils literal"><span class="pre">stat</span></code>).</p>
+</div>
+<div class="section" id="no-exposed-data">
+<h3>No Exposed Data<a class="headerlink" href="#no-exposed-data" title="Permalink to this headline">¶</a></h3>
+<p>Any data defined by system libraries (i.e. not defined by <code class="docutils literal"><span class="pre">lib/System</span></code>) must
+not be exposed through the <code class="docutils literal"><span class="pre">lib/System</span></code> interface, even if the header file
+for that function is not exposed. As with functions, this prevents inadvertent
+use of data that might not exist on all platforms.</p>
+</div>
+<div class="section" id="minimize-soft-errors">
+<h3>Minimize Soft Errors<a class="headerlink" href="#minimize-soft-errors" title="Permalink to this headline">¶</a></h3>
+<p>Operating system interfaces will generally provide error results for every
+little thing that could go wrong. In almost all cases, you can divide these
+error results into two groups: normal/good/soft and abnormal/bad/hard. That is,
+some of the errors are simply information like “file not found”, “insufficient
+privileges”, etc. while other errors are much harder like “out of space”, “bad
+disk sector”, or “system call interrupted”. We’ll call the first group “<em>soft</em>”
+errors and the second group “<em>hard</em>” errors.</p>
+<p><code class="docutils literal"><span class="pre">lib/System</span></code> must always attempt to minimize soft errors.  This is a design
+requirement because the minimization of soft errors can affect the granularity
+and the nature of the interface. In general, if you find that you’re wanting to
+throw soft errors, you must review the granularity of the interface because it
+is likely you’re trying to implement something that is too low level. The rule
+of thumb is to provide interface functions that <strong>can’t</strong> fail, except when
+faced with hard errors.</p>
+<p>For a trivial example, suppose we wanted to add an “<code class="docutils literal"><span class="pre">OpenFileForWriting</span></code>”
+function. For many operating systems, if the file doesn’t exist, attempting to
+open the file will produce an error.  However, <code class="docutils literal"><span class="pre">lib/System</span></code> should not simply
+throw that error if it occurs because its a soft error. The problem is that the
+interface function, <code class="docutils literal"><span class="pre">OpenFileForWriting</span></code> is too low level. It should be
+<code class="docutils literal"><span class="pre">OpenOrCreateFileForWriting</span></code>. In the case of the soft “doesn’t exist” error,
+this function would just create it and then open it for writing.</p>
+<p>This design principle needs to be maintained in <code class="docutils literal"><span class="pre">lib/System</span></code> because it
+avoids the propagation of soft error handling throughout the rest of LLVM.
+Hard errors will generally just cause a termination for an LLVM tool so don’t
+be bashful about throwing them.</p>
+<p>Rules of thumb:</p>
+<ol class="arabic simple">
+<li>Don’t throw soft errors, only hard errors.</li>
+<li>If you’re tempted to throw a soft error, re-think the interface.</li>
+<li>Handle internally the most common normal/good/soft error conditions
+so the rest of LLVM doesn’t have to.</li>
+</ol>
+</div>
+<div class="section" id="no-throw-specifications">
+<h3>No throw Specifications<a class="headerlink" href="#no-throw-specifications" title="Permalink to this headline">¶</a></h3>
+<p>None of the <code class="docutils literal"><span class="pre">lib/System</span></code> interface functions may be declared with C++
+<code class="docutils literal"><span class="pre">throw()</span></code> specifications on them. This requirement makes sure that the
+compiler does not insert additional exception handling code into the interface
+functions. This is a performance consideration: <code class="docutils literal"><span class="pre">lib/System</span></code> functions are at
+the bottom of many call chains and as such can be frequently called. We need
+them to be as efficient as possible.  However, no routines in the system
+library should actually throw exceptions.</p>
+</div>
+<div class="section" id="code-organization">
+<h3>Code Organization<a class="headerlink" href="#code-organization" title="Permalink to this headline">¶</a></h3>
+<p>Implementations of the System Library interface are separated by their general
+class of operating system. Currently only Unix and Win32 classes are defined
+but more could be added for other operating system classifications.  To
+distinguish which implementation to compile, the code in <code class="docutils literal"><span class="pre">lib/System</span></code> uses
+the <code class="docutils literal"><span class="pre">LLVM_ON_UNIX</span></code> and <code class="docutils literal"><span class="pre">LLVM_ON_WIN32</span></code> <code class="docutils literal"><span class="pre">#defines</span></code> provided via configure
+through the <code class="docutils literal"><span class="pre">llvm/Config/config.h</span></code> file. Each source file in <code class="docutils literal"><span class="pre">lib/System</span></code>,
+after implementing the generic (operating system independent) functionality
+needs to include the correct implementation using a set of
+<code class="docutils literal"><span class="pre">#if</span> <span class="pre">defined(LLVM_ON_XYZ)</span></code> directives. For example, if we had
+<code class="docutils literal"><span class="pre">lib/System/File.cpp</span></code>, we’d expect to see in that file:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#if defined(LLVM_ON_UNIX)</span>
+<span class="cp">#include</span> <span class="cpf">&quot;Unix/File.cpp&quot;</span><span class="cp"></span>
+<span class="cp">#endif</span>
+<span class="cp">#if defined(LLVM_ON_WIN32)</span>
+<span class="cp">#include</span> <span class="cpf">&quot;Win32/File.cpp&quot;</span><span class="cp"></span>
+<span class="cp">#endif</span>
+</pre></div>
+</div>
+<p>The implementation in <code class="docutils literal"><span class="pre">lib/System/Unix/File.cpp</span></code> should handle all Unix
+variants. The implementation in <code class="docutils literal"><span class="pre">lib/System/Win32/File.cpp</span></code> should handle all
+Win32 variants.  What this does is quickly differentiate the basic class of
+operating system that will provide the implementation. The specific details for
+a given platform must still be determined through the use of <code class="docutils literal"><span class="pre">#ifdef</span></code>.</p>
+</div>
+<div class="section" id="consistent-semantics">
+<h3>Consistent Semantics<a class="headerlink" href="#consistent-semantics" title="Permalink to this headline">¶</a></h3>
+<p>The implementation of a <code class="docutils literal"><span class="pre">lib/System</span></code> interface can vary drastically between
+platforms. That’s okay as long as the end result of the interface function is
+the same. For example, a function to create a directory is pretty straight
+forward on all operating system. System V IPC on the other hand isn’t even
+supported on all platforms. Instead of “supporting” System V IPC,
+<code class="docutils literal"><span class="pre">lib/System</span></code> should provide an interface to the basic concept of
+inter-process communications. The implementations might use System V IPC if
+that was available or named pipes, or whatever gets the job done effectively
+for a given operating system.  In all cases, the interface and the
+implementation must be semantically consistent.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="SourceLevelDebugging.html" title="Source Level Debugging with LLVM"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="MarkedUpDisassembly.html" title="LLVM’s Optional Rich Disassembly Output"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

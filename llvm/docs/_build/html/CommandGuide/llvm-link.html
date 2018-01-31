@@ -1,0 +1,163 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-link - LLVM bitcode linker &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llvm-ar - LLVM archiver" href="llvm-ar.html" />
+    <link rel="prev" title="lli - directly execute programs from LLVM bitcode" href="lli.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llvm-ar.html" title="llvm-ar - LLVM archiver"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="lli.html" title="lli - directly execute programs from LLVM bitcode"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-link-llvm-bitcode-linker">
+<h1>llvm-link - LLVM bitcode linker<a class="headerlink" href="#llvm-link-llvm-bitcode-linker" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-link</strong> [<em>options</em>] <em>filename …</em></p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-link</strong> takes several LLVM bitcode files and links them together
+into a single LLVM bitcode file.  It writes the output file to standard output,
+unless the <a class="reference internal" href="opt.html#cmdoption-o"><code class="xref std std-option docutils literal"><span class="pre">-o</span></code></a> option is used to specify a filename.</p>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl class="option">
+<dt id="cmdoption-f">
+<code class="descname">-f</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-f" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable binary output on terminals.  Normally, <strong class="program">llvm-link</strong> will refuse
+to write raw bitcode output if the output stream is a terminal. With this
+option, <strong class="program">llvm-link</strong> will write raw bitcode regardless of the output
+device.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-o">
+<code class="descname">-o</code><code class="descclassname"> filename</code><a class="headerlink" href="#cmdoption-o" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the output file name.  If <code class="docutils literal"><span class="pre">filename</span></code> is “<code class="docutils literal"><span class="pre">-</span></code>“, then
+<strong class="program">llvm-link</strong> will write its output to standard output.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-s">
+<code class="descname">-S</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-s" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write output in LLVM intermediate language (instead of bitcode).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-d">
+<code class="descname">-d</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-d" title="Permalink to this definition">¶</a></dt>
+<dd><p>If specified, <strong class="program">llvm-link</strong> prints a human-readable version of the
+output bitcode file to standard error.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-help">
+<code class="descname">-help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-help" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print a summary of command line options.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-v">
+<code class="descname">-v</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-v" title="Permalink to this definition">¶</a></dt>
+<dd><p>Verbose mode.  Print information about what <strong class="program">llvm-link</strong> is doing.
+This typically includes a message for each bitcode file linked in and for each
+library found.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p>If <strong class="program">llvm-link</strong> succeeds, it will exit with 0.  Otherwise, if an error
+occurs, it will exit with a non-zero value.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llvm-ar.html" title="llvm-ar - LLVM archiver"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="lli.html" title="lli - directly execute programs from LLVM bitcode"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,110 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial 10. Event-Driven Synchronization &#8212; CM 6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorial 11. Kernel Programming: Register Usage" href="cmtutorial11.html" />
+    <link rel="prev" title="Tutorial 9. Zero-Copy with User-Provided Surfaces" href="cmtutorial09.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="Intel Logo"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cmtutorial11.html" title="Tutorial 11. Kernel Programming: Register Usage"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial09.html" title="Tutorial 9. Zero-Copy with User-Provided Surfaces"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tutorial-10-event-driven-synchronization">
+<h1>Tutorial 10. Event-Driven Synchronization<a class="headerlink" href="#tutorial-10-event-driven-synchronization" title="Permalink to this headline">¶</a></h1>
+<p>In <a class="reference external" href="../../../../../test/open_examples/linear_up_walker/linear_up_walker.cpp">linear_up_walker</a>
+, since the output surface is created in user-provided system memory,
+there is no need to call ReadSurface to access those data after enqueue.
+However, we still need to know when the GPU task is finished, and the output
+is complete. An event-driven synchronization method is used here</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>    <span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">time_out</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+    <span class="n">cm_result_check</span><span class="p">(</span><span class="n">sync_event</span><span class="o">-&gt;</span><span class="n">WaitForTaskFinished</span><span class="p">(</span><span class="n">time_out</span><span class="p">));</span>
+
+    <span class="c1">// Destroys a CmTask object.</span>
+    <span class="c1">// CmTask will be destroyed when CmDevice is destroyed.</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cmtutorial11.html" title="Tutorial 11. Kernel Programming: Register Usage"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial09.html" title="Tutorial 9. Zero-Copy with User-Provided Surfaces"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" >CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
+      Last updated on Tue Jan 2 15:16:27 2018 -0800.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

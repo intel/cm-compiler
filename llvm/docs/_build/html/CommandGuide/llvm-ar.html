@@ -1,0 +1,347 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-ar - LLVM archiver &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llvm-nm - list LLVM bitcode and object file’s symbol table" href="llvm-nm.html" />
+    <link rel="prev" title="llvm-link - LLVM bitcode linker" href="llvm-link.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llvm-nm.html" title="llvm-nm - list LLVM bitcode and object file’s symbol table"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llvm-link.html" title="llvm-link - LLVM bitcode linker"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-ar-llvm-archiver">
+<h1>llvm-ar - LLVM archiver<a class="headerlink" href="#llvm-ar-llvm-archiver" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong>llvm-ar</strong> [-]{dmpqrtx}[Rabfikou] [relpos] [count] &lt;archive&gt; [files…]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>The <strong>llvm-ar</strong> command is similar to the common Unix utility, <code class="docutils literal"><span class="pre">ar</span></code>. It
+archives several files together into a single file. The intent for this is
+to produce archive libraries by LLVM bitcode that can be linked into an
+LLVM program. However, the archive can contain any kind of file. By default,
+<strong>llvm-ar</strong> generates a symbol table that makes linking faster because
+only the symbol table needs to be consulted, not each individual file member
+of the archive.</p>
+<p>The <strong>llvm-ar</strong> command can be used to <em>read</em> SVR4, GNU and BSD style archive
+files. However, right now it can only write in the GNU format. If an
+SVR4 or BSD style archive is used with the <code class="docutils literal"><span class="pre">r</span></code> (replace) or <code class="docutils literal"><span class="pre">q</span></code> (quick
+update) operations, the archive will be reconstructed in GNU format.</p>
+<p>Here’s where <strong>llvm-ar</strong> departs from previous <code class="docutils literal"><span class="pre">ar</span></code> implementations:</p>
+<p><em>Symbol Table</em></p>
+<blockquote>
+<div>Since <strong>llvm-ar</strong> supports bitcode files. The symbol table it creates
+is in GNU format and includes both native and bitcode files.</div></blockquote>
+<p><em>Long Paths</em></p>
+<blockquote>
+<div>Currently <strong>llvm-ar</strong> can read GNU and BSD long file names, but only writes
+archives with the GNU format.</div></blockquote>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<p>The options to <strong>llvm-ar</strong> are compatible with other <code class="docutils literal"><span class="pre">ar</span></code> implementations.
+However, there are a few modifiers (<em>R</em>) that are not found in other <code class="docutils literal"><span class="pre">ar</span></code>
+implementations. The options to <strong>llvm-ar</strong> specify a single basic operation to
+perform on the archive, a variety of modifiers for that operation, the name of
+the archive file, and an optional list of file names. These options are used to
+determine how <strong>llvm-ar</strong> should process the archive file.</p>
+<p>The Operations and Modifiers are explained in the sections below. The minimal
+set of options is at least one operator and the name of the archive. Typically
+archive files end with a <code class="docutils literal"><span class="pre">.a</span></code> suffix, but this is not required. Following
+the <em>archive-name</em> comes a list of <em>files</em> that indicate the specific members
+of the archive to operate on. If the <em>files</em> option is not specified, it
+generally means either “none” or “all” members, depending on the operation.</p>
+<div class="section" id="operations">
+<h3>Operations<a class="headerlink" href="#operations" title="Permalink to this headline">¶</a></h3>
+<p>d</p>
+<blockquote>
+<div>Delete files from the archive. No modifiers are applicable to this operation.
+The <em>files</em> options specify which members should be removed from the
+archive. It is not an error if a specified file does not appear in the archive.
+If no <em>files</em> are specified, the archive is not modified.</div></blockquote>
+<p>m[abi]</p>
+<blockquote>
+<div>Move files from one location in the archive to another. The <em>a</em>, <em>b</em>, and
+<em>i</em> modifiers apply to this operation. The <em>files</em> will all be moved
+to the location given by the modifiers. If no modifiers are used, the files
+will be moved to the end of the archive. If no <em>files</em> are specified, the
+archive is not modified.</div></blockquote>
+<p>p</p>
+<blockquote>
+<div>Print files to the standard output. This operation simply prints the
+<em>files</em> indicated to the standard output. If no <em>files</em> are
+specified, the entire  archive is printed.  Printing bitcode files is
+ill-advised as they might confuse your terminal settings. The <em>p</em>
+operation never modifies the archive.</div></blockquote>
+<p>q</p>
+<blockquote>
+<div>Quickly append files to the end of the archive.  This operation quickly adds the
+<em>files</em> to the archive without checking for duplicates that should be
+removed first. If no <em>files</em> are specified, the archive is not modified.
+Because of the way that <strong>llvm-ar</strong> constructs the archive file, its dubious
+whether the <em>q</em> operation is any faster than the <em>r</em> operation.</div></blockquote>
+<p>r[abu]</p>
+<blockquote>
+<div>Replace or insert file members. The <em>a</em>, <em>b</em>,  and <em>u</em>
+modifiers apply to this operation. This operation will replace existing
+<em>files</em> or insert them at the end of the archive if they do not exist. If no
+<em>files</em> are specified, the archive is not modified.</div></blockquote>
+<p>t[v]</p>
+<blockquote>
+<div>Print the table of contents. Without any modifiers, this operation just prints
+the names of the members to the standard output. With the <em>v</em> modifier,
+<strong>llvm-ar</strong> also prints out the file type (B=bitcode, S=symbol
+table, blank=regular file), the permission mode, the owner and group, the
+size, and the date. If any <em>files</em> are specified, the listing is only for
+those files. If no <em>files</em> are specified, the table of contents for the
+whole archive is printed.</div></blockquote>
+<p>x[oP]</p>
+<blockquote>
+<div>Extract archive members back to files. The <em>o</em> modifier applies to this
+operation. This operation retrieves the indicated <em>files</em> from the archive
+and writes them back to the operating system’s file system. If no
+<em>files</em> are specified, the entire archive is extract.</div></blockquote>
+</div>
+<div class="section" id="modifiers-operation-specific">
+<h3>Modifiers (operation specific)<a class="headerlink" href="#modifiers-operation-specific" title="Permalink to this headline">¶</a></h3>
+<p>The modifiers below are specific to certain operations. See the Operations
+section (above) to determine which modifiers are applicable to which operations.</p>
+<p>[a]</p>
+<blockquote>
+<div>When inserting or moving member files, this option specifies the destination of
+the new files as being after the <em>relpos</em> member. If <em>relpos</em> is not found,
+the files are placed at the end of the archive.</div></blockquote>
+<p>[b]</p>
+<blockquote>
+<div>When inserting or moving member files, this option specifies the destination of
+the new files as being before the <em>relpos</em> member. If <em>relpos</em> is not
+found, the files are placed at the end of the archive. This modifier is
+identical to the <em>i</em> modifier.</div></blockquote>
+<p>[i]</p>
+<blockquote>
+<div>A synonym for the <em>b</em> option.</div></blockquote>
+<p>[o]</p>
+<blockquote>
+<div>When extracting files, this option will cause <strong>llvm-ar</strong> to preserve the
+original modification times of the files it writes.</div></blockquote>
+<p>[u]</p>
+<blockquote>
+<div>When replacing existing files in the archive, only replace those files that have
+a time stamp than the time stamp of the member in the archive.</div></blockquote>
+</div>
+<div class="section" id="modifiers-generic">
+<h3>Modifiers (generic)<a class="headerlink" href="#modifiers-generic" title="Permalink to this headline">¶</a></h3>
+<p>The modifiers below may be applied to any operation.</p>
+<p>[c]</p>
+<blockquote>
+<div>For all operations, <strong>llvm-ar</strong> will always create the archive if it doesn’t
+exist. Normally, <strong>llvm-ar</strong> will print a warning message indicating that the
+archive is being created. Using this modifier turns off that warning.</div></blockquote>
+<p>[s]</p>
+<blockquote>
+<div>This modifier requests that an archive index (or symbol table) be added to the
+archive. This is the default mode of operation. The symbol table will contain
+all the externally visible functions and global variables defined by all the
+bitcode files in the archive.</div></blockquote>
+<p>[S]</p>
+<blockquote>
+<div>This modifier is the opposite of the <em>s</em> modifier. It instructs <strong>llvm-ar</strong> to
+not build the symbol table. If both <em>s</em> and <em>S</em> are used, the last modifier to
+occur in the options will prevail.</div></blockquote>
+<p>[v]</p>
+<blockquote>
+<div>This modifier instructs <strong>llvm-ar</strong> to be verbose about what it is doing. Each
+editing operation taken against the archive will produce a line of output saying
+what is being done.</div></blockquote>
+</div>
+</div>
+<div class="section" id="standards">
+<h2>STANDARDS<a class="headerlink" href="#standards" title="Permalink to this headline">¶</a></h2>
+<p>The <strong>llvm-ar</strong> utility is intended to provide a superset of the IEEE Std 1003.2
+(POSIX.2) functionality for <code class="docutils literal"><span class="pre">ar</span></code>. <strong>llvm-ar</strong> can read both SVR4 and BSD4.4 (or
+Mac OS X) archives. If the <code class="docutils literal"><span class="pre">f</span></code> modifier is given to the <code class="docutils literal"><span class="pre">x</span></code> or <code class="docutils literal"><span class="pre">r</span></code> operations
+then <strong>llvm-ar</strong> will write SVR4 compatible archives. Without this modifier,
+<strong>llvm-ar</strong> will write BSD4.4 compatible archives that have long names
+immediately after the header and indicated using the “#1/ddd” notation for the
+name in the header.</p>
+</div>
+<div class="section" id="file-format">
+<h2>FILE FORMAT<a class="headerlink" href="#file-format" title="Permalink to this headline">¶</a></h2>
+<p>The file format for LLVM Archive files is similar to that of BSD 4.4 or Mac OSX
+archive files. In fact, except for the symbol table, the <code class="docutils literal"><span class="pre">ar</span></code> commands on those
+operating systems should be able to read LLVM archive files. The details of the
+file format follow.</p>
+<p>Each archive begins with the archive magic number which is the eight printable
+characters “!&lt;arch&gt;n” where n represents the newline character (0x0A).
+Following the magic number, the file is composed of even length members that
+begin with an archive header and end with a n padding character if necessary
+(to make the length even). Each file member is composed of a header (defined
+below), an optional newline-terminated “long file name” and the contents of
+the file.</p>
+<p>The fields of the header are described in the items below. All fields of the
+header contain only ASCII characters, are left justified and are right padded
+with space characters.</p>
+<p>name - char[16]</p>
+<blockquote>
+<div>This field of the header provides the name of the archive member. If the name is
+longer than 15 characters or contains a slash (/) character, then this field
+contains <code class="docutils literal"><span class="pre">#1/nnn</span></code> where <code class="docutils literal"><span class="pre">nnn</span></code> provides the length of the name and the <code class="docutils literal"><span class="pre">#1/</span></code>
+is literal.  In this case, the actual name of the file is provided in the <code class="docutils literal"><span class="pre">nnn</span></code>
+bytes immediately following the header. If the name is 15 characters or less, it
+is contained directly in this field and terminated with a slash (/) character.</div></blockquote>
+<p>date - char[12]</p>
+<blockquote>
+<div>This field provides the date of modification of the file in the form of a
+decimal encoded number that provides the number of seconds since the epoch
+(since 00:00:00 Jan 1, 1970) per Posix specifications.</div></blockquote>
+<p>uid - char[6]</p>
+<blockquote>
+<div>This field provides the user id of the file encoded as a decimal ASCII string.
+This field might not make much sense on non-Unix systems. On Unix, it is the
+same value as the st_uid field of the stat structure returned by the stat(2)
+operating system call.</div></blockquote>
+<p>gid - char[6]</p>
+<blockquote>
+<div>This field provides the group id of the file encoded as a decimal ASCII string.
+This field might not make much sense on non-Unix systems. On Unix, it is the
+same value as the st_gid field of the stat structure returned by the stat(2)
+operating system call.</div></blockquote>
+<p>mode - char[8]</p>
+<blockquote>
+<div>This field provides the access mode of the file encoded as an octal ASCII
+string. This field might not make much sense on non-Unix systems. On Unix, it
+is the same value as the st_mode field of the stat structure returned by the
+stat(2) operating system call.</div></blockquote>
+<p>size - char[10]</p>
+<blockquote>
+<div>This field provides the size of the file, in bytes, encoded as a decimal ASCII
+string.</div></blockquote>
+<p>fmag - char[2]</p>
+<blockquote>
+<div>This field is the archive file member magic number. Its content is always the
+two characters back tick (0x60) and newline (0x0A). This provides some measure
+utility in identifying archive files that have been corrupted.</div></blockquote>
+<p>offset - vbr encoded 32-bit integer</p>
+<blockquote>
+<div>The offset item provides the offset into the archive file where the bitcode
+member is stored that is associated with the symbol. The offset value is 0
+based at the start of the first “normal” file member. To derive the actual
+file offset of the member, you must add the number of bytes occupied by the file
+signature (8 bytes) and the symbol tables. The value of this item is encoded
+using variable bit rate encoding to reduce the size of the symbol table.
+Variable bit rate encoding uses the high bit (0x80) of each byte to indicate
+if there are more bytes to follow. The remaining 7 bits in each byte carry bits
+from the value. The final byte does not have the high bit set.</div></blockquote>
+<p>length - vbr encoded 32-bit integer</p>
+<blockquote>
+<div>The length item provides the length of the symbol that follows. Like this
+<em>offset</em> item, the length is variable bit rate encoded.</div></blockquote>
+<p>symbol - character array</p>
+<blockquote>
+<div>The symbol item provides the text of the symbol that is associated with the
+<em>offset</em>. The symbol is not terminated by any character. Its length is provided
+by the <em>length</em> field. Note that is allowed (but unwise) to use non-printing
+characters (even 0x00) in the symbol. This allows for multiple encodings of
+symbol names.</div></blockquote>
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p>If <strong>llvm-ar</strong> succeeds, it will exit with 0.  A usage error, results
+in an exit code of 1. A hard (file system typically) error results in an
+exit code of 2. Miscellaneous or unknown errors result in an
+exit code of 3.</p>
+</div>
+<div class="section" id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p>ar(1)</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llvm-nm.html" title="llvm-nm - list LLVM bitcode and object file’s symbol table"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llvm-link.html" title="llvm-link - LLVM bitcode linker"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

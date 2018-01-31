@@ -1,0 +1,281 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>How to submit an LLVM bug report &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Sphinx Quickstart Template" href="SphinxQuickstartTemplate.html" />
+    <link rel="prev" title="yaml2obj" href="yaml2obj.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="SphinxQuickstartTemplate.html" title="Sphinx Quickstart Template"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="yaml2obj.html" title="yaml2obj"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="how-to-submit-an-llvm-bug-report">
+<h1>How to submit an LLVM bug report<a class="headerlink" href="#how-to-submit-an-llvm-bug-report" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction-got-bugs">
+<h2>Introduction - Got bugs?<a class="headerlink" href="#introduction-got-bugs" title="Permalink to this headline">¶</a></h2>
+<p>If you’re working with LLVM and run into a bug, we definitely want to know
+about it.  This document describes what you can do to increase the odds of
+getting it fixed quickly.</p>
+<p>Basically you have to do two things at a minimum.  First, decide whether
+the bug <a class="reference internal" href="#crashes-the-compiler">crashes the compiler</a> (or an LLVM pass), or if the
+compiler is <a class="reference internal" href="#miscompiling">miscompiling</a> the program (i.e., the
+compiler successfully produces an executable, but it doesn’t run right).
+Based on what type of bug it is, follow the instructions in the linked
+section to narrow down the bug so that the person who fixes it will be able
+to find the problem more easily.</p>
+<p>Once you have a reduced test-case, go to <a class="reference external" href="http://llvm.org/bugs/enter_bug.cgi">the LLVM Bug Tracking System</a> and fill out the form with the
+necessary details (note that you don’t need to pick a category, just use
+the “new-bugs” category if you’re not sure).  The bug description should
+contain the following information:</p>
+<ul class="simple">
+<li>All information necessary to reproduce the problem.</li>
+<li>The reduced test-case that triggers the bug.</li>
+<li>The location where you obtained LLVM (if not from our Subversion
+repository).</li>
+</ul>
+<p>Thanks for helping us make LLVM better!</p>
+</div>
+<div class="section" id="crashing-bugs">
+<span id="crashes-the-compiler"></span><h2>Crashing Bugs<a class="headerlink" href="#crashing-bugs" title="Permalink to this headline">¶</a></h2>
+<p>More often than not, bugs in the compiler cause it to crash—often due to
+an assertion failure of some sort. The most important piece of the puzzle
+is to figure out if it is crashing in the GCC front-end or if it is one of
+the LLVM libraries (e.g. the optimizer or code generator) that has
+problems.</p>
+<p>To figure out which component is crashing (the front-end, optimizer or code
+generator), run the <code class="docutils literal"><span class="pre">clang</span></code> command line as you were when the crash
+occurred, but with the following extra command line options:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">-O0</span> <span class="pre">-emit-llvm</span></code>: If <code class="docutils literal"><span class="pre">clang</span></code> still crashes when passed these
+options (which disable the optimizer and code generator), then the crash
+is in the front-end.  Jump ahead to the section on <a class="reference internal" href="#front-end"><span class="std std-ref">front-end bugs</span></a>.</li>
+<li><code class="docutils literal"><span class="pre">-emit-llvm</span></code>: If <code class="docutils literal"><span class="pre">clang</span></code> crashes with this option (which disables
+the code generator), you found an optimizer bug.  Jump ahead to
+<a class="reference internal" href="#compile-time-optimization-bugs">compile-time optimization bugs</a>.</li>
+<li>Otherwise, you have a code generator crash. Jump ahead to <a class="reference internal" href="#code-generator-bugs">code
+generator bugs</a>.</li>
+</ul>
+<div class="section" id="front-end-bugs">
+<span id="front-end"></span><span id="front-end-bug"></span><h3>Front-end bugs<a class="headerlink" href="#front-end-bugs" title="Permalink to this headline">¶</a></h3>
+<p>If the problem is in the front-end, you should re-run the same <code class="docutils literal"><span class="pre">clang</span></code>
+command that resulted in the crash, but add the <code class="docutils literal"><span class="pre">-save-temps</span></code> option.
+The compiler will crash again, but it will leave behind a <code class="docutils literal"><span class="pre">foo.i</span></code> file
+(containing preprocessed C source code) and possibly <code class="docutils literal"><span class="pre">foo.s</span></code> for each
+compiled <code class="docutils literal"><span class="pre">foo.c</span></code> file. Send us the <code class="docutils literal"><span class="pre">foo.i</span></code> file, along with the options
+you passed to <code class="docutils literal"><span class="pre">clang</span></code>, and a brief description of the error it caused.</p>
+<p>The <a class="reference external" href="http://delta.tigris.org/">delta</a> tool helps to reduce the
+preprocessed file down to the smallest amount of code that still replicates
+the problem. You’re encouraged to use delta to reduce the code to make the
+developers’ lives easier. <a class="reference external" href="http://gcc.gnu.org/wiki/A_guide_to_testcase_reduction">This website</a> has instructions
+on the best way to use delta.</p>
+</div>
+<div class="section" id="compile-time-optimization-bugs">
+<span id="id1"></span><h3>Compile-time optimization bugs<a class="headerlink" href="#compile-time-optimization-bugs" title="Permalink to this headline">¶</a></h3>
+<p>If you find that a bug crashes in the optimizer, compile your test-case to a
+<code class="docutils literal"><span class="pre">.bc</span></code> file by passing “<code class="docutils literal"><span class="pre">-emit-llvm</span> <span class="pre">-O0</span> <span class="pre">-c</span> <span class="pre">-o</span> <span class="pre">foo.bc</span></code>”.
+Then run:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>opt -std-compile-opts -debug-pass<span class="o">=</span>Arguments foo.bc -disable-output
+</pre></div>
+</div>
+<p>This command should do two things: it should print out a list of passes, and
+then it should crash in the same way as clang.  If it doesn’t crash, please
+follow the instructions for a <a class="reference internal" href="#front-end-bug">front-end bug</a>.</p>
+<p>If this does crash, then you should be able to debug this with the following
+bugpoint command:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>bugpoint foo.bc &lt;list of passes printed by opt&gt;
+</pre></div>
+</div>
+<p>Please run this, then file a bug with the instructions and reduced .bc
+files that bugpoint emits.  If something goes wrong with bugpoint, please
+submit the “foo.bc” file and the list of passes printed by <code class="docutils literal"><span class="pre">opt</span></code>.</p>
+</div>
+<div class="section" id="code-generator-bugs">
+<span id="id2"></span><h3>Code generator bugs<a class="headerlink" href="#code-generator-bugs" title="Permalink to this headline">¶</a></h3>
+<p>If you find a bug that crashes clang in the code generator, compile your
+source file to a .bc file by passing “<code class="docutils literal"><span class="pre">-emit-llvm</span> <span class="pre">-c</span> <span class="pre">-o</span> <span class="pre">foo.bc</span></code>” to
+clang (in addition to the options you already pass).  Once your have
+foo.bc, one of the following commands should fail:</p>
+<ol class="arabic simple">
+<li><code class="docutils literal"><span class="pre">llc</span> <span class="pre">foo.bc</span></code></li>
+<li><code class="docutils literal"><span class="pre">llc</span> <span class="pre">foo.bc</span> <span class="pre">-relocation-model=pic</span></code></li>
+<li><code class="docutils literal"><span class="pre">llc</span> <span class="pre">foo.bc</span> <span class="pre">-relocation-model=static</span></code></li>
+</ol>
+<p>If none of these crash, please follow the instructions for a <a class="reference internal" href="#front-end-bug">front-end
+bug</a>.  If one of these do crash, you should be able to reduce this with
+one of the following bugpoint command lines (use the one corresponding to
+the command above that failed):</p>
+<ol class="arabic simple">
+<li><code class="docutils literal"><span class="pre">bugpoint</span> <span class="pre">-run-llc</span> <span class="pre">foo.bc</span></code></li>
+<li><code class="docutils literal"><span class="pre">bugpoint</span> <span class="pre">-run-llc</span> <span class="pre">foo.bc</span> <span class="pre">--tool-args</span> <span class="pre">-relocation-model=pic</span></code></li>
+<li><code class="docutils literal"><span class="pre">bugpoint</span> <span class="pre">-run-llc</span> <span class="pre">foo.bc</span> <span class="pre">--tool-args</span> <span class="pre">-relocation-model=static</span></code></li>
+</ol>
+<p>Please run this, then file a bug with the instructions and reduced .bc file
+that bugpoint emits.  If something goes wrong with bugpoint, please submit
+the “foo.bc” file and the option that llc crashes with.</p>
+</div>
+</div>
+<div class="section" id="miscompilations">
+<span id="miscompiling"></span><h2>Miscompilations<a class="headerlink" href="#miscompilations" title="Permalink to this headline">¶</a></h2>
+<p>If clang successfully produces an executable, but that executable
+doesn’t run right, this is either a bug in the code or a bug in the
+compiler.  The first thing to check is to make sure it is not using
+undefined behavior (e.g. reading a variable before it is defined). In
+particular, check to see if the program <a class="reference external" href="http://valgrind.org/">valgrind</a>’s clean, passes purify, or some other memory
+checker tool. Many of the “LLVM bugs” that we have chased down ended up
+being bugs in the program being compiled, not LLVM.</p>
+<p>Once you determine that the program itself is not buggy, you should choose
+which code generator you wish to compile the program with (e.g. LLC or the JIT)
+and optionally a series of LLVM passes to run.  For example:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>bugpoint -run-llc <span class="o">[</span>... optzn passes ...<span class="o">]</span> file-to-test.bc --args -- <span class="o">[</span>program arguments<span class="o">]</span>
+</pre></div>
+</div>
+<p>bugpoint will try to narrow down your list of passes to the one pass that
+causes an error, and simplify the bitcode file as much as it can to assist
+you. It will print a message letting you know how to reproduce the
+resulting error.</p>
+</div>
+<div class="section" id="incorrect-code-generation">
+<h2>Incorrect code generation<a class="headerlink" href="#incorrect-code-generation" title="Permalink to this headline">¶</a></h2>
+<p>Similarly to debugging incorrect compilation by mis-behaving passes, you
+can debug incorrect code generation by either LLC or the JIT, using
+<code class="docutils literal"><span class="pre">bugpoint</span></code>. The process <code class="docutils literal"><span class="pre">bugpoint</span></code> follows in this case is to try to
+narrow the code down to a function that is miscompiled by one or the other
+method, but since for correctness, the entire program must be run,
+<code class="docutils literal"><span class="pre">bugpoint</span></code> will compile the code it deems to not be affected with the C
+Backend, and then link in the shared object it generates.</p>
+<p>To debug the JIT:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>bugpoint -run-jit -output<span class="o">=[</span>correct output file<span class="o">]</span> <span class="o">[</span>bitcode file<span class="o">]</span>  <span class="se">\</span>
+         --tool-args -- <span class="o">[</span>arguments to pass to lli<span class="o">]</span>              <span class="se">\</span>
+         --args -- <span class="o">[</span>program arguments<span class="o">]</span>
+</pre></div>
+</div>
+<p>Similarly, to debug the LLC, one would run:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>bugpoint -run-llc -output<span class="o">=[</span>correct output file<span class="o">]</span> <span class="o">[</span>bitcode file<span class="o">]</span>  <span class="se">\</span>
+         --tool-args -- <span class="o">[</span>arguments to pass to llc<span class="o">]</span>              <span class="se">\</span>
+         --args -- <span class="o">[</span>program arguments<span class="o">]</span>
+</pre></div>
+</div>
+<p><strong>Special note:</strong> if you are debugging MultiSource or SPEC tests that
+already exist in the <code class="docutils literal"><span class="pre">llvm/test</span></code> hierarchy, there is an easier way to
+debug the JIT, LLC, and CBE, using the pre-written Makefile targets, which
+will pass the program options specified in the Makefiles:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="nb">cd</span> llvm/test/../../program
+make bugpoint-jit
+</pre></div>
+</div>
+<p>At the end of a successful <code class="docutils literal"><span class="pre">bugpoint</span></code> run, you will be presented
+with two bitcode files: a <em>safe</em> file which can be compiled with the C
+backend and the <em>test</em> file which either LLC or the JIT
+mis-codegenerates, and thus causes the error.</p>
+<p>To reproduce the error that <code class="docutils literal"><span class="pre">bugpoint</span></code> found, it is sufficient to do
+the following:</p>
+<ol class="arabic">
+<li><p class="first">Regenerate the shared object from the safe bitcode file:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>llc -march<span class="o">=</span>c safe.bc -o safe.c
+gcc -shared safe.c -o safe.so
+</pre></div>
+</div>
+</li>
+<li><p class="first">If debugging LLC, compile test bitcode native and link with the shared
+object:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>llc test.bc -o test.s
+gcc test.s safe.so -o test.llc
+./test.llc <span class="o">[</span>program options<span class="o">]</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">If debugging the JIT, load the shared object and supply the test
+bitcode:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>lli -load<span class="o">=</span>safe.so test.bc <span class="o">[</span>program options<span class="o">]</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="SphinxQuickstartTemplate.html" title="Sphinx Quickstart Template"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="yaml2obj.html" title="yaml2obj"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

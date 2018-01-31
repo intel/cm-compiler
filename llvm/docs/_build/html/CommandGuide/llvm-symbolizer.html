@@ -1,0 +1,206 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-symbolizer - convert addresses into source code locations &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llvm-dwarfdump - print contents of DWARF sections" href="llvm-dwarfdump.html" />
+    <link rel="prev" title="llvm-stress - generate random .ll files" href="llvm-stress.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llvm-dwarfdump.html" title="llvm-dwarfdump - print contents of DWARF sections"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llvm-stress.html" title="llvm-stress - generate random .ll files"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-symbolizer-convert-addresses-into-source-code-locations">
+<h1>llvm-symbolizer - convert addresses into source code locations<a class="headerlink" href="#llvm-symbolizer-convert-addresses-into-source-code-locations" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-symbolizer</strong> [options]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-symbolizer</strong> reads object file names and addresses from standard
+input and prints corresponding source code locations to standard output.
+If object file is specified in command line, <strong class="program">llvm-symbolizer</strong> reads
+only addresses from standard input. This
+program uses debug info sections and symbol table in the object files.</p>
+</div>
+<div class="section" id="example">
+<h2>EXAMPLE<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> cat addr.txt
+<span class="go">a.out 0x4004f4</span>
+<span class="go">/tmp/b.out 0x400528</span>
+<span class="go">/tmp/c.so 0x710</span>
+<span class="go">/tmp/mach_universal_binary:i386 0x1f84</span>
+<span class="go">/tmp/mach_universal_binary:x86_64 0x100000f24</span>
+<span class="gp">$</span> llvm-symbolizer &lt; addr.txt
+<span class="go">main</span>
+<span class="go">/tmp/a.cc:4</span>
+
+<span class="go">f(int, int)</span>
+<span class="go">/tmp/b.cc:11</span>
+
+<span class="go">h_inlined_into_g</span>
+<span class="go">/tmp/header.h:2</span>
+<span class="go">g_inlined_into_f</span>
+<span class="go">/tmp/header.h:7</span>
+<span class="go">f_inlined_into_main</span>
+<span class="go">/tmp/source.cc:3</span>
+<span class="go">main</span>
+<span class="go">/tmp/source.cc:8</span>
+
+<span class="go">_main</span>
+<span class="go">/tmp/source_i386.cc:8</span>
+
+<span class="go">_main</span>
+<span class="go">/tmp/source_x86_64.cc:8</span>
+<span class="gp">$</span> cat addr2.txt
+<span class="go">0x4004f4</span>
+<span class="go">0x401000</span>
+<span class="gp">$</span> llvm-symbolizer -obj<span class="o">=</span>a.out &lt; addr2.txt
+<span class="go">main</span>
+<span class="go">/tmp/a.cc:4</span>
+
+<span class="go">foo(int)</span>
+<span class="go">/tmp/a.cc:12</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl class="option">
+<dt id="cmdoption-obj">
+<code class="descname">-obj</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-obj" title="Permalink to this definition">¶</a></dt>
+<dd><p>Path to object file to be symbolized.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-functions">
+<code class="descname">-functions</code><code class="descclassname">=[none|short|linkage]</code><a class="headerlink" href="#cmdoption-functions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the way function names are printed (omit function name,
+print short function name, or print full linkage name, respectively).
+Defaults to <code class="docutils literal"><span class="pre">linkage</span></code>.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-use-symbol-table">
+<code class="descname">-use-symbol-table</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-use-symbol-table" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prefer function names stored in symbol table to function names
+in debug info sections. Defaults to true.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-demangle">
+<code class="descname">-demangle</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-demangle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print demangled function names. Defaults to true.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-inlining">
+<code class="descname">-inlining</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-inlining" title="Permalink to this definition">¶</a></dt>
+<dd><p>If a source code location is in an inlined function, prints all the
+inlnied frames. Defaults to true.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-default-arch">
+<code class="descname">-default-arch</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-default-arch" title="Permalink to this definition">¶</a></dt>
+<dd><p>If a binary contains object files for multiple architectures (e.g. it is a
+Mach-O universal binary), symbolize the object file for a given architecture.
+You can also specify architecture by writing <code class="docutils literal"><span class="pre">binary_name:arch_name</span></code> in the
+input (see example above). If architecture is not specified in either way,
+address will not be symbolized. Defaults to empty string.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-symbolizer</strong> returns 0. Other exit codes imply internal program error.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llvm-dwarfdump.html" title="llvm-dwarfdump - print contents of DWARF sections"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llvm-stress.html" title="llvm-stress - generate random .ll files"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

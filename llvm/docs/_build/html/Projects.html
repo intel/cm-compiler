@@ -1,0 +1,339 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Creating an LLVM Project &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LLVMBuild Guide" href="LLVMBuild.html" />
+    <link rel="prev" title="LLVM Makefile Guide" href="MakefileGuide.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="LLVMBuild.html" title="LLVMBuild Guide"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="MakefileGuide.html" title="LLVM Makefile Guide"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="creating-an-llvm-project">
+<h1>Creating an LLVM Project<a class="headerlink" href="#creating-an-llvm-project" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#overview" id="id1">Overview</a></li>
+<li><a class="reference internal" href="#source-tree-layout" id="id2">Source Tree Layout</a></li>
+<li><a class="reference internal" href="#writing-llvm-style-makefiles" id="id3">Writing LLVM Style Makefiles</a><ul>
+<li><a class="reference internal" href="#required-variables" id="id4">Required Variables</a></li>
+<li><a class="reference internal" href="#variables-for-building-subdirectories" id="id5">Variables for Building Subdirectories</a></li>
+<li><a class="reference internal" href="#variables-for-building-libraries" id="id6">Variables for Building Libraries</a></li>
+<li><a class="reference internal" href="#variables-for-building-programs" id="id7">Variables for Building Programs</a></li>
+<li><a class="reference internal" href="#miscellaneous-variables" id="id8">Miscellaneous Variables</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#placement-of-object-code" id="id9">Placement of Object Code</a></li>
+<li><a class="reference internal" href="#further-help" id="id10">Further Help</a></li>
+</ul>
+</div>
+<div class="section" id="overview">
+<h2><a class="toc-backref" href="#id1">Overview</a><a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>The LLVM build system is designed to facilitate the building of third party
+projects that use LLVM header files, libraries, and tools.  In order to use
+these facilities, a <code class="docutils literal"><span class="pre">Makefile</span></code> from a project must do the following things:</p>
+<ul class="simple">
+<li>Set <code class="docutils literal"><span class="pre">make</span></code> variables. There are several variables that a <code class="docutils literal"><span class="pre">Makefile</span></code> needs
+to set to use the LLVM build system:<ul>
+<li><code class="docutils literal"><span class="pre">PROJECT_NAME</span></code> - The name by which your project is known.</li>
+<li><code class="docutils literal"><span class="pre">LLVM_SRC_ROOT</span></code> - The root of the LLVM source tree.</li>
+<li><code class="docutils literal"><span class="pre">LLVM_OBJ_ROOT</span></code> - The root of the LLVM object tree.</li>
+<li><code class="docutils literal"><span class="pre">PROJ_SRC_ROOT</span></code> - The root of the project’s source tree.</li>
+<li><code class="docutils literal"><span class="pre">PROJ_OBJ_ROOT</span></code> - The root of the project’s object tree.</li>
+<li><code class="docutils literal"><span class="pre">PROJ_INSTALL_ROOT</span></code> - The root installation directory.</li>
+<li><code class="docutils literal"><span class="pre">LEVEL</span></code> - The relative path from the current directory to the
+project’s root <code class="docutils literal"><span class="pre">($PROJ_OBJ_ROOT)</span></code>.</li>
+</ul>
+</li>
+<li>Include <code class="docutils literal"><span class="pre">Makefile.config</span></code> from <code class="docutils literal"><span class="pre">$(LLVM_OBJ_ROOT)</span></code>.</li>
+<li>Include <code class="docutils literal"><span class="pre">Makefile.rules</span></code> from <code class="docutils literal"><span class="pre">$(LLVM_SRC_ROOT)</span></code>.</li>
+</ul>
+<p>There are two ways that you can set all of these variables:</p>
+<ul class="simple">
+<li>You can write your own <code class="docutils literal"><span class="pre">Makefiles</span></code> which hard-code these values.</li>
+<li>You can use the pre-made LLVM sample project. This sample project includes
+<code class="docutils literal"><span class="pre">Makefiles</span></code>, a configure script that can be used to configure the location
+of LLVM, and the ability to support multiple object directories from a single
+source directory.</li>
+</ul>
+<p>If you want to devise your own build system, studying other projects and LLVM
+<code class="docutils literal"><span class="pre">Makefiles</span></code> will probably provide enough information on how to write your own
+<code class="docutils literal"><span class="pre">Makefiles</span></code>.</p>
+</div>
+<div class="section" id="source-tree-layout">
+<h2><a class="toc-backref" href="#id2">Source Tree Layout</a><a class="headerlink" href="#source-tree-layout" title="Permalink to this headline">¶</a></h2>
+<p>In order to use the LLVM build system, you will want to organize your source
+code so that it can benefit from the build system’s features.  Mainly, you want
+your source tree layout to look similar to the LLVM source tree layout.</p>
+<p>Underneath your top level directory, you should have the following directories:</p>
+<p><strong>lib</strong></p>
+<blockquote>
+<div><p>This subdirectory should contain all of your library source code.  For each
+library that you build, you will have one directory in <strong>lib</strong> that will
+contain that library’s source code.</p>
+<p>Libraries can be object files, archives, or dynamic libraries.  The <strong>lib</strong>
+directory is just a convenient place for libraries as it places them all in
+a directory from which they can be linked later.</p>
+</div></blockquote>
+<p><strong>include</strong></p>
+<blockquote>
+<div><p>This subdirectory should contain any header files that are global to your
+project. By global, we mean that they are used by more than one library or
+executable of your project.</p>
+<p>By placing your header files in <strong>include</strong>, they will be found
+automatically by the LLVM build system.  For example, if you have a file
+<strong>include/jazz/note.h</strong>, then your source files can include it simply with
+<strong>#include “jazz/note.h”</strong>.</p>
+</div></blockquote>
+<p><strong>tools</strong></p>
+<blockquote>
+<div>This subdirectory should contain all of your source code for executables.
+For each program that you build, you will have one directory in <strong>tools</strong>
+that will contain that program’s source code.</div></blockquote>
+<p><strong>test</strong></p>
+<blockquote>
+<div><p>This subdirectory should contain tests that verify that your code works
+correctly.  Automated tests are especially useful.</p>
+<p>Currently, the LLVM build system provides basic support for tests. The LLVM
+system provides the following:</p>
+</div></blockquote>
+<ul>
+<li><p class="first">LLVM contains regression tests in <code class="docutils literal"><span class="pre">llvm/test</span></code>.  These tests are run by the
+<a class="reference internal" href="CommandGuide/lit.html"><span class="doc">Lit</span></a> testing tool.  This test procedure uses <code class="docutils literal"><span class="pre">RUN</span></code>
+lines in the actual test case to determine how to run the test.  See the
+<a class="reference internal" href="TestingGuide.html"><span class="doc">LLVM Testing Infrastructure Guide</span></a> for more details.</p>
+</li>
+<li><p class="first">LLVM contains an optional package called <code class="docutils literal"><span class="pre">llvm-test</span></code>, which provides
+benchmarks and programs that are known to compile with the Clang front
+end. You can use these programs to test your code, gather statistical
+information, and compare it to the current LLVM performance statistics.</p>
+<p>Currently, there is no way to hook your tests directly into the <code class="docutils literal"><span class="pre">llvm/test</span></code>
+testing harness. You will simply need to find a way to use the source
+provided within that directory on your own.</p>
+</li>
+</ul>
+<p>Typically, you will want to build your <strong>lib</strong> directory first followed by your
+<strong>tools</strong> directory.</p>
+</div>
+<div class="section" id="writing-llvm-style-makefiles">
+<h2><a class="toc-backref" href="#id3">Writing LLVM Style Makefiles</a><a class="headerlink" href="#writing-llvm-style-makefiles" title="Permalink to this headline">¶</a></h2>
+<p>The LLVM build system provides a convenient way to build libraries and
+executables.  Most of your project Makefiles will only need to define a few
+variables.  Below is a list of the variables one can set and what they can
+do:</p>
+<div class="section" id="required-variables">
+<h3><a class="toc-backref" href="#id4">Required Variables</a><a class="headerlink" href="#required-variables" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">LEVEL</span></code></p>
+<blockquote>
+<div>This variable is the relative path from this <code class="docutils literal"><span class="pre">Makefile</span></code> to the top
+directory of your project’s source code.  For example, if your source code
+is in <code class="docutils literal"><span class="pre">/tmp/src</span></code>, then the <code class="docutils literal"><span class="pre">Makefile</span></code> in <code class="docutils literal"><span class="pre">/tmp/src/jump/high</span></code>
+would set <code class="docutils literal"><span class="pre">LEVEL</span></code> to <code class="docutils literal"><span class="pre">&quot;../..&quot;</span></code>.</div></blockquote>
+</div>
+<div class="section" id="variables-for-building-subdirectories">
+<h3><a class="toc-backref" href="#id5">Variables for Building Subdirectories</a><a class="headerlink" href="#variables-for-building-subdirectories" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">DIRS</span></code></p>
+<blockquote>
+<div>This is a space separated list of subdirectories that should be built.  They
+will be built, one at a time, in the order specified.</div></blockquote>
+<p><code class="docutils literal"><span class="pre">PARALLEL_DIRS</span></code></p>
+<blockquote>
+<div>This is a list of directories that can be built in parallel. These will be
+built after the directories in DIRS have been built.</div></blockquote>
+<p><code class="docutils literal"><span class="pre">OPTIONAL_DIRS</span></code></p>
+<blockquote>
+<div>This is a list of directories that can be built if they exist, but will not
+cause an error if they do not exist.  They are built serially in the order
+in which they are listed.</div></blockquote>
+</div>
+<div class="section" id="variables-for-building-libraries">
+<h3><a class="toc-backref" href="#id6">Variables for Building Libraries</a><a class="headerlink" href="#variables-for-building-libraries" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">LIBRARYNAME</span></code></p>
+<blockquote>
+<div>This variable contains the base name of the library that will be built.  For
+example, to build a library named <code class="docutils literal"><span class="pre">libsample.a</span></code>, <code class="docutils literal"><span class="pre">LIBRARYNAME</span></code> should
+be set to <code class="docutils literal"><span class="pre">sample</span></code>.</div></blockquote>
+<p><code class="docutils literal"><span class="pre">BUILD_ARCHIVE</span></code></p>
+<blockquote>
+<div>By default, a library is a <code class="docutils literal"><span class="pre">.o</span></code> file that is linked directly into a
+program.  To build an archive (also known as a static library), set the
+<code class="docutils literal"><span class="pre">BUILD_ARCHIVE</span></code> variable.</div></blockquote>
+<p><code class="docutils literal"><span class="pre">SHARED_LIBRARY</span></code></p>
+<blockquote>
+<div>If <code class="docutils literal"><span class="pre">SHARED_LIBRARY</span></code> is defined in your Makefile, a shared (or dynamic)
+library will be built.</div></blockquote>
+</div>
+<div class="section" id="variables-for-building-programs">
+<h3><a class="toc-backref" href="#id7">Variables for Building Programs</a><a class="headerlink" href="#variables-for-building-programs" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">TOOLNAME</span></code></p>
+<blockquote>
+<div>This variable contains the name of the program that will be built.  For
+example, to build an executable named <code class="docutils literal"><span class="pre">sample</span></code>, <code class="docutils literal"><span class="pre">TOOLNAME</span></code> should be set
+to <code class="docutils literal"><span class="pre">sample</span></code>.</div></blockquote>
+<p><code class="docutils literal"><span class="pre">USEDLIBS</span></code></p>
+<blockquote>
+<div><p>This variable holds a space separated list of libraries that should be
+linked into the program.  These libraries must be libraries that come from
+your <strong>lib</strong> directory.  The libraries must be specified without their
+<code class="docutils literal"><span class="pre">lib</span></code> prefix.  For example, to link <code class="docutils literal"><span class="pre">libsample.a</span></code>, you would set
+<code class="docutils literal"><span class="pre">USEDLIBS</span></code> to <code class="docutils literal"><span class="pre">sample.a</span></code>.</p>
+<p>Note that this works only for statically linked libraries.</p>
+</div></blockquote>
+<p><code class="docutils literal"><span class="pre">LLVMLIBS</span></code></p>
+<blockquote>
+<div><p>This variable holds a space separated list of libraries that should be
+linked into the program.  These libraries must be LLVM libraries.  The
+libraries must be specified without their <code class="docutils literal"><span class="pre">lib</span></code> prefix.  For example, to
+link with a driver that performs an IR transformation you might set
+<code class="docutils literal"><span class="pre">LLVMLIBS</span></code> to this minimal set of libraries <code class="docutils literal"><span class="pre">LLVMSupport.a</span> <span class="pre">LLVMCore.a</span>
+<span class="pre">LLVMBitReader.a</span> <span class="pre">LLVMAsmParser.a</span> <span class="pre">LLVMAnalysis.a</span> <span class="pre">LLVMTransformUtils.a</span>
+<span class="pre">LLVMScalarOpts.a</span> <span class="pre">LLVMTarget.a</span></code>.</p>
+<p>Note that this works only for statically linked libraries. LLVM is split
+into a large number of static libraries, and the list of libraries you
+require may be much longer than the list above. To see a full list of
+libraries use: <code class="docutils literal"><span class="pre">llvm-config</span> <span class="pre">--libs</span> <span class="pre">all</span></code>.  Using <code class="docutils literal"><span class="pre">LINK_COMPONENTS</span></code> as
+described below, obviates the need to set <code class="docutils literal"><span class="pre">LLVMLIBS</span></code>.</p>
+</div></blockquote>
+<p><code class="docutils literal"><span class="pre">LINK_COMPONENTS</span></code></p>
+<blockquote>
+<div>This variable holds a space separated list of components that the LLVM
+<code class="docutils literal"><span class="pre">Makefiles</span></code> pass to the <code class="docutils literal"><span class="pre">llvm-config</span></code> tool to generate a link line for
+the program. For example, to link with all LLVM libraries use
+<code class="docutils literal"><span class="pre">LINK_COMPONENTS</span> <span class="pre">=</span> <span class="pre">all</span></code>.</div></blockquote>
+<p><code class="docutils literal"><span class="pre">LIBS</span></code></p>
+<blockquote>
+<div><p>To link dynamic libraries, add <code class="docutils literal"><span class="pre">-l&lt;library</span> <span class="pre">base</span> <span class="pre">name&gt;</span></code> to the <code class="docutils literal"><span class="pre">LIBS</span></code>
+variable.  The LLVM build system will look in the same places for dynamic
+libraries as it does for static libraries.</p>
+<p>For example, to link <code class="docutils literal"><span class="pre">libsample.so</span></code>, you would have the following line in
+your <code class="docutils literal"><span class="pre">Makefile</span></code>:</p>
+<blockquote>
+<div><div class="highlight-makefile"><div class="highlight"><pre><span></span><span class="nv">LIBS</span> <span class="o">+=</span> -lsample
+</pre></div>
+</div>
+</div></blockquote>
+</div></blockquote>
+<p>Note that <code class="docutils literal"><span class="pre">LIBS</span></code> must occur in the Makefile after the inclusion of
+<code class="docutils literal"><span class="pre">Makefile.common</span></code>.</p>
+</div>
+<div class="section" id="miscellaneous-variables">
+<h3><a class="toc-backref" href="#id8">Miscellaneous Variables</a><a class="headerlink" href="#miscellaneous-variables" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">CFLAGS</span></code> &amp; <code class="docutils literal"><span class="pre">CPPFLAGS</span></code></p>
+<blockquote>
+<div><p>This variable can be used to add options to the C and C++ compiler,
+respectively.  It is typically used to add options that tell the compiler
+the location of additional directories to search for header files.</p>
+<p>It is highly suggested that you append to <code class="docutils literal"><span class="pre">CFLAGS</span></code> and <code class="docutils literal"><span class="pre">CPPFLAGS</span></code> as
+opposed to overwriting them.  The master <code class="docutils literal"><span class="pre">Makefiles</span></code> may already have
+useful options in them that you may not want to overwrite.</p>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="placement-of-object-code">
+<h2><a class="toc-backref" href="#id9">Placement of Object Code</a><a class="headerlink" href="#placement-of-object-code" title="Permalink to this headline">¶</a></h2>
+<p>The final location of built libraries and executables will depend upon whether
+you do a <code class="docutils literal"><span class="pre">Debug</span></code>, <code class="docutils literal"><span class="pre">Release</span></code>, or <code class="docutils literal"><span class="pre">Profile</span></code> build.</p>
+<p>Libraries</p>
+<blockquote>
+<div>All libraries (static and dynamic) will be stored in
+<code class="docutils literal"><span class="pre">PROJ_OBJ_ROOT/&lt;type&gt;/lib</span></code>, where <em>type</em> is <code class="docutils literal"><span class="pre">Debug</span></code>, <code class="docutils literal"><span class="pre">Release</span></code>, or
+<code class="docutils literal"><span class="pre">Profile</span></code> for a debug, optimized, or profiled build, respectively.</div></blockquote>
+<p>Executables</p>
+<blockquote>
+<div>All executables will be stored in <code class="docutils literal"><span class="pre">PROJ_OBJ_ROOT/&lt;type&gt;/bin</span></code>, where <em>type</em>
+is <code class="docutils literal"><span class="pre">Debug</span></code>, <code class="docutils literal"><span class="pre">Release</span></code>, or <code class="docutils literal"><span class="pre">Profile</span></code> for a debug, optimized, or
+profiled build, respectively.</div></blockquote>
+</div>
+<div class="section" id="further-help">
+<h2><a class="toc-backref" href="#id10">Further Help</a><a class="headerlink" href="#further-help" title="Permalink to this headline">¶</a></h2>
+<p>If you have any questions or need any help creating an LLVM project, the LLVM
+team would be more than happy to help.  You can always post your questions to
+the <a class="reference external" href="http://lists.cs.uiuc.edu/pipermail/llvmdev/">LLVM Developers Mailing List</a>.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="LLVMBuild.html" title="LLVMBuild Guide"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="MakefileGuide.html" title="LLVM Makefile Guide"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,558 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Frequently Asked Questions (FAQ) &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="The LLVM Lexicon" href="Lexicon.html" />
+    <link rel="prev" title="Getting Started with the LLVM System using Microsoft Visual Studio" href="GettingStartedVS.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="Lexicon.html" title="The LLVM Lexicon"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="GettingStartedVS.html" title="Getting Started with the LLVM System using Microsoft Visual Studio"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="frequently-asked-questions-faq">
+<h1>Frequently Asked Questions (FAQ)<a class="headerlink" href="#frequently-asked-questions-faq" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#license" id="id1">License</a><ul>
+<li><a class="reference internal" href="#does-the-university-of-illinois-open-source-license-really-qualify-as-an-open-source-license" id="id2">Does the University of Illinois Open Source License really qualify as an “open source” license?</a></li>
+<li><a class="reference internal" href="#can-i-modify-llvm-source-code-and-redistribute-the-modified-source" id="id3">Can I modify LLVM source code and redistribute the modified source?</a></li>
+<li><a class="reference internal" href="#can-i-modify-the-llvm-source-code-and-redistribute-binaries-or-other-tools-based-on-it-without-redistributing-the-source" id="id4">Can I modify the LLVM source code and redistribute binaries or other tools based on it, without redistributing the source?</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#source-code" id="id5">Source Code</a><ul>
+<li><a class="reference internal" href="#in-what-language-is-llvm-written" id="id6">In what language is LLVM written?</a></li>
+<li><a class="reference internal" href="#how-portable-is-the-llvm-source-code" id="id7">How portable is the LLVM source code?</a></li>
+<li><a class="reference internal" href="#what-api-do-i-use-to-store-a-value-to-one-of-the-virtual-registers-in-llvm-ir-s-ssa-representation" id="id8">What API do I use to store a value to one of the virtual registers in LLVM IR’s SSA representation?</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#build-problems" id="id9">Build Problems</a><ul>
+<li><a class="reference internal" href="#when-i-run-configure-it-finds-the-wrong-c-compiler" id="id10">When I run configure, it finds the wrong C compiler.</a></li>
+<li><a class="reference internal" href="#the-configure-script-finds-the-right-c-compiler-but-it-uses-the-llvm-tools-from-a-previous-build-what-do-i-do" id="id11">The <code class="docutils literal"><span class="pre">configure</span></code> script finds the right C compiler, but it uses the LLVM tools from a previous build.  What do I do?</a></li>
+<li><a class="reference internal" href="#when-creating-a-dynamic-library-i-get-a-strange-glibc-error" id="id12">When creating a dynamic library, I get a strange GLIBC error.</a></li>
+<li><a class="reference internal" href="#i-ve-updated-my-source-tree-from-subversion-and-now-my-build-is-trying-to-use-a-file-directory-that-doesn-t-exist" id="id13">I’ve updated my source tree from Subversion, and now my build is trying to use a file/directory that doesn’t exist.</a></li>
+<li><a class="reference internal" href="#i-ve-modified-a-makefile-in-my-source-tree-but-my-build-tree-keeps-using-the-old-version-what-do-i-do" id="id14">I’ve modified a Makefile in my source tree, but my build tree keeps using the old version.  What do I do?</a></li>
+<li><a class="reference internal" href="#i-ve-upgraded-to-a-new-version-of-llvm-and-i-get-strange-build-errors" id="id15">I’ve upgraded to a new version of LLVM, and I get strange build errors.</a></li>
+<li><a class="reference internal" href="#i-ve-built-llvm-and-am-testing-it-but-the-tests-freeze" id="id16">I’ve built LLVM and am testing it, but the tests freeze.</a></li>
+<li><a class="reference internal" href="#why-do-test-results-differ-when-i-perform-different-types-of-builds" id="id17">Why do test results differ when I perform different types of builds?</a></li>
+<li><a class="reference internal" href="#compiling-llvm-with-gcc-3-3-2-fails-what-should-i-do" id="id18">Compiling LLVM with GCC 3.3.2 fails, what should I do?</a></li>
+<li><a class="reference internal" href="#after-subversion-update-rebuilding-gives-the-error-no-rule-to-make-target" id="id19">After Subversion update, rebuilding gives the error “No rule to make target”.</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#source-languages" id="id20">Source Languages</a><ul>
+<li><a class="reference internal" href="#what-source-languages-are-supported" id="id21">What source languages are supported?</a></li>
+<li><a class="reference internal" href="#i-d-like-to-write-a-self-hosting-llvm-compiler-how-should-i-interface-with-the-llvm-middle-end-optimizers-and-back-end-code-generators" id="id22">I’d like to write a self-hosting LLVM compiler. How should I interface with the LLVM middle-end optimizers and back-end code generators?</a></li>
+<li><a class="reference internal" href="#what-support-is-there-for-a-higher-level-source-language-constructs-for-building-a-compiler" id="id23">What support is there for a higher level source language constructs for building a compiler?</a></li>
+<li><a class="reference internal" href="#i-don-t-understand-the-getelementptr-instruction-help" id="id24">I don’t understand the <code class="docutils literal"><span class="pre">GetElementPtr</span></code> instruction. Help!</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#using-the-c-and-c-front-ends" id="id25">Using the C and C++ Front Ends</a><ul>
+<li><a class="reference internal" href="#can-i-compile-c-or-c-code-to-platform-independent-llvm-bitcode" id="id26">Can I compile C or C++ code to platform-independent LLVM bitcode?</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#questions-about-code-generated-by-the-demo-page" id="id27">Questions about code generated by the demo page</a><ul>
+<li><a class="reference internal" href="#what-is-this-llvm-global-ctors-and-global-i-a-stuff-that-happens-when-i-include-iostream" id="id28">What is this <code class="docutils literal"><span class="pre">llvm.global_ctors</span></code> and <code class="docutils literal"><span class="pre">_GLOBAL__I_a...</span></code> stuff that happens when I <code class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;iostream&gt;</span></code>?</a></li>
+<li><a class="reference internal" href="#where-did-all-of-my-code-go" id="id29">Where did all of my code go??</a></li>
+<li><a class="reference internal" href="#what-is-this-undef-thing-that-shows-up-in-my-code" id="id30">What is this “<code class="docutils literal"><span class="pre">undef</span></code>” thing that shows up in my code?</a></li>
+<li><a class="reference internal" href="#why-does-instcombine-simplifycfg-turn-a-call-to-a-function-with-a-mismatched-calling-convention-into-unreachable-why-not-make-the-verifier-reject-it" id="id31">Why does instcombine + simplifycfg turn a call to a function with a mismatched calling convention into “unreachable”? Why not make the verifier reject it?</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="license">
+<h2><a class="toc-backref" href="#id1">License</a><a class="headerlink" href="#license" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="does-the-university-of-illinois-open-source-license-really-qualify-as-an-open-source-license">
+<h3><a class="toc-backref" href="#id2">Does the University of Illinois Open Source License really qualify as an “open source” license?</a><a class="headerlink" href="#does-the-university-of-illinois-open-source-license-really-qualify-as-an-open-source-license" title="Permalink to this headline">¶</a></h3>
+<p>Yes, the license is <a class="reference external" href="http://www.opensource.org/licenses/UoI-NCSA.php">certified</a> by the Open Source
+Initiative (OSI).</p>
+</div>
+<div class="section" id="can-i-modify-llvm-source-code-and-redistribute-the-modified-source">
+<h3><a class="toc-backref" href="#id3">Can I modify LLVM source code and redistribute the modified source?</a><a class="headerlink" href="#can-i-modify-llvm-source-code-and-redistribute-the-modified-source" title="Permalink to this headline">¶</a></h3>
+<p>Yes.  The modified source distribution must retain the copyright notice and
+follow the three bulletted conditions listed in the <a class="reference external" href="http://llvm.org/svn/llvm-project/llvm/trunk/LICENSE.TXT">LLVM license</a>.</p>
+</div>
+<div class="section" id="can-i-modify-the-llvm-source-code-and-redistribute-binaries-or-other-tools-based-on-it-without-redistributing-the-source">
+<h3><a class="toc-backref" href="#id4">Can I modify the LLVM source code and redistribute binaries or other tools based on it, without redistributing the source?</a><a class="headerlink" href="#can-i-modify-the-llvm-source-code-and-redistribute-binaries-or-other-tools-based-on-it-without-redistributing-the-source" title="Permalink to this headline">¶</a></h3>
+<p>Yes. This is why we distribute LLVM under a less restrictive license than GPL,
+as explained in the first question above.</p>
+</div>
+</div>
+<div class="section" id="source-code">
+<h2><a class="toc-backref" href="#id5">Source Code</a><a class="headerlink" href="#source-code" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="in-what-language-is-llvm-written">
+<h3><a class="toc-backref" href="#id6">In what language is LLVM written?</a><a class="headerlink" href="#in-what-language-is-llvm-written" title="Permalink to this headline">¶</a></h3>
+<p>All of the LLVM tools and libraries are written in C++ with extensive use of
+the STL.</p>
+</div>
+<div class="section" id="how-portable-is-the-llvm-source-code">
+<h3><a class="toc-backref" href="#id7">How portable is the LLVM source code?</a><a class="headerlink" href="#how-portable-is-the-llvm-source-code" title="Permalink to this headline">¶</a></h3>
+<p>The LLVM source code should be portable to most modern Unix-like operating
+systems.  Most of the code is written in standard C++ with operating system
+services abstracted to a support library.  The tools required to build and
+test LLVM have been ported to a plethora of platforms.</p>
+<p>Some porting problems may exist in the following areas:</p>
+<ul class="simple">
+<li>The autoconf/makefile build system relies heavily on UNIX shell tools,
+like the Bourne Shell and sed.  Porting to systems without these tools
+(MacOS 9, Plan 9) will require more effort.</li>
+</ul>
+</div>
+<div class="section" id="what-api-do-i-use-to-store-a-value-to-one-of-the-virtual-registers-in-llvm-ir-s-ssa-representation">
+<h3><a class="toc-backref" href="#id8">What API do I use to store a value to one of the virtual registers in LLVM IR’s SSA representation?</a><a class="headerlink" href="#what-api-do-i-use-to-store-a-value-to-one-of-the-virtual-registers-in-llvm-ir-s-ssa-representation" title="Permalink to this headline">¶</a></h3>
+<p>In short: you can’t. It’s actually kind of a silly question once you grok
+what’s going on. Basically, in code like:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv">%result</span> <span class="p">=</span> <span class="k">add</span> <span class="k">i32</span> <span class="nv">%foo</span><span class="p">,</span> <span class="nv">%bar</span>
+</pre></div>
+</div>
+<p>, <code class="docutils literal"><span class="pre">%result</span></code> is just a name given to the <code class="docutils literal"><span class="pre">Value</span></code> of the <code class="docutils literal"><span class="pre">add</span></code>
+instruction. In other words, <code class="docutils literal"><span class="pre">%result</span></code> <em>is</em> the add instruction. The
+“assignment” doesn’t explicitly “store” anything to any “virtual register”;
+the “<code class="docutils literal"><span class="pre">=</span></code>” is more like the mathematical sense of equality.</p>
+<p>Longer explanation: In order to generate a textual representation of the
+IR, some kind of name has to be given to each instruction so that other
+instructions can textually reference it. However, the isomorphic in-memory
+representation that you manipulate from C++ has no such restriction since
+instructions can simply keep pointers to any other <code class="docutils literal"><span class="pre">Value</span></code>’s that they
+reference. In fact, the names of dummy numbered temporaries like <code class="docutils literal"><span class="pre">%1</span></code> are
+not explicitly represented in the in-memory representation at all (see
+<code class="docutils literal"><span class="pre">Value::getName()</span></code>).</p>
+</div>
+</div>
+<div class="section" id="build-problems">
+<h2><a class="toc-backref" href="#id9">Build Problems</a><a class="headerlink" href="#build-problems" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="when-i-run-configure-it-finds-the-wrong-c-compiler">
+<h3><a class="toc-backref" href="#id10">When I run configure, it finds the wrong C compiler.</a><a class="headerlink" href="#when-i-run-configure-it-finds-the-wrong-c-compiler" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal"><span class="pre">configure</span></code> script attempts to locate first <code class="docutils literal"><span class="pre">gcc</span></code> and then <code class="docutils literal"><span class="pre">cc</span></code>,
+unless it finds compiler paths set in <code class="docutils literal"><span class="pre">CC</span></code> and <code class="docutils literal"><span class="pre">CXX</span></code> for the C and C++
+compiler, respectively.</p>
+<p>If <code class="docutils literal"><span class="pre">configure</span></code> finds the wrong compiler, either adjust your <code class="docutils literal"><span class="pre">PATH</span></code>
+environment variable or set <code class="docutils literal"><span class="pre">CC</span></code> and <code class="docutils literal"><span class="pre">CXX</span></code> explicitly.</p>
+</div>
+<div class="section" id="the-configure-script-finds-the-right-c-compiler-but-it-uses-the-llvm-tools-from-a-previous-build-what-do-i-do">
+<h3><a class="toc-backref" href="#id11">The <code class="docutils literal"><span class="pre">configure</span></code> script finds the right C compiler, but it uses the LLVM tools from a previous build.  What do I do?</a><a class="headerlink" href="#the-configure-script-finds-the-right-c-compiler-but-it-uses-the-llvm-tools-from-a-previous-build-what-do-i-do" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal"><span class="pre">configure</span></code> script uses the <code class="docutils literal"><span class="pre">PATH</span></code> to find executables, so if it’s
+grabbing the wrong linker/assembler/etc, there are two ways to fix it:</p>
+<ol class="arabic simple">
+<li>Adjust your <code class="docutils literal"><span class="pre">PATH</span></code> environment variable so that the correct program
+appears first in the <code class="docutils literal"><span class="pre">PATH</span></code>.  This may work, but may not be convenient
+when you want them <em>first</em> in your path for other work.</li>
+<li>Run <code class="docutils literal"><span class="pre">configure</span></code> with an alternative <code class="docutils literal"><span class="pre">PATH</span></code> that is correct. In a
+Bourne compatible shell, the syntax would be:</li>
+</ol>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">%</span> <span class="nv">PATH</span><span class="o">=[</span>the path without the bad program<span class="o">]</span> ./configure ...
+</pre></div>
+</div>
+<p>This is still somewhat inconvenient, but it allows <code class="docutils literal"><span class="pre">configure</span></code> to do its
+work without having to adjust your <code class="docutils literal"><span class="pre">PATH</span></code> permanently.</p>
+</div>
+<div class="section" id="when-creating-a-dynamic-library-i-get-a-strange-glibc-error">
+<h3><a class="toc-backref" href="#id12">When creating a dynamic library, I get a strange GLIBC error.</a><a class="headerlink" href="#when-creating-a-dynamic-library-i-get-a-strange-glibc-error" title="Permalink to this headline">¶</a></h3>
+<p>Under some operating systems (i.e. Linux), libtool does not work correctly if
+GCC was compiled with the <code class="docutils literal"><span class="pre">--disable-shared</span> <span class="pre">option</span></code>.  To work around this,
+install your own version of GCC that has shared libraries enabled by default.</p>
+</div>
+<div class="section" id="i-ve-updated-my-source-tree-from-subversion-and-now-my-build-is-trying-to-use-a-file-directory-that-doesn-t-exist">
+<h3><a class="toc-backref" href="#id13">I’ve updated my source tree from Subversion, and now my build is trying to use a file/directory that doesn’t exist.</a><a class="headerlink" href="#i-ve-updated-my-source-tree-from-subversion-and-now-my-build-is-trying-to-use-a-file-directory-that-doesn-t-exist" title="Permalink to this headline">¶</a></h3>
+<p>You need to re-run configure in your object directory.  When new Makefiles
+are added to the source tree, they have to be copied over to the object tree
+in order to be used by the build.</p>
+</div>
+<div class="section" id="i-ve-modified-a-makefile-in-my-source-tree-but-my-build-tree-keeps-using-the-old-version-what-do-i-do">
+<h3><a class="toc-backref" href="#id14">I’ve modified a Makefile in my source tree, but my build tree keeps using the old version.  What do I do?</a><a class="headerlink" href="#i-ve-modified-a-makefile-in-my-source-tree-but-my-build-tree-keeps-using-the-old-version-what-do-i-do" title="Permalink to this headline">¶</a></h3>
+<p>If the Makefile already exists in your object tree, you can just run the
+following command in the top level directory of your object tree:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">%</span> ./config.status &lt;relative path to Makefile&gt;<span class="p">;</span>
+</pre></div>
+</div>
+<p>If the Makefile is new, you will have to modify the configure script to copy
+it over.</p>
+</div>
+<div class="section" id="i-ve-upgraded-to-a-new-version-of-llvm-and-i-get-strange-build-errors">
+<h3><a class="toc-backref" href="#id15">I’ve upgraded to a new version of LLVM, and I get strange build errors.</a><a class="headerlink" href="#i-ve-upgraded-to-a-new-version-of-llvm-and-i-get-strange-build-errors" title="Permalink to this headline">¶</a></h3>
+<p>Sometimes, changes to the LLVM source code alters how the build system works.
+Changes in <code class="docutils literal"><span class="pre">libtool</span></code>, <code class="docutils literal"><span class="pre">autoconf</span></code>, or header file dependencies are
+especially prone to this sort of problem.</p>
+<p>The best thing to try is to remove the old files and re-build.  In most cases,
+this takes care of the problem.  To do this, just type <code class="docutils literal"><span class="pre">make</span> <span class="pre">clean</span></code> and then
+<code class="docutils literal"><span class="pre">make</span></code> in the directory that fails to build.</p>
+</div>
+<div class="section" id="i-ve-built-llvm-and-am-testing-it-but-the-tests-freeze">
+<h3><a class="toc-backref" href="#id16">I’ve built LLVM and am testing it, but the tests freeze.</a><a class="headerlink" href="#i-ve-built-llvm-and-am-testing-it-but-the-tests-freeze" title="Permalink to this headline">¶</a></h3>
+<p>This is most likely occurring because you built a profile or release
+(optimized) build of LLVM and have not specified the same information on the
+<code class="docutils literal"><span class="pre">gmake</span></code> command line.</p>
+<p>For example, if you built LLVM with the command:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">%</span> gmake <span class="nv">ENABLE_PROFILING</span><span class="o">=</span><span class="m">1</span>
+</pre></div>
+</div>
+<p>…then you must run the tests with the following commands:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">%</span> <span class="nb">cd</span> llvm/test
+<span class="gp">%</span> gmake <span class="nv">ENABLE_PROFILING</span><span class="o">=</span><span class="m">1</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="why-do-test-results-differ-when-i-perform-different-types-of-builds">
+<h3><a class="toc-backref" href="#id17">Why do test results differ when I perform different types of builds?</a><a class="headerlink" href="#why-do-test-results-differ-when-i-perform-different-types-of-builds" title="Permalink to this headline">¶</a></h3>
+<p>The LLVM test suite is dependent upon several features of the LLVM tools and
+libraries.</p>
+<p>First, the debugging assertions in code are not enabled in optimized or
+profiling builds.  Hence, tests that used to fail may pass.</p>
+<p>Second, some tests may rely upon debugging options or behavior that is only
+available in the debug build.  These tests will fail in an optimized or
+profile build.</p>
+</div>
+<div class="section" id="compiling-llvm-with-gcc-3-3-2-fails-what-should-i-do">
+<h3><a class="toc-backref" href="#id18">Compiling LLVM with GCC 3.3.2 fails, what should I do?</a><a class="headerlink" href="#compiling-llvm-with-gcc-3-3-2-fails-what-should-i-do" title="Permalink to this headline">¶</a></h3>
+<p>This is <a class="reference external" href="http://gcc.gnu.org/bugzilla/show_bug.cgi?id=13392">a bug in GCC</a>,
+and affects projects other than LLVM.  Try upgrading or downgrading your GCC.</p>
+</div>
+<div class="section" id="after-subversion-update-rebuilding-gives-the-error-no-rule-to-make-target">
+<h3><a class="toc-backref" href="#id19">After Subversion update, rebuilding gives the error “No rule to make target”.</a><a class="headerlink" href="#after-subversion-update-rebuilding-gives-the-error-no-rule-to-make-target" title="Permalink to this headline">¶</a></h3>
+<p>If the error is of the form:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="go">gmake[2]: *** No rule to make target `/path/to/somefile&#39;,</span>
+<span class="go">              needed by `/path/to/another/file.d&#39;.</span>
+<span class="go">Stop.</span>
+</pre></div>
+</div>
+<p>This may occur anytime files are moved within the Subversion repository or
+removed entirely.  In this case, the best solution is to erase all <code class="docutils literal"><span class="pre">.d</span></code>
+files, which list dependencies for source files, and rebuild:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">%</span> <span class="nb">cd</span> <span class="nv">$LLVM_OBJ_DIR</span>
+<span class="gp">%</span> rm -f <span class="sb">`</span>find . -name <span class="se">\*\.</span>d<span class="sb">`</span>
+<span class="gp">%</span> gmake
+</pre></div>
+</div>
+<p>In other cases, it may be necessary to run <code class="docutils literal"><span class="pre">make</span> <span class="pre">clean</span></code> before rebuilding.</p>
+</div>
+</div>
+<div class="section" id="source-languages">
+<h2><a class="toc-backref" href="#id20">Source Languages</a><a class="headerlink" href="#source-languages" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="what-source-languages-are-supported">
+<h3><a class="toc-backref" href="#id21">What source languages are supported?</a><a class="headerlink" href="#what-source-languages-are-supported" title="Permalink to this headline">¶</a></h3>
+<p>LLVM currently has full support for C and C++ source languages. These are
+available through both <a class="reference external" href="http://clang.llvm.org/">Clang</a> and <a class="reference external" href="http://dragonegg.llvm.org/">DragonEgg</a>.</p>
+<p>The PyPy developers are working on integrating LLVM into the PyPy backend so
+that PyPy language can translate to LLVM.</p>
+</div>
+<div class="section" id="i-d-like-to-write-a-self-hosting-llvm-compiler-how-should-i-interface-with-the-llvm-middle-end-optimizers-and-back-end-code-generators">
+<h3><a class="toc-backref" href="#id22">I’d like to write a self-hosting LLVM compiler. How should I interface with the LLVM middle-end optimizers and back-end code generators?</a><a class="headerlink" href="#i-d-like-to-write-a-self-hosting-llvm-compiler-how-should-i-interface-with-the-llvm-middle-end-optimizers-and-back-end-code-generators" title="Permalink to this headline">¶</a></h3>
+<p>Your compiler front-end will communicate with LLVM by creating a module in the
+LLVM intermediate representation (IR) format. Assuming you want to write your
+language’s compiler in the language itself (rather than C++), there are 3
+major ways to tackle generating LLVM IR from a front-end:</p>
+<ol class="arabic simple">
+<li><strong>Call into the LLVM libraries code using your language’s FFI (foreign
+function interface).</strong></li>
+</ol>
+<blockquote>
+<div><ul class="simple">
+<li><em>for:</em> best tracks changes to the LLVM IR, .ll syntax, and .bc format</li>
+<li><em>for:</em> enables running LLVM optimization passes without a emit/parse
+overhead</li>
+<li><em>for:</em> adapts well to a JIT context</li>
+<li><em>against:</em> lots of ugly glue code to write</li>
+</ul>
+</div></blockquote>
+<ol class="arabic simple" start="2">
+<li><strong>Emit LLVM assembly from your compiler’s native language.</strong></li>
+</ol>
+<blockquote>
+<div><ul class="simple">
+<li><em>for:</em> very straightforward to get started</li>
+<li><em>against:</em> the .ll parser is slower than the bitcode reader when
+interfacing to the middle end</li>
+<li><em>against:</em> it may be harder to track changes to the IR</li>
+</ul>
+</div></blockquote>
+<ol class="arabic simple" start="3">
+<li><strong>Emit LLVM bitcode from your compiler’s native language.</strong></li>
+</ol>
+<blockquote>
+<div><ul class="simple">
+<li><em>for:</em> can use the more-efficient bitcode reader when interfacing to the
+middle end</li>
+<li><em>against:</em> you’ll have to re-engineer the LLVM IR object model and bitcode
+writer in your language</li>
+<li><em>against:</em> it may be harder to track changes to the IR</li>
+</ul>
+</div></blockquote>
+<p>If you go with the first option, the C bindings in include/llvm-c should help
+a lot, since most languages have strong support for interfacing with C. The
+most common hurdle with calling C from managed code is interfacing with the
+garbage collector. The C interface was designed to require very little memory
+management, and so is straightforward in this regard.</p>
+</div>
+<div class="section" id="what-support-is-there-for-a-higher-level-source-language-constructs-for-building-a-compiler">
+<h3><a class="toc-backref" href="#id23">What support is there for a higher level source language constructs for building a compiler?</a><a class="headerlink" href="#what-support-is-there-for-a-higher-level-source-language-constructs-for-building-a-compiler" title="Permalink to this headline">¶</a></h3>
+<p>Currently, there isn’t much. LLVM supports an intermediate representation
+which is useful for code representation but will not support the high level
+(abstract syntax tree) representation needed by most compilers. There are no
+facilities for lexical nor semantic analysis.</p>
+</div>
+<div class="section" id="i-don-t-understand-the-getelementptr-instruction-help">
+<h3><a class="toc-backref" href="#id24">I don’t understand the <code class="docutils literal"><span class="pre">GetElementPtr</span></code> instruction. Help!</a><a class="headerlink" href="#i-don-t-understand-the-getelementptr-instruction-help" title="Permalink to this headline">¶</a></h3>
+<p>See <a class="reference external" href="GetElementPtr.html">The Often Misunderstood GEP Instruction</a>.</p>
+</div>
+</div>
+<div class="section" id="using-the-c-and-c-front-ends">
+<h2><a class="toc-backref" href="#id25">Using the C and C++ Front Ends</a><a class="headerlink" href="#using-the-c-and-c-front-ends" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="can-i-compile-c-or-c-code-to-platform-independent-llvm-bitcode">
+<h3><a class="toc-backref" href="#id26">Can I compile C or C++ code to platform-independent LLVM bitcode?</a><a class="headerlink" href="#can-i-compile-c-or-c-code-to-platform-independent-llvm-bitcode" title="Permalink to this headline">¶</a></h3>
+<p>No. C and C++ are inherently platform-dependent languages. The most obvious
+example of this is the preprocessor. A very common way that C code is made
+portable is by using the preprocessor to include platform-specific code. In
+practice, information about other platforms is lost after preprocessing, so
+the result is inherently dependent on the platform that the preprocessing was
+targeting.</p>
+<p>Another example is <code class="docutils literal"><span class="pre">sizeof</span></code>. It’s common for <code class="docutils literal"><span class="pre">sizeof(long)</span></code> to vary
+between platforms. In most C front-ends, <code class="docutils literal"><span class="pre">sizeof</span></code> is expanded to a
+constant immediately, thus hard-wiring a platform-specific detail.</p>
+<p>Also, since many platforms define their ABIs in terms of C, and since LLVM is
+lower-level than C, front-ends currently must emit platform-specific IR in
+order to have the result conform to the platform ABI.</p>
+</div>
+</div>
+<div class="section" id="questions-about-code-generated-by-the-demo-page">
+<h2><a class="toc-backref" href="#id27">Questions about code generated by the demo page</a><a class="headerlink" href="#questions-about-code-generated-by-the-demo-page" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="what-is-this-llvm-global-ctors-and-global-i-a-stuff-that-happens-when-i-include-iostream">
+<h3><a class="toc-backref" href="#id28">What is this <code class="docutils literal"><span class="pre">llvm.global_ctors</span></code> and <code class="docutils literal"><span class="pre">_GLOBAL__I_a...</span></code> stuff that happens when I <code class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;iostream&gt;</span></code>?</a><a class="headerlink" href="#what-is-this-llvm-global-ctors-and-global-i-a-stuff-that-happens-when-i-include-iostream" title="Permalink to this headline">¶</a></h3>
+<p>If you <code class="docutils literal"><span class="pre">#include</span></code> the <code class="docutils literal"><span class="pre">&lt;iostream&gt;</span></code> header into a C++ translation unit,
+the file will probably use the <code class="docutils literal"><span class="pre">std::cin</span></code>/<code class="docutils literal"><span class="pre">std::cout</span></code>/… global objects.
+However, C++ does not guarantee an order of initialization between static
+objects in different translation units, so if a static ctor/dtor in your .cpp
+file used <code class="docutils literal"><span class="pre">std::cout</span></code>, for example, the object would not necessarily be
+automatically initialized before your use.</p>
+<p>To make <code class="docutils literal"><span class="pre">std::cout</span></code> and friends work correctly in these scenarios, the STL
+that we use declares a static object that gets created in every translation
+unit that includes <code class="docutils literal"><span class="pre">&lt;iostream&gt;</span></code>.  This object has a static constructor
+and destructor that initializes and destroys the global iostream objects
+before they could possibly be used in the file.  The code that you see in the
+<code class="docutils literal"><span class="pre">.ll</span></code> file corresponds to the constructor and destructor registration code.</p>
+<p>If you would like to make it easier to <em>understand</em> the LLVM code generated
+by the compiler in the demo page, consider using <code class="docutils literal"><span class="pre">printf()</span></code> instead of
+<code class="docutils literal"><span class="pre">iostream</span></code>s to print values.</p>
+</div>
+<div class="section" id="where-did-all-of-my-code-go">
+<h3><a class="toc-backref" href="#id29">Where did all of my code go??</a><a class="headerlink" href="#where-did-all-of-my-code-go" title="Permalink to this headline">¶</a></h3>
+<p>If you are using the LLVM demo page, you may often wonder what happened to
+all of the code that you typed in.  Remember that the demo script is running
+the code through the LLVM optimizers, so if your code doesn’t actually do
+anything useful, it might all be deleted.</p>
+<p>To prevent this, make sure that the code is actually needed.  For example, if
+you are computing some expression, return the value from the function instead
+of leaving it in a local variable.  If you really want to constrain the
+optimizer, you can read from and assign to <code class="docutils literal"><span class="pre">volatile</span></code> global variables.</p>
+</div>
+<div class="section" id="what-is-this-undef-thing-that-shows-up-in-my-code">
+<h3><a class="toc-backref" href="#id30">What is this “<code class="docutils literal"><span class="pre">undef</span></code>” thing that shows up in my code?</a><a class="headerlink" href="#what-is-this-undef-thing-that-shows-up-in-my-code" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">undef</span></code> is the LLVM way of representing a value that is not defined.  You
+can get these if you do not initialize a variable before you use it.  For
+example, the C function:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">X</span><span class="p">()</span> <span class="p">{</span> <span class="kt">int</span> <span class="n">i</span><span class="p">;</span> <span class="k">return</span> <span class="n">i</span><span class="p">;</span> <span class="p">}</span>
+</pre></div>
+</div>
+<p>Is compiled to “<code class="docutils literal"><span class="pre">ret</span> <span class="pre">i32</span> <span class="pre">undef</span></code>” because “<code class="docutils literal"><span class="pre">i</span></code>” never has a value specified
+for it.</p>
+</div>
+<div class="section" id="why-does-instcombine-simplifycfg-turn-a-call-to-a-function-with-a-mismatched-calling-convention-into-unreachable-why-not-make-the-verifier-reject-it">
+<h3><a class="toc-backref" href="#id31">Why does instcombine + simplifycfg turn a call to a function with a mismatched calling convention into “unreachable”? Why not make the verifier reject it?</a><a class="headerlink" href="#why-does-instcombine-simplifycfg-turn-a-call-to-a-function-with-a-mismatched-calling-convention-into-unreachable-why-not-make-the-verifier-reject-it" title="Permalink to this headline">¶</a></h3>
+<p>This is a common problem run into by authors of front-ends that are using
+custom calling conventions: you need to make sure to set the right calling
+convention on both the function and on each call to the function.  For
+example, this code:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="k">fastcc</span> <span class="kt">void</span> <span class="vg">@foo</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">ret</span> <span class="kt">void</span>
+<span class="p">}</span>
+<span class="k">define</span> <span class="kt">void</span> <span class="vg">@bar</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">call</span> <span class="kt">void</span> <span class="vg">@foo</span><span class="p">()</span>
+    <span class="k">ret</span> <span class="kt">void</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Is optimized to:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="k">fastcc</span> <span class="kt">void</span> <span class="vg">@foo</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">ret</span> <span class="kt">void</span>
+<span class="p">}</span>
+<span class="k">define</span> <span class="kt">void</span> <span class="vg">@bar</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">unreachable</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>… with “<code class="docutils literal"><span class="pre">opt</span> <span class="pre">-instcombine</span> <span class="pre">-simplifycfg</span></code>”.  This often bites people because
+“all their code disappears”.  Setting the calling convention on the caller and
+callee is required for indirect calls to work, so people often ask why not
+make the verifier reject this sort of thing.</p>
+<p>The answer is that this code has undefined behavior, but it is not illegal.
+If we made it illegal, then every transformation that could potentially create
+this would have to ensure that it doesn’t, and there is valid code that can
+create this sort of construct (in dead code).  The sorts of things that can
+cause this to happen are fairly contrived, but we still need to accept them.
+Here’s an example:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="k">fastcc</span> <span class="kt">void</span> <span class="vg">@foo</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">ret</span> <span class="kt">void</span>
+<span class="p">}</span>
+<span class="k">define</span> <span class="k">internal</span> <span class="kt">void</span> <span class="vg">@bar</span><span class="p">(</span><span class="kt">void</span><span class="p">()*</span> <span class="nv">%FP</span><span class="p">,</span> <span class="k">i1</span> <span class="nv">%cond</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">br</span> <span class="k">i1</span> <span class="nv">%cond</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%T</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%F</span>
+<span class="nl">T:</span>
+    <span class="k">call</span> <span class="kt">void</span> <span class="nv">%FP</span><span class="p">()</span>
+    <span class="k">ret</span> <span class="kt">void</span>
+<span class="nl">F:</span>
+    <span class="k">call</span> <span class="k">fastcc</span> <span class="kt">void</span> <span class="nv">%FP</span><span class="p">()</span>
+    <span class="k">ret</span> <span class="kt">void</span>
+<span class="p">}</span>
+<span class="k">define</span> <span class="kt">void</span> <span class="vg">@test</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nv">%X</span> <span class="p">=</span> <span class="k">or</span> <span class="k">i1</span> <span class="k">false</span><span class="p">,</span> <span class="k">false</span>
+    <span class="k">call</span> <span class="kt">void</span> <span class="vg">@bar</span><span class="p">(</span><span class="kt">void</span><span class="p">()*</span> <span class="vg">@foo</span><span class="p">,</span> <span class="k">i1</span> <span class="nv">%X</span><span class="p">)</span>
+    <span class="k">ret</span> <span class="kt">void</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In this example, “test” always passes <code class="docutils literal"><span class="pre">&#64;foo</span></code>/<code class="docutils literal"><span class="pre">false</span></code> into <code class="docutils literal"><span class="pre">bar</span></code>, which
+ensures that it is dynamically called with the right calling conv (thus, the
+code is perfectly well defined).  If you run this through the inliner, you
+get this (the explicit “or” is there so that the inliner doesn’t dead code
+eliminate a bunch of stuff):</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="k">fastcc</span> <span class="kt">void</span> <span class="vg">@foo</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">ret</span> <span class="kt">void</span>
+<span class="p">}</span>
+<span class="k">define</span> <span class="kt">void</span> <span class="vg">@test</span><span class="p">()</span> <span class="p">{</span>
+    <span class="nv">%X</span> <span class="p">=</span> <span class="k">or</span> <span class="k">i1</span> <span class="k">false</span><span class="p">,</span> <span class="k">false</span>
+    <span class="k">br</span> <span class="k">i1</span> <span class="nv">%X</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%T.i</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%F.i</span>
+<span class="nl">T.i:</span>
+    <span class="k">call</span> <span class="kt">void</span> <span class="vg">@foo</span><span class="p">()</span>
+    <span class="k">br</span> <span class="kt">label</span> <span class="nv">%bar.exit</span>
+<span class="nl">F.i:</span>
+    <span class="k">call</span> <span class="k">fastcc</span> <span class="kt">void</span> <span class="vg">@foo</span><span class="p">()</span>
+    <span class="k">br</span> <span class="kt">label</span> <span class="nv">%bar.exit</span>
+<span class="nl">bar.exit:</span>
+    <span class="k">ret</span> <span class="kt">void</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Here you can see that the inlining pass made an undefined call to <code class="docutils literal"><span class="pre">&#64;foo</span></code>
+with the wrong calling convention.  We really don’t want to make the inliner
+have to know about this sort of thing, so it needs to be valid code.  In this
+case, dead code elimination can trivially remove the undefined code.  However,
+if <code class="docutils literal"><span class="pre">%X</span></code> was an input argument to <code class="docutils literal"><span class="pre">&#64;test</span></code>, the inliner would produce this:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="k">fastcc</span> <span class="kt">void</span> <span class="vg">@foo</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">ret</span> <span class="kt">void</span>
+<span class="p">}</span>
+
+<span class="k">define</span> <span class="kt">void</span> <span class="vg">@test</span><span class="p">(</span><span class="k">i1</span> <span class="nv">%X</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">br</span> <span class="k">i1</span> <span class="nv">%X</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%T.i</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%F.i</span>
+<span class="nl">T.i:</span>
+    <span class="k">call</span> <span class="kt">void</span> <span class="vg">@foo</span><span class="p">()</span>
+    <span class="k">br</span> <span class="kt">label</span> <span class="nv">%bar.exit</span>
+<span class="nl">F.i:</span>
+    <span class="k">call</span> <span class="k">fastcc</span> <span class="kt">void</span> <span class="vg">@foo</span><span class="p">()</span>
+    <span class="k">br</span> <span class="kt">label</span> <span class="nv">%bar.exit</span>
+<span class="nl">bar.exit:</span>
+    <span class="k">ret</span> <span class="kt">void</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The interesting thing about this is that <code class="docutils literal"><span class="pre">%X</span></code> <em>must</em> be false for the
+code to be well-defined, but no amount of dead code elimination will be able
+to delete the broken call as unreachable.  However, since
+<code class="docutils literal"><span class="pre">instcombine</span></code>/<code class="docutils literal"><span class="pre">simplifycfg</span></code> turns the undefined call into unreachable, we
+end up with a branch on a condition that goes to unreachable: a branch to
+unreachable can never happen, so “<code class="docutils literal"><span class="pre">-inline</span> <span class="pre">-instcombine</span> <span class="pre">-simplifycfg</span></code>” is
+able to produce:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="k">fastcc</span> <span class="kt">void</span> <span class="vg">@foo</span><span class="p">()</span> <span class="p">{</span>
+   <span class="k">ret</span> <span class="kt">void</span>
+<span class="p">}</span>
+<span class="k">define</span> <span class="kt">void</span> <span class="vg">@test</span><span class="p">(</span><span class="k">i1</span> <span class="nv">%X</span><span class="p">)</span> <span class="p">{</span>
+<span class="nl">F.i:</span>
+   <span class="k">call</span> <span class="k">fastcc</span> <span class="kt">void</span> <span class="vg">@foo</span><span class="p">()</span>
+   <span class="k">ret</span> <span class="kt">void</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="Lexicon.html" title="The LLVM Lexicon"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="GettingStartedVS.html" title="Getting Started with the LLVM System using Microsoft Visual Studio"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

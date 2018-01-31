@@ -1,0 +1,171 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Advice on Packaging LLVM &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="How To Validate a New Release" href="ReleaseProcess.html" />
+    <link rel="prev" title="How To Release LLVM To The Public" href="HowToReleaseLLVM.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="ReleaseProcess.html" title="How To Validate a New Release"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="HowToReleaseLLVM.html" title="How To Release LLVM To The Public"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="advice-on-packaging-llvm">
+<h1>Advice on Packaging LLVM<a class="headerlink" href="#advice-on-packaging-llvm" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#overview" id="id1">Overview</a></li>
+<li><a class="reference internal" href="#compile-flags" id="id2">Compile Flags</a></li>
+<li><a class="reference internal" href="#c-features" id="id3">C++ Features</a></li>
+<li><a class="reference internal" href="#shared-library" id="id4">Shared Library</a></li>
+<li><a class="reference internal" href="#dependencies" id="id5">Dependencies</a></li>
+</ul>
+</div>
+<div class="section" id="overview">
+<h2><a class="toc-backref" href="#id1">Overview</a><a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>LLVM sets certain default configure options to make sure our developers don’t
+break things for constrained platforms.  These settings are not optimal for most
+desktop systems, and we hope that packagers (e.g., Redhat, Debian, MacPorts,
+etc.) will tweak them.  This document lists settings we suggest you tweak.</p>
+<p>LLVM’s API changes with each release, so users are likely to want, for example,
+both LLVM-2.6 and LLVM-2.7 installed at the same time to support apps developed
+against each.</p>
+</div>
+<div class="section" id="compile-flags">
+<h2><a class="toc-backref" href="#id2">Compile Flags</a><a class="headerlink" href="#compile-flags" title="Permalink to this headline">¶</a></h2>
+<p>LLVM runs much more quickly when it’s optimized and assertions are removed.
+However, such a build is currently incompatible with users who build without
+defining <code class="docutils literal"><span class="pre">NDEBUG</span></code>, and the lack of assertions makes it hard to debug problems
+in user code.  We recommend allowing users to install both optimized and debug
+versions of LLVM in parallel.  The following configure flags are relevant:</p>
+<dl class="docutils">
+<dt><code class="docutils literal"><span class="pre">--disable-assertions</span></code></dt>
+<dd>Builds LLVM with <code class="docutils literal"><span class="pre">NDEBUG</span></code> defined.  Changes the LLVM ABI.  Also available
+by setting <code class="docutils literal"><span class="pre">DISABLE_ASSERTIONS=0|1</span></code> in <code class="docutils literal"><span class="pre">make</span></code>’s environment.  This
+defaults to enabled regardless of the optimization setting, but it slows
+things down.</dd>
+<dt><code class="docutils literal"><span class="pre">--enable-debug-symbols</span></code></dt>
+<dd>Builds LLVM with <code class="docutils literal"><span class="pre">-g</span></code>.  Also available by setting <code class="docutils literal"><span class="pre">DEBUG_SYMBOLS=0|1</span></code> in
+<code class="docutils literal"><span class="pre">make</span></code>’s environment.  This defaults to disabled when optimizing, so you
+should turn it back on to let users debug their programs.</dd>
+<dt><code class="docutils literal"><span class="pre">--enable-optimized</span></code></dt>
+<dd>(For svn checkouts) Builds LLVM with <code class="docutils literal"><span class="pre">-O2</span></code> and, by default, turns off
+debug symbols.  Also available by setting <code class="docutils literal"><span class="pre">ENABLE_OPTIMIZED=0|1</span></code> in
+<code class="docutils literal"><span class="pre">make</span></code>’s environment.  This defaults to enabled when not in a
+checkout.</dd>
+</dl>
+</div>
+<div class="section" id="c-features">
+<h2><a class="toc-backref" href="#id3">C++ Features</a><a class="headerlink" href="#c-features" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt>RTTI</dt>
+<dd>LLVM disables RTTI by default.  Add <code class="docutils literal"><span class="pre">REQUIRES_RTTI=1</span></code> to your environment
+while running <code class="docutils literal"><span class="pre">make</span></code> to re-enable it.  This will allow users to build with
+RTTI enabled and still inherit from LLVM classes.</dd>
+</dl>
+</div>
+<div class="section" id="shared-library">
+<h2><a class="toc-backref" href="#id4">Shared Library</a><a class="headerlink" href="#shared-library" title="Permalink to this headline">¶</a></h2>
+<p>Configure with <code class="docutils literal"><span class="pre">--enable-shared</span></code> to build
+<code class="docutils literal"><span class="pre">libLLVM-&lt;major&gt;.&lt;minor&gt;.(so|dylib)</span></code> and link the tools against it.  This
+saves lots of binary size at the cost of some startup time.</p>
+</div>
+<div class="section" id="dependencies">
+<h2><a class="toc-backref" href="#id5">Dependencies</a><a class="headerlink" href="#dependencies" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><code class="docutils literal"><span class="pre">--enable-libffi</span></code></dt>
+<dd>Depend on <a class="reference external" href="http://sources.redhat.com/libffi/">libffi</a> to allow the LLVM
+interpreter to call external functions.</dd>
+</dl>
+<p><code class="docutils literal"><span class="pre">--with-oprofile</span></code></p>
+<blockquote>
+<div>Depend on <a class="reference external" href="http://oprofile.sourceforge.net/doc/devel/index.html">libopagent</a> (&gt;=version 0.9.4)
+to let the LLVM JIT tell oprofile about function addresses and line
+numbers.</div></blockquote>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="ReleaseProcess.html" title="How To Validate a New Release"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="HowToReleaseLLVM.html" title="How To Release LLVM To The Public"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

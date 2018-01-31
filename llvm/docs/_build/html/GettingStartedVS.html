@@ -1,0 +1,332 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Getting Started with the LLVM System using Microsoft Visual Studio &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Frequently Asked Questions (FAQ)" href="FAQ.html" />
+    <link rel="prev" title="Getting Started with the LLVM System" href="GettingStarted.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="FAQ.html" title="Frequently Asked Questions (FAQ)"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="GettingStarted.html" title="Getting Started with the LLVM System"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="getting-started-with-the-llvm-system-using-microsoft-visual-studio">
+<h1>Getting Started with the LLVM System using Microsoft Visual Studio<a class="headerlink" href="#getting-started-with-the-llvm-system-using-microsoft-visual-studio" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#overview" id="id2">Overview</a></li>
+<li><a class="reference internal" href="#requirements" id="id3">Requirements</a><ul>
+<li><a class="reference internal" href="#hardware" id="id4">Hardware</a></li>
+<li><a class="reference internal" href="#software" id="id5">Software</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#getting-started" id="id6">Getting Started</a></li>
+<li><a class="reference internal" href="#an-example-using-the-llvm-tool-chain" id="id7">An Example Using the LLVM Tool Chain</a></li>
+<li><a class="reference internal" href="#common-problems" id="id8">Common Problems</a></li>
+<li><a class="reference internal" href="#links" id="id9">Links</a></li>
+</ul>
+</div>
+<div class="section" id="overview">
+<h2><a class="toc-backref" href="#id2">Overview</a><a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>Welcome to LLVM on Windows! This document only covers LLVM on Windows using
+Visual Studio, not mingw or cygwin. In order to get started, you first need to
+know some basic information.</p>
+<p>There are many different projects that compose LLVM. The first is the LLVM
+suite. This contains all of the tools, libraries, and header files needed to
+use LLVM. It contains an assembler, disassembler,
+bitcode analyzer and bitcode optimizer. It also contains a test suite that can
+be used to test the LLVM tools.</p>
+<p>Another useful project on Windows is <a class="reference external" href="http://clang.llvm.org/">Clang</a>.
+Clang is a C family ([Objective]C/C++) compiler. Clang mostly works on
+Windows, but does not currently understand all of the Microsoft extensions
+to C and C++. Because of this, clang cannot parse the C++ standard library
+included with Visual Studio, nor parts of the Windows Platform SDK. However,
+most standard C programs do compile. Clang can be used to emit bitcode,
+directly emit object files or even linked executables using Visual Studio’s
+<code class="docutils literal"><span class="pre">link.exe</span></code>.</p>
+<p>The large LLVM test suite cannot be run on the Visual Studio port at this
+time.</p>
+<p>Most of the tools build and work.  <code class="docutils literal"><span class="pre">bugpoint</span></code> does build, but does
+not work.</p>
+<p>Additional information about the LLVM directory structure and tool chain
+can be found on the main <a class="reference internal" href="GettingStarted.html"><span class="doc">Getting Started with the LLVM System</span></a> page.</p>
+</div>
+<div class="section" id="requirements">
+<h2><a class="toc-backref" href="#id3">Requirements</a><a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h2>
+<p>Before you begin to use the LLVM system, review the requirements given
+below.  This may save you some trouble by knowing ahead of time what hardware
+and software you will need.</p>
+<div class="section" id="hardware">
+<h3><a class="toc-backref" href="#id4">Hardware</a><a class="headerlink" href="#hardware" title="Permalink to this headline">¶</a></h3>
+<p>Any system that can adequately run Visual Studio 2012 is fine. The LLVM
+source tree and object files, libraries and executables will consume
+approximately 3GB.</p>
+</div>
+<div class="section" id="software">
+<h3><a class="toc-backref" href="#id5">Software</a><a class="headerlink" href="#software" title="Permalink to this headline">¶</a></h3>
+<p>You will need Visual Studio 2012 or higher.</p>
+<p>You will also need the <a class="reference external" href="http://www.cmake.org/">CMake</a> build system since it
+generates the project files you will use to build with.</p>
+<p>If you would like to run the LLVM tests you will need <a class="reference external" href="http://www.python.org/">Python</a>. Versions 2.4-2.7 are known to work. You will need
+<a class="reference external" href="http://gnuwin32.sourceforge.net/">GnuWin32</a> tools, too.</p>
+<p>Do not install the LLVM directory tree into a path containing spaces (e.g.
+<code class="docutils literal"><span class="pre">C:\Documents</span> <span class="pre">and</span> <span class="pre">Settings\...</span></code>) as the configure step will fail.</p>
+</div>
+</div>
+<div class="section" id="getting-started">
+<h2><a class="toc-backref" href="#id6">Getting Started</a><a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
+<p>Here’s the short story for getting up and running quickly with LLVM:</p>
+<ol class="arabic">
+<li><p class="first">Read the documentation.</p>
+</li>
+<li><p class="first">Seriously, read the documentation.</p>
+</li>
+<li><p class="first">Remember that you were warned twice about reading the documentation.</p>
+</li>
+<li><p class="first">Get the Source Code</p>
+<ul>
+<li><p class="first">With the distributed files:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><code class="docutils literal"><span class="pre">cd</span> <span class="pre">&lt;where-you-want-llvm-to-live&gt;</span></code></li>
+<li><code class="docutils literal"><span class="pre">gunzip</span> <span class="pre">--stdout</span> <span class="pre">llvm-VERSION.tar.gz</span> <span class="pre">|</span> <span class="pre">tar</span> <span class="pre">-xvf</span> <span class="pre">-</span></code>
+(<em>or use WinZip</em>)</li>
+<li><code class="docutils literal"><span class="pre">cd</span> <span class="pre">llvm</span></code></li>
+</ol>
+</div></blockquote>
+</li>
+<li><p class="first">With anonymous Subversion access:</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><code class="docutils literal"><span class="pre">cd</span> <span class="pre">&lt;where-you-want-llvm-to-live&gt;</span></code></li>
+<li><code class="docutils literal"><span class="pre">svn</span> <span class="pre">co</span> <span class="pre">http://llvm.org/svn/llvm-project/llvm/trunk</span> <span class="pre">llvm</span></code></li>
+<li><code class="docutils literal"><span class="pre">cd</span> <span class="pre">llvm</span></code></li>
+</ol>
+</div></blockquote>
+</li>
+</ul>
+</li>
+<li><p class="first">Use <a class="reference external" href="http://www.cmake.org/">CMake</a> to generate up-to-date project files:</p>
+<ul class="simple">
+<li>Once CMake is installed then the simplest way is to just start the
+CMake GUI, select the directory where you have LLVM extracted to, and
+the default options should all be fine.  One option you may really
+want to change, regardless of anything else, might be the
+<code class="docutils literal"><span class="pre">CMAKE_INSTALL_PREFIX</span></code> setting to select a directory to INSTALL to
+once compiling is complete, although installation is not mandatory for
+using LLVM.  Another important option is <code class="docutils literal"><span class="pre">LLVM_TARGETS_TO_BUILD</span></code>,
+which controls the LLVM target architectures that are included on the
+build.</li>
+<li>See the <a class="reference internal" href="CMake.html"><span class="doc">LLVM CMake guide</span></a> for detailed information about
+how to configure the LLVM build.</li>
+<li>CMake generates project files for all build types. To select a specific
+build type, use the Configuration manager from the VS IDE or the
+<code class="docutils literal"><span class="pre">/property:Configuration</span></code> command line option when using MSBuild.</li>
+</ul>
+</li>
+<li><p class="first">Start Visual Studio</p>
+<ul class="simple">
+<li>In the directory you created the project files will have an <code class="docutils literal"><span class="pre">llvm.sln</span></code>
+file, just double-click on that to open Visual Studio.</li>
+</ul>
+</li>
+<li><p class="first">Build the LLVM Suite:</p>
+<ul class="simple">
+<li>The projects may still be built individually, but to build them all do
+not just select all of them in batch build (as some are meant as
+configuration projects), but rather select and build just the
+<code class="docutils literal"><span class="pre">ALL_BUILD</span></code> project to build everything, or the <code class="docutils literal"><span class="pre">INSTALL</span></code> project,
+which first builds the <code class="docutils literal"><span class="pre">ALL_BUILD</span></code> project, then installs the LLVM
+headers, libs, and other useful things to the directory set by the
+<code class="docutils literal"><span class="pre">CMAKE_INSTALL_PREFIX</span></code> setting when you first configured CMake.</li>
+<li>The Fibonacci project is a sample program that uses the JIT. Modify the
+project’s debugging properties to provide a numeric command line argument
+or run it from the command line.  The program will print the
+corresponding fibonacci value.</li>
+</ul>
+</li>
+<li><p class="first">Test LLVM in Visual Studio:</p>
+<ul class="simple">
+<li>If <code class="docutils literal"><span class="pre">%PATH%</span></code> does not contain GnuWin32, you may specify
+<code class="docutils literal"><span class="pre">LLVM_LIT_TOOLS_DIR</span></code> on CMake for the path to GnuWin32.</li>
+<li>You can run LLVM tests by merely building the project “check”. The test
+results will be shown in the VS output window.</li>
+</ul>
+</li>
+<li><p class="first">Test LLVM on the command line:</p>
+<ul>
+<li><p class="first">The LLVM tests can be run by changing directory to the llvm source
+directory and running:</p>
+<div class="highlight-bat"><div class="highlight"><pre><span></span>C<span class="p">:</span><span class="nl">\..\llvm</span><span class="c1">&gt; python ..\build\bin\llvm-lit --param build_config=Win32 --param build_mode=Debug --param llvm_site_config=../build/test/lit.site.cfg test</span>
+</pre></div>
+</div>
+<p>This example assumes that Python is in your PATH variable, you
+have built a Win32 Debug version of llvm with a standard out of
+line build. You should not see any unexpected failures, but will
+see many unsupported tests and expected failures.</p>
+<p>A specific test or test directory can be run with:</p>
+<div class="highlight-bat"><div class="highlight"><pre><span></span>C<span class="p">:</span><span class="nl">\..\llvm</span><span class="c1">&gt; python ..\build\bin\llvm-lit --param build_config=Win32 --param build_mode=Debug --param llvm_site_config=../build/test/lit.site.cfg test/path/to/test</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</li>
+</ol>
+</div>
+<div class="section" id="an-example-using-the-llvm-tool-chain">
+<h2><a class="toc-backref" href="#id7">An Example Using the LLVM Tool Chain</a><a class="headerlink" href="#an-example-using-the-llvm-tool-chain" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic">
+<li><p class="first">First, create a simple C file, name it ‘<code class="docutils literal"><span class="pre">hello.c</span></code>’:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;hello world</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Next, compile the C file into an LLVM bitcode file:</p>
+<div class="highlight-bat"><div class="highlight"><pre><span></span>C<span class="p">:</span><span class="nl">\..</span><span class="c1">&gt; clang -c hello.c -emit-llvm -o hello.bc</span>
+</pre></div>
+</div>
+<p>This will create the result file <code class="docutils literal"><span class="pre">hello.bc</span></code> which is the LLVM bitcode
+that corresponds the compiled program and the library facilities that
+it required.  You can execute this file directly using <code class="docutils literal"><span class="pre">lli</span></code> tool,
+compile it to native assembly with the <code class="docutils literal"><span class="pre">llc</span></code>, optimize or analyze it
+further with the <code class="docutils literal"><span class="pre">opt</span></code> tool, etc.</p>
+<p>Alternatively you can directly output an executable with clang with:</p>
+<div class="highlight-bat"><div class="highlight"><pre><span></span>C<span class="p">:</span><span class="nl">\..</span><span class="c1">&gt; clang hello.c -o hello.exe</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">-o</span> <span class="pre">hello.exe</span></code> is required because clang currently outputs <code class="docutils literal"><span class="pre">a.out</span></code>
+when neither <code class="docutils literal"><span class="pre">-o</span></code> nor <code class="docutils literal"><span class="pre">-c</span></code> are given.</p>
+</li>
+<li><p class="first">Run the program using the just-in-time compiler:</p>
+<div class="highlight-bat"><div class="highlight"><pre><span></span>C<span class="p">:</span><span class="nl">\..</span><span class="c1">&gt; lli hello.bc</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Use the <code class="docutils literal"><span class="pre">llvm-dis</span></code> utility to take a look at the LLVM assembly code:</p>
+<div class="highlight-bat"><div class="highlight"><pre><span></span>C<span class="p">:</span><span class="nl">\..</span><span class="c1">&gt; llvm-dis &lt; hello.bc | more</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Compile the program to object code using the LLC code generator:</p>
+<div class="highlight-bat"><div class="highlight"><pre><span></span>C<span class="p">:</span><span class="nl">\..</span><span class="c1">&gt; llc -filetype=obj hello.bc</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Link to binary using Microsoft link:</p>
+<div class="highlight-bat"><div class="highlight"><pre><span></span>C<span class="p">:</span><span class="nl">\..</span><span class="c1">&gt; link hello.obj -defaultlib:libcmt</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Execute the native code program:</p>
+<div class="highlight-bat"><div class="highlight"><pre><span></span>C<span class="p">:</span><span class="nl">\..</span><span class="c1">&gt; hello.exe</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</div>
+<div class="section" id="common-problems">
+<h2><a class="toc-backref" href="#id8">Common Problems</a><a class="headerlink" href="#common-problems" title="Permalink to this headline">¶</a></h2>
+<p>If you are having problems building or using LLVM, or if you have any other
+general questions about LLVM, please consult the <a class="reference internal" href="FAQ.html"><span class="doc">Frequently Asked Questions</span></a> page.</p>
+</div>
+<div class="section" id="links">
+<h2><a class="toc-backref" href="#id9">Links</a><a class="headerlink" href="#links" title="Permalink to this headline">¶</a></h2>
+<p>This document is just an <strong>introduction</strong> to how to use LLVM to do some simple
+things… there are many more interesting and complicated things that you can
+do that aren’t documented here (but we’ll gladly accept a patch if you want to
+write something up!).  For more information about LLVM, check out:</p>
+<ul class="simple">
+<li><a class="reference external" href="http://llvm.org/">LLVM homepage</a></li>
+<li><a class="reference external" href="http://llvm.org/doxygen/">LLVM doxygen tree</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="FAQ.html" title="Frequently Asked Questions (FAQ)"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="GettingStarted.html" title="Getting Started with the LLVM System"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

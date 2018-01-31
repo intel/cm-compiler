@@ -1,0 +1,204 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>LLVM 3.5 Release Notes &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LLVM’s Analysis and Transform Passes" href="Passes.html" />
+    <link rel="prev" title="8. Kaleidoscope: Conclusion and other useful LLVM tidbits" href="tutorial/OCamlLangImpl8.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="Passes.html" title="LLVM’s Analysis and Transform Passes"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="tutorial/OCamlLangImpl8.html" title="8. Kaleidoscope: Conclusion and other useful LLVM tidbits"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-3-5-release-notes">
+<h1>LLVM 3.5 Release Notes<a class="headerlink" href="#llvm-3-5-release-notes" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
+<li><a class="reference internal" href="#non-comprehensive-list-of-changes-in-this-release" id="id2">Non-comprehensive list of changes in this release</a><ul>
+<li><a class="reference internal" href="#changes-to-the-arm-backend" id="id3">Changes to the ARM Backend</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#external-open-source-projects-using-llvm-3-5" id="id4">External Open Source Projects Using LLVM 3.5</a></li>
+<li><a class="reference internal" href="#additional-information" id="id5">Additional Information</a></li>
+</ul>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">These are in-progress notes for the upcoming LLVM 3.5 release.  You may
+prefer the <a class="reference external" href="http://llvm.org/releases/3.4/docs/ReleaseNotes.html">LLVM 3.4 Release Notes</a>.</p>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This document contains the release notes for the LLVM Compiler Infrastructure,
+release 3.5.  Here we describe the status of LLVM, including major improvements
+from the previous release, improvements in various subprojects of LLVM, and
+some of the current users of the code.  All LLVM releases may be downloaded
+from the <a class="reference external" href="http://llvm.org/releases/">LLVM releases web site</a>.</p>
+<p>For more information about LLVM, including information about the latest
+release, please check out the <a class="reference external" href="http://llvm.org/">main LLVM web site</a>.  If you
+have questions or comments, the <a class="reference external" href="http://lists.cs.uiuc.edu/mailman/listinfo/llvmdev">LLVM Developer’s Mailing List</a> is a good place to send
+them.</p>
+<p>Note that if you are reading this file from a Subversion checkout or the main
+LLVM web page, this document applies to the <em>next</em> release, not the current
+one.  To see the release notes for a specific release, please see the <a class="reference external" href="http://llvm.org/releases/">releases
+page</a>.</p>
+</div>
+<div class="section" id="non-comprehensive-list-of-changes-in-this-release">
+<h2><a class="toc-backref" href="#id2">Non-comprehensive list of changes in this release</a><a class="headerlink" href="#non-comprehensive-list-of-changes-in-this-release" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>All backends have been changed to use the MC asm printer and support for the
+non MC one has been removed.</li>
+<li>Clang can now successfully self-host itself on Linux/Sparc64 and on
+FreeBSD/Sparc64.</li>
+<li>LLVM now assumes the assembler supports <code class="docutils literal"><span class="pre">.loc</span></code> for generating debug line
+numbers. The old support for printing the debug line info directly was only
+used by <code class="docutils literal"><span class="pre">llc</span></code> and has been removed.</li>
+<li>All inline assembly is parsed by the integrated assembler when it is enabled.
+Previously this was only the case for object-file output. It is now the case
+for assembly output as well. The integrated assembler can be disabled with
+the <code class="docutils literal"><span class="pre">-no-integrated-as</span></code> option,</li>
+<li>llvm-ar now handles IR files like regular object files. In particular, a
+regular symbol table is created for symbols defined in IR files, including
+those in file scope inline assembly.</li>
+<li>LLVM now always uses cfi directives for producing most stack
+unwinding information.</li>
+<li>The prefix for loop vectorizer hint metadata has been changed from
+<code class="docutils literal"><span class="pre">llvm.vectorizer</span></code> to <code class="docutils literal"><span class="pre">llvm.loop.vectorize</span></code>.  In addition,
+<code class="docutils literal"><span class="pre">llvm.vectorizer.unroll</span></code> metadata has been renamed
+<code class="docutils literal"><span class="pre">llvm.loop.interleave.count</span></code>.</li>
+<li>Some backends previously implemented Atomic NAND(x,y) as <code class="docutils literal"><span class="pre">x</span> <span class="pre">&amp;</span> <span class="pre">~y</span></code>. Now
+all backends implement it as <code class="docutils literal"><span class="pre">~(x</span> <span class="pre">&amp;</span> <span class="pre">y)</span></code>, matching the semantics of GCC 4.4
+and later.</li>
+</ul>
+<ul class="simple">
+<li>… next change …</li>
+</ul>
+<div class="section" id="changes-to-the-arm-backend">
+<h3><a class="toc-backref" href="#id3">Changes to the ARM Backend</a><a class="headerlink" href="#changes-to-the-arm-backend" title="Permalink to this headline">¶</a></h3>
+<p>Since release 3.3, a lot of new features have been included in the ARM
+back-end but weren’t production ready (ie. well tested) on release 3.4.
+Just after the 3.4 release, we started heavily testing two major parts
+of the back-end: the integrated assembler (IAS) and the ARM exception
+handling (EHABI), and now they are enabled by default on LLVM/Clang.</p>
+<p>The IAS received a lot of GNU extensions and directives, as well as some
+specific pre-UAL instructions. Not all remaining directives will be
+implemented, as we made judgement calls on the need versus the complexity,
+and have chosen simplicity and future compatibility where hard decisions
+had to be made. The major difference is, as stated above, the IAS validates
+all inline ASM, not just for object emission, and that cause trouble with
+some uses of inline ASM as pre-processor magic.</p>
+<p>So, while the IAS is good enough to compile large projects (including most
+of the Linux kernel), there are a few things that we can’t (and probably
+won’t) do. For those cases, please use <code class="docutils literal"><span class="pre">-fno-integrated-as</span></code> in Clang.</p>
+<p>Exception handling is another big change. After extensive testing and
+changes to cooperate with Dwarf unwinding, EHABI is enabled by default.
+The options <code class="docutils literal"><span class="pre">-arm-enable-ehabi</span></code> and <code class="docutils literal"><span class="pre">-arm-enable-ehabi-descriptors</span></code>,
+which were used to enable EHABI in the previous releases, are removed now.</p>
+<p>This means all ARM code will emit EH unwind tables, or CFI unwinding (for
+debug/profiling), or both. To avoid run-time inconsistencies, C code will
+also emit EH tables (in case they interoperate with C++ code), as is the
+case for other architectures (ex. x86_64).</p>
+</div>
+</div>
+<div class="section" id="external-open-source-projects-using-llvm-3-5">
+<h2><a class="toc-backref" href="#id4">External Open Source Projects Using LLVM 3.5</a><a class="headerlink" href="#external-open-source-projects-using-llvm-3-5" title="Permalink to this headline">¶</a></h2>
+<p>An exciting aspect of LLVM is that it is used as an enabling technology for
+a lot of other language and tools projects. This section lists some of the
+projects that have already been updated to work with LLVM 3.5.</p>
+</div>
+<div class="section" id="additional-information">
+<h2><a class="toc-backref" href="#id5">Additional Information</a><a class="headerlink" href="#additional-information" title="Permalink to this headline">¶</a></h2>
+<p>A wide variety of additional information is available on the <a class="reference external" href="http://llvm.org/">LLVM web page</a>, in particular in the <a class="reference external" href="http://llvm.org/docs/">documentation</a> section.  The web page also contains versions of the
+API documentation which is up-to-date with the Subversion version of the source
+code.  You can access versions of these documents specific to this release by
+going into the <code class="docutils literal"><span class="pre">llvm/docs/</span></code> directory in the LLVM tree.</p>
+<p>If you have any questions or comments about LLVM, please feel free to contact
+us via the <a class="reference external" href="http://llvm.org/docs/#maillist">mailing lists</a>.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="Passes.html" title="LLVM’s Analysis and Transform Passes"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="tutorial/OCamlLangImpl8.html" title="8. Kaleidoscope: Conclusion and other useful LLVM tidbits"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

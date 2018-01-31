@@ -1,0 +1,1152 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Accurate Garbage Collection with LLVM &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Writing an LLVM Pass" href="WritingAnLLVMPass.html" />
+    <link rel="prev" title="How To Use Instruction Mappings" href="HowToUseInstrMappings.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="WritingAnLLVMPass.html" title="Writing an LLVM Pass"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="HowToUseInstrMappings.html" title="How To Use Instruction Mappings"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="accurate-garbage-collection-with-llvm">
+<h1>Accurate Garbage Collection with LLVM<a class="headerlink" href="#accurate-garbage-collection-with-llvm" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a><ul>
+<li><a class="reference internal" href="#goals-and-non-goals" id="id2">Goals and non-goals</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#getting-started" id="id3">Getting started</a><ul>
+<li><a class="reference internal" href="#in-your-compiler" id="id4">In your compiler</a></li>
+<li><a class="reference internal" href="#in-your-runtime" id="id5">In your runtime</a></li>
+<li><a class="reference internal" href="#about-the-shadow-stack" id="id6">About the shadow stack</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ir-features" id="id7">IR features</a><ul>
+<li><a class="reference internal" href="#specifying-gc-code-generation-gc" id="id8">Specifying GC code generation: <code class="docutils literal"><span class="pre">gc</span> <span class="pre">&quot;...&quot;</span></code></a></li>
+<li><a class="reference internal" href="#gcroot" id="id9">Identifying GC roots on the stack: <code class="docutils literal"><span class="pre">llvm.gcroot</span></code></a></li>
+<li><a class="reference internal" href="#reading-and-writing-references-in-the-heap" id="id10">Reading and writing references in the heap</a><ul>
+<li><a class="reference internal" href="#write-barrier-llvm-gcwrite" id="id11">Write barrier: <code class="docutils literal"><span class="pre">llvm.gcwrite</span></code></a></li>
+<li><a class="reference internal" href="#read-barrier-llvm-gcread" id="id12">Read barrier: <code class="docutils literal"><span class="pre">llvm.gcread</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#implementing-a-collector-plugin" id="id13">Implementing a collector plugin</a><ul>
+<li><a class="reference internal" href="#overview-of-available-features" id="id14">Overview of available features</a></li>
+<li><a class="reference internal" href="#computing-stack-maps" id="id15">Computing stack maps</a></li>
+<li><a class="reference internal" href="#initializing-roots-to-null-initroots" id="id16">Initializing roots to null: <code class="docutils literal"><span class="pre">InitRoots</span></code></a></li>
+<li><a class="reference internal" href="#custom-lowering-of-intrinsics-customroots-customreadbarriers-and-customwritebarriers" id="id17">Custom lowering of intrinsics: <code class="docutils literal"><span class="pre">CustomRoots</span></code>, <code class="docutils literal"><span class="pre">CustomReadBarriers</span></code>, and <code class="docutils literal"><span class="pre">CustomWriteBarriers</span></code></a></li>
+<li><a class="reference internal" href="#generating-safe-points-neededsafepoints" id="id18">Generating safe points: <code class="docutils literal"><span class="pre">NeededSafePoints</span></code></a></li>
+<li><a class="reference internal" href="#emitting-assembly-code-gcmetadataprinter" id="id19">Emitting assembly code: <code class="docutils literal"><span class="pre">GCMetadataPrinter</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#references" id="id20">References</a></li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>Garbage collection is a widely used technique that frees the programmer from
+having to know the lifetimes of heap objects, making software easier to produce
+and maintain.  Many programming languages rely on garbage collection for
+automatic memory management.  There are two primary forms of garbage collection:
+conservative and accurate.</p>
+<p>Conservative garbage collection often does not require any special support from
+either the language or the compiler: it can handle non-type-safe programming
+languages (such as C/C++) and does not require any special information from the
+compiler.  The <a class="reference external" href="http://www.hpl.hp.com/personal/Hans_Boehm/gc/">Boehm collector</a> is an example of a
+state-of-the-art conservative collector.</p>
+<p>Accurate garbage collection requires the ability to identify all pointers in the
+program at run-time (which requires that the source-language be type-safe in
+most cases).  Identifying pointers at run-time requires compiler support to
+locate all places that hold live pointer variables at run-time, including the
+<a class="reference internal" href="#gcroot"><span class="std std-ref">processor stack and registers</span></a>.</p>
+<p>Conservative garbage collection is attractive because it does not require any
+special compiler support, but it does have problems.  In particular, because the
+conservative garbage collector cannot <em>know</em> that a particular word in the
+machine is a pointer, it cannot move live objects in the heap (preventing the
+use of compacting and generational GC algorithms) and it can occasionally suffer
+from memory leaks due to integer values that happen to point to objects in the
+program.  In addition, some aggressive compiler transformations can break
+conservative garbage collectors (though these seem rare in practice).</p>
+<p>Accurate garbage collectors do not suffer from any of these problems, but they
+can suffer from degraded scalar optimization of the program.  In particular,
+because the runtime must be able to identify and update all pointers active in
+the program, some optimizations are less effective.  In practice, however, the
+locality and performance benefits of using aggressive garbage collection
+techniques dominates any low-level losses.</p>
+<p>This document describes the mechanisms and interfaces provided by LLVM to
+support accurate garbage collection.</p>
+<div class="section" id="goals-and-non-goals">
+<h3><a class="toc-backref" href="#id2">Goals and non-goals</a><a class="headerlink" href="#goals-and-non-goals" title="Permalink to this headline">¶</a></h3>
+<p>LLVM’s intermediate representation provides <a class="reference internal" href="#gc-intrinsics"><span class="std std-ref">garbage collection intrinsics</span></a> that offer support for a broad class of collector models.  For
+instance, the intrinsics permit:</p>
+<ul class="simple">
+<li>semi-space collectors</li>
+<li>mark-sweep collectors</li>
+<li>generational collectors</li>
+<li>reference counting</li>
+<li>incremental collectors</li>
+<li>concurrent collectors</li>
+<li>cooperative collectors</li>
+</ul>
+<p>We hope that the primitive support built into the LLVM IR is sufficient to
+support a broad class of garbage collected languages including Scheme, ML, Java,
+C#, Perl, Python, Lua, Ruby, other scripting languages, and more.</p>
+<p>However, LLVM does not itself provide a garbage collector — this should be
+part of your language’s runtime library.  LLVM provides a framework for compile
+time <a class="reference internal" href="#plugin"><span class="std std-ref">code generation plugins</span></a>.  The role of these plugins is to
+generate code and data structures which conforms to the <em>binary interface</em>
+specified by the <em>runtime library</em>.  This is similar to the relationship between
+LLVM and DWARF debugging info, for example.  The difference primarily lies in
+the lack of an established standard in the domain of garbage collection — thus
+the plugins.</p>
+<p>The aspects of the binary interface with which LLVM’s GC support is
+concerned are:</p>
+<ul class="simple">
+<li>Creation of GC-safe points within code where collection is allowed to execute
+safely.</li>
+<li>Computation of the stack map.  For each safe point in the code, object
+references within the stack frame must be identified so that the collector may
+traverse and perhaps update them.</li>
+<li>Write barriers when storing object references to the heap.  These are commonly
+used to optimize incremental scans in generational collectors.</li>
+<li>Emission of read barriers when loading object references.  These are useful
+for interoperating with concurrent collectors.</li>
+</ul>
+<p>There are additional areas that LLVM does not directly address:</p>
+<ul class="simple">
+<li>Registration of global roots with the runtime.</li>
+<li>Registration of stack map entries with the runtime.</li>
+<li>The functions used by the program to allocate memory, trigger a collection,
+etc.</li>
+<li>Computation or compilation of type maps, or registration of them with the
+runtime.  These are used to crawl the heap for object references.</li>
+</ul>
+<p>In general, LLVM’s support for GC does not include features which can be
+adequately addressed with other features of the IR and does not specify a
+particular binary interface.  On the plus side, this means that you should be
+able to integrate LLVM with an existing runtime.  On the other hand, it leaves a
+lot of work for the developer of a novel language.  However, it’s easy to get
+started quickly and scale up to a more sophisticated implementation as your
+compiler matures.</p>
+</div>
+</div>
+<div class="section" id="getting-started">
+<h2><a class="toc-backref" href="#id3">Getting started</a><a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
+<p>Using a GC with LLVM implies many things, for example:</p>
+<ul class="simple">
+<li>Write a runtime library or find an existing one which implements a GC heap.<ol class="arabic">
+<li>Implement a memory allocator.</li>
+<li>Design a binary interface for the stack map, used to identify references
+within a stack frame on the machine stack.*</li>
+<li>Implement a stack crawler to discover functions on the call stack.*</li>
+<li>Implement a registry for global roots.</li>
+<li>Design a binary interface for type maps, used to identify references
+within heap objects.</li>
+<li>Implement a collection routine bringing together all of the above.</li>
+</ol>
+</li>
+<li>Emit compatible code from your compiler.<ul>
+<li>Initialization in the main function.</li>
+<li>Use the <code class="docutils literal"><span class="pre">gc</span> <span class="pre">&quot;...&quot;</span></code> attribute to enable GC code generation (or
+<code class="docutils literal"><span class="pre">F.setGC(&quot;...&quot;)</span></code>).</li>
+<li>Use <code class="docutils literal"><span class="pre">&#64;llvm.gcroot</span></code> to mark stack roots.</li>
+<li>Use <code class="docutils literal"><span class="pre">&#64;llvm.gcread</span></code> and/or <code class="docutils literal"><span class="pre">&#64;llvm.gcwrite</span></code> to manipulate GC references,
+if necessary.</li>
+<li>Allocate memory using the GC allocation routine provided by the runtime
+library.</li>
+<li>Generate type maps according to your runtime’s binary interface.</li>
+</ul>
+</li>
+<li>Write a compiler plugin to interface LLVM with the runtime library.*<ul>
+<li>Lower <code class="docutils literal"><span class="pre">&#64;llvm.gcread</span></code> and <code class="docutils literal"><span class="pre">&#64;llvm.gcwrite</span></code> to appropriate code
+sequences.*</li>
+<li>Compile LLVM’s stack map to the binary form expected by the runtime.</li>
+</ul>
+</li>
+<li>Load the plugin into the compiler.  Use <code class="docutils literal"><span class="pre">llc</span> <span class="pre">-load</span></code> or link the plugin
+statically with your language’s compiler.*</li>
+<li>Link program executables with the runtime.</li>
+</ul>
+<p>To help with several of these tasks (those indicated with a *), LLVM includes a
+highly portable, built-in ShadowStack code generator.  It is compiled into
+<code class="docutils literal"><span class="pre">llc</span></code> and works even with the interpreter and C backends.</p>
+<div class="section" id="in-your-compiler">
+<h3><a class="toc-backref" href="#id4">In your compiler</a><a class="headerlink" href="#in-your-compiler" title="Permalink to this headline">¶</a></h3>
+<p>To turn the shadow stack on for your functions, first call:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">F</span><span class="p">.</span><span class="n">setGC</span><span class="p">(</span><span class="s">&quot;shadow-stack&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>for each function your compiler emits. Since the shadow stack is built into
+LLVM, you do not need to load a plugin.</p>
+<p>Your compiler must also use <code class="docutils literal"><span class="pre">&#64;llvm.gcroot</span></code> as documented.  Don’t forget to
+create a root for each intermediate value that is generated when evaluating an
+expression.  In <code class="docutils literal"><span class="pre">h(f(),</span> <span class="pre">g())</span></code>, the result of <code class="docutils literal"><span class="pre">f()</span></code> could easily be collected
+if evaluating <code class="docutils literal"><span class="pre">g()</span></code> triggers a collection.</p>
+<p>There’s no need to use <code class="docutils literal"><span class="pre">&#64;llvm.gcread</span></code> and <code class="docutils literal"><span class="pre">&#64;llvm.gcwrite</span></code> over plain
+<code class="docutils literal"><span class="pre">load</span></code> and <code class="docutils literal"><span class="pre">store</span></code> for now.  You will need them when switching to a more
+advanced GC.</p>
+</div>
+<div class="section" id="in-your-runtime">
+<h3><a class="toc-backref" href="#id5">In your runtime</a><a class="headerlink" href="#in-your-runtime" title="Permalink to this headline">¶</a></h3>
+<p>The shadow stack doesn’t imply a memory allocation algorithm.  A semispace
+collector or building atop <code class="docutils literal"><span class="pre">malloc</span></code> are great places to start, and can be
+implemented with very little code.</p>
+<p>When it comes time to collect, however, your runtime needs to traverse the stack
+roots, and for this it needs to integrate with the shadow stack.  Luckily, doing
+so is very simple. (This code is heavily commented to help you understand the
+data structure, but there are only 20 lines of meaningful code.)</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">/// @brief The map for a single function&#39;s stack frame.  One of these is</span>
+<span class="c1">///        compiled as constant data into the executable for each function.</span>
+<span class="c1">///</span>
+<span class="c1">/// Storage of metadata values is elided if the %metadata parameter to</span>
+<span class="c1">/// @llvm.gcroot is null.</span>
+<span class="k">struct</span> <span class="n">FrameMap</span> <span class="p">{</span>
+  <span class="kt">int32_t</span> <span class="n">NumRoots</span><span class="p">;</span>    <span class="c1">//&lt; Number of roots in stack frame.</span>
+  <span class="kt">int32_t</span> <span class="n">NumMeta</span><span class="p">;</span>     <span class="c1">//&lt; Number of metadata entries.  May be &lt; NumRoots.</span>
+  <span class="k">const</span> <span class="kt">void</span> <span class="o">*</span><span class="n">Meta</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span> <span class="c1">//&lt; Metadata for each root.</span>
+<span class="p">};</span>
+
+<span class="c1">/// @brief A link in the dynamic shadow stack.  One of these is embedded in</span>
+<span class="c1">///        the stack frame of each function on the call stack.</span>
+<span class="k">struct</span> <span class="n">StackEntry</span> <span class="p">{</span>
+  <span class="n">StackEntry</span> <span class="o">*</span><span class="n">Next</span><span class="p">;</span>    <span class="c1">//&lt; Link to next stack entry (the caller&#39;s).</span>
+  <span class="k">const</span> <span class="n">FrameMap</span> <span class="o">*</span><span class="n">Map</span><span class="p">;</span> <span class="c1">//&lt; Pointer to constant FrameMap.</span>
+  <span class="kt">void</span> <span class="o">*</span><span class="n">Roots</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>      <span class="c1">//&lt; Stack roots (in-place array).</span>
+<span class="p">};</span>
+
+<span class="c1">/// @brief The head of the singly-linked list of StackEntries.  Functions push</span>
+<span class="c1">///        and pop onto this in their prologue and epilogue.</span>
+<span class="c1">///</span>
+<span class="c1">/// Since there is only a global list, this technique is not threadsafe.</span>
+<span class="n">StackEntry</span> <span class="o">*</span><span class="n">llvm_gc_root_chain</span><span class="p">;</span>
+
+<span class="c1">/// @brief Calls Visitor(root, meta) for each GC root on the stack.</span>
+<span class="c1">///        root and meta are exactly the values passed to</span>
+<span class="c1">///        @llvm.gcroot.</span>
+<span class="c1">///</span>
+<span class="c1">/// Visitor could be a function to recursively mark live objects.  Or it</span>
+<span class="c1">/// might copy them to another heap or generation.</span>
+<span class="c1">///</span>
+<span class="c1">/// @param Visitor A function to invoke for every GC root on the stack.</span>
+<span class="kt">void</span> <span class="nf">visitGCRoots</span><span class="p">(</span><span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">Visitor</span><span class="p">)(</span><span class="kt">void</span> <span class="o">**</span><span class="n">Root</span><span class="p">,</span> <span class="k">const</span> <span class="kt">void</span> <span class="o">*</span><span class="n">Meta</span><span class="p">))</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="n">StackEntry</span> <span class="o">*</span><span class="n">R</span> <span class="o">=</span> <span class="n">llvm_gc_root_chain</span><span class="p">;</span> <span class="n">R</span><span class="p">;</span> <span class="n">R</span> <span class="o">=</span> <span class="n">R</span><span class="o">-&gt;</span><span class="n">Next</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kt">unsigned</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+    <span class="c1">// For roots [0, NumMeta), the metadata pointer is in the FrameMap.</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="n">e</span> <span class="o">=</span> <span class="n">R</span><span class="o">-&gt;</span><span class="n">Map</span><span class="o">-&gt;</span><span class="n">NumMeta</span><span class="p">;</span> <span class="n">i</span> <span class="o">!=</span> <span class="n">e</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+      <span class="n">Visitor</span><span class="p">(</span><span class="o">&amp;</span><span class="n">R</span><span class="o">-&gt;</span><span class="n">Roots</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">R</span><span class="o">-&gt;</span><span class="n">Map</span><span class="o">-&gt;</span><span class="n">Meta</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+
+    <span class="c1">// For roots [NumMeta, NumRoots), the metadata pointer is null.</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="n">e</span> <span class="o">=</span> <span class="n">R</span><span class="o">-&gt;</span><span class="n">Map</span><span class="o">-&gt;</span><span class="n">NumRoots</span><span class="p">;</span> <span class="n">i</span> <span class="o">!=</span> <span class="n">e</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+      <span class="n">Visitor</span><span class="p">(</span><span class="o">&amp;</span><span class="n">R</span><span class="o">-&gt;</span><span class="n">Roots</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="nb">NULL</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="about-the-shadow-stack">
+<h3><a class="toc-backref" href="#id6">About the shadow stack</a><a class="headerlink" href="#about-the-shadow-stack" title="Permalink to this headline">¶</a></h3>
+<p>Unlike many GC algorithms which rely on a cooperative code generator to compile
+stack maps, this algorithm carefully maintains a linked list of stack roots
+[<a class="reference internal" href="#henderson02"><span class="std std-ref">Henderson2002</span></a>].  This so-called “shadow stack” mirrors the
+machine stack.  Maintaining this data structure is slower than using a stack map
+compiled into the executable as constant data, but has a significant portability
+advantage because it requires no special support from the target code generator,
+and does not require tricky platform-specific code to crawl the machine stack.</p>
+<p>The tradeoff for this simplicity and portability is:</p>
+<ul class="simple">
+<li>High overhead per function call.</li>
+<li>Not thread-safe.</li>
+</ul>
+<p>Still, it’s an easy way to get started.  After your compiler and runtime are up
+and running, writing a <a class="reference internal" href="#plugin"><span class="std std-ref">plugin</span></a> will allow you to take advantage
+of <a class="reference internal" href="#collector-algos"><span class="std std-ref">more advanced GC features</span></a> of LLVM in order to
+improve performance.</p>
+</div>
+</div>
+<div class="section" id="ir-features">
+<span id="gc-intrinsics"></span><h2><a class="toc-backref" href="#id7">IR features</a><a class="headerlink" href="#ir-features" title="Permalink to this headline">¶</a></h2>
+<p>This section describes the garbage collection facilities provided by the
+<a class="reference internal" href="LangRef.html"><span class="doc">LLVM intermediate representation</span></a>.  The exact behavior of these
+IR features is specified by the binary interface implemented by a <a class="reference internal" href="#plugin"><span class="std std-ref">code
+generation plugin</span></a>, not by this document.</p>
+<p>These facilities are limited to those strictly necessary; they are not intended
+to be a complete interface to any garbage collector.  A program will need to
+interface with the GC library using the facilities provided by that program.</p>
+<div class="section" id="specifying-gc-code-generation-gc">
+<h3><a class="toc-backref" href="#id8">Specifying GC code generation: <code class="docutils literal"><span class="pre">gc</span> <span class="pre">&quot;...&quot;</span></code></a><a class="headerlink" href="#specifying-gc-code-generation-gc" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-text"><div class="highlight"><pre><span></span>define ty @name(...) gc &quot;name&quot; { ...
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">gc</span></code> function attribute is used to specify the desired GC style to the
+compiler.  Its programmatic equivalent is the <code class="docutils literal"><span class="pre">setGC</span></code> method of <code class="docutils literal"><span class="pre">Function</span></code>.</p>
+<p>Setting <code class="docutils literal"><span class="pre">gc</span> <span class="pre">&quot;name&quot;</span></code> on a function triggers a search for a matching code
+generation plugin “<em>name</em>”; it is that plugin which defines the exact nature of
+the code generated to support GC.  If none is found, the compiler will raise an
+error.</p>
+<p>Specifying the GC style on a per-function basis allows LLVM to link together
+programs that use different garbage collection algorithms (or none at all).</p>
+</div>
+<div class="section" id="gcroot">
+<span id="identifying-gc-roots-on-the-stack-llvm-gcroot"></span><h3><a class="toc-backref" href="#id9">Identifying GC roots on the stack: <code class="docutils literal"><span class="pre">llvm.gcroot</span></code></a><a class="headerlink" href="#gcroot" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="vg">@llvm.gcroot</span><span class="p">(</span><span class="k">i8</span><span class="p">**</span> <span class="nv">%ptrloc</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%metadata</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">llvm.gcroot</span></code> intrinsic is used to inform LLVM that a stack variable
+references an object on the heap and is to be tracked for garbage collection.
+The exact impact on generated code is specified by a <a class="reference internal" href="#plugin"><span class="std std-ref">compiler plugin</span></a>.  All calls to <code class="docutils literal"><span class="pre">llvm.gcroot</span></code> <strong>must</strong> reside inside the first basic
+block.</p>
+<p>A compiler which uses mem2reg to raise imperative code using <code class="docutils literal"><span class="pre">alloca</span></code> into SSA
+form need only add a call to <code class="docutils literal"><span class="pre">&#64;llvm.gcroot</span></code> for those variables which a
+pointers into the GC heap.</p>
+<p>It is also important to mark intermediate values with <code class="docutils literal"><span class="pre">llvm.gcroot</span></code>.  For
+example, consider <code class="docutils literal"><span class="pre">h(f(),</span> <span class="pre">g())</span></code>.  Beware leaking the result of <code class="docutils literal"><span class="pre">f()</span></code> in the
+case that <code class="docutils literal"><span class="pre">g()</span></code> triggers a collection.  Note, that stack variables must be
+initialized and marked with <code class="docutils literal"><span class="pre">llvm.gcroot</span></code> in function’s prologue.</p>
+<p>The first argument <strong>must</strong> be a value referring to an alloca instruction or a
+bitcast of an alloca.  The second contains a pointer to metadata that should be
+associated with the pointer, and <strong>must</strong> be a constant or global value
+address.  If your target collector uses tags, use a null pointer for metadata.</p>
+<p>The <code class="docutils literal"><span class="pre">%metadata</span></code> argument can be used to avoid requiring heap objects to have
+‘isa’ pointers or tag bits. [<a class="reference internal" href="#appel89">Appel89</a>, <a class="reference internal" href="#goldberg91">Goldberg91</a>, <a class="reference internal" href="#tolmach94">Tolmach94</a>] If specified,
+its value will be tracked along with the location of the pointer in the stack
+frame.</p>
+<p>Consider the following fragment of Java code:</p>
+<div class="highlight-java"><div class="highlight"><pre><span></span><span class="o">{</span>
+  <span class="n">Object</span> <span class="n">X</span><span class="o">;</span>   <span class="c1">// A null-initialized reference to an object</span>
+  <span class="o">...</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p>This block (which may be located in the middle of a function or in a loop nest),
+could be compiled to this LLVM code:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nl">Entry:</span>
+   <span class="c">;; In the entry block for the function, allocate the</span>
+   <span class="c">;; stack space for X, which is an LLVM pointer.</span>
+   <span class="nv">%X</span> <span class="p">=</span> <span class="k">alloca</span> <span class="nv">%Object</span><span class="p">*</span>
+
+   <span class="c">;; Tell LLVM that the stack space is a stack root.</span>
+   <span class="c">;; Java has type-tags on objects, so we pass null as metadata.</span>
+   <span class="nv">%tmp</span> <span class="p">=</span> <span class="k">bitcast</span> <span class="nv">%Object</span><span class="p">**</span> <span class="nv">%X</span> <span class="k">to</span> <span class="k">i8</span><span class="p">**</span>
+   <span class="k">call</span> <span class="kt">void</span> <span class="vg">@llvm.gcroot</span><span class="p">(</span><span class="k">i8</span><span class="p">**</span> <span class="nv">%tmp</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="k">null</span><span class="p">)</span>
+   <span class="p">...</span>
+
+   <span class="c">;; &quot;CodeBlock&quot; is the block corresponding to the start</span>
+   <span class="c">;;  of the scope above.</span>
+<span class="nl">CodeBlock:</span>
+   <span class="c">;; Java null-initializes pointers.</span>
+   <span class="k">store</span> <span class="nv">%Object</span><span class="p">*</span> <span class="k">null</span><span class="p">,</span> <span class="nv">%Object</span><span class="p">**</span> <span class="nv">%X</span>
+
+   <span class="p">...</span>
+
+   <span class="c">;; As the pointer goes out of scope, store a null value into</span>
+   <span class="c">;; it, to indicate that the value is no longer live.</span>
+   <span class="k">store</span> <span class="nv">%Object</span><span class="p">*</span> <span class="k">null</span><span class="p">,</span> <span class="nv">%Object</span><span class="p">**</span> <span class="nv">%X</span>
+   <span class="p">...</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="reading-and-writing-references-in-the-heap">
+<h3><a class="toc-backref" href="#id10">Reading and writing references in the heap</a><a class="headerlink" href="#reading-and-writing-references-in-the-heap" title="Permalink to this headline">¶</a></h3>
+<p>Some collectors need to be informed when the mutator (the program that needs
+garbage collection) either reads a pointer from or writes a pointer to a field
+of a heap object.  The code fragments inserted at these points are called <em>read
+barriers</em> and <em>write barriers</em>, respectively.  The amount of code that needs to
+be executed is usually quite small and not on the critical path of any
+computation, so the overall performance impact of the barrier is tolerable.</p>
+<p>Barriers often require access to the <em>object pointer</em> rather than the <em>derived
+pointer</em> (which is a pointer to the field within the object).  Accordingly,
+these intrinsics take both pointers as separate arguments for completeness.  In
+this snippet, <code class="docutils literal"><span class="pre">%object</span></code> is the object pointer, and <code class="docutils literal"><span class="pre">%derived</span></code> is the derived
+pointer:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">;; An array type.</span>
+<span class="nv">%class.Array</span> <span class="p">=</span> <span class="k">type</span> <span class="p">{</span> <span class="nv">%class.Object</span><span class="p">,</span> <span class="k">i32</span><span class="p">,</span> <span class="p">[</span><span class="m">0</span> <span class="k">x</span> <span class="nv">%class.Object</span><span class="p">*]</span> <span class="p">}</span>
+<span class="p">...</span>
+
+<span class="c">;; Load the object pointer from a gcroot.</span>
+<span class="nv">%object</span> <span class="p">=</span> <span class="k">load</span> <span class="nv">%class.Array</span><span class="p">**</span> <span class="nv">%object_addr</span>
+
+<span class="c">;; Compute the derived pointer.</span>
+<span class="nv">%derived</span> <span class="p">=</span> <span class="k">getelementptr</span> <span class="nv">%object</span><span class="p">,</span> <span class="k">i32</span> <span class="m">0</span><span class="p">,</span> <span class="k">i32</span> <span class="m">2</span><span class="p">,</span> <span class="k">i32</span> <span class="nv">%n</span>
+</pre></div>
+</div>
+<p>LLVM does not enforce this relationship between the object and derived pointer
+(although a <a class="reference internal" href="#plugin"><span class="std std-ref">plugin</span></a> might).  However, it would be an unusual
+collector that violated it.</p>
+<p>The use of these intrinsics is naturally optional if the target GC does require
+the corresponding barrier.  Such a GC plugin will replace the intrinsic calls
+with the corresponding <code class="docutils literal"><span class="pre">load</span></code> or <code class="docutils literal"><span class="pre">store</span></code> instruction if they are used.</p>
+<div class="section" id="write-barrier-llvm-gcwrite">
+<h4><a class="toc-backref" href="#id11">Write barrier: <code class="docutils literal"><span class="pre">llvm.gcwrite</span></code></a><a class="headerlink" href="#write-barrier-llvm-gcwrite" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="vg">@llvm.gcwrite</span><span class="p">(</span><span class="k">i8</span><span class="p">*</span> <span class="nv">%value</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%object</span><span class="p">,</span> <span class="k">i8</span><span class="p">**</span> <span class="nv">%derived</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For write barriers, LLVM provides the <code class="docutils literal"><span class="pre">llvm.gcwrite</span></code> intrinsic function.  It
+has exactly the same semantics as a non-volatile <code class="docutils literal"><span class="pre">store</span></code> to the derived
+pointer (the third argument).  The exact code generated is specified by a
+compiler <a class="reference internal" href="#plugin"><span class="std std-ref">plugin</span></a>.</p>
+<p>Many important algorithms require write barriers, including generational and
+concurrent collectors.  Additionally, write barriers could be used to implement
+reference counting.</p>
+</div>
+<div class="section" id="read-barrier-llvm-gcread">
+<h4><a class="toc-backref" href="#id12">Read barrier: <code class="docutils literal"><span class="pre">llvm.gcread</span></code></a><a class="headerlink" href="#read-barrier-llvm-gcread" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">i8</span><span class="p">*</span> <span class="vg">@llvm.gcread</span><span class="p">(</span><span class="k">i8</span><span class="p">*</span> <span class="nv">%object</span><span class="p">,</span> <span class="k">i8</span><span class="p">**</span> <span class="nv">%derived</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For read barriers, LLVM provides the <code class="docutils literal"><span class="pre">llvm.gcread</span></code> intrinsic function.  It has
+exactly the same semantics as a non-volatile <code class="docutils literal"><span class="pre">load</span></code> from the derived pointer
+(the second argument).  The exact code generated is specified by a
+<a class="reference internal" href="#plugin"><span class="std std-ref">compiler plugin</span></a>.</p>
+<p>Read barriers are needed by fewer algorithms than write barriers, and may have a
+greater performance impact since pointer reads are more frequent than writes.</p>
+</div>
+</div>
+</div>
+<div class="section" id="implementing-a-collector-plugin">
+<span id="plugin"></span><h2><a class="toc-backref" href="#id13">Implementing a collector plugin</a><a class="headerlink" href="#implementing-a-collector-plugin" title="Permalink to this headline">¶</a></h2>
+<p>User code specifies which GC code generation to use with the <code class="docutils literal"><span class="pre">gc</span></code> function
+attribute or, equivalently, with the <code class="docutils literal"><span class="pre">setGC</span></code> method of <code class="docutils literal"><span class="pre">Function</span></code>.</p>
+<p>To implement a GC plugin, it is necessary to subclass <code class="docutils literal"><span class="pre">llvm::GCStrategy</span></code>,
+which can be accomplished in a few lines of boilerplate code.  LLVM’s
+infrastructure provides access to several important algorithms.  For an
+uncontroversial collector, all that remains may be to compile LLVM’s computed
+stack map to assembly code (using the binary representation expected by the
+runtime library).  This can be accomplished in about 100 lines of code.</p>
+<p>This is not the appropriate place to implement a garbage collected heap or a
+garbage collector itself.  That code should exist in the language’s runtime
+library.  The compiler plugin is responsible for generating code which conforms
+to the binary interface defined by library, most essentially the <a class="reference internal" href="#stack-map"><span class="std std-ref">stack map</span></a>.</p>
+<p>To subclass <code class="docutils literal"><span class="pre">llvm::GCStrategy</span></code> and register it with the compiler:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// lib/MyGC/MyGC.cpp - Example LLVM GC plugin</span>
+
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/CodeGen/GCStrategy.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/CodeGen/GCMetadata.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/Compiler.h&quot;</span><span class="cp"></span>
+
+<span class="k">using</span> <span class="k">namespace</span> <span class="n">llvm</span><span class="p">;</span>
+
+<span class="k">namespace</span> <span class="p">{</span>
+  <span class="k">class</span> <span class="nc">LLVM_LIBRARY_VISIBILITY</span> <span class="nl">MyGC</span> <span class="p">:</span> <span class="k">public</span> <span class="n">GCStrategy</span> <span class="p">{</span>
+  <span class="k">public</span><span class="o">:</span>
+    <span class="n">MyGC</span><span class="p">()</span> <span class="p">{}</span>
+  <span class="p">};</span>
+
+  <span class="n">GCRegistry</span><span class="o">::</span><span class="n">Add</span><span class="o">&lt;</span><span class="n">MyGC</span><span class="o">&gt;</span>
+  <span class="n">X</span><span class="p">(</span><span class="s">&quot;mygc&quot;</span><span class="p">,</span> <span class="s">&quot;My bespoke garbage collector.&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This boilerplate collector does nothing.  More specifically:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">llvm.gcread</span></code> calls are replaced with the corresponding <code class="docutils literal"><span class="pre">load</span></code>
+instruction.</li>
+<li><code class="docutils literal"><span class="pre">llvm.gcwrite</span></code> calls are replaced with the corresponding <code class="docutils literal"><span class="pre">store</span></code>
+instruction.</li>
+<li>No safe points are added to the code.</li>
+<li>The stack map is not compiled into the executable.</li>
+</ul>
+<p>Using the LLVM makefiles, this code
+can be compiled as a plugin using a simple makefile:</p>
+<div class="highlight-make"><div class="highlight"><pre><span></span><span class="c"># lib/MyGC/Makefile</span>
+
+<span class="nv">LEVEL</span> <span class="o">:=</span> ../..
+<span class="nv">LIBRARYNAME</span> <span class="o">=</span> MyGC
+<span class="nv">LOADABLE_MODULE</span> <span class="o">=</span> <span class="m">1</span>
+
+<span class="cp">include $(LEVEL)/Makefile.common</span>
+</pre></div>
+</div>
+<p>Once the plugin is compiled, code using it may be compiled using <code class="docutils literal"><span class="pre">llc</span>
+<span class="pre">-load=MyGC.so</span></code> (though MyGC.so may have some other platform-specific
+extension):</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>$ cat sample.ll
+define void @f() gc &quot;mygc&quot; {
+entry:
+  ret void
+}
+$ llvm-as &lt; sample.ll | llc -load=MyGC.so
+</pre></div>
+</div>
+<p>It is also possible to statically link the collector plugin into tools, such as
+a language-specific compiler front-end.</p>
+<div class="section" id="overview-of-available-features">
+<span id="collector-algos"></span><h3><a class="toc-backref" href="#id14">Overview of available features</a><a class="headerlink" href="#overview-of-available-features" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">GCStrategy</span></code> provides a range of features through which a plugin may do useful
+work.  Some of these are callbacks, some are algorithms that can be enabled,
+disabled, or customized.  This matrix summarizes the supported (and planned)
+features and correlates them with the collection techniques which typically
+require them.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="14%" />
+<col width="7%" />
+<col width="9%" />
+<col width="11%" />
+<col width="8%" />
+<col width="10%" />
+<col width="15%" />
+<col width="11%" />
+<col width="14%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Algorithm</th>
+<th class="head">Done</th>
+<th class="head">Shadow
+stack</th>
+<th class="head">refcount</th>
+<th class="head">mark-
+sweep</th>
+<th class="head">copying</th>
+<th class="head">incremental</th>
+<th class="head">threaded</th>
+<th class="head">concurrent</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>stack map</td>
+<td>✔</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>✘</td>
+<td>✘</td>
+<td>✘</td>
+<td>✘</td>
+<td>✘</td>
+</tr>
+<tr class="row-odd"><td>initialize
+roots</td>
+<td>✔</td>
+<td>✘</td>
+<td>✘</td>
+<td>✘</td>
+<td>✘</td>
+<td>✘</td>
+<td>✘</td>
+<td>✘</td>
+</tr>
+<tr class="row-even"><td>derived
+pointers</td>
+<td>NO</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td><strong>N</strong>*</td>
+<td><strong>N</strong>*</td>
+</tr>
+<tr class="row-odd"><td><strong>custom
+lowering</strong></td>
+<td>✔</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-even"><td><em>gcroot</em></td>
+<td>✔</td>
+<td>✘</td>
+<td>✘</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td><em>gcwrite</em></td>
+<td>✔</td>
+<td>&#160;</td>
+<td>✘</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>✘</td>
+<td>&#160;</td>
+<td>✘</td>
+</tr>
+<tr class="row-even"><td><em>gcread</em></td>
+<td>✔</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>✘</td>
+</tr>
+<tr class="row-odd"><td><strong>safe
+points</strong></td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-even"><td><em>in
+calls</em></td>
+<td>✔</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>✘</td>
+<td>✘</td>
+<td>✘</td>
+<td>✘</td>
+<td>✘</td>
+</tr>
+<tr class="row-odd"><td><em>before
+calls</em></td>
+<td>✔</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>✘</td>
+<td>✘</td>
+</tr>
+<tr class="row-even"><td><em>for
+loops</em></td>
+<td>NO</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td><strong>N</strong></td>
+<td><strong>N</strong></td>
+</tr>
+<tr class="row-odd"><td><em>before
+escape</em></td>
+<td>✔</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>✘</td>
+<td>✘</td>
+</tr>
+<tr class="row-even"><td>emit code
+at safe
+points</td>
+<td>NO</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td><strong>N</strong></td>
+<td><strong>N</strong></td>
+</tr>
+<tr class="row-odd"><td><strong>output</strong></td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>&#160;</td>
+</tr>
+<tr class="row-even"><td><em>assembly</em></td>
+<td>✔</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td>✘</td>
+<td>✘</td>
+<td>✘</td>
+<td>✘</td>
+<td>✘</td>
+</tr>
+<tr class="row-odd"><td><em>JIT</em></td>
+<td>NO</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+</tr>
+<tr class="row-even"><td><em>obj</em></td>
+<td>NO</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+</tr>
+<tr class="row-odd"><td>live
+analysis</td>
+<td>NO</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+</tr>
+<tr class="row-even"><td>register
+map</td>
+<td>NO</td>
+<td>&#160;</td>
+<td>&#160;</td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+<td><strong>?</strong></td>
+</tr>
+<tr class="row-odd"><td colspan="9">* Derived pointers only pose a hasard to copying collections.</td>
+</tr>
+<tr class="row-even"><td colspan="9"><strong>?</strong> denotes a feature which could be utilized if available.</td>
+</tr>
+</tbody>
+</table>
+<p>To be clear, the collection techniques above are defined as:</p>
+<dl class="docutils">
+<dt>Shadow Stack</dt>
+<dd>The mutator carefully maintains a linked list of stack roots.</dd>
+<dt>Reference Counting</dt>
+<dd>The mutator maintains a reference count for each object and frees an object
+when its count falls to zero.</dd>
+<dt>Mark-Sweep</dt>
+<dd>When the heap is exhausted, the collector marks reachable objects starting
+from the roots, then deallocates unreachable objects in a sweep phase.</dd>
+<dt>Copying</dt>
+<dd>As reachability analysis proceeds, the collector copies objects from one heap
+area to another, compacting them in the process.  Copying collectors enable
+highly efficient “bump pointer” allocation and can improve locality of
+reference.</dd>
+<dt>Incremental</dt>
+<dd>(Including generational collectors.) Incremental collectors generally have all
+the properties of a copying collector (regardless of whether the mature heap
+is compacting), but bring the added complexity of requiring write barriers.</dd>
+<dt>Threaded</dt>
+<dd>Denotes a multithreaded mutator; the collector must still stop the mutator
+(“stop the world”) before beginning reachability analysis.  Stopping a
+multithreaded mutator is a complicated problem.  It generally requires highly
+platform-specific code in the runtime, and the production of carefully
+designed machine code at safe points.</dd>
+<dt>Concurrent</dt>
+<dd>In this technique, the mutator and the collector run concurrently, with the
+goal of eliminating pause times.  In a <em>cooperative</em> collector, the mutator
+further aids with collection should a pause occur, allowing collection to take
+advantage of multiprocessor hosts.  The “stop the world” problem of threaded
+collectors is generally still present to a limited extent.  Sophisticated
+marking algorithms are necessary.  Read barriers may be necessary.</dd>
+</dl>
+<p>As the matrix indicates, LLVM’s garbage collection infrastructure is already
+suitable for a wide variety of collectors, but does not currently extend to
+multithreaded programs.  This will be added in the future as there is
+interest.</p>
+</div>
+<div class="section" id="computing-stack-maps">
+<span id="stack-map"></span><h3><a class="toc-backref" href="#id15">Computing stack maps</a><a class="headerlink" href="#computing-stack-maps" title="Permalink to this headline">¶</a></h3>
+<p>LLVM automatically computes a stack map.  One of the most important features
+of a <code class="docutils literal"><span class="pre">GCStrategy</span></code> is to compile this information into the executable in
+the binary representation expected by the runtime library.</p>
+<p>The stack map consists of the location and identity of each GC root in the
+each function in the module.  For each root:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">RootNum</span></code>: The index of the root.</li>
+<li><code class="docutils literal"><span class="pre">StackOffset</span></code>: The offset of the object relative to the frame pointer.</li>
+<li><code class="docutils literal"><span class="pre">RootMetadata</span></code>: The value passed as the <code class="docutils literal"><span class="pre">%metadata</span></code> parameter to the
+<code class="docutils literal"><span class="pre">&#64;llvm.gcroot</span></code> intrinsic.</li>
+</ul>
+<p>Also, for the function as a whole:</p>
+<ul class="simple">
+<li><dl class="first docutils">
+<dt><code class="docutils literal"><span class="pre">getFrameSize()</span></code>: The overall size of the function’s initial stack frame,</dt>
+<dd>not accounting for any dynamic allocation.</dd>
+</dl>
+</li>
+<li><code class="docutils literal"><span class="pre">roots_size()</span></code>: The count of roots in the function.</li>
+</ul>
+<p>To access the stack map, use <code class="docutils literal"><span class="pre">GCFunctionMetadata::roots_begin()</span></code> and
+-<code class="docutils literal"><span class="pre">end()</span></code> from the <a class="reference internal" href="#assembly"><span class="std std-ref">GCMetadataPrinter</span></a>:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="n">iterator</span> <span class="n">I</span> <span class="o">=</span> <span class="n">begin</span><span class="p">(),</span> <span class="n">E</span> <span class="o">=</span> <span class="n">end</span><span class="p">();</span> <span class="n">I</span> <span class="o">!=</span> <span class="n">E</span><span class="p">;</span> <span class="o">++</span><span class="n">I</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">GCFunctionInfo</span> <span class="o">*</span><span class="n">FI</span> <span class="o">=</span> <span class="o">*</span><span class="n">I</span><span class="p">;</span>
+  <span class="kt">unsigned</span> <span class="n">FrameSize</span> <span class="o">=</span> <span class="n">FI</span><span class="o">-&gt;</span><span class="n">getFrameSize</span><span class="p">();</span>
+  <span class="kt">size_t</span> <span class="n">RootCount</span> <span class="o">=</span> <span class="n">FI</span><span class="o">-&gt;</span><span class="n">roots_size</span><span class="p">();</span>
+
+  <span class="k">for</span> <span class="p">(</span><span class="n">GCFunctionInfo</span><span class="o">::</span><span class="n">roots_iterator</span> <span class="n">RI</span> <span class="o">=</span> <span class="n">FI</span><span class="o">-&gt;</span><span class="n">roots_begin</span><span class="p">(),</span>
+                                      <span class="n">RE</span> <span class="o">=</span> <span class="n">FI</span><span class="o">-&gt;</span><span class="n">roots_end</span><span class="p">();</span>
+                                      <span class="n">RI</span> <span class="o">!=</span> <span class="n">RE</span><span class="p">;</span> <span class="o">++</span><span class="n">RI</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kt">int</span> <span class="n">RootNum</span> <span class="o">=</span> <span class="n">RI</span><span class="o">-&gt;</span><span class="n">Num</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">RootStackOffset</span> <span class="o">=</span> <span class="n">RI</span><span class="o">-&gt;</span><span class="n">StackOffset</span><span class="p">;</span>
+    <span class="n">Constant</span> <span class="o">*</span><span class="n">RootMetadata</span> <span class="o">=</span> <span class="n">RI</span><span class="o">-&gt;</span><span class="n">Metadata</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>If the <code class="docutils literal"><span class="pre">llvm.gcroot</span></code> intrinsic is eliminated before code generation by a
+custom lowering pass, LLVM will compute an empty stack map.  This may be useful
+for collector plugins which implement reference counting or a shadow stack.</p>
+</div>
+<div class="section" id="initializing-roots-to-null-initroots">
+<span id="init-roots"></span><h3><a class="toc-backref" href="#id16">Initializing roots to null: <code class="docutils literal"><span class="pre">InitRoots</span></code></a><a class="headerlink" href="#initializing-roots-to-null-initroots" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">MyGC</span><span class="o">::</span><span class="n">MyGC</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">InitRoots</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>When set, LLVM will automatically initialize each root to <code class="docutils literal"><span class="pre">null</span></code> upon entry to
+the function.  This prevents the GC’s sweep phase from visiting uninitialized
+pointers, which will almost certainly cause it to crash.  This initialization
+occurs before custom lowering, so the two may be used together.</p>
+<p>Since LLVM does not yet compute liveness information, there is no means of
+distinguishing an uninitialized stack root from an initialized one.  Therefore,
+this feature should be used by all GC plugins.  It is enabled by default.</p>
+</div>
+<div class="section" id="custom-lowering-of-intrinsics-customroots-customreadbarriers-and-customwritebarriers">
+<h3><a class="toc-backref" href="#id17">Custom lowering of intrinsics: <code class="docutils literal"><span class="pre">CustomRoots</span></code>, <code class="docutils literal"><span class="pre">CustomReadBarriers</span></code>, and <code class="docutils literal"><span class="pre">CustomWriteBarriers</span></code></a><a class="headerlink" href="#custom-lowering-of-intrinsics-customroots-customreadbarriers-and-customwritebarriers" title="Permalink to this headline">¶</a></h3>
+<p>For GCs which use barriers or unusual treatment of stack roots, these flags
+allow the collector to perform arbitrary transformations of the LLVM IR:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">MyGC</span> <span class="o">:</span> <span class="k">public</span> <span class="n">GCStrategy</span> <span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+  <span class="n">MyGC</span><span class="p">()</span> <span class="p">{</span>
+    <span class="n">CustomRoots</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+    <span class="n">CustomReadBarriers</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+    <span class="n">CustomWriteBarriers</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="k">virtual</span> <span class="kt">bool</span> <span class="n">initializeCustomLowering</span><span class="p">(</span><span class="n">Module</span> <span class="o">&amp;</span><span class="n">M</span><span class="p">);</span>
+  <span class="k">virtual</span> <span class="kt">bool</span> <span class="nf">performCustomLowering</span><span class="p">(</span><span class="n">Function</span> <span class="o">&amp;</span><span class="n">F</span><span class="p">);</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>If any of these flags are set, then LLVM suppresses its default lowering for the
+corresponding intrinsics and instead calls <code class="docutils literal"><span class="pre">performCustomLowering</span></code>.</p>
+<p>LLVM’s default action for each intrinsic is as follows:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">llvm.gcroot</span></code>: Leave it alone.  The code generator must see it or the stack
+map will not be computed.</li>
+<li><code class="docutils literal"><span class="pre">llvm.gcread</span></code>: Substitute a <code class="docutils literal"><span class="pre">load</span></code> instruction.</li>
+<li><code class="docutils literal"><span class="pre">llvm.gcwrite</span></code>: Substitute a <code class="docutils literal"><span class="pre">store</span></code> instruction.</li>
+</ul>
+<p>If <code class="docutils literal"><span class="pre">CustomReadBarriers</span></code> or <code class="docutils literal"><span class="pre">CustomWriteBarriers</span></code> are specified, then
+<code class="docutils literal"><span class="pre">performCustomLowering</span></code> <strong>must</strong> eliminate the corresponding barriers.</p>
+<p><code class="docutils literal"><span class="pre">performCustomLowering</span></code> must comply with the same restrictions as
+<a class="reference internal" href="WritingAnLLVMPass.html#writing-an-llvm-pass-runonfunction"><span class="std std-ref">FunctionPass::runOnFunction</span></a>
+Likewise, <code class="docutils literal"><span class="pre">initializeCustomLowering</span></code> has the same semantics as
+<a class="reference internal" href="WritingAnLLVMPass.html#writing-an-llvm-pass-doinitialization-mod"><span class="std std-ref">Pass::doInitialization(Module&amp;)</span></a></p>
+<p>The following can be used as a template:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/Module.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/IntrinsicInst.h&quot;</span><span class="cp"></span>
+
+<span class="kt">bool</span> <span class="n">MyGC</span><span class="o">::</span><span class="n">initializeCustomLowering</span><span class="p">(</span><span class="n">Module</span> <span class="o">&amp;</span><span class="n">M</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">bool</span> <span class="n">MyGC</span><span class="o">::</span><span class="n">performCustomLowering</span><span class="p">(</span><span class="n">Function</span> <span class="o">&amp;</span><span class="n">F</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kt">bool</span> <span class="n">MadeChange</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span>
+
+  <span class="k">for</span> <span class="p">(</span><span class="n">Function</span><span class="o">::</span><span class="n">iterator</span> <span class="n">BB</span> <span class="o">=</span> <span class="n">F</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span> <span class="n">E</span> <span class="o">=</span> <span class="n">F</span><span class="p">.</span><span class="n">end</span><span class="p">();</span> <span class="n">BB</span> <span class="o">!=</span> <span class="n">E</span><span class="p">;</span> <span class="o">++</span><span class="n">BB</span><span class="p">)</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">BasicBlock</span><span class="o">::</span><span class="n">iterator</span> <span class="n">II</span> <span class="o">=</span> <span class="n">BB</span><span class="o">-&gt;</span><span class="n">begin</span><span class="p">(),</span> <span class="n">E</span> <span class="o">=</span> <span class="n">BB</span><span class="o">-&gt;</span><span class="n">end</span><span class="p">();</span> <span class="n">II</span> <span class="o">!=</span> <span class="n">E</span><span class="p">;</span> <span class="p">)</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">IntrinsicInst</span> <span class="o">*</span><span class="n">CI</span> <span class="o">=</span> <span class="n">dyn_cast</span><span class="o">&lt;</span><span class="n">IntrinsicInst</span><span class="o">&gt;</span><span class="p">(</span><span class="n">II</span><span class="o">++</span><span class="p">))</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">Function</span> <span class="o">*</span><span class="n">F</span> <span class="o">=</span> <span class="n">CI</span><span class="o">-&gt;</span><span class="n">getCalledFunction</span><span class="p">())</span>
+          <span class="k">switch</span> <span class="p">(</span><span class="n">F</span><span class="o">-&gt;</span><span class="n">getIntrinsicID</span><span class="p">())</span> <span class="p">{</span>
+          <span class="k">case</span> <span class="n">Intrinsic</span><span class="o">::</span><span class="nl">gcwrite</span><span class="p">:</span>
+            <span class="c1">// Handle llvm.gcwrite.</span>
+            <span class="n">CI</span><span class="o">-&gt;</span><span class="n">eraseFromParent</span><span class="p">();</span>
+            <span class="n">MadeChange</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+            <span class="k">break</span><span class="p">;</span>
+          <span class="k">case</span> <span class="n">Intrinsic</span><span class="o">::</span><span class="nl">gcread</span><span class="p">:</span>
+            <span class="c1">// Handle llvm.gcread.</span>
+            <span class="n">CI</span><span class="o">-&gt;</span><span class="n">eraseFromParent</span><span class="p">();</span>
+            <span class="n">MadeChange</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+            <span class="k">break</span><span class="p">;</span>
+          <span class="k">case</span> <span class="n">Intrinsic</span><span class="o">::</span><span class="nl">gcroot</span><span class="p">:</span>
+            <span class="c1">// Handle llvm.gcroot.</span>
+            <span class="n">CI</span><span class="o">-&gt;</span><span class="n">eraseFromParent</span><span class="p">();</span>
+            <span class="n">MadeChange</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+            <span class="k">break</span><span class="p">;</span>
+          <span class="p">}</span>
+
+  <span class="k">return</span> <span class="n">MadeChange</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="generating-safe-points-neededsafepoints">
+<span id="safe-points"></span><h3><a class="toc-backref" href="#id18">Generating safe points: <code class="docutils literal"><span class="pre">NeededSafePoints</span></code></a><a class="headerlink" href="#generating-safe-points-neededsafepoints" title="Permalink to this headline">¶</a></h3>
+<p>LLVM can compute four kinds of safe points:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">namespace</span> <span class="n">GC</span> <span class="p">{</span>
+  <span class="c1">/// PointKind - The type of a collector-safe point.</span>
+  <span class="c1">///</span>
+  <span class="k">enum</span> <span class="n">PointKind</span> <span class="p">{</span>
+    <span class="n">Loop</span><span class="p">,</span>    <span class="c1">//&lt; Instr is a loop (backwards branch).</span>
+    <span class="n">Return</span><span class="p">,</span>  <span class="c1">//&lt; Instr is a return instruction.</span>
+    <span class="n">PreCall</span><span class="p">,</span> <span class="c1">//&lt; Instr is a call instruction.</span>
+    <span class="n">PostCall</span> <span class="c1">//&lt; Instr is the return address of a call.</span>
+  <span class="p">};</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>A collector can request any combination of the four by setting the
+<code class="docutils literal"><span class="pre">NeededSafePoints</span></code> mask:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">MyGC</span><span class="o">::</span><span class="n">MyGC</span><span class="p">()</span>  <span class="p">{</span>
+  <span class="n">NeededSafePoints</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">GC</span><span class="o">::</span><span class="n">Loop</span>
+                   <span class="o">|</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">GC</span><span class="o">::</span><span class="n">Return</span>
+                   <span class="o">|</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">GC</span><span class="o">::</span><span class="n">PreCall</span>
+                   <span class="o">|</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">GC</span><span class="o">::</span><span class="n">PostCall</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>It can then use the following routines to access safe points.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="n">iterator</span> <span class="n">I</span> <span class="o">=</span> <span class="n">begin</span><span class="p">(),</span> <span class="n">E</span> <span class="o">=</span> <span class="n">end</span><span class="p">();</span> <span class="n">I</span> <span class="o">!=</span> <span class="n">E</span><span class="p">;</span> <span class="o">++</span><span class="n">I</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">GCFunctionInfo</span> <span class="o">*</span><span class="n">MD</span> <span class="o">=</span> <span class="o">*</span><span class="n">I</span><span class="p">;</span>
+  <span class="kt">size_t</span> <span class="n">PointCount</span> <span class="o">=</span> <span class="n">MD</span><span class="o">-&gt;</span><span class="n">size</span><span class="p">();</span>
+
+  <span class="k">for</span> <span class="p">(</span><span class="n">GCFunctionInfo</span><span class="o">::</span><span class="n">iterator</span> <span class="n">PI</span> <span class="o">=</span> <span class="n">MD</span><span class="o">-&gt;</span><span class="n">begin</span><span class="p">(),</span>
+                                <span class="n">PE</span> <span class="o">=</span> <span class="n">MD</span><span class="o">-&gt;</span><span class="n">end</span><span class="p">();</span> <span class="n">PI</span> <span class="o">!=</span> <span class="n">PE</span><span class="p">;</span> <span class="o">++</span><span class="n">PI</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">GC</span><span class="o">::</span><span class="n">PointKind</span> <span class="n">PointKind</span> <span class="o">=</span> <span class="n">PI</span><span class="o">-&gt;</span><span class="n">Kind</span><span class="p">;</span>
+    <span class="kt">unsigned</span> <span class="n">PointNum</span> <span class="o">=</span> <span class="n">PI</span><span class="o">-&gt;</span><span class="n">Num</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Almost every collector requires <code class="docutils literal"><span class="pre">PostCall</span></code> safe points, since these correspond
+to the moments when the function is suspended during a call to a subroutine.</p>
+<p>Threaded programs generally require <code class="docutils literal"><span class="pre">Loop</span></code> safe points to guarantee that the
+application will reach a safe point within a bounded amount of time, even if it
+is executing a long-running loop which contains no function calls.</p>
+<p>Threaded collectors may also require <code class="docutils literal"><span class="pre">Return</span></code> and <code class="docutils literal"><span class="pre">PreCall</span></code> safe points to
+implement “stop the world” techniques using self-modifying code, where it is
+important that the program not exit the function without reaching a safe point
+(because only the topmost function has been patched).</p>
+</div>
+<div class="section" id="emitting-assembly-code-gcmetadataprinter">
+<span id="assembly"></span><h3><a class="toc-backref" href="#id19">Emitting assembly code: <code class="docutils literal"><span class="pre">GCMetadataPrinter</span></code></a><a class="headerlink" href="#emitting-assembly-code-gcmetadataprinter" title="Permalink to this headline">¶</a></h3>
+<p>LLVM allows a plugin to print arbitrary assembly code before and after the rest
+of a module’s assembly code.  At the end of the module, the GC can compile the
+LLVM stack map into assembly code. (At the beginning, this information is not
+yet computed.)</p>
+<p>Since AsmWriter and CodeGen are separate components of LLVM, a separate abstract
+base class and registry is provided for printing assembly code, the
+<code class="docutils literal"><span class="pre">GCMetadaPrinter</span></code> and <code class="docutils literal"><span class="pre">GCMetadataPrinterRegistry</span></code>.  The AsmWriter will look
+for such a subclass if the <code class="docutils literal"><span class="pre">GCStrategy</span></code> sets <code class="docutils literal"><span class="pre">UsesMetadata</span></code>:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">MyGC</span><span class="o">::</span><span class="n">MyGC</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">UsesMetadata</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This separation allows JIT-only clients to be smaller.</p>
+<p>Note that LLVM does not currently have analogous APIs to support code generation
+in the JIT, nor using the object writers.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// lib/MyGC/MyGCPrinter.cpp - Example LLVM GC printer</span>
+
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/CodeGen/GCMetadataPrinter.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/Compiler.h&quot;</span><span class="cp"></span>
+
+<span class="k">using</span> <span class="k">namespace</span> <span class="n">llvm</span><span class="p">;</span>
+
+<span class="k">namespace</span> <span class="p">{</span>
+  <span class="k">class</span> <span class="nc">LLVM_LIBRARY_VISIBILITY</span> <span class="nl">MyGCPrinter</span> <span class="p">:</span> <span class="k">public</span> <span class="n">GCMetadataPrinter</span> <span class="p">{</span>
+  <span class="k">public</span><span class="o">:</span>
+    <span class="k">virtual</span> <span class="kt">void</span> <span class="n">beginAssembly</span><span class="p">(</span><span class="n">AsmPrinter</span> <span class="o">&amp;</span><span class="n">AP</span><span class="p">);</span>
+
+    <span class="k">virtual</span> <span class="kt">void</span> <span class="nf">finishAssembly</span><span class="p">(</span><span class="n">AsmPrinter</span> <span class="o">&amp;</span><span class="n">AP</span><span class="p">);</span>
+  <span class="p">};</span>
+
+  <span class="n">GCMetadataPrinterRegistry</span><span class="o">::</span><span class="n">Add</span><span class="o">&lt;</span><span class="n">MyGCPrinter</span><span class="o">&gt;</span>
+  <span class="n">X</span><span class="p">(</span><span class="s">&quot;mygc&quot;</span><span class="p">,</span> <span class="s">&quot;My bespoke garbage collector.&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The collector should use <code class="docutils literal"><span class="pre">AsmPrinter</span></code> to print portable assembly code.  The
+collector itself contains the stack map for the entire module, and may access
+the <code class="docutils literal"><span class="pre">GCFunctionInfo</span></code> using its own <code class="docutils literal"><span class="pre">begin()</span></code> and <code class="docutils literal"><span class="pre">end()</span></code> methods.  Here’s
+a realistic example:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;llvm/CodeGen/AsmPrinter.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/Function.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/DataLayout.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Target/TargetAsmInfo.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Target/TargetMachine.h&quot;</span><span class="cp"></span>
+
+<span class="kt">void</span> <span class="n">MyGCPrinter</span><span class="o">::</span><span class="n">beginAssembly</span><span class="p">(</span><span class="n">AsmPrinter</span> <span class="o">&amp;</span><span class="n">AP</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Nothing to do.</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="n">MyGCPrinter</span><span class="o">::</span><span class="n">finishAssembly</span><span class="p">(</span><span class="n">AsmPrinter</span> <span class="o">&amp;</span><span class="n">AP</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">MCStreamer</span> <span class="o">&amp;</span><span class="n">OS</span> <span class="o">=</span> <span class="n">AP</span><span class="p">.</span><span class="n">OutStreamer</span><span class="p">;</span>
+  <span class="kt">unsigned</span> <span class="n">IntPtrSize</span> <span class="o">=</span> <span class="n">AP</span><span class="p">.</span><span class="n">TM</span><span class="p">.</span><span class="n">getDataLayout</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">getPointerSize</span><span class="p">();</span>
+
+  <span class="c1">// Put this in the data section.</span>
+  <span class="n">OS</span><span class="p">.</span><span class="n">SwitchSection</span><span class="p">(</span><span class="n">AP</span><span class="p">.</span><span class="n">getObjFileLowering</span><span class="p">().</span><span class="n">getDataSection</span><span class="p">());</span>
+
+  <span class="c1">// For each function...</span>
+  <span class="k">for</span> <span class="p">(</span><span class="n">iterator</span> <span class="n">FI</span> <span class="o">=</span> <span class="n">begin</span><span class="p">(),</span> <span class="n">FE</span> <span class="o">=</span> <span class="n">end</span><span class="p">();</span> <span class="n">FI</span> <span class="o">!=</span> <span class="n">FE</span><span class="p">;</span> <span class="o">++</span><span class="n">FI</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">GCFunctionInfo</span> <span class="o">&amp;</span><span class="n">MD</span> <span class="o">=</span> <span class="o">**</span><span class="n">FI</span><span class="p">;</span>
+
+    <span class="c1">// A compact GC layout. Emit this data structure:</span>
+    <span class="c1">//</span>
+    <span class="c1">// struct {</span>
+    <span class="c1">//   int32_t PointCount;</span>
+    <span class="c1">//   void *SafePointAddress[PointCount];</span>
+    <span class="c1">//   int32_t StackFrameSize; // in words</span>
+    <span class="c1">//   int32_t StackArity;</span>
+    <span class="c1">//   int32_t LiveCount;</span>
+    <span class="c1">//   int32_t LiveOffsets[LiveCount];</span>
+    <span class="c1">// } __gcmap_&lt;FUNCTIONNAME&gt;;</span>
+
+    <span class="c1">// Align to address width.</span>
+    <span class="n">AP</span><span class="p">.</span><span class="n">EmitAlignment</span><span class="p">(</span><span class="n">IntPtrSize</span> <span class="o">==</span> <span class="mi">4</span> <span class="o">?</span> <span class="mi">2</span> <span class="o">:</span> <span class="mi">3</span><span class="p">);</span>
+
+    <span class="c1">// Emit PointCount.</span>
+    <span class="n">OS</span><span class="p">.</span><span class="n">AddComment</span><span class="p">(</span><span class="s">&quot;safe point count&quot;</span><span class="p">);</span>
+    <span class="n">AP</span><span class="p">.</span><span class="n">EmitInt32</span><span class="p">(</span><span class="n">MD</span><span class="p">.</span><span class="n">size</span><span class="p">());</span>
+
+    <span class="c1">// And each safe point...</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">GCFunctionInfo</span><span class="o">::</span><span class="n">iterator</span> <span class="n">PI</span> <span class="o">=</span> <span class="n">MD</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span>
+                                  <span class="n">PE</span> <span class="o">=</span> <span class="n">MD</span><span class="p">.</span><span class="n">end</span><span class="p">();</span> <span class="n">PI</span> <span class="o">!=</span> <span class="n">PE</span><span class="p">;</span> <span class="o">++</span><span class="n">PI</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c1">// Emit the address of the safe point.</span>
+      <span class="n">OS</span><span class="p">.</span><span class="n">AddComment</span><span class="p">(</span><span class="s">&quot;safe point address&quot;</span><span class="p">);</span>
+      <span class="n">MCSymbol</span> <span class="o">*</span><span class="n">Label</span> <span class="o">=</span> <span class="n">PI</span><span class="o">-&gt;</span><span class="n">Label</span><span class="p">;</span>
+      <span class="n">AP</span><span class="p">.</span><span class="n">EmitLabelPlusOffset</span><span class="p">(</span><span class="n">Label</span><span class="cm">/*Hi*/</span><span class="p">,</span> <span class="mi">0</span><span class="cm">/*Offset*/</span><span class="p">,</span> <span class="mi">4</span><span class="cm">/*Size*/</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="c1">// Stack information never change in safe points! Only print info from the</span>
+    <span class="c1">// first call-site.</span>
+    <span class="n">GCFunctionInfo</span><span class="o">::</span><span class="n">iterator</span> <span class="n">PI</span> <span class="o">=</span> <span class="n">MD</span><span class="p">.</span><span class="n">begin</span><span class="p">();</span>
+
+    <span class="c1">// Emit the stack frame size.</span>
+    <span class="n">OS</span><span class="p">.</span><span class="n">AddComment</span><span class="p">(</span><span class="s">&quot;stack frame size (in words)&quot;</span><span class="p">);</span>
+    <span class="n">AP</span><span class="p">.</span><span class="n">EmitInt32</span><span class="p">(</span><span class="n">MD</span><span class="p">.</span><span class="n">getFrameSize</span><span class="p">()</span> <span class="o">/</span> <span class="n">IntPtrSize</span><span class="p">);</span>
+
+    <span class="c1">// Emit stack arity, i.e. the number of stacked arguments.</span>
+    <span class="kt">unsigned</span> <span class="n">RegisteredArgs</span> <span class="o">=</span> <span class="n">IntPtrSize</span> <span class="o">==</span> <span class="mi">4</span> <span class="o">?</span> <span class="mi">5</span> <span class="o">:</span> <span class="mi">6</span><span class="p">;</span>
+    <span class="kt">unsigned</span> <span class="n">StackArity</span> <span class="o">=</span> <span class="n">MD</span><span class="p">.</span><span class="n">getFunction</span><span class="p">().</span><span class="n">arg_size</span><span class="p">()</span> <span class="o">&gt;</span> <span class="n">RegisteredArgs</span> <span class="o">?</span>
+                          <span class="n">MD</span><span class="p">.</span><span class="n">getFunction</span><span class="p">().</span><span class="n">arg_size</span><span class="p">()</span> <span class="o">-</span> <span class="nl">RegisteredArgs</span> <span class="p">:</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="n">OS</span><span class="p">.</span><span class="n">AddComment</span><span class="p">(</span><span class="s">&quot;stack arity&quot;</span><span class="p">);</span>
+    <span class="n">AP</span><span class="p">.</span><span class="n">EmitInt32</span><span class="p">(</span><span class="n">StackArity</span><span class="p">);</span>
+
+    <span class="c1">// Emit the number of live roots in the function.</span>
+    <span class="n">OS</span><span class="p">.</span><span class="n">AddComment</span><span class="p">(</span><span class="s">&quot;live root count&quot;</span><span class="p">);</span>
+    <span class="n">AP</span><span class="p">.</span><span class="n">EmitInt32</span><span class="p">(</span><span class="n">MD</span><span class="p">.</span><span class="n">live_size</span><span class="p">(</span><span class="n">PI</span><span class="p">));</span>
+
+    <span class="c1">// And for each live root...</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">GCFunctionInfo</span><span class="o">::</span><span class="n">live_iterator</span> <span class="n">LI</span> <span class="o">=</span> <span class="n">MD</span><span class="p">.</span><span class="n">live_begin</span><span class="p">(</span><span class="n">PI</span><span class="p">),</span>
+                                       <span class="n">LE</span> <span class="o">=</span> <span class="n">MD</span><span class="p">.</span><span class="n">live_end</span><span class="p">(</span><span class="n">PI</span><span class="p">);</span>
+                                       <span class="n">LI</span> <span class="o">!=</span> <span class="n">LE</span><span class="p">;</span> <span class="o">++</span><span class="n">LI</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c1">// Emit live root&#39;s offset within the stack frame.</span>
+      <span class="n">OS</span><span class="p">.</span><span class="n">AddComment</span><span class="p">(</span><span class="s">&quot;stack index (offset / wordsize)&quot;</span><span class="p">);</span>
+      <span class="n">AP</span><span class="p">.</span><span class="n">EmitInt32</span><span class="p">(</span><span class="n">LI</span><span class="o">-&gt;</span><span class="n">StackOffset</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="references">
+<h2><a class="toc-backref" href="#id20">References</a><a class="headerlink" href="#references" title="Permalink to this headline">¶</a></h2>
+<p id="appel89">[Appel89] Runtime Tags Aren’t Necessary. Andrew W. Appel. Lisp and Symbolic
+Computation 19(7):703-705, July 1989.</p>
+<p id="goldberg91">[Goldberg91] Tag-free garbage collection for strongly typed programming
+languages. Benjamin Goldberg. ACM SIGPLAN PLDI‘91.</p>
+<p id="tolmach94">[Tolmach94] Tag-free garbage collection using explicit type parameters. Andrew
+Tolmach. Proceedings of the 1994 ACM conference on LISP and functional
+programming.</p>
+<p id="henderson02">[Henderson2002] <a class="reference external" href="http://citeseer.ist.psu.edu/henderson02accurate.html">Accurate Garbage Collection in an Uncooperative Environment</a></p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="WritingAnLLVMPass.html" title="Writing an LLVM Pass"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="HowToUseInstrMappings.html" title="How To Use Instruction Mappings"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

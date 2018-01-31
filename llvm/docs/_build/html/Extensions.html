@@ -1,0 +1,298 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>LLVM Extensions &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LLVM Alias Analysis Infrastructure" href="AliasAnalysis.html" />
+    <link rel="prev" title="LLVM Programmer’s Manual" href="ProgrammersManual.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="AliasAnalysis.html" title="LLVM Alias Analysis Infrastructure"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="ProgrammersManual.html" title="LLVM Programmer’s Manual"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-extensions">
+<h1>LLVM Extensions<a class="headerlink" href="#llvm-extensions" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
+<li><a class="reference internal" href="#general-assembly-syntax" id="id2">General Assembly Syntax</a><ul>
+<li><a class="reference internal" href="#c99-style-hexadecimal-floating-point-constants" id="id3">C99-style Hexadecimal Floating-point Constants</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#machine-specific-assembly-syntax" id="id4">Machine-specific Assembly Syntax</a><ul>
+<li><a class="reference internal" href="#x86-coff-dependent" id="id5">X86/COFF-Dependent</a><ul>
+<li><a class="reference internal" href="#relocations" id="id6">Relocations</a></li>
+<li><a class="reference internal" href="#linkonce-directive" id="id7"><code class="docutils literal"><span class="pre">.linkonce</span></code> Directive</a></li>
+<li><a class="reference internal" href="#section-directive" id="id8"><code class="docutils literal"><span class="pre">.section</span></code> Directive</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#target-specific-behaviour" id="id9">Target Specific Behaviour</a><ul>
+<li><a class="reference internal" href="#windows-on-arm" id="id10">Windows on ARM</a><ul>
+<li><a class="reference internal" href="#stack-probe-emission" id="id11">Stack Probe Emission</a></li>
+<li><a class="reference internal" href="#variable-length-arrays" id="id12">Variable Length Arrays</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This document describes extensions to tools and formats LLVM seeks compatibility
+with.</p>
+</div>
+<div class="section" id="general-assembly-syntax">
+<h2><a class="toc-backref" href="#id2">General Assembly Syntax</a><a class="headerlink" href="#general-assembly-syntax" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="c99-style-hexadecimal-floating-point-constants">
+<h3><a class="toc-backref" href="#id3">C99-style Hexadecimal Floating-point Constants</a><a class="headerlink" href="#c99-style-hexadecimal-floating-point-constants" title="Permalink to this headline">¶</a></h3>
+<p>LLVM’s assemblers allow floating-point constants to be written in C99’s
+hexadecimal format instead of decimal if desired.</p>
+<div class="highlight-gas"><div class="highlight"><pre><span></span><span class="na">.section</span> <span class="no">.data</span>
+<span class="na">.float</span> <span class="mi">0x1c2</span><span class="no">.2ap3</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="machine-specific-assembly-syntax">
+<h2><a class="toc-backref" href="#id4">Machine-specific Assembly Syntax</a><a class="headerlink" href="#machine-specific-assembly-syntax" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="x86-coff-dependent">
+<h3><a class="toc-backref" href="#id5">X86/COFF-Dependent</a><a class="headerlink" href="#x86-coff-dependent" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="relocations">
+<h4><a class="toc-backref" href="#id6">Relocations</a><a class="headerlink" href="#relocations" title="Permalink to this headline">¶</a></h4>
+<p>The following additional relocation types are supported:</p>
+<p><strong>&#64;IMGREL</strong> (AT&amp;T syntax only) generates an image-relative relocation that
+corresponds to the COFF relocation types <code class="docutils literal"><span class="pre">IMAGE_REL_I386_DIR32NB</span></code> (32-bit) or
+<code class="docutils literal"><span class="pre">IMAGE_REL_AMD64_ADDR32NB</span></code> (64-bit).</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>.text
+fun:
+  mov foo@IMGREL(%ebx, %ecx, 4), %eax
+
+.section .pdata
+  .long fun@IMGREL
+  .long (fun@imgrel + 0x3F)
+  .long $unwind$fun@imgrel
+</pre></div>
+</div>
+<p><strong>.secrel32</strong> generates a relocation that corresponds to the COFF relocation
+types <code class="docutils literal"><span class="pre">IMAGE_REL_I386_SECREL</span></code> (32-bit) or <code class="docutils literal"><span class="pre">IMAGE_REL_AMD64_SECREL</span></code> (64-bit).</p>
+<p><strong>.secidx</strong> relocation generates an index of the section that contains
+the target.  It corresponds to the COFF relocation types
+<code class="docutils literal"><span class="pre">IMAGE_REL_I386_SECTION</span></code> (32-bit) or <code class="docutils literal"><span class="pre">IMAGE_REL_AMD64_SECTION</span></code> (64-bit).</p>
+<div class="highlight-gas"><div class="highlight"><pre><span></span><span class="na">.section</span> <span class="no">.debug$S</span><span class="p">,</span><span class="s">&quot;rn&quot;</span>
+  <span class="na">.long</span> <span class="mi">4</span>
+  <span class="na">.long</span> <span class="mi">242</span>
+  <span class="na">.long</span> <span class="mi">40</span>
+  <span class="na">.secrel32</span> <span class="no">_function_name</span>
+  <span class="na">.secidx</span>   <span class="no">_function_name</span>
+  <span class="na">...</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="linkonce-directive">
+<h4><a class="toc-backref" href="#id7"><code class="docutils literal"><span class="pre">.linkonce</span></code> Directive</a><a class="headerlink" href="#linkonce-directive" title="Permalink to this headline">¶</a></h4>
+<p>Syntax:</p>
+<blockquote>
+<div><code class="docutils literal"><span class="pre">.linkonce</span> <span class="pre">[</span> <span class="pre">comdat</span> <span class="pre">type</span> <span class="pre">]</span></code></div></blockquote>
+<p>Supported COMDAT types:</p>
+<dl class="docutils">
+<dt><code class="docutils literal"><span class="pre">discard</span></code></dt>
+<dd>Discards duplicate sections with the same COMDAT symbol. This is the default
+if no type is specified.</dd>
+<dt><code class="docutils literal"><span class="pre">one_only</span></code></dt>
+<dd>If the symbol is defined multiple times, the linker issues an error.</dd>
+<dt><code class="docutils literal"><span class="pre">same_size</span></code></dt>
+<dd>Duplicates are discarded, but the linker issues an error if any have
+different sizes.</dd>
+<dt><code class="docutils literal"><span class="pre">same_contents</span></code></dt>
+<dd>Duplicates are discarded, but the linker issues an error if any duplicates
+do not have exactly the same content.</dd>
+<dt><code class="docutils literal"><span class="pre">largest</span></code></dt>
+<dd>Links the largest section from among the duplicates.</dd>
+<dt><code class="docutils literal"><span class="pre">newest</span></code></dt>
+<dd>Links the newest section from among the duplicates.</dd>
+</dl>
+<div class="highlight-gas"><div class="highlight"><pre><span></span><span class="na">.section</span> <span class="no">.text$foo</span>
+<span class="na">.linkonce</span>
+  <span class="na">...</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="section-directive">
+<h4><a class="toc-backref" href="#id8"><code class="docutils literal"><span class="pre">.section</span></code> Directive</a><a class="headerlink" href="#section-directive" title="Permalink to this headline">¶</a></h4>
+<p>MC supports passing the information in <code class="docutils literal"><span class="pre">.linkonce</span></code> at the end of
+<code class="docutils literal"><span class="pre">.section</span></code>. For example,  these two codes are equivalent</p>
+<div class="highlight-gas"><div class="highlight"><pre><span></span><span class="na">.section</span> <span class="no">secName</span><span class="p">,</span> <span class="s">&quot;dr&quot;</span><span class="p">,</span> <span class="no">discard</span><span class="p">,</span> <span class="s">&quot;Symbol1&quot;</span>
+<span class="na">.globl</span> <span class="no">Symbol1</span>
+<span class="nl">Symbol1:</span>
+<span class="na">.long</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<div class="highlight-gas"><div class="highlight"><pre><span></span><span class="na">.section</span> <span class="no">secName</span><span class="p">,</span> <span class="s">&quot;dr&quot;</span>
+<span class="na">.linkonce</span> <span class="no">discard</span>
+<span class="na">.globl</span> <span class="no">Symbol1</span>
+<span class="nl">Symbol1:</span>
+<span class="na">.long</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>Note that in the combined form the COMDAT symbol is explicit. This
+extension exists to support multiple sections with the same name in
+different COMDATs:</p>
+<div class="highlight-gas"><div class="highlight"><pre><span></span><span class="na">.section</span> <span class="no">secName</span><span class="p">,</span> <span class="s">&quot;dr&quot;</span><span class="p">,</span> <span class="no">discard</span><span class="p">,</span> <span class="s">&quot;Symbol1&quot;</span>
+<span class="na">.globl</span> <span class="no">Symbol1</span>
+<span class="nl">Symbol1:</span>
+<span class="na">.long</span> <span class="mi">1</span>
+
+<span class="na">.section</span> <span class="no">secName</span><span class="p">,</span> <span class="s">&quot;dr&quot;</span><span class="p">,</span> <span class="no">discard</span><span class="p">,</span> <span class="s">&quot;Symbol2&quot;</span>
+<span class="na">.globl</span> <span class="no">Symbol2</span>
+<span class="nl">Symbol2:</span>
+<span class="na">.long</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>In addition to the types allowed with <code class="docutils literal"><span class="pre">.linkonce</span></code>, <code class="docutils literal"><span class="pre">.section</span></code> also accepts
+<code class="docutils literal"><span class="pre">associative</span></code>. The meaning is that the section is linked  if a certain other
+COMDAT section is linked. This other section is indicated by the comdat symbol
+in this directive. It can be any symbol defined in the associated section, but
+is usually the associated section’s comdat.</p>
+<blockquote>
+<div><p>The following restrictions apply to the associated section:</p>
+<ol class="arabic simple">
+<li>It must be a COMDAT section.</li>
+<li>It cannot be another associative COMDAT section.</li>
+</ol>
+</div></blockquote>
+<p>In the following example the symobl <code class="docutils literal"><span class="pre">sym</span></code> is the comdat symbol of <code class="docutils literal"><span class="pre">.foo</span></code>
+and <code class="docutils literal"><span class="pre">.bar</span></code> is associated to <code class="docutils literal"><span class="pre">.foo</span></code>.</p>
+<div class="highlight-gas"><div class="highlight"><pre><span></span><span class="na">.section</span>        <span class="no">.foo</span><span class="p">,</span><span class="s">&quot;bw&quot;</span><span class="p">,</span><span class="no">discard</span><span class="p">,</span> <span class="s">&quot;sym&quot;</span>
+<span class="na">.section</span>        <span class="no">.bar</span><span class="p">,</span><span class="s">&quot;rd&quot;</span><span class="p">,</span><span class="no">associative</span><span class="p">,</span> <span class="s">&quot;sym&quot;</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="target-specific-behaviour">
+<h2><a class="toc-backref" href="#id9">Target Specific Behaviour</a><a class="headerlink" href="#target-specific-behaviour" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="windows-on-arm">
+<h3><a class="toc-backref" href="#id10">Windows on ARM</a><a class="headerlink" href="#windows-on-arm" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="stack-probe-emission">
+<h4><a class="toc-backref" href="#id11">Stack Probe Emission</a><a class="headerlink" href="#stack-probe-emission" title="Permalink to this headline">¶</a></h4>
+<p>The reference implementation (Microsoft Visual Studio 2012) emits stack probes
+in the following fashion:</p>
+<div class="highlight-gas"><div class="highlight"><pre><span></span><span class="nf">movw</span> <span class="no">r4</span><span class="p">,</span> <span class="c">#constant</span>
+<span class="no">bl</span> <span class="no">__chkstk</span>
+<span class="nf">sub.w</span> <span class="no">sp</span><span class="p">,</span> <span class="no">sp</span><span class="p">,</span> <span class="no">r4</span>
+</pre></div>
+</div>
+<p>However, this has the limitation of 32 MiB (±16MiB).  In order to accommodate
+larger binaries, LLVM supports the use of <code class="docutils literal"><span class="pre">-mcode-model=large</span></code> to allow a 4GiB
+range via a slight deviation.  It will generate an indirect jump as follows:</p>
+<div class="highlight-gas"><div class="highlight"><pre><span></span><span class="nf">movw</span> <span class="no">r4</span><span class="p">,</span> <span class="c">#constant</span>
+<span class="no">movw</span> <span class="no">r12</span><span class="p">,</span> <span class="p">:</span><span class="no">lower16</span><span class="p">:</span><span class="no">__chkstk</span>
+<span class="nf">movt</span> <span class="no">r12</span><span class="p">,</span> <span class="p">:</span><span class="no">upper16</span><span class="p">:</span><span class="no">__chkstk</span>
+<span class="nf">blx</span> <span class="no">r12</span>
+<span class="nf">sub.w</span> <span class="no">sp</span><span class="p">,</span> <span class="no">sp</span><span class="p">,</span> <span class="no">r4</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="variable-length-arrays">
+<h4><a class="toc-backref" href="#id12">Variable Length Arrays</a><a class="headerlink" href="#variable-length-arrays" title="Permalink to this headline">¶</a></h4>
+<p>The reference implementation (Microsoft Visual Studio 2012) does not permit the
+emission of Variable Length Arrays (VLAs).</p>
+<p>The Windows ARM Itanium ABI extends the base ABI by adding support for emitting
+a dynamic stack allocation.  When emitting a variable stack allocation, a call
+to <code class="docutils literal"><span class="pre">__chkstk</span></code> is emitted unconditionally to ensure that guard pages are setup
+properly.  The emission of this stack probe emission is handled similar to the
+standard stack probe emission.</p>
+<p>The MSVC environment does not emit code for VLAs currently.</p>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="AliasAnalysis.html" title="LLVM Alias Analysis Infrastructure"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="ProgrammersManual.html" title="LLVM Programmer’s Manual"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

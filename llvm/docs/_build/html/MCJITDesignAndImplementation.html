@@ -1,0 +1,247 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>MCJIT Design and Implementation &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LLVM Atomic Instructions and Concurrency Guide" href="Atomics.html" />
+    <link rel="prev" title="The Often Misunderstood GEP Instruction" href="GetElementPtr.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="Atomics.html" title="LLVM Atomic Instructions and Concurrency Guide"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="GetElementPtr.html" title="The Often Misunderstood GEP Instruction"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="mcjit-design-and-implementation">
+<h1>MCJIT Design and Implementation<a class="headerlink" href="#mcjit-design-and-implementation" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This document describes the internal workings of the MCJIT execution
+engine and the RuntimeDyld component.  It is intended as a high level
+overview of the implementation, showing the flow and interactions of
+objects throughout the code generation and dynamic loading process.</p>
+</div>
+<div class="section" id="engine-creation">
+<h2>Engine Creation<a class="headerlink" href="#engine-creation" title="Permalink to this headline">¶</a></h2>
+<p>In most cases, an EngineBuilder object is used to create an instance of
+the MCJIT execution engine.  The EngineBuilder takes an llvm::Module
+object as an argument to its constructor.  The client may then set various
+options that we control the later be passed along to the MCJIT engine,
+including the selection of MCJIT as the engine type to be created.
+Of particular interest is the EngineBuilder::setMCJITMemoryManager
+function.  If the client does not explicitly create a memory manager at
+this time, a default memory manager (specifically SectionMemoryManager)
+will be created when the MCJIT engine is instantiated.</p>
+<p>Once the options have been set, a client calls EngineBuilder::create to
+create an instance of the MCJIT engine.  If the client does not use the
+form of this function that takes a TargetMachine as a parameter, a new
+TargetMachine will be created based on the target triple associated with
+the Module that was used to create the EngineBuilder.</p>
+<img alt="_images/MCJIT-engine-builder.png" src="_images/MCJIT-engine-builder.png" />
+<p>EngineBuilder::create will call the static MCJIT::createJIT function,
+passing in its pointers to the module, memory manager and target machine
+objects, all of which will subsequently be owned by the MCJIT object.</p>
+<p>The MCJIT class has a member variable, Dyld, which contains an instance of
+the RuntimeDyld wrapper class.  This member will be used for
+communications between MCJIT and the actual RuntimeDyldImpl object that
+gets created when an object is loaded.</p>
+<img alt="_images/MCJIT-creation.png" src="_images/MCJIT-creation.png" />
+<p>Upon creation, MCJIT holds a pointer to the Module object that it received
+from EngineBuilder but it does not immediately generate code for this
+module.  Code generation is deferred until either the
+MCJIT::finalizeObject method is called explicitly or a function such as
+MCJIT::getPointerToFunction is called which requires the code to have been
+generated.</p>
+</div>
+<div class="section" id="code-generation">
+<h2>Code Generation<a class="headerlink" href="#code-generation" title="Permalink to this headline">¶</a></h2>
+<p>When code generation is triggered, as described above, MCJIT will first
+attempt to retrieve an object image from its ObjectCache member, if one
+has been set.  If a cached object image cannot be retrieved, MCJIT will
+call its emitObject method.  MCJIT::emitObject uses a local PassManager
+instance and creates a new ObjectBufferStream instance, both of which it
+passes to TargetManager::addPassesToEmitMC before calling PassManager::run
+on the Module with which it was created.</p>
+<img alt="_images/MCJIT-load.png" src="_images/MCJIT-load.png" />
+<p>The PassManager::run call causes the MC code generation mechanisms to emit
+a complete relocatable binary object image (either in either ELF or MachO
+format, depending on the target) into the ObjectBufferStream object, which
+is flushed to complete the process.  If an ObjectCache is being used, the
+image will be passed to the ObjectCache here.</p>
+<p>At this point, the ObjectBufferStream contains the raw object image.
+Before the code can be executed, the code and data sections from this
+image must be loaded into suitable memory, relocations must be applied and
+memory permission and code cache invalidation (if required) must be completed.</p>
+</div>
+<div class="section" id="object-loading">
+<h2>Object Loading<a class="headerlink" href="#object-loading" title="Permalink to this headline">¶</a></h2>
+<p>Once an object image has been obtained, either through code generation or
+having been retrieved from an ObjectCache, it is passed to RuntimeDyld to
+be loaded.  The RuntimeDyld wrapper class examines the object to determine
+its file format and creates an instance of either RuntimeDyldELF or
+RuntimeDyldMachO (both of which derive from the RuntimeDyldImpl base
+class) and calls the RuntimeDyldImpl::loadObject method to perform that
+actual loading.</p>
+<img alt="_images/MCJIT-dyld-load.png" src="_images/MCJIT-dyld-load.png" />
+<p>RuntimeDyldImpl::loadObject begins by creating an ObjectImage instance
+from the ObjectBuffer it received.  ObjectImage, which wraps the
+ObjectFile class, is a helper class which parses the binary object image
+and provides access to the information contained in the format-specific
+headers, including section, symbol and relocation information.</p>
+<p>RuntimeDyldImpl::loadObject then iterates through the symbols in the
+image.  Information about common symbols is collected for later use.  For
+each function or data symbol, the associated section is loaded into memory
+and the symbol is stored in a symbol table map data structure.  When the
+iteration is complete, a section is emitted for the common symbols.</p>
+<p>Next, RuntimeDyldImpl::loadObject iterates through the sections in the
+object image and for each section iterates through the relocations for
+that sections.  For each relocation, it calls the format-specific
+processRelocationRef method, which will examine the relocation and store
+it in one of two data structures, a section-based relocation list map and
+an external symbol relocation map.</p>
+<img alt="_images/MCJIT-load-object.png" src="_images/MCJIT-load-object.png" />
+<p>When RuntimeDyldImpl::loadObject returns, all of the code and data
+sections for the object will have been loaded into memory allocated by the
+memory manager and relocation information will have been prepared, but the
+relocations have not yet been applied and the generated code is still not
+ready to be executed.</p>
+<p>[Currently (as of August 2013) the MCJIT engine will immediately apply
+relocations when loadObject completes.  However, this shouldn’t be
+happening.  Because the code may have been generated for a remote target,
+the client should be given a chance to re-map the section addresses before
+relocations are applied.  It is possible to apply relocations multiple
+times, but in the case where addresses are to be re-mapped, this first
+application is wasted effort.]</p>
+</div>
+<div class="section" id="address-remapping">
+<h2>Address Remapping<a class="headerlink" href="#address-remapping" title="Permalink to this headline">¶</a></h2>
+<p>At any time after initial code has been generated and before
+finalizeObject is called, the client can remap the address of sections in
+the object.  Typically this is done because the code was generated for an
+external process and is being mapped into that process’ address space.
+The client remaps the section address by calling MCJIT::mapSectionAddress.
+This should happen before the section memory is copied to its new
+location.</p>
+<p>When MCJIT::mapSectionAddress is called, MCJIT passes the call on to
+RuntimeDyldImpl (via its Dyld member).  RuntimeDyldImpl stores the new
+address in an internal data structure but does not update the code at this
+time, since other sections are likely to change.</p>
+<p>When the client is finished remapping section addresses, it will call
+MCJIT::finalizeObject to complete the remapping process.</p>
+</div>
+<div class="section" id="final-preparations">
+<h2>Final Preparations<a class="headerlink" href="#final-preparations" title="Permalink to this headline">¶</a></h2>
+<p>When MCJIT::finalizeObject is called, MCJIT calls
+RuntimeDyld::resolveRelocations.  This function will attempt to locate any
+external symbols and then apply all relocations for the object.</p>
+<p>External symbols are resolved by calling the memory manager’s
+getPointerToNamedFunction method.  The memory manager will return the
+address of the requested symbol in the target address space.  (Note, this
+may not be a valid pointer in the host process.)  RuntimeDyld will then
+iterate through the list of relocations it has stored which are associated
+with this symbol and invoke the resolveRelocation method which, through an
+format-specific implementation, will apply the relocation to the loaded
+section memory.</p>
+<p>Next, RuntimeDyld::resolveRelocations iterates through the list of
+sections and for each section iterates through a list of relocations that
+have been saved which reference that symbol and call resolveRelocation for
+each entry in this list.  The relocation list here is a list of
+relocations for which the symbol associated with the relocation is located
+in the section associated with the list.  Each of these locations will
+have a target location at which the relocation will be applied that is
+likely located in a different section.</p>
+<img alt="_images/MCJIT-resolve-relocations.png" src="_images/MCJIT-resolve-relocations.png" />
+<p>Once relocations have been applied as described above, MCJIT calls
+RuntimeDyld::getEHFrameSection, and if a non-zero result is returned
+passes the section data to the memory manager’s registerEHFrames method.
+This allows the memory manager to call any desired target-specific
+functions, such as registering the EH frame information with a debugger.</p>
+<p>Finally, MCJIT calls the memory manager’s finalizeMemory method.  In this
+method, the memory manager will invalidate the target code cache, if
+necessary, and apply final permissions to the memory pages it has
+allocated for code and data memory.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="Atomics.html" title="LLVM Atomic Instructions and Concurrency Guide"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="GetElementPtr.html" title="The Often Misunderstood GEP Instruction"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,300 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>The LLVM Lexicon &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="How To Add Your Build Configuration To LLVM Buildbot Infrastructure" href="HowToAddABuilder.html" />
+    <link rel="prev" title="Frequently Asked Questions (FAQ)" href="FAQ.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="HowToAddABuilder.html" title="How To Add Your Build Configuration To LLVM Buildbot Infrastructure"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="FAQ.html" title="Frequently Asked Questions (FAQ)"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="the-llvm-lexicon">
+<h1>The LLVM Lexicon<a class="headerlink" href="#the-llvm-lexicon" title="Permalink to this headline">¶</a></h1>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This document is a work in progress!</p>
+</div>
+<div class="section" id="definitions">
+<h2>Definitions<a class="headerlink" href="#definitions" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="a">
+<h3>A<a class="headerlink" href="#a" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>ADCE</strong></dt>
+<dd>Aggressive Dead Code Elimination</dd>
+<dt><strong>AST</strong></dt>
+<dd><p class="first">Abstract Syntax Tree.</p>
+<p>Due to Clang’s influence (mostly the fact that parsing and semantic
+analysis are so intertwined for C and especially C++), the typical
+working definition of AST in the LLVM community is roughly “the
+compiler’s first complete symbolic (as opposed to textual)
+representation of an input program”.
+As such, an “AST” might be a more general graph instead of a “tree”
+(consider the symbolic representation for the type of a typical “linked
+list node”). This working definition is closer to what some authors
+call an “annotated abstract syntax tree”.</p>
+<p class="last">Consult your favorite compiler book or search engine for more details.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="b">
+<h3>B<a class="headerlink" href="#b" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils" id="lexicon-bb-vectorization">
+<dt><strong>BB Vectorization</strong></dt>
+<dd>Basic-Block Vectorization</dd>
+<dt><strong>BURS</strong></dt>
+<dd>Bottom Up Rewriting System — A method of instruction selection for code
+generation.  An example is the <a class="reference external" href="http://www.program-transformation.org/Transform/BURG">BURG</a> tool.</dd>
+</dl>
+</div>
+<div class="section" id="c">
+<h3>C<a class="headerlink" href="#c" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>CSE</strong></dt>
+<dd>Common Subexpression Elimination. An optimization that removes common
+subexpression compuation. For example <code class="docutils literal"><span class="pre">(a+b)*(a+b)</span></code> has two subexpressions
+that are the same: <code class="docutils literal"><span class="pre">(a+b)</span></code>. This optimization would perform the addition
+only once and then perform the multiply (but only if it’s computationally
+correct/safe).</dd>
+</dl>
+</div>
+<div class="section" id="d">
+<h3>D<a class="headerlink" href="#d" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>DAG</strong></dt>
+<dd>Directed Acyclic Graph</dd>
+</dl>
+<span id="derived-pointer"></span><dl class="docutils" id="derived-pointers">
+<dt><strong>Derived Pointer</strong></dt>
+<dd>A pointer to the interior of an object, such that a garbage collector is
+unable to use the pointer for reachability analysis. While a derived pointer
+is live, the corresponding object pointer must be kept in a root, otherwise
+the collector might free the referenced object. With copying collectors,
+derived pointers pose an additional hazard that they may be invalidated at
+any <a class="reference internal" href="#safe-point">safe point</a>. This term is used in opposition to <a class="reference internal" href="#object-pointer">object pointer</a>.</dd>
+<dt><strong>DSA</strong></dt>
+<dd>Data Structure Analysis</dd>
+<dt><strong>DSE</strong></dt>
+<dd>Dead Store Elimination</dd>
+</dl>
+</div>
+<div class="section" id="f">
+<h3>F<a class="headerlink" href="#f" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>FCA</strong></dt>
+<dd>First Class Aggregate</dd>
+</dl>
+</div>
+<div class="section" id="g">
+<h3>G<a class="headerlink" href="#g" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>GC</strong></dt>
+<dd>Garbage Collection. The practice of using reachability analysis instead of
+explicit memory management to reclaim unused memory.</dd>
+</dl>
+</div>
+<div class="section" id="h">
+<h3>H<a class="headerlink" href="#h" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils" id="heap">
+<dt><strong>Heap</strong></dt>
+<dd>In garbage collection, the region of memory which is managed using
+reachability analysis.</dd>
+</dl>
+</div>
+<div class="section" id="i">
+<h3>I<a class="headerlink" href="#i" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>IPA</strong></dt>
+<dd>Inter-Procedural Analysis. Refers to any variety of code analysis that
+occurs between procedures, functions or compilation units (modules).</dd>
+<dt><strong>IPO</strong></dt>
+<dd>Inter-Procedural Optimization. Refers to any variety of code optimization
+that occurs between procedures, functions or compilation units (modules).</dd>
+<dt><strong>ISel</strong></dt>
+<dd>Instruction Selection</dd>
+</dl>
+</div>
+<div class="section" id="l">
+<h3>L<a class="headerlink" href="#l" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>LCSSA</strong></dt>
+<dd>Loop-Closed Static Single Assignment Form</dd>
+<dt><strong>LICM</strong></dt>
+<dd>Loop Invariant Code Motion</dd>
+<dt><strong>Load-VN</strong></dt>
+<dd>Load Value Numbering</dd>
+<dt><strong>LTO</strong></dt>
+<dd>Link-Time Optimization</dd>
+</dl>
+</div>
+<div class="section" id="m">
+<h3>M<a class="headerlink" href="#m" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>MC</strong></dt>
+<dd>Machine Code</dd>
+</dl>
+</div>
+<div class="section" id="o">
+<h3>O<a class="headerlink" href="#o" title="Permalink to this headline">¶</a></h3>
+<span id="object-pointer"></span><dl class="docutils" id="object-pointers">
+<dt><strong>Object Pointer</strong></dt>
+<dd>A pointer to an object such that the garbage collector is able to trace
+references contained within the object. This term is used in opposition to
+<a class="reference internal" href="#derived-pointer">derived pointer</a>.</dd>
+</dl>
+</div>
+<div class="section" id="p">
+<h3>P<a class="headerlink" href="#p" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>PRE</strong></dt>
+<dd>Partial Redundancy Elimination</dd>
+</dl>
+</div>
+<div class="section" id="r">
+<h3>R<a class="headerlink" href="#r" title="Permalink to this headline">¶</a></h3>
+<p><strong>RAUW</strong></p>
+<blockquote>
+<div>Replace All Uses With. The functions <code class="docutils literal"><span class="pre">User::replaceUsesOfWith()</span></code>,
+<code class="docutils literal"><span class="pre">Value::replaceAllUsesWith()</span></code>, and
+<code class="docutils literal"><span class="pre">Constant::replaceUsesOfWithOnConstant()</span></code> implement the replacement of one
+Value with another by iterating over its def/use chain and fixing up all of
+the pointers to point to the new value.  See
+also <a class="reference external" href="ProgrammersManual.html#iterating-over-def-use-use-def-chains">def/use chains</a>.</div></blockquote>
+<dl class="docutils">
+<dt><strong>Reassociation</strong></dt>
+<dd>Rearranging associative expressions to promote better redundancy elimination
+and other optimization.  For example, changing <code class="docutils literal"><span class="pre">(A+B-A)</span></code> into <code class="docutils literal"><span class="pre">(B+A-A)</span></code>,
+permitting it to be optimized into <code class="docutils literal"><span class="pre">(B+0)</span></code> then <code class="docutils literal"><span class="pre">(B)</span></code>.</dd>
+</dl>
+<span id="roots"></span><dl class="docutils" id="stack-roots">
+<dt><strong>Root</strong></dt>
+<dd>In garbage collection, a pointer variable lying outside of the <a class="reference internal" href="#heap">heap</a> from
+which the collector begins its reachability analysis. In the context of code
+generation, “root” almost always refers to a “stack root” — a local or
+temporary variable within an executing function.</dd>
+<dt><strong>RPO</strong></dt>
+<dd>Reverse postorder</dd>
+</dl>
+</div>
+<div class="section" id="s">
+<h3>S<a class="headerlink" href="#s" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils" id="safe-point">
+<dt><strong>Safe Point</strong></dt>
+<dd>In garbage collection, it is necessary to identify <a class="reference internal" href="#stack-roots">stack roots</a> so that
+reachability analysis may proceed. It may be infeasible to provide this
+information for every instruction, so instead the information may is
+calculated only at designated safe points. With a copying collector,
+<a class="reference internal" href="#derived-pointers">derived pointers</a> must not be retained across safe points and <a class="reference internal" href="#object-pointers">object
+pointers</a> must be reloaded from stack roots.</dd>
+<dt><strong>SDISel</strong></dt>
+<dd>Selection DAG Instruction Selection.</dd>
+<dt><strong>SCC</strong></dt>
+<dd>Strongly Connected Component</dd>
+<dt><strong>SCCP</strong></dt>
+<dd>Sparse Conditional Constant Propagation</dd>
+<dt><strong>SLP</strong></dt>
+<dd>Superword-Level Parallelism, same as <a class="reference internal" href="#lexicon-bb-vectorization"><span class="std std-ref">Basic-Block Vectorization</span></a>.</dd>
+<dt><strong>SRoA</strong></dt>
+<dd>Scalar Replacement of Aggregates</dd>
+<dt><strong>SSA</strong></dt>
+<dd>Static Single Assignment</dd>
+<dt><strong>Stack Map</strong></dt>
+<dd>In garbage collection, metadata emitted by the code generator which
+identifies <a class="reference internal" href="#roots">roots</a> within the stack frame of an executing function.</dd>
+</dl>
+</div>
+<div class="section" id="t">
+<h3>T<a class="headerlink" href="#t" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>TBAA</strong></dt>
+<dd>Type-Based Alias Analysis</dd>
+</dl>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="HowToAddABuilder.html" title="How To Add Your Build Configuration To LLVM Buildbot Infrastructure"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="FAQ.html" title="Frequently Asked Questions (FAQ)"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

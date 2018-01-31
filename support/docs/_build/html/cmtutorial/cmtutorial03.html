@@ -1,0 +1,256 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial 3. Enqueuing Multiple Kernels &#8212; CM 6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorial 4. Using Media Walker with Thread Dependence" href="cmtutorial04.html" />
+    <link rel="prev" title="Tutorial 2. Basic Kernel Programming" href="cmtutorial02.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="Intel Logo"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cmtutorial04.html" title="Tutorial 4. Using Media Walker with Thread Dependence"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial02.html" title="Tutorial 2. Basic Kernel Programming"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tutorial-3-enqueuing-multiple-kernels">
+<h1>Tutorial 3. Enqueuing Multiple Kernels<a class="headerlink" href="#tutorial-3-enqueuing-multiple-kernels" title="Permalink to this headline">¶</a></h1>
+<p>You may have noticed that Enqueue function takes an array of kernels.
+So you can enqueue multiple kernels.</p>
+<div class="section" id="enqueuing-two-independent-kernels">
+<h2>Enqueuing two independent kernels<a class="headerlink" href="#enqueuing-two-independent-kernels" title="Permalink to this headline">¶</a></h2>
+<p>The following code-block is extracted from <a class="reference external" href="../../../../../test/open_examples/multi_kernels/multi_kernels.cpp">multi_kernels</a>.</p>
+<p>In this example, two kernels are launched independently (no specific execution order). The linear kernel processes the top-half of the image, and the sepia kernel processes the bottom-half of the image.</p>
+<p>First, create the linear kernel, notice the thread-count and thread-space are
+only for the half of the image.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// Creates the linear kernel.</span>
+  <span class="c1">// Param program: CM Program from which the kernel is created.</span>
+  <span class="c1">// Param &quot;linear&quot;: The kernel name which should be no more than 256 bytes</span>
+  <span class="c1">// including the null terminator.</span>
+  <span class="n">CmKernel</span> <span class="o">*</span><span class="n">kernel_linear</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateKernel</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="s">&quot;linear&quot;</span><span class="p">,</span> <span class="n">kernel_linear</span><span class="p">));</span>
+
+  <span class="c1">// Each CmKernel can be executed by multiple concurrent threads.</span>
+  <span class="c1">// Here, for &quot;linear&quot; kernel, each thread works on a block of 6x8 pixels.</span>
+  <span class="c1">// The thread width is equal to input image width divided by 8.</span>
+  <span class="c1">// The thread height is equal to input image height divided by 6. For this</span>
+  <span class="c1">// kernel only half of the image is processed; therefore, the thread height</span>
+  <span class="c1">// is divided by two.</span>
+  <span class="kt">int</span> <span class="n">thread_width</span>  <span class="o">=</span> <span class="n">width</span><span class="o">/</span><span class="mi">8</span><span class="p">;</span>
+  <span class="kt">int</span> <span class="n">thread_height</span> <span class="o">=</span> <span class="p">(</span><span class="n">height</span><span class="o">/</span><span class="mi">6</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">;</span>
+
+  <span class="c1">// Creates a CmThreadSpace object.</span>
+  <span class="c1">// There are two usage models for the thread space. One is to define the</span>
+  <span class="c1">// dependency between threads to run in the GPU. The other is to define a</span>
+  <span class="c1">// thread space where each thread can get a pair of coordinates during</span>
+  <span class="c1">// kernel execution. For this example, we use the latter usage model.</span>
+  <span class="n">CmThreadSpace</span> <span class="o">*</span><span class="n">thread_space_linear</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateThreadSpace</span><span class="p">(</span><span class="n">thread_width</span><span class="p">,</span>
+                                            <span class="n">thread_height</span><span class="p">,</span>
+                                            <span class="n">thread_space_linear</span><span class="p">));</span>
+
+  <span class="c1">// Associates a thread space to this kernel.</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">kernel_linear</span><span class="o">-&gt;</span><span class="n">AssociateThreadSpace</span><span class="p">(</span><span class="n">thread_space_linear</span><span class="p">));</span>
+</pre></div>
+</div>
+<p>Second, create the sepia kernel, notice the thread-count and thread-space are
+also for the half of the image. Also the image height is passed into the
+sepia kernel. Sepia kernel is modified to process the bottom-half of the
+image.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// Creates the second kernel &quot;sepia&quot;.</span>
+  <span class="n">CmKernel</span> <span class="o">*</span><span class="n">kernel_sepia</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateKernel</span><span class="p">(</span><span class="n">program</span><span class="p">,</span> <span class="s">&quot;sepia&quot;</span> <span class="p">,</span> <span class="n">kernel_sepia</span><span class="p">));</span>
+
+  <span class="c1">// For &quot;sepia&quot; kernel, each thread works on a block of 8x8 pixels.</span>
+  <span class="c1">// The thread width is equal to input image width divided by 8.</span>
+  <span class="c1">// The thread height is equal to input image height divided by 8. For this</span>
+  <span class="c1">// kernel only half of the image is processed; therefore, the thread height</span>
+  <span class="c1">// is divided by two.</span>
+  <span class="n">thread_width</span> <span class="o">=</span> <span class="n">width</span><span class="o">/</span><span class="mi">8</span><span class="p">;</span>
+  <span class="n">thread_height</span> <span class="o">=</span> <span class="p">(</span><span class="n">height</span><span class="o">/</span><span class="mi">8</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">;</span>
+
+  <span class="c1">// Creates thread space for kernel &quot;sepia&quot;.</span>
+  <span class="n">CmThreadSpace</span> <span class="o">*</span><span class="n">thread_space_sepia</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateThreadSpace</span><span class="p">(</span><span class="n">thread_width</span><span class="p">,</span>
+                                            <span class="n">thread_height</span><span class="p">,</span>
+                                            <span class="n">thread_space_sepia</span><span class="p">));</span>
+
+  <span class="c1">// Associates the thread space to kernel &quot;sepia&quot;.</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">kernel_sepia</span><span class="o">-&gt;</span><span class="n">AssociateThreadSpace</span><span class="p">(</span><span class="n">thread_space_sepia</span><span class="p">));</span>
+</pre></div>
+</div>
+<p>Finally add both kernels to the kernel-array, and enqueue.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// Creates a CmTask object.</span>
+  <span class="c1">// The CmTask object is a container for CmKernel pointers. It is used to</span>
+  <span class="c1">// enqueue the kernels for execution.</span>
+  <span class="n">CmTask</span> <span class="o">*</span><span class="n">task</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateTask</span><span class="p">(</span><span class="n">task</span><span class="p">));</span>
+
+  <span class="c1">// Adds a CmKernel pointer to CmTask.</span>
+  <span class="c1">// This task has two kernels, &quot;linear&quot; and &quot;sepia&quot;.</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">task</span><span class="o">-&gt;</span><span class="n">AddKernel</span><span class="p">(</span><span class="n">kernel_linear</span><span class="p">));</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">task</span><span class="o">-&gt;</span><span class="n">AddKernel</span><span class="p">(</span><span class="n">kernel_sepia</span><span class="p">));</span>
+
+  <span class="c1">// Creates a task queue.</span>
+  <span class="c1">// The CmQueue is an in-order queue. Tasks get executed according to the</span>
+  <span class="c1">// order they are enqueued. The next task does not start execution until the</span>
+  <span class="c1">// current task finishes.</span>
+  <span class="n">CmQueue</span> <span class="o">*</span><span class="n">queue</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateQueue</span><span class="p">(</span><span class="n">queue</span><span class="p">));</span>
+
+  <span class="c1">// Launches the task on the GPU. Enqueue is a non-blocking call, i.e. the</span>
+  <span class="c1">// function returns immediately without waiting for the GPU to start or</span>
+  <span class="c1">// finish execution of the task. The runtime will query the HW status. If</span>
+  <span class="c1">// the hardware is not busy, the runtime will submit the task to the</span>
+  <span class="c1">// driver/HW; otherwise, the runtime will submit the task to the driver/HW</span>
+  <span class="c1">// at another time.</span>
+  <span class="c1">// An event, &quot;sync_event&quot;, is created to track the status of the task.</span>
+  <span class="n">CmEvent</span> <span class="o">*</span><span class="n">sync_event</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">queue</span><span class="o">-&gt;</span><span class="n">Enqueue</span><span class="p">(</span><span class="n">task</span><span class="p">,</span> <span class="n">sync_event</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="enqueuing-two-kernels-with-sync">
+<h2>Enqueuing two kernels with sync<a class="headerlink" href="#enqueuing-two-kernels-with-sync" title="Permalink to this headline">¶</a></h2>
+<p>The following code-block is extracted from <a class="reference external" href="../../../../../test/open_examples/BufferTest_EnqueueWithSync/BufferTest_EnqueueWithSync.cpp">BufferTest_EnqueueWithSync</a>.</p>
+<p>In order to force an execution order among multiple kernels in the kernel
+array, you need to add synchronization.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>    <span class="c1">// Creates a CmTask object.</span>
+    <span class="c1">// The CmTask object is a container for CmKernel pointers. It is used to</span>
+    <span class="c1">// enqueue the kernels for execution.</span>
+    <span class="n">CmTask</span> <span class="o">*</span><span class="n">task</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+    <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateTask</span><span class="p">(</span><span class="n">task</span><span class="p">));</span>
+
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">KERNEL_NUM_PER_TASK</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="c1">// Associates a thread space to this kernel.</span>
+        <span class="n">cm_result_check</span><span class="p">(</span><span class="n">kernel</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">AssociateThreadSpace</span><span class="p">(</span><span class="n">thread_space</span><span class="p">));</span>
+
+        <span class="c1">// When a CmBuffer is created by the CmDevice a SurfaceIndex object is</span>
+        <span class="c1">// created. This object contains a unique index value that is mapped</span>
+        <span class="c1">// to the CmBuffer.</span>
+        <span class="c1">// Uses the output CmBuffer of previous kernel as the input CmBuffer of</span>
+        <span class="c1">// this kernel.</span>
+        <span class="n">SurfaceIndex</span> <span class="o">*</span><span class="n">input_surface_idx</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+        <span class="n">SurfaceIndex</span> <span class="o">*</span><span class="n">output_surface_idx</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+            <span class="c1">// Gets the input CmBuffer index.</span>
+            <span class="n">input_surface_idx</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+            <span class="n">buffer</span><span class="o">-&gt;</span><span class="n">GetIndex</span><span class="p">(</span><span class="n">input_surface_idx</span><span class="p">);</span>
+            <span class="c1">// Gets the output CmBuffer index.</span>
+            <span class="n">output_surface_idx</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+            <span class="n">output_surface</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">GetIndex</span><span class="p">(</span><span class="n">output_surface_idx</span><span class="p">);</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="c1">// Gets the input CmBuffer index.</span>
+            <span class="n">input_surface_idx</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+            <span class="n">output_surface</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">GetIndex</span><span class="p">(</span><span class="n">input_surface_idx</span><span class="p">);</span>
+            <span class="c1">// Gets the output CmBuffer index.</span>
+            <span class="n">output_surface_idx</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+            <span class="n">output_surface</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">GetIndex</span><span class="p">(</span><span class="n">output_surface_idx</span><span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="c1">// Sets a per kernel argument.</span>
+        <span class="c1">// Sets the input CmBuffer index as the first argument of the kernel.</span>
+        <span class="c1">// Sets the output CmBuffer index as the second argument of the kernel.</span>
+        <span class="n">cm_result_check</span><span class="p">(</span><span class="n">kernel</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">SetKernelArg</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span>
+                                                <span class="k">sizeof</span><span class="p">(</span><span class="n">SurfaceIndex</span><span class="p">),</span>
+                                                <span class="n">input_surface_idx</span><span class="p">));</span>
+        <span class="n">cm_result_check</span><span class="p">(</span><span class="n">kernel</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">SetKernelArg</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span>
+                                                <span class="k">sizeof</span><span class="p">(</span><span class="n">SurfaceIndex</span><span class="p">),</span>
+                                                <span class="n">output_surface_idx</span><span class="p">));</span>
+
+        <span class="c1">// Adds a CmKernel pointer to CmTask.</span>
+        <span class="c1">// This task has 16 kernels.</span>
+        <span class="n">cm_result_check</span><span class="p">(</span><span class="n">task</span><span class="o">-&gt;</span><span class="n">AddKernel</span><span class="p">(</span><span class="n">kernel</span><span class="p">[</span><span class="n">i</span><span class="p">]));</span>
+
+        <span class="c1">// Inserts a synchronization pointer between two kernels(except for</span>
+        <span class="c1">// the last one).</span>
+        <span class="c1">// The 2nd kernel only will be executed after the 1st kernel finishes</span>
+        <span class="c1">// execution.</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">i</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">KERNEL_NUM_PER_TASK</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span> <span class="p">{</span>
+            <span class="n">cm_result_check</span><span class="p">(</span><span class="n">task</span><span class="o">-&gt;</span><span class="n">AddSync</span><span class="p">());</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cmtutorial04.html" title="Tutorial 4. Using Media Walker with Thread Dependence"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial02.html" title="Tutorial 2. Basic Kernel Programming"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" >CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
+      Last updated on Tue Jan 2 15:16:27 2018 -0800.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

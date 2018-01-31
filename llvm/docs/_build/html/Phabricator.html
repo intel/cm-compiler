@@ -1,0 +1,215 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Code Reviews with Phabricator &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LLVM Testing Infrastructure Guide" href="TestingGuide.html" />
+    <link rel="prev" title="Sphinx Quickstart Template" href="SphinxQuickstartTemplate.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="TestingGuide.html" title="LLVM Testing Infrastructure Guide"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="SphinxQuickstartTemplate.html" title="Sphinx Quickstart Template"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="code-reviews-with-phabricator">
+<h1>Code Reviews with Phabricator<a class="headerlink" href="#code-reviews-with-phabricator" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#sign-up" id="id1">Sign up</a></li>
+<li><a class="reference internal" href="#requesting-a-review-via-the-command-line" id="id2">Requesting a review via the command line</a></li>
+<li><a class="reference internal" href="#requesting-a-review-via-the-web-interface" id="id3">Requesting a review via the web interface</a></li>
+<li><a class="reference internal" href="#reviewing-code-with-phabricator" id="id4">Reviewing code with Phabricator</a></li>
+<li><a class="reference internal" href="#committing-a-change" id="id5">Committing a change</a></li>
+<li><a class="reference internal" href="#status" id="id6">Status</a></li>
+</ul>
+</div>
+<p>If you prefer to use a web user interface for code reviews, you can now submit
+your patches for Clang and LLVM at <a class="reference external" href="http://reviews.llvm.org">LLVM’s Phabricator</a> instance.</p>
+<p>While Phabricator is a useful tool for some, the relevant -commits mailing list
+is the system of record for all LLVM code review. The mailing list should be
+added as a subscriber on all reviews, and Phabricator users should be prepared
+to respond to free-form comments in mail sent to the commits list.</p>
+<div class="section" id="sign-up">
+<h2><a class="toc-backref" href="#id1">Sign up</a><a class="headerlink" href="#sign-up" title="Permalink to this headline">¶</a></h2>
+<p>To get started with Phabricator, navigate to <a class="reference external" href="http://reviews.llvm.org">http://reviews.llvm.org</a> and
+click the power icon in the top right. You can register with a GitHub account,
+a Google account, or you can create your own profile.</p>
+<p>Make <em>sure</em> that the email address registered with Phabricator is subscribed
+to the relevant -commits mailing list. If your are not subscribed to the commit
+list, all mail sent by Phabricator on your behalf will be held for moderation.</p>
+<p>Note that if you use your Subversion user name as Phabricator user name,
+Phabricator will automatically connect your submits to your Phabricator user in
+the <a class="reference external" href="http://reviews.llvm.org/diffusion/">Code Repository Browser</a>.</p>
+</div>
+<div class="section" id="requesting-a-review-via-the-command-line">
+<h2><a class="toc-backref" href="#id2">Requesting a review via the command line</a><a class="headerlink" href="#requesting-a-review-via-the-command-line" title="Permalink to this headline">¶</a></h2>
+<p>Phabricator has a tool called <em>Arcanist</em> to upload patches from
+the command line. To get you set up, follow the
+<a class="reference external" href="http://www.phabricator.com/docs/phabricator/article/Arcanist_Quick_Start.html">Arcanist Quick Start</a> instructions.</p>
+<p>You can learn more about how to use arc to interact with
+Phabricator in the <a class="reference external" href="http://www.phabricator.com/docs/phabricator/article/Arcanist_User_Guide.html">Arcanist User Guide</a>.</p>
+</div>
+<div class="section" id="requesting-a-review-via-the-web-interface">
+<h2><a class="toc-backref" href="#id3">Requesting a review via the web interface</a><a class="headerlink" href="#requesting-a-review-via-the-web-interface" title="Permalink to this headline">¶</a></h2>
+<p>The tool to create and review patches in Phabricator is called
+<em>Differential</em>.</p>
+<p>Note that you can upload patches created through various diff tools,
+including git and svn. To make reviews easier, please always include
+<strong>as much context as possible</strong> with your diff! Don’t worry, Phabricator
+will automatically send a diff with a smaller context in the review
+email, but having the full file in the web interface will help the
+reviewer understand your code.</p>
+<p>To get a full diff, use one of the following commands (or just use Arcanist
+to upload your patch):</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">git</span> <span class="pre">diff</span> <span class="pre">-U999999</span> <span class="pre">other-branch</span></code></li>
+<li><code class="docutils literal"><span class="pre">svn</span> <span class="pre">diff</span> <span class="pre">--diff-cmd=diff</span> <span class="pre">-x</span> <span class="pre">-U999999</span></code></li>
+</ul>
+<p>To upload a new patch:</p>
+<ul class="simple">
+<li>Click <em>Differential</em>.</li>
+<li>Click <em>Create Diff</em>.</li>
+<li>Paste the text diff or upload the patch file.
+Note that TODO</li>
+<li>Leave the drop down on <em>Create a new Revision…</em> and click <em>Continue</em>.</li>
+<li>Enter a descriptive title and summary; add reviewers and mailing
+lists that you want to be included in the review. If your patch is
+for LLVM, cc llvm-commits; if your patch is for Clang, cc cfe-commits.</li>
+<li>Click <em>Save</em>.</li>
+</ul>
+<p>To submit an updated patch:</p>
+<ul class="simple">
+<li>Click <em>Differential</em>.</li>
+<li>Click <em>Create Diff</em>.</li>
+<li>Paste the updated diff.</li>
+<li>Select the review you want to from the <em>Attach To</em> dropdown and click
+<em>Continue</em>.</li>
+<li>Click <em>Save</em>.</li>
+</ul>
+</div>
+<div class="section" id="reviewing-code-with-phabricator">
+<h2><a class="toc-backref" href="#id4">Reviewing code with Phabricator</a><a class="headerlink" href="#reviewing-code-with-phabricator" title="Permalink to this headline">¶</a></h2>
+<p>Phabricator allows you to add inline comments as well as overall comments
+to a revision. To add an inline comment, select the lines of code you want
+to comment on by clicking and dragging the line numbers in the diff pane.</p>
+<p>You can add overall comments or submit your comments at the bottom of the page.</p>
+<p>Phabricator has many useful features, for example allowing you to select
+diffs between different versions of the patch as it was reviewed in the
+<em>Revision Update History</em>. Most features are self descriptive - explore, and
+if you have a question, drop by on #llvm in IRC to get help.</p>
+<p>Note that as e-mail is the system of reference for code reviews, and some
+people prefer it over a web interface, we do not generate automated mail
+when a review changes state, for example by clicking “Accept Revision” in
+the web interface. Thus, please type LGTM into the comment box to accept
+a change from Phabricator.</p>
+</div>
+<div class="section" id="committing-a-change">
+<h2><a class="toc-backref" href="#id5">Committing a change</a><a class="headerlink" href="#committing-a-change" title="Permalink to this headline">¶</a></h2>
+<p>Arcanist can manage the commit transparently. It will retrieve the description,
+reviewers, the <code class="docutils literal"><span class="pre">Differential</span> <span class="pre">Revision</span></code>, etc from the review and commit it to the repository.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">arc</span> <span class="n">patch</span> <span class="n">D</span><span class="o">&lt;</span><span class="n">Revision</span><span class="o">&gt;</span>
+<span class="n">arc</span> <span class="n">commit</span> <span class="o">--</span><span class="n">revision</span> <span class="n">D</span><span class="o">&lt;</span><span class="n">Revision</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>When committing an LLVM change that has been reviewed using
+Phabricator, the convention is for the commit message to end with the
+line:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Differential</span> <span class="n">Revision</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">URL</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal"><span class="pre">&lt;URL&gt;</span></code> is the URL for the code review, starting with
+<code class="docutils literal"><span class="pre">http://reviews.llvm.org/</span></code>.</p>
+<p>Note that Arcanist will add this automatically.</p>
+<p>This allows people reading the version history to see the review for
+context.  This also allows Phabricator to detect the commit, close the
+review, and add a link from the review to the commit.</p>
+</div>
+<div class="section" id="status">
+<h2><a class="toc-backref" href="#id6">Status</a><a class="headerlink" href="#status" title="Permalink to this headline">¶</a></h2>
+<p>Please let us know whether you like it and what could be improved!</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="TestingGuide.html" title="LLVM Testing Infrastructure Guide"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="SphinxQuickstartTemplate.html" title="Sphinx Quickstart Template"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

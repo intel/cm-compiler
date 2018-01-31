@@ -1,0 +1,448 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial 13. Kernel Deep-Dive: RadixSort &#8212; CM 6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorial 14. Kernel Example - PrefixSum" href="cmtutorial14.html" />
+    <link rel="prev" title="Tutorial 12. Kernel Deep-Dive: BitonicSort" href="cmtutorial12.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="Intel Logo"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cmtutorial14.html" title="Tutorial 14. Kernel Example - PrefixSum"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial12.html" title="Tutorial 12. Kernel Deep-Dive: BitonicSort"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tutorial-13-kernel-deep-dive-radixsort">
+<h1>Tutorial 13. Kernel Deep-Dive: RadixSort<a class="headerlink" href="#tutorial-13-kernel-deep-dive-radixsort" title="Permalink to this headline">¶</a></h1>
+<p>In this tutorial, we use RadixSort as another example to explain how to
+write effective kernel code.</p>
+<div class="section" id="high-level-algorithm">
+<h2>High-level algorithm<a class="headerlink" href="#high-level-algorithm" title="Permalink to this headline">¶</a></h2>
+<p>The implementation is sorting unsigned int (32-bit) values. It can be easily
+adopted to sort signed integer values. The sorting starts from the least
+significant bits (LSB). In each iteration, we extract 2-bit values and
+put elements into 4 bins/buckets (BIN0, BIN1, BIN2 and BIN3) based on their
+2-bit values, i.e., BIN0 for value 0. Once elements are binned, elements
+in each bin are written out to an output buffer from BIN0 to BIN4 with FIFO
+order. In the next iteration, the previously written output buffer is fed
+as the input data buffer and the subsequent 2 bits are extracted and
+the same binning is processed. For 32-bit integer, the whole process will
+repeat 16 times. The algorithm is simple. The goal is to divide the binning
+process so that the work can be done in parallel and efficiently mapped
+to Intel GEN HW threads.  In this tutorial, we will present our implementation
+in details.</p>
+<p>The implementation is composed of three parts.</p>
+<ol class="arabic simple">
+<li>cmk_radix_count: which counts how many elements in each bin locally within each HW thread.</li>
+<li>prefix sum: which cumulates the number of elements of bins of all threads.</li>
+<li>cmk_radix_bucket: which reads a chunk of data, 256 elements, bins them into buckets, finally writes elements in each bucket to the output buffer based on the global positions calculated in step 2.</li>
+</ol>
+<p>Worth to mention, we also have a version that handles 4 bits (16 bins) each
+iteration, which only takes 8 iterations. In one casual measurement, we observed that 4-bit version was 30% faster than 2-bit version. However, illustrating 16-bin would be harder on paper.</p>
+</div>
+<div class="section" id="parallel-bin-counting">
+<h2>Parallel bin counting<a class="headerlink" href="#parallel-bin-counting" title="Permalink to this headline">¶</a></h2>
+<p>In order to utilize the parallel processing engines in GPU, We apply Map-Reduce
+mechanism to this counting process. First, we divide input data into chunks
+and Map computing local bin_cnt  for a data chunk to each HW thread. Then apply
+Reduce operation to calculate prefix sum for all local bin_cnt. cmk_radix_count
+basically reads in one chunk of data, 256 elements, and counts how many
+elements in each bin. The local bin counts for each thread are written out to
+a buffer as depicted in Figure 1.</p>
+<a class="reference internal image-reference" href="../_images/radix-f1.png"><img alt="../_images/radix-f1.png" src="../_images/radix-f1.png" style="width: 800px;" /></a>
+<p>The following is the first part of the cmk_radix_count. Each time 32 elements
+are read. Each lane counts its own bing counts within the lane. Figure 2 illustrate the process.</p>
+<a class="reference internal image-reference" href="../_images/radix-f2.png"><img alt="../_images/radix-f2.png" src="../_images/radix-f2.png" style="width: 800px;" /></a>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">_GENX_MAIN_</span> <span class="kt">void</span> <span class="nf">cmk_radix_count</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">input</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">output</span><span class="p">,</span> <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="c1">// h_pos indicates which 256-element chunk the kernel is processing</span>
+  <span class="n">uint</span> <span class="n">h_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_x</span><span class="p">()</span> <span class="o">+</span> <span class="n">get_thread_origin_y</span><span class="p">()</span><span class="o">*</span><span class="n">MAX_TS_WIDTH</span><span class="p">;</span>
+  <span class="c1">// byte offset of the data chunk</span>
+  <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">offset</span> <span class="o">=</span> <span class="p">(</span><span class="n">h_pos</span> <span class="o">*</span> <span class="n">BASE_SZ</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="mi">2</span><span class="p">;</span>
+  <span class="c1">// to take advantage of SIMD architecture, we process counting 32</span>
+  <span class="c1">// elements as a batch rather than counting each element serially.</span>
+  <span class="c1">// Here we create a 4x32 counters. Each time, 32 elements are read.</span>
+  <span class="c1">// We can view them as 32 lanes of data. Each lane has its own</span>
+  <span class="c1">// dedicated bin counters.</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">short</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">counters</span><span class="p">;</span>
+  <span class="c1">// after we are done with 32-element batch counting, we perform sum</span>
+  <span class="c1">// reduction to calculate the bin counts for 256 elements. The results</span>
+  <span class="c1">// are in bin_cnt[]</span>
+  <span class="n">vector</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="n">BIN_NUM</span><span class="o">&gt;</span> <span class="n">bin_cnt</span><span class="p">;</span>
+  <span class="n">counters</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">mask</span> <span class="o">=</span> <span class="mh">0x3</span> <span class="o">&lt;&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="c1">// which 2 bits we want to extract</span>
+
+<span class="c1">//#pragma unroll</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">BASE_SZ</span><span class="p">;</span> <span class="n">i</span> <span class="o">+=</span> <span class="mi">32</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// read and process 32 elements each time</span>
+    <span class="n">vector</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">A</span><span class="p">;</span>
+    <span class="n">cmk_read</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span><span class="p">(</span><span class="n">input</span><span class="p">,</span> <span class="n">offset</span> <span class="o">+</span> <span class="n">i</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">),</span> <span class="n">A</span><span class="p">);</span>
+    <span class="c1">// extract n-th and (n+1)-th bits out.</span>
+    <span class="c1">// val is the bin number, data will be put. E.g., val[i] is bin # for A(i)</span>
+    <span class="n">vector</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">val</span> <span class="o">=</span> <span class="p">(</span><span class="n">A</span> <span class="o">&amp;</span> <span class="n">mask</span><span class="p">)</span> <span class="o">&gt;&gt;</span> <span class="n">n</span><span class="p">;</span>
+    <span class="c1">// row(0) is for bin0 for all 32 lanes.</span>
+    <span class="c1">// merge operation to increase its own corresponding counters</span>
+    <span class="c1">// val == 0 indicate which lanes have 0. Only those channels are</span>
+    <span class="c1">// incrementing.</span>
+    <span class="n">counters</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="n">merge</span><span class="p">(</span><span class="n">counters</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">val</span> <span class="o">==</span> <span class="mi">0</span><span class="p">);</span>
+    <span class="n">counters</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">1</span><span class="p">).</span><span class="n">merge</span><span class="p">(</span><span class="n">counters</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">val</span> <span class="o">==</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="n">counters</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">2</span><span class="p">).</span><span class="n">merge</span><span class="p">(</span><span class="n">counters</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">val</span> <span class="o">==</span> <span class="mi">2</span><span class="p">);</span>
+    <span class="n">counters</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">3</span><span class="p">).</span><span class="n">merge</span><span class="p">(</span><span class="n">counters</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">val</span> <span class="o">==</span> <span class="mi">3</span><span class="p">);</span>
+  <span class="p">}</span>
+</pre></div>
+</div>
+<p>The final step performs reduction operation to sum all counts for each bin.
+The most intuitive way to get sum reduction for each bin is to invoke cm_sum
+intrinsic for each row. However, doing so leaves some performance on the table.
+Instead of using cm_sum, we perform sum reduction for all rows together.
+Doing so allows us to design the data layout of intermediate results so as
+to exploit vectorization cross rows. Here are the steps we do to achieve
+this goal.</p>
+<p>The first step performs element-wise add for lower half and upper half data of
+each row. The generated asm code is shown as well. The result is stored in
+tmp_sum16 (r19-22). Each register (256 bits) holds an entire row, 16 unsigned
+shorts (as shown in Figure 3.a). Each row of matrices in Figure 2 has
+its own color.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">matrix</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">short</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">tmp_sum16</span><span class="p">;</span>
+<span class="n">tmp_sum16</span> <span class="o">=</span> <span class="n">counters</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">counters</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">16</span><span class="p">);</span>
+<span class="c1">// corresponding assembly code</span>
+<span class="n">add</span> <span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="n">r19</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r17</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r18</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">H1</span><span class="p">}</span> <span class="c1">//#72:$55:</span>
+<span class="n">add</span> <span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="n">r20</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r15</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r16</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">H1</span><span class="p">}</span> <span class="c1">//#72:$56:</span>
+<span class="n">add</span> <span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="n">r21</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r13</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r14</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">H1</span><span class="p">}</span> <span class="c1">//#72:$57:</span>
+<span class="n">add</span> <span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="n">r22</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r11</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r12</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">H1</span><span class="p">}</span> <span class="c1">//#72:$58:</span>
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="../_images/radix-f3a.png"><img alt="../_images/radix-f3a.png" src="../_images/radix-f3a.png" style="width: 800px;" /></a>
+<p>The 2nd step adds upper half and lower half of each row of tmp_sum16.
+Because the intermediate result of the previous step is stored in 4x16
+matrix, which occupies r19 to r22, Gen register regioning allows one
+source operand to select lower half of two rows (likewise for the
+upper half). For instance, r19.0&lt;16;8,1&gt;:w selects lower half of
+row 0 and 1 (as depicted in Figure 3.b). CM compiler generates only
+two add instructions, one each for two rows.
+the result of this step is stored in tmp_sum8 (4x8 matrix). Each row
+has only 8 unsigned short. Compiler lays out 2 rows in one register.
+e.g., row 0 and 1 in r23 and row 2 and 3 in r24.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">matrix</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">short</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">tmp_sum8</span><span class="p">;</span>
+<span class="n">tmp_sum8</span> <span class="o">=</span> <span class="n">tmp_sum16</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">tmp_sum16</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">8</span><span class="p">);</span>
+<span class="c1">// assembly code</span>
+<span class="n">add</span> <span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="n">r23</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r19</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">16</span><span class="p">;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r19</span><span class="mf">.8</span><span class="o">&lt;</span><span class="mi">16</span><span class="p">;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">H1</span><span class="p">}</span> <span class="c1">//#74:$60:</span>
+<span class="n">add</span> <span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="n">r24</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r21</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">16</span><span class="p">;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r21</span><span class="mf">.8</span><span class="o">&lt;</span><span class="mi">16</span><span class="p">;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">H1</span><span class="p">}</span> <span class="c1">//#74:$61:</span>
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="../_images/radix-f3b.png"><img alt="../_images/radix-f3b.png" src="../_images/radix-f3b.png" style="width: 800px;" /></a>
+<p>reduction of 4 rows in this steps can be done concisely with one
+“add (16)” instruction. Source operand r23.0&lt;8;4,1&gt;:w selects lower
+half data (4 element for each row) for 4 rows (as shown in Figure 3.c)</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">matrix</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">short</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span><span class="mi">4</span><span class="o">&gt;</span> <span class="n">tmp_sum4</span><span class="p">;</span>
+<span class="n">tmp_sum4</span> <span class="o">=</span> <span class="n">tmp_sum8</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">tmp_sum8</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">);</span>
+<span class="c1">// assembly code</span>
+<span class="n">add</span> <span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="n">r25</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r23</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">;</span><span class="mi">4</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r23</span><span class="mf">.4</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">;</span><span class="mi">4</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">H1</span><span class="p">}</span> <span class="c1">//#76:$63:</span>
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="../_images/radix-f3c.png"><img alt="../_images/radix-f3c.png" src="../_images/radix-f3c.png" style="width: 800px;" /></a>
+<p>the final two steps do 4-to-2 and 2-to-1 reduction.
+reduction of 4-to-2 is done with one add(8) instruction. Region &lt;4;2,1&gt;
+allows us to choose the half data for each row (as shown in Figure 3.d).</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">matrix</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">short</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span> <span class="n">tmp_sum2</span><span class="p">;</span>
+<span class="n">tmp_sum2</span> <span class="o">=</span> <span class="n">tmp_sum4</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">tmp_sum4</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">);</span>
+<span class="n">bin_cnt</span> <span class="o">=</span> <span class="n">tmp_sum2</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">tmp_sum2</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+<span class="c1">// assembly code</span>
+<span class="n">add</span> <span class="p">(</span><span class="mi">8</span><span class="p">)</span> <span class="n">r2</span><span class="mf">.4</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r25</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">;</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r25</span><span class="mf">.2</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">;</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">Q1</span><span class="p">}</span> <span class="c1">//#78:$65:</span>
+<span class="n">add</span> <span class="p">(</span><span class="mi">4</span><span class="p">)</span> <span class="n">r26</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">d</span> <span class="n">r2</span><span class="mf">.4</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">;</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="o">&gt;:</span><span class="n">uw</span> <span class="n">r2</span><span class="mf">.5</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">;</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="o">&gt;:</span><span class="n">uw</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">Q1</span><span class="p">}</span> <span class="c1">//#79:$67:</span>
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="../_images/radix-f3d.png"><img alt="../_images/radix-f3d.png" src="../_images/radix-f3d.png" style="width: 800px;" /></a>
+</div>
+<div class="section" id="global-prefix-sum">
+<h2>Global prefix sum<a class="headerlink" href="#global-prefix-sum" title="Permalink to this headline">¶</a></h2>
+<p>Binning needs to maintain global ordering. Namely, when elements are written
+out to the output buffer, elements in bin0 must happen before bin1, bin1
+ahead of bin2, …, etc. Furthermore, elements in a bin are written out in
+FIFO order.  Maintaining the order is the fundamental part of the algorithm.
+Radix sort is based on the assumption that if two numbers differ only on
+the extracted bits we are currently examining, then the binning process
+will put them into the right order — the smaller value is in a smaller
+bin number. The relative order for the two numbers is therefore properly
+maintained. If the two numbers differ on some higher bit positions that
+are not yet examined, it doesn’t matter what we do now (i.e., which bins
+we put them). Later binning iteration will put them into the right relative
+order.  How to maintain the global ordering while mapping/distributing
+the work to GPU threads is the essential design of our implementation.</p>
+<p>We want to apply Map method to the binning process so that all threads
+can do their binning independently. Prefix sum table is the essential
+data structure for each thread to look up the starting memory address
+to where it should write the data elements of its local bins/buckets.
+For a given data size of 2^N, T = 2^(N-8) cmk_bin_count threads are
+launched (each thread counts 256 elements). The output table from
+cmk_bin_count has T entries (as shown in Figure 4 blue shaded table).
+Each entry has four counts, one for each local bin count.  For each bin,
+an entry i of the prefix sum table simply cumulatively sums up all entries
+from 0 to I (light green shaded table). For simplicity of the example,
+we just perform perfix-sum on CPU. If you are interested in offloading
+prefix-sum to GPU, we have another example and tutorial about that.</p>
+<p>From the prefix sum table, we know how many elements of the input data
+are in each bin (i.e., Thread T-1 entry: 4230, 4501, 3998, 3616).
+For a thread K, its previous entry (k-1) tells how many cumulated elements
+from its prior threads (0 to K-1).</p>
+<a class="reference internal image-reference" href="../_images/radix-f4.png"><img alt="../_images/radix-f4.png" src="../_images/radix-f4.png" style="width: 800px;" /></a>
+</div>
+<div class="section" id="parallel-binning">
+<h2>Parallel binning<a class="headerlink" href="#parallel-binning" title="Permalink to this headline">¶</a></h2>
+<p>With the prefix sum table ready, the binning process (done by cmk_radix_bucket)
+can be mapped to HW threads and done completely in parallel.
+Similar to cmk_radix_count, we divide the data into chunks (256 elements each)
+and assign them to cmk_radix_bucket threads. cmk_radix_bucket with thread id
+(x,y) reads in the same data chunk read by cmk_radix_count (x,y).
+Take Thread K in Figure 4 as an example. Given Thread T-1 and K-1 entries,
+Thread K can calculate the starting addresses to where its local bins will
+be written (as shown in Figure 5). T-1 entry tells there are 4230, 4501, 3998
+and 3612 elements in global bin0, bin1, bin2 and bin3, respectively.
+(K-1)th entry tells how many elements from thread 0 to K-1. For example,
+the starting addresses for thread K to write out its local bin data are</p>
+<blockquote>
+<div><p>Bin0: PrefixSum[K-1][0]   // 1812</p>
+<p>Bin1: PrefixSum[T-1][0] +  PrefixSum[K-1][1]  // 4230 + 1438</p>
+<p>Bin2: PrefixSum[T-1][0] +  PrefixSum[T-1][1] + PrefixSum[K-1][2]  // 4230 + 4501 + 1505</p>
+<p>Bin3: PrefixSum[T-1][0] +  PrefixSum[T-1][1] + PefixSum[T-1][2] + PrefixSum[K-1][3]</p>
+</div></blockquote>
+<a class="reference internal image-reference" href="../_images/radix-f5.png"><img alt="../_images/radix-f5.png" src="../_images/radix-f5.png" style="width: 800px;" /></a>
+<p>The following is the complete binning kernel.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">_GENX_MAIN_</span> <span class="kt">void</span> <span class="nf">cmk_radix_bucket</span> <span class="p">(</span>
+  <span class="n">SurfaceIndex</span> <span class="n">input</span><span class="p">,</span> <span class="c1">// input data to be sorted</span>
+  <span class="n">SurfaceIndex</span> <span class="n">table</span><span class="p">,</span> <span class="c1">// Prefix sum table</span>
+  <span class="n">SurfaceIndex</span> <span class="n">output</span><span class="p">,</span>  <span class="c1">// output for binning result</span>
+  <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">bin0_cnt</span><span class="p">,</span> <span class="c1">// global bin0 count,</span>
+  <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">bin1_cnt</span><span class="p">,</span> <span class="c1">// global bin1 count</span>
+  <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">bin2_cnt</span><span class="p">,</span> <span class="c1">// global bin2 count</span>
+  <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">bin3_cnt</span><span class="p">,</span> <span class="c1">// global bin3 count</span>
+  <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span>     <span class="c1">// binning based n-th and (n+1)-th bits</span>
+<span class="p">{</span>
+  <span class="c1">// h_pos indicates which 256-element chunk the kernel is processing</span>
+  <span class="n">uint</span> <span class="n">h_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_x</span><span class="p">()</span> <span class="o">+</span> <span class="n">get_thread_origin_y</span><span class="p">()</span><span class="o">*</span><span class="n">MAX_TS_WIDTH</span><span class="p">;</span>
+  <span class="c1">// byte offset of the data chunk</span>
+  <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">offset</span> <span class="o">=</span> <span class="p">(</span><span class="n">h_pos</span> <span class="o">*</span> <span class="n">BASE_SZ</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="mi">2</span><span class="p">;</span>
+
+  <span class="n">vector</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="n">BIN_NUM</span><span class="o">&gt;</span> <span class="n">prefix</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="c1">// loading PrefixSum[h_pos-1]</span>
+  <span class="c1">// the information tells how many cumulated elements from thread 0 to</span>
+  <span class="c1">// h_pos-1 in each bin. Thread0 has no previous prefix sum so 0 is</span>
+  <span class="c1">// initialized.</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">h_pos</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">read</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="p">((</span><span class="n">h_pos</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">BIN_NUM</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="mi">2</span><span class="p">,</span> <span class="n">prefix</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">mask</span> <span class="o">=</span> <span class="mh">0x3</span> <span class="o">&lt;&lt;</span> <span class="n">n</span><span class="p">;</span>
+  <span class="c1">// the location where the next 32 elements can be put in each bin</span>
+  <span class="n">vector</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="n">BIN_NUM</span><span class="o">&gt;</span> <span class="n">next</span><span class="p">;</span>
+  <span class="n">next</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">prefix</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+  <span class="n">next</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">bin0_cnt</span> <span class="o">+</span> <span class="n">prefix</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span>
+  <span class="n">next</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">bin0_cnt</span> <span class="o">+</span> <span class="n">bin1_cnt</span> <span class="o">+</span> <span class="n">prefix</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
+  <span class="n">next</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">bin0_cnt</span> <span class="o">+</span> <span class="n">bin1_cnt</span> <span class="o">+</span> <span class="n">bin2_cnt</span> <span class="o">+</span> <span class="n">prefix</span><span class="p">[</span><span class="mi">3</span><span class="p">];</span>
+
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">BASE_SZ</span><span class="p">;</span> <span class="n">i</span> <span class="o">+=</span> <span class="mi">32</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// read and process 32 elements at a time</span>
+    <span class="n">vector</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">A</span><span class="p">;</span>
+    <span class="n">cmk_read</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span><span class="p">(</span><span class="n">input</span><span class="p">,</span> <span class="n">offset</span> <span class="o">+</span> <span class="n">i</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">),</span> <span class="n">A</span><span class="p">);</span>
+    <span class="c1">// calculate bin # for each element</span>
+    <span class="n">vector</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">short</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">val</span> <span class="o">=</span> <span class="p">(</span><span class="n">A</span> <span class="o">&amp;</span> <span class="n">mask</span><span class="p">)</span> <span class="o">&gt;&gt;</span> <span class="n">n</span><span class="p">;</span>
+    <span class="n">vector</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span> <span class="n">bitset</span><span class="p">;</span>
+    <span class="c1">// val has bin # for each element. val == 0 is a 32-element Boolean vector.</span>
+    <span class="c1">// The ith element is 1 (true) if val[i] == 0, 0 (false) otherwise</span>
+    <span class="c1">// cm_pack_mask(val == 0) turns the Boolean vector into one unsigned</span>
+    <span class="c1">// 32-bit value. The i-th value is the corresponding i-th Boolean value.</span>
+    <span class="n">bitset</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">=</span> <span class="n">cm_pack_mask</span><span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="mi">0</span><span class="p">);</span>
+    <span class="n">bitset</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">=</span> <span class="n">cm_pack_mask</span><span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="n">bitset</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">=</span> <span class="n">cm_pack_mask</span><span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="mi">2</span><span class="p">);</span>
+    <span class="n">bitset</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">=</span> <span class="n">cm_pack_mask</span><span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="mi">3</span><span class="p">);</span>
+    <span class="c1">// calculate how many elements in each bin</span>
+    <span class="n">vector</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">short</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span> <span class="n">n_elems</span> <span class="o">=</span> <span class="n">cm_cbit</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">bitset</span><span class="p">);</span>
+
+    <span class="c1">// calculate prefix sum</span>
+    <span class="c1">// For each bin, there is a corresponding &quot;next&quot; index pointing to</span>
+    <span class="c1">// the next available slot. &quot;val == 0&quot; tells us which A elements</span>
+    <span class="c1">// should be put into bin0. From position 0 to 31,</span>
+    <span class="c1">// if val[i] == 0 then A[i] will be placed into bin0[next],</span>
+    <span class="c1">// then bin0[next+1], bin0[next+2], etc.</span>
+    <span class="c1">// For instance, &quot;val == 0&quot;:   0 0 1 0 0 0 1 0 0 1 1 0 0 0 0 0 -- LSB</span>
+    <span class="c1">// A[5] is placed in bin0[next], A[6] in bin0[next+1],</span>
+    <span class="c1">// A[9] in bin0[next+2], A[13] in bin0[next+3]</span>
+    <span class="c1">// Calculate prefix sum for &quot;val == 0&quot; we get</span>
+    <span class="c1">// prefix_val0 = 4 4 4 3 3 3 3 2 2 2 1 0 0 0 0 0  --- LSB</span>
+    <span class="c1">// the 5, 6, 9 and 13-th value of &quot;next + prefix_val0 - 1&quot; is the locations</span>
+    <span class="c1">// where A[5], A[6], A[9] and A[13] will be stored in bin0.</span>
+    <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">short</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">idx</span><span class="p">;</span>
+    <span class="n">idx</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">=</span> <span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="mi">0</span><span class="p">);</span>
+    <span class="n">idx</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">=</span> <span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="n">idx</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">=</span> <span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="mi">2</span><span class="p">);</span>
+    <span class="n">idx</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">=</span> <span class="p">(</span><span class="n">val</span> <span class="o">==</span> <span class="mi">3</span><span class="p">);</span>
+    <span class="c1">// step 1 of prefix-sum. Sum up every pair of even and odd elements</span>
+    <span class="c1">// and store the result in even position. In each step, we process 4 bins</span>
+    <span class="n">idx</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+=</span> <span class="n">idx</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+    <span class="c1">// step 2</span>
+    <span class="n">idx</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+=</span> <span class="n">idx</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="n">idx</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="o">+=</span> <span class="n">idx</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="c1">// step 3</span>
+    <span class="c1">// for a vector: 15 14 13 12 11 10 9 8 7 6 5 4 3 2 1 0</span>
+    <span class="c1">// this step adds 3 to 4, 5, 6, 7 and adds 11 to 12, 13, 14, 15.</span>
+    <span class="c1">// replicate&lt;16,8,4,0&gt;(0,3) duplicates 3rd, 11th, 19th, 27th 4 times each</span>
+    <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">short</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">t</span><span class="p">;</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">idx</span><span class="p">.</span><span class="n">replicate</span><span class="o">&lt;</span><span class="mi">16</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">);</span>
+    <span class="c1">// Gen ISA describes only one destination stride. That is,</span>
+    <span class="c1">// one instruction cannot write 4 consecutive elements and then write</span>
+    <span class="c1">// another consecutive 4 elements with a stride distance. Due to this</span>
+    <span class="c1">// restriction, a straightforward implementation has to break step 3</span>
+    <span class="c1">// into 4 instructions, each adding 4 elements. we format matrix of</span>
+    <span class="c1">// uw type into unsigned long long type. One unsigned long long has 4 uw.</span>
+    <span class="c1">// The maximum value of prefix sum is 32, only i.e., every bit is set.</span>
+    <span class="c1">// No overflow will happen during prefix sum computation. One long long</span>
+    <span class="c1">// type add is equivalent to 4 uw additions. 16 additions of uw types</span>
+    <span class="c1">// can be collapsed into 4 qword additions. What is more, one add</span>
+    <span class="c1">// instruction can express those 4 qword additions without running into</span>
+    <span class="c1">// the destination stride restriction.</span>
+    <span class="n">matrix_ref</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">long</span> <span class="kt">long</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">m1</span> <span class="o">=</span> <span class="n">idx</span><span class="p">.</span><span class="n">format</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">long</span> <span class="kt">long</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span><span class="p">();</span>
+    <span class="n">matrix_ref</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">long</span> <span class="kt">long</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span> <span class="n">t1</span> <span class="o">=</span> <span class="n">t</span><span class="p">.</span><span class="n">format</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">long</span> <span class="kt">long</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span><span class="p">();</span>
+    <span class="n">m1</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+=</span> <span class="n">t1</span><span class="p">;</span>
+
+<span class="cp">#pragma unroll</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c1">// step 4</span>
+      <span class="n">idx</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span> <span class="o">+=</span> <span class="n">idx</span><span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="mi">7</span><span class="p">);</span>
+      <span class="n">idx</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="mi">24</span><span class="p">)</span> <span class="o">+=</span> <span class="n">idx</span><span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="mi">23</span><span class="p">);</span>
+      <span class="c1">// step 5</span>
+      <span class="n">idx</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="mi">16</span><span class="p">)</span> <span class="o">+=</span> <span class="n">idx</span><span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="mi">15</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="c1">// calculate the positions of elements in their corresponding bins</span>
+    <span class="n">vector</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">voff</span><span class="p">;</span>
+    <span class="c1">// add bin0 element offsets to the bin0-batch-start</span>
+    <span class="n">voff</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="n">idx</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">next</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">val</span> <span class="o">==</span> <span class="mi">0</span><span class="p">);</span>
+    <span class="c1">// add bin1 element offsets to the bin1-batch-start</span>
+    <span class="n">voff</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="n">idx</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">next</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">val</span> <span class="o">==</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="c1">// add bin2 element offsets to the bin2-batch-start</span>
+    <span class="n">voff</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="n">idx</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">next</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">val</span> <span class="o">==</span> <span class="mi">2</span><span class="p">);</span>
+    <span class="c1">// add bin3 element offsets to the bin3-batch-start</span>
+    <span class="n">voff</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="n">idx</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">+</span> <span class="n">next</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">val</span> <span class="o">==</span> <span class="mi">3</span><span class="p">);</span>
+
+    <span class="c1">// scatter write, 16-element each</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">voff</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">A</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">16</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">));</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">voff</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">16</span><span class="p">),</span> <span class="n">A</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">16</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">16</span><span class="p">));</span>
+
+    <span class="c1">// update the next pointers, move onto the next 32 element</span>
+    <span class="n">next</span> <span class="o">+=</span> <span class="n">n_elems</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Figure 6 explains how to find the position of each element in its bin. A prefix sum of a vector is computed, then added upon the “next” of the bin.</p>
+<a class="reference internal image-reference" href="../_images/radix-f6.png"><img alt="../_images/radix-f6.png" src="../_images/radix-f6.png" style="width: 800px;" /></a>
+<p>Now more details on how prefix sum of a vector is computed.
+It takes log(N) steps to complete. For 32 elements, we need 5 steps.
+Arrow indicate that head and tail are added and the result is stored in
+the head location.  See Figure 7.</p>
+<a class="reference internal image-reference" href="../_images/radix-f7.png"><img alt="../_images/radix-f7.png" src="../_images/radix-f7.png" style="width: 800px;" /></a>
+<p>In step 3, we format matrix of uw type into unsigned long long type.
+One unsigned long long has 4 uw. The maximum value of prefix sum is 32,
+only i.e., every bit is set. No overflow will happen during prefix sum
+computation. That is, one long long type add is equivalent to 4 uw additions.
+16 additions of uw types can be collapsed into 4 qword additions.
+What is more, one add instruction can express those 4 qword additions without
+running into the destination stride restriction.</p>
+<a class="reference internal image-reference" href="../_images/radix-f8.png"><img alt="../_images/radix-f8.png" src="../_images/radix-f8.png" style="width: 800px;" /></a>
+<p>The following is the generated code for step 3 of sum reduction.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// t = idx.replicate&lt;16, 8, 4, 0&gt;(0, 3);</span>
+<span class="n">mov</span> <span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="n">r2</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r12</span><span class="mf">.3</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">;</span><span class="mi">4</span><span class="p">,</span><span class="mi">0</span><span class="o">&gt;:</span><span class="n">w</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">H1</span><span class="p">,</span> <span class="n">NoMask</span><span class="p">}</span> <span class="c1">//#158:$78:</span>
+<span class="n">mov</span> <span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="n">r7</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r14</span><span class="mf">.3</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">;</span><span class="mi">4</span><span class="p">,</span><span class="mi">0</span><span class="o">&gt;:</span><span class="n">w</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">H1</span><span class="p">,</span> <span class="n">NoMask</span><span class="p">}</span> <span class="c1">//#158:$79:</span>
+<span class="n">mov</span> <span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="n">r8</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r16</span><span class="mf">.3</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">;</span><span class="mi">4</span><span class="p">,</span><span class="mi">0</span><span class="o">&gt;:</span><span class="n">w</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">H1</span><span class="p">,</span> <span class="n">NoMask</span><span class="p">}</span> <span class="c1">//#158:$80:</span>
+<span class="n">mov</span> <span class="p">(</span><span class="mi">16</span><span class="p">)</span> <span class="n">r9</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">w</span> <span class="n">r18</span><span class="mf">.3</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">;</span><span class="mi">4</span><span class="p">,</span><span class="mi">0</span><span class="o">&gt;:</span><span class="n">w</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">H1</span><span class="p">,</span> <span class="n">NoMask</span><span class="p">}</span> <span class="c1">//#158:$81:</span>
+
+<span class="c1">// m1.select&lt;4, 1, 4, 2&gt;(0, 1) += t1;</span>
+<span class="n">add</span> <span class="p">(</span><span class="mi">4</span><span class="p">)</span> <span class="n">r12</span><span class="mf">.1</span><span class="o">&lt;</span><span class="mi">2</span><span class="o">&gt;:</span><span class="n">q</span> <span class="n">r12</span><span class="mf">.1</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">;</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="o">&gt;:</span><span class="n">q</span> <span class="n">r2</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">;</span><span class="mi">4</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">q</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">Q1</span><span class="p">,</span> <span class="n">NoMask</span><span class="p">}</span> <span class="c1">// for bin0</span>
+<span class="n">add</span> <span class="p">(</span><span class="mi">4</span><span class="p">)</span> <span class="n">r14</span><span class="mf">.1</span><span class="o">&lt;</span><span class="mi">2</span><span class="o">&gt;:</span><span class="n">q</span> <span class="n">r14</span><span class="mf">.1</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">;</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="o">&gt;:</span><span class="n">q</span> <span class="n">r7</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">;</span><span class="mi">4</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">q</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">Q1</span><span class="p">,</span> <span class="n">NoMask</span><span class="p">}</span> <span class="c1">// for bin1</span>
+<span class="n">add</span> <span class="p">(</span><span class="mi">4</span><span class="p">)</span> <span class="n">r16</span><span class="mf">.1</span><span class="o">&lt;</span><span class="mi">2</span><span class="o">&gt;:</span><span class="n">q</span> <span class="n">r16</span><span class="mf">.1</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">;</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="o">&gt;:</span><span class="n">q</span> <span class="n">r8</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">;</span><span class="mi">4</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">q</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">Q1</span><span class="p">,</span> <span class="n">NoMask</span><span class="p">}</span> <span class="c1">// for bin2</span>
+<span class="n">add</span> <span class="p">(</span><span class="mi">4</span><span class="p">)</span> <span class="n">r18</span><span class="mf">.1</span><span class="o">&lt;</span><span class="mi">2</span><span class="o">&gt;:</span><span class="n">q</span> <span class="n">r18</span><span class="mf">.1</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">;</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="o">&gt;:</span><span class="n">q</span> <span class="n">r9</span><span class="mf">.0</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">;</span><span class="mi">4</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;:</span><span class="n">q</span> <span class="p">{</span><span class="n">Align1</span><span class="p">,</span> <span class="n">Q1</span><span class="p">,</span> <span class="n">NoMask</span><span class="p">}</span> <span class="c1">// for bin3</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cmtutorial14.html" title="Tutorial 14. Kernel Example - PrefixSum"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial12.html" title="Tutorial 12. Kernel Deep-Dive: BitonicSort"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" >CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
+      Last updated on Tue Jan 2 15:16:27 2018 -0800.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

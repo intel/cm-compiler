@@ -1,0 +1,197 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-config - Print LLVM compilation options &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llvm-diff - LLVM structural ‘diff’" href="llvm-diff.html" />
+    <link rel="prev" title="llvm-nm - list LLVM bitcode and object file’s symbol table" href="llvm-nm.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llvm-diff.html" title="llvm-diff - LLVM structural ‘diff’"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llvm-nm.html" title="llvm-nm - list LLVM bitcode and object file’s symbol table"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-config-print-llvm-compilation-options">
+<h1>llvm-config - Print LLVM compilation options<a class="headerlink" href="#llvm-config-print-llvm-compilation-options" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong>llvm-config</strong> <em>option</em> [<em>components</em>…]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p><strong>llvm-config</strong> makes it easier to build applications that use LLVM.  It can
+print the compiler flags, linker flags and object libraries needed to link
+against LLVM.</p>
+</div>
+<div class="section" id="examples">
+<h2>EXAMPLES<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<p>To link against the JIT:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span>g++ <span class="sb">`</span>llvm-config --cxxflags<span class="sb">`</span> -o HowToUseJIT.o -c HowToUseJIT.cpp
+g++ <span class="sb">`</span>llvm-config --ldflags<span class="sb">`</span> -o HowToUseJIT HowToUseJIT.o <span class="se">\</span>
+    <span class="sb">`</span>llvm-config --libs engine bcreader scalaropts<span class="sb">`</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<p><strong>–version</strong></p>
+<blockquote>
+<div>Print the version number of LLVM.</div></blockquote>
+<p><strong>-help</strong></p>
+<blockquote>
+<div>Print a summary of <strong>llvm-config</strong> arguments.</div></blockquote>
+<p><strong>–prefix</strong></p>
+<blockquote>
+<div>Print the installation prefix for LLVM.</div></blockquote>
+<p><strong>–src-root</strong></p>
+<blockquote>
+<div>Print the source root from which LLVM was built.</div></blockquote>
+<p><strong>–obj-root</strong></p>
+<blockquote>
+<div>Print the object root used to build LLVM.</div></blockquote>
+<p><strong>–bindir</strong></p>
+<blockquote>
+<div>Print the installation directory for LLVM binaries.</div></blockquote>
+<p><strong>–includedir</strong></p>
+<blockquote>
+<div>Print the installation directory for LLVM headers.</div></blockquote>
+<p><strong>–libdir</strong></p>
+<blockquote>
+<div>Print the installation directory for LLVM libraries.</div></blockquote>
+<p><strong>–cxxflags</strong></p>
+<blockquote>
+<div>Print the C++ compiler flags needed to use LLVM headers.</div></blockquote>
+<p><strong>–ldflags</strong></p>
+<blockquote>
+<div>Print the flags needed to link against LLVM libraries.</div></blockquote>
+<p><strong>–libs</strong></p>
+<blockquote>
+<div>Print all the libraries needed to link against the specified LLVM
+<em>components</em>, including any dependencies.</div></blockquote>
+<p><strong>–libnames</strong></p>
+<blockquote>
+<div>Similar to <strong>–libs</strong>, but prints the bare filenames of the libraries
+without <strong>-l</strong> or pathnames.  Useful for linking against a not-yet-installed
+copy of LLVM.</div></blockquote>
+<p><strong>–libfiles</strong></p>
+<blockquote>
+<div>Similar to <strong>–libs</strong>, but print the full path to each library file.  This is
+useful when creating makefile dependencies, to ensure that a tool is relinked if
+any library it uses changes.</div></blockquote>
+<p><strong>–components</strong></p>
+<blockquote>
+<div>Print all valid component names.</div></blockquote>
+<p><strong>–targets-built</strong></p>
+<blockquote>
+<div>Print the component names for all targets supported by this copy of LLVM.</div></blockquote>
+<p><strong>–build-mode</strong></p>
+<blockquote>
+<div>Print the build mode used when LLVM was built (e.g. Debug or Release)</div></blockquote>
+</div>
+<div class="section" id="components">
+<h2>COMPONENTS<a class="headerlink" href="#components" title="Permalink to this headline">¶</a></h2>
+<p>To print a list of all available components, run <strong>llvm-config
+–components</strong>.  In most cases, components correspond directly to LLVM
+libraries.  Useful “virtual” components include:</p>
+<p><strong>all</strong></p>
+<blockquote>
+<div>Includes all LLVM libaries.  The default if no components are specified.</div></blockquote>
+<p><strong>backend</strong></p>
+<blockquote>
+<div>Includes either a native backend or the C backend.</div></blockquote>
+<p><strong>engine</strong></p>
+<blockquote>
+<div>Includes either a native JIT or the bitcode interpreter.</div></blockquote>
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p>If <strong>llvm-config</strong> succeeds, it will exit with 0.  Otherwise, if an error
+occurs, it will exit with a non-zero value.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llvm-diff.html" title="llvm-diff - LLVM structural ‘diff’"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llvm-nm.html" title="llvm-nm - list LLVM bitcode and object file’s symbol table"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,129 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>TableGen Deficiencies &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Debugging JIT-ed Code With GDB" href="../DebuggingJITedCode.html" />
+    <link rel="prev" title="TableGen Language Introduction" href="LangIntro.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../DebuggingJITedCode.html" title="Debugging JIT-ed Code With GDB"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="LangIntro.html" title="TableGen Language Introduction"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">TableGen</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tablegen-deficiencies">
+<h1>TableGen Deficiencies<a class="headerlink" href="#tablegen-deficiencies" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
+<li><a class="reference internal" href="#known-problems" id="id2">Known Problems</a></li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>Despite being very generic, TableGen has some deficiencies that have been
+pointed out numerous times. The common theme is that, while TableGen allows
+you to build Domain-Specific-Languages, the final languages that you create
+lack the power of other DSLs, which in turn increase considerably the size
+and complexity of TableGen files.</p>
+<p>At the same time, TableGen allows you to create virtually any meaning of
+the basic concepts via custom-made back-ends, which can pervert the original
+design and make it very hard for newcomers to understand it.</p>
+<p>There are some in favour of extending the semantics even more, but making sure
+back-ends adhere to strict rules. Others suggesting we should move to more
+powerful DSLs designed with specific purposes, or even re-using existing
+DSLs.</p>
+</div>
+<div class="section" id="known-problems">
+<h2><a class="toc-backref" href="#id2">Known Problems</a><a class="headerlink" href="#known-problems" title="Permalink to this headline">¶</a></h2>
+<p>TODO: Add here frequently asked questions about why TableGen doesn’t do
+what you want, how it might, and how we could extend/restrict it to
+be more use friendly.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../DebuggingJITedCode.html" title="Debugging JIT-ed Code With GDB"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="LangIntro.html" title="TableGen Language Introduction"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >TableGen</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

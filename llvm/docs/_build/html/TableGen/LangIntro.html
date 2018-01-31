@@ -1,0 +1,645 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>TableGen Language Introduction &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="TableGen Deficiencies" href="Deficiencies.html" />
+    <link rel="prev" title="TableGen Language Reference" href="LangRef.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="Deficiencies.html" title="TableGen Deficiencies"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="LangRef.html" title="TableGen Language Reference"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">TableGen</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tablegen-language-introduction">
+<h1>TableGen Language Introduction<a class="headerlink" href="#tablegen-language-introduction" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id4">Introduction</a></li>
+<li><a class="reference internal" href="#tablegen-syntax" id="id5">TableGen syntax</a><ul>
+<li><a class="reference internal" href="#tablegen-primitives" id="id6">TableGen primitives</a><ul>
+<li><a class="reference internal" href="#tablegen-comments" id="id7">TableGen comments</a></li>
+<li><a class="reference internal" href="#the-tablegen-type-system" id="id8">The TableGen type system</a></li>
+<li><a class="reference internal" href="#tablegen-values-and-expressions" id="id9">TableGen values and expressions</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#classes-and-definitions" id="id10">Classes and definitions</a><ul>
+<li><a class="reference internal" href="#value-definitions" id="id11">Value definitions</a></li>
+<li><a class="reference internal" href="#let-expressions-within-a-record" id="id12">‘let’ expressions</a></li>
+<li><a class="reference internal" href="#class-template-arguments" id="id13">Class template arguments</a></li>
+<li><a class="reference internal" href="#multiclass-definitions-and-instances" id="id14">Multiclass definitions and instances</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#file-scope-entities" id="id15">File scope entities</a><ul>
+<li><a class="reference internal" href="#file-inclusion" id="id16">File inclusion</a></li>
+<li><a class="reference internal" href="#id3" id="id17">‘let’ expressions</a></li>
+<li><a class="reference internal" href="#looping" id="id18">Looping</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#code-generator-backend-info" id="id19">Code Generator backend info</a></li>
+</ul>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">This document is extremely rough. If you find something lacking, please
+fix it, file a documentation bug, or ask about it on llvmdev.</p>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id4">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This document is not meant to be a normative spec about the TableGen language
+in and of itself (i.e. how to understand a given construct in terms of how
+it affects the final set of records represented by the TableGen file). For
+the formal language specification, see <a class="reference internal" href="LangRef.html"><span class="doc">TableGen Language Reference</span></a>.</p>
+</div>
+<div class="section" id="tablegen-syntax">
+<h2><a class="toc-backref" href="#id5">TableGen syntax</a><a class="headerlink" href="#tablegen-syntax" title="Permalink to this headline">¶</a></h2>
+<p>TableGen doesn’t care about the meaning of data (that is up to the backend to
+define), but it does care about syntax, and it enforces a simple type system.
+This section describes the syntax and the constructs allowed in a TableGen file.</p>
+<div class="section" id="tablegen-primitives">
+<h3><a class="toc-backref" href="#id6">TableGen primitives</a><a class="headerlink" href="#tablegen-primitives" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="tablegen-comments">
+<h4><a class="toc-backref" href="#id7">TableGen comments</a><a class="headerlink" href="#tablegen-comments" title="Permalink to this headline">¶</a></h4>
+<p>TableGen supports C++ style “<code class="docutils literal"><span class="pre">//</span></code>” comments, which run to the end of the
+line, and it also supports <strong>nestable</strong> “<code class="docutils literal"><span class="pre">/*</span> <span class="pre">*/</span></code>” comments.</p>
+</div>
+<div class="section" id="the-tablegen-type-system">
+<span id="tablegen-type"></span><h4><a class="toc-backref" href="#id8">The TableGen type system</a><a class="headerlink" href="#the-tablegen-type-system" title="Permalink to this headline">¶</a></h4>
+<p>TableGen files are strongly typed, in a simple (but complete) type-system.
+These types are used to perform automatic conversions, check for errors, and to
+help interface designers constrain the input that they allow.  Every <a class="reference internal" href="#value-definition">value
+definition</a> is required to have an associated type.</p>
+<p>TableGen supports a mixture of very low-level types (such as <code class="docutils literal"><span class="pre">bit</span></code>) and very
+high-level types (such as <code class="docutils literal"><span class="pre">dag</span></code>).  This flexibility is what allows it to
+describe a wide range of information conveniently and compactly.  The TableGen
+types are:</p>
+<dl class="docutils">
+<dt><code class="docutils literal"><span class="pre">bit</span></code></dt>
+<dd>A ‘bit’ is a boolean value that can hold either 0 or 1.</dd>
+<dt><code class="docutils literal"><span class="pre">int</span></code></dt>
+<dd>The ‘int’ type represents a simple 32-bit integer value, such as 5.</dd>
+<dt><code class="docutils literal"><span class="pre">string</span></code></dt>
+<dd>The ‘string’ type represents an ordered sequence of characters of arbitrary
+length.</dd>
+<dt><code class="docutils literal"><span class="pre">bits&lt;n&gt;</span></code></dt>
+<dd>A ‘bits’ type is an arbitrary, but fixed, size integer that is broken up
+into individual bits.  This type is useful because it can handle some bits
+being defined while others are undefined.</dd>
+<dt><code class="docutils literal"><span class="pre">list&lt;ty&gt;</span></code></dt>
+<dd>This type represents a list whose elements are some other type.  The
+contained type is arbitrary: it can even be another list type.</dd>
+<dt>Class type</dt>
+<dd>Specifying a class name in a type context means that the defined value must
+be a subclass of the specified class.  This is useful in conjunction with
+the <code class="docutils literal"><span class="pre">list</span></code> type, for example, to constrain the elements of the list to a
+common base class (e.g., a <code class="docutils literal"><span class="pre">list&lt;Register&gt;</span></code> can only contain definitions
+derived from the “<code class="docutils literal"><span class="pre">Register</span></code>” class).</dd>
+<dt><code class="docutils literal"><span class="pre">dag</span></code></dt>
+<dd>This type represents a nestable directed graph of elements.</dd>
+</dl>
+<p>To date, these types have been sufficient for describing things that TableGen
+has been used for, but it is straight-forward to extend this list if needed.</p>
+</div>
+<div class="section" id="tablegen-values-and-expressions">
+<span id="tablegen-expressions"></span><h4><a class="toc-backref" href="#id9">TableGen values and expressions</a><a class="headerlink" href="#tablegen-values-and-expressions" title="Permalink to this headline">¶</a></h4>
+<p>TableGen allows for a pretty reasonable number of different expression forms
+when building up values.  These forms allow the TableGen file to be written in a
+natural syntax and flavor for the application.  The current expression forms
+supported include:</p>
+<dl class="docutils">
+<dt><code class="docutils literal"><span class="pre">?</span></code></dt>
+<dd>uninitialized field</dd>
+<dt><code class="docutils literal"><span class="pre">0b1001011</span></code></dt>
+<dd>binary integer value</dd>
+<dt><code class="docutils literal"><span class="pre">07654321</span></code></dt>
+<dd>octal integer value (indicated by a leading 0)</dd>
+<dt><code class="docutils literal"><span class="pre">7</span></code></dt>
+<dd>decimal integer value</dd>
+<dt><code class="docutils literal"><span class="pre">0x7F</span></code></dt>
+<dd>hexadecimal integer value</dd>
+<dt><code class="docutils literal"><span class="pre">&quot;foo&quot;</span></code></dt>
+<dd>string value</dd>
+<dt><code class="docutils literal"><span class="pre">[{</span> <span class="pre">...</span> <span class="pre">}]</span></code></dt>
+<dd>usually called a “code fragment”, but is just a multiline string literal</dd>
+<dt><code class="docutils literal"><span class="pre">[</span> <span class="pre">X,</span> <span class="pre">Y,</span> <span class="pre">Z</span> <span class="pre">]&lt;type&gt;</span></code></dt>
+<dd>list value.  &lt;type&gt; is the type of the list element and is usually optional.
+In rare cases, TableGen is unable to deduce the element type in which case
+the user must specify it explicitly.</dd>
+<dt><code class="docutils literal"><span class="pre">{</span> <span class="pre">a,</span> <span class="pre">b,</span> <span class="pre">c</span> <span class="pre">}</span></code></dt>
+<dd>initializer for a “bits&lt;3&gt;” value</dd>
+<dt><code class="docutils literal"><span class="pre">value</span></code></dt>
+<dd>value reference</dd>
+<dt><code class="docutils literal"><span class="pre">value{17}</span></code></dt>
+<dd>access to one bit of a value</dd>
+<dt><code class="docutils literal"><span class="pre">value{15-17}</span></code></dt>
+<dd>access to multiple bits of a value</dd>
+<dt><code class="docutils literal"><span class="pre">DEF</span></code></dt>
+<dd>reference to a record definition</dd>
+<dt><code class="docutils literal"><span class="pre">CLASS&lt;val</span> <span class="pre">list&gt;</span></code></dt>
+<dd>reference to a new anonymous definition of CLASS with the specified template
+arguments.</dd>
+<dt><code class="docutils literal"><span class="pre">X.Y</span></code></dt>
+<dd>reference to the subfield of a value</dd>
+<dt><code class="docutils literal"><span class="pre">list[4-7,17,2-3]</span></code></dt>
+<dd>A slice of the ‘list’ list, including elements 4,5,6,7,17,2, and 3 from it.
+Elements may be included multiple times.</dd>
+</dl>
+<p><code class="docutils literal"><span class="pre">foreach</span> <span class="pre">&lt;var&gt;</span> <span class="pre">=</span> <span class="pre">[</span> <span class="pre">&lt;list&gt;</span> <span class="pre">]</span> <span class="pre">in</span> <span class="pre">{</span> <span class="pre">&lt;body&gt;</span> <span class="pre">}</span></code></p>
+<dl class="docutils">
+<dt><code class="docutils literal"><span class="pre">foreach</span> <span class="pre">&lt;var&gt;</span> <span class="pre">=</span> <span class="pre">[</span> <span class="pre">&lt;list&gt;</span> <span class="pre">]</span> <span class="pre">in</span> <span class="pre">&lt;def&gt;</span></code></dt>
+<dd>Replicate &lt;body&gt; or &lt;def&gt;, replacing instances of &lt;var&gt; with each value
+in &lt;list&gt;.  &lt;var&gt; is scoped at the level of the <code class="docutils literal"><span class="pre">foreach</span></code> loop and must
+not conflict with any other object introduced in &lt;body&gt; or &lt;def&gt;.  Currently
+only <code class="docutils literal"><span class="pre">def</span></code>s are expanded within &lt;body&gt;.</dd>
+</dl>
+<p><code class="docutils literal"><span class="pre">foreach</span> <span class="pre">&lt;var&gt;</span> <span class="pre">=</span> <span class="pre">0-15</span> <span class="pre">in</span> <span class="pre">...</span></code></p>
+<dl class="docutils">
+<dt><code class="docutils literal"><span class="pre">foreach</span> <span class="pre">&lt;var&gt;</span> <span class="pre">=</span> <span class="pre">{0-15,32-47}</span> <span class="pre">in</span> <span class="pre">...</span></code></dt>
+<dd>Loop over ranges of integers. The braces are required for multiple ranges.</dd>
+<dt><code class="docutils literal"><span class="pre">(DEF</span> <span class="pre">a,</span> <span class="pre">b)</span></code></dt>
+<dd>a dag value.  The first element is required to be a record definition, the
+remaining elements in the list may be arbitrary other values, including
+nested <code class="docutils literal"><span class="pre">`dag</span></code>’ values.</dd>
+<dt><code class="docutils literal"><span class="pre">!listconcat(a,</span> <span class="pre">b,</span> <span class="pre">...)</span></code></dt>
+<dd>A list value that is the result of concatenating the ‘a’ and ‘b’ lists.
+The lists must have the same element type.
+More than two arguments are accepted with the result being the concatenation
+of all the lists given.</dd>
+<dt><code class="docutils literal"><span class="pre">!strconcat(a,</span> <span class="pre">b,</span> <span class="pre">...)</span></code></dt>
+<dd>A string value that is the result of concatenating the ‘a’ and ‘b’ strings.
+More than two arguments are accepted with the result being the concatenation
+of all the strings given.</dd>
+<dt><code class="docutils literal"><span class="pre">str1#str2</span></code></dt>
+<dd>“#” (paste) is a shorthand for !strconcat.  It may concatenate things that
+are not quoted strings, in which case an implicit !cast&lt;string&gt; is done on
+the operand of the paste.</dd>
+<dt><code class="docutils literal"><span class="pre">!cast&lt;type&gt;(a)</span></code></dt>
+<dd>A symbol of type <em>type</em> obtained by looking up the string ‘a’ in the symbol
+table.  If the type of ‘a’ does not match <em>type</em>, TableGen aborts with an
+error. !cast&lt;string&gt; is a special case in that the argument must be an
+object defined by a ‘def’ construct.</dd>
+<dt><code class="docutils literal"><span class="pre">!subst(a,</span> <span class="pre">b,</span> <span class="pre">c)</span></code></dt>
+<dd>If ‘a’ and ‘b’ are of string type or are symbol references, substitute ‘b’
+for ‘a’ in ‘c.’  This operation is analogous to $(subst) in GNU make.</dd>
+<dt><code class="docutils literal"><span class="pre">!foreach(a,</span> <span class="pre">b,</span> <span class="pre">c)</span></code></dt>
+<dd>For each member ‘b’ of dag or list ‘a’ apply operator ‘c.’  ‘b’ is a dummy
+variable that should be declared as a member variable of an instantiated
+class.  This operation is analogous to $(foreach) in GNU make.</dd>
+<dt><code class="docutils literal"><span class="pre">!head(a)</span></code></dt>
+<dd>The first element of list ‘a.’</dd>
+<dt><code class="docutils literal"><span class="pre">!tail(a)</span></code></dt>
+<dd>The 2nd-N elements of list ‘a.’</dd>
+<dt><code class="docutils literal"><span class="pre">!empty(a)</span></code></dt>
+<dd>An integer {0,1} indicating whether list ‘a’ is empty.</dd>
+<dt><code class="docutils literal"><span class="pre">!if(a,b,c)</span></code></dt>
+<dd>‘b’ if the result of ‘int’ or ‘bit’ operator ‘a’ is nonzero, ‘c’ otherwise.</dd>
+<dt><code class="docutils literal"><span class="pre">!eq(a,b)</span></code></dt>
+<dd>‘bit 1’ if string a is equal to string b, 0 otherwise.  This only operates
+on string, int and bit objects.  Use !cast&lt;string&gt; to compare other types of
+objects.</dd>
+<dt><code class="docutils literal"><span class="pre">!shl(a,b)</span></code> <code class="docutils literal"><span class="pre">!srl(a,b)</span></code> <code class="docutils literal"><span class="pre">!sra(a,b)</span></code> <code class="docutils literal"><span class="pre">!add(a,b)</span></code></dt>
+<dd>The usual logical and arithmetic operators.</dd>
+</dl>
+<p>Note that all of the values have rules specifying how they convert to values
+for different types.  These rules allow you to assign a value like “<code class="docutils literal"><span class="pre">7</span></code>”
+to a “<code class="docutils literal"><span class="pre">bits&lt;4&gt;</span></code>” value, for example.</p>
+</div>
+</div>
+<div class="section" id="classes-and-definitions">
+<h3><a class="toc-backref" href="#id10">Classes and definitions</a><a class="headerlink" href="#classes-and-definitions" title="Permalink to this headline">¶</a></h3>
+<p>As mentioned in the <a class="reference internal" href="index.html"><span class="doc">introduction</span></a>, classes and definitions (collectively known as
+‘records’) in TableGen are the main high-level unit of information that TableGen
+collects.  Records are defined with a <code class="docutils literal"><span class="pre">def</span></code> or <code class="docutils literal"><span class="pre">class</span></code> keyword, the record
+name, and an optional list of “<a class="reference internal" href="#template-arguments">template arguments</a>”.  If the record has
+superclasses, they are specified as a comma separated list that starts with a
+colon character (“<code class="docutils literal"><span class="pre">:</span></code>”).  If <a class="reference internal" href="#value-definitions">value definitions</a> or <a class="reference internal" href="#let-expressions">let expressions</a> are
+needed for the class, they are enclosed in curly braces (“<code class="docutils literal"><span class="pre">{}</span></code>”); otherwise,
+the record ends with a semicolon.</p>
+<p>Here is a simple TableGen file:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class C { bit V = 1; }
+def X : C;
+def Y : C {
+  string Greeting = &quot;hello&quot;;
+}
+</pre></div>
+</div>
+<p>This example defines two definitions, <code class="docutils literal"><span class="pre">X</span></code> and <code class="docutils literal"><span class="pre">Y</span></code>, both of which derive from
+the <code class="docutils literal"><span class="pre">C</span></code> class.  Because of this, they both get the <code class="docutils literal"><span class="pre">V</span></code> bit value.  The <code class="docutils literal"><span class="pre">Y</span></code>
+definition also gets the Greeting member as well.</p>
+<p>In general, classes are useful for collecting together the commonality between a
+group of records and isolating it in a single place.  Also, classes permit the
+specification of default values for their subclasses, allowing the subclasses to
+override them as they wish.</p>
+<div class="section" id="value-definitions">
+<span id="value-definition"></span><span id="id1"></span><h4><a class="toc-backref" href="#id11">Value definitions</a><a class="headerlink" href="#value-definitions" title="Permalink to this headline">¶</a></h4>
+<p>Value definitions define named entries in records.  A value must be defined
+before it can be referred to as the operand for another value definition or
+before the value is reset with a <a class="reference internal" href="#let-expression">let expression</a>.  A value is defined by
+specifying a <a class="reference internal" href="#tablegen-type">TableGen type</a> and a name.  If an initial value is available, it
+may be specified after the type with an equal sign.  Value definitions require
+terminating semicolons.</p>
+</div>
+<div class="section" id="let-expressions-within-a-record">
+<span id="let-expressions"></span><span id="let-expression"></span><span id="id2"></span><h4><a class="toc-backref" href="#id12">‘let’ expressions</a><a class="headerlink" href="#let-expressions-within-a-record" title="Permalink to this headline">¶</a></h4>
+<p>A record-level let expression is used to change the value of a value definition
+in a record.  This is primarily useful when a superclass defines a value that a
+derived class or definition wants to override.  Let expressions consist of the
+‘<code class="docutils literal"><span class="pre">let</span></code>’ keyword followed by a value name, an equal sign (“<code class="docutils literal"><span class="pre">=</span></code>”), and a new
+value.  For example, a new class could be added to the example above, redefining
+the <code class="docutils literal"><span class="pre">V</span></code> field for all of its subclasses:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class D : C { let V = 0; }
+def Z : D;
+</pre></div>
+</div>
+<p>In this case, the <code class="docutils literal"><span class="pre">Z</span></code> definition will have a zero value for its <code class="docutils literal"><span class="pre">V</span></code> value,
+despite the fact that it derives (indirectly) from the <code class="docutils literal"><span class="pre">C</span></code> class, because the
+<code class="docutils literal"><span class="pre">D</span></code> class overrode its value.</p>
+</div>
+<div class="section" id="class-template-arguments">
+<span id="template-arguments"></span><h4><a class="toc-backref" href="#id13">Class template arguments</a><a class="headerlink" href="#class-template-arguments" title="Permalink to this headline">¶</a></h4>
+<p>TableGen permits the definition of parameterized classes as well as normal
+concrete classes.  Parameterized TableGen classes specify a list of variable
+bindings (which may optionally have defaults) that are bound when used.  Here is
+a simple example:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class FPFormat&lt;bits&lt;3&gt; val&gt; {
+  bits&lt;3&gt; Value = val;
+}
+def NotFP      : FPFormat&lt;0&gt;;
+def ZeroArgFP  : FPFormat&lt;1&gt;;
+def OneArgFP   : FPFormat&lt;2&gt;;
+def OneArgFPRW : FPFormat&lt;3&gt;;
+def TwoArgFP   : FPFormat&lt;4&gt;;
+def CompareFP  : FPFormat&lt;5&gt;;
+def CondMovFP  : FPFormat&lt;6&gt;;
+def SpecialFP  : FPFormat&lt;7&gt;;
+</pre></div>
+</div>
+<p>In this case, template arguments are used as a space efficient way to specify a
+list of “enumeration values”, each with a “<code class="docutils literal"><span class="pre">Value</span></code>” field set to the specified
+integer.</p>
+<p>The more esoteric forms of <a class="reference internal" href="#tablegen-expressions">TableGen expressions</a> are useful in conjunction
+with template arguments.  As an example:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class ModRefVal&lt;bits&lt;2&gt; val&gt; {
+  bits&lt;2&gt; Value = val;
+}
+
+def None   : ModRefVal&lt;0&gt;;
+def Mod    : ModRefVal&lt;1&gt;;
+def Ref    : ModRefVal&lt;2&gt;;
+def ModRef : ModRefVal&lt;3&gt;;
+
+class Value&lt;ModRefVal MR&gt; {
+  // Decode some information into a more convenient format, while providing
+  // a nice interface to the user of the &quot;Value&quot; class.
+  bit isMod = MR.Value{0};
+  bit isRef = MR.Value{1};
+
+  // other stuff...
+}
+
+// Example uses
+def bork : Value&lt;Mod&gt;;
+def zork : Value&lt;Ref&gt;;
+def hork : Value&lt;ModRef&gt;;
+</pre></div>
+</div>
+<p>This is obviously a contrived example, but it shows how template arguments can
+be used to decouple the interface provided to the user of the class from the
+actual internal data representation expected by the class.  In this case,
+running <code class="docutils literal"><span class="pre">llvm-tblgen</span></code> on the example prints the following definitions:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def bork {      // Value
+  bit isMod = 1;
+  bit isRef = 0;
+}
+def hork {      // Value
+  bit isMod = 1;
+  bit isRef = 1;
+}
+def zork {      // Value
+  bit isMod = 0;
+  bit isRef = 1;
+}
+</pre></div>
+</div>
+<p>This shows that TableGen was able to dig into the argument and extract a piece
+of information that was requested by the designer of the “Value” class.  For
+more realistic examples, please see existing users of TableGen, such as the X86
+backend.</p>
+</div>
+<div class="section" id="multiclass-definitions-and-instances">
+<h4><a class="toc-backref" href="#id14">Multiclass definitions and instances</a><a class="headerlink" href="#multiclass-definitions-and-instances" title="Permalink to this headline">¶</a></h4>
+<p>While classes with template arguments are a good way to factor commonality
+between two instances of a definition, multiclasses allow a convenient notation
+for defining multiple definitions at once (instances of implicitly constructed
+classes).  For example, consider an 3-address instruction set whose instructions
+come in two forms: “<code class="docutils literal"><span class="pre">reg</span> <span class="pre">=</span> <span class="pre">reg</span> <span class="pre">op</span> <span class="pre">reg</span></code>” and “<code class="docutils literal"><span class="pre">reg</span> <span class="pre">=</span> <span class="pre">reg</span> <span class="pre">op</span> <span class="pre">imm</span></code>”
+(e.g. SPARC). In this case, you’d like to specify in one place that this
+commonality exists, then in a separate place indicate what all the ops are.</p>
+<p>Here is an example TableGen fragment that shows this idea:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def ops;
+def GPR;
+def Imm;
+class inst&lt;int opc, string asmstr, dag operandlist&gt;;
+
+multiclass ri_inst&lt;int opc, string asmstr&gt; {
+  def _rr : inst&lt;opc, !strconcat(asmstr, &quot; $dst, $src1, $src2&quot;),
+                 (ops GPR:$dst, GPR:$src1, GPR:$src2)&gt;;
+  def _ri : inst&lt;opc, !strconcat(asmstr, &quot; $dst, $src1, $src2&quot;),
+                 (ops GPR:$dst, GPR:$src1, Imm:$src2)&gt;;
+}
+
+// Instantiations of the ri_inst multiclass.
+defm ADD : ri_inst&lt;0b111, &quot;add&quot;&gt;;
+defm SUB : ri_inst&lt;0b101, &quot;sub&quot;&gt;;
+defm MUL : ri_inst&lt;0b100, &quot;mul&quot;&gt;;
+...
+</pre></div>
+</div>
+<p>The name of the resultant definitions has the multidef fragment names appended
+to them, so this defines <code class="docutils literal"><span class="pre">ADD_rr</span></code>, <code class="docutils literal"><span class="pre">ADD_ri</span></code>, <code class="docutils literal"><span class="pre">SUB_rr</span></code>, etc.  A defm may
+inherit from multiple multiclasses, instantiating definitions from each
+multiclass.  Using a multiclass this way is exactly equivalent to instantiating
+the classes multiple times yourself, e.g. by writing:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def ops;
+def GPR;
+def Imm;
+class inst&lt;int opc, string asmstr, dag operandlist&gt;;
+
+class rrinst&lt;int opc, string asmstr&gt;
+  : inst&lt;opc, !strconcat(asmstr, &quot; $dst, $src1, $src2&quot;),
+         (ops GPR:$dst, GPR:$src1, GPR:$src2)&gt;;
+
+class riinst&lt;int opc, string asmstr&gt;
+  : inst&lt;opc, !strconcat(asmstr, &quot; $dst, $src1, $src2&quot;),
+         (ops GPR:$dst, GPR:$src1, Imm:$src2)&gt;;
+
+// Instantiations of the ri_inst multiclass.
+def ADD_rr : rrinst&lt;0b111, &quot;add&quot;&gt;;
+def ADD_ri : riinst&lt;0b111, &quot;add&quot;&gt;;
+def SUB_rr : rrinst&lt;0b101, &quot;sub&quot;&gt;;
+def SUB_ri : riinst&lt;0b101, &quot;sub&quot;&gt;;
+def MUL_rr : rrinst&lt;0b100, &quot;mul&quot;&gt;;
+def MUL_ri : riinst&lt;0b100, &quot;mul&quot;&gt;;
+...
+</pre></div>
+</div>
+<p>A <code class="docutils literal"><span class="pre">defm</span></code> can also be used inside a multiclass providing several levels of
+multiclass instantiations.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class Instruction&lt;bits&lt;4&gt; opc, string Name&gt; {
+  bits&lt;4&gt; opcode = opc;
+  string name = Name;
+}
+
+multiclass basic_r&lt;bits&lt;4&gt; opc&gt; {
+  def rr : Instruction&lt;opc, &quot;rr&quot;&gt;;
+  def rm : Instruction&lt;opc, &quot;rm&quot;&gt;;
+}
+
+multiclass basic_s&lt;bits&lt;4&gt; opc&gt; {
+  defm SS : basic_r&lt;opc&gt;;
+  defm SD : basic_r&lt;opc&gt;;
+  def X : Instruction&lt;opc, &quot;x&quot;&gt;;
+}
+
+multiclass basic_p&lt;bits&lt;4&gt; opc&gt; {
+  defm PS : basic_r&lt;opc&gt;;
+  defm PD : basic_r&lt;opc&gt;;
+  def Y : Instruction&lt;opc, &quot;y&quot;&gt;;
+}
+
+defm ADD : basic_s&lt;0xf&gt;, basic_p&lt;0xf&gt;;
+...
+
+// Results
+def ADDPDrm { ...
+def ADDPDrr { ...
+def ADDPSrm { ...
+def ADDPSrr { ...
+def ADDSDrm { ...
+def ADDSDrr { ...
+def ADDY { ...
+def ADDX { ...
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">defm</span></code> declarations can inherit from classes too, the rule to follow is that
+the class list must start after the last multiclass, and there must be at least
+one multiclass before them.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class XD { bits&lt;4&gt; Prefix = 11; }
+class XS { bits&lt;4&gt; Prefix = 12; }
+
+class I&lt;bits&lt;4&gt; op&gt; {
+  bits&lt;4&gt; opcode = op;
+}
+
+multiclass R {
+  def rr : I&lt;4&gt;;
+  def rm : I&lt;2&gt;;
+}
+
+multiclass Y {
+  defm SS : R, XD;
+  defm SD : R, XS;
+}
+
+defm Instr : Y;
+
+// Results
+def InstrSDrm {
+  bits&lt;4&gt; opcode = { 0, 0, 1, 0 };
+  bits&lt;4&gt; Prefix = { 1, 1, 0, 0 };
+}
+...
+def InstrSSrr {
+  bits&lt;4&gt; opcode = { 0, 1, 0, 0 };
+  bits&lt;4&gt; Prefix = { 1, 0, 1, 1 };
+}
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="file-scope-entities">
+<h3><a class="toc-backref" href="#id15">File scope entities</a><a class="headerlink" href="#file-scope-entities" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="file-inclusion">
+<h4><a class="toc-backref" href="#id16">File inclusion</a><a class="headerlink" href="#file-inclusion" title="Permalink to this headline">¶</a></h4>
+<p>TableGen supports the ‘<code class="docutils literal"><span class="pre">include</span></code>’ token, which textually substitutes the
+specified file in place of the include directive.  The filename should be
+specified as a double quoted string immediately after the ‘<code class="docutils literal"><span class="pre">include</span></code>’ keyword.
+Example:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>include &quot;foo.td&quot;
+</pre></div>
+</div>
+</div>
+<div class="section" id="id3">
+<h4><a class="toc-backref" href="#id17">‘let’ expressions</a><a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h4>
+<p>“Let” expressions at file scope are similar to <a class="reference internal" href="#let-expressions-within-a-record">“let” expressions within a
+record</a>, except they can specify a value binding for multiple records at a
+time, and may be useful in certain other cases.  File-scope let expressions are
+really just another way that TableGen allows the end-user to factor out
+commonality from the records.</p>
+<p>File-scope “let” expressions take a comma-separated list of bindings to apply,
+and one or more records to bind the values in.  Here are some examples:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>let isTerminator = 1, isReturn = 1, isBarrier = 1, hasCtrlDep = 1 in
+  def RET : I&lt;0xC3, RawFrm, (outs), (ins), &quot;ret&quot;, [(X86retflag 0)]&gt;;
+
+let isCall = 1 in
+  // All calls clobber the non-callee saved registers...
+  let Defs = [EAX, ECX, EDX, FP0, FP1, FP2, FP3, FP4, FP5, FP6, ST0,
+              MM0, MM1, MM2, MM3, MM4, MM5, MM6, MM7,
+              XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7, EFLAGS] in {
+    def CALLpcrel32 : Ii32&lt;0xE8, RawFrm, (outs), (ins i32imm:$dst,variable_ops),
+                           &quot;call\t${dst:call}&quot;, []&gt;;
+    def CALL32r     : I&lt;0xFF, MRM2r, (outs), (ins GR32:$dst, variable_ops),
+                        &quot;call\t{*}$dst&quot;, [(X86call GR32:$dst)]&gt;;
+    def CALL32m     : I&lt;0xFF, MRM2m, (outs), (ins i32mem:$dst, variable_ops),
+                        &quot;call\t{*}$dst&quot;, []&gt;;
+  }
+</pre></div>
+</div>
+<p>File-scope “let” expressions are often useful when a couple of definitions need
+to be added to several records, and the records do not otherwise need to be
+opened, as in the case with the <code class="docutils literal"><span class="pre">CALL*</span></code> instructions above.</p>
+<p>It’s also possible to use “let” expressions inside multiclasses, providing more
+ways to factor out commonality from the records, specially if using several
+levels of multiclass instantiations. This also avoids the need of using “let”
+expressions within subsequent records inside a multiclass.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>multiclass basic_r&lt;bits&lt;4&gt; opc&gt; {
+  let Predicates = [HasSSE2] in {
+    def rr : Instruction&lt;opc, &quot;rr&quot;&gt;;
+    def rm : Instruction&lt;opc, &quot;rm&quot;&gt;;
+  }
+  let Predicates = [HasSSE3] in
+    def rx : Instruction&lt;opc, &quot;rx&quot;&gt;;
+}
+
+multiclass basic_ss&lt;bits&lt;4&gt; opc&gt; {
+  let IsDouble = 0 in
+    defm SS : basic_r&lt;opc&gt;;
+
+  let IsDouble = 1 in
+    defm SD : basic_r&lt;opc&gt;;
+}
+
+defm ADD : basic_ss&lt;0xf&gt;;
+</pre></div>
+</div>
+</div>
+<div class="section" id="looping">
+<h4><a class="toc-backref" href="#id18">Looping</a><a class="headerlink" href="#looping" title="Permalink to this headline">¶</a></h4>
+<p>TableGen supports the ‘<code class="docutils literal"><span class="pre">foreach</span></code>’ block, which textually replicates the loop
+body, substituting iterator values for iterator references in the body.
+Example:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>foreach i = [0, 1, 2, 3] in {
+  def R#i : Register&lt;...&gt;;
+  def F#i : Register&lt;...&gt;;
+}
+</pre></div>
+</div>
+<p>This will create objects <code class="docutils literal"><span class="pre">R0</span></code>, <code class="docutils literal"><span class="pre">R1</span></code>, <code class="docutils literal"><span class="pre">R2</span></code> and <code class="docutils literal"><span class="pre">R3</span></code>.  <code class="docutils literal"><span class="pre">foreach</span></code> blocks
+may be nested. If there is only one item in the body the braces may be
+elided:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>foreach i = [0, 1, 2, 3] in
+  def R#i : Register&lt;...&gt;;
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="code-generator-backend-info">
+<h2><a class="toc-backref" href="#id19">Code Generator backend info</a><a class="headerlink" href="#code-generator-backend-info" title="Permalink to this headline">¶</a></h2>
+<p>Expressions used by code generator to describe instructions and isel patterns:</p>
+<dl class="docutils">
+<dt><code class="docutils literal"><span class="pre">(implicit</span> <span class="pre">a)</span></code></dt>
+<dd>an implicitly defined physical register.  This tells the dag instruction
+selection emitter the input pattern’s extra definitions matches implicit
+physical register definitions.</dd>
+</dl>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="Deficiencies.html" title="TableGen Deficiencies"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="LangRef.html" title="TableGen Language Reference"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >TableGen</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

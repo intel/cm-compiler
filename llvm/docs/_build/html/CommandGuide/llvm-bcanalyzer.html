@@ -1,0 +1,354 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-bcanalyzer - LLVM bitcode analyzer &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="FileCheck - Flexible pattern matching file verifier" href="FileCheck.html" />
+    <link rel="prev" title="llvm-extract - extract a function from an LLVM module" href="llvm-extract.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="FileCheck.html" title="FileCheck - Flexible pattern matching file verifier"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llvm-extract.html" title="llvm-extract - extract a function from an LLVM module"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-bcanalyzer-llvm-bitcode-analyzer">
+<h1>llvm-bcanalyzer - LLVM bitcode analyzer<a class="headerlink" href="#llvm-bcanalyzer-llvm-bitcode-analyzer" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-bcanalyzer</strong> [<em>options</em>] [<em>filename</em>]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>The <strong class="program">llvm-bcanalyzer</strong> command is a small utility for analyzing bitcode
+files.  The tool reads a bitcode file (such as generated with the
+<strong class="program">llvm-as</strong> tool) and produces a statistical report on the contents of
+the bitcode file.  The tool can also dump a low level but human readable
+version of the bitcode file.  This tool is probably not of much interest or
+utility except for those working directly with the bitcode file format.  Most
+LLVM users can just ignore this tool.</p>
+<p>If <em>filename</em> is omitted or is <code class="docutils literal"><span class="pre">-</span></code>, then <strong class="program">llvm-bcanalyzer</strong> reads its
+input from standard input.  This is useful for combining the tool into a
+pipeline.  Output is written to the standard output.</p>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl class="option">
+<dt id="cmdoption-llvm-bcanalyzer-nodetails">
+<code class="descname">-nodetails</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-bcanalyzer-nodetails" title="Permalink to this definition">¶</a></dt>
+<dd><p>Causes <strong class="program">llvm-bcanalyzer</strong> to abbreviate its output by writing out only
+a module level summary.  The details for individual functions are not
+displayed.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-bcanalyzer-dump">
+<code class="descname">-dump</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-bcanalyzer-dump" title="Permalink to this definition">¶</a></dt>
+<dd><p>Causes <strong class="program">llvm-bcanalyzer</strong> to dump the bitcode in a human readable
+format.  This format is significantly different from LLVM assembly and
+provides details about the encoding of the bitcode file.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-bcanalyzer-verify">
+<code class="descname">-verify</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-bcanalyzer-verify" title="Permalink to this definition">¶</a></dt>
+<dd><p>Causes <strong class="program">llvm-bcanalyzer</strong> to verify the module produced by reading the
+bitcode.  This ensures that the statistics generated are based on a consistent
+module.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-bcanalyzer-help">
+<code class="descname">-help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-bcanalyzer-help" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print a summary of command line options.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p>If <strong class="program">llvm-bcanalyzer</strong> succeeds, it will exit with 0.  Otherwise, if an
+error occurs, it will exit with a non-zero value, usually 1.</p>
+</div>
+<div class="section" id="summary-output-definitions">
+<h2>SUMMARY OUTPUT DEFINITIONS<a class="headerlink" href="#summary-output-definitions" title="Permalink to this headline">¶</a></h2>
+<p>The following items are always printed by llvm-bcanalyzer.  They comprize the
+summary output.</p>
+<p><strong>Bitcode Analysis Of Module</strong></p>
+<blockquote>
+<div>This just provides the name of the module for which bitcode analysis is being
+generated.</div></blockquote>
+<p><strong>Bitcode Version Number</strong></p>
+<blockquote>
+<div>The bitcode version (not LLVM version) of the file read by the analyzer.</div></blockquote>
+<p><strong>File Size</strong></p>
+<blockquote>
+<div>The size, in bytes, of the entire bitcode file.</div></blockquote>
+<p><strong>Module Bytes</strong></p>
+<blockquote>
+<div>The size, in bytes, of the module block.  Percentage is relative to File Size.</div></blockquote>
+<p><strong>Function Bytes</strong></p>
+<blockquote>
+<div>The size, in bytes, of all the function blocks.  Percentage is relative to File
+Size.</div></blockquote>
+<p><strong>Global Types Bytes</strong></p>
+<blockquote>
+<div>The size, in bytes, of the Global Types Pool.  Percentage is relative to File
+Size.  This is the size of the definitions of all types in the bitcode file.</div></blockquote>
+<p><strong>Constant Pool Bytes</strong></p>
+<blockquote>
+<div>The size, in bytes, of the Constant Pool Blocks Percentage is relative to File
+Size.</div></blockquote>
+<p><strong>Module Globals Bytes</strong></p>
+<blockquote>
+<div>Ths size, in bytes, of the Global Variable Definitions and their initializers.
+Percentage is relative to File Size.</div></blockquote>
+<p><strong>Instruction List Bytes</strong></p>
+<blockquote>
+<div>The size, in bytes, of all the instruction lists in all the functions.
+Percentage is relative to File Size.  Note that this value is also included in
+the Function Bytes.</div></blockquote>
+<p><strong>Compaction Table Bytes</strong></p>
+<blockquote>
+<div>The size, in bytes, of all the compaction tables in all the functions.
+Percentage is relative to File Size.  Note that this value is also included in
+the Function Bytes.</div></blockquote>
+<p><strong>Symbol Table Bytes</strong></p>
+<blockquote>
+<div>The size, in bytes, of all the symbol tables in all the functions.  Percentage is
+relative to File Size.  Note that this value is also included in the Function
+Bytes.</div></blockquote>
+<p><strong>Dependent Libraries Bytes</strong></p>
+<blockquote>
+<div>The size, in bytes, of the list of dependent libraries in the module.  Percentage
+is relative to File Size.  Note that this value is also included in the Module
+Global Bytes.</div></blockquote>
+<p><strong>Number Of Bitcode Blocks</strong></p>
+<blockquote>
+<div>The total number of blocks of any kind in the bitcode file.</div></blockquote>
+<p><strong>Number Of Functions</strong></p>
+<blockquote>
+<div>The total number of function definitions in the bitcode file.</div></blockquote>
+<p><strong>Number Of Types</strong></p>
+<blockquote>
+<div>The total number of types defined in the Global Types Pool.</div></blockquote>
+<p><strong>Number Of Constants</strong></p>
+<blockquote>
+<div>The total number of constants (of any type) defined in the Constant Pool.</div></blockquote>
+<p><strong>Number Of Basic Blocks</strong></p>
+<blockquote>
+<div>The total number of basic blocks defined in all functions in the bitcode file.</div></blockquote>
+<p><strong>Number Of Instructions</strong></p>
+<blockquote>
+<div>The total number of instructions defined in all functions in the bitcode file.</div></blockquote>
+<p><strong>Number Of Long Instructions</strong></p>
+<blockquote>
+<div>The total number of long instructions defined in all functions in the bitcode
+file.  Long instructions are those taking greater than 4 bytes.  Typically long
+instructions are GetElementPtr with several indices, PHI nodes, and calls to
+functions with large numbers of arguments.</div></blockquote>
+<p><strong>Number Of Operands</strong></p>
+<blockquote>
+<div>The total number of operands used in all instructions in the bitcode file.</div></blockquote>
+<p><strong>Number Of Compaction Tables</strong></p>
+<blockquote>
+<div>The total number of compaction tables in all functions in the bitcode file.</div></blockquote>
+<p><strong>Number Of Symbol Tables</strong></p>
+<blockquote>
+<div>The total number of symbol tables in all functions in the bitcode file.</div></blockquote>
+<p><strong>Number Of Dependent Libs</strong></p>
+<blockquote>
+<div>The total number of dependent libraries found in the bitcode file.</div></blockquote>
+<p><strong>Total Instruction Size</strong></p>
+<blockquote>
+<div>The total size of the instructions in all functions in the bitcode file.</div></blockquote>
+<p><strong>Average Instruction Size</strong></p>
+<blockquote>
+<div>The average number of bytes per instruction across all functions in the bitcode
+file.  This value is computed by dividing Total Instruction Size by Number Of
+Instructions.</div></blockquote>
+<p><strong>Maximum Type Slot Number</strong></p>
+<blockquote>
+<div>The maximum value used for a type’s slot number.  Larger slot number values take
+more bytes to encode.</div></blockquote>
+<p><strong>Maximum Value Slot Number</strong></p>
+<blockquote>
+<div>The maximum value used for a value’s slot number.  Larger slot number values take
+more bytes to encode.</div></blockquote>
+<p><strong>Bytes Per Value</strong></p>
+<blockquote>
+<div>The average size of a Value definition (of any type).  This is computed by
+dividing File Size by the total number of values of any type.</div></blockquote>
+<p><strong>Bytes Per Global</strong></p>
+<blockquote>
+<div>The average size of a global definition (constants and global variables).</div></blockquote>
+<p><strong>Bytes Per Function</strong></p>
+<blockquote>
+<div>The average number of bytes per function definition.  This is computed by
+dividing Function Bytes by Number Of Functions.</div></blockquote>
+<p><strong># of VBR 32-bit Integers</strong></p>
+<blockquote>
+<div>The total number of 32-bit integers encoded using the Variable Bit Rate
+encoding scheme.</div></blockquote>
+<p><strong># of VBR 64-bit Integers</strong></p>
+<blockquote>
+<div>The total number of 64-bit integers encoded using the Variable Bit Rate encoding
+scheme.</div></blockquote>
+<p><strong># of VBR Compressed Bytes</strong></p>
+<blockquote>
+<div>The total number of bytes consumed by the 32-bit and 64-bit integers that use
+the Variable Bit Rate encoding scheme.</div></blockquote>
+<p><strong># of VBR Expanded Bytes</strong></p>
+<blockquote>
+<div>The total number of bytes that would have been consumed by the 32-bit and 64-bit
+integers had they not been compressed with the Variable Bit Rage encoding
+scheme.</div></blockquote>
+<p><strong>Bytes Saved With VBR</strong></p>
+<blockquote>
+<div>The total number of bytes saved by using the Variable Bit Rate encoding scheme.
+The percentage is relative to # of VBR Expanded Bytes.</div></blockquote>
+</div>
+<div class="section" id="detailed-output-definitions">
+<h2>DETAILED OUTPUT DEFINITIONS<a class="headerlink" href="#detailed-output-definitions" title="Permalink to this headline">¶</a></h2>
+<p>The following definitions occur only if the -nodetails option was not given.
+The detailed output provides additional information on a per-function basis.</p>
+<p><strong>Type</strong></p>
+<blockquote>
+<div>The type signature of the function.</div></blockquote>
+<p><strong>Byte Size</strong></p>
+<blockquote>
+<div>The total number of bytes in the function’s block.</div></blockquote>
+<p><strong>Basic Blocks</strong></p>
+<blockquote>
+<div>The number of basic blocks defined by the function.</div></blockquote>
+<p><strong>Instructions</strong></p>
+<blockquote>
+<div>The number of instructions defined by the function.</div></blockquote>
+<p><strong>Long Instructions</strong></p>
+<blockquote>
+<div>The number of instructions using the long instruction format in the function.</div></blockquote>
+<p><strong>Operands</strong></p>
+<blockquote>
+<div>The number of operands used by all instructions in the function.</div></blockquote>
+<p><strong>Instruction Size</strong></p>
+<blockquote>
+<div>The number of bytes consumed by instructions in the function.</div></blockquote>
+<p><strong>Average Instruction Size</strong></p>
+<blockquote>
+<div>The average number of bytes consumed by the instructions in the function.
+This value is computed by dividing Instruction Size by Instructions.</div></blockquote>
+<p><strong>Bytes Per Instruction</strong></p>
+<blockquote>
+<div>The average number of bytes used by the function per instruction.  This value
+is computed by dividing Byte Size by Instructions.  Note that this is not the
+same as Average Instruction Size.  It computes a number relative to the total
+function size not just the size of the instruction list.</div></blockquote>
+<p><strong>Number of VBR 32-bit Integers</strong></p>
+<blockquote>
+<div>The total number of 32-bit integers found in this function (for any use).</div></blockquote>
+<p><strong>Number of VBR 64-bit Integers</strong></p>
+<blockquote>
+<div>The total number of 64-bit integers found in this function (for any use).</div></blockquote>
+<p><strong>Number of VBR Compressed Bytes</strong></p>
+<blockquote>
+<div>The total number of bytes in this function consumed by the 32-bit and 64-bit
+integers that use the Variable Bit Rate encoding scheme.</div></blockquote>
+<p><strong>Number of VBR Expanded Bytes</strong></p>
+<blockquote>
+<div>The total number of bytes in this function that would have been consumed by
+the 32-bit and 64-bit integers had they not been compressed with the Variable
+Bit Rate encoding scheme.</div></blockquote>
+<p><strong>Bytes Saved With VBR</strong></p>
+<blockquote>
+<div>The total number of bytes saved in this function by using the Variable Bit
+Rate encoding scheme.  The percentage is relative to # of VBR Expanded Bytes.</div></blockquote>
+</div>
+<div class="section" id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference internal" href="llvm-dis.html"><span class="doc">llvm-dis - LLVM disassembler</span></a>, <a class="reference internal" href="../BitCodeFormat.html"><span class="doc">LLVM Bitcode File Format</span></a></p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="FileCheck.html" title="FileCheck - Flexible pattern matching file verifier"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llvm-extract.html" title="llvm-extract - extract a function from an LLVM module"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

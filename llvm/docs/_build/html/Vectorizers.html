@@ -1,0 +1,493 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Auto-Vectorization in LLVM &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Writing an LLVM Backend" href="WritingAnLLVMBackend.html" />
+    <link rel="prev" title="Source Level Debugging with LLVM" href="SourceLevelDebugging.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="WritingAnLLVMBackend.html" title="Writing an LLVM Backend"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="SourceLevelDebugging.html" title="Source Level Debugging with LLVM"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="auto-vectorization-in-llvm">
+<h1>Auto-Vectorization in LLVM<a class="headerlink" href="#auto-vectorization-in-llvm" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#the-loop-vectorizer" id="id2">The Loop Vectorizer</a><ul>
+<li><a class="reference internal" href="#usage" id="id3">Usage</a><ul>
+<li><a class="reference internal" href="#command-line-flags" id="id4">Command line flags</a></li>
+<li><a class="reference internal" href="#pragma-loop-hint-directives" id="id5">Pragma loop hint directives</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#diagnostics" id="id6">Diagnostics</a></li>
+<li><a class="reference internal" href="#features" id="id7">Features</a><ul>
+<li><a class="reference internal" href="#loops-with-unknown-trip-count" id="id8">Loops with unknown trip count</a></li>
+<li><a class="reference internal" href="#runtime-checks-of-pointers" id="id9">Runtime Checks of Pointers</a></li>
+<li><a class="reference internal" href="#reductions" id="id10">Reductions</a></li>
+<li><a class="reference internal" href="#inductions" id="id11">Inductions</a></li>
+<li><a class="reference internal" href="#if-conversion" id="id12">If Conversion</a></li>
+<li><a class="reference internal" href="#pointer-induction-variables" id="id13">Pointer Induction Variables</a></li>
+<li><a class="reference internal" href="#reverse-iterators" id="id14">Reverse Iterators</a></li>
+<li><a class="reference internal" href="#scatter-gather" id="id15">Scatter / Gather</a></li>
+<li><a class="reference internal" href="#vectorization-of-mixed-types" id="id16">Vectorization of Mixed Types</a></li>
+<li><a class="reference internal" href="#global-structures-alias-analysis" id="id17">Global Structures Alias Analysis</a></li>
+<li><a class="reference internal" href="#vectorization-of-function-calls" id="id18">Vectorization of function calls</a></li>
+<li><a class="reference internal" href="#partial-unrolling-during-vectorization" id="id19">Partial unrolling during vectorization</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#performance" id="id20">Performance</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#the-slp-vectorizer" id="id21">The SLP Vectorizer</a><ul>
+<li><a class="reference internal" href="#details" id="id22">Details</a></li>
+<li><a class="reference internal" href="#id1" id="id23">Usage</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<p>LLVM has two vectorizers: The <a class="reference internal" href="#loop-vectorizer"><span class="std std-ref">Loop Vectorizer</span></a>,
+which operates on Loops, and the <a class="reference internal" href="#slp-vectorizer"><span class="std std-ref">SLP Vectorizer</span></a>. These vectorizers
+focus on different optimization opportunities and use different techniques.
+The SLP vectorizer merges multiple scalars that are found in the code into
+vectors while the Loop Vectorizer widens instructions in loops
+to operate on multiple consecutive iterations.</p>
+<p>Both the Loop Vectorizer and the SLP Vectorizer are enabled by default.</p>
+<div class="section" id="the-loop-vectorizer">
+<span id="loop-vectorizer"></span><h2><a class="toc-backref" href="#id2">The Loop Vectorizer</a><a class="headerlink" href="#the-loop-vectorizer" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="usage">
+<h3><a class="toc-backref" href="#id3">Usage</a><a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h3>
+<p>The Loop Vectorizer is enabled by default, but it can be disabled
+through clang using the command line flag:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> clang ... -fno-vectorize  file.c
+</pre></div>
+</div>
+<div class="section" id="command-line-flags">
+<h4><a class="toc-backref" href="#id4">Command line flags</a><a class="headerlink" href="#command-line-flags" title="Permalink to this headline">¶</a></h4>
+<p>The loop vectorizer uses a cost model to decide on the optimal vectorization factor
+and unroll factor. However, users of the vectorizer can force the vectorizer to use
+specific values. Both ‘clang’ and ‘opt’ support the flags below.</p>
+<p>Users can control the vectorization SIMD width using the command line flag “-force-vector-width”.</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> clang  -mllvm -force-vector-width<span class="o">=</span><span class="m">8</span> ...
+<span class="gp">$</span> opt -loop-vectorize -force-vector-width<span class="o">=</span><span class="m">8</span> ...
+</pre></div>
+</div>
+<p>Users can control the unroll factor using the command line flag “-force-vector-unroll”</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> clang  -mllvm -force-vector-unroll<span class="o">=</span><span class="m">2</span> ...
+<span class="gp">$</span> opt -loop-vectorize -force-vector-unroll<span class="o">=</span><span class="m">2</span> ...
+</pre></div>
+</div>
+</div>
+<div class="section" id="pragma-loop-hint-directives">
+<h4><a class="toc-backref" href="#id5">Pragma loop hint directives</a><a class="headerlink" href="#pragma-loop-hint-directives" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">#pragma</span> <span class="pre">clang</span> <span class="pre">loop</span></code> directive allows loop vectorization hints to be
+specified for the subsequent for, while, do-while, or c++11 range-based for
+loop. The directive allows vectorization and interleaving to be enabled or
+disabled. Vector width as well as interleave count can also be manually
+specified. The following example explicitly enables vectorization and
+interleaving:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#pragma clang loop vectorize(enable) interleave(enable)</span>
+<span class="k">while</span><span class="p">(...)</span> <span class="p">{</span>
+  <span class="p">...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The following example implicitly enables vectorization and interleaving by
+specifying a vector width and interleaving count:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#pragma clang loop vectorize_width(2) interleave_count(2)</span>
+<span class="k">for</span><span class="p">(...)</span> <span class="p">{</span>
+  <span class="p">...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>See the Clang
+<a class="reference external" href="http://clang.llvm.org/docs/LanguageExtensions.html#extensions-for-loop-hint-optimizations">language extensions</a>
+for details.</p>
+</div>
+</div>
+<div class="section" id="diagnostics">
+<h3><a class="toc-backref" href="#id6">Diagnostics</a><a class="headerlink" href="#diagnostics" title="Permalink to this headline">¶</a></h3>
+<p>Many loops cannot be vectorized including loops with complicated control flow,
+unvectorizable types, and unvectorizable calls. The loop vectorizer generates
+optimization remarks which can be queried using command line options to identify
+and diagnose loops that are skipped by the loop-vectorizer.</p>
+<p>Optimization remarks are enabled using:</p>
+<p><code class="docutils literal"><span class="pre">-Rpass=loop-vectorize</span></code> identifies loops that were successfully vectorized.</p>
+<p><code class="docutils literal"><span class="pre">-Rpass-missed=loop-vectorize</span></code> identifies loops that failed vectorization and
+indicates if vectorization was specified.</p>
+<p><code class="docutils literal"><span class="pre">-Rpass-analysis=loop-vectorize</span></code> identifies the statements that caused
+vectorization to fail.</p>
+<p>Consider the following loop:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#pragma clang loop vectorize(enable)</span>
+<span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">Length</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">switch</span><span class="p">(</span><span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="p">{</span>
+  <span class="k">case</span> <span class="mi">0</span><span class="o">:</span> <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span><span class="o">*</span><span class="mi">2</span><span class="p">;</span> <span class="k">break</span><span class="p">;</span>
+  <span class="k">case</span> <span class="mi">1</span><span class="o">:</span> <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span><span class="p">;</span>   <span class="k">break</span><span class="p">;</span>
+  <span class="k">default</span><span class="o">:</span> <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The command line <code class="docutils literal"><span class="pre">-Rpass-missed=loop-vectorized</span></code> prints the remark:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="go">no_switch.cpp:4:5: remark: loop not vectorized: vectorization is explicitly enabled [-Rpass-missed=loop-vectorize]</span>
+</pre></div>
+</div>
+<p>And the command line <code class="docutils literal"><span class="pre">-Rpass-analysis=loop-vectorize</span></code> indicates that the
+switch statement cannot be vectorized.</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="go">no_switch.cpp:4:5: remark: loop not vectorized: loop contains a switch statement [-Rpass-analysis=loop-vectorize]</span>
+<span class="go">  switch(A[i]) {</span>
+<span class="go">  ^</span>
+</pre></div>
+</div>
+<p>To ensure line and column numbers are produced include the command line options
+<code class="docutils literal"><span class="pre">-gline-tables-only</span></code> and <code class="docutils literal"><span class="pre">-gcolumn-info</span></code>. See the Clang <a class="reference external" href="http://clang.llvm.org/docs/UsersManual.html#options-to-emit-optimization-reports">user manual</a>
+for details</p>
+</div>
+<div class="section" id="features">
+<h3><a class="toc-backref" href="#id7">Features</a><a class="headerlink" href="#features" title="Permalink to this headline">¶</a></h3>
+<p>The LLVM Loop Vectorizer has a number of features that allow it to vectorize
+complex loops.</p>
+<div class="section" id="loops-with-unknown-trip-count">
+<h4><a class="toc-backref" href="#id8">Loops with unknown trip count</a><a class="headerlink" href="#loops-with-unknown-trip-count" title="Permalink to this headline">¶</a></h4>
+<p>The Loop Vectorizer supports loops with an unknown trip count.
+In the loop below, the iteration <code class="docutils literal"><span class="pre">start</span></code> and <code class="docutils literal"><span class="pre">finish</span></code> points are unknown,
+and the Loop Vectorizer has a mechanism to vectorize loops that do not start
+at zero. In this example, ‘n’ may not be a multiple of the vector width, and
+the vectorizer has to execute the last few iterations as scalar code. Keeping
+a scalar copy of the loop increases the code size.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">bar</span><span class="p">(</span><span class="kt">float</span> <span class="o">*</span><span class="n">A</span><span class="p">,</span> <span class="kt">float</span><span class="o">*</span> <span class="n">B</span><span class="p">,</span> <span class="kt">float</span> <span class="n">K</span><span class="p">,</span> <span class="kt">int</span> <span class="n">start</span><span class="p">,</span> <span class="kt">int</span> <span class="n">end</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="n">start</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">end</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+    <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*=</span> <span class="n">B</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">K</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="runtime-checks-of-pointers">
+<h4><a class="toc-backref" href="#id9">Runtime Checks of Pointers</a><a class="headerlink" href="#runtime-checks-of-pointers" title="Permalink to this headline">¶</a></h4>
+<p>In the example below, if the pointers A and B point to consecutive addresses,
+then it is illegal to vectorize the code because some elements of A will be
+written before they are read from array B.</p>
+<p>Some programmers use the ‘restrict’ keyword to notify the compiler that the
+pointers are disjointed, but in our example, the Loop Vectorizer has no way of
+knowing that the pointers A and B are unique. The Loop Vectorizer handles this
+loop by placing code that checks, at runtime, if the arrays A and B point to
+disjointed memory locations. If arrays A and B overlap, then the scalar version
+of the loop is executed.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">bar</span><span class="p">(</span><span class="kt">float</span> <span class="o">*</span><span class="n">A</span><span class="p">,</span> <span class="kt">float</span><span class="o">*</span> <span class="n">B</span><span class="p">,</span> <span class="kt">float</span> <span class="n">K</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+    <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*=</span> <span class="n">B</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">K</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="reductions">
+<h4><a class="toc-backref" href="#id10">Reductions</a><a class="headerlink" href="#reductions" title="Permalink to this headline">¶</a></h4>
+<p>In this example the <code class="docutils literal"><span class="pre">sum</span></code> variable is used by consecutive iterations of
+the loop. Normally, this would prevent vectorization, but the vectorizer can
+detect that ‘sum’ is a reduction variable. The variable ‘sum’ becomes a vector
+of integers, and at the end of the loop the elements of the array are added
+together to create the correct result. We support a number of different
+reduction operations, such as addition, multiplication, XOR, AND and OR.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">foo</span><span class="p">(</span><span class="kt">int</span> <span class="o">*</span><span class="n">A</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">B</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kt">unsigned</span> <span class="n">sum</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+    <span class="n">sum</span> <span class="o">+=</span> <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="mi">5</span><span class="p">;</span>
+  <span class="k">return</span> <span class="n">sum</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>We support floating point reduction operations when <cite>-ffast-math</cite> is used.</p>
+</div>
+<div class="section" id="inductions">
+<h4><a class="toc-backref" href="#id11">Inductions</a><a class="headerlink" href="#inductions" title="Permalink to this headline">¶</a></h4>
+<p>In this example the value of the induction variable <code class="docutils literal"><span class="pre">i</span></code> is saved into an
+array. The Loop Vectorizer knows to vectorize induction variables.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">bar</span><span class="p">(</span><span class="kt">float</span> <span class="o">*</span><span class="n">A</span><span class="p">,</span> <span class="kt">float</span><span class="o">*</span> <span class="n">B</span><span class="p">,</span> <span class="kt">float</span> <span class="n">K</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+    <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="if-conversion">
+<h4><a class="toc-backref" href="#id12">If Conversion</a><a class="headerlink" href="#if-conversion" title="Permalink to this headline">¶</a></h4>
+<p>The Loop Vectorizer is able to “flatten” the IF statement in the code and
+generate a single stream of instructions. The Loop Vectorizer supports any
+control flow in the innermost loop. The innermost loop may contain complex
+nesting of IFs, ELSEs and even GOTOs.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">foo</span><span class="p">(</span><span class="kt">int</span> <span class="o">*</span><span class="n">A</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">B</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kt">unsigned</span> <span class="n">sum</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">B</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+      <span class="n">sum</span> <span class="o">+=</span> <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="mi">5</span><span class="p">;</span>
+  <span class="k">return</span> <span class="n">sum</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="pointer-induction-variables">
+<h4><a class="toc-backref" href="#id13">Pointer Induction Variables</a><a class="headerlink" href="#pointer-induction-variables" title="Permalink to this headline">¶</a></h4>
+<p>This example uses the “accumulate” function of the standard c++ library. This
+loop uses C++ iterators, which are pointers, and not integer indices.
+The Loop Vectorizer detects pointer induction variables and can vectorize
+this loop. This feature is important because many C++ programs use iterators.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">baz</span><span class="p">(</span><span class="kt">int</span> <span class="o">*</span><span class="n">A</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">accumulate</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">A</span> <span class="o">+</span> <span class="n">n</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="reverse-iterators">
+<h4><a class="toc-backref" href="#id14">Reverse Iterators</a><a class="headerlink" href="#reverse-iterators" title="Permalink to this headline">¶</a></h4>
+<p>The Loop Vectorizer can vectorize loops that count backwards.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">foo</span><span class="p">(</span><span class="kt">int</span> <span class="o">*</span><span class="n">A</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">B</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">;</span> <span class="o">--</span><span class="n">i</span><span class="p">)</span>
+    <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="scatter-gather">
+<h4><a class="toc-backref" href="#id15">Scatter / Gather</a><a class="headerlink" href="#scatter-gather" title="Permalink to this headline">¶</a></h4>
+<p>The Loop Vectorizer can vectorize code that becomes a sequence of scalar instructions
+that scatter/gathers memory.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">foo</span><span class="p">(</span><span class="kt">int</span> <span class="o">*</span> <span class="n">A</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span> <span class="n">B</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">intptr_t</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+      <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">B</span><span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="mi">4</span><span class="p">];</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In many situations the cost model will inform LLVM that this is not beneficial
+and LLVM will only vectorize such code if forced with “-mllvm -force-vector-width=#”.</p>
+</div>
+<div class="section" id="vectorization-of-mixed-types">
+<h4><a class="toc-backref" href="#id16">Vectorization of Mixed Types</a><a class="headerlink" href="#vectorization-of-mixed-types" title="Permalink to this headline">¶</a></h4>
+<p>The Loop Vectorizer can vectorize programs with mixed types. The Vectorizer
+cost model can estimate the cost of the type conversion and decide if
+vectorization is profitable.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">foo</span><span class="p">(</span><span class="kt">int</span> <span class="o">*</span><span class="n">A</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">B</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">,</span> <span class="kt">int</span> <span class="n">k</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+    <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">4</span> <span class="o">*</span> <span class="n">B</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="global-structures-alias-analysis">
+<h4><a class="toc-backref" href="#id17">Global Structures Alias Analysis</a><a class="headerlink" href="#global-structures-alias-analysis" title="Permalink to this headline">¶</a></h4>
+<p>Access to global structures can also be vectorized, with alias analysis being
+used to make sure accesses don’t alias. Run-time checks can also be added on
+pointer access to structure members.</p>
+<p>Many variations are supported, but some that rely on undefined behaviour being
+ignored (as other compilers do) are still being left un-vectorized.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="p">{</span> <span class="kt">int</span> <span class="n">A</span><span class="p">[</span><span class="mi">100</span><span class="p">],</span> <span class="n">K</span><span class="p">,</span> <span class="n">B</span><span class="p">[</span><span class="mi">100</span><span class="p">];</span> <span class="p">}</span> <span class="n">Foo</span><span class="p">;</span>
+
+<span class="kt">int</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">100</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+    <span class="n">Foo</span><span class="p">.</span><span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">Foo</span><span class="p">.</span><span class="n">B</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="mi">100</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="vectorization-of-function-calls">
+<h4><a class="toc-backref" href="#id18">Vectorization of function calls</a><a class="headerlink" href="#vectorization-of-function-calls" title="Permalink to this headline">¶</a></h4>
+<p>The Loop Vectorize can vectorize intrinsic math functions.
+See the table below for a list of these functions.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="26%" />
+<col width="26%" />
+<col width="47%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>pow</td>
+<td>exp</td>
+<td>exp2</td>
+</tr>
+<tr class="row-even"><td>sin</td>
+<td>cos</td>
+<td>sqrt</td>
+</tr>
+<tr class="row-odd"><td>log</td>
+<td>log2</td>
+<td>log10</td>
+</tr>
+<tr class="row-even"><td>fabs</td>
+<td>floor</td>
+<td>ceil</td>
+</tr>
+<tr class="row-odd"><td>fma</td>
+<td>trunc</td>
+<td>nearbyint</td>
+</tr>
+<tr class="row-even"><td>&#160;</td>
+<td>&#160;</td>
+<td>fmuladd</td>
+</tr>
+</tbody>
+</table>
+<p>The loop vectorizer knows about special instructions on the target and will
+vectorize a loop containing a function call that maps to the instructions. For
+example, the loop below will be vectorized on Intel x86 if the SSE4.1 roundps
+instruction is available.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="kt">float</span> <span class="o">*</span><span class="n">f</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">!=</span> <span class="mi">1024</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+    <span class="n">f</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">floorf</span><span class="p">(</span><span class="n">f</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="partial-unrolling-during-vectorization">
+<h4><a class="toc-backref" href="#id19">Partial unrolling during vectorization</a><a class="headerlink" href="#partial-unrolling-during-vectorization" title="Permalink to this headline">¶</a></h4>
+<p>Modern processors feature multiple execution units, and only programs that contain a
+high degree of parallelism can fully utilize the entire width of the machine.
+The Loop Vectorizer increases the instruction level parallelism (ILP) by
+performing partial-unrolling of loops.</p>
+<p>In the example below the entire array is accumulated into the variable ‘sum’.
+This is inefficient because only a single execution port can be used by the processor.
+By unrolling the code the Loop Vectorizer allows two or more execution ports
+to be used simultaneously.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">foo</span><span class="p">(</span><span class="kt">int</span> <span class="o">*</span><span class="n">A</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">B</span><span class="p">,</span> <span class="kt">int</span> <span class="n">n</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kt">unsigned</span> <span class="n">sum</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span>
+      <span class="n">sum</span> <span class="o">+=</span> <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+  <span class="k">return</span> <span class="n">sum</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The Loop Vectorizer uses a cost model to decide when it is profitable to unroll loops.
+The decision to unroll the loop depends on the register pressure and the generated code size.</p>
+</div>
+</div>
+<div class="section" id="performance">
+<h3><a class="toc-backref" href="#id20">Performance</a><a class="headerlink" href="#performance" title="Permalink to this headline">¶</a></h3>
+<p>This section shows the the execution time of Clang on a simple benchmark:
+<a class="reference external" href="http://llvm.org/viewvc/llvm-project/test-suite/trunk/SingleSource/UnitTests/Vectorizer/">gcc-loops</a>.
+This benchmarks is a collection of loops from the GCC autovectorization
+<a class="reference external" href="http://gcc.gnu.org/projects/tree-ssa/vectorization.html">page</a> by Dorit Nuzman.</p>
+<p>The chart below compares GCC-4.7, ICC-13, and Clang-SVN with and without loop vectorization at -O3, tuned for “corei7-avx”, running on a Sandybridge iMac.
+The Y-axis shows the time in msec. Lower is better. The last column shows the geomean of all the kernels.</p>
+<img alt="_images/gcc-loops.png" src="_images/gcc-loops.png" />
+<p>And Linpack-pc with the same configuration. Result is Mflops, higher is better.</p>
+<img alt="_images/linpack-pc.png" src="_images/linpack-pc.png" />
+</div>
+</div>
+<div class="section" id="the-slp-vectorizer">
+<span id="slp-vectorizer"></span><h2><a class="toc-backref" href="#id21">The SLP Vectorizer</a><a class="headerlink" href="#the-slp-vectorizer" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="details">
+<h3><a class="toc-backref" href="#id22">Details</a><a class="headerlink" href="#details" title="Permalink to this headline">¶</a></h3>
+<p>The goal of SLP vectorization (a.k.a. superword-level parallelism) is
+to combine similar independent instructions
+into vector instructions. Memory accesses, arithmetic operations, comparison
+operations, PHI-nodes, can all be vectorized using this technique.</p>
+<p>For example, the following function performs very similar operations on its
+inputs (a1, b1) and (a2, b2). The basic-block vectorizer may combine these
+into vector operations.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="kt">int</span> <span class="n">a1</span><span class="p">,</span> <span class="kt">int</span> <span class="n">a2</span><span class="p">,</span> <span class="kt">int</span> <span class="n">b1</span><span class="p">,</span> <span class="kt">int</span> <span class="n">b2</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">A</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">a1</span><span class="o">*</span><span class="p">(</span><span class="n">a1</span> <span class="o">+</span> <span class="n">b1</span><span class="p">)</span><span class="o">/</span><span class="n">b1</span> <span class="o">+</span> <span class="mi">50</span><span class="o">*</span><span class="n">b1</span><span class="o">/</span><span class="n">a1</span><span class="p">;</span>
+  <span class="n">A</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">a2</span><span class="o">*</span><span class="p">(</span><span class="n">a2</span> <span class="o">+</span> <span class="n">b2</span><span class="p">)</span><span class="o">/</span><span class="n">b2</span> <span class="o">+</span> <span class="mi">50</span><span class="o">*</span><span class="n">b2</span><span class="o">/</span><span class="n">a2</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The SLP-vectorizer processes the code bottom-up, across basic blocks, in search of scalars to combine.</p>
+</div>
+<div class="section" id="id1">
+<h3><a class="toc-backref" href="#id23">Usage</a><a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>The SLP Vectorizer is enabled by default, but it can be disabled
+through clang using the command line flag:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> clang -fno-slp-vectorize file.c
+</pre></div>
+</div>
+<p>LLVM has a second basic block vectorization phase
+which is more compile-time intensive (The BB vectorizer). This optimization
+can be enabled through clang using the command line flag:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> clang -fslp-vectorize-aggressive file.c
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="WritingAnLLVMBackend.html" title="Writing an LLVM Backend"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="SourceLevelDebugging.html" title="Source Level Debugging with LLVM"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

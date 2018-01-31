@@ -1,0 +1,174 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial 2. Basic Kernel Programming &#8212; CM 6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorial 3. Enqueuing Multiple Kernels" href="cmtutorial03.html" />
+    <link rel="prev" title="Tutorial 1. Basic Host Programming" href="cmtutorial01.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="Intel Logo"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cmtutorial03.html" title="Tutorial 3. Enqueuing Multiple Kernels"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial01.html" title="Tutorial 1. Basic Host Programming"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tutorial-2-basic-kernel-programming">
+<h1>Tutorial 2. Basic Kernel Programming<a class="headerlink" href="#tutorial-2-basic-kernel-programming" title="Permalink to this headline">¶</a></h1>
+<p>This is the kernel program for the linear filtering. In this example, you
+can see how to get thread-ids when using media-walker. Also how to use
+the CM matrix type, and the select operation.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1">#include &lt;cm/cm.h&gt;</span>
+
+<span class="o">//</span> <span class="n">Linear</span> <span class="nb">filter</span><span class="p">:</span> <span class="n">average</span> <span class="n">neighbors</span> <span class="k">for</span> <span class="n">each</span> <span class="n">pixel</span>
+<span class="o">//</span> <span class="n">For</span> <span class="n">Each</span> <span class="n">pixel</span>
+<span class="o">//</span>     <span class="n">For</span> <span class="n">Each</span> <span class="n">RGB</span> <span class="n">Channel</span>
+<span class="o">//</span>         <span class="n">I</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">)</span><span class="o">=</span><span class="p">[</span><span class="n">I</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">I</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">+</span> <span class="n">I</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span>
+<span class="o">//</span>                 <span class="n">I</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">I</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">+</span> <span class="n">I</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span>
+<span class="o">//</span>                 <span class="n">I</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">I</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">+</span> <span class="n">I</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span><span class="o">/</span><span class="mi">9</span>
+<span class="o">//</span>
+<span class="o">//</span> <span class="n">Every</span> <span class="n">thread</span> <span class="n">outputs</span> <span class="n">results</span> <span class="k">for</span> <span class="n">a</span> <span class="mi">6</span><span class="n">x8</span> <span class="n">pixel</span><span class="o">-</span><span class="n">block</span>
+<span class="o">//</span> <span class="n">Since</span> <span class="n">the</span> <span class="n">data</span> <span class="ow">is</span> <span class="n">R8G8B8</span><span class="p">,</span> <span class="n">therefore</span> <span class="n">the</span> <span class="n">output</span> <span class="ow">is</span>
+<span class="o">//</span> <span class="n">a</span> <span class="mi">6</span><span class="n">x24</span> <span class="n">matrix</span> <span class="n">of</span> <span class="n">uchar</span> <span class="n">elements</span>
+<span class="o">//</span>
+<span class="o">//</span> <span class="n">_GENX_MAIN_</span> <span class="n">attribute</span> <span class="n">means</span> <span class="n">this</span> <span class="n">function</span> <span class="ow">is</span> <span class="n">a</span> <span class="n">kernel</span> <span class="n">entry</span>
+<span class="o">//</span> <span class="n">SurfaceIndex</span> <span class="n">ibuf</span> <span class="ow">is</span> <span class="nb">input</span> <span class="n">surface</span>
+<span class="o">//</span> <span class="n">SurfaceIndex</span> <span class="n">obuf</span> <span class="ow">is</span> <span class="n">output</span> <span class="n">surface</span>
+<span class="n">extern</span> <span class="s2">&quot;C&quot;</span> <span class="n">_GENX_MAIN_</span> <span class="n">void</span>
+<span class="n">linear</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">ibuf</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">obuf</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="o">//</span> <span class="n">declare</span> <span class="mi">8</span><span class="n">x32</span> <span class="nb">input</span> <span class="n">matrix</span> <span class="n">of</span> <span class="n">uchar</span> <span class="n">elements</span>
+    <span class="o">//</span> <span class="n">Note</span><span class="p">:</span> <span class="mi">8</span><span class="n">x30</span> <span class="ow">is</span> <span class="n">sufficient</span> <span class="k">for</span> <span class="n">the</span> <span class="n">computation</span>
+    <span class="o">//</span> <span class="n">however</span> <span class="n">block</span><span class="o">-</span><span class="n">read</span> <span class="n">only</span> <span class="n">reads</span> <span class="n">the</span> <span class="n">multiple</span> <span class="n">of</span> <span class="n">dwords</span>
+    <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="ow">in</span><span class="p">;</span>
+    <span class="o">//</span> <span class="n">declare</span> <span class="mi">6</span><span class="n">x24</span> <span class="n">output</span> <span class="n">matrix</span> <span class="n">of</span> <span class="n">uchar</span> <span class="n">elements</span>
+    <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">24</span><span class="o">&gt;</span> <span class="n">out</span><span class="p">;</span>
+    <span class="o">//</span> <span class="n">declare</span> <span class="n">intermediate</span> <span class="n">matrix</span> <span class="k">for</span> <span class="n">summation</span>
+    <span class="n">matrix</span><span class="o">&lt;</span><span class="nb">float</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">24</span><span class="o">&gt;</span> <span class="n">m</span><span class="p">;</span>
+
+    <span class="o">//</span> <span class="n">when</span> <span class="n">we</span> <span class="n">use</span> <span class="n">media</span><span class="o">-</span><span class="n">walker</span><span class="p">,</span> <span class="n">we</span> <span class="n">can</span> <span class="n">get</span> <span class="n">thread</span><span class="o">-</span><span class="n">ids</span>
+    <span class="o">//</span> <span class="n">using</span> <span class="n">the</span> <span class="n">following</span> <span class="n">intrinsic</span> <span class="n">instead</span> <span class="n">of</span> <span class="n">using</span>
+    <span class="o">//</span> <span class="n">per</span><span class="o">-</span><span class="n">thread</span> <span class="n">arguments</span>
+    <span class="n">uint</span> <span class="n">h_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_x</span><span class="p">();</span>
+    <span class="n">uint</span> <span class="n">v_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_y</span><span class="p">();</span>
+
+    <span class="o">//</span> <span class="mi">2</span><span class="n">D</span> <span class="n">media</span><span class="o">-</span><span class="n">block</span> <span class="n">read</span> <span class="kn">from</span> <span class="nn">surface</span> <span class="n">to</span> <span class="nb">input</span>
+    <span class="n">read</span><span class="p">(</span><span class="n">ibuf</span><span class="p">,</span> <span class="n">h_pos</span> <span class="o">*</span> <span class="mi">24</span><span class="p">,</span> <span class="n">v_pos</span> <span class="o">*</span> <span class="mi">6</span><span class="p">,</span> <span class="ow">in</span><span class="p">);</span>
+    <span class="o">//</span> <span class="n">copy</span> <span class="mi">6</span><span class="n">x24</span> <span class="n">block</span> <span class="kn">from</span> <span class="nn">in</span><span class="o">-</span><span class="n">matrix</span> <span class="n">starting</span> <span class="n">at</span> <span class="n">corner</span> <span class="p">(</span><span class="n">v1</span><span class="p">,</span><span class="n">h3</span><span class="p">)</span>
+    <span class="o">//</span> <span class="n">to</span> <span class="n">m</span><span class="o">-</span><span class="n">matrix</span>
+    <span class="o">//</span> <span class="o">&lt;</span><span class="mi">6</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">24</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;</span> <span class="n">means</span> <span class="n">height</span> <span class="ow">is</span> <span class="mi">6</span><span class="p">,</span> <span class="n">vertical</span> <span class="n">stride</span> <span class="ow">is</span> <span class="mi">1</span>
+    <span class="o">//</span> <span class="n">width</span> <span class="ow">is</span> <span class="mi">24</span><span class="p">,</span> <span class="n">horizontal</span> <span class="n">stride</span> <span class="ow">is</span> <span class="mi">1</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="ow">in</span><span class="o">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">);</span>
+    <span class="o">//</span> <span class="n">add</span> <span class="mi">6</span><span class="n">x24</span> <span class="n">block</span> <span class="kn">from</span> <span class="nn">in</span><span class="o">-</span><span class="n">matrix</span> <span class="n">starting</span> <span class="n">at</span> <span class="n">corner</span><span class="p">(</span><span class="n">v0</span><span class="p">,</span><span class="n">h0</span><span class="p">)</span>
+    <span class="o">//</span> <span class="n">to</span> <span class="n">m</span><span class="o">-</span><span class="n">matrix</span>
+    <span class="n">m</span> <span class="o">+=</span> <span class="ow">in</span><span class="o">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+    <span class="o">//</span> <span class="n">add</span> <span class="mi">6</span><span class="n">x24</span> <span class="n">block</span> <span class="kn">from</span> <span class="nn">in</span><span class="o">-</span><span class="n">matrix</span> <span class="n">starting</span> <span class="n">at</span> <span class="n">corner</span><span class="p">(</span><span class="n">v0</span><span class="p">,</span><span class="n">h3</span><span class="p">)</span>
+    <span class="o">//</span> <span class="n">to</span> <span class="n">m</span><span class="o">-</span><span class="n">matrix</span>
+    <span class="n">m</span> <span class="o">+=</span> <span class="ow">in</span><span class="o">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">);</span>
+    <span class="o">//</span> <span class="n">add</span> <span class="mi">6</span><span class="n">x24</span> <span class="n">block</span> <span class="kn">from</span> <span class="nn">in</span><span class="o">-</span><span class="n">matrix</span> <span class="n">starting</span> <span class="n">at</span> <span class="n">corner</span><span class="p">(</span><span class="n">v0</span><span class="p">,</span><span class="n">h6</span><span class="p">)</span>
+    <span class="o">//</span> <span class="n">to</span> <span class="n">m</span><span class="o">-</span><span class="n">matrix</span>
+    <span class="n">m</span> <span class="o">+=</span> <span class="ow">in</span><span class="o">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">6</span><span class="p">);</span>
+    <span class="o">//</span> <span class="n">add</span> <span class="mi">6</span><span class="n">x24</span> <span class="n">block</span> <span class="kn">from</span> <span class="nn">in</span><span class="o">-</span><span class="n">matrix</span> <span class="n">starting</span> <span class="n">at</span> <span class="n">corner</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span><span class="n">h0</span><span class="p">)</span>
+    <span class="o">//</span> <span class="n">to</span> <span class="n">m</span><span class="o">-</span><span class="n">matrix</span>
+    <span class="n">m</span> <span class="o">+=</span> <span class="ow">in</span><span class="o">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+    <span class="o">//</span> <span class="n">add</span> <span class="mi">6</span><span class="n">x24</span> <span class="n">block</span> <span class="kn">from</span> <span class="nn">in</span><span class="o">-</span><span class="n">matrix</span> <span class="n">starting</span> <span class="n">at</span> <span class="n">corner</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span><span class="n">h6</span><span class="p">)</span>
+    <span class="o">//</span> <span class="n">to</span> <span class="n">m</span><span class="o">-</span><span class="n">matrix</span>
+    <span class="n">m</span> <span class="o">+=</span> <span class="ow">in</span><span class="o">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">6</span><span class="p">);</span>
+    <span class="o">//</span> <span class="n">add</span> <span class="mi">6</span><span class="n">x24</span> <span class="n">block</span> <span class="kn">from</span> <span class="nn">in</span><span class="o">-</span><span class="n">matrix</span> <span class="n">starting</span> <span class="n">at</span> <span class="n">corner</span><span class="p">(</span><span class="n">v2</span><span class="p">,</span><span class="n">h0</span><span class="p">)</span>
+    <span class="o">//</span> <span class="n">to</span> <span class="n">m</span><span class="o">-</span><span class="n">matrix</span>
+    <span class="n">m</span> <span class="o">+=</span> <span class="ow">in</span><span class="o">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+    <span class="o">//</span> <span class="n">add</span> <span class="mi">6</span><span class="n">x24</span> <span class="n">block</span> <span class="kn">from</span> <span class="nn">in</span><span class="o">-</span><span class="n">matrix</span> <span class="n">starting</span> <span class="n">at</span> <span class="n">corner</span><span class="p">(</span><span class="n">v2</span><span class="p">,</span><span class="n">h3</span><span class="p">)</span>
+    <span class="o">//</span> <span class="n">to</span> <span class="n">m</span><span class="o">-</span><span class="n">matrix</span>
+    <span class="n">m</span> <span class="o">+=</span> <span class="ow">in</span><span class="o">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">);</span>
+    <span class="o">//</span> <span class="n">add</span> <span class="mi">6</span><span class="n">x24</span> <span class="n">block</span> <span class="kn">from</span> <span class="nn">in</span><span class="o">-</span><span class="n">matrix</span> <span class="n">starting</span> <span class="n">at</span> <span class="n">corner</span><span class="p">(</span><span class="n">v2</span><span class="p">,</span><span class="n">h6</span><span class="p">)</span>
+    <span class="o">//</span> <span class="n">to</span> <span class="n">m</span><span class="o">-</span><span class="n">matrix</span>
+    <span class="n">m</span> <span class="o">+=</span> <span class="ow">in</span><span class="o">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">6</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">6</span><span class="p">);</span>
+    <span class="o">//</span> <span class="n">divide</span> <span class="n">by</span> <span class="mi">9</span> <span class="n">approximately</span><span class="p">,</span> <span class="n">mul</span> <span class="ow">is</span> <span class="n">faster</span>
+    <span class="o">//</span> <span class="n">implicit</span> <span class="nb">type</span> <span class="n">conversion</span> <span class="kn">from</span> <span class="nn">float</span> <span class="n">to</span> <span class="n">uchar</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">m</span> <span class="o">*</span> <span class="mf">0.111</span><span class="n">f</span><span class="p">;</span>
+    <span class="o">//</span> <span class="mi">2</span><span class="n">D</span> <span class="n">media</span><span class="o">-</span><span class="n">block</span> <span class="n">write</span> <span class="n">to</span> <span class="n">surface</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">obuf</span><span class="p">,</span> <span class="n">h_pos</span> <span class="o">*</span> <span class="mi">24</span><span class="p">,</span> <span class="n">v_pos</span> <span class="o">*</span> <span class="mi">6</span><span class="p">,</span> <span class="n">out</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cmtutorial03.html" title="Tutorial 3. Enqueuing Multiple Kernels"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial01.html" title="Tutorial 1. Basic Host Programming"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" >CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
+      Last updated on Tue Jan 2 15:16:27 2018 -0800.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

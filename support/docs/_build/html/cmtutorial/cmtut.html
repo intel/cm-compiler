@@ -1,0 +1,191 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>CM (C for Media) Tutorial &#8212; CM 6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorial 1. Basic Host Programming" href="cmtutorial01.html" />
+    <link rel="prev" title="CMC User Guide" href="../cmcuserguide/cmcuserguide.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="Intel Logo"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cmtutorial01.html" title="Tutorial 1. Basic Host Programming"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../cmcuserguide/cmcuserguide.html" title="CMC User Guide"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="cm-c-for-media-tutorial">
+<h1>CM (C for Media) Tutorial<a class="headerlink" href="#cm-c-for-media-tutorial" title="Permalink to this headline">¶</a></h1>
+<p>Revision 6.0</p>
+<p>Primary Author(s): Gang Chen and Guei-Yuan Lueh (with sources from current and past CM members)</p>
+<p>Contributor(s): Kaiyu Chen, Michael Liao, Fang Liu, Wei Pan, Yuting Yang</p>
+<p>Special thanks to our previous teammates in UK, David Stuttard, Tim Renouf, Tim Corringham, and Stephen Thomas, who were the main developers of this llvm-based compiler.</p>
+<div class="section" id="intro-comparing-cm-with-cuda-opencl">
+<h2>Intro: Comparing CM with CUDA/OpenCL<a class="headerlink" href="#intro-comparing-cm-with-cuda-opencl" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="similarities">
+<h3>Similarities<a class="headerlink" href="#similarities" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li>Program for GPU acceleration: host program on CPU; kernel program on GPU.</li>
+<li>Host API provided in C++.  GPU kernel programming in a subset of C++.</li>
+</ul>
+</div>
+<div class="section" id="differences">
+<h3>Differences<a class="headerlink" href="#differences" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li>Explicit SIMD-programming model. Allow varying SIMD width.</li>
+<li>One CM thread is equivalent to one CUDA warp or one OCL subgroup, operates on a block of pixels instead of one pixel.<ul>
+<li>access the entire vector register file instead of one-lane of the register file. Enable developers to achieve the most efficient register usage.</li>
+</ul>
+</li>
+<li>Predefined vector and matrix type.<ul>
+<li>Natural representation of media data</li>
+<li>Parallelism expressed through vector and matrix operations</li>
+</ul>
+</li>
+<li>Expose GEN hardware media-acceleration functions</li>
+<li>Cm is good for applications that<ul>
+<li>Need cross SIMD-lane operations</li>
+<li>Need mixed SIMD width</li>
+<li>Need to change data layout (e.g., transpose)</li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="contents">
+<h2>Contents<a class="headerlink" href="#contents" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="cmtutorial01.html">Tutorial 1. Basic Host Programming</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cmtutorial02.html">Tutorial 2. Basic Kernel Programming</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cmtutorial03.html">Tutorial 3. Enqueuing Multiple Kernels</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cmtutorial04.html">Tutorial 4. Using Media Walker with Thread Dependence</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cmtutorial05.html">Tutorial 5. Builtin Matrix and Vector Operations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cmtutorial06.html">Tutorial 6. Shared Local Memory and Thread Group</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cmtutorial07.html">Tutorial 7. Using Printf in Kernel</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cmtutorial08.html">Tutorial 8. Using CmBuffer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cmtutorial09.html">Tutorial 9. Zero-Copy with User-Provided Surfaces</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cmtutorial10.html">Tutorial 10. Event-Driven Synchronization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cmtutorial11.html">Tutorial 11. Kernel Programming: Register Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cmtutorial12.html">Tutorial 12. Kernel Deep-Dive: BitonicSort</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cmtutorial13.html">Tutorial 13. Kernel Deep-Dive: RadixSort</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cmtutorial14.html">Tutorial 14. Kernel Example - PrefixSum</a></li>
+</ul>
+</div>
+</div>
+<div class="section" id="legal-notices-and-disclaimers">
+<h2>Legal Notices and Disclaimers<a class="headerlink" href="#legal-notices-and-disclaimers" title="Permalink to this headline">¶</a></h2>
+<p>INFORMATION IN THIS DOCUMENT IS PROVIDED IN CONNECTION WITH INTEL® PRODUCTS. NO LICENSE,
+EXPRESS OR IMPLIED, BY ESTOPPEL OR OTHERWISE, TO ANY INTELLECTUAL PROPERTY RIGHTS IS
+GRANTED BY THIS DOCUMENT. EXCEPT AS PROVIDED IN INTEL’S TERMS AND CONDITIONS OF SALE FOR
+SUCH PRODUCTS, INTEL ASSUMES NO LIABILITY WHATSOEVER, AND INTEL DISCLAIMS ANY EXPRESS OR
+IMPLIED WARRANTY, RELATING TO SALE AND/OR USE OF INTEL PRODUCTS INCLUDING LIABILITY OR
+WARRANTIES RELATING TO FITNESS FOR A PARTICULAR PURPOSE, MERCHANTABILITY, OR
+INFRINGEMENT OF ANY PATENT, COPYRIGHT OR OTHER INTELLECTUAL PROPERTY RIGHT.
+UNLESS OTHERWISE AGREED IN WRITING BY INTEL, THE INTEL PRODUCTS ARE NOT DESIGNED NOR
+INTENDED FOR ANY APPLICATION IN WHICH THE FAILURE OF THE INTEL PRODUCT COULD CREATE A
+SITUATION WHERE PERSONAL INJURY OR DEATH MAY OCCUR.
+Intel may make changes to specifications and product descriptions at any time, without notice. Designers
+must not rely on the absence or characteristics of any features or instructions marked “reserved” or
+“undefined.” Intel reserves these for future definition and shall have no responsibility whatsoever for
+conflicts or incompatibilities arising from future changes to them. The information here is subject to
+change without notice. Do not finalize a design with this information.
+The products described in this document may contain design defects or errors known as errata which may
+cause the product to deviate from published specifications. Current characterized errata are available on
+request.
+Contact your local Intel sales office or your distributor to obtain the latest specifications and before
+placing your product order.
+Copies of documents which have an order number and are referenced in this document, or other Intel
+literature, may be obtained by calling 1-800-548-4725, or by visiting Intel’s Web Site.
+Intel processor numbers are not a measure of performance. Processor numbers differentiate features
+within each processor family, not across different processor families. See
+<a class="reference external" href="http://www.intel.com/products/processor_number">http://www.intel.com/products/processor_number</a> for details.
+This document contains information on products in the design phase of development.
+BunnyPeople, Celeron, Celeron Inside, Centrino, Centrino Atom, Centrino Atom Inside, Centrino Inside,
+Centrino logo, Core Inside, FlashFile, i960, InstantIP, Intel, Intel logo, Intel386, Intel486, IntelDX2,
+IntelDX4, IntelSX2, Intel Atom, Intel Atom Inside, Intel Core, Intel Inside, Intel Inside logo, Intel. Leap
+ahead., Intel. Leap ahead. logo, Intel NetBurst, Intel NetMerge, Intel NetStructure, Intel SingleDriver, Intel
+SpeedStep, Intel StrataFlash, Intel Viiv, Intel vPro, Intel XScale, Itanium, Itanium Inside, MCS, MMX, Oplus,
+OverDrive, PDCharm, Pentium, Pentium Inside, skoool, Sound Mark, The Journey Inside, Viiv Inside, vPro
+Inside, VTune, Xeon, and Xeon Inside are trademarks of Intel Corporation in the U.S. and other countries.
+* Other names and brands may be claimed as the property of others.</p>
+<p>Copyright (C) 2009-2017, Intel Corporation. All rights reserved.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cmtutorial01.html" title="Tutorial 1. Basic Host Programming"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../cmcuserguide/cmcuserguide.html" title="CMC User Guide"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
+      Last updated on Tue Jan 2 15:16:27 2018 -0800.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

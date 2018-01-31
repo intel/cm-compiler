@@ -1,0 +1,211 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial 4. Using Media Walker with Thread Dependence &#8212; CM 6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorial 5. Builtin Matrix and Vector Operations" href="cmtutorial05.html" />
+    <link rel="prev" title="Tutorial 3. Enqueuing Multiple Kernels" href="cmtutorial03.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="Intel Logo"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cmtutorial05.html" title="Tutorial 5. Builtin Matrix and Vector Operations"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial03.html" title="Tutorial 3. Enqueuing Multiple Kernels"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tutorial-4-using-media-walker-with-thread-dependence">
+<h1>Tutorial 4. Using Media Walker with Thread Dependence<a class="headerlink" href="#tutorial-4-using-media-walker-with-thread-dependence" title="Permalink to this headline">¶</a></h1>
+<p>Media-walker also incorporates a mechanism for launching threads in certain
+partial order (a.k.a. setting thread-dependency pattern).</p>
+<p><a class="reference external" href="../../../../../test/open_examples/CalcIntImage/CalcIntImage_genx.cpp">Calculating the integral image</a>
+is a good example for using the
+thread-dependence pattern provided with media walker.  In order
+to compute integral image efficiently. we want to start the compuation
+at the up-left corner, every pixel uses the results of its three
+neighbors: up, left, and up-left. See the example CalcIntImage for
+details. Here we only show the distinctive part of the host and device code.</p>
+<p>In this example, we create thread space as before, then set the dependency
+pattern. Media walker supports two dependence pattern:</p>
+<ul class="simple">
+<li>Wavefront: thread (x,y) depends on thread(x-1,y) and thread(x, y-1)</li>
+<li>Wavefront26: thread(x,y) depends on thread(x-1, y) and thread(x+1, y-1)</li>
+</ul>
+<a class="reference internal image-reference" href="../_images/wavefronts.png"><img alt="../_images/wavefronts.png" src="../_images/wavefronts.png" style="width: 600px;" /></a>
+<p>In this case, we use the wavefront pattern.</p>
+<div class="section" id="host-side">
+<h2>Host-Side<a class="headerlink" href="#host-side" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>    <span class="c1">// Creates a CmThreadSpace object.</span>
+    <span class="c1">// There are two usage models for the thread space. One is to define the</span>
+    <span class="c1">// dependency between threads to run in the GPU. The other is to define a</span>
+    <span class="c1">// thread space where each thread can get a pair of coordinates during</span>
+    <span class="c1">// kernel execution. For this example, we use both usage models.</span>
+    <span class="n">CmThreadSpace</span> <span class="o">*</span><span class="n">thread_space</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+    <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateThreadSpace</span><span class="p">(</span><span class="n">thread_width</span><span class="p">,</span>
+                                              <span class="n">thread_height</span><span class="p">,</span>
+                                              <span class="n">thread_space</span><span class="p">));</span>
+
+    <span class="c1">// Selects thread dependency pattern.</span>
+    <span class="c1">// 45-degree wave-front dependency: every block needs.</span>
+    <span class="c1">// Results from its three neighbors: up, left, and up-left.</span>
+    <span class="n">cm_result_check</span><span class="p">(</span><span class="n">thread_space</span><span class="o">-&gt;</span><span class="n">SelectThreadDependencyPattern</span><span class="p">(</span><span class="n">CM_WAVEFRONT</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="kernel-side">
+<h2>Kernel-Side<a class="headerlink" href="#kernel-side" title="Permalink to this headline">¶</a></h2>
+<p>Pay attention to sevearl cm-primitives related to the implementation of
+thread-dependency. They are <code class="docutils literal"><span class="pre">cm_wait()</span></code>, <code class="docutils literal"><span class="pre">cm_fence()</span></code>, and <code class="docutils literal"><span class="pre">cm_signal()</span></code>.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>
+<span class="o">//</span> <span class="n">Calculate</span> <span class="n">Integral</span> <span class="n">Image</span><span class="p">:</span>
+<span class="o">//</span> <span class="n">every</span> <span class="n">output</span> <span class="n">pixel</span> <span class="ow">is</span> <span class="n">the</span> <span class="n">summation</span> <span class="n">of</span> <span class="nb">all</span> <span class="n">pixels</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">sub</span><span class="o">-</span><span class="n">image</span>
+<span class="o">//</span> <span class="kn">from</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="n">to</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span><span class="o">.</span> <span class="n">Define</span> <span class="n">the</span> <span class="n">equation</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">recursive</span> <span class="n">form</span>
+<span class="o">//</span>    <span class="n">S</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">=</span> <span class="n">I</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">+</span> <span class="n">S</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">+</span> <span class="n">S</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="n">S</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">y</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+<span class="o">//</span> <span class="n">This</span> <span class="n">example</span> <span class="n">does</span> <span class="n">it</span> <span class="ow">in</span> <span class="mi">16</span><span class="n">x16</span> <span class="n">block</span> <span class="n">fashion</span> <span class="ow">in</span> <span class="n">order</span> <span class="n">to</span> <span class="n">fully</span>
+<span class="o">//</span> <span class="n">utilize</span> <span class="n">the</span> <span class="n">funtion</span><span class="o">-</span><span class="n">unit</span> <span class="ow">and</span> <span class="n">registers</span> <span class="n">of</span> <span class="n">evry</span> <span class="n">GEN</span> <span class="n">execution</span><span class="o">-</span><span class="n">unit</span>
+</pre></div>
+</div>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="n">_GENX_MAIN_</span>
+<span class="kt">void</span> <span class="n">CalcIntImage</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">bufin</span><span class="p">,</span>
+                  <span class="n">SurfaceIndex</span> <span class="n">bufout</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">uint</span> <span class="n">rd_h_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_x</span><span class="p">()</span> <span class="o">*</span> <span class="mi">16</span><span class="p">;</span>
+    <span class="n">uint</span> <span class="n">wr_h_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_x</span><span class="p">()</span> <span class="o">*</span> <span class="mi">64</span><span class="p">;</span><span class="c1">//rd_h_pos * 4;</span>
+    <span class="n">uint</span> <span class="n">rd_v_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_y</span><span class="p">()</span> <span class="o">*</span> <span class="mi">16</span><span class="p">;</span>
+    <span class="n">uint</span> <span class="n">wr_v_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_y</span><span class="p">()</span> <span class="o">*</span> <span class="mi">16</span><span class="p">;</span><span class="c1">//rd_v_pos;</span>
+
+    <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span> <span class="n">v_16_vert</span><span class="p">;</span>
+    <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">v_16_hori</span><span class="p">;</span>
+    <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">read_in_matrix</span><span class="p">;</span>
+    <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">calc_matrix</span><span class="p">;</span>
+    <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span> <span class="n">upleft</span><span class="p">;</span>
+
+    <span class="c1">// read the 16x16 pixel block from input image</span>
+    <span class="n">read</span><span class="p">(</span><span class="n">bufin</span><span class="p">,</span> <span class="n">rd_h_pos</span><span class="p">,</span> <span class="n">rd_v_pos</span><span class="p">,</span> <span class="n">read_in_matrix</span><span class="p">);</span>
+    <span class="kt">int</span> <span class="n">wr_h_pos_minus_four</span> <span class="o">=</span> <span class="n">wr_h_pos</span> <span class="o">-</span> <span class="mi">4</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">rd_v_pos_minus_one</span> <span class="o">=</span> <span class="n">rd_v_pos</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span>
+
+    <span class="c1">// wait for the up-thread, left thread, and the up-left thread to finish</span>
+    <span class="n">cm_wait</span><span class="p">();</span>
+
+    <span class="c1">// get the sum from the left-neighbor</span>
+    <span class="k">if</span><span class="p">(</span><span class="n">rd_h_pos</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">v_16_vert</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">else</span><span class="p">{</span>
+        <span class="n">read</span><span class="p">(</span><span class="n">bufout</span><span class="p">,</span> <span class="n">wr_h_pos_minus_four</span><span class="p">,</span> <span class="n">rd_v_pos</span><span class="p">,</span> <span class="n">v_16_vert</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="c1">// get the sum from the up-neighbor</span>
+    <span class="k">if</span><span class="p">(</span><span class="n">rd_v_pos</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">v_16_hori</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">else</span><span class="p">{</span>
+        <span class="n">read</span><span class="p">(</span><span class="n">bufout</span><span class="p">,</span> <span class="n">wr_h_pos</span><span class="p">,</span> <span class="n">rd_v_pos_minus_one</span><span class="p">,</span>
+             <span class="n">v_16_hori</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">));</span>
+        <span class="n">read</span><span class="p">(</span><span class="n">bufout</span><span class="p">,</span> <span class="n">wr_h_pos</span><span class="o">+</span><span class="mi">32</span><span class="p">,</span> <span class="n">rd_v_pos_minus_one</span><span class="p">,</span>
+             <span class="n">v_16_hori</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">8</span><span class="p">));</span>
+    <span class="p">}</span>
+
+    <span class="c1">// get the sum from the up-left corner</span>
+    <span class="k">if</span><span class="p">(</span><span class="n">rd_v_pos</span> <span class="o">!=</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="n">rd_h_pos</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">){</span>
+        <span class="n">read</span><span class="p">(</span><span class="n">bufout</span><span class="p">,</span> <span class="n">wr_h_pos_minus_four</span><span class="p">,</span> <span class="n">rd_v_pos_minus_one</span><span class="p">,</span> <span class="n">upleft</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="k">else</span>
+        <span class="n">upleft</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+    <span class="c1">// compute the output for this 16x16 pixel block</span>
+    <span class="n">acc_matrix16x16</span> <span class="p">(</span><span class="n">read_in_matrix</span><span class="p">,</span> <span class="n">calc_matrix</span><span class="p">,</span> <span class="n">v_16_vert</span><span class="p">,</span> <span class="n">v_16_hori</span><span class="p">,</span> <span class="n">upleft</span><span class="p">);</span>
+
+    <span class="c1">// write the output</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">bufout</span><span class="p">,</span> <span class="n">wr_h_pos</span><span class="p">,</span> <span class="n">wr_v_pos</span><span class="p">,</span> <span class="n">calc_matrix</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">));</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">bufout</span><span class="p">,</span> <span class="n">wr_h_pos</span><span class="o">+</span><span class="mi">32</span><span class="p">,</span> <span class="n">wr_v_pos</span><span class="p">,</span> <span class="n">calc_matrix</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">8</span><span class="p">));</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">bufout</span><span class="p">,</span> <span class="n">wr_h_pos</span><span class="p">,</span> <span class="n">wr_v_pos</span><span class="o">+</span><span class="mi">8</span><span class="p">,</span> <span class="n">calc_matrix</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">0</span><span class="p">));</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">bufout</span><span class="p">,</span> <span class="n">wr_h_pos</span><span class="o">+</span><span class="mi">32</span><span class="p">,</span> <span class="n">wr_v_pos</span><span class="o">+</span><span class="mi">8</span><span class="p">,</span> <span class="n">calc_matrix</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">8</span><span class="p">,</span><span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">8</span><span class="p">));</span>
+
+    <span class="c1">// cm_fence makes sure the writes are truely finished (in the memory)</span>
+    <span class="n">cm_fence</span><span class="p">();</span>
+    <span class="c1">// inform dependents</span>
+    <span class="n">cm_signal</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cmtutorial05.html" title="Tutorial 5. Builtin Matrix and Vector Operations"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial03.html" title="Tutorial 3. Enqueuing Multiple Kernels"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" >CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
+      Last updated on Tue Jan 2 15:16:27 2018 -0800.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

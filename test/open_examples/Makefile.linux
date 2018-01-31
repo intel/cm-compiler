@@ -1,0 +1,52 @@
+###########################################################################
+# Makefile for HW Mode on Linux
+###########################################################################
+
+#macro CM_ROOT and APP_NAME are passed as Make parameters
+#CM_ROOT := /home/gangche1/Perforce/gc-centos-cmrt/SWE_Media_CM_RT/mainline
+#CMC := ../../../build.64.linux/bin/cmc
+CM_ROOT := ../..
+CMC := $(CM_ROOT)/compiler/bin/cmc
+APP_NAME_NO_STRIP:= $(shell pwd | awk -F '/' '{print $$NF}' )
+APP_NAME := $(strip $(APP_NAME_NO_STRIP))
+
+ifeq ($(strip $(GEN_MODE)),)
+GEN_MODE := GEN9
+endif
+
+ALL_FILE   := $(wildcard *.cpp)
+KERNEL_FILE   := $(wildcard *genx*.cpp)
+HOST_FILE = $(filter-out $(KERNEL_FILE), $(ALL_FILE))
+APP         := $(APP_NAME)
+
+CXX           := g++
+INCL          := -I$(CM_ROOT)/runtime/include -I..
+CXXFLAGS      := -w -g ${INCL} -msse4.1 -D__LINUX__ -DLINUX -O0 -std=gnu++11 -fPIC -c -DCM_$(subst gen,GEN,$(GEN_MODE)) -rdynamic -ffloat-store
+
+.PHONY: clean, hw_x64, all
+
+all: hw_x64
+
+######## HW Mode with JITTER ##################
+HW_CXXFLAGS     := $(CXXFLAGS) 
+HW_LDFLAGS      :=  -lva -lX11 -ldl -fPIC
+HW_APP_SOURCES  := $(HOST_FILE)
+HW_KERN_SOURCES := $(KERNEL_FILE)
+HW_CMCFLAGS     := -march=$(GEN_MODE) -isystem ../../compiler/include_llvm
+
+HW_X64_ID       := hw_x64
+HW_X64_APP      := $(HW_X64_ID).$(APP_NAME)
+HW_X64_ISA      := $(HW_KERN_SOURCES:.cpp=.isa)
+HW_X64_APP_OBJS := $(HW_APP_SOURCES:.cpp=.$(HW_X64_ID).o)
+
+hw_x64: $(HW_X64_APP) $(HW_X64_ISA)
+$(HW_X64_APP): $(HW_X64_APP_OBJS)
+	$(CXX) $^ $(HW_LDFLAGS) -rdynamic $(CM_ROOT)/runtime/lib/x64/igfxcmrt64.so -o $@
+$(HW_X64_APP_OBJS): %.$(HW_X64_ID).o: %.cpp
+	$(CXX) $< $(HW_CXXFLAGS) -o $@
+
+$(HW_X64_ISA): %.isa: %.cpp
+	$(CMC) $< $(HW_CMCFLAGS) -o $@
+
+clean:
+	rm -f *.o *.isa $(HW_X64_APP)

@@ -1,0 +1,229 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial 6. Shared Local Memory and Thread Group &#8212; CM 6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorial 7. Using Printf in Kernel" href="cmtutorial07.html" />
+    <link rel="prev" title="Tutorial 5. Builtin Matrix and Vector Operations" href="cmtutorial05.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="Intel Logo"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cmtutorial07.html" title="Tutorial 7. Using Printf in Kernel"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial05.html" title="Tutorial 5. Builtin Matrix and Vector Operations"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tutorial-6-shared-local-memory-and-thread-group">
+<h1>Tutorial 6. Shared Local Memory and Thread Group<a class="headerlink" href="#tutorial-6-shared-local-memory-and-thread-group" title="Permalink to this headline">¶</a></h1>
+<p>CM also allows users to use shared-local-memory (SLM) that can be shared among
+a group of threads. On GEN, SLM is carved out of the level-3 cache, and
+reconfigured to be 16-way banked. A group of threads that share SLM
+will be dispatched to the same half-slice. The maximum size for SLM is 64KB.</p>
+<p>SLM is useful when you want data-sharing among a group of threads. Because it
+has more banks than L3 and is user-program controlled. It can be more efficient
+than L3-data-cache for scattered read and write. The following are the typical
+steps for using SLM and thread-grouping in CM.</p>
+<p>These code are extracted from <a class="reference external" href="../../../../../test/open_examples/nbody_SLM_release/nbody_SLM_release.cpp">nbody_SLM_release</a>.</p>
+<div class="section" id="host-program-createthreadgroupspace">
+<h2>Host Program: CreateThreadGroupSpace<a class="headerlink" href="#host-program-createthreadgroupspace" title="Permalink to this headline">¶</a></h2>
+<p>One important note: CreateThreadGroupSpace will put GPU thread-dispatching into
+GPGPU mode, which is different from the media-Walker mode, therefore the thread dependence setting, which is associated with the media-walker, are not available when thread groups are in use.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// Each CmKernel can be executed by multiple concurrent threads.</span>
+  <span class="c1">// Calculates the number of threads to spawn on the GPU for this kernel.</span>
+  <span class="kt">int</span> <span class="n">threads</span> <span class="o">=</span> <span class="n">num_bodies</span> <span class="o">/</span> <span class="n">BODIES_CHUNK</span><span class="p">;</span>
+
+  <span class="c1">// In this case, we want to maximize the group size to get the most</span>
+  <span class="c1">// data-share, so we need to query the maximum group size that target</span>
+  <span class="c1">// machine can support.</span>
+  <span class="kt">size_t</span> <span class="n">size</span> <span class="o">=</span> <span class="mi">4</span><span class="p">;</span>
+  <span class="kt">int</span> <span class="n">max_thread_count_per_thread_group</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">GetCaps</span><span class="p">(</span>
+      <span class="n">CAP_USER_DEFINED_THREAD_COUNT_PER_THREAD_GROUP</span><span class="p">,</span>
+      <span class="n">size</span><span class="p">,</span>
+      <span class="o">&amp;</span><span class="n">max_thread_count_per_thread_group</span><span class="p">));</span>
+  <span class="kt">int</span> <span class="n">group_count</span> <span class="o">=</span> <span class="p">(</span><span class="n">threads</span> <span class="o">+</span> <span class="n">max_thread_count_per_thread_group</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span>
+      <span class="n">max_thread_count_per_thread_group</span><span class="p">;</span>
+  <span class="k">while</span> <span class="p">(</span><span class="n">threads</span> <span class="o">%</span> <span class="n">group_count</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">group_count</span><span class="o">++</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Creates a thread group space.</span>
+  <span class="c1">// This function creates a thread group space specified by the height and</span>
+  <span class="c1">// width dimensions of the group space, and the height and width dimensions</span>
+  <span class="c1">// of the thread space within a group.In the GPGPU mode, the host program</span>
+  <span class="c1">// needs to specify the group space and the thread space within each group.</span>
+  <span class="c1">// This group and thread space information can be subsequently used to</span>
+  <span class="c1">// execute a kernel in that space later.</span>
+  <span class="n">CmThreadGroupSpace</span> <span class="o">*</span><span class="n">thread_group_space</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateThreadGroupSpace</span><span class="p">(</span><span class="n">threads</span> <span class="o">/</span> <span class="n">group_count</span><span class="p">,</span>
+                                                 <span class="mi">1</span><span class="p">,</span>
+                                                 <span class="n">group_count</span><span class="p">,</span>
+                                                 <span class="mi">1</span><span class="p">,</span>
+                                                 <span class="n">thread_group_space</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="host-program-enqueuewithgroup">
+<h2>Host Program: EnqueueWithGroup<a class="headerlink" href="#host-program-enqueuewithgroup" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// Launches the task on the GPU. Enqueue is a non-blocking call, i.e. the</span>
+  <span class="c1">// function returns immediately without waiting for the GPU to start or</span>
+  <span class="c1">// finish execution of the task. The runtime will query the HW status. If</span>
+  <span class="c1">// the hardware is not busy, the runtime will submit the task to the</span>
+  <span class="c1">// driver/HW; otherwise, the runtime will submit the task to the driver/HW</span>
+  <span class="c1">// at another time.</span>
+  <span class="c1">// An event, &quot;sync_event&quot;, is created to track the status of the task.</span>
+  <span class="n">CmEvent</span> <span class="o">*</span><span class="n">sync_event</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">cmd_queue</span><span class="o">-&gt;</span><span class="n">EnqueueWithGroup</span><span class="p">(</span><span class="n">task</span><span class="p">,</span>
+                                              <span class="n">sync_event</span><span class="p">,</span>
+                                              <span class="n">thread_group_space</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="kernel-program">
+<h2>Kernel Program<a class="headerlink" href="#kernel-program" title="Permalink to this headline">¶</a></h2>
+<p>Several builtin function worth attention in this programs are <code class="docutils literal"><span class="pre">cm_slm_init</span></code>, <code class="docutils literal"><span class="pre">cm_slm_alloc</span></code>, and <code class="docutils literal"><span class="pre">cm_slm_load</span></code>.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="n">_GENX_MAIN_</span> <span class="kt">void</span> <span class="n">cmNBody</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">INPOS</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">INVEL</span><span class="p">,</span>
+                                    <span class="n">SurfaceIndex</span> <span class="n">OUTPOS</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">OUTVEL</span><span class="p">,</span>
+                                    <span class="kt">float</span> <span class="n">deltaTime</span><span class="p">,</span> <span class="kt">float</span> <span class="n">damping</span><span class="p">,</span>
+                                    <span class="kt">float</span> <span class="n">softeningSquared</span><span class="p">,</span> <span class="kt">int</span> <span class="n">numBodies</span><span class="p">)</span> <span class="p">{</span>
+
+    <span class="c1">// Only 4K bodies fit in SLM</span>
+    <span class="c1">// 1. Foreach 4K bodies - For a total of 16K bodies</span>
+    <span class="c1">// 2.   LOAD 4K bodies to SLM: i.e. Read from Memory and Write to SLM</span>
+    <span class="c1">// 3.   Foreach MB (32 bodies here) - For a total of 4 MBs</span>
+    <span class="c1">// 4.     READ from Memory: Position of thisThreadBodies</span>
+    <span class="c1">// 6.     Foreach set of 32 bodies In 4K SLM bodies</span>
+    <span class="c1">// 7        READ from SLM: Position of 32 bodies</span>
+    <span class="c1">// 8.       Compute Interaction between thisThreadBodies and the 32</span>
+    <span class="c1">//            bodies read from SLM; Compute and update force0, force1,</span>
+    <span class="c1">//            force2 for forces in 3D</span>
+    <span class="c1">// 9.     READ from Memory: Velocity of thisThreadBodies</span>
+    <span class="c1">// 10.     Compute New Velocity and New Position of thisThreadBodies</span>
+    <span class="c1">// 11.     WRITE to Memory: New Velocity of thisThreadBodies</span>
+    <span class="c1">// 12.     WRITE to Memory: New Position of thisThreadBodies</span>
+
+    <span class="n">cm_slm_init</span><span class="p">(</span><span class="n">SLM_SIZE</span><span class="p">);</span>
+    <span class="n">uint</span> <span class="n">bodiesInSLM</span> <span class="o">=</span> <span class="n">cm_slm_alloc</span><span class="p">(</span><span class="n">SLM_SIZE</span><span class="p">);</span>
+
+    <span class="n">gThreadID</span> <span class="o">=</span> <span class="n">cm_linear_global_id</span><span class="p">();</span>
+    <span class="n">force0</span> <span class="o">=</span> <span class="n">force1</span> <span class="o">=</span> <span class="n">force2</span> <span class="o">=</span> <span class="mf">0.0f</span><span class="p">;</span>
+
+    <span class="c1">// 1. Foreach 4K bodies - For a total of 16K bodies</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">iSLM</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">iSLM</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">;</span> <span class="n">iSLM</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+
+        <span class="c1">// 2. LOAD 4K bodies to SLM: i.e. Read from Memory and Write to SLM</span>
+
+        <span class="n">cm_slm_load</span><span class="p">(</span>
+            <span class="n">bodiesInSLM</span><span class="p">,</span>     <span class="c1">// slmBuffer   : SLM buffer</span>
+            <span class="n">INPOS</span><span class="p">,</span>           <span class="c1">// memSurfIndex: Memory SurfaceIndex</span>
+            <span class="n">iSLM</span> <span class="o">*</span> <span class="n">SLM_SIZE</span><span class="p">,</span> <span class="c1">// memOffset   : Byte-Offset in Memory Surface</span>
+            <span class="n">SLM_SIZE</span>         <span class="c1">// loadSize    : Bytes to be Loaded from Memory</span>
+            <span class="p">);</span>
+
+        <span class="c1">// Each thread needs to process 4 Macro-Blocks (MB):</span>
+        <span class="c1">//            One MB = 32 Bodies; Total 2 Groups with 64 threads/Group</span>
+        <span class="c1">//            =&gt; #Bodies/Thread = TotalNumBodies/TotalNumThreads</span>
+        <span class="c1">//                              = 16384/128 = 128 = 4 MBs</span>
+        <span class="c1">//   - Depending on the number of threads, the number of MBs per</span>
+        <span class="c1">//     threads can be changed by just changing this loop-count</span>
+        <span class="c1">//   - For optimization purpose, if there are enough GRFs we can</span>
+        <span class="c1">//     process more MBs per iteration of this loop - in that case</span>
+        <span class="c1">//     need to change the loop-stride accordingly; If all MBs can</span>
+        <span class="c1">//     be processed in the GRF, we can eliminate this loop</span>
+
+        <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">iMB</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">iMB</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">;</span> <span class="n">iMB</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+            <span class="n">cmk_Nbody_ForEachMB_ForEachSLMBlock</span><span class="p">(</span>
+                <span class="n">INPOS</span><span class="p">,</span> <span class="n">deltaTime</span><span class="p">,</span> <span class="n">softeningSquared</span><span class="p">,</span> <span class="n">BODIES_PER_SLM</span><span class="p">,</span> <span class="n">bodiesInSLM</span><span class="p">,</span>
+                <span class="n">iMB</span><span class="p">);</span>
+        <span class="p">}</span> <span class="c1">// end foreach(MB)</span>
+    <span class="p">}</span>     <span class="c1">// end foreach(SLM block)</span>
+
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">iMB</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">iMB</span> <span class="o">&lt;</span> <span class="mi">4</span><span class="p">;</span> <span class="n">iMB</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">cmk_Nbody_OutputVelPos_ForEachMB</span><span class="p">(</span><span class="n">INPOS</span><span class="p">,</span> <span class="n">INVEL</span><span class="p">,</span> <span class="n">OUTPOS</span><span class="p">,</span> <span class="n">OUTVEL</span><span class="p">,</span>
+                                         <span class="n">deltaTime</span><span class="p">,</span> <span class="n">damping</span><span class="p">,</span> <span class="n">iMB</span><span class="p">);</span>
+    <span class="p">}</span> <span class="c1">// end foreach(MB)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cmtutorial07.html" title="Tutorial 7. Using Printf in Kernel"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial05.html" title="Tutorial 5. Builtin Matrix and Vector Operations"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" >CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
+      Last updated on Tue Jan 2 15:16:27 2018 -0800.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

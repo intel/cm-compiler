@@ -1,0 +1,148 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-as - LLVM assembler &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llvm-dis - LLVM disassembler" href="llvm-dis.html" />
+    <link rel="prev" title="LLVM Command Guide" href="index.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llvm-dis.html" title="llvm-dis - LLVM disassembler"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="LLVM Command Guide"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-as-llvm-assembler">
+<h1>llvm-as - LLVM assembler<a class="headerlink" href="#llvm-as-llvm-assembler" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong>llvm-as</strong> [<em>options</em>] [<em>filename</em>]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p><strong>llvm-as</strong> is the LLVM assembler.  It reads a file containing human-readable
+LLVM assembly language, translates it to LLVM bitcode, and writes the result
+into a file or to standard output.</p>
+<p>If <em>filename</em> is omitted or is <code class="docutils literal"><span class="pre">-</span></code>, then <strong>llvm-as</strong> reads its input from
+standard input.</p>
+<p>If an output file is not specified with the <strong>-o</strong> option, then
+<strong>llvm-as</strong> sends its output to a file or standard output by following
+these rules:</p>
+<ul class="simple">
+<li>If the input is standard input, then the output is standard output.</li>
+<li>If the input is a file that ends with <code class="docutils literal"><span class="pre">.ll</span></code>, then the output file is of the
+same name, except that the suffix is changed to <code class="docutils literal"><span class="pre">.bc</span></code>.</li>
+<li>If the input is a file that does not end with the <code class="docutils literal"><span class="pre">.ll</span></code> suffix, then the
+output file has the same name as the input file, except that the <code class="docutils literal"><span class="pre">.bc</span></code>
+suffix is appended.</li>
+</ul>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><strong>-f</strong></dt>
+<dd>Enable binary output on terminals.  Normally, <strong>llvm-as</strong> will refuse to
+write raw bitcode output if the output stream is a terminal. With this option,
+<strong>llvm-as</strong> will write raw bitcode regardless of the output device.</dd>
+<dt><strong>-help</strong></dt>
+<dd>Print a summary of command line options.</dd>
+<dt><strong>-o</strong> <em>filename</em></dt>
+<dd>Specify the output file name.  If <em>filename</em> is <code class="docutils literal"><span class="pre">-</span></code>, then <strong>llvm-as</strong>
+sends its output to standard output.</dd>
+</dl>
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p>If <strong>llvm-as</strong> succeeds, it will exit with 0.  Otherwise, if an error occurs, it
+will exit with a non-zero value.</p>
+</div>
+<div class="section" id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p>llvm-dis|llvm-dis, gccas|gccas</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llvm-dis.html" title="llvm-dis - LLVM disassembler"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="LLVM Command Guide"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

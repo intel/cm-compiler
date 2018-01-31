@@ -1,0 +1,368 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>TableGen &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="TableGen BackEnds" href="BackEnds.html" />
+    <link rel="prev" title="TableGen Fundamentals" href="../TableGenFundamentals.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="BackEnds.html" title="TableGen BackEnds"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../TableGenFundamentals.html" title="TableGen Fundamentals"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tablegen">
+<h1>TableGen<a class="headerlink" href="#tablegen" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id3">Introduction</a></li>
+<li><a class="reference internal" href="#the-tablegen-program" id="id4">The TableGen program</a><ul>
+<li><a class="reference internal" href="#running-tablegen" id="id5">Running TableGen</a></li>
+<li><a class="reference internal" href="#example" id="id6">Example</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#syntax" id="id7">Syntax</a><ul>
+<li><a class="reference internal" href="#basic-concepts" id="id8">Basic concepts</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#tablegen-backends" id="id9">TableGen backends</a></li>
+<li><a class="reference internal" href="#tablegen-deficiencies" id="id10">TableGen Deficiencies</a></li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id3">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>TableGen’s purpose is to help a human develop and maintain records of
+domain-specific information.  Because there may be a large number of these
+records, it is specifically designed to allow writing flexible descriptions and
+for common features of these records to be factored out.  This reduces the
+amount of duplication in the description, reduces the chance of error, and makes
+it easier to structure domain specific information.</p>
+<p>The core part of TableGen parses a file, instantiates the declarations, and
+hands the result off to a domain-specific <a class="reference internal" href="#backend">backend</a> for processing.</p>
+<p>The current major users of TableGen are <a class="reference internal" href="../CodeGenerator.html"><span class="doc">The LLVM Target-Independent Code Generator</span></a>
+and the
+<a class="reference external" href="http://clang.llvm.org/docs/UsersManual.html#controlling-errors-and-warnings">Clang diagnostics and attributes</a>.</p>
+<p>Note that if you work on TableGen much, and use emacs or vim, that you can find
+an emacs “TableGen mode” and a vim language file in the <code class="docutils literal"><span class="pre">llvm/utils/emacs</span></code> and
+<code class="docutils literal"><span class="pre">llvm/utils/vim</span></code> directories of your LLVM distribution, respectively.</p>
+</div>
+<div class="section" id="the-tablegen-program">
+<span id="intro"></span><h2><a class="toc-backref" href="#id4">The TableGen program</a><a class="headerlink" href="#the-tablegen-program" title="Permalink to this headline">¶</a></h2>
+<p>TableGen files are interpreted by the TableGen program: <cite>llvm-tblgen</cite> available
+on your build directory under <cite>bin</cite>. It is not installed in the system (or where
+your sysroot is set to), since it has no use beyond LLVM’s build process.</p>
+<div class="section" id="running-tablegen">
+<h3><a class="toc-backref" href="#id5">Running TableGen</a><a class="headerlink" href="#running-tablegen" title="Permalink to this headline">¶</a></h3>
+<p>TableGen runs just like any other LLVM tool.  The first (optional) argument
+specifies the file to read.  If a filename is not specified, <code class="docutils literal"><span class="pre">llvm-tblgen</span></code>
+reads from standard input.</p>
+<p>To be useful, one of the <a class="reference internal" href="#backends">backends</a> must be used.  These backends are
+selectable on the command line (type ‘<code class="docutils literal"><span class="pre">llvm-tblgen</span> <span class="pre">-help</span></code>’ for a list).  For
+example, to get a list of all of the definitions that subclass a particular type
+(which can be useful for building up an enum list of these records), use the
+<code class="docutils literal"><span class="pre">-print-enums</span></code> option:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>$ llvm-tblgen X86.td -print-enums -class<span class="o">=</span>Register
+AH, AL, AX, BH, BL, BP, BPL, BX, CH, CL, CX, DH, DI, DIL, DL, DX, EAX, EBP, EBX,
+ECX, EDI, EDX, EFLAGS, EIP, ESI, ESP, FP0, FP1, FP2, FP3, FP4, FP5, FP6, IP,
+MM0, MM1, MM2, MM3, MM4, MM5, MM6, MM7, R10, R10B, R10D, R10W, R11, R11B, R11D,
+R11W, R12, R12B, R12D, R12W, R13, R13B, R13D, R13W, R14, R14B, R14D, R14W, R15,
+R15B, R15D, R15W, R8, R8B, R8D, R8W, R9, R9B, R9D, R9W, RAX, RBP, RBX, RCX, RDI,
+RDX, RIP, RSI, RSP, SI, SIL, SP, SPL, ST0, ST1, ST2, ST3, ST4, ST5, ST6, ST7,
+XMM0, XMM1, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15, XMM2, XMM3, XMM4, XMM5,
+XMM6, XMM7, XMM8, XMM9,
+
+$ llvm-tblgen X86.td -print-enums -class<span class="o">=</span>Instruction
+ABS_F, ABS_Fp32, ABS_Fp64, ABS_Fp80, ADC32mi, ADC32mi8, ADC32mr, ADC32ri,
+ADC32ri8, ADC32rm, ADC32rr, ADC64mi32, ADC64mi8, ADC64mr, ADC64ri32, ADC64ri8,
+ADC64rm, ADC64rr, ADD16mi, ADD16mi8, ADD16mr, ADD16ri, ADD16ri8, ADD16rm,
+ADD16rr, ADD32mi, ADD32mi8, ADD32mr, ADD32ri, ADD32ri8, ADD32rm, ADD32rr,
+ADD64mi32, ADD64mi8, ADD64mr, ADD64ri32, ...
+</pre></div>
+</div>
+<p>The default backend prints out all of the records.</p>
+<p>If you plan to use TableGen, you will most likely have to write a <a class="reference internal" href="#backend">backend</a>
+that extracts the information specific to what you need and formats it in the
+appropriate way.</p>
+</div>
+<div class="section" id="example">
+<h3><a class="toc-backref" href="#id6">Example</a><a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h3>
+<p>With no other arguments, <cite>llvm-tblgen</cite> parses the specified file and prints out all
+of the classes, then all of the definitions.  This is a good way to see what the
+various definitions expand to fully.  Running this on the <code class="docutils literal"><span class="pre">X86.td</span></code> file prints
+this (at the time of this writing):</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>...
+def ADD32rr {   // Instruction X86Inst I
+  string Namespace = &quot;X86&quot;;
+  dag OutOperandList = (outs GR32:$dst);
+  dag InOperandList = (ins GR32:$src1, GR32:$src2);
+  string AsmString = &quot;add{l}\t{$src2, $dst|$dst, $src2}&quot;;
+  list&lt;dag&gt; Pattern = [(set GR32:$dst, (add GR32:$src1, GR32:$src2))];
+  list&lt;Register&gt; Uses = [];
+  list&lt;Register&gt; Defs = [EFLAGS];
+  list&lt;Predicate&gt; Predicates = [];
+  int CodeSize = 3;
+  int AddedComplexity = 0;
+  bit isReturn = 0;
+  bit isBranch = 0;
+  bit isIndirectBranch = 0;
+  bit isBarrier = 0;
+  bit isCall = 0;
+  bit canFoldAsLoad = 0;
+  bit mayLoad = 0;
+  bit mayStore = 0;
+  bit isImplicitDef = 0;
+  bit isConvertibleToThreeAddress = 1;
+  bit isCommutable = 1;
+  bit isTerminator = 0;
+  bit isReMaterializable = 0;
+  bit isPredicable = 0;
+  bit hasDelaySlot = 0;
+  bit usesCustomInserter = 0;
+  bit hasCtrlDep = 0;
+  bit isNotDuplicable = 0;
+  bit hasSideEffects = 0;
+  bit neverHasSideEffects = 0;
+  InstrItinClass Itinerary = NoItinerary;
+  string Constraints = &quot;&quot;;
+  string DisableEncoding = &quot;&quot;;
+  bits&lt;8&gt; Opcode = { 0, 0, 0, 0, 0, 0, 0, 1 };
+  Format Form = MRMDestReg;
+  bits&lt;6&gt; FormBits = { 0, 0, 0, 0, 1, 1 };
+  ImmType ImmT = NoImm;
+  bits&lt;3&gt; ImmTypeBits = { 0, 0, 0 };
+  bit hasOpSizePrefix = 0;
+  bit hasAdSizePrefix = 0;
+  bits&lt;4&gt; Prefix = { 0, 0, 0, 0 };
+  bit hasREX_WPrefix = 0;
+  FPFormat FPForm = ?;
+  bits&lt;3&gt; FPFormBits = { 0, 0, 0 };
+}
+...
+</pre></div>
+</div>
+<p>This definition corresponds to the 32-bit register-register <code class="docutils literal"><span class="pre">add</span></code> instruction
+of the x86 architecture.  <code class="docutils literal"><span class="pre">def</span> <span class="pre">ADD32rr</span></code> defines a record named
+<code class="docutils literal"><span class="pre">ADD32rr</span></code>, and the comment at the end of the line indicates the superclasses
+of the definition.  The body of the record contains all of the data that
+TableGen assembled for the record, indicating that the instruction is part of
+the “X86” namespace, the pattern indicating how the instruction is selected by
+the code generator, that it is a two-address instruction, has a particular
+encoding, etc.  The contents and semantics of the information in the record are
+specific to the needs of the X86 backend, and are only shown as an example.</p>
+<p>As you can see, a lot of information is needed for every instruction supported
+by the code generator, and specifying it all manually would be unmaintainable,
+prone to bugs, and tiring to do in the first place.  Because we are using
+TableGen, all of the information was derived from the following definition:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>let Defs = [EFLAGS],
+    isCommutable = 1,                  // X = ADD Y,Z --&gt; X = ADD Z,Y
+    isConvertibleToThreeAddress = 1 in // Can transform into LEA.
+def ADD32rr  : I&lt;0x01, MRMDestReg, (outs GR32:$dst),
+                                   (ins GR32:$src1, GR32:$src2),
+                 &quot;add{l}\t{$src2, $dst|$dst, $src2}&quot;,
+                 [(set GR32:$dst, (add GR32:$src1, GR32:$src2))]&gt;;
+</pre></div>
+</div>
+<p>This definition makes use of the custom class <code class="docutils literal"><span class="pre">I</span></code> (extended from the custom
+class <code class="docutils literal"><span class="pre">X86Inst</span></code>), which is defined in the X86-specific TableGen file, to
+factor out the common features that instructions of its class share.  A key
+feature of TableGen is that it allows the end-user to define the abstractions
+they prefer to use when describing their information.</p>
+<p>Each <code class="docutils literal"><span class="pre">def</span></code> record has a special entry called “NAME”.  This is the name of the
+record (“<code class="docutils literal"><span class="pre">ADD32rr</span></code>” above).  In the general case <code class="docutils literal"><span class="pre">def</span></code> names can be formed
+from various kinds of string processing expressions and <code class="docutils literal"><span class="pre">NAME</span></code> resolves to the
+final value obtained after resolving all of those expressions.  The user may
+refer to <code class="docutils literal"><span class="pre">NAME</span></code> anywhere she desires to use the ultimate name of the <code class="docutils literal"><span class="pre">def</span></code>.
+<code class="docutils literal"><span class="pre">NAME</span></code> should not be defined anywhere else in user code to avoid conflicts.</p>
+</div>
+</div>
+<div class="section" id="syntax">
+<h2><a class="toc-backref" href="#id7">Syntax</a><a class="headerlink" href="#syntax" title="Permalink to this headline">¶</a></h2>
+<p>TableGen has a syntax that is loosely based on C++ templates, with built-in
+types and specification. In addition, TableGen’s syntax introduces some
+automation concepts like multiclass, foreach, let, etc.</p>
+<div class="section" id="basic-concepts">
+<h3><a class="toc-backref" href="#id8">Basic concepts</a><a class="headerlink" href="#basic-concepts" title="Permalink to this headline">¶</a></h3>
+<p>TableGen files consist of two key parts: ‘classes’ and ‘definitions’, both of
+which are considered ‘records’.</p>
+<p><strong>TableGen records</strong> have a unique name, a list of values, and a list of
+superclasses.  The list of values is the main data that TableGen builds for each
+record; it is this that holds the domain specific information for the
+application.  The interpretation of this data is left to a specific <a class="reference internal" href="#backend">backend</a>,
+but the structure and format rules are taken care of and are fixed by
+TableGen.</p>
+<p><strong>TableGen definitions</strong> are the concrete form of ‘records’.  These generally do
+not have any undefined values, and are marked with the ‘<code class="docutils literal"><span class="pre">def</span></code>’ keyword.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def FeatureFPARMv8 : SubtargetFeature&lt;&quot;fp-armv8&quot;, &quot;HasFPARMv8&quot;, &quot;true&quot;,
+                                      &quot;Enable ARMv8 FP&quot;&gt;;
+</pre></div>
+</div>
+<p>In this example, FeatureFPARMv8 is <code class="docutils literal"><span class="pre">SubtargetFeature</span></code> record initialised
+with some values. The names of the classes are defined via the
+keyword <cite>class</cite> either on the same file or some other included. Most target
+TableGen files include the generic ones in <code class="docutils literal"><span class="pre">include/llvm/Target</span></code>.</p>
+<p><strong>TableGen classes</strong> are abstract records that are used to build and describe
+other records.  These classes allow the end-user to build abstractions for
+either the domain they are targeting (such as “Register”, “RegisterClass”, and
+“Instruction” in the LLVM code generator) or for the implementor to help factor
+out common properties of records (such as “FPInst”, which is used to represent
+floating point instructions in the X86 backend).  TableGen keeps track of all of
+the classes that are used to build up a definition, so the backend can find all
+definitions of a particular class, such as “Instruction”.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class ProcNoItin&lt;string Name, list&lt;SubtargetFeature&gt; Features&gt;
+      : Processor&lt;Name, NoItineraries, Features&gt;;
+</pre></div>
+</div>
+<p>Here, the class ProcNoItin, receiving parameters <cite>Name</cite> of type <cite>string</cite> and
+a list of target features is specializing the class Processor by passing the
+arguments down as well as hard-coding NoItineraries.</p>
+<p><strong>TableGen multiclasses</strong> are groups of abstract records that are instantiated
+all at once.  Each instantiation can result in multiple TableGen definitions.
+If a multiclass inherits from another multiclass, the definitions in the
+sub-multiclass become part of the current multiclass, as if they were declared
+in the current multiclass.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>multiclass ro_signed_pats&lt;string T, string Rm, dag Base, dag Offset, dag Extend,
+                        dag address, ValueType sty&gt; {
+def : Pat&lt;(i32 (!cast&lt;SDNode&gt;(&quot;sextload&quot; # sty) address)),
+          (!cast&lt;Instruction&gt;(&quot;LDRS&quot; # T # &quot;w_&quot; # Rm # &quot;_RegOffset&quot;)
+            Base, Offset, Extend)&gt;;
+
+def : Pat&lt;(i64 (!cast&lt;SDNode&gt;(&quot;sextload&quot; # sty) address)),
+          (!cast&lt;Instruction&gt;(&quot;LDRS&quot; # T # &quot;x_&quot; # Rm # &quot;_RegOffset&quot;)
+            Base, Offset, Extend)&gt;;
+}
+
+defm : ro_signed_pats&lt;&quot;B&quot;, Rm, Base, Offset, Extend,
+                      !foreach(decls.pattern, address,
+                               !subst(SHIFT, imm_eq0, decls.pattern)),
+                      i8&gt;;
+</pre></div>
+</div>
+<p>See the <a class="reference internal" href="LangIntro.html"><span class="doc">TableGen Language Introduction</span></a> for more generic
+information on the usage of the language, and the
+<a class="reference internal" href="LangRef.html"><span class="doc">TableGen Language Reference</span></a> for more in-depth description
+of the formal language specification.</p>
+</div>
+</div>
+<div class="section" id="tablegen-backends">
+<span id="backends"></span><span id="backend"></span><h2><a class="toc-backref" href="#id9">TableGen backends</a><a class="headerlink" href="#tablegen-backends" title="Permalink to this headline">¶</a></h2>
+<p>TableGen files have no real meaning without a back-end. The default operation
+of running <code class="docutils literal"><span class="pre">llvm-tblgen</span></code> is to print the information in a textual format, but
+that’s only useful for debugging of the TableGen files themselves. The power
+in TableGen is, however, to interpret the source files into an internal
+representation that can be generated into anything you want.</p>
+<p>Current usage of TableGen is to create include huge files with tables that you
+can either include directly (if the output is in the language you’re coding),
+or be used in pre-processing via macros surrounding the include of the file.</p>
+<p>Direct output can be used if the back-end already prints a table in C format
+or if the output is just a list of strings (for error and warning messages).
+Pre-processed output should be used if the same information needs to be used
+in different contexts (like Instruction names), so your back-end should print
+a meta-information list that can be shaped into different compile-time formats.</p>
+<p>See the <a class="reference external" href="BackEnds.html">TableGen BackEnds</a> for more information.</p>
+</div>
+<div class="section" id="tablegen-deficiencies">
+<h2><a class="toc-backref" href="#id10">TableGen Deficiencies</a><a class="headerlink" href="#tablegen-deficiencies" title="Permalink to this headline">¶</a></h2>
+<p>Despite being very generic, TableGen has some deficiencies that have been
+pointed out numerous times. The common theme is that, while TableGen allows
+you to build Domain-Specific-Languages, the final languages that you create
+lack the power of other DSLs, which in turn increase considerably the size
+and complecity of TableGen files.</p>
+<p>At the same time, TableGen allows you to create virtually any meaning of
+the basic concepts via custom-made back-ends, which can pervert the original
+design and make it very hard for newcomers to understand the evil TableGen
+file.</p>
+<p>There are some in favour of extending the semantics even more, but making sure
+back-ends adhere to strict rules. Others are suggesting we should move to less,
+more powerful DSLs designed with specific purposes, or even re-using existing
+DSLs.</p>
+<p>Either way, this is a discussion that will likely span across several years,
+if not decades. You can read more in the <a class="reference external" href="Deficiencies.html">TableGen Deficiencies</a>
+document.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="BackEnds.html" title="TableGen BackEnds"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../TableGenFundamentals.html" title="TableGen Fundamentals"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

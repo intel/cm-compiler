@@ -1,0 +1,239 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-cov - emit coverage information &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llvm-profdata - work with profile data" href="llvm-profdata.html" />
+    <link rel="prev" title="llvm-diff - LLVM structural ‘diff’" href="llvm-diff.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llvm-profdata.html" title="llvm-profdata - work with profile data"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llvm-diff.html" title="llvm-diff - LLVM structural ‘diff’"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-cov-emit-coverage-information">
+<h1>llvm-cov - emit coverage information<a class="headerlink" href="#llvm-cov-emit-coverage-information" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-cov</strong> [options] SOURCEFILE</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>The <strong class="program">llvm-cov</strong> tool reads code coverage data files and displays the
+coverage information for a specified source file. It is compatible with the
+<code class="docutils literal"><span class="pre">gcov</span></code> tool from version 4.2 of <code class="docutils literal"><span class="pre">GCC</span></code> and may also be compatible with
+some later versions of <code class="docutils literal"><span class="pre">gcov</span></code>.</p>
+<p>To use llvm-cov, you must first build an instrumented version of your
+application that collects coverage data as it runs. Compile with the
+<code class="docutils literal"><span class="pre">-fprofile-arcs</span></code> and <code class="docutils literal"><span class="pre">-ftest-coverage</span></code> options to add the
+instrumentation. (Alternatively, you can use the <code class="docutils literal"><span class="pre">--coverage</span></code> option, which
+includes both of those other options.) You should compile with debugging
+information (<code class="docutils literal"><span class="pre">-g</span></code>) and without optimization (<code class="docutils literal"><span class="pre">-O0</span></code>); otherwise, the
+coverage data cannot be accurately mapped back to the source code.</p>
+<p>At the time you compile the instrumented code, a <code class="docutils literal"><span class="pre">.gcno</span></code> data file will be
+generated for each object file. These <code class="docutils literal"><span class="pre">.gcno</span></code> files contain half of the
+coverage data. The other half of the data comes from <code class="docutils literal"><span class="pre">.gcda</span></code> files that are
+generated when you run the instrumented program, with a separate <code class="docutils literal"><span class="pre">.gcda</span></code>
+file for each object file. Each time you run the program, the execution counts
+are summed into any existing <code class="docutils literal"><span class="pre">.gcda</span></code> files, so be sure to remove any old
+files if you do not want their contents to be included.</p>
+<p>By default, the <code class="docutils literal"><span class="pre">.gcda</span></code> files are written into the same directory as the
+object files, but you can override that by setting the <code class="docutils literal"><span class="pre">GCOV_PREFIX</span></code> and
+<code class="docutils literal"><span class="pre">GCOV_PREFIX_STRIP</span></code> environment variables. The <code class="docutils literal"><span class="pre">GCOV_PREFIX_STRIP</span></code>
+variable specifies a number of directory components to be removed from the
+start of the absolute path to the object file directory. After stripping those
+directories, the prefix from the <code class="docutils literal"><span class="pre">GCOV_PREFIX</span></code> variable is added. These
+environment variables allow you to run the instrumented program on a machine
+where the original object file directories are not accessible, but you will
+then need to copy the <code class="docutils literal"><span class="pre">.gcda</span></code> files back to the object file directories
+where llvm-cov expects to find them.</p>
+<p>Once you have generated the coverage data files, run llvm-cov for each main
+source file where you want to examine the coverage results. This should be run
+from the same directory where you previously ran the compiler. The results for
+the specified source file are written to a file named by appending a <code class="docutils literal"><span class="pre">.gcov</span></code>
+suffix. A separate output file is also created for each file included by the
+main source file, also with a <code class="docutils literal"><span class="pre">.gcov</span></code> suffix added.</p>
+<p>The basic content of an llvm-cov output file is a copy of the source file with
+an execution count and line number prepended to every line. The execution
+count is shown as <code class="docutils literal"><span class="pre">-</span></code> if a line does not contain any executable code. If
+a line contains code but that code was never executed, the count is displayed
+as <code class="docutils literal"><span class="pre">#####</span></code>.</p>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl class="option">
+<dt id="cmdoption-a">
+<code class="descname">-a</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–all-blocks</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-a" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display all basic blocks. If there are multiple blocks for a single line of
+source code, this option causes llvm-cov to show the count for each block
+instead of just one count for the entire line.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-b">
+<code class="descname">-b</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–branch-probabilities</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-b" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display conditional branch probabilities and a summary of branch information.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-c">
+<code class="descname">-c</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–branch-counts</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-c" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display branch counts instead of probabilities (requires -b).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-f">
+<code class="descname">-f</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–function-summaries</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-f" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show a summary of coverage for each function instead of just one summary for
+an entire source file.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-help">
+<code class="descname">–help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-help" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display available options (–help-hidden for more).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-l">
+<code class="descname">-l</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–long-file-names</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-l" title="Permalink to this definition">¶</a></dt>
+<dd><p>For coverage output of files included from the main source file, add the
+main file name followed by <code class="docutils literal"><span class="pre">##</span></code> as a prefix to the output file names. This
+can be combined with the –preserve-paths option to use complete paths for
+both the main file and the included file.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-n">
+<code class="descname">-n</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–no-output</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-n" title="Permalink to this definition">¶</a></dt>
+<dd><p>Do not output any <code class="docutils literal"><span class="pre">.gcov</span></code> files. Summary information is still
+displayed.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-o">
+<code class="descname">-o</code><code class="descclassname">=&lt;DIR|FILE&gt;</code><code class="descclassname">, </code><code class="descname">–object-directory</code><code class="descclassname">=&lt;DIR&gt;</code><code class="descclassname">, </code><code class="descname">–object-file</code><code class="descclassname">=&lt;FILE&gt;</code><a class="headerlink" href="#cmdoption-o" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find objects in DIR or based on FILE’s path. If you specify a particular
+object file, the coverage data files are expected to have the same base name
+with <code class="docutils literal"><span class="pre">.gcno</span></code> and <code class="docutils literal"><span class="pre">.gcda</span></code> extensions. If you specify a directory, the
+files are expected in that directory with the same base name as the source
+file.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-p">
+<code class="descname">-p</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–preserve-paths</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-p" title="Permalink to this definition">¶</a></dt>
+<dd><p>Preserve path components when naming the coverage output files. In addition
+to the source file name, include the directories from the path to that
+file. The directories are separate by <code class="docutils literal"><span class="pre">#</span></code> characters, with <code class="docutils literal"><span class="pre">.</span></code> directories
+removed and <code class="docutils literal"><span class="pre">..</span></code> directories replaced by <code class="docutils literal"><span class="pre">^</span></code> characters. When used with
+the –long-file-names option, this applies to both the main file name and the
+included file name.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-u">
+<code class="descname">-u</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–unconditional-branches</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-u" title="Permalink to this definition">¶</a></dt>
+<dd><p>Include unconditional branches in the output for the –branch-probabilities
+option.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-version">
+<code class="descname">-version</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display the version of llvm-cov.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-cov</strong> returns 1 if it cannot read input files.  Otherwise, it
+exits with zero.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llvm-profdata.html" title="llvm-profdata - work with profile data"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llvm-diff.html" title="llvm-diff - LLVM structural ‘diff’"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

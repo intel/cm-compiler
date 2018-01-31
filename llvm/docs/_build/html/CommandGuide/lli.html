@@ -1,0 +1,275 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>lli - directly execute programs from LLVM bitcode &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llvm-link - LLVM bitcode linker" href="llvm-link.html" />
+    <link rel="prev" title="llc - LLVM static compiler" href="llc.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llvm-link.html" title="llvm-link - LLVM bitcode linker"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llc.html" title="llc - LLVM static compiler"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="lli-directly-execute-programs-from-llvm-bitcode">
+<h1>lli - directly execute programs from LLVM bitcode<a class="headerlink" href="#lli-directly-execute-programs-from-llvm-bitcode" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong>lli</strong> [<em>options</em>] [<em>filename</em>] [<em>program args</em>]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p><strong>lli</strong> directly executes programs in LLVM bitcode format.  It takes a program
+in LLVM bitcode format and executes it using a just-in-time compiler, if one is
+available for the current architecture, or an interpreter.  <strong>lli</strong> takes all of
+the same code generator options as llc|llc, but they are only effective when
+<strong>lli</strong> is using the just-in-time compiler.</p>
+<p>If <em>filename</em> is not specified, then <strong>lli</strong> reads the LLVM bitcode for the
+program from standard input.</p>
+<p>The optional <em>args</em> specified on the command line are passed to the program as
+arguments.</p>
+</div>
+<div class="section" id="general-options">
+<h2>GENERAL OPTIONS<a class="headerlink" href="#general-options" title="Permalink to this headline">¶</a></h2>
+<p><strong>-fake-argv0</strong>=<em>executable</em></p>
+<blockquote>
+<div>Override the <code class="docutils literal"><span class="pre">argv[0]</span></code> value passed into the executing program.</div></blockquote>
+<p><strong>-force-interpreter</strong>=<em>{false,true}</em></p>
+<blockquote>
+<div>If set to true, use the interpreter even if a just-in-time compiler is available
+for this architecture. Defaults to false.</div></blockquote>
+<p><strong>-help</strong></p>
+<blockquote>
+<div>Print a summary of command line options.</div></blockquote>
+<p><strong>-load</strong>=<em>pluginfilename</em></p>
+<blockquote>
+<div>Causes <strong>lli</strong> to load the plugin (shared object) named <em>pluginfilename</em> and use
+it for optimization.</div></blockquote>
+<p><strong>-stats</strong></p>
+<blockquote>
+<div>Print statistics from the code-generation passes. This is only meaningful for
+the just-in-time compiler, at present.</div></blockquote>
+<p><strong>-time-passes</strong></p>
+<blockquote>
+<div>Record the amount of time needed for each code-generation pass and print it to
+standard error.</div></blockquote>
+<p><strong>-version</strong></p>
+<blockquote>
+<div>Print out the version of <strong>lli</strong> and exit without doing anything else.</div></blockquote>
+</div>
+<div class="section" id="target-options">
+<h2>TARGET OPTIONS<a class="headerlink" href="#target-options" title="Permalink to this headline">¶</a></h2>
+<p><strong>-mtriple</strong>=<em>target triple</em></p>
+<blockquote>
+<div>Override the target triple specified in the input bitcode file with the
+specified string.  This may result in a crash if you pick an
+architecture which is not compatible with the current system.</div></blockquote>
+<p><strong>-march</strong>=<em>arch</em></p>
+<blockquote>
+<div>Specify the architecture for which to generate assembly, overriding the target
+encoded in the bitcode file.  See the output of <strong>llc -help</strong> for a list of
+valid architectures.  By default this is inferred from the target triple or
+autodetected to the current architecture.</div></blockquote>
+<p><strong>-mcpu</strong>=<em>cpuname</em></p>
+<blockquote>
+<div>Specify a specific chip in the current architecture to generate code for.
+By default this is inferred from the target triple and autodetected to
+the current architecture.  For a list of available CPUs, use:
+<strong>llvm-as &lt; /dev/null | llc -march=xyz -mcpu=help</strong></div></blockquote>
+<p><strong>-mattr</strong>=<em>a1,+a2,-a3,…</em></p>
+<blockquote>
+<div>Override or control specific attributes of the target, such as whether SIMD
+operations are enabled or not.  The default set of attributes is set by the
+current CPU.  For a list of available attributes, use:
+<strong>llvm-as &lt; /dev/null | llc -march=xyz -mattr=help</strong></div></blockquote>
+</div>
+<div class="section" id="floating-point-options">
+<h2>FLOATING POINT OPTIONS<a class="headerlink" href="#floating-point-options" title="Permalink to this headline">¶</a></h2>
+<p><strong>-disable-excess-fp-precision</strong></p>
+<blockquote>
+<div>Disable optimizations that may increase floating point precision.</div></blockquote>
+<p><strong>-enable-no-infs-fp-math</strong></p>
+<blockquote>
+<div>Enable optimizations that assume no Inf values.</div></blockquote>
+<p><strong>-enable-no-nans-fp-math</strong></p>
+<blockquote>
+<div>Enable optimizations that assume no NAN values.</div></blockquote>
+<p><strong>-enable-unsafe-fp-math</strong></p>
+<blockquote>
+<div>Causes <strong>lli</strong> to enable optimizations that may decrease floating point
+precision.</div></blockquote>
+<p><strong>-soft-float</strong></p>
+<blockquote>
+<div>Causes <strong>lli</strong> to generate software floating point library calls instead of
+equivalent hardware instructions.</div></blockquote>
+</div>
+<div class="section" id="code-generation-options">
+<h2>CODE GENERATION OPTIONS<a class="headerlink" href="#code-generation-options" title="Permalink to this headline">¶</a></h2>
+<p><strong>-code-model</strong>=<em>model</em></p>
+<blockquote>
+<div><p>Choose the code model from:</p>
+<div class="highlight-perl"><div class="highlight"><pre><span></span><span class="n">default:</span> <span class="n">Target</span> <span class="n">default</span> <span class="n">code</span> <span class="n">model</span>
+<span class="n">small:</span> <span class="n">Small</span> <span class="n">code</span> <span class="n">model</span>
+<span class="n">kernel:</span> <span class="n">Kernel</span> <span class="n">code</span> <span class="n">model</span>
+<span class="n">medium:</span> <span class="n">Medium</span> <span class="n">code</span> <span class="n">model</span>
+<span class="n">large:</span> <span class="n">Large</span> <span class="n">code</span> <span class="n">model</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p><strong>-disable-post-RA-scheduler</strong></p>
+<blockquote>
+<div>Disable scheduling after register allocation.</div></blockquote>
+<p><strong>-disable-spill-fusing</strong></p>
+<blockquote>
+<div>Disable fusing of spill code into instructions.</div></blockquote>
+<p><strong>-jit-enable-eh</strong></p>
+<blockquote>
+<div>Exception handling should be enabled in the just-in-time compiler.</div></blockquote>
+<p><strong>-join-liveintervals</strong></p>
+<blockquote>
+<div>Coalesce copies (default=true).</div></blockquote>
+<p><strong>-nozero-initialized-in-bss</strong> Don’t place zero-initialized symbols into the BSS section.</p>
+<p><strong>-pre-RA-sched</strong>=<em>scheduler</em></p>
+<blockquote>
+<div><p>Instruction schedulers available (before register allocation):</p>
+<div class="highlight-perl"><div class="highlight"><pre><span></span><span class="o">=</span><span class="n">default:</span> <span class="n">Best</span> <span class="n">scheduler</span> <span class="k">for</span> <span class="n">the</span> <span class="n">target</span>
+<span class="o">=</span><span class="n">none:</span> <span class="n">No</span> <span class="n">scheduling:</span> <span class="n">breadth</span> <span class="n">first</span> <span class="n">sequencing</span>
+<span class="o">=</span><span class="n">simple:</span> <span class="n">Simple</span> <span class="n">two</span> <span class="n">pass</span> <span class="n">scheduling:</span> <span class="n">minimize</span> <span class="n">critical</span> <span class="n">path</span> <span class="ow">and</span> <span class="n">maximize</span> <span class="n">processor</span> <span class="n">utilization</span>
+<span class="o">=</span><span class="n">simple</span><span class="o">-</span><span class="n">noitin:</span> <span class="n">Simple</span> <span class="n">two</span> <span class="n">pass</span> <span class="n">scheduling:</span> <span class="n">Same</span> <span class="n">as</span> <span class="n">simple</span> <span class="n">except</span> <span class="n">using</span> <span class="n">generic</span> <span class="n">latency</span>
+<span class="o">=</span><span class="n">list</span><span class="o">-</span><span class="n">burr:</span> <span class="n">Bottom</span><span class="o">-</span><span class="n">up</span> <span class="n">register</span> <span class="n">reduction</span> <span class="n">list</span> <span class="n">scheduling</span>
+<span class="o">=</span><span class="n">list</span><span class="o">-</span><span class="n">tdrr:</span> <span class="n">Top</span><span class="o">-</span><span class="n">down</span> <span class="n">register</span> <span class="n">reduction</span> <span class="n">list</span> <span class="n">scheduling</span>
+<span class="o">=</span><span class="n">list</span><span class="o">-</span><span class="n">td:</span> <span class="n">Top</span><span class="o">-</span><span class="n">down</span> <span class="n">list</span> <span class="n">scheduler</span> <span class="o">-</span><span class="k">print</span><span class="o">-</span><span class="n">machineinstrs</span> <span class="o">-</span> <span class="n">Print</span> <span class="n">generated</span> <span class="n">machine</span> <span class="n">code</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p><strong>-regalloc</strong>=<em>allocator</em></p>
+<blockquote>
+<div><p>Register allocator to use (default=linearscan)</p>
+<div class="highlight-perl"><div class="highlight"><pre><span></span><span class="o">=</span><span class="n">bigblock:</span> <span class="n">Big</span><span class="o">-</span><span class="n">block</span> <span class="n">register</span> <span class="n">allocator</span>
+<span class="o">=</span><span class="n">linearscan:</span> <span class="n">linear</span> <span class="n">scan</span> <span class="n">register</span> <span class="n">allocator</span> <span class="o">=</span><span class="nb">local</span> <span class="o">-</span>   <span class="nb">local</span> <span class="n">register</span> <span class="n">allocator</span>
+<span class="o">=</span><span class="n">simple:</span> <span class="n">simple</span> <span class="n">register</span> <span class="n">allocator</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p><strong>-relocation-model</strong>=<em>model</em></p>
+<blockquote>
+<div><p>Choose relocation model from:</p>
+<div class="highlight-perl"><div class="highlight"><pre><span></span><span class="o">=</span><span class="n">default:</span> <span class="n">Target</span> <span class="n">default</span> <span class="n">relocation</span> <span class="n">model</span>
+<span class="o">=</span><span class="n">static:</span> <span class="n">Non</span><span class="o">-</span><span class="n">relocatable</span> <span class="n">code</span> <span class="o">=</span><span class="n">pic</span> <span class="o">-</span>   <span class="n">Fully</span> <span class="n">relocatable</span><span class="p">,</span> <span class="n">position</span> <span class="n">independent</span> <span class="n">code</span>
+<span class="o">=</span><span class="n">dynamic</span><span class="o">-</span><span class="k">no</span><span class="o">-</span><span class="n">pic:</span> <span class="n">Relocatable</span> <span class="n">external</span> <span class="n">references</span><span class="p">,</span> <span class="n">non</span><span class="o">-</span><span class="n">relocatable</span> <span class="n">code</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p><strong>-spiller</strong></p>
+<blockquote>
+<div><p>Spiller to use (default=local)</p>
+<div class="highlight-perl"><div class="highlight"><pre><span></span><span class="o">=</span><span class="n">simple:</span> <span class="n">simple</span> <span class="n">spiller</span>
+<span class="o">=</span><span class="nb">local</span><span class="p">:</span> <span class="nb">local</span> <span class="n">spiller</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p><strong>-x86-asm-syntax</strong>=<em>syntax</em></p>
+<blockquote>
+<div><p>Choose style of code to emit from X86 backend:</p>
+<div class="highlight-perl"><div class="highlight"><pre><span></span><span class="o">=</span><span class="n">att:</span> <span class="n">Emit</span> <span class="n">AT</span><span class="o">&amp;</span><span class="n">T</span><span class="o">-</span><span class="n">style</span> <span class="n">assembly</span>
+<span class="o">=</span><span class="n">intel:</span> <span class="n">Emit</span> <span class="n">Intel</span><span class="o">-</span><span class="n">style</span> <span class="n">assembly</span>
+</pre></div>
+</div>
+</div></blockquote>
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p>If <strong>lli</strong> fails to load the program, it will exit with an exit code of 1.
+Otherwise, it will return the exit code of the program it executes.</p>
+</div>
+<div class="section" id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p>llc|llc</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llvm-link.html" title="llvm-link - LLVM bitcode linker"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llc.html" title="llc - LLVM static compiler"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

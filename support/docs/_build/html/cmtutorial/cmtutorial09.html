@@ -1,0 +1,179 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial 9. Zero-Copy with User-Provided Surfaces &#8212; CM 6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorial 10. Event-Driven Synchronization" href="cmtutorial10.html" />
+    <link rel="prev" title="Tutorial 8. Using CmBuffer" href="cmtutorial08.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="Intel Logo"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cmtutorial10.html" title="Tutorial 10. Event-Driven Synchronization"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial08.html" title="Tutorial 8. Using CmBuffer"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tutorial-9-zero-copy-with-user-provided-surfaces">
+<h1>Tutorial 9. Zero-Copy with User-Provided Surfaces<a class="headerlink" href="#tutorial-9-zero-copy-with-user-provided-surfaces" title="Permalink to this headline">¶</a></h1>
+<p>CM also provides a way for user to create surface in system memory.
+This way, CPU and GPU share the physical memory. CPU access memory
+through pointer, GPU access memory through surface handle.
+It is user’s responsibility to avoid data race between GPU and CPU</p>
+<p>Also be aware that media-block read/write from user-provided surface
+can be slower because, unlike regular 2D surfaces which has tiled
+layout, user-provided surface has a linear layout.</p>
+<div class="section" id="createsurface2dup-2d-user-provided-memory">
+<h2>CreateSurface2DUP – 2D user provided memory<a class="headerlink" href="#createsurface2dup-2d-user-provided-memory" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference external" href="../../../../../test/open_examples/linear_up_walker/linear_up_walker.cpp">linear_up_walker</a>
+is an example that uses 2D user provided memory.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>    <span class="c1">// Gets necessary information in order to create and use CmSurface2DUP as</span>
+    <span class="c1">// input surface later.</span>
+    <span class="c1">// To create CmSurface2DUP, user needs to allocate such amount of system</span>
+    <span class="c1">// memory which is equal to or larger than physical size returned here.</span>
+    <span class="c1">// When accessing the system memory, user needs to be aware of the pitch,</span>
+    <span class="c1">// which is equal to pixel_width * byte_per_pixel + necessary_padding.</span>
+    <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">input_surface_pitch</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">input_surface_size</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">GetSurface2DInfo</span><span class="p">(</span><span class="n">width</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">/</span> <span class="mi">4</span><span class="p">,</span>
+                                             <span class="n">height</span><span class="p">,</span>
+                                             <span class="n">CM_SURFACE_FORMAT_A8R8G8B8</span><span class="p">,</span>
+                                             <span class="n">input_surface_pitch</span><span class="p">,</span>
+                                             <span class="n">input_surface_size</span><span class="p">));</span>
+
+    <span class="c1">// Creates a CmSurface2DUP as input surface in UP (User Provided) system memory</span>
+    <span class="c1">// with given surface width and height in pixel, and format. The UP system memory</span>
+    <span class="c1">// must be page (4K Bytes) aligned. The size of the system memory must be</span>
+    <span class="c1">// larger than or equal to the size returned by GetSurface2DInfo.</span>
+    <span class="c1">// Application can either access the memory through the memory pointer from</span>
+    <span class="c1">// the CPU, or access the 2D surface created upon the same memory from the GPU.</span>
+    <span class="n">CmSurface2DUP</span> <span class="o">*</span><span class="n">input_surface</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="n">sysmem_src</span> <span class="o">=</span> <span class="n">CM_ALIGNED_MALLOC</span><span class="p">(</span><span class="n">input_surface_size</span><span class="p">,</span> <span class="mh">0x1000</span><span class="p">);</span>
+    <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateSurface2DUP</span><span class="p">(</span><span class="n">width</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">/</span> <span class="mi">4</span><span class="p">,</span>
+                                              <span class="n">height</span><span class="p">,</span>
+                                              <span class="n">CM_SURFACE_FORMAT_A8R8G8B8</span><span class="p">,</span>
+                                              <span class="n">sysmem_src</span><span class="p">,</span>
+                                              <span class="n">input_surface</span><span class="p">));</span>
+
+    <span class="c1">// Copies the input image data to the system memory provided to create</span>
+    <span class="c1">// CmSurface2DUP using the CPU.</span>
+    <span class="n">memcpy</span><span class="p">(</span><span class="n">sysmem_src</span><span class="p">,</span> <span class="n">input_image</span><span class="p">.</span><span class="n">getData</span><span class="p">(),</span> <span class="n">width</span> <span class="o">*</span> <span class="n">height</span> <span class="o">*</span> <span class="mi">3</span><span class="p">);</span>
+
+    <span class="c1">// Gets necessary information in order to create and use CmSurface2DUP</span>
+    <span class="c1">// as output surface later.</span>
+    <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">output_surface_pitch</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">output_surface_size</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">GetSurface2DInfo</span><span class="p">(</span><span class="n">width</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">/</span> <span class="mi">4</span><span class="p">,</span>
+                                             <span class="n">height</span><span class="p">,</span>
+                                             <span class="n">CM_SURFACE_FORMAT_A8R8G8B8</span><span class="p">,</span>
+                                             <span class="n">output_surface_pitch</span><span class="p">,</span>
+                                             <span class="n">output_surface_size</span><span class="p">));</span>
+
+    <span class="c1">// Creates a CmSurface2DUP in UP (User Provided) system memory to serve</span>
+    <span class="c1">// as the output surface.</span>
+    <span class="n">CmSurface2DUP</span> <span class="o">*</span><span class="n">output_surface</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="n">sysmem_dst</span> <span class="o">=</span> <span class="n">CM_ALIGNED_MALLOC</span><span class="p">(</span><span class="n">output_surface_size</span><span class="p">,</span> <span class="mh">0x1000</span><span class="p">);</span>
+    <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateSurface2DUP</span><span class="p">(</span><span class="n">width</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">/</span> <span class="mi">4</span><span class="p">,</span>
+                                              <span class="n">height</span><span class="p">,</span>
+                                              <span class="n">CM_SURFACE_FORMAT_A8R8G8B8</span><span class="p">,</span>
+                                              <span class="n">sysmem_dst</span><span class="p">,</span>
+                                              <span class="n">output_surface</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="createbufferup-1d-user-provided-memory">
+<h2>CreateBufferUP – 1D user provided memory<a class="headerlink" href="#createbufferup-1d-user-provided-memory" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference external" href="../../../../../test/open_examples/vcaOpSAD/vcaOpSAD.cpp">vector matching example</a>
+is an example that uses 1D user provided memory</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// Creates a 1D input surface for the feature vectors in the user provided</span>
+  <span class="c1">// system memory. Application can either access the memory through the</span>
+  <span class="c1">// memory pointer from the CPU, or access the buffer created upon the same</span>
+  <span class="c1">// memory from the GPU.</span>
+  <span class="n">CmBufferUP</span> <span class="o">*</span><span class="n">feature_vect_surf</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateBufferUP</span><span class="p">(</span><span class="n">feature_vect_num</span><span class="o">*</span><span class="n">VECTOR_LENGTH</span><span class="p">,</span>
+                                         <span class="n">feature_vect</span><span class="p">,</span>
+                                         <span class="n">feature_vect_surf</span><span class="p">));</span>
+</pre></div>
+</div>
+<p>There is no difference in using those surfaces on the kernel-side.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cmtutorial10.html" title="Tutorial 10. Event-Driven Synchronization"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial08.html" title="Tutorial 8. Using CmBuffer"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" >CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
+      Last updated on Tue Jan 2 15:16:27 2018 -0800.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

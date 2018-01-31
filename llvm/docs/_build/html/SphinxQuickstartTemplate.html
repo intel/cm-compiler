@@ -1,0 +1,225 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Sphinx Quickstart Template &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Code Reviews with Phabricator" href="Phabricator.html" />
+    <link rel="prev" title="How to submit an LLVM bug report" href="HowToSubmitABug.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="Phabricator.html" title="Code Reviews with Phabricator"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="HowToSubmitABug.html" title="How to submit an LLVM bug report"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="sphinx-quickstart-template">
+<h1>Sphinx Quickstart Template<a class="headerlink" href="#sphinx-quickstart-template" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction-and-quickstart">
+<h2>Introduction and Quickstart<a class="headerlink" href="#introduction-and-quickstart" title="Permalink to this headline">¶</a></h2>
+<p>This document is meant to get you writing documentation as fast as possible
+even if you have no previous experience with Sphinx. The goal is to take
+someone in the state of “I want to write documentation and get it added to
+LLVM’s docs” and turn that into useful documentation mailed to llvm-commits
+with as little nonsense as possible.</p>
+<p>You can find this document in <code class="docutils literal"><span class="pre">docs/SphinxQuickstartTemplate.rst</span></code>. You
+should copy it, open the new file in your text editor, write your docs, and
+then send the new document to llvm-commits for review.</p>
+<p>Focus on <em>content</em>. It is easy to fix the Sphinx (reStructuredText) syntax
+later if necessary, although reStructuredText tries to imitate common
+plain-text conventions so it should be quite natural. A basic knowledge of
+reStructuredText syntax is useful when writing the document, so the last
+~half of this document (starting with <a class="reference internal" href="#example-section">Example Section</a>) gives examples
+which should cover 99% of use cases.</p>
+<p>Let me say that again: focus on <em>content</em>. But if you really need to verify
+Sphinx’s output, see <code class="docutils literal"><span class="pre">docs/README.txt</span></code> for information.</p>
+<p>Once you have finished with the content, please send the <code class="docutils literal"><span class="pre">.rst</span></code> file to
+llvm-commits for review.</p>
+</div>
+<div class="section" id="guidelines">
+<h2>Guidelines<a class="headerlink" href="#guidelines" title="Permalink to this headline">¶</a></h2>
+<p>Try to answer the following questions in your first section:</p>
+<ol class="arabic simple">
+<li>Why would I want to read this document?</li>
+<li>What should I know to be able to follow along with this document?</li>
+<li>What will I have learned by the end of this document?</li>
+</ol>
+<p>Common names for the first section are <code class="docutils literal"><span class="pre">Introduction</span></code>, <code class="docutils literal"><span class="pre">Overview</span></code>, or
+<code class="docutils literal"><span class="pre">Background</span></code>.</p>
+<p>If possible, make your document a “how to”. Give it a name <code class="docutils literal"><span class="pre">HowTo*.rst</span></code>
+like the other “how to” documents. This format is usually the easiest
+for another person to understand and also the most useful.</p>
+<p>You generally should not be writing documentation other than a “how to”
+unless there is already a “how to” about your topic. The reason for this
+is that without a “how to” document to read first, it is difficult for a
+person to understand a more advanced document.</p>
+<p>Focus on content (yes, I had to say it again).</p>
+<p>The rest of this document shows example reStructuredText markup constructs
+that are meant to be read by you in your text editor after you have copied
+this file into a new file for the documentation you are about to write.</p>
+</div>
+<div class="section" id="example-section">
+<h2>Example Section<a class="headerlink" href="#example-section" title="Permalink to this headline">¶</a></h2>
+<p>Your text can be <em>emphasized</em>, <strong>bold</strong>, or <code class="docutils literal"><span class="pre">monospace</span></code>.</p>
+<p>Use blank lines to separate paragraphs.</p>
+<p>Headings (like <code class="docutils literal"><span class="pre">Example</span> <span class="pre">Section</span></code> just above) give your document its
+structure. Use the same kind of adornments (e.g. <code class="docutils literal"><span class="pre">======</span></code> vs. <code class="docutils literal"><span class="pre">------</span></code>)
+as are used in this document. The adornment must be the same length as the
+text above it. For Vim users, variations of <code class="docutils literal"><span class="pre">yypVr=</span></code> might be handy.</p>
+<div class="section" id="example-subsection">
+<h3>Example Subsection<a class="headerlink" href="#example-subsection" title="Permalink to this headline">¶</a></h3>
+<p>Make a link <a class="reference external" href="http://llvm.org/">like this</a>. There is also a more
+sophisticated syntax which <a class="reference external" href="http://en.wikipedia.org/wiki/LLVM">can be more readable</a> for longer links since
+it disrupts the flow less. You can put the <code class="docutils literal"><span class="pre">..</span> <span class="pre">_`link</span> <span class="pre">text`:</span> <span class="pre">&lt;URL&gt;</span></code> block
+pretty much anywhere later in the document.</p>
+<p>Lists can be made like this:</p>
+<ol class="arabic simple">
+<li>A list starting with <code class="docutils literal"><span class="pre">#.</span></code> will be automatically numbered.</li>
+<li>This is a second list element.<ol class="arabic">
+<li>Use indentation to create nested lists.</li>
+</ol>
+</li>
+</ol>
+<p>You can also use unordered lists.</p>
+<ul class="simple">
+<li>Stuff.<ul>
+<li>Deeper stuff.</li>
+</ul>
+</li>
+<li>More stuff.</li>
+</ul>
+<div class="section" id="example-subsubsection">
+<h4>Example Subsubsection<a class="headerlink" href="#example-subsubsection" title="Permalink to this headline">¶</a></h4>
+<p>You can make blocks of code like this:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>For a shell session, use a <code class="docutils literal"><span class="pre">console</span></code> code block (some existing docs use
+<code class="docutils literal"><span class="pre">bash</span></code>):</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> <span class="nb">echo</span> <span class="s2">&quot;Goodbye cruel world!&quot;</span>
+<span class="gp">$</span> rm -rf /
+</pre></div>
+</div>
+<p>If you need to show LLVM IR use the <code class="docutils literal"><span class="pre">llvm</span></code> code block.</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="k">i32</span> <span class="vg">@test1</span><span class="p">()</span> <span class="p">{</span>
+<span class="nl">entry:</span>
+  <span class="k">ret</span> <span class="k">i32</span> <span class="m">0</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Some other common code blocks you might need are <code class="docutils literal"><span class="pre">c</span></code>, <code class="docutils literal"><span class="pre">objc</span></code>, <code class="docutils literal"><span class="pre">make</span></code>,
+and <code class="docutils literal"><span class="pre">cmake</span></code>. If you need something beyond that, you can look at the <a class="reference external" href="http://pygments.org/docs/lexers/">full
+list</a> of supported code blocks.</p>
+<p>However, don’t waste time fiddling with syntax highlighting when you could
+be adding meaningful content. When in doubt, show preformatted text
+without any syntax highlighting like this:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>                      <span class="o">.</span>
+                       <span class="o">+</span><span class="p">:</span><span class="o">.</span>
+                   <span class="o">..</span><span class="p">::</span> <span class="p">::</span>
+                <span class="o">.++</span><span class="p">:</span><span class="o">+</span><span class="p">::</span> <span class="p">::</span><span class="o">+</span><span class="p">:</span><span class="o">.</span><span class="p">:</span><span class="o">.</span>
+               <span class="o">.</span><span class="p">:</span><span class="o">+</span>           <span class="p">:</span>
+        <span class="p">::</span><span class="o">.</span><span class="p">::</span><span class="o">..</span><span class="p">::</span>            <span class="o">.+.</span>
+      <span class="o">..</span><span class="p">:</span><span class="o">+</span>    <span class="p">::</span>              <span class="p">:</span>
+<span class="o">......+</span><span class="p">:</span><span class="o">.</span>                    <span class="o">..</span>
+      <span class="p">:</span><span class="o">++.</span>    <span class="o">..</span>              <span class="p">:</span>
+        <span class="o">.+</span><span class="p">:::</span><span class="o">+</span><span class="p">::</span>              <span class="p">:</span>
+        <span class="o">..</span>   <span class="o">.</span> <span class="o">.+</span>            <span class="p">::</span>
+                 <span class="o">+.</span><span class="p">:</span>      <span class="o">.</span><span class="p">::</span><span class="o">+.</span>
+                  <span class="o">...+.</span> <span class="o">.</span><span class="p">:</span> <span class="o">.</span>
+                     <span class="o">.++</span><span class="p">:</span><span class="o">..</span>
+                      <span class="o">...</span>
+</pre></div>
+</div>
+<div class="section" id="hopefully-you-won-t-need-to-be-this-deep">
+<h5>Hopefully you won’t need to be this deep<a class="headerlink" href="#hopefully-you-won-t-need-to-be-this-deep" title="Permalink to this headline">¶</a></h5>
+<p>If you need to do fancier things than what has been shown in this document,
+you can mail the list or check Sphinx’s <a class="reference external" href="http://sphinx.pocoo.org/rest.html">reStructuredText Primer</a>.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="Phabricator.html" title="Code Reviews with Phabricator"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="HowToSubmitABug.html" title="How to submit an LLVM bug report"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

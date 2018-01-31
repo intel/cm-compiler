@@ -1,0 +1,211 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial 14. Kernel Example - PrefixSum &#8212; CM 6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Tutorial 13. Kernel Deep-Dive: RadixSort" href="cmtutorial13.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="Intel Logo"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cmtutorial13.html" title="Tutorial 13. Kernel Deep-Dive: RadixSort"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tutorial-14-kernel-example-prefixsum">
+<h1>Tutorial 14. Kernel Example - PrefixSum<a class="headerlink" href="#tutorial-14-kernel-example-prefixsum" title="Permalink to this headline">¶</a></h1>
+<p>Prefix sum is a fundamental building block in parallel programming.
+The prefix sum kernel takes (2^N)*TUPLE_SZ table as input.
+The prefix sum of a sequence of (2^N)*TUPLE_SZ values is a new sequence
+of (2^N)*TUPLE_SZ values where the value at position (i,j) is the sum
+of all the values in the input sequence of column j up to position i.
+The code is shown below.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">NUM_ENTRIES</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="n">TUPLE_SZ</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span>
+      <span class="n">Table</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">+=</span> <span class="n">Table</span><span class="p">[</span><span class="n">i</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="n">j</span><span class="p">];</span>
+</pre></div>
+</div>
+<a class="reference internal image-reference" href="../_images/prefixsum-f1.png"><img alt="../_images/prefixsum-f1.png" src="../_images/prefixsum-f1.png" style="width: 800px;" /></a>
+<p>The algorithm has a loop-carried dependency which prevents parallelizing
+the loops. Each i iteration can only be executed after the previous
+iteration has finished.</p>
+<p>To break the loop carried dependency so as to map the work to run efficiently
+on GEN, we decompose the work into 3 stages.</p>
+<a class="reference internal image-reference" href="../_images/prefixsum-f2.png"><img alt="../_images/prefixsum-f2.png" src="../_images/prefixsum-f2.png" style="width: 800px;" /></a>
+<p>1. Local count: the local count stage partitions the table into chunks.
+Each chunk is 256xTUPLE_SZ. Each HW thread sums up values for each column
+within one chunk and stores the results in the last entry of the chunk
+(as depicted in Figure 2). All data chunks can be executed in parallel
+in this stage.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">_GENX_MAIN_</span> <span class="kt">void</span> <span class="nf">cmk_sum_tuple_count</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">table</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="c1">// h_pos indicates which 256-element chunk the kernel is processing</span>
+  <span class="n">uint</span> <span class="n">h_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_x</span><span class="p">()</span> <span class="o">+</span> <span class="n">get_thread_origin_y</span><span class="p">()</span><span class="o">*</span><span class="n">MAX_TS_WIDTH</span><span class="p">;</span>
+  <span class="c1">// each thread handles PREFIX_ENTRIES entries. Each entry has 4 bins</span>
+  <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">offset</span> <span class="o">=</span> <span class="p">(</span><span class="n">h_pos</span> <span class="o">*</span> <span class="n">PREFIX_ENTRIES</span><span class="o">*</span><span class="n">TUPLE_SZ</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="mi">2</span><span class="p">;</span>
+
+  <span class="n">vector</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span><span class="o">*</span><span class="n">TUPLE_SZ</span><span class="o">&gt;</span> <span class="n">S</span><span class="p">,</span> <span class="n">T</span><span class="p">;</span>
+  <span class="n">cmk_read</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span><span class="o">*</span><span class="n">TUPLE_SZ</span><span class="o">&gt;</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="n">S</span><span class="p">);</span>
+<span class="cp">#pragma unroll</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">PREFIX_ENTRIES</span> <span class="o">/</span> <span class="mi">32</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">cmk_read</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span><span class="o">*</span><span class="n">TUPLE_SZ</span><span class="o">&gt;</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">offset</span> <span class="o">+</span> <span class="n">i</span><span class="o">*</span><span class="mi">32</span><span class="o">*</span><span class="n">TUPLE_SZ</span><span class="o">*</span> <span class="mi">4</span><span class="p">,</span> <span class="n">T</span><span class="p">);</span>
+    <span class="n">S</span> <span class="o">+=</span> <span class="n">T</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="n">matrix_ref</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="n">TUPLE_SZ</span><span class="o">&gt;</span> <span class="n">cnt_table</span> <span class="o">=</span> <span class="n">S</span><span class="p">.</span><span class="n">format</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="n">TUPLE_SZ</span><span class="o">&gt;</span><span class="p">();</span>
+  <span class="c1">// sum reduction for each bin</span>
+  <span class="n">cnt_table</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">TUPLE_SZ</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+=</span> <span class="n">cnt_table</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">TUPLE_SZ</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+  <span class="n">cnt_table</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">TUPLE_SZ</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+=</span> <span class="n">cnt_table</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">TUPLE_SZ</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+  <span class="n">cnt_table</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">TUPLE_SZ</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+=</span> <span class="n">cnt_table</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">TUPLE_SZ</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+  <span class="n">cnt_table</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">TUPLE_SZ</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+=</span> <span class="n">cnt_table</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">TUPLE_SZ</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+  <span class="n">cnt_table</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">TUPLE_SZ</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+=</span> <span class="n">cnt_table</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">TUPLE_SZ</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+
+  <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span> <span class="n">wrt_addr</span><span class="p">(</span><span class="n">init_0_3</span><span class="p">);</span>
+  <span class="n">wrt_addr</span> <span class="o">+=</span> <span class="p">((</span><span class="n">h_pos</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">PREFIX_ENTRIES</span> <span class="o">*</span><span class="n">TUPLE_SZ</span> <span class="o">-</span> <span class="n">TUPLE_SZ</span><span class="p">);</span>
+  <span class="c1">// write only sum to the last entry of the current chunk</span>
+  <span class="n">write</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">wrt_addr</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="n">TUPLE_SZ</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">cnt_table</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">0</span><span class="p">));</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>2. Prefix sum of local counts: Stage 1 sums up values along the column
+for each chunk and saves the results in the last row of each chunk.
+Given N=25 (32M entries), there are 2^17 entries saved. This stage calculates
+the prefix sum for those entries (highlighted in darker colors) computed
+in Stage 1 as shown in Figure 3. Compared with the input size, the number
+of entries needs to be calculated is cut down by a factor 256.
+In our implementation, this stage is done by CPU. If the number of entries
+is still large and inherently loop-carried dependency still imposes
+a concern here, we can apply another local count hierarchically on those
+entries. That is, each HW thread sums up 256 entries calculated by Stage 1.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>    <span class="c1">// doing prefix-sum of those segement sum on CPU</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;=</span> <span class="n">size</span> <span class="o">/</span> <span class="n">PREFIX_ENTRIES</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">m</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">m</span> <span class="o">&lt;</span> <span class="n">TUPLE_SZ</span><span class="p">;</span> <span class="n">m</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">pInputs</span><span class="p">[(</span><span class="n">j</span> <span class="o">*</span> <span class="n">PREFIX_ENTRIES</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">TUPLE_SZ</span> <span class="o">+</span> <span class="n">m</span><span class="p">]</span> <span class="o">+=</span>
+		<span class="n">pInputs</span><span class="p">[((</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span><span class="o">*</span> <span class="n">PREFIX_ENTRIES</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">TUPLE_SZ</span> <span class="o">+</span> <span class="n">m</span><span class="p">];</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+<p>3. Global Prefix sum: For a given chunk i, the last entry of chunk (i-1)
+tells the prefix sum up to chunk i. Computing prefix sum for all input
+entries can be done in parallel. Each HW thread handles a 256-entry chunk.
+It reads the last entry of its previous chunk as the initial value and
+computes prefix sum for all entries within the chunk (as depicted in Figure 4).</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">_GENX_MAIN_</span> <span class="kt">void</span> <span class="nf">cmk_prefix</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">table</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="c1">// h_pos indicates which 256-element chunk the kernel is processing</span>
+  <span class="n">uint</span> <span class="n">h_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_x</span><span class="p">()</span> <span class="o">+</span> <span class="n">get_thread_origin_y</span><span class="p">()</span><span class="o">*</span><span class="n">MAX_TS_WIDTH</span><span class="p">;</span>
+  <span class="c1">// each thread handles PREFIX_ENTRIES entries. Each entry has 4 bins</span>
+  <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">offset</span> <span class="o">=</span> <span class="p">(</span><span class="n">h_pos</span> <span class="o">*</span> <span class="n">PREFIX_ENTRIES</span><span class="o">*</span><span class="n">TUPLE_SZ</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="mi">2</span><span class="p">;</span>
+
+  <span class="n">vector</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="n">TUPLE_SZ</span><span class="o">&gt;</span> <span class="n">prev_BIN</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">h_pos</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">prev_BIN</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">else</span> <span class="p">{</span>
+    <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span> <span class="n">rd_addr</span><span class="p">(</span><span class="n">init_0_3</span><span class="p">);</span>
+    <span class="n">rd_addr</span> <span class="o">+=</span> <span class="p">((</span><span class="n">offset</span><span class="o">&gt;&gt;</span><span class="mi">2</span><span class="p">)</span> <span class="o">-</span> <span class="n">TUPLE_SZ</span><span class="p">);</span>
+    <span class="n">read</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">rd_addr</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="n">TUPLE_SZ</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">prev_BIN</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="n">vector</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span> <span class="o">*</span> <span class="n">TUPLE_SZ</span><span class="o">&gt;</span> <span class="n">T</span><span class="p">;</span>
+  <span class="n">matrix_ref</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="n">TUPLE_SZ</span><span class="o">&gt;</span> <span class="n">cnt</span> <span class="o">=</span> <span class="n">T</span><span class="p">.</span><span class="n">format</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="n">TUPLE_SZ</span><span class="o">&gt;</span><span class="p">();</span>
+  <span class="kt">int</span> <span class="n">iter</span> <span class="o">=</span> <span class="n">PREFIX_ENTRIES</span> <span class="o">/</span> <span class="mi">32</span><span class="p">;</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">iter</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">cmk_read</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span> <span class="o">*</span> <span class="n">TUPLE_SZ</span><span class="o">&gt;</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">offset</span> <span class="o">+</span> <span class="n">i</span><span class="o">*</span><span class="p">(</span><span class="mi">32</span> <span class="o">*</span> <span class="n">TUPLE_SZ</span><span class="p">)</span> <span class="o">*</span> <span class="mi">4</span><span class="p">,</span> <span class="n">T</span><span class="p">);</span>
+    <span class="c1">// calculate prefix</span>
+    <span class="n">cnt</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">+=</span> <span class="n">prev_BIN</span><span class="p">;</span>
+<span class="cp">#pragma unroll</span>
+    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="mi">32</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">cnt</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="o">+=</span> <span class="n">cnt</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="c1">// write only sum to the last entry of the current chunk</span>
+    <span class="n">cmk_write</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span> <span class="o">*</span> <span class="n">TUPLE_SZ</span><span class="o">&gt;</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">offset</span> <span class="o">+</span> <span class="p">((</span><span class="n">i</span> <span class="o">*</span> <span class="mi">32</span> <span class="o">*</span> <span class="n">TUPLE_SZ</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="mi">2</span><span class="p">),</span> <span class="n">T</span><span class="p">);</span>
+    <span class="n">prev_BIN</span> <span class="o">=</span> <span class="n">cnt</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">31</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="c1">// handle last iteration</span>
+  <span class="n">cmk_read</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span> <span class="o">*</span> <span class="n">TUPLE_SZ</span><span class="o">&gt;</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">offset</span> <span class="o">+</span> <span class="p">(</span><span class="n">iter</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="mi">32</span> <span class="o">*</span> <span class="n">TUPLE_SZ</span><span class="p">)</span> <span class="o">*</span> <span class="mi">4</span><span class="p">,</span> <span class="n">T</span><span class="p">);</span>
+  <span class="c1">// calculate prefix</span>
+  <span class="n">cnt</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">+=</span> <span class="n">prev_BIN</span><span class="p">;</span>
+<span class="cp">#pragma unroll</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="mi">31</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">cnt</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="o">+=</span> <span class="n">cnt</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="c1">// write only sum to the last entry of the current chunk</span>
+  <span class="n">cmk_write</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">32</span> <span class="o">*</span> <span class="n">TUPLE_SZ</span><span class="o">&gt;</span><span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">offset</span> <span class="o">+</span> <span class="p">(((</span><span class="n">iter</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="mi">32</span> <span class="o">*</span> <span class="n">TUPLE_SZ</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="mi">2</span><span class="p">),</span> <span class="n">T</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cmtutorial13.html" title="Tutorial 13. Kernel Deep-Dive: RadixSort"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" >CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
+      Last updated on Tue Jan 2 15:16:27 2018 -0800.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

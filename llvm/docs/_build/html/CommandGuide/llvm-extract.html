@@ -1,0 +1,164 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-extract - extract a function from an LLVM module &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llvm-bcanalyzer - LLVM bitcode analyzer" href="llvm-bcanalyzer.html" />
+    <link rel="prev" title="bugpoint - automatic test case reduction tool" href="bugpoint.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llvm-bcanalyzer.html" title="llvm-bcanalyzer - LLVM bitcode analyzer"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="bugpoint.html" title="bugpoint - automatic test case reduction tool"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-extract-extract-a-function-from-an-llvm-module">
+<h1>llvm-extract - extract a function from an LLVM module<a class="headerlink" href="#llvm-extract-extract-a-function-from-an-llvm-module" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-extract</strong> [<em>options</em>] <strong>–func</strong> <em>function-name</em> [<em>filename</em>]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>The <strong class="program">llvm-extract</strong> command takes the name of a function and extracts
+it from the specified LLVM bitcode file.  It is primarily used as a debugging
+tool to reduce test cases from larger programs that are triggering a bug.</p>
+<p>In addition to extracting the bitcode of the specified function,
+<strong class="program">llvm-extract</strong> will also remove unreachable global variables,
+prototypes, and unused types.</p>
+<p>The <strong class="program">llvm-extract</strong> command reads its input from standard input if
+filename is omitted or if filename is <code class="docutils literal"><span class="pre">-</span></code>.  The output is always written to
+standard output, unless the <strong>-o</strong> option is specified (see below).</p>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<p><strong>-f</strong></p>
+<blockquote>
+<div>Enable binary output on terminals.  Normally, <strong class="program">llvm-extract</strong> will
+refuse to write raw bitcode output if the output stream is a terminal.  With
+this option, <strong class="program">llvm-extract</strong> will write raw bitcode regardless of the
+output device.</div></blockquote>
+<p><strong>–func</strong> <em>function-name</em></p>
+<blockquote>
+<div>Extract the function named <em>function-name</em> from the LLVM bitcode.  May be
+specified multiple times to extract multiple functions at once.</div></blockquote>
+<p><strong>–rfunc</strong> <em>function-regular-expr</em></p>
+<blockquote>
+<div>Extract the function(s) matching <em>function-regular-expr</em> from the LLVM bitcode.
+All functions matching the regular expression will be extracted.  May be
+specified multiple times.</div></blockquote>
+<p><strong>–glob</strong> <em>global-name</em></p>
+<blockquote>
+<div>Extract the global variable named <em>global-name</em> from the LLVM bitcode.  May be
+specified multiple times to extract multiple global variables at once.</div></blockquote>
+<p><strong>–rglob</strong> <em>glob-regular-expr</em></p>
+<blockquote>
+<div>Extract the global variable(s) matching <em>global-regular-expr</em> from the LLVM
+bitcode.  All global variables matching the regular expression will be
+extracted.  May be specified multiple times.</div></blockquote>
+<p><strong>-help</strong></p>
+<blockquote>
+<div>Print a summary of command line options.</div></blockquote>
+<p><strong>-o</strong> <em>filename</em></p>
+<blockquote>
+<div>Specify the output filename.  If filename is “-” (the default), then
+<strong class="program">llvm-extract</strong> sends its output to standard output.</div></blockquote>
+<p><strong>-S</strong></p>
+<blockquote>
+<div>Write output in LLVM intermediate language (instead of bitcode).</div></blockquote>
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p>If <strong class="program">llvm-extract</strong> succeeds, it will exit with 0.  Otherwise, if an error
+occurs, it will exit with a non-zero value.</p>
+</div>
+<div class="section" id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p>bugpoint</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llvm-bcanalyzer.html" title="llvm-bcanalyzer - LLVM bitcode analyzer"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="bugpoint.html" title="bugpoint - automatic test case reduction tool"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,391 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>CMC User Guide &#8212; CM 6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="CM (C for Media) Tutorial" href="../cmtutorial/cmtut.html" />
+    <link rel="prev" title="CM (C for Media) Language Specification" href="../cmlangspec/cmlangspec.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="Intel Logo"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../cmtutorial/cmtut.html" title="CM (C for Media) Tutorial"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../cmlangspec/cmlangspec.html" title="CM (C for Media) Language Specification"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="cmc-user-guide">
+<h1><a class="toc-backref" href="#id1">CMC User Guide</a><a class="headerlink" href="#cmc-user-guide" title="Permalink to this headline">¶</a></h1>
+<div class="contents topic" id="table-of-contents">
+<p class="topic-title first">Table of Contents</p>
+<ul class="simple">
+<li><a class="reference internal" href="#cmc-user-guide" id="id1">CMC User Guide</a><ul>
+<li><a class="reference internal" href="#introduction" id="id2">1 Introduction</a></li>
+<li><a class="reference internal" href="#supported-gen-targets" id="id3">2 Supported Gen Targets</a></li>
+<li><a class="reference internal" href="#cm-header-files" id="id4">3 CM Header Files</a></li>
+<li><a class="reference internal" href="#compiler-options" id="id5">4 Compiler Options</a></li>
+<li><a class="reference internal" href="#implicit-macros" id="id6">5 Implicit Macros</a></li>
+<li><a class="reference internal" href="#environment-variables" id="id7">6 Environment Variables</a></li>
+<li><a class="reference internal" href="#reporting-compiler-bugs" id="id8">7 Reporting Compiler Bugs</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id2">1 Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>CM 6.0 contains a new CM compiler called cmc, based on LLVM with custom front-end changes and
+extensions for the CM language and a new Gen back-end. The old compiler (cm-icl) is still
+available and is included in the package but will no longer be developed. New features will
+only be available in cmc.</p>
+<p>This document describes the use of the cmc compiler.</p>
+<p>For information about the CM language see the <cite>CM (C for Media) Language Specification</cite>.</p>
+<p>For information about porting applications to use the cmc compiler from the old compiler (cm-icl) see the <cite>CM LLVM Porting Guide</cite>.</p>
+</div>
+<div class="section" id="supported-gen-targets">
+<span id="supportedgentargets"></span><h2><a class="toc-backref" href="#id3">2 Supported Gen Targets</a><a class="headerlink" href="#supported-gen-targets" title="Permalink to this headline">¶</a></h2>
+<p>By default the cmc compiler produces a generic vISA file that is not targeted at any specific Gen variant.
+Some CM language features are by their nature Gen specific, and are only available when a specific Gen target is specified - for example the supported VME functions differ according to the Gen target.</p>
+<p>A specific Gen target may be specified by use of the -march=<em>gen</em> compiler option. This option implicitly predefines several macros that can be used within CM kernels to control conditional compilation, and also includes appropriate Gen specific header files.</p>
+<p>The option -Qxcm_jit_target=<em>gen</em> may also be used, which has the same effect as -march but additionally invokes the GenX Finalizer (jitter) to produce targeted vISA code.</p>
+<p>The Gen target may be specified using a codename (e.g. CNL) or number (e.g. gen10). The case is not significant, so cnl, CNL, and Cnl are all equivalent.</p>
+<p>When a Gen target is specified, two macros are predefined. The macro CM_GENX is given a value which identifies the Gen target, and a macro of the form CM_GEN<em>n</em> is defined (without a value). The targets supported by cmc, and the corresponding macros, are given in the table below.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="17%" />
+<col width="17%" />
+<col width="31%" />
+<col width="36%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Gen</th>
+<th class="head">Name</th>
+<th class="head">CM_GEN<em>n</em></th>
+<th class="head">CM_GENX value</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>GEN7_5</td>
+<td>HSW</td>
+<td>CM_GEN7_5</td>
+<td>750</td>
+</tr>
+<tr class="row-odd"><td>GEN8</td>
+<td>BDW</td>
+<td>CM_GEN8</td>
+<td>800</td>
+</tr>
+<tr class="row-even"><td>GEN8_5</td>
+<td>CHV</td>
+<td>CM_GEN8_5</td>
+<td>850</td>
+</tr>
+<tr class="row-odd"><td>GEN9</td>
+<td>SKL</td>
+<td>CM_GEN9</td>
+<td>900</td>
+</tr>
+<tr class="row-even"><td></td>
+<td>BXT</td>
+<td>CM_GEN9</td>
+<td>920</td>
+</tr>
+<tr class="row-odd"><td>GEN9_5</td>
+<td>KBL</td>
+<td>CM_GEN9_5</td>
+<td>950</td>
+</tr>
+<tr class="row-even"><td></td>
+<td>GLK</td>
+<td>CM_GEN9_5</td>
+<td>970</td>
+</tr>
+<tr class="row-odd"><td>GEN10</td>
+<td>CNL</td>
+<td>CM_GEN10</td>
+<td>1000</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="cm-header-files">
+<h2><a class="toc-backref" href="#id4">3 CM Header Files</a><a class="headerlink" href="#cm-header-files" title="Permalink to this headline">¶</a></h2>
+<p>The cmc compiler implicitly knows the path to the CM header files, so no option needs to be used to specify the path.</p>
+<p>Only the main header file cm/cm.h needs to be included in CM kernels unless cmtl functions are required, in which case cm/cmtl.h should also be included - all other header files will be included as needed, depending on the Gen variant specified.</p>
+<p>The include statement should appear in each CM source file as follows:</p>
+<p><code class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;cm/cm.h&gt;</span></code></p>
+<p>or if CM Template Library functions are required</p>
+<p><code class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;cm/cm.h&gt;</span></code></p>
+<p><code class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;cm/cmtl.h&gt;</span></code></p>
+</div>
+<div class="section" id="compiler-options">
+<h2><a class="toc-backref" href="#id5">4 Compiler Options</a><a class="headerlink" href="#compiler-options" title="Permalink to this headline">¶</a></h2>
+<p>The cmc compiler accepts options that are compatible with cm-icl, to minimize the migration effort required. However, not all cm-icl options are applicable to the cmc compiler, so some cm-icl options are simply ignored.</p>
+<p>The following table describes the main options that are useful for CM.
+Note that since cmc is based on LLVM/Clang, there are many other options that are available. Many of these will not be applicable to CM kernels or Gen targets, and some may result in unexpected behaviour.</p>
+<p>Note that all CM specific options (i.e. those starting with Qxcm or mCM) may use a slash ‘/’ or minus ‘-‘ as a delimeter. Most Clang options only accept minus ‘-‘.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="13%" />
+<col width="87%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Option</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>-help</td>
+<td>Prints a list of compiler options - note that not all options are applicable to CM.</td>
+</tr>
+<tr class="row-odd"><td>-march=<em>gen</em></td>
+<td><p class="first">Specifies the Gen target without calling the Gen Finalizer.</p>
+<p>This may use numeric or mnemonic notations, e.g. gen8 and bdw both specify a Broadwell target.
+Case is not significant.</p>
+<p>The macros CM_GENX and CM_GEN&lt;x&gt; will be predefined according to the target that is specified - e.g. for BDW, CM_GENX will have a value of 800, and CM_GEN8 will be defined (without a value).</p>
+<p class="last">This option is ignored if -Qxcm_jit_target or -mcpu is also specified.</p>
+</td>
+</tr>
+<tr class="row-even"><td>-mcpu=<em>gen</em></td>
+<td>Specifies the Gen target without calling the Gen Finalizer (equivalent to -march).
+This option is ignored if -Qxcm_jit_target is also specified.</td>
+</tr>
+<tr class="row-odd"><td>-Qxcm_jit_target=<em>gen</em></td>
+<td>Specifies the Gen target in the same way as -march but additionally invokes the GenX Finalizer to generate code targeted for the specified Gen variant.</td>
+</tr>
+<tr class="row-even"><td>-mCM_genx_assembler=<em>asm</em></td>
+<td>Specifies the executable of the GenX Finalizer to be used.
+This is only required if a non-default finalizer needs to be run for some reason.
+This option only has effect if -Qxcm_jit_target is also specified.</td>
+</tr>
+<tr class="row-odd"><td>-mCM_jit_option=<em>option</em></td>
+<td><p class="first">This allows options to be passed directly to the GenX Finalizer - it
+only has any effect when -Qxcm_jit_target is also specified.</p>
+<p>Multiple jitter options may be specified using multiple instances of
+this option, or by enclosing the multiple options in double quotes,
+e.g. -mCM_jit_option=”-noschedule -nocompaction”</p>
+<p class="last">Note that specifying a value that is not recognized by the jitter will
+result in an error diagnostic from the jitter.</p>
+</td>
+</tr>
+<tr class="row-even"><td>-Qxcm_jit_option=<em>option</em></td>
+<td>An alias for -mCM_jit_option=<em>option</em></td>
+</tr>
+<tr class="row-odd"><td>-Qxcm_noschedule</td>
+<td>Passes the -noschedule flag to the GenX Finalizer (a shorthand alias for -Qxcm_jit_option=-noschedule).
+This option only has effect if -Qxcm_jit_target is also specified.</td>
+</tr>
+<tr class="row-even"><td>-Qxcm_opt_report</td>
+<td>Passes the -optreport option to the GenX Finalizer (an alias for -Qxcm_jit_option=-optreport).
+This option only has effect if -Qxcm_jit_target is also specified.</td>
+</tr>
+<tr class="row-odd"><td>-Qxcm_print_asm_count</td>
+<td>Passes the -printasmcount option to the GenX Finalizer (an alias for -Qxcm_jit_target=-printasmcount),
+which prints the gen instruction count for each kernel.
+This option only has effect if -Qxcm_jit_target is also specified.</td>
+</tr>
+<tr class="row-even"><td>-mCM_printregusage</td>
+<td>Passes the -printregusage option to the GenX Finalizer (an alias for -Qxcm_jit_option=-printregusage),
+which prints the number of GRFs used by each kernel.
+Note that the -noroundrobin option is also passed which turns off local register allocation. This may cause performance degradation, therefore it is not recommended for release build.
+This option only has effect if -Qxcm_jit_target is also specified.</td>
+</tr>
+<tr class="row-odd"><td>-Qxcm_release</td>
+<td>Passes the -stripcomments option to the GenX Finalizer (an alias for -Qxcm_jit_target=-stripcomments),
+which strips debug information from the generated .isa file.
+This option only has effect if -Qxcm_jit_target is also specified.</td>
+</tr>
+<tr class="row-even"><td>-mCM_unique_labels=<em>string</em></td>
+<td>Passes the -uniqueLabels <em>string</em> option to the GenX Finalizer (an alias for -Qxcm_jit_target=”-uniqueLabels <em>string</em>”).
+This option only has effect if -Qxcm_jit_target is also specified.</td>
+</tr>
+<tr class="row-odd"><td>-cm_svmptr=<em>size</em></td>
+<td>Specifies the size of the SVM pointer to be used - <em>size</em> must be either 32 or 64.
+The value defaults to the pointer width of the cmc compiler being used.</td>
+</tr>
+<tr class="row-even"><td>-Qxcm_asm_output=<em>name</em></td>
+<td>Specifies the name to be used as the base for the generated output file names.</td>
+</tr>
+<tr class="row-odd"><td>-Qxcm_emu</td>
+<td>Not supported by cmc.</td>
+</tr>
+<tr class="row-even"><td>-Qxcm_vme_arch=<em>gen</em></td>
+<td>Ignored. The vme architecture is implied from the Gen target.</td>
+</tr>
+<tr class="row-odd"><td>-mdump_regalloc</td>
+<td>Emit cmc back-end register allocation information.</td>
+</tr>
+<tr class="row-even"><td>-menableiga</td>
+<td>Enable IGA assembler syntax. Note that IGA is enabled bby default for Gen11 onwards.
+This option only has effect if -Qxcm_jit_target is also specified.</td>
+</tr>
+<tr class="row-odd"><td>-Qxcm</td>
+<td>Ignored - this option is implicit when using cmc.</td>
+</tr>
+<tr class="row-even"><td>-mCM_emit_common_isa</td>
+<td>Ignored - this option is implicit when using cmc.</td>
+</tr>
+<tr class="row-odd"><td>-Qxdisable_clang_cm</td>
+<td>Ignored - this option is provided for backward compatibility only.</td>
+</tr>
+<tr class="row-even"><td>-mGLOB_override_limits</td>
+<td>Ignored - this option is not necessary on cmc, and is provided for backwards compatibility only.</td>
+</tr>
+<tr class="row-odd"><td>-mCM_disable_jmpi</td>
+<td>Do not emit jmpi and only emit goto for scalar jumps. This option only has effect if -Qxcm_jit_target is also specified.</td>
+</tr>
+<tr class="row-even"><td>-###</td>
+<td>This option causes the cmc driver to print the commands that would be used to perform the compilation (cmc front-end and Gen Finalizer commands).</td>
+</tr>
+<tr class="row-odd"><td>-mCM_no_input_reorder</td>
+<td>This option causes the cmc compiler to <em>not</em> reorder the kernel arguments. Arguments will still satisfy alignment constraints so may be padded. This option is likely to degrade performance.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="implicit-macros">
+<h2><a class="toc-backref" href="#id6">5 Implicit Macros</a><a class="headerlink" href="#implicit-macros" title="Permalink to this headline">¶</a></h2>
+<p>A number of macros are predefined by cmc which may be used to control conditional compilation within CM kernels.
+These are described in the following table.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="9%" />
+<col width="91%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Macro</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>__CM</td>
+<td>Always defined (without a value) to indicate that this is a CM compilation.</td>
+</tr>
+<tr class="row-odd"><td>__CMC</td>
+<td>Always defined (without a value) to indicate that the compiler is cmc.</td>
+</tr>
+<tr class="row-even"><td>CM_GENX</td>
+<td>Defined whenever a specific Gen target has been specified (by the -Qxcm_jit_target, -march, or -mcpu options). See the table in <a class="reference internal" href="#supportedgentargets"><span class="std std-ref">2 Supported Gen Targets</span></a> for the value for each Gen target.</td>
+</tr>
+<tr class="row-odd"><td>CM_GEN<em>gen</em></td>
+<td>Defined (without a value) when the corresponding Gen target has been specified, e.g. if the target is specified to be CNL then CM_GEN10 will be defined. See the table in <a class="reference internal" href="#supportedgentargets"><span class="std std-ref">2 Supported Gen Targets</span></a> for the name of the macro defined for each Gen target.</td>
+</tr>
+<tr class="row-even"><td>CM_HAS_DOUBLE</td>
+<td>Defined (with value 1) if the specifed Gen target supports the <code class="docutils literal"><span class="pre">double</span></code> type.</td>
+</tr>
+<tr class="row-odd"><td>CM_HAS_LONG_LONG</td>
+<td>Defined (with value 1) if the specifed Gen target supports the <code class="docutils literal"><span class="pre">long</span> <span class="pre">long</span></code> type.</td>
+</tr>
+<tr class="row-even"><td>CM_HAS_VA</td>
+<td>Defined (with value 1) if BDW+ video analytics features are available on the specified Gen target.</td>
+</tr>
+<tr class="row-odd"><td>CM_HAS_VA_PLUS</td>
+<td>Defined (with value 1) if SKL+ video analytics features are available on the specified Gen target.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="environment-variables">
+<h2><a class="toc-backref" href="#id7">6 Environment Variables</a><a class="headerlink" href="#environment-variables" title="Permalink to this headline">¶</a></h2>
+<table border="1" class="docutils">
+<colgroup>
+<col width="6%" />
+<col width="94%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Environment variable</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>ENABLE_IGA</td>
+<td>By default the GenX finalizer uses the legacy assembler syntax for the assembly files it generates for platforms before Gen11. If the ENABLE_IGA environment variable has a non-zero value then IGA assembler syntax will be used. This is equivalent to specifying the -menableiga compiler option.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="reporting-compiler-bugs">
+<h2><a class="toc-backref" href="#id8">7 Reporting Compiler Bugs</a><a class="headerlink" href="#reporting-compiler-bugs" title="Permalink to this headline">¶</a></h2>
+<p>Like most compilers, cmc is a complex piece of software and may sometimes encounter a condition that isn’t currently allowed for. This may exhibit in one of a number of ways - ranging from an internal error, a failed compilation, or incorrect execution of the resulting kernel.</p>
+<p>Such incorrect behaviour should be reported to the CM team so that the bug can be investigated and resolved. As it is often difficult and time consuming to reproduce such errors, it is very helpful if appropriate information is included in the bug report.</p>
+<p>For internal compiler errors, cmc will usually generate two files, and ask that they be sent as part of the bug report. One comprises the pre-processed source file (so all header files are included with the kernel source), and the other is a script containing a command to invoke cmc with all the options required to reproduce the error. In most cases this will be sufficent for the issue to be identified and fixed.</p>
+<p>For failed compilations the compiler diagnostics produced, the preprocessed source, and command line used to invoke the compiler are required. However, in this case the compiler doesn’t automatically prepare the preprocessed source and command script.  The -E compiler option may be used to preprocess the source and header files into a single source  file - the output will need to be redirected into a file as it is sent to stdout by default.</p>
+<p>Incorrect execution is the most demanding case, as it is usually necessary to execute the kernel in order to reproduce the issue. This requires the source, the commands used to compile and run the kernel, and input data.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../cmtutorial/cmtut.html" title="CM (C for Media) Tutorial"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../cmlangspec/cmlangspec.html" title="CM (C for Media) Language Specification"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
+      Last updated on Tue Jan 2 15:16:27 2018 -0800.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

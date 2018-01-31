@@ -1,0 +1,334 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial 1. Basic Host Programming &#8212; CM 6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorial 2. Basic Kernel Programming" href="cmtutorial02.html" />
+    <link rel="prev" title="CM (C for Media) Tutorial" href="cmtut.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="Intel Logo"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cmtutorial02.html" title="Tutorial 2. Basic Kernel Programming"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="cmtut.html" title="CM (C for Media) Tutorial"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tutorial-1-basic-host-programming">
+<h1>Tutorial 1. Basic Host Programming<a class="headerlink" href="#tutorial-1-basic-host-programming" title="Permalink to this headline">¶</a></h1>
+<p>Most of the code in these tutorials are extracted from our <a class="reference external" href="../../../../../test/open_examples">open examples</a>.</p>
+<p>In this tutorial, we are showing the sample host code that uses the CM
+runtime API directly. The sample code may look a little verbose, however,
+developers can come up some higher-level utility library on top of
+the CM runtime to make their code more concise.</p>
+<div class="section" id="step-1-create-cm-device">
+<h2>Step 1. Create CM Device<a class="headerlink" href="#step-1-create-cm-device" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// Creates a CmDevice from scratch.</span>
+  <span class="c1">// Param device: pointer to the CmDevice object.</span>
+  <span class="c1">// Param version: CM API version supported by the runtime library.</span>
+  <span class="n">CmDevice</span> <span class="o">*</span><span class="n">device</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">version</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="o">::</span><span class="n">CreateCmDevice</span><span class="p">(</span><span class="n">device</span><span class="p">,</span> <span class="n">version</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="step-2-load-program">
+<h2>Step 2. Load Program<a class="headerlink" href="#step-2-load-program" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>CM compilation happens at two stages<ul>
+<li>Offline: cmc compiles CM to virtual ISA</li>
+<li>Just-In-Time: virtual ISA to target ISA</li>
+</ul>
+</li>
+<li>LoadProgram: load virtual ISA into runtime<ul>
+<li>JIT-compilation happens during LoadProgram</li>
+</ul>
+</li>
+</ul>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// The file linear_walker_genx.isa is generated when the kernels in the file</span>
+  <span class="c1">// linear_walker_genx.cpp are compiled by the CM compiler.</span>
+  <span class="c1">// Reads in the virtual ISA from &quot;linear_walker_genx.isa&quot; to the code</span>
+  <span class="c1">// buffer.</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">isa_code</span> <span class="o">=</span> <span class="n">cm</span><span class="o">::</span><span class="n">util</span><span class="o">::</span><span class="n">isa</span><span class="o">::</span><span class="n">loadFile</span><span class="p">(</span><span class="s">&quot;linear_walker_genx.isa&quot;</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">isa_code</span><span class="p">.</span><span class="n">size</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">cerr</span> <span class="o">&lt;&lt;</span> <span class="s">&quot;Error: empty ISA binary.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+    <span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Creates a CmProgram object consisting of the kernels loaded from the code</span>
+  <span class="c1">// buffer.</span>
+  <span class="c1">// Param isa_code.data(): Pointer to the code buffer containing the virtual</span>
+  <span class="c1">// ISA.</span>
+  <span class="c1">// Param isa_code.size(): Size in bytes of the code buffer containing the</span>
+  <span class="c1">// virtual ISA.</span>
+  <span class="n">CmProgram</span> <span class="o">*</span><span class="n">program</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">LoadProgram</span><span class="p">(</span><span class="k">const_cast</span><span class="o">&lt;</span><span class="kt">char</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">isa_code</span><span class="p">.</span><span class="n">data</span><span class="p">()),</span>
+                                      <span class="n">isa_code</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span>
+                                      <span class="n">program</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="step-3-create-kernel">
+<h2>Step 3. Create Kernel<a class="headerlink" href="#step-3-create-kernel" title="Permalink to this headline">¶</a></h2>
+<p>Retrieve the target binary of a kernel from a loaded program.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// Creates the linear kernel.</span>
+  <span class="c1">// Param program: CM Program from which the kernel is created.</span>
+  <span class="c1">// Param &quot;linear&quot;: The kernel name which should be no more than 256 bytes</span>
+  <span class="c1">// including the null terminator.</span>
+  <span class="n">CmKernel</span> <span class="o">*</span><span class="n">kernel</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateKernel</span><span class="p">(</span><span class="n">program</span><span class="p">,</span>
+                                       <span class="s">&quot;linear&quot;</span><span class="p">,</span>
+                                       <span class="n">kernel</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="step-4-create-surfaces">
+<h2>Step 4. Create Surfaces<a class="headerlink" href="#step-4-create-surfaces" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// Creates input surface with given width and height in pixels and format.</span>
+  <span class="c1">// Sets surface format as CM_SURFACE_FORMAT_A8R8G8B8. For this format, each</span>
+  <span class="c1">// pixel occupies 32 bits.</span>
+  <span class="c1">// The input image is RGB format with 24 bits per pixel, and the surface</span>
+  <span class="c1">// format is A8R8G8B8 with 32 bits per pixel. Therefore, the surface width</span>
+  <span class="c1">// is (width*3/4) in pixels.</span>
+  <span class="n">CmSurface2D</span> <span class="o">*</span><span class="n">input_surface</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateSurface2D</span><span class="p">(</span><span class="n">width</span><span class="o">*</span><span class="mi">3</span><span class="o">/</span><span class="mi">4</span><span class="p">,</span>
+                                          <span class="n">height</span><span class="p">,</span>
+                                          <span class="n">CM_SURFACE_FORMAT_A8R8G8B8</span><span class="p">,</span>
+                                          <span class="n">input_surface</span><span class="p">));</span>
+
+  <span class="c1">// Copies system memory content to the input surface using the CPU. The</span>
+  <span class="c1">// system memory content is the data of the input image. The size of data</span>
+  <span class="c1">// copied is the size of data in the surface.</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">input_surface</span><span class="o">-&gt;</span><span class="n">WriteSurface</span><span class="p">(</span><span class="n">input_image</span><span class="p">.</span><span class="n">getData</span><span class="p">(),</span> <span class="k">nullptr</span><span class="p">));</span>
+
+  <span class="c1">// Creates the output surface. The width, height and format is the same as</span>
+  <span class="c1">// the input surface.</span>
+  <span class="n">CmSurface2D</span> <span class="o">*</span><span class="n">output_surface</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateSurface2D</span><span class="p">(</span><span class="n">width</span><span class="o">*</span><span class="mi">3</span><span class="o">/</span><span class="mi">4</span><span class="p">,</span>
+                                          <span class="n">height</span><span class="p">,</span>
+                                          <span class="n">CM_SURFACE_FORMAT_A8R8G8B8</span><span class="p">,</span>
+                                          <span class="n">output_surface</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="step-5-create-thread-space">
+<h2>Step 5. Create Thread Space<a class="headerlink" href="#step-5-create-thread-space" title="Permalink to this headline">¶</a></h2>
+<p>This function sets up a hardware mechanism called media-walker for
+launching threads. Media-walker generates thread-identifiers, and puts them
+into thread-payloads. CM kernel program can get thread-ids using
+CM intrinsics.</p>
+<p>Media-walker is the preferred way of doing GEN media programming, which has
+lower driver overhead (less work in preparing the commands) and
+faster enqueue time.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// Each CmKernel can be executed by multiple concurrent threads.</span>
+  <span class="c1">// Here, for &quot;linear&quot; kernel, each thread works on a block of 6x8 pixels.</span>
+  <span class="c1">// The thread width is equal to input image width divided by 8.</span>
+  <span class="c1">// The thread height is equal to input image height divided by 6.</span>
+  <span class="kt">int</span> <span class="n">thread_width</span> <span class="o">=</span> <span class="n">width</span><span class="o">/</span><span class="mi">8</span><span class="p">;</span>
+  <span class="kt">int</span> <span class="n">thread_height</span> <span class="o">=</span> <span class="n">height</span><span class="o">/</span><span class="mi">6</span><span class="p">;</span>
+
+  <span class="c1">// Creates a CmThreadSpace object.</span>
+  <span class="c1">// There are two usage models for the thread space. One is to define the</span>
+  <span class="c1">// dependency between threads to run in the GPU. The other is to define a</span>
+  <span class="c1">// thread space where each thread can get a pair of coordinates during</span>
+  <span class="c1">// kernel execution. For this example, we use the latter usage model.</span>
+  <span class="n">CmThreadSpace</span> <span class="o">*</span><span class="n">thread_space</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateThreadSpace</span><span class="p">(</span><span class="n">thread_width</span><span class="p">,</span>
+                                            <span class="n">thread_height</span><span class="p">,</span>
+                                            <span class="n">thread_space</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="step-6-set-kernel-arguments">
+<h2>Step 6. Set Kernel Arguments<a class="headerlink" href="#step-6-set-kernel-arguments" title="Permalink to this headline">¶</a></h2>
+<p>Kernel argument is dynamic constant for all threads. Value is logged at
+the time of setting kernel arg. The size of total kernel arguments has
+to be less than 256 bytes. For linear filter, we need to pass surface index
+as kernel arguments.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// When a surface is created by the CmDevice a SurfaceIndex object is</span>
+  <span class="c1">// created. This object contains a unique index value that is mapped to the</span>
+  <span class="c1">// surface.</span>
+  <span class="c1">// Gets the input surface index.</span>
+  <span class="n">SurfaceIndex</span> <span class="o">*</span><span class="n">input_surface_idx</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">input_surface</span><span class="o">-&gt;</span><span class="n">GetIndex</span><span class="p">(</span><span class="n">input_surface_idx</span><span class="p">));</span>
+
+  <span class="c1">// Sets a per kernel argument.</span>
+  <span class="c1">// Sets input surface index as the first argument of linear kernel.</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">kernel</span><span class="o">-&gt;</span><span class="n">SetKernelArg</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span>
+                                       <span class="k">sizeof</span><span class="p">(</span><span class="n">SurfaceIndex</span><span class="p">),</span>
+                                       <span class="n">input_surface_idx</span><span class="p">));</span>
+
+  <span class="c1">// Gets the output surface index.</span>
+  <span class="n">SurfaceIndex</span> <span class="o">*</span><span class="n">output_surface_idx</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">output_surface</span><span class="o">-&gt;</span><span class="n">GetIndex</span><span class="p">(</span><span class="n">output_surface_idx</span><span class="p">));</span>
+
+  <span class="c1">// Sets output surface index as the second argument of linear kernel.</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">kernel</span><span class="o">-&gt;</span><span class="n">SetKernelArg</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span>
+                                       <span class="k">sizeof</span><span class="p">(</span><span class="n">SurfaceIndex</span><span class="p">),</span>
+                                       <span class="n">output_surface_idx</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="step-7-enqueue-kernels-launch-gpu-work">
+<h2>Step 7. Enqueue Kernels/Launch GPU Work<a class="headerlink" href="#step-7-enqueue-kernels-launch-gpu-work" title="Permalink to this headline">¶</a></h2>
+<p>Notice that a CM event is created for the enqueue call. That is
+for tracking the job status.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// Creates a task queue.</span>
+  <span class="c1">// The CmQueue is an in-order queue. Tasks get executed according to the</span>
+  <span class="c1">// order they are enqueued. The next task does not start execution until the</span>
+  <span class="c1">// current task finishes.</span>
+  <span class="n">CmQueue</span> <span class="o">*</span><span class="n">cmd_queue</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateQueue</span><span class="p">(</span><span class="n">cmd_queue</span><span class="p">));</span>
+
+  <span class="c1">// Creates a CmTask object.</span>
+  <span class="c1">// The CmTask object is a container for CmKernel pointers. It is used to</span>
+  <span class="c1">// enqueue the kernels for execution.</span>
+  <span class="n">CmTask</span> <span class="o">*</span><span class="n">task</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateTask</span><span class="p">(</span><span class="n">task</span><span class="p">));</span>
+
+  <span class="c1">// Adds a CmKernel pointer to CmTask.</span>
+  <span class="c1">// This task has one kernel, &quot;linear&quot;.</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">task</span><span class="o">-&gt;</span><span class="n">AddKernel</span><span class="p">(</span><span class="n">kernel</span><span class="p">));</span>
+
+  <span class="c1">// Launches the task on the GPU. Enqueue is a non-blocking call, i.e. the</span>
+  <span class="c1">// function returns immediately without waiting for the GPU to start or</span>
+  <span class="c1">// finish execution of the task. The runtime will query the HW status. If</span>
+  <span class="c1">// the hardware is not busy, the runtime will submit the task to the</span>
+  <span class="c1">// driver/HW; otherwise, the runtime will submit the task to the driver/HW</span>
+  <span class="c1">// at another time.</span>
+  <span class="c1">// An event, &quot;sync_event&quot;, is created to track the status of the task.</span>
+  <span class="n">CmEvent</span> <span class="o">*</span><span class="n">sync_event</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">cmd_queue</span><span class="o">-&gt;</span><span class="n">Enqueue</span><span class="p">(</span><span class="n">task</span><span class="p">,</span>
+                                     <span class="n">sync_event</span><span class="p">,</span>
+                                     <span class="n">thread_space</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="step-8-getting-results-and-execution-time">
+<h2>Step 8. Getting Results and Execution Time<a class="headerlink" href="#step-8-getting-results-and-execution-time" title="Permalink to this headline">¶</a></h2>
+<p>Notice that CM event is used when we read the output surface, and
+it is used to query execution time. CmEvent must be destroyed by user
+explicitly.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// Destroys a CmTask object.</span>
+  <span class="c1">// CmTask will be destroyed when CmDevice is destroyed.</span>
+  <span class="c1">// Here, the application destroys the CmTask object by itself.</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">DestroyTask</span><span class="p">(</span><span class="n">task</span><span class="p">));</span>
+
+  <span class="c1">// Destroy a CmThreadSpace object.</span>
+  <span class="c1">// CmThreadSpace will be destroyed when CmDevice is destroyed.</span>
+  <span class="c1">// Here, the application destroys the CmThreadSpace object by itself.</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">device</span><span class="o">-&gt;</span><span class="n">DestroyThreadSpace</span><span class="p">(</span><span class="n">thread_space</span><span class="p">));</span>
+
+  <span class="c1">// Reads the output surface content to the system memory using the CPU.</span>
+  <span class="c1">// The size of data copied is the size of data in Surface.</span>
+  <span class="c1">// It is a blocking call. The function will not return until the copy</span>
+  <span class="c1">// operation is completed.</span>
+  <span class="c1">// The dependent event &quot;sync_event&quot; ensures that the reading of the surface</span>
+  <span class="c1">// will not happen until its state becomes CM_STATUS_FINISHED.</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">output_surface</span><span class="o">-&gt;</span><span class="n">ReadSurface</span><span class="p">(</span><span class="n">output_image</span><span class="p">.</span><span class="n">getData</span><span class="p">(),</span>
+                                              <span class="n">sync_event</span><span class="p">));</span>
+
+  <span class="c1">// Queries the execution time of a task in the unit of nanoseconds.</span>
+  <span class="c1">// The execution time is measured from the time the task started execution</span>
+  <span class="c1">// in the GPU to the time when the task finished execution.</span>
+  <span class="n">UINT64</span> <span class="n">execution_time</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">sync_event</span><span class="o">-&gt;</span><span class="n">GetExecutionTime</span><span class="p">(</span><span class="n">execution_time</span><span class="p">));</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">&quot;Kernel linear execution time is &quot;</span> <span class="o">&lt;&lt;</span> <span class="n">execution_time</span>
+      <span class="o">&lt;&lt;</span> <span class="s">&quot; nanoseconds&quot;</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+
+
+  <span class="c1">// Destroys the CmEvent.</span>
+  <span class="c1">// CmEvent must be destroyed by the user explicitly.</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">cmd_queue</span><span class="o">-&gt;</span><span class="n">DestroyEvent</span><span class="p">(</span><span class="n">sync_event</span><span class="p">));</span>
+
+  <span class="c1">// Destroys the CmDevice.</span>
+  <span class="c1">// Also destroys surfaces, kernels, tasks, thread spaces, and queues that</span>
+  <span class="c1">// were created using this device instance that have not explicitly been</span>
+  <span class="c1">// destroyed by calling the respective destroy functions.</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="o">::</span><span class="n">DestroyCmDevice</span><span class="p">(</span><span class="n">device</span><span class="p">));</span>
+
+  <span class="c1">// Saves the output image data into the file &quot;linear_out.bmp&quot;.</span>
+  <span class="n">output_image</span><span class="p">.</span><span class="n">save</span><span class="p">(</span><span class="s">&quot;linear_out.bmp&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cmtutorial02.html" title="Tutorial 2. Basic Kernel Programming"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="cmtut.html" title="CM (C for Media) Tutorial"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" >CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
+      Last updated on Tue Jan 2 15:16:27 2018 -0800.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

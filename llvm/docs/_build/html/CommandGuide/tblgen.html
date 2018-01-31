@@ -1,0 +1,272 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>tblgen - Target Description To C++ Code Generator &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="lit - LLVM Integrated Tester" href="lit.html" />
+    <link rel="prev" title="FileCheck - Flexible pattern matching file verifier" href="FileCheck.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="lit.html" title="lit - LLVM Integrated Tester"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="FileCheck.html" title="FileCheck - Flexible pattern matching file verifier"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tblgen-target-description-to-c-code-generator">
+<h1>tblgen - Target Description To C++ Code Generator<a class="headerlink" href="#tblgen-target-description-to-c-code-generator" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">tblgen</strong> [<em>options</em>] [<em>filename</em>]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">tblgen</strong> translates from target description (<code class="docutils literal"><span class="pre">.td</span></code>) files into C++
+code that can be included in the definition of an LLVM target library.  Most
+users of LLVM will not need to use this program.  It is only for assisting with
+writing an LLVM target backend.</p>
+<p>The input and output of <strong class="program">tblgen</strong> is beyond the scope of this short
+introduction; please see the <a class="reference internal" href="../TableGen/index.html"><span class="doc">introduction to TableGen</span></a>.</p>
+<p>The <em>filename</em> argument specifies the name of a Target Description (<code class="docutils literal"><span class="pre">.td</span></code>)
+file to read as input.</p>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl class="option">
+<dt id="cmdoption-tblgen-help">
+<code class="descname">-help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-help" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print a summary of command line options.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-o">
+<code class="descname">-o</code><code class="descclassname"> filename</code><a class="headerlink" href="#cmdoption-tblgen-o" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the output file name.  If <code class="docutils literal"><span class="pre">filename</span></code> is <code class="docutils literal"><span class="pre">-</span></code>, then
+<strong class="program">tblgen</strong> sends its output to standard output.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-i">
+<code class="descname">-I</code><code class="descclassname"> directory</code><a class="headerlink" href="#cmdoption-tblgen-i" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify where to find other target description files for inclusion.  The
+<code class="docutils literal"><span class="pre">directory</span></code> value should be a full or partial path to a directory that
+contains target description files.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-asmparsernum">
+<code class="descname">-asmparsernum</code><code class="descclassname"> N</code><a class="headerlink" href="#cmdoption-tblgen-asmparsernum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make -gen-asm-parser emit assembly writer number <code class="docutils literal"><span class="pre">N</span></code>.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-asmwriternum">
+<code class="descname">-asmwriternum</code><code class="descclassname"> N</code><a class="headerlink" href="#cmdoption-tblgen-asmwriternum" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make -gen-asm-writer emit assembly writer number <code class="docutils literal"><span class="pre">N</span></code>.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-class">
+<code class="descname">-class</code><code class="descclassname"> className</code><a class="headerlink" href="#cmdoption-tblgen-class" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print the enumeration list for this class.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-print-records">
+<code class="descname">-print-records</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-print-records" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print all records to standard output (default).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-print-enums">
+<code class="descname">-print-enums</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-print-enums" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print enumeration values for a class.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-print-sets">
+<code class="descname">-print-sets</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-print-sets" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print expanded sets for testing DAG exprs.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-gen-emitter">
+<code class="descname">-gen-emitter</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-gen-emitter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate machine code emitter.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-gen-register-info">
+<code class="descname">-gen-register-info</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-gen-register-info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate registers and register classes info.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-gen-instr-info">
+<code class="descname">-gen-instr-info</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-gen-instr-info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate instruction descriptions.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-gen-asm-writer">
+<code class="descname">-gen-asm-writer</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-gen-asm-writer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate the assembly writer.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-gen-disassembler">
+<code class="descname">-gen-disassembler</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-gen-disassembler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate disassembler.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-gen-pseudo-lowering">
+<code class="descname">-gen-pseudo-lowering</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-gen-pseudo-lowering" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate pseudo instruction lowering.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-gen-dag-isel">
+<code class="descname">-gen-dag-isel</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-gen-dag-isel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate a DAG (Directed Acycle Graph) instruction selector.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-gen-asm-matcher">
+<code class="descname">-gen-asm-matcher</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-gen-asm-matcher" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate assembly instruction matcher.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-gen-dfa-packetizer">
+<code class="descname">-gen-dfa-packetizer</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-gen-dfa-packetizer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate DFA Packetizer for VLIW targets.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-gen-fast-isel">
+<code class="descname">-gen-fast-isel</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-gen-fast-isel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate a “fast” instruction selector.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-gen-subtarget">
+<code class="descname">-gen-subtarget</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-gen-subtarget" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate subtarget enumerations.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-gen-intrinsic">
+<code class="descname">-gen-intrinsic</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-gen-intrinsic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate intrinsic information.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-gen-tgt-intrinsic">
+<code class="descname">-gen-tgt-intrinsic</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-gen-tgt-intrinsic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate target intrinsic information.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-gen-enhanced-disassembly-info">
+<code class="descname">-gen-enhanced-disassembly-info</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-gen-enhanced-disassembly-info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate enhanced disassembly info.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-tblgen-version">
+<code class="descname">-version</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-tblgen-version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show the version number of this program.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p>If <strong class="program">tblgen</strong> succeeds, it will exit with 0.  Otherwise, if an error
+occurs, it will exit with a non-zero value.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="lit.html" title="lit - LLVM Integrated Tester"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="FileCheck.html" title="FileCheck - Flexible pattern matching file verifier"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,768 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>LLVM Alias Analysis Infrastructure &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LLVM Bitcode File Format" href="BitCodeFormat.html" />
+    <link rel="prev" title="LLVM Extensions" href="Extensions.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="BitCodeFormat.html" title="LLVM Bitcode File Format"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="Extensions.html" title="LLVM Extensions"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-alias-analysis-infrastructure">
+<h1>LLVM Alias Analysis Infrastructure<a class="headerlink" href="#llvm-alias-analysis-infrastructure" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
+<li><a class="reference internal" href="#aliasanalysis-class-overview" id="id2"><code class="docutils literal"><span class="pre">AliasAnalysis</span></code> Class Overview</a><ul>
+<li><a class="reference internal" href="#representation-of-pointers" id="id3">Representation of Pointers</a></li>
+<li><a class="reference internal" href="#the-alias-method" id="id4">The <code class="docutils literal"><span class="pre">alias</span></code> method</a><ul>
+<li><a class="reference internal" href="#must-may-and-no-alias-responses" id="id5">Must, May, and No Alias Responses</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#the-getmodrefinfo-methods" id="id6">The <code class="docutils literal"><span class="pre">getModRefInfo</span></code> methods</a></li>
+<li><a class="reference internal" href="#other-useful-aliasanalysis-methods" id="id7">Other useful <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> methods</a><ul>
+<li><a class="reference internal" href="#the-pointstoconstantmemory-method" id="id8">The <code class="docutils literal"><span class="pre">pointsToConstantMemory</span></code> method</a></li>
+<li><a class="reference internal" href="#the-doesnotaccessmemory-and-onlyreadsmemory-methods" id="id9">The <code class="docutils literal"><span class="pre">doesNotAccessMemory</span></code> and  <code class="docutils literal"><span class="pre">onlyReadsMemory</span></code> methods</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#writing-a-new-aliasanalysis-implementation" id="id10">Writing a new <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> Implementation</a><ul>
+<li><a class="reference internal" href="#different-pass-styles" id="id11">Different Pass styles</a></li>
+<li><a class="reference internal" href="#required-initialization-calls" id="id12">Required initialization calls</a></li>
+<li><a class="reference internal" href="#required-methods-to-override" id="id13">Required methods to override</a></li>
+<li><a class="reference internal" href="#interfaces-which-may-be-specified" id="id14">Interfaces which may be specified</a></li>
+<li><a class="reference internal" href="#aliasanalysis-chaining-behavior" id="id15"><code class="docutils literal"><span class="pre">AliasAnalysis</span></code> chaining behavior</a></li>
+<li><a class="reference internal" href="#updating-analysis-results-for-transformations" id="id16">Updating analysis results for transformations</a><ul>
+<li><a class="reference internal" href="#the-deletevalue-method" id="id17">The <code class="docutils literal"><span class="pre">deleteValue</span></code> method</a></li>
+<li><a class="reference internal" href="#the-copyvalue-method" id="id18">The <code class="docutils literal"><span class="pre">copyValue</span></code> method</a></li>
+<li><a class="reference internal" href="#the-replacewithnewvalue-method" id="id19">The <code class="docutils literal"><span class="pre">replaceWithNewValue</span></code> method</a></li>
+<li><a class="reference internal" href="#the-addescapinguse-method" id="id20">The <code class="docutils literal"><span class="pre">addEscapingUse</span></code> method</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#efficiency-issues" id="id21">Efficiency Issues</a></li>
+<li><a class="reference internal" href="#limitations" id="id22">Limitations</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#using-alias-analysis-results" id="id23">Using alias analysis results</a><ul>
+<li><a class="reference internal" href="#using-the-memorydependenceanalysis-pass" id="id24">Using the <code class="docutils literal"><span class="pre">MemoryDependenceAnalysis</span></code> Pass</a></li>
+<li><a class="reference internal" href="#using-the-aliassettracker-class" id="id25">Using the <code class="docutils literal"><span class="pre">AliasSetTracker</span></code> class</a><ul>
+<li><a class="reference internal" href="#the-aliassettracker-implementation" id="id26">The AliasSetTracker implementation</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#using-the-aliasanalysis-interface-directly" id="id27">Using the <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> interface directly</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#existing-alias-analysis-implementations-and-clients" id="id28">Existing alias analysis implementations and clients</a><ul>
+<li><a class="reference internal" href="#available-aliasanalysis-implementations" id="id29">Available <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> implementations</a><ul>
+<li><a class="reference internal" href="#the-no-aa-pass" id="id30">The <code class="docutils literal"><span class="pre">-no-aa</span></code> pass</a></li>
+<li><a class="reference internal" href="#the-basicaa-pass" id="id31">The <code class="docutils literal"><span class="pre">-basicaa</span></code> pass</a></li>
+<li><a class="reference internal" href="#the-globalsmodref-aa-pass" id="id32">The <code class="docutils literal"><span class="pre">-globalsmodref-aa</span></code> pass</a></li>
+<li><a class="reference internal" href="#the-steens-aa-pass" id="id33">The <code class="docutils literal"><span class="pre">-steens-aa</span></code> pass</a></li>
+<li><a class="reference internal" href="#the-ds-aa-pass" id="id34">The <code class="docutils literal"><span class="pre">-ds-aa</span></code> pass</a></li>
+<li><a class="reference internal" href="#the-scev-aa-pass" id="id35">The <code class="docutils literal"><span class="pre">-scev-aa</span></code> pass</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#alias-analysis-driven-transformations" id="id36">Alias analysis driven transformations</a><ul>
+<li><a class="reference internal" href="#the-adce-pass" id="id37">The <code class="docutils literal"><span class="pre">-adce</span></code> pass</a></li>
+<li><a class="reference internal" href="#the-licm-pass" id="id38">The <code class="docutils literal"><span class="pre">-licm</span></code> pass</a></li>
+<li><a class="reference internal" href="#the-argpromotion-pass" id="id39">The <code class="docutils literal"><span class="pre">-argpromotion</span></code> pass</a></li>
+<li><a class="reference internal" href="#the-gvn-memcpyopt-and-dse-passes" id="id40">The <code class="docutils literal"><span class="pre">-gvn</span></code>, <code class="docutils literal"><span class="pre">-memcpyopt</span></code>, and <code class="docutils literal"><span class="pre">-dse</span></code> passes</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#clients-for-debugging-and-evaluation-of-implementations" id="id41">Clients for debugging and evaluation of implementations</a><ul>
+<li><a class="reference internal" href="#the-print-alias-sets-pass" id="id42">The <code class="docutils literal"><span class="pre">-print-alias-sets</span></code> pass</a></li>
+<li><a class="reference internal" href="#the-count-aa-pass" id="id43">The <code class="docutils literal"><span class="pre">-count-aa</span></code> pass</a></li>
+<li><a class="reference internal" href="#the-aa-eval-pass" id="id44">The <code class="docutils literal"><span class="pre">-aa-eval</span></code> pass</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#memory-dependence-analysis" id="id45">Memory Dependence Analysis</a></li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>Alias Analysis (aka Pointer Analysis) is a class of techniques which attempt to
+determine whether or not two pointers ever can point to the same object in
+memory.  There are many different algorithms for alias analysis and many
+different ways of classifying them: flow-sensitive vs. flow-insensitive,
+context-sensitive vs. context-insensitive, field-sensitive
+vs. field-insensitive, unification-based vs. subset-based, etc.  Traditionally,
+alias analyses respond to a query with a <a class="reference internal" href="#must-may-or-no">Must, May, or No</a> alias response,
+indicating that two pointers always point to the same object, might point to the
+same object, or are known to never point to the same object.</p>
+<p>The LLVM <a class="reference external" href="http://llvm.org/doxygen/classllvm_1_1AliasAnalysis.html">AliasAnalysis</a> class is the
+primary interface used by clients and implementations of alias analyses in the
+LLVM system.  This class is the common interface between clients of alias
+analysis information and the implementations providing it, and is designed to
+support a wide range of implementations and clients (but currently all clients
+are assumed to be flow-insensitive).  In addition to simple alias analysis
+information, this class exposes Mod/Ref information from those implementations
+which can provide it, allowing for powerful analyses and transformations to work
+well together.</p>
+<p>This document contains information necessary to successfully implement this
+interface, use it, and to test both sides.  It also explains some of the finer
+points about what exactly results mean.  If you feel that something is unclear
+or should be added, please <a class="reference external" href="mailto:sabre&#37;&#52;&#48;nondot&#46;org">let me know</a>.</p>
+</div>
+<div class="section" id="aliasanalysis-class-overview">
+<h2><a class="toc-backref" href="#id2"><code class="docutils literal"><span class="pre">AliasAnalysis</span></code> Class Overview</a><a class="headerlink" href="#aliasanalysis-class-overview" title="Permalink to this headline">¶</a></h2>
+<p>The <a class="reference external" href="http://llvm.org/doxygen/classllvm_1_1AliasAnalysis.html">AliasAnalysis</a>
+class defines the interface that the various alias analysis implementations
+should support.  This class exports two important enums: <code class="docutils literal"><span class="pre">AliasResult</span></code> and
+<code class="docutils literal"><span class="pre">ModRefResult</span></code> which represent the result of an alias query or a mod/ref
+query, respectively.</p>
+<p>The <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> interface exposes information about memory, represented in
+several different ways.  In particular, memory objects are represented as a
+starting address and size, and function calls are represented as the actual
+<code class="docutils literal"><span class="pre">call</span></code> or <code class="docutils literal"><span class="pre">invoke</span></code> instructions that performs the call.  The
+<code class="docutils literal"><span class="pre">AliasAnalysis</span></code> interface also exposes some helper methods which allow you to
+get mod/ref information for arbitrary instructions.</p>
+<p>All <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> interfaces require that in queries involving multiple
+values, values which are not <a class="reference internal" href="LangRef.html#constants"><span class="std std-ref">constants</span></a> are all
+defined within the same function.</p>
+<div class="section" id="representation-of-pointers">
+<h3><a class="toc-backref" href="#id3">Representation of Pointers</a><a class="headerlink" href="#representation-of-pointers" title="Permalink to this headline">¶</a></h3>
+<p>Most importantly, the <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> class provides several methods which are
+used to query whether or not two memory objects alias, whether function calls
+can modify or read a memory object, etc.  For all of these queries, memory
+objects are represented as a pair of their starting address (a symbolic LLVM
+<code class="docutils literal"><span class="pre">Value*</span></code>) and a static size.</p>
+<p>Representing memory objects as a starting address and a size is critically
+important for correct Alias Analyses.  For example, consider this (silly, but
+possible) C code:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+<span class="kt">char</span> <span class="n">C</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
+<span class="kt">char</span> <span class="n">A</span><span class="p">[</span><span class="mi">10</span><span class="p">];</span>
+<span class="cm">/* ... */</span>
+<span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">!=</span> <span class="mi">10</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">C</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>          <span class="cm">/* One byte store */</span>
+  <span class="n">C</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">A</span><span class="p">[</span><span class="mi">9</span><span class="o">-</span><span class="n">i</span><span class="p">];</span>        <span class="cm">/* One byte store */</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In this case, the <code class="docutils literal"><span class="pre">basicaa</span></code> pass will disambiguate the stores to <code class="docutils literal"><span class="pre">C[0]</span></code> and
+<code class="docutils literal"><span class="pre">C[1]</span></code> because they are accesses to two distinct locations one byte apart, and
+the accesses are each one byte.  In this case, the Loop Invariant Code Motion
+(LICM) pass can use store motion to remove the stores from the loop.  In
+constrast, the following code:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+<span class="kt">char</span> <span class="n">C</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
+<span class="kt">char</span> <span class="n">A</span><span class="p">[</span><span class="mi">10</span><span class="p">];</span>
+<span class="cm">/* ... */</span>
+<span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">!=</span> <span class="mi">10</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span>
+  <span class="p">((</span><span class="kt">short</span><span class="o">*</span><span class="p">)</span><span class="n">C</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>  <span class="cm">/* Two byte store! */</span>
+  <span class="n">C</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">A</span><span class="p">[</span><span class="mi">9</span><span class="o">-</span><span class="n">i</span><span class="p">];</span>          <span class="cm">/* One byte store */</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In this case, the two stores to C do alias each other, because the access to the
+<code class="docutils literal"><span class="pre">&amp;C[0]</span></code> element is a two byte access.  If size information wasn’t available in
+the query, even the first case would have to conservatively assume that the
+accesses alias.</p>
+</div>
+<div class="section" id="the-alias-method">
+<span id="alias"></span><h3><a class="toc-backref" href="#id4">The <code class="docutils literal"><span class="pre">alias</span></code> method</a><a class="headerlink" href="#the-alias-method" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal"><span class="pre">alias</span></code> method is the primary interface used to determine whether or not
+two memory objects alias each other.  It takes two memory objects as input and
+returns MustAlias, PartialAlias, MayAlias, or NoAlias as appropriate.</p>
+<p>Like all <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> interfaces, the <code class="docutils literal"><span class="pre">alias</span></code> method requires that either
+the two pointer values be defined within the same function, or at least one of
+the values is a <a class="reference internal" href="LangRef.html#constants"><span class="std std-ref">constant</span></a>.</p>
+<div class="section" id="must-may-and-no-alias-responses">
+<span id="must-may-or-no"></span><h4><a class="toc-backref" href="#id5">Must, May, and No Alias Responses</a><a class="headerlink" href="#must-may-and-no-alias-responses" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">NoAlias</span></code> response may be used when there is never an immediate dependence
+between any memory reference <em>based</em> on one pointer and any memory reference
+<em>based</em> the other. The most obvious example is when the two pointers point to
+non-overlapping memory ranges. Another is when the two pointers are only ever
+used for reading memory. Another is when the memory is freed and reallocated
+between accesses through one pointer and accesses through the other — in this
+case, there is a dependence, but it’s mediated by the free and reallocation.</p>
+<p>As an exception to this is with the <a class="reference internal" href="LangRef.html#noalias"><span class="std std-ref">noalias</span></a> keyword;
+the “irrelevant” dependencies are ignored.</p>
+<p>The <code class="docutils literal"><span class="pre">MayAlias</span></code> response is used whenever the two pointers might refer to the
+same object.</p>
+<p>The <code class="docutils literal"><span class="pre">PartialAlias</span></code> response is used when the two memory objects are known to
+be overlapping in some way, but do not start at the same address.</p>
+<p>The <code class="docutils literal"><span class="pre">MustAlias</span></code> response may only be returned if the two memory objects are
+guaranteed to always start at exactly the same location. A <code class="docutils literal"><span class="pre">MustAlias</span></code>
+response implies that the pointers compare equal.</p>
+</div>
+</div>
+<div class="section" id="the-getmodrefinfo-methods">
+<h3><a class="toc-backref" href="#id6">The <code class="docutils literal"><span class="pre">getModRefInfo</span></code> methods</a><a class="headerlink" href="#the-getmodrefinfo-methods" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal"><span class="pre">getModRefInfo</span></code> methods return information about whether the execution of
+an instruction can read or modify a memory location.  Mod/Ref information is
+always conservative: if an instruction <strong>might</strong> read or write a location,
+<code class="docutils literal"><span class="pre">ModRef</span></code> is returned.</p>
+<p>The <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> class also provides a <code class="docutils literal"><span class="pre">getModRefInfo</span></code> method for testing
+dependencies between function calls.  This method takes two call sites (<code class="docutils literal"><span class="pre">CS1</span></code>
+&amp; <code class="docutils literal"><span class="pre">CS2</span></code>), returns <code class="docutils literal"><span class="pre">NoModRef</span></code> if neither call writes to memory read or
+written by the other, <code class="docutils literal"><span class="pre">Ref</span></code> if <code class="docutils literal"><span class="pre">CS1</span></code> reads memory written by <code class="docutils literal"><span class="pre">CS2</span></code>,
+<code class="docutils literal"><span class="pre">Mod</span></code> if <code class="docutils literal"><span class="pre">CS1</span></code> writes to memory read or written by <code class="docutils literal"><span class="pre">CS2</span></code>, or <code class="docutils literal"><span class="pre">ModRef</span></code> if
+<code class="docutils literal"><span class="pre">CS1</span></code> might read or write memory written to by <code class="docutils literal"><span class="pre">CS2</span></code>.  Note that this
+relation is not commutative.</p>
+</div>
+<div class="section" id="other-useful-aliasanalysis-methods">
+<h3><a class="toc-backref" href="#id7">Other useful <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> methods</a><a class="headerlink" href="#other-useful-aliasanalysis-methods" title="Permalink to this headline">¶</a></h3>
+<p>Several other tidbits of information are often collected by various alias
+analysis implementations and can be put to good use by various clients.</p>
+<div class="section" id="the-pointstoconstantmemory-method">
+<h4><a class="toc-backref" href="#id8">The <code class="docutils literal"><span class="pre">pointsToConstantMemory</span></code> method</a><a class="headerlink" href="#the-pointstoconstantmemory-method" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">pointsToConstantMemory</span></code> method returns true if and only if the analysis
+can prove that the pointer only points to unchanging memory locations
+(functions, constant global variables, and the null pointer).  This information
+can be used to refine mod/ref information: it is impossible for an unchanging
+memory location to be modified.</p>
+</div>
+<div class="section" id="the-doesnotaccessmemory-and-onlyreadsmemory-methods">
+<span id="never-access-memory-or-only-read-memory"></span><h4><a class="toc-backref" href="#id9">The <code class="docutils literal"><span class="pre">doesNotAccessMemory</span></code> and  <code class="docutils literal"><span class="pre">onlyReadsMemory</span></code> methods</a><a class="headerlink" href="#the-doesnotaccessmemory-and-onlyreadsmemory-methods" title="Permalink to this headline">¶</a></h4>
+<p>These methods are used to provide very simple mod/ref information for function
+calls.  The <code class="docutils literal"><span class="pre">doesNotAccessMemory</span></code> method returns true for a function if the
+analysis can prove that the function never reads or writes to memory, or if the
+function only reads from constant memory.  Functions with this property are
+side-effect free and only depend on their input arguments, allowing them to be
+eliminated if they form common subexpressions or be hoisted out of loops.  Many
+common functions behave this way (e.g., <code class="docutils literal"><span class="pre">sin</span></code> and <code class="docutils literal"><span class="pre">cos</span></code>) but many others do
+not (e.g., <code class="docutils literal"><span class="pre">acos</span></code>, which modifies the <code class="docutils literal"><span class="pre">errno</span></code> variable).</p>
+<p>The <code class="docutils literal"><span class="pre">onlyReadsMemory</span></code> method returns true for a function if analysis can prove
+that (at most) the function only reads from non-volatile memory.  Functions with
+this property are side-effect free, only depending on their input arguments and
+the state of memory when they are called.  This property allows calls to these
+functions to be eliminated and moved around, as long as there is no store
+instruction that changes the contents of memory.  Note that all functions that
+satisfy the <code class="docutils literal"><span class="pre">doesNotAccessMemory</span></code> method also satisfies <code class="docutils literal"><span class="pre">onlyReadsMemory</span></code>.</p>
+</div>
+</div>
+</div>
+<div class="section" id="writing-a-new-aliasanalysis-implementation">
+<h2><a class="toc-backref" href="#id10">Writing a new <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> Implementation</a><a class="headerlink" href="#writing-a-new-aliasanalysis-implementation" title="Permalink to this headline">¶</a></h2>
+<p>Writing a new alias analysis implementation for LLVM is quite straight-forward.
+There are already several implementations that you can use for examples, and the
+following information should help fill in any details.  For a examples, take a
+look at the <a class="reference internal" href="#various-alias-analysis-implementations">various alias analysis implementations</a> included with LLVM.</p>
+<div class="section" id="different-pass-styles">
+<h3><a class="toc-backref" href="#id11">Different Pass styles</a><a class="headerlink" href="#different-pass-styles" title="Permalink to this headline">¶</a></h3>
+<p>The first step to determining what type of <a class="reference internal" href="WritingAnLLVMPass.html"><span class="doc">LLVM pass</span></a>
+you need to use for your Alias Analysis.  As is the case with most other
+analyses and transformations, the answer should be fairly obvious from what type
+of problem you are trying to solve:</p>
+<ol class="arabic simple">
+<li>If you require interprocedural analysis, it should be a <code class="docutils literal"><span class="pre">Pass</span></code>.</li>
+<li>If you are a function-local analysis, subclass <code class="docutils literal"><span class="pre">FunctionPass</span></code>.</li>
+<li>If you don’t need to look at the program at all, subclass <code class="docutils literal"><span class="pre">ImmutablePass</span></code>.</li>
+</ol>
+<p>In addition to the pass that you subclass, you should also inherit from the
+<code class="docutils literal"><span class="pre">AliasAnalysis</span></code> interface, of course, and use the <code class="docutils literal"><span class="pre">RegisterAnalysisGroup</span></code>
+template to register as an implementation of <code class="docutils literal"><span class="pre">AliasAnalysis</span></code>.</p>
+</div>
+<div class="section" id="required-initialization-calls">
+<h3><a class="toc-backref" href="#id12">Required initialization calls</a><a class="headerlink" href="#required-initialization-calls" title="Permalink to this headline">¶</a></h3>
+<p>Your subclass of <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> is required to invoke two methods on the
+<code class="docutils literal"><span class="pre">AliasAnalysis</span></code> base class: <code class="docutils literal"><span class="pre">getAnalysisUsage</span></code> and
+<code class="docutils literal"><span class="pre">InitializeAliasAnalysis</span></code>.  In particular, your implementation of
+<code class="docutils literal"><span class="pre">getAnalysisUsage</span></code> should explicitly call into the
+<code class="docutils literal"><span class="pre">AliasAnalysis::getAnalysisUsage</span></code> method in addition to doing any declaring
+any pass dependencies your pass has.  Thus you should have something like this:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">getAnalysisUsage</span><span class="p">(</span><span class="n">AnalysisUsage</span> <span class="o">&amp;</span><span class="n">AU</span><span class="p">)</span> <span class="k">const</span> <span class="p">{</span>
+  <span class="n">AliasAnalysis</span><span class="o">::</span><span class="n">getAnalysisUsage</span><span class="p">(</span><span class="n">AU</span><span class="p">);</span>
+  <span class="c1">// declare your dependencies here.</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Additionally, your must invoke the <code class="docutils literal"><span class="pre">InitializeAliasAnalysis</span></code> method from your
+analysis run method (<code class="docutils literal"><span class="pre">run</span></code> for a <code class="docutils literal"><span class="pre">Pass</span></code>, <code class="docutils literal"><span class="pre">runOnFunction</span></code> for a
+<code class="docutils literal"><span class="pre">FunctionPass</span></code>, or <code class="docutils literal"><span class="pre">InitializePass</span></code> for an <code class="docutils literal"><span class="pre">ImmutablePass</span></code>).  For example
+(as part of a <code class="docutils literal"><span class="pre">Pass</span></code>):</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">bool</span> <span class="nf">run</span><span class="p">(</span><span class="n">Module</span> <span class="o">&amp;</span><span class="n">M</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">InitializeAliasAnalysis</span><span class="p">(</span><span class="k">this</span><span class="p">);</span>
+  <span class="c1">// Perform analysis here...</span>
+  <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="required-methods-to-override">
+<h3><a class="toc-backref" href="#id13">Required methods to override</a><a class="headerlink" href="#required-methods-to-override" title="Permalink to this headline">¶</a></h3>
+<p>You must override the <code class="docutils literal"><span class="pre">getAdjustedAnalysisPointer</span></code> method on all subclasses
+of <code class="docutils literal"><span class="pre">AliasAnalysis</span></code>. An example implementation of this method would look like:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="o">*</span><span class="nf">getAdjustedAnalysisPointer</span><span class="p">(</span><span class="k">const</span> <span class="kt">void</span><span class="o">*</span> <span class="n">ID</span><span class="p">)</span> <span class="k">override</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">ID</span> <span class="o">==</span> <span class="o">&amp;</span><span class="n">AliasAnalysis</span><span class="o">::</span><span class="n">ID</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">AliasAnalysis</span><span class="o">*</span><span class="p">)</span><span class="k">this</span><span class="p">;</span>
+  <span class="k">return</span> <span class="k">this</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="interfaces-which-may-be-specified">
+<h3><a class="toc-backref" href="#id14">Interfaces which may be specified</a><a class="headerlink" href="#interfaces-which-may-be-specified" title="Permalink to this headline">¶</a></h3>
+<p>All of the <a class="reference external" href="http://llvm.org/doxygen/classllvm_1_1AliasAnalysis.html">AliasAnalysis</a> virtual methods
+default to providing <a class="reference internal" href="#aliasanalysis-chaining"><span class="std std-ref">chaining</span></a> to another alias
+analysis implementation, which ends up returning conservatively correct
+information (returning “May” Alias and “Mod/Ref” for alias and mod/ref queries
+respectively).  Depending on the capabilities of the analysis you are
+implementing, you just override the interfaces you can improve.</p>
+</div>
+<div class="section" id="aliasanalysis-chaining-behavior">
+<span id="aliasanalysis-chaining"></span><h3><a class="toc-backref" href="#id15"><code class="docutils literal"><span class="pre">AliasAnalysis</span></code> chaining behavior</a><a class="headerlink" href="#aliasanalysis-chaining-behavior" title="Permalink to this headline">¶</a></h3>
+<p>With only one special exception (the <a class="reference internal" href="#aliasanalysis-no-aa"><span class="std std-ref">-no-aa</span></a> pass)
+every alias analysis pass chains to another alias analysis implementation (for
+example, the user can specify “<code class="docutils literal"><span class="pre">-basicaa</span> <span class="pre">-ds-aa</span> <span class="pre">-licm</span></code>” to get the maximum
+benefit from both alias analyses).  The alias analysis class automatically
+takes care of most of this for methods that you don’t override.  For methods
+that you do override, in code paths that return a conservative MayAlias or
+Mod/Ref result, simply return whatever the superclass computes.  For example:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">AliasAnalysis</span><span class="o">::</span><span class="n">AliasResult</span> <span class="n">alias</span><span class="p">(</span><span class="k">const</span> <span class="n">Value</span> <span class="o">*</span><span class="n">V1</span><span class="p">,</span> <span class="kt">unsigned</span> <span class="n">V1Size</span><span class="p">,</span>
+                                 <span class="k">const</span> <span class="n">Value</span> <span class="o">*</span><span class="n">V2</span><span class="p">,</span> <span class="kt">unsigned</span> <span class="n">V2Size</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(...)</span>
+    <span class="k">return</span> <span class="n">NoAlias</span><span class="p">;</span>
+  <span class="p">...</span>
+
+  <span class="c1">// Couldn&#39;t determine a must or no-alias result.</span>
+  <span class="k">return</span> <span class="n">AliasAnalysis</span><span class="o">::</span><span class="n">alias</span><span class="p">(</span><span class="n">V1</span><span class="p">,</span> <span class="n">V1Size</span><span class="p">,</span> <span class="n">V2</span><span class="p">,</span> <span class="n">V2Size</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In addition to analysis queries, you must make sure to unconditionally pass LLVM
+<a class="reference internal" href="#update-notification">update notification</a> methods to the superclass as well if you override them,
+which allows all alias analyses in a change to be updated.</p>
+</div>
+<div class="section" id="updating-analysis-results-for-transformations">
+<span id="update-notification"></span><h3><a class="toc-backref" href="#id16">Updating analysis results for transformations</a><a class="headerlink" href="#updating-analysis-results-for-transformations" title="Permalink to this headline">¶</a></h3>
+<p>Alias analysis information is initially computed for a static snapshot of the
+program, but clients will use this information to make transformations to the
+code.  All but the most trivial forms of alias analysis will need to have their
+analysis results updated to reflect the changes made by these transformations.</p>
+<p>The <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> interface exposes four methods which are used to
+communicate program changes from the clients to the analysis implementations.
+Various alias analysis implementations should use these methods to ensure that
+their internal data structures are kept up-to-date as the program changes (for
+example, when an instruction is deleted), and clients of alias analysis must be
+sure to call these interfaces appropriately.</p>
+<div class="section" id="the-deletevalue-method">
+<h4><a class="toc-backref" href="#id17">The <code class="docutils literal"><span class="pre">deleteValue</span></code> method</a><a class="headerlink" href="#the-deletevalue-method" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">deleteValue</span></code> method is called by transformations when they remove an
+instruction or any other value from the program (including values that do not
+use pointers).  Typically alias analyses keep data structures that have entries
+for each value in the program.  When this method is called, they should remove
+any entries for the specified value, if they exist.</p>
+</div>
+<div class="section" id="the-copyvalue-method">
+<h4><a class="toc-backref" href="#id18">The <code class="docutils literal"><span class="pre">copyValue</span></code> method</a><a class="headerlink" href="#the-copyvalue-method" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">copyValue</span></code> method is used when a new value is introduced into the
+program.  There is no way to introduce a value into the program that did not
+exist before (this doesn’t make sense for a safe compiler transformation), so
+this is the only way to introduce a new value.  This method indicates that the
+new value has exactly the same properties as the value being copied.</p>
+</div>
+<div class="section" id="the-replacewithnewvalue-method">
+<h4><a class="toc-backref" href="#id19">The <code class="docutils literal"><span class="pre">replaceWithNewValue</span></code> method</a><a class="headerlink" href="#the-replacewithnewvalue-method" title="Permalink to this headline">¶</a></h4>
+<p>This method is a simple helper method that is provided to make clients easier to
+use.  It is implemented by copying the old analysis information to the new
+value, then deleting the old value.  This method cannot be overridden by alias
+analysis implementations.</p>
+</div>
+<div class="section" id="the-addescapinguse-method">
+<h4><a class="toc-backref" href="#id20">The <code class="docutils literal"><span class="pre">addEscapingUse</span></code> method</a><a class="headerlink" href="#the-addescapinguse-method" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">addEscapingUse</span></code> method is used when the uses of a pointer value have
+changed in ways that may invalidate precomputed analysis information.
+Implementations may either use this callback to provide conservative responses
+for points whose uses have change since analysis time, or may recompute some or
+all of their internal state to continue providing accurate responses.</p>
+<p>In general, any new use of a pointer value is considered an escaping use, and
+must be reported through this callback, <em>except</em> for the uses below:</p>
+<ul class="simple">
+<li>A <code class="docutils literal"><span class="pre">bitcast</span></code> or <code class="docutils literal"><span class="pre">getelementptr</span></code> of the pointer</li>
+<li>A <code class="docutils literal"><span class="pre">store</span></code> through the pointer (but not a <code class="docutils literal"><span class="pre">store</span></code> <em>of</em> the pointer)</li>
+<li>A <code class="docutils literal"><span class="pre">load</span></code> through the pointer</li>
+</ul>
+</div>
+</div>
+<div class="section" id="efficiency-issues">
+<h3><a class="toc-backref" href="#id21">Efficiency Issues</a><a class="headerlink" href="#efficiency-issues" title="Permalink to this headline">¶</a></h3>
+<p>From the LLVM perspective, the only thing you need to do to provide an efficient
+alias analysis is to make sure that alias analysis <strong>queries</strong> are serviced
+quickly.  The actual calculation of the alias analysis results (the “run”
+method) is only performed once, but many (perhaps duplicate) queries may be
+performed.  Because of this, try to move as much computation to the run method
+as possible (within reason).</p>
+</div>
+<div class="section" id="limitations">
+<h3><a class="toc-backref" href="#id22">Limitations</a><a class="headerlink" href="#limitations" title="Permalink to this headline">¶</a></h3>
+<p>The AliasAnalysis infrastructure has several limitations which make writing a
+new <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> implementation difficult.</p>
+<p>There is no way to override the default alias analysis. It would be very useful
+to be able to do something like “<code class="docutils literal"><span class="pre">opt</span> <span class="pre">-my-aa</span> <span class="pre">-O2</span></code>” and have it use <code class="docutils literal"><span class="pre">-my-aa</span></code>
+for all passes which need AliasAnalysis, but there is currently no support for
+that, short of changing the source code and recompiling. Similarly, there is
+also no way of setting a chain of analyses as the default.</p>
+<p>There is no way for transform passes to declare that they preserve
+<code class="docutils literal"><span class="pre">AliasAnalysis</span></code> implementations. The <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> interface includes
+<code class="docutils literal"><span class="pre">deleteValue</span></code> and <code class="docutils literal"><span class="pre">copyValue</span></code> methods which are intended to allow a pass to
+keep an AliasAnalysis consistent, however there’s no way for a pass to declare
+in its <code class="docutils literal"><span class="pre">getAnalysisUsage</span></code> that it does so. Some passes attempt to use
+<code class="docutils literal"><span class="pre">AU.addPreserved&lt;AliasAnalysis&gt;</span></code>, however this doesn’t actually have any
+effect.</p>
+<p><code class="docutils literal"><span class="pre">AliasAnalysisCounter</span></code> (<code class="docutils literal"><span class="pre">-count-aa</span></code>) and <code class="docutils literal"><span class="pre">AliasDebugger</span></code> (<code class="docutils literal"><span class="pre">-debug-aa</span></code>)
+are implemented as <code class="docutils literal"><span class="pre">ModulePass</span></code> classes, so if your alias analysis uses
+<code class="docutils literal"><span class="pre">FunctionPass</span></code>, it won’t be able to use these utilities. If you try to use
+them, the pass manager will silently route alias analysis queries directly to
+<code class="docutils literal"><span class="pre">BasicAliasAnalysis</span></code> instead.</p>
+<p>Similarly, the <code class="docutils literal"><span class="pre">opt</span> <span class="pre">-p</span></code> option introduces <code class="docutils literal"><span class="pre">ModulePass</span></code> passes between each
+pass, which prevents the use of <code class="docutils literal"><span class="pre">FunctionPass</span></code> alias analysis passes.</p>
+<p>The <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> API does have functions for notifying implementations when
+values are deleted or copied, however these aren’t sufficient. There are many
+other ways that LLVM IR can be modified which could be relevant to
+<code class="docutils literal"><span class="pre">AliasAnalysis</span></code> implementations which can not be expressed.</p>
+<p>The <code class="docutils literal"><span class="pre">AliasAnalysisDebugger</span></code> utility seems to suggest that <code class="docutils literal"><span class="pre">AliasAnalysis</span></code>
+implementations can expect that they will be informed of any relevant <code class="docutils literal"><span class="pre">Value</span></code>
+before it appears in an alias query. However, popular clients such as <code class="docutils literal"><span class="pre">GVN</span></code>
+don’t support this, and are known to trigger errors when run with the
+<code class="docutils literal"><span class="pre">AliasAnalysisDebugger</span></code>.</p>
+<p>Due to several of the above limitations, the most obvious use for the
+<code class="docutils literal"><span class="pre">AliasAnalysisCounter</span></code> utility, collecting stats on all alias queries in a
+compilation, doesn’t work, even if the <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> implementations don’t
+use <code class="docutils literal"><span class="pre">FunctionPass</span></code>.  There’s no way to set a default, much less a default
+sequence, and there’s no way to preserve it.</p>
+<p>The <code class="docutils literal"><span class="pre">AliasSetTracker</span></code> class (which is used by <code class="docutils literal"><span class="pre">LICM</span></code>) makes a
+non-deterministic number of alias queries. This can cause stats collected by
+<code class="docutils literal"><span class="pre">AliasAnalysisCounter</span></code> to have fluctuations among identical runs, for
+example. Another consequence is that debugging techniques involving pausing
+execution after a predetermined number of queries can be unreliable.</p>
+<p>Many alias queries can be reformulated in terms of other alias queries. When
+multiple <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> queries are chained together, it would make sense to
+start those queries from the beginning of the chain, with care taken to avoid
+infinite looping, however currently an implementation which wants to do this can
+only start such queries from itself.</p>
+</div>
+</div>
+<div class="section" id="using-alias-analysis-results">
+<h2><a class="toc-backref" href="#id23">Using alias analysis results</a><a class="headerlink" href="#using-alias-analysis-results" title="Permalink to this headline">¶</a></h2>
+<p>There are several different ways to use alias analysis results.  In order of
+preference, these are:</p>
+<div class="section" id="using-the-memorydependenceanalysis-pass">
+<h3><a class="toc-backref" href="#id24">Using the <code class="docutils literal"><span class="pre">MemoryDependenceAnalysis</span></code> Pass</a><a class="headerlink" href="#using-the-memorydependenceanalysis-pass" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal"><span class="pre">memdep</span></code> pass uses alias analysis to provide high-level dependence
+information about memory-using instructions.  This will tell you which store
+feeds into a load, for example.  It uses caching and other techniques to be
+efficient, and is used by Dead Store Elimination, GVN, and memcpy optimizations.</p>
+</div>
+<div class="section" id="using-the-aliassettracker-class">
+<span id="aliassettracker"></span><h3><a class="toc-backref" href="#id25">Using the <code class="docutils literal"><span class="pre">AliasSetTracker</span></code> class</a><a class="headerlink" href="#using-the-aliassettracker-class" title="Permalink to this headline">¶</a></h3>
+<p>Many transformations need information about alias <strong>sets</strong> that are active in
+some scope, rather than information about pairwise aliasing.  The
+<a class="reference external" href="http://llvm.org/doxygen/classllvm_1_1AliasSetTracker.html">AliasSetTracker</a>
+class is used to efficiently build these Alias Sets from the pairwise alias
+analysis information provided by the <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> interface.</p>
+<p>First you initialize the AliasSetTracker by using the “<code class="docutils literal"><span class="pre">add</span></code>” methods to add
+information about various potentially aliasing instructions in the scope you are
+interested in.  Once all of the alias sets are completed, your pass should
+simply iterate through the constructed alias sets, using the <code class="docutils literal"><span class="pre">AliasSetTracker</span></code>
+<code class="docutils literal"><span class="pre">begin()</span></code>/<code class="docutils literal"><span class="pre">end()</span></code> methods.</p>
+<p>The <code class="docutils literal"><span class="pre">AliasSet</span></code>s formed by the <code class="docutils literal"><span class="pre">AliasSetTracker</span></code> are guaranteed to be
+disjoint, calculate mod/ref information and volatility for the set, and keep
+track of whether or not all of the pointers in the set are Must aliases.  The
+AliasSetTracker also makes sure that sets are properly folded due to call
+instructions, and can provide a list of pointers in each set.</p>
+<p>As an example user of this, the <a class="reference external" href="doxygen/structLICM.html">Loop Invariant Code Motion</a> pass uses <code class="docutils literal"><span class="pre">AliasSetTracker</span></code>s to calculate alias
+sets for each loop nest.  If an <code class="docutils literal"><span class="pre">AliasSet</span></code> in a loop is not modified, then all
+load instructions from that set may be hoisted out of the loop.  If any alias
+sets are stored to <strong>and</strong> are must alias sets, then the stores may be sunk
+to outside of the loop, promoting the memory location to a register for the
+duration of the loop nest.  Both of these transformations only apply if the
+pointer argument is loop-invariant.</p>
+<div class="section" id="the-aliassettracker-implementation">
+<h4><a class="toc-backref" href="#id26">The AliasSetTracker implementation</a><a class="headerlink" href="#the-aliassettracker-implementation" title="Permalink to this headline">¶</a></h4>
+<p>The AliasSetTracker class is implemented to be as efficient as possible.  It
+uses the union-find algorithm to efficiently merge AliasSets when a pointer is
+inserted into the AliasSetTracker that aliases multiple sets.  The primary data
+structure is a hash table mapping pointers to the AliasSet they are in.</p>
+<p>The AliasSetTracker class must maintain a list of all of the LLVM <code class="docutils literal"><span class="pre">Value*</span></code>s
+that are in each AliasSet.  Since the hash table already has entries for each
+LLVM <code class="docutils literal"><span class="pre">Value*</span></code> of interest, the AliasesSets thread the linked list through
+these hash-table nodes to avoid having to allocate memory unnecessarily, and to
+make merging alias sets extremely efficient (the linked list merge is constant
+time).</p>
+<p>You shouldn’t need to understand these details if you are just a client of the
+AliasSetTracker, but if you look at the code, hopefully this brief description
+will help make sense of why things are designed the way they are.</p>
+</div>
+</div>
+<div class="section" id="using-the-aliasanalysis-interface-directly">
+<h3><a class="toc-backref" href="#id27">Using the <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> interface directly</a><a class="headerlink" href="#using-the-aliasanalysis-interface-directly" title="Permalink to this headline">¶</a></h3>
+<p>If neither of these utility class are what your pass needs, you should use the
+interfaces exposed by the <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> class directly.  Try to use the
+higher-level methods when possible (e.g., use mod/ref information instead of the
+<a class="reference internal" href="#alias">alias</a> method directly if possible) to get the best precision and efficiency.</p>
+</div>
+</div>
+<div class="section" id="existing-alias-analysis-implementations-and-clients">
+<h2><a class="toc-backref" href="#id28">Existing alias analysis implementations and clients</a><a class="headerlink" href="#existing-alias-analysis-implementations-and-clients" title="Permalink to this headline">¶</a></h2>
+<p>If you’re going to be working with the LLVM alias analysis infrastructure, you
+should know what clients and implementations of alias analysis are available.
+In particular, if you are implementing an alias analysis, you should be aware of
+the <a class="reference internal" href="#the-clients">the clients</a> that are useful for monitoring and evaluating different
+implementations.</p>
+<div class="section" id="available-aliasanalysis-implementations">
+<span id="various-alias-analysis-implementations"></span><h3><a class="toc-backref" href="#id29">Available <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> implementations</a><a class="headerlink" href="#available-aliasanalysis-implementations" title="Permalink to this headline">¶</a></h3>
+<p>This section lists the various implementations of the <code class="docutils literal"><span class="pre">AliasAnalysis</span></code>
+interface.  With the exception of the <a class="reference internal" href="#aliasanalysis-no-aa"><span class="std std-ref">-no-aa</span></a>
+implementation, all of these <a class="reference internal" href="#aliasanalysis-chaining"><span class="std std-ref">chain</span></a> to other
+alias analysis implementations.</p>
+<div class="section" id="the-no-aa-pass">
+<span id="aliasanalysis-no-aa"></span><h4><a class="toc-backref" href="#id30">The <code class="docutils literal"><span class="pre">-no-aa</span></code> pass</a><a class="headerlink" href="#the-no-aa-pass" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">-no-aa</span></code> pass is just like what it sounds: an alias analysis that never
+returns any useful information.  This pass can be useful if you think that alias
+analysis is doing something wrong and are trying to narrow down a problem.</p>
+</div>
+<div class="section" id="the-basicaa-pass">
+<h4><a class="toc-backref" href="#id31">The <code class="docutils literal"><span class="pre">-basicaa</span></code> pass</a><a class="headerlink" href="#the-basicaa-pass" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">-basicaa</span></code> pass is an aggressive local analysis that <em>knows</em> many
+important facts:</p>
+<ul class="simple">
+<li>Distinct globals, stack allocations, and heap allocations can never alias.</li>
+<li>Globals, stack allocations, and heap allocations never alias the null pointer.</li>
+<li>Different fields of a structure do not alias.</li>
+<li>Indexes into arrays with statically differing subscripts cannot alias.</li>
+<li>Many common standard C library functions <a class="reference internal" href="#never-access-memory-or-only-read-memory">never access memory or only read
+memory</a>.</li>
+<li>Pointers that obviously point to constant globals “<code class="docutils literal"><span class="pre">pointToConstantMemory</span></code>”.</li>
+<li>Function calls can not modify or references stack allocations if they never
+escape from the function that allocates them (a common case for automatic
+arrays).</li>
+</ul>
+</div>
+<div class="section" id="the-globalsmodref-aa-pass">
+<h4><a class="toc-backref" href="#id32">The <code class="docutils literal"><span class="pre">-globalsmodref-aa</span></code> pass</a><a class="headerlink" href="#the-globalsmodref-aa-pass" title="Permalink to this headline">¶</a></h4>
+<p>This pass implements a simple context-sensitive mod/ref and alias analysis for
+internal global variables that don’t “have their address taken”.  If a global
+does not have its address taken, the pass knows that no pointers alias the
+global.  This pass also keeps track of functions that it knows never access
+memory or never read memory.  This allows certain optimizations (e.g. GVN) to
+eliminate call instructions entirely.</p>
+<p>The real power of this pass is that it provides context-sensitive mod/ref
+information for call instructions.  This allows the optimizer to know that calls
+to a function do not clobber or read the value of the global, allowing loads and
+stores to be eliminated.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This pass is somewhat limited in its scope (only support non-address taken
+globals), but is very quick analysis.</p>
+</div>
+</div>
+<div class="section" id="the-steens-aa-pass">
+<h4><a class="toc-backref" href="#id33">The <code class="docutils literal"><span class="pre">-steens-aa</span></code> pass</a><a class="headerlink" href="#the-steens-aa-pass" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">-steens-aa</span></code> pass implements a variation on the well-known “Steensgaard’s
+algorithm” for interprocedural alias analysis.  Steensgaard’s algorithm is a
+unification-based, flow-insensitive, context-insensitive, and field-insensitive
+alias analysis that is also very scalable (effectively linear time).</p>
+<p>The LLVM <code class="docutils literal"><span class="pre">-steens-aa</span></code> pass implements a “speculatively field-<strong>sensitive</strong>”
+version of Steensgaard’s algorithm using the Data Structure Analysis framework.
+This gives it substantially more precision than the standard algorithm while
+maintaining excellent analysis scalability.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last"><code class="docutils literal"><span class="pre">-steens-aa</span></code> is available in the optional “poolalloc” module. It is not part
+of the LLVM core.</p>
+</div>
+</div>
+<div class="section" id="the-ds-aa-pass">
+<h4><a class="toc-backref" href="#id34">The <code class="docutils literal"><span class="pre">-ds-aa</span></code> pass</a><a class="headerlink" href="#the-ds-aa-pass" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">-ds-aa</span></code> pass implements the full Data Structure Analysis algorithm.  Data
+Structure Analysis is a modular unification-based, flow-insensitive,
+context-<strong>sensitive</strong>, and speculatively field-<strong>sensitive</strong> alias
+analysis that is also quite scalable, usually at <code class="docutils literal"><span class="pre">O(n</span> <span class="pre">*</span> <span class="pre">log(n))</span></code>.</p>
+<p>This algorithm is capable of responding to a full variety of alias analysis
+queries, and can provide context-sensitive mod/ref information as well.  The
+only major facility not implemented so far is support for must-alias
+information.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last"><code class="docutils literal"><span class="pre">-ds-aa</span></code> is available in the optional “poolalloc” module. It is not part of
+the LLVM core.</p>
+</div>
+</div>
+<div class="section" id="the-scev-aa-pass">
+<h4><a class="toc-backref" href="#id35">The <code class="docutils literal"><span class="pre">-scev-aa</span></code> pass</a><a class="headerlink" href="#the-scev-aa-pass" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">-scev-aa</span></code> pass implements AliasAnalysis queries by translating them into
+ScalarEvolution queries. This gives it a more complete understanding of
+<code class="docutils literal"><span class="pre">getelementptr</span></code> instructions and loop induction variables than other alias
+analyses have.</p>
+</div>
+</div>
+<div class="section" id="alias-analysis-driven-transformations">
+<h3><a class="toc-backref" href="#id36">Alias analysis driven transformations</a><a class="headerlink" href="#alias-analysis-driven-transformations" title="Permalink to this headline">¶</a></h3>
+<p>LLVM includes several alias-analysis driven transformations which can be used
+with any of the implementations above.</p>
+<div class="section" id="the-adce-pass">
+<h4><a class="toc-backref" href="#id37">The <code class="docutils literal"><span class="pre">-adce</span></code> pass</a><a class="headerlink" href="#the-adce-pass" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">-adce</span></code> pass, which implements Aggressive Dead Code Elimination uses the
+<code class="docutils literal"><span class="pre">AliasAnalysis</span></code> interface to delete calls to functions that do not have
+side-effects and are not used.</p>
+</div>
+<div class="section" id="the-licm-pass">
+<h4><a class="toc-backref" href="#id38">The <code class="docutils literal"><span class="pre">-licm</span></code> pass</a><a class="headerlink" href="#the-licm-pass" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">-licm</span></code> pass implements various Loop Invariant Code Motion related
+transformations.  It uses the <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> interface for several different
+transformations:</p>
+<ul class="simple">
+<li>It uses mod/ref information to hoist or sink load instructions out of loops if
+there are no instructions in the loop that modifies the memory loaded.</li>
+<li>It uses mod/ref information to hoist function calls out of loops that do not
+write to memory and are loop-invariant.</li>
+<li>If uses alias information to promote memory objects that are loaded and stored
+to in loops to live in a register instead.  It can do this if there are no may
+aliases to the loaded/stored memory location.</li>
+</ul>
+</div>
+<div class="section" id="the-argpromotion-pass">
+<h4><a class="toc-backref" href="#id39">The <code class="docutils literal"><span class="pre">-argpromotion</span></code> pass</a><a class="headerlink" href="#the-argpromotion-pass" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">-argpromotion</span></code> pass promotes by-reference arguments to be passed in
+by-value instead.  In particular, if pointer arguments are only loaded from it
+passes in the value loaded instead of the address to the function.  This pass
+uses alias information to make sure that the value loaded from the argument
+pointer is not modified between the entry of the function and any load of the
+pointer.</p>
+</div>
+<div class="section" id="the-gvn-memcpyopt-and-dse-passes">
+<h4><a class="toc-backref" href="#id40">The <code class="docutils literal"><span class="pre">-gvn</span></code>, <code class="docutils literal"><span class="pre">-memcpyopt</span></code>, and <code class="docutils literal"><span class="pre">-dse</span></code> passes</a><a class="headerlink" href="#the-gvn-memcpyopt-and-dse-passes" title="Permalink to this headline">¶</a></h4>
+<p>These passes use AliasAnalysis information to reason about loads and stores.</p>
+</div>
+</div>
+<div class="section" id="clients-for-debugging-and-evaluation-of-implementations">
+<span id="the-clients"></span><h3><a class="toc-backref" href="#id41">Clients for debugging and evaluation of implementations</a><a class="headerlink" href="#clients-for-debugging-and-evaluation-of-implementations" title="Permalink to this headline">¶</a></h3>
+<p>These passes are useful for evaluating the various alias analysis
+implementations.  You can use them with commands like:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% opt -ds-aa -aa-eval foo.bc -disable-output -stats
+</pre></div>
+</div>
+<div class="section" id="the-print-alias-sets-pass">
+<h4><a class="toc-backref" href="#id42">The <code class="docutils literal"><span class="pre">-print-alias-sets</span></code> pass</a><a class="headerlink" href="#the-print-alias-sets-pass" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">-print-alias-sets</span></code> pass is exposed as part of the <code class="docutils literal"><span class="pre">opt</span></code> tool to print
+out the Alias Sets formed by the <a class="reference internal" href="#aliassettracker">AliasSetTracker</a> class.  This is useful if
+you’re using the <code class="docutils literal"><span class="pre">AliasSetTracker</span></code> class.  To use it, use something like:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% opt -ds-aa -print-alias-sets -disable-output
+</pre></div>
+</div>
+</div>
+<div class="section" id="the-count-aa-pass">
+<h4><a class="toc-backref" href="#id43">The <code class="docutils literal"><span class="pre">-count-aa</span></code> pass</a><a class="headerlink" href="#the-count-aa-pass" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">-count-aa</span></code> pass is useful to see how many queries a particular pass is
+making and what responses are returned by the alias analysis.  As an example:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% opt -basicaa -count-aa -ds-aa -count-aa -licm
+</pre></div>
+</div>
+<p>will print out how many queries (and what responses are returned) by the
+<code class="docutils literal"><span class="pre">-licm</span></code> pass (of the <code class="docutils literal"><span class="pre">-ds-aa</span></code> pass) and how many queries are made of the
+<code class="docutils literal"><span class="pre">-basicaa</span></code> pass by the <code class="docutils literal"><span class="pre">-ds-aa</span></code> pass.  This can be useful when debugging a
+transformation or an alias analysis implementation.</p>
+</div>
+<div class="section" id="the-aa-eval-pass">
+<h4><a class="toc-backref" href="#id44">The <code class="docutils literal"><span class="pre">-aa-eval</span></code> pass</a><a class="headerlink" href="#the-aa-eval-pass" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">-aa-eval</span></code> pass simply iterates through all pairs of pointers in a
+function and asks an alias analysis whether or not the pointers alias.  This
+gives an indication of the precision of the alias analysis.  Statistics are
+printed indicating the percent of no/may/must aliases found (a more precise
+algorithm will have a lower number of may aliases).</p>
+</div>
+</div>
+</div>
+<div class="section" id="memory-dependence-analysis">
+<h2><a class="toc-backref" href="#id45">Memory Dependence Analysis</a><a class="headerlink" href="#memory-dependence-analysis" title="Permalink to this headline">¶</a></h2>
+<p>If you’re just looking to be a client of alias analysis information, consider
+using the Memory Dependence Analysis interface instead.  MemDep is a lazy,
+caching layer on top of alias analysis that is able to answer the question of
+what preceding memory operations a given instruction depends on, either at an
+intra- or inter-block level.  Because of its laziness and caching policy, using
+MemDep can be a significant performance win over accessing alias analysis
+directly.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="BitCodeFormat.html" title="LLVM Bitcode File Format"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="Extensions.html" title="LLVM Extensions"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,163 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>How To Build On ARM &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="How To Cross-Compile Clang/LLVM using Clang/LLVM" href="HowToCrossCompileLLVM.html" />
+    <link rel="prev" title="Building LLVM with CMake" href="CMake.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="HowToCrossCompileLLVM.html" title="How To Cross-Compile Clang/LLVM using Clang/LLVM"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="CMake.html" title="Building LLVM with CMake"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="how-to-build-on-arm">
+<h1>How To Build On ARM<a class="headerlink" href="#how-to-build-on-arm" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This document contains information about building/testing LLVM and
+Clang on an ARM machine.</p>
+<p>This document is <em>NOT</em> tailored to help you cross-compile LLVM/Clang
+to ARM on another architecture, for example an x86_64 machine. To find
+out more about cross-compiling, please check <a class="reference internal" href="HowToCrossCompileLLVM.html"><span class="doc">How To Cross-Compile Clang/LLVM using Clang/LLVM</span></a>.</p>
+</div>
+<div class="section" id="notes-on-building-llvm-clang-on-arm">
+<h2>Notes On Building LLVM/Clang on ARM<a class="headerlink" href="#notes-on-building-llvm-clang-on-arm" title="Permalink to this headline">¶</a></h2>
+<p>Here are some notes on building/testing LLVM/Clang on ARM. Note that
+ARM encompasses a wide variety of CPUs; this advice is primarily based
+on the ARMv6 and ARMv7 architectures and may be inapplicable to older chips.</p>
+<ol class="arabic">
+<li><p class="first">If you are building LLVM/Clang on an ARM board with 1G of memory or less,
+please use <code class="docutils literal"><span class="pre">gold</span></code> rather then GNU <code class="docutils literal"><span class="pre">ld</span></code>.
+Building LLVM/Clang with <code class="docutils literal"><span class="pre">--enable-optimized</span></code>
+is preferred since it consumes less memory. Otherwise, the building
+process will very likely fail due to insufficient memory. In any
+case it is probably a good idea to set up a swap partition.</p>
+</li>
+<li><p class="first">If you want to run <code class="docutils literal"><span class="pre">make</span> <span class="pre">check-all</span></code> after building LLVM/Clang, to avoid
+false alarms (e.g., ARCMT failure) please use at least the following
+configuration:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>$ ../<span class="nv">$LLVM_SRC_DIR</span>/configure --with-abi<span class="o">=</span>aapcs-vfp
+</pre></div>
+</div>
+</li>
+<li><p class="first">The most popular Linaro/Ubuntu OS’s for ARM boards, e.g., the
+Pandaboard, have become hard-float platforms. The following set
+of configuration options appears to be a good choice for this
+platform:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>./configure --build<span class="o">=</span>armv7l-unknown-linux-gnueabihf <span class="se">\</span>
+--host<span class="o">=</span>armv7l-unknown-linux-gnueabihf <span class="se">\</span>
+--target<span class="o">=</span>armv7l-unknown-linux-gnueabihf --with-cpu<span class="o">=</span>cortex-a9 <span class="se">\</span>
+--with-float<span class="o">=</span>hard --with-abi<span class="o">=</span>aapcs-vfp --with-fpu<span class="o">=</span>neon <span class="se">\</span>
+--enable-targets<span class="o">=</span>arm --enable-optimized --enable-assertions
+</pre></div>
+</div>
+</li>
+<li><p class="first">ARM development boards can be unstable and you may experience that cores
+are disappearing, caches being flushed on every big.LITTLE switch, and
+other similar issues.  To help ease the effect of this, set the Linux
+scheduler to “performance” on <strong>all</strong> cores using this little script:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="c1"># The code below requires the package &#39;cpufrequtils&#39; to be installed.</span>
+<span class="k">for</span> <span class="o">((</span><span class="nv">cpu</span><span class="o">=</span><span class="m">0</span><span class="p">;</span> cpu&lt;<span class="sb">`</span>grep -c proc /proc/cpuinfo<span class="sb">`</span><span class="p">;</span> cpu++<span class="o">))</span><span class="p">;</span> <span class="k">do</span>
+    sudo cpufreq-set -c <span class="nv">$cpu</span> -g performance
+<span class="k">done</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Running the build on SD cards is ok, but they are more prone to failures
+than good quality USB sticks, and those are more prone to failures than
+external hard-drives (those are also a lot faster). So, at least, you
+should consider to buy a fast USB stick.  On systems with a fast eMMC,
+that’s a good option too.</p>
+</li>
+<li><p class="first">Make sure you have a decent power supply (dozens of dollars worth) that can
+provide <em>at least</em> 4 amperes, this is especially important if you use USB
+devices with your board.</p>
+</li>
+</ol>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="HowToCrossCompileLLVM.html" title="How To Cross-Compile Clang/LLVM using Clang/LLVM"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="CMake.html" title="Building LLVM with CMake"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

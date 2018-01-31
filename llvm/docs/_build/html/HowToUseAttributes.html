@@ -1,0 +1,171 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>How To Use Attributes &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="User Guide for NVPTX Back-end" href="NVPTXUsage.html" />
+    <link rel="prev" title="Writing an LLVM Pass" href="WritingAnLLVMPass.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="NVPTXUsage.html" title="User Guide for NVPTX Back-end"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="WritingAnLLVMPass.html" title="Writing an LLVM Pass"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="how-to-use-attributes">
+<h1>How To Use Attributes<a class="headerlink" href="#how-to-use-attributes" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
+<li><a class="reference internal" href="#attribute" id="id2"><code class="docutils literal"><span class="pre">Attribute</span></code></a></li>
+<li><a class="reference internal" href="#attributeset" id="id3"><code class="docutils literal"><span class="pre">AttributeSet</span></code></a></li>
+<li><a class="reference internal" href="#attrbuilder" id="id4"><code class="docutils literal"><span class="pre">AttrBuilder</span></code></a></li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>Attributes in LLVM have changed in some fundamental ways.  It was necessary to
+do this to support expanding the attributes to encompass more than a handful of
+attributes — e.g. command line options.  The old way of handling attributes
+consisted of representing them as a bit mask of values.  This bit mask was
+stored in a “list” structure that was reference counted.  The advantage of this
+was that attributes could be manipulated with ‘or’s and ‘and’s.  The
+disadvantage of this was that there was limited room for expansion, and
+virtually no support for attribute-value pairs other than alignment.</p>
+<p>In the new scheme, an <code class="docutils literal"><span class="pre">Attribute</span></code> object represents a single attribute that’s
+uniqued.  You use the <code class="docutils literal"><span class="pre">Attribute::get</span></code> methods to create a new <code class="docutils literal"><span class="pre">Attribute</span></code>
+object.  An attribute can be a single “enum” value (the enum being the
+<code class="docutils literal"><span class="pre">Attribute::AttrKind</span></code> enum), a string representing a target-dependent
+attribute, or an attribute-value pair.  Some examples:</p>
+<ul class="simple">
+<li>Target-independent: <code class="docutils literal"><span class="pre">noinline</span></code>, <code class="docutils literal"><span class="pre">zext</span></code></li>
+<li>Target-dependent: <code class="docutils literal"><span class="pre">&quot;no-sse&quot;</span></code>, <code class="docutils literal"><span class="pre">&quot;thumb2&quot;</span></code></li>
+<li>Attribute-value pair: <code class="docutils literal"><span class="pre">&quot;cpu&quot;</span> <span class="pre">=</span> <span class="pre">&quot;cortex-a8&quot;</span></code>, <code class="docutils literal"><span class="pre">align</span> <span class="pre">=</span> <span class="pre">4</span></code></li>
+</ul>
+<p>Note: for an attribute value pair, we expect a target-dependent attribute to
+have a string for the value.</p>
+</div>
+<div class="section" id="attribute">
+<h2><a class="toc-backref" href="#id2"><code class="docutils literal"><span class="pre">Attribute</span></code></a><a class="headerlink" href="#attribute" title="Permalink to this headline">¶</a></h2>
+<p>An <code class="docutils literal"><span class="pre">Attribute</span></code> object is designed to be passed around by value.</p>
+<p>Because attributes are no longer represented as a bit mask, you will need to
+convert any code which does treat them as a bit mask to use the new query
+methods on the Attribute class.</p>
+</div>
+<div class="section" id="attributeset">
+<h2><a class="toc-backref" href="#id3"><code class="docutils literal"><span class="pre">AttributeSet</span></code></a><a class="headerlink" href="#attributeset" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal"><span class="pre">AttributeSet</span></code> class replaces the old <code class="docutils literal"><span class="pre">AttributeList</span></code> class.  The
+<code class="docutils literal"><span class="pre">AttributeSet</span></code> stores a collection of Attribute objects for each kind of
+object that may have an attribute associated with it: the function as a
+whole, the return type, or the function’s parameters.  A function’s attributes
+are at index <code class="docutils literal"><span class="pre">AttributeSet::FunctionIndex</span></code>; the return type’s attributes are
+at index <code class="docutils literal"><span class="pre">AttributeSet::ReturnIndex</span></code>; and the function’s parameters’
+attributes are at indices 1, …, n (where ‘n’ is the number of parameters).
+Most methods on the <code class="docutils literal"><span class="pre">AttributeSet</span></code> class take an index parameter.</p>
+<p>An <code class="docutils literal"><span class="pre">AttributeSet</span></code> is also a uniqued and immutable object.  You create an
+<code class="docutils literal"><span class="pre">AttributeSet</span></code> through the <code class="docutils literal"><span class="pre">AttributeSet::get</span></code> methods.  You can add and
+remove attributes, which result in the creation of a new <code class="docutils literal"><span class="pre">AttributeSet</span></code>.</p>
+<p>An <code class="docutils literal"><span class="pre">AttributeSet</span></code> object is designed to be passed around by value.</p>
+<p>Note: It is advised that you do <em>not</em> use the <code class="docutils literal"><span class="pre">AttributeSet</span></code> “introspection”
+methods (e.g. <code class="docutils literal"><span class="pre">Raw</span></code>, <code class="docutils literal"><span class="pre">getRawPointer</span></code>, etc.).  These methods break
+encapsulation, and may be removed in a future release (i.e. LLVM 4.0).</p>
+</div>
+<div class="section" id="attrbuilder">
+<h2><a class="toc-backref" href="#id4"><code class="docutils literal"><span class="pre">AttrBuilder</span></code></a><a class="headerlink" href="#attrbuilder" title="Permalink to this headline">¶</a></h2>
+<p>Lastly, we have a “builder” class to help create the <code class="docutils literal"><span class="pre">AttributeSet</span></code> object
+without having to create several different intermediate uniqued
+<code class="docutils literal"><span class="pre">AttributeSet</span></code> objects.  The <code class="docutils literal"><span class="pre">AttrBuilder</span></code> class allows you to add and
+remove attributes at will.  The attributes won’t be uniqued until you call the
+appropriate <code class="docutils literal"><span class="pre">AttributeSet::get</span></code> method.</p>
+<p>An <code class="docutils literal"><span class="pre">AttrBuilder</span></code> object is <em>not</em> designed to be passed around by value.  It
+should be passed by reference.</p>
+<p>Note: It is advised that you do <em>not</em> use the <code class="docutils literal"><span class="pre">AttrBuilder::addRawValue()</span></code>
+method or the <code class="docutils literal"><span class="pre">AttrBuilder(uint64_t</span> <span class="pre">Val)</span></code> constructor.  These are for
+backwards compatibility and may be removed in a future release (i.e. LLVM 4.0).</p>
+<p>And that’s basically it! A lot of functionality is hidden behind these classes,
+but the interfaces are pretty straight forward.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="NVPTXUsage.html" title="User Guide for NVPTX Back-end"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="WritingAnLLVMPass.html" title="Writing an LLVM Pass"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

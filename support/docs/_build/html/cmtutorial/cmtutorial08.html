@@ -1,0 +1,176 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial 8. Using CmBuffer &#8212; CM 6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorial 9. Zero-Copy with User-Provided Surfaces" href="cmtutorial09.html" />
+    <link rel="prev" title="Tutorial 7. Using Printf in Kernel" href="cmtutorial07.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="Intel Logo"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cmtutorial09.html" title="Tutorial 9. Zero-Copy with User-Provided Surfaces"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial07.html" title="Tutorial 7. Using Printf in Kernel"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tutorial-8-using-cmbuffer">
+<h1>Tutorial 8. Using CmBuffer<a class="headerlink" href="#tutorial-8-using-cmbuffer" title="Permalink to this headline">¶</a></h1>
+<p>In the previous examples, we have been using CmSurface to store image data. In this tutorial, we show the usage of CmBuffer to store generic data, and use oword-block read and write to access such data. The following is what we do in
+<a class="reference external" href="../../../../../test/open_examples/nbody_SLM_release/nbody_SLM_release.cpp">the nbody example</a></p>
+<div class="section" id="host-program-set-up-cmbuffers-before-enqueue">
+<h2>Host Program: Set up CmBuffers before enqueue<a class="headerlink" href="#host-program-set-up-cmbuffers-before-enqueue" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// CmBuffer represents a 1D surface in video memory.</span>
+  <span class="c1">// This function creates a CmBuffer in memory with linear layout.</span>
+  <span class="n">CmBuffer</span> <span class="o">*</span><span class="n">surf1</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateBuffer</span><span class="p">(</span><span class="n">num_bodies</span> <span class="o">*</span> <span class="n">ELEMS_BODY</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">float</span><span class="p">),</span> <span class="n">surf1</span><span class="p">);</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">surf1</span><span class="o">-&gt;</span><span class="n">WriteSurface</span><span class="p">((</span><span class="kt">unsigned</span> <span class="kt">char</span> <span class="o">*</span><span class="p">)</span><span class="n">h_pos</span><span class="p">,</span> <span class="k">nullptr</span><span class="p">));</span>
+
+  <span class="c1">// Gets the input surface index.</span>
+  <span class="n">SurfaceIndex</span> <span class="o">*</span><span class="n">input_surface_idx1</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">surf1</span><span class="o">-&gt;</span><span class="n">GetIndex</span><span class="p">(</span><span class="n">input_surface_idx1</span><span class="p">));</span>
+
+  <span class="n">CmBuffer</span> <span class="o">*</span><span class="n">surf2</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateBuffer</span><span class="p">(</span><span class="n">num_bodies</span> <span class="o">*</span> <span class="n">ELEMS_BODY</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">float</span><span class="p">),</span> <span class="n">surf2</span><span class="p">);</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">surf2</span><span class="o">-&gt;</span><span class="n">WriteSurface</span><span class="p">((</span><span class="kt">unsigned</span> <span class="kt">char</span> <span class="o">*</span><span class="p">)</span><span class="n">h_vel</span><span class="p">,</span> <span class="k">nullptr</span><span class="p">));</span>
+
+  <span class="c1">// Gets the input surface index.</span>
+  <span class="n">SurfaceIndex</span> <span class="o">*</span><span class="n">input_surface_idx2</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">surf2</span><span class="o">-&gt;</span><span class="n">GetIndex</span><span class="p">(</span><span class="n">input_surface_idx2</span><span class="p">));</span>
+
+  <span class="n">CmBuffer</span> <span class="o">*</span><span class="n">surf3</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateBuffer</span><span class="p">(</span><span class="n">num_bodies</span> <span class="o">*</span> <span class="n">ELEMS_BODY</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">float</span><span class="p">),</span> <span class="n">surf3</span><span class="p">);</span>
+
+  <span class="c1">// Gets the output surface index.</span>
+  <span class="n">SurfaceIndex</span> <span class="o">*</span><span class="n">output_surface_idx1</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">surf3</span><span class="o">-&gt;</span><span class="n">GetIndex</span><span class="p">(</span><span class="n">output_surface_idx1</span><span class="p">));</span>
+
+  <span class="n">CmBuffer</span> <span class="o">*</span><span class="n">surf4</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">device</span><span class="o">-&gt;</span><span class="n">CreateBuffer</span><span class="p">(</span><span class="n">num_bodies</span> <span class="o">*</span> <span class="n">ELEMS_BODY</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">float</span><span class="p">),</span> <span class="n">surf4</span><span class="p">);</span>
+
+  <span class="c1">// Gets the output surface index.</span>
+  <span class="n">SurfaceIndex</span> <span class="o">*</span><span class="n">output_surface_idx2</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">surf4</span><span class="o">-&gt;</span><span class="n">GetIndex</span><span class="p">(</span><span class="n">output_surface_idx2</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="host-program-read-output-buffer-after-enqueue">
+<h2>Host Program: read output buffer after enqueue<a class="headerlink" href="#host-program-read-output-buffer-after-enqueue" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// Reads the output surface content to the system memory using the CPU.</span>
+  <span class="c1">// The size of data copied is the size of data in Surface.</span>
+  <span class="c1">// It is a blocking call. The function will not return until the copy</span>
+  <span class="c1">// operation is completed.</span>
+  <span class="c1">// The dependent event &quot;sync_event&quot; ensures that the reading of the surface</span>
+  <span class="c1">// will not happen until its state becomes CM_STATUS_FINISHED.</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">surf3</span><span class="o">-&gt;</span><span class="n">ReadSurface</span><span class="p">((</span><span class="kt">unsigned</span> <span class="kt">char</span> <span class="o">*</span><span class="p">)</span><span class="n">new_pos</span><span class="p">,</span> <span class="n">sync_event</span><span class="p">));</span>
+  <span class="n">cm_result_check</span><span class="p">(</span><span class="n">surf4</span><span class="o">-&gt;</span><span class="n">ReadSurface</span><span class="p">((</span><span class="kt">unsigned</span> <span class="kt">char</span> <span class="o">*</span><span class="p">)</span><span class="n">new_vel</span><span class="p">,</span> <span class="n">sync_event</span><span class="p">));</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="kernel-program-buffer-reads-and-writes">
+<h2>Kernel Program: buffer reads and writes<a class="headerlink" href="#kernel-program-buffer-reads-and-writes" title="Permalink to this headline">¶</a></h2>
+<p>Here we only show the use of block reads and block writes from single
+address. CM also provide various scattered reads and writes using
+a vector of addresses.</p>
+<div class="section" id="read-example">
+<h3>Read example<a class="headerlink" href="#read-example" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">BODIES_CHUNK</span><span class="p">;</span> <span class="n">i</span> <span class="o">+=</span> <span class="n">BODIES_PER_RW</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">read</span><span class="p">(</span><span class="n">INPOS</span><span class="p">,</span> <span class="p">(</span><span class="n">thisMB_ID</span> <span class="o">*</span> <span class="n">BODIES_CHUNK</span> <span class="o">+</span> <span class="n">i</span><span class="p">)</span> <span class="o">*</span> <span class="n">BODY_SIZE</span><span class="p">,</span>
+             <span class="n">chunk</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="n">ELEMS_RW</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">ELEMS_BODY</span> <span class="o">*</span> <span class="n">i</span><span class="p">));</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="write-example">
+<h3>Write example<a class="headerlink" href="#write-example" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>
+</pre></div>
+</div>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">BODIES_CHUNK</span><span class="p">;</span> <span class="n">i</span> <span class="o">+=</span> <span class="n">BODIES_PER_RW</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">write</span><span class="p">(</span><span class="n">OUTPOS</span><span class="p">,</span> <span class="p">(</span><span class="n">thisMB_ID</span> <span class="o">*</span> <span class="n">BODIES_CHUNK</span> <span class="o">+</span> <span class="n">i</span><span class="p">)</span> <span class="o">*</span> <span class="n">BODY_SIZE</span><span class="p">,</span>
+              <span class="n">chunk</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="n">ELEMS_RW</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">ELEMS_BODY</span> <span class="o">*</span> <span class="n">i</span><span class="p">));</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cmtutorial09.html" title="Tutorial 9. Zero-Copy with User-Provided Surfaces"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial07.html" title="Tutorial 7. Using Printf in Kernel"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" >CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
+      Last updated on Tue Jan 2 15:16:27 2018 -0800.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

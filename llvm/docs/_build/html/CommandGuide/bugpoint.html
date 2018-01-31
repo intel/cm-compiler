@@ -1,0 +1,255 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>bugpoint - automatic test case reduction tool &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llvm-extract - extract a function from an LLVM module" href="llvm-extract.html" />
+    <link rel="prev" title="llvm-dwarfdump - print contents of DWARF sections" href="llvm-dwarfdump.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llvm-extract.html" title="llvm-extract - extract a function from an LLVM module"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llvm-dwarfdump.html" title="llvm-dwarfdump - print contents of DWARF sections"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="bugpoint-automatic-test-case-reduction-tool">
+<h1>bugpoint - automatic test case reduction tool<a class="headerlink" href="#bugpoint-automatic-test-case-reduction-tool" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong>bugpoint</strong> [<em>options</em>] [<em>input LLVM ll/bc files</em>] [<em>LLVM passes</em>] <strong>–args</strong>
+<em>program arguments</em></p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p><strong>bugpoint</strong> narrows down the source of problems in LLVM tools and passes.  It
+can be used to debug three types of failures: optimizer crashes, miscompilations
+by optimizers, or bad native code generation (including problems in the static
+and JIT compilers).  It aims to reduce large test cases to small, useful ones.
+For more information on the design and inner workings of <strong>bugpoint</strong>, as well as
+advice for using bugpoint, see <em>llvm/docs/Bugpoint.html</em> in the LLVM
+distribution.</p>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<p><strong>–additional-so</strong> <em>library</em></p>
+<blockquote>
+<div>Load the dynamic shared object <em>library</em> into the test program whenever it is
+run.  This is useful if you are debugging programs which depend on non-LLVM
+libraries (such as the X or curses libraries) to run.</div></blockquote>
+<p><strong>–append-exit-code</strong>=<em>{true,false}</em></p>
+<blockquote>
+<div>Append the test programs exit code to the output file so that a change in exit
+code is considered a test failure. Defaults to false.</div></blockquote>
+<p><strong>–args</strong> <em>program args</em></p>
+<blockquote>
+<div><p>Pass all arguments specified after <strong>–args</strong> to the test program whenever it runs.
+Note that if any of the <em>program args</em> start with a “<code class="docutils literal"><span class="pre">-</span></code>“, you should use:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>bugpoint <span class="o">[</span>bugpoint args<span class="o">]</span> --args -- <span class="o">[</span>program args<span class="o">]</span>
+</pre></div>
+</div>
+<p>The “<code class="docutils literal"><span class="pre">--</span></code>” right after the <strong>–args</strong> option tells <strong>bugpoint</strong> to consider
+any options starting with “<code class="docutils literal"><span class="pre">-</span></code>” to be part of the <strong>–args</strong> option, not as
+options to <strong>bugpoint</strong> itself.</p>
+</div></blockquote>
+<p><strong>–tool-args</strong> <em>tool args</em></p>
+<blockquote>
+<div><p>Pass all arguments specified after <strong>–tool-args</strong> to the LLVM tool under test
+(<strong>llc</strong>, <strong>lli</strong>, etc.) whenever it runs.  You should use this option in the
+following way:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>bugpoint <span class="o">[</span>bugpoint args<span class="o">]</span> --tool-args -- <span class="o">[</span>tool args<span class="o">]</span>
+</pre></div>
+</div>
+<p>The “<code class="docutils literal"><span class="pre">--</span></code>” right after the <strong>–tool-args</strong> option tells <strong>bugpoint</strong> to
+consider any options starting with “<code class="docutils literal"><span class="pre">-</span></code>” to be part of the <strong>–tool-args</strong>
+option, not as options to <strong>bugpoint</strong> itself. (See <strong>–args</strong>, above.)</p>
+</div></blockquote>
+<p><strong>–safe-tool-args</strong> <em>tool args</em></p>
+<blockquote>
+<div>Pass all arguments specified after <strong>–safe-tool-args</strong> to the “safe” execution
+tool.</div></blockquote>
+<p><strong>–gcc-tool-args</strong> <em>gcc tool args</em></p>
+<blockquote>
+<div>Pass all arguments specified after <strong>–gcc-tool-args</strong> to the invocation of
+<strong>gcc</strong>.</div></blockquote>
+<p><strong>–opt-args</strong> <em>opt args</em></p>
+<blockquote>
+<div>Pass all arguments specified after <strong>–opt-args</strong> to the invocation of <strong>opt</strong>.</div></blockquote>
+<p><strong>–disable-{dce,simplifycfg}</strong></p>
+<blockquote>
+<div>Do not run the specified passes to clean up and reduce the size of the test
+program. By default, <strong>bugpoint</strong> uses these passes internally when attempting to
+reduce test programs.  If you’re trying to find a bug in one of these passes,
+<strong>bugpoint</strong> may crash.</div></blockquote>
+<p><strong>–enable-valgrind</strong></p>
+<blockquote>
+<div>Use valgrind to find faults in the optimization phase. This will allow
+bugpoint to find otherwise asymptomatic problems caused by memory
+mis-management.</div></blockquote>
+<p><strong>-find-bugs</strong></p>
+<blockquote>
+<div>Continually randomize the specified passes and run them on the test program
+until a bug is found or the user kills <strong>bugpoint</strong>.</div></blockquote>
+<p><strong>-help</strong></p>
+<blockquote>
+<div>Print a summary of command line options.</div></blockquote>
+<p><strong>–input</strong> <em>filename</em></p>
+<blockquote>
+<div>Open <em>filename</em> and redirect the standard input of the test program, whenever
+it runs, to come from that file.</div></blockquote>
+<p><strong>–load</strong> <em>plugin</em></p>
+<blockquote>
+<div><p>Load the dynamic object <em>plugin</em> into <strong>bugpoint</strong> itself.  This object should
+register new optimization passes.  Once loaded, the object will add new command
+line options to enable various optimizations.  To see the new complete list of
+optimizations, use the <strong>-help</strong> and <strong>–load</strong> options together; for example:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>bugpoint --load myNewPass.so -help
+</pre></div>
+</div>
+</div></blockquote>
+<p><strong>–mlimit</strong> <em>megabytes</em></p>
+<blockquote>
+<div>Specifies an upper limit on memory usage of the optimization and codegen. Set
+to zero to disable the limit.</div></blockquote>
+<p><strong>–output</strong> <em>filename</em></p>
+<blockquote>
+<div>Whenever the test program produces output on its standard output stream, it
+should match the contents of <em>filename</em> (the “reference output”). If you
+do not use this option, <strong>bugpoint</strong> will attempt to generate a reference output
+by compiling the program with the “safe” backend and running it.</div></blockquote>
+<p><strong>–run-{int,jit,llc,custom}</strong></p>
+<blockquote>
+<div>Whenever the test program is compiled, <strong>bugpoint</strong> should generate code for it
+using the specified code generator.  These options allow you to choose the
+interpreter, the JIT compiler, the static native code compiler, or a
+custom command (see <strong>–exec-command</strong>) respectively.</div></blockquote>
+<p><strong>–safe-{llc,custom}</strong></p>
+<blockquote>
+<div>When debugging a code generator, <strong>bugpoint</strong> should use the specified code
+generator as the “safe” code generator. This is a known-good code generator
+used to generate the “reference output” if it has not been provided, and to
+compile portions of the program that as they are excluded from the testcase.
+These options allow you to choose the
+static native code compiler, or a custom command, (see <strong>–exec-command</strong>)
+respectively. The interpreter and the JIT backends cannot currently
+be used as the “safe” backends.</div></blockquote>
+<p><strong>–exec-command</strong> <em>command</em></p>
+<blockquote>
+<div>This option defines the command to use with the <strong>–run-custom</strong> and
+<strong>–safe-custom</strong> options to execute the bitcode testcase. This can
+be useful for cross-compilation.</div></blockquote>
+<p><strong>–compile-command</strong> <em>command</em></p>
+<blockquote>
+<div><p>This option defines the command to use with the <strong>–compile-custom</strong>
+option to compile the bitcode testcase. This can be useful for
+testing compiler output without running any link or execute stages. To
+generate a reduced unit test, you may add CHECK directives to the
+testcase and pass the name of an executable compile-command script in this form:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span><span class="ch">#!/bin/sh</span>
+llc <span class="s2">&quot;</span><span class="nv">$@</span><span class="s2">&quot;</span>
+not FileCheck <span class="o">[</span>bugpoint input file<span class="o">]</span>.ll &lt; bugpoint-test-program.s
+</pre></div>
+</div>
+<p>This script will “fail” as long as FileCheck passes. So the result
+will be the minimum bitcode that passes FileCheck.</p>
+</div></blockquote>
+<p><strong>–safe-path</strong> <em>path</em></p>
+<blockquote>
+<div>This option defines the path to the command to execute with the
+<strong>–safe-{int,jit,llc,custom}</strong>
+option.</div></blockquote>
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p>If <strong>bugpoint</strong> succeeds in finding a problem, it will exit with 0.  Otherwise,
+if an error occurs, it will exit with a non-zero value.</p>
+</div>
+<div class="section" id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p>opt|opt</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llvm-extract.html" title="llvm-extract - extract a function from an LLVM module"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llvm-dwarfdump.html" title="llvm-dwarfdump - print contents of DWARF sections"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

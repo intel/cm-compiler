@@ -1,0 +1,140 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial 7. Using Printf in Kernel &#8212; CM 6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorial 8. Using CmBuffer" href="cmtutorial08.html" />
+    <link rel="prev" title="Tutorial 6. Shared Local Memory and Thread Group" href="cmtutorial06.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="Intel Logo"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cmtutorial08.html" title="Tutorial 8. Using CmBuffer"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial06.html" title="Tutorial 6. Shared Local Memory and Thread Group"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tutorial-7-using-printf-in-kernel">
+<h1>Tutorial 7. Using Printf in Kernel<a class="headerlink" href="#tutorial-7-using-printf-in-kernel" title="Permalink to this headline">¶</a></h1>
+<p>Developers can use printf in CM kernel programs for debugging purpose.
+Using printf also requires some corresponding setup in the host
+program.</p>
+<div class="section" id="host-program-initialize-the-printf-buffer-before-enqueue">
+<h2>Host-Program: initialize the printf-buffer before enqueue<a class="headerlink" href="#host-program-initialize-the-printf-buffer-before-enqueue" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">/// allocate the buffer for printf</span>
+<span class="n">device</span><span class="o">-&gt;</span><span class="n">InitPrintBuffer</span><span class="p">();</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="host-program-flush-the-printf-buffer-after-enqueue">
+<h2>Host Program: flush the printf buffer after enqueue<a class="headerlink" href="#host-program-flush-the-printf-buffer-after-enqueue" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// This function prints the message on the screen which is dumped</span>
+<span class="c1">// by kernel. It should be called after the task being finished.</span>
+<span class="c1">// The order of printf output is not deterministic due to thread</span>
+<span class="c1">// scheduling and the fact that different threads may be interleaved.</span>
+<span class="c1">// To distinguish which thread the printf string comes from, it is</span>
+<span class="c1">// better to print the thread id as the first value on the string.</span>
+<span class="c1">// Alternatively you could always put the printf inside an if</span>
+<span class="c1">// which limits the printf to a given thread. If one task has more</span>
+<span class="c1">//  than one kernels call printf(), their outputs could mix together</span>
+<span class="n">device</span><span class="o">-&gt;</span><span class="n">FlushPrintBuffer</span><span class="p">();</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="printf-in-kernel">
+<h2>Printf in kernel<a class="headerlink" href="#printf-in-kernel" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="n">h_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_x</span><span class="p">();</span>
+<span class="kt">int</span> <span class="n">v_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_y</span><span class="p">();</span>
+<span class="kt">int</span> <span class="n">thread_id</span> <span class="o">=</span> <span class="n">v_pos</span> <span class="o">*</span> <span class="n">width</span> <span class="o">+</span> <span class="n">h_pos</span><span class="p">;</span>
+<span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d Simple printf testing</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">thread_id</span><span class="p">);</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">thread_id</span> <span class="o">==</span> <span class="mi">5</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;hello CM</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The usage of printf is demonstrated in <a class="reference external" href="../../../../../test/open_examples/hello_world/hello_world_genx.cpp">hello_world</a></p>
+<p>Notice that you also can redirect print message to a file:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">CM_RT_API</span> <span class="n">INT</span> <span class="n">CmDevice_RT</span><span class="o">::</span><span class="n">FlushPrintBufferIntoFile</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span><span class="o">*</span> <span class="n">filename</span><span class="p">);</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cmtutorial08.html" title="Tutorial 8. Using CmBuffer"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="cmtutorial06.html" title="Tutorial 6. Shared Local Memory and Thread Group"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" >CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
+      Last updated on Tue Jan 2 15:16:27 2018 -0800.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

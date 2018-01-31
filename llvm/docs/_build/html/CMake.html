@@ -1,0 +1,525 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Building LLVM with CMake &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="How To Build On ARM" href="HowToBuildOnARM.html" />
+    <link rel="prev" title="LLVM Language Reference Manual" href="LangRef.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="HowToBuildOnARM.html" title="How To Build On ARM"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="LangRef.html" title="LLVM Language Reference Manual"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="building-llvm-with-cmake">
+<h1>Building LLVM with CMake<a class="headerlink" href="#building-llvm-with-cmake" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id5">Introduction</a></li>
+<li><a class="reference internal" href="#quick-start" id="id6">Quick start</a></li>
+<li><a class="reference internal" href="#usage" id="id7">Basic CMake usage</a></li>
+<li><a class="reference internal" href="#options-and-variables" id="id8">Options and variables</a><ul>
+<li><a class="reference internal" href="#frequently-used-cmake-variables" id="id9">Frequently-used CMake variables</a></li>
+<li><a class="reference internal" href="#llvm-specific-variables" id="id10">LLVM-specific variables</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#executing-the-test-suite" id="id11">Executing the test suite</a></li>
+<li><a class="reference internal" href="#cross-compiling" id="id12">Cross compiling</a></li>
+<li><a class="reference internal" href="#embedding-llvm-in-your-project" id="id13">Embedding LLVM in your project</a><ul>
+<li><a class="reference internal" href="#developing-llvm-pass-out-of-source" id="id14">Developing LLVM pass out of source</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#compiler-platform-specific-topics" id="id15">Compiler/Platform-specific topics</a><ul>
+<li><a class="reference internal" href="#microsoft-visual-c" id="id16">Microsoft Visual C++</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id5">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference external" href="http://www.cmake.org/">CMake</a> is a cross-platform build-generator tool. CMake
+does not build the project, it generates the files needed by your build tool
+(GNU make, Visual Studio, etc) for building LLVM.</p>
+<p>If you are really anxious about getting a functional LLVM build, go to the
+<a class="reference internal" href="#quick-start">Quick start</a> section. If you are a CMake novice, start on <a class="reference internal" href="#basic-cmake-usage">Basic CMake usage</a>
+and then go back to the <a class="reference internal" href="#quick-start">Quick start</a> once you know what you are doing. The
+<a class="reference internal" href="#options-and-variables">Options and variables</a> section is a reference for customizing your build. If
+you already have experience with CMake, this is the recommended starting point.</p>
+</div>
+<div class="section" id="quick-start">
+<span id="id1"></span><h2><a class="toc-backref" href="#id6">Quick start</a><a class="headerlink" href="#quick-start" title="Permalink to this headline">¶</a></h2>
+<p>We use here the command-line, non-interactive CMake interface.</p>
+<ol class="arabic">
+<li><p class="first"><a class="reference external" href="http://www.cmake.org/cmake/resources/software.html">Download</a> and install
+CMake. Version 2.8 is the minimum required.</p>
+</li>
+<li><p class="first">Open a shell. Your development tools must be reachable from this shell
+through the PATH environment variable.</p>
+</li>
+<li><p class="first">Create a directory for containing the build. It is not supported to build
+LLVM on the source directory. cd to this directory:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> mkdir mybuilddir
+<span class="gp">$</span> <span class="nb">cd</span> mybuilddir
+</pre></div>
+</div>
+</li>
+<li><p class="first">Execute this command on the shell replacing <cite>path/to/llvm/source/root</cite> with
+the path to the root of your LLVM source tree:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> cmake path/to/llvm/source/root
+</pre></div>
+</div>
+<p>CMake will detect your development environment, perform a series of test and
+generate the files required for building LLVM. CMake will use default values
+for all build parameters. See the <a class="reference internal" href="#options-and-variables">Options and variables</a> section for
+fine-tuning your build</p>
+<p>This can fail if CMake can’t detect your toolset, or if it thinks that the
+environment is not sane enough. On this case make sure that the toolset that
+you intend to use is the only one reachable from the shell and that the shell
+itself is the correct one for you development environment. CMake will refuse
+to build MinGW makefiles if you have a POSIX shell reachable through the PATH
+environment variable, for instance. You can force CMake to use a given build
+tool, see the <a class="reference internal" href="#usage">Usage</a> section.</p>
+</li>
+</ol>
+</div>
+<div class="section" id="usage">
+<span id="basic-cmake-usage"></span><span id="id2"></span><h2><a class="toc-backref" href="#id7">Basic CMake usage</a><a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h2>
+<p>This section explains basic aspects of CMake, mostly for explaining those
+options which you may need on your day-to-day usage.</p>
+<p>CMake comes with extensive documentation in the form of html files and on the
+cmake executable itself. Execute <code class="docutils literal"><span class="pre">cmake</span> <span class="pre">--help</span></code> for further help options.</p>
+<p>CMake requires to know for which build tool it shall generate files (GNU make,
+Visual Studio, Xcode, etc). If not specified on the command line, it tries to
+guess it based on you environment. Once identified the build tool, CMake uses
+the corresponding <em>Generator</em> for creating files for your build tool. You can
+explicitly specify the generator with the command line option <code class="docutils literal"><span class="pre">-G</span> <span class="pre">&quot;Name</span> <span class="pre">of</span> <span class="pre">the</span>
+<span class="pre">generator&quot;</span></code>. For knowing the available generators on your platform, execute</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> cmake --help
+</pre></div>
+</div>
+<p>This will list the generator’s names at the end of the help text. Generator’s
+names are case-sensitive. Example:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> cmake -G <span class="s2">&quot;Visual Studio 11&quot;</span> path/to/llvm/source/root
+</pre></div>
+</div>
+<p>For a given development platform there can be more than one adequate
+generator. If you use Visual Studio “NMake Makefiles” is a generator you can use
+for building with NMake. By default, CMake chooses the more specific generator
+supported by your development environment. If you want an alternative generator,
+you must tell this to CMake with the <code class="docutils literal"><span class="pre">-G</span></code> option.</p>
+</div>
+<div class="section" id="options-and-variables">
+<span id="id3"></span><h2><a class="toc-backref" href="#id8">Options and variables</a><a class="headerlink" href="#options-and-variables" title="Permalink to this headline">¶</a></h2>
+<p>Variables customize how the build will be generated. Options are boolean
+variables, with possible values ON/OFF. Options and variables are defined on the
+CMake command line like this:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> cmake -DVARIABLE<span class="o">=</span>value path/to/llvm/source
+</pre></div>
+</div>
+<p>You can set a variable after the initial CMake invocation for changing its
+value. You can also undefine a variable:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> cmake -UVARIABLE path/to/llvm/source
+</pre></div>
+</div>
+<p>Variables are stored on the CMake cache. This is a file named <code class="docutils literal"><span class="pre">CMakeCache.txt</span></code>
+on the root of the build directory. Do not hand-edit it.</p>
+<p>Variables are listed here appending its type after a colon. It is correct to
+write the variable and the type on the CMake command line:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> cmake -DVARIABLE:TYPE<span class="o">=</span>value path/to/llvm/source
+</pre></div>
+</div>
+<div class="section" id="frequently-used-cmake-variables">
+<h3><a class="toc-backref" href="#id9">Frequently-used CMake variables</a><a class="headerlink" href="#frequently-used-cmake-variables" title="Permalink to this headline">¶</a></h3>
+<p>Here are some of the CMake variables that are used often, along with a
+brief explanation and LLVM-specific notes. For full documentation, check the
+CMake docs or execute <code class="docutils literal"><span class="pre">cmake</span> <span class="pre">--help-variable</span> <span class="pre">VARIABLE_NAME</span></code>.</p>
+<dl class="docutils">
+<dt><strong>CMAKE_BUILD_TYPE</strong>:STRING</dt>
+<dd>Sets the build type for <code class="docutils literal"><span class="pre">make</span></code> based generators. Possible values are
+Release, Debug, RelWithDebInfo and MinSizeRel. On systems like Visual Studio
+the user sets the build type with the IDE settings.</dd>
+<dt><strong>CMAKE_INSTALL_PREFIX</strong>:PATH</dt>
+<dd>Path where LLVM will be installed if “make install” is invoked or the
+“INSTALL” target is built.</dd>
+<dt><strong>LLVM_LIBDIR_SUFFIX</strong>:STRING</dt>
+<dd>Extra suffix to append to the directory where libraries are to be
+installed. On a 64-bit architecture, one could use <code class="docutils literal"><span class="pre">-DLLVM_LIBDIR_SUFFIX=64</span></code>
+to install libraries to <code class="docutils literal"><span class="pre">/usr/lib64</span></code>.</dd>
+<dt><strong>CMAKE_C_FLAGS</strong>:STRING</dt>
+<dd>Extra flags to use when compiling C source files.</dd>
+<dt><strong>CMAKE_CXX_FLAGS</strong>:STRING</dt>
+<dd>Extra flags to use when compiling C++ source files.</dd>
+<dt><strong>BUILD_SHARED_LIBS</strong>:BOOL</dt>
+<dd>Flag indicating if shared libraries will be built. Its default value is
+OFF. Shared libraries are not supported on Windows and not recommended on the
+other OSes.</dd>
+</dl>
+</div>
+<div class="section" id="llvm-specific-variables">
+<span id="id4"></span><h3><a class="toc-backref" href="#id10">LLVM-specific variables</a><a class="headerlink" href="#llvm-specific-variables" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>LLVM_TARGETS_TO_BUILD</strong>:STRING</dt>
+<dd>Semicolon-separated list of targets to build, or <em>all</em> for building all
+targets. Case-sensitive. Defaults to <em>all</em>. Example:
+<code class="docutils literal"><span class="pre">-DLLVM_TARGETS_TO_BUILD=&quot;X86;PowerPC&quot;</span></code>.</dd>
+<dt><strong>LLVM_BUILD_TOOLS</strong>:BOOL</dt>
+<dd>Build LLVM tools. Defaults to ON. Targets for building each tool are generated
+in any case. You can build an tool separately by invoking its target. For
+example, you can build <em>llvm-as</em> with a makefile-based system executing <em>make
+llvm-as</em> on the root of your build directory.</dd>
+<dt><strong>LLVM_INCLUDE_TOOLS</strong>:BOOL</dt>
+<dd>Generate build targets for the LLVM tools. Defaults to ON. You can use that
+option for disabling the generation of build targets for the LLVM tools.</dd>
+<dt><strong>LLVM_BUILD_EXAMPLES</strong>:BOOL</dt>
+<dd>Build LLVM examples. Defaults to OFF. Targets for building each example are
+generated in any case. See documentation for <em>LLVM_BUILD_TOOLS</em> above for more
+details.</dd>
+<dt><strong>LLVM_INCLUDE_EXAMPLES</strong>:BOOL</dt>
+<dd>Generate build targets for the LLVM examples. Defaults to ON. You can use that
+option for disabling the generation of build targets for the LLVM examples.</dd>
+<dt><strong>LLVM_BUILD_TESTS</strong>:BOOL</dt>
+<dd>Build LLVM unit tests. Defaults to OFF. Targets for building each unit test
+are generated in any case. You can build a specific unit test with the target
+<em>UnitTestNameTests</em> (where at this time <em>UnitTestName</em> can be ADT, Analysis,
+ExecutionEngine, JIT, Support, Transform, VMCore; see the subdirectories of
+<em>unittests</em> for an updated list.) It is possible to build all unit tests with
+the target <em>UnitTests</em>.</dd>
+<dt><strong>LLVM_INCLUDE_TESTS</strong>:BOOL</dt>
+<dd>Generate build targets for the LLVM unit tests. Defaults to ON. You can use
+that option for disabling the generation of build targets for the LLVM unit
+tests.</dd>
+<dt><strong>LLVM_APPEND_VC_REV</strong>:BOOL</dt>
+<dd>Append version control revision info (svn revision number or Git revision id)
+to LLVM version string (stored in the PACKAGE_VERSION macro). For this to work
+cmake must be invoked before the build. Defaults to OFF.</dd>
+<dt><strong>LLVM_ENABLE_THREADS</strong>:BOOL</dt>
+<dd>Build with threads support, if available. Defaults to ON.</dd>
+<dt><strong>LLVM_ENABLE_CXX1Y</strong>:BOOL</dt>
+<dd>Build in C++1y mode, if available. Defaults to OFF.</dd>
+<dt><strong>LLVM_ENABLE_ASSERTIONS</strong>:BOOL</dt>
+<dd>Enables code assertions. Defaults to OFF if and only if <code class="docutils literal"><span class="pre">CMAKE_BUILD_TYPE</span></code>
+is <em>Release</em>.</dd>
+<dt><strong>LLVM_ENABLE_PIC</strong>:BOOL</dt>
+<dd>Add the <code class="docutils literal"><span class="pre">-fPIC</span></code> flag for the compiler command-line, if the compiler supports
+this flag. Some systems, like Windows, do not need this flag. Defaults to ON.</dd>
+<dt><strong>LLVM_ENABLE_WARNINGS</strong>:BOOL</dt>
+<dd>Enable all compiler warnings. Defaults to ON.</dd>
+<dt><strong>LLVM_ENABLE_PEDANTIC</strong>:BOOL</dt>
+<dd>Enable pedantic mode. This disable compiler specific extensions, is
+possible. Defaults to ON.</dd>
+<dt><strong>LLVM_ENABLE_WERROR</strong>:BOOL</dt>
+<dd>Stop and fail build, if a compiler warning is triggered. Defaults to OFF.</dd>
+<dt><strong>LLVM_BUILD_32_BITS</strong>:BOOL</dt>
+<dd>Build 32-bits executables and libraries on 64-bits systems. This option is
+available only on some 64-bits unix systems. Defaults to OFF.</dd>
+<dt><strong>LLVM_TARGET_ARCH</strong>:STRING</dt>
+<dd>LLVM target to use for native code generation. This is required for JIT
+generation. It defaults to “host”, meaning that it shall pick the architecture
+of the machine where LLVM is being built. If you are cross-compiling, set it
+to the target architecture name.</dd>
+<dt><strong>LLVM_TABLEGEN</strong>:STRING</dt>
+<dd>Full path to a native TableGen executable (usually named <code class="docutils literal"><span class="pre">tblgen</span></code>). This is
+intended for cross-compiling: if the user sets this variable, no native
+TableGen will be created.</dd>
+<dt><strong>LLVM_LIT_ARGS</strong>:STRING</dt>
+<dd>Arguments given to lit.  <code class="docutils literal"><span class="pre">make</span> <span class="pre">check</span></code> and <code class="docutils literal"><span class="pre">make</span> <span class="pre">clang-test</span></code> are affected.
+By default, <code class="docutils literal"><span class="pre">'-sv</span> <span class="pre">--no-progress-bar'</span></code> on Visual C++ and Xcode, <code class="docutils literal"><span class="pre">'-sv'</span></code> on
+others.</dd>
+<dt><strong>LLVM_LIT_TOOLS_DIR</strong>:PATH</dt>
+<dd>The path to GnuWin32 tools for tests. Valid on Windows host.  Defaults to “”,
+then Lit seeks tools according to %PATH%.  Lit can find tools(eg. grep, sort,
+&amp;c) on LLVM_LIT_TOOLS_DIR at first, without specifying GnuWin32 to %PATH%.</dd>
+<dt><strong>LLVM_ENABLE_FFI</strong>:BOOL</dt>
+<dd>Indicates whether LLVM Interpreter will be linked with Foreign Function
+Interface library. If the library or its headers are installed on a custom
+location, you can set the variables FFI_INCLUDE_DIR and
+FFI_LIBRARY_DIR. Defaults to OFF.</dd>
+<dt><strong>LLVM_EXTERNAL_{CLANG,LLD,POLLY}_SOURCE_DIR</strong>:PATH</dt>
+<dd>Path to <code class="docutils literal"><span class="pre">{Clang,lld,Polly}</span></code>’s source directory. Defaults to
+<code class="docutils literal"><span class="pre">tools/{clang,lld,polly}</span></code>. <code class="docutils literal"><span class="pre">{Clang,lld,Polly}</span></code> will not be built when it
+is empty or it does not point to a valid path.</dd>
+<dt><strong>LLVM_USE_OPROFILE</strong>:BOOL</dt>
+<dd>Enable building OProfile JIT support. Defaults to OFF</dd>
+<dt><strong>LLVM_USE_INTEL_JITEVENTS</strong>:BOOL</dt>
+<dd>Enable building support for Intel JIT Events API. Defaults to OFF</dd>
+<dt><strong>LLVM_ENABLE_ZLIB</strong>:BOOL</dt>
+<dd>Build with zlib to support compression/uncompression in LLVM tools.
+Defaults to ON.</dd>
+<dt><strong>LLVM_USE_SANITIZER</strong>:STRING</dt>
+<dd>Define the sanitizer used to build LLVM binaries and tests. Possible values
+are <code class="docutils literal"><span class="pre">Address</span></code>, <code class="docutils literal"><span class="pre">Memory</span></code> and <code class="docutils literal"><span class="pre">MemoryWithOrigins</span></code>. Defaults to empty
+string.</dd>
+<dt><strong>LLVM_BUILD_DOCS</strong>:BOOL</dt>
+<dd>Enables all enabled documentation targets (i.e. Doxgyen and Sphinx targets) to
+be built as part of the normal build. If the <code class="docutils literal"><span class="pre">install</span></code> target is run then
+this also enables all built documentation targets to be installed. Defaults to
+OFF.</dd>
+<dt><strong>LLVM_ENABLE_DOXYGEN</strong>:BOOL</dt>
+<dd>Enables the generation of browsable HTML documentation using doxygen.
+Defaults to OFF.</dd>
+<dt><strong>LLVM_ENABLE_DOXYGEN_QT_HELP</strong>:BOOL</dt>
+<dd>Enables the generation of a Qt Compressed Help file. Defaults to OFF.
+This affects the make target <code class="docutils literal"><span class="pre">doxygen-llvm</span></code>. When enabled, apart from
+the normal HTML output generated by doxygen, this will produce a QCH file
+named <code class="docutils literal"><span class="pre">org.llvm.qch</span></code>. You can then load this file into Qt Creator.
+This option is only useful in combination with <code class="docutils literal"><span class="pre">-DLLVM_ENABLE_DOXYGEN=ON</span></code>;
+otherwise this has no effect.</dd>
+<dt><strong>LLVM_DOXYGEN_QCH_FILENAME</strong>:STRING</dt>
+<dd>The filename of the Qt Compressed Help file that will be genrated when
+<code class="docutils literal"><span class="pre">-DLLVM_ENABLE_DOXYGEN=ON</span></code> and
+<code class="docutils literal"><span class="pre">-DLLVM_ENABLE_DOXYGEN_QT_HELP=ON</span></code> are given. Defaults to
+<code class="docutils literal"><span class="pre">org.llvm.qch</span></code>.
+This option is only useful in combination with
+<code class="docutils literal"><span class="pre">-DLLVM_ENABLE_DOXYGEN_QT_HELP=ON</span></code>;
+otherwise this has no effect.</dd>
+<dt><strong>LLVM_DOXYGEN_QHP_NAMESPACE</strong>:STRING</dt>
+<dd>Namespace under which the intermediate Qt Help Project file lives. See <a class="reference external" href="http://qt-project.org/doc/qt-4.8/qthelpproject.html#custom-filters">Qt
+Help Project</a>
+for more information. Defaults to “org.llvm”. This option is only useful in
+combination with <code class="docutils literal"><span class="pre">-DLLVM_ENABLE_DOXYGEN_QT_HELP=ON</span></code>; otherwise
+this has no effect.</dd>
+<dt><strong>LLVM_DOXYGEN_QHP_CUST_FILTER_NAME</strong>:STRING</dt>
+<dd>See <a class="reference external" href="http://qt-project.org/doc/qt-4.8/qthelpproject.html#custom-filters">Qt Help Project</a> for
+more information. Defaults to the CMake variable <code class="docutils literal"><span class="pre">${PACKAGE_STRING}</span></code> which
+is a combination of the package name and version string. This filter can then
+be used in Qt Creator to select only documentation from LLVM when browsing
+through all the help files that you might have loaded. This option is only
+useful in combination with <code class="docutils literal"><span class="pre">-DLLVM_ENABLE_DOXYGEN_QT_HELP=ON</span></code>;
+otherwise this has no effect.</dd>
+</dl>
+<dl class="docutils">
+<dt><strong>LLVM_DOXYGEN_QHELPGENERATOR_PATH</strong>:STRING</dt>
+<dd>The path to the <code class="docutils literal"><span class="pre">qhelpgenerator</span></code> executable. Defaults to whatever CMake’s
+<code class="docutils literal"><span class="pre">find_program()</span></code> can find. This option is only useful in combination with
+<code class="docutils literal"><span class="pre">-DLLVM_ENABLE_DOXYGEN_QT_HELP=ON</span></code>; otherwise this has no
+effect.</dd>
+<dt><strong>LLVM_ENABLE_SPHINX</strong>:BOOL</dt>
+<dd>If enabled CMake will search for the <code class="docutils literal"><span class="pre">sphinx-build</span></code> executable and will make
+the <code class="docutils literal"><span class="pre">SPHINX_OUTPUT_HTML</span></code> and <code class="docutils literal"><span class="pre">SPHINX_OUTPUT_MAN</span></code> CMake options available.
+Defaults to OFF.</dd>
+<dt><strong>SPHINX_EXECUTABLE</strong>:STRING</dt>
+<dd>The path to the <code class="docutils literal"><span class="pre">sphinx-build</span></code> executable detected by CMake.</dd>
+<dt><strong>SPHINX_OUTPUT_HTML</strong>:BOOL</dt>
+<dd>If enabled (and <code class="docutils literal"><span class="pre">LLVM_ENABLE_SPHINX</span></code> is enabled) then the targets for
+building the documentation as html are added (but not built by default unless
+<code class="docutils literal"><span class="pre">LLVM_BUILD_DOCS</span></code> is enabled). There is a target for each project in the
+source tree that uses sphinx (e.g.  <code class="docutils literal"><span class="pre">docs-llvm-html</span></code>, <code class="docutils literal"><span class="pre">docs-clang-html</span></code>
+and <code class="docutils literal"><span class="pre">docs-lld-html</span></code>). Defaults to ON.</dd>
+<dt><strong>SPHINX_OUTPUT_MAN</strong>:BOOL</dt>
+<dd>If enabled (and <code class="docutils literal"><span class="pre">LLVM_ENABLE_SPHINX</span></code> is enabled) the targets for building
+the man pages are added (but not built by default unless <code class="docutils literal"><span class="pre">LLVM_BUILD_DOCS</span></code>
+is enabled). Currently the only target added is <code class="docutils literal"><span class="pre">docs-llvm-man</span></code>. Defaults
+to ON.</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="executing-the-test-suite">
+<h2><a class="toc-backref" href="#id11">Executing the test suite</a><a class="headerlink" href="#executing-the-test-suite" title="Permalink to this headline">¶</a></h2>
+<p>Testing is performed when the <em>check</em> target is built. For instance, if you are
+using makefiles, execute this command while on the top level of your build
+directory:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> make check
+</pre></div>
+</div>
+<p>On Visual Studio, you may run tests to build the project “check”.</p>
+</div>
+<div class="section" id="cross-compiling">
+<h2><a class="toc-backref" href="#id12">Cross compiling</a><a class="headerlink" href="#cross-compiling" title="Permalink to this headline">¶</a></h2>
+<p>See <a class="reference external" href="http://www.vtk.org/Wiki/CMake_Cross_Compiling">this wiki page</a> for
+generic instructions on how to cross-compile with CMake. It goes into detailed
+explanations and may seem daunting, but it is not. On the wiki page there are
+several examples including toolchain files. Go directly to <a class="reference external" href="http://www.vtk.org/Wiki/CMake_Cross_Compiling#Information_how_to_set_up_various_cross_compiling_toolchains">this section</a>
+for a quick solution.</p>
+<p>Also see the <a class="reference internal" href="#llvm-specific-variables">LLVM-specific variables</a> section for variables used when
+cross-compiling.</p>
+</div>
+<div class="section" id="embedding-llvm-in-your-project">
+<h2><a class="toc-backref" href="#id13">Embedding LLVM in your project</a><a class="headerlink" href="#embedding-llvm-in-your-project" title="Permalink to this headline">¶</a></h2>
+<p>The most difficult part of adding LLVM to the build of a project is to determine
+the set of LLVM libraries corresponding to the set of required LLVM
+features. What follows is an example of how to obtain this information:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="c"># A convenience variable:</span>
+<span class="nb">set</span><span class="p">(</span><span class="s">LLVM_ROOT</span> <span class="s2">&quot;&quot;</span> <span class="s">CACHE</span> <span class="s">PATH</span> <span class="s2">&quot;Root of LLVM install.&quot;</span><span class="p">)</span>
+
+<span class="c"># A bit of a sanity check:</span>
+<span class="nb">if</span><span class="p">(</span> <span class="s">NOT</span> <span class="s">EXISTS</span> <span class="o">${</span><span class="nv">LLVM_ROOT</span><span class="o">}</span><span class="s">/include/llvm</span> <span class="p">)</span>
+<span class="nb">message</span><span class="p">(</span><span class="s">FATAL_ERROR</span> <span class="s2">&quot;LLVM_ROOT (${LLVM_ROOT}) is not a valid LLVM install&quot;</span><span class="p">)</span>
+<span class="nb">endif</span><span class="p">()</span>
+
+<span class="c"># We incorporate the CMake features provided by LLVM:</span>
+<span class="nb">set</span><span class="p">(</span><span class="s">CMAKE_MODULE_PATH</span> <span class="o">${</span><span class="nv">CMAKE_MODULE_PATH</span><span class="o">}</span> <span class="s2">&quot;${LLVM_ROOT}/share/llvm/cmake&quot;</span><span class="p">)</span>
+<span class="nb">include</span><span class="p">(</span><span class="s">LLVMConfig</span><span class="p">)</span>
+
+<span class="c"># Now set the header and library paths:</span>
+<span class="nb">include_directories</span><span class="p">(</span> <span class="o">${</span><span class="nv">LLVM_INCLUDE_DIRS</span><span class="o">}</span> <span class="p">)</span>
+<span class="nb">link_directories</span><span class="p">(</span> <span class="o">${</span><span class="nv">LLVM_LIBRARY_DIRS</span><span class="o">}</span> <span class="p">)</span>
+<span class="nb">add_definitions</span><span class="p">(</span> <span class="o">${</span><span class="nv">LLVM_DEFINITIONS</span><span class="o">}</span> <span class="p">)</span>
+
+<span class="c"># Let&#39;s suppose we want to build a JIT compiler with support for</span>
+<span class="c"># binary code (no interpreter):</span>
+<span class="nb">llvm_map_components_to_libraries</span><span class="p">(</span><span class="s">REQ_LLVM_LIBRARIES</span> <span class="s">jit</span> <span class="s">native</span><span class="p">)</span>
+
+<span class="c"># Finally, we link the LLVM libraries to our executable:</span>
+<span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">mycompiler</span> <span class="o">${</span><span class="nv">REQ_LLVM_LIBRARIES</span><span class="o">}</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This assumes that LLVM_ROOT points to an install of LLVM. The procedure works
+too for uninstalled builds although we need to take care to add an
+<cite>include_directories</cite> for the location of the headers on the LLVM source
+directory (if we are building out-of-source.)</p>
+<p>Alternativaly, you can utilize CMake’s <code class="docutils literal"><span class="pre">find_package</span></code> functionality. Here is
+an equivalent variant of snippet shown above:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="nb">find_package</span><span class="p">(</span><span class="s">LLVM</span><span class="p">)</span>
+
+<span class="nb">if</span><span class="p">(</span> <span class="s">NOT</span> <span class="s">LLVM_FOUND</span> <span class="p">)</span>
+  <span class="nb">message</span><span class="p">(</span><span class="s">FATAL_ERROR</span> <span class="s2">&quot;LLVM package can&#39;t be found. Set CMAKE_PREFIX_PATH variable to LLVM&#39;s installation prefix.&quot;</span><span class="p">)</span>
+<span class="nb">endif</span><span class="p">()</span>
+
+<span class="nb">include_directories</span><span class="p">(</span> <span class="o">${</span><span class="nv">LLVM_INCLUDE_DIRS</span><span class="o">}</span> <span class="p">)</span>
+<span class="nb">link_directories</span><span class="p">(</span> <span class="o">${</span><span class="nv">LLVM_LIBRARY_DIRS</span><span class="o">}</span> <span class="p">)</span>
+
+<span class="nb">llvm_map_components_to_libraries</span><span class="p">(</span><span class="s">REQ_LLVM_LIBRARIES</span> <span class="s">jit</span> <span class="s">native</span><span class="p">)</span>
+
+<span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">mycompiler</span> <span class="o">${</span><span class="nv">REQ_LLVM_LIBRARIES</span><span class="o">}</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="section" id="developing-llvm-pass-out-of-source">
+<span id="cmake-out-of-source-pass"></span><h3><a class="toc-backref" href="#id14">Developing LLVM pass out of source</a><a class="headerlink" href="#developing-llvm-pass-out-of-source" title="Permalink to this headline">¶</a></h3>
+<p>It is possible to develop LLVM passes against installed LLVM.  An example of
+project layout provided below:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>&lt;project dir&gt;/
+    |
+    CMakeLists.txt
+    &lt;pass name&gt;/
+        |
+        CMakeLists.txt
+        Pass.cpp
+        ...
+</pre></div>
+</div>
+<p>Contents of <code class="docutils literal"><span class="pre">&lt;project</span> <span class="pre">dir&gt;/CMakeLists.txt</span></code>:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="nb">find_package</span><span class="p">(</span><span class="s">LLVM</span><span class="p">)</span>
+
+<span class="c"># Define add_llvm_* macro&#39;s.</span>
+<span class="nb">include</span><span class="p">(</span><span class="s">AddLLVM</span><span class="p">)</span>
+
+<span class="nb">add_definitions</span><span class="p">(</span><span class="o">${</span><span class="nv">LLVM_DEFINITIONS</span><span class="o">}</span><span class="p">)</span>
+<span class="nb">include_directories</span><span class="p">(</span><span class="o">${</span><span class="nv">LLVM_INCLUDE_DIRS</span><span class="o">}</span><span class="p">)</span>
+<span class="nb">link_directories</span><span class="p">(</span><span class="o">${</span><span class="nv">LLVM_LIBRARY_DIRS</span><span class="o">}</span><span class="p">)</span>
+
+<span class="nb">add_subdirectory</span><span class="p">(</span><span class="s">&lt;pass</span> <span class="s">name&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Contents of <code class="docutils literal"><span class="pre">&lt;project</span> <span class="pre">dir&gt;/&lt;pass</span> <span class="pre">name&gt;/CMakeLists.txt</span></code>:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="nb">add_llvm_loadable_module</span><span class="p">(</span><span class="s">LLVMPassname</span>
+  <span class="s">Pass.cpp</span>
+  <span class="p">)</span>
+</pre></div>
+</div>
+<p>When you are done developing your pass, you may wish to integrate it
+into LLVM source tree. You can achieve it in two easy steps:</p>
+<ol class="arabic simple">
+<li>Copying <code class="docutils literal"><span class="pre">&lt;pass</span> <span class="pre">name&gt;</span></code> folder into <code class="docutils literal"><span class="pre">&lt;LLVM</span> <span class="pre">root&gt;/lib/Transform</span></code> directory.</li>
+<li>Adding <code class="docutils literal"><span class="pre">add_subdirectory(&lt;pass</span> <span class="pre">name&gt;)</span></code> line into
+<code class="docutils literal"><span class="pre">&lt;LLVM</span> <span class="pre">root&gt;/lib/Transform/CMakeLists.txt</span></code>.</li>
+</ol>
+</div>
+</div>
+<div class="section" id="compiler-platform-specific-topics">
+<h2><a class="toc-backref" href="#id15">Compiler/Platform-specific topics</a><a class="headerlink" href="#compiler-platform-specific-topics" title="Permalink to this headline">¶</a></h2>
+<p>Notes for specific compilers and/or platforms.</p>
+<div class="section" id="microsoft-visual-c">
+<h3><a class="toc-backref" href="#id16">Microsoft Visual C++</a><a class="headerlink" href="#microsoft-visual-c" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>LLVM_COMPILER_JOBS</strong>:STRING</dt>
+<dd>Specifies the maximum number of parallell compiler jobs to use per project
+when building with msbuild or Visual Studio. Only supported for the Visual
+Studio 2010 CMake generator. 0 means use all processors. Default is 0.</dd>
+</dl>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="HowToBuildOnARM.html" title="How To Build On ARM"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="LangRef.html" title="LLVM Language Reference Manual"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

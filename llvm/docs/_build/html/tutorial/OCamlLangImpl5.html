@@ -1,0 +1,1393 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>5. Kaleidoscope: Extending the Language: Control Flow &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="6. Kaleidoscope: Extending the Language: User-defined Operators" href="OCamlLangImpl6.html" />
+    <link rel="prev" title="4. Kaleidoscope: Adding JIT and Optimizer Support" href="OCamlLangImpl4.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="OCamlLangImpl6.html" title="6. Kaleidoscope: Extending the Language: User-defined Operators"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="OCamlLangImpl4.html" title="4. Kaleidoscope: Adding JIT and Optimizer Support"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Tutorial: Table of Contents</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="kaleidoscope-extending-the-language-control-flow">
+<h1>5. Kaleidoscope: Extending the Language: Control Flow<a class="headerlink" href="#kaleidoscope-extending-the-language-control-flow" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#chapter-5-introduction" id="id2">Chapter 5 Introduction</a></li>
+<li><a class="reference internal" href="#if-then-else" id="id3">If/Then/Else</a><ul>
+<li><a class="reference internal" href="#lexer-extensions-for-if-then-else" id="id4">Lexer Extensions for If/Then/Else</a></li>
+<li><a class="reference internal" href="#ast-extensions-for-if-then-else" id="id5">AST Extensions for If/Then/Else</a></li>
+<li><a class="reference internal" href="#parser-extensions-for-if-then-else" id="id6">Parser Extensions for If/Then/Else</a></li>
+<li><a class="reference internal" href="#llvm-ir-for-if-then-else" id="id7">LLVM IR for If/Then/Else</a></li>
+<li><a class="reference internal" href="#code-generation-for-if-then-else" id="id8">Code Generation for If/Then/Else</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#for-loop-expression" id="id9">‘for’ Loop Expression</a><ul>
+<li><a class="reference internal" href="#lexer-extensions-for-the-for-loop" id="id10">Lexer Extensions for the ‘for’ Loop</a></li>
+<li><a class="reference internal" href="#ast-extensions-for-the-for-loop" id="id11">AST Extensions for the ‘for’ Loop</a></li>
+<li><a class="reference internal" href="#parser-extensions-for-the-for-loop" id="id12">Parser Extensions for the ‘for’ Loop</a></li>
+<li><a class="reference internal" href="#llvm-ir-for-the-for-loop" id="id13">LLVM IR for the ‘for’ Loop</a></li>
+<li><a class="reference internal" href="#code-generation-for-the-for-loop" id="id14">Code Generation for the ‘for’ Loop</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#full-code-listing" id="id15">Full Code Listing</a></li>
+</ul>
+</div>
+<div class="section" id="chapter-5-introduction">
+<h2><a class="toc-backref" href="#id2">5.1. Chapter 5 Introduction</a><a class="headerlink" href="#chapter-5-introduction" title="Permalink to this headline">¶</a></h2>
+<p>Welcome to Chapter 5 of the “<a class="reference external" href="index.html">Implementing a language with
+LLVM</a>” tutorial. Parts 1-4 described the implementation of
+the simple Kaleidoscope language and included support for generating
+LLVM IR, followed by optimizations and a JIT compiler. Unfortunately, as
+presented, Kaleidoscope is mostly useless: it has no control flow other
+than call and return. This means that you can’t have conditional
+branches in the code, significantly limiting its power. In this episode
+of “build that compiler”, we’ll extend Kaleidoscope to have an
+if/then/else expression plus a simple ‘for’ loop.</p>
+</div>
+<div class="section" id="if-then-else">
+<h2><a class="toc-backref" href="#id3">5.2. If/Then/Else</a><a class="headerlink" href="#if-then-else" title="Permalink to this headline">¶</a></h2>
+<p>Extending Kaleidoscope to support if/then/else is quite straightforward.
+It basically requires adding lexer support for this “new” concept to the
+lexer, parser, AST, and LLVM code emitter. This example is nice, because
+it shows how easy it is to “grow” a language over time, incrementally
+extending it as new ideas are discovered.</p>
+<p>Before we get going on “how” we add this extension, lets talk about
+“what” we want. The basic idea is that we want to be able to write this
+sort of thing:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">fib</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+  <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="mi">3</span> <span class="n">then</span>
+    <span class="mi">1</span>
+  <span class="k">else</span>
+    <span class="n">fib</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">+</span><span class="n">fib</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">2</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>In Kaleidoscope, every construct is an expression: there are no
+statements. As such, the if/then/else expression needs to return a value
+like any other. Since we’re using a mostly functional form, we’ll have
+it evaluate its conditional, then return the ‘then’ or ‘else’ value
+based on how the condition was resolved. This is very similar to the C
+“?:” expression.</p>
+<p>The semantics of the if/then/else expression is that it evaluates the
+condition to a boolean equality value: 0.0 is considered to be false and
+everything else is considered to be true. If the condition is true, the
+first subexpression is evaluated and returned, if the condition is
+false, the second subexpression is evaluated and returned. Since
+Kaleidoscope allows side-effects, this behavior is important to nail
+down.</p>
+<p>Now that we know what we “want”, lets break this down into its
+constituent pieces.</p>
+<div class="section" id="lexer-extensions-for-if-then-else">
+<h3><a class="toc-backref" href="#id4">5.2.1. Lexer Extensions for If/Then/Else</a><a class="headerlink" href="#lexer-extensions-for-if-then-else" title="Permalink to this headline">¶</a></h3>
+<p>The lexer extensions are straightforward. First we add new variants for
+the relevant tokens:</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(* control *)</span>
+<span class="o">|</span> <span class="nc">If</span> <span class="o">|</span> <span class="nc">Then</span> <span class="o">|</span> <span class="nc">Else</span> <span class="o">|</span> <span class="nc">For</span> <span class="o">|</span> <span class="nc">In</span>
+</pre></div>
+</div>
+<p>Once we have that, we recognize the new keywords in the lexer. This is
+pretty simple stuff:</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="o">...</span>
+<span class="k">match</span> <span class="nn">Buffer</span><span class="p">.</span><span class="n">contents</span> <span class="n">buffer</span> <span class="k">with</span>
+<span class="o">|</span> <span class="s2">&quot;def&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Def</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+<span class="o">|</span> <span class="s2">&quot;extern&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Extern</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+<span class="o">|</span> <span class="s2">&quot;if&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">If</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+<span class="o">|</span> <span class="s2">&quot;then&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Then</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+<span class="o">|</span> <span class="s2">&quot;else&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Else</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+<span class="o">|</span> <span class="s2">&quot;for&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">For</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+<span class="o">|</span> <span class="s2">&quot;in&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">In</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+<span class="o">|</span> <span class="n">id</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Ident</span> <span class="n">id</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="ast-extensions-for-if-then-else">
+<h3><a class="toc-backref" href="#id5">5.2.2. AST Extensions for If/Then/Else</a><a class="headerlink" href="#ast-extensions-for-if-then-else" title="Permalink to this headline">¶</a></h3>
+<p>To represent the new expression we add a new AST variant for it:</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="k">type</span> <span class="n">expr</span> <span class="o">=</span>
+  <span class="o">...</span>
+  <span class="c">(* variant for if/then/else. *)</span>
+  <span class="o">|</span> <span class="nc">If</span> <span class="k">of</span> <span class="n">expr</span> <span class="o">*</span> <span class="n">expr</span> <span class="o">*</span> <span class="n">expr</span>
+</pre></div>
+</div>
+<p>The AST variant just has pointers to the various subexpressions.</p>
+</div>
+<div class="section" id="parser-extensions-for-if-then-else">
+<h3><a class="toc-backref" href="#id6">5.2.3. Parser Extensions for If/Then/Else</a><a class="headerlink" href="#parser-extensions-for-if-then-else" title="Permalink to this headline">¶</a></h3>
+<p>Now that we have the relevant tokens coming from the lexer and we have
+the AST node to build, our parsing logic is relatively straightforward.
+First we define a new parsing function:</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="k">let</span> <span class="k">rec</span> <span class="n">parse_primary</span> <span class="o">=</span> <span class="n">parser</span>
+  <span class="o">...</span>
+  <span class="c">(* ifexpr ::= &#39;if&#39; expr &#39;then&#39; expr &#39;else&#39; expr *)</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">If</span><span class="o">;</span> <span class="n">c</span><span class="o">=</span><span class="n">parse_expr</span><span class="o">;</span>
+       <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Then</span> <span class="o">??</span> <span class="s2">&quot;expected &#39;then&#39;&quot;</span><span class="o">;</span> <span class="n">t</span><span class="o">=</span><span class="n">parse_expr</span><span class="o">;</span>
+       <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Else</span> <span class="o">??</span> <span class="s2">&quot;expected &#39;else&#39;&quot;</span><span class="o">;</span> <span class="n">e</span><span class="o">=</span><span class="n">parse_expr</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="nn">Ast</span><span class="p">.</span><span class="nc">If</span> <span class="o">(</span><span class="n">c</span><span class="o">,</span> <span class="n">t</span><span class="o">,</span> <span class="n">e</span><span class="o">)</span>
+</pre></div>
+</div>
+<p>Next we hook it up as a primary expression:</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="k">let</span> <span class="k">rec</span> <span class="n">parse_primary</span> <span class="o">=</span> <span class="n">parser</span>
+  <span class="o">...</span>
+  <span class="c">(* ifexpr ::= &#39;if&#39; expr &#39;then&#39; expr &#39;else&#39; expr *)</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">If</span><span class="o">;</span> <span class="n">c</span><span class="o">=</span><span class="n">parse_expr</span><span class="o">;</span>
+       <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Then</span> <span class="o">??</span> <span class="s2">&quot;expected &#39;then&#39;&quot;</span><span class="o">;</span> <span class="n">t</span><span class="o">=</span><span class="n">parse_expr</span><span class="o">;</span>
+       <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Else</span> <span class="o">??</span> <span class="s2">&quot;expected &#39;else&#39;&quot;</span><span class="o">;</span> <span class="n">e</span><span class="o">=</span><span class="n">parse_expr</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="nn">Ast</span><span class="p">.</span><span class="nc">If</span> <span class="o">(</span><span class="n">c</span><span class="o">,</span> <span class="n">t</span><span class="o">,</span> <span class="n">e</span><span class="o">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="llvm-ir-for-if-then-else">
+<h3><a class="toc-backref" href="#id7">5.2.4. LLVM IR for If/Then/Else</a><a class="headerlink" href="#llvm-ir-for-if-then-else" title="Permalink to this headline">¶</a></h3>
+<p>Now that we have it parsing and building the AST, the final piece is
+adding LLVM code generation support. This is the most interesting part
+of the if/then/else example, because this is where it starts to
+introduce new concepts. All of the code above has been thoroughly
+described in previous chapters.</p>
+<p>To motivate the code we want to produce, lets take a look at a simple
+example. Consider:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">extern</span> <span class="n">foo</span><span class="p">();</span>
+<span class="n">extern</span> <span class="n">bar</span><span class="p">();</span>
+<span class="k">def</span> <span class="nf">baz</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">if</span> <span class="n">x</span> <span class="n">then</span> <span class="n">foo</span><span class="p">()</span> <span class="k">else</span> <span class="n">bar</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>If you disable optimizations, the code you’ll (soon) get from
+Kaleidoscope looks like this:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">declare</span> <span class="kt">double</span> <span class="vg">@foo</span><span class="p">()</span>
+
+<span class="k">declare</span> <span class="kt">double</span> <span class="vg">@bar</span><span class="p">()</span>
+
+<span class="k">define</span> <span class="kt">double</span> <span class="vg">@baz</span><span class="p">(</span><span class="kt">double</span> <span class="nv">%x</span><span class="p">)</span> <span class="p">{</span>
+<span class="nl">entry:</span>
+  <span class="nv">%ifcond</span> <span class="p">=</span> <span class="k">fcmp</span> <span class="k">one</span> <span class="kt">double</span> <span class="nv">%x</span><span class="p">,</span> <span class="m">0.000000e+00</span>
+  <span class="k">br</span> <span class="k">i1</span> <span class="nv">%ifcond</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%then</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%else</span>
+
+<span class="nl">then:</span>    <span class="c">; preds = %entry</span>
+  <span class="nv">%calltmp</span> <span class="p">=</span> <span class="k">call</span> <span class="kt">double</span> <span class="vg">@foo</span><span class="p">()</span>
+  <span class="k">br</span> <span class="kt">label</span> <span class="nv">%ifcont</span>
+
+<span class="nl">else:</span>    <span class="c">; preds = %entry</span>
+  <span class="nv">%calltmp1</span> <span class="p">=</span> <span class="k">call</span> <span class="kt">double</span> <span class="vg">@bar</span><span class="p">()</span>
+  <span class="k">br</span> <span class="kt">label</span> <span class="nv">%ifcont</span>
+
+<span class="nl">ifcont:</span>    <span class="c">; preds = %else, %then</span>
+  <span class="nv">%iftmp</span> <span class="p">=</span> <span class="k">phi</span> <span class="kt">double</span> <span class="p">[</span> <span class="nv">%calltmp</span><span class="p">,</span> <span class="nv">%then</span> <span class="p">],</span> <span class="p">[</span> <span class="nv">%calltmp1</span><span class="p">,</span> <span class="nv">%else</span> <span class="p">]</span>
+  <span class="k">ret</span> <span class="kt">double</span> <span class="nv">%iftmp</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>To visualize the control flow graph, you can use a nifty feature of the
+LLVM ‘<a class="reference external" href="http://llvm.org/cmds/opt.html">opt</a>’ tool. If you put this LLVM
+IR into “t.ll” and run “<code class="docutils literal"><span class="pre">llvm-as</span> <span class="pre">&lt;</span> <span class="pre">t.ll</span> <span class="pre">|</span> <span class="pre">opt</span> <span class="pre">-analyze</span> <span class="pre">-view-cfg</span></code>”, <a class="reference external" href="../ProgrammersManual.html#ViewGraph">a
+window will pop up</a> and you’ll
+see this graph:</p>
+<div class="figure align-center" id="id1">
+<img alt="Example CFG" src="../_images/LangImpl5-cfg.png" />
+<p class="caption"><span class="caption-text">Example CFG</span></p>
+</div>
+<p>Another way to get this is to call
+“<code class="docutils literal"><span class="pre">Llvm_analysis.view_function_cfg</span> <span class="pre">f</span></code>” or
+“<code class="docutils literal"><span class="pre">Llvm_analysis.view_function_cfg_only</span> <span class="pre">f</span></code>” (where <code class="docutils literal"><span class="pre">f</span></code> is a
+“<code class="docutils literal"><span class="pre">Function</span></code>”) either by inserting actual calls into the code and
+recompiling or by calling these in the debugger. LLVM has many nice
+features for visualizing various graphs.</p>
+<p>Getting back to the generated code, it is fairly simple: the entry block
+evaluates the conditional expression (“x” in our case here) and compares
+the result to 0.0 with the “<code class="docutils literal"><span class="pre">fcmp</span> <span class="pre">one</span></code>” instruction (‘one’ is “Ordered
+and Not Equal”). Based on the result of this expression, the code jumps
+to either the “then” or “else” blocks, which contain the expressions for
+the true/false cases.</p>
+<p>Once the then/else blocks are finished executing, they both branch back
+to the ‘ifcont’ block to execute the code that happens after the
+if/then/else. In this case the only thing left to do is to return to the
+caller of the function. The question then becomes: how does the code
+know which expression to return?</p>
+<p>The answer to this question involves an important SSA operation: the
+<a class="reference external" href="http://en.wikipedia.org/wiki/Static_single_assignment_form">Phi
+operation</a>.
+If you’re not familiar with SSA, <a class="reference external" href="http://en.wikipedia.org/wiki/Static_single_assignment_form">the wikipedia
+article</a>
+is a good introduction and there are various other introductions to it
+available on your favorite search engine. The short version is that
+“execution” of the Phi operation requires “remembering” which block
+control came from. The Phi operation takes on the value corresponding to
+the input control block. In this case, if control comes in from the
+“then” block, it gets the value of “calltmp”. If control comes from the
+“else” block, it gets the value of “calltmp1”.</p>
+<p>At this point, you are probably starting to think “Oh no! This means my
+simple and elegant front-end will have to start generating SSA form in
+order to use LLVM!”. Fortunately, this is not the case, and we strongly
+advise <em>not</em> implementing an SSA construction algorithm in your
+front-end unless there is an amazingly good reason to do so. In
+practice, there are two sorts of values that float around in code
+written for your average imperative programming language that might need
+Phi nodes:</p>
+<ol class="arabic simple">
+<li>Code that involves user variables: <code class="docutils literal"><span class="pre">x</span> <span class="pre">=</span> <span class="pre">1;</span> <span class="pre">x</span> <span class="pre">=</span> <span class="pre">x</span> <span class="pre">+</span> <span class="pre">1;</span></code></li>
+<li>Values that are implicit in the structure of your AST, such as the
+Phi node in this case.</li>
+</ol>
+<p>In <a class="reference external" href="OCamlLangImpl7.html">Chapter 7</a> of this tutorial (“mutable
+variables”), we’ll talk about #1 in depth. For now, just believe me that
+you don’t need SSA construction to handle this case. For #2, you have
+the choice of using the techniques that we will describe for #1, or you
+can insert Phi nodes directly, if convenient. In this case, it is really
+really easy to generate the Phi node, so we choose to do it directly.</p>
+<p>Okay, enough of the motivation and overview, lets generate code!</p>
+</div>
+<div class="section" id="code-generation-for-if-then-else">
+<h3><a class="toc-backref" href="#id8">5.2.5. Code Generation for If/Then/Else</a><a class="headerlink" href="#code-generation-for-if-then-else" title="Permalink to this headline">¶</a></h3>
+<p>In order to generate code for this, we implement the <code class="docutils literal"><span class="pre">Codegen</span></code> method
+for <code class="docutils literal"><span class="pre">IfExprAST</span></code>:</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="k">let</span> <span class="k">rec</span> <span class="n">codegen_expr</span> <span class="o">=</span> <span class="k">function</span>
+  <span class="o">...</span>
+  <span class="o">|</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">If</span> <span class="o">(</span><span class="n">cond</span><span class="o">,</span> <span class="n">then_</span><span class="o">,</span> <span class="n">else_</span><span class="o">)</span> <span class="o">-&gt;</span>
+      <span class="k">let</span> <span class="n">cond</span> <span class="o">=</span> <span class="n">codegen_expr</span> <span class="n">cond</span> <span class="k">in</span>
+
+      <span class="c">(* Convert condition to a bool by comparing equal to 0.0 *)</span>
+      <span class="k">let</span> <span class="n">zero</span> <span class="o">=</span> <span class="n">const_float</span> <span class="n">double_type</span> <span class="mi">0</span><span class="o">.</span><span class="mi">0</span> <span class="k">in</span>
+      <span class="k">let</span> <span class="n">cond_val</span> <span class="o">=</span> <span class="n">build_fcmp</span> <span class="nn">Fcmp</span><span class="p">.</span><span class="nc">One</span> <span class="n">cond</span> <span class="n">zero</span> <span class="s2">&quot;ifcond&quot;</span> <span class="n">builder</span> <span class="k">in</span>
+</pre></div>
+</div>
+<p>This code is straightforward and similar to what we saw before. We emit
+the expression for the condition, then compare that value to zero to get
+a truth value as a 1-bit (bool) value.</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(* Grab the first block so that we might later add the conditional branch</span>
+<span class="c"> * to it at the end of the function. *)</span>
+<span class="k">let</span> <span class="n">start_bb</span> <span class="o">=</span> <span class="n">insertion_block</span> <span class="n">builder</span> <span class="k">in</span>
+<span class="k">let</span> <span class="n">the_function</span> <span class="o">=</span> <span class="n">block_parent</span> <span class="n">start_bb</span> <span class="k">in</span>
+
+<span class="k">let</span> <span class="n">then_bb</span> <span class="o">=</span> <span class="n">append_block</span> <span class="n">context</span> <span class="s2">&quot;then&quot;</span> <span class="n">the_function</span> <span class="k">in</span>
+<span class="n">position_at_end</span> <span class="n">then_bb</span> <span class="n">builder</span><span class="o">;</span>
+</pre></div>
+</div>
+<p>As opposed to the <a class="reference external" href="LangImpl5.html">C++ tutorial</a>, we have to build our
+basic blocks bottom up since we can’t have dangling BasicBlocks. We
+start off by saving a pointer to the first block (which might not be the
+entry block), which we’ll need to build a conditional branch later. We
+do this by asking the <code class="docutils literal"><span class="pre">builder</span></code> for the current BasicBlock. The fourth
+line gets the current Function object that is being built. It gets this
+by the <code class="docutils literal"><span class="pre">start_bb</span></code> for its “parent” (the function it is currently
+embedded into).</p>
+<p>Once it has that, it creates one block. It is automatically appended
+into the function’s list of blocks.</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(* Emit &#39;then&#39; value. *)</span>
+<span class="n">position_at_end</span> <span class="n">then_bb</span> <span class="n">builder</span><span class="o">;</span>
+<span class="k">let</span> <span class="n">then_val</span> <span class="o">=</span> <span class="n">codegen_expr</span> <span class="n">then_</span> <span class="k">in</span>
+
+<span class="c">(* Codegen of &#39;then&#39; can change the current block, update then_bb for the</span>
+<span class="c"> * phi. We create a new name because one is used for the phi node, and the</span>
+<span class="c"> * other is used for the conditional branch. *)</span>
+<span class="k">let</span> <span class="n">new_then_bb</span> <span class="o">=</span> <span class="n">insertion_block</span> <span class="n">builder</span> <span class="k">in</span>
+</pre></div>
+</div>
+<p>We move the builder to start inserting into the “then” block. Strictly
+speaking, this call moves the insertion point to be at the end of the
+specified block. However, since the “then” block is empty, it also
+starts out by inserting at the beginning of the block. :)</p>
+<p>Once the insertion point is set, we recursively codegen the “then”
+expression from the AST.</p>
+<p>The final line here is quite subtle, but is very important. The basic
+issue is that when we create the Phi node in the merge block, we need to
+set up the block/value pairs that indicate how the Phi will work.
+Importantly, the Phi node expects to have an entry for each predecessor
+of the block in the CFG. Why then, are we getting the current block when
+we just set it to ThenBB 5 lines above? The problem is that the “Then”
+expression may actually itself change the block that the Builder is
+emitting into if, for example, it contains a nested “if/then/else”
+expression. Because calling Codegen recursively could arbitrarily change
+the notion of the current block, we are required to get an up-to-date
+value for code that will set up the Phi node.</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(* Emit &#39;else&#39; value. *)</span>
+<span class="k">let</span> <span class="n">else_bb</span> <span class="o">=</span> <span class="n">append_block</span> <span class="n">context</span> <span class="s2">&quot;else&quot;</span> <span class="n">the_function</span> <span class="k">in</span>
+<span class="n">position_at_end</span> <span class="n">else_bb</span> <span class="n">builder</span><span class="o">;</span>
+<span class="k">let</span> <span class="n">else_val</span> <span class="o">=</span> <span class="n">codegen_expr</span> <span class="n">else_</span> <span class="k">in</span>
+
+<span class="c">(* Codegen of &#39;else&#39; can change the current block, update else_bb for the</span>
+<span class="c"> * phi. *)</span>
+<span class="k">let</span> <span class="n">new_else_bb</span> <span class="o">=</span> <span class="n">insertion_block</span> <span class="n">builder</span> <span class="k">in</span>
+</pre></div>
+</div>
+<p>Code generation for the ‘else’ block is basically identical to codegen
+for the ‘then’ block.</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(* Emit merge block. *)</span>
+<span class="k">let</span> <span class="n">merge_bb</span> <span class="o">=</span> <span class="n">append_block</span> <span class="n">context</span> <span class="s2">&quot;ifcont&quot;</span> <span class="n">the_function</span> <span class="k">in</span>
+<span class="n">position_at_end</span> <span class="n">merge_bb</span> <span class="n">builder</span><span class="o">;</span>
+<span class="k">let</span> <span class="n">incoming</span> <span class="o">=</span> <span class="o">[(</span><span class="n">then_val</span><span class="o">,</span> <span class="n">new_then_bb</span><span class="o">);</span> <span class="o">(</span><span class="n">else_val</span><span class="o">,</span> <span class="n">new_else_bb</span><span class="o">)]</span> <span class="k">in</span>
+<span class="k">let</span> <span class="n">phi</span> <span class="o">=</span> <span class="n">build_phi</span> <span class="n">incoming</span> <span class="s2">&quot;iftmp&quot;</span> <span class="n">builder</span> <span class="k">in</span>
+</pre></div>
+</div>
+<p>The first two lines here are now familiar: the first adds the “merge”
+block to the Function object. The second block changes the insertion
+point so that newly created code will go into the “merge” block. Once
+that is done, we need to create the PHI node and set up the block/value
+pairs for the PHI.</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(* Return to the start block to add the conditional branch. *)</span>
+<span class="n">position_at_end</span> <span class="n">start_bb</span> <span class="n">builder</span><span class="o">;</span>
+<span class="n">ignore</span> <span class="o">(</span><span class="n">build_cond_br</span> <span class="n">cond_val</span> <span class="n">then_bb</span> <span class="n">else_bb</span> <span class="n">builder</span><span class="o">);</span>
+</pre></div>
+</div>
+<p>Once the blocks are created, we can emit the conditional branch that
+chooses between them. Note that creating new blocks does not implicitly
+affect the IRBuilder, so it is still inserting into the block that the
+condition went into. This is why we needed to save the “start” block.</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(* Set a unconditional branch at the end of the &#39;then&#39; block and the</span>
+<span class="c"> * &#39;else&#39; block to the &#39;merge&#39; block. *)</span>
+<span class="n">position_at_end</span> <span class="n">new_then_bb</span> <span class="n">builder</span><span class="o">;</span> <span class="n">ignore</span> <span class="o">(</span><span class="n">build_br</span> <span class="n">merge_bb</span> <span class="n">builder</span><span class="o">);</span>
+<span class="n">position_at_end</span> <span class="n">new_else_bb</span> <span class="n">builder</span><span class="o">;</span> <span class="n">ignore</span> <span class="o">(</span><span class="n">build_br</span> <span class="n">merge_bb</span> <span class="n">builder</span><span class="o">);</span>
+
+<span class="c">(* Finally, set the builder to the end of the merge block. *)</span>
+<span class="n">position_at_end</span> <span class="n">merge_bb</span> <span class="n">builder</span><span class="o">;</span>
+
+<span class="n">phi</span>
+</pre></div>
+</div>
+<p>To finish off the blocks, we create an unconditional branch to the merge
+block. One interesting (and very important) aspect of the LLVM IR is
+that it <a class="reference external" href="../LangRef.html#functionstructure">requires all basic blocks to be
+“terminated”</a> with a <a class="reference external" href="../LangRef.html#terminators">control flow
+instruction</a> such as return or branch.
+This means that all control flow, <em>including fall throughs</em> must be made
+explicit in the LLVM IR. If you violate this rule, the verifier will
+emit an error.</p>
+<p>Finally, the CodeGen function returns the phi node as the value computed
+by the if/then/else expression. In our example above, this returned
+value will feed into the code for the top-level function, which will
+create the return instruction.</p>
+<p>Overall, we now have the ability to execute conditional code in
+Kaleidoscope. With this extension, Kaleidoscope is a fairly complete
+language that can calculate a wide variety of numeric functions. Next up
+we’ll add another useful expression that is familiar from non-functional
+languages…</p>
+</div>
+</div>
+<div class="section" id="for-loop-expression">
+<h2><a class="toc-backref" href="#id9">5.3. ‘for’ Loop Expression</a><a class="headerlink" href="#for-loop-expression" title="Permalink to this headline">¶</a></h2>
+<p>Now that we know how to add basic control flow constructs to the
+language, we have the tools to add more powerful things. Lets add
+something more aggressive, a ‘for’ expression:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">extern</span> <span class="n">putchard</span><span class="p">(</span><span class="n">char</span><span class="p">);</span>
+<span class="k">def</span> <span class="nf">printstar</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+  <span class="k">for</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">,</span> <span class="mf">1.0</span> <span class="ow">in</span>
+    <span class="n">putchard</span><span class="p">(</span><span class="mi">42</span><span class="p">);</span>  <span class="c1"># ascii 42 = &#39;*&#39;</span>
+
+<span class="c1"># print 100 &#39;*&#39; characters</span>
+<span class="n">printstar</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>This expression defines a new variable (“i” in this case) which iterates
+from a starting value, while the condition (“i &lt; n” in this case) is
+true, incrementing by an optional step value (“1.0” in this case). If
+the step value is omitted, it defaults to 1.0. While the loop is true,
+it executes its body expression. Because we don’t have anything better
+to return, we’ll just define the loop as always returning 0.0. In the
+future when we have mutable variables, it will get more useful.</p>
+<p>As before, lets talk about the changes that we need to Kaleidoscope to
+support this.</p>
+<div class="section" id="lexer-extensions-for-the-for-loop">
+<h3><a class="toc-backref" href="#id10">5.3.1. Lexer Extensions for the ‘for’ Loop</a><a class="headerlink" href="#lexer-extensions-for-the-for-loop" title="Permalink to this headline">¶</a></h3>
+<p>The lexer extensions are the same sort of thing as for if/then/else:</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="o">...</span> <span class="k">in</span> <span class="nn">Token</span><span class="p">.</span><span class="n">token</span> <span class="o">...</span>
+<span class="c">(* control *)</span>
+<span class="o">|</span> <span class="nc">If</span> <span class="o">|</span> <span class="nc">Then</span> <span class="o">|</span> <span class="nc">Else</span>
+<span class="o">|</span> <span class="nc">For</span> <span class="o">|</span> <span class="nn">In</span>
+
+<span class="p">...</span> <span class="n">in</span> <span class="nn">Lexer</span><span class="p">.</span><span class="n">lex_ident</span><span class="o">...</span>
+    <span class="k">match</span> <span class="nn">Buffer</span><span class="p">.</span><span class="n">contents</span> <span class="n">buffer</span> <span class="k">with</span>
+    <span class="o">|</span> <span class="s2">&quot;def&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Def</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+    <span class="o">|</span> <span class="s2">&quot;extern&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Extern</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+    <span class="o">|</span> <span class="s2">&quot;if&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">If</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+    <span class="o">|</span> <span class="s2">&quot;then&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Then</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+    <span class="o">|</span> <span class="s2">&quot;else&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Else</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+    <span class="o">|</span> <span class="s2">&quot;for&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">For</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+    <span class="o">|</span> <span class="s2">&quot;in&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">In</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+    <span class="o">|</span> <span class="n">id</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Ident</span> <span class="n">id</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="ast-extensions-for-the-for-loop">
+<h3><a class="toc-backref" href="#id11">5.3.2. AST Extensions for the ‘for’ Loop</a><a class="headerlink" href="#ast-extensions-for-the-for-loop" title="Permalink to this headline">¶</a></h3>
+<p>The AST variant is just as simple. It basically boils down to capturing
+the variable name and the constituent expressions in the node.</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="k">type</span> <span class="n">expr</span> <span class="o">=</span>
+  <span class="o">...</span>
+  <span class="c">(* variant for for/in. *)</span>
+  <span class="o">|</span> <span class="nc">For</span> <span class="k">of</span> <span class="kt">string</span> <span class="o">*</span> <span class="n">expr</span> <span class="o">*</span> <span class="n">expr</span> <span class="o">*</span> <span class="n">expr</span> <span class="n">option</span> <span class="o">*</span> <span class="n">expr</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="parser-extensions-for-the-for-loop">
+<h3><a class="toc-backref" href="#id12">5.3.3. Parser Extensions for the ‘for’ Loop</a><a class="headerlink" href="#parser-extensions-for-the-for-loop" title="Permalink to this headline">¶</a></h3>
+<p>The parser code is also fairly standard. The only interesting thing here
+is handling of the optional step value. The parser code handles it by
+checking to see if the second comma is present. If not, it sets the step
+value to null in the AST node:</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="k">let</span> <span class="k">rec</span> <span class="n">parse_primary</span> <span class="o">=</span> <span class="n">parser</span>
+  <span class="o">...</span>
+  <span class="c">(* forexpr</span>
+<span class="c">        ::= &#39;for&#39; identifier &#39;=&#39; expr &#39;,&#39; expr (&#39;,&#39; expr)? &#39;in&#39; expression *)</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">For</span><span class="o">;</span>
+       <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Ident</span> <span class="n">id</span> <span class="o">??</span> <span class="s2">&quot;expected identifier after for&quot;</span><span class="o">;</span>
+       <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="sc">&#39;=&#39;</span> <span class="o">??</span> <span class="s2">&quot;expected &#39;=&#39; after for&quot;</span><span class="o">;</span>
+       <span class="n">stream</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="k">begin</span> <span class="n">parser</span>
+        <span class="o">|</span> <span class="o">[&lt;</span>
+             <span class="n">start</span><span class="o">=</span><span class="n">parse_expr</span><span class="o">;</span>
+             <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="sc">&#39;,&#39;</span> <span class="o">??</span> <span class="s2">&quot;expected &#39;,&#39; after for&quot;</span><span class="o">;</span>
+             <span class="n">end_</span><span class="o">=</span><span class="n">parse_expr</span><span class="o">;</span>
+             <span class="n">stream</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+            <span class="k">let</span> <span class="n">step</span> <span class="o">=</span>
+              <span class="k">begin</span> <span class="n">parser</span>
+              <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="sc">&#39;,&#39;</span><span class="o">;</span> <span class="n">step</span><span class="o">=</span><span class="n">parse_expr</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="nc">Some</span> <span class="n">step</span>
+              <span class="o">|</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="nc">None</span>
+              <span class="k">end</span> <span class="n">stream</span>
+            <span class="k">in</span>
+            <span class="k">begin</span> <span class="n">parser</span>
+            <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">In</span><span class="o">;</span> <span class="n">body</span><span class="o">=</span><span class="n">parse_expr</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+                <span class="nn">Ast</span><span class="p">.</span><span class="nc">For</span> <span class="o">(</span><span class="n">id</span><span class="o">,</span> <span class="n">start</span><span class="o">,</span> <span class="n">end_</span><span class="o">,</span> <span class="n">step</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span>
+            <span class="o">|</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+                <span class="k">raise</span> <span class="o">(</span><span class="nn">Stream</span><span class="p">.</span><span class="nc">Error</span> <span class="s2">&quot;expected &#39;in&#39; after for&quot;</span><span class="o">)</span>
+            <span class="k">end</span> <span class="n">stream</span>
+        <span class="o">|</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+            <span class="k">raise</span> <span class="o">(</span><span class="nn">Stream</span><span class="p">.</span><span class="nc">Error</span> <span class="s2">&quot;expected &#39;=&#39; after for&quot;</span><span class="o">)</span>
+      <span class="k">end</span> <span class="n">stream</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="llvm-ir-for-the-for-loop">
+<h3><a class="toc-backref" href="#id13">5.3.4. LLVM IR for the ‘for’ Loop</a><a class="headerlink" href="#llvm-ir-for-the-for-loop" title="Permalink to this headline">¶</a></h3>
+<p>Now we get to the good part: the LLVM IR we want to generate for this
+thing. With the simple example above, we get this LLVM IR (note that
+this dump is generated with optimizations disabled for clarity):</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">declare</span> <span class="kt">double</span> <span class="vg">@putchard</span><span class="p">(</span><span class="kt">double</span><span class="p">)</span>
+
+<span class="k">define</span> <span class="kt">double</span> <span class="vg">@printstar</span><span class="p">(</span><span class="kt">double</span> <span class="nv">%n</span><span class="p">)</span> <span class="p">{</span>
+<span class="nl">entry:</span>
+        <span class="c">; initial value = 1.0 (inlined into phi)</span>
+  <span class="k">br</span> <span class="kt">label</span> <span class="nv">%loop</span>
+
+<span class="nl">loop:</span>    <span class="c">; preds = %loop, %entry</span>
+  <span class="nv">%i</span> <span class="p">=</span> <span class="k">phi</span> <span class="kt">double</span> <span class="p">[</span> <span class="m">1.000000e+00</span><span class="p">,</span> <span class="nv">%entry</span> <span class="p">],</span> <span class="p">[</span> <span class="nv">%nextvar</span><span class="p">,</span> <span class="nv">%loop</span> <span class="p">]</span>
+        <span class="c">; body</span>
+  <span class="nv">%calltmp</span> <span class="p">=</span> <span class="k">call</span> <span class="kt">double</span> <span class="vg">@putchard</span><span class="p">(</span><span class="kt">double</span> <span class="m">4.200000e+01</span><span class="p">)</span>
+        <span class="c">; increment</span>
+  <span class="nv">%nextvar</span> <span class="p">=</span> <span class="k">fadd</span> <span class="kt">double</span> <span class="nv">%i</span><span class="p">,</span> <span class="m">1.000000e+00</span>
+
+        <span class="c">; termination test</span>
+  <span class="nv">%cmptmp</span> <span class="p">=</span> <span class="k">fcmp</span> <span class="k">ult</span> <span class="kt">double</span> <span class="nv">%i</span><span class="p">,</span> <span class="nv">%n</span>
+  <span class="nv">%booltmp</span> <span class="p">=</span> <span class="k">uitofp</span> <span class="k">i1</span> <span class="nv">%cmptmp</span> <span class="k">to</span> <span class="kt">double</span>
+  <span class="nv">%loopcond</span> <span class="p">=</span> <span class="k">fcmp</span> <span class="k">one</span> <span class="kt">double</span> <span class="nv">%booltmp</span><span class="p">,</span> <span class="m">0.000000e+00</span>
+  <span class="k">br</span> <span class="k">i1</span> <span class="nv">%loopcond</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%loop</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%afterloop</span>
+
+<span class="nl">afterloop:</span>    <span class="c">; preds = %loop</span>
+        <span class="c">; loop always returns 0.0</span>
+  <span class="k">ret</span> <span class="kt">double</span> <span class="m">0.000000e+00</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This loop contains all the same constructs we saw before: a phi node,
+several expressions, and some basic blocks. Lets see how this fits
+together.</p>
+</div>
+<div class="section" id="code-generation-for-the-for-loop">
+<h3><a class="toc-backref" href="#id14">5.3.5. Code Generation for the ‘for’ Loop</a><a class="headerlink" href="#code-generation-for-the-for-loop" title="Permalink to this headline">¶</a></h3>
+<p>The first part of Codegen is very simple: we just output the start
+expression for the loop value:</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="k">let</span> <span class="k">rec</span> <span class="n">codegen_expr</span> <span class="o">=</span> <span class="k">function</span>
+  <span class="o">...</span>
+  <span class="o">|</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">For</span> <span class="o">(</span><span class="n">var_name</span><span class="o">,</span> <span class="n">start</span><span class="o">,</span> <span class="n">end_</span><span class="o">,</span> <span class="n">step</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span> <span class="o">-&gt;</span>
+      <span class="c">(* Emit the start code first, without &#39;variable&#39; in scope. *)</span>
+      <span class="k">let</span> <span class="n">start_val</span> <span class="o">=</span> <span class="n">codegen_expr</span> <span class="n">start</span> <span class="k">in</span>
+</pre></div>
+</div>
+<p>With this out of the way, the next step is to set up the LLVM basic
+block for the start of the loop body. In the case above, the whole loop
+body is one block, but remember that the body code itself could consist
+of multiple blocks (e.g. if it contains an if/then/else or a for/in
+expression).</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(* Make the new basic block for the loop header, inserting after current</span>
+<span class="c"> * block. *)</span>
+<span class="k">let</span> <span class="n">preheader_bb</span> <span class="o">=</span> <span class="n">insertion_block</span> <span class="n">builder</span> <span class="k">in</span>
+<span class="k">let</span> <span class="n">the_function</span> <span class="o">=</span> <span class="n">block_parent</span> <span class="n">preheader_bb</span> <span class="k">in</span>
+<span class="k">let</span> <span class="n">loop_bb</span> <span class="o">=</span> <span class="n">append_block</span> <span class="n">context</span> <span class="s2">&quot;loop&quot;</span> <span class="n">the_function</span> <span class="k">in</span>
+
+<span class="c">(* Insert an explicit fall through from the current block to the</span>
+<span class="c"> * loop_bb. *)</span>
+<span class="n">ignore</span> <span class="o">(</span><span class="n">build_br</span> <span class="n">loop_bb</span> <span class="n">builder</span><span class="o">);</span>
+</pre></div>
+</div>
+<p>This code is similar to what we saw for if/then/else. Because we will
+need it to create the Phi node, we remember the block that falls through
+into the loop. Once we have that, we create the actual block that starts
+the loop and create an unconditional branch for the fall-through between
+the two blocks.</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(* Start insertion in loop_bb. *)</span>
+<span class="n">position_at_end</span> <span class="n">loop_bb</span> <span class="n">builder</span><span class="o">;</span>
+
+<span class="c">(* Start the PHI node with an entry for start. *)</span>
+<span class="k">let</span> <span class="n">variable</span> <span class="o">=</span> <span class="n">build_phi</span> <span class="o">[(</span><span class="n">start_val</span><span class="o">,</span> <span class="n">preheader_bb</span><span class="o">)]</span> <span class="n">var_name</span> <span class="n">builder</span> <span class="k">in</span>
+</pre></div>
+</div>
+<p>Now that the “preheader” for the loop is set up, we switch to emitting
+code for the loop body. To begin with, we move the insertion point and
+create the PHI node for the loop induction variable. Since we already
+know the incoming value for the starting value, we add it to the Phi
+node. Note that the Phi will eventually get a second value for the
+backedge, but we can’t set it up yet (because it doesn’t exist!).</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(* Within the loop, the variable is defined equal to the PHI node. If it</span>
+<span class="c"> * shadows an existing variable, we have to restore it, so save it</span>
+<span class="c"> * now. *)</span>
+<span class="k">let</span> <span class="n">old_val</span> <span class="o">=</span>
+  <span class="k">try</span> <span class="nc">Some</span> <span class="o">(</span><span class="nn">Hashtbl</span><span class="p">.</span><span class="n">find</span> <span class="n">named_values</span> <span class="n">var_name</span><span class="o">)</span> <span class="k">with</span> <span class="nc">Not_found</span> <span class="o">-&gt;</span> <span class="nc">None</span>
+<span class="k">in</span>
+<span class="nn">Hashtbl</span><span class="p">.</span><span class="n">add</span> <span class="n">named_values</span> <span class="n">var_name</span> <span class="n">variable</span><span class="o">;</span>
+
+<span class="c">(* Emit the body of the loop.  This, like any other expr, can change the</span>
+<span class="c"> * current BB.  Note that we ignore the value computed by the body, but</span>
+<span class="c"> * don&#39;t allow an error *)</span>
+<span class="n">ignore</span> <span class="o">(</span><span class="n">codegen_expr</span> <span class="n">body</span><span class="o">);</span>
+</pre></div>
+</div>
+<p>Now the code starts to get more interesting. Our ‘for’ loop introduces a
+new variable to the symbol table. This means that our symbol table can
+now contain either function arguments or loop variables. To handle this,
+before we codegen the body of the loop, we add the loop variable as the
+current value for its name. Note that it is possible that there is a
+variable of the same name in the outer scope. It would be easy to make
+this an error (emit an error and return null if there is already an
+entry for VarName) but we choose to allow shadowing of variables. In
+order to handle this correctly, we remember the Value that we are
+potentially shadowing in <code class="docutils literal"><span class="pre">old_val</span></code> (which will be None if there is no
+shadowed variable).</p>
+<p>Once the loop variable is set into the symbol table, the code
+recursively codegen’s the body. This allows the body to use the loop
+variable: any references to it will naturally find it in the symbol
+table.</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(* Emit the step value. *)</span>
+<span class="k">let</span> <span class="n">step_val</span> <span class="o">=</span>
+  <span class="k">match</span> <span class="n">step</span> <span class="k">with</span>
+  <span class="o">|</span> <span class="nc">Some</span> <span class="n">step</span> <span class="o">-&gt;</span> <span class="n">codegen_expr</span> <span class="n">step</span>
+  <span class="c">(* If not specified, use 1.0. *)</span>
+  <span class="o">|</span> <span class="nc">None</span> <span class="o">-&gt;</span> <span class="n">const_float</span> <span class="n">double_type</span> <span class="mi">1</span><span class="o">.</span><span class="mi">0</span>
+<span class="k">in</span>
+
+<span class="k">let</span> <span class="n">next_var</span> <span class="o">=</span> <span class="n">build_add</span> <span class="n">variable</span> <span class="n">step_val</span> <span class="s2">&quot;nextvar&quot;</span> <span class="n">builder</span> <span class="k">in</span>
+</pre></div>
+</div>
+<p>Now that the body is emitted, we compute the next value of the iteration
+variable by adding the step value, or 1.0 if it isn’t present.
+‘<code class="docutils literal"><span class="pre">next_var</span></code>’ will be the value of the loop variable on the next
+iteration of the loop.</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(* Compute the end condition. *)</span>
+<span class="k">let</span> <span class="n">end_cond</span> <span class="o">=</span> <span class="n">codegen_expr</span> <span class="n">end_</span> <span class="k">in</span>
+
+<span class="c">(* Convert condition to a bool by comparing equal to 0.0. *)</span>
+<span class="k">let</span> <span class="n">zero</span> <span class="o">=</span> <span class="n">const_float</span> <span class="n">double_type</span> <span class="mi">0</span><span class="o">.</span><span class="mi">0</span> <span class="k">in</span>
+<span class="k">let</span> <span class="n">end_cond</span> <span class="o">=</span> <span class="n">build_fcmp</span> <span class="nn">Fcmp</span><span class="p">.</span><span class="nc">One</span> <span class="n">end_cond</span> <span class="n">zero</span> <span class="s2">&quot;loopcond&quot;</span> <span class="n">builder</span> <span class="k">in</span>
+</pre></div>
+</div>
+<p>Finally, we evaluate the exit value of the loop, to determine whether
+the loop should exit. This mirrors the condition evaluation for the
+if/then/else statement.</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(* Create the &quot;after loop&quot; block and insert it. *)</span>
+<span class="k">let</span> <span class="n">loop_end_bb</span> <span class="o">=</span> <span class="n">insertion_block</span> <span class="n">builder</span> <span class="k">in</span>
+<span class="k">let</span> <span class="n">after_bb</span> <span class="o">=</span> <span class="n">append_block</span> <span class="n">context</span> <span class="s2">&quot;afterloop&quot;</span> <span class="n">the_function</span> <span class="k">in</span>
+
+<span class="c">(* Insert the conditional branch into the end of loop_end_bb. *)</span>
+<span class="n">ignore</span> <span class="o">(</span><span class="n">build_cond_br</span> <span class="n">end_cond</span> <span class="n">loop_bb</span> <span class="n">after_bb</span> <span class="n">builder</span><span class="o">);</span>
+
+<span class="c">(* Any new code will be inserted in after_bb. *)</span>
+<span class="n">position_at_end</span> <span class="n">after_bb</span> <span class="n">builder</span><span class="o">;</span>
+</pre></div>
+</div>
+<p>With the code for the body of the loop complete, we just need to finish
+up the control flow for it. This code remembers the end block (for the
+phi node), then creates the block for the loop exit (“afterloop”). Based
+on the value of the exit condition, it creates a conditional branch that
+chooses between executing the loop again and exiting the loop. Any
+future code is emitted in the “afterloop” block, so it sets the
+insertion position to it.</p>
+<div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(* Add a new entry to the PHI node for the backedge. *)</span>
+<span class="n">add_incoming</span> <span class="o">(</span><span class="n">next_var</span><span class="o">,</span> <span class="n">loop_end_bb</span><span class="o">)</span> <span class="n">variable</span><span class="o">;</span>
+
+<span class="c">(* Restore the unshadowed variable. *)</span>
+<span class="k">begin</span> <span class="k">match</span> <span class="n">old_val</span> <span class="k">with</span>
+<span class="o">|</span> <span class="nc">Some</span> <span class="n">old_val</span> <span class="o">-&gt;</span> <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">add</span> <span class="n">named_values</span> <span class="n">var_name</span> <span class="n">old_val</span>
+<span class="o">|</span> <span class="nc">None</span> <span class="o">-&gt;</span> <span class="bp">()</span>
+<span class="k">end</span><span class="o">;</span>
+
+<span class="c">(* for expr always returns 0.0. *)</span>
+<span class="n">const_null</span> <span class="n">double_type</span>
+</pre></div>
+</div>
+<p>The final code handles various cleanups: now that we have the
+“<code class="docutils literal"><span class="pre">next_var</span></code>” value, we can add the incoming value to the loop PHI
+node. After that, we remove the loop variable from the symbol table, so
+that it isn’t in scope after the for loop. Finally, code generation of
+the for loop always returns 0.0, so that is what we return from
+<code class="docutils literal"><span class="pre">Codegen.codegen_expr</span></code>.</p>
+<p>With this, we conclude the “adding control flow to Kaleidoscope” chapter
+of the tutorial. In this chapter we added two control flow constructs,
+and used them to motivate a couple of aspects of the LLVM IR that are
+important for front-end implementors to know. In the next chapter of our
+saga, we will get a bit crazier and add <a class="reference external" href="OCamlLangImpl6.html">user-defined
+operators</a> to our poor innocent language.</p>
+</div>
+</div>
+<div class="section" id="full-code-listing">
+<h2><a class="toc-backref" href="#id15">5.4. Full Code Listing</a><a class="headerlink" href="#full-code-listing" title="Permalink to this headline">¶</a></h2>
+<p>Here is the complete code listing for our running example, enhanced with
+the if/then/else and for expressions.. To build this example, use:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="c1"># Compile</span>
+ocamlbuild toy.byte
+<span class="c1"># Run</span>
+./toy.byte
+</pre></div>
+</div>
+<p>Here is the code:</p>
+<dl class="docutils">
+<dt>_tags:</dt>
+<dd><div class="first last highlight-default"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="p">{</span><span class="n">lexer</span><span class="p">,</span><span class="n">parser</span><span class="p">}</span><span class="o">.</span><span class="n">ml</span><span class="o">&gt;</span><span class="p">:</span> <span class="n">use_camlp4</span><span class="p">,</span> <span class="n">pp</span><span class="p">(</span><span class="n">camlp4of</span><span class="p">)</span>
+<span class="o">&lt;*.</span><span class="p">{</span><span class="n">byte</span><span class="p">,</span><span class="n">native</span><span class="p">}</span><span class="o">&gt;</span><span class="p">:</span> <span class="n">g</span><span class="o">++</span><span class="p">,</span> <span class="n">use_llvm</span><span class="p">,</span> <span class="n">use_llvm_analysis</span>
+<span class="o">&lt;*.</span><span class="p">{</span><span class="n">byte</span><span class="p">,</span><span class="n">native</span><span class="p">}</span><span class="o">&gt;</span><span class="p">:</span> <span class="n">use_llvm_executionengine</span><span class="p">,</span> <span class="n">use_llvm_target</span>
+<span class="o">&lt;*.</span><span class="p">{</span><span class="n">byte</span><span class="p">,</span><span class="n">native</span><span class="p">}</span><span class="o">&gt;</span><span class="p">:</span> <span class="n">use_llvm_scalar_opts</span><span class="p">,</span> <span class="n">use_bindings</span>
+</pre></div>
+</div>
+</dd>
+<dt>myocamlbuild.ml:</dt>
+<dd><div class="first last highlight-ocaml"><div class="highlight"><pre><span></span><span class="k">open</span> <span class="nc">Ocamlbuild_plugin</span><span class="o">;;</span>
+
+<span class="n">ocaml_lib</span> <span class="o">~</span><span class="n">extern</span><span class="o">:</span><span class="bp">true</span> <span class="s2">&quot;llvm&quot;</span><span class="o">;;</span>
+<span class="n">ocaml_lib</span> <span class="o">~</span><span class="n">extern</span><span class="o">:</span><span class="bp">true</span> <span class="s2">&quot;llvm_analysis&quot;</span><span class="o">;;</span>
+<span class="n">ocaml_lib</span> <span class="o">~</span><span class="n">extern</span><span class="o">:</span><span class="bp">true</span> <span class="s2">&quot;llvm_executionengine&quot;</span><span class="o">;;</span>
+<span class="n">ocaml_lib</span> <span class="o">~</span><span class="n">extern</span><span class="o">:</span><span class="bp">true</span> <span class="s2">&quot;llvm_target&quot;</span><span class="o">;;</span>
+<span class="n">ocaml_lib</span> <span class="o">~</span><span class="n">extern</span><span class="o">:</span><span class="bp">true</span> <span class="s2">&quot;llvm_scalar_opts&quot;</span><span class="o">;;</span>
+
+<span class="n">flag</span> <span class="o">[</span><span class="s2">&quot;link&quot;</span><span class="o">;</span> <span class="s2">&quot;ocaml&quot;</span><span class="o">;</span> <span class="s2">&quot;g++&quot;</span><span class="o">]</span> <span class="o">(</span><span class="nc">S</span><span class="o">[</span><span class="nc">A</span><span class="s2">&quot;-cc&quot;</span><span class="o">;</span> <span class="nc">A</span><span class="s2">&quot;g++&quot;</span><span class="o">]);;</span>
+<span class="n">dep</span> <span class="o">[</span><span class="s2">&quot;link&quot;</span><span class="o">;</span> <span class="s2">&quot;ocaml&quot;</span><span class="o">;</span> <span class="s2">&quot;use_bindings&quot;</span><span class="o">]</span> <span class="o">[</span><span class="s2">&quot;bindings.o&quot;</span><span class="o">];;</span>
+</pre></div>
+</div>
+</dd>
+<dt>token.ml:</dt>
+<dd><div class="first last highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(*===----------------------------------------------------------------------===</span>
+<span class="c"> * Lexer Tokens</span>
+<span class="c"> *===----------------------------------------------------------------------===*)</span>
+
+<span class="c">(* The lexer returns these &#39;Kwd&#39; if it is an unknown character, otherwise one of</span>
+<span class="c"> * these others for known things. *)</span>
+<span class="k">type</span> <span class="n">token</span> <span class="o">=</span>
+  <span class="c">(* commands *)</span>
+  <span class="o">|</span> <span class="nc">Def</span> <span class="o">|</span> <span class="nc">Extern</span>
+
+  <span class="c">(* primary *)</span>
+  <span class="o">|</span> <span class="nc">Ident</span> <span class="k">of</span> <span class="kt">string</span> <span class="o">|</span> <span class="nc">Number</span> <span class="k">of</span> <span class="kt">float</span>
+
+  <span class="c">(* unknown *)</span>
+  <span class="o">|</span> <span class="nc">Kwd</span> <span class="k">of</span> <span class="kt">char</span>
+
+  <span class="c">(* control *)</span>
+  <span class="o">|</span> <span class="nc">If</span> <span class="o">|</span> <span class="nc">Then</span> <span class="o">|</span> <span class="nc">Else</span>
+  <span class="o">|</span> <span class="nc">For</span> <span class="o">|</span> <span class="nc">In</span>
+</pre></div>
+</div>
+</dd>
+<dt>lexer.ml:</dt>
+<dd><div class="first last highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(*===----------------------------------------------------------------------===</span>
+<span class="c"> * Lexer</span>
+<span class="c"> *===----------------------------------------------------------------------===*)</span>
+
+<span class="k">let</span> <span class="k">rec</span> <span class="n">lex</span> <span class="o">=</span> <span class="n">parser</span>
+  <span class="c">(* Skip any whitespace. *)</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span> <span class="o">(</span><span class="sc">&#39; &#39;</span> <span class="o">|</span> <span class="sc">&#39;\n&#39;</span> <span class="o">|</span> <span class="sc">&#39;\r&#39;</span> <span class="o">|</span> <span class="sc">&#39;\t&#39;</span><span class="o">);</span> <span class="n">stream</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="n">lex</span> <span class="n">stream</span>
+
+  <span class="c">(* identifier: [a-zA-Z][a-zA-Z0-9] *)</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span> <span class="o">(</span><span class="sc">&#39;A&#39;</span> <span class="o">..</span> <span class="sc">&#39;Z&#39;</span> <span class="o">|</span> <span class="sc">&#39;a&#39;</span> <span class="o">..</span> <span class="sc">&#39;z&#39;</span> <span class="k">as</span> <span class="n">c</span><span class="o">);</span> <span class="n">stream</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="k">let</span> <span class="n">buffer</span> <span class="o">=</span> <span class="nn">Buffer</span><span class="p">.</span><span class="n">create</span> <span class="mi">1</span> <span class="k">in</span>
+      <span class="nn">Buffer</span><span class="p">.</span><span class="n">add_char</span> <span class="n">buffer</span> <span class="n">c</span><span class="o">;</span>
+      <span class="n">lex_ident</span> <span class="n">buffer</span> <span class="n">stream</span>
+
+  <span class="c">(* number: [0-9.]+ *)</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span> <span class="o">(</span><span class="sc">&#39;0&#39;</span> <span class="o">..</span> <span class="sc">&#39;9&#39;</span> <span class="k">as</span> <span class="n">c</span><span class="o">);</span> <span class="n">stream</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="k">let</span> <span class="n">buffer</span> <span class="o">=</span> <span class="nn">Buffer</span><span class="p">.</span><span class="n">create</span> <span class="mi">1</span> <span class="k">in</span>
+      <span class="nn">Buffer</span><span class="p">.</span><span class="n">add_char</span> <span class="n">buffer</span> <span class="n">c</span><span class="o">;</span>
+      <span class="n">lex_number</span> <span class="n">buffer</span> <span class="n">stream</span>
+
+  <span class="c">(* Comment until end of line. *)</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span> <span class="o">(</span><span class="sc">&#39;#&#39;</span><span class="o">);</span> <span class="n">stream</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="n">lex_comment</span> <span class="n">stream</span>
+
+  <span class="c">(* Otherwise, just return the character as its ascii value. *)</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="n">c</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="n">c</span><span class="o">;</span> <span class="n">lex</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+
+  <span class="c">(* end of stream. *)</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span>
+
+<span class="ow">and</span> <span class="n">lex_number</span> <span class="n">buffer</span> <span class="o">=</span> <span class="n">parser</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span> <span class="o">(</span><span class="sc">&#39;0&#39;</span> <span class="o">..</span> <span class="sc">&#39;9&#39;</span> <span class="o">|</span> <span class="sc">&#39;.&#39;</span> <span class="k">as</span> <span class="n">c</span><span class="o">);</span> <span class="n">stream</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="nn">Buffer</span><span class="p">.</span><span class="n">add_char</span> <span class="n">buffer</span> <span class="n">c</span><span class="o">;</span>
+      <span class="n">lex_number</span> <span class="n">buffer</span> <span class="n">stream</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="n">stream</span><span class="o">=</span><span class="n">lex</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Number</span> <span class="o">(</span><span class="n">float_of_string</span> <span class="o">(</span><span class="nn">Buffer</span><span class="p">.</span><span class="n">contents</span> <span class="n">buffer</span><span class="o">));</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+
+<span class="ow">and</span> <span class="n">lex_ident</span> <span class="n">buffer</span> <span class="o">=</span> <span class="n">parser</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span> <span class="o">(</span><span class="sc">&#39;A&#39;</span> <span class="o">..</span> <span class="sc">&#39;Z&#39;</span> <span class="o">|</span> <span class="sc">&#39;a&#39;</span> <span class="o">..</span> <span class="sc">&#39;z&#39;</span> <span class="o">|</span> <span class="sc">&#39;0&#39;</span> <span class="o">..</span> <span class="sc">&#39;9&#39;</span> <span class="k">as</span> <span class="n">c</span><span class="o">);</span> <span class="n">stream</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="nn">Buffer</span><span class="p">.</span><span class="n">add_char</span> <span class="n">buffer</span> <span class="n">c</span><span class="o">;</span>
+      <span class="n">lex_ident</span> <span class="n">buffer</span> <span class="n">stream</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="n">stream</span><span class="o">=</span><span class="n">lex</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="k">match</span> <span class="nn">Buffer</span><span class="p">.</span><span class="n">contents</span> <span class="n">buffer</span> <span class="k">with</span>
+      <span class="o">|</span> <span class="s2">&quot;def&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Def</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+      <span class="o">|</span> <span class="s2">&quot;extern&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Extern</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+      <span class="o">|</span> <span class="s2">&quot;if&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">If</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+      <span class="o">|</span> <span class="s2">&quot;then&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Then</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+      <span class="o">|</span> <span class="s2">&quot;else&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Else</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+      <span class="o">|</span> <span class="s2">&quot;for&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">For</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+      <span class="o">|</span> <span class="s2">&quot;in&quot;</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">In</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+      <span class="o">|</span> <span class="n">id</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Ident</span> <span class="n">id</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span>
+
+<span class="ow">and</span> <span class="n">lex_comment</span> <span class="o">=</span> <span class="n">parser</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span> <span class="o">(</span><span class="sc">&#39;\n&#39;</span><span class="o">);</span> <span class="n">stream</span><span class="o">=</span><span class="n">lex</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="n">stream</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="n">c</span><span class="o">;</span> <span class="n">e</span><span class="o">=</span><span class="n">lex_comment</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="n">e</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span>
+</pre></div>
+</div>
+</dd>
+<dt>ast.ml:</dt>
+<dd><div class="first last highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(*===----------------------------------------------------------------------===</span>
+<span class="c"> * Abstract Syntax Tree (aka Parse Tree)</span>
+<span class="c"> *===----------------------------------------------------------------------===*)</span>
+
+<span class="c">(* expr - Base type for all expression nodes. *)</span>
+<span class="k">type</span> <span class="n">expr</span> <span class="o">=</span>
+  <span class="c">(* variant for numeric literals like &quot;1.0&quot;. *)</span>
+  <span class="o">|</span> <span class="nc">Number</span> <span class="k">of</span> <span class="kt">float</span>
+
+  <span class="c">(* variant for referencing a variable, like &quot;a&quot;. *)</span>
+  <span class="o">|</span> <span class="nc">Variable</span> <span class="k">of</span> <span class="kt">string</span>
+
+  <span class="c">(* variant for a binary operator. *)</span>
+  <span class="o">|</span> <span class="nc">Binary</span> <span class="k">of</span> <span class="kt">char</span> <span class="o">*</span> <span class="n">expr</span> <span class="o">*</span> <span class="n">expr</span>
+
+  <span class="c">(* variant for function calls. *)</span>
+  <span class="o">|</span> <span class="nc">Call</span> <span class="k">of</span> <span class="kt">string</span> <span class="o">*</span> <span class="n">expr</span> <span class="kt">array</span>
+
+  <span class="c">(* variant for if/then/else. *)</span>
+  <span class="o">|</span> <span class="nc">If</span> <span class="k">of</span> <span class="n">expr</span> <span class="o">*</span> <span class="n">expr</span> <span class="o">*</span> <span class="n">expr</span>
+
+  <span class="c">(* variant for for/in. *)</span>
+  <span class="o">|</span> <span class="nc">For</span> <span class="k">of</span> <span class="kt">string</span> <span class="o">*</span> <span class="n">expr</span> <span class="o">*</span> <span class="n">expr</span> <span class="o">*</span> <span class="n">expr</span> <span class="n">option</span> <span class="o">*</span> <span class="n">expr</span>
+
+<span class="c">(* proto - This type represents the &quot;prototype&quot; for a function, which captures</span>
+<span class="c"> * its name, and its argument names (thus implicitly the number of arguments the</span>
+<span class="c"> * function takes). *)</span>
+<span class="k">type</span> <span class="n">proto</span> <span class="o">=</span> <span class="nc">Prototype</span> <span class="k">of</span> <span class="kt">string</span> <span class="o">*</span> <span class="kt">string</span> <span class="kt">array</span>
+
+<span class="c">(* func - This type represents a function definition itself. *)</span>
+<span class="k">type</span> <span class="n">func</span> <span class="o">=</span> <span class="nc">Function</span> <span class="k">of</span> <span class="n">proto</span> <span class="o">*</span> <span class="n">expr</span>
+</pre></div>
+</div>
+</dd>
+<dt>parser.ml:</dt>
+<dd><div class="first last highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(*===---------------------------------------------------------------------===</span>
+<span class="c"> * Parser</span>
+<span class="c"> *===---------------------------------------------------------------------===*)</span>
+
+<span class="c">(* binop_precedence - This holds the precedence for each binary operator that is</span>
+<span class="c"> * defined *)</span>
+<span class="k">let</span> <span class="n">binop_precedence</span><span class="o">:(</span><span class="kt">char</span><span class="o">,</span> <span class="kt">int</span><span class="o">)</span> <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">t</span> <span class="o">=</span> <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">create</span> <span class="mi">10</span>
+
+<span class="c">(* precedence - Get the precedence of the pending binary operator token. *)</span>
+<span class="k">let</span> <span class="n">precedence</span> <span class="n">c</span> <span class="o">=</span> <span class="k">try</span> <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">find</span> <span class="n">binop_precedence</span> <span class="n">c</span> <span class="k">with</span> <span class="nc">Not_found</span> <span class="o">-&gt;</span> <span class="o">-</span><span class="mi">1</span>
+
+<span class="c">(* primary</span>
+<span class="c"> *   ::= identifier</span>
+<span class="c"> *   ::= numberexpr</span>
+<span class="c"> *   ::= parenexpr</span>
+<span class="c"> *   ::= ifexpr</span>
+<span class="c"> *   ::= forexpr *)</span>
+<span class="k">let</span> <span class="k">rec</span> <span class="n">parse_primary</span> <span class="o">=</span> <span class="n">parser</span>
+  <span class="c">(* numberexpr ::= number *)</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Number</span> <span class="n">n</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">Number</span> <span class="n">n</span>
+
+  <span class="c">(* parenexpr ::= &#39;(&#39; expression &#39;)&#39; *)</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="sc">&#39;(&#39;</span><span class="o">;</span> <span class="n">e</span><span class="o">=</span><span class="n">parse_expr</span><span class="o">;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="sc">&#39;)&#39;</span> <span class="o">??</span> <span class="s2">&quot;expected &#39;)&#39;&quot;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="n">e</span>
+
+  <span class="c">(* identifierexpr</span>
+<span class="c">   *   ::= identifier</span>
+<span class="c">   *   ::= identifier &#39;(&#39; argumentexpr &#39;)&#39; *)</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Ident</span> <span class="n">id</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="k">let</span> <span class="k">rec</span> <span class="n">parse_args</span> <span class="n">accumulator</span> <span class="o">=</span> <span class="n">parser</span>
+        <span class="o">|</span> <span class="o">[&lt;</span> <span class="n">e</span><span class="o">=</span><span class="n">parse_expr</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+            <span class="k">begin</span> <span class="n">parser</span>
+              <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="sc">&#39;,&#39;</span><span class="o">;</span> <span class="n">e</span><span class="o">=</span><span class="n">parse_args</span> <span class="o">(</span><span class="n">e</span> <span class="o">::</span> <span class="n">accumulator</span><span class="o">)</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="n">e</span>
+              <span class="o">|</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="n">e</span> <span class="o">::</span> <span class="n">accumulator</span>
+            <span class="k">end</span> <span class="n">stream</span>
+        <span class="o">|</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="n">accumulator</span>
+      <span class="k">in</span>
+      <span class="k">let</span> <span class="k">rec</span> <span class="n">parse_ident</span> <span class="n">id</span> <span class="o">=</span> <span class="n">parser</span>
+        <span class="c">(* Call. *)</span>
+        <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="sc">&#39;(&#39;</span><span class="o">;</span>
+             <span class="n">args</span><span class="o">=</span><span class="n">parse_args</span> <span class="bp">[]</span><span class="o">;</span>
+             <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="sc">&#39;)&#39;</span> <span class="o">??</span> <span class="s2">&quot;expected &#39;)&#39;&quot;</span><span class="o">&gt;]</span> <span class="o">-&gt;</span>
+            <span class="nn">Ast</span><span class="p">.</span><span class="nc">Call</span> <span class="o">(</span><span class="n">id</span><span class="o">,</span> <span class="nn">Array</span><span class="p">.</span><span class="n">of_list</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">rev</span> <span class="n">args</span><span class="o">))</span>
+
+        <span class="c">(* Simple variable ref. *)</span>
+        <span class="o">|</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">Variable</span> <span class="n">id</span>
+      <span class="k">in</span>
+      <span class="n">parse_ident</span> <span class="n">id</span> <span class="n">stream</span>
+
+  <span class="c">(* ifexpr ::= &#39;if&#39; expr &#39;then&#39; expr &#39;else&#39; expr *)</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">If</span><span class="o">;</span> <span class="n">c</span><span class="o">=</span><span class="n">parse_expr</span><span class="o">;</span>
+       <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Then</span> <span class="o">??</span> <span class="s2">&quot;expected &#39;then&#39;&quot;</span><span class="o">;</span> <span class="n">t</span><span class="o">=</span><span class="n">parse_expr</span><span class="o">;</span>
+       <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Else</span> <span class="o">??</span> <span class="s2">&quot;expected &#39;else&#39;&quot;</span><span class="o">;</span> <span class="n">e</span><span class="o">=</span><span class="n">parse_expr</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="nn">Ast</span><span class="p">.</span><span class="nc">If</span> <span class="o">(</span><span class="n">c</span><span class="o">,</span> <span class="n">t</span><span class="o">,</span> <span class="n">e</span><span class="o">)</span>
+
+  <span class="c">(* forexpr</span>
+<span class="c">        ::= &#39;for&#39; identifier &#39;=&#39; expr &#39;,&#39; expr (&#39;,&#39; expr)? &#39;in&#39; expression *)</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">For</span><span class="o">;</span>
+       <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Ident</span> <span class="n">id</span> <span class="o">??</span> <span class="s2">&quot;expected identifier after for&quot;</span><span class="o">;</span>
+       <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="sc">&#39;=&#39;</span> <span class="o">??</span> <span class="s2">&quot;expected &#39;=&#39; after for&quot;</span><span class="o">;</span>
+       <span class="n">stream</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="k">begin</span> <span class="n">parser</span>
+        <span class="o">|</span> <span class="o">[&lt;</span>
+             <span class="n">start</span><span class="o">=</span><span class="n">parse_expr</span><span class="o">;</span>
+             <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="sc">&#39;,&#39;</span> <span class="o">??</span> <span class="s2">&quot;expected &#39;,&#39; after for&quot;</span><span class="o">;</span>
+             <span class="n">end_</span><span class="o">=</span><span class="n">parse_expr</span><span class="o">;</span>
+             <span class="n">stream</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+            <span class="k">let</span> <span class="n">step</span> <span class="o">=</span>
+              <span class="k">begin</span> <span class="n">parser</span>
+              <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="sc">&#39;,&#39;</span><span class="o">;</span> <span class="n">step</span><span class="o">=</span><span class="n">parse_expr</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="nc">Some</span> <span class="n">step</span>
+              <span class="o">|</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="nc">None</span>
+              <span class="k">end</span> <span class="n">stream</span>
+            <span class="k">in</span>
+            <span class="k">begin</span> <span class="n">parser</span>
+            <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">In</span><span class="o">;</span> <span class="n">body</span><span class="o">=</span><span class="n">parse_expr</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+                <span class="nn">Ast</span><span class="p">.</span><span class="nc">For</span> <span class="o">(</span><span class="n">id</span><span class="o">,</span> <span class="n">start</span><span class="o">,</span> <span class="n">end_</span><span class="o">,</span> <span class="n">step</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span>
+            <span class="o">|</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+                <span class="k">raise</span> <span class="o">(</span><span class="nn">Stream</span><span class="p">.</span><span class="nc">Error</span> <span class="s2">&quot;expected &#39;in&#39; after for&quot;</span><span class="o">)</span>
+            <span class="k">end</span> <span class="n">stream</span>
+        <span class="o">|</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+            <span class="k">raise</span> <span class="o">(</span><span class="nn">Stream</span><span class="p">.</span><span class="nc">Error</span> <span class="s2">&quot;expected &#39;=&#39; after for&quot;</span><span class="o">)</span>
+      <span class="k">end</span> <span class="n">stream</span>
+
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">(</span><span class="nn">Stream</span><span class="p">.</span><span class="nc">Error</span> <span class="s2">&quot;unknown token when expecting an expression.&quot;</span><span class="o">)</span>
+
+<span class="c">(* binoprhs</span>
+<span class="c"> *   ::= (&#39;+&#39; primary)* *)</span>
+<span class="ow">and</span> <span class="n">parse_bin_rhs</span> <span class="n">expr_prec</span> <span class="n">lhs</span> <span class="n">stream</span> <span class="o">=</span>
+  <span class="k">match</span> <span class="nn">Stream</span><span class="p">.</span><span class="n">peek</span> <span class="n">stream</span> <span class="k">with</span>
+  <span class="c">(* If this is a binop, find its precedence. *)</span>
+  <span class="o">|</span> <span class="nc">Some</span> <span class="o">(</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="n">c</span><span class="o">)</span> <span class="k">when</span> <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">mem</span> <span class="n">binop_precedence</span> <span class="n">c</span> <span class="o">-&gt;</span>
+      <span class="k">let</span> <span class="n">token_prec</span> <span class="o">=</span> <span class="n">precedence</span> <span class="n">c</span> <span class="k">in</span>
+
+      <span class="c">(* If this is a binop that binds at least as tightly as the current binop,</span>
+<span class="c">       * consume it, otherwise we are done. *)</span>
+      <span class="k">if</span> <span class="n">token_prec</span> <span class="o">&lt;</span> <span class="n">expr_prec</span> <span class="k">then</span> <span class="n">lhs</span> <span class="k">else</span> <span class="k">begin</span>
+        <span class="c">(* Eat the binop. *)</span>
+        <span class="nn">Stream</span><span class="p">.</span><span class="n">junk</span> <span class="n">stream</span><span class="o">;</span>
+
+        <span class="c">(* Parse the primary expression after the binary operator. *)</span>
+        <span class="k">let</span> <span class="n">rhs</span> <span class="o">=</span> <span class="n">parse_primary</span> <span class="n">stream</span> <span class="k">in</span>
+
+        <span class="c">(* Okay, we know this is a binop. *)</span>
+        <span class="k">let</span> <span class="n">rhs</span> <span class="o">=</span>
+          <span class="k">match</span> <span class="nn">Stream</span><span class="p">.</span><span class="n">peek</span> <span class="n">stream</span> <span class="k">with</span>
+          <span class="o">|</span> <span class="nc">Some</span> <span class="o">(</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="n">c2</span><span class="o">)</span> <span class="o">-&gt;</span>
+              <span class="c">(* If BinOp binds less tightly with rhs than the operator after</span>
+<span class="c">               * rhs, let the pending operator take rhs as its lhs. *)</span>
+              <span class="k">let</span> <span class="n">next_prec</span> <span class="o">=</span> <span class="n">precedence</span> <span class="n">c2</span> <span class="k">in</span>
+              <span class="k">if</span> <span class="n">token_prec</span> <span class="o">&lt;</span> <span class="n">next_prec</span>
+              <span class="k">then</span> <span class="n">parse_bin_rhs</span> <span class="o">(</span><span class="n">token_prec</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span> <span class="n">rhs</span> <span class="n">stream</span>
+              <span class="k">else</span> <span class="n">rhs</span>
+          <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">rhs</span>
+        <span class="k">in</span>
+
+        <span class="c">(* Merge lhs/rhs. *)</span>
+        <span class="k">let</span> <span class="n">lhs</span> <span class="o">=</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">Binary</span> <span class="o">(</span><span class="n">c</span><span class="o">,</span> <span class="n">lhs</span><span class="o">,</span> <span class="n">rhs</span><span class="o">)</span> <span class="k">in</span>
+        <span class="n">parse_bin_rhs</span> <span class="n">expr_prec</span> <span class="n">lhs</span> <span class="n">stream</span>
+      <span class="k">end</span>
+  <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="n">lhs</span>
+
+<span class="c">(* expression</span>
+<span class="c"> *   ::= primary binoprhs *)</span>
+<span class="ow">and</span> <span class="n">parse_expr</span> <span class="o">=</span> <span class="n">parser</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="n">lhs</span><span class="o">=</span><span class="n">parse_primary</span><span class="o">;</span> <span class="n">stream</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="n">parse_bin_rhs</span> <span class="mi">0</span> <span class="n">lhs</span> <span class="n">stream</span>
+
+<span class="c">(* prototype</span>
+<span class="c"> *   ::= id &#39;(&#39; id* &#39;)&#39; *)</span>
+<span class="k">let</span> <span class="n">parse_prototype</span> <span class="o">=</span>
+  <span class="k">let</span> <span class="k">rec</span> <span class="n">parse_args</span> <span class="n">accumulator</span> <span class="o">=</span> <span class="n">parser</span>
+    <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Ident</span> <span class="n">id</span><span class="o">;</span> <span class="n">e</span><span class="o">=</span><span class="n">parse_args</span> <span class="o">(</span><span class="n">id</span><span class="o">::</span><span class="n">accumulator</span><span class="o">)</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="n">e</span>
+    <span class="o">|</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="n">accumulator</span>
+  <span class="k">in</span>
+
+  <span class="n">parser</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Ident</span> <span class="n">id</span><span class="o">;</span>
+       <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="sc">&#39;(&#39;</span> <span class="o">??</span> <span class="s2">&quot;expected &#39;(&#39; in prototype&quot;</span><span class="o">;</span>
+       <span class="n">args</span><span class="o">=</span><span class="n">parse_args</span> <span class="bp">[]</span><span class="o">;</span>
+       <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="sc">&#39;)&#39;</span> <span class="o">??</span> <span class="s2">&quot;expected &#39;)&#39; in prototype&quot;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="c">(* success. *)</span>
+      <span class="nn">Ast</span><span class="p">.</span><span class="nc">Prototype</span> <span class="o">(</span><span class="n">id</span><span class="o">,</span> <span class="nn">Array</span><span class="p">.</span><span class="n">of_list</span> <span class="o">(</span><span class="nn">List</span><span class="p">.</span><span class="n">rev</span> <span class="n">args</span><span class="o">))</span>
+
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="k">raise</span> <span class="o">(</span><span class="nn">Stream</span><span class="p">.</span><span class="nc">Error</span> <span class="s2">&quot;expected function name in prototype&quot;</span><span class="o">)</span>
+
+<span class="c">(* definition ::= &#39;def&#39; prototype expression *)</span>
+<span class="k">let</span> <span class="n">parse_definition</span> <span class="o">=</span> <span class="n">parser</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Def</span><span class="o">;</span> <span class="n">p</span><span class="o">=</span><span class="n">parse_prototype</span><span class="o">;</span> <span class="n">e</span><span class="o">=</span><span class="n">parse_expr</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="nn">Ast</span><span class="p">.</span><span class="nc">Function</span> <span class="o">(</span><span class="n">p</span><span class="o">,</span> <span class="n">e</span><span class="o">)</span>
+
+<span class="c">(* toplevelexpr ::= expression *)</span>
+<span class="k">let</span> <span class="n">parse_toplevel</span> <span class="o">=</span> <span class="n">parser</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="n">e</span><span class="o">=</span><span class="n">parse_expr</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span>
+      <span class="c">(* Make an anonymous proto. *)</span>
+      <span class="nn">Ast</span><span class="p">.</span><span class="nc">Function</span> <span class="o">(</span><span class="nn">Ast</span><span class="p">.</span><span class="nc">Prototype</span> <span class="o">(</span><span class="s2">&quot;&quot;</span><span class="o">,</span> <span class="o">[||]),</span> <span class="n">e</span><span class="o">)</span>
+
+<span class="c">(*  external ::= &#39;extern&#39; prototype *)</span>
+<span class="k">let</span> <span class="n">parse_extern</span> <span class="o">=</span> <span class="n">parser</span>
+  <span class="o">|</span> <span class="o">[&lt;</span> <span class="k">&#39;</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Extern</span><span class="o">;</span> <span class="n">e</span><span class="o">=</span><span class="n">parse_prototype</span> <span class="o">&gt;]</span> <span class="o">-&gt;</span> <span class="n">e</span>
+</pre></div>
+</div>
+</dd>
+<dt>codegen.ml:</dt>
+<dd><div class="first last highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(*===----------------------------------------------------------------------===</span>
+<span class="c"> * Code Generation</span>
+<span class="c"> *===----------------------------------------------------------------------===*)</span>
+
+<span class="k">open</span> <span class="nc">Llvm</span>
+
+<span class="k">exception</span> <span class="nc">Error</span> <span class="k">of</span> <span class="kt">string</span>
+
+<span class="k">let</span> <span class="n">context</span> <span class="o">=</span> <span class="n">global_context</span> <span class="bp">()</span>
+<span class="k">let</span> <span class="n">the_module</span> <span class="o">=</span> <span class="n">create_module</span> <span class="n">context</span> <span class="s2">&quot;my cool jit&quot;</span>
+<span class="k">let</span> <span class="n">builder</span> <span class="o">=</span> <span class="n">builder</span> <span class="n">context</span>
+<span class="k">let</span> <span class="n">named_values</span><span class="o">:(</span><span class="kt">string</span><span class="o">,</span> <span class="n">llvalue</span><span class="o">)</span> <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">t</span> <span class="o">=</span> <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">create</span> <span class="mi">10</span>
+<span class="k">let</span> <span class="n">double_type</span> <span class="o">=</span> <span class="n">double_type</span> <span class="n">context</span>
+
+<span class="k">let</span> <span class="k">rec</span> <span class="n">codegen_expr</span> <span class="o">=</span> <span class="k">function</span>
+  <span class="o">|</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">Number</span> <span class="n">n</span> <span class="o">-&gt;</span> <span class="n">const_float</span> <span class="n">double_type</span> <span class="n">n</span>
+  <span class="o">|</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">Variable</span> <span class="n">name</span> <span class="o">-&gt;</span>
+      <span class="o">(</span><span class="k">try</span> <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">find</span> <span class="n">named_values</span> <span class="n">name</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="nc">Not_found</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">(</span><span class="nc">Error</span> <span class="s2">&quot;unknown variable name&quot;</span><span class="o">))</span>
+  <span class="o">|</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">Binary</span> <span class="o">(</span><span class="n">op</span><span class="o">,</span> <span class="n">lhs</span><span class="o">,</span> <span class="n">rhs</span><span class="o">)</span> <span class="o">-&gt;</span>
+      <span class="k">let</span> <span class="n">lhs_val</span> <span class="o">=</span> <span class="n">codegen_expr</span> <span class="n">lhs</span> <span class="k">in</span>
+      <span class="k">let</span> <span class="n">rhs_val</span> <span class="o">=</span> <span class="n">codegen_expr</span> <span class="n">rhs</span> <span class="k">in</span>
+      <span class="k">begin</span>
+        <span class="k">match</span> <span class="n">op</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="sc">&#39;+&#39;</span> <span class="o">-&gt;</span> <span class="n">build_add</span> <span class="n">lhs_val</span> <span class="n">rhs_val</span> <span class="s2">&quot;addtmp&quot;</span> <span class="n">builder</span>
+        <span class="o">|</span> <span class="sc">&#39;-&#39;</span> <span class="o">-&gt;</span> <span class="n">build_sub</span> <span class="n">lhs_val</span> <span class="n">rhs_val</span> <span class="s2">&quot;subtmp&quot;</span> <span class="n">builder</span>
+        <span class="o">|</span> <span class="sc">&#39;*&#39;</span> <span class="o">-&gt;</span> <span class="n">build_mul</span> <span class="n">lhs_val</span> <span class="n">rhs_val</span> <span class="s2">&quot;multmp&quot;</span> <span class="n">builder</span>
+        <span class="o">|</span> <span class="sc">&#39;&lt;&#39;</span> <span class="o">-&gt;</span>
+            <span class="c">(* Convert bool 0/1 to double 0.0 or 1.0 *)</span>
+            <span class="k">let</span> <span class="n">i</span> <span class="o">=</span> <span class="n">build_fcmp</span> <span class="nn">Fcmp</span><span class="p">.</span><span class="nc">Ult</span> <span class="n">lhs_val</span> <span class="n">rhs_val</span> <span class="s2">&quot;cmptmp&quot;</span> <span class="n">builder</span> <span class="k">in</span>
+            <span class="n">build_uitofp</span> <span class="n">i</span> <span class="n">double_type</span> <span class="s2">&quot;booltmp&quot;</span> <span class="n">builder</span>
+        <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">(</span><span class="nc">Error</span> <span class="s2">&quot;invalid binary operator&quot;</span><span class="o">)</span>
+      <span class="k">end</span>
+  <span class="o">|</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">Call</span> <span class="o">(</span><span class="n">callee</span><span class="o">,</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span>
+      <span class="c">(* Look up the name in the module table. *)</span>
+      <span class="k">let</span> <span class="n">callee</span> <span class="o">=</span>
+        <span class="k">match</span> <span class="n">lookup_function</span> <span class="n">callee</span> <span class="n">the_module</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="nc">Some</span> <span class="n">callee</span> <span class="o">-&gt;</span> <span class="n">callee</span>
+        <span class="o">|</span> <span class="nc">None</span> <span class="o">-&gt;</span> <span class="k">raise</span> <span class="o">(</span><span class="nc">Error</span> <span class="s2">&quot;unknown function referenced&quot;</span><span class="o">)</span>
+      <span class="k">in</span>
+      <span class="k">let</span> <span class="n">params</span> <span class="o">=</span> <span class="n">params</span> <span class="n">callee</span> <span class="k">in</span>
+
+      <span class="c">(* If argument mismatch error. *)</span>
+      <span class="k">if</span> <span class="nn">Array</span><span class="p">.</span><span class="n">length</span> <span class="n">params</span> <span class="o">==</span> <span class="nn">Array</span><span class="p">.</span><span class="n">length</span> <span class="n">args</span> <span class="k">then</span> <span class="bp">()</span> <span class="k">else</span>
+        <span class="k">raise</span> <span class="o">(</span><span class="nc">Error</span> <span class="s2">&quot;incorrect # arguments passed&quot;</span><span class="o">);</span>
+      <span class="k">let</span> <span class="n">args</span> <span class="o">=</span> <span class="nn">Array</span><span class="p">.</span><span class="n">map</span> <span class="n">codegen_expr</span> <span class="n">args</span> <span class="k">in</span>
+      <span class="n">build_call</span> <span class="n">callee</span> <span class="n">args</span> <span class="s2">&quot;calltmp&quot;</span> <span class="n">builder</span>
+  <span class="o">|</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">If</span> <span class="o">(</span><span class="n">cond</span><span class="o">,</span> <span class="n">then_</span><span class="o">,</span> <span class="n">else_</span><span class="o">)</span> <span class="o">-&gt;</span>
+      <span class="k">let</span> <span class="n">cond</span> <span class="o">=</span> <span class="n">codegen_expr</span> <span class="n">cond</span> <span class="k">in</span>
+
+      <span class="c">(* Convert condition to a bool by comparing equal to 0.0 *)</span>
+      <span class="k">let</span> <span class="n">zero</span> <span class="o">=</span> <span class="n">const_float</span> <span class="n">double_type</span> <span class="mi">0</span><span class="o">.</span><span class="mi">0</span> <span class="k">in</span>
+      <span class="k">let</span> <span class="n">cond_val</span> <span class="o">=</span> <span class="n">build_fcmp</span> <span class="nn">Fcmp</span><span class="p">.</span><span class="nc">One</span> <span class="n">cond</span> <span class="n">zero</span> <span class="s2">&quot;ifcond&quot;</span> <span class="n">builder</span> <span class="k">in</span>
+
+      <span class="c">(* Grab the first block so that we might later add the conditional branch</span>
+<span class="c">       * to it at the end of the function. *)</span>
+      <span class="k">let</span> <span class="n">start_bb</span> <span class="o">=</span> <span class="n">insertion_block</span> <span class="n">builder</span> <span class="k">in</span>
+      <span class="k">let</span> <span class="n">the_function</span> <span class="o">=</span> <span class="n">block_parent</span> <span class="n">start_bb</span> <span class="k">in</span>
+
+      <span class="k">let</span> <span class="n">then_bb</span> <span class="o">=</span> <span class="n">append_block</span> <span class="n">context</span> <span class="s2">&quot;then&quot;</span> <span class="n">the_function</span> <span class="k">in</span>
+
+      <span class="c">(* Emit &#39;then&#39; value. *)</span>
+      <span class="n">position_at_end</span> <span class="n">then_bb</span> <span class="n">builder</span><span class="o">;</span>
+      <span class="k">let</span> <span class="n">then_val</span> <span class="o">=</span> <span class="n">codegen_expr</span> <span class="n">then_</span> <span class="k">in</span>
+
+      <span class="c">(* Codegen of &#39;then&#39; can change the current block, update then_bb for the</span>
+<span class="c">       * phi. We create a new name because one is used for the phi node, and the</span>
+<span class="c">       * other is used for the conditional branch. *)</span>
+      <span class="k">let</span> <span class="n">new_then_bb</span> <span class="o">=</span> <span class="n">insertion_block</span> <span class="n">builder</span> <span class="k">in</span>
+
+      <span class="c">(* Emit &#39;else&#39; value. *)</span>
+      <span class="k">let</span> <span class="n">else_bb</span> <span class="o">=</span> <span class="n">append_block</span> <span class="n">context</span> <span class="s2">&quot;else&quot;</span> <span class="n">the_function</span> <span class="k">in</span>
+      <span class="n">position_at_end</span> <span class="n">else_bb</span> <span class="n">builder</span><span class="o">;</span>
+      <span class="k">let</span> <span class="n">else_val</span> <span class="o">=</span> <span class="n">codegen_expr</span> <span class="n">else_</span> <span class="k">in</span>
+
+      <span class="c">(* Codegen of &#39;else&#39; can change the current block, update else_bb for the</span>
+<span class="c">       * phi. *)</span>
+      <span class="k">let</span> <span class="n">new_else_bb</span> <span class="o">=</span> <span class="n">insertion_block</span> <span class="n">builder</span> <span class="k">in</span>
+
+      <span class="c">(* Emit merge block. *)</span>
+      <span class="k">let</span> <span class="n">merge_bb</span> <span class="o">=</span> <span class="n">append_block</span> <span class="n">context</span> <span class="s2">&quot;ifcont&quot;</span> <span class="n">the_function</span> <span class="k">in</span>
+      <span class="n">position_at_end</span> <span class="n">merge_bb</span> <span class="n">builder</span><span class="o">;</span>
+      <span class="k">let</span> <span class="n">incoming</span> <span class="o">=</span> <span class="o">[(</span><span class="n">then_val</span><span class="o">,</span> <span class="n">new_then_bb</span><span class="o">);</span> <span class="o">(</span><span class="n">else_val</span><span class="o">,</span> <span class="n">new_else_bb</span><span class="o">)]</span> <span class="k">in</span>
+      <span class="k">let</span> <span class="n">phi</span> <span class="o">=</span> <span class="n">build_phi</span> <span class="n">incoming</span> <span class="s2">&quot;iftmp&quot;</span> <span class="n">builder</span> <span class="k">in</span>
+
+      <span class="c">(* Return to the start block to add the conditional branch. *)</span>
+      <span class="n">position_at_end</span> <span class="n">start_bb</span> <span class="n">builder</span><span class="o">;</span>
+      <span class="n">ignore</span> <span class="o">(</span><span class="n">build_cond_br</span> <span class="n">cond_val</span> <span class="n">then_bb</span> <span class="n">else_bb</span> <span class="n">builder</span><span class="o">);</span>
+
+      <span class="c">(* Set a unconditional branch at the end of the &#39;then&#39; block and the</span>
+<span class="c">       * &#39;else&#39; block to the &#39;merge&#39; block. *)</span>
+      <span class="n">position_at_end</span> <span class="n">new_then_bb</span> <span class="n">builder</span><span class="o">;</span> <span class="n">ignore</span> <span class="o">(</span><span class="n">build_br</span> <span class="n">merge_bb</span> <span class="n">builder</span><span class="o">);</span>
+      <span class="n">position_at_end</span> <span class="n">new_else_bb</span> <span class="n">builder</span><span class="o">;</span> <span class="n">ignore</span> <span class="o">(</span><span class="n">build_br</span> <span class="n">merge_bb</span> <span class="n">builder</span><span class="o">);</span>
+
+      <span class="c">(* Finally, set the builder to the end of the merge block. *)</span>
+      <span class="n">position_at_end</span> <span class="n">merge_bb</span> <span class="n">builder</span><span class="o">;</span>
+
+      <span class="n">phi</span>
+  <span class="o">|</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">For</span> <span class="o">(</span><span class="n">var_name</span><span class="o">,</span> <span class="n">start</span><span class="o">,</span> <span class="n">end_</span><span class="o">,</span> <span class="n">step</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span> <span class="o">-&gt;</span>
+      <span class="c">(* Emit the start code first, without &#39;variable&#39; in scope. *)</span>
+      <span class="k">let</span> <span class="n">start_val</span> <span class="o">=</span> <span class="n">codegen_expr</span> <span class="n">start</span> <span class="k">in</span>
+
+      <span class="c">(* Make the new basic block for the loop header, inserting after current</span>
+<span class="c">       * block. *)</span>
+      <span class="k">let</span> <span class="n">preheader_bb</span> <span class="o">=</span> <span class="n">insertion_block</span> <span class="n">builder</span> <span class="k">in</span>
+      <span class="k">let</span> <span class="n">the_function</span> <span class="o">=</span> <span class="n">block_parent</span> <span class="n">preheader_bb</span> <span class="k">in</span>
+      <span class="k">let</span> <span class="n">loop_bb</span> <span class="o">=</span> <span class="n">append_block</span> <span class="n">context</span> <span class="s2">&quot;loop&quot;</span> <span class="n">the_function</span> <span class="k">in</span>
+
+      <span class="c">(* Insert an explicit fall through from the current block to the</span>
+<span class="c">       * loop_bb. *)</span>
+      <span class="n">ignore</span> <span class="o">(</span><span class="n">build_br</span> <span class="n">loop_bb</span> <span class="n">builder</span><span class="o">);</span>
+
+      <span class="c">(* Start insertion in loop_bb. *)</span>
+      <span class="n">position_at_end</span> <span class="n">loop_bb</span> <span class="n">builder</span><span class="o">;</span>
+
+      <span class="c">(* Start the PHI node with an entry for start. *)</span>
+      <span class="k">let</span> <span class="n">variable</span> <span class="o">=</span> <span class="n">build_phi</span> <span class="o">[(</span><span class="n">start_val</span><span class="o">,</span> <span class="n">preheader_bb</span><span class="o">)]</span> <span class="n">var_name</span> <span class="n">builder</span> <span class="k">in</span>
+
+      <span class="c">(* Within the loop, the variable is defined equal to the PHI node. If it</span>
+<span class="c">       * shadows an existing variable, we have to restore it, so save it</span>
+<span class="c">       * now. *)</span>
+      <span class="k">let</span> <span class="n">old_val</span> <span class="o">=</span>
+        <span class="k">try</span> <span class="nc">Some</span> <span class="o">(</span><span class="nn">Hashtbl</span><span class="p">.</span><span class="n">find</span> <span class="n">named_values</span> <span class="n">var_name</span><span class="o">)</span> <span class="k">with</span> <span class="nc">Not_found</span> <span class="o">-&gt;</span> <span class="nc">None</span>
+      <span class="k">in</span>
+      <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">add</span> <span class="n">named_values</span> <span class="n">var_name</span> <span class="n">variable</span><span class="o">;</span>
+
+      <span class="c">(* Emit the body of the loop.  This, like any other expr, can change the</span>
+<span class="c">       * current BB.  Note that we ignore the value computed by the body, but</span>
+<span class="c">       * don&#39;t allow an error *)</span>
+      <span class="n">ignore</span> <span class="o">(</span><span class="n">codegen_expr</span> <span class="n">body</span><span class="o">);</span>
+
+      <span class="c">(* Emit the step value. *)</span>
+      <span class="k">let</span> <span class="n">step_val</span> <span class="o">=</span>
+        <span class="k">match</span> <span class="n">step</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="nc">Some</span> <span class="n">step</span> <span class="o">-&gt;</span> <span class="n">codegen_expr</span> <span class="n">step</span>
+        <span class="c">(* If not specified, use 1.0. *)</span>
+        <span class="o">|</span> <span class="nc">None</span> <span class="o">-&gt;</span> <span class="n">const_float</span> <span class="n">double_type</span> <span class="mi">1</span><span class="o">.</span><span class="mi">0</span>
+      <span class="k">in</span>
+
+      <span class="k">let</span> <span class="n">next_var</span> <span class="o">=</span> <span class="n">build_add</span> <span class="n">variable</span> <span class="n">step_val</span> <span class="s2">&quot;nextvar&quot;</span> <span class="n">builder</span> <span class="k">in</span>
+
+      <span class="c">(* Compute the end condition. *)</span>
+      <span class="k">let</span> <span class="n">end_cond</span> <span class="o">=</span> <span class="n">codegen_expr</span> <span class="n">end_</span> <span class="k">in</span>
+
+      <span class="c">(* Convert condition to a bool by comparing equal to 0.0. *)</span>
+      <span class="k">let</span> <span class="n">zero</span> <span class="o">=</span> <span class="n">const_float</span> <span class="n">double_type</span> <span class="mi">0</span><span class="o">.</span><span class="mi">0</span> <span class="k">in</span>
+      <span class="k">let</span> <span class="n">end_cond</span> <span class="o">=</span> <span class="n">build_fcmp</span> <span class="nn">Fcmp</span><span class="p">.</span><span class="nc">One</span> <span class="n">end_cond</span> <span class="n">zero</span> <span class="s2">&quot;loopcond&quot;</span> <span class="n">builder</span> <span class="k">in</span>
+
+      <span class="c">(* Create the &quot;after loop&quot; block and insert it. *)</span>
+      <span class="k">let</span> <span class="n">loop_end_bb</span> <span class="o">=</span> <span class="n">insertion_block</span> <span class="n">builder</span> <span class="k">in</span>
+      <span class="k">let</span> <span class="n">after_bb</span> <span class="o">=</span> <span class="n">append_block</span> <span class="n">context</span> <span class="s2">&quot;afterloop&quot;</span> <span class="n">the_function</span> <span class="k">in</span>
+
+      <span class="c">(* Insert the conditional branch into the end of loop_end_bb. *)</span>
+      <span class="n">ignore</span> <span class="o">(</span><span class="n">build_cond_br</span> <span class="n">end_cond</span> <span class="n">loop_bb</span> <span class="n">after_bb</span> <span class="n">builder</span><span class="o">);</span>
+
+      <span class="c">(* Any new code will be inserted in after_bb. *)</span>
+      <span class="n">position_at_end</span> <span class="n">after_bb</span> <span class="n">builder</span><span class="o">;</span>
+
+      <span class="c">(* Add a new entry to the PHI node for the backedge. *)</span>
+      <span class="n">add_incoming</span> <span class="o">(</span><span class="n">next_var</span><span class="o">,</span> <span class="n">loop_end_bb</span><span class="o">)</span> <span class="n">variable</span><span class="o">;</span>
+
+      <span class="c">(* Restore the unshadowed variable. *)</span>
+      <span class="k">begin</span> <span class="k">match</span> <span class="n">old_val</span> <span class="k">with</span>
+      <span class="o">|</span> <span class="nc">Some</span> <span class="n">old_val</span> <span class="o">-&gt;</span> <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">add</span> <span class="n">named_values</span> <span class="n">var_name</span> <span class="n">old_val</span>
+      <span class="o">|</span> <span class="nc">None</span> <span class="o">-&gt;</span> <span class="bp">()</span>
+      <span class="k">end</span><span class="o">;</span>
+
+      <span class="c">(* for expr always returns 0.0. *)</span>
+      <span class="n">const_null</span> <span class="n">double_type</span>
+
+<span class="k">let</span> <span class="n">codegen_proto</span> <span class="o">=</span> <span class="k">function</span>
+  <span class="o">|</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">Prototype</span> <span class="o">(</span><span class="n">name</span><span class="o">,</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span>
+      <span class="c">(* Make the function type: double(double,double) etc. *)</span>
+      <span class="k">let</span> <span class="n">doubles</span> <span class="o">=</span> <span class="nn">Array</span><span class="p">.</span><span class="n">make</span> <span class="o">(</span><span class="nn">Array</span><span class="p">.</span><span class="n">length</span> <span class="n">args</span><span class="o">)</span> <span class="n">double_type</span> <span class="k">in</span>
+      <span class="k">let</span> <span class="n">ft</span> <span class="o">=</span> <span class="n">function_type</span> <span class="n">double_type</span> <span class="n">doubles</span> <span class="k">in</span>
+      <span class="k">let</span> <span class="n">f</span> <span class="o">=</span>
+        <span class="k">match</span> <span class="n">lookup_function</span> <span class="n">name</span> <span class="n">the_module</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="nc">None</span> <span class="o">-&gt;</span> <span class="n">declare_function</span> <span class="n">name</span> <span class="n">ft</span> <span class="n">the_module</span>
+
+        <span class="c">(* If &#39;f&#39; conflicted, there was already something named &#39;name&#39;. If it</span>
+<span class="c">         * has a body, don&#39;t allow redefinition or reextern. *)</span>
+        <span class="o">|</span> <span class="nc">Some</span> <span class="n">f</span> <span class="o">-&gt;</span>
+            <span class="c">(* If &#39;f&#39; already has a body, reject this. *)</span>
+            <span class="k">if</span> <span class="n">block_begin</span> <span class="n">f</span> <span class="o">&lt;&gt;</span> <span class="nc">At_end</span> <span class="n">f</span> <span class="k">then</span>
+              <span class="k">raise</span> <span class="o">(</span><span class="nc">Error</span> <span class="s2">&quot;redefinition of function&quot;</span><span class="o">);</span>
+
+            <span class="c">(* If &#39;f&#39; took a different number of arguments, reject. *)</span>
+            <span class="k">if</span> <span class="n">element_type</span> <span class="o">(</span><span class="n">type_of</span> <span class="n">f</span><span class="o">)</span> <span class="o">&lt;&gt;</span> <span class="n">ft</span> <span class="k">then</span>
+              <span class="k">raise</span> <span class="o">(</span><span class="nc">Error</span> <span class="s2">&quot;redefinition of function with different # args&quot;</span><span class="o">);</span>
+            <span class="n">f</span>
+      <span class="k">in</span>
+
+      <span class="c">(* Set names for all arguments. *)</span>
+      <span class="nn">Array</span><span class="p">.</span><span class="n">iteri</span> <span class="o">(</span><span class="k">fun</span> <span class="n">i</span> <span class="n">a</span> <span class="o">-&gt;</span>
+        <span class="k">let</span> <span class="n">n</span> <span class="o">=</span> <span class="n">args</span><span class="o">.(</span><span class="n">i</span><span class="o">)</span> <span class="k">in</span>
+        <span class="n">set_value_name</span> <span class="n">n</span> <span class="n">a</span><span class="o">;</span>
+        <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">add</span> <span class="n">named_values</span> <span class="n">n</span> <span class="n">a</span><span class="o">;</span>
+      <span class="o">)</span> <span class="o">(</span><span class="n">params</span> <span class="n">f</span><span class="o">);</span>
+      <span class="n">f</span>
+
+<span class="k">let</span> <span class="n">codegen_func</span> <span class="n">the_fpm</span> <span class="o">=</span> <span class="k">function</span>
+  <span class="o">|</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">Function</span> <span class="o">(</span><span class="n">proto</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span> <span class="o">-&gt;</span>
+      <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">clear</span> <span class="n">named_values</span><span class="o">;</span>
+      <span class="k">let</span> <span class="n">the_function</span> <span class="o">=</span> <span class="n">codegen_proto</span> <span class="n">proto</span> <span class="k">in</span>
+
+      <span class="c">(* Create a new basic block to start insertion into. *)</span>
+      <span class="k">let</span> <span class="n">bb</span> <span class="o">=</span> <span class="n">append_block</span> <span class="n">context</span> <span class="s2">&quot;entry&quot;</span> <span class="n">the_function</span> <span class="k">in</span>
+      <span class="n">position_at_end</span> <span class="n">bb</span> <span class="n">builder</span><span class="o">;</span>
+
+      <span class="k">try</span>
+        <span class="k">let</span> <span class="n">ret_val</span> <span class="o">=</span> <span class="n">codegen_expr</span> <span class="n">body</span> <span class="k">in</span>
+
+        <span class="c">(* Finish off the function. *)</span>
+        <span class="k">let</span> <span class="o">_</span> <span class="o">=</span> <span class="n">build_ret</span> <span class="n">ret_val</span> <span class="n">builder</span> <span class="k">in</span>
+
+        <span class="c">(* Validate the generated code, checking for consistency. *)</span>
+        <span class="nn">Llvm_analysis</span><span class="p">.</span><span class="n">assert_valid_function</span> <span class="n">the_function</span><span class="o">;</span>
+
+        <span class="c">(* Optimize the function. *)</span>
+        <span class="k">let</span> <span class="o">_</span> <span class="o">=</span> <span class="nn">PassManager</span><span class="p">.</span><span class="n">run_function</span> <span class="n">the_function</span> <span class="n">the_fpm</span> <span class="k">in</span>
+
+        <span class="n">the_function</span>
+      <span class="k">with</span> <span class="n">e</span> <span class="o">-&gt;</span>
+        <span class="n">delete_function</span> <span class="n">the_function</span><span class="o">;</span>
+        <span class="k">raise</span> <span class="n">e</span>
+</pre></div>
+</div>
+</dd>
+<dt>toplevel.ml:</dt>
+<dd><div class="first last highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(*===----------------------------------------------------------------------===</span>
+<span class="c"> * Top-Level parsing and JIT Driver</span>
+<span class="c"> *===----------------------------------------------------------------------===*)</span>
+
+<span class="k">open</span> <span class="nc">Llvm</span>
+<span class="k">open</span> <span class="nc">Llvm_executionengine</span>
+
+<span class="c">(* top ::= definition | external | expression | &#39;;&#39; *)</span>
+<span class="k">let</span> <span class="k">rec</span> <span class="n">main_loop</span> <span class="n">the_fpm</span> <span class="n">the_execution_engine</span> <span class="n">stream</span> <span class="o">=</span>
+  <span class="k">match</span> <span class="nn">Stream</span><span class="p">.</span><span class="n">peek</span> <span class="n">stream</span> <span class="k">with</span>
+  <span class="o">|</span> <span class="nc">None</span> <span class="o">-&gt;</span> <span class="bp">()</span>
+
+  <span class="c">(* ignore top-level semicolons. *)</span>
+  <span class="o">|</span> <span class="nc">Some</span> <span class="o">(</span><span class="nn">Token</span><span class="p">.</span><span class="nc">Kwd</span> <span class="sc">&#39;;&#39;</span><span class="o">)</span> <span class="o">-&gt;</span>
+      <span class="nn">Stream</span><span class="p">.</span><span class="n">junk</span> <span class="n">stream</span><span class="o">;</span>
+      <span class="n">main_loop</span> <span class="n">the_fpm</span> <span class="n">the_execution_engine</span> <span class="n">stream</span>
+
+  <span class="o">|</span> <span class="nc">Some</span> <span class="n">token</span> <span class="o">-&gt;</span>
+      <span class="k">begin</span>
+        <span class="k">try</span> <span class="k">match</span> <span class="n">token</span> <span class="k">with</span>
+        <span class="o">|</span> <span class="nn">Token</span><span class="p">.</span><span class="nc">Def</span> <span class="o">-&gt;</span>
+            <span class="k">let</span> <span class="n">e</span> <span class="o">=</span> <span class="nn">Parser</span><span class="p">.</span><span class="n">parse_definition</span> <span class="n">stream</span> <span class="k">in</span>
+            <span class="n">print_endline</span> <span class="s2">&quot;parsed a function definition.&quot;</span><span class="o">;</span>
+            <span class="n">dump_value</span> <span class="o">(</span><span class="nn">Codegen</span><span class="p">.</span><span class="n">codegen_func</span> <span class="n">the_fpm</span> <span class="n">e</span><span class="o">);</span>
+        <span class="o">|</span> <span class="nn">Token</span><span class="p">.</span><span class="nc">Extern</span> <span class="o">-&gt;</span>
+            <span class="k">let</span> <span class="n">e</span> <span class="o">=</span> <span class="nn">Parser</span><span class="p">.</span><span class="n">parse_extern</span> <span class="n">stream</span> <span class="k">in</span>
+            <span class="n">print_endline</span> <span class="s2">&quot;parsed an extern.&quot;</span><span class="o">;</span>
+            <span class="n">dump_value</span> <span class="o">(</span><span class="nn">Codegen</span><span class="p">.</span><span class="n">codegen_proto</span> <span class="n">e</span><span class="o">);</span>
+        <span class="o">|</span> <span class="o">_</span> <span class="o">-&gt;</span>
+            <span class="c">(* Evaluate a top-level expression into an anonymous function. *)</span>
+            <span class="k">let</span> <span class="n">e</span> <span class="o">=</span> <span class="nn">Parser</span><span class="p">.</span><span class="n">parse_toplevel</span> <span class="n">stream</span> <span class="k">in</span>
+            <span class="n">print_endline</span> <span class="s2">&quot;parsed a top-level expr&quot;</span><span class="o">;</span>
+            <span class="k">let</span> <span class="n">the_function</span> <span class="o">=</span> <span class="nn">Codegen</span><span class="p">.</span><span class="n">codegen_func</span> <span class="n">the_fpm</span> <span class="n">e</span> <span class="k">in</span>
+            <span class="n">dump_value</span> <span class="n">the_function</span><span class="o">;</span>
+
+            <span class="c">(* JIT the function, returning a function pointer. *)</span>
+            <span class="k">let</span> <span class="n">result</span> <span class="o">=</span> <span class="nn">ExecutionEngine</span><span class="p">.</span><span class="n">run_function</span> <span class="n">the_function</span> <span class="o">[||]</span>
+              <span class="n">the_execution_engine</span> <span class="k">in</span>
+
+            <span class="n">print_string</span> <span class="s2">&quot;Evaluated to &quot;</span><span class="o">;</span>
+            <span class="n">print_float</span> <span class="o">(</span><span class="nn">GenericValue</span><span class="p">.</span><span class="n">as_float</span> <span class="nn">Codegen</span><span class="p">.</span><span class="n">double_type</span> <span class="n">result</span><span class="o">);</span>
+            <span class="n">print_newline</span> <span class="bp">()</span><span class="o">;</span>
+        <span class="k">with</span> <span class="nn">Stream</span><span class="p">.</span><span class="nc">Error</span> <span class="n">s</span> <span class="o">|</span> <span class="nn">Codegen</span><span class="p">.</span><span class="nc">Error</span> <span class="n">s</span> <span class="o">-&gt;</span>
+          <span class="c">(* Skip token for error recovery. *)</span>
+          <span class="nn">Stream</span><span class="p">.</span><span class="n">junk</span> <span class="n">stream</span><span class="o">;</span>
+          <span class="n">print_endline</span> <span class="n">s</span><span class="o">;</span>
+      <span class="k">end</span><span class="o">;</span>
+      <span class="n">print_string</span> <span class="s2">&quot;ready&gt; &quot;</span><span class="o">;</span> <span class="n">flush</span> <span class="n">stdout</span><span class="o">;</span>
+      <span class="n">main_loop</span> <span class="n">the_fpm</span> <span class="n">the_execution_engine</span> <span class="n">stream</span>
+</pre></div>
+</div>
+</dd>
+<dt>toy.ml:</dt>
+<dd><div class="first last highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(*===----------------------------------------------------------------------===</span>
+<span class="c"> * Main driver code.</span>
+<span class="c"> *===----------------------------------------------------------------------===*)</span>
+
+<span class="k">open</span> <span class="nc">Llvm</span>
+<span class="k">open</span> <span class="nc">Llvm_executionengine</span>
+<span class="k">open</span> <span class="nc">Llvm_target</span>
+<span class="k">open</span> <span class="nc">Llvm_scalar_opts</span>
+
+<span class="k">let</span> <span class="n">main</span> <span class="bp">()</span> <span class="o">=</span>
+  <span class="n">ignore</span> <span class="o">(</span><span class="n">initialize_native_target</span> <span class="bp">()</span><span class="o">);</span>
+
+  <span class="c">(* Install standard binary operators.</span>
+<span class="c">   * 1 is the lowest precedence. *)</span>
+  <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">add</span> <span class="nn">Parser</span><span class="p">.</span><span class="n">binop_precedence</span> <span class="sc">&#39;&lt;&#39;</span> <span class="mi">10</span><span class="o">;</span>
+  <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">add</span> <span class="nn">Parser</span><span class="p">.</span><span class="n">binop_precedence</span> <span class="sc">&#39;+&#39;</span> <span class="mi">20</span><span class="o">;</span>
+  <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">add</span> <span class="nn">Parser</span><span class="p">.</span><span class="n">binop_precedence</span> <span class="sc">&#39;-&#39;</span> <span class="mi">20</span><span class="o">;</span>
+  <span class="nn">Hashtbl</span><span class="p">.</span><span class="n">add</span> <span class="nn">Parser</span><span class="p">.</span><span class="n">binop_precedence</span> <span class="sc">&#39;*&#39;</span> <span class="mi">40</span><span class="o">;</span>    <span class="c">(* highest. *)</span>
+
+  <span class="c">(* Prime the first token. *)</span>
+  <span class="n">print_string</span> <span class="s2">&quot;ready&gt; &quot;</span><span class="o">;</span> <span class="n">flush</span> <span class="n">stdout</span><span class="o">;</span>
+  <span class="k">let</span> <span class="n">stream</span> <span class="o">=</span> <span class="nn">Lexer</span><span class="p">.</span><span class="n">lex</span> <span class="o">(</span><span class="nn">Stream</span><span class="p">.</span><span class="n">of_channel</span> <span class="n">stdin</span><span class="o">)</span> <span class="k">in</span>
+
+  <span class="c">(* Create the JIT. *)</span>
+  <span class="k">let</span> <span class="n">the_execution_engine</span> <span class="o">=</span> <span class="nn">ExecutionEngine</span><span class="p">.</span><span class="n">create</span> <span class="nn">Codegen</span><span class="p">.</span><span class="n">the_module</span> <span class="k">in</span>
+  <span class="k">let</span> <span class="n">the_fpm</span> <span class="o">=</span> <span class="nn">PassManager</span><span class="p">.</span><span class="n">create_function</span> <span class="nn">Codegen</span><span class="p">.</span><span class="n">the_module</span> <span class="k">in</span>
+
+  <span class="c">(* Set up the optimizer pipeline.  Start with registering info about how the</span>
+<span class="c">   * target lays out data structures. *)</span>
+  <span class="nn">DataLayout</span><span class="p">.</span><span class="n">add</span> <span class="o">(</span><span class="nn">ExecutionEngine</span><span class="p">.</span><span class="n">target_data</span> <span class="n">the_execution_engine</span><span class="o">)</span> <span class="n">the_fpm</span><span class="o">;</span>
+
+  <span class="c">(* Do simple &quot;peephole&quot; optimizations and bit-twiddling optzn. *)</span>
+  <span class="n">add_instruction_combination</span> <span class="n">the_fpm</span><span class="o">;</span>
+
+  <span class="c">(* reassociate expressions. *)</span>
+  <span class="n">add_reassociation</span> <span class="n">the_fpm</span><span class="o">;</span>
+
+  <span class="c">(* Eliminate Common SubExpressions. *)</span>
+  <span class="n">add_gvn</span> <span class="n">the_fpm</span><span class="o">;</span>
+
+  <span class="c">(* Simplify the control flow graph (deleting unreachable blocks, etc). *)</span>
+  <span class="n">add_cfg_simplification</span> <span class="n">the_fpm</span><span class="o">;</span>
+
+  <span class="n">ignore</span> <span class="o">(</span><span class="nn">PassManager</span><span class="p">.</span><span class="n">initialize</span> <span class="n">the_fpm</span><span class="o">);</span>
+
+  <span class="c">(* Run the main &quot;interpreter loop&quot; now. *)</span>
+  <span class="nn">Toplevel</span><span class="p">.</span><span class="n">main_loop</span> <span class="n">the_fpm</span> <span class="n">the_execution_engine</span> <span class="n">stream</span><span class="o">;</span>
+
+  <span class="c">(* Print out all the generated code. *)</span>
+  <span class="n">dump_module</span> <span class="nn">Codegen</span><span class="p">.</span><span class="n">the_module</span>
+<span class="o">;;</span>
+
+<span class="n">main</span> <span class="bp">()</span>
+</pre></div>
+</div>
+</dd>
+<dt>bindings.c</dt>
+<dd><div class="first last highlight-c"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
+
+<span class="cm">/* putchard - putchar that takes a double and returns 0. */</span>
+<span class="k">extern</span> <span class="kt">double</span> <span class="nf">putchard</span><span class="p">(</span><span class="kt">double</span> <span class="n">X</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">putchar</span><span class="p">((</span><span class="kt">char</span><span class="p">)</span><span class="n">X</span><span class="p">);</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+<p><a class="reference external" href="OCamlLangImpl6.html">Next: Extending the language: user-defined
+operators</a></p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="OCamlLangImpl6.html" title="6. Kaleidoscope: Extending the Language: User-defined Operators"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="OCamlLangImpl4.html" title="4. Kaleidoscope: Adding JIT and Optimizer Support"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Tutorial: Table of Contents</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

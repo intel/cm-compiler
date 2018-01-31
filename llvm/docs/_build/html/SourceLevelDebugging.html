@@ -1,0 +1,2289 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Source Level Debugging with LLVM &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Auto-Vectorization in LLVM" href="Vectorizers.html" />
+    <link rel="prev" title="System Library" href="SystemLibrary.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="Vectorizers.html" title="Auto-Vectorization in LLVM"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="SystemLibrary.html" title="System Library"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="source-level-debugging-with-llvm">
+<h1>Source Level Debugging with LLVM<a class="headerlink" href="#source-level-debugging-with-llvm" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id5">Introduction</a><ul>
+<li><a class="reference internal" href="#philosophy-behind-llvm-debugging-information" id="id6">Philosophy behind LLVM debugging information</a></li>
+<li><a class="reference internal" href="#debug-information-consumers" id="id7">Debug information consumers</a></li>
+<li><a class="reference internal" href="#debugging-optimized-code" id="id8">Debugging optimized code</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#debugging-information-format" id="id9">Debugging information format</a><ul>
+<li><a class="reference internal" href="#debug-information-descriptors" id="id10">Debug information descriptors</a><ul>
+<li><a class="reference internal" href="#compile-unit-descriptors" id="id11">Compile unit descriptors</a></li>
+<li><a class="reference internal" href="#file-descriptors" id="id12">File descriptors</a></li>
+<li><a class="reference internal" href="#global-variable-descriptors" id="id13">Global variable descriptors</a></li>
+<li><a class="reference internal" href="#subprogram-descriptors" id="id14">Subprogram descriptors</a></li>
+<li><a class="reference internal" href="#block-descriptors" id="id15">Block descriptors</a></li>
+<li><a class="reference internal" href="#basic-type-descriptors" id="id16">Basic type descriptors</a></li>
+<li><a class="reference internal" href="#derived-type-descriptors" id="id17">Derived type descriptors</a></li>
+<li><a class="reference internal" href="#composite-type-descriptors" id="id18">Composite type descriptors</a></li>
+<li><a class="reference internal" href="#subrange-descriptors" id="id19">Subrange descriptors</a></li>
+<li><a class="reference internal" href="#enumerator-descriptors" id="id20">Enumerator descriptors</a></li>
+<li><a class="reference internal" href="#local-variables" id="id21">Local variables</a></li>
+<li><a class="reference internal" href="#debugger-intrinsic-functions" id="id22">Debugger intrinsic functions</a></li>
+<li><a class="reference internal" href="#llvm-dbg-declare" id="id23"><code class="docutils literal"><span class="pre">llvm.dbg.declare</span></code></a></li>
+<li><a class="reference internal" href="#llvm-dbg-value" id="id24"><code class="docutils literal"><span class="pre">llvm.dbg.value</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#object-lifetimes-and-scoping" id="id25">Object lifetimes and scoping</a></li>
+<li><a class="reference internal" href="#c-c-front-end-specific-debug-information" id="id26">C/C++ front-end specific debug information</a><ul>
+<li><a class="reference internal" href="#c-c-source-file-information" id="id27">C/C++ source file information</a></li>
+<li><a class="reference internal" href="#c-c-global-variable-information" id="id28">C/C++ global variable information</a></li>
+<li><a class="reference internal" href="#c-c-function-information" id="id29">C/C++ function information</a></li>
+<li><a class="reference internal" href="#c-c-basic-types" id="id30">C/C++ basic types</a><ul>
+<li><a class="reference internal" href="#bool" id="id31">bool</a></li>
+<li><a class="reference internal" href="#char" id="id32">char</a></li>
+<li><a class="reference internal" href="#unsigned-char" id="id33">unsigned char</a></li>
+<li><a class="reference internal" href="#short" id="id34">short</a></li>
+<li><a class="reference internal" href="#unsigned-short" id="id35">unsigned short</a></li>
+<li><a class="reference internal" href="#int" id="id36">int</a></li>
+<li><a class="reference internal" href="#unsigned-int" id="id37">unsigned int</a></li>
+<li><a class="reference internal" href="#long-long" id="id38">long long</a></li>
+<li><a class="reference internal" href="#unsigned-long-long" id="id39">unsigned long long</a></li>
+<li><a class="reference internal" href="#float" id="id40">float</a></li>
+<li><a class="reference internal" href="#double" id="id41">double</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#c-c-derived-types" id="id42">C/C++ derived types</a></li>
+<li><a class="reference internal" href="#c-c-struct-union-types" id="id43">C/C++ struct/union types</a></li>
+<li><a class="reference internal" href="#c-c-enumeration-types" id="id44">C/C++ enumeration types</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id1" id="id45">Debugging information format</a><ul>
+<li><a class="reference internal" href="#debugging-information-extension-for-objective-c-properties" id="id46">Debugging Information Extension for Objective C Properties</a><ul>
+<li><a class="reference internal" href="#id2" id="id47">Introduction</a></li>
+<li><a class="reference internal" href="#proposal" id="id48">Proposal</a></li>
+<li><a class="reference internal" href="#new-dwarf-tags" id="id49">New DWARF Tags</a></li>
+<li><a class="reference internal" href="#new-dwarf-attributes" id="id50">New DWARF Attributes</a></li>
+<li><a class="reference internal" href="#new-dwarf-constants" id="id51">New DWARF Constants</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#name-accelerator-tables" id="id52">Name Accelerator Tables</a><ul>
+<li><a class="reference internal" href="#id3" id="id53">Introduction</a></li>
+<li><a class="reference internal" href="#hash-tables" id="id54">Hash Tables</a><ul>
+<li><a class="reference internal" href="#standard-hash-tables" id="id55">Standard Hash Tables</a></li>
+<li><a class="reference internal" href="#name-hash-tables" id="id56">Name Hash Tables</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#details" id="id57">Details</a><ul>
+<li><a class="reference internal" href="#header-layout" id="id58">Header Layout</a></li>
+<li><a class="reference internal" href="#fixed-lookup" id="id59">Fixed Lookup</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id4" id="id60">Contents</a></li>
+<li><a class="reference internal" href="#language-extensions-and-file-format-changes" id="id61">Language Extensions and File Format Changes</a><ul>
+<li><a class="reference internal" href="#objective-c-extensions" id="id62">Objective-C Extensions</a></li>
+<li><a class="reference internal" href="#mach-o-changes" id="id63">Mach-O Changes</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id5">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This document is the central repository for all information pertaining to debug
+information in LLVM.  It describes the <a class="reference internal" href="#format"><span class="std std-ref">actual format that the LLVM debug
+information takes</span></a>, which is useful for those interested in creating
+front-ends or dealing directly with the information.  Further, this document
+provides specific examples of what debug information for C/C++ looks like.</p>
+<div class="section" id="philosophy-behind-llvm-debugging-information">
+<h3><a class="toc-backref" href="#id6">Philosophy behind LLVM debugging information</a><a class="headerlink" href="#philosophy-behind-llvm-debugging-information" title="Permalink to this headline">¶</a></h3>
+<p>The idea of the LLVM debugging information is to capture how the important
+pieces of the source-language’s Abstract Syntax Tree map onto LLVM code.
+Several design aspects have shaped the solution that appears here.  The
+important ones are:</p>
+<ul class="simple">
+<li>Debugging information should have very little impact on the rest of the
+compiler.  No transformations, analyses, or code generators should need to
+be modified because of debugging information.</li>
+<li>LLVM optimizations should interact in <a class="reference internal" href="#intro-debugopt"><span class="std std-ref">well-defined and easily described
+ways</span></a> with the debugging information.</li>
+<li>Because LLVM is designed to support arbitrary programming languages,
+LLVM-to-LLVM tools should not need to know anything about the semantics of
+the source-level-language.</li>
+<li>Source-level languages are often <strong>widely</strong> different from one another.
+LLVM should not put any restrictions of the flavor of the source-language,
+and the debugging information should work with any language.</li>
+<li>With code generator support, it should be possible to use an LLVM compiler
+to compile a program to native machine code and standard debugging
+formats.  This allows compatibility with traditional machine-code level
+debuggers, like GDB or DBX.</li>
+</ul>
+<p>The approach used by the LLVM implementation is to use a small set of
+<a class="reference internal" href="#format-common-intrinsics"><span class="std std-ref">intrinsic functions</span></a> to define a mapping
+between LLVM program objects and the source-level objects.  The description of
+the source-level program is maintained in LLVM metadata in an
+<a class="reference internal" href="#ccxx-frontend"><span class="std std-ref">implementation-defined format</span></a> (the C/C++ front-end
+currently uses working draft 7 of the <a class="reference external" href="http://www.eagercon.com/dwarf/dwarf3std.htm">DWARF 3 standard</a>).</p>
+<p>When a program is being debugged, a debugger interacts with the user and turns
+the stored debug information into source-language specific information.  As
+such, a debugger must be aware of the source-language, and is thus tied to a
+specific language or family of languages.</p>
+</div>
+<div class="section" id="debug-information-consumers">
+<h3><a class="toc-backref" href="#id7">Debug information consumers</a><a class="headerlink" href="#debug-information-consumers" title="Permalink to this headline">¶</a></h3>
+<p>The role of debug information is to provide meta information normally stripped
+away during the compilation process.  This meta information provides an LLVM
+user a relationship between generated code and the original program source
+code.</p>
+<p>Currently, debug information is consumed by DwarfDebug to produce dwarf
+information used by the gdb debugger.  Other targets could use the same
+information to produce stabs or other debug forms.</p>
+<p>It would also be reasonable to use debug information to feed profiling tools
+for analysis of generated code, or, tools for reconstructing the original
+source from generated code.</p>
+<p>TODO - expound a bit more.</p>
+</div>
+<div class="section" id="debugging-optimized-code">
+<span id="intro-debugopt"></span><h3><a class="toc-backref" href="#id8">Debugging optimized code</a><a class="headerlink" href="#debugging-optimized-code" title="Permalink to this headline">¶</a></h3>
+<p>An extremely high priority of LLVM debugging information is to make it interact
+well with optimizations and analysis.  In particular, the LLVM debug
+information provides the following guarantees:</p>
+<ul class="simple">
+<li>LLVM debug information <strong>always provides information to accurately read
+the source-level state of the program</strong>, regardless of which LLVM
+optimizations have been run, and without any modification to the
+optimizations themselves.  However, some optimizations may impact the
+ability to modify the current state of the program with a debugger, such
+as setting program variables, or calling functions that have been
+deleted.</li>
+<li>As desired, LLVM optimizations can be upgraded to be aware of the LLVM
+debugging information, allowing them to update the debugging information
+as they perform aggressive optimizations.  This means that, with effort,
+the LLVM optimizers could optimize debug code just as well as non-debug
+code.</li>
+<li>LLVM debug information does not prevent optimizations from
+happening (for example inlining, basic block reordering/merging/cleanup,
+tail duplication, etc).</li>
+<li>LLVM debug information is automatically optimized along with the rest of
+the program, using existing facilities.  For example, duplicate
+information is automatically merged by the linker, and unused information
+is automatically removed.</li>
+</ul>
+<p>Basically, the debug information allows you to compile a program with
+“<code class="docutils literal"><span class="pre">-O0</span> <span class="pre">-g</span></code>” and get full debug information, allowing you to arbitrarily modify
+the program as it executes from a debugger.  Compiling a program with
+“<code class="docutils literal"><span class="pre">-O3</span> <span class="pre">-g</span></code>” gives you full debug information that is always available and
+accurate for reading (e.g., you get accurate stack traces despite tail call
+elimination and inlining), but you might lose the ability to modify the program
+and call functions where were optimized out of the program, or inlined away
+completely.</p>
+<p><a class="reference internal" href="TestingGuide.html#test-suite-quickstart"><span class="std std-ref">LLVM test suite</span></a> provides a framework to test
+optimizer’s handling of debugging information.  It can be run like this:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% <span class="nb">cd</span> llvm/projects/test-suite/MultiSource/Benchmarks  <span class="c1"># or some other level</span>
+% make <span class="nv">TEST</span><span class="o">=</span>dbgopt
+</pre></div>
+</div>
+<p>This will test impact of debugging information on optimization passes.  If
+debugging information influences optimization passes then it will be reported
+as a failure.  See <a class="reference internal" href="TestingGuide.html"><span class="doc">LLVM Testing Infrastructure Guide</span></a> for more information on LLVM test
+infrastructure and how to run various tests.</p>
+</div>
+</div>
+<div class="section" id="debugging-information-format">
+<span id="format"></span><h2><a class="toc-backref" href="#id9">Debugging information format</a><a class="headerlink" href="#debugging-information-format" title="Permalink to this headline">¶</a></h2>
+<p>LLVM debugging information has been carefully designed to make it possible for
+the optimizer to optimize the program and debugging information without
+necessarily having to know anything about debugging information.  In
+particular, the use of metadata avoids duplicated debugging information from
+the beginning, and the global dead code elimination pass automatically deletes
+debugging information for a function if it decides to delete the function.</p>
+<p>To do this, most of the debugging information (descriptors for types,
+variables, functions, source files, etc) is inserted by the language front-end
+in the form of LLVM metadata.</p>
+<p>Debug information is designed to be agnostic about the target debugger and
+debugging information representation (e.g. DWARF/Stabs/etc).  It uses a generic
+pass to decode the information that represents variables, types, functions,
+namespaces, etc: this allows for arbitrary source-language semantics and
+type-systems to be used, as long as there is a module written for the target
+debugger to interpret the information.</p>
+<p>To provide basic functionality, the LLVM debugger does have to make some
+assumptions about the source-level language being debugged, though it keeps
+these to a minimum.  The only common features that the LLVM debugger assumes
+exist are <a class="reference internal" href="#format-files"><span class="std std-ref">source files</span></a>, and <a class="reference internal" href="#format-global-variables"><span class="std std-ref">program objects</span></a>.  These abstract objects are used by a debugger to
+form stack traces, show information about local variables, etc.</p>
+<p>This section of the documentation first describes the representation aspects
+common to any source-language.  <a class="reference internal" href="#ccxx-frontend"><span class="std std-ref">C/C++ front-end specific debug information</span></a> describes the data layout
+conventions used by the C and C++ front-ends.</p>
+<div class="section" id="debug-information-descriptors">
+<h3><a class="toc-backref" href="#id10">Debug information descriptors</a><a class="headerlink" href="#debug-information-descriptors" title="Permalink to this headline">¶</a></h3>
+<p>In consideration of the complexity and volume of debug information, LLVM
+provides a specification for well formed debug descriptors.</p>
+<p>Consumers of LLVM debug information expect the descriptors for program objects
+to start in a canonical format, but the descriptors can include additional
+information appended at the end that is source-language specific.  All debugging
+information objects start with a tag to indicate what type of object it is.
+The source-language is allowed to define its own objects, by using unreserved
+tag numbers.  We recommend using with tags in the range 0x1000 through 0x2000
+(there is a defined <code class="docutils literal"><span class="pre">enum</span> <span class="pre">DW_TAG_user_base</span> <span class="pre">=</span> <span class="pre">0x1000</span></code>.)</p>
+<p>The fields of debug descriptors used internally by LLVM are restricted to only
+the simple data types <code class="docutils literal"><span class="pre">i32</span></code>, <code class="docutils literal"><span class="pre">i1</span></code>, <code class="docutils literal"><span class="pre">float</span></code>, <code class="docutils literal"><span class="pre">double</span></code>, <code class="docutils literal"><span class="pre">mdstring</span></code> and
+<code class="docutils literal"><span class="pre">mdnode</span></code>.</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!1</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span><span class="p">,</span>   <span class="c">;; A tag</span>
+  <span class="p">...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>&lt;a name=”LLVMDebugVersion”&gt;The first field of a descriptor is always an
+<code class="docutils literal"><span class="pre">i32</span></code> containing a tag value identifying the content of the descriptor.
+The remaining fields are specific to the descriptor.  The values of tags are
+loosely bound to the tag values of DWARF information entries.  However, that
+does not restrict the use of the information supplied to DWARF targets.</p>
+<p>The details of the various descriptors follow.</p>
+<div class="section" id="compile-unit-descriptors">
+<h4><a class="toc-backref" href="#id11">Compile unit descriptors</a><a class="headerlink" href="#compile-unit-descriptors" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!0</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span><span class="p">,</span>       <span class="c">;; Tag = 17 (DW_TAG_compile_unit)</span>
+  <span class="kt">metadata</span><span class="p">,</span>  <span class="c">;; Source directory (including trailing slash) &amp; file pair</span>
+  <span class="k">i32</span><span class="p">,</span>       <span class="c">;; DWARF language identifier (ex. DW_LANG_C89)</span>
+  <span class="kt">metadata</span>   <span class="c">;; Producer (ex. &quot;4.0.1 LLVM (LLVM research group)&quot;)</span>
+  <span class="k">i1</span><span class="p">,</span>        <span class="c">;; True if this is optimized.</span>
+  <span class="kt">metadata</span><span class="p">,</span>  <span class="c">;; Flags</span>
+  <span class="k">i32</span>        <span class="c">;; Runtime version</span>
+  <span class="kt">metadata</span>   <span class="c">;; List of enums types</span>
+  <span class="kt">metadata</span>   <span class="c">;; List of retained types</span>
+  <span class="kt">metadata</span>   <span class="c">;; List of subprograms</span>
+  <span class="kt">metadata</span>   <span class="c">;; List of global variables</span>
+  <span class="kt">metadata</span>   <span class="c">;; List of imported entities</span>
+  <span class="kt">metadata</span>   <span class="c">;; Split debug filename</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>These descriptors contain a source language ID for the file (we use the DWARF
+3.0 ID numbers, such as <code class="docutils literal"><span class="pre">DW_LANG_C89</span></code>, <code class="docutils literal"><span class="pre">DW_LANG_C_plus_plus</span></code>,
+<code class="docutils literal"><span class="pre">DW_LANG_Cobol74</span></code>, etc), a reference to a metadata node containing a pair of
+strings for the source file name and the working directory, as well as an
+identifier string for the compiler that produced it.</p>
+<p>Compile unit descriptors provide the root context for objects declared in a
+specific compilation unit.  File descriptors are defined using this context.
+These descriptors are collected by a named metadata <code class="docutils literal"><span class="pre">!llvm.dbg.cu</span></code>.  They
+keep track of subprograms, global variables, type information, and imported
+entities (declarations and namespaces).</p>
+</div>
+<div class="section" id="file-descriptors">
+<span id="format-files"></span><h4><a class="toc-backref" href="#id12">File descriptors</a><a class="headerlink" href="#file-descriptors" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!0</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Tag = 41 (DW_TAG_file_type)</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Source directory (including trailing slash) &amp; file pair</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>These descriptors contain information for a file.  Global variables and top
+level functions would be defined using this context.  File descriptors also
+provide context for source line correspondence.</p>
+<p>Each input file is encoded as a separate file descriptor in LLVM debugging
+information output.</p>
+</div>
+<div class="section" id="global-variable-descriptors">
+<span id="format-global-variables"></span><h4><a class="toc-backref" href="#id13">Global variable descriptors</a><a class="headerlink" href="#global-variable-descriptors" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!1</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Tag = 52 (DW_TAG_variable)</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Unused field.</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Reference to context descriptor</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Name</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Display name (fully qualified C++ name)</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; MIPS linkage name (for C++)</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Reference to file where defined</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Line number where defined</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Reference to type descriptor</span>
+  <span class="k">i1</span><span class="p">,</span>       <span class="c">;; True if the global is local to compile unit (static)</span>
+  <span class="k">i1</span><span class="p">,</span>       <span class="c">;; True if the global is defined in the compile unit (not extern)</span>
+  <span class="p">{}*,</span>      <span class="c">;; Reference to the global variable</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; The static member declaration, if any</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>These descriptors provide debug information about global variables.  They
+provide details such as name, type and where the variable is defined.  All
+global variables are collected inside the named metadata <code class="docutils literal"><span class="pre">!llvm.dbg.cu</span></code>.</p>
+</div>
+<div class="section" id="subprogram-descriptors">
+<span id="format-subprograms"></span><h4><a class="toc-backref" href="#id14">Subprogram descriptors</a><a class="headerlink" href="#subprogram-descriptors" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Tag = 46 (DW_TAG_subprogram)</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Source directory (including trailing slash) &amp; file pair</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Reference to context descriptor</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Name</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Display name (fully qualified C++ name)</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; MIPS linkage name (for C++)</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Line number where defined</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Reference to type descriptor</span>
+  <span class="k">i1</span><span class="p">,</span>       <span class="c">;; True if the global is local to compile unit (static)</span>
+  <span class="k">i1</span><span class="p">,</span>       <span class="c">;; True if the global is defined in the compile unit (not extern)</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Virtuality, e.g. dwarf::DW_VIRTUALITY__virtual</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Index into a virtual function</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; indicates which base type contains the vtable pointer for the</span>
+            <span class="c">;; derived class</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Flags - Artificial, Private, Protected, Explicit, Prototyped.</span>
+  <span class="k">i1</span><span class="p">,</span>       <span class="c">;; isOptimized</span>
+  <span class="p">{}*,</span>      <span class="c">;; Reference to the LLVM function</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Lists function template parameters</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Function declaration descriptor</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; List of function variables</span>
+  <span class="k">i32</span>       <span class="c">;; Line number where the scope of the subprogram begins</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>These descriptors provide debug information about functions, methods and
+subprograms.  They provide details such as name, return types and the source
+location where the subprogram is defined.</p>
+</div>
+<div class="section" id="block-descriptors">
+<h4><a class="toc-backref" href="#id15">Block descriptors</a><a class="headerlink" href="#block-descriptors" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!3</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Tag = 11 (DW_TAG_lexical_block)</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Source directory (including trailing slash) &amp; file pair</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Reference to context descriptor</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Line number</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Column number</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; DWARF path discriminator value</span>
+  <span class="k">i32</span>       <span class="c">;; Unique ID to identify blocks from a template function</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This descriptor provides debug information about nested blocks within a
+subprogram.  The line number and column numbers are used to dinstinguish two
+lexical blocks at same depth.</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!3</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Tag = 11 (DW_TAG_lexical_block)</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Source directory (including trailing slash) &amp; file pair</span>
+  <span class="kt">metadata</span>  <span class="c">;; Reference to the scope we&#39;re annotating with a file change</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This descriptor provides a wrapper around a lexical scope to handle file
+changes in the middle of a lexical block.</p>
+</div>
+<div class="section" id="basic-type-descriptors">
+<span id="format-basic-type"></span><h4><a class="toc-backref" href="#id16">Basic type descriptors</a><a class="headerlink" href="#basic-type-descriptors" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!4</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Tag = 36 (DW_TAG_base_type)</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Source directory (including trailing slash) &amp; file pair (may be null)</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Reference to context</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Name (may be &quot;&quot; for anonymous types)</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Line number where defined (may be 0)</span>
+  <span class="k">i64</span><span class="p">,</span>      <span class="c">;; Size in bits</span>
+  <span class="k">i64</span><span class="p">,</span>      <span class="c">;; Alignment in bits</span>
+  <span class="k">i64</span><span class="p">,</span>      <span class="c">;; Offset in bits</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Flags</span>
+  <span class="k">i32</span>       <span class="c">;; DWARF type encoding</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>These descriptors define primitive types used in the code.  Example <code class="docutils literal"><span class="pre">int</span></code>,
+<code class="docutils literal"><span class="pre">bool</span></code> and <code class="docutils literal"><span class="pre">float</span></code>.  The context provides the scope of the type, which is
+usually the top level.  Since basic types are not usually user defined the
+context and line number can be left as NULL and 0.  The size, alignment and
+offset are expressed in bits and can be 64 bit values.  The alignment is used
+to round the offset when embedded in a <a class="reference internal" href="#format-composite-type"><span class="std std-ref">composite type</span></a> (example to keep float doubles on 64 bit boundaries).
+The offset is the bit offset if embedded in a <a class="reference internal" href="#format-composite-type"><span class="std std-ref">composite type</span></a>.</p>
+<p>The type encoding provides the details of the type.  The values are typically
+one of the following:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>DW_ATE_address       = 1
+DW_ATE_boolean       = 2
+DW_ATE_float         = 4
+DW_ATE_signed        = 5
+DW_ATE_signed_char   = 6
+DW_ATE_unsigned      = 7
+DW_ATE_unsigned_char = 8
+</pre></div>
+</div>
+</div>
+<div class="section" id="derived-type-descriptors">
+<span id="format-derived-type"></span><h4><a class="toc-backref" href="#id17">Derived type descriptors</a><a class="headerlink" href="#derived-type-descriptors" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!5</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Tag (see below)</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Source directory (including trailing slash) &amp; file pair (may be null)</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Reference to context</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Name (may be &quot;&quot; for anonymous types)</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Line number where defined (may be 0)</span>
+  <span class="k">i64</span><span class="p">,</span>      <span class="c">;; Size in bits</span>
+  <span class="k">i64</span><span class="p">,</span>      <span class="c">;; Alignment in bits</span>
+  <span class="k">i64</span><span class="p">,</span>      <span class="c">;; Offset in bits</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Flags to encode attributes, e.g. private</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Reference to type derived from</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; (optional) Name of the Objective C property associated with</span>
+            <span class="c">;; Objective-C an ivar, or the type of which this</span>
+            <span class="c">;; pointer-to-member is pointing to members of.</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; (optional) Name of the Objective C property getter selector.</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; (optional) Name of the Objective C property setter selector.</span>
+  <span class="k">i32</span>       <span class="c">;; (optional) Objective C property attributes.</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>These descriptors are used to define types derived from other types.  The value
+of the tag varies depending on the meaning.  The following are possible tag
+values:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>DW_TAG_formal_parameter   = 5
+DW_TAG_member             = 13
+DW_TAG_pointer_type       = 15
+DW_TAG_reference_type     = 16
+DW_TAG_typedef            = 22
+DW_TAG_ptr_to_member_type = 31
+DW_TAG_const_type         = 38
+DW_TAG_volatile_type      = 53
+DW_TAG_restrict_type      = 55
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">DW_TAG_member</span></code> is used to define a member of a <a class="reference internal" href="#format-composite-type"><span class="std std-ref">composite type</span></a> or <a class="reference internal" href="#format-subprograms"><span class="std std-ref">subprogram</span></a>.  The type
+of the member is the <a class="reference internal" href="#format-derived-type"><span class="std std-ref">derived type</span></a>.
+<code class="docutils literal"><span class="pre">DW_TAG_formal_parameter</span></code> is used to define a member which is a formal
+argument of a subprogram.</p>
+<p><code class="docutils literal"><span class="pre">DW_TAG_typedef</span></code> is used to provide a name for the derived type.</p>
+<p><code class="docutils literal"><span class="pre">DW_TAG_pointer_type</span></code>, <code class="docutils literal"><span class="pre">DW_TAG_reference_type</span></code>, <code class="docutils literal"><span class="pre">DW_TAG_const_type</span></code>,
+<code class="docutils literal"><span class="pre">DW_TAG_volatile_type</span></code> and <code class="docutils literal"><span class="pre">DW_TAG_restrict_type</span></code> are used to qualify the
+<a class="reference internal" href="#format-derived-type"><span class="std std-ref">derived type</span></a>.</p>
+<p><a class="reference internal" href="#format-derived-type"><span class="std std-ref">Derived type</span></a> location can be determined from the
+context and line number.  The size, alignment and offset are expressed in bits
+and can be 64 bit values.  The alignment is used to round the offset when
+embedded in a <a class="reference internal" href="#format-composite-type"><span class="std std-ref">composite type</span></a>  (example to keep
+float doubles on 64 bit boundaries.) The offset is the bit offset if embedded
+in a <a class="reference internal" href="#format-composite-type"><span class="std std-ref">composite type</span></a>.</p>
+<p>Note that the <code class="docutils literal"><span class="pre">void</span> <span class="pre">*</span></code> type is expressed as a type derived from NULL.</p>
+</div>
+<div class="section" id="composite-type-descriptors">
+<span id="format-composite-type"></span><h4><a class="toc-backref" href="#id18">Composite type descriptors</a><a class="headerlink" href="#composite-type-descriptors" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!6</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Tag (see below)</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Source directory (including trailing slash) &amp; file pair (may be null)</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Reference to context</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Name (may be &quot;&quot; for anonymous types)</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Line number where defined (may be 0)</span>
+  <span class="k">i64</span><span class="p">,</span>      <span class="c">;; Size in bits</span>
+  <span class="k">i64</span><span class="p">,</span>      <span class="c">;; Alignment in bits</span>
+  <span class="k">i64</span><span class="p">,</span>      <span class="c">;; Offset in bits</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Flags</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Reference to type derived from</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Reference to array of member descriptors</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Runtime languages</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Base type containing the vtable pointer for this type</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Template parameters</span>
+  <span class="kt">metadata</span>  <span class="c">;; A unique identifier for type uniquing purpose (may be null)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>These descriptors are used to define types that are composed of 0 or more
+elements.  The value of the tag varies depending on the meaning.  The following
+are possible tag values:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>DW_TAG_array_type       = 1
+DW_TAG_enumeration_type = 4
+DW_TAG_structure_type   = 19
+DW_TAG_union_type       = 23
+DW_TAG_subroutine_type  = 21
+DW_TAG_inheritance      = 28
+</pre></div>
+</div>
+<p>The vector flag indicates that an array type is a native packed vector.</p>
+<p>The members of array types (tag = <code class="docutils literal"><span class="pre">DW_TAG_array_type</span></code>) are
+<a class="reference internal" href="#format-subrange"><span class="std std-ref">subrange descriptors</span></a>, each
+representing the range of subscripts at that level of indexing.</p>
+<p>The members of enumeration types (tag = <code class="docutils literal"><span class="pre">DW_TAG_enumeration_type</span></code>) are
+<a class="reference internal" href="#format-enumerator"><span class="std std-ref">enumerator descriptors</span></a>, each representing the
+definition of enumeration value for the set.  All enumeration type descriptors
+are collected inside the named metadata <code class="docutils literal"><span class="pre">!llvm.dbg.cu</span></code>.</p>
+<p>The members of structure (tag = <code class="docutils literal"><span class="pre">DW_TAG_structure_type</span></code>) or union (tag =
+<code class="docutils literal"><span class="pre">DW_TAG_union_type</span></code>) types are any one of the <a class="reference internal" href="#format-basic-type"><span class="std std-ref">basic</span></a>, <a class="reference internal" href="#format-derived-type"><span class="std std-ref">derived</span></a> or <a class="reference internal" href="#format-composite-type"><span class="std std-ref">composite</span></a> type descriptors, each representing a field member of
+the structure or union.</p>
+<p>For C++ classes (tag = <code class="docutils literal"><span class="pre">DW_TAG_structure_type</span></code>), member descriptors provide
+information about base classes, static members and member functions.  If a
+member is a <a class="reference internal" href="#format-derived-type"><span class="std std-ref">derived type descriptor</span></a> and has a tag
+of <code class="docutils literal"><span class="pre">DW_TAG_inheritance</span></code>, then the type represents a base class.  If the member
+of is a <a class="reference internal" href="#format-global-variables"><span class="std std-ref">global variable descriptor</span></a> then it
+represents a static member.  And, if the member is a <a class="reference internal" href="#format-subprograms"><span class="std std-ref">subprogram
+descriptor</span></a> then it represents a member function.  For
+static members and member functions, <code class="docutils literal"><span class="pre">getName()</span></code> returns the members link or
+the C++ mangled name.  <code class="docutils literal"><span class="pre">getDisplayName()</span></code> the simplied version of the name.</p>
+<p>The first member of subroutine (tag = <code class="docutils literal"><span class="pre">DW_TAG_subroutine_type</span></code>) type elements
+is the return type for the subroutine.  The remaining elements are the formal
+arguments to the subroutine.</p>
+<p><a class="reference internal" href="#format-composite-type"><span class="std std-ref">Composite type</span></a> location can be determined from
+the context and line number.  The size, alignment and offset are expressed in
+bits and can be 64 bit values.  The alignment is used to round the offset when
+embedded in a <a class="reference internal" href="#format-composite-type"><span class="std std-ref">composite type</span></a> (as an example, to
+keep float doubles on 64 bit boundaries).  The offset is the bit offset if
+embedded in a <a class="reference internal" href="#format-composite-type"><span class="std std-ref">composite type</span></a>.</p>
+</div>
+<div class="section" id="subrange-descriptors">
+<span id="format-subrange"></span><h4><a class="toc-backref" href="#id19">Subrange descriptors</a><a class="headerlink" href="#subrange-descriptors" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!42</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Tag = 33 (DW_TAG_subrange_type)</span>
+  <span class="k">i64</span><span class="p">,</span>      <span class="c">;; Low value</span>
+  <span class="k">i64</span>       <span class="c">;; High value</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>These descriptors are used to define ranges of array subscripts for an array
+<a class="reference internal" href="#format-composite-type"><span class="std std-ref">composite type</span></a>.  The low value defines the lower
+bounds typically zero for C/C++.  The high value is the upper bounds.  Values
+are 64 bit.  <code class="docutils literal"><span class="pre">High</span> <span class="pre">-</span> <span class="pre">Low</span> <span class="pre">+</span> <span class="pre">1</span></code> is the size of the array.  If <code class="docutils literal"><span class="pre">Low</span> <span class="pre">&gt;</span> <span class="pre">High</span></code>
+the array bounds are not included in generated debugging information.</p>
+</div>
+<div class="section" id="enumerator-descriptors">
+<span id="format-enumerator"></span><h4><a class="toc-backref" href="#id20">Enumerator descriptors</a><a class="headerlink" href="#enumerator-descriptors" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!6</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Tag = 40 (DW_TAG_enumerator)</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Name</span>
+  <span class="k">i64</span>       <span class="c">;; Value</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>These descriptors are used to define members of an enumeration <a class="reference internal" href="#format-composite-type"><span class="std std-ref">composite
+type</span></a>, it associates the name to the value.</p>
+</div>
+<div class="section" id="local-variables">
+<h4><a class="toc-backref" href="#id21">Local variables</a><a class="headerlink" href="#local-variables" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!7</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; Tag (see below)</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Context</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Name</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Reference to file where defined</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; 24 bit - Line number where defined</span>
+            <span class="c">;; 8 bit - Argument number. 1 indicates 1st argument.</span>
+  <span class="kt">metadata</span><span class="p">,</span> <span class="c">;; Reference to the type descriptor</span>
+  <span class="k">i32</span><span class="p">,</span>      <span class="c">;; flags</span>
+  <span class="kt">metadata</span>  <span class="c">;; (optional) Reference to inline location</span>
+  <span class="kt">metadata</span>  <span class="c">;; (optional) Reference to a complex expression (see below)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>These descriptors are used to define variables local to a sub program.  The
+value of the tag depends on the usage of the variable:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>DW_TAG_auto_variable   = 256
+DW_TAG_arg_variable    = 257
+</pre></div>
+</div>
+<p>An auto variable is any variable declared in the body of the function.  An
+argument variable is any variable that appears as a formal argument to the
+function.</p>
+<p>The context is either the subprogram or block where the variable is defined.
+Name the source variable name.  Context and line indicate where the variable
+was defined.  Type descriptor defines the declared type of the variable.</p>
+</div>
+<div class="section" id="debugger-intrinsic-functions">
+<span id="format-common-intrinsics"></span><h4><a class="toc-backref" href="#id22">Debugger intrinsic functions</a><a class="headerlink" href="#debugger-intrinsic-functions" title="Permalink to this headline">¶</a></h4>
+<p>LLVM uses several intrinsic functions (name prefixed with “<code class="docutils literal"><span class="pre">llvm.dbg</span></code>”) to
+provide debug information at various points in generated code.</p>
+</div>
+<div class="section" id="llvm-dbg-declare">
+<h4><a class="toc-backref" href="#id23"><code class="docutils literal"><span class="pre">llvm.dbg.declare</span></code></a><a class="headerlink" href="#llvm-dbg-declare" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nv">%llvm.dbg.declare</span><span class="p">(</span><span class="kt">metadata</span><span class="p">,</span> <span class="kt">metadata</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This intrinsic provides information about a local element (e.g., variable).
+The first argument is metadata holding the alloca for the variable.  The second
+argument is metadata containing a description of the variable.</p>
+</div>
+<div class="section" id="llvm-dbg-value">
+<h4><a class="toc-backref" href="#id24"><code class="docutils literal"><span class="pre">llvm.dbg.value</span></code></a><a class="headerlink" href="#llvm-dbg-value" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nv">%llvm.dbg.value</span><span class="p">(</span><span class="kt">metadata</span><span class="p">,</span> <span class="k">i64</span><span class="p">,</span> <span class="kt">metadata</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This intrinsic provides information when a user source variable is set to a new
+value.  The first argument is the new value (wrapped as metadata).  The second
+argument is the offset in the user source variable where the new value is
+written.  The third argument is metadata containing a description of the user
+source variable.</p>
+</div>
+</div>
+</div>
+<div class="section" id="object-lifetimes-and-scoping">
+<h2><a class="toc-backref" href="#id25">Object lifetimes and scoping</a><a class="headerlink" href="#object-lifetimes-and-scoping" title="Permalink to this headline">¶</a></h2>
+<p>In many languages, the local variables in functions can have their lifetimes or
+scopes limited to a subset of a function.  In the C family of languages, for
+example, variables are only live (readable and writable) within the source
+block that they are defined in.  In functional languages, values are only
+readable after they have been defined.  Though this is a very obvious concept,
+it is non-trivial to model in LLVM, because it has no notion of scoping in this
+sense, and does not want to be tied to a language’s scoping rules.</p>
+<p>In order to handle this, the LLVM debug format uses the metadata attached to
+llvm instructions to encode line number and scoping information.  Consider the
+following C fragment, for example:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="mf">1.</span>  <span class="kt">void</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{</span>
+<span class="mf">2.</span>    <span class="kt">int</span> <span class="n">X</span> <span class="o">=</span> <span class="mi">21</span><span class="p">;</span>
+<span class="mf">3.</span>    <span class="kt">int</span> <span class="n">Y</span> <span class="o">=</span> <span class="mi">22</span><span class="p">;</span>
+<span class="mf">4.</span>    <span class="p">{</span>
+<span class="mf">5.</span>      <span class="kt">int</span> <span class="n">Z</span> <span class="o">=</span> <span class="mi">23</span><span class="p">;</span>
+<span class="mf">6.</span>      <span class="n">Z</span> <span class="o">=</span> <span class="n">X</span><span class="p">;</span>
+<span class="mf">7.</span>    <span class="p">}</span>
+<span class="mf">8.</span>    <span class="n">X</span> <span class="o">=</span> <span class="n">Y</span><span class="p">;</span>
+<span class="mf">9.</span>  <span class="p">}</span>
+</pre></div>
+</div>
+<p>Compiled to LLVM, this function would be represented like this:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>define void @foo() #0 {
+entry:
+ %X = alloca i32, align 4
+  %Y = alloca i32, align 4
+  %Z = alloca i32, align 4
+  call void @llvm.dbg.declare(metadata !{i32* %X}, metadata !10), !dbg !12
+    ; [debug line = 2:7] [debug variable = X]
+  store i32 21, i32* %X, align 4, !dbg !12
+  call void @llvm.dbg.declare(metadata !{i32* %Y}, metadata !13), !dbg !14
+    ; [debug line = 3:7] [debug variable = Y]
+  store i32 22, i32* %Y, align 4, !dbg !14
+  call void @llvm.dbg.declare(metadata !{i32* %Z}, metadata !15), !dbg !17
+    ; [debug line = 5:9] [debug variable = Z]
+  store i32 23, i32* %Z, align 4, !dbg !17
+  %0 = load i32* %X, align 4, !dbg !18
+    [debug line = 6:5]
+  store i32 %0, i32* %Z, align 4, !dbg !18
+  %1 = load i32* %Y, align 4, !dbg !19
+    [debug line = 8:3]
+  store i32 %1, i32* %X, align 4, !dbg !19
+  ret void, !dbg !20
+}
+
+; Function Attrs: nounwind readnone
+declare void @llvm.dbg.declare(metadata, metadata) #1
+
+attributes #0 = { nounwind ssp uwtable &quot;less-precise-fpmad&quot;=&quot;false&quot;
+  &quot;no-frame-pointer-elim&quot;=&quot;true&quot; &quot;no-frame-pointer-elim-non-leaf&quot;
+  &quot;no-infs-fp-math&quot;=&quot;false&quot; &quot;no-nans-fp-math&quot;=&quot;false&quot;
+  &quot;stack-protector-buffer-size&quot;=&quot;8&quot; &quot;unsafe-fp-math&quot;=&quot;false&quot;
+  &quot;use-soft-float&quot;=&quot;false&quot; }
+attributes #1 = { nounwind readnone }
+
+!llvm.dbg.cu = !{!0}
+!llvm.module.flags = !{!8}
+!llvm.ident = !{!9}
+
+!0 = metadata !{i32 786449, metadata !1, i32 12,
+                metadata !&quot;clang version 3.4 (trunk 193128) (llvm/trunk 193139)&quot;,
+                i1 false, metadata !&quot;&quot;, i32 0, metadata !2, metadata !2, metadata !3,
+                metadata !2, metadata !2, metadata !&quot;&quot;} ; [ DW_TAG_compile_unit ] \
+                  [/private/tmp/foo.c] \
+                  [DW_LANG_C99]
+!1 = metadata !{metadata !&quot;t.c&quot;, metadata !&quot;/private/tmp&quot;}
+!2 = metadata !{i32 0}
+!3 = metadata !{metadata !4}
+!4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !&quot;foo&quot;,
+                metadata !&quot;foo&quot;, metadata !&quot;&quot;, i32 1, metadata !6,
+                i1 false, i1 true, i32 0, i32 0, null, i32 0, i1 false,
+                void ()* @foo, null, null, metadata !2, i32 1}
+                ; [ DW_TAG_subprogram ] [line 1] [def] [foo]
+!5 = metadata !{i32 786473, metadata !1}  ; [ DW_TAG_file_type ] \
+                  [/private/tmp/t.c]
+!6 = metadata !{i32 786453, i32 0, null, metadata !&quot;&quot;, i32 0, i64 0, i64 0,
+                i64 0, i32 0, null, metadata !7, i32 0, null, null, null}
+                ; [ DW_TAG_subroutine_type ] \
+                  [line 0, size 0, align 0, offset 0] [from ]
+!7 = metadata !{null}
+!8 = metadata !{i32 2, metadata !&quot;Dwarf Version&quot;, i32 2}
+!9 = metadata !{metadata !&quot;clang version 3.4 (trunk 193128) (llvm/trunk 193139)&quot;}
+!10 = metadata !{i32 786688, metadata !4, metadata !&quot;X&quot;, metadata !5, i32 2,
+                 metadata !11, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [X] \
+                   [line 2]
+!11 = metadata !{i32 786468, null, null, metadata !&quot;int&quot;, i32 0, i64 32,
+                 i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] \
+                   [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
+!12 = metadata !{i32 2, i32 0, metadata !4, null}
+!13 = metadata !{i32 786688, metadata !4, metadata !&quot;Y&quot;, metadata !5, i32 3,
+                 metadata !11, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [Y] \
+                   [line 3]
+!14 = metadata !{i32 3, i32 0, metadata !4, null}
+!15 = metadata !{i32 786688, metadata !16, metadata !&quot;Z&quot;, metadata !5, i32 5,
+                 metadata !11, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [Z] \
+                   [line 5]
+!16 = metadata !{i32 786443, metadata !1, metadata !4, i32 4, i32 0, i32 0,
+                 i32 0} \
+                 ; [ DW_TAG_lexical_block ] [/private/tmp/t.c]
+!17 = metadata !{i32 5, i32 0, metadata !16, null}
+!18 = metadata !{i32 6, i32 0, metadata !16, null}
+!19 = metadata !{i32 8, i32 0, metadata !4, null} ; [ DW_TAG_imported_declaration ]
+!20 = metadata !{i32 9, i32 0, metadata !4, null}
+</pre></div>
+</div>
+<p>This example illustrates a few important details about LLVM debugging
+information.  In particular, it shows how the <code class="docutils literal"><span class="pre">llvm.dbg.declare</span></code> intrinsic and
+location information, which are attached to an instruction, are applied
+together to allow a debugger to analyze the relationship between statements,
+variable definitions, and the code used to implement the function.</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">call</span> <span class="kt">void</span> <span class="vg">@llvm.dbg.declare</span><span class="p">(</span><span class="kt">metadata</span> <span class="p">!{</span><span class="k">i32</span><span class="p">*</span> <span class="nv">%X</span><span class="p">},</span> <span class="kt">metadata</span> <span class="nv nv-Anonymous">!10</span><span class="p">),</span> <span class="nv">!dbg</span> <span class="nv nv-Anonymous">!12</span>
+  <span class="c">; [debug line = 2:7] [debug variable = X]</span>
+</pre></div>
+</div>
+<p>The first intrinsic <code class="docutils literal"><span class="pre">%llvm.dbg.declare</span></code> encodes debugging information for the
+variable <code class="docutils literal"><span class="pre">X</span></code>.  The metadata <code class="docutils literal"><span class="pre">!dbg</span> <span class="pre">!12</span></code> attached to the intrinsic provides
+scope information for the variable <code class="docutils literal"><span class="pre">X</span></code>.</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!12</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span><span class="k">i32</span> <span class="m">2</span><span class="p">,</span> <span class="k">i32</span> <span class="m">0</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv nv-Anonymous">!4</span><span class="p">,</span> <span class="k">null</span><span class="p">}</span>
+<span class="nv nv-Anonymous">!4</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span><span class="k">i32</span> <span class="m">786478</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv nv-Anonymous">!5</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv">!&quot;foo&quot;</span><span class="p">,</span>
+                <span class="kt">metadata</span> <span class="nv">!&quot;foo&quot;</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv">!&quot;&quot;</span><span class="p">,</span> <span class="k">i32</span> <span class="m">1</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv nv-Anonymous">!6</span><span class="p">,</span>
+                <span class="k">i1</span> <span class="k">false</span><span class="p">,</span> <span class="k">i1</span> <span class="k">true</span><span class="p">,</span> <span class="k">i32</span> <span class="m">0</span><span class="p">,</span> <span class="k">i32</span> <span class="m">0</span><span class="p">,</span> <span class="k">null</span><span class="p">,</span> <span class="k">i32</span> <span class="m">0</span><span class="p">,</span> <span class="k">i1</span> <span class="k">false</span><span class="p">,</span>
+                <span class="kt">void</span> <span class="p">()*</span> <span class="vg">@foo</span><span class="p">,</span> <span class="k">null</span><span class="p">,</span> <span class="k">null</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv nv-Anonymous">!2</span><span class="p">,</span> <span class="k">i32</span> <span class="m">1</span><span class="p">}</span>
+                  <span class="c">; [ DW_TAG_subprogram ] [line 1] [def] [foo]</span>
+</pre></div>
+</div>
+<p>Here <code class="docutils literal"><span class="pre">!12</span></code> is metadata providing location information.  It has four fields:
+line number, column number, scope, and original scope.  The original scope
+represents inline location if this instruction is inlined inside a caller, and
+is null otherwise.  In this example, scope is encoded by <code class="docutils literal"><span class="pre">!4</span></code>, a
+<a class="reference internal" href="#format-subprograms"><span class="std std-ref">subprogram descriptor</span></a>.  This way the location
+information attached to the intrinsics indicates that the variable <code class="docutils literal"><span class="pre">X</span></code> is
+declared at line number 2 at a function level scope in function <code class="docutils literal"><span class="pre">foo</span></code>.</p>
+<p>Now lets take another example.</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">call</span> <span class="kt">void</span> <span class="vg">@llvm.dbg.declare</span><span class="p">(</span><span class="kt">metadata</span> <span class="p">!{</span><span class="k">i32</span><span class="p">*</span> <span class="nv">%Z</span><span class="p">},</span> <span class="kt">metadata</span> <span class="nv nv-Anonymous">!15</span><span class="p">),</span> <span class="nv">!dbg</span> <span class="nv nv-Anonymous">!17</span>
+  <span class="c">; [debug line = 5:9] [debug variable = Z]</span>
+</pre></div>
+</div>
+<p>The third intrinsic <code class="docutils literal"><span class="pre">%llvm.dbg.declare</span></code> encodes debugging information for
+variable <code class="docutils literal"><span class="pre">Z</span></code>.  The metadata <code class="docutils literal"><span class="pre">!dbg</span> <span class="pre">!17</span></code> attached to the intrinsic provides
+scope information for the variable <code class="docutils literal"><span class="pre">Z</span></code>.</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!16</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span><span class="k">i32</span> <span class="m">786443</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv nv-Anonymous">!4</span><span class="p">,</span> <span class="k">i32</span> <span class="m">4</span><span class="p">,</span> <span class="k">i32</span> <span class="m">0</span><span class="p">,</span> <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>
+                 <span class="k">i32</span> <span class="m">0</span><span class="p">}</span>
+                 <span class="c">; [ DW_TAG_lexical_block ] [/private/tmp/t.c]</span>
+<span class="nv nv-Anonymous">!17</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span><span class="k">i32</span> <span class="m">5</span><span class="p">,</span> <span class="k">i32</span> <span class="m">0</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv nv-Anonymous">!16</span><span class="p">,</span> <span class="k">null</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>Here <code class="docutils literal"><span class="pre">!15</span></code> indicates that <code class="docutils literal"><span class="pre">Z</span></code> is declared at line number 5 and
+column number 0 inside of lexical scope <code class="docutils literal"><span class="pre">!16</span></code>.  The lexical scope itself
+resides inside of subprogram <code class="docutils literal"><span class="pre">!4</span></code> described above.</p>
+<p>The scope information attached with each instruction provides a straightforward
+way to find instructions covered by a scope.</p>
+</div>
+<div class="section" id="c-c-front-end-specific-debug-information">
+<span id="ccxx-frontend"></span><h2><a class="toc-backref" href="#id26">C/C++ front-end specific debug information</a><a class="headerlink" href="#c-c-front-end-specific-debug-information" title="Permalink to this headline">¶</a></h2>
+<p>The C and C++ front-ends represent information about the program in a format
+that is effectively identical to <a class="reference external" href="http://www.eagercon.com/dwarf/dwarf3std.htm">DWARF 3.0</a> in terms of information
+content.  This allows code generators to trivially support native debuggers by
+generating standard dwarf information, and contains enough information for
+non-dwarf targets to translate it as needed.</p>
+<p>This section describes the forms used to represent C and C++ programs.  Other
+languages could pattern themselves after this (which itself is tuned to
+representing programs in the same way that DWARF 3 does), or they could choose
+to provide completely different forms if they don’t fit into the DWARF model.
+As support for debugging information gets added to the various LLVM
+source-language front-ends, the information used should be documented here.</p>
+<p>The following sections provide examples of various C/C++ constructs and the
+debug information that would best describe those constructs.</p>
+<div class="section" id="c-c-source-file-information">
+<h3><a class="toc-backref" href="#id27">C/C++ source file information</a><a class="headerlink" href="#c-c-source-file-information" title="Permalink to this headline">¶</a></h3>
+<p>Given the source files <code class="docutils literal"><span class="pre">MySource.cpp</span></code> and <code class="docutils literal"><span class="pre">MyHeader.h</span></code> located in the
+directory <code class="docutils literal"><span class="pre">/Users/mine/sources</span></code>, the following code:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;MyHeader.h&quot;</span><span class="cp"></span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>a C/C++ front-end would generate the following descriptors:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="p">...</span>
+<span class="c">;;</span>
+<span class="c">;; Define the compile unit for the main source file &quot;/Users/mine/sources/MySource.cpp&quot;.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!0</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786449</span><span class="p">,</span>   <span class="c">;; Tag</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span>  <span class="c">;; File/directory name</span>
+  <span class="k">i32</span> <span class="m">4</span><span class="p">,</span>        <span class="c">;; Language Id</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;clang version 3.4 &quot;</span><span class="p">,</span>
+  <span class="k">i1</span> <span class="k">false</span><span class="p">,</span>     <span class="c">;; Optimized compile unit</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;&quot;</span><span class="p">,</span> <span class="c">;; Compiler flags</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>        <span class="c">;; Runtime version</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!2</span><span class="p">,</span>  <span class="c">;; Enumeration types</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!2</span><span class="p">,</span>  <span class="c">;; Retained types</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!3</span><span class="p">,</span>  <span class="c">;; Subprograms</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!2</span><span class="p">,</span>  <span class="c">;; Global variables</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!2</span><span class="p">,</span>  <span class="c">;; Imported entities (declarations and namespaces)</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;&quot;</span>  <span class="c">;; Split debug filename</span>
+<span class="p">}</span>
+
+<span class="c">;;</span>
+<span class="c">;; Define the file for the file &quot;/Users/mine/sources/MySource.cpp&quot;.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!1</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;MySource.cpp&quot;</span><span class="p">,</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;/Users/mine/sources&quot;</span>
+<span class="p">}</span>
+<span class="nv nv-Anonymous">!5</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786473</span><span class="p">,</span> <span class="c">;; Tag</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!1</span>
+<span class="p">}</span>
+
+<span class="c">;;</span>
+<span class="c">;; Define the file for the file &quot;/Users/mine/sources/Myheader.h&quot;</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!14</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786473</span><span class="p">,</span> <span class="c">;; Tag</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!15</span>
+<span class="p">}</span>
+<span class="nv nv-Anonymous">!15</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;./MyHeader.h&quot;</span><span class="p">,</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;/Users/mine/sources&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="p">...</span>
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">llvm::Instruction</span></code> provides easy access to metadata attached with an
+instruction.  One can extract line number information encoded in LLVM IR using
+<code class="docutils literal"><span class="pre">Instruction::getMetadata()</span></code> and <code class="docutils literal"><span class="pre">DILocation::getLineNumber()</span></code>.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="p">(</span><span class="n">MDNode</span> <span class="o">*</span><span class="n">N</span> <span class="o">=</span> <span class="n">I</span><span class="o">-&gt;</span><span class="n">getMetadata</span><span class="p">(</span><span class="s">&quot;dbg&quot;</span><span class="p">))</span> <span class="p">{</span>  <span class="c1">// Here I is an LLVM instruction</span>
+  <span class="n">DILocation</span> <span class="n">Loc</span><span class="p">(</span><span class="n">N</span><span class="p">);</span>                      <span class="c1">// DILocation is in DebugInfo.h</span>
+  <span class="kt">unsigned</span> <span class="n">Line</span> <span class="o">=</span> <span class="n">Loc</span><span class="p">.</span><span class="n">getLineNumber</span><span class="p">();</span>
+  <span class="n">StringRef</span> <span class="n">File</span> <span class="o">=</span> <span class="n">Loc</span><span class="p">.</span><span class="n">getFilename</span><span class="p">();</span>
+  <span class="n">StringRef</span> <span class="n">Dir</span> <span class="o">=</span> <span class="n">Loc</span><span class="p">.</span><span class="n">getDirectory</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="c-c-global-variable-information">
+<h3><a class="toc-backref" href="#id28">C/C++ global variable information</a><a class="headerlink" href="#c-c-global-variable-information" title="Permalink to this headline">¶</a></h3>
+<p>Given an integer global variable declared as follows:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="n">MyGlobal</span> <span class="o">=</span> <span class="mi">100</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>a C/C++ front-end would generate the following descriptors:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>;;
+;; Define the global itself.
+;;
+%MyGlobal = global int 100
+...
+;;
+;; List of debug info of globals
+;;
+!llvm.dbg.cu = !{!0}
+
+;; Define the compile unit.
+!0 = metadata !{
+  i32 786449,                       ;; Tag
+  i32 0,                            ;; Context
+  i32 4,                            ;; Language
+  metadata !&quot;foo.cpp&quot;,              ;; File
+  metadata !&quot;/Volumes/Data/tmp&quot;,    ;; Directory
+  metadata !&quot;clang version 3.1 &quot;,   ;; Producer
+  i1 true,                          ;; Deprecated field
+  i1 false,                         ;; &quot;isOptimized&quot;?
+  metadata !&quot;&quot;,                     ;; Flags
+  i32 0,                            ;; Runtime Version
+  metadata !1,                      ;; Enum Types
+  metadata !1,                      ;; Retained Types
+  metadata !1,                      ;; Subprograms
+  metadata !3,                      ;; Global Variables
+  metadata !1,                      ;; Imported entities
+  &quot;&quot;,                               ;; Split debug filename
+} ; [ DW_TAG_compile_unit ]
+
+;; The Array of Global Variables
+!3 = metadata !{
+  metadata !4
+}
+
+;;
+;; Define the global variable itself.
+;;
+!4 = metadata !{
+  i32 786484,                        ;; Tag
+  i32 0,                             ;; Unused
+  null,                              ;; Unused
+  metadata !&quot;MyGlobal&quot;,              ;; Name
+  metadata !&quot;MyGlobal&quot;,              ;; Display Name
+  metadata !&quot;&quot;,                      ;; Linkage Name
+  metadata !6,                       ;; File
+  i32 1,                             ;; Line
+  metadata !7,                       ;; Type
+  i32 0,                             ;; IsLocalToUnit
+  i32 1,                             ;; IsDefinition
+  i32* @MyGlobal,                    ;; LLVM-IR Value
+  null                               ;; Static member declaration
+} ; [ DW_TAG_variable ]
+
+;;
+;; Define the file
+;;
+!5 = metadata !{
+  metadata !&quot;foo.cpp&quot;,               ;; File
+  metadata !&quot;/Volumes/Data/tmp&quot;,     ;; Directory
+}
+!6 = metadata !{
+  i32 786473,                        ;; Tag
+  metadata !5                        ;; Unused
+} ; [ DW_TAG_file_type ]
+
+;;
+;; Define the type
+;;
+!7 = metadata !{
+  i32 786468,                         ;; Tag
+  null,                               ;; Unused
+  null,                               ;; Unused
+  metadata !&quot;int&quot;,                    ;; Name
+  i32 0,                              ;; Line
+  i64 32,                             ;; Size in Bits
+  i64 32,                             ;; Align in Bits
+  i64 0,                              ;; Offset
+  i32 0,                              ;; Flags
+  i32 5                               ;; Encoding
+} ; [ DW_TAG_base_type ]
+</pre></div>
+</div>
+</div>
+<div class="section" id="c-c-function-information">
+<h3><a class="toc-backref" href="#id29">C/C++ function information</a><a class="headerlink" href="#c-c-function-information" title="Permalink to this headline">¶</a></h3>
+<p>Given a function declared as follows:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">*</span><span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>a C/C++ front-end would generate the following descriptors:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>;;
+;; Define the anchor for subprograms.
+;;
+!6 = metadata !{
+  i32 786484,        ;; Tag
+  metadata !1,       ;; File
+  metadata !1,       ;; Context
+  metadata !&quot;main&quot;,  ;; Name
+  metadata !&quot;main&quot;,  ;; Display name
+  metadata !&quot;main&quot;,  ;; Linkage name
+  i32 1,             ;; Line number
+  metadata !4,       ;; Type
+  i1 false,          ;; Is local
+  i1 true,           ;; Is definition
+  i32 0,             ;; Virtuality attribute, e.g. pure virtual function
+  i32 0,             ;; Index into virtual table for C++ methods
+  i32 0,             ;; Type that holds virtual table.
+  i32 0,             ;; Flags
+  i1 false,          ;; True if this function is optimized
+  Function *,        ;; Pointer to llvm::Function
+  null,              ;; Function template parameters
+  null,              ;; List of function variables (emitted when optimizing)
+  1                  ;; Line number of the opening &#39;{&#39; of the function
+}
+;;
+;; Define the subprogram itself.
+;;
+define i32 @main(i32 %argc, i8** %argv) {
+...
+}
+</pre></div>
+</div>
+</div>
+<div class="section" id="c-c-basic-types">
+<h3><a class="toc-backref" href="#id30">C/C++ basic types</a><a class="headerlink" href="#c-c-basic-types" title="Permalink to this headline">¶</a></h3>
+<p>The following are the basic type descriptors for C/C++ core types:</p>
+<div class="section" id="bool">
+<h4><a class="toc-backref" href="#id31">bool</a><a class="headerlink" href="#bool" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786468</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; File</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;bool&quot;</span><span class="p">,</span>  <span class="c">;; Name</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">8</span><span class="p">,</span>             <span class="c">;; Size in Bits</span>
+  <span class="k">i64</span> <span class="m">8</span><span class="p">,</span>             <span class="c">;; Align in Bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Offset in Bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="k">i32</span> <span class="m">2</span>              <span class="c">;; Encoding</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="char">
+<h4><a class="toc-backref" href="#id32">char</a><a class="headerlink" href="#char" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786468</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; File</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;char&quot;</span><span class="p">,</span>  <span class="c">;; Name</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">8</span><span class="p">,</span>             <span class="c">;; Size in Bits</span>
+  <span class="k">i64</span> <span class="m">8</span><span class="p">,</span>             <span class="c">;; Align in Bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Offset in Bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="k">i32</span> <span class="m">6</span>              <span class="c">;; Encoding</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="unsigned-char">
+<h4><a class="toc-backref" href="#id33">unsigned char</a><a class="headerlink" href="#unsigned-char" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786468</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; File</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;unsigned char&quot;</span><span class="p">,</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">8</span><span class="p">,</span>             <span class="c">;; Size in Bits</span>
+  <span class="k">i64</span> <span class="m">8</span><span class="p">,</span>             <span class="c">;; Align in Bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Offset in Bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="k">i32</span> <span class="m">8</span>              <span class="c">;; Encoding</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="short">
+<h4><a class="toc-backref" href="#id34">short</a><a class="headerlink" href="#short" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786468</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; File</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;short int&quot;</span><span class="p">,</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">16</span><span class="p">,</span>            <span class="c">;; Size in Bits</span>
+  <span class="k">i64</span> <span class="m">16</span><span class="p">,</span>            <span class="c">;; Align in Bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Offset in Bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="k">i32</span> <span class="m">5</span>              <span class="c">;; Encoding</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="unsigned-short">
+<h4><a class="toc-backref" href="#id35">unsigned short</a><a class="headerlink" href="#unsigned-short" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786468</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; File</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;short unsigned int&quot;</span><span class="p">,</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">16</span><span class="p">,</span>            <span class="c">;; Size in Bits</span>
+  <span class="k">i64</span> <span class="m">16</span><span class="p">,</span>            <span class="c">;; Align in Bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Offset in Bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="k">i32</span> <span class="m">7</span>              <span class="c">;; Encoding</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="int">
+<h4><a class="toc-backref" href="#id36">int</a><a class="headerlink" href="#int" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786468</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; File</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;int&quot;</span><span class="p">,</span>   <span class="c">;; Name</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Size in Bits</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Align in Bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Offset in Bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="k">i32</span> <span class="m">5</span>              <span class="c">;; Encoding</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="unsigned-int">
+<h4><a class="toc-backref" href="#id37">unsigned int</a><a class="headerlink" href="#unsigned-int" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786468</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; File</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;unsigned int&quot;</span><span class="p">,</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Size in Bits</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Align in Bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Offset in Bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="k">i32</span> <span class="m">7</span>              <span class="c">;; Encoding</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="long-long">
+<h4><a class="toc-backref" href="#id38">long long</a><a class="headerlink" href="#long-long" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786468</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; File</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;long long int&quot;</span><span class="p">,</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">64</span><span class="p">,</span>            <span class="c">;; Size in Bits</span>
+  <span class="k">i64</span> <span class="m">64</span><span class="p">,</span>            <span class="c">;; Align in Bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Offset in Bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="k">i32</span> <span class="m">5</span>              <span class="c">;; Encoding</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="unsigned-long-long">
+<h4><a class="toc-backref" href="#id39">unsigned long long</a><a class="headerlink" href="#unsigned-long-long" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786468</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; File</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;long long unsigned int&quot;</span><span class="p">,</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">64</span><span class="p">,</span>            <span class="c">;; Size in Bits</span>
+  <span class="k">i64</span> <span class="m">64</span><span class="p">,</span>            <span class="c">;; Align in Bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Offset in Bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="k">i32</span> <span class="m">7</span>              <span class="c">;; Encoding</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="float">
+<h4><a class="toc-backref" href="#id40">float</a><a class="headerlink" href="#float" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786468</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; File</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;float&quot;</span><span class="p">,</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Size in Bits</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Align in Bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Offset in Bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="k">i32</span> <span class="m">4</span>              <span class="c">;; Encoding</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="double">
+<h4><a class="toc-backref" href="#id41">double</a><a class="headerlink" href="#double" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786468</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; File</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;double&quot;</span><span class="p">,</span><span class="c">;; Name</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">64</span><span class="p">,</span>            <span class="c">;; Size in Bits</span>
+  <span class="k">i64</span> <span class="m">64</span><span class="p">,</span>            <span class="c">;; Align in Bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Offset in Bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="k">i32</span> <span class="m">4</span>              <span class="c">;; Encoding</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="c-c-derived-types">
+<h3><a class="toc-backref" href="#id42">C/C++ derived types</a><a class="headerlink" href="#c-c-derived-types" title="Permalink to this headline">¶</a></h3>
+<p>Given the following as an example of C/C++ derived type:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">typedef</span> <span class="k">const</span> <span class="kt">int</span> <span class="o">*</span><span class="n">IntPtr</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>a C/C++ front-end would generate the following descriptors:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">;;</span>
+<span class="c">;; Define the typedef &quot;IntPtr&quot;.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786454</span><span class="p">,</span>          <span class="c">;; Tag</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!3</span><span class="p">,</span>         <span class="c">;; File</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span>         <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;IntPtr&quot;</span><span class="p">,</span>  <span class="c">;; Name</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Size in bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Align in bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Offset in bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Flags</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!4</span>          <span class="c">;; Derived From type</span>
+<span class="p">}</span>
+<span class="c">;;</span>
+<span class="c">;; Define the pointer type.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!4</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786447</span><span class="p">,</span>          <span class="c">;; Tag</span>
+  <span class="k">null</span><span class="p">,</span>                <span class="c">;; File</span>
+  <span class="k">null</span><span class="p">,</span>                <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;&quot;</span><span class="p">,</span>        <span class="c">;; Name</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">64</span><span class="p">,</span>              <span class="c">;; Size in bits</span>
+  <span class="k">i64</span> <span class="m">64</span><span class="p">,</span>              <span class="c">;; Align in bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Offset in bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Flags</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!5</span>          <span class="c">;; Derived From type</span>
+<span class="p">}</span>
+<span class="c">;;</span>
+<span class="c">;; Define the const type.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!5</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786470</span><span class="p">,</span>          <span class="c">;; Tag</span>
+  <span class="k">null</span><span class="p">,</span>                <span class="c">;; File</span>
+  <span class="k">null</span><span class="p">,</span>                <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;&quot;</span><span class="p">,</span>        <span class="c">;; Name</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Size in bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Align in bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Offset in bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Flags</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!6</span>          <span class="c">;; Derived From type</span>
+<span class="p">}</span>
+<span class="c">;;</span>
+<span class="c">;; Define the int type.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!6</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786468</span><span class="p">,</span>          <span class="c">;; Tag</span>
+  <span class="k">null</span><span class="p">,</span>                <span class="c">;; File</span>
+  <span class="k">null</span><span class="p">,</span>                <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;int&quot;</span><span class="p">,</span>     <span class="c">;; Name</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>              <span class="c">;; Size in bits</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>              <span class="c">;; Align in bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Offset in bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>               <span class="c">;; Flags</span>
+  <span class="k">i32</span> <span class="m">5</span>                <span class="c">;; Encoding</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="c-c-struct-union-types">
+<h3><a class="toc-backref" href="#id43">C/C++ struct/union types</a><a class="headerlink" href="#c-c-struct-union-types" title="Permalink to this headline">¶</a></h3>
+<p>Given the following as an example of C/C++ struct type:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">Color</span> <span class="p">{</span>
+  <span class="kt">unsigned</span> <span class="n">Red</span><span class="p">;</span>
+  <span class="kt">unsigned</span> <span class="n">Green</span><span class="p">;</span>
+  <span class="kt">unsigned</span> <span class="n">Blue</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>a C/C++ front-end would generate the following descriptors:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">;;</span>
+<span class="c">;; Define basic type for unsigned int.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!5</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786468</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; File</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;unsigned int&quot;</span><span class="p">,</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Size in Bits</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Align in Bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Offset in Bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="k">i32</span> <span class="m">7</span>              <span class="c">;; Encoding</span>
+<span class="p">}</span>
+<span class="c">;;</span>
+<span class="c">;; Define composite type for struct Color.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786451</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span>       <span class="c">;; Compile unit</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;Color&quot;</span><span class="p">,</span> <span class="c">;; Name</span>
+  <span class="k">i32</span> <span class="m">1</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">96</span><span class="p">,</span>            <span class="c">;; Size in bits</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Align in bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Offset in bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Derived From</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!3</span><span class="p">,</span>       <span class="c">;; Elements</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Runtime Language</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Base type containing the vtable pointer for this type</span>
+  <span class="k">null</span>               <span class="c">;; Template parameters</span>
+<span class="p">}</span>
+
+<span class="c">;;</span>
+<span class="c">;; Define the Red field.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!4</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786445</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span>       <span class="c">;; File</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span>       <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;Red&quot;</span><span class="p">,</span>   <span class="c">;; Name</span>
+  <span class="k">i32</span> <span class="m">2</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Size in bits</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Align in bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Offset in bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!5</span>        <span class="c">;; Derived From type</span>
+<span class="p">}</span>
+
+<span class="c">;;</span>
+<span class="c">;; Define the Green field.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!6</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786445</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span>       <span class="c">;; File</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span>       <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;Green&quot;</span><span class="p">,</span> <span class="c">;; Name</span>
+  <span class="k">i32</span> <span class="m">3</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Size in bits</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Align in bits</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>             <span class="c">;; Offset in bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!5</span>        <span class="c">;; Derived From type</span>
+<span class="p">}</span>
+
+<span class="c">;;</span>
+<span class="c">;; Define the Blue field.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!7</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786445</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span>       <span class="c">;; File</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span>       <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;Blue&quot;</span><span class="p">,</span>  <span class="c">;; Name</span>
+  <span class="k">i32</span> <span class="m">4</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Size in bits</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Align in bits</span>
+  <span class="k">i64</span> <span class="m">64</span><span class="p">,</span>             <span class="c">;; Offset in bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!5</span>        <span class="c">;; Derived From type</span>
+<span class="p">}</span>
+
+<span class="c">;;</span>
+<span class="c">;; Define the array of fields used by the composite type Color.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!3</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span><span class="kt">metadata</span> <span class="nv nv-Anonymous">!4</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv nv-Anonymous">!6</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv nv-Anonymous">!7</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="c-c-enumeration-types">
+<h3><a class="toc-backref" href="#id44">C/C++ enumeration types</a><a class="headerlink" href="#c-c-enumeration-types" title="Permalink to this headline">¶</a></h3>
+<p>Given the following as an example of C/C++ enumeration type:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">enum</span> <span class="n">Trees</span> <span class="p">{</span>
+  <span class="n">Spruce</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+  <span class="n">Oak</span> <span class="o">=</span> <span class="mi">200</span><span class="p">,</span>
+  <span class="n">Maple</span> <span class="o">=</span> <span class="mi">300</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>a C/C++ front-end would generate the following descriptors:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">;;</span>
+<span class="c">;; Define composite type for enum Trees</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span>
+  <span class="k">i32</span> <span class="m">786436</span><span class="p">,</span>        <span class="c">;; Tag</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span>       <span class="c">;; File</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span>       <span class="c">;; Context</span>
+  <span class="kt">metadata</span> <span class="nv">!&quot;Trees&quot;</span><span class="p">,</span> <span class="c">;; Name</span>
+  <span class="k">i32</span> <span class="m">1</span><span class="p">,</span>             <span class="c">;; Line number</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Size in bits</span>
+  <span class="k">i64</span> <span class="m">32</span><span class="p">,</span>            <span class="c">;; Align in bits</span>
+  <span class="k">i64</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Offset in bits</span>
+  <span class="k">i32</span> <span class="m">0</span><span class="p">,</span>             <span class="c">;; Flags</span>
+  <span class="k">null</span><span class="p">,</span>              <span class="c">;; Derived From type</span>
+  <span class="kt">metadata</span> <span class="nv nv-Anonymous">!3</span><span class="p">,</span>       <span class="c">;; Elements</span>
+  <span class="k">i32</span> <span class="m">0</span>              <span class="c">;; Runtime language</span>
+<span class="p">}</span>
+
+<span class="c">;;</span>
+<span class="c">;; Define the array of enumerators used by composite type Trees.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!3</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span><span class="kt">metadata</span> <span class="nv nv-Anonymous">!4</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv nv-Anonymous">!5</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv nv-Anonymous">!6</span><span class="p">}</span>
+
+<span class="c">;;</span>
+<span class="c">;; Define Spruce enumerator.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!4</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span><span class="k">i32</span> <span class="m">786472</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv">!&quot;Spruce&quot;</span><span class="p">,</span> <span class="k">i64</span> <span class="m">100</span><span class="p">}</span>
+
+<span class="c">;;</span>
+<span class="c">;; Define Oak enumerator.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!5</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span><span class="k">i32</span> <span class="m">786472</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv">!&quot;Oak&quot;</span><span class="p">,</span> <span class="k">i64</span> <span class="m">200</span><span class="p">}</span>
+
+<span class="c">;;</span>
+<span class="c">;; Define Maple enumerator.</span>
+<span class="c">;;</span>
+<span class="nv nv-Anonymous">!6</span> <span class="p">=</span> <span class="kt">metadata</span> <span class="p">!{</span><span class="k">i32</span> <span class="m">786472</span><span class="p">,</span> <span class="kt">metadata</span> <span class="nv">!&quot;Maple&quot;</span><span class="p">,</span> <span class="k">i64</span> <span class="m">300</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="id1">
+<h2><a class="toc-backref" href="#id45">Debugging information format</a><a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="debugging-information-extension-for-objective-c-properties">
+<h3><a class="toc-backref" href="#id46">Debugging Information Extension for Objective C Properties</a><a class="headerlink" href="#debugging-information-extension-for-objective-c-properties" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id2">
+<h4><a class="toc-backref" href="#id47">Introduction</a><a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h4>
+<p>Objective C provides a simpler way to declare and define accessor methods using
+declared properties.  The language provides features to declare a property and
+to let compiler synthesize accessor methods.</p>
+<p>The debugger lets developer inspect Objective C interfaces and their instance
+variables and class variables.  However, the debugger does not know anything
+about the properties defined in Objective C interfaces.  The debugger consumes
+information generated by compiler in DWARF format.  The format does not support
+encoding of Objective C properties.  This proposal describes DWARF extensions to
+encode Objective C properties, which the debugger can use to let developers
+inspect Objective C properties.</p>
+</div>
+<div class="section" id="proposal">
+<h4><a class="toc-backref" href="#id48">Proposal</a><a class="headerlink" href="#proposal" title="Permalink to this headline">¶</a></h4>
+<p>Objective C properties exist separately from class members.  A property can be
+defined only by “setter” and “getter” selectors, and be calculated anew on each
+access.  Or a property can just be a direct access to some declared ivar.
+Finally it can have an ivar “automatically synthesized” for it by the compiler,
+in which case the property can be referred to in user code directly using the
+standard C dereference syntax as well as through the property “dot” syntax, but
+there is no entry in the <code class="docutils literal"><span class="pre">&#64;interface</span></code> declaration corresponding to this ivar.</p>
+<p>To facilitate debugging, these properties we will add a new DWARF TAG into the
+<code class="docutils literal"><span class="pre">DW_TAG_structure_type</span></code> definition for the class to hold the description of a
+given property, and a set of DWARF attributes that provide said description.
+The property tag will also contain the name and declared type of the property.</p>
+<p>If there is a related ivar, there will also be a DWARF property attribute placed
+in the <code class="docutils literal"><span class="pre">DW_TAG_member</span></code> DIE for that ivar referring back to the property TAG
+for that property.  And in the case where the compiler synthesizes the ivar
+directly, the compiler is expected to generate a <code class="docutils literal"><span class="pre">DW_TAG_member</span></code> for that
+ivar (with the <code class="docutils literal"><span class="pre">DW_AT_artificial</span></code> set to 1), whose name will be the name used
+to access this ivar directly in code, and with the property attribute pointing
+back to the property it is backing.</p>
+<p>The following examples will serve as illustration for our discussion:</p>
+<div class="highlight-objc"><div class="highlight"><pre><span></span><span class="k">@interface</span> <span class="nc">I1</span> <span class="p">{</span>
+  <span class="kt">int</span> <span class="n">n2</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">@property</span> <span class="kt">int</span> <span class="n">p1</span><span class="p">;</span>
+<span class="k">@property</span> <span class="kt">int</span> <span class="n">p2</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">I1</span>
+<span class="k">@synthesize</span> <span class="n">p1</span><span class="p">;</span>
+<span class="k">@synthesize</span> <span class="n">p2</span> <span class="o">=</span> <span class="n">n2</span><span class="p">;</span>
+<span class="k">@end</span>
+</pre></div>
+</div>
+<p>This produces the following DWARF (this is a “pseudo dwarfdump” output):</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>0x00000100:  TAG_structure_type [7] *
+               AT_APPLE_runtime_class( 0x10 )
+               AT_name( &quot;I1&quot; )
+               AT_decl_file( &quot;Objc_Property.m&quot; )
+               AT_decl_line( 3 )
+
+0x00000110    TAG_APPLE_property
+                AT_name ( &quot;p1&quot; )
+                AT_type ( {0x00000150} ( int ) )
+
+0x00000120:   TAG_APPLE_property
+                AT_name ( &quot;p2&quot; )
+                AT_type ( {0x00000150} ( int ) )
+
+0x00000130:   TAG_member [8]
+                AT_name( &quot;_p1&quot; )
+                AT_APPLE_property ( {0x00000110} &quot;p1&quot; )
+                AT_type( {0x00000150} ( int ) )
+                AT_artificial ( 0x1 )
+
+0x00000140:    TAG_member [8]
+                 AT_name( &quot;n2&quot; )
+                 AT_APPLE_property ( {0x00000120} &quot;p2&quot; )
+                 AT_type( {0x00000150} ( int ) )
+
+0x00000150:  AT_type( ( int ) )
+</pre></div>
+</div>
+<p>Note, the current convention is that the name of the ivar for an
+auto-synthesized property is the name of the property from which it derives
+with an underscore prepended, as is shown in the example.  But we actually
+don’t need to know this convention, since we are given the name of the ivar
+directly.</p>
+<p>Also, it is common practice in ObjC to have different property declarations in
+the &#64;interface and &#64;implementation - e.g. to provide a read-only property in
+the interface,and a read-write interface in the implementation.  In that case,
+the compiler should emit whichever property declaration will be in force in the
+current translation unit.</p>
+<p>Developers can decorate a property with attributes which are encoded using
+<code class="docutils literal"><span class="pre">DW_AT_APPLE_property_attribute</span></code>.</p>
+<div class="highlight-objc"><div class="highlight"><pre><span></span><span class="k">@property</span> <span class="p">(</span><span class="k">readonly</span><span class="p">,</span> <span class="k">nonatomic</span><span class="p">)</span> <span class="kt">int</span> <span class="n">pr</span><span class="p">;</span>
+</pre></div>
+</div>
+<div class="highlight-none"><div class="highlight"><pre><span></span>TAG_APPLE_property [8]
+  AT_name( &quot;pr&quot; )
+  AT_type ( {0x00000147} (int) )
+  AT_APPLE_property_attribute (DW_APPLE_PROPERTY_readonly, DW_APPLE_PROPERTY_nonatomic)
+</pre></div>
+</div>
+<p>The setter and getter method names are attached to the property using
+<code class="docutils literal"><span class="pre">DW_AT_APPLE_property_setter</span></code> and <code class="docutils literal"><span class="pre">DW_AT_APPLE_property_getter</span></code> attributes.</p>
+<div class="highlight-objc"><div class="highlight"><pre><span></span><span class="k">@interface</span> <span class="nc">I1</span>
+<span class="k">@property</span> <span class="p">(</span><span class="k">setter</span><span class="o">=</span><span class="nl">myOwnP3Setter</span><span class="p">:)</span> <span class="kt">int</span> <span class="n">p3</span><span class="p">;</span>
+<span class="p">-(</span><span class="kt">void</span><span class="p">)</span><span class="nf">myOwnP3Setter:</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="nv">a</span><span class="p">;</span>
+<span class="k">@end</span>
+
+<span class="k">@implementation</span> <span class="nc">I1</span>
+<span class="k">@synthesize</span> <span class="n">p3</span><span class="p">;</span>
+<span class="p">-(</span><span class="kt">void</span><span class="p">)</span><span class="nf">myOwnP3Setter:</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span><span class="nv">a</span><span class="p">{</span> <span class="p">}</span>
+<span class="k">@end</span>
+</pre></div>
+</div>
+<p>The DWARF for this would be:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>0x000003bd: TAG_structure_type [7] *
+              AT_APPLE_runtime_class( 0x10 )
+              AT_name( &quot;I1&quot; )
+              AT_decl_file( &quot;Objc_Property.m&quot; )
+              AT_decl_line( 3 )
+
+0x000003cd      TAG_APPLE_property
+                  AT_name ( &quot;p3&quot; )
+                  AT_APPLE_property_setter ( &quot;myOwnP3Setter:&quot; )
+                  AT_type( {0x00000147} ( int ) )
+
+0x000003f3:     TAG_member [8]
+                  AT_name( &quot;_p3&quot; )
+                  AT_type ( {0x00000147} ( int ) )
+                  AT_APPLE_property ( {0x000003cd} )
+                  AT_artificial ( 0x1 )
+</pre></div>
+</div>
+</div>
+<div class="section" id="new-dwarf-tags">
+<h4><a class="toc-backref" href="#id49">New DWARF Tags</a><a class="headerlink" href="#new-dwarf-tags" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="docutils">
+<colgroup>
+<col width="74%" />
+<col width="26%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">TAG</th>
+<th class="head">Value</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>DW_TAG_APPLE_property</td>
+<td>0x4200</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="new-dwarf-attributes">
+<h4><a class="toc-backref" href="#id50">New DWARF Attributes</a><a class="headerlink" href="#new-dwarf-attributes" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="docutils">
+<colgroup>
+<col width="63%" />
+<col width="16%" />
+<col width="22%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Attribute</th>
+<th class="head">Value</th>
+<th class="head">Classes</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>DW_AT_APPLE_property</td>
+<td>0x3fed</td>
+<td>Reference</td>
+</tr>
+<tr class="row-odd"><td>DW_AT_APPLE_property_getter</td>
+<td>0x3fe9</td>
+<td>String</td>
+</tr>
+<tr class="row-even"><td>DW_AT_APPLE_property_setter</td>
+<td>0x3fea</td>
+<td>String</td>
+</tr>
+<tr class="row-odd"><td>DW_AT_APPLE_property_attribute</td>
+<td>0x3feb</td>
+<td>Constant</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="new-dwarf-constants">
+<h4><a class="toc-backref" href="#id51">New DWARF Constants</a><a class="headerlink" href="#new-dwarf-constants" title="Permalink to this headline">¶</a></h4>
+<table border="1" class="docutils">
+<colgroup>
+<col width="82%" />
+<col width="18%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Name</th>
+<th class="head">Value</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>DW_AT_APPLE_PROPERTY_readonly</td>
+<td>0x1</td>
+</tr>
+<tr class="row-odd"><td>DW_AT_APPLE_PROPERTY_readwrite</td>
+<td>0x2</td>
+</tr>
+<tr class="row-even"><td>DW_AT_APPLE_PROPERTY_assign</td>
+<td>0x4</td>
+</tr>
+<tr class="row-odd"><td>DW_AT_APPLE_PROPERTY_retain</td>
+<td>0x8</td>
+</tr>
+<tr class="row-even"><td>DW_AT_APPLE_PROPERTY_copy</td>
+<td>0x10</td>
+</tr>
+<tr class="row-odd"><td>DW_AT_APPLE_PROPERTY_nonatomic</td>
+<td>0x20</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="section" id="name-accelerator-tables">
+<h3><a class="toc-backref" href="#id52">Name Accelerator Tables</a><a class="headerlink" href="#name-accelerator-tables" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id3">
+<h4><a class="toc-backref" href="#id53">Introduction</a><a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h4>
+<p>The “<code class="docutils literal"><span class="pre">.debug_pubnames</span></code>” and “<code class="docutils literal"><span class="pre">.debug_pubtypes</span></code>” formats are not what a
+debugger needs.  The “<code class="docutils literal"><span class="pre">pub</span></code>” in the section name indicates that the entries
+in the table are publicly visible names only.  This means no static or hidden
+functions show up in the “<code class="docutils literal"><span class="pre">.debug_pubnames</span></code>”.  No static variables or private
+class variables are in the “<code class="docutils literal"><span class="pre">.debug_pubtypes</span></code>”.  Many compilers add different
+things to these tables, so we can’t rely upon the contents between gcc, icc, or
+clang.</p>
+<p>The typical query given by users tends not to match up with the contents of
+these tables.  For example, the DWARF spec states that “In the case of the name
+of a function member or static data member of a C++ structure, class or union,
+the name presented in the “<code class="docutils literal"><span class="pre">.debug_pubnames</span></code>” section is not the simple name
+given by the <code class="docutils literal"><span class="pre">DW_AT_name</span> <span class="pre">attribute</span></code> of the referenced debugging information
+entry, but rather the fully qualified name of the data or function member.”
+So the only names in these tables for complex C++ entries is a fully
+qualified name.  Debugger users tend not to enter their search strings as
+“<code class="docutils literal"><span class="pre">a::b::c(int,const</span> <span class="pre">Foo&amp;)</span> <span class="pre">const</span></code>”, but rather as “<code class="docutils literal"><span class="pre">c</span></code>”, “<code class="docutils literal"><span class="pre">b::c</span></code>” , or
+“<code class="docutils literal"><span class="pre">a::b::c</span></code>”.  So the name entered in the name table must be demangled in
+order to chop it up appropriately and additional names must be manually entered
+into the table to make it effective as a name lookup table for debuggers to
+se.</p>
+<p>All debuggers currently ignore the “<code class="docutils literal"><span class="pre">.debug_pubnames</span></code>” table as a result of
+its inconsistent and useless public-only name content making it a waste of
+space in the object file.  These tables, when they are written to disk, are not
+sorted in any way, leaving every debugger to do its own parsing and sorting.
+These tables also include an inlined copy of the string values in the table
+itself making the tables much larger than they need to be on disk, especially
+for large C++ programs.</p>
+<p>Can’t we just fix the sections by adding all of the names we need to this
+table? No, because that is not what the tables are defined to contain and we
+won’t know the difference between the old bad tables and the new good tables.
+At best we could make our own renamed sections that contain all of the data we
+need.</p>
+<p>These tables are also insufficient for what a debugger like LLDB needs.  LLDB
+uses clang for its expression parsing where LLDB acts as a PCH.  LLDB is then
+often asked to look for type “<code class="docutils literal"><span class="pre">foo</span></code>” or namespace “<code class="docutils literal"><span class="pre">bar</span></code>”, or list items in
+namespace “<code class="docutils literal"><span class="pre">baz</span></code>”.  Namespaces are not included in the pubnames or pubtypes
+tables.  Since clang asks a lot of questions when it is parsing an expression,
+we need to be very fast when looking up names, as it happens a lot.  Having new
+accelerator tables that are optimized for very quick lookups will benefit this
+type of debugging experience greatly.</p>
+<p>We would like to generate name lookup tables that can be mapped into memory
+from disk, and used as is, with little or no up-front parsing.  We would also
+be able to control the exact content of these different tables so they contain
+exactly what we need.  The Name Accelerator Tables were designed to fix these
+issues.  In order to solve these issues we need to:</p>
+<ul class="simple">
+<li>Have a format that can be mapped into memory from disk and used as is</li>
+<li>Lookups should be very fast</li>
+<li>Extensible table format so these tables can be made by many producers</li>
+<li>Contain all of the names needed for typical lookups out of the box</li>
+<li>Strict rules for the contents of tables</li>
+</ul>
+<p>Table size is important and the accelerator table format should allow the reuse
+of strings from common string tables so the strings for the names are not
+duplicated.  We also want to make sure the table is ready to be used as-is by
+simply mapping the table into memory with minimal header parsing.</p>
+<p>The name lookups need to be fast and optimized for the kinds of lookups that
+debuggers tend to do.  Optimally we would like to touch as few parts of the
+mapped table as possible when doing a name lookup and be able to quickly find
+the name entry we are looking for, or discover there are no matches.  In the
+case of debuggers we optimized for lookups that fail most of the time.</p>
+<p>Each table that is defined should have strict rules on exactly what is in the
+accelerator tables and documented so clients can rely on the content.</p>
+</div>
+<div class="section" id="hash-tables">
+<h4><a class="toc-backref" href="#id54">Hash Tables</a><a class="headerlink" href="#hash-tables" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="standard-hash-tables">
+<h5><a class="toc-backref" href="#id55">Standard Hash Tables</a><a class="headerlink" href="#standard-hash-tables" title="Permalink to this headline">¶</a></h5>
+<p>Typical hash tables have a header, buckets, and each bucket points to the
+bucket contents:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>.------------.
+|  HEADER    |
+|------------|
+|  BUCKETS   |
+|------------|
+|  DATA      |
+`------------&#39;
+</pre></div>
+</div>
+<p>The BUCKETS are an array of offsets to DATA for each hash:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>.------------.
+| 0x00001000 | BUCKETS[0]
+| 0x00002000 | BUCKETS[1]
+| 0x00002200 | BUCKETS[2]
+| 0x000034f0 | BUCKETS[3]
+|            | ...
+| 0xXXXXXXXX | BUCKETS[n_buckets]
+&#39;------------&#39;
+</pre></div>
+</div>
+<p>So for <code class="docutils literal"><span class="pre">bucket[3]</span></code> in the example above, we have an offset into the table
+0x000034f0 which points to a chain of entries for the bucket.  Each bucket must
+contain a next pointer, full 32 bit hash value, the string itself, and the data
+for the current string value.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>            .------------.
+0x000034f0: | 0x00003500 | next pointer
+            | 0x12345678 | 32 bit hash
+            | &quot;erase&quot;    | string value
+            | data[n]    | HashData for this bucket
+            |------------|
+0x00003500: | 0x00003550 | next pointer
+            | 0x29273623 | 32 bit hash
+            | &quot;dump&quot;     | string value
+            | data[n]    | HashData for this bucket
+            |------------|
+0x00003550: | 0x00000000 | next pointer
+            | 0x82638293 | 32 bit hash
+            | &quot;main&quot;     | string value
+            | data[n]    | HashData for this bucket
+            `------------&#39;
+</pre></div>
+</div>
+<p>The problem with this layout for debuggers is that we need to optimize for the
+negative lookup case where the symbol we’re searching for is not present.  So
+if we were to lookup “<code class="docutils literal"><span class="pre">printf</span></code>” in the table above, we would make a 32 hash
+for “<code class="docutils literal"><span class="pre">printf</span></code>”, it might match <code class="docutils literal"><span class="pre">bucket[3]</span></code>.  We would need to go to the
+offset 0x000034f0 and start looking to see if our 32 bit hash matches.  To do
+so, we need to read the next pointer, then read the hash, compare it, and skip
+to the next bucket.  Each time we are skipping many bytes in memory and
+touching new cache pages just to do the compare on the full 32 bit hash.  All
+of these accesses then tell us that we didn’t have a match.</p>
+</div>
+<div class="section" id="name-hash-tables">
+<h5><a class="toc-backref" href="#id56">Name Hash Tables</a><a class="headerlink" href="#name-hash-tables" title="Permalink to this headline">¶</a></h5>
+<p>To solve the issues mentioned above we have structured the hash tables a bit
+differently: a header, buckets, an array of all unique 32 bit hash values,
+followed by an array of hash value data offsets, one for each hash value, then
+the data for all hash values:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>.-------------.
+|  HEADER     |
+|-------------|
+|  BUCKETS    |
+|-------------|
+|  HASHES     |
+|-------------|
+|  OFFSETS    |
+|-------------|
+|  DATA       |
+`-------------&#39;
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">BUCKETS</span></code> in the name tables are an index into the <code class="docutils literal"><span class="pre">HASHES</span></code> array.  By
+making all of the full 32 bit hash values contiguous in memory, we allow
+ourselves to efficiently check for a match while touching as little memory as
+possible.  Most often checking the 32 bit hash values is as far as the lookup
+goes.  If it does match, it usually is a match with no collisions.  So for a
+table with “<code class="docutils literal"><span class="pre">n_buckets</span></code>” buckets, and “<code class="docutils literal"><span class="pre">n_hashes</span></code>” unique 32 bit hash
+values, we can clarify the contents of the <code class="docutils literal"><span class="pre">BUCKETS</span></code>, <code class="docutils literal"><span class="pre">HASHES</span></code> and
+<code class="docutils literal"><span class="pre">OFFSETS</span></code> as:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>.-------------------------.
+|  HEADER.magic           | uint32_t
+|  HEADER.version         | uint16_t
+|  HEADER.hash_function   | uint16_t
+|  HEADER.bucket_count    | uint32_t
+|  HEADER.hashes_count    | uint32_t
+|  HEADER.header_data_len | uint32_t
+|  HEADER_DATA            | HeaderData
+|-------------------------|
+|  BUCKETS                | uint32_t[n_buckets] // 32 bit hash indexes
+|-------------------------|
+|  HASHES                 | uint32_t[n_hashes] // 32 bit hash values
+|-------------------------|
+|  OFFSETS                | uint32_t[n_hashes] // 32 bit offsets to hash value data
+|-------------------------|
+|  ALL HASH DATA          |
+`-------------------------&#39;
+</pre></div>
+</div>
+<p>So taking the exact same data from the standard hash example above we end up
+with:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>            .------------.
+            | HEADER     |
+            |------------|
+            |          0 | BUCKETS[0]
+            |          2 | BUCKETS[1]
+            |          5 | BUCKETS[2]
+            |          6 | BUCKETS[3]
+            |            | ...
+            |        ... | BUCKETS[n_buckets]
+            |------------|
+            | 0x........ | HASHES[0]
+            | 0x........ | HASHES[1]
+            | 0x........ | HASHES[2]
+            | 0x........ | HASHES[3]
+            | 0x........ | HASHES[4]
+            | 0x........ | HASHES[5]
+            | 0x12345678 | HASHES[6]    hash for BUCKETS[3]
+            | 0x29273623 | HASHES[7]    hash for BUCKETS[3]
+            | 0x82638293 | HASHES[8]    hash for BUCKETS[3]
+            | 0x........ | HASHES[9]
+            | 0x........ | HASHES[10]
+            | 0x........ | HASHES[11]
+            | 0x........ | HASHES[12]
+            | 0x........ | HASHES[13]
+            | 0x........ | HASHES[n_hashes]
+            |------------|
+            | 0x........ | OFFSETS[0]
+            | 0x........ | OFFSETS[1]
+            | 0x........ | OFFSETS[2]
+            | 0x........ | OFFSETS[3]
+            | 0x........ | OFFSETS[4]
+            | 0x........ | OFFSETS[5]
+            | 0x000034f0 | OFFSETS[6]   offset for BUCKETS[3]
+            | 0x00003500 | OFFSETS[7]   offset for BUCKETS[3]
+            | 0x00003550 | OFFSETS[8]   offset for BUCKETS[3]
+            | 0x........ | OFFSETS[9]
+            | 0x........ | OFFSETS[10]
+            | 0x........ | OFFSETS[11]
+            | 0x........ | OFFSETS[12]
+            | 0x........ | OFFSETS[13]
+            | 0x........ | OFFSETS[n_hashes]
+            |------------|
+            |            |
+            |            |
+            |            |
+            |            |
+            |            |
+            |------------|
+0x000034f0: | 0x00001203 | .debug_str (&quot;erase&quot;)
+            | 0x00000004 | A 32 bit array count - number of HashData with name &quot;erase&quot;
+            | 0x........ | HashData[0]
+            | 0x........ | HashData[1]
+            | 0x........ | HashData[2]
+            | 0x........ | HashData[3]
+            | 0x00000000 | String offset into .debug_str (terminate data for hash)
+            |------------|
+0x00003500: | 0x00001203 | String offset into .debug_str (&quot;collision&quot;)
+            | 0x00000002 | A 32 bit array count - number of HashData with name &quot;collision&quot;
+            | 0x........ | HashData[0]
+            | 0x........ | HashData[1]
+            | 0x00001203 | String offset into .debug_str (&quot;dump&quot;)
+            | 0x00000003 | A 32 bit array count - number of HashData with name &quot;dump&quot;
+            | 0x........ | HashData[0]
+            | 0x........ | HashData[1]
+            | 0x........ | HashData[2]
+            | 0x00000000 | String offset into .debug_str (terminate data for hash)
+            |------------|
+0x00003550: | 0x00001203 | String offset into .debug_str (&quot;main&quot;)
+            | 0x00000009 | A 32 bit array count - number of HashData with name &quot;main&quot;
+            | 0x........ | HashData[0]
+            | 0x........ | HashData[1]
+            | 0x........ | HashData[2]
+            | 0x........ | HashData[3]
+            | 0x........ | HashData[4]
+            | 0x........ | HashData[5]
+            | 0x........ | HashData[6]
+            | 0x........ | HashData[7]
+            | 0x........ | HashData[8]
+            | 0x00000000 | String offset into .debug_str (terminate data for hash)
+            `------------&#39;
+</pre></div>
+</div>
+<p>So we still have all of the same data, we just organize it more efficiently for
+debugger lookup.  If we repeat the same “<code class="docutils literal"><span class="pre">printf</span></code>” lookup from above, we
+would hash “<code class="docutils literal"><span class="pre">printf</span></code>” and find it matches <code class="docutils literal"><span class="pre">BUCKETS[3]</span></code> by taking the 32 bit
+hash value and modulo it by <code class="docutils literal"><span class="pre">n_buckets</span></code>.  <code class="docutils literal"><span class="pre">BUCKETS[3]</span></code> contains “6” which
+is the index into the <code class="docutils literal"><span class="pre">HASHES</span></code> table.  We would then compare any consecutive
+32 bit hashes values in the <code class="docutils literal"><span class="pre">HASHES</span></code> array as long as the hashes would be in
+<code class="docutils literal"><span class="pre">BUCKETS[3]</span></code>.  We do this by verifying that each subsequent hash value modulo
+<code class="docutils literal"><span class="pre">n_buckets</span></code> is still 3.  In the case of a failed lookup we would access the
+memory for <code class="docutils literal"><span class="pre">BUCKETS[3]</span></code>, and then compare a few consecutive 32 bit hashes
+before we know that we have no match.  We don’t end up marching through
+multiple words of memory and we really keep the number of processor data cache
+lines being accessed as small as possible.</p>
+<p>The string hash that is used for these lookup tables is the Daniel J.
+Bernstein hash which is also used in the ELF <code class="docutils literal"><span class="pre">GNU_HASH</span></code> sections.  It is a
+very good hash for all kinds of names in programs with very few hash
+collisions.</p>
+<p>Empty buckets are designated by using an invalid hash index of <code class="docutils literal"><span class="pre">UINT32_MAX</span></code>.</p>
+</div>
+</div>
+<div class="section" id="details">
+<h4><a class="toc-backref" href="#id57">Details</a><a class="headerlink" href="#details" title="Permalink to this headline">¶</a></h4>
+<p>These name hash tables are designed to be generic where specializations of the
+table get to define additional data that goes into the header (“<code class="docutils literal"><span class="pre">HeaderData</span></code>”),
+how the string value is stored (“<code class="docutils literal"><span class="pre">KeyType</span></code>”) and the content of the data for each
+hash value.</p>
+<div class="section" id="header-layout">
+<h5><a class="toc-backref" href="#id58">Header Layout</a><a class="headerlink" href="#header-layout" title="Permalink to this headline">¶</a></h5>
+<p>The header has a fixed part, and the specialized part.  The exact format of the
+header is:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">Header</span>
+<span class="p">{</span>
+  <span class="kt">uint32_t</span>   <span class="n">magic</span><span class="p">;</span>           <span class="c1">// &#39;HASH&#39; magic value to allow endian detection</span>
+  <span class="kt">uint16_t</span>   <span class="n">version</span><span class="p">;</span>         <span class="c1">// Version number</span>
+  <span class="kt">uint16_t</span>   <span class="n">hash_function</span><span class="p">;</span>   <span class="c1">// The hash function enumeration that was used</span>
+  <span class="kt">uint32_t</span>   <span class="n">bucket_count</span><span class="p">;</span>    <span class="c1">// The number of buckets in this hash table</span>
+  <span class="kt">uint32_t</span>   <span class="n">hashes_count</span><span class="p">;</span>    <span class="c1">// The total number of unique hash values and hash data offsets in this table</span>
+  <span class="kt">uint32_t</span>   <span class="n">header_data_len</span><span class="p">;</span> <span class="c1">// The bytes to skip to get to the hash indexes (buckets) for correct alignment</span>
+                              <span class="c1">// Specifically the length of the following HeaderData field - this does not</span>
+                              <span class="c1">// include the size of the preceding fields</span>
+  <span class="n">HeaderData</span> <span class="n">header_data</span><span class="p">;</span>     <span class="c1">// Implementation specific header data</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>The header starts with a 32 bit “<code class="docutils literal"><span class="pre">magic</span></code>” value which must be <code class="docutils literal"><span class="pre">'HASH'</span></code>
+encoded as an ASCII integer.  This allows the detection of the start of the
+hash table and also allows the table’s byte order to be determined so the table
+can be correctly extracted.  The “<code class="docutils literal"><span class="pre">magic</span></code>” value is followed by a 16 bit
+<code class="docutils literal"><span class="pre">version</span></code> number which allows the table to be revised and modified in the
+future.  The current version number is 1. <code class="docutils literal"><span class="pre">hash_function</span></code> is a <code class="docutils literal"><span class="pre">uint16_t</span></code>
+enumeration that specifies which hash function was used to produce this table.
+The current values for the hash function enumerations include:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">enum</span> <span class="n">HashFunctionType</span>
+<span class="p">{</span>
+  <span class="n">eHashFunctionDJB</span> <span class="o">=</span> <span class="mi">0u</span><span class="p">,</span> <span class="c1">// Daniel J Bernstein hash function</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">bucket_count</span></code> is a 32 bit unsigned integer that represents how many buckets
+are in the <code class="docutils literal"><span class="pre">BUCKETS</span></code> array.  <code class="docutils literal"><span class="pre">hashes_count</span></code> is the number of unique 32 bit
+hash values that are in the <code class="docutils literal"><span class="pre">HASHES</span></code> array, and is the same number of offsets
+are contained in the <code class="docutils literal"><span class="pre">OFFSETS</span></code> array.  <code class="docutils literal"><span class="pre">header_data_len</span></code> specifies the size
+in bytes of the <code class="docutils literal"><span class="pre">HeaderData</span></code> that is filled in by specialized versions of
+this table.</p>
+</div>
+<div class="section" id="fixed-lookup">
+<h5><a class="toc-backref" href="#id59">Fixed Lookup</a><a class="headerlink" href="#fixed-lookup" title="Permalink to this headline">¶</a></h5>
+<p>The header is followed by the buckets, hashes, offsets, and hash value data.</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">FixedTable</span>
+<span class="p">{</span>
+  <span class="kt">uint32_t</span> <span class="n">buckets</span><span class="p">[</span><span class="n">Header</span><span class="p">.</span><span class="n">bucket_count</span><span class="p">];</span>  <span class="c1">// An array of hash indexes into the &quot;hashes[]&quot; array below</span>
+  <span class="kt">uint32_t</span> <span class="n">hashes</span> <span class="p">[</span><span class="n">Header</span><span class="p">.</span><span class="n">hashes_count</span><span class="p">];</span>  <span class="c1">// Every unique 32 bit hash for the entire table is in this table</span>
+  <span class="kt">uint32_t</span> <span class="n">offsets</span><span class="p">[</span><span class="n">Header</span><span class="p">.</span><span class="n">hashes_count</span><span class="p">];</span>  <span class="c1">// An offset that corresponds to each item in the &quot;hashes[]&quot; array above</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">buckets</span></code> is an array of 32 bit indexes into the <code class="docutils literal"><span class="pre">hashes</span></code> array.  The
+<code class="docutils literal"><span class="pre">hashes</span></code> array contains all of the 32 bit hash values for all names in the
+hash table.  Each hash in the <code class="docutils literal"><span class="pre">hashes</span></code> table has an offset in the <code class="docutils literal"><span class="pre">offsets</span></code>
+array that points to the data for the hash value.</p>
+<p>This table setup makes it very easy to repurpose these tables to contain
+different data, while keeping the lookup mechanism the same for all tables.
+This layout also makes it possible to save the table to disk and map it in
+later and do very efficient name lookups with little or no parsing.</p>
+<p>DWARF lookup tables can be implemented in a variety of ways and can store a lot
+of information for each name.  We want to make the DWARF tables extensible and
+able to store the data efficiently so we have used some of the DWARF features
+that enable efficient data storage to define exactly what kind of data we store
+for each name.</p>
+<p>The <code class="docutils literal"><span class="pre">HeaderData</span></code> contains a definition of the contents of each HashData chunk.
+We might want to store an offset to all of the debug information entries (DIEs)
+for each name.  To keep things extensible, we create a list of items, or
+Atoms, that are contained in the data for each name.  First comes the type of
+the data in each atom:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">enum</span> <span class="n">AtomType</span>
+<span class="p">{</span>
+  <span class="n">eAtomTypeNULL</span>       <span class="o">=</span> <span class="mi">0u</span><span class="p">,</span>
+  <span class="n">eAtomTypeDIEOffset</span>  <span class="o">=</span> <span class="mi">1u</span><span class="p">,</span>   <span class="c1">// DIE offset, check form for encoding</span>
+  <span class="n">eAtomTypeCUOffset</span>   <span class="o">=</span> <span class="mi">2u</span><span class="p">,</span>   <span class="c1">// DIE offset of the compiler unit header that contains the item in question</span>
+  <span class="n">eAtomTypeTag</span>        <span class="o">=</span> <span class="mi">3u</span><span class="p">,</span>   <span class="c1">// DW_TAG_xxx value, should be encoded as DW_FORM_data1 (if no tags exceed 255) or DW_FORM_data2</span>
+  <span class="n">eAtomTypeNameFlags</span>  <span class="o">=</span> <span class="mi">4u</span><span class="p">,</span>   <span class="c1">// Flags from enum NameFlags</span>
+  <span class="n">eAtomTypeTypeFlags</span>  <span class="o">=</span> <span class="mi">5u</span><span class="p">,</span>   <span class="c1">// Flags from enum TypeFlags</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>The enumeration values and their meanings are:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>eAtomTypeNULL       - a termination atom that specifies the end of the atom list
+eAtomTypeDIEOffset  - an offset into the .debug_info section for the DWARF DIE for this name
+eAtomTypeCUOffset   - an offset into the .debug_info section for the CU that contains the DIE
+eAtomTypeDIETag     - The DW_TAG_XXX enumeration value so you don&#39;t have to parse the DWARF to see what it is
+eAtomTypeNameFlags  - Flags for functions and global variables (isFunction, isInlined, isExternal...)
+eAtomTypeTypeFlags  - Flags for types (isCXXClass, isObjCClass, ...)
+</pre></div>
+</div>
+<p>Then we allow each atom type to define the atom type and how the data for each
+atom type data is encoded:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">Atom</span>
+<span class="p">{</span>
+  <span class="kt">uint16_t</span> <span class="n">type</span><span class="p">;</span>  <span class="c1">// AtomType enum value</span>
+  <span class="kt">uint16_t</span> <span class="n">form</span><span class="p">;</span>  <span class="c1">// DWARF DW_FORM_XXX defines</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">form</span></code> type above is from the DWARF specification and defines the exact
+encoding of the data for the Atom type.  See the DWARF specification for the
+<code class="docutils literal"><span class="pre">DW_FORM_</span></code> definitions.</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">HeaderData</span>
+<span class="p">{</span>
+  <span class="kt">uint32_t</span> <span class="n">die_offset_base</span><span class="p">;</span>
+  <span class="kt">uint32_t</span> <span class="n">atom_count</span><span class="p">;</span>
+  <span class="n">Atoms</span>    <span class="n">atoms</span><span class="p">[</span><span class="n">atom_count0</span><span class="p">];</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">HeaderData</span></code> defines the base DIE offset that should be added to any atoms
+that are encoded using the <code class="docutils literal"><span class="pre">DW_FORM_ref1</span></code>, <code class="docutils literal"><span class="pre">DW_FORM_ref2</span></code>,
+<code class="docutils literal"><span class="pre">DW_FORM_ref4</span></code>, <code class="docutils literal"><span class="pre">DW_FORM_ref8</span></code> or <code class="docutils literal"><span class="pre">DW_FORM_ref_udata</span></code>.  It also defines
+what is contained in each <code class="docutils literal"><span class="pre">HashData</span></code> object – <code class="docutils literal"><span class="pre">Atom.form</span></code> tells us how large
+each field will be in the <code class="docutils literal"><span class="pre">HashData</span></code> and the <code class="docutils literal"><span class="pre">Atom.type</span></code> tells us how this data
+should be interpreted.</p>
+<p>For the current implementations of the “<code class="docutils literal"><span class="pre">.apple_names</span></code>” (all functions +
+globals), the “<code class="docutils literal"><span class="pre">.apple_types</span></code>” (names of all types that are defined), and
+the “<code class="docutils literal"><span class="pre">.apple_namespaces</span></code>” (all namespaces), we currently set the <code class="docutils literal"><span class="pre">Atom</span></code>
+array to be:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="n">HeaderData</span><span class="p">.</span><span class="n">atom_count</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+<span class="n">HeaderData</span><span class="p">.</span><span class="n">atoms</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">type</span> <span class="o">=</span> <span class="n">eAtomTypeDIEOffset</span><span class="p">;</span>
+<span class="n">HeaderData</span><span class="p">.</span><span class="n">atoms</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">form</span> <span class="o">=</span> <span class="n">DW_FORM_data4</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>This defines the contents to be the DIE offset (eAtomTypeDIEOffset) that is
+encoded as a 32 bit value (DW_FORM_data4).  This allows a single name to have
+multiple matching DIEs in a single file, which could come up with an inlined
+function for instance.  Future tables could include more information about the
+DIE such as flags indicating if the DIE is a function, method, block,
+or inlined.</p>
+<p>The KeyType for the DWARF table is a 32 bit string table offset into the
+“.debug_str” table.  The “.debug_str” is the string table for the DWARF which
+may already contain copies of all of the strings.  This helps make sure, with
+help from the compiler, that we reuse the strings between all of the DWARF
+sections and keeps the hash table size down.  Another benefit to having the
+compiler generate all strings as DW_FORM_strp in the debug info, is that
+DWARF parsing can be made much faster.</p>
+<p>After a lookup is made, we get an offset into the hash data.  The hash data
+needs to be able to deal with 32 bit hash collisions, so the chunk of data
+at the offset in the hash data consists of a triple:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="kt">uint32_t</span> <span class="n">str_offset</span>
+<span class="kt">uint32_t</span> <span class="n">hash_data_count</span>
+<span class="n">HashData</span><span class="p">[</span><span class="n">hash_data_count</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>If “str_offset” is zero, then the bucket contents are done. 99.9% of the
+hash data chunks contain a single item (no 32 bit hash collision):</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>.------------.
+| 0x00001023 | uint32_t KeyType (.debug_str[0x0001023] =&gt; &quot;main&quot;)
+| 0x00000004 | uint32_t HashData count
+| 0x........ | uint32_t HashData[0] DIE offset
+| 0x........ | uint32_t HashData[1] DIE offset
+| 0x........ | uint32_t HashData[2] DIE offset
+| 0x........ | uint32_t HashData[3] DIE offset
+| 0x00000000 | uint32_t KeyType (end of hash chain)
+`------------&#39;
+</pre></div>
+</div>
+<p>If there are collisions, you will have multiple valid string offsets:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>.------------.
+| 0x00001023 | uint32_t KeyType (.debug_str[0x0001023] =&gt; &quot;main&quot;)
+| 0x00000004 | uint32_t HashData count
+| 0x........ | uint32_t HashData[0] DIE offset
+| 0x........ | uint32_t HashData[1] DIE offset
+| 0x........ | uint32_t HashData[2] DIE offset
+| 0x........ | uint32_t HashData[3] DIE offset
+| 0x00002023 | uint32_t KeyType (.debug_str[0x0002023] =&gt; &quot;print&quot;)
+| 0x00000002 | uint32_t HashData count
+| 0x........ | uint32_t HashData[0] DIE offset
+| 0x........ | uint32_t HashData[1] DIE offset
+| 0x00000000 | uint32_t KeyType (end of hash chain)
+`------------&#39;
+</pre></div>
+</div>
+<p>Current testing with real world C++ binaries has shown that there is around 1
+32 bit hash collision per 100,000 name entries.</p>
+</div>
+</div>
+<div class="section" id="id4">
+<h4><a class="toc-backref" href="#id60">Contents</a><a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h4>
+<p>As we said, we want to strictly define exactly what is included in the
+different tables.  For DWARF, we have 3 tables: “<code class="docutils literal"><span class="pre">.apple_names</span></code>”,
+“<code class="docutils literal"><span class="pre">.apple_types</span></code>”, and “<code class="docutils literal"><span class="pre">.apple_namespaces</span></code>”.</p>
+<p>“<code class="docutils literal"><span class="pre">.apple_names</span></code>” sections should contain an entry for each DWARF DIE whose
+<code class="docutils literal"><span class="pre">DW_TAG</span></code> is a <code class="docutils literal"><span class="pre">DW_TAG_label</span></code>, <code class="docutils literal"><span class="pre">DW_TAG_inlined_subroutine</span></code>, or
+<code class="docutils literal"><span class="pre">DW_TAG_subprogram</span></code> that has address attributes: <code class="docutils literal"><span class="pre">DW_AT_low_pc</span></code>,
+<code class="docutils literal"><span class="pre">DW_AT_high_pc</span></code>, <code class="docutils literal"><span class="pre">DW_AT_ranges</span></code> or <code class="docutils literal"><span class="pre">DW_AT_entry_pc</span></code>.  It also contains
+<code class="docutils literal"><span class="pre">DW_TAG_variable</span></code> DIEs that have a <code class="docutils literal"><span class="pre">DW_OP_addr</span></code> in the location (global and
+static variables).  All global and static variables should be included,
+including those scoped within functions and classes.  For example using the
+following code:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">static</span> <span class="kt">int</span> <span class="n">var</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+<span class="kt">void</span> <span class="nf">f</span> <span class="p">()</span>
+<span class="p">{</span>
+  <span class="k">static</span> <span class="kt">int</span> <span class="n">var</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Both of the static <code class="docutils literal"><span class="pre">var</span></code> variables would be included in the table.  All
+functions should emit both their full names and their basenames.  For C or C++,
+the full name is the mangled name (if available) which is usually in the
+<code class="docutils literal"><span class="pre">DW_AT_MIPS_linkage_name</span></code> attribute, and the <code class="docutils literal"><span class="pre">DW_AT_name</span></code> contains the
+function basename.  If global or static variables have a mangled name in a
+<code class="docutils literal"><span class="pre">DW_AT_MIPS_linkage_name</span></code> attribute, this should be emitted along with the
+simple name found in the <code class="docutils literal"><span class="pre">DW_AT_name</span></code> attribute.</p>
+<p>“<code class="docutils literal"><span class="pre">.apple_types</span></code>” sections should contain an entry for each DWARF DIE whose
+tag is one of:</p>
+<ul class="simple">
+<li>DW_TAG_array_type</li>
+<li>DW_TAG_class_type</li>
+<li>DW_TAG_enumeration_type</li>
+<li>DW_TAG_pointer_type</li>
+<li>DW_TAG_reference_type</li>
+<li>DW_TAG_string_type</li>
+<li>DW_TAG_structure_type</li>
+<li>DW_TAG_subroutine_type</li>
+<li>DW_TAG_typedef</li>
+<li>DW_TAG_union_type</li>
+<li>DW_TAG_ptr_to_member_type</li>
+<li>DW_TAG_set_type</li>
+<li>DW_TAG_subrange_type</li>
+<li>DW_TAG_base_type</li>
+<li>DW_TAG_const_type</li>
+<li>DW_TAG_constant</li>
+<li>DW_TAG_file_type</li>
+<li>DW_TAG_namelist</li>
+<li>DW_TAG_packed_type</li>
+<li>DW_TAG_volatile_type</li>
+<li>DW_TAG_restrict_type</li>
+<li>DW_TAG_interface_type</li>
+<li>DW_TAG_unspecified_type</li>
+<li>DW_TAG_shared_type</li>
+</ul>
+<p>Only entries with a <code class="docutils literal"><span class="pre">DW_AT_name</span></code> attribute are included, and the entry must
+not be a forward declaration (<code class="docutils literal"><span class="pre">DW_AT_declaration</span></code> attribute with a non-zero
+value).  For example, using the following code:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">main</span> <span class="p">()</span>
+<span class="p">{</span>
+  <span class="kt">int</span> <span class="o">*</span><span class="n">b</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">return</span> <span class="o">*</span><span class="n">b</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>We get a few type DIEs:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>0x00000067:     TAG_base_type [5]
+                AT_encoding( DW_ATE_signed )
+                AT_name( &quot;int&quot; )
+                AT_byte_size( 0x04 )
+
+0x0000006e:     TAG_pointer_type [6]
+                AT_type( {0x00000067} ( int ) )
+                AT_byte_size( 0x08 )
+</pre></div>
+</div>
+<p>The DW_TAG_pointer_type is not included because it does not have a <code class="docutils literal"><span class="pre">DW_AT_name</span></code>.</p>
+<p>“<code class="docutils literal"><span class="pre">.apple_namespaces</span></code>” section should contain all <code class="docutils literal"><span class="pre">DW_TAG_namespace</span></code> DIEs.
+If we run into a namespace that has no name this is an anonymous namespace, and
+the name should be output as “<code class="docutils literal"><span class="pre">(anonymous</span> <span class="pre">namespace)</span></code>” (without the quotes).
+Why?  This matches the output of the <code class="docutils literal"><span class="pre">abi::cxa_demangle()</span></code> that is in the
+standard C++ library that demangles mangled names.</p>
+</div>
+<div class="section" id="language-extensions-and-file-format-changes">
+<h4><a class="toc-backref" href="#id61">Language Extensions and File Format Changes</a><a class="headerlink" href="#language-extensions-and-file-format-changes" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="objective-c-extensions">
+<h5><a class="toc-backref" href="#id62">Objective-C Extensions</a><a class="headerlink" href="#objective-c-extensions" title="Permalink to this headline">¶</a></h5>
+<p>“<code class="docutils literal"><span class="pre">.apple_objc</span></code>” section should contain all <code class="docutils literal"><span class="pre">DW_TAG_subprogram</span></code> DIEs for an
+Objective-C class.  The name used in the hash table is the name of the
+Objective-C class itself.  If the Objective-C class has a category, then an
+entry is made for both the class name without the category, and for the class
+name with the category.  So if we have a DIE at offset 0x1234 with a name of
+method “<code class="docutils literal"><span class="pre">-[NSString(my_additions)</span> <span class="pre">stringWithSpecialString:]</span></code>”, we would add
+an entry for “<code class="docutils literal"><span class="pre">NSString</span></code>” that points to DIE 0x1234, and an entry for
+“<code class="docutils literal"><span class="pre">NSString(my_additions)</span></code>” that points to 0x1234.  This allows us to quickly
+track down all Objective-C methods for an Objective-C class when doing
+expressions.  It is needed because of the dynamic nature of Objective-C where
+anyone can add methods to a class.  The DWARF for Objective-C methods is also
+emitted differently from C++ classes where the methods are not usually
+contained in the class definition, they are scattered about across one or more
+compile units.  Categories can also be defined in different shared libraries.
+So we need to be able to quickly find all of the methods and class functions
+given the Objective-C class name, or quickly find all methods and class
+functions for a class + category name.  This table does not contain any
+selector names, it just maps Objective-C class names (or class names +
+category) to all of the methods and class functions.  The selectors are added
+as function basenames in the “<code class="docutils literal"><span class="pre">.debug_names</span></code>” section.</p>
+<p>In the “<code class="docutils literal"><span class="pre">.apple_names</span></code>” section for Objective-C functions, the full name is
+the entire function name with the brackets (“<code class="docutils literal"><span class="pre">-[NSString</span>
+<span class="pre">stringWithCString:]</span></code>”) and the basename is the selector only
+(“<code class="docutils literal"><span class="pre">stringWithCString:</span></code>”).</p>
+</div>
+<div class="section" id="mach-o-changes">
+<h5><a class="toc-backref" href="#id63">Mach-O Changes</a><a class="headerlink" href="#mach-o-changes" title="Permalink to this headline">¶</a></h5>
+<p>The sections names for the apple hash tables are for non-mach-o files.  For
+mach-o files, the sections should be contained in the <code class="docutils literal"><span class="pre">__DWARF</span></code> segment with
+names as follows:</p>
+<ul class="simple">
+<li>“<code class="docutils literal"><span class="pre">.apple_names</span></code>” -&gt; “<code class="docutils literal"><span class="pre">__apple_names</span></code>”</li>
+<li>“<code class="docutils literal"><span class="pre">.apple_types</span></code>” -&gt; “<code class="docutils literal"><span class="pre">__apple_types</span></code>”</li>
+<li>“<code class="docutils literal"><span class="pre">.apple_namespaces</span></code>” -&gt; “<code class="docutils literal"><span class="pre">__apple_namespac</span></code>” (16 character limit)</li>
+<li>“<code class="docutils literal"><span class="pre">.apple_objc</span></code>” -&gt; “<code class="docutils literal"><span class="pre">__apple_objc</span></code>”</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="Vectorizers.html" title="Auto-Vectorization in LLVM"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="SystemLibrary.html" title="System Library"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

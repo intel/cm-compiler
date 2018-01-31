@@ -1,0 +1,309 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llc - LLVM static compiler &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="lli - directly execute programs from LLVM bitcode" href="lli.html" />
+    <link rel="prev" title="opt - LLVM optimizer" href="opt.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="lli.html" title="lli - directly execute programs from LLVM bitcode"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="opt.html" title="opt - LLVM optimizer"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llc-llvm-static-compiler">
+<h1>llc - LLVM static compiler<a class="headerlink" href="#llc-llvm-static-compiler" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llc</strong> [<em>options</em>] [<em>filename</em>]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>The <strong class="program">llc</strong> command compiles LLVM source inputs into assembly language
+for a specified architecture.  The assembly language output can then be passed
+through a native assembler and linker to generate a native executable.</p>
+<p>The choice of architecture for the output assembly code is automatically
+determined from the input file, unless the <a class="reference internal" href="#cmdoption-march"><code class="xref std std-option docutils literal"><span class="pre">-march</span></code></a> option is used to
+override the default.</p>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<p>If <code class="docutils literal"><span class="pre">filename</span></code> is “<code class="docutils literal"><span class="pre">-</span></code>” or omitted, <strong class="program">llc</strong> reads from standard input.
+Otherwise, it will from <code class="docutils literal"><span class="pre">filename</span></code>.  Inputs can be in either the LLVM assembly
+language format (<code class="docutils literal"><span class="pre">.ll</span></code>) or the LLVM bitcode format (<code class="docutils literal"><span class="pre">.bc</span></code>).</p>
+<p>If the <a class="reference internal" href="opt.html#cmdoption-o"><code class="xref std std-option docutils literal"><span class="pre">-o</span></code></a> option is omitted, then <strong class="program">llc</strong> will send its output
+to standard output if the input is from standard input.  If the <a class="reference internal" href="opt.html#cmdoption-o"><code class="xref std std-option docutils literal"><span class="pre">-o</span></code></a>
+option specifies “<code class="docutils literal"><span class="pre">-</span></code>“, then the output will also be sent to standard output.</p>
+<p>If no <a class="reference internal" href="opt.html#cmdoption-o"><code class="xref std std-option docutils literal"><span class="pre">-o</span></code></a> option is specified and an input file other than “<code class="docutils literal"><span class="pre">-</span></code>” is
+specified, then <strong class="program">llc</strong> creates the output filename by taking the input
+filename, removing any existing <code class="docutils literal"><span class="pre">.bc</span></code> extension, and adding a <code class="docutils literal"><span class="pre">.s</span></code> suffix.</p>
+<p>Other <strong class="program">llc</strong> options are described below.</p>
+<div class="section" id="end-user-options">
+<h3>End-user Options<a class="headerlink" href="#end-user-options" title="Permalink to this headline">¶</a></h3>
+<dl class="option">
+<dt id="cmdoption-help">
+<code class="descname">-help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-help" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print a summary of command line options.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-o">
+<code class="descname">-O</code><code class="descclassname">=uint</code><a class="headerlink" href="#cmdoption-o" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate code at different optimization levels.  These correspond to the
+<code class="docutils literal"><span class="pre">-O0</span></code>, <code class="docutils literal"><span class="pre">-O1</span></code>, <code class="docutils literal"><span class="pre">-O2</span></code>, and <code class="docutils literal"><span class="pre">-O3</span></code> optimization levels used by
+<strong class="program">clang</strong>.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mtriple">
+<code class="descname">-mtriple</code><code class="descclassname">=&lt;target triple&gt;</code><a class="headerlink" href="#cmdoption-mtriple" title="Permalink to this definition">¶</a></dt>
+<dd><p>Override the target triple specified in the input file with the specified
+string.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-march">
+<code class="descname">-march</code><code class="descclassname">=&lt;arch&gt;</code><a class="headerlink" href="#cmdoption-march" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the architecture for which to generate assembly, overriding the target
+encoded in the input file.  See the output of <code class="docutils literal"><span class="pre">llc</span> <span class="pre">-help</span></code> for a list of
+valid architectures.  By default this is inferred from the target triple or
+autodetected to the current architecture.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mcpu">
+<code class="descname">-mcpu</code><code class="descclassname">=&lt;cpuname&gt;</code><a class="headerlink" href="#cmdoption-mcpu" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify a specific chip in the current architecture to generate code for.
+By default this is inferred from the target triple and autodetected to
+the current architecture.  For a list of available CPUs, use:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>llvm-as &lt; /dev/null | llc -march=xyz -mcpu=help
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-filetype">
+<code class="descname">-filetype</code><code class="descclassname">=&lt;output file type&gt;</code><a class="headerlink" href="#cmdoption-filetype" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify what kind of output <code class="docutils literal"><span class="pre">llc</span></code> should generated.  Options are: <code class="docutils literal"><span class="pre">asm</span></code>
+for textual assembly ( <code class="docutils literal"><span class="pre">'.s'</span></code>), <code class="docutils literal"><span class="pre">obj</span></code> for native object files (<code class="docutils literal"><span class="pre">'.o'</span></code>)
+and <code class="docutils literal"><span class="pre">null</span></code> for not emitting anything (for performance testing).</p>
+<p>Note that not all targets support all options.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mattr">
+<code class="descname">-mattr</code><code class="descclassname">=a1,+a2,-a3,…</code><a class="headerlink" href="#cmdoption-mattr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Override or control specific attributes of the target, such as whether SIMD
+operations are enabled or not.  The default set of attributes is set by the
+current CPU.  For a list of available attributes, use:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>llvm-as &lt; /dev/null | llc -march=xyz -mattr=help
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-disable-fp-elim">
+<code class="descname">–disable-fp-elim</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-disable-fp-elim" title="Permalink to this definition">¶</a></dt>
+<dd><p>Disable frame pointer elimination optimization.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-disable-excess-fp-precision">
+<code class="descname">–disable-excess-fp-precision</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-disable-excess-fp-precision" title="Permalink to this definition">¶</a></dt>
+<dd><p>Disable optimizations that may produce excess precision for floating point.
+Note that this option can dramatically slow down code on some systems
+(e.g. X86).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-enable-no-infs-fp-math">
+<code class="descname">–enable-no-infs-fp-math</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-enable-no-infs-fp-math" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable optimizations that assume no Inf values.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-enable-no-nans-fp-math">
+<code class="descname">–enable-no-nans-fp-math</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-enable-no-nans-fp-math" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable optimizations that assume no NAN values.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-enable-unsafe-fp-math">
+<code class="descname">–enable-unsafe-fp-math</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-enable-unsafe-fp-math" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable optimizations that make unsafe assumptions about IEEE math (e.g. that
+addition is associative) or may not work for all input ranges.  These
+optimizations allow the code generator to make use of some instructions which
+would otherwise not be usable (such as <code class="docutils literal"><span class="pre">fsin</span></code> on X86).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-stats">
+<code class="descname">–stats</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print statistics recorded by code-generation passes.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-time-passes">
+<code class="descname">–time-passes</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-time-passes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Record the amount of time needed for each pass and print a report to standard
+error.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-load">
+<code class="descname">–load</code><code class="descclassname">=&lt;dso_path&gt;</code><a class="headerlink" href="#cmdoption-load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dynamically load <code class="docutils literal"><span class="pre">dso_path</span></code> (a path to a dynamically shared object) that
+implements an LLVM target.  This will permit the target name to be used with
+the <a class="reference internal" href="#cmdoption-march"><code class="xref std std-option docutils literal"><span class="pre">-march</span></code></a> option so that code can be generated for that target.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="tuning-configuration-options">
+<h3>Tuning/Configuration Options<a class="headerlink" href="#tuning-configuration-options" title="Permalink to this headline">¶</a></h3>
+<dl class="option">
+<dt id="cmdoption-print-machineinstrs">
+<code class="descname">–print-machineinstrs</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-print-machineinstrs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print generated machine code between compilation phases (useful for debugging).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-regalloc">
+<code class="descname">–regalloc</code><code class="descclassname">=&lt;allocator&gt;</code><a class="headerlink" href="#cmdoption-regalloc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the register allocator to use.
+Valid register allocators are:</p>
+<p><em>basic</em></p>
+<blockquote>
+<div>Basic register allocator.</div></blockquote>
+<p><em>fast</em></p>
+<blockquote>
+<div>Fast register allocator. It is the default for unoptimized code.</div></blockquote>
+<p><em>greedy</em></p>
+<blockquote>
+<div>Greedy register allocator. It is the default for optimized code.</div></blockquote>
+<p><em>pbqp</em></p>
+<blockquote>
+<div>Register allocator based on ‘Partitioned Boolean Quadratic Programming’.</div></blockquote>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-spiller">
+<code class="descname">–spiller</code><code class="descclassname">=&lt;spiller&gt;</code><a class="headerlink" href="#cmdoption-spiller" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the spiller to use for register allocators that support it.  Currently
+this option is used only by the linear scan register allocator.  The default
+<code class="docutils literal"><span class="pre">spiller</span></code> is <em>local</em>.  Valid spillers are:</p>
+<p><em>simple</em></p>
+<blockquote>
+<div>Simple spiller</div></blockquote>
+<p><em>local</em></p>
+<blockquote>
+<div>Local spiller</div></blockquote>
+</dd></dl>
+
+</div>
+<div class="section" id="intel-ia-32-specific-options">
+<h3>Intel IA-32-specific Options<a class="headerlink" href="#intel-ia-32-specific-options" title="Permalink to this headline">¶</a></h3>
+<dl class="option">
+<dt id="cmdoption-x86-asm-syntax">
+<code class="descname">–x86-asm-syntax</code><code class="descclassname">=[att|intel]</code><a class="headerlink" href="#cmdoption-x86-asm-syntax" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify whether to emit assembly code in AT&amp;T syntax (the default) or Intel
+syntax.</p>
+</dd></dl>
+
+</div>
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p>If <strong class="program">llc</strong> succeeds, it will exit with 0.  Otherwise, if an error
+occurs, it will exit with a non-zero value.</p>
+</div>
+<div class="section" id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p>lli</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="lli.html" title="lli - directly execute programs from LLVM bitcode"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="opt.html" title="opt - LLVM optimizer"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

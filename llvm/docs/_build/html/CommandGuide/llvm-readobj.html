@@ -1,0 +1,212 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-readobj - LLVM Object Reader &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Getting Started with the LLVM System" href="../GettingStarted.html" />
+    <link rel="prev" title="llvm-build - LLVM Project Build Utility" href="llvm-build.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../GettingStarted.html" title="Getting Started with the LLVM System"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llvm-build.html" title="llvm-build - LLVM Project Build Utility"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-readobj-llvm-object-reader">
+<h1>llvm-readobj - LLVM Object Reader<a class="headerlink" href="#llvm-readobj-llvm-object-reader" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-readobj</strong> [<em>options</em>] [<em>input…</em>]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>The <strong class="program">llvm-readobj</strong> tool displays low-level format-specific information
+about one or more object files. The tool and its output is primarily designed
+for use in FileCheck-based tests.</p>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<p>If <code class="docutils literal"><span class="pre">input</span></code> is “<code class="docutils literal"><span class="pre">-</span></code>” or omitted, <strong class="program">llvm-readobj</strong> reads from standard
+input. Otherwise, it will read from the specified <code class="docutils literal"><span class="pre">filenames</span></code>.</p>
+<dl class="option">
+<dt id="cmdoption-help">
+<code class="descname">-help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-help" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print a summary of command line options.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-version">
+<code class="descname">-version</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display the version of this program</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-file-headers">
+<code class="descname">-file-headers</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">-h</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-file-headers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display file headers.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-sections">
+<code class="descname">-sections</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">-s</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-sections" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display all sections.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-section-data">
+<code class="descname">-section-data</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">-sd</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-section-data" title="Permalink to this definition">¶</a></dt>
+<dd><p>When used with <code class="docutils literal"><span class="pre">-sections</span></code>, display section data for each section shown.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-section-relocations">
+<code class="descname">-section-relocations</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">-sr</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-section-relocations" title="Permalink to this definition">¶</a></dt>
+<dd><p>When used with <code class="docutils literal"><span class="pre">-sections</span></code>, display relocations for each section shown.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-section-symbols">
+<code class="descname">-section-symbols</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">-st</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-section-symbols" title="Permalink to this definition">¶</a></dt>
+<dd><p>When used with <code class="docutils literal"><span class="pre">-sections</span></code>, display symbols for each section shown.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-relocations">
+<code class="descname">-relocations</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">-r</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-relocations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display the relocation entries in the file.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-symbols">
+<code class="descname">-symbols</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">-t</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-symbols" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display the symbol table.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-dyn-symbols">
+<code class="descname">-dyn-symbols</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-dyn-symbols" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display the dynamic symbol table (only for ELF object files).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-unwind">
+<code class="descname">-unwind</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">-u</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-unwind" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display unwind information.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-expand-relocs">
+<code class="descname">-expand-relocs</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-expand-relocs" title="Permalink to this definition">¶</a></dt>
+<dd><p>When used with <code class="docutils literal"><span class="pre">-relocations</span></code>, display each relocation in an expanded
+multi-line format.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-dynamic-table">
+<code class="descname">-dynamic-table</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-dynamic-table" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display the ELF .dynamic section table (only for ELF object files).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-needed-libs">
+<code class="descname">-needed-libs</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-needed-libs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display the needed libraries (only for ELF object files).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-program-headers">
+<code class="descname">-program-headers</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-program-headers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display the ELF program headers (only for ELF object files).</p>
+</dd></dl>
+
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-readobj</strong> returns 0.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../GettingStarted.html" title="Getting Started with the LLVM System"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llvm-build.html" title="llvm-build - LLVM Project Build Utility"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

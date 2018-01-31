@@ -1,0 +1,559 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>LLVM Testing Infrastructure Guide &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LLVM test-suite Makefile Guide" href="TestSuiteMakefileGuide.html" />
+    <link rel="prev" title="Code Reviews with Phabricator" href="Phabricator.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="TestSuiteMakefileGuide.html" title="LLVM test-suite Makefile Guide"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="Phabricator.html" title="Code Reviews with Phabricator"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-testing-infrastructure-guide">
+<h1>LLVM Testing Infrastructure Guide<a class="headerlink" href="#llvm-testing-infrastructure-guide" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#overview" id="id4">Overview</a></li>
+<li><a class="reference internal" href="#requirements" id="id5">Requirements</a></li>
+<li><a class="reference internal" href="#llvm-testing-infrastructure-organization" id="id6">LLVM testing infrastructure organization</a><ul>
+<li><a class="reference internal" href="#regression-tests" id="id7">Regression tests</a></li>
+<li><a class="reference internal" href="#test-suite" id="id8"><code class="docutils literal"><span class="pre">test-suite</span></code></a></li>
+<li><a class="reference internal" href="#debugging-information-tests" id="id9">Debugging Information tests</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#quick-start" id="id10">Quick start</a><ul>
+<li><a class="reference internal" href="#id1" id="id11">Regression tests</a></li>
+<li><a class="reference internal" href="#id2" id="id12">Debugging Information tests</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#regression-test-structure" id="id13">Regression test structure</a><ul>
+<li><a class="reference internal" href="#writing-new-regression-tests" id="id14">Writing new regression tests</a></li>
+<li><a class="reference internal" href="#fragile-tests" id="id15">Fragile tests</a></li>
+<li><a class="reference internal" href="#platform-specific-tests" id="id16">Platform-Specific Tests</a></li>
+<li><a class="reference internal" href="#substitutions" id="id17">Substitutions</a></li>
+<li><a class="reference internal" href="#other-features" id="id18">Other Features</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#test-suite-overview" id="id19"><code class="docutils literal"><span class="pre">test-suite</span></code> Overview</a><ul>
+<li><a class="reference internal" href="#test-suite-quickstart" id="id20"><code class="docutils literal"><span class="pre">test-suite</span></code> Quickstart</a></li>
+<li><a class="reference internal" href="#test-suite-makefiles" id="id21"><code class="docutils literal"><span class="pre">test-suite</span></code> Makefiles</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+</div>
+<div class="section" id="overview">
+<h2><a class="toc-backref" href="#id4">Overview</a><a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>This document is the reference manual for the LLVM testing
+infrastructure. It documents the structure of the LLVM testing
+infrastructure, the tools needed to use it, and how to add and run
+tests.</p>
+</div>
+<div class="section" id="requirements">
+<h2><a class="toc-backref" href="#id5">Requirements</a><a class="headerlink" href="#requirements" title="Permalink to this headline">¶</a></h2>
+<p>In order to use the LLVM testing infrastructure, you will need all of the
+software required to build LLVM, as well as <a class="reference external" href="http://python.org">Python</a> 2.5 or
+later.</p>
+</div>
+<div class="section" id="llvm-testing-infrastructure-organization">
+<h2><a class="toc-backref" href="#id6">LLVM testing infrastructure organization</a><a class="headerlink" href="#llvm-testing-infrastructure-organization" title="Permalink to this headline">¶</a></h2>
+<p>The LLVM testing infrastructure contains two major categories of tests:
+regression tests and whole programs. The regression tests are contained
+inside the LLVM repository itself under <code class="docutils literal"><span class="pre">llvm/test</span></code> and are expected
+to always pass – they should be run before every commit.</p>
+<p>The whole programs tests are referred to as the “LLVM test suite” (or
+“test-suite”) and are in the <code class="docutils literal"><span class="pre">test-suite</span></code> module in subversion. For
+historical reasons, these tests are also referred to as the “nightly
+tests” in places, which is less ambiguous than “test-suite” and remains
+in use although we run them much more often than nightly.</p>
+<div class="section" id="regression-tests">
+<h3><a class="toc-backref" href="#id7">Regression tests</a><a class="headerlink" href="#regression-tests" title="Permalink to this headline">¶</a></h3>
+<p>The regression tests are small pieces of code that test a specific
+feature of LLVM or trigger a specific bug in LLVM. The language they are
+written in depends on the part of LLVM being tested. These tests are driven by
+the <a class="reference internal" href="CommandGuide/lit.html"><span class="doc">Lit</span></a> testing tool (which is part of LLVM), and
+are located in the <code class="docutils literal"><span class="pre">llvm/test</span></code> directory.</p>
+<p>Typically when a bug is found in LLVM, a regression test containing just
+enough code to reproduce the problem should be written and placed
+somewhere underneath this directory. For example, it can be a small
+piece of LLVM IR distilled from an actual application or benchmark.</p>
+</div>
+<div class="section" id="test-suite">
+<h3><a class="toc-backref" href="#id8"><code class="docutils literal"><span class="pre">test-suite</span></code></a><a class="headerlink" href="#test-suite" title="Permalink to this headline">¶</a></h3>
+<p>The test suite contains whole programs, which are pieces of code which
+can be compiled and linked into a stand-alone program that can be
+executed. These programs are generally written in high level languages
+such as C or C++.</p>
+<p>These programs are compiled using a user specified compiler and set of
+flags, and then executed to capture the program output and timing
+information. The output of these programs is compared to a reference
+output to ensure that the program is being compiled correctly.</p>
+<p>In addition to compiling and executing programs, whole program tests
+serve as a way of benchmarking LLVM performance, both in terms of the
+efficiency of the programs generated as well as the speed with which
+LLVM compiles, optimizes, and generates code.</p>
+<p>The test-suite is located in the <code class="docutils literal"><span class="pre">test-suite</span></code> Subversion module.</p>
+</div>
+<div class="section" id="debugging-information-tests">
+<h3><a class="toc-backref" href="#id9">Debugging Information tests</a><a class="headerlink" href="#debugging-information-tests" title="Permalink to this headline">¶</a></h3>
+<p>The test suite contains tests to check quality of debugging information.
+The test are written in C based languages or in LLVM assembly language.</p>
+<p>These tests are compiled and run under a debugger. The debugger output
+is checked to validate of debugging information. See README.txt in the
+test suite for more information . This test suite is located in the
+<code class="docutils literal"><span class="pre">debuginfo-tests</span></code> Subversion module.</p>
+</div>
+</div>
+<div class="section" id="quick-start">
+<h2><a class="toc-backref" href="#id10">Quick start</a><a class="headerlink" href="#quick-start" title="Permalink to this headline">¶</a></h2>
+<p>The tests are located in two separate Subversion modules. The
+regressions tests are in the main “llvm” module under the directory
+<code class="docutils literal"><span class="pre">llvm/test</span></code> (so you get these tests for free with the main LLVM tree).
+Use <code class="docutils literal"><span class="pre">make</span> <span class="pre">check-all</span></code> to run the regression tests after building LLVM.</p>
+<p>The more comprehensive test suite that includes whole programs in C and C++
+is in the <code class="docutils literal"><span class="pre">test-suite</span></code> module. See <a class="reference internal" href="#test-suite-quickstart"><span class="std std-ref">test-suite Quickstart</span></a> for more information on running these tests.</p>
+<div class="section" id="id1">
+<h3><a class="toc-backref" href="#id11">Regression tests</a><a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>To run all of the LLVM regression tests, use the master Makefile in the
+<code class="docutils literal"><span class="pre">llvm/test</span></code> directory. LLVM Makefiles require GNU Make (read the <a class="reference internal" href="MakefileGuide.html"><span class="doc">LLVM
+Makefile Guide</span></a> for more details):</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% make -C llvm/test
+</pre></div>
+</div>
+<p>or:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% make check
+</pre></div>
+</div>
+<p>If you have <a class="reference external" href="http://clang.llvm.org/">Clang</a> checked out and built, you
+can run the LLVM and Clang tests simultaneously using:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% make check-all
+</pre></div>
+</div>
+<p>To run the tests with Valgrind (Memcheck by default), use the <code class="docutils literal"><span class="pre">LIT_ARGS</span></code> make
+variable to pass the required options to lit. For example, you can use:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% make check <span class="nv">LIT_ARGS</span><span class="o">=</span><span class="s2">&quot;-v --vg --vg-leak&quot;</span>
+</pre></div>
+</div>
+<p>to enable testing with valgrind and with leak checking enabled.</p>
+<p>To run individual tests or subsets of tests, you can use the <code class="docutils literal"><span class="pre">llvm-lit</span></code>
+script which is built as part of LLVM. For example, to run the
+<code class="docutils literal"><span class="pre">Integer/BitPacked.ll</span></code> test by itself you can run:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% llvm-lit ~/llvm/test/Integer/BitPacked.ll
+</pre></div>
+</div>
+<p>or to run all of the ARM CodeGen tests:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% llvm-lit ~/llvm/test/CodeGen/ARM
+</pre></div>
+</div>
+<p>For more information on using the <strong class="program">lit</strong> tool, see <code class="docutils literal"><span class="pre">llvm-lit</span> <span class="pre">--help</span></code>
+or the <a class="reference internal" href="CommandGuide/lit.html"><span class="doc">lit man page</span></a>.</p>
+</div>
+<div class="section" id="id2">
+<h3><a class="toc-backref" href="#id12">Debugging Information tests</a><a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<p>To run debugging information tests simply checkout the tests inside
+clang/test directory.</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% <span class="nb">cd</span> clang/test
+% svn co http://llvm.org/svn/llvm-project/debuginfo-tests/trunk debuginfo-tests
+</pre></div>
+</div>
+<p>These tests are already set up to run as part of clang regression tests.</p>
+</div>
+</div>
+<div class="section" id="regression-test-structure">
+<h2><a class="toc-backref" href="#id13">Regression test structure</a><a class="headerlink" href="#regression-test-structure" title="Permalink to this headline">¶</a></h2>
+<p>The LLVM regression tests are driven by <strong class="program">lit</strong> and are located in the
+<code class="docutils literal"><span class="pre">llvm/test</span></code> directory.</p>
+<p>This directory contains a large array of small tests that exercise
+various features of LLVM and to ensure that regressions do not occur.
+The directory is broken into several sub-directories, each focused on a
+particular area of LLVM.</p>
+<div class="section" id="writing-new-regression-tests">
+<h3><a class="toc-backref" href="#id14">Writing new regression tests</a><a class="headerlink" href="#writing-new-regression-tests" title="Permalink to this headline">¶</a></h3>
+<p>The regression test structure is very simple, but does require some
+information to be set. This information is gathered via <code class="docutils literal"><span class="pre">configure</span></code>
+and is written to a file, <code class="docutils literal"><span class="pre">test/lit.site.cfg</span></code> in the build directory.
+The <code class="docutils literal"><span class="pre">llvm/test</span></code> Makefile does this work for you.</p>
+<p>In order for the regression tests to work, each directory of tests must
+have a <code class="docutils literal"><span class="pre">lit.local.cfg</span></code> file. <strong class="program">lit</strong> looks for this file to determine
+how to run the tests. This file is just Python code and thus is very
+flexible, but we’ve standardized it for the LLVM regression tests. If
+you’re adding a directory of tests, just copy <code class="docutils literal"><span class="pre">lit.local.cfg</span></code> from
+another directory to get running. The standard <code class="docutils literal"><span class="pre">lit.local.cfg</span></code> simply
+specifies which files to look in for tests. Any directory that contains
+only directories does not need the <code class="docutils literal"><span class="pre">lit.local.cfg</span></code> file. Read the <a class="reference internal" href="CommandGuide/lit.html"><span class="doc">Lit
+documentation</span></a> for more information.</p>
+<p>Each test file must contain lines starting with “RUN:” that tell <strong class="program">lit</strong>
+how to run it. If there are no RUN lines, <strong class="program">lit</strong> will issue an error
+while running a test.</p>
+<p>RUN lines are specified in the comments of the test program using the
+keyword <code class="docutils literal"><span class="pre">RUN</span></code> followed by a colon, and lastly the command (pipeline)
+to execute. Together, these lines form the “script” that <strong class="program">lit</strong>
+executes to run the test case. The syntax of the RUN lines is similar to a
+shell’s syntax for pipelines including I/O redirection and variable
+substitution. However, even though these lines may <em>look</em> like a shell
+script, they are not. RUN lines are interpreted by <strong class="program">lit</strong>.
+Consequently, the syntax differs from shell in a few ways. You can specify
+as many RUN lines as needed.</p>
+<p><strong class="program">lit</strong> performs substitution on each RUN line to replace LLVM tool names
+with the full paths to the executable built for each tool (in
+<code class="docutils literal"><span class="pre">$(LLVM_OBJ_ROOT)/$(BuildMode)/bin)</span></code>. This ensures that <strong class="program">lit</strong> does
+not invoke any stray LLVM tools in the user’s path during testing.</p>
+<p>Each RUN line is executed on its own, distinct from other lines unless
+its last character is <code class="docutils literal"><span class="pre">\</span></code>. This continuation character causes the RUN
+line to be concatenated with the next one. In this way you can build up
+long pipelines of commands without making huge line lengths. The lines
+ending in <code class="docutils literal"><span class="pre">\</span></code> are concatenated until a RUN line that doesn’t end in
+<code class="docutils literal"><span class="pre">\</span></code> is found. This concatenated set of RUN lines then constitutes one
+execution. <strong class="program">lit</strong> will substitute variables and arrange for the pipeline
+to be executed. If any process in the pipeline fails, the entire line (and
+test case) fails too.</p>
+<p>Below is an example of legal RUN lines in a <code class="docutils literal"><span class="pre">.ll</span></code> file:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">; RUN: llvm-as &lt; %s | llvm-dis &gt; %t1</span>
+<span class="c">; RUN: llvm-dis &lt; %s.bc-13 &gt; %t2</span>
+<span class="c">; RUN: diff %t1 %t2</span>
+</pre></div>
+</div>
+<p>As with a Unix shell, the RUN lines permit pipelines and I/O
+redirection to be used.</p>
+<p>There are some quoting rules that you must pay attention to when writing
+your RUN lines. In general nothing needs to be quoted. <strong class="program">lit</strong> won’t
+strip off any quote characters so they will get passed to the invoked program.
+To avoid this use curly braces to tell <strong class="program">lit</strong> that it should treat
+everything enclosed as one value.</p>
+<p>In general, you should strive to keep your RUN lines as simple as possible,
+using them only to run tools that generate textual output you can then examine.
+The recommended way to examine output to figure out if the test passes is using
+the <a class="reference internal" href="CommandGuide/FileCheck.html"><span class="doc">FileCheck tool</span></a>. <em>[The usage of grep in RUN
+lines is deprecated - please do not send or commit patches that use it.]</em></p>
+</div>
+<div class="section" id="fragile-tests">
+<h3><a class="toc-backref" href="#id15">Fragile tests</a><a class="headerlink" href="#fragile-tests" title="Permalink to this headline">¶</a></h3>
+<p>It is easy to write a fragile test that would fail spuriously if the tool being
+tested outputs a full path to the input file.  For example, <strong class="program">opt</strong> by
+default outputs a <code class="docutils literal"><span class="pre">ModuleID</span></code>:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> cat example.ll
+<span class="go">define i32 @main() nounwind {</span>
+<span class="go">    ret i32 0</span>
+<span class="go">}</span>
+
+<span class="gp">$</span> opt -S /path/to/example.ll
+<span class="go">; ModuleID = &#39;/path/to/example.ll&#39;</span>
+
+<span class="go">define i32 @main() nounwind {</span>
+<span class="go">    ret i32 0</span>
+<span class="go">}</span>
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">ModuleID</span></code> can unexpetedly match against <code class="docutils literal"><span class="pre">CHECK</span></code> lines.  For example:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">; RUN: opt -S %s | FileCheck</span>
+
+<span class="k">define</span> <span class="k">i32</span> <span class="vg">@main</span><span class="p">()</span> <span class="k">nounwind</span> <span class="p">{</span>
+    <span class="c">; CHECK-NOT: load</span>
+    <span class="k">ret</span> <span class="k">i32</span> <span class="m">0</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This test will fail if placed into a <code class="docutils literal"><span class="pre">download</span></code> directory.</p>
+<p>To make your tests robust, always use <code class="docutils literal"><span class="pre">opt</span> <span class="pre">...</span> <span class="pre">&lt;</span> <span class="pre">%s</span></code> in the RUN line.
+<strong class="program">opt</strong> does not output a <code class="docutils literal"><span class="pre">ModuleID</span></code> when input comes from stdin.</p>
+</div>
+<div class="section" id="platform-specific-tests">
+<h3><a class="toc-backref" href="#id16">Platform-Specific Tests</a><a class="headerlink" href="#platform-specific-tests" title="Permalink to this headline">¶</a></h3>
+<p>Whenever adding tests that require the knowledge of a specific platform,
+either related to code generated, specific output or back-end features,
+you must make sure to isolate the features, so that buildbots that
+run on different architectures (and don’t even compile all back-ends),
+don’t fail.</p>
+<p>The first problem is to check for target-specific output, for example sizes
+of structures, paths and architecture names, for example:</p>
+<ul class="simple">
+<li>Tests containing Windows paths will fail on Linux and vice-versa.</li>
+<li>Tests that check for <code class="docutils literal"><span class="pre">x86_64</span></code> somewhere in the text will fail anywhere else.</li>
+<li>Tests where the debug information calculates the size of types and structures.</li>
+</ul>
+<p>Also, if the test rely on any behaviour that is coded in any back-end, it must
+go in its own directory. So, for instance, code generator tests for ARM go
+into <code class="docutils literal"><span class="pre">test/CodeGen/ARM</span></code> and so on. Those directories contain a special
+<code class="docutils literal"><span class="pre">lit</span></code> configuration file that ensure all tests in that directory will
+only run if a specific back-end is compiled and available.</p>
+<p>For instance, on <code class="docutils literal"><span class="pre">test/CodeGen/ARM</span></code>, the <code class="docutils literal"><span class="pre">lit.local.cfg</span></code> is:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="n">config</span><span class="o">.</span><span class="n">suffixes</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;.ll&#39;</span><span class="p">,</span> <span class="s1">&#39;.c&#39;</span><span class="p">,</span> <span class="s1">&#39;.cpp&#39;</span><span class="p">,</span> <span class="s1">&#39;.test&#39;</span><span class="p">]</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="s1">&#39;ARM&#39;</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">root</span><span class="o">.</span><span class="n">targets</span><span class="p">:</span>
+  <span class="n">config</span><span class="o">.</span><span class="n">unsupported</span> <span class="o">=</span> <span class="bp">True</span>
+</pre></div>
+</div>
+<p>Other platform-specific tests are those that depend on a specific feature
+of a specific sub-architecture, for example only to Intel chips that support <code class="docutils literal"><span class="pre">AVX2</span></code>.</p>
+<p>For instance, <code class="docutils literal"><span class="pre">test/CodeGen/X86/psubus.ll</span></code> tests three sub-architecture
+variants:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">; RUN: llc -mcpu=core2 &lt; %s | FileCheck %s -check-prefix=SSE2</span>
+<span class="c">; RUN: llc -mcpu=corei7-avx &lt; %s | FileCheck %s -check-prefix=AVX1</span>
+<span class="c">; RUN: llc -mcpu=core-avx2 &lt; %s | FileCheck %s -check-prefix=AVX2</span>
+</pre></div>
+</div>
+<p>And the checks are different:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">; SSE2: @test1</span>
+<span class="c">; SSE2: psubusw LCPI0_0(%rip), %xmm0</span>
+<span class="c">; AVX1: @test1</span>
+<span class="c">; AVX1: vpsubusw LCPI0_0(%rip), %xmm0, %xmm0</span>
+<span class="c">; AVX2: @test1</span>
+<span class="c">; AVX2: vpsubusw LCPI0_0(%rip), %xmm0, %xmm0</span>
+</pre></div>
+</div>
+<p>So, if you’re testing for a behaviour that you know is platform-specific or
+depends on special features of sub-architectures, you must add the specific
+triple, test with the specific FileCheck and put it into the specific
+directory that will filter out all other architectures.</p>
+</div>
+<div class="section" id="substitutions">
+<h3><a class="toc-backref" href="#id17">Substitutions</a><a class="headerlink" href="#substitutions" title="Permalink to this headline">¶</a></h3>
+<p>Besides replacing LLVM tool names the following substitutions are performed in
+RUN lines:</p>
+<dl class="docutils">
+<dt><code class="docutils literal"><span class="pre">%%</span></code></dt>
+<dd>Replaced by a single <code class="docutils literal"><span class="pre">%</span></code>. This allows escaping other substitutions.</dd>
+<dt><code class="docutils literal"><span class="pre">%s</span></code></dt>
+<dd><p class="first">File path to the test case’s source. This is suitable for passing on the
+command line as the input to an LLVM tool.</p>
+<p class="last">Example: <code class="docutils literal"><span class="pre">/home/user/llvm/test/MC/ELF/foo_test.s</span></code></p>
+</dd>
+<dt><code class="docutils literal"><span class="pre">%S</span></code></dt>
+<dd><p class="first">Directory path to the test case’s source.</p>
+<p class="last">Example: <code class="docutils literal"><span class="pre">/home/user/llvm/test/MC/ELF</span></code></p>
+</dd>
+<dt><code class="docutils literal"><span class="pre">%t</span></code></dt>
+<dd><p class="first">File path to a temporary file name that could be used for this test case.
+The file name won’t conflict with other test cases. You can append to it
+if you need multiple temporaries. This is useful as the destination of
+some redirected output.</p>
+<p class="last">Example: <code class="docutils literal"><span class="pre">/home/user/llvm.build/test/MC/ELF/Output/foo_test.s.tmp</span></code></p>
+</dd>
+<dt><code class="docutils literal"><span class="pre">%T</span></code></dt>
+<dd><p class="first">Directory of <code class="docutils literal"><span class="pre">%t</span></code>.</p>
+<p class="last">Example: <code class="docutils literal"><span class="pre">/home/user/llvm.build/test/MC/ELF/Output</span></code></p>
+</dd>
+</dl>
+<p><code class="docutils literal"><span class="pre">%{pathsep}</span></code></p>
+<blockquote>
+<div>Expands to the path separator, i.e. <code class="docutils literal"><span class="pre">:</span></code> (or <code class="docutils literal"><span class="pre">;</span></code> on Windows).</div></blockquote>
+<p><strong>LLVM-specific substitutions:</strong></p>
+<dl class="docutils">
+<dt><code class="docutils literal"><span class="pre">%shlibext</span></code></dt>
+<dd><p class="first">The suffix for the host platforms shared library files. This includes the
+period as the first character.</p>
+<p class="last">Example: <code class="docutils literal"><span class="pre">.so</span></code> (Linux), <code class="docutils literal"><span class="pre">.dylib</span></code> (OS X), <code class="docutils literal"><span class="pre">.dll</span></code> (Windows)</p>
+</dd>
+<dt><code class="docutils literal"><span class="pre">%exeext</span></code></dt>
+<dd><p class="first">The suffix for the host platforms executable files. This includes the
+period as the first character.</p>
+<p class="last">Example: <code class="docutils literal"><span class="pre">.exe</span></code> (Windows), empty on Linux.</p>
+</dd>
+<dt><code class="docutils literal"><span class="pre">%(line)</span></code>, <code class="docutils literal"><span class="pre">%(line+&lt;number&gt;)</span></code>, <code class="docutils literal"><span class="pre">%(line-&lt;number&gt;)</span></code></dt>
+<dd>The number of the line where this substitution is used, with an optional
+integer offset. This can be used in tests with multiple RUN lines, which
+reference test file’s line numbers.</dd>
+</dl>
+<p><strong>Clang-specific substitutions:</strong></p>
+<dl class="docutils">
+<dt><code class="docutils literal"><span class="pre">%clang</span></code></dt>
+<dd>Invokes the Clang driver.</dd>
+<dt><code class="docutils literal"><span class="pre">%clang_cpp</span></code></dt>
+<dd>Invokes the Clang driver for C++.</dd>
+<dt><code class="docutils literal"><span class="pre">%clang_cl</span></code></dt>
+<dd>Invokes the CL-compatible Clang driver.</dd>
+<dt><code class="docutils literal"><span class="pre">%clangxx</span></code></dt>
+<dd>Invokes the G++-compatible Clang driver.</dd>
+<dt><code class="docutils literal"><span class="pre">%clang_cc1</span></code></dt>
+<dd>Invokes the Clang frontend.</dd>
+<dt><code class="docutils literal"><span class="pre">%itanium_abi_triple</span></code>, <code class="docutils literal"><span class="pre">%ms_abi_triple</span></code></dt>
+<dd>These substitutions can be used to get the current target triple adjusted to
+the desired ABI. For example, if the test suite is running with the
+<code class="docutils literal"><span class="pre">i686-pc-win32</span></code> target, <code class="docutils literal"><span class="pre">%itanium_abi_triple</span></code> will expand to
+<code class="docutils literal"><span class="pre">i686-pc-mingw32</span></code>. This allows a test to run with a specific ABI without
+constraining it to a specific triple.</dd>
+</dl>
+<p>To add more substituations, look at <code class="docutils literal"><span class="pre">test/lit.cfg</span></code> or <code class="docutils literal"><span class="pre">lit.local.cfg</span></code>.</p>
+</div>
+<div class="section" id="other-features">
+<h3><a class="toc-backref" href="#id18">Other Features</a><a class="headerlink" href="#other-features" title="Permalink to this headline">¶</a></h3>
+<p>To make RUN line writing easier, there are several helper programs. These
+helpers are in the PATH when running tests, so you can just call them using
+their name. For example:</p>
+<dl class="docutils">
+<dt><code class="docutils literal"><span class="pre">not</span></code></dt>
+<dd>This program runs its arguments and then inverts the result code from it.
+Zero result codes become 1. Non-zero result codes become 0.</dd>
+</dl>
+<p>Sometimes it is necessary to mark a test case as “expected fail” or
+XFAIL. You can easily mark a test as XFAIL just by including <code class="docutils literal"><span class="pre">XFAIL:</span></code>
+on a line near the top of the file. This signals that the test case
+should succeed if the test fails. Such test cases are counted separately
+by the testing tool. To specify an expected fail, use the XFAIL keyword
+in the comments of the test program followed by a colon and one or more
+failure patterns. Each failure pattern can be either <code class="docutils literal"><span class="pre">*</span></code> (to specify
+fail everywhere), or a part of a target triple (indicating the test
+should fail on that platform), or the name of a configurable feature
+(for example, <code class="docutils literal"><span class="pre">loadable_module</span></code>). If there is a match, the test is
+expected to fail. If not, the test is expected to succeed. To XFAIL
+everywhere just specify <code class="docutils literal"><span class="pre">XFAIL:</span> <span class="pre">*</span></code>. Here is an example of an <code class="docutils literal"><span class="pre">XFAIL</span></code>
+line:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">; XFAIL: darwin,sun</span>
+</pre></div>
+</div>
+<p>To make the output more useful, <strong class="program">lit</strong> will scan
+the lines of the test case for ones that contain a pattern that matches
+<code class="docutils literal"><span class="pre">PR[0-9]+</span></code>. This is the syntax for specifying a PR (Problem Report) number
+that is related to the test case. The number after “PR” specifies the
+LLVM bugzilla number. When a PR number is specified, it will be used in
+the pass/fail reporting. This is useful to quickly get some context when
+a test fails.</p>
+<p>Finally, any line that contains “END.” will cause the special
+interpretation of lines to terminate. This is generally done right after
+the last RUN: line. This has two side effects:</p>
+<ol class="loweralpha simple">
+<li>it prevents special interpretation of lines that are part of the test
+program, not the instructions to the test case, and</li>
+<li>it speeds things up for really big test cases by avoiding
+interpretation of the remainder of the file.</li>
+</ol>
+</div>
+</div>
+<div class="section" id="test-suite-overview">
+<h2><a class="toc-backref" href="#id19"><code class="docutils literal"><span class="pre">test-suite</span></code> Overview</a><a class="headerlink" href="#test-suite-overview" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal"><span class="pre">test-suite</span></code> module contains a number of programs that can be
+compiled and executed. The <code class="docutils literal"><span class="pre">test-suite</span></code> includes reference outputs for
+all of the programs, so that the output of the executed program can be
+checked for correctness.</p>
+<p><code class="docutils literal"><span class="pre">test-suite</span></code> tests are divided into three types of tests: MultiSource,
+SingleSource, and External.</p>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">test-suite/SingleSource</span></code></p>
+<p>The SingleSource directory contains test programs that are only a
+single source file in size. These are usually small benchmark
+programs or small programs that calculate a particular value. Several
+such programs are grouped together in each directory.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">test-suite/MultiSource</span></code></p>
+<p>The MultiSource directory contains subdirectories which contain
+entire programs with multiple source files. Large benchmarks and
+whole applications go here.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">test-suite/External</span></code></p>
+<p>The External directory contains Makefiles for building code that is
+external to (i.e., not distributed with) LLVM. The most prominent
+members of this directory are the SPEC 95 and SPEC 2000 benchmark
+suites. The <code class="docutils literal"><span class="pre">External</span></code> directory does not contain these actual
+tests, but only the Makefiles that know how to properly compile these
+programs from somewhere else. When using <code class="docutils literal"><span class="pre">LNT</span></code>, use the
+<code class="docutils literal"><span class="pre">--test-externals</span></code> option to include these tests in the results.</p>
+</li>
+</ul>
+<div class="section" id="test-suite-quickstart">
+<span id="id3"></span><h3><a class="toc-backref" href="#id20"><code class="docutils literal"><span class="pre">test-suite</span></code> Quickstart</a><a class="headerlink" href="#test-suite-quickstart" title="Permalink to this headline">¶</a></h3>
+<p>The modern way of running the <code class="docutils literal"><span class="pre">test-suite</span></code> is focused on testing and
+benchmarking complete compilers using the
+<a class="reference external" href="http://llvm.org/docs/lnt">LNT</a> testing infrastructure.</p>
+<p>For more information on using LNT to execute the <code class="docutils literal"><span class="pre">test-suite</span></code>, please
+see the <a class="reference external" href="http://llvm.org/docs/lnt/quickstart.html">LNT Quickstart</a>
+documentation.</p>
+</div>
+<div class="section" id="test-suite-makefiles">
+<h3><a class="toc-backref" href="#id21"><code class="docutils literal"><span class="pre">test-suite</span></code> Makefiles</a><a class="headerlink" href="#test-suite-makefiles" title="Permalink to this headline">¶</a></h3>
+<p>Historically, the <code class="docutils literal"><span class="pre">test-suite</span></code> was executed using a complicated setup
+of Makefiles. The LNT based approach above is recommended for most
+users, but there are some testing scenarios which are not supported by
+the LNT approach. In addition, LNT currently uses the Makefile setup
+under the covers and so developers who are interested in how LNT works
+under the hood may want to understand the Makefile based setup.</p>
+<p>For more information on the <code class="docutils literal"><span class="pre">test-suite</span></code> Makefile setup, please see
+the <a class="reference internal" href="TestSuiteMakefileGuide.html"><span class="doc">Test Suite Makefile Guide</span></a>.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="TestSuiteMakefileGuide.html" title="LLVM test-suite Makefile Guide"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="Phabricator.html" title="Code Reviews with Phabricator"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

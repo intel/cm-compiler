@@ -1,0 +1,270 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>How To Use Instruction Mappings &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Accurate Garbage Collection with LLVM" href="GarbageCollection.html" />
+    <link rel="prev" title="Writing an LLVM Backend" href="WritingAnLLVMBackend.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="GarbageCollection.html" title="Accurate Garbage Collection with LLVM"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="WritingAnLLVMBackend.html" title="Writing an LLVM Backend"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="WritingAnLLVMBackend.html" accesskey="U">Writing an LLVM Backend</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="how-to-use-instruction-mappings">
+<h1>How To Use Instruction Mappings<a class="headerlink" href="#how-to-use-instruction-mappings" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
+<li><a class="reference internal" href="#instrmapping-class-overview" id="id2"><code class="docutils literal"><span class="pre">InstrMapping</span></code> Class Overview</a><ul>
+<li><a class="reference internal" href="#sample-example" id="id3">Sample Example</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This document contains information about adding instruction mapping support
+for a target. The motivation behind this feature comes from the need to switch
+between different instruction formats during various optimizations. One approach
+could be to use switch cases which list all the instructions along with formats
+they can transition to. However, it has large maintenance overhead
+because of the hardcoded instruction names. Also, whenever a new instruction is
+added in the .td files, all the relevant switch cases should be modified
+accordingly. Instead, the same functionality could be achieved with TableGen and
+some support from the .td files for a fraction of maintenance cost.</p>
+</div>
+<div class="section" id="instrmapping-class-overview">
+<h2><a class="toc-backref" href="#id2"><code class="docutils literal"><span class="pre">InstrMapping</span></code> Class Overview</a><a class="headerlink" href="#instrmapping-class-overview" title="Permalink to this headline">¶</a></h2>
+<p>TableGen uses relationship models to map instructions with each other. These
+models are described using <code class="docutils literal"><span class="pre">InstrMapping</span></code> class as a base. Each model sets
+various fields of the <code class="docutils literal"><span class="pre">InstrMapping</span></code> class such that they can uniquely
+describe all the instructions using that model. TableGen parses all the relation
+models and uses the information to construct relation tables which relate
+instructions with each other. These tables are emitted in the
+<code class="docutils literal"><span class="pre">XXXInstrInfo.inc</span></code> file along with the functions to query them. Following
+is the definition of <code class="docutils literal"><span class="pre">InstrMapping</span></code> class definied in Target.td file:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>class InstrMapping {
+  // Used to reduce search space only to the instructions using this
+  // relation model.
+  string FilterClass;
+
+  // List of fields/attributes that should be same for all the instructions in
+  // a row of the relation table. Think of this as a set of properties shared
+  // by all the instructions related by this relationship.
+  list&lt;string&gt; RowFields = [];
+
+  // List of fields/attributes that are same for all the instructions
+  // in a column of the relation table.
+  list&lt;string&gt; ColFields = [];
+
+  // Values for the fields/attributes listed in &#39;ColFields&#39; corresponding to
+  // the key instruction. This is the instruction that will be transformed
+  // using this relation model.
+  list&lt;string&gt; KeyCol = [];
+
+  // List of values for the fields/attributes listed in &#39;ColFields&#39;, one for
+  // each column in the relation table. These are the instructions a key
+  // instruction will be transformed into.
+  list&lt;list&lt;string&gt; &gt; ValueCols = [];
+}
+</pre></div>
+</div>
+<div class="section" id="sample-example">
+<h3><a class="toc-backref" href="#id3">Sample Example</a><a class="headerlink" href="#sample-example" title="Permalink to this headline">¶</a></h3>
+<p>Let’s say that we want to have a function
+<code class="docutils literal"><span class="pre">int</span> <span class="pre">getPredOpcode(uint16_t</span> <span class="pre">Opcode,</span> <span class="pre">enum</span> <span class="pre">PredSense</span> <span class="pre">inPredSense)</span></code> which
+takes a non-predicated instruction and returns its predicated true or false form
+depending on some input flag, <code class="docutils literal"><span class="pre">inPredSense</span></code>. The first step in the process is
+to define a relationship model that relates predicated instructions to their
+non-predicated form by assigning appropriate values to the <code class="docutils literal"><span class="pre">InstrMapping</span></code>
+fields. For this relationship, non-predicated instructions are treated as key
+instruction since they are the one used to query the interface function.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def getPredOpcode : InstrMapping {
+  // Choose a FilterClass that is used as a base class for all the
+  // instructions modeling this relationship. This is done to reduce the
+  // search space only to these set of instructions.
+  let FilterClass = &quot;PredRel&quot;;
+
+  // Instructions with same values for all the fields in RowFields form a
+  // row in the resulting relation table.
+  // For example, if we want to relate &#39;ADD&#39; (non-predicated) with &#39;Add_pt&#39;
+  // (predicated true) and &#39;Add_pf&#39; (predicated false), then all 3
+  // instructions need to have same value for BaseOpcode field. It can be any
+  // unique value (Ex: XYZ) and should not be shared with any other
+  // instruction not related to &#39;add&#39;.
+  let RowFields = [&quot;BaseOpcode&quot;];
+
+  // List of attributes that can be used to define key and column instructions
+  // for a relation. Key instruction is passed as an argument
+  // to the function used for querying relation tables. Column instructions
+  // are the instructions they (key) can transform into.
+  //
+  // Here, we choose &#39;PredSense&#39; as ColFields since this is the unique
+  // attribute of the key (non-predicated) and column (true/false)
+  // instructions involved in this relationship model.
+  let ColFields = [&quot;PredSense&quot;];
+
+  // The key column contains non-predicated instructions.
+  let KeyCol = [&quot;none&quot;];
+
+  // Two value columns - first column contains instructions with
+  // PredSense=true while second column has instructions with PredSense=false.
+  let ValueCols = [[&quot;true&quot;], [&quot;false&quot;]];
+}
+</pre></div>
+</div>
+<p>TableGen uses the above relationship model to emit relation table that maps
+non-predicated instructions with their predicated forms. It also outputs the
+interface function
+<code class="docutils literal"><span class="pre">int</span> <span class="pre">getPredOpcode(uint16_t</span> <span class="pre">Opcode,</span> <span class="pre">enum</span> <span class="pre">PredSense</span> <span class="pre">inPredSense)</span></code> to query
+the table. Here, Function <code class="docutils literal"><span class="pre">getPredOpcode</span></code> takes two arguments, opcode of the
+current instruction and PredSense of the desired instruction, and returns
+predicated form of the instruction, if found in the relation table.
+In order for an instruction to be added into the relation table, it needs
+to include relevant information in its definition. For example, consider
+following to be the current definitions of ADD, ADD_pt (true) and ADD_pf (false)
+instructions:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def ADD : ALU32_rr&lt;(outs IntRegs:$dst), (ins IntRegs:$a, IntRegs:$b),
+            &quot;$dst = add($a, $b)&quot;,
+            [(set (i32 IntRegs:$dst), (add (i32 IntRegs:$a),
+                                           (i32 IntRegs:$b)))]&gt;;
+
+def ADD_Pt : ALU32_rr&lt;(outs IntRegs:$dst),
+                       (ins PredRegs:$p, IntRegs:$a, IntRegs:$b),
+            &quot;if ($p) $dst = add($a, $b)&quot;,
+            []&gt;;
+
+def ADD_Pf : ALU32_rr&lt;(outs IntRegs:$dst),
+                       (ins PredRegs:$p, IntRegs:$a, IntRegs:$b),
+            &quot;if (!$p) $dst = add($a, $b)&quot;,
+            []&gt;;
+</pre></div>
+</div>
+<p>In this step, we modify these instructions to include the information
+required by the relationship model, &lt;tt&gt;getPredOpcode&lt;/tt&gt;, so that they can
+be related.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>def ADD : PredRel, ALU32_rr&lt;(outs IntRegs:$dst), (ins IntRegs:$a, IntRegs:$b),
+            &quot;$dst = add($a, $b)&quot;,
+            [(set (i32 IntRegs:$dst), (add (i32 IntRegs:$a),
+                                           (i32 IntRegs:$b)))]&gt; {
+  let BaseOpcode = &quot;ADD&quot;;
+  let PredSense = &quot;none&quot;;
+}
+
+def ADD_Pt : PredRel, ALU32_rr&lt;(outs IntRegs:$dst),
+                       (ins PredRegs:$p, IntRegs:$a, IntRegs:$b),
+            &quot;if ($p) $dst = add($a, $b)&quot;,
+            []&gt; {
+  let BaseOpcode = &quot;ADD&quot;;
+  let PredSense = &quot;true&quot;;
+}
+
+def ADD_Pf : PredRel, ALU32_rr&lt;(outs IntRegs:$dst),
+                       (ins PredRegs:$p, IntRegs:$a, IntRegs:$b),
+            &quot;if (!$p) $dst = add($a, $b)&quot;,
+            []&gt; {
+  let BaseOpcode = &quot;ADD&quot;;
+  let PredSense = &quot;false&quot;;
+}
+</pre></div>
+</div>
+<p>Please note that all the above instructions use <code class="docutils literal"><span class="pre">PredRel</span></code> as a base class.
+This is extremely important since TableGen uses it as a filter for selecting
+instructions for <code class="docutils literal"><span class="pre">getPredOpcode</span></code> model. Any instruction not derived from
+<code class="docutils literal"><span class="pre">PredRel</span></code> is excluded from the analysis. <code class="docutils literal"><span class="pre">BaseOpcode</span></code> is another important
+field. Since it’s selected as a <code class="docutils literal"><span class="pre">RowFields</span></code> of the model, it is required
+to have the same value for all 3 instructions in order to be related. Next,
+<code class="docutils literal"><span class="pre">PredSense</span></code> is used to determine their column positions by comparing its value
+with <code class="docutils literal"><span class="pre">KeyCol</span></code> and <code class="docutils literal"><span class="pre">ValueCols</span></code>. If an instruction sets its <code class="docutils literal"><span class="pre">PredSense</span></code>
+value to something not used in the relation model, it will not be assigned
+a column in the relation table.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="GarbageCollection.html" title="Accurate Garbage Collection with LLVM"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="WritingAnLLVMBackend.html" title="Writing an LLVM Backend"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="WritingAnLLVMBackend.html" >Writing an LLVM Backend</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

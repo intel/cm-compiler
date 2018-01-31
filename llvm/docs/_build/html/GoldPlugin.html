@@ -1,0 +1,248 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>The LLVM gold plugin &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LLVM’s Optional Rich Disassembly Output" href="MarkedUpDisassembly.html" />
+    <link rel="prev" title="Debugging JIT-ed Code With GDB" href="DebuggingJITedCode.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="MarkedUpDisassembly.html" title="LLVM’s Optional Rich Disassembly Output"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="DebuggingJITedCode.html" title="Debugging JIT-ed Code With GDB"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="the-llvm-gold-plugin">
+<h1>The LLVM gold plugin<a class="headerlink" href="#the-llvm-gold-plugin" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>Building with link time optimization requires cooperation from
+the system linker. LTO support on Linux systems requires that you use the
+<a class="reference external" href="http://sourceware.org/binutils">gold linker</a> which supports LTO via plugins. This is the same mechanism
+used by the <a class="reference external" href="http://gcc.gnu.org/wiki/LinkTimeOptimization">GCC LTO</a> project.</p>
+<p>The LLVM gold plugin implements the gold plugin interface on top of
+<a class="reference internal" href="LinkTimeOptimization.html#liblto"><span class="std std-ref">libLTO</span></a>.  The same plugin can also be used by other tools such as
+<code class="docutils literal"><span class="pre">ar</span></code> and <code class="docutils literal"><span class="pre">nm</span></code>.</p>
+</div>
+<div class="section" id="how-to-build-it">
+<span id="lto-how-to-build"></span><h2>How to build it<a class="headerlink" href="#how-to-build-it" title="Permalink to this headline">¶</a></h2>
+<p>You need to have gold with plugin support and build the LLVMgold plugin.
+Check whether you have gold running <code class="docutils literal"><span class="pre">/usr/bin/ld</span> <span class="pre">-v</span></code>. It will report “GNU
+gold” or else “GNU ld” if not. If you have gold, check for plugin support
+by running <code class="docutils literal"><span class="pre">/usr/bin/ld</span> <span class="pre">-plugin</span></code>. If it complains “missing argument” then
+you have plugin support. If not, such as an “unknown option” error then you
+will either need to build gold or install a version with plugin support.</p>
+<ul>
+<li><p class="first">Download, configure and build gold with plugin support:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>$ git clone --depth <span class="m">1</span> git://sourceware.org/git/binutils-gdb.git binutils
+$ mkdir build
+$ <span class="nb">cd</span> build
+$ ../binutils/configure --enable-gold --enable-plugins --disable-werror
+$ make all-gold
+</pre></div>
+</div>
+<p>That should leave you with <code class="docutils literal"><span class="pre">build/gold/ld-new</span></code> which supports
+the <code class="docutils literal"><span class="pre">-plugin</span></code> option. Running <code class="docutils literal"><span class="pre">make</span></code> will additionally build
+<code class="docutils literal"><span class="pre">build/binutils/ar</span></code> and <code class="docutils literal"><span class="pre">nm-new</span></code> binaries supporting plugins.</p>
+</li>
+<li><p class="first">Build the LLVMgold plugin: Configure LLVM with
+<code class="docutils literal"><span class="pre">--with-binutils-include=/path/to/binutils/include</span></code> and run
+<code class="docutils literal"><span class="pre">make</span></code>.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h2>
+<p>The linker takes a <code class="docutils literal"><span class="pre">-plugin</span></code> option that points to the path of
+the plugin <code class="docutils literal"><span class="pre">.so</span></code> file. To find out what link command <code class="docutils literal"><span class="pre">gcc</span></code>
+would run in a given situation, run <code class="docutils literal"><span class="pre">gcc</span> <span class="pre">-v</span> <span class="pre">[...]</span></code> and
+look for the line where it runs <code class="docutils literal"><span class="pre">collect2</span></code>. Replace that with
+<code class="docutils literal"><span class="pre">ld-new</span> <span class="pre">-plugin</span> <span class="pre">/path/to/LLVMgold.so</span></code> to test it out. Once you’re
+ready to switch to using gold, backup your existing <code class="docutils literal"><span class="pre">/usr/bin/ld</span></code>
+then replace it with <code class="docutils literal"><span class="pre">ld-new</span></code>.</p>
+<p>You should produce bitcode files from <code class="docutils literal"><span class="pre">clang</span></code> with the option
+<code class="docutils literal"><span class="pre">-flto</span></code>. This flag will also cause <code class="docutils literal"><span class="pre">clang</span></code> to look for the gold plugin in
+the <code class="docutils literal"><span class="pre">lib</span></code> directory under its prefix and pass the <code class="docutils literal"><span class="pre">-plugin</span></code> option to
+<code class="docutils literal"><span class="pre">ld</span></code>. It will not look for an alternate linker, which is why you need
+gold to be the installed system linker in your path.</p>
+<p><code class="docutils literal"><span class="pre">ar</span></code> and <code class="docutils literal"><span class="pre">nm</span></code> also accept the <code class="docutils literal"><span class="pre">-plugin</span></code> option and it’s possible to
+to install <code class="docutils literal"><span class="pre">LLVMgold.so</span></code> to <code class="docutils literal"><span class="pre">/usr/lib/bfd-plugins</span></code> for a seamless setup.
+If you built your own gold, be sure to install the <code class="docutils literal"><span class="pre">ar</span></code> and <code class="docutils literal"><span class="pre">nm-new</span></code> you
+built to <code class="docutils literal"><span class="pre">/usr/bin</span></code>.</p>
+<div class="section" id="example-of-link-time-optimization">
+<h3>Example of link time optimization<a class="headerlink" href="#example-of-link-time-optimization" title="Permalink to this headline">¶</a></h3>
+<p>The following example shows a worked example of the gold plugin mixing LLVM
+bitcode and native code.</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="o">---</span> <span class="n">a</span><span class="p">.</span><span class="n">c</span> <span class="o">---</span>
+<span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
+
+<span class="k">extern</span> <span class="kt">void</span> <span class="n">foo1</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+<span class="k">extern</span> <span class="kt">void</span> <span class="nf">foo4</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">void</span> <span class="nf">foo2</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;Foo2</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="nf">foo3</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">foo4</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">foo1</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="o">---</span> <span class="n">b</span><span class="p">.</span><span class="n">c</span> <span class="o">---</span>
+<span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
+
+<span class="k">extern</span> <span class="kt">void</span> <span class="n">foo2</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="kt">void</span> <span class="nf">foo1</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">foo2</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="nf">foo4</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;Foo4&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>--- <span class="nb">command</span> lines ---
+$ clang -flto a.c -c -o a.o      <span class="c1"># &lt;-- a.o is LLVM bitcode file</span>
+$ ar q a.a a.o                   <span class="c1"># &lt;-- a.a is an archive with LLVM bitcode</span>
+$ clang b.c -c -o b.o            <span class="c1"># &lt;-- b.o is native object file</span>
+$ clang -flto a.a b.o -o main    <span class="c1"># &lt;-- link with LLVMgold plugin</span>
+</pre></div>
+</div>
+<p>Gold informs the plugin that foo3 is never referenced outside the IR,
+leading LLVM to delete that function. However, unlike in the <a class="reference internal" href="LinkTimeOptimization.html#liblto-example"><span class="std std-ref">libLTO
+example</span></a> gold does not currently eliminate foo4.</p>
+</div>
+</div>
+<div class="section" id="quickstart-for-using-lto-with-autotooled-projects">
+<h2>Quickstart for using LTO with autotooled projects<a class="headerlink" href="#quickstart-for-using-lto-with-autotooled-projects" title="Permalink to this headline">¶</a></h2>
+<p>Once your system <code class="docutils literal"><span class="pre">ld</span></code>, <code class="docutils literal"><span class="pre">ar</span></code>, and <code class="docutils literal"><span class="pre">nm</span></code> all support LLVM bitcode,
+everything is in place for an easy to use LTO build of autotooled projects:</p>
+<ul>
+<li><p class="first">Follow the instructions <a class="reference internal" href="#lto-how-to-build"><span class="std std-ref">on how to build LLVMgold.so</span></a>.</p>
+</li>
+<li><p class="first">Install the newly built binutils to <code class="docutils literal"><span class="pre">$PREFIX</span></code></p>
+</li>
+<li><p class="first">Copy <code class="docutils literal"><span class="pre">Release/lib/LLVMgold.so</span></code> to <code class="docutils literal"><span class="pre">$PREFIX/lib/bfd-plugins/</span></code></p>
+</li>
+<li><p class="first">Set environment variables (<code class="docutils literal"><span class="pre">$PREFIX</span></code> is where you installed clang and
+binutils):</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">CC</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$PREFIX</span><span class="s2">/bin/clang -flto&quot;</span>
+<span class="nb">export</span> <span class="nv">CXX</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$PREFIX</span><span class="s2">/bin/clang++ -flto&quot;</span>
+<span class="nb">export</span> <span class="nv">AR</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$PREFIX</span><span class="s2">/bin/ar&quot;</span>
+<span class="nb">export</span> <span class="nv">NM</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$PREFIX</span><span class="s2">/bin/nm&quot;</span>
+<span class="nb">export</span> <span class="nv">RANLIB</span><span class="o">=</span>/bin/true <span class="c1">#ranlib is not needed, and doesn&#39;t support .bc files in .a</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">Or you can just set your path:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">PATH</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$PREFIX</span><span class="s2">/bin:</span><span class="nv">$PATH</span><span class="s2">&quot;</span>
+<span class="nb">export</span> <span class="nv">CC</span><span class="o">=</span><span class="s2">&quot;clang -flto&quot;</span>
+<span class="nb">export</span> <span class="nv">CXX</span><span class="o">=</span><span class="s2">&quot;clang++ -flto&quot;</span>
+<span class="nb">export</span> <span class="nv">RANLIB</span><span class="o">=</span>/bin/true
+</pre></div>
+</div>
+</li>
+<li><p class="first">Configure and build the project as usual:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% ./configure <span class="o">&amp;&amp;</span> make <span class="o">&amp;&amp;</span> make check
+</pre></div>
+</div>
+</li>
+</ul>
+<p>The environment variable settings may work for non-autotooled projects too,
+but you may need to set the <code class="docutils literal"><span class="pre">LD</span></code> environment variable as well.</p>
+</div>
+<div class="section" id="licensing">
+<h2>Licensing<a class="headerlink" href="#licensing" title="Permalink to this headline">¶</a></h2>
+<p>Gold is licensed under the GPLv3. LLVMgold uses the interface file
+<code class="docutils literal"><span class="pre">plugin-api.h</span></code> from gold which means that the resulting <code class="docutils literal"><span class="pre">LLVMgold.so</span></code>
+binary is also GPLv3. This can still be used to link non-GPLv3 programs
+just as much as gold could without the plugin.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="MarkedUpDisassembly.html" title="LLVM’s Optional Rich Disassembly Output"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="DebuggingJITedCode.html" title="Debugging JIT-ed Code With GDB"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

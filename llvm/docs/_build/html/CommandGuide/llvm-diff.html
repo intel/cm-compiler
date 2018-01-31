@@ -1,0 +1,139 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-diff - LLVM structural ‘diff’ &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llvm-cov - emit coverage information" href="llvm-cov.html" />
+    <link rel="prev" title="llvm-config - Print LLVM compilation options" href="llvm-config.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llvm-cov.html" title="llvm-cov - emit coverage information"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llvm-config.html" title="llvm-config - Print LLVM compilation options"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-diff-llvm-structural-diff">
+<h1>llvm-diff - LLVM structural ‘diff’<a class="headerlink" href="#llvm-diff-llvm-structural-diff" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong>llvm-diff</strong> [<em>options</em>] <em>module 1</em> <em>module 2</em> [<em>global name …</em>]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p><strong>llvm-diff</strong> compares the structure of two LLVM modules, primarily
+focusing on differences in function definitions.  Insignificant
+differences, such as changes in the ordering of globals or in the
+names of local values, are ignored.</p>
+<p>An input module will be interpreted as an assembly file if its name
+ends in ‘.ll’;  otherwise it will be read in as a bitcode file.</p>
+<p>If a list of global names is given, just the values with those names
+are compared; otherwise, all global values are compared, and
+diagnostics are produced for globals which only appear in one module
+or the other.</p>
+<p><strong>llvm-diff</strong> compares two functions by comparing their basic blocks,
+beginning with the entry blocks.  If the terminators seem to match,
+then the corresponding successors are compared; otherwise they are
+ignored.  This algorithm is very sensitive to changes in control flow,
+which tend to stop any downstream changes from being detected.</p>
+<p><strong>llvm-diff</strong> is intended as a debugging tool for writers of LLVM
+passes and frontends.  It does not have a stable output format.</p>
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p>If <strong>llvm-diff</strong> finds no differences between the modules, it will exit
+with 0 and produce no output.  Otherwise it will exit with a non-zero
+value.</p>
+</div>
+<div class="section" id="bugs">
+<h2>BUGS<a class="headerlink" href="#bugs" title="Permalink to this headline">¶</a></h2>
+<p>Many important differences, like changes in linkage or function
+attributes, are not diagnosed.</p>
+<p>Changes in memory behavior (for example, coalescing loads) can cause
+massive detected differences in blocks.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llvm-cov.html" title="llvm-cov - emit coverage information"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llvm-config.html" title="llvm-config - Print LLVM compilation options"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

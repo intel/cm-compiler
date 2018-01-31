@@ -1,0 +1,372 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>LLVM Link Time Optimization: Design and Implementation &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Segmented Stacks in LLVM" href="SegmentedStacks.html" />
+    <link rel="prev" title="Exception Handling in LLVM" href="ExceptionHandling.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="SegmentedStacks.html" title="Segmented Stacks in LLVM"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="ExceptionHandling.html" title="Exception Handling in LLVM"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-link-time-optimization-design-and-implementation">
+<h1>LLVM Link Time Optimization: Design and Implementation<a class="headerlink" href="#llvm-link-time-optimization-design-and-implementation" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#description" id="id2">Description</a></li>
+<li><a class="reference internal" href="#design-philosophy" id="id3">Design Philosophy</a><ul>
+<li><a class="reference internal" href="#example-of-link-time-optimization" id="id4">Example of link time optimization</a></li>
+<li><a class="reference internal" href="#alternative-approaches" id="id5">Alternative Approaches</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#multi-phase-communication-between-liblto-and-linker" id="id6">Multi-phase communication between <code class="docutils literal"><span class="pre">libLTO</span></code> and linker</a><ul>
+<li><a class="reference internal" href="#phase-1-read-llvm-bitcode-files" id="id7">Phase 1 : Read LLVM Bitcode Files</a></li>
+<li><a class="reference internal" href="#phase-2-symbol-resolution" id="id8">Phase 2 : Symbol Resolution</a></li>
+<li><a class="reference internal" href="#phase-3-optimize-bitcode-files" id="id9">Phase 3 : Optimize Bitcode Files</a></li>
+<li><a class="reference internal" href="#phase-4-symbol-resolution-after-optimization" id="id10">Phase 4 : Symbol Resolution after optimization</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#liblto" id="id11"><code class="docutils literal"><span class="pre">libLTO</span></code></a><ul>
+<li><a class="reference internal" href="#lto-module-t" id="id12"><code class="docutils literal"><span class="pre">lto_module_t</span></code></a></li>
+<li><a class="reference internal" href="#lto-code-gen-t" id="id13"><code class="docutils literal"><span class="pre">lto_code_gen_t</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="description">
+<h2><a class="toc-backref" href="#id2">Description</a><a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>LLVM features powerful intermodular optimizations which can be used at link
+time.  Link Time Optimization (LTO) is another name for intermodular
+optimization when performed during the link stage. This document describes the
+interface and design between the LTO optimizer and the linker.</p>
+</div>
+<div class="section" id="design-philosophy">
+<h2><a class="toc-backref" href="#id3">Design Philosophy</a><a class="headerlink" href="#design-philosophy" title="Permalink to this headline">¶</a></h2>
+<p>The LLVM Link Time Optimizer provides complete transparency, while doing
+intermodular optimization, in the compiler tool chain. Its main goal is to let
+the developer take advantage of intermodular optimizations without making any
+significant changes to the developer’s makefiles or build system. This is
+achieved through tight integration with the linker. In this model, the linker
+treates LLVM bitcode files like native object files and allows mixing and
+matching among them. The linker uses <a class="reference internal" href="#liblto">libLTO</a>, a shared object, to handle LLVM
+bitcode files. This tight integration between the linker and LLVM optimizer
+helps to do optimizations that are not possible in other models. The linker
+input allows the optimizer to avoid relying on conservative escape analysis.</p>
+<div class="section" id="example-of-link-time-optimization">
+<span id="liblto-example"></span><h3><a class="toc-backref" href="#id4">Example of link time optimization</a><a class="headerlink" href="#example-of-link-time-optimization" title="Permalink to this headline">¶</a></h3>
+<p>The following example illustrates the advantages of LTO’s integrated approach
+and clean interface. This example requires a system linker which supports LTO
+through the interface described in this document.  Here, clang transparently
+invokes system linker.</p>
+<ul class="simple">
+<li>Input source file <code class="docutils literal"><span class="pre">a.c</span></code> is compiled into LLVM bitcode form.</li>
+<li>Input source file <code class="docutils literal"><span class="pre">main.c</span></code> is compiled into native object code.</li>
+</ul>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="o">---</span> <span class="n">a</span><span class="p">.</span><span class="n">h</span> <span class="o">---</span>
+<span class="k">extern</span> <span class="kt">int</span> <span class="n">foo1</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+<span class="k">extern</span> <span class="kt">void</span> <span class="nf">foo2</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+<span class="k">extern</span> <span class="kt">void</span> <span class="nf">foo4</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+
+<span class="o">---</span> <span class="n">a</span><span class="p">.</span><span class="n">c</span> <span class="o">---</span>
+<span class="cp">#include</span> <span class="cpf">&quot;a.h&quot;</span><span class="cp"></span>
+
+<span class="k">static</span> <span class="kt">signed</span> <span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+<span class="kt">void</span> <span class="nf">foo2</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">i</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">static</span> <span class="kt">int</span> <span class="nf">foo3</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">foo4</span><span class="p">();</span>
+  <span class="k">return</span> <span class="mi">10</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">foo1</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kt">int</span> <span class="n">data</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">i</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">foo3</span><span class="p">();</span>
+
+  <span class="n">data</span> <span class="o">=</span> <span class="n">data</span> <span class="o">+</span> <span class="mi">42</span><span class="p">;</span>
+  <span class="k">return</span> <span class="n">data</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">---</span> <span class="n">main</span><span class="p">.</span><span class="n">c</span> <span class="o">---</span>
+<span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;a.h&quot;</span><span class="cp"></span>
+
+<span class="kt">void</span> <span class="n">foo4</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;Hi</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="n">main</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="n">foo1</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>To compile, run:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">%</span> clang -emit-llvm -c a.c -o a.o   <span class="c1"># &lt;-- a.o is LLVM bitcode file</span>
+<span class="gp">%</span> clang -c main.c -o main.o        <span class="c1"># &lt;-- main.o is native object file</span>
+<span class="gp">%</span> clang a.o main.o -o main         <span class="c1"># &lt;-- standard link command without modifications</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li>In this example, the linker recognizes that <code class="docutils literal"><span class="pre">foo2()</span></code> is an externally
+visible symbol defined in LLVM bitcode file. The linker completes its usual
+symbol resolution pass and finds that <code class="docutils literal"><span class="pre">foo2()</span></code> is not used
+anywhere. This information is used by the LLVM optimizer and it
+removes <code class="docutils literal"><span class="pre">foo2()</span></code>.</li>
+<li>As soon as <code class="docutils literal"><span class="pre">foo2()</span></code> is removed, the optimizer recognizes that condition <code class="docutils literal"><span class="pre">i</span>
+<span class="pre">&lt;</span> <span class="pre">0</span></code> is always false, which means <code class="docutils literal"><span class="pre">foo3()</span></code> is never used. Hence, the
+optimizer also removes <code class="docutils literal"><span class="pre">foo3()</span></code>.</li>
+<li>And this in turn, enables linker to remove <code class="docutils literal"><span class="pre">foo4()</span></code>.</li>
+</ul>
+<p>This example illustrates the advantage of tight integration with the
+linker. Here, the optimizer can not remove <code class="docutils literal"><span class="pre">foo3()</span></code> without the linker’s
+input.</p>
+</div>
+<div class="section" id="alternative-approaches">
+<h3><a class="toc-backref" href="#id5">Alternative Approaches</a><a class="headerlink" href="#alternative-approaches" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>Compiler driver invokes link time optimizer separately.</strong></dt>
+<dd>In this model the link time optimizer is not able to take advantage of
+information collected during the linker’s normal symbol resolution phase.
+In the above example, the optimizer can not remove <code class="docutils literal"><span class="pre">foo2()</span></code> without the
+linker’s input because it is externally visible. This in turn prohibits the
+optimizer from removing <code class="docutils literal"><span class="pre">foo3()</span></code>.</dd>
+<dt><strong>Use separate tool to collect symbol information from all object files.</strong></dt>
+<dd>In this model, a new, separate, tool or library replicates the linker’s
+capability to collect information for link time optimization. Not only is
+this code duplication difficult to justify, but it also has several other
+disadvantages.  For example, the linking semantics and the features provided
+by the linker on various platform are not unique. This means, this new tool
+needs to support all such features and platforms in one super tool or a
+separate tool per platform is required. This increases maintenance cost for
+link time optimizer significantly, which is not necessary. This approach
+also requires staying synchronized with linker developements on various
+platforms, which is not the main focus of the link time optimizer. Finally,
+this approach increases end user’s build time due to the duplication of work
+done by this separate tool and the linker itself.</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="multi-phase-communication-between-liblto-and-linker">
+<h2><a class="toc-backref" href="#id6">Multi-phase communication between <code class="docutils literal"><span class="pre">libLTO</span></code> and linker</a><a class="headerlink" href="#multi-phase-communication-between-liblto-and-linker" title="Permalink to this headline">¶</a></h2>
+<p>The linker collects information about symbol defininitions and uses in various
+link objects which is more accurate than any information collected by other
+tools during typical build cycles.  The linker collects this information by
+looking at the definitions and uses of symbols in native .o files and using
+symbol visibility information. The linker also uses user-supplied information,
+such as a list of exported symbols. LLVM optimizer collects control flow
+information, data flow information and knows much more about program structure
+from the optimizer’s point of view.  Our goal is to take advantage of tight
+integration between the linker and the optimizer by sharing this information
+during various linking phases.</p>
+<div class="section" id="phase-1-read-llvm-bitcode-files">
+<h3><a class="toc-backref" href="#id7">Phase 1 : Read LLVM Bitcode Files</a><a class="headerlink" href="#phase-1-read-llvm-bitcode-files" title="Permalink to this headline">¶</a></h3>
+<p>The linker first reads all object files in natural order and collects symbol
+information. This includes native object files as well as LLVM bitcode files.
+To minimize the cost to the linker in the case that all .o files are native
+object files, the linker only calls <code class="docutils literal"><span class="pre">lto_module_create()</span></code> when a supplied
+object file is found to not be a native object file.  If <code class="docutils literal"><span class="pre">lto_module_create()</span></code>
+returns that the file is an LLVM bitcode file, the linker then iterates over the
+module using <code class="docutils literal"><span class="pre">lto_module_get_symbol_name()</span></code> and
+<code class="docutils literal"><span class="pre">lto_module_get_symbol_attribute()</span></code> to get all symbols defined and referenced.
+This information is added to the linker’s global symbol table.</p>
+<p>The lto* functions are all implemented in a shared object libLTO.  This allows
+the LLVM LTO code to be updated independently of the linker tool.  On platforms
+that support it, the shared object is lazily loaded.</p>
+</div>
+<div class="section" id="phase-2-symbol-resolution">
+<h3><a class="toc-backref" href="#id8">Phase 2 : Symbol Resolution</a><a class="headerlink" href="#phase-2-symbol-resolution" title="Permalink to this headline">¶</a></h3>
+<p>In this stage, the linker resolves symbols using global symbol table.  It may
+report undefined symbol errors, read archive members, replace weak symbols, etc.
+The linker is able to do this seamlessly even though it does not know the exact
+content of input LLVM bitcode files.  If dead code stripping is enabled then the
+linker collects the list of live symbols.</p>
+</div>
+<div class="section" id="phase-3-optimize-bitcode-files">
+<h3><a class="toc-backref" href="#id9">Phase 3 : Optimize Bitcode Files</a><a class="headerlink" href="#phase-3-optimize-bitcode-files" title="Permalink to this headline">¶</a></h3>
+<p>After symbol resolution, the linker tells the LTO shared object which symbols
+are needed by native object files.  In the example above, the linker reports
+that only <code class="docutils literal"><span class="pre">foo1()</span></code> is used by native object files using
+<code class="docutils literal"><span class="pre">lto_codegen_add_must_preserve_symbol()</span></code>.  Next the linker invokes the LLVM
+optimizer and code generators using <code class="docutils literal"><span class="pre">lto_codegen_compile()</span></code> which returns a
+native object file creating by merging the LLVM bitcode files and applying
+various optimization passes.</p>
+</div>
+<div class="section" id="phase-4-symbol-resolution-after-optimization">
+<h3><a class="toc-backref" href="#id10">Phase 4 : Symbol Resolution after optimization</a><a class="headerlink" href="#phase-4-symbol-resolution-after-optimization" title="Permalink to this headline">¶</a></h3>
+<p>In this phase, the linker reads optimized a native object file and updates the
+internal global symbol table to reflect any changes. The linker also collects
+information about any changes in use of external symbols by LLVM bitcode
+files. In the example above, the linker notes that <code class="docutils literal"><span class="pre">foo4()</span></code> is not used any
+more. If dead code stripping is enabled then the linker refreshes the live
+symbol information appropriately and performs dead code stripping.</p>
+<p>After this phase, the linker continues linking as if it never saw LLVM bitcode
+files.</p>
+</div>
+</div>
+<div class="section" id="liblto">
+<span id="id1"></span><h2><a class="toc-backref" href="#id11"><code class="docutils literal"><span class="pre">libLTO</span></code></a><a class="headerlink" href="#liblto" title="Permalink to this headline">¶</a></h2>
+<p><code class="docutils literal"><span class="pre">libLTO</span></code> is a shared object that is part of the LLVM tools, and is intended
+for use by a linker. <code class="docutils literal"><span class="pre">libLTO</span></code> provides an abstract C interface to use the LLVM
+interprocedural optimizer without exposing details of LLVM’s internals. The
+intention is to keep the interface as stable as possible even when the LLVM
+optimizer continues to evolve. It should even be possible for a completely
+different compilation technology to provide a different libLTO that works with
+their object files and the standard linker tool.</p>
+<div class="section" id="lto-module-t">
+<h3><a class="toc-backref" href="#id12"><code class="docutils literal"><span class="pre">lto_module_t</span></code></a><a class="headerlink" href="#lto-module-t" title="Permalink to this headline">¶</a></h3>
+<p>A non-native object file is handled via an <code class="docutils literal"><span class="pre">lto_module_t</span></code>.  The following
+functions allow the linker to check if a file (on disk or in a memory buffer) is
+a file which libLTO can process:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="n">lto_module_is_object_file</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span><span class="o">*</span><span class="p">)</span>
+<span class="n">lto_module_is_object_file_for_target</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span><span class="o">*</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span><span class="o">*</span><span class="p">)</span>
+<span class="n">lto_module_is_object_file_in_memory</span><span class="p">(</span><span class="k">const</span> <span class="kt">void</span><span class="o">*</span><span class="p">,</span> <span class="kt">size_t</span><span class="p">)</span>
+<span class="n">lto_module_is_object_file_in_memory_for_target</span><span class="p">(</span><span class="k">const</span> <span class="kt">void</span><span class="o">*</span><span class="p">,</span> <span class="kt">size_t</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span><span class="o">*</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If the object file can be processed by <code class="docutils literal"><span class="pre">libLTO</span></code>, the linker creates a
+<code class="docutils literal"><span class="pre">lto_module_t</span></code> by using one of:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="n">lto_module_create</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span><span class="o">*</span><span class="p">)</span>
+<span class="n">lto_module_create_from_memory</span><span class="p">(</span><span class="k">const</span> <span class="kt">void</span><span class="o">*</span><span class="p">,</span> <span class="kt">size_t</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>and when done, the handle is released via</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="n">lto_module_dispose</span><span class="p">(</span><span class="n">lto_module_t</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The linker can introspect the non-native object file by getting the number of
+symbols and getting the name and attributes of each symbol via:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="n">lto_module_get_num_symbols</span><span class="p">(</span><span class="n">lto_module_t</span><span class="p">)</span>
+<span class="n">lto_module_get_symbol_name</span><span class="p">(</span><span class="n">lto_module_t</span><span class="p">,</span> <span class="kt">unsigned</span> <span class="kt">int</span><span class="p">)</span>
+<span class="n">lto_module_get_symbol_attribute</span><span class="p">(</span><span class="n">lto_module_t</span><span class="p">,</span> <span class="kt">unsigned</span> <span class="kt">int</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The attributes of a symbol include the alignment, visibility, and kind.</p>
+</div>
+<div class="section" id="lto-code-gen-t">
+<h3><a class="toc-backref" href="#id13"><code class="docutils literal"><span class="pre">lto_code_gen_t</span></code></a><a class="headerlink" href="#lto-code-gen-t" title="Permalink to this headline">¶</a></h3>
+<p>Once the linker has loaded each non-native object files into an
+<code class="docutils literal"><span class="pre">lto_module_t</span></code>, it can request <code class="docutils literal"><span class="pre">libLTO</span></code> to process them all and generate a
+native object file.  This is done in a couple of steps.  First, a code generator
+is created with:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="n">lto_codegen_create</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Then, each non-native object file is added to the code generator with:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="n">lto_codegen_add_module</span><span class="p">(</span><span class="n">lto_code_gen_t</span><span class="p">,</span> <span class="n">lto_module_t</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The linker then has the option of setting some codegen options.  Whether or not
+to generate DWARF debug info is set with:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="n">lto_codegen_set_debug_model</span><span class="p">(</span><span class="n">lto_code_gen_t</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Which kind of position independence is set with:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="n">lto_codegen_set_pic_model</span><span class="p">(</span><span class="n">lto_code_gen_t</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>And each symbol that is referenced by a native object file or otherwise must not
+be optimized away is set with:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="n">lto_codegen_add_must_preserve_symbol</span><span class="p">(</span><span class="n">lto_code_gen_t</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span><span class="o">*</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>After all these settings are done, the linker requests that a native object file
+be created from the modules with the settings using:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="n">lto_codegen_compile</span><span class="p">(</span><span class="n">lto_code_gen_t</span><span class="p">,</span> <span class="n">size</span><span class="o">*</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>which returns a pointer to a buffer containing the generated native object file.
+The linker then parses that and links it with the rest of the native object
+files.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="SegmentedStacks.html" title="Segmented Stacks in LLVM"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="ExceptionHandling.html" title="Exception Handling in LLVM"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

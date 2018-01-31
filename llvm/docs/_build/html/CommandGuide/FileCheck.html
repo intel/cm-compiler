@@ -1,0 +1,477 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>FileCheck - Flexible pattern matching file verifier &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="tblgen - Target Description To C++ Code Generator" href="tblgen.html" />
+    <link rel="prev" title="llvm-bcanalyzer - LLVM bitcode analyzer" href="llvm-bcanalyzer.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="tblgen.html" title="tblgen - Target Description To C++ Code Generator"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llvm-bcanalyzer.html" title="llvm-bcanalyzer - LLVM bitcode analyzer"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="filecheck-flexible-pattern-matching-file-verifier">
+<h1>FileCheck - Flexible pattern matching file verifier<a class="headerlink" href="#filecheck-flexible-pattern-matching-file-verifier" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">FileCheck</strong> <em>match-filename</em> [<em>–check-prefix=XXX</em>] [<em>–strict-whitespace</em>]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">FileCheck</strong> reads two files (one from standard input, and one
+specified on the command line) and uses one to verify the other.  This
+behavior is particularly useful for the testsuite, which wants to verify that
+the output of some tool (e.g. <strong class="program">llc</strong>) contains the expected information
+(for example, a movsd from esp or whatever is interesting).  This is similar to
+using <strong class="program">grep</strong>, but it is optimized for matching multiple different
+inputs in one file in a specific order.</p>
+<p>The <code class="docutils literal"><span class="pre">match-filename</span></code> file specifies the file that contains the patterns to
+match.  The file to verify is read from standard input unless the
+<a class="reference internal" href="#cmdoption-input-file"><code class="xref std std-option docutils literal"><span class="pre">--input-file</span></code></a> option is used.</p>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl class="option">
+<dt id="cmdoption-help">
+<code class="descname">-help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-help" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print a summary of command line options.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-check-prefix">
+<code class="descname">–check-prefix</code><code class="descclassname"> prefix</code><a class="headerlink" href="#cmdoption-check-prefix" title="Permalink to this definition">¶</a></dt>
+<dd><p>FileCheck searches the contents of <code class="docutils literal"><span class="pre">match-filename</span></code> for patterns to
+match.  By default, these patterns are prefixed with “<code class="docutils literal"><span class="pre">CHECK:</span></code>”.
+If you’d like to use a different prefix (e.g. because the same input
+file is checking multiple different tool or options), the
+<a class="reference internal" href="#cmdoption-check-prefix"><code class="xref std std-option docutils literal"><span class="pre">--check-prefix</span></code></a> argument allows you to specify one or more
+prefixes to match. Multiple prefixes are useful for tests which might
+change for different run options, but most lines remain the same.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-input-file">
+<code class="descname">–input-file</code><code class="descclassname"> filename</code><a class="headerlink" href="#cmdoption-input-file" title="Permalink to this definition">¶</a></dt>
+<dd><p>File to check (defaults to stdin).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-strict-whitespace">
+<code class="descname">–strict-whitespace</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-strict-whitespace" title="Permalink to this definition">¶</a></dt>
+<dd><p>By default, FileCheck canonicalizes input horizontal whitespace (spaces and
+tabs) which causes it to ignore these differences (a space will match a tab).
+The <a class="reference internal" href="#cmdoption-strict-whitespace"><code class="xref std std-option docutils literal"><span class="pre">--strict-whitespace</span></code></a> argument disables this behavior. End-of-line
+sequences are canonicalized to UNIX-style <code class="docutils literal"><span class="pre">\n</span></code> in all modes.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-implicit-check-not">
+<code class="descname">–implicit-check-not</code><code class="descclassname"> check-pattern</code><a class="headerlink" href="#cmdoption-implicit-check-not" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds implicit negative checks for the specified patterns between positive
+checks. The option allows writing stricter tests without stuffing them with
+<code class="docutils literal"><span class="pre">CHECK-NOT</span></code>s.</p>
+<p>For example, “<code class="docutils literal"><span class="pre">--implicit-check-not</span> <span class="pre">warning:</span></code>” can be useful when testing
+diagnostic messages from tools that don’t have an option similar to <code class="docutils literal"><span class="pre">clang</span>
+<span class="pre">-verify</span></code>. With this option FileCheck will verify that input does not contain
+warnings not covered by any <code class="docutils literal"><span class="pre">CHECK:</span></code> patterns.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-version">
+<code class="descname">-version</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show the version number of this program.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p>If <strong class="program">FileCheck</strong> verifies that the file matches the expected contents,
+it exits with 0.  Otherwise, if not, or if an error occurs, it will exit with a
+non-zero value.</p>
+</div>
+<div class="section" id="tutorial">
+<h2>TUTORIAL<a class="headerlink" href="#tutorial" title="Permalink to this headline">¶</a></h2>
+<p>FileCheck is typically used from LLVM regression tests, being invoked on the RUN
+line of the test.  A simple example of using FileCheck from a RUN line looks
+like this:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">; RUN: llvm-as &lt; %s | llc -march=x86-64 | FileCheck %s</span>
+</pre></div>
+</div>
+<p>This syntax says to pipe the current file (“<code class="docutils literal"><span class="pre">%s</span></code>”) into <code class="docutils literal"><span class="pre">llvm-as</span></code>, pipe
+that into <code class="docutils literal"><span class="pre">llc</span></code>, then pipe the output of <code class="docutils literal"><span class="pre">llc</span></code> into <code class="docutils literal"><span class="pre">FileCheck</span></code>.  This
+means that FileCheck will be verifying its standard input (the llc output)
+against the filename argument specified (the original <code class="docutils literal"><span class="pre">.ll</span></code> file specified by
+“<code class="docutils literal"><span class="pre">%s</span></code>”).  To see how this works, let’s look at the rest of the <code class="docutils literal"><span class="pre">.ll</span></code> file
+(after the RUN line):</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="kt">void</span> <span class="vg">@sub1</span><span class="p">(</span><span class="k">i32</span><span class="p">*</span> <span class="nv">%p</span><span class="p">,</span> <span class="k">i32</span> <span class="nv">%v</span><span class="p">)</span> <span class="p">{</span>
+<span class="nl">entry:</span>
+<span class="c">; CHECK: sub1:</span>
+<span class="c">; CHECK: subl</span>
+        <span class="nv nv-Anonymous">%0</span> <span class="p">=</span> <span class="k">tail</span> <span class="k">call</span> <span class="k">i32</span> <span class="vg">@llvm.atomic.load.sub.i32.p0i32</span><span class="p">(</span><span class="k">i32</span><span class="p">*</span> <span class="nv">%p</span><span class="p">,</span> <span class="k">i32</span> <span class="nv">%v</span><span class="p">)</span>
+        <span class="k">ret</span> <span class="kt">void</span>
+<span class="p">}</span>
+
+<span class="k">define</span> <span class="kt">void</span> <span class="vg">@inc4</span><span class="p">(</span><span class="k">i64</span><span class="p">*</span> <span class="nv">%p</span><span class="p">)</span> <span class="p">{</span>
+<span class="nl">entry:</span>
+<span class="c">; CHECK: inc4:</span>
+<span class="c">; CHECK: incq</span>
+        <span class="nv nv-Anonymous">%0</span> <span class="p">=</span> <span class="k">tail</span> <span class="k">call</span> <span class="k">i64</span> <span class="vg">@llvm.atomic.load.add.i64.p0i64</span><span class="p">(</span><span class="k">i64</span><span class="p">*</span> <span class="nv">%p</span><span class="p">,</span> <span class="k">i64</span> <span class="m">1</span><span class="p">)</span>
+        <span class="k">ret</span> <span class="kt">void</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Here you can see some “<code class="docutils literal"><span class="pre">CHECK:</span></code>” lines specified in comments.  Now you can
+see how the file is piped into <code class="docutils literal"><span class="pre">llvm-as</span></code>, then <code class="docutils literal"><span class="pre">llc</span></code>, and the machine code
+output is what we are verifying.  FileCheck checks the machine code output to
+verify that it matches what the “<code class="docutils literal"><span class="pre">CHECK:</span></code>” lines specify.</p>
+<p>The syntax of the “<code class="docutils literal"><span class="pre">CHECK:</span></code>” lines is very simple: they are fixed strings that
+must occur in order.  FileCheck defaults to ignoring horizontal whitespace
+differences (e.g. a space is allowed to match a tab) but otherwise, the contents
+of the “<code class="docutils literal"><span class="pre">CHECK:</span></code>” line is required to match some thing in the test file exactly.</p>
+<p>One nice thing about FileCheck (compared to grep) is that it allows merging
+test cases together into logical groups.  For example, because the test above
+is checking for the “<code class="docutils literal"><span class="pre">sub1:</span></code>” and “<code class="docutils literal"><span class="pre">inc4:</span></code>” labels, it will not match
+unless there is a “<code class="docutils literal"><span class="pre">subl</span></code>” in between those labels.  If it existed somewhere
+else in the file, that would not count: “<code class="docutils literal"><span class="pre">grep</span> <span class="pre">subl</span></code>” matches if “<code class="docutils literal"><span class="pre">subl</span></code>”
+exists anywhere in the file.</p>
+<div class="section" id="the-filecheck-check-prefix-option">
+<h3>The FileCheck -check-prefix option<a class="headerlink" href="#the-filecheck-check-prefix-option" title="Permalink to this headline">¶</a></h3>
+<p>The FileCheck <cite>-check-prefix</cite> option allows multiple test
+configurations to be driven from one <cite>.ll</cite> file.  This is useful in many
+circumstances, for example, testing different architectural variants with
+<strong class="program">llc</strong>.  Here’s a simple example:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">; RUN: llvm-as &lt; %s | llc -mtriple=i686-apple-darwin9 -mattr=sse41 \</span>
+<span class="c">; RUN:              | FileCheck %s -check-prefix=X32</span>
+<span class="c">; RUN: llvm-as &lt; %s | llc -mtriple=x86_64-apple-darwin9 -mattr=sse41 \</span>
+<span class="c">; RUN:              | FileCheck %s -check-prefix=X64</span>
+
+<span class="k">define</span> <span class="p">&lt;</span><span class="m">4</span> <span class="k">x</span> <span class="k">i32</span><span class="p">&gt;</span> <span class="vg">@pinsrd_1</span><span class="p">(</span><span class="k">i32</span> <span class="nv">%s</span><span class="p">,</span> <span class="p">&lt;</span><span class="m">4</span> <span class="k">x</span> <span class="k">i32</span><span class="p">&gt;</span> <span class="nv">%tmp</span><span class="p">)</span> <span class="k">nounwind</span> <span class="p">{</span>
+        <span class="nv">%tmp1</span> <span class="p">=</span> <span class="k">insertelement</span> <span class="p">&lt;</span><span class="m">4</span> <span class="k">x</span> <span class="k">i32</span><span class="p">&gt;</span><span class="c">; %tmp, i32 %s, i32 1</span>
+        <span class="k">ret</span> <span class="p">&lt;</span><span class="m">4</span> <span class="k">x</span> <span class="k">i32</span><span class="p">&gt;</span> <span class="nv">%tmp1</span>
+<span class="c">; X32: pinsrd_1:</span>
+<span class="c">; X32:    pinsrd $1, 4(%esp), %xmm0</span>
+
+<span class="c">; X64: pinsrd_1:</span>
+<span class="c">; X64:    pinsrd $1, %edi, %xmm0</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In this case, we’re testing that we get the expected code generation with
+both 32-bit and 64-bit code generation.</p>
+</div>
+<div class="section" id="the-check-next-directive">
+<h3>The “CHECK-NEXT:” directive<a class="headerlink" href="#the-check-next-directive" title="Permalink to this headline">¶</a></h3>
+<p>Sometimes you want to match lines and would like to verify that matches
+happen on exactly consecutive lines with no other lines in between them.  In
+this case, you can use “<code class="docutils literal"><span class="pre">CHECK:</span></code>” and “<code class="docutils literal"><span class="pre">CHECK-NEXT:</span></code>” directives to specify
+this.  If you specified a custom check prefix, just use “<code class="docutils literal"><span class="pre">&lt;PREFIX&gt;-NEXT:</span></code>”.
+For example, something like this works as you’d expect:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="kt">void</span> <span class="vg">@t2</span><span class="p">(&lt;</span><span class="m">2</span> <span class="k">x</span> <span class="kt">double</span><span class="p">&gt;*</span> <span class="nv">%r</span><span class="p">,</span> <span class="p">&lt;</span><span class="m">2</span> <span class="k">x</span> <span class="kt">double</span><span class="p">&gt;*</span> <span class="nv">%A</span><span class="p">,</span> <span class="kt">double</span> <span class="nv">%B</span><span class="p">)</span> <span class="p">{</span>
+     <span class="nv">%tmp3</span> <span class="p">=</span> <span class="k">load</span> <span class="p">&lt;</span><span class="m">2</span> <span class="k">x</span> <span class="kt">double</span><span class="p">&gt;*</span> <span class="nv">%A</span><span class="p">,</span> <span class="k">align</span> <span class="m">16</span>
+     <span class="nv">%tmp7</span> <span class="p">=</span> <span class="k">insertelement</span> <span class="p">&lt;</span><span class="m">2</span> <span class="k">x</span> <span class="kt">double</span><span class="p">&gt;</span> <span class="k">undef</span><span class="p">,</span> <span class="kt">double</span> <span class="nv">%B</span><span class="p">,</span> <span class="k">i32</span> <span class="m">0</span>
+     <span class="nv">%tmp9</span> <span class="p">=</span> <span class="k">shufflevector</span> <span class="p">&lt;</span><span class="m">2</span> <span class="k">x</span> <span class="kt">double</span><span class="p">&gt;</span> <span class="nv">%tmp3</span><span class="p">,</span>
+                            <span class="p">&lt;</span><span class="m">2</span> <span class="k">x</span> <span class="kt">double</span><span class="p">&gt;</span> <span class="nv">%tmp7</span><span class="p">,</span>
+                            <span class="p">&lt;</span><span class="m">2</span> <span class="k">x</span> <span class="k">i32</span><span class="p">&gt;</span> <span class="p">&lt;</span> <span class="k">i32</span> <span class="m">0</span><span class="p">,</span> <span class="k">i32</span> <span class="m">2</span> <span class="p">&gt;</span>
+     <span class="k">store</span> <span class="p">&lt;</span><span class="m">2</span> <span class="k">x</span> <span class="kt">double</span><span class="p">&gt;</span> <span class="nv">%tmp9</span><span class="p">,</span> <span class="p">&lt;</span><span class="m">2</span> <span class="k">x</span> <span class="kt">double</span><span class="p">&gt;*</span> <span class="nv">%r</span><span class="p">,</span> <span class="k">align</span> <span class="m">16</span>
+     <span class="k">ret</span> <span class="kt">void</span>
+
+<span class="c">; CHECK:          t2:</span>
+<span class="c">; CHECK:             movl    8(%esp), %eax</span>
+<span class="c">; CHECK-NEXT:        movapd  (%eax), %xmm0</span>
+<span class="c">; CHECK-NEXT:        movhpd  12(%esp), %xmm0</span>
+<span class="c">; CHECK-NEXT:        movl    4(%esp), %eax</span>
+<span class="c">; CHECK-NEXT:        movapd  %xmm0, (%eax)</span>
+<span class="c">; CHECK-NEXT:        ret</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>“<code class="docutils literal"><span class="pre">CHECK-NEXT:</span></code>” directives reject the input unless there is exactly one
+newline between it and the previous directive.  A “<code class="docutils literal"><span class="pre">CHECK-NEXT:</span></code>” cannot be
+the first directive in a file.</p>
+</div>
+<div class="section" id="the-check-not-directive">
+<h3>The “CHECK-NOT:” directive<a class="headerlink" href="#the-check-not-directive" title="Permalink to this headline">¶</a></h3>
+<p>The “<code class="docutils literal"><span class="pre">CHECK-NOT:</span></code>” directive is used to verify that a string doesn’t occur
+between two matches (or before the first match, or after the last match).  For
+example, to verify that a load is removed by a transformation, a test like this
+can be used:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="k">i8</span> <span class="vg">@coerce_offset0</span><span class="p">(</span><span class="k">i32</span> <span class="nv">%V</span><span class="p">,</span> <span class="k">i32</span><span class="p">*</span> <span class="nv">%P</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">store</span> <span class="k">i32</span> <span class="nv">%V</span><span class="p">,</span> <span class="k">i32</span><span class="p">*</span> <span class="nv">%P</span>
+
+  <span class="nv">%P2</span> <span class="p">=</span> <span class="k">bitcast</span> <span class="k">i32</span><span class="p">*</span> <span class="nv">%P</span> <span class="k">to</span> <span class="k">i8</span><span class="p">*</span>
+  <span class="nv">%P3</span> <span class="p">=</span> <span class="k">getelementptr</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%P2</span><span class="p">,</span> <span class="k">i32</span> <span class="m">2</span>
+
+  <span class="nv">%A</span> <span class="p">=</span> <span class="k">load</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%P3</span>
+  <span class="k">ret</span> <span class="k">i8</span> <span class="nv">%A</span>
+<span class="c">; CHECK: @coerce_offset0</span>
+<span class="c">; CHECK-NOT: load</span>
+<span class="c">; CHECK: ret i8</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="the-check-dag-directive">
+<h3>The “CHECK-DAG:” directive<a class="headerlink" href="#the-check-dag-directive" title="Permalink to this headline">¶</a></h3>
+<p>If it’s necessary to match strings that don’t occur in a strictly sequential
+order, “<code class="docutils literal"><span class="pre">CHECK-DAG:</span></code>” could be used to verify them between two matches (or
+before the first match, or after the last match). For example, clang emits
+vtable globals in reverse order. Using <code class="docutils literal"><span class="pre">CHECK-DAG:</span></code>, we can keep the checks
+in the natural order:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// RUN: %clang_cc1 %s -emit-llvm -o - | FileCheck %s</span>
+
+<span class="k">struct</span> <span class="n">Foo</span> <span class="p">{</span> <span class="k">virtual</span> <span class="kt">void</span> <span class="n">method</span><span class="p">();</span> <span class="p">};</span>
+<span class="n">Foo</span> <span class="n">f</span><span class="p">;</span>  <span class="c1">// emit vtable</span>
+<span class="c1">// CHECK-DAG: @_ZTV3Foo =</span>
+
+<span class="k">struct</span> <span class="n">Bar</span> <span class="p">{</span> <span class="k">virtual</span> <span class="kt">void</span> <span class="n">method</span><span class="p">();</span> <span class="p">};</span>
+<span class="n">Bar</span> <span class="n">b</span><span class="p">;</span>
+<span class="c1">// CHECK-DAG: @_ZTV3Bar =</span>
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">CHECK-NOT:</span></code> directives could be mixed with <code class="docutils literal"><span class="pre">CHECK-DAG:</span></code> directives to
+exclude strings between the surrounding <code class="docutils literal"><span class="pre">CHECK-DAG:</span></code> directives. As a result,
+the surrounding <code class="docutils literal"><span class="pre">CHECK-DAG:</span></code> directives cannot be reordered, i.e. all
+occurrences matching <code class="docutils literal"><span class="pre">CHECK-DAG:</span></code> before <code class="docutils literal"><span class="pre">CHECK-NOT:</span></code> must not fall behind
+occurrences matching <code class="docutils literal"><span class="pre">CHECK-DAG:</span></code> after <code class="docutils literal"><span class="pre">CHECK-NOT:</span></code>. For example,</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">; CHECK-DAG: BEFORE</span>
+<span class="c">; CHECK-NOT: NOT</span>
+<span class="c">; CHECK-DAG: AFTER</span>
+</pre></div>
+</div>
+<p>This case will reject input strings where <code class="docutils literal"><span class="pre">BEFORE</span></code> occurs after <code class="docutils literal"><span class="pre">AFTER</span></code>.</p>
+<p>With captured variables, <code class="docutils literal"><span class="pre">CHECK-DAG:</span></code> is able to match valid topological
+orderings of a DAG with edges from the definition of a variable to its use.
+It’s useful, e.g., when your test cases need to match different output
+sequences from the instruction scheduler. For example,</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>; CHECK-DAG: add [[REG1:r[0-9]+]], r1, r2
+; CHECK-DAG: add [[REG2:r[0-9]+]], r3, r4
+; CHECK:     mul r5, [[REG1]], [[REG2]]
+</pre></div>
+</div>
+<p>In this case, any order of that two <code class="docutils literal"><span class="pre">add</span></code> instructions will be allowed.</p>
+<p>If you are defining <cite>and</cite> using variables in the same <code class="docutils literal"><span class="pre">CHECK-DAG:</span></code> block,
+be aware that the definition rule can match <cite>after</cite> its use.</p>
+<p>So, for instance, the code below will pass:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>; CHECK-DAG: vmov.32 [[REG2:d[0-9]+]][0]
+; CHECK-DAG: vmov.32 [[REG2]][1]
+vmov.32 d0[1]
+vmov.32 d0[0]
+</pre></div>
+</div>
+<p>While this other code, will not:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>; CHECK-DAG: vmov.32 [[REG2:d[0-9]+]][0]
+; CHECK-DAG: vmov.32 [[REG2]][1]
+vmov.32 d1[1]
+vmov.32 d0[0]
+</pre></div>
+</div>
+<p>While this can be very useful, it’s also dangerous, because in the case of
+register sequence, you must have a strong order (read before write, copy before
+use, etc). If the definition your test is looking for doesn’t match (because
+of a bug in the compiler), it may match further away from the use, and mask
+real bugs away.</p>
+<p>In those cases, to enforce the order, use a non-DAG directive between DAG-blocks.</p>
+</div>
+<div class="section" id="the-check-label-directive">
+<h3>The “CHECK-LABEL:” directive<a class="headerlink" href="#the-check-label-directive" title="Permalink to this headline">¶</a></h3>
+<p>Sometimes in a file containing multiple tests divided into logical blocks, one
+or more <code class="docutils literal"><span class="pre">CHECK:</span></code> directives may inadvertently succeed by matching lines in a
+later block. While an error will usually eventually be generated, the check
+flagged as causing the error may not actually bear any relationship to the
+actual source of the problem.</p>
+<p>In order to produce better error messages in these cases, the “<code class="docutils literal"><span class="pre">CHECK-LABEL:</span></code>”
+directive can be used. It is treated identically to a normal <code class="docutils literal"><span class="pre">CHECK</span></code>
+directive except that FileCheck makes an additional assumption that a line
+matched by the directive cannot also be matched by any other check present in
+<code class="docutils literal"><span class="pre">match-filename</span></code>; this is intended to be used for lines containing labels or
+other unique identifiers. Conceptually, the presence of <code class="docutils literal"><span class="pre">CHECK-LABEL</span></code> divides
+the input stream into separate blocks, each of which is processed independently,
+preventing a <code class="docutils literal"><span class="pre">CHECK:</span></code> directive in one block matching a line in another block.
+For example,</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="nv">%struct.C</span><span class="p">*</span> <span class="vg">@C_ctor_base</span><span class="p">(</span><span class="nv">%struct.C</span><span class="p">*</span> <span class="nv">%this</span><span class="p">,</span> <span class="k">i32</span> <span class="nv">%x</span><span class="p">)</span> <span class="p">{</span>
+<span class="nl">entry:</span>
+<span class="c">; CHECK-LABEL: C_ctor_base:</span>
+<span class="c">; CHECK: mov [[SAVETHIS:r[0-9]+]], r0</span>
+<span class="c">; CHECK: bl A_ctor_base</span>
+<span class="c">; CHECK: mov r0, [[SAVETHIS]]</span>
+  <span class="nv nv-Anonymous">%0</span> <span class="p">=</span> <span class="k">bitcast</span> <span class="nv">%struct.C</span><span class="p">*</span> <span class="nv">%this</span> <span class="k">to</span> <span class="nv">%struct.A</span><span class="p">*</span>
+  <span class="nv">%call</span> <span class="p">=</span> <span class="k">tail</span> <span class="k">call</span> <span class="nv">%struct.A</span><span class="p">*</span> <span class="vg">@A_ctor_base</span><span class="p">(</span><span class="nv">%struct.A</span><span class="p">*</span> <span class="nv nv-Anonymous">%0</span><span class="p">)</span>
+  <span class="nv nv-Anonymous">%1</span> <span class="p">=</span> <span class="k">bitcast</span> <span class="nv">%struct.C</span><span class="p">*</span> <span class="nv">%this</span> <span class="k">to</span> <span class="nv">%struct.B</span><span class="p">*</span>
+  <span class="nv">%call2</span> <span class="p">=</span> <span class="k">tail</span> <span class="k">call</span> <span class="nv">%struct.B</span><span class="p">*</span> <span class="vg">@B_ctor_base</span><span class="p">(</span><span class="nv">%struct.B</span><span class="p">*</span> <span class="nv nv-Anonymous">%1</span><span class="p">,</span> <span class="k">i32</span> <span class="nv">%x</span><span class="p">)</span>
+  <span class="k">ret</span> <span class="nv">%struct.C</span><span class="p">*</span> <span class="nv">%this</span>
+<span class="p">}</span>
+
+<span class="k">define</span> <span class="nv">%struct.D</span><span class="p">*</span> <span class="vg">@D_ctor_base</span><span class="p">(</span><span class="nv">%struct.D</span><span class="p">*</span> <span class="nv">%this</span><span class="p">,</span> <span class="k">i32</span> <span class="nv">%x</span><span class="p">)</span> <span class="p">{</span>
+<span class="nl">entry:</span>
+<span class="c">; CHECK-LABEL: D_ctor_base:</span>
+</pre></div>
+</div>
+<p>The use of <code class="docutils literal"><span class="pre">CHECK-LABEL:</span></code> directives in this case ensures that the three
+<code class="docutils literal"><span class="pre">CHECK:</span></code> directives only accept lines corresponding to the body of the
+<code class="docutils literal"><span class="pre">&#64;C_ctor_base</span></code> function, even if the patterns match lines found later in
+the file. Furthermore, if one of these three <code class="docutils literal"><span class="pre">CHECK:</span></code> directives fail,
+FileCheck will recover by continuing to the next block, allowing multiple test
+failures to be detected in a single invocation.</p>
+<p>There is no requirement that <code class="docutils literal"><span class="pre">CHECK-LABEL:</span></code> directives contain strings that
+correspond to actual syntactic labels in a source or output language: they must
+simply uniquely match a single line in the file being verified.</p>
+<p><code class="docutils literal"><span class="pre">CHECK-LABEL:</span></code> directives cannot contain variable definitions or uses.</p>
+</div>
+<div class="section" id="filecheck-pattern-matching-syntax">
+<h3>FileCheck Pattern Matching Syntax<a class="headerlink" href="#filecheck-pattern-matching-syntax" title="Permalink to this headline">¶</a></h3>
+<p>The “<code class="docutils literal"><span class="pre">CHECK:</span></code>” and “<code class="docutils literal"><span class="pre">CHECK-NOT:</span></code>” directives both take a pattern to match.
+For most uses of FileCheck, fixed string matching is perfectly sufficient.  For
+some things, a more flexible form of matching is desired.  To support this,
+FileCheck allows you to specify regular expressions in matching strings,
+surrounded by double braces: <code class="docutils literal"><span class="pre">{{yourregex}}</span></code>.  Because we want to use fixed
+string matching for a majority of what we do, FileCheck has been designed to
+support mixing and matching fixed string matching with regular expressions.
+This allows you to write things like this:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">; CHECK: movhpd      {{[0-9]+}}(%esp), {{%xmm[0-7]}}</span>
+</pre></div>
+</div>
+<p>In this case, any offset from the ESP register will be allowed, and any xmm
+register will be allowed.</p>
+<p>Because regular expressions are enclosed with double braces, they are
+visually distinct, and you don’t need to use escape characters within the double
+braces like you would in C.  In the rare case that you want to match double
+braces explicitly from the input, you can use something ugly like
+<code class="docutils literal"><span class="pre">{{[{][{]}}</span></code> as your pattern.</p>
+</div>
+<div class="section" id="filecheck-variables">
+<h3>FileCheck Variables<a class="headerlink" href="#filecheck-variables" title="Permalink to this headline">¶</a></h3>
+<p>It is often useful to match a pattern and then verify that it occurs again
+later in the file.  For codegen tests, this can be useful to allow any register,
+but verify that that register is used consistently later.  To do this,
+<strong class="program">FileCheck</strong> allows named variables to be defined and substituted into
+patterns.  Here is a simple example:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">; CHECK: test5:</span>
+<span class="c">; CHECK:    notw     [[REGISTER:%[a-z]+]]</span>
+<span class="c">; CHECK:    andw     {{.*}}[[REGISTER]]</span>
+</pre></div>
+</div>
+<p>The first check line matches a regex <code class="docutils literal"><span class="pre">%[a-z]+</span></code> and captures it into the
+variable <code class="docutils literal"><span class="pre">REGISTER</span></code>.  The second line verifies that whatever is in
+<code class="docutils literal"><span class="pre">REGISTER</span></code> occurs later in the file after an “<code class="docutils literal"><span class="pre">andw</span></code>”.  <strong class="program">FileCheck</strong>
+variable references are always contained in <code class="docutils literal"><span class="pre">[[</span> <span class="pre">]]</span></code> pairs, and their names can
+be formed with the regex <code class="docutils literal"><span class="pre">[a-zA-Z][a-zA-Z0-9]*</span></code>.  If a colon follows the name,
+then it is a definition of the variable; otherwise, it is a use.</p>
+<p><strong class="program">FileCheck</strong> variables can be defined multiple times, and uses always
+get the latest value.  Variables can also be used later on the same line they
+were defined on. For example:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">; CHECK: op [[REG:r[0-9]+]], [[REG]]</span>
+</pre></div>
+</div>
+<p>Can be useful if you want the operands of <code class="docutils literal"><span class="pre">op</span></code> to be the same register,
+and don’t care exactly which register it is.</p>
+</div>
+<div class="section" id="filecheck-expressions">
+<h3>FileCheck Expressions<a class="headerlink" href="#filecheck-expressions" title="Permalink to this headline">¶</a></h3>
+<p>Sometimes there’s a need to verify output which refers line numbers of the
+match file, e.g. when testing compiler diagnostics.  This introduces a certain
+fragility of the match file structure, as “<code class="docutils literal"><span class="pre">CHECK:</span></code>” lines contain absolute
+line numbers in the same file, which have to be updated whenever line numbers
+change due to text addition or deletion.</p>
+<p>To support this case, FileCheck allows using <code class="docutils literal"><span class="pre">[[&#64;LINE]]</span></code>,
+<code class="docutils literal"><span class="pre">[[&#64;LINE+&lt;offset&gt;]]</span></code>, <code class="docutils literal"><span class="pre">[[&#64;LINE-&lt;offset&gt;]]</span></code> expressions in patterns. These
+expressions expand to a number of the line where a pattern is located (with an
+optional integer offset).</p>
+<p>This way match patterns can be put near the relevant test lines and include
+relative line number references, for example:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// CHECK: test.cpp:[[@LINE+4]]:6: error: expected &#39;;&#39; after top level declarator</span>
+<span class="c1">// CHECK-NEXT: {{^int a}}</span>
+<span class="c1">// CHECK-NEXT: {{^     \^}}</span>
+<span class="c1">// CHECK-NEXT: {{^     ;}}</span>
+<span class="kt">int</span> <span class="n">a</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="tblgen.html" title="tblgen - Target Description To C++ Code Generator"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llvm-bcanalyzer.html" title="llvm-bcanalyzer - LLVM bitcode analyzer"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

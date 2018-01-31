@@ -1,0 +1,2218 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>GenX backend design &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LLVM IR for the GenX backend" href="GenXLangRef.html" />
+    <link rel="prev" title="Introduction to the GenX backend" href="GenXIntro.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="GenXLangRef.html" title="LLVM IR for the GenX backend"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="GenXIntro.html" title="Introduction to the GenX backend"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="GenXIndex.html" accesskey="U">GenX backend documentation</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="genx-backend-design">
+<h1>GenX backend design<a class="headerlink" href="#genx-backend-design" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id5">Introduction</a></li>
+<li><a class="reference internal" href="#not-using-the-llvm-target-independent-code-generator" id="id6">Not using the LLVM target independent code generator</a></li>
+<li><a class="reference internal" href="#core-llvm-modifications" id="id7">Core LLVM modifications</a></li>
+<li><a class="reference internal" href="#non-pass-classes" id="id8">Non-pass classes</a></li>
+<li><a class="reference internal" href="#pass-documentation" id="id9">Pass documentation</a></li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id5">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>The GenX backend for LLVM targets Intel HD Graphics, and represents EU code in
+such a way that it represents the full functionality of an EU thread, such as
+region addressing and SIMD control flow.</p>
+<p>For more introductory material on the GenX backend, see <a class="reference internal" href="GenXIntro.html"><span class="doc">Introduction to the GenX backend</span></a>.</p>
+<p>This document does not cover the design of the Clang-based front end of the CM
+compiler. Assuming you are reading this in a cm-llvm source tree where you have
+built the documentation,
+see <a class="reference external" href="../../../../support/docs/_build_internal/html/index_internal.html">Internal documentation for CM</a>.</p>
+<div class="section" id="llvm-intermediate-representation-of-eu-code">
+<h3>LLVM intermediate representation of EU code<a class="headerlink" href="#llvm-intermediate-representation-of-eu-code" title="Permalink to this headline">¶</a></h3>
+<p>The LLVM IR that the GenX backend expects to see is documented in <a class="reference internal" href="GenXLangRef.html"><span class="doc">LLVM IR for the GenX backend</span></a>.</p>
+</div>
+<div class="section" id="users-of-the-genx-backend">
+<h3>Users of the GenX backend<a class="headerlink" href="#users-of-the-genx-backend" title="Permalink to this headline">¶</a></h3>
+<p>Currently the only user of the GenX backend is the CM compiler (the cm-llvm
+project).</p>
+<p>The GenX backend is designed to stand alone from the CM compiler, so it could be
+used in other projects that require its whole-EU-thread representation. See the
+section <em>Whole thread representation</em> in <a class="reference internal" href="GenXLangRef.html"><span class="doc">LLVM IR for the GenX backend</span></a>.</p>
+</div>
+</div>
+<div class="section" id="not-using-the-llvm-target-independent-code-generator">
+<h2><a class="toc-backref" href="#id6">Not using the LLVM target independent code generator</a><a class="headerlink" href="#not-using-the-llvm-target-independent-code-generator" title="Permalink to this headline">¶</a></h2>
+<img alt="_images/GenXDesign_typical_llvm.png" src="_images/GenXDesign_typical_llvm.png" />
+<p>Most LLVM targets use the target independent code generator. It mostly uses a
+textual machine description that is compiled by tablegen as part of the build
+process.</p>
+<p>Using that machine description, the target converts the LLVM IR into a DAG form,
+legalizes and instruction selects it, runs a pre-RA scheduler, and converts it
+into <em>machine IR</em>, which starts off as SSA, but is de-SSAd as part of the
+register allocation process.</p>
+<div class="section" id="disadvantages-of-the-target-independent-code-generator">
+<h3>Disadvantages of the target independent code generator<a class="headerlink" href="#disadvantages-of-the-target-independent-code-generator" title="Permalink to this headline">¶</a></h3>
+<p>The target independent code generator has a number of problems:</p>
+<ul class="simple">
+<li>We get lots of problems with the assumption that the target is a
+real CPU with real hardregs, when in fact we are targeting vISA with an
+effectively infinite number of registers.</li>
+<li>Even if we were targeting Gen directly, rather than vISA, the target
+independent code generator would not cope with Gen’s almost byte addressable
+register file. Although it can cope with different size registers mapping to
+the same place, they have to be hierarchical (e.g. rax contains eax contains
+ax contains al and ah).</li>
+<li>In machine IR, an operand does not carry a type, only a register
+class. Instead the instruction implies the type (e.g. “add i32”). For the ALU
+ops, even though types are limited to a power of two number of elements limited
+to 32 bytes, we would have quite a few combinations, especially as GenX allows
+the source and destination to be different type and signedness. It is worse for
+one operand in a memory access or region access; such an operand can be any
+number of elements almost up to the entire register file size.</li>
+<li>The vector width legalization carried out on the DAG in the target independent
+code generator is nothing like what we want for region and operand
+legalization.</li>
+</ul>
+</div>
+<div class="section" id="the-alternative-use-llvm-ir">
+<h3>The alternative: use LLVM IR<a class="headerlink" href="#the-alternative-use-llvm-ir" title="Permalink to this headline">¶</a></h3>
+<img alt="_images/GenXDesign_GenX_llvm.png" src="_images/GenXDesign_GenX_llvm.png" />
+<p>The GenX backend does not use the target independent code generator. Instead it
+keeps the program in LLVM IR and operates on that, right up to the vISA writer
+at the end. It uses LLVM IR in conjunction with other on-the-side data
+structures, as is normal with LLVM passes. (For example, LLVM keeps the
+dominator tree as a separate on-the-side data structure.)</p>
+<p>The GenX backend does have to jump through some hoops to use this approach:</p>
+<ul class="simple">
+<li>A single vISA instruction is represented in the LLVM IR by multiple
+instructions, with an on-the-side data structure, <em>baling info</em>, saying how
+the instructions are grouped together into <em>bales</em>.</li>
+<li>The LLVM IR continues to be SSA, even after the pass (GenXCoalescing) that
+effectively does the de-SSA. This works because GenXCoalescing inserts copies
+to implement the phi nodes, but in such a way that the phi nodes are still
+present. The on-the-side data structure describing liveness and how values
+are coalesced ensures that the operands and result of a particular phi node
+will be in the same register.</li>
+</ul>
+<p>(Both IGC and Beignet avoid the target independent code generator too, but use
+the slightly different approach of having their own non-SSA IR after LLVM IR.)</p>
+</div>
+<div class="section" id="restricting-the-llvm-ir-through-the-genx-backend">
+<h3>Restricting the LLVM IR through the GenX backend<a class="headerlink" href="#restricting-the-llvm-ir-through-the-genx-backend" title="Permalink to this headline">¶</a></h3>
+<p>Although the GenX backend uses LLVM IR throughout, what can be represented
+becomes more and more restricted as the IR is fed through the passes, until,
+at the end, the GenXVisaFuncWriter pass is able to translate the LLVM IR
+(together with baling information and register allocation) trivially into
+vISA.</p>
+<p>In the pass documentation below, an LLVM IR restriction is flagged like this:
+<strong>IR restriction</strong>:</p>
+</div>
+</div>
+<div class="section" id="core-llvm-modifications">
+<h2><a class="toc-backref" href="#id7">Core LLVM modifications</a><a class="headerlink" href="#core-llvm-modifications" title="Permalink to this headline">¶</a></h2>
+<p>This list of core LLVM modifications includes only the changes concerning the
+GenX backend and its intrinsic functions. There are further core LLVM modifications
+specific to the CM compiler listed in the CM compiler design document.</p>
+<div class="section" id="constant-folding-instruction-simplification-and-instruction-combining-changes">
+<h3>Constant folding, instruction simplification and instruction combining changes<a class="headerlink" href="#constant-folding-instruction-simplification-and-instruction-combining-changes" title="Permalink to this headline">¶</a></h3>
+<p>In LLVM, <em>constant folding</em> is where an instruction has all constant operands,
+and uses of it are replaced by the computed constant result. <em>Instruction simplification</em>
+is where a tree of one or more instructions
+can be replaced by one of the operands or a constant.
+<em>Instruction combining</em> is where a tree of one or more
+instructions can be replaced by a new instruction.</p>
+<p>GenX intrinsics participate in constant folding and instruction simplification
+but not in instruction combining.</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">lib/Analysis/ConstantFoldingGenX.cpp</span></code> is a new file that does constant folding
+on GenX intrinsics. A hook to call it has been added to
+<code class="docutils literal"><span class="pre">lib/Analysis/ConstantFolding.cpp</span></code>.</li>
+<li><code class="docutils literal"><span class="pre">lib/Analysis/InstructionSimplifyGenX.cpp</span></code> is a new file that does instruction
+simplification on GenX intrinsics. A hook to call it has been added to
+<code class="docutils literal"><span class="pre">lib/Analysis/InstructionSimplify.cpp</span></code>.</li>
+<li><code class="docutils literal"><span class="pre">lib/Analysis/ConstantFolding.cpp</span></code> has an enhancement to fold a bitcast of a
+constant vector in the case that some elements are undef.</li>
+<li><code class="docutils literal"><span class="pre">lib/Analysis/InstructionSimplify.cpp</span></code> has an enhancement to simplify a double
+bitcast to nothing at all where possible.</li>
+<li><code class="docutils literal"><span class="pre">lib/Analysis/InstructionSimplify.cpp</span></code> has an enhancement to simplify
+<code class="docutils literal"><span class="pre">(A</span> <span class="pre">&amp;</span> <span class="pre">B)</span> <span class="pre">|</span> <span class="pre">(A</span> <span class="pre">&amp;</span> <span class="pre">~B)</span></code> to <code class="docutils literal"><span class="pre">A</span></code>. This was used by the non-optimal implementation
+of SIMD control flow, before the optimal implementation using goto instructions
+was done.</li>
+<li><code class="docutils literal"><span class="pre">lib/Analysis/InstructionSimplify.cpp</span></code> could already turn <code class="docutils literal"><span class="pre">select</span> <span class="pre">true,</span> <span class="pre">X,</span> <span class="pre">Y</span></code> into
+<code class="docutils literal"><span class="pre">X</span></code> and <code class="docutils literal"><span class="pre">select</span> <span class="pre">false,</span> <span class="pre">X,</span> <span class="pre">Y</span></code> into <code class="docutils literal"><span class="pre">Y</span></code>. We have added an enhancement to make
+this work for a vector select when the condition is partly undef and otherwise true,
+or partly undef and otherwise false.</li>
+<li><code class="docutils literal"><span class="pre">lib/Analysis/InstCombineMulDivRem.cpp</span></code> has an enhancement to change sdiv to ashr
+when the dividend is known to be non-negative and the divisor is a power of two.
+(There was already code for when the division is known to be exact.)</li>
+<li><code class="docutils literal"><span class="pre">lib/Analysis/InstCombine.cpp</span></code> has a fix to disable add -&gt; or transformations,
+as it stops the GenX backend being able to spot a constant add to an indirect
+region index. <strong>This change may be an obstacle to commoning up cm-llvm’s LLVM code
+base with any othert LLVM-using project such as IGC.</strong> You would need to
+revert this change and instead spot where an or can be turned back into an add
+in the GenX backend.</li>
+<li><code class="docutils literal"><span class="pre">lib/Analysis/InstCombineCasts.cpp</span></code> has an enhancement to combine <code class="docutils literal"><span class="pre">sitofp(zext(X))</span></code>
+to <code class="docutils literal"><span class="pre">uitofp(X)</span></code>.</li>
+<li><code class="docutils literal"><span class="pre">lib/Analysis/InstructionSimplify.cpp</span></code> and <code class="docutils literal"><span class="pre">lib/Analysis/InstCombineCompares.cpp</span></code>
+have an enhancement to spot vector icmp of zext/sext from i1 with 0. When the icmp
+predicate is ne, the sequence can be turned into just the i1 input. When the icmp
+predicate is eq, the sequence can be turned into a not of the i1 input.</li>
+</ul>
+</div>
+<div class="section" id="other-changes">
+<h3>Other changes<a class="headerlink" href="#other-changes" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li>There are one- or two-line changes in various files to add the GenX backend. See
+commit <code class="docutils literal"><span class="pre">2f92f3f5</span></code>, also the addition of <code class="docutils literal"><span class="pre">include/llvm/IR/IntrinsicsGenX.td</span></code>
+in commit <code class="docutils literal"><span class="pre">e7fa4729</span></code>.</li>
+<li><code class="docutils literal"><span class="pre">lib/Transforms/Scalar/IndVarSimplify.cpp</span></code> has a change to disable <code class="docutils literal"><span class="pre">SinkUnusedInvariants</span></code>.
+<strong>This change may be an obstacle to commoning up cm-llvm’s LLVM code base with any other
+LLVM-using project such as IGC.</strong> You would need to check whether reverting this change increases
+spill in some tests, and, if so, do not revert until there is a better solution for
+moving and rematerializing code to reduce register pressure in the GenX backend.</li>
+<li><code class="docutils literal"><span class="pre">lib/IR/AsmWriter.cpp</span></code> has an enhancement to add a comment with the source
+location when writing an Instruction in textual form, as happens in -print-after-all.</li>
+<li><code class="docutils literal"><span class="pre">include/llvm/IR/DiagnosticInfo.h</span></code> has a bugfix to #include <code class="docutils literal"><span class="pre">Module.h</span></code>.</li>
+<li>The new FunctionGroupPassManager is in <code class="docutils literal"><span class="pre">lib/Target/GenX/FunctionGroup.h</span></code> in the GenX
+backend, but the addition of a new pass type with associated pass manager required
+a few one line changes in core LLVM files. See commit <code class="docutils literal"><span class="pre">99bab565</span></code>.</li>
+</ul>
+</div>
+</div>
+<div class="section" id="non-pass-classes">
+<h2><a class="toc-backref" href="#id8">Non-pass classes</a><a class="headerlink" href="#non-pass-classes" title="Permalink to this headline">¶</a></h2>
+<p>This section documents some GenX backend classes and abstractions that are not
+in themselves passes, but are used by the passes.</p>
+<div class="section" id="genx-alignmentinfo-alignment-information">
+<h3>genx::AlignmentInfo : alignment information<a class="headerlink" href="#genx-alignmentinfo-alignment-information" title="Permalink to this headline">¶</a></h3>
+<p>AlignmentInfo is a cache of information on the alignment of instruction
+values in a function. It does not persist between passes.</p>
+<p>A pass that needs alignment information constructs an AlignmentInfo at the start of the pass, and then
+calls the <code class="docutils literal"><span class="pre">get</span></code> method each time it wants alignment information for a particular
+instruction value. AlignmentInfo calculates it if it is not already in its cache,
+which probably involves also calculating the alignment of other instructions that
+the given one depends on.</p>
+<p>This cacheing and lazy calculation is done instead of having a separate analysis
+pass because alignment is needed for only a small subset of values in a function.</p>
+<p>The alignment is returned as an <em>Alignment</em> object with two fields, <em>LogAlign</em>
+and <em>ExtraBits</em> (where 0 &lt;= ExtraBits &lt; (1 &lt;&lt; LogAlign)), stating that the value is known to be
+A &lt;&lt; LogAlign | ExtraBits for some A.</p>
+<p>For a vector value, the alignment information is for element 0.</p>
+<p>The calculation uses a worklist algorithm that can cope with phi nodes and
+loops. So, for example, a variable (used as an indirect region index) that
+starts at 10 then is incremented by 8 inside a loop is correctly calculated
+to be 8A+2 for some A.</p>
+</div>
+<div class="section" id="genxregion-region-information">
+<h3>GenXRegion : region information<a class="headerlink" href="#genxregion-region-information" title="Permalink to this headline">¶</a></h3>
+<p>An object of class GenXRegion describes the region parameters of a Gen region.
+It is a transient object, in that a pass constructs it as needed and then
+forgets it. It does not persist between passes, as the region parameters are
+fully described by the arguments to the rdregion and wrregion intrinsics.</p>
+<p>The region parameters in a GenXRegion are:</p>
+<ul class="simple">
+<li>ElementBytes : number of bytes per element</li>
+<li>ElementTy : Type of element</li>
+<li>NumElements : total number of elements in the region (number of rows is
+thus NumElements/Width)</li>
+<li>VStride : vertical stride in elements</li>
+<li>Width : row width in elements</li>
+<li>Stride : horizontal stride in elements</li>
+<li>Offset : constant part of offset</li>
+<li>Indirect : variable index (nullptr for direct region, scalar value for
+single indirect, vector value for multi indirect)</li>
+<li>IndirectIdx : start index in vector indirect. This is always 0 when
+constructing a GenXRegion, but can be set to a non-zero value before
+calling a method to create a new rdregion/wrregion intrinsic</li>
+<li>Mask : mask (predicate) for wrregion, nullptr if none</li>
+<li>ParentWidth : the parent width value (a statement that no row crosses a
+boundary of a multiple of this number of elements)</li>
+</ul>
+<p>There are the following constructors:</p>
+<ul class="simple">
+<li>Construct from a Type or Value, setting the GenXRegion to a region that
+covers the whole value.</li>
+<li>Construct from a rdregion/wrregion intrinsic, setting the GenXRegion to the
+region described by the intrinsic. This constructor also takes the
+BaleInfo as an argument, allowing a variable index that is a baled in
+constant add to be considered as a separate variable index and constant
+offset.</li>
+<li>Construct from a bitmap of which elements need to be in the region. This
+is used from GenXConstants when constructing a splat region when loading
+a constant in multiple stages.</li>
+</ul>
+<p>GenXLegalization uses GenXRegion to determine whether a region is legal, and
+split it up if necessary. First it constructs a GenXRegion, then it has a loop
+to split it into legal regions. Each loop iteration calls:</p>
+<ul class="simple">
+<li>the getLegalSize method (see below) to determine the split size; then</li>
+<li>getSubregion to modify the GenXRegion for the split size; then</li>
+<li>one of the methods to create a new rdregion or wrregion intrinsic.</li>
+</ul>
+<p>GenXRegion is not used to represent the region parameters in predicate regions,
+since they are much simpler. But GenXRegion does contain static methods to create
+rdpredregion etc intrinsics given the predicate region parameters.</p>
+<div class="section" id="genxregion-getlegalsize">
+<h4>GenXRegion::getLegalSize<a class="headerlink" href="#genxregion-getlegalsize" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">getLegalSize</span></code> method is used by GenXLegalization and some other passes
+to determine whether a region is legal, and if not how small a split is
+required to make it legal.</p>
+<p>It takes the GenXSubtarget as an argument, because it needs to know
+architecture-specific details, currently just whether a single GRF crossing is
+allowed in an indirect region.</p>
+<p>It also takes either an AlignmentInfo object, or the actual alignment of the
+indirect index (if any). Knowing the alignment of the indirect index can help
+allow a larger legal region, and avoid needing to split into simd1.</p>
+</div>
+</div>
+<div class="section" id="genxsubtarget-subtarget-information">
+<h3>GenXSubtarget : subtarget information<a class="headerlink" href="#genxsubtarget-subtarget-information" title="Permalink to this headline">¶</a></h3>
+<p>GenXSubtarget is the GenX-specific subclass of TargetSubtargetInfo. It takes
+features detected by the front end (what the Gen architecture is; what size
+SVM pointers are), and exposes flags to the rest of the GenX backend for
+various features (e.g. whether 64 bit operations are supported).</p>
+<p>Where subtarget features are used is noted in the documentation of GenX
+backend passes.</p>
+<p>The flags exposed to the rest of the GenX backend are as follows. Most of
+these are currently not used.</p>
+<ul class="simple">
+<li>isHSW - true if target is HSW</li>
+<li>isBDW - true if target is BDW</li>
+<li>isBDWplus - true if target is BDW or later</li>
+<li>isCHV - true if target is CHV</li>
+<li>isSKL - true if target is SKL</li>
+<li>isSKLplus - true if target is SKL or later</li>
+<li>isBXT - true if target is BXT</li>
+<li>isGLV - true if target is GLV</li>
+<li>isKBL - true if target is KBL</li>
+<li>isGLK - true if target is GLK</li>
+<li>isCNL - true if target is CNL</li>
+<li>dumpRegAlloc - true if we should dump Reg Alloc info</li>
+<li>svmptrIs32Bit - true if svmptr_t is 32 bit</li>
+<li>svmptrIs64Bit - true if svmptr_t is 64 bit</li>
+<li>hasLongLong - true if target supports long long</li>
+<li>disableJmpi - true if jmpi is disabled.</li>
+<li>disableVectorDecomposition - true if vector decomposition is disabled.</li>
+<li>warnCallable() - true if compiler only generate warning for
+callable in the middle</li>
+<li>hasIndirectGRFCrossing - true if target supports an indirect region
+crossing one GRF boundary</li>
+</ul>
+</div>
+</div>
+<div class="section" id="pass-documentation">
+<h2><a class="toc-backref" href="#id9">Pass documentation</a><a class="headerlink" href="#pass-documentation" title="Permalink to this headline">¶</a></h2>
+<p>The GenX backend runs the following passes on LLVM IR:</p>
+<div class="contents local topic" id="id1">
+<ul class="simple">
+<li><a class="reference internal" href="#basicaliasanalysis" id="id10">BasicAliasAnalysis</a></li>
+<li><a class="reference internal" href="#sroa" id="id11">SROA</a></li>
+<li><a class="reference internal" href="#lowerswitch" id="id12">LowerSwitch</a></li>
+<li><a class="reference internal" href="#genxcfsimplification" id="id13">GenXCFSimplification</a></li>
+<li><a class="reference internal" href="#cfgsimplification" id="id14">CFGSimplification</a></li>
+<li><a class="reference internal" href="#genxreduceintsize" id="id15">GenXReduceIntSize</a></li>
+<li><a class="reference internal" href="#instructioncombining" id="id16">InstructionCombining</a></li>
+<li><a class="reference internal" href="#genxsimdcfconformance" id="id17">GenXSimdCFConformance</a></li>
+<li><a class="reference internal" href="#genxlowering" id="id18">GenXLowering</a></li>
+<li><a class="reference internal" href="#genxregioncollapsing" id="id19">GenXRegionCollapsing</a></li>
+<li><a class="reference internal" href="#earlycse" id="id20">EarlyCSE</a></li>
+<li><a class="reference internal" href="#genxpatternmatch" id="id21">GenXPatternMatch</a></li>
+<li><a class="reference internal" href="#genxextractvectorizer" id="id22">GenXExtractVectorizer</a></li>
+<li><a class="reference internal" href="#deadcodeelimination" id="id23">DeadCodeElimination</a></li>
+<li><a class="reference internal" href="#genxbaling" id="id24">GenXBaling</a></li>
+<li><a class="reference internal" href="#genxlegalization" id="id25">GenXLegalization</a></li>
+<li><a class="reference internal" href="#genxdeadvectorremoval" id="id26">GenXDeadVectorRemoval</a></li>
+<li><a class="reference internal" href="#id2" id="id27">DeadCodeElimination</a></li>
+<li><a class="reference internal" href="#genxpostlegalization" id="id28">GenXPostLegalization</a></li>
+<li><a class="reference internal" href="#genxconstants" id="id29">GenXConstants</a></li>
+<li><a class="reference internal" href="#genxvectordecomposer" id="id30">GenXVectorDecomposer</a></li>
+<li><a class="reference internal" href="#id3" id="id31">EarlyCSE</a></li>
+<li><a class="reference internal" href="#licm" id="id32">LICM</a></li>
+<li><a class="reference internal" href="#id4" id="id33">DeadCodeElimination</a></li>
+<li><a class="reference internal" href="#breakcriticaledges" id="id34">BreakCriticalEdges</a></li>
+<li><a class="reference internal" href="#functiongroup" id="id35">FunctionGroup</a></li>
+<li><a class="reference internal" href="#genxmodule" id="id36">GenXModule</a></li>
+<li><a class="reference internal" href="#genxliveness" id="id37">GenXLiveness</a></li>
+<li><a class="reference internal" href="#genxrematerialization" id="id38">GenXRematerialization</a></li>
+<li><a class="reference internal" href="#genxcategory" id="id39">GenXCategory</a></li>
+<li><a class="reference internal" href="#late-simd-cf-conformance-pass" id="id40">Late SIMD CF conformance pass</a></li>
+<li><a class="reference internal" href="#codegen-baling-pass" id="id41">CodeGen baling pass</a></li>
+<li><a class="reference internal" href="#genxdepressurizer" id="id42">GenXDepressurizer</a></li>
+<li><a class="reference internal" href="#genxunbaling" id="id43">GenXUnbaling</a></li>
+<li><a class="reference internal" href="#genxnumbering" id="id44">GenXNumbering</a></li>
+<li><a class="reference internal" href="#genxliveranges" id="id45">GenXLiveRanges</a></li>
+<li><a class="reference internal" href="#genxcoalescing" id="id46">GenXCoalescing</a></li>
+<li><a class="reference internal" href="#genxaddresscommoning" id="id47">GenXAddressCommoning</a></li>
+<li><a class="reference internal" href="#genxargindirection" id="id48">GenXArgIndirection</a></li>
+<li><a class="reference internal" href="#genxtidycontrolflow" id="id49">GenXTidyControlFlow</a></li>
+<li><a class="reference internal" href="#genxvisaregalloc" id="id50">GenXVisaRegAlloc</a></li>
+<li><a class="reference internal" href="#genxvisafuncwriter" id="id51">GenXVisaFuncWriter</a></li>
+<li><a class="reference internal" href="#genxvisawriter" id="id52">GenXVisaWriter</a></li>
+</ul>
+</div>
+<div class="section" id="basicaliasanalysis">
+<h3><a class="toc-backref" href="#id10">BasicAliasAnalysis</a><a class="headerlink" href="#basicaliasanalysis" title="Permalink to this headline">¶</a></h3>
+<p>This is a standard LLVM analysis pass to provide basic AliasAnalysis
+support.</p>
+</div>
+<div class="section" id="sroa">
+<h3><a class="toc-backref" href="#id11">SROA</a><a class="headerlink" href="#sroa" title="Permalink to this headline">¶</a></h3>
+<p>This is a standard LLVM pass, used at this point in the GenX backend.
+Normally all alloca variables have been
+removed by now by earlier LLVM passes, unless <code class="docutils literal"><span class="pre">-O0</span></code> was specified.
+We run this pass here to cover that case.</p>
+<p><strong>IR restriction</strong>: alloca, load, store not supported after this pass.</p>
+</div>
+<div class="section" id="lowerswitch">
+<h3><a class="toc-backref" href="#id12">LowerSwitch</a><a class="headerlink" href="#lowerswitch" title="Permalink to this headline">¶</a></h3>
+<p>This is a standard LLVM pass to lower a switch instruction to a chain of
+conditional branches.</p>
+<p><strong>IR restriction</strong>: switch not supported after this pass.</p>
+</div>
+<div class="section" id="genxcfsimplification">
+<h3><a class="toc-backref" href="#id13">GenXCFSimplification</a><a class="headerlink" href="#genxcfsimplification" title="Permalink to this headline">¶</a></h3>
+<p>This is a function pass that simplifies CF as follows:</p>
+<ul class="simple">
+<li>Where a conditional branch on “not any(pred)” branches over a single
+basic block containing a small number of instructions, and all
+instructions are either predicated by pred or are used only in the same
+basic block, then change the branch to “branch never” so it gets
+removed later.</li>
+</ul>
+</div>
+<div class="section" id="cfgsimplification">
+<h3><a class="toc-backref" href="#id14">CFGSimplification</a><a class="headerlink" href="#cfgsimplification" title="Permalink to this headline">¶</a></h3>
+<p>This is a standard LLVM pass, used at this point in the GenX backend.</p>
+</div>
+<div class="section" id="genxreduceintsize">
+<h3><a class="toc-backref" href="#id15">GenXReduceIntSize</a><a class="headerlink" href="#genxreduceintsize" title="Permalink to this headline">¶</a></h3>
+<p>GenXReduceIntSize is a function pass that reduces the size of vector int
+values where it can.</p>
+<p>The semantics of the source language usually involve an operator such as +
+promoting its operands before performing the calculation. Typically, the
+front end compiler generates IR for the promotion without bothering to work
+out if it is unnecessary, as it is easier to work out if it is unnecessary
+in a later LLVM pass.</p>
+<p>For scalar operations, LLVM already contains passes to do this. But it does
+not seem to for vectors, possibly because OpenCL does not have C-like
+promotion rules for vectors. CM does have C-like promotion rules for vectors,
+so we need to cope with unnecessarily promoted operations.</p>
+<div class="section" id="operation-of-the-pass">
+<h4>Operation of the pass<a class="headerlink" href="#operation-of-the-pass" title="Permalink to this headline">¶</a></h4>
+<p>First it does a backwards scan, spotting where an instruction can be
+converted to a smaller int size because its result is used in other
+instructions that only use the lower part of the value (trunc, or an “and”
+with e.g. 0xff). The modified instruction with a smaller int size then
+needs a trunc inserting for each operand. When the pass reaches the
+instruction that is the input to that new trunc, it may be able to
+modify that one too. Thus a reduced int size gets propagated backwards.</p>
+<p>Then it does a forwards scan, spotting where an instruction can be converted
+to a smaller int size because the operands have only the lower part of the
+value set (zext/sext, or an “and” with e.g. 0xff). The modified instruction with
+a smaller int size then needs a ZExt/SExt inserting. Thus the reduced int size
+is propagated forwards.</p>
+</div>
+</div>
+<div class="section" id="instructioncombining">
+<h3><a class="toc-backref" href="#id16">InstructionCombining</a><a class="headerlink" href="#instructioncombining" title="Permalink to this headline">¶</a></h3>
+<p>This is a standard LLVM pass, used at this point in the GenX backend.</p>
+</div>
+<div class="section" id="genxsimdcfconformance">
+<h3><a class="toc-backref" href="#id17">GenXSimdCFConformance</a><a class="headerlink" href="#genxsimdcfconformance" title="Permalink to this headline">¶</a></h3>
+<p>This pass checks that the use of SIMD control flow (llvm.genx.simdcf.goto
+and llvm.genx.simdcf.join) conforms to the rules required to allow us to
+generate actual goto and join instructions. If not, the intrinsics are
+lowered to code that implements the defined semantics for the intrinsics,
+but does not use SIMD CF instructions, so is usually less efficient.</p>
+<p>It also makes certain transformations to make goto/join legal in terms of its
+position in the basic block. These can fail silently, in which case the
+conformance check will fail on the goto/join in question:</p>
+<ul class="simple">
+<li>A goto and its extractvalues must be at the end of the block. (Actually, if
+the !any result of the goto is used in a conditional branch at the end of
+the block, then the goto being baled into the branch means that it is
+treated as being at the end of the block anyway. The only reason we need
+to sink it here is to ensure that isGotoBlock works.)</li>
+<li>For a join label block (a block that is the JIP of other gotos/joins), a
+join must come at the start of the block.</li>
+<li>For a branching join block (one whose conditional branch condition is the
+!any result from a join), the join must be at the end of the block.</li>
+<li>For a block that has one join with both of the above true, we need to move
+all other code out of the block.</li>
+</ul>
+<p>The pass is run twice: an “early SIMD CF conformance pass” (a module pass)
+just before GenXLowering, and a “late SIMD CF conformance pass” (a function
+group pass) just before second baling.</p>
+<p>The early pass is the one that checks for conformance, and lowers the goto
+and join intrinsics if the code is not conformant. The conformance checks
+implement the rules listed in the documentation for the goto and join
+intrinsics.</p>
+<p>Lowering a goto issues a “failed to optimize SIMD control flow” warning. No
+clue is given in the warning as to what caused the conformance failure,
+however you (a compiler developer) can find out (for a test case submitted
+by a compiler user) by turning on -debug and looking at the output from this
+pass.</p>
+<p>The late pass checks again for conformance, but if the code is not
+conformant, it just errors. We could lower the gotos and joins there too,
+but it would be more fiddly as we would have to ensure that the code
+conforms with what is expected at that stage of compilation, and there is
+no further chance to optimize it there.</p>
+<p>We are not expecting this error to happen.</p>
+<p>Otherwise, the late pass sets the register category of the EM and RM values
+to “EM” and “RM”, so they do not get any register allocated.</p>
+<div class="section" id="conformance-rules">
+<h4>Conformance rules<a class="headerlink" href="#conformance-rules" title="Permalink to this headline">¶</a></h4>
+<p>If the goto and join intrinsics are not used in a way that conforms to the
+rules, then they will still have the semantics in their spec, but this pass
+will lower at least some of them to equivalent but less efficient code.</p>
+<p>The rules are:</p>
+<ol class="arabic">
+<li><p class="first">Because the hardware has a single EM (execution mask) register, all EM
+values input to and generated by these intrinsics must not interfere with
+each other; that is, they must have disjoint live ranges. For the
+purposes of determining interference, if any EM value is a phi node
+with incoming constant all ones, then the constant all ones value is
+counted as being live from the start of the function and is not allowed
+to interfere with other EM values (although it can interfere with other
+such constant all ones values).</p>
+</li>
+<li><p class="first">An EM value is allowed to be defined:</p>
+<ol class="loweralpha simple">
+<li>as part of the struct returned by one of these intrinsics;</li>
+<li>by a phi node, as long as each incoming is either an EM value or
+a constant all ones;</li>
+<li>by an extractvalue extracting it from a struct containing an EM value;</li>
+<li>as a function argument, as long as an EM value is also returned by the
+function (perhaps as part of a struct);</li>
+<li>by an insertvalue as part of a return value struct;</li>
+<li>as the return value of a non-intrinsic call (perhaps as part of a struct),
+as long as there is also a call arg that is an EM value, and the called
+function has the corresponding function arg and return value as EM values;</li>
+</ol>
+</li>
+<li><p class="first">An EM value is allowed to be used:</p>
+<ol class="loweralpha simple">
+<li>as the OldEM input to one of these intrinsics;</li>
+<li>in a phi node, as long as the result of the phi node is an EM value;</li>
+<li>as the condition in a wrregion or select;</li>
+<li>as the input to a shufflevector whose effect is to slice part of the EM
+value starting at index 0, as long as the result of that slice is only
+used as the condition in a wrregion or select;</li>
+<li>as a call argument, as long as the corresponding function argument is an
+EM value, and the call has an EM return value;</li>
+<li>in a return (perhaps as part of a struct), as long as the function also
+has an argument that is an EM value.</li>
+</ol>
+<p>For an EM value defined in a goto, or a join whose scalar BranchCond result
+is used in a conditional branch, or in an extractvalue out of
+the result of such a goto or join, the only use allowed in the same basic block
+as the goto/join is such an extractvalue.</p>
+</li>
+<li><p class="first">The OldEM input to the two intrinsics must be either an EM value or
+constant all ones. In the latter case, and in the case of a constant incoming
+to an EM phi node, its live range is considered to reach
+back through all paths to the function entry for the purposes of rule (1).</p>
+</li>
+<li><p class="first">Each join point has a web of RM (resume mask) values, linked as by rules (6)
+and (7). All RM values within one join point’s web must not interfere with
+each other; that is, they must have disjoint live ranges. For the
+purposes of determining interference, if an RM value is a phi node with
+incoming constant all zeros, then the constant all zeros value is
+counted as being live from the start of the function and is not allowed
+to interfere with other RM values for this join (although it can
+interfere with other such constant all zeros values).</p>
+</li>
+<li><p class="first">An RM value is allowed to be defined:</p>
+<ol class="loweralpha simple">
+<li>as part of the struct returned by <code class="docutils literal"><span class="pre">llvm.genx.simdcf.goto</span></code>;</li>
+<li>by a phi node, as long as each incoming is either an RM value or
+a constant all zeros.</li>
+</ol>
+</li>
+<li><p class="first">An RM value is allowed to be used:</p>
+<ol class="loweralpha simple">
+<li>as the OldRM input to <code class="docutils literal"><span class="pre">llvm.genx.simdcf.goto</span></code>;</li>
+<li>as the RM input to <code class="docutils literal"><span class="pre">llvm.genx.simdcf.join</span></code>, but only to one join in the
+whole web;</li>
+<li>in a phi node, as long as the result of the phi node is an RM value.</li>
+</ol>
+</li>
+<li><p class="first">The OldRM input to <code class="docutils literal"><span class="pre">llvm.genx.simdcf.goto</span></code>, or the RM input to
+<code class="docutils literal"><span class="pre">llvm.genx.simdcf.join</span></code>, must be either an RM value, or constant all
+zeros. In the latter case, and in the case of a constant incoming to an RM
+phi node, its live range is considered to reach back through all paths
+to the function entry or to the web’s <code class="docutils literal"><span class="pre">llvm.genx.simdcf.join</span></code> for the
+purposes of rule (5).</p>
+</li>
+<li><p class="first">The BranchCond struct element of the result of <code class="docutils literal"><span class="pre">llvm.genx.simdcf.goto</span></code>
+must either be unused (unextracted), or, after being extractvalued,
+must have exactly one use, which is in a
+conditional branch terminating the same basic block. In the unused case,
+the basic block must end with an unconditional branch. (This is a goto
+that is immediately followed by a join.)</p>
+</li>
+<li><p class="first">The BranchCond struct element of the result of <code class="docutils literal"><span class="pre">llvm.genx.simdcf.join</span></code>
+must either be unused (unextracted), or, after being extractvalued,
+have exactly one use, which is in a conditional branch terminating the
+same basic block.</p>
+</li>
+<li><p class="first">It must be possible to derive an ordering for the basic blocks in a
+function such that, in the conditional branch using the result of any goto
+or join, the “false” successor is fall-through and the “true” successor is
+to a join later on in the sequence. For a goto followed by an
+unconditional branch, the successor is fall-through _and_ the next join
+in sequence.</p>
+</li>
+</ol>
+<p><strong>IR restriction</strong>: goto and join intrinsics must conform to these rules
+(since this pass lowers any that do not).</p>
+</div>
+</div>
+<div class="section" id="genxlowering">
+<h3><a class="toc-backref" href="#id18">GenXLowering</a><a class="headerlink" href="#genxlowering" title="Permalink to this headline">¶</a></h3>
+<p>GenXLowering is a function pass that lowers certain LLVM IR instructions
+that the rest of the GenX backend cannot deal with, or to implement peephole
+optimizations.</p>
+<p>It also performs a few other tasks:</p>
+<ol class="arabic">
+<li><p class="first">It implements add sinking for a variable index in a region/element
+access. This ensures that, in a sequence of operations to calculate a
+variable index for a region/element access, any add constant is sunk to
+the end, such that it can become a constant offset in an indirect
+operand, and give GenXAddressCommoning more chance to common up address
+calculations.</p>
+</li>
+<li><p class="first">It splits struct values where possible, by splitting all struct phi nodes
+before running the main pass, then removing an extractvalue by using the
+corresponding insertvalue’s input instead. Any struct value used as an arg
+or return value still remains, and needs to be dealt with by register
+allocation.</p>
+</li>
+<li><p class="first">It widens some byte vector operations to short vector.</p>
+<p>Gen has restrictions on byte operands. The jitter copes with that, but
+sometimes it needs to do even-odd splitting, which can lead to suboptimal
+code if cmps and predicates are involved.
+Here we attempt to pick up the common cases by converting a byte operation
+to short.</p>
+<p>Note that we might end up with the extends being baled into the instruction
+anyway, resulting in a byte operation in vISA.</p>
+</li>
+<li><p class="first">Certain uses of shufflevector are lowered:</p>
+<ol class="loweralpha simple">
+<li>a splat (copy of one element across a vector);</li>
+<li>a boolean slice (extract of a subvector) becomes rdpredregion;</li>
+<li>a boolean unslice (insert subvector) becomes wrpredregion.</li>
+</ol>
+<p>Other uses of shufflevector are not expected and cause an assertion.</p>
+</li>
+<li><p class="first">A Trunc is lowered to a bitcast then a region/element read with a stride.
+GenXCoalescing will coalesce the bitcast, and possibly bale in the region
+read, so this will hopefully save an instruction or two.</p>
+</li>
+</ol>
+<p><strong>IR restriction</strong>: LLVM IR instructions not supported after this pass:</p>
+<ul class="simple">
+<li>shufflevector</li>
+<li>insertelement</li>
+<li>extractelement</li>
+<li>trunc</li>
+<li>zext/sext/uitofp from (vector of) i1</li>
+<li>select on vector of i1</li>
+<li><code class="docutils literal"><span class="pre">llvm.uadd.with.overflow</span></code> (the other
+overflowing arithmetic intrinsics are not allowed by the GenX backend anyway.)</li>
+</ul>
+<p><strong>IR restriction</strong>: No simd16 gather4_typed/scatter4_typed – they have been
+split into 2x simd8 operations.</p>
+<p><strong>IR restriction</strong>: rdpredregion intrinsic (which is generated by this pass from
+certain cases of shufflevector, and represents a use of part of a predicate)
+can only be used in select, wrregion, wrpredpredregion.</p>
+<p><strong>IR restriction</strong>: wrpredregion intrinsic (which is generated by this pass from
+certain cases of shufflevector, and represents the write of part of a predicate)
+must have a compare as its “new value” input.</p>
+<p><strong>IR restriction</strong>: No phi node of struct type after this pass. This is only a
+general rule; subsequent passes have been known to reintroduce them so
+GenXLiveness has another go at splitting them up.</p>
+</div>
+<div class="section" id="genxregioncollapsing">
+<h3><a class="toc-backref" href="#id19">GenXRegionCollapsing</a><a class="headerlink" href="#genxregioncollapsing" title="Permalink to this headline">¶</a></h3>
+<p>GenX region collapsing pass is function pass that collapses nested
+read regions or nested write regions.</p>
+<p>Nested region accesses can occur in two ways (or a mixture of both):</p>
+<ol class="arabic simple">
+<li>The front end compiler deliberately generates nested region access. The
+CM compiler does this for a matrix select, generating a region access for
+the rows and another one for the columns, safe in the knowledge that this
+pass will combine them where it can.</li>
+<li>Two region accesses in different source code constructs (e.g. two select()
+calls, either in the same or different source statements).</li>
+</ol>
+<p>The combineRegions() function is what makes the decisions on whether two
+regions can be collapsed, depending on whether they are 1D or 2D, how the
+rows of one fit in the rows of the other, whether each is indirect, etc.</p>
+<p>This pass makes an effort to combine two region accesses even if there are
+multiple bitcasts (from CM format()) or up to one SExt/ZExt (from a cast) in
+between.</p>
+</div>
+<div class="section" id="earlycse">
+<h3><a class="toc-backref" href="#id20">EarlyCSE</a><a class="headerlink" href="#earlycse" title="Permalink to this headline">¶</a></h3>
+<p>This is a standard LLVM pass, run at this point in the GenX backend.
+It commons up common subexpressions, but only in the case that two common
+subexpressions are related by one dominating the other.</p>
+</div>
+<div class="section" id="genxpatternmatch">
+<h3><a class="toc-backref" href="#id21">GenXPatternMatch</a><a class="headerlink" href="#genxpatternmatch" title="Permalink to this headline">¶</a></h3>
+<p>This pass performs a small number of GenX-specific peephole optimizations.</p>
+<p>It is named <em>pattern match</em> with the idea that it is analogous to the
+pattern matching pass in IGC. However IGC’s pattern matching is more
+extensive, and I believe some of its functionality is covered by GenXBaling
+in the GenX backend.</p>
+<ul>
+<li><p class="first">Turns fp and integer mul+add into mad, if it decides it is profitable.</p>
+<p>For an integer mul+add, the pass looks at the inputs after accounting for
+extends that will get baled into the operation in the GenX backend, or
+folded into the instruction in the finalizer, and it uses mad only if both
+inputs are short or byte. Our experience on HSW was that using int mad
+where the inputs are actually 32 bit ints is counterproductive because of
+the way that the finalizer has to implement it using the hardware’s 32x16
+multiply.</p>
+<p>However, this criterion could probably be looser on any arch that has a
+32x32 multiply (BDW+, but excluding some later LP variants). This is
+something to investigate.</p>
+<p>To implement this, the pass would need to use GenXSubtarget, and there
+would need to be a has32x32Multiply flag in GenXSubtarget.</p>
+</li>
+<li><p class="first">Turns cmp+sel into min/max if possible.</p>
+</li>
+<li><p class="first">Flips a boolean not if profitable.</p>
+</li>
+<li><p class="first">Cleanup predicate region reads if possible.</p>
+</li>
+</ul>
+<p>visitFDiv : reduce fdiv strength.</p>
+<p>If fast-math is present, perform the following transforms:</p>
+<p>(fdiv x, y)         -&gt; (fmul x0, (fdiv 1., x1))
+(fdiv 1., x)        -&gt; (rcp x)
+(fdiv 1., (sqrt x)) -&gt; (rsqrt x)</p>
+<p>Otherwise, try to reduce fdiv with constant divisor to fmul if the
+reciprocal is exact.</p>
+</div>
+<div class="section" id="genxextractvectorizer">
+<h3><a class="toc-backref" href="#id22">GenXExtractVectorizer</a><a class="headerlink" href="#genxextractvectorizer" title="Permalink to this headline">¶</a></h3>
+<p>GenX extract vectorizer pass is stage 1 of the histogram optimization: if
+there are multiple scalar rdregions from the same vector, all subject
+to the same binary operator with constant rhs or the same trunc/zext/sext,
+then they are combined into a vector version of the binary operator or
+trunc/zext/sext, with scalar rdregions from the result of that. This is
+designed to handle any trunc/zext/sext then scale of the index in the
+histogram optimization, although it does also apply in a few other cases.</p>
+</div>
+<div class="section" id="deadcodeelimination">
+<h3><a class="toc-backref" href="#id23">DeadCodeElimination</a><a class="headerlink" href="#deadcodeelimination" title="Permalink to this headline">¶</a></h3>
+<p>This is a standard LLVM pass, run at this point in the GenX backend. It
+removes code that has been made dead by other passes.</p>
+</div>
+<div class="section" id="genxbaling">
+<h3><a class="toc-backref" href="#id24">GenXBaling</a><a class="headerlink" href="#genxbaling" title="Permalink to this headline">¶</a></h3>
+<p>GenX instruction baling is the process of determining which LLVM instructions
+can be combined into a single vISA instruction. Such a group of LLVM
+instructions is known as a <em>bale</em>. A bale typically has a <em>main instruction</em>
+and then optionally modifiers and region instructions on the sources and
+the destination of the main instruction. However it is possible to have a
+bale with no main instruction, for example just a rdregion, a modifier and
+a wrregion.</p>
+<div class="section" id="bale-example">
+<h4>Bale example<a class="headerlink" href="#bale-example" title="Permalink to this headline">¶</a></h4>
+<img alt="_images/GenXDesign_bale.png" src="_images/GenXDesign_bale.png" />
+<p>This example shows a bale that is pretty much as complicated as you can get in
+a single bale. Each small blue box is an LLVM IR instruction, with arrows showing
+how each one is used. Other than the <em>bale head</em> instruction at the top, an
+instruction in a bale has only one use, which is within the bale.</p>
+</div>
+<div class="section" id="the-baling-pass">
+<h4>The baling pass<a class="headerlink" href="#the-baling-pass" title="Permalink to this headline">¶</a></h4>
+<p>GenX instruction baling happens in two parts:</p>
+<ol class="arabic">
+<li><p class="first">The GenXBaling pass sets up a map to give each Instruction
+a <em>BaleInfo</em>, which contains a field giving the role the instruction
+plays in its enclosing bale (main instruction, rdregion, etc), and a
+bit vector where a bit is set if the corresponding operand of the
+instruction is another instruction that is baled in (part of the same
+bale).</p>
+<p>GenXBaling is in fact two slightly different passes run at two different
+times:</p>
+<ul class="simple">
+<li>The GenXFuncBaling pass (a FunctionPass) runs before GenXLegalization,
+which uses it but invalidates it as it changes the code. This is known
+as <em>first baling</em>.</li>
+<li>The GenXGroupBaling pass (a FunctionGroupPass) runs after GenXLiveness.
+From GenXLiveness, baling information remains valid through to
+GenXVisaFunctionWriter, since any code changes made (such as adding
+copies where coalescing fails) either do not invalidate the analysis,
+or the pass making the change also updates the baling analysis.</li>
+</ul>
+<p>The GenXBaling pass also detects where an instruction is baled in to
+another, but the instruction has other uses too. In this case it clones the
+instruction. Thus we end up with any baled in instruction having only
+one use (with an exception for goto/join – see below).</p>
+<p>Thus the GenXBaling pass is not a pure analysis, as it can modify the
+code.</p>
+</li>
+<li><p class="first">Using the map set up by the GenXBaling analysis, several functions are
+provided for use by other passes:</p>
+<ul class="simple">
+<li>getBaleInfo()/setBaleInfo() allow another pass to directly inspect and modify
+the baling info for an instruction. The BaleInfo for an instruction gives:<ul>
+<li>Type, the role of the instruction in the bale (e.g. it is a rdregion);</li>
+<li>a bitmap of which operands are baled into it, together with methods
+for getting and setting the bit for a particular operand.</li>
+</ul>
+</li>
+<li>getBaleParent() returns the instruction that the given instruction is
+baled into, if any</li>
+<li>isBaled() says whether the given instruction is baled into anything</li>
+<li>getBaleHead() returns the instruction at the head of the bale that the
+given instruction is baled into, which is the same as the given instruction
+if it is not baled into anything.</li>
+<li>buildBale() takes a head instruction (one for which isBaled is false) and
+fills out a Bale struct with a vector of BaleInst structs for all the
+instructions in the bale, where each BaleInst contains a pointer to the
+instruction and its BaleInfo struct (as in getBaleInfo()/setBaleInfo()).</li>
+</ul>
+</li>
+</ol>
+</div>
+<div class="section" id="criteria-for-baling">
+<h4>Criteria for baling<a class="headerlink" href="#criteria-for-baling" title="Permalink to this headline">¶</a></h4>
+<p>GenXBaling implements the criteria for baling, i.e. when different LLVM IR
+instructions can be combined into the same vISA instruction:</p>
+<ul class="simple">
+<li>A rdregion with a variable index can bale in an add constant (where the
+constant is splatted if vector) that generates the index. In second baling,
+the constant add is in fact a <code class="docutils literal"><span class="pre">llvm.genx.add.addr</span></code> intrinsic, because that
+is what GenXCategory converted it to.</li>
+<li>GenXBaling is where an instruction gets recognized as a modifier, for example
+subtract from 0 is a negate modifier. The instruction is left as it is, and
+its modifier equivalent (e.g. <code class="docutils literal"><span class="pre">BaleInfo::NEGMOD</span></code>) is set up in the
+instruction’s BaleInfo.</li>
+<li>SExt/ZExt are also treated as modifiers, although not always balable. See
+below.</li>
+<li>A modifier can bale in an rdregion.</li>
+<li>A modifier can bale in another modifier in some circumstances.</li>
+<li>In particular, SExt/ZExt normally cannot bale in another modifier, but they
+are allowed to bale in an abs modifier as a bodge to fix a problem where
+the LLVM IR generated for <code class="docutils literal"><span class="pre">cm_abs</span></code> does not properly represent its
+semantics. See <code class="docutils literal"><span class="pre">dc93b907</span> <span class="pre">GenXBaling:</span> <span class="pre">bodge</span> <span class="pre">to</span> <span class="pre">work</span> <span class="pre">around</span> <span class="pre">cm_abs</span> <span class="pre">problems</span></code>.</li>
+<li>A main instruction can bale a modifier or rdregion into each operand in some
+circumstances:<ul>
+<li>Some ALU intrinsics have region requirements, e.g. oword aligned,
+contiguous. GenXBaling enforces those requirements by only baling in an
+rdregion that satifies them, but only in second baling. First baling does
+the baling anyway, as we want GenXLegalization to consider the instructions
+as one bale as it might legalize in a way that makes the region legal for
+the instruction.</li>
+<li>Baling an SExt/ZExt in is how we represent a vISA instruction such as
+<code class="docutils literal"><span class="pre">add</span></code> with a result type different to operand type. The two operands can
+have different types too in Gen, but vISA insists they are the same (if not
+constant). So:<ol class="arabic">
+<li>In first baling, we allow SExt/ZExt from different types to be baled in
+to the two operands. This tends to make GenXLegalization legalize them
+to the same vector width as the main instruction.</li>
+<li>In second baling, we do not allow SExt/ZExt from different types (or one
+SExt/ZExt where the other operand does not have one) to be baled in. This
+yields a legal vISA instruction, but having done (1) also allows the
+finalizer to fold the extend into the instruction.</li>
+</ol>
+</li>
+<li>A raw operand (of a send or shared function intrinsic) has its own
+restrictions – it can bale in a rdregion, but the region has to be
+contiguous and GRF aligned.</li>
+<li>There is special case code for where send or a shared function intrinsic
+has a <code class="docutils literal"><span class="pre">TWOADDR</span></code> raw operand, one that does not appear as a vISA operand
+in its own right but is implicitly the same register as the result. The
+twoaddr raw operand can bale in a rdregion (with region contiguous and GRF
+aligned) as long as the result can be baled into a wrregion with the same
+region parameters and the same “old value” input. This represents where a
+send or shared function intrinsic does a predicated partial write, and the
+place it does the partial write to is a region in a vISA register.</li>
+</ul>
+</li>
+<li><code class="docutils literal"><span class="pre">llvm.genx.sat</span></code> represents floating point saturation, and is a modifier that
+is different to the other modifiers because it is not a source modifier. A
+saturate can bale in a main instruction or modifier or rdregion.</li>
+<li>A wrregion can do the following baling:<ul>
+<li>It can bale a main instruction (subject to region restrictions in second
+baling), a saturate, a modifier or a rdregion into its “new value” input.</li>
+<li>Like rdregion, it can bale a constant add into its index operand.</li>
+</ul>
+</li>
+<li>Anything with a predicate (wrregion, select, send, all/any, some shared
+function intrinsics) can bale in a predicate not, and any of those things,
+including the not, can bale in an rdpredregion to represent using e.g. an M3
+flag to use only part of the predicate. However predicate baling is not
+done in first baling, as GenXLegalization does not want to consider the
+operations together.</li>
+<li>Anything with a scalar i1 condition (select, br) can bale in an all/any.</li>
+</ul>
+</div>
+<div class="section" id="baling-of-goto-join-into-br">
+<h4>Baling of goto/join into br<a class="headerlink" href="#baling-of-goto-join-into-br" title="Permalink to this headline">¶</a></h4>
+<p>The goto and join intrinsics have multiple return values, returned in a single
+struct. One of the return values is the scalar i1 !any value that is then used
+in a conditional branch.</p>
+<p>In second baling, we want the goto/join, the extractvalue of the !any
+result, and the conditional branch to be baled together, so we can generate
+a single goto/join instruction.</p>
+<p>However the struct result of the goto/join has other uses, the extractvalues of
+the other results. Thus, in this special case, we have a bale where the
+goto/join instruction inside the bale has uses other than the inside-bale use.
+This needs special case code to handle in GenXBaling.</p>
+<p>In the future it may be worth considering a generalization of this idea of a
+bale that is not a strict tree of instructions, so that we can use LLVM IR
+to model Gen instructions with a general result and a flag result. Currently
+we cannot do that, which means:</p>
+<ol class="arabic simple">
+<li>we cannot represent addc properly;</li>
+<li>we cannot represent any combined arithmetic-and-set-flags instruction,
+although that is not too much of a problem as the jitter derives such an
+instruction by folding a cmp into an arithmetic instruction.</li>
+</ol>
+</div>
+<div class="section" id="alignment-requirements">
+<h4>Alignment requirements<a class="headerlink" href="#alignment-requirements" title="Permalink to this headline">¶</a></h4>
+<p>An additional function of the second baling pass is that, when it bales a
+raw result intrinsic into a wrregion, it marks the wrregion’s LiveRange as
+needing to be 32 aligned, and when it bales a rdregion into a raw operand in
+an intrinsic, it marks the rdregion’s input’s LiveRange as needing to be 32
+aligned. GenXCategory sets most alignment requirements, but baling in
+a rdregion or baling a main instruction into a wrregion imposes alignment
+requirements on the vISA register that the region is read from or written to.</p>
+</div>
+</div>
+<div class="section" id="genxlegalization">
+<h3><a class="toc-backref" href="#id25">GenXLegalization</a><a class="headerlink" href="#genxlegalization" title="Permalink to this headline">¶</a></h3>
+<p>GenXLegalization is a function pass that splits vector instructions
+up to make execution widths legal, and to ensure that the GRF crossing rules
+are satisfied.</p>
+<p>This pass makes the LLVM IR closer to legal vISA by
+splitting up any instruction that has an illegal vector width (too big or non
+power of two) or an illegal region (illegal vstride/width/stride or illegal GRF
+crossing).</p>
+<p><strong>IR restriction</strong>: After this pass, LLVM IR represents vISA instructions
+with legal execution width and region parameters, and with any particular
+instruction’s region restrictions adhered to.</p>
+<p>The pass uses the instruction baling information to tell which
+regions an instruction has. Splitting an instruction and its regions needs to
+be done with reference to all the regions at the same time, as they may need
+splitting at different points.</p>
+<p>For general values, an illegal width instruction is split by
+creating narrower instructions, each of which uses a rdregion to extract the
+subregion for each source operand, and then uses a wrregion to insert the
+resulting subregion into the original destination value. The original illegal
+width values survive, and that is OK because a vISA register can have any
+vector width.</p>
+<p>The pass uses the hasIndirectGRFCrossing feature from GenXSubtarget when
+calculating whether a region is legal, or how a region needs to be split, in
+the case that the region is indirect.</p>
+<p>The legalization pass considers a bale of instructions as a separate
+entity which can be split without reference to other bales. This works because
+the overhead of splitting, which is an extra rdregion per operand and an extra
+wrregion on the result, is pretty much free in that these extra region accesses
+are baled in to the split instruction.</p>
+<p>There are some cases where we decide we need to unbale an instruction, i.e.
+remove it (or rather the subtree of instructions in the bale rooted at it)
+from the bale, and then re-start the analysis for the bale. This happens
+when there are two conflicting requirements in the bale, for example a main
+instruction that needs at least simd4 but a rdregion that can only manage
+simd2.</p>
+<p>The pass scans backwards through the code, which makes this unbaling a bit
+easier. An unbaled instruction will be encountered again a bit later, and
+be processed as its own bale.</p>
+<p>If a source operand being split is already an rdregion, then that rdregion is
+split, so the new split rdregions read from the original rdregion’s input.</p>
+<p>Similarly, if the bale is already headed by an wrregion, it is replaced by
+the new split wrregions used to join the splits back together.</p>
+<p>BitCast is not split in this pass. A non-category-converting BitCast is
+always coalesced in GenXCoalescing, so never generates actual code. Thus it
+does not matter if it has an illegal size.</p>
+<div class="section" id="predicate-legalization">
+<h4>Predicate legalization<a class="headerlink" href="#predicate-legalization" title="Permalink to this headline">¶</a></h4>
+<p>Predicates (vector of i1) are more complex. A general vISA value can be any
+vector width, but a predicate can only be a power of two up to 32. Thus the
+actual predicate values need to be split, not just the reads from and writes
+to the values.</p>
+<p>Furthermore, although it is possible to read and write a region within a
+predicate, using H1/H2/Q1..Q4 flags, there are restrictions: the start
+offset must be 8 aligned (4 aligned for a select or cmp with 64-bit
+operands), and the size must be no more than the misalignment of the start
+offset (e.g. for a start offset of 8, the size can be 8 but not 16).</p>
+<p>So this pass splits an arbitrary size predicate value (including predicate phi
+nodes) into as many as possible 32 bit parts, then descending power of two parts.
+For example, a predicate of size 37 is split into 32,4,1.</p>
+<p>Then, within each part, a read or write of the predicate can be further split
+as long as it fits the restrictions above, e.g. a 32 bit part can be read/written
+in 8 or 16 bit subregions.</p>
+<p>This is achieved in two steps:</p>
+<ol class="arabic simple">
+<li>Predicates take part in the main code of GenXLegalization. When deciding how
+to split a read or write of a predicate, we determine how the predicate value
+will be split into parts (e.g. the 37 split into 32,4,1 example above), then
+decides how a part could be subregioned if necessary (e.g. the 32 could have
+a 16 aligned 16 bit region, or an 8 aligned 8 bit region). As well as a
+maximum, this usually gives a minimum size region. If the rest of the bale
+cannot achieve that minimum size, then we unbale to avoid the problem and
+restart the analysis of the bale.</li>
+<li>Then, fixIllegalPredicates() actually divides the illegally sized
+predicate values, including phi nodes. The splitting in the main part of
+GenXLegalization ensures that no read or write of a predicate value
+crosses a part boundary, so it is straightforward to split the values into
+those parts.</li>
+</ol>
+<p>This is complicated by the case that the IR before legalization has an
+rdpredregion. This typically happens when a CM select has odd size operands
+but an i32 mask. Clang codegen bitcasts the i32 mask to v32i1, then does a
+shufflevector to extract the correct size predicate. GenXLowering turns the
+shufflevector into rdpredregion. The main code in GenXLegalization splits the
+rdpredregion into several rdpredregions.</p>
+<p>In that case, we cannot guarantee that fixIllegalPredicates will find legal
+rdpredregions. For example, suppose the original rdpredregion has a v32i1 as
+input, and v13i1 as result. It is determined that the 13 bit predicate will
+be split into 8,4,1 parts. The main GenXLegalization code will generate
+an rdpredregion from the 32 bit predicate for each part of the 13 bit
+predicate. However, the rdpredregion for the 1 bit part is illegal, because
+its start offset is not 8 aligned.</p>
+<p>We currently do not cope with that (it will probably assert somewhere). If we
+do find a need to cope with it, then the illegal rdpredregion will need to be
+lowered to bit twiddling code.</p>
+</div>
+<div class="section" id="other-tasks-of-genxlegalization">
+<h4>Other tasks of GenXLegalization<a class="headerlink" href="#other-tasks-of-genxlegalization" title="Permalink to this headline">¶</a></h4>
+<p>An additional task of this pass is to lower an any/all intrinsic that is
+used anywhere other than as the predicate of a scalar wrregion by inserting
+such a scalar wrregion with a byte 0/1 result and then a compare of that
+to give an i1.</p>
+<p>A further task of this pass is to lower any predicated wrregion where the
+value to write is a vector wider than 1 but the predicate is a scalar i1 (other
+than the value 1, which means unpredicated). It inserts code to splat the
+scalar i1 predicate to v16i1 or v32i1. This is really part of lowering, but
+we need to do it here because in GenXLowering the value to write might be
+wider than 32.</p>
+<p>An extra optimization performed in this pass is to transform a move (that
+is, a lone wrregion or lone rdregion or a rdregion+wrregion baled together)
+with a byte element type into the equivalent short or int move. This saves
+the jitter having to split the byte move into even and odd halves. This
+optimization needs to be done when baling info is available, so legalization
+is a handy place to put it.</p>
+</div>
+</div>
+<div class="section" id="genxdeadvectorremoval">
+<h3><a class="toc-backref" href="#id26">GenXDeadVectorRemoval</a><a class="headerlink" href="#genxdeadvectorremoval" title="Permalink to this headline">¶</a></h3>
+<p>GenXDeadVectorRemoval is an aggressive dead code removal pass that analyzes
+individual elements of a vector rather than whole values.</p>
+<p>As a result of this analysis, the pass can then make the two following
+modifications to the code:</p>
+<ol class="arabic simple">
+<li>If all vector elements of an instruction result turn out to be unused, the
+instruction is removed. In fact, this pass just sets all its uses to
+undef, relying on the subsequent dead code removal pass to actually
+remove it.</li>
+<li>If all vector elements of the “old value” input (even a constant) of a
+wrregion turn out to be unused, then that input is set to undef. This
+covers further cases over (1) above:<ol class="loweralpha">
+<li>the “old value” input is constant, and we want to turn it into undef
+to save a useless constant load;</li>
+<li>the “old value” input is an instruction that does have elements used
+elsewhere, and we want to turn it into undef to detach the two webs
+of defs and uses from each other to reduce register pressure in
+between.</li>
+</ol>
+</li>
+</ol>
+</div>
+<div class="section" id="id2">
+<h3><a class="toc-backref" href="#id27">DeadCodeElimination</a><a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<p>This is a standard LLVM pass, run at this point in the GenX backend. It
+removes code that has been made dead by other passes.</p>
+</div>
+<div class="section" id="genxpostlegalization">
+<h3><a class="toc-backref" href="#id28">GenXPostLegalization</a><a class="headerlink" href="#genxpostlegalization" title="Permalink to this headline">¶</a></h3>
+<p>GenXPostLegalization is a function pass run after legalization with the
+following purposes:</p>
+<ol class="arabic simple">
+<li>It inserts a constant load for most constants that are not representable
+as a constant operand in GenX code. See the GenXConstants section below.</li>
+<li>It calls GenXVectorDecomposer to perform vector decomposition. See the
+GenXVectorDecomposer section below.</li>
+</ol>
+<p>Both of these things are done here because the results of them (constant
+loads and decomposed vector operations) may benefit from CSE run after
+this pass.</p>
+</div>
+<div class="section" id="genxconstants">
+<h3><a class="toc-backref" href="#id29">GenXConstants</a><a class="headerlink" href="#genxconstants" title="Permalink to this headline">¶</a></h3>
+<p>GenXConstants is not in itself a pass. It contains utility functions and a
+class used by other passes for constant loading.</p>
+<div class="section" id="loadnonsimpleconstants">
+<h4>loadNonSimpleConstants<a class="headerlink" href="#loadnonsimpleconstants" title="Permalink to this headline">¶</a></h4>
+<p>The GenXPostLegalization pass calls loadNonSimpleConstants to insert a load
+for any operand that is a non-simple constant. (A non-simple constant is one
+that is too big or an invalid value for a constant operand.)</p>
+<p>It is called in two places:</p>
+<ol class="arabic simple">
+<li>in the GenXPostLegalization pass, run after legalization but
+before CSE, so CSE has an opportunity to common up loaded non-simple
+constants;</li>
+<li>later on in GenXCategory, to mop up non-simple constant operands
+created by CSE’s constant propagation.</li>
+</ol>
+<p>This does not insert a load if the constant is “big simple” (that is, it is
+illegally wide but each legalized part of it is simple) and it is used in
+the “old value” operand of a wrregion, or as a call arg.  Inserting a load
+of such a constant here would allow the load to be CSEd, which would be
+counter productive as some of the uses would not be kill uses and so
+coalescing would fail there.</p>
+<p>Phi incoming constants are not loaded here; they are loaded in
+loadPhiConstants called from GenXCategory. Phi constant loads do not need to
+participate in CSE as loadPhiConstants has its own commoning up tailored for
+phi nodes.</p>
+</div>
+<div class="section" id="loadconstants">
+<h4>loadConstants<a class="headerlink" href="#loadconstants" title="Permalink to this headline">¶</a></h4>
+<p>This is called from GenXCategory.  It inserts a load for each constant
+operand that is not allowed to be constant, but remains after
+loadNonSimpleConstants.</p>
+<p>Phi incoming constants are not loaded here; they are loaded in
+loadPhiConstants called from GenXCategory.</p>
+</div>
+<div class="section" id="loadphiconstants">
+<h4>loadPhiConstants<a class="headerlink" href="#loadphiconstants" title="Permalink to this headline">¶</a></h4>
+<p>This is called from GenXCategory, and it inserts loads for constant phi
+incomings, commoning up when possible and sensible.</p>
+<p>Commoning up (inserting one load for multiple phi incomings with the same
+constant, across one or more phi nodes) proceeds as follows:</p>
+<p>Firstly, we divide the phi nodes into _webs_, where each web is the maximal
+set of phi nodes that are related through phi nodes and two address
+instructions, so will be coalesced later on in the flow.</p>
+<p>Secondly, for a single web, we look for multiple uses of the same constant.
+Such a constant has a load instruction inserted just once, at the end of the
+nearest common dominator of all the corresponding incoming blocks.</p>
+<p>If that insert point is in an empty split critical edge block, we instead
+insert in the block above that, in the hope that the split critical edge
+block can be removed later.</p>
+</div>
+<div class="section" id="constantloader">
+<h4>ConstantLoader<a class="headerlink" href="#constantloader" title="Permalink to this headline">¶</a></h4>
+<p>ConstantLoader is a class that represents a constant and information on how
+to load it. This is where analysis happens of whether it is a legal packed
+vector, or whether it needs multiple instructions to load it. It then has
+methods to insert the code to load the constant.</p>
+</div>
+</div>
+<div class="section" id="genxvectordecomposer">
+<h3><a class="toc-backref" href="#id30">GenXVectorDecomposer</a><a class="headerlink" href="#genxvectordecomposer" title="Permalink to this headline">¶</a></h3>
+<p>GenXVectorDecomposer is not a pass; instead it is a class is called by by
+the GenXPostLegalization pass to perform vector decomposition.</p>
+<p>For a vector written by wrregion and read by rdregion, it finds the way that
+the vector can be divided into parts, with each part a range of one or more
+GRFs, such that no rdregion or wrregion crosses a part boundary. Then it
+decomposes the vector into those parts. A rdregion/wrregion that reads/writes
+a whole part can be removed completely; a rdregion/wrregion that reads/writes
+only some of the part is replaced to read/write just the applicable part.</p>
+<p>In fact it does all this for a web of vectors linked by wrregion, phi nodes
+and bitcasts.</p>
+<p>The idea is that having lots of small vectors instead of one big vector
+reduces register fragmentation in the finalizer’s register allocator.</p>
+<p>There is an option -limit-genx-vector-decomposer=N to aid debugging the code
+changes made by the vector decomposer.</p>
+</div>
+<div class="section" id="id3">
+<h3><a class="toc-backref" href="#id31">EarlyCSE</a><a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h3>
+<p>This is a standard LLVM pass, run at this point in the GenX backend.
+It commons up common subexpressions, but only in the case that two common
+subexpressions are related by one dominating the other.</p>
+</div>
+<div class="section" id="licm">
+<h3><a class="toc-backref" href="#id32">LICM</a><a class="headerlink" href="#licm" title="Permalink to this headline">¶</a></h3>
+<p>This is a standard LLVM pass to hoist/sink the loop invariant code after
+legalization.</p>
+</div>
+<div class="section" id="id4">
+<h3><a class="toc-backref" href="#id33">DeadCodeElimination</a><a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h3>
+<p>This is a standard LLVM pass, run at this point in the GenX backend. It
+removes code that has been made dead by other passes.</p>
+</div>
+<div class="section" id="breakcriticaledges">
+<h3><a class="toc-backref" href="#id34">BreakCriticalEdges</a><a class="headerlink" href="#breakcriticaledges" title="Permalink to this headline">¶</a></h3>
+<p>In the control flow graph, a critical edge is one from a basic block with
+multiple successors (a conditional branch) to a basic block with multiple
+predecessors.</p>
+<p>We use this standard LLVM pass to split such edges, to ensure that
+GenXCoalescing has somewhere to insert a phi copy if needed.</p>
+</div>
+<div class="section" id="functiongroup">
+<h3><a class="toc-backref" href="#id35">FunctionGroup</a><a class="headerlink" href="#functiongroup" title="Permalink to this headline">¶</a></h3>
+<p>FunctionGroup is a generic mechanism for maintaining a group of Functions.</p>
+<p>FunctionGroupAnalysis is a Module analysis that maintains all the
+FunctionGroups in the Module. It is up to some other pass to use
+FunctionGroupAnalysis to create and populate the FunctionGroups, and thus
+attach some semantics to what a FunctionGroup represents.</p>
+<p>FunctionGroupPass is a type of pass (with associated pass manager) that
+runs a pass instance per FunctionGroup.</p>
+<p>This file is currently in lib/Target/GenX, as that is the only place it
+is used. It could be moved somewhere more general.</p>
+</div>
+<div class="section" id="genxmodule">
+<h3><a class="toc-backref" href="#id36">GenXModule</a><a class="headerlink" href="#genxmodule" title="Permalink to this headline">¶</a></h3>
+<p>GenXModule is a module pass whose purpose is to store information
+about the module being written, such as the built kernels and functions.</p>
+<p>A vISA kernel or function can call a <em>subroutine</em>, which can
+then call further subroutines. All called subroutines are considered part of
+the kernel or function, which means that a subroutine used by two different
+kernels needs to have a copy in each. The two copies may be treated differently
+by the backend passes, so there does actually need to be two copies of the
+subroutine in the LLVM IR in the backend, one called by each kernel.</p>
+<p>The GenXModule pass performs any necessary copying of subroutines, and
+populates FunctionGroupAnalysis such that each kernel and its subroutines
+make one FunctionGroup.</p>
+<p>Subsequent passes are mostly FunctionGroupPasses, so they process one
+FunctionGroup at a time.</p>
+<p>GenXModule is also an analysis, preserved through subsequent passes to
+GenXVisaWriter at the end, that is used to store each written vISA kernel.</p>
+<p><strong>IR restriction</strong>: After this pass, the lead function in a FunctionGroup is
+a kernel (or function in the vISA sense), and other functions in the same
+FunctionGroup are its subroutines.  A (non-intrinsic) call must be to a
+function in the same FunctionGroup, and not the lead function.</p>
+</div>
+<div class="section" id="genxliveness">
+<h3><a class="toc-backref" href="#id37">GenXLiveness</a><a class="headerlink" href="#genxliveness" title="Permalink to this headline">¶</a></h3>
+<p>GenXLiveness is an analysis that contains the liveness information for the
+values in the code. Unlike the usual LLVM liveness analysis, the values
+are in LLVM IR rather than machine IR.</p>
+<p>This GenXLiveness pass is a container for the data structures required
+for liveness analysis, plus methods to perform the analysis. The pass itself
+does nothing; later passes manipulate it:</p>
+<ul class="simple">
+<li>GenXCategory creates a LiveRange and sets the category on it for each
+value.</li>
+<li>GenXLiveRanges calls GenXLiveness to set up the LiveRange for each
+value that needs one (a non-baled instruction or a function argument),
+and erases the LiveRange for a value that does not need one (a baled
+in instruction).</li>
+</ul>
+<p>GenXLiveness is a FunctionGroupPass, because we want to share liveness
+information between all the Functions in a FunctionGroup (i.e. between a
+GenX kernel/function and its subroutines). Any pass that uses GenXLiveness,
+which is almost all passes that run after it, must itself be a
+FunctionGroupPass.</p>
+<p>Here is what a LiveRange might look like if you dump() it in the debugger,
+or see it as part of the liveness info in a -print-after-all:</p>
+<p><code class="docutils literal"><span class="pre">add12.split48172:[145,199){general,align32}</span></code></p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">add12.split48172</span></code> is the Value attached to the LiveRange. As outlined below,
+a LiveRange actually has SimpleValues rather than Values; if the attached
+SimpleValue had been an element of a struct rather than a scalar value in
+its own right, the name would have had # then the flattened index appended.</li>
+<li>A LiveRange can have more than one value attached after GenXCoalescing.
+This would be shown by multiple comma-separated names.</li>
+<li><code class="docutils literal"><span class="pre">[145,199)</span></code> is the segment in which the LiveRange is live. A LiveRange can
+have multiple segments. This one is a normal (strong) segment; a weak one has
+the start number prefixed with ‘w’ and a phicpy one has the start number
+prefixed with ‘ph’.</li>
+<li><code class="docutils literal"><span class="pre">general</span></code> is the register category of the LiveRange.</li>
+<li><code class="docutils literal"><span class="pre">align32</span></code> shows that the LiveRange has been marked as needing to be 32
+byte (i.e. GRF) aligned.</li>
+<li>If the LiveRange was a kernel argument, its allocated offset would have
+been shown with the word ‘offset’.</li>
+</ul>
+<div class="section" id="simplevalue">
+<h4>SimpleValue<a class="headerlink" href="#simplevalue" title="Permalink to this headline">¶</a></h4>
+<p>Liveness information deals with SimpleValues rather than Values.
+SimpleValue (a GenX backend specific class) is the entity that can have
+a live range attached and a register allocated. A SimpleValue is either a
+non-struct Value, or a non-struct element of a struct Value (where the
+struct can contain nested structs).</p>
+<p>A SimpleValue is represented by a pair:</p>
+<ul class="simple">
+<li>a Value *</li>
+<li>a flattened index for a non-struct element of a struct, otherwise 0</li>
+</ul>
+<p>Having a flattened index (as generated by IndexFlattener::flatten()) allows
+us to encode an element in multiply nested structs with a single index.</p>
+<p>The idea of SimpleValue is that, where the LLVM IR contains a struct value,
+which is unavoidable when a function has multiple return values, we want
+to allocate a register to each non-struct element, not the whole struct.</p>
+</div>
+<div class="section" id="segments">
+<h4>Segments<a class="headerlink" href="#segments" title="Permalink to this headline">¶</a></h4>
+<p>A live range consists of one or more non-overlapping <em>segments</em>, where each
+segment has a start (inclusive) and end (exclusive) instruction number, and a
+strength, which is strong (normal), weak (see below) or phicpy (see below).
+Two segments cannot be abutting if they have the same
+strength. Later passes can interrogate this information to find out whether
+two live ranges interfere, and can modify it by coalescing (merging) two
+live ranges. After coalescing, multiple SimpleValues share the same live
+range.</p>
+<p>The numbering of instructions is handled in GenXNumbering.</p>
+</div>
+<div class="section" id="weak-liveness">
+<h4>Weak liveness<a class="headerlink" href="#weak-liveness" title="Permalink to this headline">¶</a></h4>
+<p>A live range that extends over a call has the entire range of the called
+subroutine, and any subroutines it can call, added to it. This makes that
+live range interfere with any live range inside the subroutine, and thus
+stops them using the same register.</p>
+<p>However, because a subroutine has a single range in instruction numbering,
+rather than one range per call site, this scheme means that two values A
+and B that are live over two <em>different</em> call sites of the same subroutine
+both include the subroutine’s range, and thus look like they interfere.
+This could stop A and B being coalesced, and thus add extra code and
+register pressure.</p>
+<p>To fix this, we have the concept of <em>weak liveness</em>. The values A and B
+are only weakly live inside the subroutine. Two values are considered to
+interfere only if there is some point where both are live, and at least
+one of them is not weakly live at that point.</p>
+<p>Thus, in our A and B example, A and B each interferes with any value inside
+the subroutine, but not with each other.</p>
+</div>
+<div class="section" id="phicpy-liveness">
+<h4>Phicpy liveness<a class="headerlink" href="#phicpy-liveness" title="Permalink to this headline">¶</a></h4>
+<p>A phi node has a short segment of liveness (a <em>phicpy segment</em>) at the end
+of each of its incoming blocks, from the phi copy insertion point up to the
+end of the block. The use of the incoming value in the phi node is counted
+as being at that phi copy insertion point.</p>
+<p>Normally, we split critical edges, so an incoming block to a phi node has
+only the one successor, and the use of the incoming value at the phi copy
+insertion point is a kill use. Often, the phi node and the incoming can be
+coalesced, unless there is some interference elsewhere due to other values
+previously coalesced into the two live ranges.</p>
+<p>However, in one case (a goto/join branching to a join), we cannot split the
+critical edge. Thus the phi copy insertion point is before the conditional
+branch in a block with two successors, and the incoming value is likely to
+be used in the other successor too. Then, there is interference between the
+phi node and the incoming value, even though they could be coalesced.</p>
+<p>To avoid this problem, each phicpy segment in a live range is marked as
+such. A phicpy segment is valid only if there is no segment abutting it
+before; if there is an abutting before segment, the coalescing code turns it
+into a normal strong segment and merges the two together.</p>
+<p>Then, interference between two live ranges LR1 and LR2 is ignored if:</p>
+<ol class="arabic simple">
+<li>the interference arises between a phicpy segment in LR1 and a normal
+(strong) segment in LR2; and</li>
+<li>the start of the phicpy segment is the phi copy insertion point where the
+phi node is in LR1 and the incoming value is in LR2.</li>
+</ol>
+<p>This then allows the incoming value and the phi node to be coalesced, even
+if the incoming value is also used in the branch’s other successor.</p>
+</div>
+</div>
+<div class="section" id="genxrematerialization">
+<h3><a class="toc-backref" href="#id38">GenXRematerialization</a><a class="headerlink" href="#genxrematerialization" title="Permalink to this headline">¶</a></h3>
+<p>This pass performs rematerialization to reduce register pressure.</p>
+</div>
+<div class="section" id="genxcategory">
+<h3><a class="toc-backref" href="#id39">GenXCategory</a><a class="headerlink" href="#genxcategory" title="Permalink to this headline">¶</a></h3>
+<p>This pass performs five functions:</p>
+<ol class="arabic">
+<li><p class="first">It splits any struct phi into a phi for each element of the struct. This
+is done in GenXLowering, but a subsequent pass can re-insert a struct phi so
+this pass mops those up.</p>
+</li>
+<li><p class="first">It resolves each overlapping circular phi value.</p>
+<p>LLVM IR does not attach
+any importance to the order of phi nodes in any particular basic block.
+At the head of a loop, a phi incoming can also be a phi definition in the
+same block, and they could be in either order.</p>
+<p>However, once we start constructing live ranges in the GenX backend, we
+attach importance to the order of the phi nodes, so we need to resolve
+any such overlapping circular phi value. Currently we do this by
+inserting a copy (actually a bitcast) just after the phi nodes in that
+basic block. A future enhancement would be to try and re-order the phi
+nodes, and only fall back to copy insertion if there is circularity and
+it is impossible to find a correct order, for example when the loop body
+swaps two variables over.</p>
+</li>
+<li><p class="first">It inserts a load for any operand that is constant but not allowed to be.
+It also catches any case where constant propagation in EarlyCSE has
+caused a non-simple constant to be propagated into the instruction.
+See the GenXConstants section above.</p>
+</li>
+<li><p class="first">It determines the register category and increased alignment requirement
+(e.g. use as a raw operand) of each value, and stores it by creating a
+LiveRange for the value and storing it there. At this stage the LiveRange
+does not contain any other information; GenXLiveRanges populates it further
+(or erases it if the value turns out to be baled in).</p>
+</li>
+<li><p class="first">It inserts instructions as required to convert from one register
+category to another, where a value has its def and uses not all requiring
+the same category.</p>
+</li>
+</ol>
+<p>All this pass inserts is a llvm.genx.convert intrinsic. It does not record
+what the categories are. This information is recalculated in GenXLiveness.</p>
+<p>The reason for inserting the convert intrinsic calls here, before the final
+run of GenXBaling before GenXLiveRanges, is that we want GenXBaling to spot
+when a convert intrinsic can be baled with rdregion or wrregion.</p>
+<p>For one value (function argument or instruction), the pass looks at the
+categories required for the defintion and each use. If there is no address
+conversion involved, then it inserts a single conversion if possible (all
+uses are the same category), otherwise it inserts a conversion for each use
+that requires one.</p>
+<p><strong>IR restriction</strong>: After this pass, a value must have its def and all uses
+requiring the same register category.</p>
+<div class="section" id="address-conversion">
+<h4>Address conversion<a class="headerlink" href="#address-conversion" title="Permalink to this headline">¶</a></h4>
+<p>An address conversion is treated slightly differently.</p>
+<p>A rdregion/wrregion representing an indirect region has a variable index.
+This index is actually an index, whereas the vISA we need to generate for
+it uses an address register that has been set up with an <code class="docutils literal"><span class="pre">add_addr</span></code>
+instruction from the index and the base register.</p>
+<p>This pass inserts an <code class="docutils literal"><span class="pre">llvm.genx.convert.addr</span></code> intrinsic, with zero offset,
+to represent the conversion from index to address register. However, the
+intrinsic has no way of representing the base register.  Instead, the base
+register is implicitly the “old value” input of the rdregion/wrregion where
+the address is used.</p>
+<p>The same index may well be used in multiple rdregions and wrregions,
+especially after LLVM’s CSE. But at this stage we have no idea whether
+these multiple rdregions/wrregions will have the same base register, so
+we must assume not and insert a separate <code class="docutils literal"><span class="pre">llvm.genx.convert.addr</span></code>
+for each rdregion/wrregion use of the index.</p>
+<p>These multiple address conversions of the same index are commoned up
+where possible later on in GenXAddressCommoning. That pass runs after
+GenXCoalescing, so it can tell whether two address conversions of the
+same index also have the same base register because the “old value”
+inputs of the regions have been coalesced together.</p>
+<p>Where an index used in an indirect region is a constant add, this pass
+inserts the <code class="docutils literal"><span class="pre">llvm.genx.convert.addr</span></code> before that, and turns the constant
+add into <code class="docutils literal"><span class="pre">llvm.genx.add.addr</span></code>. The latter can be baled into rdregion
+or wrregion, representing a constant offset in the indirect region.
+Only one <code class="docutils literal"><span class="pre">llvm.genx.add.addr</span></code> is allowed between the
+<code class="docutils literal"><span class="pre">llvm.genx.convert.addr</span></code> and the use in a rdregion/wrregion.</p>
+<p>However this pass does not check whether the offset is in range (although
+GenXBaling does check that before deciding to bale it in). The
+GenXAddressCommoning pass sorts that out.</p>
+<p><strong>IR restriction</strong>: After this pass, a variable index in a rdregion/wrregion
+must be the result of <code class="docutils literal"><span class="pre">llvm.genx.convert.addr</span></code> or <code class="docutils literal"><span class="pre">llvm.genx.add.addr</span></code>.
+Operand 0 of <code class="docutils literal"><span class="pre">llvm.genx.add.addr</span></code> must be the result of
+<code class="docutils literal"><span class="pre">llvm.genx.convert.addr</span></code>.</p>
+<p><strong>IR restriction</strong>: After this pass, up to GenXAddressCommoning, the result
+of <code class="docutils literal"><span class="pre">llvm.genx.convert.addr</span></code> must have a single use in either a
+<code class="docutils literal"><span class="pre">llvm.genx.add.addr</span></code> or as the index in rdregion/wrregion. The result
+of <code class="docutils literal"><span class="pre">llvm.genx.add.addr</span></code> must have a single use as the index in
+rdregion/wrregion.</p>
+</div>
+</div>
+<div class="section" id="late-simd-cf-conformance-pass">
+<h3><a class="toc-backref" href="#id40">Late SIMD CF conformance pass</a><a class="headerlink" href="#late-simd-cf-conformance-pass" title="Permalink to this headline">¶</a></h3>
+<p>This is the same pass as GenXSimdCFConformance above, but run in a
+slightly different way. See above.</p>
+<p><strong>IR restriction</strong>: After this pass, the EM values must have EM register
+category. The RM values must have RM register category. The !any result of
+a goto/join must have NONE register category.</p>
+</div>
+<div class="section" id="codegen-baling-pass">
+<h3><a class="toc-backref" href="#id41">CodeGen baling pass</a><a class="headerlink" href="#codegen-baling-pass" title="Permalink to this headline">¶</a></h3>
+<p>This is the same pass as GenXBaling above, but run in a slightly different
+way. See above.</p>
+<p><strong>IR restriction</strong>: Any pass after this needs to be careful when modifying
+code, as it also needs to update baling info.</p>
+</div>
+<div class="section" id="genxdepressurizer">
+<h3><a class="toc-backref" href="#id42">GenXDepressurizer</a><a class="headerlink" href="#genxdepressurizer" title="Permalink to this headline">¶</a></h3>
+<p>GenXDepressurizer is a pass that identifies where register pressure is
+excessive, and attempts to sink and/or clone definitions past that area
+to reduce register pressure.</p>
+<p>Currently the pass is enabled to handle only flag (predicate) values. It is
+supposed to work for general values, but that is not yet enabled and it may
+require some bug fixing and fine tuning before it is.</p>
+<p>In fact this pass is now viewed as a dead end. The plan to replace it is a
+pass that does register allocation as if into Gen’s real registers, doing
+live range splitting and rematerialization where required, to help undo the
+register-pressure-increasing effects of CSE and LICM where it would cause a
+spill.</p>
+<p>The basic idea of the existing GenXDepressurizer pass:</p>
+<ol class="arabic simple">
+<li>Scan the code backwards, keeping track of what values are live and what
+the register pressure is (total size of all live values, also the total
+size for flag (predicate) values).</li>
+<li>Where register pressure becomes excessive, look at currently live values
+to see if any is a definition that could profitably be sunk to below the
+current point.</li>
+<li>Sink any such instructions until register pressure is no longer excessive.</li>
+<li>For a flag value, “profitably be sunk” includes the case that it decreases
+flag register pressure but increases overall register pressure (by for
+instance lengthening the live ranges of the inputs to a cmp), but general
+register pressure is not high at the current point.</li>
+<li>A flag value that does not require cloning (all uses are dominated by the
+current point) is sunk anyway, as long as it does not push an already high
+general pressure up higher.</li>
+</ol>
+<p>Point 5 means that this pass replaces GenXCodeSinking, which sank any single
+use flag value.</p>
+<p>There are some complications to the scheme:</p>
+<ul class="simple">
+<li>How do we scan code backwards in a way that keeps track of pressure when
+there is control flow, particularly loops?</li>
+<li>When considering a definition to sink, we need to know whether a
+particular use is reachable from the current point, and whether it is
+dominated by it.</li>
+</ul>
+<div class="section" id="backwards-scanning-order-and-pseudo-cfg">
+<h4>Backwards scanning order and pseudo CFG<a class="headerlink" href="#backwards-scanning-order-and-pseudo-cfg" title="Permalink to this headline">¶</a></h4>
+<p>In order to keep track of liveness and pressure as we scan backwards, we
+want to scan the basic blocks in an order that ensures that we do not
+scan a particular basic block until we have scanned all its successors.
+In that way we can easily gather the live out set of the basic block from
+the live in of each successor, modified by the incoming for our block in
+the phi nodes in the successor. (If there are phi nodes, there is only
+one successor, because critical edges have been split.)</p>
+<p>A loop needs special consideration. We want to scan all of the blocks of
+a loop (including inner loops) in one go, after scanning all possible
+successors of the loop, and before scanning the predecessor(s) of the
+loop header. Within the loop, we want to start at the backedge
+predecessor(s), but we need to set up the liveness at the end of a backedge
+predecessor to take account of</p>
+<ol class="loweralpha simple">
+<li>any value that is live in to the loop and live out of the loop at some
+loop exit, and</li>
+<li>any value that is defined in the loop and is live round the backedge.</li>
+</ol>
+</div>
+<div class="section" id="superbales">
+<h4>Superbales<a class="headerlink" href="#superbales" title="Permalink to this headline">¶</a></h4>
+<p>Sinking is performed in units of a superbale.</p>
+<p>For a general value, a superbale is the bale that defines the value, and, if
+that is a wrregion, the rest of the chain of wrregion bales that write to
+other parts of that value and have the same inputs as the defining bale. We
+consider such a superbale as a whole because considering and sinking just
+the bale would not show any benefit, because it has an input to the wrregion
+the same size as the result. Such a chain of wrregions typically arises from
+legalization where vector decomposing has not subsequently been able to split
+the big vector up.</p>
+<p>For a flag value, a superbale is a tree where each non-leaf node is an
+and/or/xor/not instruction acting on predicates. Again this is done because
+sinking just an and/or/xor/not instruction would not show any benefit to
+flag pressure.</p>
+</div>
+</div>
+<div class="section" id="genxunbaling">
+<h3><a class="toc-backref" href="#id43">GenXUnbaling</a><a class="headerlink" href="#genxunbaling" title="Permalink to this headline">¶</a></h3>
+<p>After live range building, GenXUnbaling spots cases where baling is harmful
+due to extending the live range of a big vector.</p>
+<div class="section" id="the-need-for-the-unbaling-pass">
+<h4>The need for the unbaling pass<a class="headerlink" href="#the-need-for-the-unbaling-pass" title="Permalink to this headline">¶</a></h4>
+<p>A <em>two address operation</em> (mainly wrregion, but also a few intrinsics that
+do a predicated read from a shared function unit such as memory) is one
+where the result needs to be in the same register as one operand, the <em>two
+address operand</em>. GenXCoalescing attempts to coalesce the two together, but
+it fails if the live range of the two address operand extends beyond the
+two address instruction. Failure of coalescing means that you get extra
+code inserted before to copy the whole big vector, and increased register
+pressure because two values of the big vector are live at the same time.</p>
+<p>Similarly, with a phi node incoming, GenXCoalescing attempts to coalesce
+the incoming with the phi node result. Failure means that you get extra
+code inserted to copy the value at the end of the incoming block.</p>
+<p>The existence of this problem is due to our use of SSA. Both the input and
+the output of the wrregion (or the phi incoming and result) are probably
+the same big vector variable in the source code, and a more traditional
+compiler would treat the variable as a single (non-SSA) value assigned to
+its own register, avoiding the need to treat the wrregion specially as a
+two address operation.</p>
+<p>With the traditional approach, code motion is more difficult, as an
+instruction cannot be moved past any other instruction that modifies any of
+the potentially moving instruction’s uses.</p>
+<p>With our SSA approach, code motion (of an instruction with no memory
+interaction) is much easier, and we use that in GenXBaling to bale an
+instruction into another one without needing to check anything in between.
+(Even though GenXBaling often does not actually move the baled in
+instruction in IR, it must be treated as if it is at the position of the
+head of the bale.)</p>
+<p>The price we pay for that flexibility is that sometimes we move code even
+when it is harmful to do so.</p>
+<p>The most common situation where it would fail to coalesce is where
+legalization has created a sequence of wrregions, and the “old value” input
+to the first one is also used in a rdregion baled in to each one of the
+wrregions.</p>
+<p>Other situations include where some other rdregion use of the two address
+operand is user code that has been baled to after the instruction, and
+where the user code actually takes a copy of the big vector and then uses
+one or more regions out of it after the two address instruction.</p>
+<p>The GenXUnbaling pass implements two transformations: the non-overlapping
+region optimization, and the unbaling transformation.</p>
+</div>
+<div class="section" id="non-overlapping-region-optimization">
+<h4>Non-overlapping region optimization<a class="headerlink" href="#non-overlapping-region-optimization" title="Permalink to this headline">¶</a></h4>
+<p>A common cause of the two address operand, the “old value” input, of a
+wrregion extending beyond the wrregion is that the wrregion is the first in
+a sequence created by GenXLegalization, and the same vector is used as an
+input to rdregions baled in to subsequent bales in the sequence.</p>
+<p>In this case, a baled in rdregion is reading a part of the vector that has
+not been overwritten by any earlier wrregion in the sequence.</p>
+<p>The non-overlapping region optimization detects this case by checking which
+regions of the vector have been overwritten by earlier wrregions in the
+sequence. If the region read by the rdregion has not been overwritten, then
+the optimization can change the input to the rdregion to the result of the
+previous wrregion in the sequence without changing the semantics.</p>
+<p>If this succeeds for all the rdregions from the same vector in the
+sequence, then the live range no longer reaches beyond the first wrregion
+and it can be two address coalesced.</p>
+<p>The non-overlapping region optimization also handles a similar case where
+the “old value” input to the first wrregion in the sequence is undef, but
+of the same type as the input to rdregions through the sequence. As well as
+modifying each rdregion input to the result of the previous wrregion, it
+changes the undef input to the first wrregion to the same input vector.
+This also stops the live range of the inputs to the rdregions overlapping
+the result, and thus saves register pressure. However it can make the code
+worse if there are further uses of the input after the sequence, so it only
+makes the transformation if there are no further uses.</p>
+</div>
+<div class="section" id="unbaling-transformation">
+<h4>Unbaling transformation<a class="headerlink" href="#unbaling-transformation" title="Permalink to this headline">¶</a></h4>
+<p>At its simplest, the unbaling transformation looks at each two address
+instruction and phi node incoming, and then looks at the uses of the “old
+value” input:</p>
+<ul class="simple">
+<li>A use before the original two address instruction can be ignored as it
+does not cause the “old value” input to be live beyond that instruction.</li>
+<li>A use after the original two address instruction that is not a rdregion
+cannot be handled, so causes the pass to abandon processing this original
+two address operation.</li>
+<li>A rdregion use after the original two address instruction is unbaled so
+it regains its pre-baling position before the original two address
+instruction.</li>
+</ul>
+<p>Thus the use of the “old value” input in the two address instruction
+becomes a kill use, and coalescing at that instruction will succeed. Or the
+phi incoming becomes a kill use, and coalescing it with the phi result will
+succeed.</p>
+<p>But there are complications:</p>
+<div class="section" id="moving-the-unbaled-instruction">
+<h5>Moving the unbaled instruction<a class="headerlink" href="#moving-the-unbaled-instruction" title="Permalink to this headline">¶</a></h5>
+<p>Unbaling an instruction means that its position in the code is now
+considered to be the same as its position in the IR. Sometimes that is
+where we want it (before the original two address instruction), since
+baling tends not to move code. But sometimes it is still after the original
+two address instruction, most likely because of the order of code split by
+GenXLegalization.</p>
+<p>Thus we may need to move the unbaled instruction up to before the original
+two address instruction. In fact we need to move the whole sub-bale (the
+new bale headed by the instruction we are unbaling). A rdregion can have an
+llvm.genx.add.address intrinsic baled in if it has a variable index.</p>
+<p>If the unbaled instruction is dominated by the original two address
+instruction, we move it to just before that. Otherwise, we move it to the
+end of the basic block that is the nearest common dominator of the two
+locations.</p>
+<p>To move a bale up, we need to ensure that all outside-bale operands are
+defined before where we are going to move it to. If that is not the case,
+then unbaling for the original two address instruction fails.</p>
+</div>
+<div class="section" id="moving-when-there-is-a-variable-index">
+<h5>Moving when there is a variable index<a class="headerlink" href="#moving-when-there-is-a-variable-index" title="Permalink to this headline">¶</a></h5>
+<p>For a rdregion with a variable index, there is an llvm.genx.conv.address
+intrinsic, which represents the setting of an address register relative to
+the base register that the rdregion will access. GenXCategory ensures that
+there is one llvm.genx.conv.address intrinsic for each variable index
+rdregion or wrregion, since it does not know which region accesses are
+going to be in the same register. Commoning up of address conversions is
+done later, after coalescing has decided which ones are in the same base
+register.</p>
+<p>The problem for GenXUnbaling is that the llvm.genx.conv.address is likely
+to be just before the rdregion, which stops the rdregion being moved to
+before the original two address instruction.</p>
+<p>The solution is to pretend that the llvm.genx.conv.address (and anything it
+bales in, probably a zext/sext) is part of the rdregion’s bale, just for
+GenXUnbaling’s purposes of telling whether it is OK to move it, and then
+actually moving it. GenXBaling::buildBale() has an extra IncludeAddr flag
+to enable this behavior.</p>
+</div>
+<div class="section" id="what-is-before-and-after">
+<h5>What is before and after?<a class="headerlink" href="#what-is-before-and-after" title="Permalink to this headline">¶</a></h5>
+<p>The notion of whether an instruction is before or after the original two
+address instruction is more complex in the presence of control flow.</p>
+<p>This pass distinguishes the following cases:</p>
+<ul class="simple">
+<li>Before: The instruction dominates the original two address instruction,
+so can be considered before it. No use in the instruction reaches back to
+the original two address instruction.</li>
+<li>After: The original two address instruction dominates the instruction, so
+can be considered after it. A use in the instruction causes liveness to
+reach back to the original two address instruction (as long as the use’s
+definition is before that).</li>
+<li>Reaches: Neither dominates the other, but a use in the instruction causes
+liveness to reach back to the original two address instruction anyway.
+This is determined by actually tracing back all the branches through the
+control graph, abandoning a branch when it rejoins with another one or
+reaches the definition.</li>
+<li>Not reaches: Neither dominates the other, but we can prove that a use in
+the instruction does not cause liveness to reach back to the original two
+address instruction.</li>
+</ul>
+<p>When processing a phi incoming rather than a two address instruction, it is
+considered to be at the end of the corresponding incoming block, rather
+than at the site of the phi node.</p>
+<p>If we have “not reaches”, then the use can be ignored in the same way as a
+“before” use.</p>
+<p>If we have “reaches”, then we can still unbale it. If the new sub-bale
+needs moving, then we move it to the end of the block that is the nearest
+common dominator of its old location and the original two address
+instruction.</p>
+<p>A use in a phi node is considered to be at the end of the incoming block
+for the purposes of determining its position.</p>
+</div>
+<div class="section" id="commoning-up-unbaled-sub-bales">
+<h5>Commoning up unbaled sub-bales<a class="headerlink" href="#commoning-up-unbaled-sub-bales" title="Permalink to this headline">¶</a></h5>
+<p>It is often the case that baling has caused the same rdregion to be cloned
+(because a baled in instruction can only have a single use), so unbaling
+the baled in rdregions causes duplicate instructions. No CSE is run after
+this point, as that would cause various problems including messing up the
+baling and the address conversion.</p>
+<p>Therefore, this pass needs to spot when it is unbaling duplicate sub-bales
+and common them up.</p>
+</div>
+<div class="section" id="unbaling-the-main-instruction-instead-of-the-rdregion">
+<h5>Unbaling the main instruction instead of the rdregion<a class="headerlink" href="#unbaling-the-main-instruction-instead-of-the-rdregion" title="Permalink to this headline">¶</a></h5>
+<p>In some cases, the rdregion is in a bale that also contains another
+rdregion of the same big vector. Unbaling the two rdregions separately
+would create two extra instructions. We can reduce that to one extra
+instruction by instead unbaling the main instruction from the wrregion at
+the head, so only the wrregion is left at its original position in the code
+and the rest of the bale is moved up.</p>
+<p>The pass only does that if it detects more than one use of the big vector
+in the bale.</p>
+<p>When trying to do this, and the proposed sub-bale needs to be moved rather
+than just unbaled, we may see that not all outside-bale operands are
+defined before the original two address instruction. In that case, we
+abandon the attempt to unbale the main instruction, and instead go back to
+unbaling just the rdregion, which may succeed.</p>
+</div>
+<div class="section" id="bitcasts">
+<h5>Bitcasts<a class="headerlink" href="#bitcasts" title="Permalink to this headline">¶</a></h5>
+<p>Because GenXCoalescing does “copy coalescing” of bitcasts first, we need to
+consider not just the rdregion uses of the input to the original two
+address instruction, but also uses of the whole tree of bitcasts containing
+it. Not doing that stops the optimization working when the source CM code
+contains format() functions.</p>
+<p>Such bitcasts may need to be moved up to just before the original two
+address instruction, in case any use of it is moved. In fact we just move
+the whole tree of bitcasts to just after the definition of the root of the
+tree.  This does not worsen code quality because the bitcasts will all be
+copy coalesced together anyway.</p>
+</div>
+</div>
+</div>
+<div class="section" id="genxnumbering">
+<h3><a class="toc-backref" href="#id44">GenXNumbering</a><a class="headerlink" href="#genxnumbering" title="Permalink to this headline">¶</a></h3>
+<p>GenXNumbering is an analysis that provides a numbering of the instructions
+for use by live ranges.</p>
+<p>The numbering is done such that slots are reserved for where GenXCoalescing
+might need to insert copies.</p>
+<p>Generally, an instruction gets a slot in the numbering for itself, and
+another slot just before, in case it is a two address instruction where
+GenXCoalescing might want to insert a copy.</p>
+<p>Every instruction gets a number, even if it is baled in. However, for the
+purposes of live range segments, every instruction in a bale is assumed
+to have the same number as the head instruction of the bale.</p>
+<p>A non-intrinsic call has N slots reserved
+before it for pre-copies, where N is the number of SimpleValues in the
+(possibly struct) args, allowing for extra args that might be added later by
+GenXArgIndirection.</p>
+<p>Similarly, a non-intrinsic call has N slots reserved after it for
+post-copies, where N is the number of SimpleValues in the (possibly struct)
+return value. The definition of each SimpleValue in the result of the call
+is considered to be in its slot, and the corresponding SimpleValue in the
+unified return value has an extra segment of live range from the call up to
+that slot.</p>
+<p>A return instruction in a subroutine has N slots reserved before it for
+pre-copies, where N is the number of SimpleValues in the (possibly struct)
+return value. The use of each SimpleValue in the return is considered to be
+in its slot, and the corresponding SimpleValue in the unified return value
+has an extra segment of live range from the slot up to the return.</p>
+<p>A kernel has a slot for each kernel arg copy. A copy is inserted into such a slot in
+GenXCoalescing if the kernel arg offset is not aligned enough for the uses
+of the value.</p>
+<p><strong>IR restriction</strong>: After this pass, it is very difficult to modify code
+other than by inserting copies in the reserved slots above, as it would
+disturb the numbering.</p>
+</div>
+<div class="section" id="genxliveranges">
+<h3><a class="toc-backref" href="#id45">GenXLiveRanges</a><a class="headerlink" href="#genxliveranges" title="Permalink to this headline">¶</a></h3>
+<p>GenXLiveRanges calculates the actual live range information (the segments)
+on the LiveRange object for each value. See the comment at the top of
+GenXLiveness.h for details of how the live range information works. This
+pass calls GenXLiveness::buildLiveRange to do the work for each value.</p>
+<p>The LiveRange object for each value already existed before this pass, as it
+was created by GenXCategory. In the case of a value that we can now see does
+not want a LiveRange, because it is an Instruction baled in to something,
+we erase the LiveRange here.</p>
+</div>
+<div class="section" id="genxcoalescing">
+<h3><a class="toc-backref" href="#id46">GenXCoalescing</a><a class="headerlink" href="#genxcoalescing" title="Permalink to this headline">¶</a></h3>
+<p>The LLVM target independent code generator, used by most backends, has a
+coalescing pass that runs after de-SSA of the machine IR and two-address
+handling, and attempts to remove the added copies by coalescing values. It
+also attempts to coalesce a value with a hardreg that it is copied to/from.</p>
+<p>This GenX coalescing and copy insertion pass is a bit different, in that
+it runs on LLVM IR, which must remain in SSA, and it attempts to coalesce
+values to try and avoid adding the copy in the first place. In any phi node
+or two address op where it fails to coalesce, it inserts a copy (and
+coalesces the result of the copy into the result of the phi node or
+two address op).</p>
+<p>There are three different kinds of coalescing. Copy coalescing is done first,
+then the other two are done together.</p>
+<ol class="arabic">
+<li><p class="first">Copy coalescing.</p>
+<p>Generally there are no copy instructions in SSA, but we
+can treat a bitcast as a copy (the operand and result can live in the
+same register aliased in different registers), and an extractvalue is
+treated as a copy to be coalesced, and the “inserted value” operand
+and the corresponding element(s) of the result in an insertvalue are
+treated as a copy to be coalesced.</p>
+<p>Copy coalescing represents two values that are known to be identical
+occupying the same register at the same time, thus it is possible even
+if the two values interfere (are live at the same point). Because we
+handle copy coalescing before any other kind of coalescing, it usually
+succeeds.</p>
+<p>This only works because we do copy coalescing first, so we know that
+neither value that we want to copy coalesce has already undergone normal
+or phi coalescing.</p>
+<p>However there is a case when copy coalescing between two live ranges
+LR1 and LR2 (each of which is possibly already copy coalesced) cannot be
+allowed: when LR2 loops round and has a phi use in the same basic block
+as a phi definition in LR1, where the phi use of LR2 is after the phi
+definition of LR1. This can happen because LLVM IR does not attach any
+meaning to the order of phi nodes, but the GenX backend does with its
+instruction numbering.</p>
+<p>This constraint on copy coalescing is embodied in the concept of
+“copy-interference”. The two live ranges LR1 and LR2 copy-interfere,
+meaning they cannot be copy coalesced, if LR1 has a phi definition,
+one of whose numbers is within LR2’s live range.</p>
+</li>
+<li><p class="first">Normal coalescing</p>
+<p>This arises where we have a two-address operation, that is, it has an
+operand that needs to be in the same register as the result, because the
+instruction represents a partial write operation. The main example of
+this is wrregion, but there are also some shared function intrinsics
+that need this.</p>
+<p>Here, we gather all the possible coalesces (including the phi ones),
+together with an estimate of the cost of failing to coalesce (due to
+needing to insert a copy), and then sort them in cost order and process
+them.</p>
+<p>This kind of coalescing is possible only if the two live ranges do not
+interfere. If coalescing fails, we need to insert a copy just before
+the instruction, creating a new value with a very short live range
+that can trivially be coalesced with the result of the original
+instruction.</p>
+<p>Some subkinds of normal coalescing are:</p>
+<p>2a. call arg pre-copy</p>
+<blockquote>
+<div><p>A call arg needs to be coalesced with or copied to the corresponding
+function arg.</p>
+<p>Unlike most other kinds of coalescing, if coalescing fails, the copy
+insertion is delayed until later, so we can ensure that the copies
+are in the same order as the args, as the live ranges were computed
+on that basis.</p>
+<p>Normally, call arg pre-copy coalescing occurs, like other normal
+coalescing, if the two live ranges do not interfere. If this fails,
+we can still do <em>call arg special coalescing</em> (CASC) of call arg A
+and function arg B as long as both of the following are true:</p>
+<blockquote>
+<div><ol class="lowerroman simple">
+<li>B has not been normal coalesced into anything (which would be
+in the subroutine or some other subroutine it calls), except
+that B is allowed to be call arg pre-copy coalesced;</li>
+</ol>
+</div></blockquote>
+<ol class="lowerroman simple" start="2">
+<li>For any other call site where the corresponding call arg is not
+A, A does not interfere with it.</li>
+</ol>
+<p>Call arg special coalescing allows call arg A and function arg B to
+be in the same register, even if A is used after the call, as long
+as that register is not already being used for a different value
+in the subroutine, and as long as a different value for the call
+arg is not used at a different call site where A is live.</p>
+<p><strong>Note</strong>: Call arg special coalescing is disabled, because it broke
+a test and I never got round to investigating why. I don’t even know
+if it would be beneficial any more, given more recent changes to
+liveness and coalescing.</p>
+</div></blockquote>
+<p>2b. ret value pre-copy</p>
+<blockquote>
+<div><p>At a ReturnInst, the return value operand needs to be coalesced with
+or copied to the unified return value for the function. This is
+handled mostly the same as a normal coalesce.</p>
+</div></blockquote>
+<p>2c. ret value post-copy</p>
+<blockquote>
+<div><p>After a CallInst for a subroutine call, the unified return value
+needs to be coalesced with or copied to the result of the call. On
+failure, the copy insertion is delayed until later.</p>
+</div></blockquote>
+</li>
+<li><p class="first">Phi coalescing</p>
+<p>This is how we “de-SSA” the code. A phi incoming wants to coalesce with
+the result of the phi node.</p>
+<p>Again, this kind of coalescing is possible only if the two live ranges
+do not interfere. (A phi incoming can never interfere with its phi
+result, but earlier coalescing could make them now interfere.) If
+coalescing fails, we need to insert a copy at the end of the incoming
+predecessor basic block. In fact we defer the copy insertion from failed
+phi coalescing to the end, because we need to make sure the inserted
+copies are in the same order as the phi nodes, as that is the basis on
+which the live ranges were constructed.</p>
+<p>After phi coalescing, the LLVM IR is still in SSA form, but the phi
+coalescing, and the copies inserted where phi coalescing failed, mean
+that it is trivial to transform into non-SSA vISA code: generate code for
+the phi copies, and ignore the phi nodes themselves because they are
+completely coalesced.</p>
+</li>
+</ol>
+<div class="section" id="kernel-argument-copying">
+<h4>Kernel argument copying<a class="headerlink" href="#kernel-argument-copying" title="Permalink to this headline">¶</a></h4>
+<p>The kernel argument offsets (i.e. where kernel arguments appear in the GRF
+on entry to the kernel) are set in a very early pass just after Clang
+codegen. This sets offsets and packs holes in a way that is specific to the
+language being compiled and its contract with its runtime.</p>
+<p>However, when we get here, we may find that a live range that contains a
+kernel argument has an alignment requirement that the offset from
+earlier does not comply with.</p>
+<p>So an extra function of this pass, after doing the coalescing, is to spot
+this case, where a kernel argument has an offset that is not aligned enough,
+and insert an extra copy at the start of the function.</p>
+</div>
+</div>
+<div class="section" id="genxaddresscommoning">
+<h3><a class="toc-backref" href="#id47">GenXAddressCommoning</a><a class="headerlink" href="#genxaddresscommoning" title="Permalink to this headline">¶</a></h3>
+<p>This pass spots when multiple address conversions use the same value and
+are used in regions with the same base register (the same coalesced live
+range), and commons up the address conversions.</p>
+<p>It also handles cases where an llvm.genx.add.addr has an out of range offset
+that is not encodable as the constant offset in an indirect operand. When
+commoning up address conversions, it groups ones with nearby offsets such
+that all uses of a commoned address conversion have in range offsets in
+their llvm.genx.add.addr ops.</p>
+<p>Before this pass, GenXCategoryConversion has ensured that each use of a
+variable index in an element or region access (llvm.genx.rdregion etc
+intrinsics) has its own separate address conversion (llvm.genx.convert.addr
+intrinsic). Any constant add/sub between the address conversion
+and the use of the variable index has been turned into an llvm.genx.add.addr
+intrinsic.</p>
+<p>This GenXAddressCommoning pass spots when multiple address conversions
+use the same index value as input and are used in element/region accesses
+with the same base register. These can then be commoned up.</p>
+<p>In fact, rather than looking at an address conversion in isolation, it needs
+to look at the whole bale containing the address conversion, which might have
+a baled in rdregion and modifiers. It needs to do this because
+GenXBaling cloned the rdregion and modifiers, so they need commoning up
+again with the address conversion.
+This situation is common because GenXLowering lowers a trunc (as often
+found in an index calculation to convert the index to i16) into a bitcast
+and a rdregion.</p>
+<p>A second transformation in this pass is the “histogram optimization”: If
+there are multiple scalar address conversions for the same base reg where
+each index is an extract (a scalar rdregion) from the same index vector, we
+attempt to common them up into a vector address conversion, with an extract
+from the result of the vector address conversion for each user of an
+original scalar address conversion. The extract is baled in to the indirect
+region, appearing as the “addr_offset” field (the index into the 8 wide
+address register) in the generated vISA.</p>
+<p>This histogram optimization uses the hasIndirectGRFCrossing feature from
+GenXSubtarget to tell how big the combined vector address conversion can be,
+in the case that it itself is an indirect region.</p>
+<p>Both of the transformations in this pass are fiddly because the pass runs so
+late. It has to run this late because we cannot tell whether address
+conversions can be commoned up until GenXCoalescing has decided which vectors
+are in the same register, but that then means that this pass has to update
+live ranges and baling info for the code that it modifies.</p>
+<p><strong>IR restriction</strong>: After this pass, the restrictions on
+<code class="docutils literal"><span class="pre">llvm.genx.convert.addr</span></code> and <code class="docutils literal"><span class="pre">llvm.genx.add.addr</span></code> having just a single
+use are relaxed. Now, multiple uses of <code class="docutils literal"><span class="pre">llvm.genx.convert.addr</span></code>, possibly
+each via a single <code class="docutils literal"><span class="pre">llvm.genx.add.addr</span></code>, must be in rdregions/wrregions
+where the base register is provably the same because all the values that
+appear as the “old value” input are coalesced together into the same
+LiveRange.</p>
+</div>
+<div class="section" id="genxargindirection">
+<h3><a class="toc-backref" href="#id48">GenXArgIndirection</a><a class="headerlink" href="#genxargindirection" title="Permalink to this headline">¶</a></h3>
+<p>The GenXArgIndirection pass runs very late, after coalescing and address
+commoning, to change arguments and return values that were originally by ref
+to use address registers. This saves copies and register pressure.</p>
+<p>Recall that, very early on in CMABI, a by ref argument is transformed into
+copy-in copy-out semantics.</p>
+<p>This pass is run very late on for two reasons:</p>
+<ol class="arabic">
+<li><p class="first">There is no convenient way to represent passing an argument using an
+address register in LLVM IR. We don’t want to pretend that the address
+register is a pointer, and the GRF is an area of memory, as that would
+stop us using Values to represent registers normally, and so would stop
+us using lots of LLVM optimizations.</p>
+<p>Running the pass this late means that the IR afterwards does not have to
+strictly represent the semantics, as nothing else happens to it before
+generating the output code. So uses and defs of the indirected argument
+(and other Values coalesced with it) still use the same Values, but that
+live range has no register allocated (it is category NONE), and all
+accesses are indirected.  We rely on the LLVM IR together with the
+liveness information representing the code well enough for register
+allocation and code generation to work.</p>
+</li>
+<li><p class="first">We cannot tell whether we want to perform this transformation until we can
+see how Values have coalesced.</p>
+</li>
+</ol>
+<div class="section" id="action-of-genxargindirection">
+<h4>Action of GenXArgIndirection<a class="headerlink" href="#action-of-genxargindirection" title="Permalink to this headline">¶</a></h4>
+<p>An argument for a subroutine call can generate a bunch of mov instructions in
+two circumstances:</p>
+<ol class="arabic simple">
+<li>Coalescing failed to coalesce this call argument, so the argument in the
+caller and the argument in the subroutine are in different registers
+(different coalesced live ranges). In this case, GenXCoalescing has to
+generate a sequence of baled together rdregion-wrregion intrinsic pairs,
+each generating a mov instruction, to copy the value.</li>
+<li>The argument was originally a by ref CM select(), so is an rdregion,
+legalized into a sequence of baled together rdregion-wrregion pairs.</li>
+</ol>
+<p>The argument indirection pass attempts to spot these cases. The regions at
+each call site must be similar (same region parameters except start index)
+and contiguous.</p>
+<p>The pass modifies each call to pass an address register into the subroutine
+as an extra argument, using it to indirecting all accesses to the subroutine
+argument and other Values coalesced with it. It then removes the rd-wr
+sequence so it does not generate any code.</p>
+<p>Indirecting all accesses to the subroutine argument is only possible if each
+one would be legal as an indirect region. The pass uses the
+hasIndirectGRFCrossing feature from GenXSubtarget to tell whether it would
+be legal. The optimization can fail for this reason, and that is more common
+on pre-SKL where there is no indirect region GRF crossing.</p>
+<p>The pass deals with one subroutine argument in one subroutine at a time. It
+looks at all call sites to see if there is anything that stops this
+transformation happening at all, and whether there is any call site that
+would benefit from the transformation.</p>
+<div class="section" id="coalesced-return-value">
+<h5>Coalesced return value<a class="headerlink" href="#coalesced-return-value" title="Permalink to this headline">¶</a></h5>
+<p>If the subroutine argument is coalesced with a return value from the call,
+then argument indirection can succeed only if the return value at each call
+site is written (similarly using a rd-wr sequence) to exactly the same
+region in a vector that is coalesced (so same register) with the input
+vector to the rd-wr sequence for the argument.</p>
+</div>
+<div class="section" id="no-coalesced-return-value">
+<h5>No coalesced return value<a class="headerlink" href="#no-coalesced-return-value" title="Permalink to this headline">¶</a></h5>
+<p>If the subroutine argument is _not_ coalesced with a return value from the
+call, so only the arg could be indirected, indirection can only occur if one
+of these conditions is met:</p>
+<ol class="arabic simple">
+<li>the live range being indirected is not live over the call (so it does not
+matter if the subroutine writes to the same register), or</li>
+<li>the subroutine does not write to the same register (i.e. there are no defs
+in the subroutine arg’s live range other than args and coalesced
+bitcasts).</li>
+</ol>
+</div>
+<div class="section" id="constant-argument-and-rd-wr-sequence-return-value">
+<h5>Constant argument and rd-wr sequence return value<a class="headerlink" href="#constant-argument-and-rd-wr-sequence-return-value" title="Permalink to this headline">¶</a></h5>
+<p>Where the original source initializes a big vector or matrix to constant and
+then calls a subroutine passing the vector by ref, the IR that this pass sees
+is that the argument passed to the call is constant, and the rd-wr sequence
+for the return value has an “old value” input that is another constant
+(including undef).</p>
+<p>GenXArgIndirection spots this case, and transforms the code to load the
+combination of the two constants before the call and pass an address register
+set to the appropriate point.</p>
+</div>
+<div class="section" id="indirection-of-subroutine">
+<h5>Indirection of subroutine<a class="headerlink" href="#indirection-of-subroutine" title="Permalink to this headline">¶</a></h5>
+<p>If an argument is being indirected, all references to that register
+(coalesced live range) inside the subroutine and everything it calls must be
+indirected.</p>
+<p>GenXArgIndirection does not include the facility to split up a bale if it
+would become illegal when indirected. This is only a problem in BDW and
+earlier, where an indirect region is not allowed to cross even one GRF
+boundary. If it sees an access with a region that would become illegal if
+indirected, it abandons indirection of that argument.</p>
+</div>
+</div>
+<div class="section" id="warning-messages">
+<h4>Warning messages<a class="headerlink" href="#warning-messages" title="Permalink to this headline">¶</a></h4>
+<p>Where GenXArgIndirection sees a suitably large uncoalesced call arg that
+would benefit from arg indirection, but it fails to satisfy the criteria,
+the pass outputs a warning message. The idea is that the CM programmer
+might consider some changes to his/her kernel to optimize it.</p>
+</div>
+</div>
+<div class="section" id="genxtidycontrolflow">
+<h3><a class="toc-backref" href="#id49">GenXTidyControlFlow</a><a class="headerlink" href="#genxtidycontrolflow" title="Permalink to this headline">¶</a></h3>
+<p>This pass tidies the control flow in the following ways:</p>
+<ol class="arabic">
+<li><p class="first">It removes empty blocks (a block is empty if all it contains is an
+unconditional branch), and thus reduces branch chains in the generated
+code.  It is needed because often a block inserted by critical edge
+splitting is not needed for any phi copies.</p>
+</li>
+<li><p class="first">It reorders blocks to increase fallthrough generally, and specifically
+to ensure that SIMD CF goto and join have the required structure: the
+“false” successor must be fallthrough and the “true” successor must be
+forward. (The ‘“true” successor must be forward’ requirement is a vISA
+requirement, because vISA goto/join does not specify JIP, and the
+finalizer reconstructs it on this assumption.)</p>
+</li>
+<li><p class="first">fixGotoOverBranch: The pass spots where there is a SIMD CF goto over an
+unconditional branch, and turns the combination into a backwards goto.</p>
+<p>After reordering blocks, we know that any simd goto has its “false” successor as
+the following block. If all of the following are true:</p>
+<ol class="loweralpha simple">
+<li>its “true” successor just branches over that same block;</li>
+<li>that block contains only an unconditional branch;</li>
+<li>the UIP of the goto (the join whose RM it updates) is the same as the
+“true” successor;</li>
+<li>the goto condition is not constant 0 (this condition is because we
+cannot represent a backwards simd goto with this, and it is too late to
+allocate it a register);</li>
+</ol>
+<p>then we have the end of a simd do..while loop, and we can optimize to a
+backwards simd goto.</p>
+<p>We represent a backwards simd goto in the IR by having the “true”
+successor as the following block. GenXVisaFuncWriter can then spot that it
+is a backwards simd goto, and it needs its condition inverting.</p>
+</li>
+<li><p class="first">Ensure that there is a single return block and it is the last block.
+These are required by the vISA’s structurizer.</p>
+</li>
+</ol>
+</div>
+<div class="section" id="genxvisaregalloc">
+<h3><a class="toc-backref" href="#id50">GenXVisaRegAlloc</a><a class="headerlink" href="#genxvisaregalloc" title="Permalink to this headline">¶</a></h3>
+<p>GenXVisaRegAlloc is a function group pass that allocates vISA registers to
+LLVM IR values.</p>
+<p>Before allocating registers, this pass does “extra coalescing”, over and above
+what GenXCoalescing does. Two otherwise independent live ranges that are
+related by being an operand and the result of the same instruction (and are
+the same type) get coalesced and thus allocated into the same register.</p>
+<p>However, extra coalescing is not performed when the result of the instruction
+is used in a non-alu intrinsic, to try and avoid the danger of the jitter
+needing to add an extra move in the send.</p>
+<p>Other than that, all this pass does is allocate a different vISA register to
+each LiveRange.</p>
+<p>The pass is also an analysis for GenXVisaFuncWriter to query to find out
+what vISA register is allocated to a particular Value. In fact, the query
+from GenXVisaFuncWriter can specify what type it wants the register to be,
+and it is at that point that an alias is allocated if there is no existing
+alias of the requested type.</p>
+<p>Finally, there are callbacks in the analysis to generate the vISA variable
+tables to put into the vISA file.</p>
+</div>
+<div class="section" id="genxvisafuncwriter">
+<h3><a class="toc-backref" href="#id51">GenXVisaFuncWriter</a><a class="headerlink" href="#genxvisafuncwriter" title="Permalink to this headline">¶</a></h3>
+<p>This writes a vISA kernel or function. It is a FunctionGroupPass, thus it
+runs once for each kernel, writing the kernel and its subroutines.</p>
+<p>The bulk of the work is done in the constructor of the VisaFuncWriter class,
+which is an implementation of the abstract FuncWriter class in GenXModule.h.</p>
+<p>VisaFuncWriter has three members that are all instances of the Stream class
+(also from GenXModule.h), providing an interface for writing byte data to
+a stream. The three members are:</p>
+<ul class="simple">
+<li>Header: the kernel’s header in the vISA file</li>
+<li>Body: the kernel’s body in the vISA file</li>
+<li>Code: the kernel’s code in the vISA file.</li>
+</ul>
+<p>Once the VisaFuncWriter has been constructed (and thus the vISA for the
+kernel written into the three streams), it is pushed into GenXModule,
+where it is picked up by the subsequent GenXVisaWriter pass.</p>
+</div>
+<div class="section" id="genxvisawriter">
+<h3><a class="toc-backref" href="#id52">GenXVisaWriter</a><a class="headerlink" href="#genxvisawriter" title="Permalink to this headline">¶</a></h3>
+<p>This pass implements the final writing of the vISA file.</p>
+<p>This is a module pass, so it runs once for the whole vISA file. It picks up
+the VisaFuncWriters (one per kernel) from GenXModule, and constructs the
+overall vISA file.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="GenXLangRef.html" title="LLVM IR for the GenX backend"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="GenXIntro.html" title="Introduction to the GenX backend"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="GenXIndex.html" >GenX backend documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

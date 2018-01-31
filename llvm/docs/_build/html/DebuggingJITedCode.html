@@ -1,0 +1,223 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Debugging JIT-ed Code With GDB &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="The LLVM gold plugin" href="GoldPlugin.html" />
+    <link rel="prev" title="TableGen Deficiencies" href="TableGen/Deficiencies.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="GoldPlugin.html" title="The LLVM gold plugin"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="TableGen/Deficiencies.html" title="TableGen Deficiencies"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="debugging-jit-ed-code-with-gdb">
+<h1>Debugging JIT-ed Code With GDB<a class="headerlink" href="#debugging-jit-ed-code-with-gdb" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="background">
+<h2>Background<a class="headerlink" href="#background" title="Permalink to this headline">¶</a></h2>
+<p>Without special runtime support, debugging dynamically generated code with
+GDB (as well as most debuggers) can be quite painful.  Debuggers generally
+read debug information from the object file of the code, but for JITed
+code, there is no such file to look for.</p>
+<p>In order to communicate the necessary debug info to GDB, an interface for
+registering JITed code with debuggers has been designed and implemented for
+GDB and LLVM MCJIT.  At a high level, whenever MCJIT generates new machine code,
+it does so in an in-memory object file that contains the debug information in
+DWARF format.  MCJIT then adds this in-memory object file to a global list of
+dynamically generated object files and calls a special function
+(<code class="docutils literal"><span class="pre">__jit_debug_register_code</span></code>) marked noinline that GDB knows about.  When
+GDB attaches to a process, it puts a breakpoint in this function and loads all
+of the object files in the global list.  When MCJIT calls the registration
+function, GDB catches the breakpoint signal, loads the new object file from
+the inferior’s memory, and resumes the execution.  In this way, GDB can get the
+necessary debug information.</p>
+</div>
+<div class="section" id="gdb-version">
+<h2>GDB Version<a class="headerlink" href="#gdb-version" title="Permalink to this headline">¶</a></h2>
+<p>In order to debug code JIT-ed by LLVM, you need GDB 7.0 or newer, which is
+available on most modern distributions of Linux.  The version of GDB that
+Apple ships with Xcode has been frozen at 6.3 for a while.  LLDB may be a
+better option for debugging JIT-ed code on Mac OS X.</p>
+</div>
+<div class="section" id="debugging-mcjit-ed-code">
+<h2>Debugging MCJIT-ed code<a class="headerlink" href="#debugging-mcjit-ed-code" title="Permalink to this headline">¶</a></h2>
+<p>The emerging MCJIT component of LLVM allows full debugging of JIT-ed code with
+GDB.  This is due to MCJIT’s ability to use the MC emitter to provide full
+DWARF debugging information to GDB.</p>
+<p>Note that lli has to be passed the <code class="docutils literal"><span class="pre">-use-mcjit</span></code> flag to JIT the code with
+MCJIT instead of the old JIT.</p>
+<div class="section" id="example">
+<h3>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h3>
+<p>Consider the following C code (with line numbers added to make the example
+easier to follow):</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="mi">1</span>   <span class="kt">int</span> <span class="nf">compute_factorial</span><span class="p">(</span><span class="kt">int</span> <span class="n">n</span><span class="p">)</span>
+<span class="mi">2</span>   <span class="p">{</span>
+<span class="mi">3</span>       <span class="k">if</span> <span class="p">(</span><span class="n">n</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">)</span>
+<span class="mi">4</span>           <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+<span class="mi">5</span>
+<span class="mi">6</span>       <span class="kt">int</span> <span class="n">f</span> <span class="o">=</span> <span class="n">n</span><span class="p">;</span>
+<span class="mi">7</span>       <span class="k">while</span> <span class="p">(</span><span class="o">--</span><span class="n">n</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">)</span>
+<span class="mi">8</span>           <span class="n">f</span> <span class="o">*=</span> <span class="n">n</span><span class="p">;</span>
+<span class="mi">9</span>       <span class="k">return</span> <span class="n">f</span><span class="p">;</span>
+<span class="mi">10</span>  <span class="p">}</span>
+<span class="mi">11</span>
+<span class="mi">12</span>
+<span class="mi">13</span>  <span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span>
+<span class="mi">14</span>  <span class="p">{</span>
+<span class="mi">15</span>      <span class="k">if</span> <span class="p">(</span><span class="n">argc</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">)</span>
+<span class="mi">16</span>          <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+<span class="mi">17</span>      <span class="kt">char</span> <span class="n">firstletter</span> <span class="o">=</span> <span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">];</span>
+<span class="mi">18</span>      <span class="kt">int</span> <span class="n">result</span> <span class="o">=</span> <span class="n">compute_factorial</span><span class="p">(</span><span class="n">firstletter</span> <span class="o">-</span> <span class="sc">&#39;0&#39;</span><span class="p">);</span>
+<span class="mi">19</span>
+<span class="mi">20</span>      <span class="c1">// Returned result is clipped at 255...</span>
+<span class="mi">21</span>      <span class="k">return</span> <span class="n">result</span><span class="p">;</span>
+<span class="mi">22</span>  <span class="p">}</span>
+</pre></div>
+</div>
+<p>Here is a sample command line session that shows how to build and run this
+code via <code class="docutils literal"><span class="pre">lli</span></code> inside GDB:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>$ <span class="nv">$BINPATH</span>/clang -cc1 -O0 -g -emit-llvm showdebug.c
+$ gdb --quiet --args <span class="nv">$BINPATH</span>/lli -use-mcjit showdebug.ll <span class="m">5</span>
+Reading symbols from <span class="nv">$BINPATH</span>/lli...done.
+<span class="o">(</span>gdb<span class="o">)</span> b showdebug.c:6
+No <span class="nb">source</span> file named showdebug.c.
+Make breakpoint pending on future shared library load? <span class="o">(</span>y or <span class="o">[</span>n<span class="o">])</span> y
+Breakpoint <span class="m">1</span> <span class="o">(</span>showdebug.c:6<span class="o">)</span> pending.
+<span class="o">(</span>gdb<span class="o">)</span> r
+Starting program: <span class="nv">$BINPATH</span>/lli -use-mcjit showdebug.ll <span class="m">5</span>
+<span class="o">[</span>Thread debugging using libthread_db enabled<span class="o">]</span>
+
+Breakpoint <span class="m">1</span>, compute_factorial <span class="o">(</span><span class="nv">n</span><span class="o">=</span><span class="m">5</span><span class="o">)</span> at showdebug.c:6
+<span class="m">6</span>        int <span class="nv">f</span> <span class="o">=</span> n<span class="p">;</span>
+<span class="o">(</span>gdb<span class="o">)</span> p n
+<span class="nv">$1</span> <span class="o">=</span> <span class="m">5</span>
+<span class="o">(</span>gdb<span class="o">)</span> p f
+<span class="nv">$2</span> <span class="o">=</span> <span class="m">0</span>
+<span class="o">(</span>gdb<span class="o">)</span> n
+<span class="m">7</span>        <span class="k">while</span> <span class="o">(</span>--n &gt; <span class="m">1</span><span class="o">)</span>
+<span class="o">(</span>gdb<span class="o">)</span> p f
+<span class="nv">$3</span> <span class="o">=</span> <span class="m">5</span>
+<span class="o">(</span>gdb<span class="o">)</span> b showdebug.c:9
+Breakpoint <span class="m">2</span> at 0x7ffff7ed404c: file showdebug.c, line <span class="m">9</span>.
+<span class="o">(</span>gdb<span class="o">)</span> c
+Continuing.
+
+Breakpoint <span class="m">2</span>, compute_factorial <span class="o">(</span><span class="nv">n</span><span class="o">=</span><span class="m">1</span><span class="o">)</span> at showdebug.c:9
+<span class="m">9</span>        <span class="k">return</span> f<span class="p">;</span>
+<span class="o">(</span>gdb<span class="o">)</span> p f
+<span class="nv">$4</span> <span class="o">=</span> <span class="m">120</span>
+<span class="o">(</span>gdb<span class="o">)</span> bt
+<span class="c1">#0  compute_factorial (n=1) at showdebug.c:9</span>
+<span class="c1">#1  0x00007ffff7ed40a9 in main (argc=2, argv=0x16677e0) at showdebug.c:18</span>
+<span class="c1">#2  0x3500000001652748 in ?? ()</span>
+<span class="c1">#3  0x00000000016677e0 in ?? ()</span>
+<span class="c1">#4  0x0000000000000002 in ?? ()</span>
+<span class="c1">#5  0x0000000000d953b3 in llvm::MCJIT::runFunction (this=0x16151f0, F=0x1603020, ArgValues=...) at /home/ebenders_test/llvm_svn_rw/lib/ExecutionEngine/MCJIT/MCJIT.cpp:161</span>
+<span class="c1">#6  0x0000000000dc8872 in llvm::ExecutionEngine::runFunctionAsMain (this=0x16151f0, Fn=0x1603020, argv=..., envp=0x7fffffffe040)</span>
+    at /home/ebenders_test/llvm_svn_rw/lib/ExecutionEngine/ExecutionEngine.cpp:397
+<span class="c1">#7  0x000000000059c583 in main (argc=4, argv=0x7fffffffe018, envp=0x7fffffffe040) at /home/ebenders_test/llvm_svn_rw/tools/lli/lli.cpp:324</span>
+<span class="o">(</span>gdb<span class="o">)</span> finish
+Run till <span class="nb">exit</span> from <span class="c1">#0  compute_factorial (n=1) at showdebug.c:9</span>
+0x00007ffff7ed40a9 in main <span class="o">(</span><span class="nv">argc</span><span class="o">=</span><span class="m">2</span>, <span class="nv">argv</span><span class="o">=</span>0x16677e0<span class="o">)</span> at showdebug.c:18
+<span class="m">18</span>       int <span class="nv">result</span> <span class="o">=</span> compute_factorial<span class="o">(</span>firstletter - <span class="s1">&#39;0&#39;</span><span class="o">)</span><span class="p">;</span>
+Value returned is <span class="nv">$5</span> <span class="o">=</span> <span class="m">120</span>
+<span class="o">(</span>gdb<span class="o">)</span> p result
+<span class="nv">$6</span> <span class="o">=</span> <span class="m">23406408</span>
+<span class="o">(</span>gdb<span class="o">)</span> n
+<span class="m">21</span>       <span class="k">return</span> result<span class="p">;</span>
+<span class="o">(</span>gdb<span class="o">)</span> p result
+<span class="nv">$7</span> <span class="o">=</span> <span class="m">120</span>
+<span class="o">(</span>gdb<span class="o">)</span> c
+Continuing.
+
+Program exited with code <span class="m">0170</span>.
+<span class="o">(</span>gdb<span class="o">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="GoldPlugin.html" title="The LLVM gold plugin"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="TableGen/Deficiencies.html" title="TableGen Deficiencies"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

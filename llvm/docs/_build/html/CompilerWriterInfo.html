@@ -1,0 +1,301 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Architecture &amp; Platform Information for Compiler Writers &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Extending LLVM: Adding instructions, intrinsics, types, etc." href="ExtendingLLVM.html" />
+    <link rel="prev" title="CommandLine 2.0 Library Manual" href="CommandLine.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="ExtendingLLVM.html" title="Extending LLVM: Adding instructions, intrinsics, types, etc."
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="CommandLine.html" title="CommandLine 2.0 Library Manual"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="architecture-platform-information-for-compiler-writers">
+<h1>Architecture &amp; Platform Information for Compiler Writers<a class="headerlink" href="#architecture-platform-information-for-compiler-writers" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#hardware" id="id3">Hardware</a><ul>
+<li><a class="reference internal" href="#arm" id="id4">ARM</a></li>
+<li><a class="reference internal" href="#aarch64" id="id5">AArch64</a></li>
+<li><a class="reference internal" href="#itanium-ia64" id="id6">Itanium (ia64)</a></li>
+<li><a class="reference internal" href="#mips" id="id7">MIPS</a></li>
+<li><a class="reference internal" href="#powerpc" id="id8">PowerPC</a><ul>
+<li><a class="reference internal" href="#ibm-official-manuals-and-docs" id="id9">IBM - Official manuals and docs</a></li>
+<li><a class="reference internal" href="#other-documents-collections-notes" id="id10">Other documents, collections, notes</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#r600" id="id11">R600</a></li>
+<li><a class="reference internal" href="#sparc" id="id12">SPARC</a></li>
+<li><a class="reference internal" href="#systemz" id="id13">SystemZ</a></li>
+<li><a class="reference internal" href="#x86" id="id14">X86</a><ul>
+<li><a class="reference internal" href="#amd-official-manuals-and-docs" id="id15">AMD - Official manuals and docs</a></li>
+<li><a class="reference internal" href="#intel-official-manuals-and-docs" id="id16">Intel - Official manuals and docs</a></li>
+<li><a class="reference internal" href="#other-x86-specific-information" id="id17">Other x86-specific information</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#xcore" id="id18">XCore</a></li>
+<li><a class="reference internal" href="#other-relevant-lists" id="id19">Other relevant lists</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id2" id="id20">ABI</a><ul>
+<li><a class="reference internal" href="#linux" id="id21">Linux</a></li>
+<li><a class="reference internal" href="#os-x" id="id22">OS X</a></li>
+<li><a class="reference internal" href="#windows" id="id23">Windows</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#nvptx" id="id24">NVPTX</a></li>
+<li><a class="reference internal" href="#miscellaneous-resources" id="id25">Miscellaneous Resources</a></li>
+</ul>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This document is a work-in-progress.  Additions and clarifications are
+welcome.</p>
+</div>
+<div class="section" id="hardware">
+<h2><a class="toc-backref" href="#id3">Hardware</a><a class="headerlink" href="#hardware" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="arm">
+<h3><a class="toc-backref" href="#id4">ARM</a><a class="headerlink" href="#arm" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><a class="reference external" href="http://www.arm.com/documentation/">ARM documentation</a> (<a class="reference external" href="http://www.arm.com/documentation/ARMProcessor_Cores/">Processor Cores</a> Cores)</li>
+<li><a class="reference external" href="http://www.arm.com/products/DevTools/ABI.html">ABI</a></li>
+<li><a class="reference external" href="http://infocenter.arm.com/help/topic/com.arm.doc.ihi0045d/IHI0045D_ABI_addenda.pdf">ABI Addenda and Errata</a></li>
+<li><a class="reference external" href="http://infocenter.arm.com/help/topic/com.arm.doc.ihi0053a/IHI0053A_acle.pdf">ARM C Language Extensions</a></li>
+</ul>
+</div>
+<div class="section" id="aarch64">
+<h3><a class="toc-backref" href="#id5">AArch64</a><a class="headerlink" href="#aarch64" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><a class="reference external" href="http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.genc010197a/index.html">ARMv8 Instruction Set Overview</a></li>
+<li><a class="reference external" href="http://infocenter.arm.com/help/topic/com.arm.doc.ihi0053a/IHI0053A_acle.pdf">ARM C Language Extensions</a></li>
+</ul>
+</div>
+<div class="section" id="itanium-ia64">
+<h3><a class="toc-backref" href="#id6">Itanium (ia64)</a><a class="headerlink" href="#itanium-ia64" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><a class="reference external" href="http://developer.intel.com/design/itanium2/documentation.htm">Itanium documentation</a></li>
+</ul>
+</div>
+<div class="section" id="mips">
+<h3><a class="toc-backref" href="#id7">MIPS</a><a class="headerlink" href="#mips" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><a class="reference external" href="http://imgtec.com/mips/mips-architectures.asp">MIPS Processor Architecture</a></li>
+</ul>
+</div>
+<div class="section" id="powerpc">
+<h3><a class="toc-backref" href="#id8">PowerPC</a><a class="headerlink" href="#powerpc" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="ibm-official-manuals-and-docs">
+<h4><a class="toc-backref" href="#id9">IBM - Official manuals and docs</a><a class="headerlink" href="#ibm-official-manuals-and-docs" title="Permalink to this headline">¶</a></h4>
+<ul class="simple">
+<li><a class="reference external" href="https://www.power.org/technology-introduction/standards-specifications">Power Instruction Set Architecture, Versions 2.03 through 2.06 (authentication required, free sign-up)</a></li>
+<li><a class="reference external" href="http://www.ibm.com/chips/techlib/techlib.nsf/techdocs/852569B20050FF7785256996007558C6">PowerPC Compiler Writer’s Guide</a></li>
+<li><a class="reference external" href="http://www.ibm.com/developerworks/linux/library/l-powarch/">Intro to PowerPC Architecture</a></li>
+<li><a class="reference external" href="http://www.ibm.com/chips/techlib/techlib.nsf/products/PowerPC">PowerPC Processor Manuals (embedded)</a></li>
+<li><a class="reference external" href="https://www.power.org/documentation/?document_company=105&amp;document_category=all&amp;publish_year=all&amp;grid_order=DESC&amp;grid_sort=title">Various IBM specifications and white papers</a></li>
+<li><a class="reference external" href="http://publibn.boulder.ibm.com/doc_link/en_US/a_doc_lib/aixassem/alangref/alangreftfrm.htm">IBM AIX/5L for POWER Assembly Reference</a></li>
+</ul>
+</div>
+<div class="section" id="other-documents-collections-notes">
+<h4><a class="toc-backref" href="#id10">Other documents, collections, notes</a><a class="headerlink" href="#other-documents-collections-notes" title="Permalink to this headline">¶</a></h4>
+<ul class="simple">
+<li><a class="reference external" href="http://penguinppc.org/dev/#library">PowerPC ABI documents</a></li>
+<li><a class="reference external" href="http://gcc.gnu.org/ml/gcc-patches/2003-09/msg00997.html">PowerPC64 alignment of long doubles (from GCC)</a></li>
+<li><a class="reference external" href="http://sources.redhat.com/ml/binutils/2002-04/msg00573.html">Long branch stubs for powerpc64-linux (from binutils)</a></li>
+</ul>
+</div>
+</div>
+<div class="section" id="r600">
+<h3><a class="toc-backref" href="#id11">R600</a><a class="headerlink" href="#r600" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><a class="reference external" href="http://developer.amd.com/wordpress/media/2012/10/R600_Instruction_Set_Architecture.pdf">AMD R6xx shader ISA</a></li>
+<li><a class="reference external" href="http://developer.amd.com/wordpress/media/2012/10/R700-Family_Instruction_Set_Architecture.pdf">AMD R7xx shader ISA</a></li>
+<li><a class="reference external" href="http://developer.amd.com/wordpress/media/2012/10/AMD_Evergreen-Family_Instruction_Set_Architecture.pdf">AMD Evergreen shader ISA</a></li>
+<li><a class="reference external" href="http://developer.amd.com/wordpress/media/2012/10/AMD_HD_6900_Series_Instruction_Set_Architecture.pdf">AMD Cayman/Trinity shader ISA</a></li>
+<li><a class="reference external" href="http://developer.amd.com/wordpress/media/2012/12/AMD_Southern_Islands_Instruction_Set_Architecture.pdf">AMD Southern Islands Series ISA</a></li>
+<li><a class="reference external" href="http://developer.amd.com/download/AMD_Accelerated_Parallel_Processing_OpenCL_Programming_Guide.pdf">AMD GPU Programming Guide</a></li>
+<li><a class="reference external" href="http://developer.amd.com/tools/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/documentation/">AMD Compute Resources</a></li>
+</ul>
+</div>
+<div class="section" id="sparc">
+<h3><a class="toc-backref" href="#id12">SPARC</a><a class="headerlink" href="#sparc" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><a class="reference external" href="http://sparc.org/standards">SPARC standards</a></li>
+<li><a class="reference external" href="http://sparc.org/standards/64.psabi.1.35.ps.Z">SPARC V9 ABI</a></li>
+<li><a class="reference external" href="http://sparc.org/standards/psABI3rd.pdf">SPARC V8 ABI</a></li>
+</ul>
+</div>
+<div class="section" id="systemz">
+<h3><a class="toc-backref" href="#id13">SystemZ</a><a class="headerlink" href="#systemz" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><a class="reference external" href="http://www-01.ibm.com/support/docview.wss?uid=isg2b9de5f05a9d57819852571c500428f9a">z/Architecture Principles of Operation (registration required, free sign-up)</a></li>
+</ul>
+</div>
+<div class="section" id="x86">
+<h3><a class="toc-backref" href="#id14">X86</a><a class="headerlink" href="#x86" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="amd-official-manuals-and-docs">
+<h4><a class="toc-backref" href="#id15">AMD - Official manuals and docs</a><a class="headerlink" href="#amd-official-manuals-and-docs" title="Permalink to this headline">¶</a></h4>
+<ul class="simple">
+<li><a class="reference external" href="http://www.amd.com/us-en/Processors/TechnicalResources/0,,30_182_739,00.html">AMD processor manuals</a></li>
+<li><a class="reference external" href="http://www.x86-64.org/documentation">X86-64 ABI</a></li>
+</ul>
+</div>
+<div class="section" id="intel-official-manuals-and-docs">
+<h4><a class="toc-backref" href="#id16">Intel - Official manuals and docs</a><a class="headerlink" href="#intel-official-manuals-and-docs" title="Permalink to this headline">¶</a></h4>
+<ul class="simple">
+<li><a class="reference external" href="http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html">Intel 64 and IA-32 manuals</a></li>
+<li><a class="reference external" href="http://www.intel.com/design/itanium/documentation.htm?iid=ipp_srvr_proc_itanium2+techdocs">Intel Itanium documentation</a></li>
+</ul>
+</div>
+<div class="section" id="other-x86-specific-information">
+<h4><a class="toc-backref" href="#id17">Other x86-specific information</a><a class="headerlink" href="#other-x86-specific-information" title="Permalink to this headline">¶</a></h4>
+<ul class="simple">
+<li><a class="reference external" href="http://www.agner.org/optimize/calling_conventions.pdf">Calling conventions for different C++ compilers and operating systems</a></li>
+</ul>
+</div>
+</div>
+<div class="section" id="xcore">
+<h3><a class="toc-backref" href="#id18">XCore</a><a class="headerlink" href="#xcore" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><a class="reference external" href="https://www.xmos.com/en/download/public/The-XMOS-XS1-Architecture%28X7879A%29.pdf">The XMOS XS1 Architecture (ISA)</a></li>
+<li><a class="reference external" href="https://www.xmos.com/download/public/Tools-Development-Guide%28X9114A%29.pdf">Tools Development Guide (includes ABI)</a></li>
+</ul>
+</div>
+<div class="section" id="other-relevant-lists">
+<h3><a class="toc-backref" href="#id19">Other relevant lists</a><a class="headerlink" href="#other-relevant-lists" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><a class="reference external" href="http://gcc.gnu.org/readings.html">GCC reading list</a></li>
+</ul>
+</div>
+</div>
+<div class="section" id="id2">
+<h2><a class="toc-backref" href="#id20">ABI</a><a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="http://www.sco.com/developers/gabi/latest/contents.html">System V Application Binary Interface</a></li>
+<li><a class="reference external" href="http://mentorembedded.github.io/cxx-abi/">Itanium C++ ABI</a></li>
+</ul>
+<div class="section" id="linux">
+<h3><a class="toc-backref" href="#id21">Linux</a><a class="headerlink" href="#linux" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><a class="reference external" href="http://www.linuxbase.org/spec/ELF/ppc64/">PowerPC 64-bit ELF ABI Supplement</a></li>
+<li><a class="reference external" href="http://infocenter.arm.com/help/topic/com.arm.doc.ihi0055a/IHI0055A_aapcs64.pdf">Procedure Call Standard for the AArch64 Architecture</a></li>
+<li><a class="reference external" href="http://infocenter.arm.com/help/topic/com.arm.doc.ihi0044e/IHI0044E_aaelf.pdf">ELF for the ARM Architecture</a></li>
+<li><a class="reference external" href="http://infocenter.arm.com/help/topic/com.arm.doc.ihi0056a/IHI0056A_aaelf64.pdf">ELF for the ARM 64-bit Architecture (AArch64)</a></li>
+<li><a class="reference external" href="http://legacy.redhat.com/pub/redhat/linux/7.1/es/os/s390x/doc/lzsabi0.pdf">System z ELF ABI Supplement</a></li>
+</ul>
+</div>
+<div class="section" id="os-x">
+<h3><a class="toc-backref" href="#id22">OS X</a><a class="headerlink" href="#os-x" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><a class="reference external" href="http://developer.apple.com/documentation/Darwin/RuntimeArchitecture-date.html">Mach-O Runtime Architecture</a></li>
+<li><a class="reference external" href="http://www.unsanity.org/archives/000044.php">Notes on Mach-O ABI</a></li>
+</ul>
+</div>
+<div class="section" id="windows">
+<h3><a class="toc-backref" href="#id23">Windows</a><a class="headerlink" href="#windows" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><a class="reference external" href="http://www.microsoft.com/whdc/system/platform/firmware/pecoff.mspx">Microsoft PE/COFF Specification</a></li>
+</ul>
+</div>
+</div>
+<div class="section" id="nvptx">
+<h2><a class="toc-backref" href="#id24">NVPTX</a><a class="headerlink" href="#nvptx" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="http://docs.nvidia.com/cuda/index.html">CUDA Documentation</a> includes the PTX
+ISA and Driver API documentation</li>
+</ul>
+</div>
+<div class="section" id="miscellaneous-resources">
+<h2><a class="toc-backref" href="#id25">Miscellaneous Resources</a><a class="headerlink" href="#miscellaneous-resources" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="http://www.nondot.org/sabre/os/articles/ExecutableFileFormats/">Executable File Format library</a></li>
+<li><a class="reference external" href="http://gcc.gnu.org/projects/prefetch.html">GCC prefetch project</a> page has a
+good survey of the prefetching capabilities of a variety of modern
+processors.</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="ExtendingLLVM.html" title="Extending LLVM: Adding instructions, intrinsics, types, etc."
+             >next</a> |</li>
+        <li class="right" >
+          <a href="CommandLine.html" title="CommandLine 2.0 Library Manual"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

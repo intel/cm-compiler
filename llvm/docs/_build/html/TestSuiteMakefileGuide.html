@@ -1,0 +1,348 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>LLVM test-suite Makefile Guide &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LLVM Tutorial: Table of Contents" href="tutorial/index.html" />
+    <link rel="prev" title="LLVM Testing Infrastructure Guide" href="TestingGuide.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="tutorial/index.html" title="LLVM Tutorial: Table of Contents"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="TestingGuide.html" title="LLVM Testing Infrastructure Guide"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="TestingGuide.html" accesskey="U">LLVM Testing Infrastructure Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-test-suite-makefile-guide">
+<h1>LLVM test-suite Makefile Guide<a class="headerlink" href="#llvm-test-suite-makefile-guide" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#overview" id="id1">Overview</a></li>
+<li><a class="reference internal" href="#test-suite-structure" id="id2">Test suite Structure</a></li>
+<li><a class="reference internal" href="#running-the-test-suite" id="id3">Running the test suite</a><ul>
+<li><a class="reference internal" href="#configuring-external-tests" id="id4">Configuring External Tests</a></li>
+<li><a class="reference internal" href="#running-different-tests" id="id5">Running different tests</a></li>
+<li><a class="reference internal" href="#generating-test-output" id="id6">Generating test output</a></li>
+<li><a class="reference internal" href="#writing-custom-tests-for-the-test-suite" id="id7">Writing custom tests for the test suite</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="overview">
+<h2><a class="toc-backref" href="#id1">Overview</a><a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>This document describes the features of the Makefile-based LLVM
+test-suite. This way of interacting with the test-suite is deprecated in
+favor of running the test-suite using LNT, but may continue to prove
+useful for some users. See the Testing Guide’s <a class="reference internal" href="TestingGuide.html#test-suite-quickstart"><span class="std std-ref">test-suite Quickstart</span></a> section for more information.</p>
+</div>
+<div class="section" id="test-suite-structure">
+<h2><a class="toc-backref" href="#id2">Test suite Structure</a><a class="headerlink" href="#test-suite-structure" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal"><span class="pre">test-suite</span></code> module contains a number of programs that can be
+compiled with LLVM and executed. These programs are compiled using the
+native compiler and various LLVM backends. The output from the program
+compiled with the native compiler is assumed correct; the results from
+the other programs are compared to the native program output and pass if
+they match.</p>
+<p>When executing tests, it is usually a good idea to start out with a
+subset of the available tests or programs. This makes test run times
+smaller at first and later on this is useful to investigate individual
+test failures. To run some test only on a subset of programs, simply
+change directory to the programs you want tested and run <code class="docutils literal"><span class="pre">gmake</span></code>
+there. Alternatively, you can run a different test using the <code class="docutils literal"><span class="pre">TEST</span></code>
+variable to change what tests or run on the selected programs (see below
+for more info).</p>
+<p>In addition for testing correctness, the <code class="docutils literal"><span class="pre">test-suite</span></code> directory also
+performs timing tests of various LLVM optimizations. It also records
+compilation times for the compilers and the JIT. This information can be
+used to compare the effectiveness of LLVM’s optimizations and code
+generation.</p>
+<p><code class="docutils literal"><span class="pre">test-suite</span></code> tests are divided into three types of tests: MultiSource,
+SingleSource, and External.</p>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">test-suite/SingleSource</span></code></p>
+<p>The SingleSource directory contains test programs that are only a
+single source file in size. These are usually small benchmark
+programs or small programs that calculate a particular value. Several
+such programs are grouped together in each directory.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">test-suite/MultiSource</span></code></p>
+<p>The MultiSource directory contains subdirectories which contain
+entire programs with multiple source files. Large benchmarks and
+whole applications go here.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">test-suite/External</span></code></p>
+<p>The External directory contains Makefiles for building code that is
+external to (i.e., not distributed with) LLVM. The most prominent
+members of this directory are the SPEC 95 and SPEC 2000 benchmark
+suites. The <code class="docutils literal"><span class="pre">External</span></code> directory does not contain these actual
+tests, but only the Makefiles that know how to properly compile these
+programs from somewhere else. The presence and location of these
+external programs is configured by the test-suite <code class="docutils literal"><span class="pre">configure</span></code>
+script.</p>
+</li>
+</ul>
+<p>Each tree is then subdivided into several categories, including
+applications, benchmarks, regression tests, code that is strange
+grammatically, etc. These organizations should be relatively self
+explanatory.</p>
+<p>Some tests are known to fail. Some are bugs that we have not fixed yet;
+others are features that we haven’t added yet (or may never add). In the
+regression tests, the result for such tests will be XFAIL (eXpected
+FAILure). In this way, you can tell the difference between an expected
+and unexpected failure.</p>
+<p>The tests in the test suite have no such feature at this time. If the
+test passes, only warnings and other miscellaneous output will be
+generated. If a test fails, a large &lt;program&gt; FAILED message will be
+displayed. This will help you separate benign warnings from actual test
+failures.</p>
+</div>
+<div class="section" id="running-the-test-suite">
+<h2><a class="toc-backref" href="#id3">Running the test suite</a><a class="headerlink" href="#running-the-test-suite" title="Permalink to this headline">¶</a></h2>
+<p>First, all tests are executed within the LLVM object directory tree.
+They <em>are not</em> executed inside of the LLVM source tree. This is because
+the test suite creates temporary files during execution.</p>
+<p>To run the test suite, you need to use the following steps:</p>
+<ol class="arabic">
+<li><p class="first"><code class="docutils literal"><span class="pre">cd</span></code> into the <code class="docutils literal"><span class="pre">llvm/projects</span></code> directory in your source tree.</p>
+</li>
+<li><p class="first">Check out the <code class="docutils literal"><span class="pre">test-suite</span></code> module with:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% svn co http://llvm.org/svn/llvm-project/test-suite/trunk test-suite
+</pre></div>
+</div>
+<p>This will get the test suite into <code class="docutils literal"><span class="pre">llvm/projects/test-suite</span></code>.</p>
+</li>
+<li><p class="first">Configure and build <code class="docutils literal"><span class="pre">llvm</span></code>.</p>
+</li>
+<li><p class="first">Configure and build <code class="docutils literal"><span class="pre">llvm-gcc</span></code>.</p>
+</li>
+<li><p class="first">Install <code class="docutils literal"><span class="pre">llvm-gcc</span></code> somewhere.</p>
+</li>
+<li><p class="first"><em>Re-configure</em> <code class="docutils literal"><span class="pre">llvm</span></code> from the top level of each build tree (LLVM
+object directory tree) in which you want to run the test suite, just
+as you do before building LLVM.</p>
+<p>During the <em>re-configuration</em>, you must either: (1) have <code class="docutils literal"><span class="pre">llvm-gcc</span></code>
+you just built in your path, or (2) specify the directory where your
+just-built <code class="docutils literal"><span class="pre">llvm-gcc</span></code> is installed using
+<code class="docutils literal"><span class="pre">--with-llvmgccdir=$LLVM_GCC_DIR</span></code>.</p>
+<p>You must also tell the configure machinery that the test suite is
+available so it can be configured for your build tree:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% <span class="nb">cd</span> <span class="nv">$LLVM_OBJ_ROOT</span> <span class="p">;</span> <span class="nv">$LLVM_SRC_ROOT</span>/configure <span class="o">[</span>--with-llvmgccdir<span class="o">=</span><span class="nv">$LLVM_GCC_DIR</span><span class="o">]</span>
+</pre></div>
+</div>
+<p>[Remember that <code class="docutils literal"><span class="pre">$LLVM_GCC_DIR</span></code> is the directory where you
+<em>installed</em> llvm-gcc, not its src or obj directory.]</p>
+</li>
+<li><p class="first">You can now run the test suite from your build tree as follows:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% <span class="nb">cd</span> <span class="nv">$LLVM_OBJ_ROOT</span>/projects/test-suite
+% make
+</pre></div>
+</div>
+</li>
+</ol>
+<p>Note that the second and third steps only need to be done once. After
+you have the suite checked out and configured, you don’t need to do it
+again (unless the test code or configure script changes).</p>
+<div class="section" id="configuring-external-tests">
+<h3><a class="toc-backref" href="#id4">Configuring External Tests</a><a class="headerlink" href="#configuring-external-tests" title="Permalink to this headline">¶</a></h3>
+<p>In order to run the External tests in the <code class="docutils literal"><span class="pre">test-suite</span></code> module, you
+must specify <em>–with-externals</em>. This must be done during the
+<em>re-configuration</em> step (see above), and the <code class="docutils literal"><span class="pre">llvm</span></code> re-configuration
+must recognize the previously-built <code class="docutils literal"><span class="pre">llvm-gcc</span></code>. If any of these is
+missing or neglected, the External tests won’t work.</p>
+<ul class="simple">
+<li><em>–with-externals</em></li>
+<li><em>–with-externals=&lt;directory&gt;</em></li>
+</ul>
+<p>This tells LLVM where to find any external tests. They are expected to
+be in specifically named subdirectories of &lt;<code class="docutils literal"><span class="pre">directory</span></code>&gt;. If
+<code class="docutils literal"><span class="pre">directory</span></code> is left unspecified, <code class="docutils literal"><span class="pre">configure</span></code> uses the default value
+<code class="docutils literal"><span class="pre">/home/vadve/shared/benchmarks/speccpu2000/benchspec</span></code>. Subdirectory
+names known to LLVM include:</p>
+<ul class="simple">
+<li>spec95</li>
+<li>speccpu2000</li>
+<li>speccpu2006</li>
+<li>povray31</li>
+</ul>
+<p>Others are added from time to time, and can be determined from
+<code class="docutils literal"><span class="pre">configure</span></code>.</p>
+</div>
+<div class="section" id="running-different-tests">
+<h3><a class="toc-backref" href="#id5">Running different tests</a><a class="headerlink" href="#running-different-tests" title="Permalink to this headline">¶</a></h3>
+<p>In addition to the regular “whole program” tests, the <code class="docutils literal"><span class="pre">test-suite</span></code>
+module also provides a mechanism for compiling the programs in different
+ways. If the variable TEST is defined on the <code class="docutils literal"><span class="pre">gmake</span></code> command line, the
+test system will include a Makefile named
+<code class="docutils literal"><span class="pre">TEST.&lt;value</span> <span class="pre">of</span> <span class="pre">TEST</span> <span class="pre">variable&gt;.Makefile</span></code>. This Makefile can modify
+build rules to yield different results.</p>
+<p>For example, the LLVM nightly tester uses <code class="docutils literal"><span class="pre">TEST.nightly.Makefile</span></code> to
+create the nightly test reports. To run the nightly tests, run
+<code class="docutils literal"><span class="pre">gmake</span> <span class="pre">TEST=nightly</span></code>.</p>
+<p>There are several TEST Makefiles available in the tree. Some of them are
+designed for internal LLVM research and will not work outside of the
+LLVM research group. They may still be valuable, however, as a guide to
+writing your own TEST Makefile for any optimization or analysis passes
+that you develop with LLVM.</p>
+</div>
+<div class="section" id="generating-test-output">
+<h3><a class="toc-backref" href="#id6">Generating test output</a><a class="headerlink" href="#generating-test-output" title="Permalink to this headline">¶</a></h3>
+<p>There are a number of ways to run the tests and generate output. The
+most simple one is simply running <code class="docutils literal"><span class="pre">gmake</span></code> with no arguments. This will
+compile and run all programs in the tree using a number of different
+methods and compare results. Any failures are reported in the output,
+but are likely drowned in the other output. Passes are not reported
+explicitly.</p>
+<p>Somewhat better is running <code class="docutils literal"><span class="pre">gmake</span> <span class="pre">TEST=sometest</span> <span class="pre">test</span></code>, which runs the
+specified test and usually adds per-program summaries to the output
+(depending on which sometest you use). For example, the <code class="docutils literal"><span class="pre">nightly</span></code> test
+explicitly outputs TEST-PASS or TEST-FAIL for every test after each
+program. Though these lines are still drowned in the output, it’s easy
+to grep the output logs in the Output directories.</p>
+<p>Even better are the <code class="docutils literal"><span class="pre">report</span></code> and <code class="docutils literal"><span class="pre">report.format</span></code> targets (where
+<code class="docutils literal"><span class="pre">format</span></code> is one of <code class="docutils literal"><span class="pre">html</span></code>, <code class="docutils literal"><span class="pre">csv</span></code>, <code class="docutils literal"><span class="pre">text</span></code> or <code class="docutils literal"><span class="pre">graphs</span></code>). The
+exact contents of the report are dependent on which <code class="docutils literal"><span class="pre">TEST</span></code> you are
+running, but the text results are always shown at the end of the run and
+the results are always stored in the <code class="docutils literal"><span class="pre">report.&lt;type&gt;.format</span></code> file (when
+running with <code class="docutils literal"><span class="pre">TEST=&lt;type&gt;</span></code>). The <code class="docutils literal"><span class="pre">report</span></code> also generate a file
+called <code class="docutils literal"><span class="pre">report.&lt;type&gt;.raw.out</span></code> containing the output of the entire
+test run.</p>
+</div>
+<div class="section" id="writing-custom-tests-for-the-test-suite">
+<h3><a class="toc-backref" href="#id7">Writing custom tests for the test suite</a><a class="headerlink" href="#writing-custom-tests-for-the-test-suite" title="Permalink to this headline">¶</a></h3>
+<p>Assuming you can run the test suite, (e.g.
+“<code class="docutils literal"><span class="pre">gmake</span> <span class="pre">TEST=nightly</span> <span class="pre">report</span></code>” should work), it is really easy to run
+optimizations or code generator components against every program in the
+tree, collecting statistics or running custom checks for correctness. At
+base, this is how the nightly tester works, it’s just one example of a
+general framework.</p>
+<p>Lets say that you have an LLVM optimization pass, and you want to see
+how many times it triggers. First thing you should do is add an LLVM
+<a class="reference external" href="ProgrammersManual.html#Statistic">statistic</a> to your pass, which will
+tally counts of things you care about.</p>
+<p>Following this, you can set up a test and a report that collects these
+and formats them for easy viewing. This consists of two files, a
+“<code class="docutils literal"><span class="pre">test-suite/TEST.XXX.Makefile</span></code>” fragment (where XXX is the name of
+your test) and a “<code class="docutils literal"><span class="pre">test-suite/TEST.XXX.report</span></code>” file that indicates
+how to format the output into a table. There are many example reports of
+various levels of sophistication included with the test suite, and the
+framework is very general.</p>
+<p>If you are interested in testing an optimization pass, check out the
+“libcalls” test as an example. It can be run like this:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% <span class="nb">cd</span> llvm/projects/test-suite/MultiSource/Benchmarks  <span class="c1"># or some other level</span>
+% make <span class="nv">TEST</span><span class="o">=</span>libcalls report
+</pre></div>
+</div>
+<p>This will do a bunch of stuff, then eventually print a table like this:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Name</span>                                  <span class="o">|</span> <span class="n">total</span> <span class="o">|</span> <span class="c1">#exit |</span>
+<span class="o">...</span>
+<span class="n">FreeBench</span><span class="o">/</span><span class="n">analyzer</span><span class="o">/</span><span class="n">analyzer</span>           <span class="o">|</span> <span class="mi">51</span>    <span class="o">|</span> <span class="mi">6</span>     <span class="o">|</span>
+<span class="n">FreeBench</span><span class="o">/</span><span class="n">fourinarow</span><span class="o">/</span><span class="n">fourinarow</span>       <span class="o">|</span> <span class="mi">1</span>     <span class="o">|</span> <span class="mi">1</span>     <span class="o">|</span>
+<span class="n">FreeBench</span><span class="o">/</span><span class="n">neural</span><span class="o">/</span><span class="n">neural</span>               <span class="o">|</span> <span class="mi">19</span>    <span class="o">|</span> <span class="mi">9</span>     <span class="o">|</span>
+<span class="n">FreeBench</span><span class="o">/</span><span class="n">pifft</span><span class="o">/</span><span class="n">pifft</span>                 <span class="o">|</span> <span class="mi">5</span>     <span class="o">|</span> <span class="mi">3</span>     <span class="o">|</span>
+<span class="n">MallocBench</span><span class="o">/</span><span class="n">cfrac</span><span class="o">/</span><span class="n">cfrac</span>               <span class="o">|</span> <span class="mi">1</span>     <span class="o">|</span> <span class="o">*</span>     <span class="o">|</span>
+<span class="n">MallocBench</span><span class="o">/</span><span class="n">espresso</span><span class="o">/</span><span class="n">espresso</span>         <span class="o">|</span> <span class="mi">52</span>    <span class="o">|</span> <span class="mi">12</span>    <span class="o">|</span>
+<span class="n">MallocBench</span><span class="o">/</span><span class="n">gs</span><span class="o">/</span><span class="n">gs</span>                     <span class="o">|</span> <span class="mi">4</span>     <span class="o">|</span> <span class="o">*</span>     <span class="o">|</span>
+<span class="n">Prolangs</span><span class="o">-</span><span class="n">C</span><span class="o">/</span><span class="n">TimberWolfMC</span><span class="o">/</span><span class="n">timberwolfmc</span>  <span class="o">|</span> <span class="mi">302</span>   <span class="o">|</span> <span class="o">*</span>     <span class="o">|</span>
+<span class="n">Prolangs</span><span class="o">-</span><span class="n">C</span><span class="o">/</span><span class="n">agrep</span><span class="o">/</span><span class="n">agrep</span>                <span class="o">|</span> <span class="mi">33</span>    <span class="o">|</span> <span class="mi">12</span>    <span class="o">|</span>
+<span class="n">Prolangs</span><span class="o">-</span><span class="n">C</span><span class="o">/</span><span class="n">allroots</span><span class="o">/</span><span class="n">allroots</span>          <span class="o">|</span> <span class="o">*</span>     <span class="o">|</span> <span class="o">*</span>     <span class="o">|</span>
+<span class="n">Prolangs</span><span class="o">-</span><span class="n">C</span><span class="o">/</span><span class="n">assembler</span><span class="o">/</span><span class="n">assembler</span>        <span class="o">|</span> <span class="mi">47</span>    <span class="o">|</span> <span class="o">*</span>     <span class="o">|</span>
+<span class="n">Prolangs</span><span class="o">-</span><span class="n">C</span><span class="o">/</span><span class="n">bison</span><span class="o">/</span><span class="n">mybison</span>              <span class="o">|</span> <span class="mi">74</span>    <span class="o">|</span> <span class="o">*</span>     <span class="o">|</span>
+<span class="o">...</span>
+</pre></div>
+</div>
+<p>This basically is grepping the -stats output and displaying it in a
+table. You can also use the “TEST=libcalls report.html” target to get
+the table in HTML form, similarly for report.csv and report.tex.</p>
+<p>The source for this is in <code class="docutils literal"><span class="pre">test-suite/TEST.libcalls.*</span></code>. The format is
+pretty simple: the Makefile indicates how to run the test (in this case,
+“<code class="docutils literal"><span class="pre">opt</span> <span class="pre">-simplify-libcalls</span> <span class="pre">-stats</span></code>”), and the report contains one line
+for each column of the output. The first value is the header for the
+column and the second is the regex to grep the output of the command
+for. There are lots of example reports that can do fancy stuff.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="tutorial/index.html" title="LLVM Tutorial: Table of Contents"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="TestingGuide.html" title="LLVM Testing Infrastructure Guide"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="TestingGuide.html" >LLVM Testing Infrastructure Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,257 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>opt - LLVM optimizer &#8212; LLVM 3.4 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '3.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llc - LLVM static compiler" href="llc.html" />
+    <link rel="prev" title="llvm-dis - LLVM disassembler" href="llvm-dis.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llc.html" title="llc - LLVM static compiler"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llvm-dis.html" title="llvm-dis - LLVM disassembler"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="opt-llvm-optimizer">
+<h1>opt - LLVM optimizer<a class="headerlink" href="#opt-llvm-optimizer" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">opt</strong> [<em>options</em>] [<em>filename</em>]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>The <strong class="program">opt</strong> command is the modular LLVM optimizer and analyzer.  It
+takes LLVM source files as input, runs the specified optimizations or analyses
+on it, and then outputs the optimized file or the analysis results.  The
+function of <strong class="program">opt</strong> depends on whether the <cite>-analyze</cite> option is
+given.</p>
+<p>When <cite>-analyze</cite> is specified, <strong class="program">opt</strong> performs various analyses
+of the input source.  It will usually print the results on standard output, but
+in a few cases, it will print output to standard error or generate a file with
+the analysis output, which is usually done when the output is meant for another
+program.</p>
+<p>While <cite>-analyze</cite> is <em>not</em> given, <strong class="program">opt</strong> attempts to produce an
+optimized output file.  The optimizations available via <strong class="program">opt</strong> depend
+upon what libraries were linked into it as well as any additional libraries
+that have been loaded with the <a class="reference internal" href="#cmdoption-load"><code class="xref std std-option docutils literal"><span class="pre">-load</span></code></a> option.  Use the <a class="reference internal" href="#cmdoption-help"><code class="xref std std-option docutils literal"><span class="pre">-help</span></code></a>
+option to determine what optimizations you can use.</p>
+<p>If <code class="docutils literal"><span class="pre">filename</span></code> is omitted from the command line or is “<code class="docutils literal"><span class="pre">-</span></code>“, <strong class="program">opt</strong>
+reads its input from standard input.  Inputs can be in either the LLVM assembly
+language format (<code class="docutils literal"><span class="pre">.ll</span></code>) or the LLVM bitcode format (<code class="docutils literal"><span class="pre">.bc</span></code>).</p>
+<p>If an output filename is not specified with the <a class="reference internal" href="#cmdoption-o"><code class="xref std std-option docutils literal"><span class="pre">-o</span></code></a> option,
+<strong class="program">opt</strong> writes its output to the standard output.</p>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl class="option">
+<dt id="cmdoption-f">
+<code class="descname">-f</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-f" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable binary output on terminals.  Normally, <strong class="program">opt</strong> will refuse to
+write raw bitcode output if the output stream is a terminal.  With this option,
+<strong class="program">opt</strong> will write raw bitcode regardless of the output device.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-help">
+<code class="descname">-help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-help" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print a summary of command line options.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-o">
+<code class="descname">-o</code><code class="descclassname"> &lt;filename&gt;</code><a class="headerlink" href="#cmdoption-o" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the output filename.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-s">
+<code class="descname">-S</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-s" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write output in LLVM intermediate language (instead of bitcode).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-passname">
+<code class="descname">-{passname}</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-passname" title="Permalink to this definition">¶</a></dt>
+<dd><p><strong class="program">opt</strong> provides the ability to run any of LLVM’s optimization or
+analysis passes in any order.  The <a class="reference internal" href="#cmdoption-help"><code class="xref std std-option docutils literal"><span class="pre">-help</span></code></a> option lists all the passes
+available.  The order in which the options occur on the command line are the
+order in which they are executed (within pass constraints).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-std-compile-opts">
+<code class="descname">-std-compile-opts</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-std-compile-opts" title="Permalink to this definition">¶</a></dt>
+<dd><p>This is short hand for a standard list of <em>compile time optimization</em> passes.
+It might be useful for other front end compilers as well.  To discover the
+full set of options available, use the following command:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span>llvm-as &lt; /dev/null <span class="p">|</span> opt -std-compile-opts -disable-output -debug-pass<span class="o">=</span>Arguments
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-disable-inlining">
+<code class="descname">-disable-inlining</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-disable-inlining" title="Permalink to this definition">¶</a></dt>
+<dd><p>This option is only meaningful when <a class="reference internal" href="#cmdoption-std-compile-opts"><code class="xref std std-option docutils literal"><span class="pre">-std-compile-opts</span></code></a> is given.  It
+simply removes the inlining pass from the standard list.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-disable-opt">
+<code class="descname">-disable-opt</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-disable-opt" title="Permalink to this definition">¶</a></dt>
+<dd><p>This option is only meaningful when <a class="reference internal" href="#cmdoption-std-compile-opts"><code class="xref std std-option docutils literal"><span class="pre">-std-compile-opts</span></code></a> is given.  It
+disables most, but not all, of the <a class="reference internal" href="#cmdoption-std-compile-opts"><code class="xref std std-option docutils literal"><span class="pre">-std-compile-opts</span></code></a>.  The ones that
+remain are <cite>-verify</cite>, <cite>-lower-setjmp</cite>, and
+<cite>-funcresolve</cite>.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-strip-debug">
+<code class="descname">-strip-debug</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-strip-debug" title="Permalink to this definition">¶</a></dt>
+<dd><p>This option causes opt to strip debug information from the module before
+applying other optimizations.  It is essentially the same as <cite>-strip</cite>
+but it ensures that stripping of debug information is done first.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-verify-each">
+<code class="descname">-verify-each</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-verify-each" title="Permalink to this definition">¶</a></dt>
+<dd><p>This option causes opt to add a verify pass after every pass otherwise
+specified on the command line (including <cite>-verify</cite>).  This is useful
+for cases where it is suspected that a pass is creating an invalid module but
+it is not clear which pass is doing it.  The combination of
+<a class="reference internal" href="#cmdoption-std-compile-opts"><code class="xref std std-option docutils literal"><span class="pre">-std-compile-opts</span></code></a> and <a class="reference internal" href="#cmdoption-verify-each"><code class="xref std std-option docutils literal"><span class="pre">-verify-each</span></code></a> can quickly track down
+this kind of problem.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-stats">
+<code class="descname">-stats</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print statistics.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-time-passes">
+<code class="descname">-time-passes</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-time-passes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Record the amount of time needed for each pass and print it to standard
+error.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-debug">
+<code class="descname">-debug</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-debug" title="Permalink to this definition">¶</a></dt>
+<dd><p>If this is a debug build, this option will enable debug printouts from passes
+which use the <code class="docutils literal"><span class="pre">DEBUG()</span></code> macro.  See the <a class="reference external" href="../ProgrammersManual.html">LLVM Programmer’s Manual</a>, section <code class="docutils literal"><span class="pre">#DEBUG</span></code> for more information.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-load">
+<code class="descname">-load</code><code class="descclassname">=&lt;plugin&gt;</code><a class="headerlink" href="#cmdoption-load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load the dynamic object <code class="docutils literal"><span class="pre">plugin</span></code>.  This object should register new
+optimization or analysis passes.  Once loaded, the object will add new command
+line options to enable various optimizations or analyses.  To see the new
+complete list of optimizations, use the <a class="reference internal" href="#cmdoption-help"><code class="xref std std-option docutils literal"><span class="pre">-help</span></code></a> and <a class="reference internal" href="#cmdoption-load"><code class="xref std std-option docutils literal"><span class="pre">-load</span></code></a>
+options together.  For example:</p>
+<div class="highlight-sh"><div class="highlight"><pre><span></span>opt -load<span class="o">=</span>plugin.so -help
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-p">
+<code class="descname">-p</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-p" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print module after each transformation.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p>If <strong class="program">opt</strong> succeeds, it will exit with 0.  Otherwise, if an error
+occurs, it will exit with a non-zero value.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llc.html" title="llc - LLVM static compiler"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llvm-dis.html" title="llvm-dis - LLVM disassembler"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2014, LLVM Project.
+      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>
