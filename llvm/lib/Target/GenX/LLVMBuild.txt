@@ -1,0 +1,38 @@
+;===- ./lib/Target/CppBackend/LLVMBuild.txt --------------------*- Conf -*--===;
+;
+;                     The LLVM Compiler Infrastructure
+;
+; This file is distributed under the University of Illinois Open Source
+; License. See LICENSE.TXT for details.
+;
+;  Copyright  (C) 2014 Intel Corporation. All rights reserved.
+;
+; The information and source code contained herein is the exclusive
+; property of Intel Corporation and may not be disclosed, examined
+; or reproduced in whole or in part without explicit written authorization
+; from the company.
+;
+;===------------------------------------------------------------------------===;
+;
+; This is an LLVMBuild description file for the components in this subdirectory.
+;
+; For more information on the LLVMBuild system, please see:
+;
+;   http://llvm.org/docs/LLVMBuild.html
+;
+;===------------------------------------------------------------------------===;
+
+[common]
+subdirectories = TargetInfo
+
+[component_0]
+type = TargetGroup
+name = GenX
+parent = Target
+
+[component_1]
+type = Library
+name = GenXCodeGen
+parent = GenX
+required_libraries = Core GenXInfo Support Target
+add_to_library_groups = GenX
