@@ -343,10 +343,10 @@ these are currently not used.</p>
 <li>isSKL - true if target is SKL</li>
 <li>isSKLplus - true if target is SKL or later</li>
 <li>isBXT - true if target is BXT</li>
-<li>isGLV - true if target is GLV</li>
 <li>isKBL - true if target is KBL</li>
 <li>isGLK - true if target is GLK</li>
 <li>isCNL - true if target is CNL</li>
+<li>isCNLplus - true if target is CNL or later</li>
 <li>dumpRegAlloc - true if we should dump Reg Alloc info</li>
 <li>svmptrIs32Bit - true if svmptr_t is 32 bit</li>
 <li>svmptrIs64Bit - true if svmptr_t is 64 bit</li>
@@ -373,41 +373,43 @@ crossing one GRF boundary</li>
 <li><a class="reference internal" href="#genxreduceintsize" id="id15">GenXReduceIntSize</a></li>
 <li><a class="reference internal" href="#instructioncombining" id="id16">InstructionCombining</a></li>
 <li><a class="reference internal" href="#genxsimdcfconformance" id="id17">GenXSimdCFConformance</a></li>
-<li><a class="reference internal" href="#genxlowering" id="id18">GenXLowering</a></li>
-<li><a class="reference internal" href="#genxregioncollapsing" id="id19">GenXRegionCollapsing</a></li>
-<li><a class="reference internal" href="#earlycse" id="id20">EarlyCSE</a></li>
-<li><a class="reference internal" href="#genxpatternmatch" id="id21">GenXPatternMatch</a></li>
-<li><a class="reference internal" href="#genxextractvectorizer" id="id22">GenXExtractVectorizer</a></li>
-<li><a class="reference internal" href="#deadcodeelimination" id="id23">DeadCodeElimination</a></li>
-<li><a class="reference internal" href="#genxbaling" id="id24">GenXBaling</a></li>
-<li><a class="reference internal" href="#genxlegalization" id="id25">GenXLegalization</a></li>
-<li><a class="reference internal" href="#genxdeadvectorremoval" id="id26">GenXDeadVectorRemoval</a></li>
-<li><a class="reference internal" href="#id2" id="id27">DeadCodeElimination</a></li>
-<li><a class="reference internal" href="#genxpostlegalization" id="id28">GenXPostLegalization</a></li>
-<li><a class="reference internal" href="#genxconstants" id="id29">GenXConstants</a></li>
-<li><a class="reference internal" href="#genxvectordecomposer" id="id30">GenXVectorDecomposer</a></li>
-<li><a class="reference internal" href="#id3" id="id31">EarlyCSE</a></li>
-<li><a class="reference internal" href="#licm" id="id32">LICM</a></li>
-<li><a class="reference internal" href="#id4" id="id33">DeadCodeElimination</a></li>
-<li><a class="reference internal" href="#breakcriticaledges" id="id34">BreakCriticalEdges</a></li>
-<li><a class="reference internal" href="#functiongroup" id="id35">FunctionGroup</a></li>
-<li><a class="reference internal" href="#genxmodule" id="id36">GenXModule</a></li>
-<li><a class="reference internal" href="#genxliveness" id="id37">GenXLiveness</a></li>
-<li><a class="reference internal" href="#genxrematerialization" id="id38">GenXRematerialization</a></li>
-<li><a class="reference internal" href="#genxcategory" id="id39">GenXCategory</a></li>
-<li><a class="reference internal" href="#late-simd-cf-conformance-pass" id="id40">Late SIMD CF conformance pass</a></li>
-<li><a class="reference internal" href="#codegen-baling-pass" id="id41">CodeGen baling pass</a></li>
-<li><a class="reference internal" href="#genxdepressurizer" id="id42">GenXDepressurizer</a></li>
-<li><a class="reference internal" href="#genxunbaling" id="id43">GenXUnbaling</a></li>
-<li><a class="reference internal" href="#genxnumbering" id="id44">GenXNumbering</a></li>
-<li><a class="reference internal" href="#genxliveranges" id="id45">GenXLiveRanges</a></li>
-<li><a class="reference internal" href="#genxcoalescing" id="id46">GenXCoalescing</a></li>
-<li><a class="reference internal" href="#genxaddresscommoning" id="id47">GenXAddressCommoning</a></li>
-<li><a class="reference internal" href="#genxargindirection" id="id48">GenXArgIndirection</a></li>
-<li><a class="reference internal" href="#genxtidycontrolflow" id="id49">GenXTidyControlFlow</a></li>
-<li><a class="reference internal" href="#genxvisaregalloc" id="id50">GenXVisaRegAlloc</a></li>
-<li><a class="reference internal" href="#genxvisafuncwriter" id="id51">GenXVisaFuncWriter</a></li>
-<li><a class="reference internal" href="#genxvisawriter" id="id52">GenXVisaWriter</a></li>
+<li><a class="reference internal" href="#genxpromotepredicate" id="id18">GenXPromotePredicate</a></li>
+<li><a class="reference internal" href="#genxlowering" id="id19">GenXLowering</a></li>
+<li><a class="reference internal" href="#genxregioncollapsing" id="id20">GenXRegionCollapsing</a></li>
+<li><a class="reference internal" href="#earlycse" id="id21">EarlyCSE</a></li>
+<li><a class="reference internal" href="#genxpatternmatch" id="id22">GenXPatternMatch</a></li>
+<li><a class="reference internal" href="#genxextractvectorizer" id="id23">GenXExtractVectorizer</a></li>
+<li><a class="reference internal" href="#genxrawsendripper" id="id24">GenXRawSendRipper</a></li>
+<li><a class="reference internal" href="#deadcodeelimination" id="id25">DeadCodeElimination</a></li>
+<li><a class="reference internal" href="#genxbaling" id="id26">GenXBaling</a></li>
+<li><a class="reference internal" href="#genxlegalization" id="id27">GenXLegalization</a></li>
+<li><a class="reference internal" href="#genxdeadvectorremoval" id="id28">GenXDeadVectorRemoval</a></li>
+<li><a class="reference internal" href="#id2" id="id29">DeadCodeElimination</a></li>
+<li><a class="reference internal" href="#genxpostlegalization" id="id30">GenXPostLegalization</a></li>
+<li><a class="reference internal" href="#genxconstants" id="id31">GenXConstants</a></li>
+<li><a class="reference internal" href="#genxvectordecomposer" id="id32">GenXVectorDecomposer</a></li>
+<li><a class="reference internal" href="#id3" id="id33">EarlyCSE</a></li>
+<li><a class="reference internal" href="#licm" id="id34">LICM</a></li>
+<li><a class="reference internal" href="#id4" id="id35">DeadCodeElimination</a></li>
+<li><a class="reference internal" href="#breakcriticaledges" id="id36">BreakCriticalEdges</a></li>
+<li><a class="reference internal" href="#functiongroup" id="id37">FunctionGroup</a></li>
+<li><a class="reference internal" href="#genxmodule" id="id38">GenXModule</a></li>
+<li><a class="reference internal" href="#genxliveness" id="id39">GenXLiveness</a></li>
+<li><a class="reference internal" href="#genxrematerialization" id="id40">GenXRematerialization</a></li>
+<li><a class="reference internal" href="#genxcategory" id="id41">GenXCategory</a></li>
+<li><a class="reference internal" href="#late-simd-cf-conformance-pass" id="id42">Late SIMD CF conformance pass</a></li>
+<li><a class="reference internal" href="#codegen-baling-pass" id="id43">CodeGen baling pass</a></li>
+<li><a class="reference internal" href="#genxunbaling" id="id44">GenXUnbaling</a></li>
+<li><a class="reference internal" href="#genxdepressurizer" id="id45">GenXDepressurizer</a></li>
+<li><a class="reference internal" href="#genxnumbering" id="id46">GenXNumbering</a></li>
+<li><a class="reference internal" href="#genxliveranges" id="id47">GenXLiveRanges</a></li>
+<li><a class="reference internal" href="#genxcoalescing" id="id48">GenXCoalescing</a></li>
+<li><a class="reference internal" href="#genxaddresscommoning" id="id49">GenXAddressCommoning</a></li>
+<li><a class="reference internal" href="#genxargindirection" id="id50">GenXArgIndirection</a></li>
+<li><a class="reference internal" href="#genxtidycontrolflow" id="id51">GenXTidyControlFlow</a></li>
+<li><a class="reference internal" href="#genxvisaregalloc" id="id52">GenXVisaRegAlloc</a></li>
+<li><a class="reference internal" href="#genxvisafuncwriter" id="id53">GenXVisaFuncWriter</a></li>
+<li><a class="reference internal" href="#genxvisawriter" id="id54">GenXVisaWriter</a></li>
 </ul>
 </div>
 <div class="section" id="basicaliasanalysis">
@@ -628,8 +630,14 @@ in sequence.</p>
 (since this pass lowers any that do not).</p>
 </div>
 </div>
+<div class="section" id="genxpromotepredicate">
+<h3><a class="toc-backref" href="#id18">GenXPromotePredicate</a><a class="headerlink" href="#genxpromotepredicate" title="Permalink to this headline">¶</a></h3>
+<p>GenXPromotePredicate is an optimization pass that promotes vector operations
+on predicates (n x i1) to operations on wider integer types (&lt;n x i16&gt;).
+This often reduces flag register pressure and improves code quality.</p>
+</div>
 <div class="section" id="genxlowering">
-<h3><a class="toc-backref" href="#id18">GenXLowering</a><a class="headerlink" href="#genxlowering" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id19">GenXLowering</a><a class="headerlink" href="#genxlowering" title="Permalink to this headline">¶</a></h3>
 <p>GenXLowering is a function pass that lowers certain LLVM IR instructions
 that the rest of the GenX backend cannot deal with, or to implement peephole
 optimizations.</p>
@@ -694,7 +702,7 @@ general rule; subsequent passes have been known to reintroduce them so
 GenXLiveness has another go at splitting them up.</p>
 </div>
 <div class="section" id="genxregioncollapsing">
-<h3><a class="toc-backref" href="#id19">GenXRegionCollapsing</a><a class="headerlink" href="#genxregioncollapsing" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id20">GenXRegionCollapsing</a><a class="headerlink" href="#genxregioncollapsing" title="Permalink to this headline">¶</a></h3>
 <p>GenX region collapsing pass is function pass that collapses nested
 read regions or nested write regions.</p>
 <p>Nested region accesses can occur in two ways (or a mixture of both):</p>
@@ -714,13 +722,13 @@ multiple bitcasts (from CM format()) or up to one SExt/ZExt (from a cast) in
 between.</p>
 </div>
 <div class="section" id="earlycse">
-<h3><a class="toc-backref" href="#id20">EarlyCSE</a><a class="headerlink" href="#earlycse" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id21">EarlyCSE</a><a class="headerlink" href="#earlycse" title="Permalink to this headline">¶</a></h3>
 <p>This is a standard LLVM pass, run at this point in the GenX backend.
 It commons up common subexpressions, but only in the case that two common
 subexpressions are related by one dominating the other.</p>
 </div>
 <div class="section" id="genxpatternmatch">
-<h3><a class="toc-backref" href="#id21">GenXPatternMatch</a><a class="headerlink" href="#genxpatternmatch" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id22">GenXPatternMatch</a><a class="headerlink" href="#genxpatternmatch" title="Permalink to this headline">¶</a></h3>
 <p>This pass performs a small number of GenX-specific peephole optimizations.</p>
 <p>It is named <em>pattern match</em> with the idea that it is analogous to the
 pattern matching pass in IGC. However IGC’s pattern matching is more
@@ -757,7 +765,7 @@ would need to be a has32x32Multiply flag in GenXSubtarget.</p>
 reciprocal is exact.</p>
 </div>
 <div class="section" id="genxextractvectorizer">
-<h3><a class="toc-backref" href="#id22">GenXExtractVectorizer</a><a class="headerlink" href="#genxextractvectorizer" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id23">GenXExtractVectorizer</a><a class="headerlink" href="#genxextractvectorizer" title="Permalink to this headline">¶</a></h3>
 <p>GenX extract vectorizer pass is stage 1 of the histogram optimization: if
 there are multiple scalar rdregions from the same vector, all subject
 to the same binary operator with constant rhs or the same trunc/zext/sext,
@@ -766,13 +774,18 @@ trunc/zext/sext, with scalar rdregions from the result of that. This is
 designed to handle any trunc/zext/sext then scale of the index in the
 histogram optimization, although it does also apply in a few other cases.</p>
 </div>
+<div class="section" id="genxrawsendripper">
+<h3><a class="toc-backref" href="#id24">GenXRawSendRipper</a><a class="headerlink" href="#genxrawsendripper" title="Permalink to this headline">¶</a></h3>
+<p>This pass tears down a series of raw send chained through the old value
+operand when it’s safe.</p>
+</div>
 <div class="section" id="deadcodeelimination">
-<h3><a class="toc-backref" href="#id23">DeadCodeElimination</a><a class="headerlink" href="#deadcodeelimination" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id25">DeadCodeElimination</a><a class="headerlink" href="#deadcodeelimination" title="Permalink to this headline">¶</a></h3>
 <p>This is a standard LLVM pass, run at this point in the GenX backend. It
 removes code that has been made dead by other passes.</p>
 </div>
 <div class="section" id="genxbaling">
-<h3><a class="toc-backref" href="#id24">GenXBaling</a><a class="headerlink" href="#genxbaling" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id26">GenXBaling</a><a class="headerlink" href="#genxbaling" title="Permalink to this headline">¶</a></h3>
 <p>GenX instruction baling is the process of determining which LLVM instructions
 can be combined into a single vISA instruction. Such a group of LLVM
 instructions is known as a <em>bale</em>. A bale typically has a <em>main instruction</em>
@@ -949,7 +962,7 @@ requirements on the vISA register that the region is read from or written to.</p
 </div>
 </div>
 <div class="section" id="genxlegalization">
-<h3><a class="toc-backref" href="#id25">GenXLegalization</a><a class="headerlink" href="#genxlegalization" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id27">GenXLegalization</a><a class="headerlink" href="#genxlegalization" title="Permalink to this headline">¶</a></h3>
 <p>GenXLegalization is a function pass that splits vector instructions
 up to make execution widths legal, and to ensure that the GRF crossing rules
 are satisfied.</p>
@@ -1065,7 +1078,7 @@ is a handy place to put it.</p>
 </div>
 </div>
 <div class="section" id="genxdeadvectorremoval">
-<h3><a class="toc-backref" href="#id26">GenXDeadVectorRemoval</a><a class="headerlink" href="#genxdeadvectorremoval" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id28">GenXDeadVectorRemoval</a><a class="headerlink" href="#genxdeadvectorremoval" title="Permalink to this headline">¶</a></h3>
 <p>GenXDeadVectorRemoval is an aggressive dead code removal pass that analyzes
 individual elements of a vector rather than whole values.</p>
 <p>As a result of this analysis, the pass can then make the two following
@@ -1089,12 +1102,12 @@ between.</li>
 </ol>
 </div>
 <div class="section" id="id2">
-<h3><a class="toc-backref" href="#id27">DeadCodeElimination</a><a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id29">DeadCodeElimination</a><a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
 <p>This is a standard LLVM pass, run at this point in the GenX backend. It
 removes code that has been made dead by other passes.</p>
 </div>
 <div class="section" id="genxpostlegalization">
-<h3><a class="toc-backref" href="#id28">GenXPostLegalization</a><a class="headerlink" href="#genxpostlegalization" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id30">GenXPostLegalization</a><a class="headerlink" href="#genxpostlegalization" title="Permalink to this headline">¶</a></h3>
 <p>GenXPostLegalization is a function pass run after legalization with the
 following purposes:</p>
 <ol class="arabic simple">
@@ -1108,7 +1121,7 @@ loads and decomposed vector operations) may benefit from CSE run after
 this pass.</p>
 </div>
 <div class="section" id="genxconstants">
-<h3><a class="toc-backref" href="#id29">GenXConstants</a><a class="headerlink" href="#genxconstants" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id31">GenXConstants</a><a class="headerlink" href="#genxconstants" title="Permalink to this headline">¶</a></h3>
 <p>GenXConstants is not in itself a pass. It contains utility functions and a
 class used by other passes for constant loading.</p>
 <div class="section" id="loadnonsimpleconstants">
@@ -1168,7 +1181,7 @@ methods to insert the code to load the constant.</p>
 </div>
 </div>
 <div class="section" id="genxvectordecomposer">
-<h3><a class="toc-backref" href="#id30">GenXVectorDecomposer</a><a class="headerlink" href="#genxvectordecomposer" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id32">GenXVectorDecomposer</a><a class="headerlink" href="#genxvectordecomposer" title="Permalink to this headline">¶</a></h3>
 <p>GenXVectorDecomposer is not a pass; instead it is a class is called by by
 the GenXPostLegalization pass to perform vector decomposition.</p>
 <p>For a vector written by wrregion and read by rdregion, it finds the way that
@@ -1185,23 +1198,23 @@ reduces register fragmentation in the finalizer’s register allocator.</p>
 changes made by the vector decomposer.</p>
 </div>
 <div class="section" id="id3">
-<h3><a class="toc-backref" href="#id31">EarlyCSE</a><a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id33">EarlyCSE</a><a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h3>
 <p>This is a standard LLVM pass, run at this point in the GenX backend.
 It commons up common subexpressions, but only in the case that two common
 subexpressions are related by one dominating the other.</p>
 </div>
 <div class="section" id="licm">
-<h3><a class="toc-backref" href="#id32">LICM</a><a class="headerlink" href="#licm" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id34">LICM</a><a class="headerlink" href="#licm" title="Permalink to this headline">¶</a></h3>
 <p>This is a standard LLVM pass to hoist/sink the loop invariant code after
 legalization.</p>
 </div>
 <div class="section" id="id4">
-<h3><a class="toc-backref" href="#id33">DeadCodeElimination</a><a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id35">DeadCodeElimination</a><a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h3>
 <p>This is a standard LLVM pass, run at this point in the GenX backend. It
 removes code that has been made dead by other passes.</p>
 </div>
 <div class="section" id="breakcriticaledges">
-<h3><a class="toc-backref" href="#id34">BreakCriticalEdges</a><a class="headerlink" href="#breakcriticaledges" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id36">BreakCriticalEdges</a><a class="headerlink" href="#breakcriticaledges" title="Permalink to this headline">¶</a></h3>
 <p>In the control flow graph, a critical edge is one from a basic block with
 multiple successors (a conditional branch) to a basic block with multiple
 predecessors.</p>
@@ -1209,7 +1222,7 @@ predecessors.</p>
 GenXCoalescing has somewhere to insert a phi copy if needed.</p>
 </div>
 <div class="section" id="functiongroup">
-<h3><a class="toc-backref" href="#id35">FunctionGroup</a><a class="headerlink" href="#functiongroup" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id37">FunctionGroup</a><a class="headerlink" href="#functiongroup" title="Permalink to this headline">¶</a></h3>
 <p>FunctionGroup is a generic mechanism for maintaining a group of Functions.</p>
 <p>FunctionGroupAnalysis is a Module analysis that maintains all the
 FunctionGroups in the Module. It is up to some other pass to use
@@ -1221,7 +1234,7 @@ runs a pass instance per FunctionGroup.</p>
 is used. It could be moved somewhere more general.</p>
 </div>
 <div class="section" id="genxmodule">
-<h3><a class="toc-backref" href="#id36">GenXModule</a><a class="headerlink" href="#genxmodule" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id38">GenXModule</a><a class="headerlink" href="#genxmodule" title="Permalink to this headline">¶</a></h3>
 <p>GenXModule is a module pass whose purpose is to store information
 about the module being written, such as the built kernels and functions.</p>
 <p>A vISA kernel or function can call a <em>subroutine</em>, which can
@@ -1243,7 +1256,7 @@ FunctionGroup are its subroutines.  A (non-intrinsic) call must be to a
 function in the same FunctionGroup, and not the lead function.</p>
 </div>
 <div class="section" id="genxliveness">
-<h3><a class="toc-backref" href="#id37">GenXLiveness</a><a class="headerlink" href="#genxliveness" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id39">GenXLiveness</a><a class="headerlink" href="#genxliveness" title="Permalink to this headline">¶</a></h3>
 <p>GenXLiveness is an analysis that contains the liveness information for the
 values in the code. Unlike the usual LLVM liveness analysis, the values
 are in LLVM IR rather than machine IR.</p>
@@ -1364,11 +1377,11 @@ if the incoming value is also used in the branch’s other successor.</p>
 </div>
 </div>
 <div class="section" id="genxrematerialization">
-<h3><a class="toc-backref" href="#id38">GenXRematerialization</a><a class="headerlink" href="#genxrematerialization" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id40">GenXRematerialization</a><a class="headerlink" href="#genxrematerialization" title="Permalink to this headline">¶</a></h3>
 <p>This pass performs rematerialization to reduce register pressure.</p>
 </div>
 <div class="section" id="genxcategory">
-<h3><a class="toc-backref" href="#id39">GenXCategory</a><a class="headerlink" href="#genxcategory" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id41">GenXCategory</a><a class="headerlink" href="#genxcategory" title="Permalink to this headline">¶</a></h3>
 <p>This pass performs five functions:</p>
 <ol class="arabic">
 <li><p class="first">It splits any struct phi into a phi for each element of the struct. This
@@ -1460,7 +1473,7 @@ rdregion/wrregion.</p>
 </div>
 </div>
 <div class="section" id="late-simd-cf-conformance-pass">
-<h3><a class="toc-backref" href="#id40">Late SIMD CF conformance pass</a><a class="headerlink" href="#late-simd-cf-conformance-pass" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id42">Late SIMD CF conformance pass</a><a class="headerlink" href="#late-simd-cf-conformance-pass" title="Permalink to this headline">¶</a></h3>
 <p>This is the same pass as GenXSimdCFConformance above, but run in a
 slightly different way. See above.</p>
 <p><strong>IR restriction</strong>: After this pass, the EM values must have EM register
@@ -1468,92 +1481,14 @@ category. The RM values must have RM register category. The !any result of
 a goto/join must have NONE register category.</p>
 </div>
 <div class="section" id="codegen-baling-pass">
-<h3><a class="toc-backref" href="#id41">CodeGen baling pass</a><a class="headerlink" href="#codegen-baling-pass" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id43">CodeGen baling pass</a><a class="headerlink" href="#codegen-baling-pass" title="Permalink to this headline">¶</a></h3>
 <p>This is the same pass as GenXBaling above, but run in a slightly different
 way. See above.</p>
 <p><strong>IR restriction</strong>: Any pass after this needs to be careful when modifying
 code, as it also needs to update baling info.</p>
 </div>
-<div class="section" id="genxdepressurizer">
-<h3><a class="toc-backref" href="#id42">GenXDepressurizer</a><a class="headerlink" href="#genxdepressurizer" title="Permalink to this headline">¶</a></h3>
-<p>GenXDepressurizer is a pass that identifies where register pressure is
-excessive, and attempts to sink and/or clone definitions past that area
-to reduce register pressure.</p>
-<p>Currently the pass is enabled to handle only flag (predicate) values. It is
-supposed to work for general values, but that is not yet enabled and it may
-require some bug fixing and fine tuning before it is.</p>
-<p>In fact this pass is now viewed as a dead end. The plan to replace it is a
-pass that does register allocation as if into Gen’s real registers, doing
-live range splitting and rematerialization where required, to help undo the
-register-pressure-increasing effects of CSE and LICM where it would cause a
-spill.</p>
-<p>The basic idea of the existing GenXDepressurizer pass:</p>
-<ol class="arabic simple">
-<li>Scan the code backwards, keeping track of what values are live and what
-the register pressure is (total size of all live values, also the total
-size for flag (predicate) values).</li>
-<li>Where register pressure becomes excessive, look at currently live values
-to see if any is a definition that could profitably be sunk to below the
-current point.</li>
-<li>Sink any such instructions until register pressure is no longer excessive.</li>
-<li>For a flag value, “profitably be sunk” includes the case that it decreases
-flag register pressure but increases overall register pressure (by for
-instance lengthening the live ranges of the inputs to a cmp), but general
-register pressure is not high at the current point.</li>
-<li>A flag value that does not require cloning (all uses are dominated by the
-current point) is sunk anyway, as long as it does not push an already high
-general pressure up higher.</li>
-</ol>
-<p>Point 5 means that this pass replaces GenXCodeSinking, which sank any single
-use flag value.</p>
-<p>There are some complications to the scheme:</p>
-<ul class="simple">
-<li>How do we scan code backwards in a way that keeps track of pressure when
-there is control flow, particularly loops?</li>
-<li>When considering a definition to sink, we need to know whether a
-particular use is reachable from the current point, and whether it is
-dominated by it.</li>
-</ul>
-<div class="section" id="backwards-scanning-order-and-pseudo-cfg">
-<h4>Backwards scanning order and pseudo CFG<a class="headerlink" href="#backwards-scanning-order-and-pseudo-cfg" title="Permalink to this headline">¶</a></h4>
-<p>In order to keep track of liveness and pressure as we scan backwards, we
-want to scan the basic blocks in an order that ensures that we do not
-scan a particular basic block until we have scanned all its successors.
-In that way we can easily gather the live out set of the basic block from
-the live in of each successor, modified by the incoming for our block in
-the phi nodes in the successor. (If there are phi nodes, there is only
-one successor, because critical edges have been split.)</p>
-<p>A loop needs special consideration. We want to scan all of the blocks of
-a loop (including inner loops) in one go, after scanning all possible
-successors of the loop, and before scanning the predecessor(s) of the
-loop header. Within the loop, we want to start at the backedge
-predecessor(s), but we need to set up the liveness at the end of a backedge
-predecessor to take account of</p>
-<ol class="loweralpha simple">
-<li>any value that is live in to the loop and live out of the loop at some
-loop exit, and</li>
-<li>any value that is defined in the loop and is live round the backedge.</li>
-</ol>
-</div>
-<div class="section" id="superbales">
-<h4>Superbales<a class="headerlink" href="#superbales" title="Permalink to this headline">¶</a></h4>
-<p>Sinking is performed in units of a superbale.</p>
-<p>For a general value, a superbale is the bale that defines the value, and, if
-that is a wrregion, the rest of the chain of wrregion bales that write to
-other parts of that value and have the same inputs as the defining bale. We
-consider such a superbale as a whole because considering and sinking just
-the bale would not show any benefit, because it has an input to the wrregion
-the same size as the result. Such a chain of wrregions typically arises from
-legalization where vector decomposing has not subsequently been able to split
-the big vector up.</p>
-<p>For a flag value, a superbale is a tree where each non-leaf node is an
-and/or/xor/not instruction acting on predicates. Again this is done because
-sinking just an and/or/xor/not instruction would not show any benefit to
-flag pressure.</p>
-</div>
-</div>
 <div class="section" id="genxunbaling">
-<h3><a class="toc-backref" href="#id43">GenXUnbaling</a><a class="headerlink" href="#genxunbaling" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id44">GenXUnbaling</a><a class="headerlink" href="#genxunbaling" title="Permalink to this headline">¶</a></h3>
 <p>After live range building, GenXUnbaling spots cases where baling is harmful
 due to extending the live range of a big vector.</p>
 <div class="section" id="the-need-for-the-unbaling-pass">
@@ -1757,8 +1692,87 @@ copy coalesced together anyway.</p>
 </div>
 </div>
 </div>
+<div class="section" id="genxdepressurizer">
+<h3><a class="toc-backref" href="#id45">GenXDepressurizer</a><a class="headerlink" href="#genxdepressurizer" title="Permalink to this headline">¶</a></h3>
+<p>GenXDepressurizer is a pass that identifies where register pressure is
+excessive, and attempts to sink and/or clone definitions past that area to
+reduce register pressure.</p>
+<p>Currently the pass is enabled to handle only flag (predicate) values. It is
+supposed to work for general values, but that is not yet enabled and it may
+require some bug fixing and fine tuning before it is.</p>
+<p>In fact this pass is now viewed as a dead end. The plan to replace it is a
+pass that does register allocation as if into Gen’s real registers, doing
+live range splitting and rematerialization where required, to help undo the
+register-pressure-increasing effects of CSE and LICM where it would cause a
+spill.</p>
+<p>The basic idea of the existing GenXDepressurizer pass:</p>
+<ol class="arabic simple">
+<li>Scan the code backwards, keeping track of what values are live and what
+the register pressure is (total size of all live values, also the total
+size for flag (predicate) values).</li>
+<li>Where register pressure becomes excessive, look at currently live values
+to see if any is a definition that could profitably be sunk to below the
+current point.</li>
+<li>Sink any such instructions until register pressure is no longer
+excessive.</li>
+<li>For a flag value, “profitably be sunk” includes the case that it
+decreases flag register pressure but increases overall register pressure
+(by, for instance, lengthening the live ranges of the inputs to a cmp),
+but general register pressure is not high at the current point.</li>
+<li>A flag value that does not require cloning (all uses are dominated by the
+current point) is sunk anyway, as long as it does not push an already
+high general pressure up higher.</li>
+</ol>
+<p>Point 5 means that this pass replaces GenXCodeSinking, which sank any single
+use flag value.</p>
+<p>There are some complications to the scheme:</p>
+<ul class="simple">
+<li>How do we scan code backwards in a way that keeps track of pressure when
+there is control flow, particularly loops?</li>
+<li>When considering a definition to sink, we need to know whether a
+particular use is reachable from the current point, and whether it is
+dominated by it.</li>
+</ul>
+<div class="section" id="backwards-scanning-order-and-pseudo-cfg">
+<h4>Backwards scanning order and pseudo CFG<a class="headerlink" href="#backwards-scanning-order-and-pseudo-cfg" title="Permalink to this headline">¶</a></h4>
+<p>In order to keep track of liveness and pressure as we scan backwards, we
+want to scan the basic blocks in an order that ensures that we do not scan
+a particular basic block until we have scanned all its successors.  In that
+way we can easily gather the live out set of the basic block from the live
+in of each successor, modified by the incoming for our block in the phi
+nodes in the successor. (If there are phi nodes, there is only one
+successor, because critical edges have been split.)</p>
+<p>A loop needs special consideration. We want to scan all of the blocks of a
+loop (including inner loops) in one go, after scanning all possible
+successors of the loop, and before scanning the predecessor(s) of the loop
+header. Within the loop, we want to start at the backedge predecessor(s),
+but we need to set up the liveness at the end of a backedge predecessor to
+take account of</p>
+<ol class="loweralpha simple">
+<li>any value that is live in to the loop and live out of the loop at some
+loop exit, and</li>
+<li>any value that is defined in the loop and is live round the backedge.</li>
+</ol>
+</div>
+<div class="section" id="superbales">
+<h4>Superbales<a class="headerlink" href="#superbales" title="Permalink to this headline">¶</a></h4>
+<p>Sinking is performed in units of a superbale.</p>
+<p>For a general value, a superbale is the bale that defines the value, and,
+if that is a wrregion, the rest of the chain of wrregion bales that write
+to other parts of that value and have the same inputs as the defining bale.
+We consider such a superbale as a whole because considering and sinking
+just the bale would not show any benefit, because it has an input to the
+wrregion the same size as the result. Such a chain of wrregions typically
+arises from legalization where vector decomposing has not subsequently been
+able to split the big vector up.</p>
+<p>For a flag value, a superbale is a tree where each non-leaf node is an
+and/or/xor/not instruction acting on predicates. Again this is done because
+sinking just an and/or/xor/not instruction would not show any benefit to
+flag pressure.</p>
+</div>
+</div>
 <div class="section" id="genxnumbering">
-<h3><a class="toc-backref" href="#id44">GenXNumbering</a><a class="headerlink" href="#genxnumbering" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id46">GenXNumbering</a><a class="headerlink" href="#genxnumbering" title="Permalink to this headline">¶</a></h3>
 <p>GenXNumbering is an analysis that provides a numbering of the instructions
 for use by live ranges.</p>
 <p>The numbering is done such that slots are reserved for where GenXCoalescing
@@ -1792,7 +1806,7 @@ other than by inserting copies in the reserved slots above, as it would
 disturb the numbering.</p>
 </div>
 <div class="section" id="genxliveranges">
-<h3><a class="toc-backref" href="#id45">GenXLiveRanges</a><a class="headerlink" href="#genxliveranges" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id47">GenXLiveRanges</a><a class="headerlink" href="#genxliveranges" title="Permalink to this headline">¶</a></h3>
 <p>GenXLiveRanges calculates the actual live range information (the segments)
 on the LiveRange object for each value. See the comment at the top of
 GenXLiveness.h for details of how the live range information works. This
@@ -1803,7 +1817,7 @@ not want a LiveRange, because it is an Instruction baled in to something,
 we erase the LiveRange here.</p>
 </div>
 <div class="section" id="genxcoalescing">
-<h3><a class="toc-backref" href="#id46">GenXCoalescing</a><a class="headerlink" href="#genxcoalescing" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id48">GenXCoalescing</a><a class="headerlink" href="#genxcoalescing" title="Permalink to this headline">¶</a></h3>
 <p>The LLVM target independent code generator, used by most backends, has a
 coalescing pass that runs after de-SSA of the machine IR and two-address
 handling, and attempts to remove the added copies by coalescing values. It
@@ -1939,7 +1953,7 @@ and insert an extra copy at the start of the function.</p>
 </div>
 </div>
 <div class="section" id="genxaddresscommoning">
-<h3><a class="toc-backref" href="#id47">GenXAddressCommoning</a><a class="headerlink" href="#genxaddresscommoning" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id49">GenXAddressCommoning</a><a class="headerlink" href="#genxaddresscommoning" title="Permalink to this headline">¶</a></h3>
 <p>This pass spots when multiple address conversions use the same value and
 are used in regions with the same base register (the same coalesced live
 range), and commons up the address conversions.</p>
@@ -1990,7 +2004,7 @@ appear as the “old value” input are coalesced together into the same
 LiveRange.</p>
 </div>
 <div class="section" id="genxargindirection">
-<h3><a class="toc-backref" href="#id48">GenXArgIndirection</a><a class="headerlink" href="#genxargindirection" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id50">GenXArgIndirection</a><a class="headerlink" href="#genxargindirection" title="Permalink to this headline">¶</a></h3>
 <p>The GenXArgIndirection pass runs very late, after coalescing and address
 commoning, to change arguments and return values that were originally by ref
 to use address registers. This saves copies and register pressure.</p>
@@ -2098,7 +2112,7 @@ might consider some changes to his/her kernel to optimize it.</p>
 </div>
 </div>
 <div class="section" id="genxtidycontrolflow">
-<h3><a class="toc-backref" href="#id49">GenXTidyControlFlow</a><a class="headerlink" href="#genxtidycontrolflow" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id51">GenXTidyControlFlow</a><a class="headerlink" href="#genxtidycontrolflow" title="Permalink to this headline">¶</a></h3>
 <p>This pass tidies the control flow in the following ways:</p>
 <ol class="arabic">
 <li><p class="first">It removes empty blocks (a block is empty if all it contains is an
@@ -2138,7 +2152,7 @@ These are required by the vISA’s structurizer.</p>
 </ol>
 </div>
 <div class="section" id="genxvisaregalloc">
-<h3><a class="toc-backref" href="#id50">GenXVisaRegAlloc</a><a class="headerlink" href="#genxvisaregalloc" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id52">GenXVisaRegAlloc</a><a class="headerlink" href="#genxvisaregalloc" title="Permalink to this headline">¶</a></h3>
 <p>GenXVisaRegAlloc is a function group pass that allocates vISA registers to
 LLVM IR values.</p>
 <p>Before allocating registers, this pass does “extra coalescing”, over and above
@@ -2159,7 +2173,7 @@ alias of the requested type.</p>
 tables to put into the vISA file.</p>
 </div>
 <div class="section" id="genxvisafuncwriter">
-<h3><a class="toc-backref" href="#id51">GenXVisaFuncWriter</a><a class="headerlink" href="#genxvisafuncwriter" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id53">GenXVisaFuncWriter</a><a class="headerlink" href="#genxvisafuncwriter" title="Permalink to this headline">¶</a></h3>
 <p>This writes a vISA kernel or function. It is a FunctionGroupPass, thus it
 runs once for each kernel, writing the kernel and its subroutines.</p>
 <p>The bulk of the work is done in the constructor of the VisaFuncWriter class,
@@ -2177,7 +2191,7 @@ kernel written into the three streams), it is pushed into GenXModule,
 where it is picked up by the subsequent GenXVisaWriter pass.</p>
 </div>
 <div class="section" id="genxvisawriter">
-<h3><a class="toc-backref" href="#id52">GenXVisaWriter</a><a class="headerlink" href="#genxvisawriter" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id54">GenXVisaWriter</a><a class="headerlink" href="#genxvisawriter" title="Permalink to this headline">¶</a></h3>
 <p>This pass implements the final writing of the vISA file.</p>
 <p>This is a module pass, so it runs once for the whole vISA file. It picks up
 the VisaFuncWriters (one per kernel) from GenXModule, and constructs the
@@ -2211,7 +2225,7 @@ overall vISA file.</p>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Sep 27 16:19:23 2017 -0700.
+      Last updated on Wed Jan 31 13:26:17 2018 -0800.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

@@ -337,7 +337,11 @@ single precision float.</li>
 <h3><a class="toc-backref" href="#id37">2.1 Scalar Data Types</a><a class="headerlink" href="#scalar-data-types" title="Permalink to this headline">¶</a></h3>
 <p>CM supports the following basic scalar data types defined in C++:</p>
 <ul class="simple">
-<li>char, unsigned char (uchar), short, unsigned short (ushort), int, unsigned int (uint), float, half</li>
+<li>char, unsigned char (uchar), short, unsigned short (ushort), int, unsigned int (uint), float, half<ul>
+<li>CM supports IEEE-754 conformant 16-bit half-precision floating point type.
+To enable this, use namespace “half_float” for host code, and keyword “half” for variable declaration.</li>
+</ul>
+</li>
 <li>double: double-precision floating-point data type is only supported for Gen7+ hardware platform,
 with the following usage restrictions:<ul>
 <li>Double operands can be used with usual CM operators where floating-point operands are
@@ -429,7 +433,9 @@ element is compared with 0, thus any non-zero value signifies “true”.</p>
 the CM host runtime [6]. Variables of such data types must be passed through kernel function
 parameters, except the reserved global surface indexes CM_STATIC_BUFFER_0 / CM_STATIC_BUFFER_1 /
 CM_STATIC_BUFFER_2 / CM_STATIC_BUFFER_3. CM does not allow the explicit use of local/global
-variable or modification of such data types in kernel functions, except used as function call argument.</p>
+variable or modification of such data types in kernel functions, except used as function call argument.
+CM does not allow alias among SurfaceIndexes used for dataport functions, as the ordering
+between typed and untyped accesses may not be guaranteed by either compiler or hardware.</p>
 <ul class="simple">
 <li>SurfaceIndex: represents a surface object used in dataport or other shared functions.</li>
 <li>SamplerIndex: represents a Sampler state object used in Sampler functions.</li>
@@ -1967,8 +1973,9 @@ parameter (passed by ref)</li>
 <li>Parameter 1:  matrix(_ref), vector(_ref) or scalar</li>
 <li>Return: vector or scalar</li>
 </ul>
-<p>Both the source and destination operands must be of “unsigned int” type. If the
-source operand is equal to 0, returns 0xFFFFFFFF.</p>
+<p>The source operand must be of integer type.
+The destination operand must be of “unsigned int” type.
+If the source operand is equal to 0, returns 0xFFFFFFFF.</p>
 </div>
 <div class="section" id="cm-fbh-gen7">
 <h4>cm_fbh {Gen7+}<a class="headerlink" href="#cm-fbh-gen7" title="Permalink to this headline">¶</a></h4>
@@ -13163,7 +13170,7 @@ input/output data variables are specified in Section 4.12.4.</p>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
-      Last updated on Tue Jan 2 15:16:27 2018 -0800.
+      Last updated on Thu Feb 1 12:12:54 2018 -0800.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

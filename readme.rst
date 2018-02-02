@@ -37,11 +37,14 @@ Dependences (Intel Components)
 
 There is no other dependences in order to build the compiler.
 
-However, in order to implement applications using CM language, you will need
-the following component:
+However, in order to build and run those sample applications we provide, the easiest way to get start is to download the following package:
 
 - Intel(R) C-for-Media development package 
-  <Insert pointer to get this package>
+  https://01.org/c-for-media-development-package/ 
+
+Please refer to the readme included in the package for its usage.
+
+The source code for all the components in this development package are published on github.com/intel. However, putting them together still takes some effort (WIP). 
 
 Building the compiler
 =====================
@@ -86,23 +89,10 @@ The formatted documentation starts at
 (This path is relative to your cm-compiler root, i.e. where your llvm, support
 and test directories are.)
 
-
-Getting the pre-built C-for-Media development package 
-=====================================================
-
-To run any test, the simplest way is to get the pre-built package that 
-includes binary for CM runtime and CM compilers.
-
-<insert the pointer for downloading the package>
-
-Please refer to the readme included in the package for its usage.
-
 Building and running the examples
 =================================
 
-Having built the compiler and installed the CM runtime + driver.
-You may use the compiler binary (cmc) built from source to replace
-the cmc binary coming with the developement package (under compiler/bin).
+Having installed the CM runtime + driver (from the developement package).  You may use the compiler binary (cmc) you build from source to replace the cmc binary coming with the developement package (under compiler/bin).
 
 You can build and run examples under test/open_examples.
 
@@ -116,7 +106,7 @@ Intel Atom and Core processors supporting Gen9/Gen10 graphics device
 Known Issues and Limitations
 ============================
 
-<insert instructions here ...>
+<insert instructions here>
 
 (*) Other names and brands maybe claimed as property of others.
 

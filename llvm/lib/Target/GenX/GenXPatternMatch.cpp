@@ -151,6 +151,8 @@ private:
   bool propagateFoldableRegion(Function *F);
   bool reassociateIntegerMad(Function *F);
   bool vectorizeConstants(Function *F);
+  bool simplifyCmp(CmpInst *Cmp);
+  CmpInst *reduceCmpWidth(CmpInst *Cmp);
 };
 
 } // namespace
@@ -510,6 +512,103 @@ void GenXPatternMatch::visitICmpInst(ICmpInst &I) {
       return;
     }
   }
+
+  // Skip the following optimization specific to scalar comparison.
+  if (!I.getType()->isIntegerTy(1))
+    return;
+
+  // Transform the evaluation of flag == 0 into (~flag).all().
+  // TODO: Transform flag != 0 into flag.any().
+  if (match(&I, m_ICmp(Pred, m_BitCast(m_Value(V0)), m_Zero())) &&
+      Pred == CmpInst::ICMP_EQ &&
+      isa<CmpInst>(V0) &&
+      V0->getType()->isVectorTy() &&
+      V0->getType()->getScalarType()->isIntegerTy(1)) {
+    VectorType *VTy = cast<VectorType>(V0->getType());
+    unsigned NumElts = VTy->getNumElements();
+    if (NumElts == 2 || NumElts == 4 || NumElts == 8 || NumElts == 16) {
+      IRBuilder<> Builder(&I);
+      auto Cmp = cast<CmpInst>(V0);
+      // Inverse the evaluation of flag.
+      Cmp->setPredicate(Cmp->getInversePredicate());
+      if (auto NewCmp = reduceCmpWidth(Cmp)) {
+        // Once the cmp could be reduced into narrower one (with the assumption
+        // that the reduced part is always TRUE), reduce it into narrow one.
+        Cmp = NewCmp;
+        VTy = cast<VectorType>(Cmp->getType());
+      }
+      simplifyCmp(Cmp);
+      // Call 'all'.
+      auto M = I.getParent()->getParent()->getParent();
+      auto Fn = Intrinsic::getDeclaration(M, Intrinsic::genx_all, VTy);
+      auto NewVal = Builder.CreateCall(Fn, Cmp);
+      I.replaceAllUsesWith(NewVal);
+      Changed = true;
+      return;
+    }
+  }
+}
+
+// Simplify the sequence of (cmp.eq (and (wrregion zero v), 1), 0) to
+// (cmp.eq (and v, 1), 0) with a narrow vector length with the assumption that
+// the reduced part will be always TRUE.
+CmpInst *GenXPatternMatch::reduceCmpWidth(CmpInst *Cmp) {
+  ICmpInst::Predicate Pred;
+  Value *V0 = nullptr;
+  if (!Cmp->hasOneUse() ||
+      !Cmp->getType()->isVectorTy() ||
+      !match(Cmp, m_ICmp(Pred, m_And(m_Value(V0), m_One()), m_Zero())) ||
+      Pred != CmpInst::ICMP_EQ ||
+      !isWrRegion(V0))
+    return nullptr;
+
+  IntrinsicInst *WII = cast<IntrinsicInst>(V0);
+  if (!match(WII->getOperand(0), m_Zero()))
+    return nullptr;
+
+  V0 = WII->getOperand(1);
+  VectorType *VTy = cast<VectorType>(V0->getType());
+  unsigned NumElts = VTy->getNumElements();
+
+  Region R(WII, BaleInfo());
+  if (R.Indirect || R.Offset || R.VStride || R.Stride != 1 ||
+      R.Width != NumElts)
+    return nullptr;
+  if (R.Width != 2 && R.Width != 4 && R.Width != 8 && R.Width != 16)
+    return nullptr;
+
+  // As the rest parts of the original vector are all zeros, the sequence could
+  // be reduced into a narrower one (R.Width) and skip the wrregion.
+  IRBuilder<> Builder(Cmp);
+
+  auto One = ConstantInt::get(VTy, 1);
+  auto Zero = Constant::getNullValue(VTy);
+
+  auto V1 = Builder.CreateAnd(V0, One);
+  auto V2 = Builder.CreateICmp(Pred, V1, Zero);
+
+  return cast<CmpInst>(V2);
+}
+
+// Simplify the sequence of (cmp (and (select (cmp ...) 1, 0), 1), 0)
+bool GenXPatternMatch::simplifyCmp(CmpInst *Cmp) {
+  ICmpInst::Predicate P0, P1;
+  Value *LHS = nullptr;
+  Value *RHS = nullptr;
+  if (!match(Cmp, m_ICmp(P0,
+                         m_And(m_Select(m_ICmp(P1, m_Value(LHS), m_Value(RHS)),
+                                        m_One(), m_Zero()),
+                               m_One()),
+                         m_Zero())))
+    return false;
+  if (P0 != ICmpInst::ICMP_EQ && P0 != ICmpInst::ICMP_NE)
+    return false;
+  if (P0 == ICmpInst::ICMP_EQ)
+    P1 = ICmpInst::getInversePredicate(P1);
+  Cmp->setPredicate(P1);
+  Cmp->setOperand(0, LHS);
+  Cmp->setOperand(1, RHS);
+  return true;
 }
 
 /***********************************************************************

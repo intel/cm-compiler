@@ -311,9 +311,6 @@ while getopts ":hvlxcdrs:mM::p:b:V-:" opt; do
                 nobuild)
                     BUILD=0
                     ;;
-                nobuild)
-                    BUILD=0
-                    ;;
             esac;;
         :)
             echo "Required parameter argument missing for -$OPTARG" >&2

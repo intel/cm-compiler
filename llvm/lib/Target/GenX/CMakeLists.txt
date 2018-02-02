@@ -34,6 +34,7 @@ add_llvm_target(GenXCodeGen
   GenXPrinter.cpp
   GenXPressureTracker.cpp
   GenXPromotePredicate.cpp
+  GenXRawSendRipper.cpp
   GenXReduceIntSize.cpp
   GenXRegion.cpp
   GenXRegionCollapsing.cpp

@@ -163,6 +163,8 @@ bool GenXTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   if (!DisableVerify) PM.add(createVerifierPass());
   /// .. include:: GenXExtractVectorizer.cpp
   PM.add(createGenXExtractVectorizerPass());
+  /// .. include:: GenXRawSendRipper.cpp
+  PM.add(createGenXRawSendRipperPass());
   /// DeadCodeElimination
   /// -------------------
   /// This is a standard LLVM pass, run at this point in the GenX backend. It

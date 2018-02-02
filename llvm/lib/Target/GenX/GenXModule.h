@@ -77,12 +77,15 @@ namespace llvm {
       void push_back(const void *Data, unsigned Size) {
         unsigned Pos = V.size();
         V.resize(Pos + Size);
-        memcpy(&V[Pos], Data, Size);
+        std::copy_n((const unsigned char *)Data, Size, V.begin() + Pos);
       }
       template<typename T> void push_back(T Val) { push_back(&Val, sizeof(Val)); }
       unsigned size() { return V.size(); }
       void write(formatted_raw_ostream &Out);
-      void setData(unsigned Offset, const void *Data, unsigned Size) { memcpy(&V[Offset], Data, Size); }
+      void setData(unsigned Offset, const void *Data, unsigned Size) {
+        assert(Offset + Size <= size());
+        std::copy_n((const unsigned char *)Data, Size, V.begin() + Offset);
+      }
     };
 
     // FuncWriter : a class to write the output for a GenX kernel or function

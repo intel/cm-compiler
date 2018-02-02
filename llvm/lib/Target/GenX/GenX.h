@@ -71,6 +71,7 @@ FunctionPass *createGenXReduceIntSizePass();
 FunctionPass *createGenXLoweringPass();
 FunctionPass *createGenXRegionCollapsingPass();
 FunctionPass *createGenXExtractVectorizerPass();
+FunctionPass *createGenXRawSendRipperPass();
 FunctionPass *createGenXFuncBalingPass(BalingKind Kind);
 FunctionPass *createGenXLegalizationPass();
 FunctionPass *createGenXDeadVectorRemovalPass();

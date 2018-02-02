@@ -386,7 +386,8 @@ private:
   BasicBlock *sinkOnce(Instruction *InsertBefore, Superbale *SB,
                        ArrayRef<Use *> Uses);
   bool modifyLiveness(Liveness *Live, Superbale *SB);
-  int getSinkBenefit(Superbale *SB, Liveness::Category Cat, unsigned Headroom);
+  int  getSuperbaleKillSize(Superbale *SB);
+  int  getSinkBenefit(Superbale *SB, Liveness::Category Cat, unsigned Headroom);
   bool fillSuperbale(Superbale *SB, Instruction *Inst, bool IsFlag);
   void MergeCandidate(SinkCandidate &Lhs, SinkCandidate &Rhs);
 };
@@ -455,8 +456,10 @@ void GenXDepressurizer::processFunction(Function *F) {
   orderAndNumber(F);
   // Visit each basic block.
   MaxPressure = 0;
-  for (auto ri = PCFG->rbegin(), re = PCFG->rend(); ri != re; ++ri)
+  for (auto ri = PCFG->rbegin(), re = PCFG->rend(); ri != re; ++ri) {
     processBasicBlock(*ri);
+  }
+
   delete PCFG;
   delete LI;
   DEBUG(dbgs() << "max pressure " << MaxPressure << " for function "
@@ -733,12 +736,10 @@ void GenXDepressurizer::processInstruction(Instruction *Inst) {
     attemptSinking(Inst->getNextNode(), &BaleOperands, Liveness::ADDR,
                    /*AllowClone=*/false);
 
-#if 0
   // Attempt sinking of non-flag value(s) if necessary.
   if (Live->getPressure() > GRFThreshold)
     attemptSinking(Inst->getNextNode(), &BaleOperands, Liveness::GENERAL,
                    /*AllowClone=*/false);
-#endif
 
   if (MaxPressure < Live->getPressure()) {
     MaxPressure = Live->getPressure();
@@ -998,7 +999,7 @@ void GenXDepressurizer::attemptSinking(Instruction *InsertBefore,
 // are covered by the Lhs candidate
 void GenXDepressurizer::MergeCandidate(SinkCandidate &Lhs, SinkCandidate &Rhs) {
   // update the benefit
-  Lhs.Benefit += Liveness::getValueSize(Rhs.SB->getHead());
+  Lhs.Benefit += getSuperbaleKillSize(Rhs.SB);
   // merge superbale
   SmallVector<Instruction *, 8> Merge;
   auto a = Lhs.SB->Bales.begin();
@@ -1186,6 +1187,17 @@ bool GenXDepressurizer::modifyLiveness(Liveness *Live, Superbale *SB) {
   return true;
 }
 
+int GenXDepressurizer::getSuperbaleKillSize(Superbale *SB) {
+  int sum = 0;
+  for (auto i = SB->Bales.rbegin(), e = SB->Bales.rend(); i != e; ++i) {
+    if (isWrRegion(*i))
+      sum += Liveness::getValueSize((*i)->getOperand(Intrinsic::GenXRegion::NewValueOperandNum));
+    else
+      sum += Liveness::getValueSize(*i);
+  }
+  return sum;
+}
+
 /***********************************************************************
  * getSinkBenefit : calculate the benefit of sinking this Superbale
  *
@@ -1202,7 +1214,7 @@ bool GenXDepressurizer::modifyLiveness(Liveness *Live, Superbale *SB) {
  */
 int GenXDepressurizer::getSinkBenefit(Superbale *SB, Liveness::Category Cat,
                                       unsigned Headroom) {
-  int Benefit = Liveness::getValueSize(SB->getHead());
+  int Benefit = getSuperbaleKillSize(SB);
   unsigned FlagOperandSize = 0, AddrOperandSize = 0, OperandSize = 0;
   for (auto i = SB->Operands.begin(), e = SB->Operands.end(); i != e; ++i) {
     Value *Operand = *i;
@@ -1338,7 +1350,8 @@ bool GenXDepressurizer::fillSuperbale(Superbale *SB, Instruction *Inst,
             continue;
           if (!isa<Instruction>(Opnd) && !isa<Argument>(Opnd))
             continue;
-          OperandSet.insert(Opnd);
+          if (OperandSet.insert(Opnd))
+            SB->Operands.push_back(Opnd);
         }
       }
       SB->Bales.push_back(Inst);

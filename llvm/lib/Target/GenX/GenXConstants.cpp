@@ -1409,6 +1409,9 @@ static bool is8bitPackedFloat(float f) {
 }
 
 void ConstantLoader::analyzeForPackedFloat(unsigned NumElements) {
+  // FIXME: Disable packed float analysis temporarily because jitter's change
+  // is not released yet.
+#if 0
   for (unsigned i = 0; i != NumElements; ++i) {
     auto Elt = C->getAggregateElement(i);
     if (isa<UndefValue>(Elt))
@@ -1430,4 +1433,5 @@ void ConstantLoader::analyzeForPackedFloat(unsigned NumElements) {
       return;
   }
   PackedFloat = true;
+#endif
 }
