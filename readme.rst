@@ -9,7 +9,7 @@ Intel(R) C-for-Media Compiler
 Introduction
 ============
 
-The Intel(R) C-for-Media compiler is a new open source compiler that implements CM (C for Media) programming language. CM is a new GPU kernel programming language for Intel HD Graphics. 
+The Intel(R) C-for-Media compiler is a open source compiler that implements C-for-Media (CM) programming language. CM is a new GPU kernel programming language for Intel HD Graphics. 
 
 This document is a starting guide for setting up the development environment, 
 building and using this compiler.
@@ -22,7 +22,7 @@ The Intel(R) C-for-Media Compiler is distributed under the MIT license. You may 
 Linux prerequisites
 ===================
 
-Currently We test our compiler on Centos-7.3 and Ubuntu-16.04.
+Currently We test our opensource compiler on Centos-7.3 and Ubuntu-16.04.
 
 In order to download and build the compiler, we need the following:
 
@@ -37,14 +37,14 @@ Dependences (Intel Components)
 
 There is no other dependences in order to build the compiler.
 
-However, in order to build and run those sample applications we provide, the easiest way to get start is to download the following package:
+However, in order to build and run those sample applications we provide, the easiest way of getting-start is to download the following package:
 
 - Intel(R) C-for-Media development package 
   https://01.org/c-for-media-development-package/ 
 
 Please refer to the readme included in the package for its usage.
 
-The source code for all the components in this development package are published on github.com/intel. However, putting them together still takes some effort (WIP). 
+The source code for all the components in this development package are published on github.com/intel. However, putting them together still takes some effort (work in progress). 
 
 Building the compiler
 =====================
@@ -77,7 +77,7 @@ Running the compiler
 
 That will generate a vISA file ``linear_walker_genx.isa`` in the current directory.
 
-See document `cmcuserguide` for further command line options.
+See document `cmcuserguide` for more command line options.
 
 Documentation
 =============
@@ -98,7 +98,41 @@ You can build and run examples under test/open_examples.
 
 Refer to the readme under test/open_examples.
 
-Supported Platforms
+Building the compiler on Windows
+================================
+
+Our build script is written in Bash. Therefore the recommended environment is Windows+Cygwin.
+
+However, besides Cygwin, You also need Windows-native installation of the following:
+
+- Visual Studio (2012 or later)
+- CMake (the Windows version)
+- Python (the Windows version, installed in c:\\python27)
+
+Cygwin installation and packages
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Go to http://www.cygwin.com/ and install cygwin (64 bit is recommended).
+
+You will probably need to install the following extra Cygwin 
+packages during setup. The web site has documentation on how to do this if
+you are not familiar with it or can't work it out from the UI.
+
+Basic prerequisites:
+
+- git
+- python
+- unzip
+- curl
+
+Build-command in Cygwin using Visual Studio
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: text
+
+  support/scripts/build.bash -s vs2015 -d -m --32
+
+Supported platforms
 ===================
 
 Intel Atom and Core processors supporting Gen9/Gen10 graphics device
