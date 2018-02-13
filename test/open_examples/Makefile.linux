@@ -29,7 +29,7 @@ all: hw_x64
 
 ######## HW Mode with JITTER ##################
 HW_CXXFLAGS     := $(CXXFLAGS) 
-HW_LDFLAGS      :=  -lva -lX11 -ldl -fPIC
+HW_LDFLAGS      :=  -lva -ldl -fPIC
 HW_APP_SOURCES  := $(HOST_FILE)
 HW_KERN_SOURCES := $(KERNEL_FILE)
 HW_CMCFLAGS     := -march=$(GEN_MODE) -isystem ../../compiler/include_llvm
