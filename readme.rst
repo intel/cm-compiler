@@ -137,10 +137,14 @@ Supported platforms
 
 Intel Atom and Core processors supporting Gen9/Gen10 graphics device
 
-Known Issues and Limitations
-============================
+Submitting and publishing changes
+=================================
 
-<insert instructions here>
+We welcome contributions to the compiler and the examples, including bug fixes, optimizations, and new features.
+
+You may create a new pull request on github for your code changes. We will review it, test it, and give you our feedback. When the change is finalized, we will push it to the project repository.
+
+For any new example using CM, as long as you have the entire application that can be built and run on either Linux or Windows, you can email it to the maintainer of this project. We can help you customize it, and publish it in our open-example folder.
 
 (*) Other names and brands maybe claimed as property of others.
 

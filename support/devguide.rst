@@ -67,9 +67,3 @@ with ``Instruction *Inst``, I can F9 for quickwatch and type the expression
 ``Inst->dump()`` to get a meaningful dump of what that instruction is in the
 application's console window.
 
-
-Submiting and publishing changes
-================================
-
-<insert instructions here>
-
