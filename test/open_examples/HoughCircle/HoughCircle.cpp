@@ -27,8 +27,6 @@
 // It includes all of the CM runtime.
 #include "cm_rt.h"
 
-#include "cmvm.h"
-
 // Includes bitmap_helpers.h for bitmap file open/save/compare operations.
 #include "../common/bitmap_helpers.h"
 
