@@ -189,6 +189,7 @@ bool GenXPatternMatch::runOnFunction(Function &F) {
   Changed |= simplifySelect(&F);
   // Break big predicate variables and run after min/max pattern match.
   Changed |= decomposeSelect(&F);
+
   return Changed;
 }
 
@@ -238,8 +239,6 @@ private:
   bool isLShift() const {
     return MInst->getOpcode() == Instruction::Shl;
   }
-
-  Value *getBroadcastFromScalar(Value *) const;
 
   std::tuple<Value *, bool> getNarrowI16Vector(IRBuilder<> &, Instruction *,
                                                Value *, unsigned) const;
@@ -333,11 +332,14 @@ void GenXPatternMatch::visitBinaryOperator(BinaryOperator &I) {
     break;
   case Instruction::Add:
   case Instruction::Sub:
-    Changed |= EnableMadMatcher && MadMatcher(&I).matchIntegerMad();
+    if (EnableMadMatcher && MadMatcher(&I).matchIntegerMad())
+      Changed = true;
     break;
   case Instruction::And:
-    if (I.getType()->getScalarType()->isIntegerTy(1))
-      Changed |= foldBoolAnd(&I);
+    if (I.getType()->getScalarType()->isIntegerTy(1)) {
+      if (foldBoolAnd(&I))
+        Changed = true;
+    }
     break;
   }
 }
@@ -350,7 +352,8 @@ void GenXPatternMatch::visitCallInst(CallInst &I) {
   case Intrinsic::genx_suadd_sat:
   case Intrinsic::genx_usadd_sat:
   case Intrinsic::genx_uuadd_sat:
-    Changed |= EnableMadMatcher && MadMatcher(&I).matchIntegerMad(ID);
+    if (EnableMadMatcher && MadMatcher(&I).matchIntegerMad(ID))
+      Changed = true;
     break;
   case Intrinsic::genx_rdpredregion:
     Changed |= simplifyPredRegion(&I);
@@ -881,7 +884,7 @@ bool MadMatcher::isProfitable() const {
   return IsProfitable;
 }
 
-Value *MadMatcher::getBroadcastFromScalar(Value *V) const {
+static Value *getBroadcastFromScalar(Value *V) {
   VectorType *VTy = dyn_cast<VectorType>(V->getType());
   // Skip if it's not vector type.
   if (!VTy)
@@ -1275,6 +1278,7 @@ bool MadMatcher::emit() {
   NumOfMadMatched++;
   return true;
 }
+
 
 bool MinMaxMatcher::valuesMatch(llvm::Value *Op1, llvm::Value *Op2) {
   // the easy case - the operands match

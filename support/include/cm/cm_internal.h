@@ -340,6 +340,7 @@ template <typename T> void __cm_intrinsic_impl_dummy_mov(T src0);
 // Predefined surface support.
 SurfaceIndex __cm_intrinsic_impl_predefined_surface(unsigned id);
 
+
 } // namespace details
 
 #endif

@@ -1447,30 +1447,26 @@ bool ArgRefPattern::match(DominatorTree &DT, PostDominatorTree &PDT) {
 
   // find a unique store that dominates all other users if exists.
   auto Cmp = [&](CallInst *L, CallInst *R) { return DT.dominates(L, R); };
-  std::sort(Stores.begin(), Stores.end(), Cmp);
-
-  // find a unique load that post-dominates all other users if exists.
-  auto PostCmp = [&](CallInst *L, CallInst *R) {
-    BasicBlock *LBB = L->getParent();
-    BasicBlock *RBB = R->getParent();
-    if (LBB != RBB)
-      return PDT.dominates(LBB, RBB);
-
-    // Loop through the basic block until we find L or R.
-    BasicBlock::const_iterator I = LBB->begin();
-    for (; &*I != L && &*I != R; ++I)
-      /*empty*/;
-
-    return &*I == R;
-  };
-  std::sort(Loads.begin(), Loads.end(), PostCmp);
-
-  CopyInStore = Stores.front();
+  CopyInStore = *std::min_element(Stores.begin(), Stores.end(), Cmp);
   CopyInRegion = dyn_cast<CallInst>(CopyInStore->getArgOperand(0));
   if (!CopyInRegion || !CopyInRegion->hasOneUse() || !isRdRegion(CopyInRegion))
     return false;
 
-  CopyOutLoad = Loads.front();
+  // find a unique load that post-dominates all other users if exists.
+  auto PostCmp = [&](CallInst *L, CallInst *R) {
+      BasicBlock *LBB = L->getParent();
+      BasicBlock *RBB = R->getParent();
+      if (LBB != RBB)
+          return PDT.dominates(LBB, RBB);
+
+      // Loop through the basic block until we find L or R.
+      BasicBlock::const_iterator I = LBB->begin();
+      for (; &*I != L && &*I != R; ++I)
+          /*empty*/;
+
+      return &*I == R;
+  };
+  CopyOutLoad = *std::min_element(Loads.begin(), Loads.end(), PostCmp);
 
   // Expect copy-out load has one or zero use. It is possible there
   // is no use as the region becomes dead after this subroutine call.
@@ -1496,13 +1492,13 @@ bool ArgRefPattern::match(DominatorTree &DT, PostDominatorTree &PDT) {
   VStores.swap(Stores);
 
 #if _DEBUG
-  for (auto SI : Stores)
+  for (auto SI : VStores)
     assert(Cmp(CopyInStore, SI));
-  for (auto LI : Loads)
+  for (auto LI : VLoads)
     assert(Cmp(CopyInStore, LI));
-  for (auto SI : Stores)
+  for (auto SI : VStores)
     assert(PostCmp(CopyOutLoad, SI));
-  for (auto LI : Loads)
+  for (auto LI : VLoads)
     assert(PostCmp(CopyOutLoad, LI));
 #endif
   return true;

@@ -319,9 +319,18 @@ namespace {
 } // end anonymous namespace
 
 char GenXCoalescing::ID = 0;
+namespace llvm {
+void initializeGenXCoalescingPass(PassRegistry &);
+}
+INITIALIZE_PASS_BEGIN(GenXCoalescing, "GenXCoalescing", "GenXCoalescing", false, false)
+INITIALIZE_PASS_DEPENDENCY(GenXGroupBaling)
+INITIALIZE_PASS_DEPENDENCY(GenXLiveness)
+INITIALIZE_PASS_DEPENDENCY(GenXNumbering)
+INITIALIZE_PASS_END(GenXCoalescing, "GenXCoalescing", "GenXCoalescing", false, false)
 
 FunctionGroupPass *llvm::createGenXCoalescingPass() {
-  return new GenXCoalescing;
+  initializeGenXCoalescingPass(*PassRegistry::getPassRegistry());
+  return new GenXCoalescing();
 }
 
 /***********************************************************************

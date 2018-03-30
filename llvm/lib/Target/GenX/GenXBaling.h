@@ -271,7 +271,7 @@ struct BaleInfo {
   // setOperandBaled() : set bit that says that operand is baled
   void setOperandBaled(unsigned OperandNum) { Bits |= 1 << OperandNum; }
   // getTypeString : get string for BaleInfo type
-  const char *getTypeString();
+  const char *getTypeString() const;
 };
 
 // BaleInst : one instruction in a bale
@@ -302,8 +302,11 @@ public:
   // Forward iterator: gives an instruction before any use of it, with the
   // head instruction of the bale coming last.
   typedef Insts_t::reverse_iterator iterator;
+  typedef Insts_t::const_reverse_iterator const_iterator;
   iterator begin() { return Insts.rbegin(); }
   iterator end() { return Insts.rend(); }
+  const_iterator begin() const { return Insts.rbegin(); }
+  const_iterator end() const { return Insts.rend(); }
   unsigned size() const { return Insts.size(); }
   bool empty() const { return Insts.empty(); }
   // getIteratorPos : get 0..31 unsigned representing position of
@@ -339,9 +342,14 @@ public:
   // eraseFromParent : do eraseFromParent on all instructions in the bale
   void eraseFromParent();
   // Debug dump/print
-  void dump();
-  void print(raw_ostream &OS);
+  void dump() const;
+  void print(raw_ostream &OS) const;
 };
+
+inline raw_ostream &operator<<(raw_ostream &OS, const Bale &B) {
+  B.print(OS);
+  return OS;
+}
 
 } // end namespace genx
 

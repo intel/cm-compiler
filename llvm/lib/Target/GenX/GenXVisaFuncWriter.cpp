@@ -410,6 +410,9 @@ VisaFuncWriter::VisaFuncWriter(FunctionGroup *FG, GenXVisaRegAlloc *RA,
       addAttribute("Callable", "");
       NeedRetIP = true;
     }
+    if (FG->getHead()->hasFnAttribute("CMEntry")) {
+      addAttribute("Entry", "");
+    }
   }
 
   if (NeedRetIP) {

@@ -1698,6 +1698,11 @@ def CMFloatControl : Attr {
   let Documentation = [Undocumented];
 }
 
+def CMEntry : Attr {
+  let Spellings = [Declspec<"cm_entry">];
+  let Documentation = [Undocumented];
+}
+
 // Microsoft-related attributes
 
 def MsProperty : IgnoredAttr {

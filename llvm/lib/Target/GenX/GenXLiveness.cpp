@@ -32,6 +32,7 @@
 #include "GenXLiveness.h"
 #include "GenX.h"
 #include "GenXBaling.h"
+#include "GenXRegion.h"
 #include "GenXIntrinsics.h"
 #include "GenXNumbering.h"
 #include "GenXRegion.h"
@@ -39,6 +40,7 @@
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Support/Debug.h"
@@ -1158,25 +1160,56 @@ Instruction *GenXLiveness::insertCopy(Value *InputVal, LiveRange *LR,
       setLiveRange(SimpleValue(NewInst), LR);
     return NewInst;
   }
+
+  auto collectFragment = [](Value *V, unsigned MaxFrag,
+                         SmallVectorImpl<std::pair<unsigned, unsigned>>& Frag,
+                         unsigned MaxElt) {
+    while (!isa<UndefValue>(V)) {
+      if (!isWrRegion(V))
+        return true;
+      IntrinsicInst *WII = cast<IntrinsicInst>(V);
+      Region R(WII, BaleInfo());
+      if (R.Indirect || !R.isContiguous() || !R.isWholeNumRows())
+        return true;
+      if ((R.Offset % R.ElementBytes) != 0)
+        return true;
+      unsigned Base = R.Offset / R.ElementBytes;
+      for (unsigned Offset = 0; Offset < R.NumElements; /*EMPTY*/) {
+        unsigned NumElts = std::min(MaxElt, R.NumElements - Offset);
+        // Round NumElts down to power of 2. That is how many elements we
+        // are copying this time round the loop.
+        NumElts = 1 << llvm::log2(NumElts);
+        Frag.push_back(std::make_pair(Base + Offset, NumElts));
+        Offset += NumElts;
+      }
+      V = WII->getOperand(0);
+    }
+    if (Frag.size() > MaxFrag)
+      return true;
+    std::sort(Frag.begin(), Frag.end());
+    return false;
+  };
+
+  unsigned NumElements = R.NumElements;
+  SmallVector<std::pair<unsigned, unsigned>, 8> Fragments;
+  unsigned MaxCopies = (NumElements + MaxNum - 1) / MaxNum;
+  if (collectFragment(InputVal, MaxCopies, Fragments, MaxNum)) {
+    Fragments.clear();
+    for (unsigned Offset = 0; Offset < NumElements; /*EMPTY*/) {
+      unsigned NumElts = std::min(MaxNum, NumElements - Offset);
+      // Round NumElts down to power of 2. That is how many elements we
+      // are copying this time round the loop.
+      NumElts = 1 << llvm::log2(NumElts);
+      Fragments.push_back(std::make_pair(Offset, NumElts));
+      Offset += NumElts;
+    }
+  }
   // Need to split the copy up. Start with an undef destination.
   Value *Res = UndefValue::get(InputVal->getType());
-  unsigned NumElements = R.NumElements;
-  for (unsigned Offset = 0;; ) {
-    if (AdjustLRs && NewInst) {
-      // Add the last wrregion to the live range (thus coalescing them all
-      // together and in with the phi node or two address op that we're doing
-      // the copy for).
-      setLiveRange(SimpleValue(NewInst), LR);
-    }
-    if (Offset >= NumElements)
-      break;
+  for (auto &I : Fragments) {
+    unsigned Offset = I.first;
     // Set the subregion.
-    R.NumElements = NumElements - Offset;
-    if (R.NumElements > MaxNum)
-      R.NumElements = MaxNum;
-    // Round R.NumElements down to power of 2. That is how many elements we
-    // are copying this time round the loop.
-    R.NumElements = 1 << llvm::log2(R.NumElements);
+    R.NumElements = I.second;
     R.Width = R.NumElements;
     R.Offset = Offset * R.ElementBytes;
     // Create the rdregion. Do not add this to a live range because it is
@@ -1197,8 +1230,13 @@ Instruction *GenXLiveness::insertCopy(Value *InputVal, LiveRange *LR,
       BI.setOperandBaled(1);
       Baling->setBaleInfo(NewInst, BI);
     }
+    if (AdjustLRs) {
+      // Add the last wrregion to the live range (thus coalescing them all
+      // together and in with the phi node or two address op that we're doing
+      // the copy for).
+      setLiveRange(SimpleValue(NewInst), LR);
+    }
     Res = NewInst;
-    Offset += R.NumElements;
   }
   return NewInst;
 }

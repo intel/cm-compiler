@@ -22,6 +22,10 @@ SetupTest_from_cm(histogram_atomic "histogram_atomic" "" "histogram_atomic.cpp" 
 
 SetupTest_from_cm(linear_up_walker "linear_up_walker" "" "linear_up_walker.cpp" "linear_up_walker_genx.cpp" "linear_in.bmp;linear_gold.bmp;linear_gold_hw.bmp" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
 
+SetupTest_from_cm (mandelbrot "mandelbrot" "" "mandelbrot.cpp" "mandelbrot_genx.cpp" "mandelbrot-gold.bin" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
+
+SetupTest_from_cm(matrix_transpose "matrix_transpose" "" "matrix_transpose.cpp" "matrix_transpose_genx.cpp" "" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
+
 SetupTest_from_cm(MediaSampler16x4 "MediaSampler16x4" "" "avs_nearest_422_001_16x4.cpp" "avs_nearest_422_001_16x4_genx.cpp" "*.yuy2" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
 
 SetupTest_from_cm(MediaSampler8x8 "MediaSampler8x8" "" "avs_adaptive_422_8x8_002.cpp" "avs_adaptive_422_8x8_002_genx.cpp" "*.yuy2;*.uyvy" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})

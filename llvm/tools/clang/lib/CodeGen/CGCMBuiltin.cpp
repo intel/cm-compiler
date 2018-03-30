@@ -2535,13 +2535,18 @@ private:
   void init();
 
   unsigned getV1Size() const {
-    unsigned N1 = V1->getType()->getVectorNumElements();
-    assert(llvm::isPowerOf2_32(N1) && "not a power of 2");
-    return N1;
+    if (V1->getType()->isVectorTy()) {
+      unsigned N1 = V1->getType()->getVectorNumElements();
+      assert(llvm::isPowerOf2_32(N1) && "not a power of 2");
+      return N1;
+    }
+    return 1;
   }
 
   unsigned getV2Size() const {
-    return V2 ? V2->getType()->getVectorNumElements() : 0;
+    if (V2)
+      return (V2->getType()->isVectorTy() ? V2->getType()->getVectorNumElements() : 1);
+    return 0;
   }
 
   bool isSaturated() const {
@@ -2734,8 +2739,9 @@ llvm::Value *CMReductionEmitter::reduce(llvm::Value *LHS, llvm::Value *RHS) {
           CGCMRuntime::getCastOpKind(CastOp, CGF, ToEltType, FromEltType);
       (void)NeedsCast;  assert(NeedsCast);
 
-      llvm::Type *NewTy = llvm::VectorType::get(
-          ToEltTy, LHS->getType()->getVectorNumElements());
+      llvm::Type *NewTy = ToEltTy;
+      if (LHS->getType()->isVectorTy())
+        NewTy = llvm::VectorType::get(ToEltTy, LHS->getType()->getVectorNumElements());
 
       if (LHS->getType()->getScalarType() != ToEltTy)
         LHS = CGF.Builder.CreateCast(CastOp, LHS, NewTy);
@@ -2753,7 +2759,7 @@ llvm::Value *CMReductionEmitter::reduce(llvm::Value *LHS, llvm::Value *RHS) {
     // Overload with its return type and src0's type, which are the same as the
     // type of LHS.
     assert(LHS->getType() == RHS->getType());
-    assert(LHS->getType()->getVectorElementType() == CallInfo.CI->getType());
+    assert(LHS->getType()->getScalarType() == CallInfo.CI->getType());
 
     llvm::Type *Tys[2] = { LHS->getType(), LHS->getType() };
     llvm::Function *GenxFn = CMRT.getIntrinsic(ID, Tys);
@@ -2804,7 +2810,9 @@ llvm::Value *CMReductionEmitter::reduceAddMul(llvm::Value *LHS,
   // Compute the cast kind from T1 to T0
   llvm::Instruction::CastOps CastOp;
   bool NeedsConv = CMRT.getCastOpKind(CastOp, CGF, T0, T1);
-  llvm::Type *DstTy = llvm::VectorType::get(CallInfo.CI->getType(), 1u);
+  llvm::Type *DstTy = CallInfo.CI->getType();
+  if (LHS->getType()->isVectorTy())
+    DstTy = llvm::VectorType::get(CallInfo.CI->getType(), 1u);
 
   if (T1->isFloatingType()) {
     // No genx intrinsic needed. For example
@@ -2920,13 +2928,18 @@ llvm::Value *CMReductionEmitter::reduceAddMul(llvm::Value *LHS,
 llvm::Value *CMReductionEmitter::readRegion(llvm::Value *V, unsigned Sz,
                                             unsigned Offset) {
   llvm::Type *Ty = V->getType();
-  assert(V->getType()->isVectorTy());
+  if (!V->getType()->isVectorTy())
+    return V;
   unsigned N = Ty->getVectorNumElements();
   assert(Sz > 0 && "read at least one element?");
 
   // Single element access.
   if (N == 1) {
     llvm::Value *Index = llvm::ConstantInt::get(CGF.Int32Ty, 0);
+    return CGF.Builder.CreateExtractElement(V, Index);
+  }
+  else if (Sz == 1) {
+    llvm::Value *Index = llvm::ConstantInt::get(CGF.Int32Ty, Offset);
     return CGF.Builder.CreateExtractElement(V, Index);
   }
 

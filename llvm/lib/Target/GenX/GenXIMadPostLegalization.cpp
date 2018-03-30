@@ -48,10 +48,12 @@ namespace {
 
 class GenXIMadPostLegalization : public FunctionPass {
   DominatorTree *DT;
+  GenXBaling *Baling;
 public:
   static char ID;
 
-  explicit GenXIMadPostLegalization() : FunctionPass(ID), DT(nullptr) {}
+  explicit GenXIMadPostLegalization() :
+      FunctionPass(ID), DT(nullptr), Baling(nullptr) {}
 
   const char *getPassName() const override {
     return "GenX IMAD post-legalization pass";
@@ -59,10 +61,14 @@ public:
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<DominatorTreeWrapperPass>();
+    AU.addRequired<GenXFuncBaling>();
     AU.addPreserved<GenXModule>();
   }
 
   bool runOnFunction(Function &F) override;
+
+protected:
+  bool fixMadChain(BasicBlock *);
 };
 
 } // end anonymous namespace
@@ -74,7 +80,8 @@ void initializeGenXIMadPostLegalizationPass(PassRegistry &);
 }
 
 INITIALIZE_PASS_BEGIN(GenXIMadPostLegalization, "GenXIMadLegalization", "GenXIMadLegalization", false, false)
-INITIALIZE_PASS_DEPENDENCY(DominatorTreeGroupWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(GenXFuncBaling)
 INITIALIZE_PASS_END(GenXIMadPostLegalization, "GenXIMadLegalization", "GenXIMadLegalization", false, false)
 
 FunctionPass *llvm::createGenXIMadPostLegalizationPass() {
@@ -147,6 +154,7 @@ findNearestInsertPt(DominatorTree *DT, ArrayRef<Instruction *> Users) {
 
 bool GenXIMadPostLegalization::runOnFunction(Function &F) {
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+  Baling = &getAnalysis<GenXFuncBaling>();
   bool Changed = false;
 
   // After this point, we should not do constant folding.
@@ -208,5 +216,156 @@ bool GenXIMadPostLegalization::runOnFunction(Function &F) {
   for (auto I : Deads)
     I->eraseFromParent();
 
+  for (auto &BB : F)
+    Changed |= fixMadChain(&BB);
+
+  return Changed;
+}
+
+bool GenXIMadPostLegalization::fixMadChain(BasicBlock *BB) {
+
+  // Given the bale 'B', collect all its operand instructions in the same basic
+  // block.
+  auto collectUnbaledOpndInsts = [](BasicBlock *BB, Bale &B) {
+    std::vector<Instruction *> Opnds;
+    Instruction *In = nullptr;
+    // Collect operand instructions not baled yet.
+    for (auto I = B.begin(), E = B.end(); I != E; ++I) {
+      bool isFMA = getIntrinsicID(I->Inst) == Intrinsic::fma;
+      for (unsigned i = 0, e = I->Inst->getNumOperands(); i != e; ++i) {
+        // Skip if that operand is baled.
+        if (I->Info.isOperandBaled(i))
+          continue;
+        auto Op = dyn_cast<Instruction>(I->Inst->getOperand(i));
+        // Skip if it's not an instruction or from the same BB.
+        if (Op && Op->getParent() == BB) {
+          Opnds.push_back(Op);
+          if (isFMA && i == 2)
+            In = Op;
+        }
+      }
+      // Bail out once 'maininst' is processed. The 'maininst' is usually baled
+      // in 'wrregion', 'sat' and similar stuffs, which usually doesn't require
+      // additional operands.
+      if (I->Info.Type == BaleInfo::MAININST)
+        break;
+    }
+    return std::make_pair(In, Opnds);
+  };
+
+  // Given two instructions, 'A' and 'B', in the same basic block, check
+  // whether 'A' dominates 'B'.
+  auto dominates = [](const Instruction *A, const Instruction *B) {
+    const BasicBlock *BB = A->getParent();
+    assert(BB == B->getParent());
+
+    BasicBlock::const_iterator BI = BB->begin();
+    for (; &*BI != A && &*BI != B; ++BI)
+      /*EMPTY*/;
+
+    return &*BI == A;
+  };
+
+  bool Changed = false;
+  std::set<Instruction *> FMAs; // 'fma' already handled.
+  for (auto BI = BB->rbegin(), BE = BB->rend(); BI != BE; ++BI) {
+    auto Inst = &*BI;
+    Bale OutB;
+    Baling->buildBale(Inst, &OutB);
+    // Skip bale non-FMA bale.
+    if (!OutB.getMainInst() ||
+        getIntrinsicID(OutB.getMainInst()->Inst) != Intrinsic::fma)
+      continue;
+    // Skip if it's already handled.
+    if (FMAs.count(OutB.getMainInst()->Inst))
+      continue;
+
+    // Collection of all inputs for the chain curently discovered.
+    std::set<Instruction *> Inputs;
+    // The mad chain itself.
+    std::vector<Bale> Chain;
+    Chain.push_back(OutB);
+    FMAs.insert(OutB.getMainInst()->Inst);
+    do {
+      auto &OutB = Chain.back();
+      Instruction *In;
+      std::vector<Instruction *> Opnds;
+      // Collect all operands so that we could grow the chain through the
+      // chain-in.
+      std::tie(In, Opnds) = collectUnbaledOpndInsts(BB, OutB);
+      if (!In || !In->hasOneUse())
+        break;
+      // Check whether all inputs collected so far dominates 'In' so that we
+      // won't add extra register pressure.
+      for (auto &I : Inputs) {
+        if (dominates(I, In))
+          continue;
+        In = nullptr;
+        break;
+      }
+      // Skip chain building if there are inputs won't be dominated by the new
+      // chain-in.
+      if (!In)
+        break;
+      // Check inputs from the tip of chain, i.e the current chain-out.
+      for (auto &OpI : Opnds) {
+        // Skip the chain-in.
+        if (OpI == In)
+          continue;
+        // Skip if that input dominates the chain-in but record it as inputs.
+        if (dominates(OpI, In)) {
+          Inputs.insert(OpI);
+          continue;
+        }
+        // TODO: So far, only traverse one step further from that chain-out
+        // operands.
+        Bale OpB;
+        Baling->buildBale(OpI, &OpB);
+        std::vector<Instruction *> SubOpnds;
+        std::tie(std::ignore, SubOpnds) = collectUnbaledOpndInsts(BB, OpB);
+        for (auto &SubI : SubOpnds) {
+          if (dominates(SubI, In)) {
+            Inputs.insert(SubI);
+            continue;
+          }
+          // Stop chaining as 'SubI' intervenes between 'In' and 'Out'.
+          In = nullptr;
+          break;
+        }
+        if (!In)
+          break;
+        Chain.push_back(OpB);
+      }
+      if (!In)
+        break;
+      // Grow the chain by appending this chain-in.
+      Bale InB;
+      Baling->buildBale(In, &InB);
+      Chain.push_back(InB);
+      // Stop chaining if it's not mad any more.
+      if (!InB.getMainInst() ||
+          getIntrinsicID(InB.getMainInst()->Inst) != Intrinsic::fma)
+        break;
+      FMAs.insert(InB.getMainInst()->Inst);
+    } while (1);
+    // Cluster the discovered chain together.
+    if (Chain.size() > 1) {
+      Instruction *Pos = nullptr;
+      for (auto I = Chain.begin(), E = Chain.end(); I != E; ++I) {
+        for (auto II = I->rbegin(), IE = I->rend(); II != IE; ++II) {
+          if (!Pos) {
+            Pos = II->Inst;
+            continue;
+          }
+          // Skip phi which is not movable.
+          if (isa<PHINode>(II->Inst))
+            break;
+          II->Inst->moveBefore(Pos);
+          Pos = II->Inst;
+          Changed = true;
+        }
+      }
+    }
+  }
   return Changed;
 }

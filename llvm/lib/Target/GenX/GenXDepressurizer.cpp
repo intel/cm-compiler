@@ -1276,9 +1276,10 @@ bool GenXDepressurizer::fillSuperbale(Superbale *SB, Instruction *Inst,
     BaleInst *BI = &*bi;
     if (BI->Inst->mayHaveSideEffects() || BI->Inst->mayReadOrWriteMemory())
       return false; // not safe to sink
-    else if (!isWrRegion(BI->Inst) && !isRdRegion(BI->Inst) &&
-             !isa<BitCastInst>(BI->Inst) &&
-             getIntrinsicID(BI->Inst) != Intrinsic::genx_add_addr)
+    if (OnlyRdWrRegion && // Only chk the following conds if still required.
+        !isWrRegion(BI->Inst) && !isRdRegion(BI->Inst) &&
+        !isa<BitCastInst>(BI->Inst) &&
+        getIntrinsicID(BI->Inst) != Intrinsic::genx_add_addr)
       OnlyRdWrRegion = false;
     for (unsigned oi = 0, oe = BI->Inst->getNumOperands(); oi != oe; ++oi) {
       if (BI->Info.isOperandBaled(oi))
@@ -1290,7 +1291,7 @@ bool GenXDepressurizer::fillSuperbale(Superbale *SB, Instruction *Inst,
         SB->Operands.push_back(Opnd);
     }
   }
-  if (OnlyRdWrRegion) {
+  if (OnlyRdWrRegion || SB->Operands.empty()) {
     return false; // moving this kind of bale may mess up coalescing
   }
   if (IsFlag) {

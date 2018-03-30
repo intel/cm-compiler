@@ -584,8 +584,13 @@ void CodeGenFunction::StartFunction(GlobalDecl GD,
       if (auto FloatControlAttr = FD->getAttr<CMFloatControlAttr>())
         Fn->addFnAttr("CMFloatControl",
                       std::to_string(FloatControlAttr->getMode()));
-      if (FD->hasAttr<CMGenxMainAttr>() && FD->hasAttr<CMCallableAttr>())
-        Fn->addFnAttr("CMCallable");
+      if (FD->hasAttr<CMGenxMainAttr>())
+      {
+        if (FD->hasAttr<CMCallableAttr>())
+          Fn->addFnAttr("CMCallable");
+        else if (FD->hasAttr<CMEntryAttr>())
+          Fn->addFnAttr("CMEntry");
+      }
     }
   }
 

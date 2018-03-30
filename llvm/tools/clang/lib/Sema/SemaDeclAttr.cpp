@@ -3213,7 +3213,13 @@ static void handleCMFloatControlAttr(Sema &S, Decl *D, const AttributeList &Attr
                                 ModeNum, Attr.getAttributeSpellingListIndex()));
 }
 
-bool Sema::CheckCallingConvAttr(const AttributeList &attr, CallingConv &CC, 
+static void handleCMEntryAttr(Sema &S, Decl *D, const AttributeList &Attr) {
+  assert(!Attr.isInvalid());
+  D->addAttr(::new (S.Context) CMEntryAttr(Attr.getRange(), S.Context,
+    Attr.getAttributeSpellingListIndex()));
+}
+
+bool Sema::CheckCallingConvAttr(const AttributeList &attr, CallingConv &CC,
                                 const FunctionDecl *FD) {
   if (attr.isInvalid())
     return true;
@@ -4503,6 +4509,9 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
     break;
   case AttributeList::AT_CMFloatControl:
     handleCMFloatControlAttr(S, D, Attr);
+    break;
+  case AttributeList::AT_CMEntry:
+    handleCMEntryAttr(S, D, Attr);
     break;
 
   // Microsoft attributes:

@@ -1735,9 +1735,7 @@ BaleInst *Bale::getMainInst()
   // If the first one we find is rdregion, that does not count as a main
   // instruction.
   Value *PossibleMainInst = nullptr;
-  for (reverse_iterator i = rbegin(), e = rend(); ; ++i) {
-    if (i == e)
-      return 0;
+  for (reverse_iterator i = rbegin(), e = rend(); i != e; ++i) {
     if (PossibleMainInst && PossibleMainInst != i->Inst)
       continue;
     PossibleMainInst = nullptr;
@@ -1751,9 +1749,10 @@ BaleInst *Bale::getMainInst()
       case BaleInfo::MAININST:
         return &*i;
       default:
-        return 0;
+        return nullptr;
     }
   }
+  return nullptr;
 }
 
 /***********************************************************************
@@ -1863,23 +1862,23 @@ void Bale::hash()
  * Bale debug dump/print
  */
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
-void Bale::dump()
+void Bale::dump() const
 {
   print(errs());
 }
 #endif
 
-void Bale::print(raw_ostream &OS)
+void Bale::print(raw_ostream &OS) const
 {
   OS << "bale {\n";
-  for (iterator i = begin(), e = end(); i != e; ++i) {
+  for (const_iterator i = begin(), e = end(); i != e; ++i) {
     i->Inst->print(OS);
     OS << " // {" << i->Info.getTypeString() << "}\n";
   }
   OS << "}\n";
 }
 
-const char *BaleInfo::getTypeString()
+const char *BaleInfo::getTypeString() const
 {
   switch (Type) {
     case BaleInfo::MAININST: return "maininst";

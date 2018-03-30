@@ -695,25 +695,35 @@ bool GenXAddressCommoning::vectorizeAddrsFromOneVector(
   bool Modified = false;
   SmallVector<Extract, 4> Extracts;
   bool HasVector = false;
+  std::set<int> OffsetSet;
   for (auto i = Addrs.begin(), e = Addrs.end(); i != e; ++i) {
     Instruction *Addr = *i;
     Region R(cast<Instruction>(Addr->getOperand(0)), BaleInfo());
     Extracts.push_back(Extract(Addr, R.Offset));
+    OffsetSet.insert(R.Offset);
     if (isa<VectorType>(Addr->getType()))
       HasVector = true;
   }
+  bool ConvertWholeRegion = false;
+  Instruction *FirstRdR = cast<Instruction>(Extracts[0].Addr->getOperand(0));
+  Instruction *VecDef = cast<Instruction>(FirstRdR->getOperand(0));
+  unsigned InputNumElements = VecDef->getType()->getVectorNumElements();
+  if (HasVector) {
+    if (InputNumElements == 2 || InputNumElements == 4 ||
+        InputNumElements == 8 || InputNumElements == 16)
+      ConvertWholeRegion = true;
+    else
+      return Modified;
+  }
+  else if (OffsetSet.size()*3 >= InputNumElements*2 &&
+    (InputNumElements == 2 || InputNumElements == 4 ||
+      InputNumElements == 8 || InputNumElements == 16))
+    ConvertWholeRegion = true;
+
   // Sort into offset order.
   std::sort(Extracts.begin(), Extracts.end());
-  // If there are vector address in the bucket, we only handle some special case
-  // - every extract only read a consecutive region of the original vector.
-  // - original vector is 16 elements or less
-  if (HasVector) {
-    Instruction *FirstRdR = cast<Instruction>(Extracts[0].Addr->getOperand(0));
-    Instruction *VecDef = cast<Instruction>(FirstRdR->getOperand(0));
-    unsigned InputNumElements = VecDef->getType()->getVectorNumElements();
-    // limited it to 16-element vector for now.
-    if (InputNumElements > 16)
-      return Modified;
+
+  if (ConvertWholeRegion) {
     Instruction *InsertBefore = Extracts[0].Addr;
     unsigned int MinNum, MaxNum;
     MinNum = MaxNum = Numbering->getNumber(InsertBefore);
@@ -736,7 +746,7 @@ bool GenXAddressCommoning::vectorizeAddrsFromOneVector(
       if (ThisNum > MaxNum)
         MaxNum = ThisNum;
     }
-    if ((MaxNum - MinNum) > 5)
+    if ((MaxNum - MinNum) > 48)
       return Modified;
     // Create a vectorized address conversion and bale the new rdregion (if
     // any) into it. Give the new vectorized address conversion, and the new

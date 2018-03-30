@@ -5557,6 +5557,8 @@ llvm::Triple::ArchType darwin::getArchTypeForMachOArchName(StringRef Str) {
     .Case("nvptx64", llvm::Triple::nvptx64)
     .Case("amdil", llvm::Triple::amdil)
     .Case("spir", llvm::Triple::spir)
+    .Case("genx32", llvm::Triple::genx32)
+    .Case("genx64", llvm::Triple::genx64)
     .Default(llvm::Triple::UnknownArch);
 }
 

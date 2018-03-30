@@ -479,6 +479,7 @@ enum CmFloatControl {
 
 // Fast-composition kernel attribute
 #define _CM_CALLABLE_     __declspec(cm_callable)
+#define _CM_ENTRY_        __declspec(cm_entry)
 
 // Fast-composition argument attribute
 #define _CM_INPUT_        __declspec(cm_input)
