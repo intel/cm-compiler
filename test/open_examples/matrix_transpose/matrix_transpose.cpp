@@ -22,7 +22,6 @@
 
 #include <assert.h>
 #include <iostream>
-#include <time.h>
 
 // The only CM runtime header file that you need is cm_rt.h.
 // It includes all of the CM runtime.
@@ -126,8 +125,7 @@ bool runTest(unsigned N, unsigned block_size)
     // Gets the input/output surface index and set per kernel arguments.
     CmSurface2D *io_surface = nullptr;
     SurfaceIndex *surface_idx = nullptr;
-    cm_result_check(device->CreateSurface2D(N * sizeof(int), N, CM_SURFACE_FORMAT_A8, io_surface));
-    cm_result_check(io_surface->WriteSurface((uint8_t*)M, nullptr));
+    cm_result_check(device->CreateSurface2D(N, N, CM_SURFACE_FORMAT_R32F, io_surface));
     cm_result_check(io_surface->GetIndex(surface_idx));
     cm_result_check(kernel->SetKernelArg(0, sizeof(SurfaceIndex), surface_idx));
 
@@ -135,17 +133,22 @@ bool runTest(unsigned N, unsigned block_size)
     CmQueue *cmd_queue = nullptr;
     CmTask *task = nullptr;
     cm_result_check(device->CreateQueue(cmd_queue));
+ 
+    unsigned long time_out = (-1);
+    CmEvent *copy_event = CM_NO_EVENT;
+    cm_result_check(cmd_queue->EnqueueCopyCPUToGPU(io_surface, (uint8_t *)M, copy_event));
+
     cm_result_check(device->CreateTask(task));
     cm_result_check(task->AddKernel(kernel));
 
     // Warmup.
     CmEvent *sync_event = nullptr;
-    unsigned long time_out = -1;
     cm_result_check(cmd_queue->Enqueue(task, sync_event, thread_space));
+    time_out = (-1);
     cm_result_check(sync_event->WaitForTaskFinished(time_out));
 
     // Start timer.
-    clock_t start = clock();
+    double start = getTimeStamp();
 
     // Launches the task on the GPU.
     UINT64 kernel_time_in_ns = 0;
@@ -160,9 +163,9 @@ bool runTest(unsigned N, unsigned block_size)
     }
 
     // End timer.
-    clock_t end = clock();
+    double end = getTimeStamp();
 
-    float total_time = (end - start) / 1.0f / num_iters;
+    float total_time = (end - start) * 1000.0f / num_iters;
     float kernel_time = kernel_time_in_ns / 1000000.0f / num_iters;
 
     float bandwidth_total = 2.0f * 1000 * sizeof(int) * N * N / (1024 * 1024 * 1024) / total_time;
@@ -174,7 +177,9 @@ bool runTest(unsigned N, unsigned block_size)
     cerr << "GPU kernel bandwidth = " << bandwidth_kernel << " GB/s\n";
 
     // Cleanup.
-    cm_result_check(io_surface->ReadSurface((uint8_t*)M, sync_event));
+    time_out = (-1);
+    copy_event = CM_NO_EVENT;
+    cm_result_check(cmd_queue->EnqueueCopyGPUToCPU(io_surface, (uint8_t *)M, copy_event));
     cm_result_check(device->DestroyTask(task));
     cm_result_check(device->DestroyThreadSpace(thread_space));
     cm_result_check(::DestroyCmDevice(device));
@@ -199,9 +204,11 @@ int main(int argc, char *argv[])
     success &= runTest(1U << 10, 8);
     success &= runTest(1U << 11, 8);
     success &= runTest(1U << 12, 8);
+    success &= runTest(1U << 13, 8);
     success &= runTest(1U << 10, 16);
     success &= runTest(1U << 11, 16);
     success &= runTest(1U << 12, 16);
+    success &= runTest(1U << 13, 16);
 
     cerr << (success ? "PASSED\n" : "FAILED\n");
     return !success;

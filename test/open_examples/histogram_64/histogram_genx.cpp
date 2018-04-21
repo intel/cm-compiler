@@ -22,10 +22,13 @@
 
 #include "cm/cm.h"
 
+// Assuming grey-scale input image, with pixel value in the range of 0-63
+// Set the number of histogram bins as 64
+#define NUM_BINS 64
+#define BLOCK_WIDTH  32
+#define BLOCK_HEIGHT 64
 
-// Assuming grey-scale input image, with pixel value in the range of 0-255
-// Set the number of histogram bins as 256
-#define NUM_BINS 256
+const uint init_0_7[8] = { 0,1,2,3,4,5,6,7 };
 
 // Histogram kernel: computes the distribution of pixel intensities
 //
@@ -36,11 +39,11 @@
 // uint max_v_pos: upper bound of vertical block position
 //
 extern "C" _GENX_MAIN_ void
-histogram_atomic(SurfaceIndex INBUF, SurfaceIndex OUTBUF,
-                 uint total_num_threads, uint max_h_pos, uint max_v_pos)
+histogram_atomic(SurfaceIndex INBUF, SurfaceIndex OUTBUF)
 {
-    // Get current thread id
-    uint id = get_thread_origin_x();
+    // Get thread origin offsets
+    uint h_pos = get_thread_origin_x() * BLOCK_WIDTH;
+    uint v_pos = get_thread_origin_y() * BLOCK_HEIGHT;
 
     // Declare a 8x32 uchar matrix to store the input block pixel value
     matrix<uchar, 8, 32> in;
@@ -52,7 +55,7 @@ histogram_atomic(SurfaceIndex INBUF, SurfaceIndex OUTBUF,
     vector<uint, 8> src;
 
     // Declare a vector to store the offset for atomic write operation
-    vector<uint, 8> offset;
+    vector<uint, 8> offset(init_0_7);
 
     // Declare a vector to store the return value from atomic write operation
     vector<uint, 8> ret;
@@ -60,48 +63,28 @@ histogram_atomic(SurfaceIndex INBUF, SurfaceIndex OUTBUF,
     // Initialize other local varaibles
     int  i, j, sum = 0;
     histogram = 0;
-    int h_pos = id;
-    int v_pos = 0;
 
-    // Each thread process a column of 8x32 pixel blocks
-    while (1) {
-
-      // Adjust the starting offsets of current block
-        while (h_pos >= max_h_pos) {
-            v_pos++;
-            h_pos -= max_h_pos;
-        }
-
-        // Stop current thread if no more blocks to process
-        if ((h_pos >= max_h_pos) || (v_pos >= max_v_pos)) {
-            break;
-        }
-
+    // Each thread handles 64x32 pixel block
+    for (int y = 0; y < BLOCK_HEIGHT / 8; y++) {
         // Perform 2D media block read to load 8x32 pixel block
-        read(INBUF, h_pos*32, v_pos*8, in);
+        read(INBUF, h_pos, v_pos, in);
 
         // Accumulate local histogram for each pixel value
 #pragma unroll
         for (i = 0; i < 8; i++) {
 #pragma unroll
-            for (j = 0; j < 32; j++) {
-                histogram(in(i,j)) += 1;
-            }
+          for (j = 0; j < 32; j++) {
+            histogram(in(i, j) >> 2) += 1;
+          }
         }
 
         // Update starting offset for the next work block
-        h_pos += total_num_threads;
-    }
-
-    // Initialize the offset for atomic write operation
-#pragma unroll
-    for(i = 0; i < 8; i ++){
-        offset(i) = i;
+        v_pos += 8;
     }
 
     // Update global sum by atomically adding each local histogram
 #pragma unroll
-    for(i = 0; i < 256; i += 8) {
+    for(i = 0; i < NUM_BINS; i += 8) {
         src =  histogram.select<8,1>(i);
 #ifdef __ICL
         write<uint, 8>(OUTBUF, ATOMIC_ADD, i, offset, src, ret);

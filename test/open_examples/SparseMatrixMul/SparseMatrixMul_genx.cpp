@@ -27,8 +27,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #define OWORD_BUF_ALIGNMENT    (4)  // Required alignment for OWORD reads
-#define THREAD_SPACE_WIDTH     (60) // Thread space width
-#define ROWS_PER_THREAD        (16) // Process 16 to maximize scatter read capacity.
+#define THREAD_SPACE_WIDTH     (256) // Thread space width
+#define ROWS_PER_THREAD        (8) // Process 16 to maximize scatter read capacity.
 
 //////////////////////////////////////////////////////////////////////////////
 // CM kernel:
@@ -59,8 +59,8 @@ SpmvCsr(SurfaceIndex ANZ_BUF,                   // CURBE  parameter
   vector<IndexType, ROWS_PER_THREAD> v_sz;
 
   int row_number = row_start +
-                   get_thread_origin_y() * THREAD_SPACE_WIDTH * ROWS_PER_THREAD +
-                   get_thread_origin_x();
+                   cm_group_id(1) * THREAD_SPACE_WIDTH * ROWS_PER_THREAD +
+                   cm_group_id(0);
 
   // Read arow(row_number)
   read(AROW_BUF, row_number, v_st, v_ar);
@@ -210,3 +210,49 @@ template void
 SpmvCsr<unsigned, float>(SurfaceIndex, SurfaceIndex, SurfaceIndex,
                          SurfaceIndex, SurfaceIndex, unsigned, short,
                          unsigned, vector<unsigned, ROWS_PER_THREAD>);
+
+template <typename IndexType, typename ValueType>
+_GENX_MAIN_ void
+SpmvCsrSimple(SurfaceIndex ANZ_BUF,              // CURBE  parameter
+         SurfaceIndex ACOL_BUF,                  // CURBE  parameter
+         SurfaceIndex AROW_BUF,                  // CURBE  parameter
+         SurfaceIndex X_BUF,                     // CURBE  parameter
+         SurfaceIndex Y_BUF,                     // CURBE  parameter
+         IndexType row_start                     // CURBE  parameter
+	 )
+{
+  vector<IndexType, ROWS_PER_THREAD+4> v_ar;
+  vector<IndexType, ROWS_PER_THREAD> v_ac;
+  vector<float, ROWS_PER_THREAD> v_nz;
+  vector<float, ROWS_PER_THREAD> v_x;
+  vector<float, ROWS_PER_THREAD> v_y;
+
+  int row_number = row_start +
+                   cm_group_id(1) * THREAD_SPACE_WIDTH * ROWS_PER_THREAD +
+                   cm_group_id(0) * ROWS_PER_THREAD;
+
+  // oword block read, arow and dst-vector
+  read(Y_BUF, row_number*4, v_y);
+  read(AROW_BUF, row_number*4, v_ar);
+
+  vector<IndexType, ROWS_PER_THREAD> v_ar0 = v_ar.select<ROWS_PER_THREAD, 1>(0);
+  vector<IndexType, ROWS_PER_THREAD> v_ar1 = v_ar.select<ROWS_PER_THREAD, 1>(1);
+  SIMD_IF_BEGIN(v_ar1 > v_ar0) {
+      SIMD_DO_WHILE_BEGIN {
+         // scatter-read column indices
+         read(ACOL_BUF, 0, v_ar0, v_ac);
+         // scatter-read nonzero values
+         read(ANZ_BUF, 0, v_ar0, v_nz);
+         // scatter-read x values
+         read(X_BUF, 0, v_ac, v_x);
+         v_y = v_y + v_x * v_nz;
+         v_ar0 += 1;
+      } SIMD_DO_WHILE_END (v_ar1 > v_ar0);
+  } SIMD_IF_END;
+  // oword block write
+  write(Y_BUF, row_number*4, v_y);
+}
+
+template void
+SpmvCsrSimple<unsigned, float>(SurfaceIndex, SurfaceIndex, SurfaceIndex,
+                         SurfaceIndex, SurfaceIndex, unsigned);

@@ -1452,6 +1452,13 @@ bool ArgRefPattern::match(DominatorTree &DT, PostDominatorTree &PDT) {
   if (!CopyInRegion || !CopyInRegion->hasOneUse() || !isRdRegion(CopyInRegion))
     return false;
 
+  for (auto SI : Stores)
+    if (SI != CopyInStore && !Cmp(CopyInStore, SI))
+      return false;
+  for (auto LI : Loads)
+    if (LI != CopyInStore && !Cmp(CopyInStore, LI))
+      return false;
+
   // find a unique load that post-dominates all other users if exists.
   auto PostCmp = [&](CallInst *L, CallInst *R) {
       BasicBlock *LBB = L->getParent();
@@ -1479,6 +1486,13 @@ bool ArgRefPattern::match(DominatorTree &DT, PostDominatorTree &PDT) {
       return false;
   }
 
+  for (auto SI : Stores)
+    if (SI != CopyOutLoad && !PostCmp(CopyOutLoad, SI))
+      return false;
+  for (auto LI : Loads)
+    if (LI != CopyOutLoad && !PostCmp(CopyOutLoad, LI))
+      return false;
+
   // Ensure read-in and write-out to the same region. It is possible that region
   // collasping does not simplify region accesses completely.
   // Probably we should assert on region descriptors.
@@ -1490,17 +1504,6 @@ bool ArgRefPattern::match(DominatorTree &DT, PostDominatorTree &PDT) {
   // It should be OK to rewrite all loads and stores into the argref.
   VLoads.swap(Loads);
   VStores.swap(Stores);
-
-#if _DEBUG
-  for (auto SI : VStores)
-    assert(Cmp(CopyInStore, SI));
-  for (auto LI : VLoads)
-    assert(Cmp(CopyInStore, LI));
-  for (auto SI : VStores)
-    assert(PostCmp(CopyOutLoad, SI));
-  for (auto LI : VLoads)
-    assert(PostCmp(CopyOutLoad, LI));
-#endif
   return true;
 }
 

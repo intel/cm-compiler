@@ -20,8 +20,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <string>
-
 // The only CM runtime header file that you need is cm_rt.h.
 // It includes all of the CM runtime.
 #include "cm_rt.h"
@@ -38,11 +36,13 @@
 
 #define OUTPUT_BUFFER (0)
 
-#define    WIDTH   64  // 1080
-#define    HEIGHT  512 // 1152 
+#define    WIDTH   800
+#define    HEIGHT  600 
 
-// per-thread simd-width 
-#define    N  (16) 
+#define    CRUNCH  512
+#define    SCALE   0.004 
+#define    XOFF    -2.09798 
+#define    YOFF    -1.19798 
 
 int outbuff[WIDTH*HEIGHT];
 
@@ -91,25 +91,62 @@ int runkernel(char* app_name, unsigned char *dst,
     cm_result_check( pCmDev->CreateTask(pKernelArray) );
     cm_result_check( pKernelArray->AddKernel(kernel0) );
    
-    CmThreadSpace *pts = NULL;
-    cm_result_check( pCmDev->CreateThreadSpace(WIDTH/N, HEIGHT, pts) );
+    CmThreadGroupSpace *pts = NULL;
+    cm_result_check( pCmDev->CreateThreadGroupSpace(1, 1, WIDTH/8, HEIGHT/2, pts) );
+    //pts->SelectMediaWalkingPattern(CM_WALK_WAVEFRONT);
+    //pts->SelectThreadDependencyPattern(CM_NONE_DEPENDENCY);
 
-    cm_result_check( pCmDev->InitPrintBuffer() );
-    // ... enqueue ...
-    CmEvent* e;
-    cm_result_check( pCmQueue->Enqueue(pKernelArray, e, pts) );
+    CmEvent* sync_event = NULL;
+    unsigned long time_out = (-1);
+    // warm up
+    cm_result_check(pCmQueue->EnqueueWithGroup(pKernelArray, sync_event, pts));
+    cm_result_check(sync_event->WaitForTaskFinished(time_out));
+    // Start timer.
+    double start = getTimeStamp();
+
+    // Launches the task on the GPU.
+    UINT64 kernel_time_in_ns = 0;
+    unsigned num_iters = 1000;
+
+    for (int i = 0; i < num_iters; ++i) {
+        UINT64 time_in_ns = 0;
+        cm_result_check(pCmQueue->EnqueueWithGroup(pKernelArray, sync_event, pts));
+        cm_result_check(sync_event->WaitForTaskFinished(time_out));
+        cm_result_check(sync_event->GetExecutionTime(time_in_ns));
+        kernel_time_in_ns += time_in_ns;
+    }
+
+    // End timer.
+    double end = getTimeStamp();
+
+    float total_time = (end - start) * 1000.0f / num_iters;
+    float kernel_time = kernel_time_in_ns / 1000000.0f / num_iters;
 
     pCmDev->DestroyTask(pKernelArray);
-    pCmDev->DestroyThreadSpace(pts);
+    pCmDev->DestroyThreadGroupSpace(pts);
 
-    surf1->ReadSurface((unsigned char*) dst, e);
+    surf1->ReadSurface((unsigned char*) dst, sync_event);
 
-    cm_result_check(pCmDev->FlushPrintBuffer());
+    printf("Mandelbrot %d x %d max-iter %d exec time %fms kernal_time %fms\n",
+           WIDTH, HEIGHT, crunch, total_time, kernel_time); 
 
-    UINT64 exec_time = 0;
-    e->GetExecutionTime(exec_time);
-    printf("Mandelbrot %d x %d max-iter %d exec time: %lld ns\n",
-           WIDTH, HEIGHT, crunch, exec_time); 
+    FILE* dumpfile = fopen("mandelbrot.ppm", "w");
+    if (!dumpfile) {
+        printf("Error: cannot dump file!\n");
+        exit(1);
+    }
+    fprintf(dumpfile, "P6\n");
+    fprintf(dumpfile, "%u %u\n", WIDTH, HEIGHT);
+    fprintf(dumpfile, "%u\n", 255);
+    fclose(dumpfile);
+    dumpfile = fopen("mandelbrot.ppm", "ab");
+    for (int32_t i = 0; i < WIDTH * HEIGHT; ++i)
+    {
+        fwrite(&dst[i*4], sizeof(char), 1, dumpfile);
+        fwrite(&dst[i*4+1], sizeof(char), 1, dumpfile);
+        fwrite(&dst[i*4+2], sizeof(char), 1, dumpfile);
+    }
+    fclose(dumpfile);
 
     ::DestroyCmDevice( pCmDev );
 
@@ -121,18 +158,7 @@ int main() {
     int status = 0;
 
     memset(outbuff, 0, WIDTH * HEIGHT * sizeof(int));
-    status |= runkernel("simd_mandelbrot", (unsigned char *)outbuff, 64, -1.5f, -1.0f, 2.0f/WIDTH);
-
-    FILE *ifp = fopen("mandelbrot-gold.bin", "rb");
-    int inbuff[WIDTH*HEIGHT];
-    fread(inbuff, 4, WIDTH * HEIGHT, ifp);
-    fclose(ifp);
-    for (int k=0; k<WIDTH*HEIGHT; k+=1) {
-        if (outbuff[k] != inbuff[k]) {
-            status = 1;
-            printf("k = %d expected = %d, obtained = %d\n", k, inbuff[k], outbuff[k]);
-        }
-    }
+    status |= runkernel("simd_mandelbrot", (unsigned char *)outbuff, CRUNCH, XOFF, YOFF, SCALE);
 
     if (status) {
         printf("FAILED\n");

@@ -23,10 +23,12 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <vector>
 
 #include <iostream>
 #include <memory>
 #include <string>
+
 
 // The only CM runtime header file that you need is cm_rt.h.
 // It includes all of the CM runtime.
@@ -54,15 +56,17 @@
 //   THREAD_SPACE_WIDTH corresponds to thread space width
 //   MULTIPLIER corresponds to thread space height
 //   ROWS_PER_THREAD corresponds to max scatter read capability
-#define THREAD_SPACE_WIDTH    (60)
-#define MULTIPLIER            (16)
-#define ROWS_PER_THREAD       (16)
+#define THREAD_SPACE_WIDTH    (256)
+#define MULTIPLIER            (512)
+#define ROWS_PER_THREAD       (8)
 
 #define ROUND(value, unit)    \
     (((value) / (unit) + (((value) % (unit)) ? 1: 0)) * (unit))
 #define MIN(value1, value2)   ((value1 < value2)? value1: value2)
 #define MAX(value1, value2)   ((value1 > value2)? value1: value2)
 #define ABS(x)                (((x) < 0)? -(x): (x))
+
+#define SPARSE_FACTOR         10 
 
 // Structure for storing SparseMatrix in compressed sparse row format.
 struct CsrSparseMatrix {
@@ -153,7 +157,7 @@ int ReadCsrFile(const char *csr_filename, CsrSparseMatrix &csr) {
   return 0;
 }
 
-int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
+int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr, int num_iter) {
   // This subroutine is for multiplying a sparse matrix with a vector using
   // the GPU
   // Param csr: is an input sparse matrix stored in CSR format.
@@ -163,9 +167,9 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
   // 1. align the X, Y, csr dimensions to OWORD_BUF_ALIGNMENT
   // 2. initialize X and Y vectors with randomized values generated
   // using the same random seed.
-  // In this example, this subroutine will do the above NUM_ITER times with
+  // In this example, this subroutine will do the above num_iter times with
   // the same initial X and Y vectors, and will compare first Y result with
-  // subsequent Y (NUM_ITER - 1) results.
+  // subsequent Y (num_iter - 1) results.
 
   srand(1);
 
@@ -173,7 +177,7 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
   unsigned rounded_num_cols = ROUND(csr.num_cols + 1, OWORD_BUF_ALIGNMENT);
 
   // Randomizes x and y arrays.  They are aligned to OWORD_BUF_ALIGNMENT.
-  float *x = new float[rounded_num_cols];
+  float *x = (float *)CM_ALIGNED_MALLOC(rounded_num_cols * sizeof(float), 0x1000);
   float *y = new float[rounded_num_rows];
 
   x[0] = 0;
@@ -217,9 +221,9 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
     rounded_anz_length += row_length;
   }
 
-  unsigned int *arow = new unsigned int[rounded_num_rows + 1];
-  float *anz = new float[rounded_anz_length];
-  unsigned *acol = new unsigned[rounded_anz_length];
+  unsigned int *arow = (unsigned int*)CM_ALIGNED_MALLOC((rounded_num_rows + 1) * sizeof(unsigned int), 0x1000);
+  float *anz = (float*)CM_ALIGNED_MALLOC(rounded_anz_length * sizeof(float), 0x1000);
+  unsigned *acol = (unsigned*)CM_ALIGNED_MALLOC(rounded_anz_length * sizeof(unsigned), 0x1000);
   arow[0] = 0;
 
   for (unsigned i = 0; i < csr.num_rows; i++) {
@@ -248,13 +252,11 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
     arow[i + 1] = arow[i];
   }
 
-  const int NUM_ITER = 10;
+  // Creates num_iter copies of y vectors.
+  float **y_vec = new float *[num_iter];
 
-  // Creates 10 copies of y vectors.
-  float **y_vec = new float *[NUM_ITER];
-
-  for (int i = 0; i < NUM_ITER; i++) {
-    y_vec[i] = new float[rounded_num_rows];
+  for (int i = 0; i < num_iter; i++) {
+    y_vec[i] = (float*)CM_ALIGNED_MALLOC(rounded_num_rows * sizeof(float), 0x1000);
     memcpy(y_vec[i], y, rounded_num_rows * sizeof(float));
   }
 
@@ -295,61 +297,46 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
   cm_result_check(device->CreateKernel(program,
                                        "SpmvCsr<unsigned int, float>",
                                        kernel_spmv_csr));
+  CmKernel *kernel_spmv_csr_simple = nullptr;
+  cm_result_check(device->CreateKernel(program,
+                                       "SpmvCsrSimple<unsigned int, float>",
+                                       kernel_spmv_csr_simple));
 
   // Initializes the input surface for AROW.
-  // Creates a CmBuffer of the specified size in bytes containing extent of
+  // Creates a CmBufferUP of the specified size in bytes containing extent of
   // rows.
   // Param (rounded_num_rows + 1) * sizeof(float): surface size in bytes
-  // Param input_surface_arow: reference to the pointer to the CmBuffer
-  CmBuffer *input_surface_arow = nullptr;
-  cm_result_check(device->CreateBuffer(
-      (rounded_num_rows + 1) * sizeof(float),
+  // Param input_surface_arow: reference to the pointer to the CmBufferUP
+  CmBufferUP *input_surface_arow = nullptr;
+  cm_result_check(device->CreateBufferUP(
+      (rounded_num_rows + 1) * sizeof(float), arow,
       input_surface_arow));
 
-  // Copies system memory content to the input surface using the CPU. The
-  // system memory content is the data of the input image. The size of data
-  // copied is the size of data in the surface.
-  cm_result_check(input_surface_arow->WriteSurface(
-       reinterpret_cast<unsigned char *>(arow),
-       nullptr));
-
   // Initializes the input surface for ANZ. This buffer is for non-zeros.
-  CmBuffer *input_surface_anz = nullptr;
-  cm_result_check(device->CreateBuffer(
-      rounded_anz_length * sizeof(float),
+  CmBufferUP *input_surface_anz = nullptr;
+  cm_result_check(device->CreateBufferUP(
+      rounded_anz_length * sizeof(float), anz,
       input_surface_anz));
-  cm_result_check(input_surface_anz->WriteSurface(
-      reinterpret_cast<unsigned char *>(anz),
-      nullptr));
 
   // Initializes the input surface for ACOL. This buffer is for column indices.
-  CmBuffer *input_surface_acol = nullptr;
-  cm_result_check(device->CreateBuffer(
-      rounded_anz_length * sizeof(float),
+  CmBufferUP *input_surface_acol = nullptr;
+  cm_result_check(device->CreateBufferUP(
+      rounded_anz_length * sizeof(float), acol,
       input_surface_acol));
-  cm_result_check(input_surface_acol->WriteSurface(
-      reinterpret_cast<unsigned char *>(acol),
-      nullptr));
 
   // Initializes the input surface for X vector. This buffer is for X vector.
-  CmBuffer *input_surface_x = nullptr;
-  cm_result_check(device->CreateBuffer(
-      rounded_num_cols * sizeof(float),
+  CmBufferUP *input_surface_x = nullptr;
+  cm_result_check(device->CreateBufferUP(
+      rounded_num_cols * sizeof(float), x,
       input_surface_x));
-  cm_result_check(input_surface_x->WriteSurface(
-      reinterpret_cast<unsigned char *>(x),
-      nullptr));
 
   // Initializes the input surface for Y vectors.
-  // NUM_ITER # of buffers are created for Y vectors.
-  CmBuffer *inout_surface_ay[NUM_ITER] = {nullptr};
-  for (int i = 0; i < NUM_ITER; i++) {
-    cm_result_check(device->CreateBuffer(
-        rounded_num_rows * sizeof(float),
+  // num_iter # of buffers are created for Y vectors.
+  CmBufferUP **inout_surface_ay = new CmBufferUP *[num_iter];
+  for (int i = 0; i < num_iter; i++) {
+    cm_result_check(device->CreateBufferUP(
+        rounded_num_rows * sizeof(float), y_vec[i],
         inout_surface_ay[i]));
-    cm_result_check(inout_surface_ay[i]->WriteSurface(
-        reinterpret_cast<unsigned char *>(y_vec[i]),
-        nullptr));
   }
 
   // When a surface is created by the CmDevice a SurfaceIndex object is
@@ -372,8 +359,8 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
   cm_result_check(input_surface_x->GetIndex(input_surface_x_idx));
 
   // Gets the input surface indices for Y vectors. These are for the Y vectors.
-  SurfaceIndex *inout_surface_ay_idx[NUM_ITER] = {nullptr};
-  for (int i = 0; i < NUM_ITER; i++) {
+  SurfaceIndex **inout_surface_ay_idx = new SurfaceIndex *[num_iter];
+  for (int i = 0; i < num_iter; i++) {
     cm_result_check(inout_surface_ay[i]->GetIndex(inout_surface_ay_idx[i]));
   }
 
@@ -390,6 +377,63 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
     v_st[k] = k * THREAD_SPACE_WIDTH;
   }
 
+  // Sets the loop-invariant kernel arguments for "SpmvCsr".
+  // The first kernel argument is the non-zeros buffer index.
+  // The second kernel argument is the column indices buffer index.
+  // The third kernel argument is the extent of rows buffer index.
+  // The fourth kernel argument is the X vector buffer index.
+  // The fifth kernel argument is the Y vector buffer index, set in loop.
+  // The sixth kernel argument indicates the start row of the input matrix
+  // to be processed, set in loop.
+  // The seventh kernel argument indicates the thread space width.
+  // The eighth kernel argument indicates the max row of the input matrix.
+  // The ninth kernel argument corresponds to the scattered read offset
+  // locations, corresponding to which rows to be processed.
+  cm_result_check(kernel_spmv_csr->SetKernelArg(0,
+                                                sizeof(SurfaceIndex),
+                                                input_surface_anz_idx));
+  cm_result_check(kernel_spmv_csr->SetKernelArg(1,
+                                                sizeof(SurfaceIndex),
+                                                input_surface_acol_idx));
+  cm_result_check(kernel_spmv_csr->SetKernelArg(2,
+                                                sizeof(SurfaceIndex),
+                                                input_surface_arow_idx));
+  cm_result_check(kernel_spmv_csr->SetKernelArg(3,
+                                                sizeof(SurfaceIndex),
+                                                input_surface_x_idx));
+  short row_stride = THREAD_SPACE_WIDTH;
+  cm_result_check(kernel_spmv_csr->SetKernelArg(6,
+                                                sizeof(short),
+                                                &row_stride));
+  unsigned max_rows = csr.num_rows;
+  cm_result_check(kernel_spmv_csr->SetKernelArg(7,
+                                                sizeof(unsigned),
+                                                &max_rows));
+  cm_result_check(kernel_spmv_csr->SetKernelArg(8,
+                                                sizeof(v_st),
+                                                v_st));
+ 
+  // Sets the loop-invariant kernel arguments for "SpmvCsrSimple".
+  // The first kernel argument is the non-zeros buffer index.
+  // The second kernel argument is the column indices buffer index.
+  // The third kernel argument is the extent of rows buffer index.
+  // The fourth kernel argument is the X vector buffer index.
+  // The fifth kernel argument is the Y vector buffer index.
+  // The sixth kernel argument indicates the start row of the input matrix
+  // to be processed.
+  cm_result_check(kernel_spmv_csr_simple->SetKernelArg(0,
+                                                sizeof(SurfaceIndex),
+                                                input_surface_anz_idx));
+  cm_result_check(kernel_spmv_csr_simple->SetKernelArg(1,
+                                                sizeof(SurfaceIndex),
+                                                input_surface_acol_idx));
+  cm_result_check(kernel_spmv_csr_simple->SetKernelArg(2,
+                                                sizeof(SurfaceIndex),
+                                                input_surface_arow_idx));
+  cm_result_check(kernel_spmv_csr_simple->SetKernelArg(3,
+                                                sizeof(SurfaceIndex),
+                                                input_surface_x_idx));
+
   // Total number of active h/w threads per enqueue
   //   = MULTIPLIER * THREAD_SPACE_WIDTH
   // Total number of spacse matrix rows processed per enqueue
@@ -402,7 +446,7 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
 
   // An event, "sync_event", is created to track the status of the task.
   // Will be used with enqueue.
-  CmEvent *sync_event[NUM_ITER];
+  std::vector<CmEvent *> *sync_events = new std::vector<CmEvent *>[num_iter];
 
   // Creates a CmTask object.
   // The CmTask object is a container for CmKernel pointers. It is used to
@@ -412,7 +456,10 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
 
   // Adds a CmKernel pointer to CmTask.
   // This task has one kernel, "kernel_spmv_csr".
-  cm_result_check(task->AddKernel(kernel_spmv_csr));
+  if (rounded_anz_length < rounded_num_rows * SPARSE_FACTOR)
+      cm_result_check(task->AddKernel(kernel_spmv_csr_simple));
+  else
+      cm_result_check(task->AddKernel(kernel_spmv_csr));
 
   // Creates a task queue.
   // The CmQueue is an in-order queue. Tasks get executed according to the
@@ -447,10 +494,16 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
 
   last_batch_thread_count = ROUND(last_batch_thread_count, THREAD_SPACE_WIDTH);
 
+  std::vector<CmThreadGroupSpace *> pCmThreadSpaces;
   unsigned thread_count = 0;
-  for (int i = 0; i < NUM_ITER; i++) {
-  // Does the Y = Y + csr * X NUM_ITER times through the "SpmvCsr" kernel.
+  double   exec_start, exec_stop;
+  float    exec_total = 0.0f;
+  for (int i = 0; i < num_iter; i++) {
+    if (i == 1) {
+      exec_start = getTimeStamp();
+    }
 
+    // Does the Y = Y + csr * X num_iter times through the "SpmvCsr" kernel.
     for (unsigned batch_row_start = 0; batch_row_start < csr.num_rows;
         batch_row_start += batch_row_size) {
       // Each CmKernel can be executed by multiple concurrent threads.
@@ -464,48 +517,19 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
         thread_count = last_batch_thread_count;
       }
 
-      // Sets kernel arguments for "SpmvCsr".
-      // The first kernel argument is the non-zeros buffer index.
-      // The second kernel argument is the column indices buffer index.
-      // The third kernel argument is the extent of rows buffer index.
-      // The fourth kernel argument is the X vector buffer index.
-      // The fifth kernel argument is the Y vector buffer index.
-      // The sixth kernel argument indicates the start row of the input matrix
-      // to be processed.
-      // The seventh kernel argument indicates the thread space width.
-      // The eighth kernel argument indicates the max row of the input matrix.
-      // The ninth kernel argument corresponds to the scattered read offset
-      // locations, corresponding to which rows to be processed.
-      cm_result_check(kernel_spmv_csr->SetKernelArg(0,
-                                                    sizeof(SurfaceIndex),
-                                                    input_surface_anz_idx));
-      cm_result_check(kernel_spmv_csr->SetKernelArg(1,
-                                                    sizeof(SurfaceIndex),
-                                                    input_surface_acol_idx));
-      cm_result_check(kernel_spmv_csr->SetKernelArg(2,
-                                                    sizeof(SurfaceIndex),
-                                                    input_surface_arow_idx));
-      cm_result_check(kernel_spmv_csr->SetKernelArg(3,
-                                                    sizeof(SurfaceIndex),
-                                                    input_surface_x_idx));
+      // two arguments set in loop, row_start and output-surface
       cm_result_check(kernel_spmv_csr->SetKernelArg(4,
                                                     sizeof(SurfaceIndex),
                                                     inout_surface_ay_idx[i]));
       cm_result_check(kernel_spmv_csr->SetKernelArg(5,
                                                     sizeof(batch_row_start),
                                                     &batch_row_start));
-      short row_stride = THREAD_SPACE_WIDTH;
-      cm_result_check(kernel_spmv_csr->SetKernelArg(6,
-                                                    sizeof(short),
-                                                    &row_stride));
-      unsigned max_rows = csr.num_rows;
-      cm_result_check(kernel_spmv_csr->SetKernelArg(7,
-                                                    sizeof(unsigned),
-                                                    &max_rows));
-      cm_result_check(kernel_spmv_csr->SetKernelArg(8,
-                                                    sizeof(v_st),
-                                                    v_st));
-
+      cm_result_check(kernel_spmv_csr_simple->SetKernelArg(4,
+                                                    sizeof(SurfaceIndex),
+                                                    inout_surface_ay_idx[i]));
+      cm_result_check(kernel_spmv_csr_simple->SetKernelArg(5,
+                                                    sizeof(batch_row_start),
+                                                    &batch_row_start));
       // Creates a CmThreadSpace object.
       // There are two usage models for the thread space. One is to define the
       // dependency between threads to run in the GPU. The other is to define a
@@ -516,11 +540,14 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
       // thread space height = thread_count / THREAD_SPACE_WIDTH
       // These threads will be mapped to rows of the input matrix for
       // calculating corresponding row's final Y value.
-      CmThreadSpace *pCmThreadSpace = nullptr;
-      cm_result_check(device->CreateThreadSpace(
+      CmThreadGroupSpace *pCmThreadSpace = nullptr;
+      cm_result_check(device->CreateThreadGroupSpace(
+          1,
+          1,
           THREAD_SPACE_WIDTH,
           thread_count / THREAD_SPACE_WIDTH,
           pCmThreadSpace));
+      pCmThreadSpaces.push_back(pCmThreadSpace);
 
       // Launches the task on the GPU. Enqueue is a non-blocking call, i.e. the
       // function returns immediately without waiting for the GPU to start or
@@ -528,16 +555,18 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
       // the hardware is not busy, the runtime will submit the task to the
       // driver/HW; otherwise, the runtime will submit the task to the
       // driver/HW at another time.
-      // An event, "sync_event[i]", is created to track the status of the task.
-      cm_result_check(queue->Enqueue(task, sync_event[i], pCmThreadSpace));
+      // An event, sync_event, is created to track the status of the task.
+      CmEvent* sync_event = 0;
+      cm_result_check(queue->EnqueueWithGroup(task, sync_event, pCmThreadSpace));
+      if (sync_event == 0)
+      {
+        fprintf(stderr, "Error in Enqueue!");
+        exit(1);
+      }
+      sync_events[i].push_back(sync_event);
     }
+
   }
-
-  // Destroys a CmTask object.
-  // CmTask will be destroyed when CmDevice is destroyed.
-  // Here, the application destroys the CmTask object by itself.
-  device->DestroyTask(task);
-
   // Waits for the task associated with the event to finish execution on the
   // GPU (i.e.the task status is CM_STATUS_FINISHED).This API uses event
   // synchronization between the GPU and CPU in order to reduce the CPU usage
@@ -545,21 +574,13 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
   // and waits for the notification from the OS when the GPU task finishes.
 
   DWORD dwTimeOutMs = -1;
-  cm_result_check(sync_event[NUM_ITER - 1]->WaitForTaskFinished(dwTimeOutMs));
+  cm_result_check((sync_events[num_iter-1].back())->WaitForTaskFinished(dwTimeOutMs));
 
-  // Reads the output surface content to the system memory using the CPU.
-  // The size of data copied is the size of data in Surface.
-  // It is a blocking call. The function will not return until the copy
-  // operation is completed.
-  // The dependent event "sync_event" ensures that the reading of the surface
-  // will not happen until its state becomes CM_STATUS_FINISHED.
-  cm_result_check(inout_surface_ay[0]->ReadSurface((unsigned char *)y_vec[0],
-                                                    sync_event[0]));
-  for (int i = 1; i < NUM_ITER; i++) {
+  exec_stop = getTimeStamp();
+  exec_total = float(exec_stop - exec_start);
+
+  for (int i = 1; i < num_iter; i++) {
     // Compares Y[i] vectors with Y[0] vector.
-    cm_result_check(inout_surface_ay[i]->ReadSurface((unsigned char *)y_vec[i],
-                                                     sync_event[i]));
-
     unsigned error_count = 0;
     float max_rel_error = 0;
     unsigned int error_index = 0;
@@ -587,15 +608,49 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr) {
     }
   }
 
+  UINT64 total_time = 0;
+  for (int i = 1; i < num_iter; i++) {
+    for (std::vector<CmEvent *>::const_iterator I = sync_events[i].begin(),
+      E = sync_events[i].end(); I != E; ++I) {
+      UINT64 execution_time = 0;
+      (*I)->GetExecutionTime(execution_time);
+      total_time += execution_time;
+    }
+  }
+
+  int count = num_iter - 1;
+  std::cout << "Kernel execution time is " << (total_time / 1000000.0f / count) << " msec" << std::endl;
+  std::cout << "Total time is " << (1000.0f * exec_total / count) << " msec" << std::endl;
+  std::cout << "Total UPIteration count is " << count << std::endl;
+  std::cout << "batch_row_size is " << (batch_row_size) << std::endl;
+  std::cout << "csr.num_rows is " << (csr.num_rows) << std::endl;
+
   memcpy(y, y_vec[0], rounded_num_rows * sizeof(float));
-  delete[] x;
-  for (int i = 0; i < NUM_ITER; i++) {
-    // Destroys the CmEvent.
-    // CmEvent must be destroyed by the user explicitly.
-    cm_result_check(queue->DestroyEvent(sync_event[i]));
-    delete[] y_vec[i];
+  CM_ALIGNED_FREE(x);
+  CM_ALIGNED_FREE(anz);
+  CM_ALIGNED_FREE(arow);
+  CM_ALIGNED_FREE(acol);
+  for (int i = 0; i < num_iter; i++) {
+    for (std::vector<CmEvent *>::iterator I = sync_events[i].begin(),
+      E = sync_events[i].end(); I != E; ++I) {
+      // Destroys the CmEvent.
+      // CmEvent must be destroyed by the user explicitly.
+      cm_result_check(queue->DestroyEvent(*I));
+    }
+    CM_ALIGNED_FREE(y_vec[i]);
   }
   delete[] y_vec;
+
+  // Destroys a CmTask object.
+  // CmTask will be destroyed when CmDevice is destroyed.
+  // Here, the application destroys the CmTask object by itself.
+  device->DestroyTask(task);
+
+  // Destroys created CmThreadGroupSpace
+  for (std::vector<CmThreadGroupSpace *>::iterator I = pCmThreadSpaces.begin(),
+    E = pCmThreadSpaces.end(); I != E; ++I) {
+      device->DestroyThreadGroupSpace(*I);
+  }
 
   // Destroys the CmDevice.
   // Also destroys surfaces, kernels, tasks, thread spaces, and queues that
@@ -652,17 +707,14 @@ int main(int argc, char *argv[]) {
 
   // By default, use "Protein_csr.dat" as input sparse matrix with csr format.
   const char *csr_filename = "Protein_csr.dat";
-
-  for (int i = 1; i < argc; i++) {
-    if (argv[i][0] != '-') {
-      printf("argv[%d] %s", i, argv[i]);
-      csr_filename = argv[i];
-      break;
-    } else {
+  int num_iter = 0;
+  if (argc == 3) {
+      csr_filename = argv[1];
+      num_iter = atoi(argv[2])+1;
+  } else {
       std::cerr << "Unknown option. Exiting..." << std::endl;
-      std::cerr << "Usage: SparseMatrixMul.exe [input_matrix]" << std::endl;
+      std::cerr << "Usage: SparseMatrixMul.exe input_file iteration_count" << std::endl;
       std::exit(1);
-    }
   }
 
   CsrSparseMatrix csr;
@@ -672,5 +724,5 @@ int main(int argc, char *argv[]) {
             << " matrix with " << csr.num_nonzeros << " nonzero values"
             << std::endl;
 
-  return RunCsrSpmvOnGpu(csr);
+  return RunCsrSpmvOnGpu(csr, num_iter);
 }

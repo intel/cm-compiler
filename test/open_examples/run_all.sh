@@ -22,6 +22,8 @@ if [ -d $file ]; then
         ./"$RUN_MODE"."$APP" 4096 8 -random
     elif test $APP = "PrefixSum"; then
         ./"$RUN_MODE"."$APP" 16 
+    elif test $APP = "SparseMatrixMul"; then
+        ./"$RUN_MODE"."$APP" Webbase_csr.dat 100 
     else
         ./"$RUN_MODE"."$APP"
     fi 

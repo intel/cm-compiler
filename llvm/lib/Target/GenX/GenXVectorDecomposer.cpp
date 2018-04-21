@@ -589,13 +589,29 @@ void VectorDecomposer::decomposeRdRegion(Instruction *RdRegion,
   unsigned PartIndex = getPartIndex(&RdR);
   Value *Part = (*PartsIn)[PartIndex];
   if (isa<UndefValue>(Part)) {
-    if (auto N = getVariable(cast<IntrinsicInst>(RdRegion))) {
-      DIVariable Var(N);
-      emitWarning(RdRegion, "undefined value from '" + Var.getName() +
-                            "' is referenced after decomposition");
-    } else
-      emitWarning(RdRegion,
-                  "undefined value is referenced after decomposition");
+    // Check if this region read is used as a two addr operand.
+    auto isUsedInTwoAddr = [](Value *V) {
+      for (auto ui = V->use_begin(), ue = V->use_end(); ui != ue; ++ui) {
+        auto user = cast<Instruction>(ui->getUser());
+        if (auto CI = dyn_cast<CallInst>(user)) {
+          if (getTwoAddressOperandNum(CI) == (int)ui->getOperandNo())
+            return true;
+        }
+      }
+      return false;
+    };
+
+    // Do not emit a warning if this undef is being used as old value
+    // in a two-addr instruction.
+    if (!isUsedInTwoAddr(RdRegion)) {
+      if (auto N = getVariable(cast<IntrinsicInst>(RdRegion))) {
+        DIVariable Var(N);
+        emitWarning(RdRegion, "undefined value from '" + Var.getName() +
+                              "' is referenced after decomposition");
+      } else
+        emitWarning(RdRegion,
+                    "undefined value is referenced after decomposition");
+    }
   }
   if (RdRegion->getType() == Part->getType() && RdR.isContiguous()
       && isa<VectorType>(RdRegion->getType())) {

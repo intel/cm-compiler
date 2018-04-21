@@ -32,6 +32,48 @@
 
 #include <cm_rt.h>
 
+#ifdef __linux__
+#include <sys/time.h>
+#include <unistd.h>
+#include <libgen.h>
+#elif defined(_WIN32) || defined(WIN32)
+#include <Windows.h>
+#endif
+
+double getTimeStamp()
+{
+#ifdef __linux__
+  {
+    struct timeval t;
+    if (gettimeofday(&t, 0) != 0)
+    {
+      fprintf(stderr, "Linux-specific time measurement counter (gettimeofday) is not available.\n");
+      std::exit(1);
+    }
+    return t.tv_sec + t.tv_usec / 1e6;
+  }
+#elif defined(_WIN32) || defined(WIN32)
+  {
+    LARGE_INTEGER curclock;
+    LARGE_INTEGER freq;
+    if (
+      !QueryPerformanceCounter(&curclock) ||
+      !QueryPerformanceFrequency(&freq)
+      )
+    {
+      fprintf(stderr, "Windows - specific time measurement counter(QueryPerformanceCounter, QueryPerformanceFrequency) is not available.\n");
+      std::exit(1);
+    }
+    return double(curclock.QuadPart) / freq.QuadPart;
+  }
+#else
+  {
+    fprintf(stderr, "Unsupported platform.\n");
+    std::exit(1);
+  }
+#endif
+}
+
 #define cm_result_check(x) cm::util::checkError((x), __FILE__, __LINE__, true)
 
 namespace cm {
