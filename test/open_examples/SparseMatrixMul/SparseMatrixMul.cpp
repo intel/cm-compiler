@@ -662,6 +662,7 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr, int num_iter) {
 
   // Compares reference value with final Y value.
   float max_rel_error = 0;
+  float abs_error = 0;
   unsigned int error_index = 0;
   float error_ref = 0;
   float error_res = 0;
@@ -673,10 +674,11 @@ int RunCsrSpmvOnGpu(const CsrSparseMatrix &csr, int num_iter) {
       error_index = i;
       error_ref = ref[i];
       error_res = res[i];
+      abs_error = ABS(ref[i] - res[i]);
     }
   }
 
-  if (max_rel_error > 0.02) {
+  if (max_rel_error > 0.02 && abs_error > 0.000005) {
     std::cout << "Max rel error = " << max_rel_error << std::endl;
     std::cout << "Error index = " << error_index << std::endl;
     std::cout << "Error ref = " << error_ref << std::endl;

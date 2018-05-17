@@ -231,3 +231,4 @@ _GENX_MAIN_ void fft32_simd8_io(SurfaceIndex buf, unsigned width)
     vector<float, 9> W(W32_init);
     fftbase_io<float, 8, 5>(buf, width, W);
 }
+

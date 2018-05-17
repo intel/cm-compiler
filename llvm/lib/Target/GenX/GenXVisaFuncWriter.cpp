@@ -2069,9 +2069,16 @@ void VisaFuncWriter::buildIntrinsic(CallInst *CI, unsigned IntrinID, BaleInfo BI
       case GenXIntrinsicInfo::EXECSIZE_NOT2:
         {
           // Execution size
-          ExecSize = 1;
-          if (VectorType *VT = dyn_cast<VectorType>(CI->getType()))
-            ExecSize = VT->getNumElements();
+          {
+            if (VectorType *VT = dyn_cast<VectorType>(CI->getType()))
+            {
+              ExecSize = VT->getNumElements();
+            }
+            else
+            {
+              ExecSize = 1;
+            }
+          }
           writeExecSizeFromWrRegion(ExecSize, WrRegion, WrRegionBI);
         }
         break;

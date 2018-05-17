@@ -342,7 +342,7 @@ struct SinkCandidate {
 // GenX depressurizer pass
 class GenXDepressurizer : public FunctionGroupPass {
   enum { FlagThreshold = 6, AddrThreshold = 32, GRFThreshold = 2560,
-         FlagGRFTolerance = 3840 };
+         FlagGRFTolerance = 2560 };
   bool Modified;
   GenXGroupBaling *Baling;
   DominatorTree *DT;

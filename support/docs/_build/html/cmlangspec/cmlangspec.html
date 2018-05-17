@@ -3918,102 +3918,6 @@ no gap in m for disabled channels.</p>
 </tbody>
 </table>
 </div>
-<div class="section" id="sample32">
-<h4>sample32<a class="headerlink" href="#sample32" title="Permalink to this headline">¶</a></h4>
-<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">sample32</span><span class="p">(</span><span class="n">matrix_ref</span><span class="o">&lt;</span><span class="n">ushort</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">m</span><span class="p">,</span> <span class="n">ChannelMaskType</span> <span class="n">channelMask</span><span class="p">,</span>
-  <span class="n">SurfaceIndex</span> <span class="n">surfIndex</span><span class="p">,</span> <span class="n">SamplerIndex</span> <span class="n">sampIndex</span><span class="p">,</span> <span class="kt">float</span> <span class="n">u</span><span class="p">,</span> <span class="kt">float</span> <span class="n">v</span><span class="p">,</span>
-  <span class="kt">float</span> <span class="n">deltaU</span><span class="p">,</span> <span class="kt">float</span> <span class="n">deltaV</span><span class="p">,</span> <span class="n">OutputFormatControl</span> <span class="n">ofc</span><span class="p">);</span>
-</pre></div>
-</div>
-<table border="1" class="docutils">
-<colgroup>
-<col width="20%" />
-<col width="80%" />
-</colgroup>
-<thead valign="bottom">
-<tr class="row-odd"><th class="head">Parameters</th>
-<th class="head">&#160;</th>
-</tr>
-</thead>
-<tbody valign="top">
-<tr class="row-even"><td>m</td>
-<td>the matrix to store the return results. The results are
-returned in m with each enabled channel stored in the next
-row.  For Gen6, N is at least the number of enabled
-channels, which are specified by channelMask and are
-returned with no gap in m for disabled channels.</td>
-</tr>
-<tr class="row-odd"><td>channelMask</td>
-<td>enabled channels.  It must be a compile time constant.</td>
-</tr>
-<tr class="row-even"><td>surfIndex</td>
-<td>surface index, which must correspond to a 2D type surface
-that has a format with &lt;= 8 bits per channel. This is an
-abstract handle that represents the surface created by CM
-host runtime [6] and must be passed through kernel function
-parameters. CM does not allow the explicit use of
-local/global variable or modification of such abstract data
-types in kernel functions, except used as function call
-argument.</td>
-</tr>
-<tr class="row-odd"><td>sampIndex</td>
-<td>the index into the sampler state table. This is an abstract
-handle that represents the sampler state created by CM host
-runtime [6] and must be passed through kernel function
-parameters. CM does not allow the explicit use of
-local/global variable or modification of such abstract data
-types in kernel functions, except used as function call
-argument.</td>
-</tr>
-<tr class="row-even"><td>u</td>
-<td>the normalized x coordinat of pixel 0.</td>
-</tr>
-<tr class="row-odd"><td>v</td>
-<td>the normalized y coordinat of pixel 0.</td>
-</tr>
-<tr class="row-even"><td>deltaU</td>
-<td>the difference in coordinates for adjacent pixels in the X
-direction.</td>
-</tr>
-<tr class="row-odd"><td>deltaV</td>
-<td>the difference in coordinates for adjacent pixels in the Y
-direction.</td>
-</tr>
-<tr class="row-even"><td>ofc</td>
-<td><p class="first">optional Output Format Control parameter.
-the following are valid values to use for this parameter:</p>
-<ul class="last simple">
-<li>CM_16_FULL (this is the default if no parameter is given)
-– two bytes returned for each pixel</li>
-<li>CM_16_DOWN_SAMPLE – 16 bit chrominance downsampled. Like
-CM_16_FULL except only even pixels are returned for R and
-B channels</li>
-<li>CM_8_FULL – one byte returned for each pixel</li>
-<li>CM_8_DOWN_SAMPLE – 8 but chrominance downsampled. Like
-CM_8_FULL but only even pixels are returned for R and B
-channels</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-<p>The compiler generates a “sample_unorm” message in SIMD32 mode. This provides
-sampling for 32 pixels in an 8-wide by 4-high arrangement. The coordinates of
-the upper left pixel are specified by the parameter u and v.  The coordinates
-of a pixel located at (x, y) (relative to the upper left pixels at (0, 0)) are
-computed as follows:</p>
-<ul class="simple">
-<li>u(x, y) = u + deltaU * x;</li>
-<li>v(x, y) = v + deltaV * y;</li>
-</ul>
-<p>In addition, the sampler state setup in the host must satisfy the following constraints [6]:</p>
-<ul class="simple">
-<li>The Min and Mag Filter type must be D3DTEXF_LINEAR or D3DTEXF_POINT.</li>
-<li>The U and V Address Control Mode cannot be D3DTADDRESS_BORDER.</li>
-<li>deltaU * Width of the surface must be less than or equal to 3.0.</li>
-<li>deltaV * Height of the surface must be less than or equal to 3.0.</li>
-</ul>
-</div>
 <div class="section" id="load16">
 <h4>load16<a class="headerlink" href="#load16" title="Permalink to this headline">¶</a></h4>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">load16</span><span class="p">(</span><span class="n">matrix_ref</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">m</span><span class="p">,</span> <span class="n">ChannelMaskType</span> <span class="n">channelMask</span><span class="p">,</span>
@@ -13170,7 +13074,7 @@ input/output data variables are specified in Section 4.12.4.</p>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
-      Last updated on Wed Mar 21 12:05:28 2018 -0700.
+      Last updated on Tue May 8 11:54:15 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

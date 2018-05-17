@@ -127,7 +127,7 @@ int runkernel(char* app_name, unsigned char *dst,
 
     surf1->ReadSurface((unsigned char*) dst, sync_event);
 
-    printf("Mandelbrot %d x %d max-iter %d exec time %fms kernal_time %fms\n",
+    printf("Mandelbrot %d x %d max-iter %d exec time %fms kernel_time %fms\n",
            WIDTH, HEIGHT, crunch, total_time, kernel_time); 
 
     FILE* dumpfile = fopen("mandelbrot.ppm", "w");

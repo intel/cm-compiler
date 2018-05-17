@@ -28,7 +28,7 @@
 
 #define OWORD_BUF_ALIGNMENT    (4)  // Required alignment for OWORD reads
 #define THREAD_SPACE_WIDTH     (256) // Thread space width
-#define ROWS_PER_THREAD        (8) // Process 16 to maximize scatter read capacity.
+#define ROWS_PER_THREAD        (8) // Process 8 row per thread
 
 //////////////////////////////////////////////////////////////////////////////
 // CM kernel:

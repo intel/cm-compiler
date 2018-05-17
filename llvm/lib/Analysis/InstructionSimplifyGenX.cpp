@@ -55,16 +55,25 @@ static Value *SimplifyGenXIntrinsic2(unsigned IID, Type *RetTy,
     case Intrinsic::genx_rdregioni:
     case Intrinsic::genx_rdregionf:
       // Identity rdregion can be simplified to its "old value" input.
-      // (We do not check for the offset being constant 0 as any other value
-      // would be undefined behavior anyway.)
       if (RetTy
           == ArgBegin[Intrinsic::GenXRegion::OldValueOperandNum]->getType()) {
         unsigned NumElements = RetTy->getVectorNumElements();
         unsigned Width = cast<ConstantInt>(
               ArgBegin[Intrinsic::GenXRegion::RdWidthOperandNum])
             ->getZExtValue();
-        if (Width == NumElements || Width == cast<ConstantInt>(ArgBegin[
-            Intrinsic::GenXRegion::RdVStrideOperandNum])->getSExtValue())
+        auto IndexV = dyn_cast<Constant>(
+          ArgBegin[Intrinsic::GenXRegion::RdIndexOperandNum]);
+        if (!IndexV)
+          return nullptr;
+        unsigned Index = 0;
+        if (!isa<VectorType>(IndexV->getType()))
+          Index = dyn_cast<ConstantInt>(IndexV)->getZExtValue()
+          / (RetTy->getScalarType()->getPrimitiveSizeInBits() / 8);
+        else
+          return nullptr;
+        if ((Index == 0 || Index >= NumElements) &&
+            (Width == NumElements || Width == cast<ConstantInt>(ArgBegin[
+             Intrinsic::GenXRegion::RdVStrideOperandNum])->getSExtValue()))
           if (NumElements == 1 || cast<ConstantInt>(ArgBegin[
                 Intrinsic::GenXRegion::RdStrideOperandNum])->getSExtValue())
             return ArgBegin[Intrinsic::GenXRegion::OldValueOperandNum];
@@ -83,8 +92,6 @@ static Value *SimplifyGenXIntrinsic2(unsigned IID, Type *RetTy,
     case Intrinsic::genx_wrregionf:
       // The wrregion case specifically excludes genx_wrconstregion.
       // Identity wrregion can be simplified to its "new value" input.
-      // (We do not check for the offset being constant 0 as any other value
-      // would be undefined behavior anyway.)
       if (RetTy
           == ArgBegin[Intrinsic::GenXRegion::NewValueOperandNum]->getType()) {
         if (auto CMask = dyn_cast<Constant>(ArgBegin[
@@ -94,8 +101,19 @@ static Value *SimplifyGenXIntrinsic2(unsigned IID, Type *RetTy,
             unsigned Width = cast<ConstantInt>(
                   ArgBegin[Intrinsic::GenXRegion::WrWidthOperandNum])
                 ->getZExtValue();
-            if (Width == NumElements || Width == cast<ConstantInt>(ArgBegin[
-                Intrinsic::GenXRegion::WrVStrideOperandNum])->getSExtValue())
+            auto IndexV = dyn_cast<Constant>(
+              ArgBegin[Intrinsic::GenXRegion::WrIndexOperandNum]);
+            if (!IndexV)
+              return nullptr;
+            unsigned Index = 0;
+            if (!isa<VectorType>(IndexV->getType()))
+              Index = dyn_cast<ConstantInt>(IndexV)->getZExtValue()
+              / (RetTy->getScalarType()->getPrimitiveSizeInBits() / 8);
+            else
+              return nullptr;
+            if ((Index == 0 || Index >= NumElements) &&
+                (Width == NumElements || Width == cast<ConstantInt>(ArgBegin[
+                 Intrinsic::GenXRegion::WrVStrideOperandNum])->getSExtValue()))
               if (NumElements == 1 || cast<ConstantInt>(ArgBegin[
                     Intrinsic::GenXRegion::WrStrideOperandNum])->getSExtValue())
                 return ArgBegin[Intrinsic::GenXRegion::NewValueOperandNum];

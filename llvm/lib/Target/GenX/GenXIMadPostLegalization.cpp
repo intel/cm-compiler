@@ -307,7 +307,7 @@ bool GenXIMadPostLegalization::fixMadChain(BasicBlock *BB) {
       // chain-in.
       if (!In)
         break;
-      // Check inputs from the tip of chain, i.e the current chain-out.
+      // Check inputs from the tip of chain, i.e. the current chain-out.
       for (auto &OpI : Opnds) {
         // Skip the chain-in.
         if (OpI == In)
@@ -349,7 +349,7 @@ bool GenXIMadPostLegalization::fixMadChain(BasicBlock *BB) {
       FMAs.insert(InB.getMainInst()->Inst);
     } while (1);
     // Cluster the discovered chain together.
-    if (Chain.size() > 1) {
+    if (FMAs.size() > 1) {
       Instruction *Pos = nullptr;
       for (auto I = Chain.begin(), E = Chain.end(); I != E; ++I) {
         for (auto II = I->rbegin(), IE = I->rend(); II != IE; ++II) {

@@ -34,7 +34,7 @@
 
 #define NUM_BINS     64
 #define BLOCK_WIDTH  32
-#define BLOCK_HEIGHT 64
+#define BLOCK_HEIGHT 512
 
 // This function calculates histogram of the image with the CPU.
 // @param size: the size of the input array.
@@ -93,7 +93,8 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Error reading input from %s\n", input_file);
         std::exit(1);
       }
-    } else {
+    }
+    else {
       srand(2009);
       for (int i = 0; i < input_size; ++i)
       {
@@ -184,8 +185,8 @@ int main(int argc, char *argv[]) {
     unsigned int ts_width, ts_height;
     ts_width = width / BLOCK_WIDTH;
     ts_height = height / BLOCK_HEIGHT;
-    CmThreadSpace *thread_space = nullptr;
-    cm_result_check(device->CreateThreadSpace(ts_width, ts_height, thread_space));
+    CmThreadGroupSpace *thread_space = nullptr;
+    cm_result_check(device->CreateThreadGroupSpace(1, 1, ts_width, ts_height, thread_space));
 
     // Creates a task queue.
     // The CmQueue is an in-order queue. Tasks get executed according to the
@@ -239,14 +240,13 @@ int main(int argc, char *argv[]) {
         // at another time.
         // An event, "sync_event", is created to track the status of the task.
 	      sync_events[i] = nullptr;
-        cm_result_check(cmd_queue->Enqueue(task, sync_events[i], thread_space));
+        cm_result_check(cmd_queue->EnqueueWithGroup(task, sync_events[i], thread_space));
     }
     DWORD dwTimeOutMs = -1;
     cm_result_check((sync_events[NUM_ITER-1])->WaitForTaskFinished(dwTimeOutMs));
 
     exec_stop = getTimeStamp();
     exec_total = float(exec_stop - exec_start);
-
 
     // Destroys a CmTask object.
     // CmTask will be destroyed when CmDevice is destroyed.
@@ -256,7 +256,7 @@ int main(int argc, char *argv[]) {
     // Destroy a CmThreadSpace object.
     // CmThreadSpace will be destroyed when CmDevice is destroyed.
     // Here, the application destroys the CmThreadSpace object by itself.
-    cm_result_check(device->DestroyThreadSpace(thread_space));
+    cm_result_check(device->DestroyThreadGroupSpace(thread_space));
 
     // Reads the output surface content to the system memory using the CPU.
     // The size of data copied is the size of data in Surface.

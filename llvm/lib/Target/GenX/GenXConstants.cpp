@@ -1198,7 +1198,6 @@ Constant *ConstantLoader::getConsolidatedConstant(Constant *C)
     return nullptr;
   unsigned BytesPerElement = VT->getElementType()->getPrimitiveSizeInBits() / 8;
   unsigned NumElements = VT->getNumElements();
-  assert(!VT->getElementType()->isHalfTy() && "half not implemented");
   if (!BytesPerElement)
     return nullptr; // vector of i1
   if (BytesPerElement >= 4)
@@ -1223,6 +1222,11 @@ Constant *ConstantLoader::getConsolidatedConstant(Constant *C)
       // middle.
       if (auto CI = dyn_cast<ConstantInt>(El)) {
         Bits = CI->getSExtValue();
+        IsUndef = false;
+      }
+      else if (auto CI = dyn_cast<ConstantFP>(El)) {
+        APFloat V = CI->getValueAPF();
+        Bits = V.bitcastToAPInt().getZExtValue();
         IsUndef = false;
       }
       Val |= (Bits & Mask) << (j * BytesPerElement * 8);

@@ -461,6 +461,10 @@ bool GenXLegalization::processInst(Instruction *Inst)
   auto InsertBefore = Inst->getNextNode();
   if (isa<PHINode>(Inst))
     return false; // ignore phi node
+  // Sanity check for illegal operand type
+  if ((Inst->getType()->getScalarType()->getPrimitiveSizeInBits() == 64) &&
+      !(ST->hasLongLong()))
+    report_fatal_error("'double' and 'long long' type are not supported by this target");
   if (!isa<VectorType>(Inst->getType())) {
     if (Inst->getOpcode() == Instruction::BitCast
         && Inst->getOperand(0)->getType()->getScalarType()->isIntegerTy(1)) {

@@ -18,7 +18,11 @@ SetupTest_from_cm(gaussian_blur_test "gaussian_blur_test" "" "gaussian_blur_test
 
 SetupTest_from_cm(histogram_64 "histogram_64" "" "histogram.cpp" "histogram_genx.cpp" "" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
 
+SetupTest_from_cm(histogram_64_slm "histogram_64_slm" "" "histogram.cpp" "histogram_genx.cpp" "" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
+
 SetupTest_from_cm(histogram_256 "histogram_256" "" "histogram.cpp" "histogram_genx.cpp" "" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
+
+SetupTest_from_cm(histogram_256_slm "histogram_256_slm" "" "histogram.cpp" "histogram_genx.cpp" "" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
 
 SetupTest_from_cm(linear_up_walker "linear_up_walker" "" "linear_up_walker.cpp" "linear_up_walker_genx.cpp" "linear_in.bmp;linear_gold.bmp;linear_gold_hw.bmp" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
 
@@ -35,6 +39,8 @@ SetupTest_from_cm(MediaSampler8x8 "MediaSampler8x8" "" "avs_adaptive_422_8x8_002
 SetupTest_from_cm(sepia "sepia" "" "sepia.cpp" "sepia_genx.cpp" "*.bmp" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
 
 SetupTest_from_cm(sharpen "sharpen" "" "sharpen.cpp" "sharpen_genx.cpp" "*.bmp" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
+
+SetupTest_from_cm(Sgemm "Sgemm" "" "Sgemm.cpp" "Sgemm_genx.cpp" "" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
 
 SetupTest_from_cm(Sampler3D "Sampler3D" "" "Sampler3D.cpp" "Sampler3D_genx.cpp" "*.bmp" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
 

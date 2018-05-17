@@ -66,22 +66,48 @@ int CheckHistogram(unsigned int *cpu_histogram,
 }
 
 int main(int argc, char *argv[]) {
+    const char *input_file = nullptr;
+    unsigned int width = 4096 * sizeof(unsigned int);
+    unsigned int height = 4096;
+
+    if (argc == 2) {
+      input_file = argv[1];
+    }
+    else {
+      std::cerr << "Usage: Histogram.exe input_file" << std::endl;
+      std::cerr << "No input file specificed. Use default random value ...." << std::endl;
+    }
+
     // Initializes input.
-    unsigned int input_size = 16 * 1048576;
+    unsigned int input_size = width * height / sizeof(unsigned int);
     unsigned int *input_ptr = (unsigned int*)CM_ALIGNED_MALLOC(input_size*sizeof(unsigned int), 2 * 1024 * 1024);
-    printf("Processing %d inputs\n", input_size);
-    srand(2009);
-    for (int i = 0; i < input_size; ++i)
-    {
-      input_ptr[i] = rand() % 256;
-      input_ptr[i] |= (rand() % 256) << 8;
-      input_ptr[i] |= (rand() % 256) << 16;
-      input_ptr[i] |= (rand() % 256) << 24;
+    printf("Processing %dx%d inputs\n", input_size);
+
+    if (input_file != nullptr) {
+      FILE *f = fopen(input_file, "rb");
+      if (f == NULL) {
+        fprintf(stderr, "Error opening file %s", input_file);
+        std::exit(1);
+      }
+      if (fread(input_ptr, sizeof(unsigned int), input_size, f) != input_size) {
+        fprintf(stderr, "Error reading input from %s\n", input_file);
+        std::exit(1);
+      }
+    }
+    else {
+      srand(2009);
+      for (int i = 0; i < input_size; ++i)
+      {
+        input_ptr[i] = rand() % 256;
+        input_ptr[i] |= (rand() % 256) << 8;
+        input_ptr[i] |= (rand() % 256) << 16;
+        input_ptr[i] |= (rand() % 256) << 24;
+      }
     }
 
     double   exec_start, exec_stop;
     float    exec_total = 0.0f;
-    const int NUM_ITER = 17;
+    const int NUM_ITER = 101;
 
     // Allocates system memory for output buffer.
     int buffer_size = sizeof(unsigned int) * NUM_BINS;
@@ -137,8 +163,6 @@ int main(int argc, char *argv[]) {
 
     // Creates input surface with given width and height in pixels and format.
     CmSurface2D *input_surface = nullptr;
-    unsigned int width = 16384;
-    unsigned int height = 4096;
     cm_result_check(device->CreateSurface2D(width,
                                             height,
                                             CM_SURFACE_FORMAT_A8,
