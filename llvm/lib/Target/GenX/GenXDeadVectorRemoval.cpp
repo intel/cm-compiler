@@ -171,7 +171,7 @@ class GenXDeadVectorRemoval : public FunctionPass {
 public:
   static char ID;
   explicit GenXDeadVectorRemoval() : FunctionPass(ID) { }
-  virtual const char *getPassName() const { return "GenX dead vector element removal pass"; }
+  virtual StringRef getPassName() const { return "GenX dead vector element removal pass"; }
   void getAnalysisUsage(AnalysisUsage &AU) const;
   bool runOnFunction(Function &F);
 private:

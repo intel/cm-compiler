@@ -1209,9 +1209,7 @@ channel; optionally scalar statements with a SIMD width of one are allowed, in w
 condition associated with the scalar statements is determined to be true if any of the channels in the
 SIMD control flow block is active and false otherwise.</p>
 <p>SIMD control flow usage example:</p>
-<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">cond</span><span class="p">;</span>
-  <span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">v</span><span class="p">;</span>
-  <span class="c1">// ...</span>
+<div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// ...</span>
   <span class="n">SIMD_IF_BEGIN</span> <span class="p">(</span><span class="n">cond</span><span class="p">)</span> <span class="p">{</span>
     <span class="c1">// ...</span>
   <span class="p">}</span> <span class="n">SIMD_ELSE</span> <span class="p">{</span>
@@ -1234,6 +1232,7 @@ SIMD control flow block is active and false otherwise.</p>
     <span class="c1">// ...</span>
   <span class="p">}</span> <span class="n">SIMD_DO_WHILE_END</span> <span class="p">(</span><span class="n">cond</span> <span class="o">&lt;</span> <span class="mi">32</span><span class="p">);</span>
   <span class="c1">// ...</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>The following constraints are placed on statements appearing within SIMD control flow blocks in order to
@@ -13074,7 +13073,7 @@ input/output data variables are specified in Section 4.12.4.</p>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
-      Last updated on Tue May 8 11:54:15 2018 -0700.
+      Last updated on Wed Jul 11 09:49:35 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

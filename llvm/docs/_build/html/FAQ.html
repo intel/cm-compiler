@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Frequently Asked Questions (FAQ) &#8212; LLVM 3.4 documentation</title>
+    <title>Frequently Asked Questions (FAQ) &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -81,35 +81,22 @@
 <li><a class="reference internal" href="#what-api-do-i-use-to-store-a-value-to-one-of-the-virtual-registers-in-llvm-ir-s-ssa-representation" id="id8">What API do I use to store a value to one of the virtual registers in LLVM IR’s SSA representation?</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#build-problems" id="id9">Build Problems</a><ul>
-<li><a class="reference internal" href="#when-i-run-configure-it-finds-the-wrong-c-compiler" id="id10">When I run configure, it finds the wrong C compiler.</a></li>
-<li><a class="reference internal" href="#the-configure-script-finds-the-right-c-compiler-but-it-uses-the-llvm-tools-from-a-previous-build-what-do-i-do" id="id11">The <code class="docutils literal"><span class="pre">configure</span></code> script finds the right C compiler, but it uses the LLVM tools from a previous build.  What do I do?</a></li>
-<li><a class="reference internal" href="#when-creating-a-dynamic-library-i-get-a-strange-glibc-error" id="id12">When creating a dynamic library, I get a strange GLIBC error.</a></li>
-<li><a class="reference internal" href="#i-ve-updated-my-source-tree-from-subversion-and-now-my-build-is-trying-to-use-a-file-directory-that-doesn-t-exist" id="id13">I’ve updated my source tree from Subversion, and now my build is trying to use a file/directory that doesn’t exist.</a></li>
-<li><a class="reference internal" href="#i-ve-modified-a-makefile-in-my-source-tree-but-my-build-tree-keeps-using-the-old-version-what-do-i-do" id="id14">I’ve modified a Makefile in my source tree, but my build tree keeps using the old version.  What do I do?</a></li>
-<li><a class="reference internal" href="#i-ve-upgraded-to-a-new-version-of-llvm-and-i-get-strange-build-errors" id="id15">I’ve upgraded to a new version of LLVM, and I get strange build errors.</a></li>
-<li><a class="reference internal" href="#i-ve-built-llvm-and-am-testing-it-but-the-tests-freeze" id="id16">I’ve built LLVM and am testing it, but the tests freeze.</a></li>
-<li><a class="reference internal" href="#why-do-test-results-differ-when-i-perform-different-types-of-builds" id="id17">Why do test results differ when I perform different types of builds?</a></li>
-<li><a class="reference internal" href="#compiling-llvm-with-gcc-3-3-2-fails-what-should-i-do" id="id18">Compiling LLVM with GCC 3.3.2 fails, what should I do?</a></li>
-<li><a class="reference internal" href="#after-subversion-update-rebuilding-gives-the-error-no-rule-to-make-target" id="id19">After Subversion update, rebuilding gives the error “No rule to make target”.</a></li>
+<li><a class="reference internal" href="#source-languages" id="id9">Source Languages</a><ul>
+<li><a class="reference internal" href="#what-source-languages-are-supported" id="id10">What source languages are supported?</a></li>
+<li><a class="reference internal" href="#i-d-like-to-write-a-self-hosting-llvm-compiler-how-should-i-interface-with-the-llvm-middle-end-optimizers-and-back-end-code-generators" id="id11">I’d like to write a self-hosting LLVM compiler. How should I interface with the LLVM middle-end optimizers and back-end code generators?</a></li>
+<li><a class="reference internal" href="#what-support-is-there-for-a-higher-level-source-language-constructs-for-building-a-compiler" id="id12">What support is there for a higher level source language constructs for building a compiler?</a></li>
+<li><a class="reference internal" href="#i-don-t-understand-the-getelementptr-instruction-help" id="id13">I don’t understand the <code class="docutils literal"><span class="pre">GetElementPtr</span></code> instruction. Help!</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#source-languages" id="id20">Source Languages</a><ul>
-<li><a class="reference internal" href="#what-source-languages-are-supported" id="id21">What source languages are supported?</a></li>
-<li><a class="reference internal" href="#i-d-like-to-write-a-self-hosting-llvm-compiler-how-should-i-interface-with-the-llvm-middle-end-optimizers-and-back-end-code-generators" id="id22">I’d like to write a self-hosting LLVM compiler. How should I interface with the LLVM middle-end optimizers and back-end code generators?</a></li>
-<li><a class="reference internal" href="#what-support-is-there-for-a-higher-level-source-language-constructs-for-building-a-compiler" id="id23">What support is there for a higher level source language constructs for building a compiler?</a></li>
-<li><a class="reference internal" href="#i-don-t-understand-the-getelementptr-instruction-help" id="id24">I don’t understand the <code class="docutils literal"><span class="pre">GetElementPtr</span></code> instruction. Help!</a></li>
+<li><a class="reference internal" href="#using-the-c-and-c-front-ends" id="id14">Using the C and C++ Front Ends</a><ul>
+<li><a class="reference internal" href="#can-i-compile-c-or-c-code-to-platform-independent-llvm-bitcode" id="id15">Can I compile C or C++ code to platform-independent LLVM bitcode?</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#using-the-c-and-c-front-ends" id="id25">Using the C and C++ Front Ends</a><ul>
-<li><a class="reference internal" href="#can-i-compile-c-or-c-code-to-platform-independent-llvm-bitcode" id="id26">Can I compile C or C++ code to platform-independent LLVM bitcode?</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#questions-about-code-generated-by-the-demo-page" id="id27">Questions about code generated by the demo page</a><ul>
-<li><a class="reference internal" href="#what-is-this-llvm-global-ctors-and-global-i-a-stuff-that-happens-when-i-include-iostream" id="id28">What is this <code class="docutils literal"><span class="pre">llvm.global_ctors</span></code> and <code class="docutils literal"><span class="pre">_GLOBAL__I_a...</span></code> stuff that happens when I <code class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;iostream&gt;</span></code>?</a></li>
-<li><a class="reference internal" href="#where-did-all-of-my-code-go" id="id29">Where did all of my code go??</a></li>
-<li><a class="reference internal" href="#what-is-this-undef-thing-that-shows-up-in-my-code" id="id30">What is this “<code class="docutils literal"><span class="pre">undef</span></code>” thing that shows up in my code?</a></li>
-<li><a class="reference internal" href="#why-does-instcombine-simplifycfg-turn-a-call-to-a-function-with-a-mismatched-calling-convention-into-unreachable-why-not-make-the-verifier-reject-it" id="id31">Why does instcombine + simplifycfg turn a call to a function with a mismatched calling convention into “unreachable”? Why not make the verifier reject it?</a></li>
+<li><a class="reference internal" href="#questions-about-code-generated-by-the-demo-page" id="id16">Questions about code generated by the demo page</a><ul>
+<li><a class="reference internal" href="#what-is-this-llvm-global-ctors-and-global-i-a-stuff-that-happens-when-i-include-iostream" id="id17">What is this <code class="docutils literal"><span class="pre">llvm.global_ctors</span></code> and <code class="docutils literal"><span class="pre">_GLOBAL__I_a...</span></code> stuff that happens when I <code class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;iostream&gt;</span></code>?</a></li>
+<li><a class="reference internal" href="#where-did-all-of-my-code-go" id="id18">Where did all of my code go??</a></li>
+<li><a class="reference internal" href="#what-is-this-undef-thing-that-shows-up-in-my-code" id="id19">What is this “<code class="docutils literal"><span class="pre">undef</span></code>” thing that shows up in my code?</a></li>
+<li><a class="reference internal" href="#why-does-instcombine-simplifycfg-turn-a-call-to-a-function-with-a-mismatched-calling-convention-into-unreachable-why-not-make-the-verifier-reject-it" id="id20">Why does instcombine + simplifycfg turn a call to a function with a mismatched calling convention into “unreachable”? Why not make the verifier reject it?</a></li>
 </ul>
 </li>
 </ul>
@@ -124,7 +111,7 @@ Initiative (OSI).</p>
 <div class="section" id="can-i-modify-llvm-source-code-and-redistribute-the-modified-source">
 <h3><a class="toc-backref" href="#id3">Can I modify LLVM source code and redistribute the modified source?</a><a class="headerlink" href="#can-i-modify-llvm-source-code-and-redistribute-the-modified-source" title="Permalink to this headline">¶</a></h3>
 <p>Yes.  The modified source distribution must retain the copyright notice and
-follow the three bulletted conditions listed in the <a class="reference external" href="http://llvm.org/svn/llvm-project/llvm/trunk/LICENSE.TXT">LLVM license</a>.</p>
+follow the three bulleted conditions listed in the <a class="reference external" href="http://llvm.org/svn/llvm-project/llvm/trunk/LICENSE.TXT">LLVM license</a>.</p>
 </div>
 <div class="section" id="can-i-modify-the-llvm-source-code-and-redistribute-binaries-or-other-tools-based-on-it-without-redistributing-the-source">
 <h3><a class="toc-backref" href="#id4">Can I modify the LLVM source code and redistribute binaries or other tools based on it, without redistributing the source?</a><a class="headerlink" href="#can-i-modify-the-llvm-source-code-and-redistribute-binaries-or-other-tools-based-on-it-without-redistributing-the-source" title="Permalink to this headline">¶</a></h3>
@@ -173,124 +160,17 @@ not explicitly represented in the in-memory representation at all (see
 <code class="docutils literal"><span class="pre">Value::getName()</span></code>).</p>
 </div>
 </div>
-<div class="section" id="build-problems">
-<h2><a class="toc-backref" href="#id9">Build Problems</a><a class="headerlink" href="#build-problems" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="when-i-run-configure-it-finds-the-wrong-c-compiler">
-<h3><a class="toc-backref" href="#id10">When I run configure, it finds the wrong C compiler.</a><a class="headerlink" href="#when-i-run-configure-it-finds-the-wrong-c-compiler" title="Permalink to this headline">¶</a></h3>
-<p>The <code class="docutils literal"><span class="pre">configure</span></code> script attempts to locate first <code class="docutils literal"><span class="pre">gcc</span></code> and then <code class="docutils literal"><span class="pre">cc</span></code>,
-unless it finds compiler paths set in <code class="docutils literal"><span class="pre">CC</span></code> and <code class="docutils literal"><span class="pre">CXX</span></code> for the C and C++
-compiler, respectively.</p>
-<p>If <code class="docutils literal"><span class="pre">configure</span></code> finds the wrong compiler, either adjust your <code class="docutils literal"><span class="pre">PATH</span></code>
-environment variable or set <code class="docutils literal"><span class="pre">CC</span></code> and <code class="docutils literal"><span class="pre">CXX</span></code> explicitly.</p>
-</div>
-<div class="section" id="the-configure-script-finds-the-right-c-compiler-but-it-uses-the-llvm-tools-from-a-previous-build-what-do-i-do">
-<h3><a class="toc-backref" href="#id11">The <code class="docutils literal"><span class="pre">configure</span></code> script finds the right C compiler, but it uses the LLVM tools from a previous build.  What do I do?</a><a class="headerlink" href="#the-configure-script-finds-the-right-c-compiler-but-it-uses-the-llvm-tools-from-a-previous-build-what-do-i-do" title="Permalink to this headline">¶</a></h3>
-<p>The <code class="docutils literal"><span class="pre">configure</span></code> script uses the <code class="docutils literal"><span class="pre">PATH</span></code> to find executables, so if it’s
-grabbing the wrong linker/assembler/etc, there are two ways to fix it:</p>
-<ol class="arabic simple">
-<li>Adjust your <code class="docutils literal"><span class="pre">PATH</span></code> environment variable so that the correct program
-appears first in the <code class="docutils literal"><span class="pre">PATH</span></code>.  This may work, but may not be convenient
-when you want them <em>first</em> in your path for other work.</li>
-<li>Run <code class="docutils literal"><span class="pre">configure</span></code> with an alternative <code class="docutils literal"><span class="pre">PATH</span></code> that is correct. In a
-Bourne compatible shell, the syntax would be:</li>
-</ol>
-<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">%</span> <span class="nv">PATH</span><span class="o">=[</span>the path without the bad program<span class="o">]</span> ./configure ...
-</pre></div>
-</div>
-<p>This is still somewhat inconvenient, but it allows <code class="docutils literal"><span class="pre">configure</span></code> to do its
-work without having to adjust your <code class="docutils literal"><span class="pre">PATH</span></code> permanently.</p>
-</div>
-<div class="section" id="when-creating-a-dynamic-library-i-get-a-strange-glibc-error">
-<h3><a class="toc-backref" href="#id12">When creating a dynamic library, I get a strange GLIBC error.</a><a class="headerlink" href="#when-creating-a-dynamic-library-i-get-a-strange-glibc-error" title="Permalink to this headline">¶</a></h3>
-<p>Under some operating systems (i.e. Linux), libtool does not work correctly if
-GCC was compiled with the <code class="docutils literal"><span class="pre">--disable-shared</span> <span class="pre">option</span></code>.  To work around this,
-install your own version of GCC that has shared libraries enabled by default.</p>
-</div>
-<div class="section" id="i-ve-updated-my-source-tree-from-subversion-and-now-my-build-is-trying-to-use-a-file-directory-that-doesn-t-exist">
-<h3><a class="toc-backref" href="#id13">I’ve updated my source tree from Subversion, and now my build is trying to use a file/directory that doesn’t exist.</a><a class="headerlink" href="#i-ve-updated-my-source-tree-from-subversion-and-now-my-build-is-trying-to-use-a-file-directory-that-doesn-t-exist" title="Permalink to this headline">¶</a></h3>
-<p>You need to re-run configure in your object directory.  When new Makefiles
-are added to the source tree, they have to be copied over to the object tree
-in order to be used by the build.</p>
-</div>
-<div class="section" id="i-ve-modified-a-makefile-in-my-source-tree-but-my-build-tree-keeps-using-the-old-version-what-do-i-do">
-<h3><a class="toc-backref" href="#id14">I’ve modified a Makefile in my source tree, but my build tree keeps using the old version.  What do I do?</a><a class="headerlink" href="#i-ve-modified-a-makefile-in-my-source-tree-but-my-build-tree-keeps-using-the-old-version-what-do-i-do" title="Permalink to this headline">¶</a></h3>
-<p>If the Makefile already exists in your object tree, you can just run the
-following command in the top level directory of your object tree:</p>
-<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">%</span> ./config.status &lt;relative path to Makefile&gt;<span class="p">;</span>
-</pre></div>
-</div>
-<p>If the Makefile is new, you will have to modify the configure script to copy
-it over.</p>
-</div>
-<div class="section" id="i-ve-upgraded-to-a-new-version-of-llvm-and-i-get-strange-build-errors">
-<h3><a class="toc-backref" href="#id15">I’ve upgraded to a new version of LLVM, and I get strange build errors.</a><a class="headerlink" href="#i-ve-upgraded-to-a-new-version-of-llvm-and-i-get-strange-build-errors" title="Permalink to this headline">¶</a></h3>
-<p>Sometimes, changes to the LLVM source code alters how the build system works.
-Changes in <code class="docutils literal"><span class="pre">libtool</span></code>, <code class="docutils literal"><span class="pre">autoconf</span></code>, or header file dependencies are
-especially prone to this sort of problem.</p>
-<p>The best thing to try is to remove the old files and re-build.  In most cases,
-this takes care of the problem.  To do this, just type <code class="docutils literal"><span class="pre">make</span> <span class="pre">clean</span></code> and then
-<code class="docutils literal"><span class="pre">make</span></code> in the directory that fails to build.</p>
-</div>
-<div class="section" id="i-ve-built-llvm-and-am-testing-it-but-the-tests-freeze">
-<h3><a class="toc-backref" href="#id16">I’ve built LLVM and am testing it, but the tests freeze.</a><a class="headerlink" href="#i-ve-built-llvm-and-am-testing-it-but-the-tests-freeze" title="Permalink to this headline">¶</a></h3>
-<p>This is most likely occurring because you built a profile or release
-(optimized) build of LLVM and have not specified the same information on the
-<code class="docutils literal"><span class="pre">gmake</span></code> command line.</p>
-<p>For example, if you built LLVM with the command:</p>
-<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">%</span> gmake <span class="nv">ENABLE_PROFILING</span><span class="o">=</span><span class="m">1</span>
-</pre></div>
-</div>
-<p>…then you must run the tests with the following commands:</p>
-<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">%</span> <span class="nb">cd</span> llvm/test
-<span class="gp">%</span> gmake <span class="nv">ENABLE_PROFILING</span><span class="o">=</span><span class="m">1</span>
-</pre></div>
-</div>
-</div>
-<div class="section" id="why-do-test-results-differ-when-i-perform-different-types-of-builds">
-<h3><a class="toc-backref" href="#id17">Why do test results differ when I perform different types of builds?</a><a class="headerlink" href="#why-do-test-results-differ-when-i-perform-different-types-of-builds" title="Permalink to this headline">¶</a></h3>
-<p>The LLVM test suite is dependent upon several features of the LLVM tools and
-libraries.</p>
-<p>First, the debugging assertions in code are not enabled in optimized or
-profiling builds.  Hence, tests that used to fail may pass.</p>
-<p>Second, some tests may rely upon debugging options or behavior that is only
-available in the debug build.  These tests will fail in an optimized or
-profile build.</p>
-</div>
-<div class="section" id="compiling-llvm-with-gcc-3-3-2-fails-what-should-i-do">
-<h3><a class="toc-backref" href="#id18">Compiling LLVM with GCC 3.3.2 fails, what should I do?</a><a class="headerlink" href="#compiling-llvm-with-gcc-3-3-2-fails-what-should-i-do" title="Permalink to this headline">¶</a></h3>
-<p>This is <a class="reference external" href="http://gcc.gnu.org/bugzilla/show_bug.cgi?id=13392">a bug in GCC</a>,
-and affects projects other than LLVM.  Try upgrading or downgrading your GCC.</p>
-</div>
-<div class="section" id="after-subversion-update-rebuilding-gives-the-error-no-rule-to-make-target">
-<h3><a class="toc-backref" href="#id19">After Subversion update, rebuilding gives the error “No rule to make target”.</a><a class="headerlink" href="#after-subversion-update-rebuilding-gives-the-error-no-rule-to-make-target" title="Permalink to this headline">¶</a></h3>
-<p>If the error is of the form:</p>
-<div class="highlight-console"><div class="highlight"><pre><span></span><span class="go">gmake[2]: *** No rule to make target `/path/to/somefile&#39;,</span>
-<span class="go">              needed by `/path/to/another/file.d&#39;.</span>
-<span class="go">Stop.</span>
-</pre></div>
-</div>
-<p>This may occur anytime files are moved within the Subversion repository or
-removed entirely.  In this case, the best solution is to erase all <code class="docutils literal"><span class="pre">.d</span></code>
-files, which list dependencies for source files, and rebuild:</p>
-<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">%</span> <span class="nb">cd</span> <span class="nv">$LLVM_OBJ_DIR</span>
-<span class="gp">%</span> rm -f <span class="sb">`</span>find . -name <span class="se">\*\.</span>d<span class="sb">`</span>
-<span class="gp">%</span> gmake
-</pre></div>
-</div>
-<p>In other cases, it may be necessary to run <code class="docutils literal"><span class="pre">make</span> <span class="pre">clean</span></code> before rebuilding.</p>
-</div>
-</div>
 <div class="section" id="source-languages">
-<h2><a class="toc-backref" href="#id20">Source Languages</a><a class="headerlink" href="#source-languages" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id9">Source Languages</a><a class="headerlink" href="#source-languages" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="what-source-languages-are-supported">
-<h3><a class="toc-backref" href="#id21">What source languages are supported?</a><a class="headerlink" href="#what-source-languages-are-supported" title="Permalink to this headline">¶</a></h3>
-<p>LLVM currently has full support for C and C++ source languages. These are
-available through both <a class="reference external" href="http://clang.llvm.org/">Clang</a> and <a class="reference external" href="http://dragonegg.llvm.org/">DragonEgg</a>.</p>
-<p>The PyPy developers are working on integrating LLVM into the PyPy backend so
-that PyPy language can translate to LLVM.</p>
+<h3><a class="toc-backref" href="#id10">What source languages are supported?</a><a class="headerlink" href="#what-source-languages-are-supported" title="Permalink to this headline">¶</a></h3>
+<p>LLVM currently has full support for C and C++ source languages through
+<a class="reference external" href="http://clang.llvm.org/">Clang</a>. Many other language frontends have
+been written using LLVM, and an incomplete list is available at
+<a class="reference external" href="http://llvm.org/ProjectsWithLLVM/">projects with LLVM</a>.</p>
 </div>
 <div class="section" id="i-d-like-to-write-a-self-hosting-llvm-compiler-how-should-i-interface-with-the-llvm-middle-end-optimizers-and-back-end-code-generators">
-<h3><a class="toc-backref" href="#id22">I’d like to write a self-hosting LLVM compiler. How should I interface with the LLVM middle-end optimizers and back-end code generators?</a><a class="headerlink" href="#i-d-like-to-write-a-self-hosting-llvm-compiler-how-should-i-interface-with-the-llvm-middle-end-optimizers-and-back-end-code-generators" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id11">I’d like to write a self-hosting LLVM compiler. How should I interface with the LLVM middle-end optimizers and back-end code generators?</a><a class="headerlink" href="#i-d-like-to-write-a-self-hosting-llvm-compiler-how-should-i-interface-with-the-llvm-middle-end-optimizers-and-back-end-code-generators" title="Permalink to this headline">¶</a></h3>
 <p>Your compiler front-end will communicate with LLVM by creating a module in the
 LLVM intermediate representation (IR) format. Assuming you want to write your
 language’s compiler in the language itself (rather than C++), there are 3
@@ -338,21 +218,21 @@ garbage collector. The C interface was designed to require very little memory
 management, and so is straightforward in this regard.</p>
 </div>
 <div class="section" id="what-support-is-there-for-a-higher-level-source-language-constructs-for-building-a-compiler">
-<h3><a class="toc-backref" href="#id23">What support is there for a higher level source language constructs for building a compiler?</a><a class="headerlink" href="#what-support-is-there-for-a-higher-level-source-language-constructs-for-building-a-compiler" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id12">What support is there for a higher level source language constructs for building a compiler?</a><a class="headerlink" href="#what-support-is-there-for-a-higher-level-source-language-constructs-for-building-a-compiler" title="Permalink to this headline">¶</a></h3>
 <p>Currently, there isn’t much. LLVM supports an intermediate representation
 which is useful for code representation but will not support the high level
 (abstract syntax tree) representation needed by most compilers. There are no
 facilities for lexical nor semantic analysis.</p>
 </div>
 <div class="section" id="i-don-t-understand-the-getelementptr-instruction-help">
-<h3><a class="toc-backref" href="#id24">I don’t understand the <code class="docutils literal"><span class="pre">GetElementPtr</span></code> instruction. Help!</a><a class="headerlink" href="#i-don-t-understand-the-getelementptr-instruction-help" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id13">I don’t understand the <code class="docutils literal"><span class="pre">GetElementPtr</span></code> instruction. Help!</a><a class="headerlink" href="#i-don-t-understand-the-getelementptr-instruction-help" title="Permalink to this headline">¶</a></h3>
 <p>See <a class="reference external" href="GetElementPtr.html">The Often Misunderstood GEP Instruction</a>.</p>
 </div>
 </div>
 <div class="section" id="using-the-c-and-c-front-ends">
-<h2><a class="toc-backref" href="#id25">Using the C and C++ Front Ends</a><a class="headerlink" href="#using-the-c-and-c-front-ends" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id14">Using the C and C++ Front Ends</a><a class="headerlink" href="#using-the-c-and-c-front-ends" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="can-i-compile-c-or-c-code-to-platform-independent-llvm-bitcode">
-<h3><a class="toc-backref" href="#id26">Can I compile C or C++ code to platform-independent LLVM bitcode?</a><a class="headerlink" href="#can-i-compile-c-or-c-code-to-platform-independent-llvm-bitcode" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id15">Can I compile C or C++ code to platform-independent LLVM bitcode?</a><a class="headerlink" href="#can-i-compile-c-or-c-code-to-platform-independent-llvm-bitcode" title="Permalink to this headline">¶</a></h3>
 <p>No. C and C++ are inherently platform-dependent languages. The most obvious
 example of this is the preprocessor. A very common way that C code is made
 portable is by using the preprocessor to include platform-specific code. In
@@ -368,9 +248,9 @@ order to have the result conform to the platform ABI.</p>
 </div>
 </div>
 <div class="section" id="questions-about-code-generated-by-the-demo-page">
-<h2><a class="toc-backref" href="#id27">Questions about code generated by the demo page</a><a class="headerlink" href="#questions-about-code-generated-by-the-demo-page" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id16">Questions about code generated by the demo page</a><a class="headerlink" href="#questions-about-code-generated-by-the-demo-page" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="what-is-this-llvm-global-ctors-and-global-i-a-stuff-that-happens-when-i-include-iostream">
-<h3><a class="toc-backref" href="#id28">What is this <code class="docutils literal"><span class="pre">llvm.global_ctors</span></code> and <code class="docutils literal"><span class="pre">_GLOBAL__I_a...</span></code> stuff that happens when I <code class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;iostream&gt;</span></code>?</a><a class="headerlink" href="#what-is-this-llvm-global-ctors-and-global-i-a-stuff-that-happens-when-i-include-iostream" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id17">What is this <code class="docutils literal"><span class="pre">llvm.global_ctors</span></code> and <code class="docutils literal"><span class="pre">_GLOBAL__I_a...</span></code> stuff that happens when I <code class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;iostream&gt;</span></code>?</a><a class="headerlink" href="#what-is-this-llvm-global-ctors-and-global-i-a-stuff-that-happens-when-i-include-iostream" title="Permalink to this headline">¶</a></h3>
 <p>If you <code class="docutils literal"><span class="pre">#include</span></code> the <code class="docutils literal"><span class="pre">&lt;iostream&gt;</span></code> header into a C++ translation unit,
 the file will probably use the <code class="docutils literal"><span class="pre">std::cin</span></code>/<code class="docutils literal"><span class="pre">std::cout</span></code>/… global objects.
 However, C++ does not guarantee an order of initialization between static
@@ -388,7 +268,7 @@ by the compiler in the demo page, consider using <code class="docutils literal">
 <code class="docutils literal"><span class="pre">iostream</span></code>s to print values.</p>
 </div>
 <div class="section" id="where-did-all-of-my-code-go">
-<h3><a class="toc-backref" href="#id29">Where did all of my code go??</a><a class="headerlink" href="#where-did-all-of-my-code-go" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id18">Where did all of my code go??</a><a class="headerlink" href="#where-did-all-of-my-code-go" title="Permalink to this headline">¶</a></h3>
 <p>If you are using the LLVM demo page, you may often wonder what happened to
 all of the code that you typed in.  Remember that the demo script is running
 the code through the LLVM optimizers, so if your code doesn’t actually do
@@ -399,7 +279,7 @@ of leaving it in a local variable.  If you really want to constrain the
 optimizer, you can read from and assign to <code class="docutils literal"><span class="pre">volatile</span></code> global variables.</p>
 </div>
 <div class="section" id="what-is-this-undef-thing-that-shows-up-in-my-code">
-<h3><a class="toc-backref" href="#id30">What is this “<code class="docutils literal"><span class="pre">undef</span></code>” thing that shows up in my code?</a><a class="headerlink" href="#what-is-this-undef-thing-that-shows-up-in-my-code" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id19">What is this “<code class="docutils literal"><span class="pre">undef</span></code>” thing that shows up in my code?</a><a class="headerlink" href="#what-is-this-undef-thing-that-shows-up-in-my-code" title="Permalink to this headline">¶</a></h3>
 <p><code class="docutils literal"><span class="pre">undef</span></code> is the LLVM way of representing a value that is not defined.  You
 can get these if you do not initialize a variable before you use it.  For
 example, the C function:</p>
@@ -410,7 +290,7 @@ example, the C function:</p>
 for it.</p>
 </div>
 <div class="section" id="why-does-instcombine-simplifycfg-turn-a-call-to-a-function-with-a-mismatched-calling-convention-into-unreachable-why-not-make-the-verifier-reject-it">
-<h3><a class="toc-backref" href="#id31">Why does instcombine + simplifycfg turn a call to a function with a mismatched calling convention into “unreachable”? Why not make the verifier reject it?</a><a class="headerlink" href="#why-does-instcombine-simplifycfg-turn-a-call-to-a-function-with-a-mismatched-calling-convention-into-unreachable-why-not-make-the-verifier-reject-it" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id20">Why does instcombine + simplifycfg turn a call to a function with a mismatched calling convention into “unreachable”? Why not make the verifier reject it?</a><a class="headerlink" href="#why-does-instcombine-simplifycfg-turn-a-call-to-a-function-with-a-mismatched-calling-convention-into-unreachable-why-not-make-the-verifier-reject-it" title="Permalink to this headline">¶</a></h3>
 <p>This is a common problem run into by authors of front-ends that are using
 custom calling conventions: you need to make sure to set the right calling
 convention on both the function and on each call to the function.  For
@@ -550,8 +430,8 @@ able to produce:</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

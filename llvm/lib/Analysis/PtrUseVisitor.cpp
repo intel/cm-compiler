@@ -6,18 +6,22 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
+//
 /// \file
 /// Implementation of the pointer use visitors.
-///
+//
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/PtrUseVisitor.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
+#include <algorithm>
 
 using namespace llvm;
 
 void detail::PtrUseVisitorBase::enqueueUsers(Instruction &I) {
   for (Use &U : I.uses()) {
-    if (VisitedUses.insert(&U)) {
+    if (VisitedUses.insert(&U).second) {
       UseToVisit NewU = {
         UseToVisit::UseAndIsOffsetKnownPair(&U, IsOffsetKnown),
         Offset

@@ -1,4 +1,4 @@
-//===- X86AsmInstrumentation.h - Instrument X86 inline assembly *- C++ -*-===//
+//===- X86AsmInstrumentation.h - Instrument X86 inline assembly -*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,11 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86_ASM_INSTRUMENTATION_H
-#define X86_ASM_INSTRUMENTATION_H
+#ifndef LLVM_LIB_TARGET_X86_ASMPARSER_X86ASMINSTRUMENTATION_H
+#define LLVM_LIB_TARGET_X86_ASMPARSER_X86ASMINSTRUMENTATION_H
 
 #include "llvm/ADT/SmallVector.h"
-
 #include <memory>
 
 namespace llvm {
@@ -23,32 +22,47 @@ class MCParsedAsmOperand;
 class MCStreamer;
 class MCSubtargetInfo;
 class MCTargetOptions;
-
 class X86AsmInstrumentation;
 
 X86AsmInstrumentation *
 CreateX86AsmInstrumentation(const MCTargetOptions &MCOptions,
-                            const MCContext &Ctx, const MCSubtargetInfo &STI);
+                            const MCContext &Ctx,
+                            const MCSubtargetInfo *&STI);
 
 class X86AsmInstrumentation {
 public:
   virtual ~X86AsmInstrumentation();
 
-  // Instruments Inst. Should be called just before the original
-  // instruction is sent to Out.
-  virtual void InstrumentInstruction(
+  // Sets frame register corresponding to a current frame.
+  void SetInitialFrameRegister(unsigned RegNo) {
+    InitialFrameReg = RegNo;
+  }
+
+  // Tries to instrument and emit instruction.
+  virtual void InstrumentAndEmitInstruction(
       const MCInst &Inst,
       SmallVectorImpl<std::unique_ptr<MCParsedAsmOperand>> &Operands,
-      MCContext &Ctx, const MCInstrInfo &MII, MCStreamer &Out);
+      MCContext &Ctx, const MCInstrInfo &MII, MCStreamer &Out,
+      bool PrintSchedInfoEnabled);
 
 protected:
   friend X86AsmInstrumentation *
   CreateX86AsmInstrumentation(const MCTargetOptions &MCOptions,
-                              const MCContext &Ctx, const MCSubtargetInfo &STI);
+                              const MCContext &Ctx,
+                              const MCSubtargetInfo *&STI);
 
-  X86AsmInstrumentation();
+  X86AsmInstrumentation(const MCSubtargetInfo *&STI);
+
+  unsigned GetFrameRegGeneric(const MCContext &Ctx, MCStreamer &Out);
+
+  void EmitInstruction(MCStreamer &Out, const MCInst &Inst,
+                       bool PrintSchedInfoEnabled = false);
+
+  const MCSubtargetInfo *&STI;
+
+  unsigned InitialFrameReg = 0;
 };
 
-} // End llvm namespace
+} // end namespace llvm
 
-#endif // X86_ASM_INSTRUMENTATION_H
+#endif // LLVM_LIB_TARGET_X86_ASMPARSER_X86ASMINSTRUMENTATION_H

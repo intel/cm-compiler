@@ -1,11 +1,11 @@
 ; RUN: llc < %s                             -mtriple=x86_64-apple-darwin10 | FileCheck %s
-; RUN: llc < %s -fast-isel -fast-isel-abort -mtriple=x86_64-apple-darwin10 | FileCheck %s
+; RUN: llc < %s -fast-isel -fast-isel-abort=1 -mtriple=x86_64-apple-darwin10 | FileCheck %s
 
 define i32 @fcmp_oeq(float %x, float %y) {
 ; CHECK-LABEL: fcmp_oeq
 ; CHECK:       ucomiss  %xmm1, %xmm0
 ; CHECK-NEXT:  jne {{LBB.+_1}}
-; CHECK-NEXT:  jnp {{LBB.+_2}}
+; CHECK-NEXT:  jp {{LBB.+_1}}
   %1 = fcmp oeq float %x, %y
   br i1 %1, label %bb1, label %bb2
 bb2:
@@ -162,8 +162,7 @@ define i32 @fcmp_une(float %x, float %y) {
 ; CHECK-LABEL: fcmp_une
 ; CHECK:       ucomiss  %xmm1, %xmm0
 ; CHECK-NEXT:  jne {{LBB.+_2}}
-; CHECK-NEXT:  jp  {{LBB.+_2}}
-; CHECK-NEXT:  jmp {{LBB.+_1}}
+; CHECK-NEXT:  jnp {{LBB.+_1}}
   %1 = fcmp une float %x, %y
   br i1 %1, label %bb1, label %bb2
 bb2:

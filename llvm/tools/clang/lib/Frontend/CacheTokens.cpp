@@ -12,13 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Frontend/Utils.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/FileSystemStatCache.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Frontend/Utils.h"
 #include "clang/Lex/Lexer.h"
+#include "clang/Lex/PTHManager.h"
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
@@ -27,7 +28,6 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/OnDiskHashTable.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/raw_ostream.h"
 
 // FIXME: put this somewhere else?
 #ifndef S_ISDIR
@@ -58,23 +58,30 @@ public:
 
 
 class PTHEntryKeyVariant {
-  union { const FileEntry* FE; const char* Path; };
+  union {
+    const FileEntry *FE;
+    // FIXME: Use "StringRef Path;" when MSVC 2013 is dropped.
+    const char *PathPtr;
+  };
+  size_t PathSize;
   enum { IsFE = 0x1, IsDE = 0x2, IsNoExist = 0x0 } Kind;
   FileData *Data;
 
 public:
   PTHEntryKeyVariant(const FileEntry *fe) : FE(fe), Kind(IsFE), Data(nullptr) {}
 
-  PTHEntryKeyVariant(FileData *Data, const char *path)
-      : Path(path), Kind(IsDE), Data(new FileData(*Data)) {}
+  PTHEntryKeyVariant(FileData *Data, StringRef Path)
+      : PathPtr(Path.data()), PathSize(Path.size()), Kind(IsDE),
+        Data(new FileData(*Data)) {}
 
-  explicit PTHEntryKeyVariant(const char *path)
-      : Path(path), Kind(IsNoExist), Data(nullptr) {}
+  explicit PTHEntryKeyVariant(StringRef Path)
+      : PathPtr(Path.data()), PathSize(Path.size()), Kind(IsNoExist),
+        Data(nullptr) {}
 
   bool isFile() const { return Kind == IsFE; }
 
   StringRef getString() const {
-    return Kind == IsFE ? FE->getName() : Path;
+    return Kind == IsFE ? FE->getName() : StringRef(PathPtr, PathSize);
   }
 
   unsigned getKind() const { return (unsigned) Kind; }
@@ -105,7 +112,7 @@ public:
   }
 
   unsigned getRepresentationLength() const {
-    return Kind == IsNoExist ? 0 : 4 + 4 + 2 + 8 + 8;
+    return Kind == IsNoExist ? 0 : 4 * 8;
   }
 };
 
@@ -182,14 +189,14 @@ class PTHWriter {
   typedef llvm::DenseMap<const IdentifierInfo*,uint32_t> IDMap;
   typedef llvm::StringMap<OffsetOpt, llvm::BumpPtrAllocator> CachedStrsTy;
 
-  IDMap IM;
-  llvm::raw_fd_ostream& Out;
+  raw_pwrite_stream &Out;
   Preprocessor& PP;
-  uint32_t idcount;
+  IDMap IM;
+  std::vector<llvm::StringMapEntry<OffsetOpt>*> StrEntries;
   PTHMap PM;
   CachedStrsTy CachedStrs;
+  uint32_t idcount;
   Offset CurStrOffset;
-  std::vector<llvm::StringMapEntry<OffsetOpt>*> StrEntries;
 
   //// Get the persistent id for the given IdentifierInfo*.
   uint32_t ResolveID(const IdentifierInfo* II);
@@ -236,11 +243,11 @@ class PTHWriter {
   Offset EmitCachedSpellings();
 
 public:
-  PTHWriter(llvm::raw_fd_ostream& out, Preprocessor& pp)
-    : Out(out), PP(pp), idcount(0), CurStrOffset(0) {}
+  PTHWriter(raw_pwrite_stream &out, Preprocessor &pp)
+      : Out(out), PP(pp), idcount(0), CurStrOffset(0) {}
 
   PTHMap &getPM() { return PM; }
-  void GeneratePTH(const std::string &MainFile);
+  void GeneratePTH(StringRef MainFile);
 };
 } // end anonymous namespace
 
@@ -270,17 +277,17 @@ void PTHWriter::EmitToken(const Token& T) {
     StringRef s(T.getLiteralData(), T.getLength());
 
     // Get the string entry.
-    llvm::StringMapEntry<OffsetOpt> *E = &CachedStrs.GetOrCreateValue(s);
+    auto &E = *CachedStrs.insert(std::make_pair(s, OffsetOpt())).first;
 
     // If this is a new string entry, bump the PTH offset.
-    if (!E->getValue().hasOffset()) {
-      E->getValue().setOffset(CurStrOffset);
-      StrEntries.push_back(E);
+    if (!E.second.hasOffset()) {
+      E.second.setOffset(CurStrOffset);
+      StrEntries.push_back(&E);
       CurStrOffset += s.size() + 1;
     }
 
     // Emit the relative offset into the PTH file for the spelling string.
-    Emit32(E->getValue().getOffset());
+    Emit32(E.second.getOffset());
   }
 
   // Emit the offset into the original source file of this token so that we
@@ -468,7 +475,17 @@ Offset PTHWriter::EmitCachedSpellings() {
   return SpellingsOff;
 }
 
-void PTHWriter::GeneratePTH(const std::string &MainFile) {
+static uint32_t swap32le(uint32_t X) {
+  return llvm::support::endian::byte_swap<uint32_t, llvm::support::little>(X);
+}
+
+static void pwrite32le(raw_pwrite_stream &OS, uint32_t Val, uint64_t &Off) {
+  uint32_t LEVal = swap32le(Val);
+  OS.pwrite(reinterpret_cast<const char *>(&LEVal), 4, Off);
+  Off += 4;
+}
+
+void PTHWriter::GeneratePTH(StringRef MainFile) {
   // Generate the prologue.
   Out << "cfe-pth" << '\0';
   Emit32(PTHManager::Version);
@@ -520,11 +537,11 @@ void PTHWriter::GeneratePTH(const std::string &MainFile) {
   Offset FileTableOff = EmitFileTable();
 
   // Finally, write the prologue.
-  Out.seek(PrologueOffset);
-  Emit32(IdTableOff.first);
-  Emit32(IdTableOff.second);
-  Emit32(FileTableOff);
-  Emit32(SpellingOff);
+  uint64_t Off = PrologueOffset;
+  pwrite32le(Out, IdTableOff.first, Off);
+  pwrite32le(Out, IdTableOff.second, Off);
+  pwrite32le(Out, FileTableOff, Off);
+  pwrite32le(Out, SpellingOff, Off);
 }
 
 namespace {
@@ -537,9 +554,9 @@ class StatListener : public FileSystemStatCache {
   PTHMap &PM;
 public:
   StatListener(PTHMap &pm) : PM(pm) {}
-  ~StatListener() {}
+  ~StatListener() override {}
 
-  LookupResult getStat(const char *Path, FileData &Data, bool isFile,
+  LookupResult getStat(StringRef Path, FileData &Data, bool isFile,
                        std::unique_ptr<vfs::File> *F,
                        vfs::FileSystem &FS) override {
     LookupResult Result = statChained(Path, Data, isFile, F, FS);
@@ -559,8 +576,7 @@ public:
 };
 } // end anonymous namespace
 
-
-void clang::CacheTokens(Preprocessor &PP, llvm::raw_fd_ostream* OS) {
+void clang::CacheTokens(Preprocessor &PP, raw_pwrite_stream *OS) {
   // Get the name of the main file.
   const SourceManager &SrcMgr = PP.getSourceManager();
   const FileEntry *MainFile = SrcMgr.getFileEntryForID(SrcMgr.getMainFileID());
@@ -572,8 +588,10 @@ void clang::CacheTokens(Preprocessor &PP, llvm::raw_fd_ostream* OS) {
   PTHWriter PW(*OS, PP);
 
   // Install the 'stat' system call listener in the FileManager.
-  StatListener *StatCache = new StatListener(PW.getPM());
-  PP.getFileManager().addStatCache(StatCache, /*AtBeginning=*/true);
+  auto StatCacheOwner = llvm::make_unique<StatListener>(PW.getPM());
+  StatListener *StatCache = StatCacheOwner.get();
+  PP.getFileManager().addStatCache(std::move(StatCacheOwner),
+                                   /*AtBeginning=*/true);
 
   // Lex through the entire file.  This will populate SourceManager with
   // all of the header information.

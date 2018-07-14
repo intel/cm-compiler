@@ -1,4 +1,5 @@
 ; RUN: opt < %s -reassociate -gvn -instcombine -S | FileCheck %s
+; RUN: opt < %s -passes='reassociate,gvn,instcombine' -S | FileCheck %s
 
 define i32 @test1(i32 %arg) {
   %tmp1 = sub i32 -12, %arg
@@ -28,9 +29,9 @@ define i32 @test2(i32 %reg109, i32 %reg1111) {
 @f = external global i32
 
 define void @test3() {
-  %A = load i32* @a
-  %B = load i32* @b
-  %C = load i32* @c
+  %A = load i32, i32* @a
+  %B = load i32, i32* @b
+  %C = load i32, i32* @c
   %t1 = add i32 %A, %B
   %t2 = add i32 %t1, %C
   %t3 = add i32 %C, %A
@@ -49,9 +50,9 @@ define void @test3() {
 }
 
 define void @test4() {
-  %A = load i32* @a
-  %B = load i32* @b
-  %C = load i32* @c
+  %A = load i32, i32* @a
+  %B = load i32, i32* @b
+  %C = load i32, i32* @c
   %t1 = add i32 %A, %B
   %t2 = add i32 %t1, %C
   %t3 = add i32 %C, %A
@@ -70,9 +71,9 @@ define void @test4() {
 }
 
 define void @test5() {
-  %A = load i32* @a
-  %B = load i32* @b
-  %C = load i32* @c
+  %A = load i32, i32* @a
+  %B = load i32, i32* @b
+  %C = load i32, i32* @c
   %t1 = add i32 %B, %A
   %t2 = add i32 %t1, %C
   %t3 = add i32 %C, %A
@@ -91,11 +92,11 @@ define void @test5() {
 }
 
 define i32 @test6() {
-  %tmp.0 = load i32* @a
-  %tmp.1 = load i32* @b
+  %tmp.0 = load i32, i32* @a
+  %tmp.1 = load i32, i32* @b
   ; (a+b)
   %tmp.2 = add i32 %tmp.0, %tmp.1
-  %tmp.4 = load i32* @c
+  %tmp.4 = load i32, i32* @c
   ; (a+b)+c
   %tmp.5 = add i32 %tmp.2, %tmp.4
   ; (a+c)
@@ -169,7 +170,11 @@ define i32 @test11(i32 %W) {
 ; CHECK-NEXT: ret i32
 }
 
+declare void @mumble(i32)
+
 define i32 @test12(i32 %X) {
+  %X.neg = sub nsw nuw i32 0, %X
+  call void @mumble(i32 %X.neg)
   %A = sub i32 1, %X
   %B = sub i32 2, %X
   %C = sub i32 3, %X
@@ -177,8 +182,8 @@ define i32 @test12(i32 %X) {
   %Z = add i32 %Y, %C
   ret i32 %Z
 ; CHECK-LABEL: @test12
-; CHECK-NEXT: mul i32 %X, -3
-; CHECK-NEXT: add i32{{.*}}, 6
+; CHECK: %[[mul:.*]] = mul i32 %X, -3
+; CHECK-NEXT: add i32 %[[mul]], 6
 ; CHECK-NEXT: ret i32
 }
 
@@ -202,8 +207,8 @@ define i32 @test14(i32 %X1, i32 %X2) {
   ret i32 %D
 
 ; CHECK-LABEL: @test14
-; CHECK-NEXT: sub i32 %X1, %X2
-; CHECK-NEXT: mul i32 %tmp, 47
+; CHECK-NEXT: %[[SUB:.*]] = sub i32 %X1, %X2
+; CHECK-NEXT: mul i32 %[[SUB]], 47
 ; CHECK-NEXT: ret i32
 }
 
@@ -216,4 +221,39 @@ define i32 @test15(i32 %X1, i32 %X2, i32 %X3) {
   ret i32 %D
 ; CHECK-LABEL: @test15
 ; CHECK: and i1 %A, %B
+}
+
+; PR30256 - previously this asserted.
+; CHECK-LABEL: @test16
+; CHECK: %[[FACTOR:.*]] = mul i64 %a, -4
+; CHECK-NEXT: %[[RES:.*]] = add i64 %[[FACTOR]], %b
+; CHECK-NEXT: ret i64 %[[RES]]
+define i64 @test16(i1 %cmp, i64 %a, i64 %b) {
+entry:
+  %shl = shl i64 %a, 1
+  %shl.neg = sub i64 0, %shl
+  br i1 %cmp, label %if.then, label %if.end
+
+if.then:                                          ; preds = %entry
+  %add1 = add i64 %shl.neg, %shl.neg
+  %add2 = add i64 %add1, %b
+  ret i64 %add2
+
+if.end:                                           ; preds = %entry
+  ret i64 0
+}
+
+; CHECK-LABEL: @test17
+; CHECK: %[[A:.*]] = mul i32 %X4, %X3
+; CHECK-NEXT:  %[[C:.*]] = mul i32 %[[A]], %X1
+; CHECK-NEXT: %[[D:.*]] = mul i32 %[[A]], %X2
+; CHECK-NEXT: %[[E:.*]] = xor i32 %[[C]], %[[D]]
+; CHECK-NEXT: ret i32 %[[E]]
+define i32 @test17(i32 %X1, i32 %X2, i32 %X3, i32 %X4) {
+  %A = mul i32 %X3, %X1
+  %B = mul i32 %X3, %X2
+  %C = mul i32 %A, %X4
+  %D = mul i32 %B, %X4
+  %E = xor i32 %C, %D
+  ret i32 %E
 }

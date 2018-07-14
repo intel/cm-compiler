@@ -1,4 +1,5 @@
 ; RUN: opt -inline %s -S | FileCheck %s
+; RUN: opt -passes='cgscc(inline)' %s -S | FileCheck %s
 ; Ensure SSP attributes are propagated correctly when inlining.
 
 @.str = private unnamed_addr constant [11 x i8] c"fun_nossp\0A\00", align 1
@@ -13,25 +14,25 @@
 ;  sspreq > sspstrong > ssp > [no ssp]
 define internal void @fun_sspreq() nounwind sspreq uwtable {
 entry:
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([12 x i8]* @.str3, i32 0, i32 0))
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([12 x i8], [12 x i8]* @.str3, i32 0, i32 0))
   ret void
 }
 
 define internal void @fun_sspstrong() nounwind sspstrong uwtable {
 entry:
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([15 x i8]* @.str2, i32 0, i32 0))
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([15 x i8], [15 x i8]* @.str2, i32 0, i32 0))
   ret void
 }
 
 define internal void @fun_ssp() nounwind ssp uwtable {
 entry:
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([9 x i8]* @.str1, i32 0, i32 0))
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str1, i32 0, i32 0))
   ret void
 }
 
 define internal void @fun_nossp() nounwind uwtable {
 entry:
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([11 x i8]* @.str, i32 0, i32 0))
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([11 x i8], [11 x i8]* @.str, i32 0, i32 0))
   ret void
 }
 

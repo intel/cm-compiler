@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIBCLANG_CLOG_H
-#define LLVM_LIBCLANG_CLOG_H
+#ifndef LLVM_CLANG_TOOLS_LIBCLANG_CLOG_H
+#define LLVM_CLANG_TOOLS_LIBCLANG_CLOG_H
 
 #include "clang-c/Index.h"
 #include "clang/Basic/LLVM.h"
@@ -98,6 +98,6 @@ public:
 /// \endcode
 #define LOG_SECTION(NAME) \
     if (clang::cxindex::LogRef Log = clang::cxindex::Logger::make(NAME))
-#define LOG_FUNC_SECTION LOG_SECTION(LLVM_FUNCTION_NAME)
+#define LOG_FUNC_SECTION LOG_SECTION(__func__)
 
 #endif

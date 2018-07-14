@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>llvm-symbolizer - convert addresses into source code locations &#8212; LLVM 3.4 documentation</title>
+    <title>llvm-symbolizer - convert addresses into source code locations &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -27,7 +27,7 @@
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="llvm-dwarfdump - print contents of DWARF sections" href="llvm-dwarfdump.html" />
+    <link rel="next" title="llvm-dwarfdump - dump and verify DWARF debug information" href="llvm-dwarfdump.html" />
     <link rel="prev" title="llvm-stress - generate random .ll files" href="llvm-stress.html" />
 <style type="text/css">
   table.right { float: right; margin-left: 20px; }
@@ -49,7 +49,7 @@
           <a href="../genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="llvm-dwarfdump.html" title="llvm-dwarfdump - print contents of DWARF sections"
+          <a href="llvm-dwarfdump.html" title="llvm-dwarfdump - dump and verify DWARF debug information"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="llvm-stress.html" title="llvm-stress - generate random .ll files"
@@ -76,9 +76,9 @@
 <h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
 <p><strong class="program">llvm-symbolizer</strong> reads object file names and addresses from standard
 input and prints corresponding source code locations to standard output.
-If object file is specified in command line, <strong class="program">llvm-symbolizer</strong> reads
-only addresses from standard input. This
-program uses debug info sections and symbol table in the object files.</p>
+If object file is specified in command line, <strong class="program">llvm-symbolizer</strong>
+processes only addresses from standard input, the rest is output verbatim.
+This program uses debug info sections and symbol table in the object files.</p>
 </div>
 <div class="section" id="example">
 <h2>EXAMPLE<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h2>
@@ -118,6 +118,14 @@ program uses debug info sections and symbol table in the object files.</p>
 
 <span class="go">foo(int)</span>
 <span class="go">/tmp/a.cc:12</span>
+<span class="gp">$</span>cat addr.txt
+<span class="go">0x40054d</span>
+<span class="gp">$</span>llvm-symbolizer -inlining -print-address -pretty-print -obj<span class="o">=</span>addr.exe &lt; addr.txt
+<span class="go">0x40054d: inc at /tmp/x.c:3:3</span>
+<span class="go"> (inlined by) main at /tmp/x.c:9:0</span>
+<span class="gp">$</span>llvm-symbolizer -inlining -pretty-print -obj<span class="o">=</span>addr.exe &lt; addr.txt
+<span class="go">inc at /tmp/x.c:3:3</span>
+<span class="go"> (inlined by) main at /tmp/x.c:9:0</span>
 </pre></div>
 </div>
 </div>
@@ -167,6 +175,27 @@ input (see example above). If architecture is not specified in either way,
 address will not be symbolized. Defaults to empty string.</p>
 </dd></dl>
 
+<dl class="option">
+<dt id="cmdoption-dsym-hint">
+<code class="descname">-dsym-hint</code><code class="descclassname">=&lt;path/to/file.dSYM&gt;</code><a class="headerlink" href="#cmdoption-dsym-hint" title="Permalink to this definition">¶</a></dt>
+<dd><p>(Darwin-only flag). If the debug info for a binary isn’t present in the default
+location, look for the debug info at the .dSYM path provided via the
+<code class="docutils literal"><span class="pre">-dsym-hint</span></code> flag. This flag can be used multiple times.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-print-address">
+<code class="descname">-print-address</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-print-address" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print address before the source code location. Defaults to false.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-pretty-print">
+<code class="descname">-pretty-print</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-pretty-print" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print human readable output. If <code class="docutils literal"><span class="pre">-inlining</span></code> is specified, enclosing scope is
+prefixed by (inlined by). Refer to listed examples.</p>
+</dd></dl>
+
 </div>
 <div class="section" id="exit-status">
 <h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
@@ -186,7 +215,7 @@ address will not be symbolized. Defaults to empty string.</p>
           <a href="../genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="llvm-dwarfdump.html" title="llvm-dwarfdump - print contents of DWARF sections"
+          <a href="llvm-dwarfdump.html" title="llvm-dwarfdump - dump and verify DWARF debug information"
              >next</a> |</li>
         <li class="right" >
           <a href="llvm-stress.html" title="llvm-stress - generate random .ll files"
@@ -198,8 +227,8 @@ address will not be symbolized. Defaults to empty string.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

@@ -40,11 +40,23 @@ struct foo {
     }*/
 };
 
+struct base {
+  virtual ~base() {}
+};
+
+struct derived : public base {
+  static bool classof(const base *B) { return true; }
+};
+
 template <> struct isa_impl<foo, bar> {
   static inline bool doit(const bar &Val) {
     dbgs() << "Classof: " << &Val << "\n";
     return true;
   }
+};
+
+template <typename T> struct isa_impl<foo, T> {
+  static inline bool doit(const T &Val) { return false; }
 };
 
 foo *bar::baz() {
@@ -123,6 +135,13 @@ TEST(CastingTest, cast) {
   // EXPECT_EQ(F7, null_foo);
   foo *F8 = B1.baz();
   EXPECT_NE(F8, null_foo);
+
+  std::unique_ptr<const bar> BP(B2);
+  auto FP = cast<foo>(std::move(BP));
+  static_assert(std::is_same<std::unique_ptr<const foo>, decltype(FP)>::value,
+                "Incorrect deduced return type!");
+  EXPECT_NE(FP.get(), null_foo);
+  FP.release();
 }
 
 TEST(CastingTest, cast_or_null) {
@@ -136,6 +155,10 @@ TEST(CastingTest, cast_or_null) {
   EXPECT_EQ(F14, null_foo);
   foo *F15 = B1.caz();
   EXPECT_NE(F15, null_foo);
+
+  std::unique_ptr<const bar> BP(fub());
+  auto FP = cast_or_null<foo>(std::move(BP));
+  EXPECT_EQ(FP.get(), null_foo);
 }
 
 TEST(CastingTest, dyn_cast) {
@@ -163,6 +186,58 @@ TEST(CastingTest, dyn_cast_or_null) {
   EXPECT_EQ(F4, null_foo);
   foo *F5 = B1.naz();
   EXPECT_NE(F5, null_foo);
+}
+
+std::unique_ptr<derived> newd() { return llvm::make_unique<derived>(); }
+std::unique_ptr<base> newb() { return llvm::make_unique<derived>(); }
+
+TEST(CastingTest, unique_dyn_cast) {
+  derived *OrigD = nullptr;
+  auto D = llvm::make_unique<derived>();
+  OrigD = D.get();
+
+  // Converting from D to itself is valid, it should return a new unique_ptr
+  // and the old one should become nullptr.
+  auto NewD = unique_dyn_cast<derived>(D);
+  ASSERT_EQ(OrigD, NewD.get());
+  ASSERT_EQ(nullptr, D);
+
+  // Converting from D to B is valid, B should have a value and D should be
+  // nullptr.
+  auto B = unique_dyn_cast<base>(NewD);
+  ASSERT_EQ(OrigD, B.get());
+  ASSERT_EQ(nullptr, NewD);
+
+  // Converting from B to itself is valid, it should return a new unique_ptr
+  // and the old one should become nullptr.
+  auto NewB = unique_dyn_cast<base>(B);
+  ASSERT_EQ(OrigD, NewB.get());
+  ASSERT_EQ(nullptr, B);
+
+  // Converting from B to D is valid, D should have a value and B should be
+  // nullptr;
+  D = unique_dyn_cast<derived>(NewB);
+  ASSERT_EQ(OrigD, D.get());
+  ASSERT_EQ(nullptr, NewB);
+
+  // Converting between unrelated types should fail.  The original value should
+  // remain unchanged and it should return nullptr.
+  auto F = unique_dyn_cast<foo>(D);
+  ASSERT_EQ(nullptr, F);
+  ASSERT_EQ(OrigD, D.get());
+
+  // All of the above should also hold for temporaries.
+  auto D2 = unique_dyn_cast<derived>(newd());
+  EXPECT_NE(nullptr, D2);
+
+  auto B2 = unique_dyn_cast<derived>(newb());
+  EXPECT_NE(nullptr, B2);
+
+  auto B3 = unique_dyn_cast<base>(newb());
+  EXPECT_NE(nullptr, B3);
+
+  auto F2 = unique_dyn_cast<foo>(newb());
+  EXPECT_EQ(nullptr, F2);
 }
 
 // These lines are errors...
@@ -232,3 +307,99 @@ namespace TemporaryCast {
 struct pod {};
 IllegalCast *testIllegalCast() { return cast<foo>(pod()); }
 }
+
+namespace {
+namespace pointer_wrappers {
+
+struct Base {
+  bool IsDerived;
+  Base(bool IsDerived = false) : IsDerived(IsDerived) {}
+};
+
+struct Derived : Base {
+  Derived() : Base(true) {}
+  static bool classof(const Base *B) { return B->IsDerived; }
+};
+
+class PTy {
+  Base *B;
+public:
+  PTy(Base *B) : B(B) {}
+  explicit operator bool() const { return get(); }
+  Base *get() const { return B; }
+};
+
+} // end namespace pointer_wrappers
+} // end namespace
+
+namespace llvm {
+
+template <> struct simplify_type<pointer_wrappers::PTy> {
+  typedef pointer_wrappers::Base *SimpleType;
+  static SimpleType getSimplifiedValue(pointer_wrappers::PTy &P) {
+    return P.get();
+  }
+};
+template <> struct simplify_type<const pointer_wrappers::PTy> {
+  typedef pointer_wrappers::Base *SimpleType;
+  static SimpleType getSimplifiedValue(const pointer_wrappers::PTy &P) {
+    return P.get();
+  }
+};
+
+} // end namespace llvm
+
+namespace {
+namespace pointer_wrappers {
+
+// Some objects.
+pointer_wrappers::Base B;
+pointer_wrappers::Derived D;
+
+// Mutable "smart" pointers.
+pointer_wrappers::PTy MN(nullptr);
+pointer_wrappers::PTy MB(&B);
+pointer_wrappers::PTy MD(&D);
+
+// Const "smart" pointers.
+const pointer_wrappers::PTy CN(nullptr);
+const pointer_wrappers::PTy CB(&B);
+const pointer_wrappers::PTy CD(&D);
+
+TEST(CastingTest, smart_isa) {
+  EXPECT_TRUE(!isa<pointer_wrappers::Derived>(MB));
+  EXPECT_TRUE(!isa<pointer_wrappers::Derived>(CB));
+  EXPECT_TRUE(isa<pointer_wrappers::Derived>(MD));
+  EXPECT_TRUE(isa<pointer_wrappers::Derived>(CD));
+}
+
+TEST(CastingTest, smart_cast) {
+  EXPECT_TRUE(cast<pointer_wrappers::Derived>(MD) == &D);
+  EXPECT_TRUE(cast<pointer_wrappers::Derived>(CD) == &D);
+}
+
+TEST(CastingTest, smart_cast_or_null) {
+  EXPECT_TRUE(cast_or_null<pointer_wrappers::Derived>(MN) == nullptr);
+  EXPECT_TRUE(cast_or_null<pointer_wrappers::Derived>(CN) == nullptr);
+  EXPECT_TRUE(cast_or_null<pointer_wrappers::Derived>(MD) == &D);
+  EXPECT_TRUE(cast_or_null<pointer_wrappers::Derived>(CD) == &D);
+}
+
+TEST(CastingTest, smart_dyn_cast) {
+  EXPECT_TRUE(dyn_cast<pointer_wrappers::Derived>(MB) == nullptr);
+  EXPECT_TRUE(dyn_cast<pointer_wrappers::Derived>(CB) == nullptr);
+  EXPECT_TRUE(dyn_cast<pointer_wrappers::Derived>(MD) == &D);
+  EXPECT_TRUE(dyn_cast<pointer_wrappers::Derived>(CD) == &D);
+}
+
+TEST(CastingTest, smart_dyn_cast_or_null) {
+  EXPECT_TRUE(dyn_cast_or_null<pointer_wrappers::Derived>(MN) == nullptr);
+  EXPECT_TRUE(dyn_cast_or_null<pointer_wrappers::Derived>(CN) == nullptr);
+  EXPECT_TRUE(dyn_cast_or_null<pointer_wrappers::Derived>(MB) == nullptr);
+  EXPECT_TRUE(dyn_cast_or_null<pointer_wrappers::Derived>(CB) == nullptr);
+  EXPECT_TRUE(dyn_cast_or_null<pointer_wrappers::Derived>(MD) == &D);
+  EXPECT_TRUE(dyn_cast_or_null<pointer_wrappers::Derived>(CD) == &D);
+}
+
+} // end namespace pointer_wrappers
+} // end namespace

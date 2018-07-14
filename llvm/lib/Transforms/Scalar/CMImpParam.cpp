@@ -141,7 +141,7 @@ public:
 
   void print(raw_ostream &OS, unsigned depth = 0) const {
     for (auto IID : Implicits) {
-      OS.indent(depth) << Intrinsic::getName(IID) << "\n";
+      OS.indent(depth) << Intrinsic::getName(IID, None) << "\n";
     }
   }
 
@@ -163,8 +163,8 @@ struct CMImpParam : public ModulePass {
   virtual void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.addRequired<CallGraphWrapperPass>();
   }
-  
-  virtual const char *getPassName() const { return "CM Implicit Params"; }
+
+  virtual StringRef getPassName() const { return "CM Implicit Params"; }
 
   virtual bool runOnModule(Module &M);
 
@@ -270,7 +270,7 @@ private:
         *F->getParent(), Ty, false,
         GlobalVariable::InternalLinkage,
         Constant::getNullValue(Ty),
-        "__imparg_" + Intrinsic::getName(IID));
+        "__imparg_" + Intrinsic::getName(IID, None));
     GlobalsMap[IID] = NewVar;
 
     return NewVar;
@@ -325,6 +325,12 @@ bool CMImpParam::runOnModule(Module &M) {
   // Analyze functions for implicit use intrinsic invocation
   changed = AnalyzeImplicitUse(M);
 
+  auto getValue = [](Metadata *M) -> Value * {
+    if (auto VM = dyn_cast<ValueAsMetadata>(M))
+      return VM->getValue();
+    return nullptr;
+  };
+
   // Collect all CM kernels from named metadata
   // and also traverse the call graph to determine what the total implicit uses
   // are for the top
@@ -332,7 +338,8 @@ bool CMImpParam::runOnModule(Module &M) {
   if (NamedMDNode *Named = M.getNamedMetadata("genx.kernels")) {
     for (unsigned I = 0, E = Named->getNumOperands(); I != E; ++I) {
       MDNode *Node = Named->getOperand(I);
-      if (Function *F = dyn_cast_or_null<Function>(Node->getOperand(0))) {
+      if (Function *F =
+              dyn_cast_or_null<Function>(getValue(Node->getOperand(0)))) {
         Kernels.insert(F);
         AlreadyVisited.clear();
         ImplicitUseInfo &implicits = getImplicitUseInfoKernel(F);
@@ -388,7 +395,7 @@ bool CMImpParam::AnalyzeImplicitUse(Module &M) {
               case Intrinsic::genx_get_scoreboard_deltas:
               case Intrinsic::genx_get_scoreboard_bti:
                 DEBUG(dbgs() << "AnalyzeImplicitUse found "
-                            << Intrinsic::getName(IID));
+                            << Intrinsic::getName(IID, None));
                 addImplicit(Fn, IID);
                 implicitUse = true;
 
@@ -466,21 +473,21 @@ CallGraphNode *CMImpParam::ProcessKernel(Function *F) {
   assert(KernelsInfo.count(F) &&
          "ProcessKernel invoked on kernel that doesn't require transforming");
 
-  SmallVector<AttributeSet, 8> AttributesVec;
-  const AttributeSet &PAL = F->getAttributes();
+  AttributeList AttrVec;
+  const AttributeList &PAL = F->getAttributes();
   
   // Determine the new argument list
   SmallVector<Type *, 8> ArgTys;
   
   // First transfer all the explicit arguments from the old kernel
-  unsigned ArgIndex = 1;
+  unsigned ArgIndex = 0;
   for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E;
        ++I, ++ArgIndex) {
     ArgTys.push_back(I->getType());
     AttributeSet attrs = PAL.getParamAttributes(ArgIndex);
-    if (attrs.hasAttributes(ArgIndex)) {
-      AttrBuilder B(attrs, ArgIndex);
-      AttributesVec.push_back(AttributeSet::get(Context, ArgTys.size(), B));
+    if (attrs.hasAttributes()) {
+      AttrBuilder B(attrs);
+      AttrVec = AttrVec.addParamAttributes(Context, ArgIndex, B);
     }
   }
   
@@ -497,17 +504,20 @@ CallGraphNode *CMImpParam::ProcessKernel(Function *F) {
          "type out of sync, expect bool arguments)");
   
   // Add any function attributes
-  if (PAL.hasAttributes(AttributeSet::FunctionIndex))
-    AttributesVec.push_back(AttributeSet::get(Context, PAL.getFnAttributes()));
-  
+  AttributeSet FnAttrs = PAL.getFnAttributes();
+  if (FnAttrs.hasAttributes()) {
+    AttrBuilder B(FnAttrs);
+    AttrVec = AttrVec.addAttributes(Context, AttributeList::FunctionIndex, B);
+  }
+
   // Create new function body and insert into the module
   Function *NF = Function::Create(NFTy, F->getLinkage(), F->getName());
-  NF->setAttributes(AttributeSet::get(NF->getContext(), AttributesVec));
-  AttributesVec.clear();
+  NF->setAttributes(AttrVec);
   DEBUG(dbgs() << "CMImpParam: Transforming to: " << *NF << "\n" << "From: "
         << *F);
-  F->getParent()->getFunctionList().insert(F, NF);
+  F->getParent()->getFunctionList().insert(F->getIterator(), NF);
   NF->takeName(F);
+  NF->setSubprogram(F->getSubprogram()); // tranfer debug-info
   
   // Now to splice the body of the old function into the new function
   NF->getBasicBlockList().splice(NF->begin(), F->getBasicBlockList());
@@ -530,7 +540,7 @@ CallGraphNode *CMImpParam::ProcessKernel(Function *F) {
     // Rename the arg to something more meaningful here
     assert(I2 != NF->arg_end() &&
            "fewer parameters for new function than expected");
-    I2->setName("__arg_" + Intrinsic::getName(IID));
+    I2->setName("__arg_" + Intrinsic::getName(IID, None));
     
     // Also insert a new store at the start of the function to the global
     // variable used for this implicit argument intrinsic
@@ -554,29 +564,27 @@ CallGraphNode *CMImpParam::ProcessKernel(Function *F) {
   if (NamedMDNode *Named = CG.getModule().getNamedMetadata("genx.kernels")) {
     for (unsigned I = 0, E = Named->getNumOperands(); I != E; ++I) {
       MDNode *Node = Named->getOperand(I);
-      if (F == dyn_cast_or_null<Function>(Node->getOperand(0))) {
-        Node->replaceOperandWith(0, NF);
+      if (auto VM = dyn_cast_or_null<ValueAsMetadata>(Node->getOperand(0))) {
+        if (F == VM->getValue()) {
+          Node->replaceOperandWith(0, ValueAsMetadata::get(NF));
+          llvm::SmallVector<llvm::Metadata *, 8> ArgKinds;
 
-        llvm::SmallVector<llvm::Value *, 8> ArgKinds;
-        
-        // Create a new MDNode of Kinds
-        // First add all the current Kinds for explicit operands
-        MDNode *TypeNode = dyn_cast<MDNode>(Node->getOperand(3));
-        assert(TypeNode);
-        for (unsigned i = 0 ; i < TypeNode->getNumOperands(); ++i)
-          ArgKinds.push_back(TypeNode->getOperand(i));
-
-        for (uint32_t Kind : ImpKinds)
-          ArgKinds.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), Kind));
-        
-        llvm::MDNode *Kinds = llvm::MDNode::get(Context, ArgKinds);
-
-        Node->replaceOperandWith(3, Kinds);
-        
+          // Create a new MDNode of Kinds
+          // First add all the current Kinds for explicit operands
+          MDNode *TypeNode = dyn_cast<MDNode>(Node->getOperand(3));
+          assert(TypeNode);
+          for (unsigned i = 0; i < TypeNode->getNumOperands(); ++i)
+            ArgKinds.push_back(TypeNode->getOperand(i));
+          for (uint32_t Kind : ImpKinds)
+            ArgKinds.push_back(ValueAsMetadata::getConstant(
+                ConstantInt::get(Type::getInt32Ty(Context), Kind)));
+          llvm::MDNode *Kinds = llvm::MDNode::get(Context, ArgKinds);
+          Node->replaceOperandWith(3, Kinds);
+        }
       }
     }
   }
-  
+
   // Now that the old function is dead, delete it. If there is a dangling
   // reference to the CallGraphNode, just leave the dead function around
   NF_CGN->stealCalledFunctionsFrom(CG[F]);

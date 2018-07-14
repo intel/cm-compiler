@@ -789,7 +789,7 @@ Instruction *ConstantLoader::loadNonSimple(Instruction *Inst)
   // Remove any splat set with only a single element.
   unsigned NewSize = 0;
   for (unsigned i = 0, e = SplatSets.size(); i != e; ++i) {
-    if (CountPopulation_32(SplatSets[i]) >= 2)
+    if (countPopulation(SplatSets[i]) >= 2)
       SplatSets[NewSize++] = SplatSets[i];
   }
   SplatSets.resize(NewSize);
@@ -834,7 +834,7 @@ Instruction *ConstantLoader::loadNonSimple(Instruction *Inst)
     for (unsigned i = 0, e = SplatSets.size(); i != e; ++i) {
       unsigned Bits = getRegionBits(SplatSets[i] & RemainingBits,
           SplatSets[i] | RemainingBits | UndefBits, NumElements);
-      unsigned Count = CountPopulation_32(Bits);
+      unsigned Count = countPopulation(Bits);
       // For this splat set, Bits is a bitmap of the vector elements that
       // we can set in this splat set in a legal 1D region (possibly including
       // elements already set and undef elements), and Count is how many
@@ -929,7 +929,7 @@ unsigned ConstantLoader::getRegionBits(unsigned NeededBits,
         if ((Bits & NeededBits) == NeededBits)
           return Bits;
         // See if it is the best one we have seen so far.
-        unsigned Count = CountPopulation_32(Bits & NeededBits);
+        unsigned Count = countPopulation(Bits & NeededBits);
         if (Count > BestCount) {
           BestCount = Count;
           BestBits = Bits;
@@ -1327,7 +1327,7 @@ void ConstantLoader::analyzeForPackedInt(unsigned NumElements)
       Diff = -Diff;
     if (Diff > UINT_MAX)
       return;
-    if (DiffsSet.insert((unsigned)Diff))
+    if (DiffsSet.insert((unsigned)Diff).second)
       Diffs.push_back((unsigned)Diff);
   }
   assert(!Diffs.empty() && "not expecting splatted constant");
@@ -1424,7 +1424,7 @@ void ConstantLoader::analyzeForPackedFloat(unsigned NumElements) {
     const APFloat &FP = CFP->getValueAPF();
     // Bail out if it's not supported.
     // TODO: Only support single precision so far.
-    if (&FP.getSemantics() != &APFloat::IEEEsingle)
+    if (&FP.getSemantics() != &APFloat::IEEEsingle())
       return;
     // Bail out if it's not finite.
     if (!FP.isFinite())

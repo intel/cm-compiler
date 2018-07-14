@@ -59,6 +59,7 @@ def FeatureVectorDecomp : SubtargetFeature<"disable_vec_decomp",
 def WarnCallable : SubtargetFeature<"warn_callable", "WarnCallable",
                                     "true", "warn instead of error on callable violation">;
 
+
 //===----------------------------------------------------------------------===//
 // GenX processors supported.
 //===----------------------------------------------------------------------===//

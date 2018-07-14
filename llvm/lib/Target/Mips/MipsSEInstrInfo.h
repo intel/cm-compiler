@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSSEINSTRUCTIONINFO_H
-#define MIPSSEINSTRUCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSSEINSTRINFO_H
+#define LLVM_LIB_TARGET_MIPS_MIPSSEINSTRINFO_H
 
 #include "MipsInstrInfo.h"
 #include "MipsSERegisterInfo.h"
@@ -21,7 +21,6 @@ namespace llvm {
 
 class MipsSEInstrInfo : public MipsInstrInfo {
   const MipsSERegisterInfo RI;
-  bool IsN64;
 
 public:
   explicit MipsSEInstrInfo(const MipsSubtarget &STI);
@@ -33,7 +32,7 @@ public:
   /// the destination along with the FrameIndex of the loaded stack slot.  If
   /// not, return 0.  This predicate must return 0 if the instruction has
   /// any side effects other than loading from the stack slot.
-  unsigned isLoadFromStackSlot(const MachineInstr *MI,
+  unsigned isLoadFromStackSlot(const MachineInstr &MI,
                                int &FrameIndex) const override;
 
   /// isStoreToStackSlot - If the specified machine instruction is a direct
@@ -41,12 +40,11 @@ public:
   /// the source reg along with the FrameIndex of the loaded stack slot.  If
   /// not, return 0.  This predicate must return 0 if the instruction has
   /// any side effects other than storing to the stack slot.
-  unsigned isStoreToStackSlot(const MachineInstr *MI,
+  unsigned isStoreToStackSlot(const MachineInstr &MI,
                               int &FrameIndex) const override;
 
-  void copyPhysReg(MachineBasicBlock &MBB,
-                   MachineBasicBlock::iterator MI, DebugLoc DL,
-                   unsigned DestReg, unsigned SrcReg,
+  void copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator MI,
+                   const DebugLoc &DL, unsigned DestReg, unsigned SrcReg,
                    bool KillSrc) const override;
 
   void storeRegToStack(MachineBasicBlock &MBB,
@@ -63,25 +61,27 @@ public:
                         const TargetRegisterInfo *TRI,
                         int64_t Offset) const override;
 
-  bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const override;
+  bool expandPostRAPseudo(MachineInstr &MI) const override;
 
   unsigned getOppositeBranchOpc(unsigned Opc) const override;
 
   /// Adjust SP by Amount bytes.
   void adjustStackPtr(unsigned SP, int64_t Amount, MachineBasicBlock &MBB,
-                      MachineBasicBlock::iterator I) const;
+                      MachineBasicBlock::iterator I) const override;
 
   /// Emit a series of instructions to load an immediate. If NewImm is a
   /// non-NULL parameter, the last instruction is not emitted, but instead
   /// its immediate operand is returned in NewImm.
   unsigned loadImmediate(int64_t Imm, MachineBasicBlock &MBB,
-                         MachineBasicBlock::iterator II, DebugLoc DL,
+                         MachineBasicBlock::iterator II, const DebugLoc &DL,
                          unsigned *NewImm) const;
 
 private:
   unsigned getAnalyzableBrOpc(unsigned Opc) const override;
 
   void expandRetRA(MachineBasicBlock &MBB, MachineBasicBlock::iterator I) const;
+
+  void expandERet(MachineBasicBlock &MBB, MachineBasicBlock::iterator I) const;
 
   std::pair<bool, bool> compareOpndSize(unsigned Opc,
                                         const MachineFunction &MF) const;

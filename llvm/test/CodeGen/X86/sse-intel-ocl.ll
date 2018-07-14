@@ -14,7 +14,7 @@ declare <16 x float> @func_float16(<16 x float>, <16 x float>)
 ; WIN64: ret
 
 ; WIN32: testf16_inp
-; WIN32: movl    %eax, (%esp)
+; WIN32: pushl   %eax
 ; WIN32: addps  {{.*}}, {{%xmm[0-3]}}
 ; WIN32: addps  {{.*}}, {{%xmm[0-3]}}
 ; WIN32: addps  {{.*}}, {{%xmm[0-3]}}
@@ -27,7 +27,7 @@ declare <16 x float> @func_float16(<16 x float>, <16 x float>)
 ; NOT_WIN: addps  {{.*}}, {{%xmm[0-3]}}
 ; NOT_WIN: addps  {{.*}}, {{%xmm[0-3]}}
 ; NOT_WIN: addps  {{.*}}, {{%xmm[0-3]}}
-; NOT_WIN: leaq    {{.*}}(%rsp), %rdi
+; NOT_WIN: movq   %rsp, %rdi
 ; NOT_WIN: call
 ; NOT_WIN: ret
 
@@ -36,7 +36,7 @@ define <16 x float> @testf16_inp(<16 x float> %a, <16 x float> %b) nounwind {
   %y = alloca <16 x float>, align 16
   %x = fadd <16 x float> %a, %b
   %1 = call intel_ocl_bicc <16 x float> @func_float16_ptr(<16 x float> %x, <16 x float>* %y) 
-  %2 = load <16 x float>* %y, align 16
+  %2 = load <16 x float>, <16 x float>* %y, align 16
   %3 = fadd <16 x float> %2, %1
   ret <16 x float> %3
 }
@@ -63,7 +63,7 @@ define <16 x float> @testf16_regs(<16 x float> %a, <16 x float> %b) nounwind {
   %y = alloca <16 x float>, align 16
   %x = fadd <16 x float> %a, %b
   %1 = call intel_ocl_bicc <16 x float> @func_float16_ptr(<16 x float> %x, <16 x float>* %y) 
-  %2 = load <16 x float>* %y, align 16
+  %2 = load <16 x float>, <16 x float>* %y, align 16
   %3 = fadd <16 x float> %1, %b
   %4 = fadd <16 x float> %2, %3
   ret <16 x float> %4

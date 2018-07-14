@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>TableGen &#8212; LLVM 3.4 documentation</title>
+    <title>TableGen &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -177,7 +177,6 @@ def ADD32rr {   // Instruction X86Inst I
   bit hasCtrlDep = 0;
   bit isNotDuplicable = 0;
   bit hasSideEffects = 0;
-  bit neverHasSideEffects = 0;
   InstrItinClass Itinerary = NoItinerary;
   string Constraints = &quot;&quot;;
   string DisableEncoding = &quot;&quot;;
@@ -306,7 +305,7 @@ of running <code class="docutils literal"><span class="pre">llvm-tblgen</span></
 that’s only useful for debugging of the TableGen files themselves. The power
 in TableGen is, however, to interpret the source files into an internal
 representation that can be generated into anything you want.</p>
-<p>Current usage of TableGen is to create include huge files with tables that you
+<p>Current usage of TableGen is to create huge include files with tables that you
 can either include directly (if the output is in the language you’re coding),
 or be used in pre-processing via macros surrounding the include of the file.</p>
 <p>Direct output can be used if the back-end already prints a table in C format
@@ -322,7 +321,7 @@ a meta-information list that can be shaped into different compile-time formats.<
 pointed out numerous times. The common theme is that, while TableGen allows
 you to build Domain-Specific-Languages, the final languages that you create
 lack the power of other DSLs, which in turn increase considerably the size
-and complecity of TableGen files.</p>
+and complexity of TableGen files.</p>
 <p>At the same time, TableGen allows you to create virtually any meaning of
 the basic concepts via custom-made back-ends, which can pervert the original
 design and make it very hard for newcomers to understand the evil TableGen
@@ -360,8 +359,8 @@ document.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

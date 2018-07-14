@@ -93,39 +93,39 @@ void test() {
   m1.merge(m2,mask1) = 1;                  // not assignable
   v1.merge(v2,mask1) = 9;                  // not assignable
 }
-// CHECK: merge.cpp(34,11) :  error: expected '('
-// CHECK: merge.cpp(35,12) :  error: expected expression
-// CHECK: merge.cpp(36,12) :  error: expected expression
-// CHECK: merge.cpp(37,14) :  error: expected ')'
-// CHECK: merge.cpp(38,14) :  error: too few arguments: merge() expects at least two arguments
-// CHECK: merge.cpp(43,21) :  error: too many arguments: merge() expects at most three arguments
-// CHECK: merge.cpp(44,21) :  error: member reference base type 'void' is not a structure or union
-// CHECK: merge.cpp(47,3) :  error: cannot convert to type 'matrix<int,4,6>' from type 'matrix<int,6,6>'
-// CHECK: merge.cpp(48,3) :  error: cannot convert to type 'matrix<int,4,6>' from type 'matrix<int,6,6>'
-// CHECK: merge.cpp(52,15) :  error: invalid merge mask type 'SurfaceIndex' for type 'matrix<int,4,6>'
-// CHECK: merge.cpp(53,15) :  error: invalid merge mask element type 'float'
-// CHECK: merge.cpp(54,15) :  error: invalid merge mask element type 'SurfaceIndex'
-// CHECK: merge.cpp(55,18) :  error: invalid merge mask type 'float' for type 'matrix<int,4,6>'
-// CHECK: merge.cpp(56,15) :  error: invalid merge mask type 'matrix<char,4,4>' for type 'matrix<int,4,6>'
-// CHECK: merge.cpp(58,15) :  warning: merge mask has fewer bits (8) than the number of merge elements (24)
-// CHECK: merge.cpp(61,11) :  error: expected '('
-// CHECK: merge.cpp(62,12) :  error: expected expression
-// CHECK: merge.cpp(63,12) :  error: expected expression
-// CHECK: merge.cpp(64,14) :  error: expected ')'
-// CHECK: merge.cpp(65,14) :  error: too few arguments: merge() expects at least two arguments
-// CHECK: merge.cpp(70,21) :  error: too many arguments: merge() expects at most three arguments
-// CHECK: merge.cpp(71,21) :  error: member reference base type 'void' is not a structure or union
-// CHECK: merge.cpp(74,3) :  error: cannot convert to type 'vector<int,8>' from type 'vector<unsigned short,32>'
-// CHECK: merge.cpp(75,3) :  error: cannot convert to type 'vector<int,8>' from type 'matrix<int,6,6>'
-// CHECK: merge.cpp(79,18) :  error: invalid merge mask type 'float' for type 'vector<int,8>'
-// CHECK: merge.cpp(80,15) :  error: invalid merge mask type 'matrix<char,4,4>' for type 'vector<int,8>'
-// CHECK: merge.cpp(82,15) :  warning: merge mask has fewer bits (8) than the number of merge elements (32)
-// CHECK: merge.cpp(84,3) :  error: invalid element type 'SurfaceIndex'
-// CHECK: merge.cpp(86,6) :  error: no member named 'merge' in 'S1'
-// CHECK: merge.cpp(87,6) :  error: no member named 'merge' in 'S1'
-// CHECK: merge.cpp(88,15) :  error: 'merge' following the 'template' keyword does not refer to a template
-// CHECK: merge.cpp(90,11) :  error: called object type 'int' is not a function or function pointer
-// CHECK: merge.cpp(91,15) :  error: 'merge' following the 'template' keyword does not refer to a template
-// CHECK: merge.cpp(93,22) :  error: expression is not assignable
-// CHECK: merge.cpp(94,22) :  error: expression is not assignable
+// CHECK: merge.cpp(34,11):  error: expected '('
+// CHECK: merge.cpp(35,12):  error: expected expression
+// CHECK: merge.cpp(36,12):  error: expected expression
+// CHECK: merge.cpp(37,14):  error: expected ')'
+// CHECK: merge.cpp(38,14):  error: too few arguments: merge() expects at least two arguments
+// CHECK: merge.cpp(43,21):  error: too many arguments: merge() expects at most three arguments
+// CHECK: merge.cpp(44,21):  error: member reference base type 'void' is not a structure or union
+// CHECK: merge.cpp(47,3):  error: cannot convert to type 'matrix<int,4,6>' from type 'matrix<int,6,6>'
+// CHECK: merge.cpp(48,3):  error: cannot convert to type 'matrix<int,4,6>' from type 'matrix<int,6,6>'
+// CHECK: merge.cpp(52,15):  error: invalid merge mask type 'SurfaceIndex' for type 'matrix<int,4,6>'
+// CHECK: merge.cpp(53,15):  error: invalid merge mask element type 'float'
+// CHECK: merge.cpp(54,15):  error: invalid merge mask element type 'SurfaceIndex'
+// CHECK: merge.cpp(55,18):  error: invalid merge mask type 'float' for type 'matrix<int,4,6>'
+// CHECK: merge.cpp(56,15):  error: invalid merge mask type 'matrix<char,4,4>' for type 'matrix<int,4,6>'
+// CHECK: merge.cpp(58,15):  warning: merge mask has fewer bits (8) than the number of merge elements (24)
+// CHECK: merge.cpp(61,11):  error: expected '('
+// CHECK: merge.cpp(62,12):  error: expected expression
+// CHECK: merge.cpp(63,12):  error: expected expression
+// CHECK: merge.cpp(64,14):  error: expected ')'
+// CHECK: merge.cpp(65,14):  error: too few arguments: merge() expects at least two arguments
+// CHECK: merge.cpp(70,21):  error: too many arguments: merge() expects at most three arguments
+// CHECK: merge.cpp(71,21):  error: member reference base type 'void' is not a structure or union
+// CHECK: merge.cpp(74,3):  error: cannot convert to type 'vector<int,8>' from type 'vector<unsigned short,32>'
+// CHECK: merge.cpp(75,3):  error: cannot convert to type 'vector<int,8>' from type 'matrix<int,6,6>'
+// CHECK: merge.cpp(79,18):  error: invalid merge mask type 'float' for type 'vector<int,8>'
+// CHECK: merge.cpp(80,15):  error: invalid merge mask type 'matrix<char,4,4>' for type 'vector<int,8>'
+// CHECK: merge.cpp(82,15):  warning: merge mask has fewer bits (8) than the number of merge elements (32)
+// CHECK: merge.cpp(84,3):  error: invalid element type 'SurfaceIndex'
+// CHECK: merge.cpp(86,6):  error: no member named 'merge' in 'S1'
+// CHECK: merge.cpp(87,6):  error: no member named 'merge' in 'S1'
+// CHECK: merge.cpp(88,15):  error: 'merge' following the 'template' keyword does not refer to a template
+// CHECK: merge.cpp(90,11):  error: called object type 'int' is not a function or function pointer
+// CHECK: merge.cpp(91,15):  error: 'merge' following the 'template' keyword does not refer to a template
+// CHECK: merge.cpp(93,22):  error: expression is not assignable
+// CHECK: merge.cpp(94,22):  error: expression is not assignable
 // CHECK: 2 warnings and 33 errors generated.

@@ -52,6 +52,18 @@
 // CHECK: encoding: [0x48,0x83,0xf8,0xf4]
 	cmp	rax, -12
 
+  acquire lock add [rax], rax
+// CHECK: encoding: [0xf2]
+// CHECK: encoding: [0xf0,0x48,0x01,0x00]
+  release lock add [rax], rax
+// CHECK: encoding: [0xf3]
+// CHECK: encoding: [0xf0,0x48,0x01,0x00]
+
+// CHECK: encoding: [0x9c]
+// CHECK: encoding: [0x9d]
+pushf
+popf
+
 LBB0_3:
 // CHECK: encoding: [0xeb,A]
 	jmp	LBB0_3
@@ -76,3 +88,8 @@ LBB0_3:
 // CHECK: encoding: [0xca,0x08,0x00]
     retf 8
 
+    .set FOO, 2
+    cmp eax, FOO
+// CHECK: encoding: [0x83,0xf8,0x02]
+    cmp eax, FOO[eax]
+// CHECK: encoding: [0x67,0x3b,0x40,0x02]

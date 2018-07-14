@@ -47,13 +47,13 @@ using namespace visa;
 
 namespace {
   class GenXVisaWriter : public ModulePass {
-    formatted_raw_ostream &Out;
+    raw_pwrite_stream &Out;
   public:
     static char ID;
-    explicit GenXVisaWriter(formatted_raw_ostream &o) :
+    explicit GenXVisaWriter(raw_pwrite_stream &o) :
       ModulePass(ID), Out(o) {}
 
-    virtual const char *getPassName() const { return "GenX vISA writer"; }
+    virtual StringRef getPassName() const { return "GenX vISA writer"; }
 
     void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addRequired<GenXModule>();
@@ -70,7 +70,7 @@ namespace {
 
 char GenXVisaWriter::ID = 0;
 
-ModulePass *llvm::createGenXVisaWriterPass(formatted_raw_ostream &o) {
+ModulePass *llvm::createGenXVisaWriterPass(raw_pwrite_stream &o) {
   return new GenXVisaWriter(o);
 }
 
@@ -135,7 +135,7 @@ void GenXVisaWriter::writeModule(Module *M)
 /***********************************************************************
  * Stream::write : write the stream contents to a formatted_output_stream
  */
-void genx::Stream::write(formatted_raw_ostream &Out)
+void genx::Stream::write(raw_pwrite_stream &Out)
 {
   if (V.size())
     Out.write((const char *)&V[0], V.size());

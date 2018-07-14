@@ -35,5 +35,5 @@ void test() {
 #warning CM_GEN10 defined
 #endif
 
-// CHECK: "-platform" "CNL"
-// CHECK-SAME: path/to/genx/finalizer
+// CHECK: path/to/genx/finalizer
+// CHECK-SAME: "-platform" "CNL"

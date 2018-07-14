@@ -11,13 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/Parse/Parser.h"
-#include "RAIIObjectsForParser.h"
 #include "clang/Parse/ParseDiagnostic.h"
+#include "clang/Parse/Parser.h"
+#include "clang/Parse/RAIIObjectsForParser.h"
 #include "clang/Sema/Designator.h"
 #include "clang/Sema/Scope.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/Support/raw_ostream.h"
 using namespace clang;
 
 
@@ -148,7 +147,7 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
 
     Diag(NameLoc, diag::ext_gnu_old_style_field_designator)
       << FixItHint::CreateReplacement(SourceRange(NameLoc, ColonLoc),
-                                      NewSyntax.str());
+                                      NewSyntax);
 
     Designation D;
     D.AddDesignator(Designator::getField(FieldName, SourceLocation(), NameLoc));
@@ -216,10 +215,8 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
           NextToken().isNot(tok::period) && 
           getCurScope()->isInObjcMethodScope()) {
         CheckArrayDesignatorSyntax(*this, StartLoc, Desig);
-        return ParseAssignmentExprWithObjCMessageExprStart(StartLoc,
-                                                           ConsumeToken(),
-                                                           ParsedType(), 
-                                                           nullptr);
+        return ParseAssignmentExprWithObjCMessageExprStart(
+            StartLoc, ConsumeToken(), nullptr, nullptr);
       }
 
       // Parse the receiver, which is either a type or an expression.
@@ -252,26 +249,38 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
       // Three cases. This is a message send to a type: [type foo]
       // This is a message send to super:  [super foo]
       // This is a message sent to an expr:  [super.bar foo]
-      switch (Sema::ObjCMessageKind Kind
-                = Actions.getObjCMessageKind(getCurScope(), II, IILoc, 
-                                             II == Ident_super,
-                                             NextToken().is(tok::period),
-                                             ReceiverType)) {
+      switch (Actions.getObjCMessageKind(
+          getCurScope(), II, IILoc, II == Ident_super,
+          NextToken().is(tok::period), ReceiverType)) {
       case Sema::ObjCSuperMessage:
+        CheckArrayDesignatorSyntax(*this, StartLoc, Desig);
+        return ParseAssignmentExprWithObjCMessageExprStart(
+            StartLoc, ConsumeToken(), nullptr, nullptr);
+
       case Sema::ObjCClassMessage:
         CheckArrayDesignatorSyntax(*this, StartLoc, Desig);
-        if (Kind == Sema::ObjCSuperMessage)
-          return ParseAssignmentExprWithObjCMessageExprStart(StartLoc,
-                                                             ConsumeToken(),
-                                                             ParsedType(),
-                                                             nullptr);
         ConsumeToken(); // the identifier
         if (!ReceiverType) {
           SkipUntil(tok::r_square, StopAtSemi);
           return ExprError();
         }
 
-        return ParseAssignmentExprWithObjCMessageExprStart(StartLoc, 
+        // Parse type arguments and protocol qualifiers.
+        if (Tok.is(tok::less)) {
+          SourceLocation NewEndLoc;
+          TypeResult NewReceiverType
+            = parseObjCTypeArgsAndProtocolQualifiers(IILoc, ReceiverType,
+                                                     /*consumeLastToken=*/true,
+                                                     NewEndLoc);
+          if (!NewReceiverType.isUsable()) {
+            SkipUntil(tok::r_square, StopAtSemi);
+            return ExprError();
+          }
+
+          ReceiverType = NewReceiverType.get();
+        }
+
+        return ParseAssignmentExprWithObjCMessageExprStart(StartLoc,
                                                            SourceLocation(), 
                                                            ReceiverType, 
                                                            nullptr);
@@ -306,10 +315,8 @@ ExprResult Parser::ParseInitializerWithPotentialDesignator() {
     if (getLangOpts().ObjC1 && Tok.isNot(tok::ellipsis) &&
         Tok.isNot(tok::r_square)) {
       CheckArrayDesignatorSyntax(*this, Tok.getLocation(), Desig);
-      return ParseAssignmentExprWithObjCMessageExprStart(StartLoc,
-                                                         SourceLocation(),
-                                                         ParsedType(),
-                                                         Idx.get());
+      return ParseAssignmentExprWithObjCMessageExprStart(
+          StartLoc, SourceLocation(), nullptr, Idx.get());
     }
 
     // If this is a normal array designator, remember it.
@@ -397,6 +404,10 @@ ExprResult Parser::ParseBraceInitializer() {
     return Actions.ActOnInitList(LBraceLoc, None, ConsumeBrace());
   }
 
+  // Enter an appropriate expression evaluation context for an initializer list.
+  EnterExpressionEvaluationContext EnterContext(
+      Actions, EnterExpressionEvaluationContext::InitList);
+
   bool InitExprsOk = true;
 
   while (1) {
@@ -423,9 +434,11 @@ ExprResult Parser::ParseBraceInitializer() {
 
     if (Tok.is(tok::ellipsis))
       SubElt = Actions.ActOnPackExpansion(SubElt.get(), ConsumeToken());
-    
+
+    SubElt = Actions.CorrectDelayedTyposInExpr(SubElt.get());
+
     // If we couldn't parse the subelement, bail out.
-    if (!SubElt.isInvalid()) {
+    if (SubElt.isUsable()) {
       InitExprs.push_back(SubElt.get());
     } else {
       InitExprsOk = false;
@@ -488,7 +501,8 @@ bool Parser::ParseMicrosoftIfExistsBraceInitializer(ExprVector &InitExprs,
     Diag(Result.KeywordLoc, diag::warn_microsoft_dependent_exists)
       << Result.IsIfExists;
     // Fall through to skip.
-      
+    LLVM_FALLTHROUGH;
+
   case IEB_Skip:
     Braces.skipToEnd();
     return false;

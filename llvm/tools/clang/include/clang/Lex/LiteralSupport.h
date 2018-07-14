@@ -12,13 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_LITERALSUPPORT_H
-#define CLANG_LITERALSUPPORT_H
+#ifndef LLVM_CLANG_LEX_LITERALSUPPORT_H
+#define LLVM_CLANG_LEX_LITERALSUPPORT_H
 
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/TokenKinds.h"
 #include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataTypes.h"
@@ -57,13 +58,16 @@ public:
   NumericLiteralParser(StringRef TokSpelling,
                        SourceLocation TokLoc,
                        Preprocessor &PP);
-  bool hadError;
-  bool isUnsigned;
-  bool isLong;        // This is *not* set for long long.
-  bool isLongLong;
-  bool isFloat;       // 1.0f
-  bool isImaginary;   // 1.0i
-  uint8_t MicrosoftInteger;  // Microsoft suffix extension i8, i16, i32, or i64.
+  bool hadError : 1;
+  bool isUnsigned : 1;
+  bool isLong : 1;          // This is *not* set for long long.
+  bool isLongLong : 1;
+  bool isHalf : 1;          // 1.0h
+  bool isFloat : 1;         // 1.0f
+  bool isImaginary : 1;     // 1.0i
+  bool isFloat16 : 1;       // 1.0f16
+  bool isFloat128 : 1;      // 1.0q
+  uint8_t MicrosoftInteger; // Microsoft suffix extension i8, i16, i32, or i64.
 
   bool isIntegerLiteral() const {
     return !saw_period && !saw_exponent;
@@ -104,8 +108,15 @@ public:
 private:
 
   void ParseNumberStartingWithZero(SourceLocation TokLoc);
+  void ParseDecimalOrOctalCommon(SourceLocation TokLoc);
 
   static bool isDigitSeparator(char C) { return C == '\''; }
+
+  /// \brief Determine whether the sequence of characters [Start, End) contains
+  /// any real digits (not digit separators).
+  bool containsDigits(const char *Start, const char *End) {
+    return Start != End && (Start + 1 != End || !isDigitSeparator(Start[0]));
+  }
 
   enum CheckSeparatorKind { CSK_BeforeDigits, CSK_AfterDigits };
 
@@ -166,6 +177,7 @@ public:
   bool hadError() const { return HadError; }
   bool isAscii() const { return Kind == tok::char_constant; }
   bool isWide() const { return Kind == tok::wide_char_constant; }
+  bool isUTF8() const { return Kind == tok::utf8_char_constant; }
   bool isUTF16() const { return Kind == tok::utf16_char_constant; }
   bool isUTF32() const { return Kind == tok::utf32_char_constant; }
   bool isMultiChar() const { return IsMultiChar; }
@@ -247,6 +259,8 @@ public:
     assert(!UDSuffixBuf.empty() && "no ud-suffix");
     return UDSuffixOffset;
   }
+
+  static bool isValidUDSuffix(const LangOptions &LangOpts, StringRef Suffix);
 
 private:
   void init(ArrayRef<Token> StringToks);

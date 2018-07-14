@@ -110,7 +110,7 @@ public:
   static char ID;
   explicit GenXNumbering() : FunctionGroupPass(ID), Baling(0) { }
   ~GenXNumbering() { clear(); }
-  virtual const char *getPassName() const { return "GenX numbering"; }
+  virtual StringRef getPassName() const { return "GenX numbering"; }
   void getAnalysisUsage(AnalysisUsage &AU) const;
   bool runOnFunctionGroup(FunctionGroup &FG);
   // get BBNumber struct for a basic block

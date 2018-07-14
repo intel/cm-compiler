@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>YAML I/O &#8212; LLVM 3.4 documentation</title>
+    <title>YAML I/O &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -79,26 +79,28 @@
 <li><a class="reference internal" href="#scalarenumerationtraits" id="id8">ScalarEnumerationTraits</a></li>
 <li><a class="reference internal" href="#bitvalue" id="id9">BitValue</a></li>
 <li><a class="reference internal" href="#custom-scalar" id="id10">Custom Scalar</a></li>
+<li><a class="reference internal" href="#block-scalars" id="id11">Block Scalars</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#mappings" id="id11">Mappings</a><ul>
-<li><a class="reference internal" href="#no-normalization" id="id12">No Normalization</a></li>
-<li><a class="reference internal" href="#normalization" id="id13">Normalization</a></li>
-<li><a class="reference internal" href="#default-values" id="id14">Default values</a></li>
-<li><a class="reference internal" href="#order-of-keys" id="id15">Order of Keys</a></li>
-<li><a class="reference internal" href="#tags" id="id16">Tags</a></li>
-<li><a class="reference internal" href="#validation" id="id17">Validation</a></li>
+<li><a class="reference internal" href="#mappings" id="id12">Mappings</a><ul>
+<li><a class="reference internal" href="#no-normalization" id="id13">No Normalization</a></li>
+<li><a class="reference internal" href="#normalization" id="id14">Normalization</a></li>
+<li><a class="reference internal" href="#default-values" id="id15">Default values</a></li>
+<li><a class="reference internal" href="#order-of-keys" id="id16">Order of Keys</a></li>
+<li><a class="reference internal" href="#tags" id="id17">Tags</a></li>
+<li><a class="reference internal" href="#validation" id="id18">Validation</a></li>
+<li><a class="reference internal" href="#flow-mapping" id="id19">Flow Mapping</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#sequence" id="id18">Sequence</a><ul>
-<li><a class="reference internal" href="#flow-sequence" id="id19">Flow Sequence</a></li>
-<li><a class="reference internal" href="#utility-macros" id="id20">Utility Macros</a></li>
+<li><a class="reference internal" href="#sequence" id="id20">Sequence</a><ul>
+<li><a class="reference internal" href="#flow-sequence" id="id21">Flow Sequence</a></li>
+<li><a class="reference internal" href="#utility-macros" id="id22">Utility Macros</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#document-list" id="id21">Document List</a></li>
-<li><a class="reference internal" href="#user-context-data" id="id22">User Context Data</a></li>
-<li><a class="reference internal" href="#output" id="id23">Output</a></li>
-<li><a class="reference internal" href="#input" id="id24">Input</a></li>
+<li><a class="reference internal" href="#document-list" id="id23">Document List</a></li>
+<li><a class="reference internal" href="#user-context-data" id="id24">User Context Data</a></li>
+<li><a class="reference internal" href="#output" id="id25">Output</a></li>
+<li><a class="reference internal" href="#input" id="id26">Input</a></li>
 </ul>
 </div>
 <div class="section" id="introduction-to-yaml">
@@ -380,7 +382,7 @@ as a field type:</p>
 <span class="p">};</span>
 </pre></div>
 </div>
-<p>When reading YAML, if the string found does not match any of the the strings
+<p>When reading YAML, if the string found does not match any of the strings
 specified by enumCase() methods, an error is automatically generated.
 When writing YAML, if the value being written does not match any of the values
 specified by the enumCase() methods, a runtime assertion is triggered.</p>
@@ -490,23 +492,68 @@ looks like:</p>
 
 <span class="k">template</span> <span class="o">&lt;&gt;</span>
 <span class="k">struct</span> <span class="n">ScalarTraits</span><span class="o">&lt;</span><span class="n">MyCustomType</span><span class="o">&gt;</span> <span class="p">{</span>
-  <span class="k">static</span> <span class="kt">void</span> <span class="n">output</span><span class="p">(</span><span class="k">const</span> <span class="n">T</span> <span class="o">&amp;</span><span class="n">value</span><span class="p">,</span> <span class="n">llvm</span><span class="o">::</span><span class="n">raw_ostream</span> <span class="o">&amp;</span><span class="n">out</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">static</span> <span class="kt">void</span> <span class="n">output</span><span class="p">(</span><span class="k">const</span> <span class="n">MyCustomType</span> <span class="o">&amp;</span><span class="n">value</span><span class="p">,</span> <span class="kt">void</span><span class="o">*</span><span class="p">,</span>
+                     <span class="n">llvm</span><span class="o">::</span><span class="n">raw_ostream</span> <span class="o">&amp;</span><span class="n">out</span><span class="p">)</span> <span class="p">{</span>
     <span class="n">out</span> <span class="o">&lt;&lt;</span> <span class="n">value</span><span class="p">;</span>  <span class="c1">// do custom formatting here</span>
   <span class="p">}</span>
-  <span class="k">static</span> <span class="n">StringRef</span> <span class="n">input</span><span class="p">(</span><span class="n">StringRef</span> <span class="n">scalar</span><span class="p">,</span> <span class="n">T</span> <span class="o">&amp;</span><span class="n">value</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">static</span> <span class="n">StringRef</span> <span class="n">input</span><span class="p">(</span><span class="n">StringRef</span> <span class="n">scalar</span><span class="p">,</span> <span class="kt">void</span><span class="o">*</span><span class="p">,</span> <span class="n">MyCustomType</span> <span class="o">&amp;</span><span class="n">value</span><span class="p">)</span> <span class="p">{</span>
     <span class="c1">// do custom parsing here.  Return the empty string on success,</span>
     <span class="c1">// or an error message on failure.</span>
     <span class="k">return</span> <span class="n">StringRef</span><span class="p">();</span>
   <span class="p">}</span>
   <span class="c1">// Determine if this scalar needs quotes.</span>
-  <span class="k">static</span> <span class="kt">bool</span> <span class="n">mustQuote</span><span class="p">(</span><span class="n">StringRef</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="nb">true</span><span class="p">;</span> <span class="p">}</span>
+  <span class="k">static</span> <span class="n">QuotingType</span> <span class="n">mustQuote</span><span class="p">(</span><span class="n">StringRef</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="n">QuotingType</span><span class="o">::</span><span class="n">Single</span><span class="p">;</span> <span class="p">}</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="block-scalars">
+<h3><a class="toc-backref" href="#id11">Block Scalars</a><a class="headerlink" href="#block-scalars" title="Permalink to this headline">¶</a></h3>
+<p>YAML block scalars are string literals that are represented in YAML using the
+literal block notation, just like the example shown below:</p>
+<div class="highlight-yaml"><div class="highlight"><pre><span></span><span class="l l-Scalar l-Scalar-Plain">text</span><span class="p p-Indicator">:</span> <span class="p p-Indicator">|</span>
+  <span class="no">First line</span>
+  <span class="no">Second line</span>
+</pre></div>
+</div>
+<p>The YAML I/O library provides support for translating between YAML block scalars
+and specific C++ types by allowing you to specialize BlockScalarTraits&lt;&gt; on
+your data type. The library doesn’t provide any built-in support for block
+scalar I/O for types like std::string and llvm::StringRef as they are already
+supported by YAML I/O and use the ordinary scalar notation by default.</p>
+<p>BlockScalarTraits specializations are very similar to the
+ScalarTraits specialization - YAML I/O will provide the native type and your
+specialization must create a temporary llvm::StringRef when writing, and
+it will also provide an llvm::StringRef that has the value of that block scalar
+and your specialization must convert that to your native data type when reading.
+An example of a custom type with an appropriate specialization of
+BlockScalarTraits is shown below:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">using</span> <span class="n">llvm</span><span class="o">::</span><span class="n">yaml</span><span class="o">::</span><span class="n">BlockScalarTraits</span><span class="p">;</span>
+<span class="k">using</span> <span class="n">llvm</span><span class="o">::</span><span class="n">yaml</span><span class="o">::</span><span class="n">IO</span><span class="p">;</span>
+
+<span class="k">struct</span> <span class="n">MyStringType</span> <span class="p">{</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">Str</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="k">template</span> <span class="o">&lt;&gt;</span>
+<span class="k">struct</span> <span class="n">BlockScalarTraits</span><span class="o">&lt;</span><span class="n">MyStringType</span><span class="o">&gt;</span> <span class="p">{</span>
+  <span class="k">static</span> <span class="kt">void</span> <span class="n">output</span><span class="p">(</span><span class="k">const</span> <span class="n">MyStringType</span> <span class="o">&amp;</span><span class="n">Value</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">Ctxt</span><span class="p">,</span>
+                     <span class="n">llvm</span><span class="o">::</span><span class="n">raw_ostream</span> <span class="o">&amp;</span><span class="n">OS</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">OS</span> <span class="o">&lt;&lt;</span> <span class="n">Value</span><span class="p">.</span><span class="n">Str</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="k">static</span> <span class="n">StringRef</span> <span class="n">input</span><span class="p">(</span><span class="n">StringRef</span> <span class="n">Scalar</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">Ctxt</span><span class="p">,</span>
+                         <span class="n">MyStringType</span> <span class="o">&amp;</span><span class="n">Value</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">Value</span><span class="p">.</span><span class="n">Str</span> <span class="o">=</span> <span class="n">Scalar</span><span class="p">.</span><span class="n">str</span><span class="p">();</span>
+    <span class="k">return</span> <span class="nf">StringRef</span><span class="p">();</span>
+  <span class="p">}</span>
 <span class="p">};</span>
 </pre></div>
 </div>
 </div>
 </div>
 <div class="section" id="mappings">
-<h2><a class="toc-backref" href="#id11">Mappings</a><a class="headerlink" href="#mappings" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id12">Mappings</a><a class="headerlink" href="#mappings" title="Permalink to this headline">¶</a></h2>
 <p>To be translated to or from a YAML mapping for your type T you must specialize
 llvm::yaml::MappingTraits on T and implement the “void mapping(IO &amp;io, T&amp;)”
 method. If your native data structures use pointers to a class everywhere,
@@ -534,7 +581,7 @@ you can specialize on the class pointer.  Examples:</p>
 </pre></div>
 </div>
 <div class="section" id="no-normalization">
-<h3><a class="toc-backref" href="#id12">No Normalization</a><a class="headerlink" href="#no-normalization" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id13">No Normalization</a><a class="headerlink" href="#no-normalization" title="Permalink to this headline">¶</a></h3>
 <p>The mapping() method is responsible, if needed, for normalizing and
 denormalizing. In a simple case where the native data structure requires no
 normalization, the mapping method just uses mapOptional() or mapRequired() to
@@ -553,7 +600,7 @@ bind the struct’s fields to YAML key names.  For example:</p>
 </div>
 </div>
 <div class="section" id="normalization">
-<h3><a class="toc-backref" href="#id13">Normalization</a><a class="headerlink" href="#normalization" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id14">Normalization</a><a class="headerlink" href="#normalization" title="Permalink to this headline">¶</a></h3>
 <p>When [de]normalization is required, the mapping() method needs a way to access
 normalized values as fields. To help with this, there is
 a template MappingNormalization&lt;&gt; which you can then use to automatically
@@ -628,7 +675,7 @@ when reading YAML.  It never destroys the normalized object.  The denormalize()
 method can this return “this”.</p>
 </div>
 <div class="section" id="default-values">
-<h3><a class="toc-backref" href="#id14">Default values</a><a class="headerlink" href="#default-values" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id15">Default values</a><a class="headerlink" href="#default-values" title="Permalink to this headline">¶</a></h3>
 <p>Within a mapping() method, calls to io.mapRequired() mean that that key is
 required to exist when parsing YAML documents, otherwise YAML I/O will issue an
 error.</p>
@@ -648,7 +695,7 @@ if the mapOptional() third parameter is used, if the actual value being written
 is the same as (using ==) the default value, then that key/value is not written.</p>
 </div>
 <div class="section" id="order-of-keys">
-<h3><a class="toc-backref" href="#id15">Order of Keys</a><a class="headerlink" href="#order-of-keys" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id16">Order of Keys</a><a class="headerlink" href="#order-of-keys" title="Permalink to this headline">¶</a></h3>
 <p>When writing out a YAML document, the keys are written in the order that the
 calls to mapRequired()/mapOptional() are made in the mapping() method. This
 gives you a chance to write the fields in an order that a human reader of
@@ -684,18 +731,18 @@ This works for both reading and writing. For example:</p>
 </div>
 </div>
 <div class="section" id="tags">
-<h3><a class="toc-backref" href="#id16">Tags</a><a class="headerlink" href="#tags" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id17">Tags</a><a class="headerlink" href="#tags" title="Permalink to this headline">¶</a></h3>
 <p>The YAML syntax supports tags as a way to specify the type of a node before
 it is parsed. This allows dynamic types of nodes.  But the YAML I/O model uses
 static typing, so there are limits to how you can use tags with the YAML I/O
 model. Recently, we added support to YAML I/O for checking/setting the optional
 tag on a map. Using this functionality it is even possbile to support different
-mappings, as long as they are convertable.</p>
+mappings, as long as they are convertible.</p>
 <p>To check a tag, inside your mapping() method you can use io.mapTag() to specify
 what the tag should be.  This will also add that tag when writing yaml.</p>
 </div>
 <div class="section" id="validation">
-<h3><a class="toc-backref" href="#id17">Validation</a><a class="headerlink" href="#validation" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id18">Validation</a><a class="headerlink" href="#validation" title="Permalink to this headline">¶</a></h3>
 <p>Sometimes in a yaml map, each key/value pair is valid, but the combination is
 not.  This is similar to something having no syntax errors, but still having
 semantic errors.  To support semantic level checking, YAML I/O allows
@@ -728,9 +775,35 @@ because it is a programming error to have invalid struct values.</p>
 </pre></div>
 </div>
 </div>
+<div class="section" id="flow-mapping">
+<h3><a class="toc-backref" href="#id19">Flow Mapping</a><a class="headerlink" href="#flow-mapping" title="Permalink to this headline">¶</a></h3>
+<p>A YAML “flow mapping” is a mapping that uses the inline notation
+(e.g { x: 1, y: 0 } ) when written to YAML. To specify that a type should be
+written in YAML using flow mapping, your MappingTraits specialization should
+add “static const bool flow = true;”. For instance:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">using</span> <span class="n">llvm</span><span class="o">::</span><span class="n">yaml</span><span class="o">::</span><span class="n">MappingTraits</span><span class="p">;</span>
+<span class="k">using</span> <span class="n">llvm</span><span class="o">::</span><span class="n">yaml</span><span class="o">::</span><span class="n">IO</span><span class="p">;</span>
+
+<span class="k">struct</span> <span class="n">Stuff</span> <span class="p">{</span>
+  <span class="p">...</span>
+<span class="p">};</span>
+
+<span class="k">template</span> <span class="o">&lt;&gt;</span>
+<span class="k">struct</span> <span class="n">MappingTraits</span><span class="o">&lt;</span><span class="n">Stuff</span><span class="o">&gt;</span> <span class="p">{</span>
+  <span class="k">static</span> <span class="kt">void</span> <span class="n">mapping</span><span class="p">(</span><span class="n">IO</span> <span class="o">&amp;</span><span class="n">io</span><span class="p">,</span> <span class="n">Stuff</span> <span class="o">&amp;</span><span class="n">stuff</span><span class="p">)</span> <span class="p">{</span>
+    <span class="p">...</span>
+  <span class="p">}</span>
+
+  <span class="k">static</span> <span class="k">const</span> <span class="kt">bool</span> <span class="n">flow</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Flow mappings are subject to line wrapping according to the Output object
+configuration.</p>
+</div>
 </div>
 <div class="section" id="sequence">
-<h2><a class="toc-backref" href="#id18">Sequence</a><a class="headerlink" href="#sequence" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id20">Sequence</a><a class="headerlink" href="#sequence" title="Permalink to this headline">¶</a></h2>
 <p>To be translated to or from a YAML sequence for your type T you must specialize
 llvm::yaml::SequenceTraits on T and implement two methods:
 <code class="docutils literal"><span class="pre">size_t</span> <span class="pre">size(IO</span> <span class="pre">&amp;io,</span> <span class="pre">T&amp;)</span></code> and
@@ -749,7 +822,7 @@ than the current size.  Your element() method should allocate space for one
 more element (using default constructor if element is a C++ object) and returns
 a reference to that new allocated space.</p>
 <div class="section" id="flow-sequence">
-<h3><a class="toc-backref" href="#id19">Flow Sequence</a><a class="headerlink" href="#flow-sequence" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id21">Flow Sequence</a><a class="headerlink" href="#flow-sequence" title="Permalink to this headline">¶</a></h3>
 <p>A YAML “flow sequence” is a sequence that when written to YAML it uses the
 inline notation (e.g [ foo, bar ] ).  To specify that a sequence type should
 be written in YAML as a flow sequence, your SequenceTraits specialization should
@@ -765,11 +838,13 @@ add “static const bool flow = true;”.  For instance:</p>
 </pre></div>
 </div>
 <p>With the above, if you used MyList as the data type in your native data
-structures, then then when converted to YAML, a flow sequence of integers
+structures, then when converted to YAML, a flow sequence of integers
 will be used (e.g. [ 10, -3, 4 ]).</p>
+<p>Flow sequences are subject to line wrapping according to the Output object
+configuration.</p>
 </div>
 <div class="section" id="utility-macros">
-<h3><a class="toc-backref" href="#id20">Utility Macros</a><a class="headerlink" href="#utility-macros" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id22">Utility Macros</a><a class="headerlink" href="#utility-macros" title="Permalink to this headline">¶</a></h3>
 <p>Since a common source of sequences is std::vector&lt;&gt;, YAML I/O provides macros:
 LLVM_YAML_IS_SEQUENCE_VECTOR() and LLVM_YAML_IS_FLOW_SEQUENCE_VECTOR() which
 can be used to easily specify SequenceTraits&lt;&gt; on a std::vector type.  YAML
@@ -784,7 +859,7 @@ would force all vectors to be sequences.  An example use of the macros:</p>
 </div>
 </div>
 <div class="section" id="document-list">
-<h2><a class="toc-backref" href="#id21">Document List</a><a class="headerlink" href="#document-list" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id23">Document List</a><a class="headerlink" href="#document-list" title="Permalink to this headline">¶</a></h2>
 <p>YAML allows you to define multiple “documents” in a single YAML file.  Each
 new document starts with a left aligned “—” token.  The end of all documents
 is denoted with a left aligned “…” token.  Many users of YAML will never
@@ -802,7 +877,7 @@ SequenceTraits but is named DocumentListTraits.  For example:</p>
 </div>
 </div>
 <div class="section" id="user-context-data">
-<h2><a class="toc-backref" href="#id22">User Context Data</a><a class="headerlink" href="#user-context-data" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id24">User Context Data</a><a class="headerlink" href="#user-context-data" title="Permalink to this headline">¶</a></h2>
 <p>When an llvm::yaml::Input or llvm::yaml::Output object is created their
 constructors take an optional “context” parameter.  This is a pointer to
 whatever state information you might need.</p>
@@ -818,14 +893,14 @@ actually is.  It could be a pointer to an object or struct which your various
 traits use to shared context sensitive information.</p>
 </div>
 <div class="section" id="output">
-<h2><a class="toc-backref" href="#id23">Output</a><a class="headerlink" href="#output" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id25">Output</a><a class="headerlink" href="#output" title="Permalink to this headline">¶</a></h2>
 <p>The llvm::yaml::Output class is used to generate a YAML document from your
 in-memory data structures, using traits defined on your data types.
-To instantiate an Output object you need an llvm::raw_ostream, and optionally
-a context pointer:</p>
+To instantiate an Output object you need an llvm::raw_ostream, an optional
+context pointer and an optional wrapping column:</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Output</span> <span class="o">:</span> <span class="k">public</span> <span class="n">IO</span> <span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
-  <span class="n">Output</span><span class="p">(</span><span class="n">llvm</span><span class="o">::</span><span class="n">raw_ostream</span> <span class="o">&amp;</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">context</span><span class="o">=</span><span class="nb">NULL</span><span class="p">);</span>
+  <span class="n">Output</span><span class="p">(</span><span class="n">llvm</span><span class="o">::</span><span class="n">raw_ostream</span> <span class="o">&amp;</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">context</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">,</span> <span class="kt">int</span> <span class="n">WrapColumn</span> <span class="o">=</span> <span class="mi">70</span><span class="p">);</span>
 </pre></div>
 </div>
 <p>Once you have an Output object, you can use the C++ stream operator on it
@@ -834,6 +909,9 @@ can contain multiple “documents”.  If the top level data structure you are
 streaming as YAML is a mapping, scalar, or sequence, then Output assumes you
 are generating one document and wraps the mapping output
 with  “<code class="docutils literal"><span class="pre">---</span></code>” and trailing “<code class="docutils literal"><span class="pre">...</span></code>”.</p>
+<p>The WrapColumn parameter will cause the flow mappings and sequences to
+line-wrap when they go over the supplied column. Pass 0 to completely
+suppress the wrapping.</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">using</span> <span class="n">llvm</span><span class="o">::</span><span class="n">yaml</span><span class="o">::</span><span class="n">Output</span><span class="p">;</span>
 
 <span class="kt">void</span> <span class="nf">dumpMyMapDoc</span><span class="p">(</span><span class="k">const</span> <span class="n">MyMapType</span> <span class="o">&amp;</span><span class="n">info</span><span class="p">)</span> <span class="p">{</span>
@@ -873,7 +951,7 @@ and ends with a “…”.</p>
 </div>
 </div>
 <div class="section" id="input">
-<h2><a class="toc-backref" href="#id24">Input</a><a class="headerlink" href="#input" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id26">Input</a><a class="headerlink" href="#input" title="Permalink to this headline">¶</a></h2>
 <p>The llvm::yaml::Input class is used to parse YAML document(s) into your native
 data structures. To instantiate an Input
 object you need a StringRef to the entire YAML file, and optionally a context
@@ -946,8 +1024,8 @@ object.  For example:</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

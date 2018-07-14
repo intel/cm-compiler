@@ -101,7 +101,7 @@ namespace {
   public:
     static char ID;
     explicit GenXTidyControlFlow() : FunctionPass(ID), Modified(false) {}
-    virtual const char *getPassName() const { return "GenX tidy control flow"; }
+    virtual StringRef getPassName() const { return "GenX tidy control flow"; }
 
     void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addPreserved<GenXModule>();
@@ -109,7 +109,7 @@ namespace {
       AU.addPreserved<GenXLiveness>();
       AU.addPreserved<GenXNumbering>();
       AU.addPreserved<FunctionGroupAnalysis>();
-      AU.addRequired<LoopInfo>();
+      AU.addRequired<LoopInfoWrapperPass>();
     }
 
     bool runOnFunction(Function &F);
@@ -213,7 +213,7 @@ void GenXTidyControlFlow::removeEmptyBlocks(Function *F)
 
 void GenXTidyControlFlow::reorderBlocks(Function *F)
 {
-  LoopInfo& LI = getAnalysis<LoopInfo>();
+  LoopInfo& LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
   if (LI.empty())
     LayoutBlocks(*F);
   else
@@ -278,7 +278,8 @@ void GenXTidyControlFlow::LayoutBlocks(Function &func, LoopInfo &LI)
             // loop-header is not moved yet, so should be at the end
             // use splice
             llvm::Function::BasicBlockListType& BBList = func.getBasicBlockList();
-            BBList.splice(insp, BBList, LoopStart, hd);
+            BBList.splice(insp->getIterator(), BBList, LoopStart->getIterator(),
+                          hd->getIterator());
             hd->moveBefore(LoopStart);
           }
           InsPos[PaHd] = hd;
@@ -381,7 +382,7 @@ void GenXTidyControlFlow::fixReturns(Function *F) {
   SmallVector<BasicBlock *, 16> ReturningBlocks;
   for (Function::iterator I = F->begin(), E = F->end(); I != E; ++I)
     if (isa<ReturnInst>(I->getTerminator()))
-      ReturningBlocks.push_back(I);
+      ReturningBlocks.push_back(&*I);
 
   // We need to insert a new basic block into the function,
   // add a PHI nodes (if the function returns values), and convert

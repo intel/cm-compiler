@@ -25,13 +25,13 @@ declare void @__cxa_end_catch()
 
 declare void @_ZSt9terminatev()
 
-define hidden double @t(%0* %self, i8* nocapture %_cmd) optsize ssp {
+define hidden double @t(%0* %self, i8* nocapture %_cmd) optsize ssp personality i8* bitcast (i32 (...)* @__gxx_personality_sj0 to i8*) {
 entry:
   %call = invoke double undef(%class.FunctionInterpreter.3.15.31* undef) optsize
           to label %try.cont unwind label %lpad
 
 lpad:                                             ; preds = %entry
-  %0 = landingpad { i8*, i32 } personality i8* bitcast (i32 (...)* @__gxx_personality_sj0 to i8*)
+  %0 = landingpad { i8*, i32 }
           catch i8* bitcast ({ i8*, i8* }* @_ZTI13ParseErrorMsg to i8*)
   br i1 undef, label %catch, label %eh.resume
 
@@ -47,7 +47,7 @@ try.cont:                                         ; preds = %invoke.cont2, %entr
   ret double %value.0
 
 lpad1:                                            ; preds = %catch
-  %1 = landingpad { i8*, i32 } personality i8* bitcast (i32 (...)* @__gxx_personality_sj0 to i8*)
+  %1 = landingpad { i8*, i32 }
           cleanup
   invoke void @__cxa_end_catch()
           to label %eh.resume unwind label %terminate.lpad
@@ -56,7 +56,7 @@ eh.resume:                                        ; preds = %lpad1, %lpad
   resume { i8*, i32 } undef
 
 terminate.lpad:                                   ; preds = %lpad1
-  %2 = landingpad { i8*, i32 } personality i8* bitcast (i32 (...)* @__gxx_personality_sj0 to i8*)
+  %2 = landingpad { i8*, i32 }
           catch i8* null
   unreachable
 }
@@ -65,7 +65,7 @@ declare i32 @__gxx_personality_sj0(...)
 
 !llvm.module.flags = !{!0, !1, !2, !3}
 
-!0 = metadata !{i32 1, metadata !"Objective-C Version", i32 2}
-!1 = metadata !{i32 1, metadata !"Objective-C Image Info Version", i32 0}
-!2 = metadata !{i32 1, metadata !"Objective-C Image Info Section", metadata !"__DATA, __objc_imageinfo, regular, no_dead_strip"}
-!3 = metadata !{i32 4, metadata !"Objective-C Garbage Collection", i32 0}
+!0 = !{i32 1, !"Objective-C Version", i32 2}
+!1 = !{i32 1, !"Objective-C Image Info Version", i32 0}
+!2 = !{i32 1, !"Objective-C Image Info Section", !"__DATA, __objc_imageinfo, regular, no_dead_strip"}
+!3 = !{i32 4, !"Objective-C Garbage Collection", i32 0}

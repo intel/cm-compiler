@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>lli - directly execute programs from LLVM bitcode &#8212; LLVM 3.4 documentation</title>
+    <title>lli - directly execute programs from LLVM bitcode &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -70,176 +70,255 @@
 <h1>lli - directly execute programs from LLVM bitcode<a class="headerlink" href="#lli-directly-execute-programs-from-llvm-bitcode" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="synopsis">
 <h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
-<p><strong>lli</strong> [<em>options</em>] [<em>filename</em>] [<em>program args</em>]</p>
+<p><strong class="program">lli</strong> [<em>options</em>] [<em>filename</em>] [<em>program args</em>]</p>
 </div>
 <div class="section" id="description">
 <h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
-<p><strong>lli</strong> directly executes programs in LLVM bitcode format.  It takes a program
-in LLVM bitcode format and executes it using a just-in-time compiler, if one is
-available for the current architecture, or an interpreter.  <strong>lli</strong> takes all of
-the same code generator options as llc|llc, but they are only effective when
-<strong>lli</strong> is using the just-in-time compiler.</p>
-<p>If <em>filename</em> is not specified, then <strong>lli</strong> reads the LLVM bitcode for the
+<p><strong class="program">lli</strong> directly executes programs in LLVM bitcode format.  It takes a program
+in LLVM bitcode format and executes it using a just-in-time compiler or an
+interpreter.</p>
+<p><strong class="program">lli</strong> is <em>not</em> an emulator. It will not execute IR of different architectures
+and it can only interpret (or JIT-compile) for the host architecture.</p>
+<p>The JIT compiler takes the same arguments as other tools, like <strong class="program">llc</strong>,
+but they don’t necessarily work for the interpreter.</p>
+<p>If <cite>filename</cite> is not specified, then <strong class="program">lli</strong> reads the LLVM bitcode for the
 program from standard input.</p>
 <p>The optional <em>args</em> specified on the command line are passed to the program as
 arguments.</p>
 </div>
 <div class="section" id="general-options">
 <h2>GENERAL OPTIONS<a class="headerlink" href="#general-options" title="Permalink to this headline">¶</a></h2>
-<p><strong>-fake-argv0</strong>=<em>executable</em></p>
-<blockquote>
-<div>Override the <code class="docutils literal"><span class="pre">argv[0]</span></code> value passed into the executing program.</div></blockquote>
-<p><strong>-force-interpreter</strong>=<em>{false,true}</em></p>
-<blockquote>
-<div>If set to true, use the interpreter even if a just-in-time compiler is available
-for this architecture. Defaults to false.</div></blockquote>
-<p><strong>-help</strong></p>
-<blockquote>
-<div>Print a summary of command line options.</div></blockquote>
-<p><strong>-load</strong>=<em>pluginfilename</em></p>
-<blockquote>
-<div>Causes <strong>lli</strong> to load the plugin (shared object) named <em>pluginfilename</em> and use
-it for optimization.</div></blockquote>
-<p><strong>-stats</strong></p>
-<blockquote>
-<div>Print statistics from the code-generation passes. This is only meaningful for
-the just-in-time compiler, at present.</div></blockquote>
-<p><strong>-time-passes</strong></p>
-<blockquote>
-<div>Record the amount of time needed for each code-generation pass and print it to
-standard error.</div></blockquote>
-<p><strong>-version</strong></p>
-<blockquote>
-<div>Print out the version of <strong>lli</strong> and exit without doing anything else.</div></blockquote>
+<dl class="option">
+<dt id="cmdoption-fake-argv0">
+<code class="descname">-fake-argv0</code><code class="descclassname">=executable</code><a class="headerlink" href="#cmdoption-fake-argv0" title="Permalink to this definition">¶</a></dt>
+<dd><p>Override the <code class="docutils literal"><span class="pre">argv[0]</span></code> value passed into the executing program.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-force-interpreter">
+<code class="descname">-force-interpreter</code><code class="descclassname">={false,true}</code><a class="headerlink" href="#cmdoption-force-interpreter" title="Permalink to this definition">¶</a></dt>
+<dd><p>If set to true, use the interpreter even if a just-in-time compiler is available
+for this architecture. Defaults to false.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-help">
+<code class="descname">-help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-help" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print a summary of command line options.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-load">
+<code class="descname">-load</code><code class="descclassname">=pluginfilename</code><a class="headerlink" href="#cmdoption-load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Causes <strong class="program">lli</strong> to load the plugin (shared object) named <em>pluginfilename</em> and use
+it for optimization.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-stats">
+<code class="descname">-stats</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print statistics from the code-generation passes. This is only meaningful for
+the just-in-time compiler, at present.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-time-passes">
+<code class="descname">-time-passes</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-time-passes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Record the amount of time needed for each code-generation pass and print it to
+standard error.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-version">
+<code class="descname">-version</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print out the version of <strong class="program">lli</strong> and exit without doing anything else.</p>
+</dd></dl>
+
 </div>
 <div class="section" id="target-options">
 <h2>TARGET OPTIONS<a class="headerlink" href="#target-options" title="Permalink to this headline">¶</a></h2>
-<p><strong>-mtriple</strong>=<em>target triple</em></p>
-<blockquote>
-<div>Override the target triple specified in the input bitcode file with the
+<dl class="option">
+<dt id="cmdoption-mtriple">
+<code class="descname">-mtriple</code><code class="descclassname">=target triple</code><a class="headerlink" href="#cmdoption-mtriple" title="Permalink to this definition">¶</a></dt>
+<dd><p>Override the target triple specified in the input bitcode file with the
 specified string.  This may result in a crash if you pick an
-architecture which is not compatible with the current system.</div></blockquote>
-<p><strong>-march</strong>=<em>arch</em></p>
-<blockquote>
-<div>Specify the architecture for which to generate assembly, overriding the target
+architecture which is not compatible with the current system.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-march">
+<code class="descname">-march</code><code class="descclassname">=arch</code><a class="headerlink" href="#cmdoption-march" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the architecture for which to generate assembly, overriding the target
 encoded in the bitcode file.  See the output of <strong>llc -help</strong> for a list of
 valid architectures.  By default this is inferred from the target triple or
-autodetected to the current architecture.</div></blockquote>
-<p><strong>-mcpu</strong>=<em>cpuname</em></p>
-<blockquote>
-<div>Specify a specific chip in the current architecture to generate code for.
+autodetected to the current architecture.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mcpu">
+<code class="descname">-mcpu</code><code class="descclassname">=cpuname</code><a class="headerlink" href="#cmdoption-mcpu" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify a specific chip in the current architecture to generate code for.
 By default this is inferred from the target triple and autodetected to
 the current architecture.  For a list of available CPUs, use:
-<strong>llvm-as &lt; /dev/null | llc -march=xyz -mcpu=help</strong></div></blockquote>
-<p><strong>-mattr</strong>=<em>a1,+a2,-a3,…</em></p>
-<blockquote>
-<div>Override or control specific attributes of the target, such as whether SIMD
+<strong>llvm-as &lt; /dev/null | llc -march=xyz -mcpu=help</strong></p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mattr">
+<code class="descname">-mattr</code><code class="descclassname">=a1,+a2,-a3,…</code><a class="headerlink" href="#cmdoption-mattr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Override or control specific attributes of the target, such as whether SIMD
 operations are enabled or not.  The default set of attributes is set by the
 current CPU.  For a list of available attributes, use:
-<strong>llvm-as &lt; /dev/null | llc -march=xyz -mattr=help</strong></div></blockquote>
+<strong>llvm-as &lt; /dev/null | llc -march=xyz -mattr=help</strong></p>
+</dd></dl>
+
 </div>
 <div class="section" id="floating-point-options">
 <h2>FLOATING POINT OPTIONS<a class="headerlink" href="#floating-point-options" title="Permalink to this headline">¶</a></h2>
-<p><strong>-disable-excess-fp-precision</strong></p>
-<blockquote>
-<div>Disable optimizations that may increase floating point precision.</div></blockquote>
-<p><strong>-enable-no-infs-fp-math</strong></p>
-<blockquote>
-<div>Enable optimizations that assume no Inf values.</div></blockquote>
-<p><strong>-enable-no-nans-fp-math</strong></p>
-<blockquote>
-<div>Enable optimizations that assume no NAN values.</div></blockquote>
-<p><strong>-enable-unsafe-fp-math</strong></p>
-<blockquote>
-<div>Causes <strong>lli</strong> to enable optimizations that may decrease floating point
-precision.</div></blockquote>
-<p><strong>-soft-float</strong></p>
-<blockquote>
-<div>Causes <strong>lli</strong> to generate software floating point library calls instead of
-equivalent hardware instructions.</div></blockquote>
+<dl class="option">
+<dt id="cmdoption-disable-excess-fp-precision">
+<code class="descname">-disable-excess-fp-precision</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-disable-excess-fp-precision" title="Permalink to this definition">¶</a></dt>
+<dd><p>Disable optimizations that may increase floating point precision.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-enable-no-infs-fp-math">
+<code class="descname">-enable-no-infs-fp-math</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-enable-no-infs-fp-math" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable optimizations that assume no Inf values.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-enable-no-nans-fp-math">
+<code class="descname">-enable-no-nans-fp-math</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-enable-no-nans-fp-math" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable optimizations that assume no NAN values.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-enable-unsafe-fp-math">
+<code class="descname">-enable-unsafe-fp-math</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-enable-unsafe-fp-math" title="Permalink to this definition">¶</a></dt>
+<dd><p>Causes <strong class="program">lli</strong> to enable optimizations that may decrease floating point
+precision.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-soft-float">
+<code class="descname">-soft-float</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-soft-float" title="Permalink to this definition">¶</a></dt>
+<dd><p>Causes <strong class="program">lli</strong> to generate software floating point library calls instead of
+equivalent hardware instructions.</p>
+</dd></dl>
+
 </div>
 <div class="section" id="code-generation-options">
 <h2>CODE GENERATION OPTIONS<a class="headerlink" href="#code-generation-options" title="Permalink to this headline">¶</a></h2>
-<p><strong>-code-model</strong>=<em>model</em></p>
-<blockquote>
-<div><p>Choose the code model from:</p>
-<div class="highlight-perl"><div class="highlight"><pre><span></span><span class="n">default:</span> <span class="n">Target</span> <span class="n">default</span> <span class="n">code</span> <span class="n">model</span>
-<span class="n">small:</span> <span class="n">Small</span> <span class="n">code</span> <span class="n">model</span>
-<span class="n">kernel:</span> <span class="n">Kernel</span> <span class="n">code</span> <span class="n">model</span>
-<span class="n">medium:</span> <span class="n">Medium</span> <span class="n">code</span> <span class="n">model</span>
-<span class="n">large:</span> <span class="n">Large</span> <span class="n">code</span> <span class="n">model</span>
+<dl class="option">
+<dt id="cmdoption-code-model">
+<code class="descname">-code-model</code><code class="descclassname">=model</code><a class="headerlink" href="#cmdoption-code-model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Choose the code model from:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>default: Target default code model
+small: Small code model
+kernel: Kernel code model
+medium: Medium code model
+large: Large code model
 </pre></div>
 </div>
-</div></blockquote>
-<p><strong>-disable-post-RA-scheduler</strong></p>
-<blockquote>
-<div>Disable scheduling after register allocation.</div></blockquote>
-<p><strong>-disable-spill-fusing</strong></p>
-<blockquote>
-<div>Disable fusing of spill code into instructions.</div></blockquote>
-<p><strong>-jit-enable-eh</strong></p>
-<blockquote>
-<div>Exception handling should be enabled in the just-in-time compiler.</div></blockquote>
-<p><strong>-join-liveintervals</strong></p>
-<blockquote>
-<div>Coalesce copies (default=true).</div></blockquote>
-<p><strong>-nozero-initialized-in-bss</strong> Don’t place zero-initialized symbols into the BSS section.</p>
-<p><strong>-pre-RA-sched</strong>=<em>scheduler</em></p>
-<blockquote>
-<div><p>Instruction schedulers available (before register allocation):</p>
-<div class="highlight-perl"><div class="highlight"><pre><span></span><span class="o">=</span><span class="n">default:</span> <span class="n">Best</span> <span class="n">scheduler</span> <span class="k">for</span> <span class="n">the</span> <span class="n">target</span>
-<span class="o">=</span><span class="n">none:</span> <span class="n">No</span> <span class="n">scheduling:</span> <span class="n">breadth</span> <span class="n">first</span> <span class="n">sequencing</span>
-<span class="o">=</span><span class="n">simple:</span> <span class="n">Simple</span> <span class="n">two</span> <span class="n">pass</span> <span class="n">scheduling:</span> <span class="n">minimize</span> <span class="n">critical</span> <span class="n">path</span> <span class="ow">and</span> <span class="n">maximize</span> <span class="n">processor</span> <span class="n">utilization</span>
-<span class="o">=</span><span class="n">simple</span><span class="o">-</span><span class="n">noitin:</span> <span class="n">Simple</span> <span class="n">two</span> <span class="n">pass</span> <span class="n">scheduling:</span> <span class="n">Same</span> <span class="n">as</span> <span class="n">simple</span> <span class="n">except</span> <span class="n">using</span> <span class="n">generic</span> <span class="n">latency</span>
-<span class="o">=</span><span class="n">list</span><span class="o">-</span><span class="n">burr:</span> <span class="n">Bottom</span><span class="o">-</span><span class="n">up</span> <span class="n">register</span> <span class="n">reduction</span> <span class="n">list</span> <span class="n">scheduling</span>
-<span class="o">=</span><span class="n">list</span><span class="o">-</span><span class="n">tdrr:</span> <span class="n">Top</span><span class="o">-</span><span class="n">down</span> <span class="n">register</span> <span class="n">reduction</span> <span class="n">list</span> <span class="n">scheduling</span>
-<span class="o">=</span><span class="n">list</span><span class="o">-</span><span class="n">td:</span> <span class="n">Top</span><span class="o">-</span><span class="n">down</span> <span class="n">list</span> <span class="n">scheduler</span> <span class="o">-</span><span class="k">print</span><span class="o">-</span><span class="n">machineinstrs</span> <span class="o">-</span> <span class="n">Print</span> <span class="n">generated</span> <span class="n">machine</span> <span class="n">code</span>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-disable-post-ra-scheduler">
+<code class="descname">-disable-post-RA-scheduler</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-disable-post-ra-scheduler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Disable scheduling after register allocation.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-disable-spill-fusing">
+<code class="descname">-disable-spill-fusing</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-disable-spill-fusing" title="Permalink to this definition">¶</a></dt>
+<dd><p>Disable fusing of spill code into instructions.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-jit-enable-eh">
+<code class="descname">-jit-enable-eh</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-jit-enable-eh" title="Permalink to this definition">¶</a></dt>
+<dd><p>Exception handling should be enabled in the just-in-time compiler.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-join-liveintervals">
+<code class="descname">-join-liveintervals</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-join-liveintervals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Coalesce copies (default=true).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-nozero-initialized-in-bss">
+<code class="descname">-nozero-initialized-in-bss</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-nozero-initialized-in-bss" title="Permalink to this definition">¶</a></dt>
+<dd><p>Don’t place zero-initialized symbols into the BSS section.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-pre-ra-sched">
+<code class="descname">-pre-RA-sched</code><code class="descclassname">=scheduler</code><a class="headerlink" href="#cmdoption-pre-ra-sched" title="Permalink to this definition">¶</a></dt>
+<dd><p>Instruction schedulers available (before register allocation):</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>=default: Best scheduler for the target
+=none: No scheduling: breadth first sequencing
+=simple: Simple two pass scheduling: minimize critical path and maximize processor utilization
+=simple-noitin: Simple two pass scheduling: Same as simple except using generic latency
+=list-burr: Bottom-up register reduction list scheduling
+=list-tdrr: Top-down register reduction list scheduling
+=list-td: Top-down list scheduler -print-machineinstrs - Print generated machine code
 </pre></div>
 </div>
-</div></blockquote>
-<p><strong>-regalloc</strong>=<em>allocator</em></p>
-<blockquote>
-<div><p>Register allocator to use (default=linearscan)</p>
-<div class="highlight-perl"><div class="highlight"><pre><span></span><span class="o">=</span><span class="n">bigblock:</span> <span class="n">Big</span><span class="o">-</span><span class="n">block</span> <span class="n">register</span> <span class="n">allocator</span>
-<span class="o">=</span><span class="n">linearscan:</span> <span class="n">linear</span> <span class="n">scan</span> <span class="n">register</span> <span class="n">allocator</span> <span class="o">=</span><span class="nb">local</span> <span class="o">-</span>   <span class="nb">local</span> <span class="n">register</span> <span class="n">allocator</span>
-<span class="o">=</span><span class="n">simple:</span> <span class="n">simple</span> <span class="n">register</span> <span class="n">allocator</span>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-regalloc">
+<code class="descname">-regalloc</code><code class="descclassname">=allocator</code><a class="headerlink" href="#cmdoption-regalloc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Register allocator to use (default=linearscan)</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>=bigblock: Big-block register allocator
+=linearscan: linear scan register allocator =local -   local register allocator
+=simple: simple register allocator
 </pre></div>
 </div>
-</div></blockquote>
-<p><strong>-relocation-model</strong>=<em>model</em></p>
-<blockquote>
-<div><p>Choose relocation model from:</p>
-<div class="highlight-perl"><div class="highlight"><pre><span></span><span class="o">=</span><span class="n">default:</span> <span class="n">Target</span> <span class="n">default</span> <span class="n">relocation</span> <span class="n">model</span>
-<span class="o">=</span><span class="n">static:</span> <span class="n">Non</span><span class="o">-</span><span class="n">relocatable</span> <span class="n">code</span> <span class="o">=</span><span class="n">pic</span> <span class="o">-</span>   <span class="n">Fully</span> <span class="n">relocatable</span><span class="p">,</span> <span class="n">position</span> <span class="n">independent</span> <span class="n">code</span>
-<span class="o">=</span><span class="n">dynamic</span><span class="o">-</span><span class="k">no</span><span class="o">-</span><span class="n">pic:</span> <span class="n">Relocatable</span> <span class="n">external</span> <span class="n">references</span><span class="p">,</span> <span class="n">non</span><span class="o">-</span><span class="n">relocatable</span> <span class="n">code</span>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-relocation-model">
+<code class="descname">-relocation-model</code><code class="descclassname">=model</code><a class="headerlink" href="#cmdoption-relocation-model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Choose relocation model from:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>=default: Target default relocation model
+=static: Non-relocatable code =pic -   Fully relocatable, position independent code
+=dynamic-no-pic: Relocatable external references, non-relocatable code
 </pre></div>
 </div>
-</div></blockquote>
-<p><strong>-spiller</strong></p>
-<blockquote>
-<div><p>Spiller to use (default=local)</p>
-<div class="highlight-perl"><div class="highlight"><pre><span></span><span class="o">=</span><span class="n">simple:</span> <span class="n">simple</span> <span class="n">spiller</span>
-<span class="o">=</span><span class="nb">local</span><span class="p">:</span> <span class="nb">local</span> <span class="n">spiller</span>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-spiller">
+<code class="descname">-spiller</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-spiller" title="Permalink to this definition">¶</a></dt>
+<dd><p>Spiller to use (default=local)</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>=simple: simple spiller
+=local: local spiller
 </pre></div>
 </div>
-</div></blockquote>
-<p><strong>-x86-asm-syntax</strong>=<em>syntax</em></p>
-<blockquote>
-<div><p>Choose style of code to emit from X86 backend:</p>
-<div class="highlight-perl"><div class="highlight"><pre><span></span><span class="o">=</span><span class="n">att:</span> <span class="n">Emit</span> <span class="n">AT</span><span class="o">&amp;</span><span class="n">T</span><span class="o">-</span><span class="n">style</span> <span class="n">assembly</span>
-<span class="o">=</span><span class="n">intel:</span> <span class="n">Emit</span> <span class="n">Intel</span><span class="o">-</span><span class="n">style</span> <span class="n">assembly</span>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-x86-asm-syntax">
+<code class="descname">-x86-asm-syntax</code><code class="descclassname">=syntax</code><a class="headerlink" href="#cmdoption-x86-asm-syntax" title="Permalink to this definition">¶</a></dt>
+<dd><p>Choose style of code to emit from X86 backend:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>=att: Emit AT&amp;T-style assembly
+=intel: Emit Intel-style assembly
 </pre></div>
 </div>
-</div></blockquote>
+</dd></dl>
+
 </div>
 <div class="section" id="exit-status">
 <h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
-<p>If <strong>lli</strong> fails to load the program, it will exit with an exit code of 1.
+<p>If <strong class="program">lli</strong> fails to load the program, it will exit with an exit code of 1.
 Otherwise, it will return the exit code of the program it executes.</p>
 </div>
 <div class="section" id="see-also">
 <h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
-<p>llc|llc</p>
+<p><strong class="program">llc</strong></p>
 </div>
 </div>
 
@@ -267,8 +346,8 @@ Otherwise, it will return the exit code of the program it executes.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

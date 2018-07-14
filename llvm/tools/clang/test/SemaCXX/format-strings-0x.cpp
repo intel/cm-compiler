@@ -8,10 +8,14 @@ extern int printf(const char *restrict, ...);
 void f(char **sp, float *fp) {
   scanf("%as", sp); // expected-warning{{format specifies type 'float *' but the argument has type 'char **'}}
 
+  printf("%p", sp); // expected-warning{{format specifies type 'void *' but the argument has type 'char **'}}
+  scanf("%p", sp);  // expected-warning{{format specifies type 'void **' but the argument has type 'char **'}}
+
   printf("%a", 1.0);
   scanf("%afoobar", fp);
   printf(nullptr);
   printf(*sp); // expected-warning {{not a string literal}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
 
   // PR13099
   printf(

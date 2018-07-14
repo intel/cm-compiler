@@ -1,5 +1,5 @@
 // Verify proper type emitted for compound assignments
-// RUN: %clang_cc1 -ffreestanding -triple x86_64-apple-darwin10 -emit-llvm -o - %s  -fsanitize=signed-integer-overflow,unsigned-integer-overflow | FileCheck %s
+// RUN: %clang_cc1 -ffreestanding -triple x86_64-apple-darwin10 -emit-llvm -o - %s  -fsanitize=signed-integer-overflow,unsigned-integer-overflow -fsanitize-recover=signed-integer-overflow,unsigned-integer-overflow | FileCheck %s
 
 #include <stdint.h>
 
@@ -25,11 +25,9 @@ void compaddunsigned() {
   // CHECK: @__ubsan_handle_add_overflow(i8* bitcast ({{.*}} @[[LINE_200]] to i8*), {{.*}})
 }
 
-int8_t a, b;
-
 // CHECK: @compdiv
 void compdiv() {
 #line 300
-  a /= b;
+  x /= x;
   // CHECK: @__ubsan_handle_divrem_overflow(i8* bitcast ({{.*}} @[[LINE_300]] to i8*), {{.*}})
 }

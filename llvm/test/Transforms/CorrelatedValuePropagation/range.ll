@@ -165,3 +165,441 @@ sw.default:
  %or2 = or i1 %cmp7, %cmp8
  ret i1 false
 }
+
+define i1 @test8(i64* %p) {
+; CHECK-LABEL: @test8
+; CHECK: ret i1 false
+  %a = load i64, i64* %p, !range !{i64 4, i64 255}
+  %res = icmp eq i64 %a, 0
+  ret i1 %res
+}
+
+define i1 @test9(i64* %p) {
+; CHECK-LABEL: @test9
+; CHECK: ret i1 true
+  %a = load i64, i64* %p, !range !{i64 0, i64 1}
+  %res = icmp eq i64 %a, 0
+  ret i1 %res
+}
+
+define i1 @test10(i64* %p) {
+; CHECK-LABEL: @test10
+; CHECK: ret i1 false
+  %a = load i64, i64* %p, !range !{i64 4, i64 8, i64 15, i64 20}
+  %res = icmp eq i64 %a, 0
+  ret i1 %res
+}
+
+@g = external global i32
+
+define i1 @test11() {
+; CHECK: @test11
+; CHECK: ret i1 true
+  %positive = load i32, i32* @g, !range !{i32 1, i32 2048}
+  %add = add i32 %positive, 1
+  %test = icmp sgt i32 %add, 0
+  br label %next
+
+next:
+  ret i1 %test
+}
+
+define i32 @test12(i32 %a, i32 %b) {
+; CHECK-LABEL: @test12(
+; CHECK: then:
+; CHECK-NEXT: br i1 false, label %end, label %else
+  %cmp = icmp ult i32 %a, %b
+  br i1 %cmp, label %then, label %else
+
+then:
+  %dead = icmp eq i32 %a, -1
+  br i1 %dead, label %end, label %else
+
+else:
+  ret i32 1
+
+end:
+  ret i32 2
+}
+
+define i32 @test12_swap(i32 %a, i32 %b) {
+; CHECK-LABEL: @test12_swap(
+; CHECK: then:
+; CHECK-NEXT: br i1 false, label %end, label %else
+  %cmp = icmp ugt i32 %b, %a
+  br i1 %cmp, label %then, label %else
+
+then:
+  %dead = icmp eq i32 %a, -1
+  br i1 %dead, label %end, label %else
+
+else:
+  ret i32 1
+
+end:
+  ret i32 2
+}
+
+define i32 @test12_neg(i32 %a, i32 %b) {
+; The same as @test12 but the second check is on the false path
+; CHECK-LABEL: @test12_neg(
+; CHECK: else:
+; CHECK-NEXT: %alive = icmp eq i32 %a, -1
+  %cmp = icmp ult i32 %a, %b
+  br i1 %cmp, label %then, label %else
+
+else:
+  %alive = icmp eq i32 %a, -1
+  br i1 %alive, label %end, label %then
+
+then:
+  ret i32 1
+
+end:
+  ret i32 2
+}
+
+define i32 @test12_signed(i32 %a, i32 %b) {
+; The same as @test12 but with signed comparison
+; CHECK-LABEL: @test12_signed(
+; CHECK: then:
+; CHECK-NEXT: br i1 false, label %end, label %else
+  %cmp = icmp slt i32 %a, %b
+  br i1 %cmp, label %then, label %else
+
+then:
+  %dead = icmp eq i32 %a, 2147483647
+  br i1 %dead, label %end, label %else
+
+else:
+  ret i32 1
+
+end:
+  ret i32 2
+}
+
+define i32 @test13(i32 %a, i32 %b) {
+; CHECK-LABEL: @test13(
+; CHECK: then:
+; CHECK-NEXT: br i1 false, label %end, label %else
+  %a.off = add i32 %a, -8
+  %cmp = icmp ult i32 %a.off, %b
+  br i1 %cmp, label %then, label %else
+
+then:
+  %dead = icmp eq i32 %a, 7
+  br i1 %dead, label %end, label %else
+
+else:
+  ret i32 1
+
+end:
+  ret i32 2
+}
+
+define i32 @test13_swap(i32 %a, i32 %b) {
+; CHECK-LABEL: @test13_swap(
+; CHECK: then:
+; CHECK-NEXT: br i1 false, label %end, label %else
+  %a.off = add i32 %a, -8
+  %cmp = icmp ugt i32 %b, %a.off
+  br i1 %cmp, label %then, label %else
+
+then:
+  %dead = icmp eq i32 %a, 7
+  br i1 %dead, label %end, label %else
+
+else:
+  ret i32 1
+
+end:
+  ret i32 2
+}
+
+define i1 @test14_slt(i32 %a) {
+; CHECK-LABEL: @test14_slt(
+; CHECK: then:
+; CHECK-NEXT: %result = or i1 false, false
+  %a.off = add i32 %a, -8
+  %cmp = icmp slt i32 %a.off, 8
+  br i1 %cmp, label %then, label %else
+
+then:
+  %dead.1 = icmp eq i32 %a, -2147483641
+  %dead.2 = icmp eq i32 %a, 16
+  %result = or i1 %dead.1, %dead.2
+  ret i1 %result
+
+else:
+  ret i1 false
+}
+
+define i1 @test14_sle(i32 %a) {
+; CHECK-LABEL: @test14_sle(
+; CHECK: then:
+; CHECK-NEXT: %alive = icmp eq i32 %a, 16
+; CHECK-NEXT: %result = or i1 false, %alive
+  %a.off = add i32 %a, -8
+  %cmp = icmp sle i32 %a.off, 8
+  br i1 %cmp, label %then, label %else
+
+then:
+  %dead = icmp eq i32 %a, -2147483641
+  %alive = icmp eq i32 %a, 16
+  %result = or i1 %dead, %alive
+  ret i1 %result
+
+else:
+  ret i1 false
+}
+
+define i1 @test14_sgt(i32 %a) {
+; CHECK-LABEL: @test14_sgt(
+; CHECK: then:
+; CHECK-NEXT: %result = or i1 false, false
+  %a.off = add i32 %a, -8
+  %cmp = icmp sgt i32 %a.off, 8
+  br i1 %cmp, label %then, label %else
+
+then:
+  %dead.1 = icmp eq i32 %a, -2147483640
+  %dead.2 = icmp eq i32 %a, 16
+  %result = or i1 %dead.1, %dead.2
+  ret i1 %result
+
+else:
+  ret i1 false
+}
+
+define i1 @test14_sge(i32 %a) {
+; CHECK-LABEL: @test14_sge(
+; CHECK: then:
+; CHECK-NEXT: %alive = icmp eq i32 %a, 16
+; CHECK-NEXT: %result = or i1 false, %alive
+  %a.off = add i32 %a, -8
+  %cmp = icmp sge i32 %a.off, 8
+  br i1 %cmp, label %then, label %else
+
+then:
+  %dead = icmp eq i32 %a, -2147483640
+  %alive = icmp eq i32 %a, 16
+  %result = or i1 %dead, %alive
+  ret i1 %result
+
+else:
+  ret i1 false
+}
+
+define i1 @test14_ule(i32 %a) {
+; CHECK-LABEL: @test14_ule(
+; CHECK: then:
+; CHECK-NEXT: %alive = icmp eq i32 %a, 16
+; CHECK-NEXT: %result = or i1 false, %alive
+  %a.off = add i32 %a, -8
+  %cmp = icmp ule i32 %a.off, 8
+  br i1 %cmp, label %then, label %else
+
+then:
+  %dead = icmp eq i32 %a, 7
+  %alive = icmp eq i32 %a, 16
+  %result = or i1 %dead, %alive
+  ret i1 %result
+
+else:
+  ret i1 false
+}
+
+define i1 @test14_ugt(i32 %a) {
+; CHECK-LABEL: @test14_ugt(
+; CHECK: then:
+; CHECK-NEXT: %result = or i1 false, false
+  %a.off = add i32 %a, -8
+  %cmp = icmp ugt i32 %a.off, 8
+  br i1 %cmp, label %then, label %else
+
+then:
+  %dead.1 = icmp eq i32 %a, 8
+  %dead.2 = icmp eq i32 %a, 16
+  %result = or i1 %dead.1, %dead.2
+  ret i1 %result
+
+else:
+  ret i1 false
+}
+
+define i1 @test14_uge(i32 %a) {
+; CHECK-LABEL: @test14_uge(
+; CHECK: then:
+; CHECK-NEXT: %alive = icmp eq i32 %a, 16
+; CHECK-NEXT: %result = or i1 false, %alive
+  %a.off = add i32 %a, -8
+  %cmp = icmp uge i32 %a.off, 8
+  br i1 %cmp, label %then, label %else
+
+then:
+  %dead = icmp eq i32 %a, 8
+  %alive = icmp eq i32 %a, 16
+  %result = or i1 %dead, %alive
+  ret i1 %result
+
+else:
+  ret i1 false
+}
+
+@limit = external global i32
+define i1 @test15(i32 %a) {
+; CHECK-LABEL: @test15(
+; CHECK: then:
+; CHECK-NEXT: ret i1 false
+  %limit = load i32, i32* @limit, !range !{i32 0, i32 256}
+  %cmp = icmp ult i32 %a, %limit
+  br i1 %cmp, label %then, label %else
+
+then:
+  %result = icmp eq i32 %a, 255
+  ret i1 %result
+
+else:
+  ret i1 false
+}
+
+define i32 @test16(i8 %a) {
+entry:
+  %b = zext i8 %a to i32
+  br label %dispatch
+
+dispatch:
+  %cmp = icmp eq i8 %a, 93
+  br i1 %cmp, label %target93, label %dispatch
+
+; CHECK-LABEL: @test16(
+; CHECK: target93:
+; CHECK-NEXT: ret i32 93
+target93:
+  ret i32 %b
+}
+
+define i32 @test16_i1(i1 %a) {
+entry:
+  %b = zext i1 %a to i32
+  br label %dispatch
+
+dispatch:
+  br i1 %a, label %true, label %dispatch
+
+; CHECK-LABEL: @test16_i1(
+; CHECK: true:
+; CHECK-NEXT: ret i32 1
+true:
+  ret i32 %b
+}
+
+define i8 @test17(i8 %a) {
+entry:
+  %c = add i8 %a, 3
+  br label %dispatch
+
+dispatch:
+  %cmp = icmp eq i8 %a, 93
+  br i1 %cmp, label %target93, label %dispatch
+
+; CHECK-LABEL: @test17(
+; CHECK: target93:
+; CHECK-NEXT: ret i8 96
+target93:
+  ret i8 %c
+}
+
+define i8 @test17_2(i8 %a) {
+entry:
+  %c = add i8 %a, %a
+  br label %dispatch
+
+dispatch:
+  %cmp = icmp eq i8 %a, 93
+  br i1 %cmp, label %target93, label %dispatch
+
+; CHECK-LABEL: @test17_2(
+; CHECK: target93:
+; CHECK-NEXT: ret i8 -70
+target93:
+  ret i8 %c
+}
+
+define i1 @test17_i1(i1 %a) {
+entry:
+  %c = and i1 %a, true
+  br label %dispatch
+
+dispatch:
+  br i1 %a, label %true, label %dispatch
+
+; CHECK-LABEL: @test17_i1(
+; CHECK: true:
+; CHECK-NEXT: ret i1 true
+true:
+  ret i1 %c
+}
+
+define i32 @test18(i8 %a) {
+entry:
+  %b = zext i8 %a to i32
+  br label %dispatch
+
+dispatch:
+  switch i8 %a, label %dispatch [
+    i8 93, label %target93
+    i8 -111, label %dispatch
+  ]
+
+; CHECK-LABEL: @test18(
+; CHECK: target93:
+; CHECK-NEXT: ret i32 93
+target93:
+  ret i32 %b
+}
+
+define i8 @test19(i8 %a) {
+entry:
+  %c = add i8 %a, 3
+  br label %dispatch
+
+dispatch:
+  switch i8 %a, label %dispatch [
+    i8 93, label %target93
+    i8 -111, label %dispatch
+  ]
+
+; CHECK-LABEL: @test19(
+; CHECK: target93:
+; CHECK-NEXT: ret i8 96
+target93:
+  ret i8 %c
+}
+
+define i1 @test20(i64 %a) {
+entry:
+  %b = and i64 %a, 7
+  br label %dispatch
+
+dispatch:
+  switch i64 %a, label %default [
+    i64 0, label %exit2
+    i64 -2147483647, label %exit2
+  ]
+
+default:
+  %c = icmp eq i64 %b, 0
+  br label %exit
+
+exit:
+; Negative test. Shouldn't be incorrectly optimized to "ret i1 false".
+; CHECK-LABEL: @test20(
+; CHECK: exit:
+; CHECK-NOT: ret i1 false
+; CHECK: exit2:
+  ret i1 %c
+
+exit2:
+  ret i1 false
+}

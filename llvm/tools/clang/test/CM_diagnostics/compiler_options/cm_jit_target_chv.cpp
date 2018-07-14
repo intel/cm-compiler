@@ -107,7 +107,7 @@ void test() {
 // RUN: %cmc -Qxcm_jit_target -march=Gen8lP %w 2>&1 | FileCheck %w
 // RUN: rm %W.isa %W_0.visaasm %W_0.asm %W_0.dat
 
-// CHECK: cm_jit_target_chv.cpp(11,9) :  warning: CM_GENX defined with value 850 [-W#pragma-messages]
-// CHECK: cm_jit_target_chv.cpp(25,2) :  warning: CM_GEN8_5 defined [-W#warnings]
+// CHECK: cm_jit_target_chv.cpp(11,9):  warning: CM_GENX defined with value 850 [-W#pragma-messages]
+// CHECK: cm_jit_target_chv.cpp(25,2):  warning: CM_GEN8_5 defined [-W#warnings]
 // CHECK: 2 warnings generated.
 // CHECK: -platform CHV

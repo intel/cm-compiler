@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,unix.Malloc,unix.MismatchedDeallocator -analyzer-store region -std=c++11 -verify %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.Malloc,unix.MismatchedDeallocator -analyzer-store region -std=c++11 -verify %s
 // expected-no-diagnostics
 
 typedef __typeof(sizeof(int)) size_t;
@@ -24,5 +24,16 @@ void testNewDeleteNoWarn() {
 
   int *p4 = new int;
   delete p4;
-  int j = *p4; // no-warning  
+  int j = *p4; // no-warning
+}
+
+void testUseZeroAllocNoWarn() {
+  int *p1 = (int *)operator new(0);
+  *p1 = 1; // no-warning
+
+  int *p2 = (int *)operator new[](0);
+  p2[0] = 1; // no-warning
+
+  int *p3 = new int[0];
+  p3[0] = 1; // no-warning
 }

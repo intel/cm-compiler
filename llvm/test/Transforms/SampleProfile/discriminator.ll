@@ -1,4 +1,5 @@
 ; RUN: opt < %s -sample-profile -sample-profile-file=%S/Inputs/discriminator.prof | opt -analyze -branch-prob | FileCheck %s
+; RUN: opt < %s -passes=sample-profile -sample-profile-file=%S/Inputs/discriminator.prof | opt -analyze -branch-prob | FileCheck %s
 
 ; Original code
 ;
@@ -21,7 +22,7 @@
 ; This means that the predicate 'i < 5' (line 3) is executed 100 times,
 ; but the then branch (line 3.1) is only executed 5 times.
 
-define i32 @foo(i32 %i) #0 {
+define i32 @foo(i32 %i) #0 !dbg !4 {
 ; CHECK: Printing analysis 'Branch Probability Analysis' for function 'foo':
 entry:
   %i.addr = alloca i32, align 4
@@ -31,33 +32,33 @@ entry:
   br label %while.cond, !dbg !11
 
 while.cond:                                       ; preds = %if.end, %entry
-  %0 = load i32* %i.addr, align 4, !dbg !12
+  %0 = load i32, i32* %i.addr, align 4, !dbg !12
   %cmp = icmp slt i32 %0, 100, !dbg !12
   br i1 %cmp, label %while.body, label %while.end, !dbg !12
-; CHECK: edge while.cond -> while.body probability is 100 / 101 = 99.0099% [HOT edge]
-; CHECK: edge while.cond -> while.end probability is 1 / 101 = 0.990099%
+; CHECK: edge while.cond -> while.body probability is 0x7d83ba68 / 0x80000000 = 98.06% [HOT edge]
+; CHECK: edge while.cond -> while.end probability is 0x027c4598 / 0x80000000 = 1.94%
 
 while.body:                                       ; preds = %while.cond
-  %1 = load i32* %i.addr, align 4, !dbg !14
+  %1 = load i32, i32* %i.addr, align 4, !dbg !14
   %cmp1 = icmp slt i32 %1, 50, !dbg !14
   br i1 %cmp1, label %if.then, label %if.end, !dbg !14
-; CHECK: edge while.body -> if.then probability is 5 / 100 = 5%
-; CHECK: edge while.body -> if.end probability is 95 / 100 = 95% [HOT edge]
+; CHECK: edge while.body -> if.then probability is 0x07878788 / 0x80000000 = 5.88%
+; CHECK: edge while.body -> if.end probability is 0x78787878 / 0x80000000 = 94.12% [HOT edge]
 
 if.then:                                          ; preds = %while.body
-  %2 = load i32* %x, align 4, !dbg !17
+  %2 = load i32, i32* %x, align 4, !dbg !17
   %dec = add nsw i32 %2, -1, !dbg !17
   store i32 %dec, i32* %x, align 4, !dbg !17
   br label %if.end, !dbg !17
 
 if.end:                                           ; preds = %if.then, %while.body
-  %3 = load i32* %i.addr, align 4, !dbg !19
+  %3 = load i32, i32* %i.addr, align 4, !dbg !19
   %inc = add nsw i32 %3, 1, !dbg !19
   store i32 %inc, i32* %i.addr, align 4, !dbg !19
   br label %while.cond, !dbg !20
 
 while.end:                                        ; preds = %while.cond
-  %4 = load i32* %x, align 4, !dbg !21
+  %4 = load i32, i32* %x, align 4, !dbg !21
   ret i32 %4, !dbg !21
 }
 
@@ -66,25 +67,24 @@ while.end:                                        ; preds = %while.cond
 !llvm.module.flags = !{!7, !8}
 !llvm.ident = !{!9}
 
-!0 = metadata !{i32 786449, metadata !1, i32 12, metadata !"clang version 3.5 ", i1 false, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !""} ; [ DW_TAG_compile_unit ] [discriminator.c] [DW_LANG_C99]
-!1 = metadata !{metadata !"discriminator.c", metadata !"."}
-!2 = metadata !{}
-!3 = metadata !{metadata !4}
-!4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"foo", metadata !"foo", metadata !"", i32 1, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, i32 (i32)* @foo, null, null, metadata !2, i32 1} ; [ DW_TAG_subprogram ] [line 1] [def] [foo]
-!5 = metadata !{i32 786473, metadata !1}          ; [ DW_TAG_file_type ] [discriminator.c]
-!6 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !2, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!7 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!8 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
-!9 = metadata !{metadata !"clang version 3.5 "}
-!10 = metadata !{i32 2, i32 0, metadata !4, null}
-!11 = metadata !{i32 3, i32 0, metadata !4, null}
-!12 = metadata !{i32 3, i32 0, metadata !13, null}
-!13 = metadata !{i32 786443, metadata !1, metadata !4, i32 3, i32 0, i32 1, i32 2} ; [ DW_TAG_lexical_block ] [discriminator.c]
-!14 = metadata !{i32 4, i32 0, metadata !15, null}
-!15 = metadata !{i32 786443, metadata !1, metadata !16, i32 4, i32 0, i32 0, i32 1} ; [ DW_TAG_lexical_block ] [discriminator.c]
-!16 = metadata !{i32 786443, metadata !1, metadata !4, i32 3, i32 0, i32 0, i32 0} ; [ DW_TAG_lexical_block ] [discriminator.c]
-!17 = metadata !{i32 4, i32 0, metadata !18, null}
-!18 = metadata !{i32 786443, metadata !1, metadata !15, i32 4, i32 0, i32 1, i32 3} ; [ DW_TAG_lexical_block ] [discriminator.c]
-!19 = metadata !{i32 5, i32 0, metadata !16, null}
-!20 = metadata !{i32 6, i32 0, metadata !16, null}
-!21 = metadata !{i32 7, i32 0, metadata !4, null}
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5 ", isOptimized: false, emissionKind: NoDebug, file: !1, enums: !2, retainedTypes: !2, globals: !2, imports: !2)
+!1 = !DIFile(filename: "discriminator.c", directory: ".")
+!2 = !{}
+!4 = distinct !DISubprogram(name: "foo", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, unit: !0, scopeLine: 1, file: !1, scope: !5, type: !6, variables: !2)
+!5 = !DIFile(filename: "discriminator.c", directory: ".")
+!6 = !DISubroutineType(types: !2)
+!7 = !{i32 2, !"Dwarf Version", i32 4}
+!8 = !{i32 1, !"Debug Info Version", i32 3}
+!9 = !{!"clang version 3.5 "}
+!10 = !DILocation(line: 2, scope: !4)
+!11 = !DILocation(line: 3, scope: !4)
+!12 = !DILocation(line: 3, scope: !13)
+!13 = !DILexicalBlockFile(discriminator: 2, file: !1, scope: !4)
+!14 = !DILocation(line: 4, scope: !15)
+!15 = distinct !DILexicalBlock(line: 4, column: 0, file: !1, scope: !16)
+!16 = distinct !DILexicalBlock(line: 3, column: 0, file: !1, scope: !4)
+!17 = !DILocation(line: 4, scope: !18)
+!18 = !DILexicalBlockFile(discriminator: 2, file: !1, scope: !15)
+!19 = !DILocation(line: 5, scope: !16)
+!20 = !DILocation(line: 6, scope: !16)
+!21 = !DILocation(line: 7, scope: !4)

@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>llvm-dwarfdump - print contents of DWARF sections &#8212; LLVM 3.4 documentation</title>
+    <title>llvm-dwarfdump - dump and verify DWARF debug information &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -27,7 +27,7 @@
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="bugpoint - automatic test case reduction tool" href="bugpoint.html" />
+    <link rel="next" title="dsymutil - manipulate archived DWARF debug symbol files" href="dsymutil.html" />
     <link rel="prev" title="llvm-symbolizer - convert addresses into source code locations" href="llvm-symbolizer.html" />
 <style type="text/css">
   table.right { float: right; margin-left: 20px; }
@@ -49,7 +49,7 @@
           <a href="../genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="bugpoint.html" title="bugpoint - automatic test case reduction tool"
+          <a href="dsymutil.html" title="dsymutil - manipulate archived DWARF debug symbol files"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="llvm-symbolizer.html" title="llvm-symbolizer - convert addresses into source code locations"
@@ -66,34 +66,183 @@
       <div class="documentwrapper">
           <div class="body" role="main">
             
-  <div class="section" id="llvm-dwarfdump-print-contents-of-dwarf-sections">
-<h1>llvm-dwarfdump - print contents of DWARF sections<a class="headerlink" href="#llvm-dwarfdump-print-contents-of-dwarf-sections" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="llvm-dwarfdump-dump-and-verify-dwarf-debug-information">
+<h1>llvm-dwarfdump - dump and verify DWARF debug information<a class="headerlink" href="#llvm-dwarfdump-dump-and-verify-dwarf-debug-information" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="synopsis">
 <h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
-<p><strong class="program">llvm-dwarfdump</strong> [<em>options</em>] [<em>filenames…</em>]</p>
+<p><strong class="program">llvm-dwarfdump</strong> [<em>options</em>] [<em>filename …</em>]</p>
 </div>
 <div class="section" id="description">
 <h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
-<p><strong class="program">llvm-dwarfdump</strong> parses DWARF sections in the object files
-and prints their contents in human-readable form.</p>
+<p><strong class="program">llvm-dwarfdump</strong> parses DWARF sections in object files,
+archives, and <cite>.dSYM</cite> bundles and prints their contents in
+human-readable form. Only the .debug_info section is printed unless one of
+the section-specific options or <a class="reference internal" href="#cmdoption-a"><code class="xref std std-option docutils literal"><span class="pre">--all</span></code></a> is specified.</p>
 </div>
 <div class="section" id="options">
 <h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
 <dl class="option">
-<dt id="cmdoption-debug-dump">
-<code class="descname">-debug-dump</code><code class="descclassname">=section</code><a class="headerlink" href="#cmdoption-debug-dump" title="Permalink to this definition">¶</a></dt>
-<dd><p>Specify the DWARF section to dump.
-For example, use <code class="docutils literal"><span class="pre">abbrev</span></code> to dump the contents of <code class="docutils literal"><span class="pre">.debug_abbrev</span></code> section,
-<code class="docutils literal"><span class="pre">loc.dwo</span></code> to dump the contents of <code class="docutils literal"><span class="pre">.debug_loc.dwo</span></code> etc.
-See <code class="docutils literal"><span class="pre">llvm-dwarfdump</span> <span class="pre">--help</span></code> for the complete list of supported sections.
-Use <code class="docutils literal"><span class="pre">all</span></code> to dump all DWARF sections. It is the default.</p>
+<dt id="cmdoption-a">
+<code class="descname">-a</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–all</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-a" title="Permalink to this definition">¶</a></dt>
+<dd><p>Disassemble all supported DWARF sections.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-arch">
+<code class="descname">–arch</code><code class="descclassname">=&lt;arch&gt;</code><a class="headerlink" href="#cmdoption-arch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump DWARF debug information for the specified CPU architecture.
+Architectures may be specified by name or by number.  This
+option can be specified multiple times, once for each desired
+architecture.  All CPU architectures will be printed by
+default.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-c">
+<code class="descname">-c</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–show-children</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-c" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show a debug info entry’s children when using
+the <a class="reference internal" href="#cmdoption-debug-abbrev"><code class="xref std std-option docutils literal"><span class="pre">--debug-info</span></code></a>, <a class="reference internal" href="#cmdoption-f"><code class="xref std std-option docutils literal"><span class="pre">--find</span></code></a>,
+and <a class="reference internal" href="#cmdoption-n"><code class="xref std std-option docutils literal"><span class="pre">--name</span></code></a> options.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-f">
+<code class="descname">-f</code><code class="descclassname"> &lt;name&gt;</code><code class="descclassname">, </code><code class="descname">–find</code><code class="descclassname">=&lt;name&gt;</code><a class="headerlink" href="#cmdoption-f" title="Permalink to this definition">¶</a></dt>
+<dd><p>Search for the exact text &lt;name&gt; in the accelerator tables
+and print the matching debug information entries.
+When there is no accelerator tables or the name of the DIE
+you are looking for is not found in the accelerator tables,
+try using the slower but more complete <a class="reference internal" href="#cmdoption-n"><code class="xref std std-option docutils literal"><span class="pre">--name</span></code></a> option.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-show-form">
+<code class="descname">-F</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–show-form</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-show-form" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show DWARF form types after the DWARF attribute types.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-h">
+<code class="descname">-h</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-h" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show help and usage for this command.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-i">
+<code class="descname">-i</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–ignore-case</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-i" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ignore case distinctions in when searching entries by name
+or by regular expression.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-n">
+<code class="descname">-n</code><code class="descclassname"> &lt;pattern&gt;</code><code class="descclassname">, </code><code class="descname">–name</code><code class="descclassname">=&lt;pattern&gt;</code><a class="headerlink" href="#cmdoption-n" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find and print all debug info entries whose name
+(<cite>DW_AT_name</cite> attribute) matches the exact text in
+&lt;pattern&gt;. Use the <a class="reference internal" href="#cmdoption-x"><code class="xref std std-option docutils literal"><span class="pre">--regex</span></code></a> option to have
+&lt;pattern&gt; become a regular expression for more flexible
+pattern matching.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-lookup">
+<code class="descname">–lookup</code><code class="descclassname">=&lt;address&gt;</code><a class="headerlink" href="#cmdoption-lookup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Lookup &lt;address&gt; in the debug information and print out the file,
+function, block, and line table details.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-o">
+<code class="descname">-o</code><code class="descclassname"> &lt;path&gt;</code><code class="descclassname">, </code><code class="descname">–out-file</code><code class="descclassname">=&lt;path&gt;</code><a class="headerlink" href="#cmdoption-o" title="Permalink to this definition">¶</a></dt>
+<dd><p>Redirect output to a file specified by &lt;path&gt;.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-p">
+<code class="descname">-p</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–show-parents</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-p" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show a debug info entry’s parent objects when using the
+<a class="reference internal" href="#cmdoption-debug-abbrev"><code class="xref std std-option docutils literal"><span class="pre">--debug-info</span></code></a>, <a class="reference internal" href="#cmdoption-f"><code class="xref std std-option docutils literal"><span class="pre">--find</span></code></a>, and
+<a class="reference internal" href="#cmdoption-n"><code class="xref std std-option docutils literal"><span class="pre">--name</span></code></a> options.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-r">
+<code class="descname">-r</code><code class="descclassname"> &lt;n&gt;</code><code class="descclassname">, </code><code class="descname">–recurse-depth</code><code class="descclassname">=&lt;n&gt;</code><a class="headerlink" href="#cmdoption-r" title="Permalink to this definition">¶</a></dt>
+<dd><p>Only recurse to a maximum depth of &lt;n&gt; when dumping debug info
+entries.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-statistics">
+<code class="descname">–statistics</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-statistics" title="Permalink to this definition">¶</a></dt>
+<dd><p>Collect debug info quality metrics and print the results
+as machine-readable single-line JSON output.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-x">
+<code class="descname">-x</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–regex</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-x" title="Permalink to this definition">¶</a></dt>
+<dd><p>Treat any &lt;pattern&gt; strings as regular expressions when searching
+instead of just as an exact string match.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-u">
+<code class="descname">-u</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–uuid</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-u" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show the UUID for each architecture.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-diff">
+<code class="descname">–diff</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-diff" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump the output in a format that is more friendly for comparing
+DWARF output from two different files.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-v">
+<code class="descname">-v</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–verbose</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-v" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display verbose information when dumping. This can help to debug
+DWARF issues.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-verify">
+<code class="descname">–verify</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-verify" title="Permalink to this definition">¶</a></dt>
+<dd><p>Verify the structure of the DWARF information by verifying the
+compile unit chains, DIE relationships graph, address
+ranges, and more.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-version">
+<code class="descname">–version</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display the version of the tool.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-debug-abbrev">
+<code class="descname">–debug-abbrev</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–debug-aranges</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–debug-cu-index</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–debug-frame</code><code class="descclassname"> [=&lt;offset&gt;]</code><code class="descclassname">, </code><code class="descname">–debug-gnu-pubnames</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–debug-gnu-pubtypes</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–debug-info</code><code class="descclassname"> [=&lt;offset&gt;]</code><code class="descclassname">, </code><code class="descname">–debug-line</code><code class="descclassname"> [=&lt;offset&gt;]</code><code class="descclassname">, </code><code class="descname">–debug-loc</code><code class="descclassname"> [=&lt;offset&gt;]</code><code class="descclassname">, </code><code class="descname">–debug-macro</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–debug-pubnames</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–debug-pubtypes</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–debug-ranges</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–debug-str</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–debug-str-offsets</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–debug-tu-index</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–debug-types</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–eh-frame</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–gdb-index</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–apple-names</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–apple-types</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–apple-namespaces</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–apple-objc</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-debug-abbrev" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump the specified DWARF section by name. Only the
+<cite>.debug_info</cite> section is shown by default. Some entries
+support adding an <cite>=&lt;offset&gt;</cite> as a way to provide an
+optional offset of the exact entry to dump within the
+respective section. When an offset is provided, only the
+entry at that offset will be dumped, else the entire
+section will be dumped. Children of items at a specific
+offset can be dumped by also using the
+<a class="reference internal" href="#cmdoption-c"><code class="xref std std-option docutils literal"><span class="pre">--show-children</span></code></a> option where applicable.</p>
 </dd></dl>
 
 </div>
 <div class="section" id="exit-status">
 <h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
-<p><strong class="program">llvm-dwarfdump</strong> returns 0. Other exit codes imply internal
-program error.</p>
+<p><strong class="program">llvm-dwarfdump</strong> returns 0 if the input files were parsed and dumped
+successfully. Otherwise, it returns 1.</p>
+</div>
+<div class="section" id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><em class="manpage">dsymutil(1)</em></p>
 </div>
 </div>
 
@@ -109,7 +258,7 @@ program error.</p>
           <a href="../genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="bugpoint.html" title="bugpoint - automatic test case reduction tool"
+          <a href="dsymutil.html" title="dsymutil - manipulate archived DWARF debug symbol files"
              >next</a> |</li>
         <li class="right" >
           <a href="llvm-symbolizer.html" title="llvm-symbolizer - convert addresses into source code locations"
@@ -121,8 +270,8 @@ program error.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

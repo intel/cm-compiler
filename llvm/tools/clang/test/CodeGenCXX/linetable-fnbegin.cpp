@@ -1,13 +1,15 @@
-// RUN: %clang_cc1 -emit-llvm -g %s -o - | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm -debug-info-kind=limited %s -o - | FileCheck %s
 // Test that the line table info for Foo<T>::bar() is pointing to the
 // right header file.
 // CHECK: define{{.*}}bar
 // CHECK-NOT: define
 // CHECK: ret {{.*}}, !dbg [[DBG:.*]]
-// CHECK: [[HPP:.*]] = metadata !{metadata !"./template.hpp",
-// CHECK: [[SP:.*]] = metadata !{i32 786478, metadata [[HPP]],{{.*}}[ DW_TAG_subprogram ] [line 22] [def] [bar]
+// CHECK: [[HPP:.*]] = !DIFile(filename: "./template.hpp",
+// CHECK: [[SP:.*]] = distinct !DISubprogram(name: "bar",
+// CHECK-SAME:                               file: [[HPP]], line: 22
+// CHECK-SAME:                               isDefinition: true
 // We shouldn't need a lexical block for this function.
-// CHECK: [[DBG]] = metadata !{i32 23, i32 0, metadata [[SP]], null}
+// CHECK: [[DBG]] = !DILocation(line: 23, scope: [[SP]])
 
 
 # 1 "./template.h" 1

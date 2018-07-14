@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>6. Kaleidoscope: Extending the Language: User-defined Operators &#8212; LLVM 3.4 documentation</title>
+    <title>6. Kaleidoscope: Extending the Language: User-defined Operators &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -94,14 +94,14 @@ things about creating your own language is that you get to decide what
 is good or bad. In this tutorial we’ll assume that it is okay to use
 this as a way to show some interesting parsing techniques.</p>
 <p>At the end of this tutorial, we’ll run through an example Kaleidoscope
-application that <a class="reference external" href="#example">renders the Mandelbrot set</a>. This gives an
+application that <a class="reference external" href="#kicking-the-tires">renders the Mandelbrot set</a>. This gives an
 example of what you can build with Kaleidoscope and its feature set.</p>
 </div>
 <div class="section" id="user-defined-operators-the-idea">
 <h2><a class="toc-backref" href="#id2">6.2. User-defined Operators: the Idea</a><a class="headerlink" href="#user-defined-operators-the-idea" title="Permalink to this headline">¶</a></h2>
 <p>The “operator overloading” that we will add to Kaleidoscope is more
 general than languages like C++. In C++, you are only allowed to
-redefine existing operators: you can’t programatically change the
+redefine existing operators: you can’t programmatically change the
 grammar, introduce new operators, change precedence levels, etc. In this
 chapter, we will add this capability to Kaleidoscope, which will let the
 user round out the set of operators that are supported.</p>
@@ -169,7 +169,7 @@ keywords:</p>
 </pre></div>
 </div>
 <p>This just adds lexer support for the unary and binary keywords, like we
-did in <a class="reference external" href="OCamlLangImpl5.html#iflexer">previous chapters</a>. One nice
+did in <a class="reference external" href="OCamlLangImpl5.html#lexer-extensions-for-if-then-else">previous chapters</a>. One nice
 thing about our current AST, is that we represent binary operators with
 full generalisation by using their ASCII code as the opcode. For our
 extended operators, we’ll use this same representation, so we don’t need
@@ -523,17 +523,17 @@ for the number of iterations it takes a function in the complex plane to
 converge:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># determine whether the specific location diverges.</span>
 <span class="c1"># Solve for z = z^2 + c in the complex plane.</span>
-<span class="k">def</span> <span class="nf">mandleconverger</span><span class="p">(</span><span class="n">real</span> <span class="n">imag</span> <span class="n">iters</span> <span class="n">creal</span> <span class="n">cimag</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">mandelconverger</span><span class="p">(</span><span class="n">real</span> <span class="n">imag</span> <span class="n">iters</span> <span class="n">creal</span> <span class="n">cimag</span><span class="p">)</span>
   <span class="k">if</span> <span class="n">iters</span> <span class="o">&gt;</span> <span class="mi">255</span> <span class="o">|</span> <span class="p">(</span><span class="n">real</span><span class="o">*</span><span class="n">real</span> <span class="o">+</span> <span class="n">imag</span><span class="o">*</span><span class="n">imag</span> <span class="o">&gt;</span> <span class="mi">4</span><span class="p">)</span> <span class="n">then</span>
     <span class="n">iters</span>
   <span class="k">else</span>
-    <span class="n">mandleconverger</span><span class="p">(</span><span class="n">real</span><span class="o">*</span><span class="n">real</span> <span class="o">-</span> <span class="n">imag</span><span class="o">*</span><span class="n">imag</span> <span class="o">+</span> <span class="n">creal</span><span class="p">,</span>
+    <span class="n">mandelconverger</span><span class="p">(</span><span class="n">real</span><span class="o">*</span><span class="n">real</span> <span class="o">-</span> <span class="n">imag</span><span class="o">*</span><span class="n">imag</span> <span class="o">+</span> <span class="n">creal</span><span class="p">,</span>
                     <span class="mi">2</span><span class="o">*</span><span class="n">real</span><span class="o">*</span><span class="n">imag</span> <span class="o">+</span> <span class="n">cimag</span><span class="p">,</span>
                     <span class="n">iters</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">creal</span><span class="p">,</span> <span class="n">cimag</span><span class="p">);</span>
 
 <span class="c1"># return the number of iterations required for the iteration to escape</span>
-<span class="k">def</span> <span class="nf">mandleconverge</span><span class="p">(</span><span class="n">real</span> <span class="n">imag</span><span class="p">)</span>
-  <span class="n">mandleconverger</span><span class="p">(</span><span class="n">real</span><span class="p">,</span> <span class="n">imag</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">real</span><span class="p">,</span> <span class="n">imag</span><span class="p">);</span>
+<span class="k">def</span> <span class="nf">mandelconverge</span><span class="p">(</span><span class="n">real</span> <span class="n">imag</span><span class="p">)</span>
+  <span class="n">mandelconverger</span><span class="p">(</span><span class="n">real</span><span class="p">,</span> <span class="n">imag</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">real</span><span class="p">,</span> <span class="n">imag</span><span class="p">);</span>
 </pre></div>
 </div>
 <p>This “z = z<sup>2</sup> + c” function is a beautiful little creature
@@ -545,12 +545,12 @@ very useful function by itself, but if you plot its value over a
 two-dimensional plane, you can see the Mandelbrot set. Given that we are
 limited to using putchard here, our amazing graphical output is limited,
 but we can whip together something using the density plotter above:</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># compute and plot the mandlebrot set with the specified 2 dimensional range</span>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># compute and plot the mandelbrot set with the specified 2 dimensional range</span>
 <span class="c1"># info.</span>
 <span class="k">def</span> <span class="nf">mandelhelp</span><span class="p">(</span><span class="n">xmin</span> <span class="n">xmax</span> <span class="n">xstep</span>   <span class="n">ymin</span> <span class="n">ymax</span> <span class="n">ystep</span><span class="p">)</span>
   <span class="k">for</span> <span class="n">y</span> <span class="o">=</span> <span class="n">ymin</span><span class="p">,</span> <span class="n">y</span> <span class="o">&lt;</span> <span class="n">ymax</span><span class="p">,</span> <span class="n">ystep</span> <span class="ow">in</span> <span class="p">(</span>
     <span class="p">(</span><span class="k">for</span> <span class="n">x</span> <span class="o">=</span> <span class="n">xmin</span><span class="p">,</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">xmax</span><span class="p">,</span> <span class="n">xstep</span> <span class="ow">in</span>
-       <span class="n">printdensity</span><span class="p">(</span><span class="n">mandleconverge</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">)))</span>
+       <span class="n">printdensity</span><span class="p">(</span><span class="n">mandelconverge</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">)))</span>
     <span class="p">:</span> <span class="n">putchard</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
   <span class="p">)</span>
 
@@ -561,7 +561,7 @@ but we can whip together something using the density plotter above:</p>
              <span class="n">imagstart</span><span class="p">,</span> <span class="n">imagstart</span><span class="o">+</span><span class="n">imagmag</span><span class="o">*</span><span class="mi">40</span><span class="p">,</span> <span class="n">imagmag</span><span class="p">);</span>
 </pre></div>
 </div>
-<p>Given this, we can try plotting out the mandlebrot set! Lets try it out:</p>
+<p>Given this, we can try plotting out the mandelbrot set! Lets try it out:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ready</span><span class="o">&gt;</span> <span class="n">mandel</span><span class="p">(</span><span class="o">-</span><span class="mf">2.3</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.3</span><span class="p">,</span> <span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.07</span><span class="p">);</span>
 <span class="o">*******************************+++++++++++*************************************</span>
 <span class="o">*************************+++++++++++++++++++++++*******************************</span>
@@ -1485,8 +1485,8 @@ construction</a></p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

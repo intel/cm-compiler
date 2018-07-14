@@ -135,88 +135,88 @@ void test() {
   m.replicate<2>() = 1;                                                  // expression not assignable
 }
 
-// CHECK: replicate.cpp(20,34) :  error: expected '<'
-// CHECK: replicate.cpp(21,35) :  error: expected expression
-// CHECK: replicate.cpp(22,36) :  error: expected '>'
-// CHECK: replicate.cpp(23,37) :  error: expected '('
-// CHECK: replicate.cpp(24,38) :  error: expected expression
-// CHECK: replicate.cpp(27,35) :  error: replicate REP value cannot be zero
-// CHECK: replicate.cpp(28,39) :  error: replicate REP value cannot be zero
-// CHECK: replicate.cpp(29,36) :  error: replicate REP value cannot be negative (-2)
-// CHECK: replicate.cpp(30,38) :  error: expected expression
-// CHECK: replicate.cpp(32,38) :  error: replicate width value cannot be zero
-// CHECK: replicate.cpp(33,38) :  error: replicate width value cannot be negative (-2)
-// CHECK: replicate.cpp(34,40) :  error: expected expression
-// CHECK: replicate.cpp(37,40) :  error: replicate width value cannot be zero
-// CHECK: replicate.cpp(38,38) :  error: replicate vertical stride value cannot be negative (-8)
-// CHECK: replicate.cpp(39,40) :  error: replicate width value cannot be negative (-6)
-// CHECK: replicate.cpp(40,42) :  error: expected expression
-// CHECK: replicate.cpp(42,41) :  error: replicate width value cannot be zero
-// CHECK: replicate.cpp(43,45) :  error: too many arguments: replicate expects at most 4 constant integer values
-// CHECK: replicate.cpp(44,45) :  error: too many arguments: replicate expects at most 4 constant integer values
-// CHECK: replicate.cpp(45,40) :  error: replicate vertical stride value cannot be negative (-1)
-// CHECK: replicate.cpp(46,41) :  error: replicate width value cannot be negative (-2)
-// CHECK: replicate.cpp(47,52) :  error: replicate horizontal stride value cannot be negative (-3)
-// CHECK: replicate.cpp(48,42) :  error: replicate does not accept an offset when only the REP argument is specified
-// CHECK: replicate.cpp(51,44) :  error: too many offsets: replicate of a vector expects at most 1 integer offset
-// CHECK: replicate.cpp(52,41) :  error: replicate offset cannot be negative (-2)
-// CHECK: replicate.cpp(53,36) :  error: replicate value must be a constant integer expression
-// CHECK: replicate.cpp(54,38) :  error: replicate value must be a constant integer expression
-// CHECK: replicate.cpp(55,38) :  error: replicate value must be a constant integer expression
-// CHECK: replicate.cpp(56,40) :  error: replicate value must be a constant integer expression
-// CHECK: replicate.cpp(57,40) :  error: replicate value must be a constant integer expression
-// CHECK: replicate.cpp(58,45) :  error: replicate value must be a constant integer expression
-// CHECK: replicate.cpp(59,34) :  error: expected '<'
-// CHECK: replicate.cpp(60,35) :  error: expected expression
-// CHECK: replicate.cpp(61,36) :  error: expected '>'
-// CHECK: replicate.cpp(62,37) :  error: expected '('
-// CHECK: replicate.cpp(63,38) :  error: expected expression
-// CHECK: replicate.cpp(66,35) :  error: replicate REP value cannot be zero
-// CHECK: replicate.cpp(67,39) :  error: replicate REP value cannot be zero
-// CHECK: replicate.cpp(68,35) :  error: replicate REP value cannot be negative (-2)
-// CHECK: replicate.cpp(69,37) :  error: expected expression
-// CHECK: replicate.cpp(71,37) :  error: replicate width value cannot be zero
-// CHECK: replicate.cpp(72,37) :  error: replicate width value cannot be negative (-2)
-// CHECK: replicate.cpp(73,39) :  error: expected expression
-// CHECK: replicate.cpp(76,39) :  error: replicate width value cannot be zero
-// CHECK: replicate.cpp(77,37) :  error: replicate vertical stride value cannot be negative (-8)
-// CHECK: replicate.cpp(78,39) :  error: replicate width value cannot be negative (-6)
-// CHECK: replicate.cpp(79,41) :  error: expected expression
-// CHECK: replicate.cpp(81,40) :  error: replicate width value cannot be zero
-// CHECK: replicate.cpp(82,44) :  error: too many arguments: replicate expects at most 4 constant integer values
-// CHECK: replicate.cpp(83,44) :  error: too many arguments: replicate expects at most 4 constant integer values
-// CHECK: replicate.cpp(84,39) :  error: replicate vertical stride value cannot be negative (-1)
-// CHECK: replicate.cpp(85,40) :  error: replicate width value cannot be negative (-2)
-// CHECK: replicate.cpp(86,51) :  error: replicate horizontal stride value cannot be negative (-3)
-// CHECK: replicate.cpp(87,41) :  error: replicate does not accept an offset when only the REP argument is specified
-// CHECK: replicate.cpp(90,49) :  error: too many offsets: replicate of a matrix expects at most 2 integer offsets
-// CHECK: replicate.cpp(91,40) :  error: replicate offset cannot be negative (-2)
-// CHECK: replicate.cpp(92,42) :  error: replicate offset cannot be negative (-2)
-// CHECK: replicate.cpp(93,35) :  error: replicate value must be a constant integer expression
-// CHECK: replicate.cpp(94,37) :  error: replicate value must be a constant integer expression
-// CHECK: replicate.cpp(95,40) :  error: replicate offset must be an integer expression
-// CHECK: replicate.cpp(96,42) :  error: replicate offset must be an integer expression
-// CHECK: replicate.cpp(99,45) :  warning: replicate out of bounds - size of source vector exceeded [-Wcm-bounds-check]
-// CHECK: replicate.cpp(101,16) :  error: no member named 'replicate' in 'S1'
-// CHECK: replicate.cpp(102,16) :  error: no member named 'replicate' in 'S1'
-// CHECK: replicate.cpp(103,25) :  error: 'replicate' following the 'template' keyword does not refer to a template
-// CHECK: replicate.cpp(106,25) :  error: called object type 'int' is not a function or function pointer
-// CHECK: replicate.cpp(107,25) :  error: 'replicate' following the 'template' keyword does not refer to a template
-// CHECK: replicate.cpp(110,27) :  warning: replicate out of bounds - size of source matrix exceeded [-Wcm-bounds-check]
-// CHECK: replicate.cpp(111,27) :  warning: replicate out of bounds - size of source matrix exceeded [-Wcm-bounds-check]
-// CHECK: replicate.cpp(112,27) :  warning: replicate out of bounds - size of source matrix exceeded [-Wcm-bounds-check]
-// CHECK: replicate.cpp(113,27) :  warning: replicate out of bounds - size of source matrix exceeded [-Wcm-bounds-check]
-// CHECK: replicate.cpp(115,27) :  warning: replicate out of bounds - size of source matrix exceeded [-Wcm-bounds-check]
-// CHECK: replicate.cpp(117,27) :  warning: replicate out of bounds - size of source matrix exceeded [-Wcm-bounds-check]
-// CHECK: replicate.cpp(118,46) :  error: replicate offset cannot be negative (-2)
-// CHECK: replicate.cpp(121,28) :  warning: replicate out of bounds - size of source vector exceeded [-Wcm-bounds-check]
-// CHECK: replicate.cpp(123,28) :  warning: replicate out of bounds - size of source vector exceeded [-Wcm-bounds-check]
-// CHECK: replicate.cpp(124,43) :  error: replicate offset cannot be negative (-3)
-// CHECK: replicate.cpp(127,28) :  warning: replicate out of bounds - size of source vector exceeded [-Wcm-bounds-check]
-// CHECK: replicate.cpp(129,28) :  warning: replicate out of bounds - size of source vector exceeded [-Wcm-bounds-check]
-// CHECK: replicate.cpp(130,28) :  warning: replicate out of bounds - size of source vector exceeded [-Wcm-bounds-check]
-// CHECK: replicate.cpp(134,27) :  error: expression is not assignable
-// CHECK: replicate.cpp(135,20) :  error: expression is not assignable
-// CHECK: replicate.cpp(132,3) :  warning: expression result unused [-Wunused-value]
-// CHECK: replicate.cpp(133,3) :  warning: expression result unused [-Wunused-value]
+// CHECK: replicate.cpp(20,34):  error: expected '<'
+// CHECK: replicate.cpp(21,35):  error: expected expression
+// CHECK: replicate.cpp(22,36):  error: expected '>'
+// CHECK: replicate.cpp(23,37):  error: expected '('
+// CHECK: replicate.cpp(24,38):  error: expected expression
+// CHECK: replicate.cpp(27,35):  error: replicate REP value cannot be zero
+// CHECK: replicate.cpp(28,39):  error: replicate REP value cannot be zero
+// CHECK: replicate.cpp(29,36):  error: replicate REP value cannot be negative (-2)
+// CHECK: replicate.cpp(30,38):  error: expected expression
+// CHECK: replicate.cpp(32,38):  error: replicate width value cannot be zero
+// CHECK: replicate.cpp(33,38):  error: replicate width value cannot be negative (-2)
+// CHECK: replicate.cpp(34,40):  error: expected expression
+// CHECK: replicate.cpp(37,40):  error: replicate width value cannot be zero
+// CHECK: replicate.cpp(38,38):  error: replicate vertical stride value cannot be negative (-8)
+// CHECK: replicate.cpp(39,40):  error: replicate width value cannot be negative (-6)
+// CHECK: replicate.cpp(40,42):  error: expected expression
+// CHECK: replicate.cpp(42,41):  error: replicate width value cannot be zero
+// CHECK: replicate.cpp(43,45):  error: too many arguments: replicate expects at most 4 constant integer values
+// CHECK: replicate.cpp(44,45):  error: too many arguments: replicate expects at most 4 constant integer values
+// CHECK: replicate.cpp(45,40):  error: replicate vertical stride value cannot be negative (-1)
+// CHECK: replicate.cpp(46,41):  error: replicate width value cannot be negative (-2)
+// CHECK: replicate.cpp(47,52):  error: replicate horizontal stride value cannot be negative (-3)
+// CHECK: replicate.cpp(48,42):  error: replicate does not accept an offset when only the REP argument is specified
+// CHECK: replicate.cpp(51,44):  error: too many offsets: replicate of a vector expects at most 1 integer offset
+// CHECK: replicate.cpp(52,41):  error: replicate offset cannot be negative (-2)
+// CHECK: replicate.cpp(53,36):  error: replicate value must be a constant integer expression
+// CHECK: replicate.cpp(54,38):  error: replicate value must be a constant integer expression
+// CHECK: replicate.cpp(55,38):  error: replicate value must be a constant integer expression
+// CHECK: replicate.cpp(56,40):  error: replicate value must be a constant integer expression
+// CHECK: replicate.cpp(57,40):  error: replicate value must be a constant integer expression
+// CHECK: replicate.cpp(58,45):  error: replicate value must be a constant integer expression
+// CHECK: replicate.cpp(59,34):  error: expected '<'
+// CHECK: replicate.cpp(60,35):  error: expected expression
+// CHECK: replicate.cpp(61,36):  error: expected '>'
+// CHECK: replicate.cpp(62,37):  error: expected '('
+// CHECK: replicate.cpp(63,38):  error: expected expression
+// CHECK: replicate.cpp(66,35):  error: replicate REP value cannot be zero
+// CHECK: replicate.cpp(67,39):  error: replicate REP value cannot be zero
+// CHECK: replicate.cpp(68,35):  error: replicate REP value cannot be negative (-2)
+// CHECK: replicate.cpp(69,37):  error: expected expression
+// CHECK: replicate.cpp(71,37):  error: replicate width value cannot be zero
+// CHECK: replicate.cpp(72,37):  error: replicate width value cannot be negative (-2)
+// CHECK: replicate.cpp(73,39):  error: expected expression
+// CHECK: replicate.cpp(76,39):  error: replicate width value cannot be zero
+// CHECK: replicate.cpp(77,37):  error: replicate vertical stride value cannot be negative (-8)
+// CHECK: replicate.cpp(78,39):  error: replicate width value cannot be negative (-6)
+// CHECK: replicate.cpp(79,41):  error: expected expression
+// CHECK: replicate.cpp(81,40):  error: replicate width value cannot be zero
+// CHECK: replicate.cpp(82,44):  error: too many arguments: replicate expects at most 4 constant integer values
+// CHECK: replicate.cpp(83,44):  error: too many arguments: replicate expects at most 4 constant integer values
+// CHECK: replicate.cpp(84,39):  error: replicate vertical stride value cannot be negative (-1)
+// CHECK: replicate.cpp(85,40):  error: replicate width value cannot be negative (-2)
+// CHECK: replicate.cpp(86,51):  error: replicate horizontal stride value cannot be negative (-3)
+// CHECK: replicate.cpp(87,41):  error: replicate does not accept an offset when only the REP argument is specified
+// CHECK: replicate.cpp(90,49):  error: too many offsets: replicate of a matrix expects at most 2 integer offsets
+// CHECK: replicate.cpp(91,40):  error: replicate offset cannot be negative (-2)
+// CHECK: replicate.cpp(92,42):  error: replicate offset cannot be negative (-2)
+// CHECK: replicate.cpp(93,35):  error: replicate value must be a constant integer expression
+// CHECK: replicate.cpp(94,37):  error: replicate value must be a constant integer expression
+// CHECK: replicate.cpp(95,40):  error: replicate offset must be an integer expression
+// CHECK: replicate.cpp(96,42):  error: replicate offset must be an integer expression
+// CHECK: replicate.cpp(99,45):  warning: replicate out of bounds - size of source vector exceeded [-Wcm-bounds-check]
+// CHECK: replicate.cpp(101,16):  error: no member named 'replicate' in 'S1'
+// CHECK: replicate.cpp(102,16):  error: no member named 'replicate' in 'S1'
+// CHECK: replicate.cpp(103,25):  error: 'replicate' following the 'template' keyword does not refer to a template
+// CHECK: replicate.cpp(106,25):  error: called object type 'int' is not a function or function pointer
+// CHECK: replicate.cpp(107,25):  error: 'replicate' following the 'template' keyword does not refer to a template
+// CHECK: replicate.cpp(110,27):  warning: replicate out of bounds - size of source matrix exceeded [-Wcm-bounds-check]
+// CHECK: replicate.cpp(111,27):  warning: replicate out of bounds - size of source matrix exceeded [-Wcm-bounds-check]
+// CHECK: replicate.cpp(112,27):  warning: replicate out of bounds - size of source matrix exceeded [-Wcm-bounds-check]
+// CHECK: replicate.cpp(113,27):  warning: replicate out of bounds - size of source matrix exceeded [-Wcm-bounds-check]
+// CHECK: replicate.cpp(115,27):  warning: replicate out of bounds - size of source matrix exceeded [-Wcm-bounds-check]
+// CHECK: replicate.cpp(117,27):  warning: replicate out of bounds - size of source matrix exceeded [-Wcm-bounds-check]
+// CHECK: replicate.cpp(118,46):  error: replicate offset cannot be negative (-2)
+// CHECK: replicate.cpp(121,28):  warning: replicate out of bounds - size of source vector exceeded [-Wcm-bounds-check]
+// CHECK: replicate.cpp(123,28):  warning: replicate out of bounds - size of source vector exceeded [-Wcm-bounds-check]
+// CHECK: replicate.cpp(124,43):  error: replicate offset cannot be negative (-3)
+// CHECK: replicate.cpp(127,28):  warning: replicate out of bounds - size of source vector exceeded [-Wcm-bounds-check]
+// CHECK: replicate.cpp(129,28):  warning: replicate out of bounds - size of source vector exceeded [-Wcm-bounds-check]
+// CHECK: replicate.cpp(130,28):  warning: replicate out of bounds - size of source vector exceeded [-Wcm-bounds-check]
+// CHECK: replicate.cpp(134,27):  error: expression is not assignable
+// CHECK: replicate.cpp(135,20):  error: expression is not assignable
+// CHECK: replicate.cpp(132,3):  warning: expression result unused [-Wunused-value]
+// CHECK: replicate.cpp(133,3):  warning: expression result unused [-Wunused-value]
 // CHECK: 14 warnings and 70 errors generated.

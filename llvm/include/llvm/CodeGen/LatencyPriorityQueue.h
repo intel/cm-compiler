@@ -22,7 +22,7 @@ namespace llvm {
   class LatencyPriorityQueue;
 
   /// Sorting functions for the Available queue.
-  struct latency_sort : public std::binary_function<SUnit*, SUnit*, bool> {
+  struct latency_sort {
     LatencyPriorityQueue *PQ;
     explicit latency_sort(LatencyPriorityQueue *pq) : PQ(pq) {}
 
@@ -82,8 +82,6 @@ namespace llvm {
     SUnit *pop() override;
 
     void remove(SUnit *SU) override;
-
-    void dump(ScheduleDAG* DAG) const override;
 
     // scheduledNode - As nodes are scheduled, we look to see if there are any
     // successor nodes that have a single unscheduled predecessor.  If so, that

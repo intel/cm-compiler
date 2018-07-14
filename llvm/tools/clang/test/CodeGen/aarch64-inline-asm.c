@@ -8,11 +8,11 @@ long var;
 
 void test_generic_constraints(int var32, long var64) {
     asm("add %0, %1, %1" : "=r"(var32) : "0"(var32));
-// CHECK: [[R32_ARG:%[a-zA-Z0-9]+]] = load i32*
+// CHECK: [[R32_ARG:%[a-zA-Z0-9]+]] = load i32, i32*
 // CHECK: call i32 asm "add $0, $1, $1", "=r,0"(i32 [[R32_ARG]])
 
     asm("add %0, %1, %1" : "=r"(var64) : "0"(var64));
-// CHECK: [[R32_ARG:%[a-zA-Z0-9]+]] = load i64*
+// CHECK: [[R32_ARG:%[a-zA-Z0-9]+]] = load i64, i64*
 // CHECK: call i64 asm "add $0, $1, $1", "=r,0"(i64 [[R32_ARG]])
 
     asm("ldr %0, %1" : "=r"(var32) : "m"(var));
@@ -25,11 +25,11 @@ float f;
 double d;
 void test_constraint_w() {
     asm("fadd %s0, %s1, %s1" : "=w"(f) : "w"(f));
-// CHECK: [[FLT_ARG:%[a-zA-Z_0-9]+]] = load float* @f
+// CHECK: [[FLT_ARG:%[a-zA-Z_0-9]+]] = load float, float* @f
 // CHECK: call float asm "fadd ${0:s}, ${1:s}, ${1:s}", "=w,w"(float [[FLT_ARG]])
 
     asm("fadd %d0, %d1, %d1" : "=w"(d) : "w"(d));
-// CHECK: [[DBL_ARG:%[a-zA-Z_0-9]+]] = load double* @d
+// CHECK: [[DBL_ARG:%[a-zA-Z_0-9]+]] = load double, double* @d
 // CHECK: call double asm "fadd ${0:d}, ${1:d}, ${1:d}", "=w,w"(double [[DBL_ARG]])
 }
 
@@ -53,4 +53,24 @@ void test_constraint_Q(void) {
     int val;
     asm("ldxr %0, %1" : "=r"(val) : "Q"(var));
 // CHECK: call i32 asm "ldxr $0, $1", "=r,*Q"(i64* @var)
+}
+
+void test_gcc_registers(void) {
+    register unsigned long reg0 asm("r0") = 0;
+    register unsigned long reg1 asm("r1") = 1;
+    register unsigned int  reg29 asm("r29") = 2;
+    register unsigned int  reg30 asm("r30") = 3;
+
+    // Test remapping register names in register ... asm("rN") statments.
+    // rN register operands in these two inline assembly lines
+    // should get renamed to valid AArch64 registers.
+    asm volatile("hvc #0" : : "r" (reg0), "r" (reg1));
+    // CHECK: call void asm sideeffect "hvc #0", "{x0},{x1}"
+    asm volatile("hvc #0" : : "r" (reg29), "r" (reg30));
+    // CHECK: call void asm sideeffect "hvc #0", "{fp},{lr}"
+
+    // rN registers when used without register ... asm("rN") syntax
+    // should not be remapped.
+    asm volatile("mov r0, r1\n");
+    // CHECK: call void asm sideeffect "mov r0, r1\0A", ""()
 }

@@ -1,25 +1,25 @@
-; RUN: llc < %s -march=x86 -disable-block-placement | FileCheck %s
+; RUN: llc < %s -mtriple=i686-- -disable-block-placement | FileCheck %s
 ;
 ; Test RegistersDefinedFromSameValue. We have multiple copies of the same vreg:
 ; while.body85.i:
-;   vreg1 = copy vreg2
-;   vreg2 = add
+;   %1 = copy %2
+;   %2 = add
 ; critical edge from land.lhs.true.i -> if.end117.i:
-;   vreg27 = vreg2
+;   %27 = %2
 ; critical edge from land.lhs.true103.i -> if.end117.i:
-;   vreg27 = vreg2
+;   %27 = %2
 ; if.then108.i:
-;   vreg27 = vreg1
+;   %27 = %1
 ;
 ; Prior to fixing PR10920 401.bzip miscompile, the coalescer would
-; consider vreg1 and vreg27 to be copies of the same value. It would
+; consider %1 and %27 to be copies of the same value. It would
 ; then remove one of the critical edge copes, which cannot safely be removed.
 
 ; There are two obvious ways the register-allocator could go here, either
 ; reusing the pre-addition register later, or the post-addition one. Currently,
 ; it does the latter, so we check:
 
-; CHECK: # %while.body85.i
+; CHECK: # %while.body85.i{{$}}
 ; CHECK-NOT: # %
 ; CHECK-NOT: add
 ; CHECK: movl %[[POSTR:e[abcdxi]+]], %[[PRER:e[abcdxi]+]]
@@ -121,7 +121,7 @@ while.body.i188:                                  ; preds = %for.end173.i, %if.e
 while.body85.i:                                   ; preds = %while.body85.i, %while.body.i188
   %aFreq.0518.i = phi i32 [ %add93.i, %while.body85.i ], [ 0, %while.body.i188 ]
   %inc87.i = add nsw i32 0, 1
-  %tmp91.i = load i32* undef, align 4
+  %tmp91.i = load i32, i32* undef, align 4
   %add93.i = add nsw i32 %tmp91.i, %aFreq.0518.i
   %or.cond514.i = and i1 undef, false
   br i1 %or.cond514.i, label %while.body85.i, label %while.end.i
@@ -144,7 +144,7 @@ if.end117.i:                                      ; preds = %if.then108.i, %land
   br i1 undef, label %if.then122.i, label %for.cond138.preheader.i
 
 if.then122.i:                                     ; preds = %if.end117.i
-  call void (...)* @fprintf(i32 undef, i32 %gs.0526.i, i32 %ge.1.i, i32 %aFreq.1.i, double undef) nounwind
+  call void (...) @fprintf(i32 undef, i32 %gs.0526.i, i32 %ge.1.i, i32 %aFreq.1.i, double undef) nounwind
   br label %for.cond138.preheader.i
 
 for.cond138.preheader.i:                          ; preds = %if.then122.i, %if.end117.i

@@ -1,7 +1,8 @@
-; RUN: llc -mtriple=arm64-linux-gnu -enable-misched=false < %s | FileCheck %s
+; RUN: llc -mtriple=arm64-linux-gnu -enable-misched=false -disable-post-ra < %s | FileCheck %s
 
 @var = global i32 0, align 4
 
+; CHECK-LABEL: @test_i128_align
 define i128 @test_i128_align(i32, i128 %arg, i32 %after) {
   store i32 %after, i32* @var, align 4
 ; CHECK: str w4, [{{x[0-9]+}}, :lo12:var]
@@ -11,17 +12,28 @@ define i128 @test_i128_align(i32, i128 %arg, i32 %after) {
 ; CHECK: mov x1, x3
 }
 
+; CHECK-LABEL: @test_i64x2_align
+define [2 x i64] @test_i64x2_align(i32, [2 x i64] %arg, i32 %after) {
+  store i32 %after, i32* @var, align 4
+; CHECK: str w3, [{{x[0-9]+}}, :lo12:var]
+
+  ret [2 x i64] %arg
+; CHECK: mov x0, x1
+; CHECK: mov x1, x2
+}
+
 @var64 = global i64 0, align 8
 
   ; Check stack slots are 64-bit at all times.
 define void @test_stack_slots([8 x i32], i1 %bool, i8 %char, i16 %short,
                                 i32 %int, i64 %long) {
-  ; Part of last store. Blasted scheduler.
-; CHECK: ldr [[LONG:x[0-9]+]], [sp, #32]
-
   %ext_bool = zext i1 %bool to i64
   store volatile i64 %ext_bool, i64* @var64, align 8
 ; CHECK: ldrb w[[EXT:[0-9]+]], [sp]
+
+  ; Part of last store. Blasted scheduler.
+; CHECK: ldr [[LONG:x[0-9]+]], [sp, #32]
+
 ; CHECK: and x[[EXTED:[0-9]+]], x[[EXT]], #0x1
 ; CHECK: str x[[EXTED]], [{{x[0-9]+}}, :lo12:var64]
 
@@ -52,8 +64,8 @@ define void @test_stack_slots([8 x i32], i1 %bool, i8 %char, i16 %short,
 define void @test_extension(i1 %bool, i8 %char, i16 %short, i32 %int) {
   %ext_bool = zext i1 %bool to i64
   store volatile i64 %ext_bool, i64* @var64
-; CHECK: and [[EXT:x[0-9]+]], x0, #0x1
-; CHECK: str [[EXT]], [{{x[0-9]+}}, :lo12:var64]
+; CHECK: and w[[EXT:[0-9]+]], w0, #0x1
+; CHECK: str x[[EXT]], [{{x[0-9]+}}, :lo12:var64]
 
   %ext_char = sext i8 %char to i64
   store volatile i64 %ext_char, i64* @var64
@@ -62,13 +74,13 @@ define void @test_extension(i1 %bool, i8 %char, i16 %short, i32 %int) {
 
   %ext_short = zext i16 %short to i64
   store volatile i64 %ext_short, i64* @var64
-; CHECK: and [[EXT:x[0-9]+]], x2, #0xffff
-; CHECK: str [[EXT]], [{{x[0-9]+}}, :lo12:var64]
+; CHECK: and w[[EXT:[0-9]+]], w2, #0xffff
+; CHECK: str x[[EXT]], [{{x[0-9]+}}, :lo12:var64]
 
   %ext_int = zext i32 %int to i64
   store volatile i64 %ext_int, i64* @var64
-; CHECK: ubfx [[EXT:x[0-9]+]], x3, #0, #32
-; CHECK: str [[EXT]], [{{x[0-9]+}}, :lo12:var64]
+; CHECK: mov w[[EXT:[0-9]+]], w3
+; CHECK: str x[[EXT]], [{{x[0-9]+}}, :lo12:var64]
 
   ret void
 }
@@ -78,7 +90,7 @@ declare void @variadic(i32 %a, ...)
   ; Under AAPCS variadic functions have the same calling convention as
   ; others. The extra arguments should go in registers rather than on the stack.
 define void @test_variadic() {
-  call void(i32, ...)* @variadic(i32 0, i64 1, double 2.0)
+  call void(i32, ...) @variadic(i32 0, i64 1, double 2.0)
 ; CHECK: fmov d0, #2.0
 ; CHECK: orr w1, wzr, #0x1
 ; CHECK: bl variadic
@@ -113,7 +125,7 @@ entry:
 ; Check that f16 can be passed and returned (ACLE 2.0 extension)
 define half @test_half(float, half %arg) {
 ; CHECK-LABEL: test_half:
-; CHECK: mov v0.16b, v{{[0-9]+}}.16b
+; CHECK: mov v0.16b, v1.16b
   ret half %arg;
 }
 
@@ -122,4 +134,32 @@ define half @test_half_const() {
 ; CHECK-LABEL: test_half_const:
 ; CHECK: ldr h0, [x{{[0-9]+}}, :lo12:{{.*}}]
   ret half 0xH4248
+}
+
+; Check that v4f16 can be passed and returned in registers
+define <4 x half> @test_v4_half_register(float, <4 x half> %arg) {
+; CHECK-LABEL: test_v4_half_register:
+; CHECK: mov v0.16b, v1.16b
+  ret <4 x half> %arg;
+}
+
+; Check that v8f16 can be passed and returned in registers
+define <8 x half> @test_v8_half_register(float, <8 x half> %arg) {
+; CHECK-LABEL: test_v8_half_register:
+; CHECK: mov v0.16b, v1.16b
+  ret <8 x half> %arg;
+}
+
+; Check that v4f16 can be passed and returned on the stack
+define <4 x half> @test_v4_half_stack([8 x <2 x double>], <4 x half> %arg) {
+; CHECK-LABEL: test_v4_half_stack:
+; CHECK: ldr d0, [sp]
+  ret <4 x half> %arg;
+}
+
+; Check that v8f16 can be passed and returned on the stack
+define <8 x half> @test_v8_half_stack([8 x <2 x double>], <8 x half> %arg) {
+; CHECK-LABEL: test_v8_half_stack:
+; CHECK: ldr q0, [sp]
+  ret <8 x half> %arg;
 }

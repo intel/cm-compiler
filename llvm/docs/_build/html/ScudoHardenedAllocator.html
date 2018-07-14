@@ -1,0 +1,281 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Scudo Hardened Allocator &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Using -opt-bisect-limit to debug optimization errors" href="OptBisect.html" />
+    <link rel="prev" title="Fuzzing LLVM libraries and tools" href="FuzzingLLVM.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="OptBisect.html" title="Using -opt-bisect-limit to debug optimization errors"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="FuzzingLLVM.html" title="Fuzzing LLVM libraries and tools"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="scudo-hardened-allocator">
+<h1>Scudo Hardened Allocator<a class="headerlink" href="#scudo-hardened-allocator" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
+<li><a class="reference internal" href="#design" id="id2">Design</a></li>
+<li><a class="reference internal" href="#usage" id="id3">Usage</a></li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>The Scudo Hardened Allocator is a user-mode allocator based on LLVM Sanitizer’s
+CombinedAllocator, which aims at providing additional mitigations against heap
+based vulnerabilities, while maintaining good performance.</p>
+<p>Currently, the allocator supports (was tested on) the following architectures:</p>
+<ul class="simple">
+<li>i386 (&amp; i686) (32-bit);</li>
+<li>x86_64 (64-bit);</li>
+<li>armhf (32-bit);</li>
+<li>AArch64 (64-bit).</li>
+</ul>
+<p>The name “Scudo” has been retained from the initial implementation (Escudo
+meaning Shield in Spanish and Portuguese).</p>
+</div>
+<div class="section" id="design">
+<h2><a class="toc-backref" href="#id2">Design</a><a class="headerlink" href="#design" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="chunk-header">
+<h3>Chunk Header<a class="headerlink" href="#chunk-header" title="Permalink to this headline">¶</a></h3>
+<p>Every chunk of heap memory will be preceded by a chunk header. This has two
+purposes, the first one being to store various information about the chunk,
+the second one being to detect potential heap overflows. In order to achieve
+this, the header will be checksumed, involving the pointer to the chunk itself
+and a global secret. Any corruption of the header will be detected when said
+header is accessed, and the process terminated.</p>
+<p>The following information is stored in the header:</p>
+<ul class="simple">
+<li>the 16-bit checksum;</li>
+<li>the unused bytes amount for that chunk, which is necessary for computing the
+size of the chunk;</li>
+<li>the state of the chunk (available, allocated or quarantined);</li>
+<li>the allocation type (malloc, new, new[] or memalign), to detect potential
+mismatches in the allocation APIs used;</li>
+<li>the offset of the chunk, which is the distance in bytes from the beginning of
+the returned chunk to the beginning of the backend allocation;</li>
+<li>a 8-bit salt.</li>
+</ul>
+<p>This header fits within 8 bytes, on all platforms supported.</p>
+<p>The checksum is computed as a CRC32 (made faster with hardware support)
+of the global secret, the chunk pointer itself, and the 8 bytes of header with
+the checksum field zeroed out.</p>
+<p>The header is atomically loaded and stored to prevent races. This is important
+as two consecutive chunks could belong to different threads. We also want to
+avoid any type of double fetches of information located in the header, and use
+local copies of the header for this purpose.</p>
+</div>
+<div class="section" id="delayed-freelist">
+<h3>Delayed Freelist<a class="headerlink" href="#delayed-freelist" title="Permalink to this headline">¶</a></h3>
+<p>A delayed freelist allows us to not return a chunk directly to the backend, but
+to keep it aside for a while. Once a criterion is met, the delayed freelist is
+emptied, and the quarantined chunks are returned to the backend. This helps
+mitigate use-after-free vulnerabilities by reducing the determinism of the
+allocation and deallocation patterns.</p>
+<p>This feature is using the Sanitizer’s Quarantine as its base, and the amount of
+memory that it can hold is configurable by the user (see the Options section
+below).</p>
+</div>
+<div class="section" id="randomness">
+<h3>Randomness<a class="headerlink" href="#randomness" title="Permalink to this headline">¶</a></h3>
+<p>It is important for the allocator to not make use of fixed addresses. We use
+the dynamic base option for the SizeClassAllocator, allowing us to benefit
+from the randomness of mmap.</p>
+</div>
+</div>
+<div class="section" id="usage">
+<h2><a class="toc-backref" href="#id3">Usage</a><a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="library">
+<h3>Library<a class="headerlink" href="#library" title="Permalink to this headline">¶</a></h3>
+<p>The allocator static library can be built from the LLVM build tree thanks to
+the <code class="docutils literal"><span class="pre">scudo</span></code> CMake rule. The associated tests can be exercised thanks to the
+<code class="docutils literal"><span class="pre">check-scudo</span></code> CMake rule.</p>
+<p>Linking the static library to your project can require the use of the
+<code class="docutils literal"><span class="pre">whole-archive</span></code> linker flag (or equivalent), depending on your linker.
+Additional flags might also be necessary.</p>
+<p>Your linked binary should now make use of the Scudo allocation and deallocation
+functions.</p>
+<p>You may also build Scudo like this:</p>
+<div class="code highlight-default"><div class="highlight"><pre><span></span>cd $LLVM/projects/compiler-rt/lib
+clang++ -fPIC -std=c++11 -msse4.2 -O2 -I. scudo/*.cpp \
+  $(\ls sanitizer_common/*.{cc,S} | grep -v &quot;sanitizer_termination\|sanitizer_common_nolibc&quot;) \
+  -shared -o scudo-allocator.so -pthread
+</pre></div>
+</div>
+<p>and then use it with existing binaries as follows:</p>
+<div class="code highlight-default"><div class="highlight"><pre><span></span>LD_PRELOAD=`pwd`/scudo-allocator.so ./a.out
+</pre></div>
+</div>
+</div>
+<div class="section" id="options">
+<h3>Options<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h3>
+<p>Several aspects of the allocator can be configured through the following ways:</p>
+<ul class="simple">
+<li>by defining a <code class="docutils literal"><span class="pre">__scudo_default_options</span></code> function in one’s program that
+returns the options string to be parsed. Said function must have the following
+prototype: <code class="docutils literal"><span class="pre">extern</span> <span class="pre">&quot;C&quot;</span> <span class="pre">const</span> <span class="pre">char*</span> <span class="pre">__scudo_default_options()</span></code>.</li>
+<li>through the environment variable SCUDO_OPTIONS, containing the options string
+to be parsed. Options defined this way will override any definition made
+through <code class="docutils literal"><span class="pre">__scudo_default_options</span></code>;</li>
+</ul>
+<p>The options string follows a syntax similar to ASan, where distinct options
+can be assigned in the same string, separated by colons.</p>
+<p>For example, using the environment variable:</p>
+<div class="code highlight-default"><div class="highlight"><pre><span></span><span class="n">SCUDO_OPTIONS</span><span class="o">=</span><span class="s2">&quot;DeleteSizeMismatch=1:QuarantineSizeKb=64&quot;</span> <span class="o">./</span><span class="n">a</span><span class="o">.</span><span class="n">out</span>
+</pre></div>
+</div>
+<p>Or using the function:</p>
+<div class="code cpp highlight-default"><div class="highlight"><pre><span></span><span class="n">extern</span> <span class="s2">&quot;C&quot;</span> <span class="n">const</span> <span class="n">char</span> <span class="o">*</span><span class="n">__scudo_default_options</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="s2">&quot;DeleteSizeMismatch=1:QuarantineSizeKb=64&quot;</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The following options are available:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="27%" />
+<col width="15%" />
+<col width="15%" />
+<col width="44%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>Option</td>
+<td>64-bit default</td>
+<td>32-bit default</td>
+<td>Description</td>
+</tr>
+<tr class="row-even"><td>QuarantineSizeKb</td>
+<td>256</td>
+<td>64</td>
+<td>The size (in Kb) of quarantine used to delay
+the actual deallocation of chunks. Lower value
+may reduce memory usage but decrease the
+effectiveness of the mitigation; a negative
+value will fallback to the defaults.</td>
+</tr>
+<tr class="row-odd"><td>QuarantineChunksUpToSize</td>
+<td>2048</td>
+<td>512</td>
+<td>Size (in bytes) up to which chunks can be
+quarantined.</td>
+</tr>
+<tr class="row-even"><td>ThreadLocalQuarantineSizeKb</td>
+<td>1024</td>
+<td>256</td>
+<td>The size (in Kb) of per-thread cache use to
+offload the global quarantine. Lower value may
+reduce memory usage but might increase
+contention on the global quarantine.</td>
+</tr>
+<tr class="row-odd"><td>DeallocationTypeMismatch</td>
+<td>true</td>
+<td>true</td>
+<td>Whether or not we report errors on
+malloc/delete, new/free, new/delete[], etc.</td>
+</tr>
+<tr class="row-even"><td>DeleteSizeMismatch</td>
+<td>true</td>
+<td>true</td>
+<td>Whether or not we report errors on mismatch
+between sizes of new and delete.</td>
+</tr>
+<tr class="row-odd"><td>ZeroContents</td>
+<td>false</td>
+<td>false</td>
+<td>Whether or not we zero chunk contents on
+allocation and deallocation.</td>
+</tr>
+</tbody>
+</table>
+<p>Allocator related common Sanitizer options can also be passed through Scudo
+options, such as <code class="docutils literal"><span class="pre">allocator_may_return_null</span></code>. A detailed list including those
+can be found here:
+<a class="reference external" href="https://github.com/google/sanitizers/wiki/SanitizerCommonFlags">https://github.com/google/sanitizers/wiki/SanitizerCommonFlags</a>.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="OptBisect.html" title="Using -opt-bisect-limit to debug optimization errors"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="FuzzingLLVM.html" title="Fuzzing LLVM libraries and tools"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

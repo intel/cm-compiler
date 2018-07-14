@@ -13,7 +13,7 @@ define i32 @f1(i32 %src1) {
 ; CHECK-NEXT: jl
 ; CHECK: br %r14
 entry:
-  %val = load i16 *@g
+  %val = load i16 , i16 *@g
   %src2 = zext i16 %val to i32
   %cond = icmp ult i32 %src1, %src2
   br i1 %cond, label %exit, label %mulb
@@ -21,7 +21,8 @@ mulb:
   %mul = mul i32 %src1, %src1
   br label %exit
 exit:
-  %res = phi i32 [ %src1, %entry ], [ %mul, %mulb ]
+  %tmp = phi i32 [ %src1, %entry ], [ %mul, %mulb ]
+  %res = add i32 %tmp, 1
   ret i32 %res
 }
 
@@ -31,7 +32,7 @@ define i32 @f2(i32 %src1) {
 ; CHECK-NOT: clhrl
 ; CHECK: br %r14
 entry:
-  %val = load i16 *@g
+  %val = load i16 , i16 *@g
   %src2 = zext i16 %val to i32
   %cond = icmp slt i32 %src1, %src2
   br i1 %cond, label %exit, label %mulb
@@ -39,7 +40,8 @@ mulb:
   %mul = mul i32 %src1, %src1
   br label %exit
 exit:
-  %res = phi i32 [ %src1, %entry ], [ %mul, %mulb ]
+  %tmp = phi i32 [ %src1, %entry ], [ %mul, %mulb ]
+  %res = add i32 %tmp, 1
   ret i32 %res
 }
 
@@ -50,7 +52,7 @@ define i32 @f3(i32 %src1) {
 ; CHECK-NEXT: je
 ; CHECK: br %r14
 entry:
-  %val = load i16 *@g
+  %val = load i16 , i16 *@g
   %src2 = zext i16 %val to i32
   %cond = icmp eq i32 %src1, %src2
   br i1 %cond, label %exit, label %mulb
@@ -58,7 +60,8 @@ mulb:
   %mul = mul i32 %src1, %src1
   br label %exit
 exit:
-  %res = phi i32 [ %src1, %entry ], [ %mul, %mulb ]
+  %tmp = phi i32 [ %src1, %entry ], [ %mul, %mulb ]
+  %res = add i32 %tmp, 1
   ret i32 %res
 }
 
@@ -69,7 +72,7 @@ define i32 @f4(i32 %src1) {
 ; CHECK-NEXT: jlh
 ; CHECK: br %r14
 entry:
-  %val = load i16 *@g
+  %val = load i16 , i16 *@g
   %src2 = zext i16 %val to i32
   %cond = icmp ne i32 %src1, %src2
   br i1 %cond, label %exit, label %mulb
@@ -77,7 +80,8 @@ mulb:
   %mul = mul i32 %src1, %src1
   br label %exit
 exit:
-  %res = phi i32 [ %src1, %entry ], [ %mul, %mulb ]
+  %tmp = phi i32 [ %src1, %entry ], [ %mul, %mulb ]
+  %res = add i32 %tmp, 1
   ret i32 %res
 }
 
@@ -89,7 +93,7 @@ define i32 @f5(i32 %src1) {
 ; CHECK: clrjl %r2, [[VAL]],
 ; CHECK: br %r14
 entry:
-  %val = load i16 *@h, align 1
+  %val = load i16 , i16 *@h, align 1
   %src2 = zext i16 %val to i32
   %cond = icmp ult i32 %src1, %src2
   br i1 %cond, label %exit, label %mulb
@@ -97,7 +101,8 @@ mulb:
   %mul = mul i32 %src1, %src1
   br label %exit
 exit:
-  %res = phi i32 [ %src1, %entry ], [ %mul, %mulb ]
+  %tmp = phi i32 [ %src1, %entry ], [ %mul, %mulb ]
+  %res = add i32 %tmp, 1
   ret i32 %res
 }
 
@@ -108,7 +113,7 @@ define i32 @f6(i32 %src2) {
 ; CHECK-NEXT: jh {{\.L.*}}
 ; CHECK: br %r14
 entry:
-  %val = load i16 *@g
+  %val = load i16 , i16 *@g
   %src1 = zext i16 %val to i32
   %cond = icmp ult i32 %src1, %src2
   br i1 %cond, label %exit, label %mulb
@@ -116,6 +121,7 @@ mulb:
   %mul = mul i32 %src2, %src2
   br label %exit
 exit:
-  %res = phi i32 [ %src2, %entry ], [ %mul, %mulb ]
+  %tmp = phi i32 [ %src2, %entry ], [ %mul, %mulb ]
+  %res = add i32 %tmp, 1
   ret i32 %res
 }

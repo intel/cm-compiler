@@ -1,5 +1,5 @@
 ; RUN: opt -codegenprepare -mtriple=arm64-apple=ios -S -o - %s | FileCheck --check-prefix=OPT %s
-; RUN: llc < %s -march=arm64 | FileCheck %s
+; RUN: llc < %s -mtriple=arm64-eabi | FileCheck %s
 %struct.X = type { i8, i8, [2 x i8] }
 %struct.Y = type { i32, i8 }
 %struct.Z = type { i8, i8, [2 x i8], i16 }
@@ -12,8 +12,8 @@ define void @foo(%struct.X* nocapture %x, %struct.Y* nocapture %y) nounwind opts
 ; CHECK: ret
 
   %tmp = bitcast %struct.X* %x to i32*
-  %tmp1 = load i32* %tmp, align 4
-  %b = getelementptr inbounds %struct.Y* %y, i64 0, i32 1
+  %tmp1 = load i32, i32* %tmp, align 4
+  %b = getelementptr inbounds %struct.Y, %struct.Y* %y, i64 0, i32 1
   %bf.clear = lshr i32 %tmp1, 3
   %bf.clear.lobit = and i32 %bf.clear, 1
   %frombool = trunc i32 %bf.clear.lobit to i8
@@ -41,13 +41,13 @@ define i32 @bar(i64 %cav1.coerce) nounwind {
 
 define void @fct1(%struct.Z* nocapture %x, %struct.A* nocapture %y) nounwind optsize ssp {
 ; CHECK-LABEL: fct1:
-; CHECK: ubfx
+; CHECK: ubfx x{{[0-9]+}}, x{{[0-9]+}}
 ; CHECK-NOT: and
 ; CHECK: ret
 
   %tmp = bitcast %struct.Z* %x to i64*
-  %tmp1 = load i64* %tmp, align 4
-  %b = getelementptr inbounds %struct.A* %y, i64 0, i32 0
+  %tmp1 = load i64, i64* %tmp, align 4
+  %b = getelementptr inbounds %struct.A, %struct.A* %y, i64 0, i32 0
   %bf.clear = lshr i64 %tmp1, 3
   %bf.clear.lobit = and i64 %bf.clear, 1
   store i64 %bf.clear.lobit, i64* %b, align 8
@@ -77,7 +77,7 @@ entry:
 ; CHECK-NEXT: bfxil [[REG1]], x1, #16, #24
 ; CHECK-NEXT: str [[REG1]],
 ; CHECK-NEXT: ret
-  %0 = load i64* %y, align 8
+  %0 = load i64, i64* %y, align 8
   %and = and i64 %0, -16777216
   %shr = lshr i64 %x, 16
   %and1 = and i64 %shr, 16777215
@@ -93,7 +93,7 @@ entry:
 ; CHECK-NEXT: bfxil [[REG1]], w1, #16, #3
 ; CHECK-NEXT: str [[REG1]],
 ; CHECK-NEXT: ret
-  %0 = load i32* %y, align 8
+  %0 = load i32, i32* %y, align 8
   %and = and i32 %0, -8
   %shr = lshr i32 %x, 16
   %and1 = and i32 %shr, 7
@@ -112,7 +112,7 @@ entry:
 ; CHECK-NEXT: lsr [[REG2:w[0-9]+]], [[REG1]], #2
 ; CHECK-NEXT: str [[REG2]],
 ; CHECK-NEXT: ret
-  %0 = load i32* %y, align 8
+  %0 = load i32, i32* %y, align 8
   %and = and i32 %0, -8
   %shr = lshr i32 %x, 16
   %and1 = and i32 %shr, 7
@@ -133,7 +133,7 @@ entry:
 ; CHECK-NEXT: lsl [[REG2:w[0-9]+]], [[REG1]], #2
 ; CHECK-NEXT: str [[REG2]],
 ; CHECK-NEXT: ret
-  %0 = load i32* %y, align 8
+  %0 = load i32, i32* %y, align 8
   %and = and i32 %0, -8
   %shr = lshr i32 %x, 16
   %and1 = and i32 %shr, 7
@@ -155,7 +155,7 @@ entry:
 ; CHECK-NEXT: lsr [[REG2:x[0-9]+]], [[REG1]], #2
 ; CHECK-NEXT: str [[REG2]],
 ; CHECK-NEXT: ret
-  %0 = load i64* %y, align 8
+  %0 = load i64, i64* %y, align 8
   %and = and i64 %0, -8
   %shr = lshr i64 %x, 16
   %and1 = and i64 %shr, 7
@@ -177,7 +177,7 @@ entry:
 ; CHECK-NEXT: lsl [[REG2:x[0-9]+]], [[REG1]], #2
 ; CHECK-NEXT: str [[REG2]],
 ; CHECK-NEXT: ret
-  %0 = load i64* %y, align 8
+  %0 = load i64, i64* %y, align 8
   %and = and i64 %0, -8
   %shr = lshr i64 %x, 16
   %and1 = and i64 %shr, 7
@@ -198,7 +198,7 @@ entry:
 ; CHECK-NEXT: lsl [[REG2:w[0-9]+]], [[REG1]], #2
 ; CHECK-NEXT: str [[REG2]],
 ; CHECK-NEXT: ret
-  %0 = load i32* %y, align 8
+  %0 = load i32, i32* %y, align 8
   %and = and i32 %0, -8
   %and1 = and i32 %x, 7
   %or = or i32 %and, %and1
@@ -218,7 +218,7 @@ entry:
 ; CHECK-NEXT: lsl [[REG2:x[0-9]+]], [[REG1]], #2
 ; CHECK-NEXT: str [[REG2]],
 ; CHECK-NEXT: ret
-  %0 = load i64* %y, align 8
+  %0 = load i64, i64* %y, align 8
   %and = and i64 %0, -8
   %and1 = and i64 %x, 7
   %or = or i64 %and, %and1
@@ -247,7 +247,7 @@ entry:
 ; CHECK-NEXT: ubfx [[REG2:w[0-9]+]], [[REG1]], #2, #28
 ; CHECK-NEXT: str [[REG2]],
 ; CHECK-NEXT: ret
-  %0 = load i32* %y, align 8
+  %0 = load i32, i32* %y, align 8
   %and = and i32 %0, -8
   %shr = lshr i32 %x, 16
   %and1 = and i32 %shr, 7
@@ -270,7 +270,7 @@ entry:
 ; CHECK-NEXT: ubfx [[REG2:x[0-9]+]], [[REG1]], #2, #60
 ; CHECK-NEXT: str [[REG2]],
 ; CHECK-NEXT: ret
-  %0 = load i64* %y, align 8
+  %0 = load i64, i64* %y, align 8
   %and = and i64 %0, -8
   %shr = lshr i64 %x, 16
   %and1 = and i64 %shr, 7
@@ -296,7 +296,7 @@ entry:
 ; CHECK-NEXT: lsl [[REG3:w[0-9]+]], [[REG2]], #2
 ; CHECK-NEXT: str [[REG3]],
 ; CHECK-NEXT: ret
-  %0 = load i32* %y, align 8
+  %0 = load i32, i32* %y, align 8
   %and = and i32 %0, -256
   %shr = lshr i32 %x, 16
   %and1 = and i32 %shr, 255
@@ -326,7 +326,7 @@ entry:
 ; CHECK-NEXT: lsl [[REG3:x[0-9]+]], [[REG2]], #2
 ; CHECK-NEXT: str [[REG3]],
 ; CHECK-NEXT: ret
-  %0 = load i64* %y, align 8
+  %0 = load i64, i64* %y, align 8
   %and = and i64 %0, -256
   %shr = lshr i64 %x, 16
   %and1 = and i64 %shr, 255
@@ -348,8 +348,8 @@ entry:
 ; CHECK-LABEL: fct16:
 ; CHECK: ldr [[REG1:w[0-9]+]],
 ; Create the constant
-; CHECK: movz [[REGCST:w[0-9]+]], #0x1a, lsl #16
-; CHECK: movk [[REGCST]], #0x8160
+; CHECK: mov [[REGCST:w[0-9]+]], #33120
+; CHECK: movk [[REGCST]], #26, lsl #16
 ; Do the masking
 ; CHECK: and [[REG2:w[0-9]+]], [[REG1]], [[REGCST]]
 ; CHECK-NEXT: bfxil [[REG2]], w1, #16, #3
@@ -357,7 +357,7 @@ entry:
 ; CHECK-NEXT: ubfx [[REG3:w[0-9]+]], [[REG2]], #2, #28
 ; CHECK-NEXT: str [[REG3]],
 ; CHECK-NEXT: ret
-  %0 = load i32* %y, align 8
+  %0 = load i32, i32* %y, align 8
   %and = and i32 %0, 1737056
   %shr = lshr i32 %x, 16
   %and1 = and i32 %shr, 7
@@ -377,8 +377,8 @@ entry:
 ; CHECK-LABEL: fct17:
 ; CHECK: ldr [[REG1:x[0-9]+]],
 ; Create the constant
-; CHECK: movz w[[REGCST:[0-9]+]], #0x1a, lsl #16
-; CHECK: movk w[[REGCST]], #0x8160
+; CHECK: mov w[[REGCST:[0-9]+]], #33120
+; CHECK: movk w[[REGCST]], #26, lsl #16
 ; Do the masking
 ; CHECK: and [[REG2:x[0-9]+]], [[REG1]], x[[REGCST]]
 ; CHECK-NEXT: bfxil [[REG2]], x1, #16, #3
@@ -386,7 +386,7 @@ entry:
 ; CHECK-NEXT: ubfx [[REG3:x[0-9]+]], [[REG2]], #2, #60
 ; CHECK-NEXT: str [[REG3]],
 ; CHECK-NEXT: ret
-  %0 = load i64* %y, align 8
+  %0 = load i64, i64* %y, align 8
   %and = and i64 %0, 1737056
   %shr = lshr i64 %x, 16
   %and1 = and i64 %shr, 7
@@ -421,8 +421,8 @@ entry:
   br i1 %tobool, label %if.end, label %if.then
 
 if.then:                                          ; preds = %entry
-  %arrayidx3 = getelementptr inbounds [65536 x i8]* @first_ones, i64 0, i64 %x.sroa.5.0.extract.shift
-  %0 = load i8* %arrayidx3, align 1
+  %arrayidx3 = getelementptr inbounds [65536 x i8], [65536 x i8]* @first_ones, i64 0, i64 %x.sroa.5.0.extract.shift
+  %0 = load i8, i8* %arrayidx3, align 1
   %conv = zext i8 %0 to i32
   br label %return
 
@@ -443,8 +443,8 @@ if.then7:                                         ; preds = %if.end
 ; CHECK-NOT: and
 ; CHECK-NOT: ubfm
   %idxprom10 = and i64 %x.sroa.3.0.extract.shift, 65535
-  %arrayidx11 = getelementptr inbounds [65536 x i8]* @first_ones, i64 0, i64 %idxprom10
-  %1 = load i8* %arrayidx11, align 1
+  %arrayidx11 = getelementptr inbounds [65536 x i8], [65536 x i8]* @first_ones, i64 0, i64 %idxprom10
+  %1 = load i8, i8* %arrayidx11, align 1
   %conv12 = zext i8 %1 to i32
   %add = add nsw i32 %conv12, 16
   br label %return
@@ -466,8 +466,8 @@ if.then17:                                        ; preds = %if.end13
 ; CHECK-NOT: and
 ; CHECK-NOT: ubfm
   %idxprom20 = and i64 %x.sroa.1.0.extract.shift, 65535
-  %arrayidx21 = getelementptr inbounds [65536 x i8]* @first_ones, i64 0, i64 %idxprom20
-  %2 = load i8* %arrayidx21, align 1
+  %arrayidx21 = getelementptr inbounds [65536 x i8], [65536 x i8]* @first_ones, i64 0, i64 %idxprom20
+  %2 = load i8, i8* %arrayidx21, align 1
   %conv22 = zext i8 %2 to i32
   %add23 = add nsw i32 %conv22, 32
   br label %return
@@ -509,8 +509,8 @@ define i64 @fct21(i64 %x) {
 entry:
   %shr = lshr i64 %x, 4
   %and = and i64 %shr, 15
-  %arrayidx = getelementptr inbounds [8 x [64 x i64]]* @arr, i64 0, i64 0, i64 %and
-  %0 = load i64* %arrayidx, align 8
+  %arrayidx = getelementptr inbounds [8 x [64 x i64]], [8 x [64 x i64]]* @arr, i64 0, i64 0, i64 %and
+  %0 = load i64, i64* %arrayidx, align 8
   ret i64 %0
 }
 
@@ -529,4 +529,34 @@ define i16 @test_ignored_rightbits(i32 %dst, i32 %in) {
 ; CHECK: bfi {{w[0-9]+}}, {{w[0-9]+}}, #8, #7
 
   ret i16 %conv19
+}
+
+; The following test excercises the case where we have a BFI
+; instruction with the same input in both operands. We need to
+; track the useful bits through both operands.
+; CHECK-LABEL: sameOperandBFI
+; CHECK: lsr
+; CHECK: and
+; CHECK: bfi
+; CHECK: bfi
+define void @sameOperandBFI(i64 %src, i64 %src2, i16 *%ptr) {
+entry:
+  %shr47 = lshr i64 %src, 47
+  %src2.trunc = trunc i64 %src2 to i32
+  br i1 undef, label %end, label %if.else
+
+if.else:
+  %and3 = and i32 %src2.trunc, 3
+  %shl2 = shl nuw nsw i64 %shr47, 2
+  %shl2.trunc = trunc i64 %shl2 to i32
+  %and12 = and i32 %shl2.trunc, 12
+  %BFISource = or i32 %and3, %and12         ; ...00000ABCD
+  %BFIRHS = shl nuw nsw i32 %BFISource, 4   ; ...0ABCD0000
+  %BFI = or i32 %BFIRHS, %BFISource         ; ...0ABCDABCD
+  %BFItrunc = trunc i32 %BFI to i16
+  store i16 %BFItrunc, i16* %ptr, align 4
+  br label %end
+
+end:
+  ret void
 }

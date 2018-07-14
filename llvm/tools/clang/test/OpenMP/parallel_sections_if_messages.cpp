@@ -1,4 +1,6 @@
-// RUN: %clang_cc1 -verify -fopenmp=libiomp5 -ferror-limit 100 %s
+// RUN: %clang_cc1 -verify -fopenmp -fopenmp-version=45 -ferror-limit 100 %s
+
+// RUN: %clang_cc1 -verify -fopenmp-simd -fopenmp-version=45 -ferror-limit 100 %s
 
 void foo() {
 }
@@ -55,6 +57,30 @@ int tmain(T argc, S **argv) {
   {
     foo();
   }
+  #pragma omp parallel sections if(parallel : // expected-error {{expected expression}} expected-error {{expected ')'}} expected-note {{to match this '('}}
+  {
+    foo();
+  }
+  #pragma omp parallel sections if(parallel : argc // expected-error {{expected ')'}} expected-note {{to match this '('}}
+  {
+    foo();
+  }
+  #pragma omp parallel sections if(parallel : argc)
+  {
+    foo();
+  }
+  #pragma omp parallel sections if(parallel : argc) if (for:argc) // expected-error {{directive name modifier 'for' is not allowed for '#pragma omp parallel sections'}}
+  {
+    foo();
+  }
+  #pragma omp parallel sections if(parallel : argc) if (parallel:argc) // expected-error {{directive '#pragma omp parallel sections' cannot contain more than one 'if' clause with 'parallel' name modifier}}
+  {
+    foo();
+  }
+  #pragma omp parallel sections if(parallel : argc) if (argc) // expected-error {{no more 'if' clause is allowed}} expected-note {{previous clause with directive name modifier specified here}}
+  {
+    foo();
+  }
 
   return 0;
 }
@@ -105,6 +131,30 @@ int main(int argc, char **argv) {
     foo();
   }
   #pragma omp parallel sections if(if(tmain(argc, argv) // expected-error {{expected expression}} expected-error {{expected ')'}} expected-note {{to match this '('}}
+  {
+    foo();
+  }
+  #pragma omp parallel sections if(parallel : // expected-error {{expected expression}} expected-error {{expected ')'}} expected-note {{to match this '('}}
+  {
+    foo();
+  }
+  #pragma omp parallel sections if(parallel : argc // expected-error {{expected ')'}} expected-note {{to match this '('}}
+  {
+    foo();
+  }
+  #pragma omp parallel sections if(parallel : argc)
+  {
+    foo();
+  }
+  #pragma omp parallel sections if(parallel : argc) if (for:argc) // expected-error {{directive name modifier 'for' is not allowed for '#pragma omp parallel sections'}}
+  {
+    foo();
+  }
+  #pragma omp parallel sections if(parallel : argc) if (parallel:argc) // expected-error {{directive '#pragma omp parallel sections' cannot contain more than one 'if' clause with 'parallel' name modifier}}
+  {
+    foo();
+  }
+  #pragma omp parallel sections if(parallel : argc) if (argc) // expected-error {{no more 'if' clause is allowed}} expected-note {{previous clause with directive name modifier specified here}}
   {
     foo();
   }

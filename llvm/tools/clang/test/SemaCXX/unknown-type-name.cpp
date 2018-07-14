@@ -1,4 +1,6 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify -std=c++98 %s
+// RUN: %clang_cc1 -fsyntax-only -verify -std=c++11 %s
 
 // PR3990
 namespace N {
@@ -27,7 +29,7 @@ int var(zepelin); // expected-error{{did you mean 'zeppelin'?}}
 template<typename T>
 struct A {
   typedef T type;
-  
+
   type f();
 
   type g();
@@ -93,14 +95,25 @@ template<typename T> int A<T>::h(T::type x, char) {} // expected-error{{missing 
 template<typename T> int h(T::type, int); // expected-error{{missing 'typename'}}
 template<typename T> int h(T::type x, char); // expected-error{{missing 'typename'}}
 
-template<typename T> int junk1(T::junk); // expected-warning{{variable templates are a C++1y extension}}
+template<typename T> int junk1(T::junk);
+#if __cplusplus <= 201103L
+// expected-warning@-2 {{variable templates are a C++14 extension}}
+#endif
 template<typename T> int junk2(T::junk) throw(); // expected-error{{missing 'typename'}}
-template<typename T> int junk3(T::junk) = delete; // expected-error{{missing 'typename'}} expected-warning{{C++11}}
+template<typename T> int junk3(T::junk) = delete; // expected-error{{missing 'typename'}}
+#if __cplusplus <= 199711L
+//expected-warning@-2 {{deleted function definitions are a C++11 extension}}
+#endif
+
 template<typename T> int junk4(T::junk j); // expected-error{{missing 'typename'}}
 
 // FIXME: We can tell this was intended to be a function because it does not
 //        have a dependent nested name specifier.
-template<typename T> int i(T::type, int()); // expected-warning{{variable templates are a C++1y extension}}
+template<typename T> int i(T::type, int());
+#if __cplusplus <= 201103L
+// expected-warning@-2 {{variable templates are a C++14 extension}}
+#endif
+
 
 // FIXME: We know which type specifier should have been specified here. Provide
 //        a fix-it to add 'typename A<T>::type'

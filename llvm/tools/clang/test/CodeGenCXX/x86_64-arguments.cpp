@@ -32,6 +32,21 @@ typedef int (s4::*s4_mfp)();
 s4_mdp f4_0(s4_mdp a) { return a; }
 s4_mfp f4_1(s4_mfp a) { return a; }
 
+// A struct with <= one eightbyte before a member data pointer should still
+// be allowed in registers.
+// CHECK-LABEL: define void @{{.*}}f_struct_with_mdp{{.*}}(i8* %a.coerce0, i64 %a.coerce1)
+struct struct_with_mdp { char *a; s4_mdp b; };
+void f_struct_with_mdp(struct_with_mdp a) { (void)a; }
+
+// A struct with anything before a member function will be too big and
+// goes in memory.
+// CHECK-LABEL: define void @{{.*}}f_struct_with_mfp_0{{.*}}(%struct{{.*}} byval align 8 %a)
+struct struct_with_mfp_0 { char a; s4_mfp b; };
+void f_struct_with_mfp_0(struct_with_mfp_0 a) { (void)a; }
+
+// CHECK-LABEL: define void @{{.*}}f_struct_with_mfp_1{{.*}}(%struct{{.*}} byval align 8 %a)
+struct struct_with_mfp_1 { void *a; s4_mfp b; };
+void f_struct_with_mfp_1(struct_with_mfp_1 a) { (void)a; }
 
 namespace PR7523 {
 struct StringRef {
@@ -180,4 +195,29 @@ namespace test9 {
   S* d(S* sret, int, int, int, T, void*) {
     return sret;
   }
+}
+
+namespace test10 {
+#pragma pack(1)
+struct BasePacked {
+  char one;
+  short two;
+};
+#pragma pack()
+struct DerivedPacked : public BasePacked {
+  int three;
+};
+// CHECK-LABEL: define i32 @_ZN6test1020FuncForDerivedPackedENS_13DerivedPackedE({{.*}}* byval align 8
+int FuncForDerivedPacked(DerivedPacked d) {
+  return d.three;
+}
+}
+
+namespace test11 {
+union U {
+  float f1;
+  char __attribute__((__vector_size__(1))) f2;
+};
+int f(union U u) { return u.f2[1]; }
+// CHECK-LABEL: define i32 @_ZN6test111fENS_1UE(i32
 }

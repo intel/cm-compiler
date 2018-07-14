@@ -8,8 +8,8 @@
 
 define void @logical_32bit() minsize {
 ; CHECK-LABEL: logical_32bit:
-  %val1 = load i32* @var1_32
-  %val2 = load i32* @var2_32
+  %val1 = load i32, i32* @var1_32
+  %val2 = load i32, i32* @var2_32
 
   ; First check basic and/bic/or/orn/eor/eon patterns with no shift
   %neg_val2 = xor i32 -1, %val2
@@ -98,8 +98,8 @@ define void @logical_32bit() minsize {
 
 define void @logical_64bit() minsize {
 ; CHECK-LABEL: logical_64bit:
-  %val1 = load i64* @var1_64
-  %val2 = load i64* @var2_64
+  %val1 = load i64, i64* @var1_64
+  %val2 = load i64, i64* @var2_64
 
   ; First check basic and/bic/or/orn/eor/eon patterns with no shift
   %neg_val2 = xor i64 -1, %val2
@@ -191,14 +191,14 @@ define void @logical_64bit() minsize {
 
 define void @flag_setting() {
 ; CHECK-LABEL: flag_setting:
-  %val1 = load i64* @var1_64
-  %val2 = load i64* @var2_64
+  %val1 = load i64, i64* @var1_64
+  %val2 = load i64, i64* @var2_64
 
 ; CHECK: tst {{x[0-9]+}}, {{x[0-9]+}}
 ; CHECK: b.gt .L
   %simple_and = and i64 %val1, %val2
   %tst1 = icmp sgt i64 %simple_and, 0
-  br i1 %tst1, label %ret, label %test2
+  br i1 %tst1, label %ret, label %test2, !prof !1
 
 test2:
 ; CHECK: tst {{x[0-9]+}}, {{x[0-9]+}}, lsl #63
@@ -206,7 +206,7 @@ test2:
   %shifted_op = shl i64 %val2, 63
   %shifted_and = and i64 %val1, %shifted_op
   %tst2 = icmp slt i64 %shifted_and, 0
-  br i1 %tst2, label %ret, label %test3
+  br i1 %tst2, label %ret, label %test3, !prof !1
 
 test3:
 ; CHECK: tst {{x[0-9]+}}, {{x[0-9]+}}, asr #12
@@ -214,7 +214,7 @@ test3:
   %asr_op = ashr i64 %val2, 12
   %asr_and = and i64 %asr_op, %val1
   %tst3 = icmp sgt i64 %asr_and, 0
-  br i1 %tst3, label %ret, label %other_exit
+  br i1 %tst3, label %ret, label %other_exit, !prof !1
 
 other_exit:
   store volatile i64 %val1, i64* @var1_64
@@ -222,3 +222,5 @@ other_exit:
 ret:
   ret void
 }
+
+!1 = !{!"branch_weights", i32 1, i32 1}

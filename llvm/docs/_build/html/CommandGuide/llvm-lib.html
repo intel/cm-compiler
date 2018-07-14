@@ -1,0 +1,124 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-lib - LLVM lib.exe compatible library tool &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llvm-nm - list LLVM bitcode and object file’s symbol table" href="llvm-nm.html" />
+    <link rel="prev" title="llvm-ar - LLVM archiver" href="llvm-ar.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llvm-nm.html" title="llvm-nm - list LLVM bitcode and object file’s symbol table"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llvm-ar.html" title="llvm-ar - LLVM archiver"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-lib-llvm-lib-exe-compatible-library-tool">
+<h1>llvm-lib - LLVM lib.exe compatible library tool<a class="headerlink" href="#llvm-lib-llvm-lib-exe-compatible-library-tool" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong>llvm-lib</strong> [/libpath:&lt;path&gt;] [/out:&lt;output&gt;] [/llvmlibthin]
+[/ignore] [/machine] [/nologo] [files…]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>The <strong>llvm-lib</strong> command is intended to be a <code class="docutils literal"><span class="pre">lib.exe</span></code> compatible
+tool. See <a class="reference external" href="https://msdn.microsoft.com/en-us/library/7ykb2k5f">https://msdn.microsoft.com/en-us/library/7ykb2k5f</a> for the
+general description.</p>
+<p><strong>llvm-lib</strong> has the following extensions:</p>
+<ul class="simple">
+<li>Bitcode files in symbol tables.
+<strong>llvm-lib</strong> includes symbols from both bitcode files and regular
+object files in the symbol table.</li>
+<li>Creating thin archives.
+The /llvmlibthin option causes <strong>llvm-lib</strong> to create thin archive
+that contain only the symbol table and the header for the various
+members. These files are much smaller, but are not compatible with
+link.exe (lld can handle them).</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llvm-nm.html" title="llvm-nm - list LLVM bitcode and object file’s symbol table"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llvm-ar.html" title="llvm-ar - LLVM archiver"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

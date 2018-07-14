@@ -12,6 +12,11 @@ add_llvm_library(LLVMInstCombine
   InstCombineShifts.cpp
   InstCombineSimplifyDemanded.cpp
   InstCombineVectorOps.cpp
-  )
 
-add_dependencies(LLVMInstCombine intrinsics_gen)
+  ADDITIONAL_HEADER_DIRS
+  ${LLVM_MAIN_INCLUDE_DIR}/llvm/Transforms
+  ${LLVM_MAIN_INCLUDE_DIR}/llvm/Transforms/InstCombine
+
+  DEPENDS
+  intrinsics_gen
+  )

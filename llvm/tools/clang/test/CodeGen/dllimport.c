@@ -1,9 +1,9 @@
-// RUN: %clang_cc1 -triple i686-windows-msvc   -emit-llvm -std=c11 -O0 -o - %s | FileCheck %s
-// RUN: %clang_cc1 -triple x86_64-windows-msvc -emit-llvm -std=c11 -O0 -o - %s | FileCheck %s
-// RUN: %clang_cc1 -triple i686-windows-gnu    -emit-llvm -std=c11 -O0 -o - %s | FileCheck %s
-// RUN: %clang_cc1 -triple x86_64-windows-gnu  -emit-llvm -std=c11 -O0 -o - %s | FileCheck %s
-// RUN: %clang_cc1 -triple i686-windows-msvc   -emit-llvm -std=c11 -O1 -o - %s | FileCheck --check-prefix=O1 %s
-// RUN: %clang_cc1 -triple i686-windows-gnu    -emit-llvm -std=c11 -O1 -o - %s | FileCheck --check-prefix=O1 %s
+// RUN: %clang_cc1 -triple i686-windows-msvc   -fms-extensions -emit-llvm -std=c11 -O0 -o - %s | FileCheck --check-prefix=CHECK --check-prefix=MS %s
+// RUN: %clang_cc1 -triple x86_64-windows-msvc -fms-extensions -emit-llvm -std=c11 -O0 -o - %s | FileCheck --check-prefix=CHECK --check-prefix=MS %s
+// RUN: %clang_cc1 -triple i686-windows-gnu    -fms-extensions -emit-llvm -std=c11 -O0 -o - %s | FileCheck --check-prefix=CHECK --check-prefix=GNU %s
+// RUN: %clang_cc1 -triple x86_64-windows-gnu  -fms-extensions -emit-llvm -std=c11 -O0 -o - %s | FileCheck --check-prefix=CHECK --check-prefix=GNU %s
+// RUN: %clang_cc1 -triple i686-windows-msvc   -fms-extensions -emit-llvm -std=c11 -O1 -o - %s | FileCheck --check-prefix=O1 --check-prefix=MO1 %s
+// RUN: %clang_cc1 -triple i686-windows-gnu    -fms-extensions -emit-llvm -std=c11 -O1 -o - %s | FileCheck --check-prefix=O1 --check-prefix=GO1 %s
 
 #define JOIN2(x, y) x##y
 #define JOIN(x, y) JOIN2(x, y)
@@ -44,6 +44,27 @@ __declspec(dllimport) extern int GlobalRedecl3;
                       extern int GlobalRedecl3; // dllimport ignored
 USEVAR(GlobalRedecl3)
 
+// Make sure this works even if the decl has been used before it's defined (PR20792).
+// MS: @GlobalRedecl4 = common dllexport global i32
+// GNU: @GlobalRedecl4 = common global i32
+__declspec(dllimport) extern int GlobalRedecl4;
+USEVAR(GlobalRedecl4)
+                      int GlobalRedecl4; // dllimport ignored
+
+// FIXME: dllimport is dropped in the AST; this should be reflected in codegen (PR02803).
+// CHECK: @GlobalRedecl5 = external dllimport global i32
+__declspec(dllimport) extern int GlobalRedecl5;
+USEVAR(GlobalRedecl5)
+                      extern int GlobalRedecl5; // dllimport ignored
+
+// Redeclaration in local context.
+// CHECK: @GlobalRedecl6 = external dllimport global i32
+__declspec(dllimport) int GlobalRedecl6;
+int functionScope() {
+  extern int GlobalRedecl6; // still dllimport
+  return GlobalRedecl6;
+}
+
 
 
 //===----------------------------------------------------------------------===//
@@ -59,14 +80,18 @@ __declspec(dllimport) void decl(void);
 void (*use_decl)(void) = &decl;
 
 // Import inline function.
-// CHECK-DAG: declare dllimport void @inlineFunc()
-// O1-DAG: define available_externally dllimport void @inlineFunc()
+// MS-DAG: declare dllimport void @inlineFunc()
+// MO1-DAG: define available_externally dllimport void @inlineFunc()
+// GNU-DAG: declare void @inlineFunc()
+// GO1-DAG: define available_externally void @inlineFunc()
 __declspec(dllimport) inline void inlineFunc(void) {}
 USE(inlineFunc)
 
 // inline attributes
-// CHECK-DAG: declare dllimport void @noinline()
-// O1-DAG: define available_externally dllimport void @noinline()
+// MS-DAG: declare dllimport void @noinline()
+// MO1-DAG: define available_externally dllimport void @noinline()
+// GNU-DAG: declare void @noinline()
+// GO1-DAG: define available_externally void @noinline()
 // CHECK-NOT: @alwaysInline()
 // O1-NOT: @alwaysInline()
 __declspec(dllimport) __attribute__((noinline)) inline void noinline(void) {}
@@ -87,7 +112,21 @@ __declspec(dllimport) void redecl2(void);
                       void redecl2(void);
 USE(redecl2)
 
-// CHECK-DAG: define void @redecl3()
+// MS: define dllexport void @redecl3()
+// GNU: define void @redecl3()
 __declspec(dllimport) void redecl3(void);
                       void redecl3(void) {} // dllimport ignored
 USE(redecl3)
+
+// Make sure this works even if the decl is used before it's defined (PR20792).
+// MS: define dllexport void @redecl4()
+// GNU: define void @redecl4()
+__declspec(dllimport) void redecl4(void);
+USE(redecl4)
+                      void redecl4(void) {} // dllimport ignored
+
+// FIXME: dllimport is dropped in the AST; this should be reflected in codegen (PR20803).
+// CHECK-DAG: declare dllimport
+__declspec(dllimport) void redecl5(void);
+USE(redecl5)
+                      void redecl5(void); // dllimport ignored

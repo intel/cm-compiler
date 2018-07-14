@@ -16,7 +16,5 @@ _GENX_ void f() {
   m2 = m3;  // elements of m1 are copied to m2
 }
 
-// RUN: %cmc %w 2>&1 | FileCheck --implicit-check-not error %w
+// RUN: %cmc %w 2>&1 | FileCheck -allow-empty --implicit-check-not error %w
 // RUN: rm %W.isa
-// CHECK: warning: No CM kernel definitions found
-// CHECK: 1 warning generated

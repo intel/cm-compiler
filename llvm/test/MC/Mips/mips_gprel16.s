@@ -3,12 +3,10 @@
 // addend is stored in the instruction immediate
 // field.
 
-// RUN: llvm-mc -mcpu=mips32r2 -triple=mipsel-pc-linux -filetype=obj -relocation-model=static %s -o - \
-// RUN: | llvm-objdump -disassemble -mattr +mips32r2 - \
-// RUN: | FileCheck %s
-// RUN: llvm-mc -mcpu=mips32r2 -triple=mips-pc-linux -filetype=obj -relocation-model=static %s -o - \
-// RUN: | llvm-objdump -disassemble -mattr +mips32r2 - \
-// RUN: | FileCheck %s
+// RUN: llvm-mc -mcpu=mips32r2 -triple=mipsel-pc-linux -filetype=obj %s -o - \
+// RUN: | llvm-objdump -disassemble - | FileCheck %s
+// RUN: llvm-mc -mcpu=mips32r2 -triple=mips-pc-linux -filetype=obj %s -o - \
+// RUN: | llvm-objdump -disassemble - | FileCheck %s
 
 	.text
 	.abicalls
@@ -28,7 +26,7 @@ testvar1:                               # @testvar1
 	.set	noreorder
 	.set	nomacro
 	.set	noat
-# BB#0:                                 # %entry
+# %bb.0:                                # %entry
 // CHECK: lw ${{[0-9]+}}, 0($gp)
 	lw	$1, %gp_rel(var1)($gp)
 	jr	$ra
@@ -52,7 +50,7 @@ testvar2:                               # @testvar2
 	.set	noreorder
 	.set	nomacro
 	.set	noat
-# BB#0:                                 # %entry
+# %bb.0:                                # %entry
 // CHECK: lw ${{[0-9]+}}, 4($gp)
 	lw	$1, %gp_rel(var2)($gp)
 	jr	$ra

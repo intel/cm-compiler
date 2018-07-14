@@ -1,4 +1,4 @@
-//===-- InterferenceCache.cpp - Caching per-block interference ---------*--===//
+//===- InterferenceCache.cpp - Caching per-block interference -------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,16 +12,29 @@
 //===----------------------------------------------------------------------===//
 
 #include "InterferenceCache.h"
-#include "llvm/CodeGen/LiveIntervalAnalysis.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/CodeGen/LiveInterval.h"
+#include "llvm/CodeGen/LiveIntervalUnion.h"
+#include "llvm/CodeGen/LiveIntervals.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineOperand.h"
+#include "llvm/CodeGen/SlotIndexes.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include <cassert>
+#include <cstdint>
+#include <cstdlib>
+#include <tuple>
 
 using namespace llvm;
 
 #define DEBUG_TYPE "regalloc"
 
 // Static member used for null interference cursors.
-InterferenceCache::BlockInterference InterferenceCache::Cursor::NoInterference;
+const InterferenceCache::BlockInterference
+    InterferenceCache::Cursor::NoInterference;
 
 // Initializes PhysRegEntries (instead of a SmallVector, PhysRegEntries is a
 // buffer of size NumPhysRegs to speed up alloc/clear for targets with large
@@ -143,11 +156,12 @@ void InterferenceCache::Entry::update(unsigned MBBNum) {
     PrevPos = Start;
   }
 
-  MachineFunction::const_iterator MFI = MF->getBlockNumbered(MBBNum);
+  MachineFunction::const_iterator MFI =
+      MF->getBlockNumbered(MBBNum)->getIterator();
   BlockInterference *BI = &Blocks[MBBNum];
   ArrayRef<SlotIndex> RegMaskSlots;
   ArrayRef<const uint32_t*> RegMaskBits;
-  for (;;) {
+  while (true) {
     BI->Tag = Tag;
     BI->First = BI->Last = SlotIndex();
 

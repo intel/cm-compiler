@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>2. Kaleidoscope: Implementing a Parser and AST &#8212; LLVM 3.4 documentation</title>
+    <title>2. Kaleidoscope: Implementing a Parser and AST &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -188,7 +188,7 @@ of our grammar: numeric literals.</p>
 <p>We start with numeric literals, because they are the simplest to
 process. For each production in our grammar, we’ll define a function
 which parses that production. We call this class of expressions
-“primary” expressions, for reasons that will become more clear <a class="reference external" href="OCamlLangImpl6.html#unary">later in
+“primary” expressions, for reasons that will become more clear <a class="reference external" href="OCamlLangImpl6.html#user-defined-unary-operators">later in
 the tutorial</a>. In order to parse an
 arbitrary primary expression, we need to determine what sort of
 expression it is. For numeric literals, we have:</p>
@@ -321,7 +321,7 @@ fixed-size array).</p>
 <p>With the helper above defined, we can now start parsing binary
 expressions. The basic idea of operator precedence parsing is to break
 down an expression with potentially ambiguous binary operators into
-pieces. Consider ,for example, the expression “a+b+(c+d)*e*f+g”.
+pieces. Consider, for example, the expression “a+b+(c+d)*e*f+g”.
 Operator precedence parsing considers this as a stream of primary
 expressions separated by binary operators. As such, it will first parse
 the leading primary expression “a”, then it will see the pairs [+, b]
@@ -518,7 +518,7 @@ let us actually <em>execute</em> this code we’ve built!</p>
 <h2><a class="toc-backref" href="#id8">2.7. The Driver</a><a class="headerlink" href="#the-driver" title="Permalink to this headline">¶</a></h2>
 <p>The driver for this simply invokes all of the parsing pieces with a
 top-level dispatch loop. There isn’t much interesting here, so I’ll just
-include the top-level loop. See <a class="reference external" href="#code">below</a> for full code in the
+include the top-level loop. See <a class="reference external" href="#full-code-listing">below</a> for full code in the
 “Top-Level Parsing” section.</p>
 <div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="c">(* top ::= definition | external | expression | &#39;;&#39; *)</span>
 <span class="k">let</span> <span class="k">rec</span> <span class="n">main_loop</span> <span class="n">stream</span> <span class="o">=</span>
@@ -929,8 +929,8 @@ ocamlbuild toy.byte
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

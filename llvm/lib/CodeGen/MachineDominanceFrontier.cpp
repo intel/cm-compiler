@@ -8,15 +8,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/CodeGen/MachineDominanceFrontier.h"
-#include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/Analysis/DominanceFrontierImpl.h"
+#include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/Passes.h"
-
 
 using namespace llvm;
 
 namespace llvm {
-template class DominanceFrontierBase<MachineBasicBlock>;
+template class DominanceFrontierBase<MachineBasicBlock, false>;
+template class DominanceFrontierBase<MachineBasicBlock, true>;
 template class ForwardDominanceFrontierBase<MachineBasicBlock>;
 }
 

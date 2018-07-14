@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>LLVM Alias Analysis Infrastructure &#8212; LLVM 3.4 documentation</title>
+    <title>LLVM Alias Analysis Infrastructure &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -27,8 +27,8 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="LLVM Bitcode File Format" href="BitCodeFormat.html" />
-    <link rel="prev" title="LLVM Extensions" href="Extensions.html" />
+    <link rel="next" title="MemorySSA" href="MemorySSA.html" />
+    <link rel="prev" title="Using -opt-bisect-limit to debug optimization errors" href="OptBisect.html" />
 <style type="text/css">
   table.right { float: right; margin-left: 20px; }
   table.right td { border: 1px solid #ccc; }
@@ -49,10 +49,10 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="BitCodeFormat.html" title="LLVM Bitcode File Format"
+          <a href="MemorySSA.html" title="MemorySSA"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="Extensions.html" title="LLVM Extensions"
+          <a href="OptBisect.html" title="Using -opt-bisect-limit to debug optimization errors"
              accesskey="P">previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="index.html">Documentation</a>&raquo;</li>
@@ -160,8 +160,7 @@ which can provide it, allowing for powerful analyses and transformations to work
 well together.</p>
 <p>This document contains information necessary to successfully implement this
 interface, use it, and to test both sides.  It also explains some of the finer
-points about what exactly results mean.  If you feel that something is unclear
-or should be added, please <a class="reference external" href="mailto:sabre&#37;&#52;&#48;nondot&#46;org">let me know</a>.</p>
+points about what exactly results mean.</p>
 </div>
 <div class="section" id="aliasanalysis-class-overview">
 <h2><a class="toc-backref" href="#id2"><code class="docutils literal"><span class="pre">AliasAnalysis</span></code> Class Overview</a><a class="headerlink" href="#aliasanalysis-class-overview" title="Permalink to this headline">¶</a></h2>
@@ -241,10 +240,11 @@ the “irrelevant” dependencies are ignored.</p>
 <p>The <code class="docutils literal"><span class="pre">MayAlias</span></code> response is used whenever the two pointers might refer to the
 same object.</p>
 <p>The <code class="docutils literal"><span class="pre">PartialAlias</span></code> response is used when the two memory objects are known to
-be overlapping in some way, but do not start at the same address.</p>
+be overlapping in some way, regardless whether they start at the same address
+or not.</p>
 <p>The <code class="docutils literal"><span class="pre">MustAlias</span></code> response may only be returned if the two memory objects are
 guaranteed to always start at exactly the same location. A <code class="docutils literal"><span class="pre">MustAlias</span></code>
-response implies that the pointers compare equal.</p>
+response does not imply that the pointers compare equal.</p>
 </div>
 </div>
 <div class="section" id="the-getmodrefinfo-methods">
@@ -289,7 +289,7 @@ this property are side-effect free, only depending on their input arguments and
 the state of memory when they are called.  This property allows calls to these
 functions to be eliminated and moved around, as long as there is no store
 instruction that changes the contents of memory.  Note that all functions that
-satisfy the <code class="docutils literal"><span class="pre">doesNotAccessMemory</span></code> method also satisfies <code class="docutils literal"><span class="pre">onlyReadsMemory</span></code>.</p>
+satisfy the <code class="docutils literal"><span class="pre">doesNotAccessMemory</span></code> method also satisfy <code class="docutils literal"><span class="pre">onlyReadsMemory</span></code>.</p>
 </div>
 </div>
 </div>
@@ -370,8 +370,8 @@ benefit from both alias analyses).  The alias analysis class automatically
 takes care of most of this for methods that you don’t override.  For methods
 that you do override, in code paths that return a conservative MayAlias or
 Mod/Ref result, simply return whatever the superclass computes.  For example:</p>
-<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">AliasAnalysis</span><span class="o">::</span><span class="n">AliasResult</span> <span class="n">alias</span><span class="p">(</span><span class="k">const</span> <span class="n">Value</span> <span class="o">*</span><span class="n">V1</span><span class="p">,</span> <span class="kt">unsigned</span> <span class="n">V1Size</span><span class="p">,</span>
-                                 <span class="k">const</span> <span class="n">Value</span> <span class="o">*</span><span class="n">V2</span><span class="p">,</span> <span class="kt">unsigned</span> <span class="n">V2Size</span><span class="p">)</span> <span class="p">{</span>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">AliasResult</span> <span class="nf">alias</span><span class="p">(</span><span class="k">const</span> <span class="n">Value</span> <span class="o">*</span><span class="n">V1</span><span class="p">,</span> <span class="kt">unsigned</span> <span class="n">V1Size</span><span class="p">,</span>
+                  <span class="k">const</span> <span class="n">Value</span> <span class="o">*</span><span class="n">V2</span><span class="p">,</span> <span class="kt">unsigned</span> <span class="n">V2Size</span><span class="p">)</span> <span class="p">{</span>
   <span class="k">if</span> <span class="p">(...)</span>
     <span class="k">return</span> <span class="n">NoAlias</span><span class="p">;</span>
   <span class="p">...</span>
@@ -461,11 +461,10 @@ keep an AliasAnalysis consistent, however there’s no way for a pass to declare
 in its <code class="docutils literal"><span class="pre">getAnalysisUsage</span></code> that it does so. Some passes attempt to use
 <code class="docutils literal"><span class="pre">AU.addPreserved&lt;AliasAnalysis&gt;</span></code>, however this doesn’t actually have any
 effect.</p>
-<p><code class="docutils literal"><span class="pre">AliasAnalysisCounter</span></code> (<code class="docutils literal"><span class="pre">-count-aa</span></code>) and <code class="docutils literal"><span class="pre">AliasDebugger</span></code> (<code class="docutils literal"><span class="pre">-debug-aa</span></code>)
-are implemented as <code class="docutils literal"><span class="pre">ModulePass</span></code> classes, so if your alias analysis uses
-<code class="docutils literal"><span class="pre">FunctionPass</span></code>, it won’t be able to use these utilities. If you try to use
-them, the pass manager will silently route alias analysis queries directly to
-<code class="docutils literal"><span class="pre">BasicAliasAnalysis</span></code> instead.</p>
+<p><code class="docutils literal"><span class="pre">AliasAnalysisCounter</span></code> (<code class="docutils literal"><span class="pre">-count-aa</span></code>) are implemented as <code class="docutils literal"><span class="pre">ModulePass</span></code>
+classes, so if your alias analysis uses <code class="docutils literal"><span class="pre">FunctionPass</span></code>, it won’t be able to
+use these utilities. If you try to use them, the pass manager will silently
+route alias analysis queries directly to <code class="docutils literal"><span class="pre">BasicAliasAnalysis</span></code> instead.</p>
 <p>Similarly, the <code class="docutils literal"><span class="pre">opt</span> <span class="pre">-p</span></code> option introduces <code class="docutils literal"><span class="pre">ModulePass</span></code> passes between each
 pass, which prevents the use of <code class="docutils literal"><span class="pre">FunctionPass</span></code> alias analysis passes.</p>
 <p>The <code class="docutils literal"><span class="pre">AliasAnalysis</span></code> API does have functions for notifying implementations when
@@ -668,7 +667,7 @@ transformations:</p>
 there are no instructions in the loop that modifies the memory loaded.</li>
 <li>It uses mod/ref information to hoist function calls out of loops that do not
 write to memory and are loop-invariant.</li>
-<li>If uses alias information to promote memory objects that are loaded and stored
+<li>It uses alias information to promote memory objects that are loaded and stored
 to in loops to live in a register instead.  It can do this if there are no may
 aliases to the loaded/stored memory location.</li>
 </ul>
@@ -727,6 +726,12 @@ algorithm will have a lower number of may aliases).</p>
 </div>
 <div class="section" id="memory-dependence-analysis">
 <h2><a class="toc-backref" href="#id45">Memory Dependence Analysis</a><a class="headerlink" href="#memory-dependence-analysis" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">We are currently in the process of migrating things from
+<code class="docutils literal"><span class="pre">MemoryDependenceAnalysis</span></code> to <a class="reference internal" href="MemorySSA.html"><span class="doc">MemorySSA</span></a>. Please try to use
+that instead.</p>
+</div>
 <p>If you’re just looking to be a client of alias analysis information, consider
 using the Memory Dependence Analysis interface instead.  MemDep is a lazy,
 caching layer on top of alias analysis that is able to answer the question of
@@ -749,10 +754,10 @@ directly.</p>
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="BitCodeFormat.html" title="LLVM Bitcode File Format"
+          <a href="MemorySSA.html" title="MemorySSA"
              >next</a> |</li>
         <li class="right" >
-          <a href="Extensions.html" title="LLVM Extensions"
+          <a href="OptBisect.html" title="Using -opt-bisect-limit to debug optimization errors"
              >previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="index.html">Documentation</a>&raquo;</li>
@@ -760,8 +765,8 @@ directly.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

@@ -47,7 +47,7 @@ public:
   static char ID;
   explicit GenXAnalysisDumper(FunctionPass *P, const char *Suffix)
     : FunctionPass(ID), P(P), Suffix(Suffix) { }
-  virtual const char *getPassName() const { return "GenX analysis dumper pass"; }
+  virtual StringRef getPassName() const { return "GenX analysis dumper pass"; }
   void getAnalysisUsage(AnalysisUsage &AU) const {
     FunctionPass::getAnalysisUsage(AU);
     AU.setPreservesAll();
@@ -63,7 +63,7 @@ public:
   static char ID;
   explicit GenXGroupAnalysisDumper(FunctionGroupPass *P, const char *Suffix)
     : FunctionGroupPass(ID), P(P), Suffix(Suffix) { }
-  virtual const char *getPassName() const { return "GenX analysis dumper pass"; }
+  virtual StringRef getPassName() const { return "GenX analysis dumper pass"; }
   void getAnalysisUsage(AnalysisUsage &AU) const {
     FunctionGroupPass::getAnalysisUsage(AU);
     AU.setPreservesAll();

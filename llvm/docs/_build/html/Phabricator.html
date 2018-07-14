@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Code Reviews with Phabricator &#8212; LLVM 3.4 documentation</title>
+    <title>Code Reviews with Phabricator &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -73,8 +73,13 @@
 <li><a class="reference internal" href="#requesting-a-review-via-the-command-line" id="id2">Requesting a review via the command line</a></li>
 <li><a class="reference internal" href="#requesting-a-review-via-the-web-interface" id="id3">Requesting a review via the web interface</a></li>
 <li><a class="reference internal" href="#reviewing-code-with-phabricator" id="id4">Reviewing code with Phabricator</a></li>
-<li><a class="reference internal" href="#committing-a-change" id="id5">Committing a change</a></li>
-<li><a class="reference internal" href="#status" id="id6">Status</a></li>
+<li><a class="reference internal" href="#committing-a-change" id="id5">Committing a change</a><ul>
+<li><a class="reference internal" href="#subversion-and-arcanist" id="id6">Subversion and Arcanist</a></li>
+<li><a class="reference internal" href="#git-svn-and-arcanist" id="id7">git-svn and Arcanist</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#abandoning-a-change" id="id8">Abandoning a change</a></li>
+<li><a class="reference internal" href="#status" id="id9">Status</a></li>
 </ul>
 </div>
 <p>If you prefer to use a web user interface for code reviews, you can now submit
@@ -89,7 +94,7 @@ to respond to free-form comments in mail sent to the commits list.</p>
 click the power icon in the top right. You can register with a GitHub account,
 a Google account, or you can create your own profile.</p>
 <p>Make <em>sure</em> that the email address registered with Phabricator is subscribed
-to the relevant -commits mailing list. If your are not subscribed to the commit
+to the relevant -commits mailing list. If you are not subscribed to the commit
 list, all mail sent by Phabricator on your behalf will be held for moderation.</p>
 <p>Note that if you use your Subversion user name as Phabricator user name,
 Phabricator will automatically connect your submits to your Phabricator user in
@@ -99,9 +104,9 @@ the <a class="reference external" href="http://reviews.llvm.org/diffusion/">Code
 <h2><a class="toc-backref" href="#id2">Requesting a review via the command line</a><a class="headerlink" href="#requesting-a-review-via-the-command-line" title="Permalink to this headline">¶</a></h2>
 <p>Phabricator has a tool called <em>Arcanist</em> to upload patches from
 the command line. To get you set up, follow the
-<a class="reference external" href="http://www.phabricator.com/docs/phabricator/article/Arcanist_Quick_Start.html">Arcanist Quick Start</a> instructions.</p>
+<a class="reference external" href="https://secure.phabricator.com/book/phabricator/article/arcanist_quick_start/">Arcanist Quick Start</a> instructions.</p>
 <p>You can learn more about how to use arc to interact with
-Phabricator in the <a class="reference external" href="http://www.phabricator.com/docs/phabricator/article/Arcanist_User_Guide.html">Arcanist User Guide</a>.</p>
+Phabricator in the <a class="reference external" href="https://secure.phabricator.com/book/phabricator/article/arcanist/">Arcanist User Guide</a>.</p>
 </div>
 <div class="section" id="requesting-a-review-via-the-web-interface">
 <h2><a class="toc-backref" href="#id3">Requesting a review via the web interface</a><a class="headerlink" href="#requesting-a-review-via-the-web-interface" title="Permalink to this headline">¶</a></h2>
@@ -116,37 +121,62 @@ reviewer understand your code.</p>
 <p>To get a full diff, use one of the following commands (or just use Arcanist
 to upload your patch):</p>
 <ul class="simple">
-<li><code class="docutils literal"><span class="pre">git</span> <span class="pre">diff</span> <span class="pre">-U999999</span> <span class="pre">other-branch</span></code></li>
+<li><code class="docutils literal"><span class="pre">git</span> <span class="pre">show</span> <span class="pre">HEAD</span> <span class="pre">-U999999</span> <span class="pre">&gt;</span> <span class="pre">mypatch.patch</span></code></li>
+<li><code class="docutils literal"><span class="pre">git</span> <span class="pre">format-patch</span> <span class="pre">-U999999</span> <span class="pre">&#64;{u}</span></code></li>
 <li><code class="docutils literal"><span class="pre">svn</span> <span class="pre">diff</span> <span class="pre">--diff-cmd=diff</span> <span class="pre">-x</span> <span class="pre">-U999999</span></code></li>
 </ul>
 <p>To upload a new patch:</p>
 <ul class="simple">
 <li>Click <em>Differential</em>.</li>
-<li>Click <em>Create Diff</em>.</li>
-<li>Paste the text diff or upload the patch file.
-Note that TODO</li>
+<li>Click <em>+ Create Diff</em>.</li>
+<li>Paste the text diff or browse to the patch file. Click <em>Create Diff</em>.</li>
+<li>Leave the Repository field blank.</li>
 <li>Leave the drop down on <em>Create a new Revision…</em> and click <em>Continue</em>.</li>
-<li>Enter a descriptive title and summary; add reviewers and mailing
+<li>Enter a descriptive title and summary.  The title and summary are usually
+in the form of a <a class="reference internal" href="DeveloperPolicy.html#commit-messages"><span class="std std-ref">commit message</span></a>.</li>
+<li>Add reviewers (see below for advice) and subscribe mailing
 lists that you want to be included in the review. If your patch is
-for LLVM, cc llvm-commits; if your patch is for Clang, cc cfe-commits.</li>
+for LLVM, add llvm-commits as a Subscriber; if your patch is for Clang,
+add cfe-commits.</li>
+<li>Leave the Repository and Project fields blank.</li>
 <li>Click <em>Save</em>.</li>
 </ul>
 <p>To submit an updated patch:</p>
 <ul class="simple">
 <li>Click <em>Differential</em>.</li>
-<li>Click <em>Create Diff</em>.</li>
-<li>Paste the updated diff.</li>
+<li>Click <em>+ Create Diff</em>.</li>
+<li>Paste the updated diff or browse to the updated patch file. Click <em>Create Diff</em>.</li>
 <li>Select the review you want to from the <em>Attach To</em> dropdown and click
 <em>Continue</em>.</li>
-<li>Click <em>Save</em>.</li>
+<li>Leave the Repository and Project fields blank.</li>
+<li>Add comments about the changes in the new diff. Click <em>Save</em>.</li>
 </ul>
+<p>Choosing reviewers: You typically pick one or two people as initial reviewers.
+This choice is not crucial, because you are merely suggesting and not requiring
+them to participate. Many people will see the email notification on cfe-commits
+or llvm-commits, and if the subject line suggests the patch is something they
+should look at, they will.</p>
+<p>Here are a couple of ways to pick the initial reviewer(s):</p>
+<ul class="simple">
+<li>Use <code class="docutils literal"><span class="pre">svn</span> <span class="pre">blame</span></code> and the commit log to find names of people who have
+recently modified the same area of code that you are modifying.</li>
+<li>Look in CODE_OWNERS.TXT to see who might be responsible for that area.</li>
+<li>If you’ve discussed the change on a dev list, the people who participated
+might be appropriate reviewers.</li>
+</ul>
+<p>Even if you think the code owner is the busiest person in the world, it’s still
+okay to put them as a reviewer. Being the code owner means they have accepted
+responsibility for making sure the review happens.</p>
 </div>
 <div class="section" id="reviewing-code-with-phabricator">
 <h2><a class="toc-backref" href="#id4">Reviewing code with Phabricator</a><a class="headerlink" href="#reviewing-code-with-phabricator" title="Permalink to this headline">¶</a></h2>
 <p>Phabricator allows you to add inline comments as well as overall comments
 to a revision. To add an inline comment, select the lines of code you want
-to comment on by clicking and dragging the line numbers in the diff pane.</p>
-<p>You can add overall comments or submit your comments at the bottom of the page.</p>
+to comment on by clicking and dragging the line numbers in the diff pane.
+When you have added all your comments, scroll to the bottom of the page and
+click the Submit button.</p>
+<p>You can add overall comments in the text box at the bottom of the page.
+When you’re done, click the Submit button.</p>
 <p>Phabricator has many useful features, for example allowing you to select
 diffs between different versions of the patch as it was reviewed in the
 <em>Revision Update History</em>. Most features are self descriptive - explore, and
@@ -159,28 +189,88 @@ a change from Phabricator.</p>
 </div>
 <div class="section" id="committing-a-change">
 <h2><a class="toc-backref" href="#id5">Committing a change</a><a class="headerlink" href="#committing-a-change" title="Permalink to this headline">¶</a></h2>
-<p>Arcanist can manage the commit transparently. It will retrieve the description,
-reviewers, the <code class="docutils literal"><span class="pre">Differential</span> <span class="pre">Revision</span></code>, etc from the review and commit it to the repository.</p>
-<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">arc</span> <span class="n">patch</span> <span class="n">D</span><span class="o">&lt;</span><span class="n">Revision</span><span class="o">&gt;</span>
-<span class="n">arc</span> <span class="n">commit</span> <span class="o">--</span><span class="n">revision</span> <span class="n">D</span><span class="o">&lt;</span><span class="n">Revision</span><span class="o">&gt;</span>
-</pre></div>
-</div>
-<p>When committing an LLVM change that has been reviewed using
-Phabricator, the convention is for the commit message to end with the
-line:</p>
+<p>Once a patch has been reviewed and approved on Phabricator it can then be
+committed to trunk. If you do not have commit access, someone has to
+commit the change for you (with attribution). It is sufficient to add
+a comment to the approved review indicating you cannot commit the patch
+yourself. If you have commit access, there are multiple workflows to commit the
+change. Whichever method you follow it is recommended that your commit message
+ends with the line:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">Differential</span> <span class="n">Revision</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">URL</span><span class="o">&gt;</span>
 </pre></div>
 </div>
 <p>where <code class="docutils literal"><span class="pre">&lt;URL&gt;</span></code> is the URL for the code review, starting with
 <code class="docutils literal"><span class="pre">http://reviews.llvm.org/</span></code>.</p>
-<p>Note that Arcanist will add this automatically.</p>
 <p>This allows people reading the version history to see the review for
-context.  This also allows Phabricator to detect the commit, close the
+context. This also allows Phabricator to detect the commit, close the
 review, and add a link from the review to the commit.</p>
+<p>Note that if you use the Arcanist tool the <code class="docutils literal"><span class="pre">Differential</span> <span class="pre">Revision</span></code> line will
+be added automatically. If you don’t want to use Arcanist, you can add the
+<code class="docutils literal"><span class="pre">Differential</span> <span class="pre">Revision</span></code> line (as the last line) to the commit message
+yourself.</p>
+<p>Using the Arcanist tool can simplify the process of committing reviewed code
+as it will retrieve reviewers, the <code class="docutils literal"><span class="pre">Differential</span> <span class="pre">Revision</span></code>, etc from the review
+and place it in the commit message. Several methods of using Arcanist to commit
+code are given below. If you do not wish to use Arcanist then simply commit
+the reviewed patch as you would normally.</p>
+<p>Note that if you commit the change without using Arcanist and forget to add the
+<code class="docutils literal"><span class="pre">Differential</span> <span class="pre">Revision</span></code> line to your commit message then it is recommended
+that you close the review manually. In the web UI, under “Leap Into Action” put
+the SVN revision number in the Comment, set the Action to “Close Revision” and
+click Submit.  Note the review must have been Accepted first.</p>
+<div class="section" id="subversion-and-arcanist">
+<h3><a class="toc-backref" href="#id6">Subversion and Arcanist</a><a class="headerlink" href="#subversion-and-arcanist" title="Permalink to this headline">¶</a></h3>
+<p>On a clean Subversion working copy run the following (where <code class="docutils literal"><span class="pre">&lt;Revision&gt;</span></code> is
+the Phabricator review number):</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">arc</span> <span class="n">patch</span> <span class="n">D</span><span class="o">&lt;</span><span class="n">Revision</span><span class="o">&gt;</span>
+<span class="n">arc</span> <span class="n">commit</span> <span class="o">--</span><span class="n">revision</span> <span class="n">D</span><span class="o">&lt;</span><span class="n">Revision</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>The first command will take the latest version of the reviewed patch and apply it to the working
+copy. The second command will commit this revision to trunk.</p>
+</div>
+<div class="section" id="git-svn-and-arcanist">
+<h3><a class="toc-backref" href="#id7">git-svn and Arcanist</a><a class="headerlink" href="#git-svn-and-arcanist" title="Permalink to this headline">¶</a></h3>
+<p>This presumes that the git repository has been configured as described in <a class="reference internal" href="GettingStarted.html#developers-work-with-git-svn"><span class="std std-ref">For developers to work with git-svn</span></a>.</p>
+<p>On a clean Git repository on an up to date <code class="docutils literal"><span class="pre">master</span></code> branch run the
+following (where <code class="docutils literal"><span class="pre">&lt;Revision&gt;</span></code> is the Phabricator review number):</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">arc</span> <span class="n">patch</span> <span class="n">D</span><span class="o">&lt;</span><span class="n">Revision</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>This will create a new branch called <code class="docutils literal"><span class="pre">arcpatch-D&lt;Revision&gt;</span></code> based on the
+current <code class="docutils literal"><span class="pre">master</span></code> and will create a commit corresponding to <code class="docutils literal"><span class="pre">D&lt;Revision&gt;</span></code> with a
+commit message derived from information in the Phabricator review.</p>
+<p>Check you are happy with the commit message and amend it if necessary. Now switch to
+the <code class="docutils literal"><span class="pre">master</span></code> branch and add the new commit to it and commit it to trunk. This
+can be done by running the following:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">checkout</span> <span class="n">master</span>
+<span class="n">git</span> <span class="n">merge</span> <span class="o">--</span><span class="n">ff</span><span class="o">-</span><span class="n">only</span> <span class="n">arcpatch</span><span class="o">-</span><span class="n">D</span><span class="o">&lt;</span><span class="n">Revision</span><span class="o">&gt;</span>
+<span class="n">git</span> <span class="n">svn</span> <span class="n">dcommit</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="abandoning-a-change">
+<h2><a class="toc-backref" href="#id8">Abandoning a change</a><a class="headerlink" href="#abandoning-a-change" title="Permalink to this headline">¶</a></h2>
+<p>If you decide you should not commit the patch, you should explicitly abandon
+the review so that reviewers don’t think it is still open. In the web UI,
+scroll to the bottom of the page where normally you would enter an overall
+comment. In the drop-down Action list, which defaults to “Comment,” you should
+select “Abandon Revision” and then enter a comment explaining why. Click the
+Submit button to finish closing the review.</p>
 </div>
 <div class="section" id="status">
-<h2><a class="toc-backref" href="#id6">Status</a><a class="headerlink" href="#status" title="Permalink to this headline">¶</a></h2>
-<p>Please let us know whether you like it and what could be improved!</p>
+<h2><a class="toc-backref" href="#id9">Status</a><a class="headerlink" href="#status" title="Permalink to this headline">¶</a></h2>
+<p>Please let us know whether you like it and what could be improved! We’re still
+working on setting up a bug tracker, but you can email klimek-at-google-dot-com
+and chandlerc-at-gmail-dot-com and CC the llvm-dev mailing list with questions
+until then. We also could use help implementing improvements. This sadly is
+really painful and hard because the Phabricator codebase is in PHP and not as
+testable as you might like. However, we’ve put exactly what we’re deploying up
+on an <a class="reference external" href="https://github.com/r4nt/llvm-reviews/">llvm-reviews GitHub project</a> where folks can hack on it and post pull
+requests. We’re looking into what the right long-term hosting for this is, but
+note that it is a derivative of an existing open source project, and so not
+trivially a good fit for an official LLVM project.</p>
 </div>
 </div>
 
@@ -207,8 +297,8 @@ review, and add a link from the review to the commit.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

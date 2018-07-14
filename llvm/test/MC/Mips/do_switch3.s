@@ -2,7 +2,7 @@
 // produced. This was not handled for direct object and an assertion
 // to occur. This is a variation on test case test/CodeGen/Mips/do_switch.ll
 
-// RUN: llvm-mc < %s -filetype=obj -triple=mips64-pc-linux -relocation-model=pic -mcpu=mips64 -mattr=n64
+// RUN: llvm-mc < %s -filetype=obj -triple=mips64-pc-linux -mcpu=mips64 -target-abi=n64
 
 	.text
 	.abicalls
@@ -21,7 +21,7 @@ main:                                   # @main
 	.set	noreorder
 	.set	nomacro
 	.set	noat
-# BB#0:                                 # %entry
+# %bb.0:                                # %entry
 	daddiu	$sp, $sp, -16
 	lui	$1, %hi(%neg(%gp_rel(main)))
 	daddu	$2, $1, $25

@@ -20,7 +20,7 @@ _GENX_MAIN_ void foo(SurfaceIndex S)
 //
 // ASM: and
 // ASM-SAME: r0.5<0;1,0>:ud
-// ASM-SAME: 0x3FF:ud
+// ASM-SAME: 0x3ff:ud
 
 // tidy up the generated files
 // RUN: rm %W_0.dat %W_0.visaasm %W_0.asm %W.isa

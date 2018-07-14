@@ -52,34 +52,34 @@ void test() {
   v.genx_select<1>() = 7;                                  // deprecated
 
 }
-// CHECK: genx_select.cpp(16,40) :  error: expected '<'
-// CHECK: genx_select.cpp(17,41) :  error: expected expression
-// CHECK: genx_select.cpp(18,42) :  error: expected '>'
-// CHECK: genx_select.cpp(19,46) :  error: expected '>'
-// CHECK: genx_select.cpp(20,48) :  error: expected '>'
-// CHECK: genx_select.cpp(21,48) :  error: called object type 'int' is not a function or function pointer
-// CHECK: genx_select.cpp(22,49) :  error: expected '('
-// CHECK: genx_select.cpp(23,50) :  error: expected expression
-// CHECK: genx_select.cpp(24,29) :  error: genx_select() is deprecated - use replicate()
-// CHECK: genx_select.cpp(25,30) :  error: genx_select() is deprecated - use replicate()
-// CHECK: genx_select.cpp(26,30) :  error: genx_select() is deprecated - use replicate()
-// CHECK: genx_select.cpp(27,41) :  error: expected '<'
-// CHECK: genx_select.cpp(29,41) :  error: expected '<'
-// CHECK: genx_select.cpp(30,42) :  error: expected expression
-// CHECK: genx_select.cpp(31,49) :  error: expected '>'
-// CHECK: genx_select.cpp(32,43) :  error: expected '>'
-// CHECK: genx_select.cpp(33,45) :  error: expected '>'
-// CHECK: genx_select.cpp(34,45) :  error: called object type 'int' is not a function or function pointer
-// CHECK: genx_select.cpp(35,46) :  error: expected '('
-// CHECK: genx_select.cpp(36,47) :  error: expected expression
-// CHECK: genx_select.cpp(37,30) :  error: genx_select() is deprecated - use replicate()
-// CHECK: genx_select.cpp(38,30) :  error: genx_select() is deprecated - use replicate()
-// CHECK: genx_select.cpp(39,30) :  error: genx_select() is deprecated - use replicate()
-// CHECK: genx_select.cpp(40,41) :  error: expected '<'
-// CHECK: genx_select.cpp(42,16) :  error: no member named 'genx_select' in 'S1'
-// CHECK: genx_select.cpp(43,16) :  error: no member named 'genx_select' in 'S1'
-// CHECK: genx_select.cpp(44,16) :  error: no member named 'genx_select' in 'S1'
-// CHECL: genx_select.cpp(45,25) :  error: 'genx_select' following the 'template' keyword does not refer to a template
-// CHECK: genx_select.cpp(47,27) :  error: called object type 'int' is not a function or function pointer
-// CHECK: genx_select.cpp(49,25) :  error: 'genx_select' following the 'template' keyword does not refer to a template
+// CHECK: genx_select.cpp(16,40):  error: expected '<'
+// CHECK: genx_select.cpp(17,41):  error: expected expression
+// CHECK: genx_select.cpp(18,42):  error: expected '>'
+// CHECK: genx_select.cpp(19,46):  error: expected '>'
+// CHECK: genx_select.cpp(20,48):  error: expected '>'
+// CHECK: genx_select.cpp(21,48):  error: called object type 'int' is not a function or function pointer
+// CHECK: genx_select.cpp(22,49):  error: expected '('
+// CHECK: genx_select.cpp(23,50):  error: expected expression
+// CHECK: genx_select.cpp(24,29):  error: genx_select() is deprecated - use replicate()
+// CHECK: genx_select.cpp(25,30):  error: genx_select() is deprecated - use replicate()
+// CHECK: genx_select.cpp(26,30):  error: genx_select() is deprecated - use replicate()
+// CHECK: genx_select.cpp(27,41):  error: expected '<'
+// CHECK: genx_select.cpp(29,41):  error: expected '<'
+// CHECK: genx_select.cpp(30,42):  error: expected expression
+// CHECK: genx_select.cpp(31,49):  error: expected '>'
+// CHECK: genx_select.cpp(32,43):  error: expected '>'
+// CHECK: genx_select.cpp(33,45):  error: expected '>'
+// CHECK: genx_select.cpp(34,45):  error: called object type 'int' is not a function or function pointer
+// CHECK: genx_select.cpp(35,46):  error: expected '('
+// CHECK: genx_select.cpp(36,47):  error: expected expression
+// CHECK: genx_select.cpp(37,30):  error: genx_select() is deprecated - use replicate()
+// CHECK: genx_select.cpp(38,30):  error: genx_select() is deprecated - use replicate()
+// CHECK: genx_select.cpp(39,30):  error: genx_select() is deprecated - use replicate()
+// CHECK: genx_select.cpp(40,41):  error: expected '<'
+// CHECK: genx_select.cpp(42,16):  error: no member named 'genx_select' in 'S1'
+// CHECK: genx_select.cpp(43,16):  error: no member named 'genx_select' in 'S1'
+// CHECK: genx_select.cpp(44,16):  error: no member named 'genx_select' in 'S1'
+// CHECL: genx_select.cpp(45,25):  error: 'genx_select' following the 'template' keyword does not refer to a template
+// CHECK: genx_select.cpp(47,27):  error: called object type 'int' is not a function or function pointer
+// CHECK: genx_select.cpp(49,25):  error: 'genx_select' following the 'template' keyword does not refer to a template
 // CHECK: 32 errors generated.

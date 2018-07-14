@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=x86 | FileCheck %s
+; RUN: llc < %s -mtriple=i686-- | FileCheck %s
 
 ; Don't duplicate the load.
 
@@ -6,7 +6,7 @@ define fastcc i32 @foo(i32* %p) nounwind {
 ; CHECK-LABEL: foo:
 ; CHECK: andl $10, %eax
 ; CHECK: je
-	%t0 = load i32* %p
+	%t0 = load i32, i32* %p
 	%t2 = and i32 %t0, 10
 	%t3 = icmp ne i32 %t2, 0
 	br i1 %t3, label %bb63, label %bb76

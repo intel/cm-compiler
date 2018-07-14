@@ -1,0 +1,556 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>2. Building a JIT: Adding Optimizations – An introduction to ORC Layers &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="3. Building a JIT: Per-function Lazy Compilation" href="BuildingAJIT3.html" />
+    <link rel="prev" title="1. Building a JIT: Starting out with KaleidoscopeJIT" href="BuildingAJIT1.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="BuildingAJIT3.html" title="3. Building a JIT: Per-function Lazy Compilation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="BuildingAJIT1.html" title="1. Building a JIT: Starting out with KaleidoscopeJIT"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Tutorial: Table of Contents</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="building-a-jit-adding-optimizations-an-introduction-to-orc-layers">
+<h1>2. Building a JIT: Adding Optimizations – An introduction to ORC Layers<a class="headerlink" href="#building-a-jit-adding-optimizations-an-introduction-to-orc-layers" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#chapter-2-introduction" id="id4">Chapter 2 Introduction</a></li>
+<li><a class="reference internal" href="#optimizing-modules-using-the-irtransformlayer" id="id5">Optimizing Modules using the IRTransformLayer</a></li>
+<li><a class="reference internal" href="#full-code-listing" id="id6">Full Code Listing</a></li>
+</ul>
+</div>
+<p><strong>This tutorial is under active development. It is incomplete and details may
+change frequently.</strong> Nonetheless we invite you to try it out as it stands, and
+we welcome any feedback.</p>
+<div class="section" id="chapter-2-introduction">
+<h2><a class="toc-backref" href="#id4">2.1. Chapter 2 Introduction</a><a class="headerlink" href="#chapter-2-introduction" title="Permalink to this headline">¶</a></h2>
+<p>Welcome to Chapter 2 of the “Building an ORC-based JIT in LLVM” tutorial. In
+<a class="reference external" href="BuildingAJIT1.html">Chapter 1</a> of this series we examined a basic JIT
+class, KaleidoscopeJIT, that could take LLVM IR modules as input and produce
+executable code in memory. KaleidoscopeJIT was able to do this with relatively
+little code by composing two off-the-shelf <em>ORC layers</em>: IRCompileLayer and
+ObjectLinkingLayer, to do much of the heavy lifting.</p>
+<p>In this layer we’ll learn more about the ORC layer concept by using a new layer,
+IRTransformLayer, to add IR optimization support to KaleidoscopeJIT.</p>
+</div>
+<div class="section" id="optimizing-modules-using-the-irtransformlayer">
+<h2><a class="toc-backref" href="#id5">2.2. Optimizing Modules using the IRTransformLayer</a><a class="headerlink" href="#optimizing-modules-using-the-irtransformlayer" title="Permalink to this headline">¶</a></h2>
+<p>In <a class="reference external" href="LangImpl04.html">Chapter 4</a> of the “Implementing a language with LLVM”
+tutorial series the llvm <em>FunctionPassManager</em> is introduced as a means for
+optimizing LLVM IR. Interested readers may read that chapter for details, but
+in short: to optimize a Module we create an llvm::FunctionPassManager
+instance, configure it with a set of optimizations, then run the PassManager on
+a Module to mutate it into a (hopefully) more optimized but semantically
+equivalent form. In the original tutorial series the FunctionPassManager was
+created outside the KaleidoscopeJIT and modules were optimized before being
+added to it. In this Chapter we will make optimization a phase of our JIT
+instead. For now this will provide us a motivation to learn more about ORC
+layers, but in the long term making optimization part of our JIT will yield an
+important benefit: When we begin lazily compiling code (i.e. deferring
+compilation of each function until the first time it’s run), having
+optimization managed by our JIT will allow us to optimize lazily too, rather
+than having to do all our optimization up-front.</p>
+<p>To add optimization support to our JIT we will take the KaleidoscopeJIT from
+Chapter 1 and compose an ORC <em>IRTransformLayer</em> on top. We will look at how the
+IRTransformLayer works in more detail below, but the interface is simple: the
+constructor for this layer takes a reference to the layer below (as all layers
+do) plus an <em>IR optimization function</em> that it will apply to each Module that
+is added via addModule:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">KaleidoscopeJIT</span> <span class="p">{</span>
+<span class="k">private</span><span class="o">:</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">TargetMachine</span><span class="o">&gt;</span> <span class="n">TM</span><span class="p">;</span>
+  <span class="k">const</span> <span class="n">DataLayout</span> <span class="n">DL</span><span class="p">;</span>
+  <span class="n">RTDyldObjectLinkingLayer</span><span class="o">&lt;&gt;</span> <span class="n">ObjectLayer</span><span class="p">;</span>
+  <span class="n">IRCompileLayer</span><span class="o">&lt;</span><span class="k">decltype</span><span class="p">(</span><span class="n">ObjectLayer</span><span class="p">)</span><span class="o">&gt;</span> <span class="n">CompileLayer</span><span class="p">;</span>
+
+  <span class="k">using</span> <span class="n">OptimizeFunction</span> <span class="o">=</span>
+      <span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span><span class="p">)</span><span class="o">&gt;</span><span class="p">;</span>
+
+  <span class="n">IRTransformLayer</span><span class="o">&lt;</span><span class="k">decltype</span><span class="p">(</span><span class="n">CompileLayer</span><span class="p">),</span> <span class="n">OptimizeFunction</span><span class="o">&gt;</span> <span class="n">OptimizeLayer</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+  <span class="k">using</span> <span class="n">ModuleHandle</span> <span class="o">=</span> <span class="k">decltype</span><span class="p">(</span><span class="n">OptimizeLayer</span><span class="p">)</span><span class="o">::</span><span class="n">ModuleHandleT</span><span class="p">;</span>
+
+  <span class="n">KaleidoscopeJIT</span><span class="p">()</span>
+      <span class="o">:</span> <span class="n">TM</span><span class="p">(</span><span class="n">EngineBuilder</span><span class="p">().</span><span class="n">selectTarget</span><span class="p">()),</span> <span class="n">DL</span><span class="p">(</span><span class="n">TM</span><span class="o">-&gt;</span><span class="n">createDataLayout</span><span class="p">()),</span>
+        <span class="n">ObjectLayer</span><span class="p">([]()</span> <span class="p">{</span> <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">SectionMemoryManager</span><span class="o">&gt;</span><span class="p">();</span> <span class="p">}),</span>
+        <span class="n">CompileLayer</span><span class="p">(</span><span class="n">ObjectLayer</span><span class="p">,</span> <span class="n">SimpleCompiler</span><span class="p">(</span><span class="o">*</span><span class="n">TM</span><span class="p">)),</span>
+        <span class="n">OptimizeLayer</span><span class="p">(</span><span class="n">CompileLayer</span><span class="p">,</span>
+                      <span class="p">[</span><span class="k">this</span><span class="p">](</span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">M</span><span class="p">)</span> <span class="p">{</span>
+                        <span class="k">return</span> <span class="n">optimizeModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">M</span><span class="p">));</span>
+                      <span class="p">})</span> <span class="p">{</span>
+    <span class="n">llvm</span><span class="o">::</span><span class="n">sys</span><span class="o">::</span><span class="n">DynamicLibrary</span><span class="o">::</span><span class="n">LoadLibraryPermanently</span><span class="p">(</span><span class="k">nullptr</span><span class="p">);</span>
+  <span class="p">}</span>
+</pre></div>
+</div>
+<p>Our extended KaleidoscopeJIT class starts out the same as it did in Chapter 1,
+but after the CompileLayer we introduce a typedef for our optimization function.
+In this case we use a std::function (a handy wrapper for “function-like” things)
+from a single unique_ptr&lt;Module&gt; input to a std::unique_ptr&lt;Module&gt; output. With
+our optimization function typedef in place we can declare our OptimizeLayer,
+which sits on top of our CompileLayer.</p>
+<p>To initialize our OptimizeLayer we pass it a reference to the CompileLayer
+below (standard practice for layers), and we initialize the OptimizeFunction
+using a lambda that calls out to an “optimizeModule” function that we will
+define below.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// ...</span>
+<span class="k">auto</span> <span class="n">Resolver</span> <span class="o">=</span> <span class="n">createLambdaResolver</span><span class="p">(</span>
+    <span class="p">[</span><span class="o">&amp;</span><span class="p">](</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">Sym</span> <span class="o">=</span> <span class="n">OptimizeLayer</span><span class="p">.</span><span class="n">findSymbol</span><span class="p">(</span><span class="n">Name</span><span class="p">,</span> <span class="nb">false</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">Sym</span><span class="p">;</span>
+      <span class="k">return</span> <span class="nf">JITSymbol</span><span class="p">(</span><span class="k">nullptr</span><span class="p">);</span>
+    <span class="p">},</span>
+<span class="c1">// ...</span>
+</pre></div>
+</div>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// ...</span>
+<span class="k">return</span> <span class="nf">cantFail</span><span class="p">(</span><span class="n">OptimizeLayer</span><span class="p">.</span><span class="n">addModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">M</span><span class="p">),</span>
+                                        <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Resolver</span><span class="p">)));</span>
+<span class="c1">// ...</span>
+</pre></div>
+</div>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// ...</span>
+<span class="k">return</span> <span class="n">OptimizeLayer</span><span class="p">.</span><span class="n">findSymbol</span><span class="p">(</span><span class="n">MangledNameStream</span><span class="p">.</span><span class="n">str</span><span class="p">(),</span> <span class="nb">true</span><span class="p">);</span>
+<span class="c1">// ...</span>
+</pre></div>
+</div>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// ...</span>
+<span class="n">cantFail</span><span class="p">(</span><span class="n">OptimizeLayer</span><span class="p">.</span><span class="n">removeModule</span><span class="p">(</span><span class="n">H</span><span class="p">));</span>
+<span class="c1">// ...</span>
+</pre></div>
+</div>
+<p>Next we need to replace references to ‘CompileLayer’ with references to
+OptimizeLayer in our key methods: addModule, findSymbol, and removeModule. In
+addModule we need to be careful to replace both references: the findSymbol call
+inside our resolver, and the call through to addModule.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">optimizeModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">M</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Create a function pass manager.</span>
+  <span class="k">auto</span> <span class="n">FPM</span> <span class="o">=</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">legacy</span><span class="o">::</span><span class="n">FunctionPassManager</span><span class="o">&gt;</span><span class="p">(</span><span class="n">M</span><span class="p">.</span><span class="n">get</span><span class="p">());</span>
+
+  <span class="c1">// Add some optimizations.</span>
+  <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createInstructionCombiningPass</span><span class="p">());</span>
+  <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createReassociatePass</span><span class="p">());</span>
+  <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createGVNPass</span><span class="p">());</span>
+  <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createCFGSimplificationPass</span><span class="p">());</span>
+  <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">doInitialization</span><span class="p">();</span>
+
+  <span class="c1">// Run the optimizations over all functions in the module being added to</span>
+  <span class="c1">// the JIT.</span>
+  <span class="k">for</span> <span class="p">(</span><span class="k">auto</span> <span class="o">&amp;</span><span class="nl">F</span> <span class="p">:</span> <span class="o">*</span><span class="n">M</span><span class="p">)</span>
+    <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">run</span><span class="p">(</span><span class="n">F</span><span class="p">);</span>
+
+  <span class="k">return</span> <span class="n">M</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>At the bottom of our JIT we add a private method to do the actual optimization:
+<em>optimizeModule</em>. This function sets up a FunctionPassManager, adds some passes
+to it, runs it over every function in the module, and then returns the mutated
+module. The specific optimizations are the same ones used in
+<a class="reference external" href="LangImpl04.html">Chapter 4</a> of the “Implementing a language with LLVM”
+tutorial series. Readers may visit that chapter for a more in-depth
+discussion of these, and of IR optimization in general.</p>
+<p>And that’s it in terms of changes to KaleidoscopeJIT: When a module is added via
+addModule the OptimizeLayer will call our optimizeModule function before passing
+the transformed module on to the CompileLayer below. Of course, we could have
+called optimizeModule directly in our addModule function and not gone to the
+bother of using the IRTransformLayer, but doing so gives us another opportunity
+to see how layers compose. It also provides a neat entry point to the <em>layer</em>
+concept itself, because IRTransformLayer turns out to be one of the simplest
+implementations of the layer concept that can be devised:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">BaseLayerT</span><span class="p">,</span> <span class="k">typename</span> <span class="n">TransformFtor</span><span class="o">&gt;</span>
+<span class="k">class</span> <span class="nc">IRTransformLayer</span> <span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+  <span class="k">using</span> <span class="n">ModuleHandleT</span> <span class="o">=</span> <span class="k">typename</span> <span class="n">BaseLayerT</span><span class="o">::</span><span class="n">ModuleHandleT</span><span class="p">;</span>
+
+  <span class="n">IRTransformLayer</span><span class="p">(</span><span class="n">BaseLayerT</span> <span class="o">&amp;</span><span class="n">BaseLayer</span><span class="p">,</span>
+                   <span class="n">TransformFtor</span> <span class="n">Transform</span> <span class="o">=</span> <span class="n">TransformFtor</span><span class="p">())</span>
+    <span class="o">:</span> <span class="n">BaseLayer</span><span class="p">(</span><span class="n">BaseLayer</span><span class="p">),</span> <span class="n">Transform</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Transform</span><span class="p">))</span> <span class="p">{}</span>
+
+  <span class="n">Expected</span><span class="o">&lt;</span><span class="n">ModuleHandleT</span><span class="o">&gt;</span>
+  <span class="n">addModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">M</span><span class="p">,</span>
+            <span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">JITSymbolResolver</span><span class="o">&gt;</span> <span class="n">Resolver</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">BaseLayer</span><span class="p">.</span><span class="n">addModule</span><span class="p">(</span><span class="n">Transform</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">M</span><span class="p">)),</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Resolver</span><span class="p">));</span>
+  <span class="p">}</span>
+
+  <span class="kt">void</span> <span class="n">removeModule</span><span class="p">(</span><span class="n">ModuleHandleT</span> <span class="n">H</span><span class="p">)</span> <span class="p">{</span> <span class="n">BaseLayer</span><span class="p">.</span><span class="n">removeModule</span><span class="p">(</span><span class="n">H</span><span class="p">);</span> <span class="p">}</span>
+
+  <span class="n">JITSymbol</span> <span class="n">findSymbol</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Name</span><span class="p">,</span> <span class="kt">bool</span> <span class="n">ExportedSymbolsOnly</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">BaseLayer</span><span class="p">.</span><span class="n">findSymbol</span><span class="p">(</span><span class="n">Name</span><span class="p">,</span> <span class="n">ExportedSymbolsOnly</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="n">JITSymbol</span> <span class="n">findSymbolIn</span><span class="p">(</span><span class="n">ModuleHandleT</span> <span class="n">H</span><span class="p">,</span> <span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Name</span><span class="p">,</span>
+                         <span class="kt">bool</span> <span class="n">ExportedSymbolsOnly</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">BaseLayer</span><span class="p">.</span><span class="n">findSymbolIn</span><span class="p">(</span><span class="n">H</span><span class="p">,</span> <span class="n">Name</span><span class="p">,</span> <span class="n">ExportedSymbolsOnly</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="kt">void</span> <span class="n">emitAndFinalize</span><span class="p">(</span><span class="n">ModuleHandleT</span> <span class="n">H</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">BaseLayer</span><span class="p">.</span><span class="n">emitAndFinalize</span><span class="p">(</span><span class="n">H</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="n">TransformFtor</span><span class="o">&amp;</span> <span class="n">getTransform</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="n">Transform</span><span class="p">;</span> <span class="p">}</span>
+
+  <span class="k">const</span> <span class="n">TransformFtor</span><span class="o">&amp;</span> <span class="n">getTransform</span><span class="p">()</span> <span class="k">const</span> <span class="p">{</span> <span class="k">return</span> <span class="n">Transform</span><span class="p">;</span> <span class="p">}</span>
+
+<span class="k">private</span><span class="o">:</span>
+  <span class="n">BaseLayerT</span> <span class="o">&amp;</span><span class="n">BaseLayer</span><span class="p">;</span>
+  <span class="n">TransformFtor</span> <span class="n">Transform</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>This is the whole definition of IRTransformLayer, from
+<code class="docutils literal"><span class="pre">llvm/include/llvm/ExecutionEngine/Orc/IRTransformLayer.h</span></code>, stripped of its
+comments. It is a template class with two template arguments: <code class="docutils literal"><span class="pre">BaesLayerT</span></code> and
+<code class="docutils literal"><span class="pre">TransformFtor</span></code> that provide the type of the base layer and the type of the
+“transform functor” (in our case a std::function) respectively. This class is
+concerned with two very simple jobs: (1) Running every IR Module that is added
+with addModule through the transform functor, and (2) conforming to the ORC
+layer interface. The interface consists of one typedef and five methods:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="23%" />
+<col width="77%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Interface</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>ModuleHandleT</td>
+<td>Provides a handle that can be used to identify a module
+set when calling findSymbolIn, removeModule, or
+emitAndFinalize.</td>
+</tr>
+<tr class="row-odd"><td>addModule</td>
+<td>Takes a given set of Modules and makes them “available
+for execution. This means that symbols in those modules
+should be searchable via findSymbol and findSymbolIn, and
+the address of the symbols should be read/writable (for
+data symbols), or executable (for function symbols) after
+JITSymbol::getAddress() is called. Note: This means that
+addModule doesn’t have to compile (or do any other
+work) up-front. It <em>can</em>, like IRCompileLayer, act
+eagerly, but it can also simply record the module and
+take no further action until somebody calls
+JITSymbol::getAddress(). In IRTransformLayer’s case
+addModule eagerly applies the transform functor to
+each module in the set, then passes the resulting set
+of mutated modules down to the layer below.</td>
+</tr>
+<tr class="row-even"><td>removeModule</td>
+<td>Removes a set of modules from the JIT. Code or data
+defined in these modules will no longer be available, and
+the memory holding the JIT’d definitions will be freed.</td>
+</tr>
+<tr class="row-odd"><td>findSymbol</td>
+<td>Searches for the named symbol in all modules that have
+previously been added via addModule (and not yet
+removed by a call to removeModule). In
+IRTransformLayer we just pass the query on to the layer
+below. In our REPL this is our default way to search for
+function definitions.</td>
+</tr>
+<tr class="row-even"><td>findSymbolIn</td>
+<td>Searches for the named symbol in the module set indicated
+by the given ModuleHandleT. This is just an optimized
+search, better for lookup-speed when you know exactly
+a symbol definition should be found. In IRTransformLayer
+we just pass this query on to the layer below. In our
+REPL we use this method to search for functions
+representing top-level expressions, since we know exactly
+where we’ll find them: in the top-level expression module
+we just added.</td>
+</tr>
+<tr class="row-odd"><td>emitAndFinalize</td>
+<td>Forces all of the actions required to make the code and
+data in a module set (represented by a ModuleHandleT)
+accessible. Behaves as if some symbol in the set had been
+searched for and JITSymbol::getSymbolAddress called. This
+is rarely needed, but can be useful when dealing with
+layers that usually behave lazily if the user wants to
+trigger early compilation (for example, to use idle CPU
+time to eagerly compile code in the background).</td>
+</tr>
+</tbody>
+</table>
+<p>This interface attempts to capture the natural operations of a JIT (with some
+wrinkles like emitAndFinalize for performance), similar to the basic JIT API
+operations we identified in Chapter 1. Conforming to the layer concept allows
+classes to compose neatly by implementing their behaviors in terms of the these
+same operations, carried out on the layer below. For example, an eager layer
+(like IRTransformLayer) can implement addModule by running each module in the
+set through its transform up-front and immediately passing the result to the
+layer below. A lazy layer, by contrast, could implement addModule by
+squirreling away the modules doing no other up-front work, but applying the
+transform (and calling addModule on the layer below) when the client calls
+findSymbol instead. The JIT’d program behavior will be the same either way, but
+these choices will have different performance characteristics: Doing work
+eagerly means the JIT takes longer up-front, but proceeds smoothly once this is
+done. Deferring work allows the JIT to get up-and-running quickly, but will
+force the JIT to pause and wait whenever some code or data is needed that hasn’t
+already been processed.</p>
+<p>Our current REPL is eager: Each function definition is optimized and compiled as
+soon as it’s typed in. If we were to make the transform layer lazy (but not
+change things otherwise) we could defer optimization until the first time we
+reference a function in a top-level expression (see if you can figure out why,
+then check out the answer below <a class="footnote-reference" href="#id3" id="id2">[1]</a>). In the next chapter, however we’ll
+introduce fully lazy compilation, in which function’s aren’t compiled until
+they’re first called at run-time. At this point the trade-offs get much more
+interesting: the lazier we are, the quicker we can start executing the first
+function, but the more often we’ll have to pause to compile newly encountered
+functions. If we only code-gen lazily, but optimize eagerly, we’ll have a slow
+startup (which everything is optimized) but relatively short pauses as each
+function just passes through code-gen. If we both optimize and code-gen lazily
+we can start executing the first function more quickly, but we’ll have longer
+pauses as each function has to be both optimized and code-gen’d when it’s first
+executed. Things become even more interesting if we consider interproceedural
+optimizations like inlining, which must be performed eagerly. These are
+complex trade-offs, and there is no one-size-fits all solution to them, but by
+providing composable layers we leave the decisions to the person implementing
+the JIT, and make it easy for them to experiment with different configurations.</p>
+<p><a class="reference external" href="BuildingAJIT3.html">Next: Adding Per-function Lazy Compilation</a></p>
+</div>
+<div class="section" id="full-code-listing">
+<h2><a class="toc-backref" href="#id6">2.3. Full Code Listing</a><a class="headerlink" href="#full-code-listing" title="Permalink to this headline">¶</a></h2>
+<p>Here is the complete code listing for our running example with an
+IRTransformLayer added to enable optimization. To build this example, use:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="c1"># Compile</span>
+clang++ -g toy.cpp <span class="sb">`</span>llvm-config --cxxflags --ldflags --system-libs --libs core orcjit native<span class="sb">`</span> -O3 -o toy
+<span class="c1"># Run</span>
+./toy
+</pre></div>
+</div>
+<p>Here is the code:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">//===- KaleidoscopeJIT.h - A simple JIT for Kaleidoscope --------*- C++ -*-===//</span>
+<span class="c1">//</span>
+<span class="c1">//                     The LLVM Compiler Infrastructure</span>
+<span class="c1">//</span>
+<span class="c1">// This file is distributed under the University of Illinois Open Source</span>
+<span class="c1">// License. See LICENSE.TXT for details.</span>
+<span class="c1">//</span>
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+<span class="c1">//</span>
+<span class="c1">// Contains a simple JIT definition for use in the kaleidoscope tutorials.</span>
+<span class="c1">//</span>
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+
+<span class="cp">#ifndef LLVM_EXECUTIONENGINE_ORC_KALEIDOSCOPEJIT_H</span>
+<span class="cp">#define LLVM_EXECUTIONENGINE_ORC_KALEIDOSCOPEJIT_H</span>
+
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ADT/STLExtras.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/ExecutionEngine.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/JITSymbol.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/RTDyldMemoryManager.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/SectionMemoryManager.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/CompileUtils.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/IRCompileLayer.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/IRTransformLayer.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/LambdaResolver.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/DataLayout.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/LegacyPassManager.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/Mangler.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/DynamicLibrary.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Target/TargetMachine.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/raw_ostream.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Transforms/Scalar.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Transforms/Scalar/GVN.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;algorithm&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;memory&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;string&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;vector&gt;</span><span class="cp"></span>
+
+<span class="k">namespace</span> <span class="n">llvm</span> <span class="p">{</span>
+<span class="k">namespace</span> <span class="n">orc</span> <span class="p">{</span>
+
+<span class="k">class</span> <span class="nc">KaleidoscopeJIT</span> <span class="p">{</span>
+<span class="k">private</span><span class="o">:</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">TargetMachine</span><span class="o">&gt;</span> <span class="n">TM</span><span class="p">;</span>
+  <span class="k">const</span> <span class="n">DataLayout</span> <span class="n">DL</span><span class="p">;</span>
+  <span class="n">RTDyldObjectLinkingLayer</span> <span class="n">ObjectLayer</span><span class="p">;</span>
+  <span class="n">IRCompileLayer</span><span class="o">&lt;</span><span class="k">decltype</span><span class="p">(</span><span class="n">ObjectLayer</span><span class="p">),</span> <span class="n">SimpleCompiler</span><span class="o">&gt;</span> <span class="n">CompileLayer</span><span class="p">;</span>
+
+  <span class="k">using</span> <span class="n">OptimizeFunction</span> <span class="o">=</span>
+      <span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span><span class="p">)</span><span class="o">&gt;</span><span class="p">;</span>
+
+  <span class="n">IRTransformLayer</span><span class="o">&lt;</span><span class="k">decltype</span><span class="p">(</span><span class="n">CompileLayer</span><span class="p">),</span> <span class="n">OptimizeFunction</span><span class="o">&gt;</span> <span class="n">OptimizeLayer</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+  <span class="k">using</span> <span class="n">ModuleHandle</span> <span class="o">=</span> <span class="k">decltype</span><span class="p">(</span><span class="n">OptimizeLayer</span><span class="p">)</span><span class="o">::</span><span class="n">ModuleHandleT</span><span class="p">;</span>
+
+  <span class="n">KaleidoscopeJIT</span><span class="p">()</span>
+      <span class="o">:</span> <span class="n">TM</span><span class="p">(</span><span class="n">EngineBuilder</span><span class="p">().</span><span class="n">selectTarget</span><span class="p">()),</span> <span class="n">DL</span><span class="p">(</span><span class="n">TM</span><span class="o">-&gt;</span><span class="n">createDataLayout</span><span class="p">()),</span>
+        <span class="n">ObjectLayer</span><span class="p">([]()</span> <span class="p">{</span> <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">SectionMemoryManager</span><span class="o">&gt;</span><span class="p">();</span> <span class="p">}),</span>
+        <span class="n">CompileLayer</span><span class="p">(</span><span class="n">ObjectLayer</span><span class="p">,</span> <span class="n">SimpleCompiler</span><span class="p">(</span><span class="o">*</span><span class="n">TM</span><span class="p">)),</span>
+        <span class="n">OptimizeLayer</span><span class="p">(</span><span class="n">CompileLayer</span><span class="p">,</span>
+                      <span class="p">[</span><span class="k">this</span><span class="p">](</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">M</span><span class="p">)</span> <span class="p">{</span>
+                        <span class="k">return</span> <span class="n">optimizeModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">M</span><span class="p">));</span>
+                      <span class="p">})</span> <span class="p">{</span>
+    <span class="n">llvm</span><span class="o">::</span><span class="n">sys</span><span class="o">::</span><span class="n">DynamicLibrary</span><span class="o">::</span><span class="n">LoadLibraryPermanently</span><span class="p">(</span><span class="k">nullptr</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="n">TargetMachine</span> <span class="o">&amp;</span><span class="n">getTargetMachine</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="o">*</span><span class="n">TM</span><span class="p">;</span> <span class="p">}</span>
+
+  <span class="n">ModuleHandle</span> <span class="n">addModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">M</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// Build our symbol resolver:</span>
+    <span class="c1">// Lambda 1: Look back into the JIT itself to find symbols that are part of</span>
+    <span class="c1">//           the same &quot;logical dylib&quot;.</span>
+    <span class="c1">// Lambda 2: Search for external symbols in the host process.</span>
+    <span class="k">auto</span> <span class="n">Resolver</span> <span class="o">=</span> <span class="n">createLambdaResolver</span><span class="p">(</span>
+        <span class="p">[</span><span class="o">&amp;</span><span class="p">](</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+          <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">Sym</span> <span class="o">=</span> <span class="n">OptimizeLayer</span><span class="p">.</span><span class="n">findSymbol</span><span class="p">(</span><span class="n">Name</span><span class="p">,</span> <span class="nb">false</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">Sym</span><span class="p">;</span>
+          <span class="k">return</span> <span class="nf">JITSymbol</span><span class="p">(</span><span class="k">nullptr</span><span class="p">);</span>
+        <span class="p">},</span>
+        <span class="p">[](</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+          <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">SymAddr</span> <span class="o">=</span>
+                <span class="n">RTDyldMemoryManager</span><span class="o">::</span><span class="n">getSymbolAddressInProcess</span><span class="p">(</span><span class="n">Name</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">JITSymbol</span><span class="p">(</span><span class="n">SymAddr</span><span class="p">,</span> <span class="n">JITSymbolFlags</span><span class="o">::</span><span class="n">Exported</span><span class="p">);</span>
+          <span class="k">return</span> <span class="nf">JITSymbol</span><span class="p">(</span><span class="k">nullptr</span><span class="p">);</span>
+        <span class="p">});</span>
+
+    <span class="c1">// Add the set to the JIT with the resolver we created above and a newly</span>
+    <span class="c1">// created SectionMemoryManager.</span>
+    <span class="k">return</span> <span class="nf">cantFail</span><span class="p">(</span><span class="n">OptimizeLayer</span><span class="p">.</span><span class="n">addModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">M</span><span class="p">),</span>
+                                            <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Resolver</span><span class="p">)));</span>
+  <span class="p">}</span>
+
+  <span class="n">JITSymbol</span> <span class="n">findSymbol</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">MangledName</span><span class="p">;</span>
+    <span class="n">raw_string_ostream</span> <span class="nf">MangledNameStream</span><span class="p">(</span><span class="n">MangledName</span><span class="p">);</span>
+    <span class="n">Mangler</span><span class="o">::</span><span class="n">getNameWithPrefix</span><span class="p">(</span><span class="n">MangledNameStream</span><span class="p">,</span> <span class="n">Name</span><span class="p">,</span> <span class="n">DL</span><span class="p">);</span>
+    <span class="k">return</span> <span class="n">OptimizeLayer</span><span class="p">.</span><span class="n">findSymbol</span><span class="p">(</span><span class="n">MangledNameStream</span><span class="p">.</span><span class="n">str</span><span class="p">(),</span> <span class="nb">true</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="kt">void</span> <span class="n">removeModule</span><span class="p">(</span><span class="n">ModuleHandle</span> <span class="n">H</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">cantFail</span><span class="p">(</span><span class="n">OptimizeLayer</span><span class="p">.</span><span class="n">removeModule</span><span class="p">(</span><span class="n">H</span><span class="p">));</span>
+  <span class="p">}</span>
+
+<span class="k">private</span><span class="o">:</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">optimizeModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">M</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// Create a function pass manager.</span>
+    <span class="k">auto</span> <span class="n">FPM</span> <span class="o">=</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">legacy</span><span class="o">::</span><span class="n">FunctionPassManager</span><span class="o">&gt;</span><span class="p">(</span><span class="n">M</span><span class="p">.</span><span class="n">get</span><span class="p">());</span>
+
+    <span class="c1">// Add some optimizations.</span>
+    <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createInstructionCombiningPass</span><span class="p">());</span>
+    <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createReassociatePass</span><span class="p">());</span>
+    <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createGVNPass</span><span class="p">());</span>
+    <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createCFGSimplificationPass</span><span class="p">());</span>
+    <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">doInitialization</span><span class="p">();</span>
+
+    <span class="c1">// Run the optimizations over all functions in the module being added to</span>
+    <span class="c1">// the JIT.</span>
+    <span class="k">for</span> <span class="p">(</span><span class="k">auto</span> <span class="o">&amp;</span><span class="nl">F</span> <span class="p">:</span> <span class="o">*</span><span class="n">M</span><span class="p">)</span>
+      <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">run</span><span class="p">(</span><span class="n">F</span><span class="p">);</span>
+
+    <span class="k">return</span> <span class="n">M</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="p">}</span> <span class="c1">// end namespace orc</span>
+<span class="p">}</span> <span class="c1">// end namespace llvm</span>
+
+<span class="cp">#endif </span><span class="c1">// LLVM_EXECUTIONENGINE_ORC_KALEIDOSCOPEJIT_H</span>
+</pre></div>
+</div>
+<table class="docutils footnote" frame="void" id="id3" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id2">[1]</a></td><td>When we add our top-level expression to the JIT, any calls to functions
+that we defined earlier will appear to the RTDyldObjectLinkingLayer as
+external symbols. The RTDyldObjectLinkingLayer will call the SymbolResolver
+that we defined in addModule, which in turn calls findSymbol on the
+OptimizeLayer, at which point even a lazy transform layer will have to
+do its work.</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="BuildingAJIT3.html" title="3. Building a JIT: Per-function Lazy Compilation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="BuildingAJIT1.html" title="1. Building a JIT: Starting out with KaleidoscopeJIT"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Tutorial: Table of Contents</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

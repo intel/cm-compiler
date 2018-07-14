@@ -1,5 +1,10 @@
 // RUN: %clang_cc1 -triple x86_64-apple-darwin -emit-llvm %s -o - | FileCheck %s
 
+// Capture the type and name so matching later is cleaner.
+struct CompoundTy { int a; };
+// CHECK: @MyCLH = constant [[MY_CLH:[^,]+]]
+const struct CompoundTy *const MyCLH = &(struct CompoundTy){3};
+
 int* a = &(int){1};
 struct s {int a, b, c;} * b = &(struct s) {1, 2, 3};
 _Complex double * x = &(_Complex double){1.0f};
@@ -18,13 +23,13 @@ void f() {
   // CHECK: [[S:%[a-zA-Z0-9.]+]] = alloca [[STRUCT:%[a-zA-Z0-9.]+]],
   struct S s;
   // CHECK-NEXT: [[COMPOUNDLIT:%[a-zA-Z0-9.]+]] = alloca [[STRUCT]]
-  // CHECK-NEXT: [[CX:%[a-zA-Z0-9.]+]] = getelementptr inbounds [[STRUCT]]* [[COMPOUNDLIT]], i32 0, i32 0
-  // CHECK-NEXT: [[SY:%[a-zA-Z0-9.]+]] = getelementptr inbounds [[STRUCT]]* [[S]], i32 0, i32 1
-  // CHECK-NEXT: [[TMP:%[a-zA-Z0-9.]+]] = load i32* [[SY]]
+  // CHECK-NEXT: [[CX:%[a-zA-Z0-9.]+]] = getelementptr inbounds [[STRUCT]], [[STRUCT]]* [[COMPOUNDLIT]], i32 0, i32 0
+  // CHECK-NEXT: [[SY:%[a-zA-Z0-9.]+]] = getelementptr inbounds [[STRUCT]], [[STRUCT]]* [[S]], i32 0, i32 1
+  // CHECK-NEXT: [[TMP:%[a-zA-Z0-9.]+]] = load i32, i32* [[SY]]
   // CHECK-NEXT: store i32 [[TMP]], i32* [[CX]]
-  // CHECK-NEXT: [[CY:%[a-zA-Z0-9.]+]] = getelementptr inbounds [[STRUCT]]* [[COMPOUNDLIT]], i32 0, i32 1
-  // CHECK-NEXT: [[SX:%[a-zA-Z0-9.]+]] = getelementptr inbounds [[STRUCT]]* [[S]], i32 0, i32 0
-  // CHECK-NEXT: [[TMP:%[a-zA-Z0-9.]+]] = load i32* [[SX]]
+  // CHECK-NEXT: [[CY:%[a-zA-Z0-9.]+]] = getelementptr inbounds [[STRUCT]], [[STRUCT]]* [[COMPOUNDLIT]], i32 0, i32 1
+  // CHECK-NEXT: [[SX:%[a-zA-Z0-9.]+]] = getelementptr inbounds [[STRUCT]], [[STRUCT]]* [[S]], i32 0, i32 0
+  // CHECK-NEXT: [[TMP:%[a-zA-Z0-9.]+]] = load i32, i32* [[SX]]
   // CHECK-NEXT: store i32 [[TMP]], i32* [[CY]]
   // CHECK-NEXT: [[SI8:%[a-zA-Z0-9.]+]] = bitcast [[STRUCT]]* [[S]] to i8*
   // CHECK-NEXT: [[COMPOUNDLITI8:%[a-zA-Z0-9.]+]] = bitcast [[STRUCT]]* [[COMPOUNDLIT]] to i8*
@@ -46,16 +51,16 @@ struct G g(int x, int y, int z) {
   // CHECK-NEXT: store i32
 
   // Evaluate the compound literal directly in the result value slot.
-  // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds [[G]]* [[RESULT]], i32 0, i32 0
-  // CHECK-NEXT: [[T1:%.*]] = load i32* [[X]], align 4
+  // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds [[G]], [[G]]* [[RESULT]], i32 0, i32 0
+  // CHECK-NEXT: [[T1:%.*]] = load i32, i32* [[X]], align 4
   // CHECK-NEXT: [[T2:%.*]] = trunc i32 [[T1]] to i16
   // CHECK-NEXT: store i16 [[T2]], i16* [[T0]], align 2
-  // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds [[G]]* [[RESULT]], i32 0, i32 1
-  // CHECK-NEXT: [[T1:%.*]] = load i32* [[Y]], align 4
+  // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds [[G]], [[G]]* [[RESULT]], i32 0, i32 1
+  // CHECK-NEXT: [[T1:%.*]] = load i32, i32* [[Y]], align 4
   // CHECK-NEXT: [[T2:%.*]] = trunc i32 [[T1]] to i16
   // CHECK-NEXT: store i16 [[T2]], i16* [[T0]], align 2
-  // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds [[G]]* [[RESULT]], i32 0, i32 2
-  // CHECK-NEXT: [[T1:%.*]] = load i32* [[Z]], align 4
+  // CHECK-NEXT: [[T0:%.*]] = getelementptr inbounds [[G]], [[G]]* [[RESULT]], i32 0, i32 2
+  // CHECK-NEXT: [[T1:%.*]] = load i32, i32* [[Z]], align 4
   // CHECK-NEXT: [[T2:%.*]] = trunc i32 [[T1]] to i16
   // CHECK-NEXT: store i16 [[T2]], i16* [[T0]], align 2
   return (struct G) { x, y, z };
@@ -63,6 +68,17 @@ struct G g(int x, int y, int z) {
   // CHECK-NEXT: [[T0:%.*]] = bitcast i48* [[COERCE_TEMP]] to i8*
   // CHECK-NEXT: [[T1:%.*]] = bitcast [[G]]* [[RESULT]] to i8*
   // CHECK-NEXT: call void @llvm.memcpy.p0i8.p0i8.i64(i8* [[T0]], i8* [[T1]], i64 6
-  // CHECK-NEXT: [[T0:%.*]] = load i48* [[COERCE_TEMP]]
+  // CHECK-NEXT: [[T0:%.*]] = load i48, i48* [[COERCE_TEMP]]
   // CHECK-NEXT: ret i48 [[T0]]
+}
+
+// We had a bug where we'd emit a new GlobalVariable for each time we used a
+// const pointer to a variable initialized by a compound literal.
+// CHECK-LABEL: define i32 @compareMyCLH() #0
+int compareMyCLH() {
+  // CHECK: store i8* bitcast ([[MY_CLH]] to i8*)
+  const void *a = MyCLH;
+  // CHECK: store i8* bitcast ([[MY_CLH]] to i8*)
+  const void *b = MyCLH;
+  return a == b;
 }

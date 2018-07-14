@@ -120,3 +120,28 @@ namespace pr19253 {
   };
   E e;
 }
+
+namespace pr20420 {
+// No warning is expected. This used to crash.
+void *array_storage[1];
+const int &global_reference = *(int *)array_storage;
+}
+
+namespace bitfields {
+  struct HasUnnamedBitfield {
+    unsigned a;
+    unsigned : 20;
+    unsigned b;
+
+    constexpr HasUnnamedBitfield() : a(), b() {}
+    constexpr HasUnnamedBitfield(unsigned a, unsigned b) : a(a), b(b) {}
+    explicit HasUnnamedBitfield(unsigned a) {}
+  };
+
+  const HasUnnamedBitfield zeroConst{};
+  HasUnnamedBitfield zeroMutable{};
+  const HasUnnamedBitfield explicitConst{1, 2};
+  HasUnnamedBitfield explicitMutable{1, 2};
+  const HasUnnamedBitfield nonConstexprConst{1}; // expected-warning {{global constructor}}
+  HasUnnamedBitfield nonConstexprMutable{1}; // expected-warning {{global constructor}}
+}

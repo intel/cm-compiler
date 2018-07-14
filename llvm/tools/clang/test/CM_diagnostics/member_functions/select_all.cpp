@@ -41,18 +41,18 @@ void test() {
   m.select_all() = 1;                                     // OK
   v.select_all() = 9;                                     // OK
 }
-// CHECK: select_all.cpp(16,42) :  error: expected '('
-// CHECK: select_all.cpp(17,43) :  error: expected ')'
-// CHECK: select_all.cpp(18,43) :  error: expected ')'
-// CHECK: select_all.cpp(19,43) :  error: expected ')'
-// CHECK: select_all.cpp(24,39) :  error: expected '('
-// CHECK: select_all.cpp(25,40) :  error: expected ')'
-// CHECK: select_all.cpp(26,41) :  error: expected ')'
-// CHECK: select_all.cpp(27,41) :  error: expected ')'
-// CHECK: select_all.cpp(32,16) :  error: no member named 'select_all' in 'S1'
-// CHECK: select_all.cpp(34,25) :  error: 'select_all' following the 'template' keyword does not refer to a template
-// CHECK: select_all.cpp(36,26) :  error: called object type 'int' is not a function or function pointer
-// CHECK: select_all.cpp(37,25) :  error: 'select_all' following the 'template' keyword does not refer to a template
-// CHECK: select_all.cpp(39,3) :  warning: expression result unused [-Wunused-value]
-// CHECK: select_all.cpp(40,3) :  warning: expression result unused [-Wunused-value]
+// CHECK: select_all.cpp(16,42):  error: expected '('
+// CHECK: select_all.cpp(17,43):  error: expected ')'
+// CHECK: select_all.cpp(18,43):  error: expected ')'
+// CHECK: select_all.cpp(19,43):  error: expected ')'
+// CHECK: select_all.cpp(24,39):  error: expected '('
+// CHECK: select_all.cpp(25,40):  error: expected ')'
+// CHECK: select_all.cpp(26,41):  error: expected ')'
+// CHECK: select_all.cpp(27,41):  error: expected ')'
+// CHECK: select_all.cpp(32,16):  error: no member named 'select_all' in 'S1'
+// CHECK: select_all.cpp(34,25):  error: 'select_all' following the 'template' keyword does not refer to a template
+// CHECK: select_all.cpp(36,26):  error: called object type 'int' is not a function or function pointer
+// CHECK: select_all.cpp(37,25):  error: 'select_all' following the 'template' keyword does not refer to a template
+// CHECK: select_all.cpp(39,3):  warning: expression result unused [-Wunused-value]
+// CHECK: select_all.cpp(40,3):  warning: expression result unused [-Wunused-value]
 // CHECK: 2 warnings and 13 errors generated.

@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>How To Use Attributes &#8212; LLVM 3.4 documentation</title>
+    <title>How To Use Attributes &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -71,7 +71,7 @@
 <ul class="simple">
 <li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
 <li><a class="reference internal" href="#attribute" id="id2"><code class="docutils literal"><span class="pre">Attribute</span></code></a></li>
-<li><a class="reference internal" href="#attributeset" id="id3"><code class="docutils literal"><span class="pre">AttributeSet</span></code></a></li>
+<li><a class="reference internal" href="#attributelist" id="id3"><code class="docutils literal"><span class="pre">AttributeList</span></code></a></li>
 <li><a class="reference internal" href="#attrbuilder" id="id4"><code class="docutils literal"><span class="pre">AttrBuilder</span></code></a></li>
 </ul>
 </div>
@@ -105,31 +105,30 @@ have a string for the value.</p>
 convert any code which does treat them as a bit mask to use the new query
 methods on the Attribute class.</p>
 </div>
-<div class="section" id="attributeset">
-<h2><a class="toc-backref" href="#id3"><code class="docutils literal"><span class="pre">AttributeSet</span></code></a><a class="headerlink" href="#attributeset" title="Permalink to this headline">¶</a></h2>
-<p>The <code class="docutils literal"><span class="pre">AttributeSet</span></code> class replaces the old <code class="docutils literal"><span class="pre">AttributeList</span></code> class.  The
-<code class="docutils literal"><span class="pre">AttributeSet</span></code> stores a collection of Attribute objects for each kind of
-object that may have an attribute associated with it: the function as a
-whole, the return type, or the function’s parameters.  A function’s attributes
-are at index <code class="docutils literal"><span class="pre">AttributeSet::FunctionIndex</span></code>; the return type’s attributes are
-at index <code class="docutils literal"><span class="pre">AttributeSet::ReturnIndex</span></code>; and the function’s parameters’
-attributes are at indices 1, …, n (where ‘n’ is the number of parameters).
-Most methods on the <code class="docutils literal"><span class="pre">AttributeSet</span></code> class take an index parameter.</p>
-<p>An <code class="docutils literal"><span class="pre">AttributeSet</span></code> is also a uniqued and immutable object.  You create an
-<code class="docutils literal"><span class="pre">AttributeSet</span></code> through the <code class="docutils literal"><span class="pre">AttributeSet::get</span></code> methods.  You can add and
-remove attributes, which result in the creation of a new <code class="docutils literal"><span class="pre">AttributeSet</span></code>.</p>
-<p>An <code class="docutils literal"><span class="pre">AttributeSet</span></code> object is designed to be passed around by value.</p>
-<p>Note: It is advised that you do <em>not</em> use the <code class="docutils literal"><span class="pre">AttributeSet</span></code> “introspection”
+<div class="section" id="attributelist">
+<h2><a class="toc-backref" href="#id3"><code class="docutils literal"><span class="pre">AttributeList</span></code></a><a class="headerlink" href="#attributelist" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal"><span class="pre">AttributeList</span></code> stores a collection of Attribute objects for each kind of
+object that may have an attribute associated with it: the function as a whole,
+the return type, or the function’s parameters.  A function’s attributes are at
+index <code class="docutils literal"><span class="pre">AttributeList::FunctionIndex</span></code>; the return type’s attributes are at
+index <code class="docutils literal"><span class="pre">AttributeList::ReturnIndex</span></code>; and the function’s parameters’ attributes
+are at indices 1, …, n (where ‘n’ is the number of parameters).  Most methods
+on the <code class="docutils literal"><span class="pre">AttributeList</span></code> class take an index parameter.</p>
+<p>An <code class="docutils literal"><span class="pre">AttributeList</span></code> is also a uniqued and immutable object.  You create an
+<code class="docutils literal"><span class="pre">AttributeList</span></code> through the <code class="docutils literal"><span class="pre">AttributeList::get</span></code> methods.  You can add and
+remove attributes, which result in the creation of a new <code class="docutils literal"><span class="pre">AttributeList</span></code>.</p>
+<p>An <code class="docutils literal"><span class="pre">AttributeList</span></code> object is designed to be passed around by value.</p>
+<p>Note: It is advised that you do <em>not</em> use the <code class="docutils literal"><span class="pre">AttributeList</span></code> “introspection”
 methods (e.g. <code class="docutils literal"><span class="pre">Raw</span></code>, <code class="docutils literal"><span class="pre">getRawPointer</span></code>, etc.).  These methods break
 encapsulation, and may be removed in a future release (i.e. LLVM 4.0).</p>
 </div>
 <div class="section" id="attrbuilder">
 <h2><a class="toc-backref" href="#id4"><code class="docutils literal"><span class="pre">AttrBuilder</span></code></a><a class="headerlink" href="#attrbuilder" title="Permalink to this headline">¶</a></h2>
-<p>Lastly, we have a “builder” class to help create the <code class="docutils literal"><span class="pre">AttributeSet</span></code> object
+<p>Lastly, we have a “builder” class to help create the <code class="docutils literal"><span class="pre">AttributeList</span></code> object
 without having to create several different intermediate uniqued
-<code class="docutils literal"><span class="pre">AttributeSet</span></code> objects.  The <code class="docutils literal"><span class="pre">AttrBuilder</span></code> class allows you to add and
+<code class="docutils literal"><span class="pre">AttributeList</span></code> objects.  The <code class="docutils literal"><span class="pre">AttrBuilder</span></code> class allows you to add and
 remove attributes at will.  The attributes won’t be uniqued until you call the
-appropriate <code class="docutils literal"><span class="pre">AttributeSet::get</span></code> method.</p>
+appropriate <code class="docutils literal"><span class="pre">AttributeList::get</span></code> method.</p>
 <p>An <code class="docutils literal"><span class="pre">AttrBuilder</span></code> object is <em>not</em> designed to be passed around by value.  It
 should be passed by reference.</p>
 <p>Note: It is advised that you do <em>not</em> use the <code class="docutils literal"><span class="pre">AttrBuilder::addRawValue()</span></code>
@@ -163,8 +162,8 @@ but the interfaces are pretty straight forward.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

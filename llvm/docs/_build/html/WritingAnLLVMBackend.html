@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Writing an LLVM Backend &#8212; LLVM 3.4 documentation</title>
+    <title>Writing an LLVM Backend &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -28,7 +28,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="How To Use Instruction Mappings" href="HowToUseInstrMappings.html" />
-    <link rel="prev" title="Auto-Vectorization in LLVM" href="Vectorizers.html" />
+    <link rel="prev" title="Vectorization Plan" href="Proposals/VectorizationPlan.html" />
 <style type="text/css">
   table.right { float: right; margin-left: 20px; }
   table.right td { border: 1px solid #ccc; }
@@ -52,7 +52,7 @@
           <a href="HowToUseInstrMappings.html" title="How To Use Instruction Mappings"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="Vectorizers.html" title="Auto-Vectorization in LLVM"
+          <a href="Proposals/VectorizationPlan.html" title="Vectorization Plan"
              accesskey="P">previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="index.html">Documentation</a>&raquo;</li>
@@ -223,14 +223,13 @@ target-independent code generator, you must perform the steps described in the
 <p>First, you should create a subdirectory under <code class="docutils literal"><span class="pre">lib/Target</span></code> to hold all the
 files related to your target.  If your target is called “Dummy”, create the
 directory <code class="docutils literal"><span class="pre">lib/Target/Dummy</span></code>.</p>
-<p>In this new directory, create a <code class="docutils literal"><span class="pre">Makefile</span></code>.  It is easiest to copy a
-<code class="docutils literal"><span class="pre">Makefile</span></code> of another target and modify it.  It should at least contain the
-<code class="docutils literal"><span class="pre">LEVEL</span></code>, <code class="docutils literal"><span class="pre">LIBRARYNAME</span></code> and <code class="docutils literal"><span class="pre">TARGET</span></code> variables, and then include
-<code class="docutils literal"><span class="pre">$(LEVEL)/Makefile.common</span></code>.  The library can be named <code class="docutils literal"><span class="pre">LLVMDummy</span></code> (for
-example, see the MIPS target).  Alternatively, you can split the library into
-<code class="docutils literal"><span class="pre">LLVMDummyCodeGen</span></code> and <code class="docutils literal"><span class="pre">LLVMDummyAsmPrinter</span></code>, the latter of which should be
-implemented in a subdirectory below <code class="docutils literal"><span class="pre">lib/Target/Dummy</span></code> (for example, see the
-PowerPC target).</p>
+<p>In this new directory, create a <code class="docutils literal"><span class="pre">CMakeLists.txt</span></code>.  It is easiest to copy a
+<code class="docutils literal"><span class="pre">CMakeLists.txt</span></code> of another target and modify it.  It should at least contain
+the <code class="docutils literal"><span class="pre">LLVM_TARGET_DEFINITIONS</span></code> variable. The library can be named <code class="docutils literal"><span class="pre">LLVMDummy</span></code>
+(for example, see the MIPS target).  Alternatively, you can split the library
+into <code class="docutils literal"><span class="pre">LLVMDummyCodeGen</span></code> and <code class="docutils literal"><span class="pre">LLVMDummyAsmPrinter</span></code>, the latter of which
+should be implemented in a subdirectory below <code class="docutils literal"><span class="pre">lib/Target/Dummy</span></code> (for example,
+see the PowerPC target).</p>
 <p>Note that these two naming schemes are hardcoded into <code class="docutils literal"><span class="pre">llvm-config</span></code>.  Using
 any other naming scheme will confuse <code class="docutils literal"><span class="pre">llvm-config</span></code> and produce a lot of
 (seemingly unrelated) linker errors when linking <code class="docutils literal"><span class="pre">llc</span></code>.</p>
@@ -241,13 +240,11 @@ directory will be built and should work.  To use LLVM’s target independent cod
 generator, you should do what all current machine backends do: create a
 subclass of <code class="docutils literal"><span class="pre">LLVMTargetMachine</span></code>.  (To create a target from scratch, create a
 subclass of <code class="docutils literal"><span class="pre">TargetMachine</span></code>.)</p>
-<p>To get LLVM to actually build and link your target, you need to add it to the
-<code class="docutils literal"><span class="pre">TARGETS_TO_BUILD</span></code> variable.  To do this, you modify the configure script to
-know about your target when parsing the <code class="docutils literal"><span class="pre">--enable-targets</span></code> option.  Search
-the configure script for <code class="docutils literal"><span class="pre">TARGETS_TO_BUILD</span></code>, add your target to the lists
-there (some creativity required), and then reconfigure.  Alternatively, you can
-change <code class="docutils literal"><span class="pre">autotools/configure.ac</span></code> and regenerate configure by running
-<code class="docutils literal"><span class="pre">./autoconf/AutoRegen.sh</span></code>.</p>
+<p>To get LLVM to actually build and link your target, you need to run <code class="docutils literal"><span class="pre">cmake</span></code>
+with <code class="docutils literal"><span class="pre">-DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=Dummy</span></code>. This will build your
+target without needing to add it to the list of all the targets.</p>
+<p>Once your target is stable, you can add it to the <code class="docutils literal"><span class="pre">LLVM_ALL_TARGETS</span></code> variable
+located in the main <code class="docutils literal"><span class="pre">CMakeLists.txt</span></code>.</p>
 </div>
 </div>
 <div class="section" id="target-machine">
@@ -362,11 +359,11 @@ represent the target during registration.  Then, in the target’s <code class="
 library, the target should define that object and use the <code class="docutils literal"><span class="pre">RegisterTarget</span></code>
 template to register the target.  For example, the Sparc registration code
 looks like this:</p>
-<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">Target</span> <span class="n">llvm</span><span class="o">::</span><span class="n">TheSparcTarget</span><span class="p">;</span>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">Target</span> <span class="n">llvm</span><span class="o">::</span><span class="n">getTheSparcTarget</span><span class="p">();</span>
 
 <span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="kt">void</span> <span class="n">LLVMInitializeSparcTargetInfo</span><span class="p">()</span> <span class="p">{</span>
   <span class="n">RegisterTarget</span><span class="o">&lt;</span><span class="n">Triple</span><span class="o">::</span><span class="n">sparc</span><span class="p">,</span> <span class="cm">/*HasJIT=*/</span><span class="nb">false</span><span class="o">&gt;</span>
-    <span class="n">X</span><span class="p">(</span><span class="n">TheSparcTarget</span><span class="p">,</span> <span class="s">&quot;sparc&quot;</span><span class="p">,</span> <span class="s">&quot;Sparc&quot;</span><span class="p">);</span>
+    <span class="n">X</span><span class="p">(</span><span class="n">getTheSparcTarget</span><span class="p">(),</span> <span class="s">&quot;sparc&quot;</span><span class="p">,</span> <span class="s">&quot;Sparc&quot;</span><span class="p">);</span>
 <span class="p">}</span>
 </pre></div>
 </div>
@@ -377,7 +374,7 @@ because some clients may wish to only link in some parts of the target — the
 JIT code generator does not require the use of the assembler printer, for
 example.  Here is an example of registering the Sparc assembly printer:</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="kt">void</span> <span class="n">LLVMInitializeSparcAsmPrinter</span><span class="p">()</span> <span class="p">{</span>
-  <span class="n">RegisterAsmPrinter</span><span class="o">&lt;</span><span class="n">SparcAsmPrinter</span><span class="o">&gt;</span> <span class="n">X</span><span class="p">(</span><span class="n">TheSparcTarget</span><span class="p">);</span>
+  <span class="n">RegisterAsmPrinter</span><span class="o">&lt;</span><span class="n">SparcAsmPrinter</span><span class="o">&gt;</span> <span class="n">X</span><span class="p">(</span><span class="n">getTheSparcTarget</span><span class="p">());</span>
 <span class="p">}</span>
 </pre></div>
 </div>
@@ -632,12 +629,12 @@ the order in the definition of <code class="docutils literal"><span class="pre">
   <span class="n">FPRegsClass</span>     <span class="n">FPRegsRegClass</span><span class="p">;</span>
   <span class="n">IntRegsClass</span>    <span class="n">IntRegsRegClass</span><span class="p">;</span>
 <span class="p">...</span>
-  <span class="c1">// IntRegs Sub-register Classess...</span>
+  <span class="c1">// IntRegs Sub-register Classes...</span>
   <span class="k">static</span> <span class="k">const</span> <span class="n">TargetRegisterClass</span><span class="o">*</span> <span class="k">const</span> <span class="n">IntRegsSubRegClasses</span> <span class="p">[]</span> <span class="o">=</span> <span class="p">{</span>
     <span class="nb">NULL</span>
   <span class="p">};</span>
 <span class="p">...</span>
-  <span class="c1">// IntRegs Super-register Classess...</span>
+  <span class="c1">// IntRegs Super-register Classes..</span>
   <span class="k">static</span> <span class="k">const</span> <span class="n">TargetRegisterClass</span><span class="o">*</span> <span class="k">const</span> <span class="n">IntRegsSuperRegClasses</span> <span class="p">[]</span> <span class="o">=</span> <span class="p">{</span>
     <span class="nb">NULL</span>
   <span class="p">};</span>
@@ -989,9 +986,41 @@ preprocessor macro:</p>
 <div class="section" id="instruction-scheduling">
 <h3><a class="toc-backref" href="#id18">Instruction Scheduling</a><a class="headerlink" href="#instruction-scheduling" title="Permalink to this headline">¶</a></h3>
 <p>Instruction itineraries can be queried using MCDesc::getSchedClass(). The
-value can be named by an enumemation in llvm::XXX::Sched namespace generated
+value can be named by an enumeration in llvm::XXX::Sched namespace generated
 by TableGen in XXXGenInstrInfo.inc. The name of the schedule classes are
 the same as provided in XXXSchedule.td plus a default NoItinerary class.</p>
+<p>The schedule models are generated by TableGen by the SubtargetEmitter,
+using the <code class="docutils literal"><span class="pre">CodeGenSchedModels</span></code> class. This is distinct from the itinerary
+method of specifying machine resource use.  The tool <code class="docutils literal"><span class="pre">utils/schedcover.py</span></code>
+can be used to determine which instructions have been covered by the
+schedule model description and which haven’t. The first step is to use the
+instructions below to create an output file. Then run <code class="docutils literal"><span class="pre">schedcover.py</span></code> on the
+output file:</p>
+<div class="highlight-shell"><div class="highlight"><pre><span></span>$ &lt;src&gt;/utils/schedcover.py &lt;build&gt;/lib/Target/AArch64/tblGenSubtarget.with
+instruction, default, CortexA53Model, CortexA57Model, CycloneModel, ExynosM1Model, FalkorModel, KryoModel, ThunderX2T99Model, ThunderXT8XModel
+ABSv16i8, WriteV, , , CyWriteV3, M1WriteNMISC1, FalkorWr_2VXVY_2cyc, KryoWrite_2cyc_XY_XY_150ln, ,
+ABSv1i64, WriteV, , , CyWriteV3, M1WriteNMISC1, FalkorWr_1VXVY_2cyc, KryoWrite_2cyc_XY_noRSV_67ln, ,
+...
+</pre></div>
+</div>
+<p>To capture the debug output from generating a schedule model, change to the
+appropriate target directory and use the following command:
+command with the <code class="docutils literal"><span class="pre">subtarget-emitter</span></code> debug option:</p>
+<div class="highlight-shell"><div class="highlight"><pre><span></span>$ &lt;build&gt;/bin/llvm-tblgen -debug-only<span class="o">=</span>subtarget-emitter -gen-subtarget <span class="se">\</span>
+  -I &lt;src&gt;/lib/Target/&lt;target&gt; -I &lt;src&gt;/include <span class="se">\</span>
+  -I &lt;src&gt;/lib/Target &lt;src&gt;/lib/Target/&lt;target&gt;/&lt;target&gt;.td <span class="se">\</span>
+  -o &lt;build&gt;/lib/Target/&lt;target&gt;/&lt;target&gt;GenSubtargetInfo.inc.tmp <span class="se">\</span>
+  &gt; tblGenSubtarget.dbg <span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
+</pre></div>
+</div>
+<p>Where <code class="docutils literal"><span class="pre">&lt;build&gt;</span></code> is the build directory, <code class="docutils literal"><span class="pre">src</span></code> is the source directory,
+and <code class="docutils literal"><span class="pre">&lt;target&gt;</span></code> is the name of the target.
+To double check that the above command is what is needed, one can capture the
+exact TableGen command from a build by using:</p>
+<div class="highlight-shell"><div class="highlight"><pre><span></span>$ <span class="nv">VERBOSE</span><span class="o">=</span><span class="m">1</span> make ...
+</pre></div>
+</div>
+<p>and search for <code class="docutils literal"><span class="pre">llvm-tblgen</span></code> commands in the output.</p>
 </div>
 <div class="section" id="instruction-relation-mapping">
 <h3><a class="toc-backref" href="#id19">Instruction Relation Mapping</a><a class="headerlink" href="#instruction-relation-mapping" title="Permalink to this headline">¶</a></h3>
@@ -1811,7 +1840,7 @@ implemented with assembler.</p>
           <a href="HowToUseInstrMappings.html" title="How To Use Instruction Mappings"
              >next</a> |</li>
         <li class="right" >
-          <a href="Vectorizers.html" title="Auto-Vectorization in LLVM"
+          <a href="Proposals/VectorizationPlan.html" title="Vectorization Plan"
              >previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="index.html">Documentation</a>&raquo;</li>
@@ -1819,8 +1848,8 @@ implemented with assembler.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

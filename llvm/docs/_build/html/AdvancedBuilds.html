@@ -1,0 +1,241 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Advanced Build Configurations &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="How To Build On ARM" href="HowToBuildOnARM.html" />
+    <link rel="prev" title="CMake Primer" href="CMakePrimer.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="HowToBuildOnARM.html" title="How To Build On ARM"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="CMakePrimer.html" title="CMake Primer"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="advanced-build-configurations">
+<h1>Advanced Build Configurations<a class="headerlink" href="#advanced-build-configurations" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
+<li><a class="reference internal" href="#bootstrap-builds" id="id2">Bootstrap Builds</a></li>
+<li><a class="reference internal" href="#apple-clang-builds-a-more-complex-bootstrap" id="id3">Apple Clang Builds (A More Complex Bootstrap)</a></li>
+<li><a class="reference internal" href="#multi-stage-pgo" id="id4">Multi-stage PGO</a></li>
+<li><a class="reference internal" href="#stage-non-determinism" id="id5">3-Stage Non-Determinism</a></li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference external" href="http://www.cmake.org/">CMake</a> is a cross-platform build-generator tool. CMake
+does not build the project, it generates the files needed by your build tool
+(GNU make, Visual Studio, etc.) for building LLVM.</p>
+<p>If <strong>you are a new contributor</strong>, please start with the <a class="reference internal" href="GettingStarted.html"><span class="doc">Getting Started with the LLVM System</span></a> or
+<a class="reference internal" href="CMake.html"><span class="doc">Building LLVM with CMake</span></a> pages. This page is intended for users doing more complex builds.</p>
+<p>Many of the examples below are written assuming specific CMake Generators.
+Unless otherwise explicitly called out these commands should work with any CMake
+generator.</p>
+</div>
+<div class="section" id="bootstrap-builds">
+<h2><a class="toc-backref" href="#id2">Bootstrap Builds</a><a class="headerlink" href="#bootstrap-builds" title="Permalink to this headline">¶</a></h2>
+<p>The Clang CMake build system supports bootstrap (aka multi-stage) builds. At a
+high level a multi-stage build is a chain of builds that pass data from one
+stage into the next. The most common and simple version of this is a traditional
+bootstrap build.</p>
+<p>In a simple two-stage bootstrap build, we build clang using the system compiler,
+then use that just-built clang to build clang again. In CMake this simplest form
+of a bootstrap build can be configured with a single option,
+CLANG_ENABLE_BOOTSTRAP.</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> cmake -G Ninja -DCLANG_ENABLE_BOOTSTRAP<span class="o">=</span>On &lt;path to source&gt;
+<span class="gp">$</span> ninja stage2
+</pre></div>
+</div>
+<p>This command itself isn’t terribly useful because it assumes default
+configurations for each stage. The next series of examples utilize CMake cache
+scripts to provide more complex options.</p>
+<p>The clang build system refers to builds as stages. A stage1 build is a standard
+build using the compiler installed on the host, and a stage2 build is built
+using the stage1 compiler. This nomenclature holds up to more stages too. In
+general a stage*n* build is built using the output from stage*n-1*.</p>
+</div>
+<div class="section" id="apple-clang-builds-a-more-complex-bootstrap">
+<h2><a class="toc-backref" href="#id3">Apple Clang Builds (A More Complex Bootstrap)</a><a class="headerlink" href="#apple-clang-builds-a-more-complex-bootstrap" title="Permalink to this headline">¶</a></h2>
+<p>Apple’s Clang builds are a slightly more complicated example of the simple
+bootstrapping scenario. Apple Clang is built using a 2-stage build.</p>
+<p>The stage1 compiler is a host-only compiler with some options set. The stage1
+compiler is a balance of optimization vs build time because it is a throwaway.
+The stage2 compiler is the fully optimized compiler intended to ship to users.</p>
+<p>Setting up these compilers requires a lot of options. To simplify the
+configuration the Apple Clang build settings are contained in CMake Cache files.
+You can build an Apple Clang compiler using the following commands:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> cmake -G Ninja -C &lt;path to clang&gt;/cmake/caches/Apple-stage1.cmake &lt;path to source&gt;
+<span class="gp">$</span> ninja stage2-distribution
+</pre></div>
+</div>
+<p>This CMake invocation configures the stage1 host compiler, and sets
+CLANG_BOOTSTRAP_CMAKE_ARGS to pass the Apple-stage2.cmake cache script to the
+stage2 configuration step.</p>
+<p>When you build the stage2-distribution target it builds the minimal stage1
+compiler and required tools, then configures and builds the stage2 compiler
+based on the settings in Apple-stage2.cmake.</p>
+<p>This pattern of using cache scripts to set complex settings, and specifically to
+make later stage builds include cache scripts is common in our more advanced
+build configurations.</p>
+</div>
+<div class="section" id="multi-stage-pgo">
+<h2><a class="toc-backref" href="#id4">Multi-stage PGO</a><a class="headerlink" href="#multi-stage-pgo" title="Permalink to this headline">¶</a></h2>
+<p>Profile-Guided Optimizations (PGO) is a really great way to optimize the code
+clang generates. Our multi-stage PGO builds are a workflow for generating PGO
+profiles that can be used to optimize clang.</p>
+<p>At a high level, the way PGO works is that you build an instrumented compiler,
+then you run the instrumented compiler against sample source files. While the
+instrumented compiler runs it will output a bunch of files containing
+performance counters (.profraw files). After generating all the profraw files
+you use llvm-profdata to merge the files into a single profdata file that you
+can feed into the LLVM_PROFDATA_FILE option.</p>
+<p>Our PGO.cmake cache script automates that whole process. You can use it by
+running:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> cmake -G Ninja -C &lt;path_to_clang&gt;/cmake/caches/PGO.cmake &lt;<span class="nb">source</span> dir&gt;
+<span class="gp">$</span> ninja stage2-instrumented-generate-profdata
+</pre></div>
+</div>
+<p>If you let that run for a few hours or so, it will place a profdata file in your
+build directory. This takes a really long time because it builds clang twice,
+and you <em>must</em> have compiler-rt in your build tree.</p>
+<p>This process uses any source files under the perf-training directory as training
+data as long as the source files are marked up with LIT-style RUN lines.</p>
+<p>After it finishes you can use “find . -name clang.profdata” to find it, but it
+should be at a path something like:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="go">&lt;build dir&gt;/tools/clang/stage2-instrumented-bins/utils/perf-training/clang.profdata</span>
+</pre></div>
+</div>
+<p>You can feed that file into the LLVM_PROFDATA_FILE option when you build your
+optimized compiler.</p>
+<p>The PGO came cache has a slightly different stage naming scheme than other
+multi-stage builds. It generates three stages; stage1, stage2-instrumented, and
+stage2. Both of the stage2 builds are built using the stage1 compiler.</p>
+<p>The PGO came cache generates the following additional targets:</p>
+<dl class="docutils">
+<dt><strong>stage2-instrumented</strong></dt>
+<dd>Builds a stage1 x86 compiler, runtime, and required tools (llvm-config,
+llvm-profdata) then uses that compiler to build an instrumented stage2 compiler.</dd>
+<dt><strong>stage2-instrumented-generate-profdata</strong></dt>
+<dd>Depends on “stage2-instrumented” and will use the instrumented compiler to
+generate profdata based on the training files in &lt;clang&gt;/utils/perf-training</dd>
+<dt><strong>stage2</strong></dt>
+<dd>Depends of “stage2-instrumented-generate-profdata” and will use the stage1
+compiler with the stage2 profdata to build a PGO-optimized compiler.</dd>
+<dt><strong>stage2-check-llvm</strong></dt>
+<dd>Depends on stage2 and runs check-llvm using the stage2 compiler.</dd>
+<dt><strong>stage2-check-clang</strong></dt>
+<dd>Depends on stage2 and runs check-clang using the stage2 compiler.</dd>
+<dt><strong>stage2-check-all</strong></dt>
+<dd>Depends on stage2 and runs check-all using the stage2 compiler.</dd>
+<dt><strong>stage2-test-suite</strong></dt>
+<dd>Depends on stage2 and runs the test-suite using the stage3 compiler (requires
+in-tree test-suite).</dd>
+</dl>
+</div>
+<div class="section" id="stage-non-determinism">
+<h2><a class="toc-backref" href="#id5">3-Stage Non-Determinism</a><a class="headerlink" href="#stage-non-determinism" title="Permalink to this headline">¶</a></h2>
+<p>In the ancient lore of compilers non-determinism is like the multi-headed hydra.
+Whenever it’s head pops up, terror and chaos ensue.</p>
+<p>Historically one of the tests to verify that a compiler was deterministic would
+be a three stage build. The idea of a three stage build is you take your sources
+and build a compiler (stage1), then use that compiler to rebuild the sources
+(stage2), then you use that compiler to rebuild the sources a third time
+(stage3) with an identical configuration to the stage2 build. At the end of
+this, you have a stage2 and stage3 compiler that should be bit-for-bit
+identical.</p>
+<p>You can perform one of these 3-stage builds with LLVM &amp; clang using the
+following commands:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> cmake -G Ninja -C &lt;path_to_clang&gt;/cmake/caches/3-stage.cmake &lt;<span class="nb">source</span> dir&gt;
+<span class="gp">$</span> ninja stage3
+</pre></div>
+</div>
+<p>After the build you can compare the stage2 &amp; stage3 compilers. We have a bot
+setup <a class="reference external" href="http://lab.llvm.org:8011/builders/clang-3stage-ubuntu">here</a> that runs
+this build and compare configuration.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="HowToBuildOnARM.html" title="How To Build On ARM"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="CMakePrimer.html" title="CMake Primer"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

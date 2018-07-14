@@ -1,4 +1,5 @@
 ; RUN: opt -S -basicaa -licm < %s | FileCheck %s
+; RUN: opt -aa-pipeline=basic-aa -passes='require<aa>,require<targetir>,require<scalar-evolution>,require<opt-remark-emit>,loop(licm)' -S %s| FileCheck %s
 ;
 ; Manually validate LCSSA form is preserved even after SSAUpdater is used to
 ; promote things in the loop bodies.
@@ -44,7 +45,7 @@ inner.body.rhs:
 ; CHECK-NEXT: br label %inner.latch
 
 inner.latch:
-  %y_val = load i32* @y, align 4
+  %y_val = load i32, i32* @y, align 4
   %icmp = icmp eq i32 %y_val, 0
   br i1 %icmp, label %inner.exit, label %inner.header
 ; CHECK: inner.latch:

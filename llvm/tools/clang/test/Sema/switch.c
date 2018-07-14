@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -Wswitch-enum -Wcovered-switch-default %s
+// RUN: %clang_cc1 -fsyntax-only -verify -Wswitch-enum -Wcovered-switch-default -triple x86_64-linux-gnu %s
 void f (int z) { 
   while (z) { 
     default: z--;            // expected-error {{statement not in switch}}
@@ -372,6 +372,17 @@ void switch_on_ExtendedEnum1(enum ExtendedEnum1 e) {
   case EE1_b: break;
   case EE1_c: break; // no-warning
   case EE1_d: break; // expected-warning {{case value not in enumerated type 'enum ExtendedEnum1'}}
+  // expected-warning@-1 {{comparison of two values with different enumeration types in switch statement ('enum ExtendedEnum1' and 'const enum ExtendedEnum1_unrelated')}}
   }
 }
 
+void PR11778(char c, int n, long long ll) {
+  // Do not reject this; we don't have duplicate case values because we
+  // check for duplicates in the promoted type.
+  switch (c) case 1: case 257: ; // expected-warning {{overflow}}
+
+  switch (n) case 0x100000001LL: case 1: ; // expected-warning {{overflow}} expected-error {{duplicate}} expected-note {{previous}}
+  switch ((int)ll) case 0x100000001LL: case 1: ; // expected-warning {{overflow}} expected-error {{duplicate}} expected-note {{previous}}
+  switch ((long long)n) case 0x100000001LL: case 1: ;
+  switch (ll) case 0x100000001LL: case 1: ;
+}

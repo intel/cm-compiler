@@ -33,15 +33,15 @@ void test() {
   s1.row(2);                                // no row() in s
   s2.row = 1;                               // OK
 }
-// CHECK: row.cpp(18,28) :  error: expected '('
-// CHECK: row.cpp(19,29) :  error: expected expression
-// CHECK: row.cpp(20,30) :  error: expected ')'
-// CHECK: row.cpp(21,29) :  error: expected expression
-// CHECK: row.cpp(25,25) :  error: row() member function is only valid for matrix/matrix_ref
-// CHECK: row.cpp(26,34) :  error: row() member function is only valid for matrix/matrix_ref
-// CHECK: row.cpp(27,30) :  error: row index must be positive
-// CHECK: row.cpp(29,30) :  warning: row index '4' is out of bounds, matrix has 4 rows [-Wcm-bounds-check]
-// CHECK: row.cpp(31,30) :  error: row index must be an integer expression
-// CHECK: row.cpp(33,6) :  error: no member named 'row' in 'S1'
-// CHECK: row.cpp(32,3) :  warning: expression result unused [-Wunused-value]
+// CHECK: row.cpp(18,28):  error: expected '('
+// CHECK: row.cpp(19,29):  error: expected expression
+// CHECK: row.cpp(20,30):  error: expected ')'
+// CHECK: row.cpp(21,29):  error: expected expression
+// CHECK: row.cpp(25,25):  error: row() member function is only valid for matrix/matrix_ref
+// CHECK: row.cpp(26,34):  error: row() member function is only valid for matrix/matrix_ref
+// CHECK: row.cpp(27,30):  error: row index must be positive
+// CHECK: row.cpp(29,30):  warning: row index '4' is out of bounds, matrix has 4 rows [-Wcm-bounds-check]
+// CHECK: row.cpp(31,30):  error: row index must be an integer expression
+// CHECK: row.cpp(33,6):  error: no member named 'row' in 'S1'
+// CHECK: row.cpp(32,3):  warning: expression result unused [-Wunused-value]
 // CHECK: 2 warnings and 9 errors generated.

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify %s -std=c++14
 
 friend class A; // expected-error {{'friend' used outside of class}}
 void f() { friend class A; } // expected-error {{'friend' used outside of class}}
@@ -147,11 +147,13 @@ namespace test8 {
     }
     using ns2::f; // expected-note {{using declaration}}
   }
-  struct A { void f(); }; // expected-note {{target of using declaration}}
+  struct A { void f(); }; // expected-note 2{{target of using declaration}}
   struct B : public A { using A::f; }; // expected-note {{using declaration}}
+  template<typename T> struct C : A { using A::f; }; // expected-note {{using declaration}}
   struct X {
     template<class T> friend void ns1::f(T t); // expected-error {{cannot befriend target of using declaration}}
     friend void B::f(); // expected-error {{cannot befriend target of using declaration}}
+    friend void C<int>::f(); // expected-error {{cannot befriend target of using declaration}}
   };
 }
 
@@ -294,5 +296,95 @@ namespace test11 {
 
   class A {
     friend class __attribute__((visibility("hidden"), noreturn)) B; // expected-warning {{'noreturn' attribute only applies to functions and methods}}
+  };
+}
+
+namespace pr21851 {
+// PR21851 was a problem where we assumed that when the friend function redecl
+// lookup found a C++ method, it would necessarily have a qualifier. Below we
+// have some test cases where unqualified lookup finds C++ methods without using
+// qualifiers. Unfortunately, we can't exercise the case of an access check
+// failure because nested classes always have access to the members of outer
+// classes.
+
+void friend_own_method() {
+  class A {
+    void m() {}
+    friend void m();
+  };
+}
+
+void friend_enclosing_method() {
+  class A;
+  class C {
+    int p;
+    friend class A;
+  };
+  class A {
+    void enclosing_friend() {
+      (void)b->p;
+      (void)c->p;
+    }
+    class B {
+      void b(A *a) {
+        (void)a->c->p;
+      }
+      int p;
+      friend void enclosing_friend();
+    };
+    B *b;
+    C *c;
+  };
+}
+
+static auto friend_file_func() {
+  extern void file_scope_friend();
+  class A {
+    int p;
+    friend void file_scope_friend();
+  };
+  return A();
+}
+
+void file_scope_friend() {
+  auto a = friend_file_func();
+  (void)a.p;
+}
+}
+
+template<typename T>
+struct X_pr6954 {
+  operator int();
+  friend void f_pr6954(int x);
+};
+
+int array0_pr6954[sizeof(X_pr6954<int>)];
+int array1_pr6954[sizeof(X_pr6954<float>)];
+
+void g_pr6954() {
+  f_pr6954(5); // expected-error{{undeclared identifier 'f_pr6954'}}
+}
+
+namespace tag_redecl {
+  namespace N {
+    struct X *p;
+    namespace {
+      class K {
+        friend struct X;
+      };
+    }
+  }
+  namespace N {
+    struct X;
+    X *q = p;
+  }
+}
+
+namespace default_arg {
+  void f();
+  void f(void*); // expected-note {{previous}}
+  struct X {
+    friend void f(int a, int b = 0) {}
+    friend void f(void *p = 0) {} // expected-error {{must be the only}}
   };
 }

@@ -7,7 +7,7 @@ TableGen Language Introduction
 
 .. warning::
    This document is extremely rough. If you find something lacking, please
-   fix it, file a documentation bug, or ask about it on llvmdev.
+   fix it, file a documentation bug, or ask about it on llvm-dev.
 
 Introduction
 ============
@@ -58,6 +58,10 @@ types are:
     The 'string' type represents an ordered sequence of characters of arbitrary
     length.
 
+``code``
+    The `code` type represents a code fragment, which can be single/multi-line
+    string literal.
+
 ``bits<n>``
     A 'bits' type is an arbitrary, but fixed, size integer that is broken up
     into individual bits.  This type is useful because it can handle some bits
@@ -94,10 +98,9 @@ supported include:
     uninitialized field
 
 ``0b1001011``
-    binary integer value
-
-``07654321``
-    octal integer value (indicated by a leading 0)
+    binary integer value.
+    Note that this is sized by the number of bits given and will not be
+    silently extended/truncated.
 
 ``7``
     decimal integer value
@@ -106,7 +109,7 @@ supported include:
     hexadecimal integer value
 
 ``"foo"``
-    string value
+    a single-line string value, can be assigned to ``string`` or ``code`` variable.
 
 ``[{ ... }]``
     usually called a "code fragment", but is just a multiline string literal
@@ -116,8 +119,9 @@ supported include:
     In rare cases, TableGen is unable to deduce the element type in which case
     the user must specify it explicitly.
 
-``{ a, b, c }``
-    initializer for a "bits<3>" value
+``{ a, b, 0b10 }``
+    initializer for a "bits<4>" value.
+    1-bit from "a", 1-bit from "b", 2-bits from 0b10.
 
 ``value``
     value reference
@@ -126,7 +130,8 @@ supported include:
     access to one bit of a value
 
 ``value{15-17}``
-    access to multiple bits of a value
+    access to an ordered sequence of bits of a value, in particular ``value{15-17}``
+    produces an order that is the reverse of ``value{17-15}``.
 
 ``DEF``
     reference to a record definition
@@ -187,7 +192,7 @@ supported include:
     for 'a' in 'c.'  This operation is analogous to $(subst) in GNU make.
 
 ``!foreach(a, b, c)``
-    For each member 'b' of dag or list 'a' apply operator 'c.'  'b' is a dummy
+    For each member of dag or list 'b' apply operator 'c.'  'a' is a dummy
     variable that should be declared as a member variable of an instantiated
     class.  This operation is analogous to $(foreach) in GNU make.
 
@@ -208,8 +213,8 @@ supported include:
     on string, int and bit objects.  Use !cast<string> to compare other types of
     objects.
 
-``!shl(a,b)`` ``!srl(a,b)`` ``!sra(a,b)`` ``!add(a,b)``
-    The usual logical and arithmetic operators.
+``!shl(a,b)`` ``!srl(a,b)`` ``!sra(a,b)`` ``!add(a,b)`` ``!and(a,b)``
+    The usual binary and arithmetic operators.
 
 Note that all of the values have rules specifying how they convert to values
 for different types.  These rules allow you to assign a value like "``7``"

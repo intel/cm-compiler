@@ -13,7 +13,7 @@ namespace A {
 }
 
 A:: ; // expected-error {{expected unqualified-id}}
-::A::ax::undef ex3; // expected-error {{'ax' is not a class, namespace, or scoped enumeration}}
+::A::ax::undef ex3; // expected-error {{'ax' is not a class, namespace, or enumeration}}
 A::undef1::undef2 ex4; // expected-error {{no member named 'undef1'}}
 
 int A::C::Ag1() { return 0; }
@@ -88,9 +88,9 @@ void f3() {
   // declared here", "template 'X' declared here", etc) to help explain what it
   // is if it's 'not a class, namespace, or scoped enumeration'.
   int N; // expected-note {{'N' declared here}}
-  N::x = 0; // expected-error {{'N' is not a class, namespace, or scoped enumeration}}
+  N::x = 0; // expected-error {{'N' is not a class, namespace, or enumeration}}
   { int A;           A::ax = 0; }
-  { typedef int A;   A::ax = 0; } // expected-error{{'A' (aka 'int') is not a class, namespace, or scoped enumeration}}
+  { typedef int A;   A::ax = 0; } // expected-error{{'A' (aka 'int') is not a class, namespace, or enumeration}}
   { typedef A::C A;  A::ax = 0; } // expected-error {{no member named 'ax'}}
   { typedef A::C A;  A::cx = 0; }
 }
@@ -115,8 +115,8 @@ namespace E {
       X = 0
     };
 
-    void f() {
-      return E::X; // expected-error{{'E::Nested::E' is not a class, namespace, or scoped enumeration}}
+    int f() {
+      return E::X; // expected-warning{{use of enumeration in a nested name specifier is a C++11 extension}}
     }
   }
 }
@@ -168,6 +168,13 @@ void N::f() { } // okay
 
 struct Y;  // expected-note{{forward declaration of 'Y'}}
 Y::foo y; // expected-error{{incomplete type 'Y' named in nested name specifier}}
+
+namespace PR25156 {
+struct Y;  // expected-note{{forward declaration of 'PR25156::Y'}}
+void foo() {
+  Y::~Y(); // expected-error{{incomplete type 'PR25156::Y' named in nested name specifier}}
+}
+}
 
 X::X() : a(5) { } // expected-error{{use of undeclared identifier 'X'}}
 
@@ -310,7 +317,7 @@ namespace N {
 }
 
 namespace TypedefNamespace { typedef int F; };
-TypedefNamespace::F::NonexistentName BadNNSWithCXXScopeSpec; // expected-error {{'F' (aka 'int') is not a class, namespace, or scoped enumeration}}
+TypedefNamespace::F::NonexistentName BadNNSWithCXXScopeSpec; // expected-error {{'TypedefNamespace::F' (aka 'int') is not a class, namespace, or enumeration}}
 
 namespace PR18587 {
 
@@ -409,4 +416,47 @@ struct S7c {
   T1<B1::B2>::C1 m1 : T1<B1:B2>::N1;  // expected-error{{unexpected ':' in nested name specifier; did you mean '::'?}}
 };
 
+}
+
+namespace PR16951 {
+  namespace ns {
+    enum an_enumeration {
+      ENUMERATOR  // expected-note{{'ENUMERATOR' declared here}}
+    };
+  }
+
+  int x1 = ns::an_enumeration::ENUMERATOR; // expected-warning{{use of enumeration in a nested name specifier is a C++11 extension}}
+
+  int x2 = ns::an_enumeration::ENUMERATOR::vvv; // expected-warning{{use of enumeration in a nested name specifier is a C++11 extension}} \
+                                                // expected-error{{'ENUMERATOR' is not a class, namespace, or enumeration}} \
+
+  int x3 = ns::an_enumeration::X; // expected-warning{{use of enumeration in a nested name specifier is a C++11 extension}} \
+                                  // expected-error{{no member named 'X'}}
+
+  enum enumerator_2 {
+    ENUMERATOR_2
+  };
+
+  int x4 = enumerator_2::ENUMERATOR_2; // expected-warning{{use of enumeration in a nested name specifier is a C++11 extension}}
+  int x5 = enumerator_2::X2; // expected-warning{{use of enumeration in a nested name specifier is a C++11 extension}} \
+                             // expected-error{{no member named 'X2' in 'PR16951::enumerator_2'}}
+
+}
+
+namespace PR30619 {
+c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d;
+// expected-error@-1 16{{unknown type name 'c'}}
+c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d;
+// expected-error@-1 16{{unknown type name 'c'}}
+c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d;
+// expected-error@-1 16{{unknown type name 'c'}}
+c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d; c d;
+// expected-error@-1 16{{unknown type name 'c'}}
+namespace A {
+class B {
+  typedef C D; // expected-error{{unknown type name 'C'}}
+  A::D::F;
+  // expected-error@-1{{'PR30619::A::B::D' (aka 'int') is not a class, namespace, or enumeration}}
+};
+}
 }

@@ -1,4 +1,6 @@
 ; RUN: llc -O0 -mtriple=x86_64-unknown-linux-gnu < %s | FileCheck %s
+; RUN: llc  -O0 -mtriple=x86_64-unknown-linux-gnu -filetype=obj < %s \
+; RUN:   | llvm-dwarfdump -debug-info - | FileCheck %s --check-prefix=DWARF
 
 ; Verify that we have correct debug info for local variables in code
 ; instrumented with AddressSanitizer.
@@ -7,35 +9,38 @@
 ; int bar(int y) {
 ;   return y + 2;
 ; }
-; with "clang++ -S -emit-llvm -fsanitize=address -O0 -g test.cc"
+; with "clang++ -S -emit-llvm -mllvm -asan-skip-promotable-allocas=0 -fsanitize=address -O0 -g test.cc"
 
-; First, argument variable "y" resides in %rdi:
-; CHECK: DEBUG_VALUE: bar:y <- RDI
-
-; Then its address is stored in a location on a stack:
+; The address of the (potentially now malloc'ed) alloca ends up
+; in rdi, after which it is spilled to the stack. We record the
+; spill OFFSET on the stack for checking the debug info below.
+; CHECK: #DEBUG_VALUE: bar:y <- [DW_OP_deref] [%rdi+0]
 ; CHECK: movq %rdi, [[OFFSET:[0-9]+]](%rsp)
 ; CHECK-NEXT: [[START_LABEL:.Ltmp[0-9]+]]
-; CHECK-NEXT: DEBUG_VALUE: bar:y <- [RSP+[[OFFSET]]]
+; CHECK-NEXT: #DEBUG_VALUE: bar:y <- [DW_OP_plus_uconst [[OFFSET]], DW_OP_deref, DW_OP_deref]
 ; This location should be valid until the end of the function.
+
+; CHECK:        movq    %rbp, %rsp
+; CHECK-NEXT: [[END_LABEL:.Ltmp[0-9]+]]:
 
 ; CHECK: .Ldebug_loc{{[0-9]+}}:
 ; We expect two location ranges for the variable.
 
-; First, it is stored in %rdx:
-; CHECK:      .Lset{{[0-9]+}} = .Lfunc_begin0-.Lfunc_begin0
-; CHECK-NEXT: .quad .Lset{{[0-9]+}}
-; CHECK-NEXT: .Lset{{[0-9]+}} = [[START_LABEL]]-.Lfunc_begin0
-; CHECK-NEXT: .quad .Lset{{[0-9]+}}
-; CHECK: DW_OP_reg5
+; First, its address is stored in %rdi:
+; CHECK:      .quad .Lfunc_begin0-.Lfunc_begin0
+; CHECK-NEXT: .quad [[START_LABEL]]-.Lfunc_begin0
+; CHECK: DW_OP_breg5
+; DWARF:       DW_TAG_formal_parameter
+; DWARF:         DW_AT_location
+; DWARF-NEXT:      {{.*}} - {{.*}}: DW_OP_breg5 RDI+0, DW_OP_deref
 
 ; Then it's addressed via %rsp:
-; CHECK:      .Lset{{[0-9]+}} = [[START_LABEL]]-.Lfunc_begin0
-; CHECK-NEXT: .quad .Lset{{[0-9]+}}
-; CHECK-NEXT: .Lset{{[0-9]+}} = .Lfunc_end0-.Lfunc_begin0
-; CHECK-NEXT: .quad .Lset{{[0-9]+}}
+; CHECK:      .quad [[START_LABEL]]-.Lfunc_begin0
+; CHECK-NEXT: .quad [[END_LABEL]]-.Lfunc_begin0
 ; CHECK: DW_OP_breg7
 ; CHECK-NEXT: [[OFFSET]]
 ; CHECK: DW_OP_deref
+; DWARF-NEXT:      {{.*}} - {{.*}}: DW_OP_breg7 RSP+{{[0-9]+}}, DW_OP_deref, DW_OP_deref)
 
 ; ModuleID = 'test.cc'
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
@@ -46,11 +51,11 @@ target triple = "x86_64-unknown-linux-gnu"
 @__asan_gen_ = private unnamed_addr constant [16 x i8] c"1 32 4 6 y.addr\00", align 1
 
 ; Function Attrs: nounwind sanitize_address uwtable
-define i32 @_Z3bari(i32 %y) #0 {
+define i32 @_Z3bari(i32 %y) #0 !dbg !4 {
 entry:
   %MyAlloca = alloca [64 x i8], align 32
   %0 = ptrtoint [64 x i8]* %MyAlloca to i64
-  %1 = load i32* @__asan_option_detect_stack_use_after_return
+  %1 = load i32, i32* @__asan_option_detect_stack_use_after_return
   %2 = icmp ne i32 %1, 0
   br i1 %2, label %3, label %5
 
@@ -79,9 +84,9 @@ entry:
   %19 = lshr i64 %18, 3
   %20 = add i64 %19, 2147450880
   %21 = inttoptr i64 %20 to i8*
-  %22 = load i8* %21
+  %22 = load i8, i8* %21
   %23 = icmp ne i8 %22, 0
-  call void @llvm.dbg.declare(metadata !{i32* %8}, metadata !12)
+  call void @llvm.dbg.declare(metadata i32* %8, metadata !12, metadata !14), !dbg !DILocation(scope: !4)
   br i1 %23, label %24, label %30
 
 ; <label>:24                                      ; preds = %5
@@ -102,7 +107,7 @@ entry:
   %32 = lshr i64 %31, 3, !dbg !13
   %33 = add i64 %32, 2147450880, !dbg !13
   %34 = inttoptr i64 %33 to i8*, !dbg !13
-  %35 = load i8* %34, !dbg !13
+  %35 = load i8, i8* %34, !dbg !13
   %36 = icmp ne i8 %35, 0, !dbg !13
   br i1 %36, label %37, label %43, !dbg !13
 
@@ -119,7 +124,7 @@ entry:
   unreachable
 
 ; <label>:43                                      ; preds = %37, %30
-  %44 = load i32* %8, align 4, !dbg !13
+  %44 = load i32, i32* %8, align 4, !dbg !13
   %add = add nsw i32 %44, 2, !dbg !13
   store i64 1172321806, i64* %9, !dbg !13
   %45 = icmp ne i64 %6, %0, !dbg !13
@@ -131,7 +136,7 @@ entry:
   store i64 -723401728380766731, i64* %48, !dbg !13
   %49 = add i64 %6, 56, !dbg !13
   %50 = inttoptr i64 %49 to i64*, !dbg !13
-  %51 = load i64* %50, !dbg !13
+  %51 = load i64, i64* %50, !dbg !13
   %52 = inttoptr i64 %51 to i8*, !dbg !13
   store i8 0, i8* %52, !dbg !13
   br label %56, !dbg !13
@@ -147,7 +152,7 @@ entry:
 }
 
 ; Function Attrs: nounwind readnone
-declare void @llvm.dbg.declare(metadata, metadata) #1
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 define internal void @asan.module_ctor() {
   call void @__asan_init_v3()
@@ -169,18 +174,17 @@ attributes #1 = { nounwind readnone }
 !llvm.module.flags = !{!9, !10}
 !llvm.ident = !{!11}
 
-!0 = metadata !{i32 786449, metadata !1, i32 4, metadata !"clang version 3.5.0 (209308)", i1 false, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !"", i32 1} ; [ DW_TAG_compile_unit ] [/llvm_cmake_gcc/test.cc] [DW_LANG_C_plus_plus]
-!1 = metadata !{metadata !"test.cc", metadata !"/llvm_cmake_gcc"}
-!2 = metadata !{}
-!3 = metadata !{metadata !4}
-!4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"bar", metadata !"bar", metadata !"_Z3bari", i32 1, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, i32 (i32)* @_Z3bari, null, null, metadata !2, i32 1} ; [ DW_TAG_subprogram ] [line 1] [def] [bar]
-!5 = metadata !{i32 786473, metadata !1}          ; [ DW_TAG_file_type ] [/llvm_cmake_gcc/test.cc]
-!6 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !7, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!7 = metadata !{metadata !8, metadata !8}
-!8 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!9 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!10 = metadata !{i32 2, metadata !"Debug Info Version", i32 1}
-!11 = metadata !{metadata !"clang version 3.5.0 (209308)"}
-!12 = metadata !{i32 786689, metadata !4, metadata !"y", metadata !5, i32 16777217, metadata !8, i32 0, i32 0, metadata !14} ; [ DW_TAG_arg_variable ] [y] [line 1]
-!13 = metadata !{i32 2, i32 0, metadata !4, null}
-!14 = metadata !{i64 2}
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (209308)", isOptimized: false, emissionKind: FullDebug, file: !1, enums: !2, retainedTypes: !2, globals: !2, imports: !2)
+!1 = !DIFile(filename: "test.cc", directory: "/llvm_cmake_gcc")
+!2 = !{}
+!4 = distinct !DISubprogram(name: "bar", linkageName: "_Z3bari", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, unit: !0, scopeLine: 1, file: !1, scope: !5, type: !6, variables: !2)
+!5 = !DIFile(filename: "test.cc", directory: "/llvm_cmake_gcc")
+!6 = !DISubroutineType(types: !7)
+!7 = !{!8, !8}
+!8 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+!9 = !{i32 2, !"Dwarf Version", i32 4}
+!10 = !{i32 2, !"Debug Info Version", i32 3}
+!11 = !{!"clang version 3.5.0 (209308)"}
+!12 = !DILocalVariable(name: "y", line: 1, arg: 1, scope: !4, file: !5, type: !8)
+!13 = !DILocation(line: 2, scope: !4)
+!14 = !DIExpression(DW_OP_deref)

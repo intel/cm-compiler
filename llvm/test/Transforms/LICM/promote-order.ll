@@ -1,4 +1,5 @@
 ; RUN: opt -tbaa -basicaa -licm -S < %s | FileCheck %s
+; RUN: opt -aa-pipeline=type-based-aa,basic-aa -passes='require<aa>,require<targetir>,require<scalar-evolution>,require<opt-remark-emit>,loop(licm)' -S %s | FileCheck %s
 
 ; LICM should keep the stores in their original order when it sinks/promotes them.
 ; rdar://12045203
@@ -36,8 +37,8 @@ for.end:                                          ; preds = %for.cond.for.end_cr
   ret i32* %r.0.lcssa
 }
 
-!0 = metadata !{metadata !"minimal TBAA"}
-!1 = metadata !{metadata !3, metadata !3, i64 0}
-!2 = metadata !{metadata !4, metadata !4, i64 0}
-!3 = metadata !{metadata !"float", metadata !0}
-!4 = metadata !{metadata !"int", metadata !0}
+!0 = !{!"minimal TBAA"}
+!1 = !{!3, !3, i64 0}
+!2 = !{!4, !4, i64 0}
+!3 = !{!"float", !0}
+!4 = !{!"int", !0}

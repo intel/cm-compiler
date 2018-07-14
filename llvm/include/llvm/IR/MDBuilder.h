@@ -15,6 +15,9 @@
 #ifndef LLVM_IR_MDBUILDER_H
 #define LLVM_IR_MDBUILDER_H
 
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/Support/DataTypes.h"
 #include <utility>
 
@@ -23,9 +26,11 @@ namespace llvm {
 class APInt;
 template <typename T> class ArrayRef;
 class LLVMContext;
+class Constant;
+class ConstantAsMetadata;
 class MDNode;
 class MDString;
-class StringRef;
+class Metadata;
 
 class MDBuilder {
   LLVMContext &Context;
@@ -35,6 +40,9 @@ public:
 
   /// \brief Return the given string as metadata.
   MDString *createString(StringRef Str);
+
+  /// \brief Return the given constant as metadata.
+  ConstantAsMetadata *createConstant(Constant *C);
 
   //===------------------------------------------------------------------===//
   // FPMath metadata.
@@ -55,6 +63,18 @@ public:
   /// \brief Return metadata containing a number of branch weights.
   MDNode *createBranchWeights(ArrayRef<uint32_t> Weights);
 
+  /// Return metadata specifying that a branch or switch is unpredictable.
+  MDNode *createUnpredictable();
+
+  /// Return metadata containing the entry \p Count for a function, and the
+  /// GUIDs stored in \p Imports that need to be imported for sample PGO, to
+  /// enable the same inlines as the profiled optimized binary
+  MDNode *createFunctionEntryCount(uint64_t Count,
+                                   const DenseSet<GlobalValue::GUID> *Imports);
+
+  /// Return metadata containing the section prefix for a function.
+  MDNode *createFunctionSectionPrefix(StringRef Prefix);
+
   //===------------------------------------------------------------------===//
   // Range metadata.
   //===------------------------------------------------------------------===//
@@ -62,19 +82,65 @@ public:
   /// \brief Return metadata describing the range [Lo, Hi).
   MDNode *createRange(const APInt &Lo, const APInt &Hi);
 
+  /// \brief Return metadata describing the range [Lo, Hi).
+  MDNode *createRange(Constant *Lo, Constant *Hi);
+
   //===------------------------------------------------------------------===//
-  // TBAA metadata.
+  // Callees metadata.
   //===------------------------------------------------------------------===//
 
-  /// \brief Return metadata appropriate for a TBAA root node.  Each returned
+  /// \brief Return metadata indicating the possible callees of indirect
+  /// calls.
+  MDNode *createCallees(ArrayRef<Function *> Callees);
+
+  //===------------------------------------------------------------------===//
+  // AA metadata.
+  //===------------------------------------------------------------------===//
+
+protected:
+  /// \brief Return metadata appropriate for a AA root node (scope or TBAA).
+  /// Each returned node is distinct from all other metadata and will never
+  /// be identified (uniqued) with anything else.
+  MDNode *createAnonymousAARoot(StringRef Name = StringRef(),
+                                MDNode *Extra = nullptr);
+
+public:
+  /// \brief Return metadata appropriate for a TBAA root node. Each returned
   /// node is distinct from all other metadata and will never be identified
   /// (uniqued) with anything else.
-  MDNode *createAnonymousTBAARoot();
+  MDNode *createAnonymousTBAARoot() {
+    return createAnonymousAARoot();
+  }
+
+  /// \brief Return metadata appropriate for an alias scope domain node.
+  /// Each returned node is distinct from all other metadata and will never
+  /// be identified (uniqued) with anything else.
+  MDNode *createAnonymousAliasScopeDomain(StringRef Name = StringRef()) {
+    return createAnonymousAARoot(Name);
+  }
+
+  /// \brief Return metadata appropriate for an alias scope root node.
+  /// Each returned node is distinct from all other metadata and will never
+  /// be identified (uniqued) with anything else.
+  MDNode *createAnonymousAliasScope(MDNode *Domain,
+                                    StringRef Name = StringRef()) {
+    return createAnonymousAARoot(Name, Domain);
+  }
 
   /// \brief Return metadata appropriate for a TBAA root node with the given
   /// name.  This may be identified (uniqued) with other roots with the same
   /// name.
   MDNode *createTBAARoot(StringRef Name);
+
+  /// \brief Return metadata appropriate for an alias scope domain node with
+  /// the given name. This may be identified (uniqued) with other roots with
+  /// the same name.
+  MDNode *createAliasScopeDomain(StringRef Name);
+
+  /// \brief Return metadata appropriate for an alias scope node with
+  /// the given name. This may be identified (uniqued) with other scopes with
+  /// the same name and domain.
+  MDNode *createAliasScope(StringRef Name, MDNode *Domain);
 
   /// \brief Return metadata for a non-root TBAA node with the given name,
   /// parent in the TBAA tree, and value for 'pointsToConstantMemory'.
@@ -84,9 +150,9 @@ public:
   struct TBAAStructField {
     uint64_t Offset;
     uint64_t Size;
-    MDNode *TBAA;
-    TBAAStructField(uint64_t Offset, uint64_t Size, MDNode *TBAA) :
-      Offset(Offset), Size(Size), TBAA(TBAA) {}
+    MDNode *Type;
+    TBAAStructField(uint64_t Offset, uint64_t Size, MDNode *Type) :
+      Offset(Offset), Size(Size), Type(Type) {}
   };
 
   /// \brief Return metadata for a tbaa.struct node with the given
@@ -107,7 +173,24 @@ public:
   /// \brief Return metadata for a TBAA tag node with the given
   /// base type, access type and offset relative to the base type.
   MDNode *createTBAAStructTagNode(MDNode *BaseType, MDNode *AccessType,
-                                  uint64_t Offset);
+                                  uint64_t Offset, bool IsConstant = false);
+
+  /// \brief Return metadata for a TBAA type node in the TBAA type DAG with the
+  /// given parent type, size in bytes, type identifier and a list of fields.
+  MDNode *createTBAATypeNode(MDNode *Parent, uint64_t Size, Metadata *Id,
+                             ArrayRef<TBAAStructField> Fields =
+                                 ArrayRef<TBAAStructField>());
+
+  /// \brief Return metadata for a TBAA access tag with the given base type,
+  /// final access type, offset of the access relative to the base type, size of
+  /// the access and flag indicating whether the accessed object can be
+  /// considered immutable for the purposes of the TBAA analysis.
+  MDNode *createTBAAAccessTag(MDNode *BaseType, MDNode *AccessType,
+                              uint64_t Offset, uint64_t Size,
+                              bool IsImmutable = false);
+
+  /// \brief Return metadata containing an irreducible loop header weight.
+  MDNode *createIrrLoopHeaderWeight(uint64_t Weight);
 };
 
 } // end namespace llvm

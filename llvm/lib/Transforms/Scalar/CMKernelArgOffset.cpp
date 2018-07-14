@@ -107,13 +107,13 @@ private:
     return KindID;
   }
 public:
-  static void emit(Instruction *Inst, const Twine &Msg,
+  static void emit(Instruction *Inst, StringRef Msg,
                    DiagnosticSeverity Severity = DS_Error);
   DiagnosticInfoCMKernelArgOffset(DiagnosticSeverity Severity,
                                   const Function &Fn, const DebugLoc &DLoc,
-                                  const Twine &Msg)
+                                  StringRef Msg)
       : DiagnosticInfoOptimizationBase((DiagnosticKind)getKindID(), Severity,
-                                       /*PassName=*/nullptr, Fn, DLoc, Msg) {}
+                                       /*PassName=*/nullptr, Msg, Fn, DLoc) {}
   // This kind of message is always enabled, and not affected by -rpass.
   virtual bool isEnabled() const override { return true; }
   static bool classof(const DiagnosticInfo *DI) {
@@ -131,7 +131,7 @@ public:
     initializeCMKernelArgOffsetPass(*PassRegistry::getPassRegistry());
   }
   virtual void getAnalysisUsage(AnalysisUsage &AU) const { }
-  virtual const char *getPassName() const { return "CM kernel arg offset"; }
+  virtual StringRef getPassName() const { return "CM kernel arg offset"; }
   virtual bool runOnModule(Module &M);
 private:
   void processKernel(MDNode *Node);
@@ -186,14 +186,21 @@ void CMKernelArgOffset::processKernel(MDNode *Node)
 {
   if (Node->getNumOperands() < 7)
     return;
-  Function *F = dyn_cast<Function>(Node->getOperand(0));
+
+  auto getValue = [](Metadata *M) -> Value * {
+    if (auto VM = dyn_cast<ValueAsMetadata>(M))
+      return VM->getValue();
+    return nullptr;
+  };
+
+  Function *F = dyn_cast_or_null<Function>(getValue(Node->getOperand(0)));
   if (!F)
     return;
   // Get the arg kinds.
   MDNode *TypeNode = dyn_cast<MDNode>(Node->getOperand(3));
   assert(TypeNode);
   for (unsigned i = 0, e = TypeNode->getNumOperands(); i != e; ++i) {
-    ConstantInt *AK = dyn_cast<ConstantInt>(TypeNode->getOperand(i));
+    ConstantInt *AK = cast<ConstantInt>(getValue(TypeNode->getOperand(i)));
     ArgKinds.push_back((uint32_t)AK->getZExtValue());
   }
 
@@ -201,7 +208,7 @@ void CMKernelArgOffset::processKernel(MDNode *Node)
   MDNode *IOKinds = dyn_cast<MDNode>(Node->getOperand(6));
   assert(IOKinds);
   for (unsigned i = 0, e = IOKinds->getNumOperands(); i != e; ++i) {
-    ConstantInt *K = dyn_cast<ConstantInt>(IOKinds->getOperand(i));
+    ConstantInt *K = cast<ConstantInt>(getValue(IOKinds->getOperand(i)));
     // Value 0 means there is no input/output attribute; and compiler could
     // freely reorder arguments.
     if (K->getZExtValue() != 0) {
@@ -286,12 +293,12 @@ void CMKernelArgOffset::processKernel(MDNode *Node)
       for (; zi != ze; ++ zi) {
         GrfParamZone &Zone = *zi;
 
-        Start = RoundUpToAlignment(Zone.Start, Align);
+        Start = alignTo(Zone.Start, Align);
         End = Start + BestSize;
 
         if ((Start % GENX_WIDTH_GENERAL_REG) != 0 &&
             (Start / GENX_WIDTH_GENERAL_REG) != (End - 1) / GENX_WIDTH_GENERAL_REG) {
-          Start = RoundUpToAlignment(Zone.Start, GENX_WIDTH_GENERAL_REG);
+          Start = alignTo(Zone.Start, GENX_WIDTH_GENERAL_REG);
           End = Start + BestSize;
         }
 
@@ -343,11 +350,11 @@ void CMKernelArgOffset::processKernel(MDNode *Node)
         if (FirstThreadImplicit)
           Align = GENX_WIDTH_GENERAL_REG;
         FirstThreadImplicit = false;
-        Offset = RoundUpToAlignment(Offset, Align);
+        Offset = alignTo(Offset, Align);
         if ((Offset & (GENX_WIDTH_GENERAL_REG - 1)) + Bytes
             > GENX_WIDTH_GENERAL_REG) {
           // GRF align if arg would cross GRF boundary
-          Offset = RoundUpToAlignment(Offset, GENX_WIDTH_GENERAL_REG);
+          Offset = alignTo(Offset, GENX_WIDTH_GENERAL_REG);
         }
         PlacedArgs[Arg] = Offset;
         Offset += Bytes;
@@ -371,14 +378,14 @@ void CMKernelArgOffset::processKernel(MDNode *Node)
       Type *Ty = Arg->getType();
       unsigned Bytes = Ty->getScalarSizeInBits() / 8;
 
-      Offset = RoundUpToAlignment(Offset, Bytes);
+      Offset = alignTo(Offset, Bytes);
 
       if (isa<VectorType>(Ty)) {
         Bytes = Ty->getPrimitiveSizeInBits() / 8;
 
         if ((Offset & (GENX_WIDTH_GENERAL_REG - 1)) + Bytes > GENX_WIDTH_GENERAL_REG)
           // GRF align if arg would cross GRF boundary
-          Offset = RoundUpToAlignment(Offset, GENX_WIDTH_GENERAL_REG);
+          Offset = alignTo(Offset, GENX_WIDTH_GENERAL_REG);
       }
 
       PlacedArgs[Arg] = Offset;
@@ -390,11 +397,11 @@ void CMKernelArgOffset::processKernel(MDNode *Node)
   // All arguments now have offsets. Update the metadata node containing the
   // offsets.
   assert(F->arg_size() == ArgKinds.size() && "Mismatch between metadata for kernel and number of args");
-  SmallVector<Value *, 8> ArgOffsets;
+  SmallVector<Metadata *, 8> ArgOffsets;
   auto I32Ty = Type::getInt32Ty(F->getContext());
   for (auto ai = F->arg_begin(), ae = F->arg_end(); ai != ae; ++ai) {
     Argument *Arg = &*ai;
-    ArgOffsets.push_back(ConstantInt::get(I32Ty, PlacedArgs[Arg]));
+    ArgOffsets.push_back(ValueAsMetadata::getConstant(ConstantInt::get(I32Ty, PlacedArgs[Arg])));
   }
   MDNode *OffsetsNode = MDNode::get(F->getContext(), ArgOffsets);
   Node->replaceOperandWith(5, OffsetsNode);
@@ -410,9 +417,8 @@ void CMKernelArgOffset::processKernel(MDNode *Node)
 /***********************************************************************
  * DiagnosticInfoCMKernelArgOffset::emit : emit an error or warning
  */
-void DiagnosticInfoCMKernelArgOffset::emit(Instruction *Inst, const Twine &Msg,
-        DiagnosticSeverity Severity)
-{
+void DiagnosticInfoCMKernelArgOffset::emit(Instruction *Inst, StringRef Msg,
+                                           DiagnosticSeverity Severity) {
   DiagnosticInfoCMKernelArgOffset Err(Severity, *Inst->getParent()->getParent(),
       Inst->getDebugLoc(), Msg);
   Inst->getContext().diagnose(Err);

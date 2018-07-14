@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple i386-unknown-unknown -std=c++11 -fvisibility-inlines-hidden -emit-llvm -o - %s -O2 -disable-llvm-optzns | FileCheck %s
+// RUN: %clang_cc1 -triple i386-unknown-unknown -std=c++11 -fvisibility-inlines-hidden -emit-llvm -o - %s -O2 -disable-llvm-passes | FileCheck %s
 
 // The trickery with optimization in the run line is to get IR
 // generation to emit available_externally function bodies, but not
@@ -161,4 +161,17 @@ namespace test6 {
   void g() {
     C::g();
   }
+}
+
+namespace PR34811 {
+  template <typename T> void tf() {}
+  
+  // CHECK-LABEL: define linkonce_odr hidden i8* @_ZN7PR348111fEv(
+  inline void *f() {
+    auto l = []() {};
+    // CHECK-LABEL: define linkonce_odr hidden void @_ZN7PR348112tfIZNS_1fEvEUlvE_EEvv(
+    return (void *)&tf<decltype(l)>;
+  }
+  
+  void *p = (void *)f;
 }

@@ -1,7 +1,7 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,unix.cstring,alpha.unix.cstring,debug.ExprInspection -analyzer-store=region -verify %s
-// RUN: %clang_cc1 -analyze -DUSE_BUILTINS -analyzer-checker=core,unix.cstring,alpha.unix.cstring,debug.ExprInspection -analyzer-store=region -verify %s
-// RUN: %clang_cc1 -analyze -DVARIANT -analyzer-checker=core,unix.cstring,alpha.unix.cstring,debug.ExprInspection -analyzer-store=region -verify %s
-// RUN: %clang_cc1 -analyze -DUSE_BUILTINS -DVARIANT -analyzer-checker=core,unix.cstring,alpha.unix.cstring,debug.ExprInspection -analyzer-store=region -verify %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.cstring,alpha.unix.cstring,debug.ExprInspection -analyzer-store=region -verify %s
+// RUN: %clang_analyze_cc1 -DUSE_BUILTINS -analyzer-checker=core,unix.cstring,alpha.unix.cstring,debug.ExprInspection -analyzer-store=region -verify %s
+// RUN: %clang_analyze_cc1 -DVARIANT -analyzer-checker=core,unix.cstring,alpha.unix.cstring,debug.ExprInspection -analyzer-store=region -verify %s
+// RUN: %clang_analyze_cc1 -DUSE_BUILTINS -DVARIANT -analyzer-checker=core,unix.cstring,alpha.unix.cstring,debug.ExprInspection -analyzer-store=region -verify %s
 
 //===----------------------------------------------------------------------===
 // Declarations
@@ -255,6 +255,45 @@ void mempcpy12() {
 void mempcpy13() {
   char a[4] = {0};
   mempcpy(a, 0, 0); // no-warning
+}
+
+void mempcpy14() {
+  int src[] = {1, 2, 3, 4};
+  int dst[5] = {0};
+  int *p;
+
+  p = mempcpy(dst, src, 4 * sizeof(int));
+
+  clang_analyzer_eval(p == &dst[4]); // expected-warning{{TRUE}}
+}
+
+struct st {
+  int i;
+  int j;
+};
+
+void mempcpy15() {
+  struct st s1 = {0};
+  struct st s2;
+  struct st *p1;
+  struct st *p2;
+
+  p1 = (&s2) + 1;
+  p2 = mempcpy(&s2, &s1, sizeof(struct st));
+
+  clang_analyzer_eval(p1 == p2); // expected-warning{{TRUE}}
+}
+
+void mempcpy16() {
+  struct st s1[10] = {{0}};
+  struct st s2[10];
+  struct st *p1;
+  struct st *p2;
+
+  p1 = (&s2[0]) + 5;
+  p2 = mempcpy(&s2[0], &s1[0], 5 * sizeof(struct st));
+
+  clang_analyzer_eval(p1 == p2); // expected-warning{{TRUE}}
 }
 
 void mempcpy_unknown_size_warn (size_t n) {

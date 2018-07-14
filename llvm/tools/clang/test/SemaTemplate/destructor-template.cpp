@@ -52,9 +52,13 @@ namespace PR7239 {
 }
 
 namespace PR7904 {
-  struct Foo {
-    template <int i> ~Foo() {} // expected-error{{destructor cannot be declared as a template}}
-  };
+  struct Foo {};
+  template <class T>
+  Foo::~Foo() { // expected-error{{destructor cannot be declared as a template}}
+    T t;
+    T &pT = t;
+    pT;
+  }
   Foo f;
 }
 
@@ -82,3 +86,9 @@ namespace PR16852 {
   template<typename T> decltype(S<T>().~S()) f(); // expected-note {{candidate template ignored: couldn't infer template argument 'T'}}
   void g() { f(); } // expected-error {{no matching function for call to 'f'}}
 }
+
+class PR33189
+{
+  template <class T>
+  ~PR33189() { } // expected-error{{destructor cannot be declared as a template}}
+};

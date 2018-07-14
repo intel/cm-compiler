@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -emit-llvm -g -triple x86_64-linux-gnu  %s -o - | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm -debug-info-kind=limited -triple x86_64-linux-gnu  %s -o - | FileCheck %s
 
 // Make sure that the union type has template parameters.
 
@@ -10,6 +10,8 @@ namespace PR15637 {
   Value<float> f;
 }
 
-// CHECK: {{.*}}, metadata !"Value<float>", {{.*}}, null, metadata [[TTPARAM:.*]], metadata !"_ZTSN7PR156375ValueIfEE"} ; [ DW_TAG_union_type ] [Value<float>]
-// CHECK: [[TTPARAM]] = metadata !{metadata [[PARAMS:.*]]}
-// CHECK: [[PARAMS]] = metadata !{{{.*}}metadata !"T",{{.*}}} ; [ DW_TAG_template_type_parameter ]
+// CHECK: !DICompositeType(tag: DW_TAG_union_type, name: "Value<float>",
+// CHECK-SAME:             templateParams: [[TTPARAM:![0-9]+]]
+// CHECK-SAME:             identifier: "_ZTSN7PR156375ValueIfEE"
+// CHECK: [[TTPARAM]] = !{[[PARAMS:.*]]}
+// CHECK: [[PARAMS]] = !DITemplateTypeParameter(name: "T"

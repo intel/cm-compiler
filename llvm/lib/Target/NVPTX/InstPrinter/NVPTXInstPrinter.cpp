@@ -28,13 +28,9 @@ using namespace llvm;
 
 #include "NVPTXGenAsmWriter.inc"
 
-
 NVPTXInstPrinter::NVPTXInstPrinter(const MCAsmInfo &MAI, const MCInstrInfo &MII,
-                                   const MCRegisterInfo &MRI,
-                                   const MCSubtargetInfo &STI)
-  : MCInstPrinter(MAI, MII, MRI) {
-  setAvailableFeatures(STI.getFeatureBits());
-}
+                                   const MCRegisterInfo &MRI)
+    : MCInstPrinter(MAI, MII, MRI) {}
 
 void NVPTXInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
   // Decode the virtual register
@@ -65,6 +61,12 @@ void NVPTXInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
   case 6:
     OS << "%fd";
     break;
+  case 7:
+    OS << "%h";
+    break;
+  case 8:
+    OS << "%hh";
+    break;
   }
 
   unsigned VReg = RegNo & 0x0FFFFFFF;
@@ -72,7 +74,7 @@ void NVPTXInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
 }
 
 void NVPTXInstPrinter::printInst(const MCInst *MI, raw_ostream &OS,
-                                 StringRef Annot) {
+                                 StringRef Annot, const MCSubtargetInfo &STI) {
   printInstruction(MI, OS);
 
   // Next always print the annotation.
@@ -89,7 +91,7 @@ void NVPTXInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
     O << markup("<imm:") << formatImm(Op.getImm()) << markup(">");
   } else {
     assert(Op.isExpr() && "Unknown operand kind in printOperand");
-    O << *Op.getExpr();
+    Op.getExpr()->print(O, &MAI);
   }
 }
 
@@ -251,8 +253,12 @@ void NVPTXInstPrinter::printLdStCode(const MCInst *MI, int OpNum,
         O << "s";
       else if (Imm == NVPTX::PTXLdStInstCode::Unsigned)
         O << "u";
-      else
+      else if (Imm == NVPTX::PTXLdStInstCode::Untyped)
+        O << "b";
+      else if (Imm == NVPTX::PTXLdStInstCode::Float)
         O << "f";
+      else
+        llvm_unreachable("Unknown register type");
     } else if (!strcmp(Modifier, "vec")) {
       if (Imm == NVPTX::PTXLdStInstCode::V2)
         O << ".v2";

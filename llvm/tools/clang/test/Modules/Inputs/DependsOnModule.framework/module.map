@@ -16,7 +16,20 @@ framework module DependsOnModule {
     requires !objc
     header "not_objc.h"
   }
-
+  explicit module CustomReq1 {
+    requires custom_req1
+  }
+  explicit module CustomReq2 {
+    requires custom_req2
+  }
+  explicit module Coroutines {
+    requires coroutines
+    header "coroutines.h"
+  }
+  explicit module NotCoroutines {
+    requires !coroutines
+    header "not_coroutines.h"
+  }
   explicit framework module SubFramework {
     umbrella header "SubFramework.h"
 

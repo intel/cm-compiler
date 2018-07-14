@@ -1,4 +1,6 @@
-; RUN: llc -march=mipsel -relocation-model=pic -O0 -mips-fast-isel -fast-isel-abort -mcpu=mips32r2 \
+; RUN: llc -march=mipsel -relocation-model=pic -O0 -fast-isel-abort=3 -mcpu=mips32r2 \
+; RUN:     < %s | FileCheck %s
+; RUN: llc -march=mipsel -relocation-model=pic -O0 -fast-isel-abort=3 -mcpu=mips32 \
 ; RUN:     < %s | FileCheck %s
 
 ; Function Attrs: nounwind

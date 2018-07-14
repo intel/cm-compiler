@@ -37,7 +37,7 @@ public:
   explicit PrintMatch(bool suppressUnwrittenScope)
     : NumFoundDecls(0), SuppressUnwrittenScope(suppressUnwrittenScope) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
+  void run(const MatchFinder::MatchResult &Result) override {
     const NamedDecl *ND = Result.Nodes.getNodeAs<NamedDecl>("id");
     if (!ND)
       return;
@@ -68,8 +68,8 @@ PrintedNamedDeclMatches(StringRef Code, const std::vector<std::string> &Args,
   PrintMatch Printer(SuppressUnwrittenScope);
   MatchFinder Finder;
   Finder.addMatcher(NodeMatch, &Printer);
-  std::unique_ptr<FrontendActionFactory> Factory(
-      newFrontendActionFactory(&Finder));
+  std::unique_ptr<FrontendActionFactory> Factory =
+      newFrontendActionFactory(&Finder);
 
   if (!runToolOnCodeWithArgs(Factory->create(), Code, Args, FileName))
     return testing::AssertionFailure()
@@ -130,4 +130,46 @@ TEST(NamedDeclPrinter, TestNamespace2) {
     "inline namespace Z { namespace { int A; } }",
     "A",
     "A"));
+}
+
+TEST(NamedDeclPrinter, TestUnscopedUnnamedEnum) {
+  ASSERT_TRUE(PrintedWrittenNamedDeclCXX11Matches(
+    "enum { A };",
+    "A",
+    "A"));
+}
+
+TEST(NamedDeclPrinter, TestNamedEnum) {
+  ASSERT_TRUE(PrintedWrittenNamedDeclCXX11Matches(
+    "enum X { A };",
+    "A",
+    "A"));
+}
+
+TEST(NamedDeclPrinter, TestScopedNamedEnum) {
+  ASSERT_TRUE(PrintedWrittenNamedDeclCXX11Matches(
+    "enum class X { A };",
+    "A",
+    "X::A"));
+}
+
+TEST(NamedDeclPrinter, TestClassWithUnscopedUnnamedEnum) {
+  ASSERT_TRUE(PrintedWrittenNamedDeclCXX11Matches(
+    "class X { enum { A }; };",
+    "A",
+    "X::A"));
+}
+
+TEST(NamedDeclPrinter, TestClassWithUnscopedNamedEnum) {
+  ASSERT_TRUE(PrintedWrittenNamedDeclCXX11Matches(
+    "class X { enum Y { A }; };",
+    "A",
+    "X::A"));
+}
+
+TEST(NamedDeclPrinter, TestClassWithScopedNamedEnum) {
+  ASSERT_TRUE(PrintedWrittenNamedDeclCXX11Matches(
+    "class X { enum class Y { A }; };",
+    "A",
+    "X::Y::A"));
 }

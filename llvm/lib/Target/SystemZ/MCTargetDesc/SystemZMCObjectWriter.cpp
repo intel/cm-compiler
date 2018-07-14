@@ -7,34 +7,38 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/SystemZMCTargetDesc.h"
 #include "MCTargetDesc/SystemZMCFixups.h"
+#include "MCTargetDesc/SystemZMCTargetDesc.h"
+#include "llvm/BinaryFormat/ELF.h"
 #include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCFixup.h"
+#include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCValue.h"
+#include "llvm/Support/ErrorHandling.h"
+#include <cassert>
+#include <cstdint>
 
 using namespace llvm;
 
 namespace {
+
 class SystemZObjectWriter : public MCELFObjectTargetWriter {
 public:
   SystemZObjectWriter(uint8_t OSABI);
-
-  virtual ~SystemZObjectWriter();
+  ~SystemZObjectWriter() override = default;
 
 protected:
   // Override MCELFObjectTargetWriter.
-  unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
-                        bool IsPCRel) const override;
+  unsigned getRelocType(MCContext &Ctx, const MCValue &Target,
+                        const MCFixup &Fixup, bool IsPCRel) const override;
 };
+
 } // end anonymous namespace
 
 SystemZObjectWriter::SystemZObjectWriter(uint8_t OSABI)
   : MCELFObjectTargetWriter(/*Is64Bit=*/true, OSABI, ELF::EM_S390,
                             /*HasRelocationAddend=*/ true) {}
-
-SystemZObjectWriter::~SystemZObjectWriter() {
-}
 
 // Return the relocation type for an absolute value of MCFixupKind Kind.
 static unsigned getAbsoluteReloc(unsigned Kind) {
@@ -53,10 +57,10 @@ static unsigned getPCRelReloc(unsigned Kind) {
   case FK_Data_2:                return ELF::R_390_PC16;
   case FK_Data_4:                return ELF::R_390_PC32;
   case FK_Data_8:                return ELF::R_390_PC64;
+  case SystemZ::FK_390_PC12DBL:  return ELF::R_390_PC12DBL;
   case SystemZ::FK_390_PC16DBL:  return ELF::R_390_PC16DBL;
+  case SystemZ::FK_390_PC24DBL:  return ELF::R_390_PC24DBL;
   case SystemZ::FK_390_PC32DBL:  return ELF::R_390_PC32DBL;
-  case SystemZ::FK_390_PLT16DBL: return ELF::R_390_PLT16DBL;
-  case SystemZ::FK_390_PLT32DBL: return ELF::R_390_PLT32DBL;
   }
   llvm_unreachable("Unsupported PC-relative address");
 }
@@ -70,16 +74,48 @@ static unsigned getTLSLEReloc(unsigned Kind) {
   llvm_unreachable("Unsupported absolute address");
 }
 
+// Return the R_390_TLS_LDO* relocation type for MCFixupKind Kind.
+static unsigned getTLSLDOReloc(unsigned Kind) {
+  switch (Kind) {
+  case FK_Data_4: return ELF::R_390_TLS_LDO32;
+  case FK_Data_8: return ELF::R_390_TLS_LDO64;
+  }
+  llvm_unreachable("Unsupported absolute address");
+}
+
+// Return the R_390_TLS_LDM* relocation type for MCFixupKind Kind.
+static unsigned getTLSLDMReloc(unsigned Kind) {
+  switch (Kind) {
+  case FK_Data_4: return ELF::R_390_TLS_LDM32;
+  case FK_Data_8: return ELF::R_390_TLS_LDM64;
+  case SystemZ::FK_390_TLS_CALL: return ELF::R_390_TLS_LDCALL;
+  }
+  llvm_unreachable("Unsupported absolute address");
+}
+
+// Return the R_390_TLS_GD* relocation type for MCFixupKind Kind.
+static unsigned getTLSGDReloc(unsigned Kind) {
+  switch (Kind) {
+  case FK_Data_4: return ELF::R_390_TLS_GD32;
+  case FK_Data_8: return ELF::R_390_TLS_GD64;
+  case SystemZ::FK_390_TLS_CALL: return ELF::R_390_TLS_GDCALL;
+  }
+  llvm_unreachable("Unsupported absolute address");
+}
+
 // Return the PLT relocation counterpart of MCFixupKind Kind.
 static unsigned getPLTReloc(unsigned Kind) {
   switch (Kind) {
+  case SystemZ::FK_390_PC12DBL: return ELF::R_390_PLT12DBL;
   case SystemZ::FK_390_PC16DBL: return ELF::R_390_PLT16DBL;
+  case SystemZ::FK_390_PC24DBL: return ELF::R_390_PLT24DBL;
   case SystemZ::FK_390_PC32DBL: return ELF::R_390_PLT32DBL;
   }
   llvm_unreachable("Unsupported absolute address");
 }
 
-unsigned SystemZObjectWriter::GetRelocType(const MCValue &Target,
+unsigned SystemZObjectWriter::getRelocType(MCContext &Ctx,
+                                           const MCValue &Target,
                                            const MCFixup &Fixup,
                                            bool IsPCRel) const {
   MCSymbolRefExpr::VariantKind Modifier = Target.getAccessVariant();
@@ -93,6 +129,23 @@ unsigned SystemZObjectWriter::GetRelocType(const MCValue &Target,
   case MCSymbolRefExpr::VK_NTPOFF:
     assert(!IsPCRel && "NTPOFF shouldn't be PC-relative");
     return getTLSLEReloc(Kind);
+
+  case MCSymbolRefExpr::VK_INDNTPOFF:
+    if (IsPCRel && Kind == SystemZ::FK_390_PC32DBL)
+      return ELF::R_390_TLS_IEENT;
+    llvm_unreachable("Only PC-relative INDNTPOFF accesses are supported for now");
+
+  case MCSymbolRefExpr::VK_DTPOFF:
+    assert(!IsPCRel && "DTPOFF shouldn't be PC-relative");
+    return getTLSLDOReloc(Kind);
+
+  case MCSymbolRefExpr::VK_TLSLDM:
+    assert(!IsPCRel && "TLSLDM shouldn't be PC-relative");
+    return getTLSLDMReloc(Kind);
+
+  case MCSymbolRefExpr::VK_TLSGD:
+    assert(!IsPCRel && "TLSGD shouldn't be PC-relative");
+    return getTLSGDReloc(Kind);
 
   case MCSymbolRefExpr::VK_GOT:
     if (IsPCRel && Kind == SystemZ::FK_390_PC32DBL)
@@ -108,8 +161,8 @@ unsigned SystemZObjectWriter::GetRelocType(const MCValue &Target,
   }
 }
 
-MCObjectWriter *llvm::createSystemZObjectWriter(raw_ostream &OS,
-                                                uint8_t OSABI) {
-  MCELFObjectTargetWriter *MOTW = new SystemZObjectWriter(OSABI);
-  return createELFObjectWriter(MOTW, OS, /*IsLittleEndian=*/false);
+std::unique_ptr<MCObjectWriter>
+llvm::createSystemZObjectWriter(raw_pwrite_stream &OS, uint8_t OSABI) {
+  return createELFObjectWriter(llvm::make_unique<SystemZObjectWriter>(OSABI),
+                               OS, /*IsLittleEndian=*/false);
 }

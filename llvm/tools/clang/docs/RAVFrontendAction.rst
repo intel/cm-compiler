@@ -25,9 +25,10 @@ unit.
 
       class FindNamedClassAction : public clang::ASTFrontendAction {
       public:
-        virtual clang::ASTConsumer *CreateASTConsumer(
+        virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(
           clang::CompilerInstance &Compiler, llvm::StringRef InFile) {
-          return new FindNamedClassConsumer;
+          return std::unique_ptr<clang::ASTConsumer>(
+              new FindNamedClassConsumer);
         }
       };
 
@@ -111,9 +112,10 @@ freshly created FindNamedClassConsumer:
 
 ::
 
-      virtual clang::ASTConsumer *CreateASTConsumer(
+      virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(
         clang::CompilerInstance &Compiler, llvm::StringRef InFile) {
-        return new FindNamedClassConsumer(&Compiler.getASTContext());
+        return std::unique_ptr<clang::ASTConsumer>(
+            new FindNamedClassConsumer(&Compiler.getASTContext()));
       }
 
 Now that the ASTContext is available in the RecursiveASTVisitor, we can
@@ -185,9 +187,10 @@ Now we can combine all of the above into a small example program:
 
       class FindNamedClassAction : public clang::ASTFrontendAction {
       public:
-        virtual clang::ASTConsumer *CreateASTConsumer(
+        virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(
           clang::CompilerInstance &Compiler, llvm::StringRef InFile) {
-          return new FindNamedClassConsumer(&Compiler.getASTContext());
+          return std::unique_ptr<clang::ASTConsumer>(
+              new FindNamedClassConsumer(&Compiler.getASTContext()));
         }
       };
 
@@ -202,9 +205,9 @@ following CMakeLists.txt to link it:
 
 ::
 
-    set(LLVM_USED_LIBS clangTooling)
-
     add_clang_executable(find-class-decls FindClassDecls.cpp)
+
+    target_link_libraries(find-class-decls clangTooling)
 
 When running this tool over a small code snippet it will output all
 declarations of a class n::m::C it found:

@@ -1,4 +1,4 @@
-; RUN: llc -march=x86-64 < %s | FileCheck %s
+; RUN: llc -mtriple=x86_64-- < %s | FileCheck %s
 ; PR4736
 
 %0 = type { i32, i8, [35 x i8] }
@@ -9,7 +9,7 @@
 
 define i32 @int87(i32 %uint64p_8, i1 %cond) nounwind {
 entry:
-  %srcval4 = load i320* bitcast (%0* @g_144 to i320*), align 8 ; <i320> [#uses=1]
+  %srcval4 = load i320, i320* bitcast (%0* @g_144 to i320*), align 8 ; <i320> [#uses=1]
   br label %for.cond
 
 for.cond:                                         ; preds = %for.cond, %entry

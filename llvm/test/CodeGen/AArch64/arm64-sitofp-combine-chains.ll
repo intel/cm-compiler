@@ -1,4 +1,4 @@
-; RUN: llc -march=arm64 -o -  %s | FileCheck %s
+; RUN: llc < %s -mtriple=arm64-eabi | FileCheck %s
 
 ; ARM64ISelLowering.cpp was creating a new (floating-point) load for efficiency
 ; but not updating chain-successors of the old one. As a result, the two memory
@@ -14,7 +14,7 @@ define float @foo() {
 ; CHECK: ldr [[SREG:s[0-9]+]], [x[[VARBASE]],
 ; CHECK: str wzr, [x[[VARBASE]],
 
-  %val = load i32* @var, align 4
+  %val = load i32, i32* @var, align 4
   store i32 0, i32* @var, align 4
 
   %fltval = sitofp i32 %val to float

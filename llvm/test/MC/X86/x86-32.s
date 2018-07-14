@@ -79,7 +79,7 @@
 // CHECK: movl	%eax, -16(%ebp)          # encoding: [0x89,0x45,0xf0]
 	movl	%eax, -16(%ebp)
 
-// CHECK: testb	%bl, %cl                # encoding: [0x84,0xcb]
+// CHECK: testb	%bl, %cl                # encoding: [0x84,0xd9]
         testb %bl, %cl
 
 // CHECK: cmpl	%eax, %ebx              # encoding: [0x39,0xc3]
@@ -289,35 +289,35 @@ cmovnae	%bx,%bx
 
 // Check matching of instructions which embed the SSE comparison code.
 
-// CHECK: cmpps $0, %xmm0, %xmm1
+// CHECK: cmpeqps %xmm0, %xmm1
 // CHECK: encoding: [0x0f,0xc2,0xc8,0x00]
         cmpeqps %xmm0, %xmm1
 
-// CHECK: cmppd $1, %xmm0, %xmm1
+// CHECK: cmpltpd %xmm0, %xmm1
 // CHECK: encoding: [0x66,0x0f,0xc2,0xc8,0x01]
         cmpltpd %xmm0, %xmm1
 
-// CHECK: cmpss $2, %xmm0, %xmm1
+// CHECK: cmpless %xmm0, %xmm1
 // CHECK: encoding: [0xf3,0x0f,0xc2,0xc8,0x02]
         cmpless %xmm0, %xmm1
 
-// CHECK: cmppd $3, %xmm0, %xmm1
+// CHECK: cmpunordpd %xmm0, %xmm1
 // CHECK: encoding: [0x66,0x0f,0xc2,0xc8,0x03]
         cmpunordpd %xmm0, %xmm1
 
-// CHECK: cmpps $4, %xmm0, %xmm1
+// CHECK: cmpneqps %xmm0, %xmm1
 // CHECK: encoding: [0x0f,0xc2,0xc8,0x04]
         cmpneqps %xmm0, %xmm1
 
-// CHECK: cmppd $5, %xmm0, %xmm1
+// CHECK: cmpnltpd %xmm0, %xmm1
 // CHECK: encoding: [0x66,0x0f,0xc2,0xc8,0x05]
         cmpnltpd %xmm0, %xmm1
 
-// CHECK: cmpss $6, %xmm0, %xmm1
+// CHECK: cmpnless %xmm0, %xmm1
 // CHECK: encoding: [0xf3,0x0f,0xc2,0xc8,0x06]
         cmpnless %xmm0, %xmm1
 
-// CHECK: cmpsd $7, %xmm0, %xmm1
+// CHECK: cmpordsd %xmm0, %xmm1
 // CHECK: encoding: [0xf2,0x0f,0xc2,0xc8,0x07]
         cmpordsd %xmm0, %xmm1
 
@@ -355,24 +355,36 @@ cmovnae	%bx,%bx
 // CHECK:  encoding: [0x66,0x8c,0xc8]
         movw %cs, %ax
 
-// CHECK: movl	%cs, (%eax)
+// CHECK: movw	%cs, (%eax)
 // CHECK:  encoding: [0x8c,0x08]
-        movl %cs, (%eax)
+        mov %cs, (%eax)
 
 // CHECK: movw	%cs, (%eax)
-// CHECK:  encoding: [0x66,0x8c,0x08]
+// CHECK:  encoding: [0x8c,0x08]
         movw %cs, (%eax)
 
 // CHECK: movl	%eax, %cs
 // CHECK:  encoding: [0x8e,0xc8]
         movl %eax, %cs
 
-// CHECK: movl	(%eax), %cs
-// CHECK:  encoding: [0x8e,0x08]
-        movl (%eax), %cs
+// CHECK: movl	%eax, %cs
+// CHECK:  encoding: [0x8e,0xc8]
+        movw %ax, %cs
+
+// CHECK: movl	%eax, %cs
+// CHECK:  encoding: [0x8e,0xc8]
+        mov %eax, %cs
+
+// CHECK: movl	%eax, %cs
+// CHECK:  encoding: [0x8e,0xc8]
+        mov %ax, %cs
 
 // CHECK: movw	(%eax), %cs
-// CHECK:  encoding: [0x66,0x8e,0x08]
+// CHECK:  encoding: [0x8e,0x08]
+        mov (%eax), %cs
+
+// CHECK: movw	(%eax), %cs
+// CHECK:  encoding: [0x8e,0x08]
         movw (%eax), %cs
 
 // radr://8033374
@@ -431,6 +443,14 @@ cmovnae	%bx,%bx
 // CHECK: movl	%dr7, %eax
 // CHECK:  encoding: [0x0f,0x21,0xf8]
         movl %dr7,%eax
+
+// CHECK:       clzero
+// CHECK:  encoding: [0x0f,0x01,0xfc]
+                clzero
+
+// CHECK:       clzero
+// CHECK:  encoding: [0x0f,0x01,0xfc]
+                clzero %eax
 
 // radr://8017522
 // CHECK: wait
@@ -508,9 +528,9 @@ sysretl
 
 // rdar://8018260
 testl	%ecx, -24(%ebp)
-// CHECK: testl	-24(%ebp), %ecx
+// CHECK: testl	%ecx, -24(%ebp)
 testl	-24(%ebp), %ecx
-// CHECK: testl	-24(%ebp), %ecx
+// CHECK: testl	%ecx, -24(%ebp)
 
 
 // rdar://8407242
@@ -593,6 +613,55 @@ popfl
 	setnaeb	%bl // CHECK: setb %bl
 
 
+// PR8114
+
+out	%al, (%dx)
+// CHECK: outb	%al, %dx
+outb	%al, (%dx)
+// CHECK: outb	%al, %dx
+out	%ax, (%dx)
+// CHECK: outw	%ax, %dx
+outw	%ax, (%dx)
+// CHECK: outw	%ax, %dx
+out	%eax, (%dx)
+// CHECK: outl	%eax, %dx
+outl	%eax, (%dx)
+// CHECK: outl	%eax, %dx
+
+
+in	(%dx), %al
+// CHECK: inb	%dx, %al
+inb	(%dx), %al
+// CHECK: inb	%dx, %al
+in	(%dx), %ax
+// CHECK: inw	%dx, %ax
+inw	(%dx), %ax
+// CHECK: inw	%dx, %ax
+in	(%dx), %eax
+// CHECK: inl	%dx, %eax
+inl	(%dx), %eax
+// CHECK: inl	%dx, %eax
+
+//PR15455
+
+outs	(%esi), (%dx)
+// CHECK: outsw	(%esi), %dx
+outsb	(%esi), (%dx)
+// CHECK: outsb	(%esi), %dx
+outsw	(%esi), (%dx)
+// CHECK: outsw	(%esi), %dx
+outsl	(%esi), (%dx)
+// CHECK: outsl	(%esi), %dx
+
+ins 	(%dx), %es:(%edi)
+// CHECK: insw	%dx, %es:(%edi)
+insb	(%dx), %es:(%edi)
+// CHECK: insb	%dx, %es:(%edi)
+insw	(%dx), %es:(%edi)
+// CHECK: insw	%dx, %es:(%edi)
+insl	(%dx), %es:(%edi)
+// CHECK: insl	%dx, %es:(%edi)	
+	
 // CHECK: lcalll	$31438, $31438
 // CHECK: lcalll	$31438, $31438
 // CHECK: ljmpl	$31438, $31438
@@ -1018,3 +1087,25 @@ retw
 // CHECK: lretw
 // CHECK: encoding: [0x66,0xcb]
 lretw
+
+// CHECK: data16
+// CHECK: encoding: [0x66]
+data16
+
+// CHECK: data16
+// CHECK: encoding: [0x66]
+// CHECK: lgdtl 4(%eax)
+// CHECK:  encoding: [0x0f,0x01,0x50,0x04]
+data16 lgdt 4(%eax)
+
+// CHECK: rdpid %eax
+// CHECK: encoding: [0xf3,0x0f,0xc7,0xf8]
+rdpid %eax
+
+// CHECK: ptwritel 3735928559(%ebx,%ecx,8)
+// CHECK:  encoding: [0xf3,0x0f,0xae,0xa4,0xcb,0xef,0xbe,0xad,0xde]
+ptwritel 0xdeadbeef(%ebx,%ecx,8)
+
+// CHECK: ptwritel %eax
+// CHECK:  encoding: [0xf3,0x0f,0xae,0xe0]
+ptwritel %eax

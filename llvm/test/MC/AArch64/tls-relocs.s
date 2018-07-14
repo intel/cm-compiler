@@ -18,7 +18,7 @@
 // CHECK:                                 //   fixup A - offset: 0, value: :dtprel_g2:var, kind: fixup_aarch64_movw
 
 // CHECK-ELF:      Relocations [
-// CHECK-ELF-NEXT:   Section (2) .rela.text {
+// CHECK-ELF-NEXT:   Section {{.*}} .rela.text {
 // CHECK-ELF-NEXT:     0x0 R_AARCH64_TLSLD_MOVW_DTPREL_G2 [[VARSYM:[^ ]+]]
 // CHECK-ELF-NEXT:     0x4 R_AARCH64_TLSLD_MOVW_DTPREL_G2 [[VARSYM]]
 // CHECK-ELF-NEXT:     0x8 R_AARCH64_TLSLD_MOVW_DTPREL_G2 [[VARSYM]]
@@ -92,9 +92,9 @@
         add x17, x18, #:dtprel_hi12:var, lsl #12
         add w19, w20, #:dtprel_hi12:var, lsl #12
 
-// CHECK: add    x17, x18, :dtprel_hi12:var, lsl #12 // encoding: [0x51,0bAAAAAA10,0b00AAAAAA,0x91]
+// CHECK: add    x17, x18, :dtprel_hi12:var, lsl #12 // encoding: [0x51,0bAAAAAA10,0b01AAAAAA,0x91]
 // CHECK:                                            //   fixup A - offset: 0, value: :dtprel_hi12:var, kind: fixup_aarch64_add_imm12
-// CHECK: add    w19, w20, :dtprel_hi12:var, lsl #12 // encoding: [0x93,0bAAAAAA10,0b00AAAAAA,0x11]
+// CHECK: add    w19, w20, :dtprel_hi12:var, lsl #12 // encoding: [0x93,0bAAAAAA10,0b01AAAAAA,0x11]
 // CHECK:                                            //   fixup A - offset: 0, value: :dtprel_hi12:var, kind: fixup_aarch64_add_imm12
 
 // CHECK-ELF-NEXT:     0x40 R_AARCH64_TLSLD_ADD_DTPREL_HI12 [[VARSYM]]
@@ -294,9 +294,9 @@
         add x17, x18, #:tprel_hi12:var, lsl #12
         add w19, w20, #:tprel_hi12:var, lsl #12
 
-// CHECK: add    x17, x18, :tprel_hi12:var, lsl #12 // encoding: [0x51,0bAAAAAA10,0b00AAAAAA,0x91]
+// CHECK: add    x17, x18, :tprel_hi12:var, lsl #12 // encoding: [0x51,0bAAAAAA10,0b01AAAAAA,0x91]
 // CHECK:                                           //   fixup A - offset: 0, value: :tprel_hi12:var, kind: fixup_aarch64_add_imm12
-// CHECK: add    w19, w20, :tprel_hi12:var, lsl #12 // encoding: [0x93,0bAAAAAA10,0b00AAAAAA,0x11]
+// CHECK: add    w19, w20, :tprel_hi12:var, lsl #12 // encoding: [0x93,0bAAAAAA10,0b01AAAAAA,0x11]
 // CHECK:                                           //   fixup A - offset: 0, value: :tprel_hi12:var, kind: fixup_aarch64_add_imm12
 
 // CHECK-ELF-NEXT:     0xCC R_AARCH64_TLSLE_ADD_TPREL_HI12 [[VARSYM]]
@@ -391,9 +391,9 @@
 // CHECK:                                 //   fixup A - offset: 0, value: var, kind: fixup_aarch64_tlsdesc_call
 // CHECK: blr    x3                      // encoding: [0x60,0x00,0x3f,0xd6]
 
-// CHECK-ELF-NEXT:     0x104 R_AARCH64_TLSDESC_ADR_PAGE [[VARSYM]]
-// CHECK-ELF-NEXT:     0x108 R_AARCH64_TLSDESC_LD64_LO12_NC [[VARSYM]]
-// CHECK-ELF-NEXT:     0x10C R_AARCH64_TLSDESC_ADD_LO12_NC [[VARSYM]]
+// CHECK-ELF-NEXT:     0x104 R_AARCH64_TLSDESC_ADR_PAGE21 [[VARSYM]]
+// CHECK-ELF-NEXT:     0x108 R_AARCH64_TLSDESC_LD64_LO12 [[VARSYM]]
+// CHECK-ELF-NEXT:     0x10C R_AARCH64_TLSDESC_ADD_LO12 [[VARSYM]]
 // CHECK-ELF-NEXT:     0x110 R_AARCH64_TLSDESC_CALL [[VARSYM]]
 
 

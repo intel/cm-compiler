@@ -6,7 +6,7 @@ target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f3
 target triple = "x86_64-unknown-linux-gnu"
 define void @IncrementMe(i32* %a) sanitize_address {
 entry:
-  %tmp1 = load i32* %a, align 4
+  %tmp1 = load i32, i32* %a, align 4
   %tmp2 = add i32 %tmp1,  1
   store i32 %tmp2, i32* %a, align 4
   ret void
@@ -16,10 +16,10 @@ entry:
 ; OPT1: IncrementMe
 ; OPT1: __asan_report_
 ; OPT1-NOT: __asan_report_
-; OPT1: asan.module_ctor
+; OPT1: ret void
 
 ; Without optimizations we should see two calls to __asan_report_*
 ; OPT0: IncrementMe
 ; OPT0: __asan_report_
 ; OPT0: __asan_report_
-; OPT0: asan.module_ctor
+; OPT0: ret void

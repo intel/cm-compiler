@@ -81,7 +81,8 @@ int main() {
   mutex_shared_lock(&mu2);
   Foo_fun1(1);
 
-  mutex_shared_lock(&mu1); // expected-warning{{acquiring mutex 'mu1' that is already held}}
+  mutex_shared_lock(&mu1); // expected-warning{{acquiring mutex 'mu1' that is already held}} \
+                              expected-warning{{mutex 'mu1' must be acquired before 'mu2'}}
   mutex_unlock(&mu1);
   mutex_unlock(&mu2);
   mutex_shared_lock(&mu1);
@@ -117,12 +118,16 @@ int main() {
   mutex_unlock(foo_.mu_);
 
   mutex_exclusive_lock(&mu1);
-  mutex_shared_unlock(&mu1); // expected-warning {{releasing mutex 'mu1' using shared access, expected exclusive access}}
-  mutex_exclusive_unlock(&mu1);
+  mutex_shared_unlock(&mu1);     // expected-warning {{releasing mutex 'mu1' using shared access, expected exclusive access}}
+  mutex_exclusive_unlock(&mu1);  // expected-warning {{releasing mutex 'mu1' that was not held}}
 
   mutex_shared_lock(&mu1);
   mutex_exclusive_unlock(&mu1); // expected-warning {{releasing mutex 'mu1' using exclusive access, expected shared access}}
-  mutex_shared_unlock(&mu1);
+  mutex_shared_unlock(&mu1);    // expected-warning {{releasing mutex 'mu1' that was not held}}
 
   return 0;
 }
+
+// We had a problem where we'd skip all attributes that follow a late-parsed
+// attribute in a single __attribute__.
+void run() __attribute__((guarded_by(mu1), guarded_by(mu1))); // expected-warning 2{{only applies to non-static data members and global variables}}

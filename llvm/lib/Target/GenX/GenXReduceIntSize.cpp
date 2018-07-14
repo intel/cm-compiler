@@ -98,7 +98,7 @@ class GenXReduceIntSize : public FunctionPass {
 public:
   static char ID;
   explicit GenXReduceIntSize() : FunctionPass(ID) { }
-  virtual const char *getPassName() const { return "GenX reduce integer size"; }
+  virtual StringRef getPassName() const { return "GenX reduce integer size"; }
   void getAnalysisUsage(AnalysisUsage &AU) const;
   bool runOnFunction(Function &F);
 private:
@@ -546,7 +546,7 @@ Value *GenXReduceIntSize::truncValue(Value *V, unsigned NumBits,
           C = C->getSplatValue();
           if (C) {
             APInt Mask = C->getUniqueInteger();
-            if (APIntOps::isMask(NumBits, Mask))
+            if (Mask.isMask(NumBits))
               // The value is the result of an "and" that only keeps bits
               // within the truncated size. Just use its input.
               return
@@ -679,7 +679,7 @@ Instruction *GenXReduceIntSize::forwardProcessInst(Instruction *Inst) {
       Value *A;
       const APInt *Val;
       if (match(Inst, m_And(m_Value(A), m_APInt(Val))) &&
-          APIntOps::isMask(Val->getActiveBits(), *Val)) {
+          Val->isMask(Val->getActiveBits())) {
         TruncBits = std::max(16, 1 << llvm::log2(Val->getActiveBits() * 2 - 1));
         NeedSignExtend = false;
         goto binop;

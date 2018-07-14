@@ -83,10 +83,10 @@
 <!-- ======================================================================= -->
 <h3 id="inline">C99 inline functions</h3>
 <!-- ======================================================================= -->
-<p>By default, Clang builds C code according to the C99 standard,
-which provides different semantics for the <code>inline</code> keyword
-than GCC's default behavior. For example, consider the following
-code:</p>
+<p>By default, Clang builds C code in GNU C11 mode, so it uses standard C99
+semantics for the <code>inline</code> keyword. These semantics are different
+from those in GNU C89 mode, which is the default mode in versions of GCC
+prior to 5.0. For example, consider the following code:</p>
 <pre>
 inline int add(int i, int j) { return i + j; }
 
@@ -110,10 +110,10 @@ Undefined symbols:
       _main in cc-y1jXIr.o
 </pre>
 
-<p>By contrast, GCC's default behavior follows the GNU89 dialect,
-which is the C89 standard plus a lot of extensions.  C89 doesn't have
-an <code>inline</code> keyword, but GCC recognizes it as an extension
-and just treats it as a hint to the optimizer.</p>
+<p>By contrast, GNU C89 mode (used by default in older versions of GCC) is the
+C89 standard plus a lot of extensions. C89 doesn't have an <code>inline</code>
+keyword, but GCC recognizes it as an extension and just treats it as a hint to
+the optimizer.</p>
 
 <p>There are several ways to fix this problem:</p>
 
@@ -130,12 +130,12 @@ and just treats it as a hint to the optimizer.</p>
   for a function to be inlined, nor does it guarantee that it will be.
   Some compilers ignore it completely.  Clang treats it as a mild
   suggestion from the programmer.</li>
-     
+
   <li>Provide an external (non-<code>inline</code>) definition
   of <code>add</code> somewhere else in your program.  The two
   definitions must be equivalent!</li>
 
-  <li>Compile with the GNU89 dialect by adding
+  <li>Compile in the GNU C89 dialect by adding
   <code>-std=gnu89</code> to the set of Clang options. This option is
   only recommended if the program source cannot be changed or if the
   program also relies on additional C89-specific behavior that cannot
@@ -415,19 +415,11 @@ extern int c;  // allowed
 
 <p>GCC and C99 allow an array's size to be determined at run
 time. This extension is not permitted in standard C++. However, Clang
-supports such variable length arrays in very limited circumstances for
-compatibility with GNU C and C99 programs:</p>
+supports such variable length arrays for compatibility with GNU C and
+C99 programs.</p>
 
-<ul>  
-  <li>The element type of a variable length array must be a POD
-  ("plain old data") type, which means that it cannot have any
-  user-declared constructors or destructors, any base classes, or any
-  members of non-POD type. All C types are POD types.</li>
-
-  <li>Variable length arrays cannot be used as the type of a non-type
-template parameter.</li> </ul>
-
-<p>If your code uses variable length arrays in a manner that Clang doesn't support, there are several ways to fix your code:
+<p>If you would prefer not to use this extension, you can disable it with
+<tt>-Werror=vla</tt>. There are several ways to fix your code:
 
 <ol>
 <li>replace the variable length array with a fixed-size array if you can
@@ -566,7 +558,7 @@ lookup in templates, see [temp.dep.candidate].
 <h3 id="dep_lookup_bases">Unqualified lookup into dependent bases of class templates</h3>
 <!-- ======================================================================= -->
 
-Some versions of GCC accept the following invalid code:
+<p>Some versions of GCC accept the following invalid code:
 
 <pre>
 template &lt;typename T&gt; struct Base {
@@ -636,7 +628,7 @@ dispatch!
 <h3 id="undep_incomplete">Incomplete types in templates</h3>
 <!-- ======================================================================= -->
 
-The following code is invalid, but compilers are allowed to accept it:
+<p>The following code is invalid, but compilers are allowed to accept it:
 
 <pre>
   class IOOptions;
@@ -667,7 +659,7 @@ other compilers accept.
 <h3 id="bad_templates">Templates with no valid instantiations</h3>
 <!-- ======================================================================= -->
 
-The following code contains a typo: the programmer
+<p>The following code contains a typo: the programmer
 meant <tt>init()</tt> but wrote <tt>innit()</tt> instead.
 
 <pre>
@@ -714,7 +706,7 @@ simple: since the code is unused, just remove it.
 <h3 id="default_init_const">Default initialization of const variable of a class type requires user-defined default constructor</h3>
 <!-- ======================================================================= -->
 
-If a <tt>class</tt> or <tt>struct</tt> has no user-defined default
+<p>If a <tt>class</tt> or <tt>struct</tt> has no user-defined default
 constructor, C++ doesn't allow you to default construct a <tt>const</tt>
 instance of it like this ([dcl.init], p9):
 
@@ -747,11 +739,15 @@ void Bar() {
 }
 </pre>
 
+An upcoming change to the C++ standard is expected to weaken this rule to only
+apply when the compiler-supplied default constructor would leave a member
+uninitialized. Clang implements the more relaxed rule in version 3.8 onwards.
+
 <!-- ======================================================================= -->
 <h3 id="param_name_lookup">Parameter name lookup</h3>
 <!-- ======================================================================= -->
 
-<p>Due to a bug in its implementation, GCC allows the redeclaration of function parameter names within a function prototype in C++ code, e.g.</p>
+<p>Some versions of GCC allow the redeclaration of function parameter names within a function prototype in C++ code, e.g.</p>
 <blockquote>
 <pre>
 void f(int a, int a);

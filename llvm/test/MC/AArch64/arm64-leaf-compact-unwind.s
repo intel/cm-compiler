@@ -1,5 +1,5 @@
 // RUN: llvm-mc -triple=arm64-apple-ios -filetype=obj < %s | \
-// RUN: llvm-readobj -sections -section-relocations -section-data | \
+// RUN: llvm-readobj --expand-relocs -sections -section-relocations -section-data | \
 // RUN: FileCheck %s
 //
 // rdar://13070556
@@ -22,11 +22,36 @@
 // CHECK-NEXT:   ]
 // CHECK-NEXT:   Reserved1:
 // CHECK-NEXT:   Reserved2:
+// CHECK-NEXT:   Reserved3:
 // CHECK-NEXT:   Relocations [
-// CHECK-NEXT:     0x60 0 3 0 ARM64_RELOC_UNSIGNED 0 0x1
-// CHECK-NEXT:     0x40 0 3 0 ARM64_RELOC_UNSIGNED 0 0x1
-// CHECK-NEXT:     0x20 0 3 0 ARM64_RELOC_UNSIGNED 0 0x1
-// CHECK-NEXT:     0x0 0 3 0 ARM64_RELOC_UNSIGNED 0 0x1
+// CHECK-NEXT:     Relocation {
+// CHECK-NEXT:       Offset: 0x60
+// CHECK-NEXT:       PCRel: 0
+// CHECK-NEXT:       Length: 3
+// CHECK-NEXT:       Type: ARM64_RELOC_UNSIGNED (0)
+// CHECK-NEXT:       Section: __text (1)
+// CHECK-NEXT:     }
+// CHECK-NEXT:     Relocation {
+// CHECK-NEXT:       Offset: 0x40
+// CHECK-NEXT:       PCRel: 0
+// CHECK-NEXT:       Length: 3
+// CHECK-NEXT:       Type: ARM64_RELOC_UNSIGNED (0)
+// CHECK-NEXT:       Section: __text (1)
+// CHECK-NEXT:     }
+// CHECK-NEXT:     Relocation {
+// CHECK-NEXT:       Offset: 0x20
+// CHECK-NEXT:       PCRel: 0
+// CHECK-NEXT:       Length: 3
+// CHECK-NEXT:       Type: ARM64_RELOC_UNSIGNED (0)
+// CHECK-NEXT:       Section: __text (1)
+// CHECK-NEXT:     }
+// CHECK-NEXT:     Relocation {
+// CHECK-NEXT:       Offset: 0x0
+// CHECK-NEXT:       PCRel: 0
+// CHECK-NEXT:       Length: 3
+// CHECK-NEXT:       Type: ARM64_RELOC_UNSIGNED (0)
+// CHECK-NEXT:       Section: __text (1)
+// CHECK-NEXT:     }
 // CHECK-NEXT:   ]
 // CHECK-NEXT:   SectionData (
 // CHECK-NEXT:     0000: 00000000 00000000 08000000 00000002
@@ -45,7 +70,7 @@
 	.align	2
 _foo1:                                  ; @foo1
 	.cfi_startproc
-; BB#0:                                 ; %entry
+; %bb.0:                                ; %entry
 	add	w0, w0, #42             ; =#42
 	ret
 	.cfi_endproc
@@ -54,7 +79,7 @@ _foo1:                                  ; @foo1
 	.align	2
 _foo2:                                  ; @foo2
 	.cfi_startproc
-; BB#0:                                 ; %entry
+; %bb.0:                                ; %entry
 	sub	sp, sp, #144            ; =#144
 Ltmp2:
 	.cfi_def_cfa_offset 144
@@ -66,7 +91,7 @@ LBB1_1:                                 ; %for.body
 	add	x9, x9, #1              ; =#1
 	cmp	w9, #36                 ; =#36
 	b.ne	LBB1_1
-; BB#2:
+; %bb.2:
 	mov	x9, xzr
 	mov	w0, wzr
 LBB1_3:                                 ; %for.body4
@@ -76,7 +101,7 @@ LBB1_3:                                 ; %for.body4
 	cmp	w9, #144                ; =#144
 	add	w0, w10, w0
 	b.ne	LBB1_3
-; BB#4:                                 ; %for.end9
+; %bb.4:                                ; %for.end9
 	add	sp, sp, #144            ; =#144
 	ret
 	.cfi_endproc
@@ -85,7 +110,7 @@ LBB1_3:                                 ; %for.body4
 	.align	2
 _foo3:                                  ; @foo3
 	.cfi_startproc
-; BB#0:                                 ; %entry
+; %bb.0:                                ; %entry
 	stp	x26, x25, [sp, #-64]!
 	stp	x24, x23, [sp, #16]
 	stp	x22, x21, [sp, #32]
@@ -166,7 +191,7 @@ Lloh1:
 	.align	2
 _foo4:                                  ; @foo4
 	.cfi_startproc
-; BB#0:                                 ; %entry
+; %bb.0:                                ; %entry
 	stp	x28, x27, [sp, #-16]!
 	sub	sp, sp, #512            ; =#512
 Ltmp12:
@@ -175,7 +200,7 @@ Ltmp13:
 	.cfi_offset w27, -16
 Ltmp14:
 	.cfi_offset w28, -24
-                                        ; kill: W0<def> W0<kill> X0<def>
+                                        ; kill: def W0 killed W0 def X0
 	mov	x9, xzr
 	ubfx	x10, x0, #0, #32
 	mov	x8, sp
@@ -186,7 +211,7 @@ LBB3_1:                                 ; %for.body
 	add	x9, x9, #1              ; =#1
 	cmp	w9, #128                ; =#128
 	b.ne	LBB3_1
-; BB#2:                                 ; %for.cond2.preheader
+; %bb.2:                                ; %for.cond2.preheader
 	mov	x9, xzr
 	mov	w0, wzr
 	add	x8, x8, w5, sxtw #2
@@ -197,7 +222,7 @@ LBB3_3:                                 ; %for.body4
 	cmp	w9, #512                ; =#512
 	add	w0, w10, w0
 	b.ne	LBB3_3
-; BB#4:                                 ; %for.end11
+; %bb.4:                                ; %for.end11
 	add	sp, sp, #512            ; =#512
 	ldp	x28, x27, [sp], #16
 	ret

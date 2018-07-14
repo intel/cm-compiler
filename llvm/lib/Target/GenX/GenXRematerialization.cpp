@@ -50,7 +50,7 @@ class GenXRematerialization : public FunctionGroupPass {
 public:
   static char ID;
   explicit GenXRematerialization() : FunctionGroupPass(ID) {}
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "GenX rematerialization pass";
   }
   void getAnalysisUsage(AnalysisUsage &AU) const override;

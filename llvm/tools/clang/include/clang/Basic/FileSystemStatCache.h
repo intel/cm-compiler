@@ -12,8 +12,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FILESYSTEMSTATCACHE_H
-#define LLVM_CLANG_FILESYSTEMSTATCACHE_H
+#ifndef LLVM_CLANG_BASIC_FILESYSTEMSTATCACHE_H
+#define LLVM_CLANG_BASIC_FILESYSTEMSTATCACHE_H
 
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/StringMap.h"
@@ -68,14 +68,14 @@ public:
   /// success for directories (not files).  On a successful file lookup, the
   /// implementation can optionally fill in \p F with a valid \p File object and
   /// the client guarantees that it will close it.
-  static bool get(const char *Path, FileData &Data, bool isFile,
+  static bool get(StringRef Path, FileData &Data, bool isFile,
                   std::unique_ptr<vfs::File> *F, FileSystemStatCache *Cache,
                   vfs::FileSystem &FS);
 
   /// \brief Sets the next stat call cache in the chain of stat caches.
   /// Takes ownership of the given stat cache.
-  void setNextStatCache(FileSystemStatCache *Cache) {
-    NextStatCache.reset(Cache);
+  void setNextStatCache(std::unique_ptr<FileSystemStatCache> Cache) {
+    NextStatCache = std::move(Cache);
   }
   
   /// \brief Retrieve the next stat call cache in the chain.
@@ -84,17 +84,19 @@ public:
   /// \brief Retrieve the next stat call cache in the chain, transferring
   /// ownership of this cache (and, transitively, all of the remaining caches)
   /// to the caller.
-  FileSystemStatCache *takeNextStatCache() { return NextStatCache.release(); }
+  std::unique_ptr<FileSystemStatCache> takeNextStatCache() {
+    return std::move(NextStatCache);
+  }
 
 protected:
   // FIXME: The pointer here is a non-owning/optional reference to the
   // unique_ptr. Optional<unique_ptr<vfs::File>&> might be nicer, but
   // Optional needs some work to support references so this isn't possible yet.
-  virtual LookupResult getStat(const char *Path, FileData &Data, bool isFile,
+  virtual LookupResult getStat(StringRef Path, FileData &Data, bool isFile,
                                std::unique_ptr<vfs::File> *F,
                                vfs::FileSystem &FS) = 0;
 
-  LookupResult statChained(const char *Path, FileData &Data, bool isFile,
+  LookupResult statChained(StringRef Path, FileData &Data, bool isFile,
                            std::unique_ptr<vfs::File> *F, vfs::FileSystem &FS) {
     if (FileSystemStatCache *Next = getNextStatCache())
       return Next->getStat(Path, Data, isFile, F, FS);
@@ -119,7 +121,7 @@ public:
   iterator begin() const { return StatCalls.begin(); }
   iterator end() const { return StatCalls.end(); }
 
-  LookupResult getStat(const char *Path, FileData &Data, bool isFile,
+  LookupResult getStat(StringRef Path, FileData &Data, bool isFile,
                        std::unique_ptr<vfs::File> *F,
                        vfs::FileSystem &FS) override;
 };

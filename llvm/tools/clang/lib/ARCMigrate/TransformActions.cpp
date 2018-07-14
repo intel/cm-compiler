@@ -505,11 +505,10 @@ void TransformActionsImpl::commitClearDiagnostic(ArrayRef<unsigned> IDs,
 void TransformActionsImpl::addInsertion(SourceLocation loc, StringRef text) {
   SourceManager &SM = Ctx.getSourceManager();
   loc = SM.getExpansionLoc(loc);
-  for (std::list<CharRange>::reverse_iterator
-         I = Removals.rbegin(), E = Removals.rend(); I != E; ++I) {
-    if (!SM.isBeforeInTranslationUnit(loc, I->End))
+  for (const CharRange &I : llvm::reverse(Removals)) {
+    if (!SM.isBeforeInTranslationUnit(loc, I.End))
       break;
-    if (I->Begin.isBeforeInTranslationUnitThan(loc))
+    if (I.Begin.isBeforeInTranslationUnitThan(loc))
       return;
   }
 
@@ -540,6 +539,7 @@ void TransformActionsImpl::addRemoval(CharSourceRange range) {
       return;
     case Range_Contains:
       RI->End = newRange.End;
+      LLVM_FALLTHROUGH;
     case Range_ExtendsBegin:
       newRange.End = RI->End;
       Removals.erase(RI);
@@ -581,8 +581,7 @@ void TransformActionsImpl::applyRewrites(
 /// "alive". Since the vast majority of text will be the same, we also unique
 /// the strings using a StringMap.
 StringRef TransformActionsImpl::getUniqueText(StringRef text) {
-  llvm::StringMapEntry<bool> &entry = UniqueText.GetOrCreateValue(text);
-  return entry.getKey();
+  return UniqueText.insert(std::make_pair(text, false)).first->first();
 }
 
 /// \brief Computes the source location just past the end of the token at

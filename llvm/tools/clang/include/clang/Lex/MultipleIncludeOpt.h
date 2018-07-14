@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_MULTIPLEINCLUDEOPT_H
-#define LLVM_CLANG_MULTIPLEINCLUDEOPT_H
+#ifndef LLVM_CLANG_LEX_MULTIPLEINCLUDEOPT_H
+#define LLVM_CLANG_LEX_MULTIPLEINCLUDEOPT_H
 
 #include "clang/Basic/SourceLocation.h"
 
@@ -92,7 +92,7 @@ public:
     TheMacro = nullptr;
   }
 
-  /// getHasReadAnyTokensVal - This is used for the \#ifndef hande-shake at the
+  /// getHasReadAnyTokensVal - This is used for the \#ifndef handshake at the
   /// top of the file when reading preprocessor directives.  Otherwise, reading
   /// the "ifndef x" would count as reading tokens.
   bool getHasReadAnyTokensVal() const { return ReadAnyTokens; }

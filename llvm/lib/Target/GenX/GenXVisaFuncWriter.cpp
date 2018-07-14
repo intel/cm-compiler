@@ -89,7 +89,7 @@ namespace {
   public:
     static char ID;
     explicit GenXVisaFuncWriter() : FunctionGroupPass(ID) {}
-    virtual const char *getPassName() const {
+    virtual StringRef getPassName() const {
       return "GenX vISA function writer";
     }
 
@@ -215,8 +215,8 @@ public:
   unsigned getHeaderSize() { return Header.size(); }
   unsigned getBodySize() { return Body.size() + Code.size(); }
   // write header/body
-  void writeHeader(formatted_raw_ostream &Out) { Header.write(Out); }
-  void writeBody(formatted_raw_ostream &Out) { Body.write(Out); Code.write(Out); }
+  void writeHeader(raw_pwrite_stream &Out) { Header.write(Out); }
+  void writeBody(raw_pwrite_stream &Out) { Body.write(Out); Code.write(Out); }
 private:
   void getKernelAttrsFromMetadata();
   void buildInputs(Function *F, GenXVisaRegAlloc *RA, bool NeedRetIP);
@@ -525,18 +525,22 @@ void VisaFuncWriter::buildInputs(Function *F, GenXVisaRegAlloc *RA, bool NeedRet
   // All arguments now have offsets, generate the vISA parameter block
   assert(F->arg_size() == KM.getNumArgs() && "Mismatch between metadata for kernel and number of args");
   // Num of arguments.
-  auto Size = F->getArgumentList().size();
+  auto Size = F->arg_size();
   if (NeedRetIP) ++Size;
   Body.push_back(uint32_t(Size));
   // Each argument.
   unsigned Idx = 0;
+  bool PatchImpArgOff = false;
   for (auto i = F->arg_begin(), e = F->arg_end(); i != e; ++i, ++Idx) {
     Argument *Arg = &*i;
     GenXVisaRegAlloc::RegNum Reg = RA->getRegNumForValueUntyped(Arg);
     assert(Reg.Category != RegCategory::NONE);
-    Body.push_back((uint8_t)KM.getArgKind(Idx)); // kind
+    uint8_t Kind = (uint8_t)KM.getArgKind(Idx);
+    Body.push_back(Kind); // kind
     Body.push_back((uint32_t)Reg.Num); // id
-    Body.push_back((int16_t)KM.getArgOffset(Idx));
+    if (!PatchImpArgOff) {
+      Body.push_back((int16_t)KM.getArgOffset(Idx));
+    }
     Body.push_back((uint16_t)(Arg->getType()->getPrimitiveSizeInBits() / 8U));
   }
   // Add the special RetIP argument.
@@ -663,7 +667,7 @@ void VisaFuncWriter::getKernelAttrsFromMetadata()
   unsigned Val = KM.getSLMSize();
   if (Val) {
     // Compute the slm size in KB and roundup to power of 2.
-    Val = RoundUpToAlignment(Val, 1024) / 1024;
+    Val = alignTo(Val, 1024) / 1024;
     if (!isPowerOf2_64(Val))
       Val = NextPowerOf2(Val);
     if (Val > 64)
@@ -826,12 +830,11 @@ bool VisaFuncWriter::buildInstruction(Instruction *Inst)
   // Make the source location pending, so it is output as vISA FILE and LOC
   // instructions next time an opcode is written.
   const DebugLoc &DL = Inst->getDebugLoc();
-  if (!DL.isUnknown()) {
-    DIScope Scope(DL.getScope(Inst->getContext()));
-    StringRef Filename = Scope.getFilename();
+  if (DL) {
+    StringRef Filename = DL->getFilename();
     if (Filename != "") {
       PendingFilename = Filename;
-      PendingDirectory = Scope.getDirectory();
+      PendingDirectory = DL->getDirectory();
     }
     PendingLine = DL.getLine();
   }
@@ -3312,7 +3315,7 @@ LoopInfoBase<BasicBlock, Loop> *VisaFuncWriter::getLoops(Function *F)
   if (!*LoopsEntry) {
     auto DT = DTs->getDomTree(F);
     *LoopsEntry = new LoopInfoBase<BasicBlock, Loop>;
-    (*LoopsEntry)->Analyze(*DT);
+    (*LoopsEntry)->analyze(*DT);
   }
   return *LoopsEntry;
 }

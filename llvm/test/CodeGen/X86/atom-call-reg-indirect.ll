@@ -4,6 +4,8 @@
 ; RUN: llc < %s -mcpu=core2 -mtriple=x86_64-linux | FileCheck -check-prefix=ATOM-NOT64 %s
 ; RUN: llc < %s -mcpu=slm -mtriple=i686-linux  | FileCheck -check-prefix=SLM32 %s
 ; RUN: llc < %s -mcpu=slm -mtriple=x86_64-linux  | FileCheck -check-prefix=SLM64 %s
+; RUN: llc < %s -mcpu=goldmont -mtriple=i686-linux  | FileCheck -check-prefix=SLM32 %s
+; RUN: llc < %s -mcpu=goldmont -mtriple=x86_64-linux  | FileCheck -check-prefix=SLM64 %s
 
 
 ; fn_ptr.ll
@@ -14,8 +16,8 @@ define i32 @test1() #0 {
 entry:
   %call = tail call %class.A* @_Z3facv()
   %0 = bitcast %class.A* %call to void (%class.A*)***
-  %vtable = load void (%class.A*)*** %0, align 8
-  %1 = load void (%class.A*)** %vtable, align 8
+  %vtable = load void (%class.A*)**, void (%class.A*)*** %0, align 8
+  %1 = load void (%class.A*)*, void (%class.A*)** %vtable, align 8
   ;ATOM32: movl (%ecx), %ecx
   ;ATOM32: calll *%ecx
   ;ATOM-NOT32: calll *(%ecx)
@@ -38,8 +40,8 @@ declare %class.A* @_Z3facv() #1
 define i32 @test2() #0 {
   ;ATOM-LABEL: test2:
 entry:
-  %0 = load void (i32)*** @p, align 8
-  %1 = load void (i32)** %0, align 8
+  %0 = load void (i32)**, void (i32)*** @p, align 8
+  %1 = load void (i32)*, void (i32)** %0, align 8
   ;ATOM32: movl (%eax), %eax
   ;ATOM32: calll *%eax
   ;ATOM-NOT: calll *(%eax)

@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86DISASSEMBLERDECODER_H
-#define X86DISASSEMBLERDECODER_H
+#ifndef LLVM_LIB_TARGET_X86_DISASSEMBLER_X86DISASSEMBLERDECODER_H
+#define LLVM_LIB_TARGET_X86_DISASSEMBLER_X86DISASSEMBLERDECODER_H
 
 #include "X86DisassemblerDecoderCommon.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -341,7 +341,15 @@ namespace X86Disassembler {
   ENTRY(DR4)        \
   ENTRY(DR5)        \
   ENTRY(DR6)        \
-  ENTRY(DR7)
+  ENTRY(DR7)        \
+  ENTRY(DR8)        \
+  ENTRY(DR9)        \
+  ENTRY(DR10)       \
+  ENTRY(DR11)       \
+  ENTRY(DR12)       \
+  ENTRY(DR13)       \
+  ENTRY(DR14)       \
+  ENTRY(DR15)
 
 #define REGS_CONTROL  \
   ENTRY(CR0)          \
@@ -352,7 +360,20 @@ namespace X86Disassembler {
   ENTRY(CR5)          \
   ENTRY(CR6)          \
   ENTRY(CR7)          \
-  ENTRY(CR8)
+  ENTRY(CR8)          \
+  ENTRY(CR9)          \
+  ENTRY(CR10)         \
+  ENTRY(CR11)         \
+  ENTRY(CR12)         \
+  ENTRY(CR13)         \
+  ENTRY(CR14)         \
+  ENTRY(CR15)
+
+#define REGS_BOUND    \
+  ENTRY(BND0)         \
+  ENTRY(BND1)         \
+  ENTRY(BND2)         \
+  ENTRY(BND3)
 
 #define ALL_EA_BASES  \
   EA_BASES_16BIT      \
@@ -376,6 +397,7 @@ namespace X86Disassembler {
   REGS_SEGMENT        \
   REGS_DEBUG          \
   REGS_CONTROL        \
+  REGS_BOUND          \
   ENTRY(RIP)
 
 /// \brief All possible values of the base field for effective-address
@@ -524,23 +546,25 @@ struct InternalInstruction {
 
   // Prefix state
 
-  // 1 if the prefix byte corresponding to the entry is present; 0 if not
-  uint8_t prefixPresent[0x100];
-  // contains the location (for use with the reader) of the prefix byte
-  uint64_t prefixLocations[0x100];
+  // The possible mandatory prefix
+  uint8_t mandatoryPrefix;
   // The value of the vector extension prefix(EVEX/VEX/XOP), if present
   uint8_t vectorExtensionPrefix[4];
   // The type of the vector extension prefix
   VectorExtensionType vectorExtensionType;
   // The value of the REX prefix, if present
   uint8_t rexPrefix;
-  // The location where a mandatory prefix would have to be (i.e., right before
-  // the opcode, or right before the REX prefix if one is present).
-  uint64_t necessaryPrefixLocation;
   // The segment override type
   SegmentOverride segmentOverride;
   // 1 if the prefix byte, 0xf2 or 0xf3 is xacquire or xrelease
   bool xAcquireRelease;
+
+  // Address-size override
+  bool hasAdSize;
+  // Operand-size override
+  bool hasOpSize;
+  // The repeat prefix if any
+  uint8_t repeatPrefix;
 
   // Sizes of various critical pieces of data, in bytes
   uint8_t registerSize;
@@ -557,8 +581,6 @@ struct InternalInstruction {
 
   // The last byte of the opcode, not counting any ModR/M extension
   uint8_t opcode;
-  // The ModR/M byte of the instruction, if it is an opcode extension
-  uint8_t modRMExtension;
 
   // decode state
 
@@ -617,9 +639,13 @@ struct InternalInstruction {
   Reg                           reg;
 
   // SIB state
+  SIBIndex                      sibIndexBase;
   SIBIndex                      sibIndex;
   uint8_t                       sibScale;
   SIBBase                       sibBase;
+
+  // Embedded rounding control.
+  uint8_t                       RC;
 
   ArrayRef<OperandSpecifier> operands;
 };
@@ -654,7 +680,7 @@ int decodeInstruction(InternalInstruction *insn,
 /// \param s    The message to print.
 void Debug(const char *file, unsigned line, const char *s);
 
-const char *GetInstrName(unsigned Opcode, const void *mii);
+StringRef GetInstrName(unsigned Opcode, const void *mii);
 
 } // namespace X86Disassembler
 } // namespace llvm

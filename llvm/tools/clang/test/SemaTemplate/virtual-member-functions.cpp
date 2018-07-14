@@ -1,21 +1,23 @@
 // RUN: %clang_cc1 -triple %itanium_abi_triple -fsyntax-only -verify %s
+// RUN: %clang_cc1 -triple %itanium_abi_triple -fsyntax-only -verify -std=c++98 %s
+// RUN: %clang_cc1 -triple %itanium_abi_triple -fsyntax-only -verify -std=c++11 %s
 // RUN: %clang_cc1 -triple %ms_abi_triple -DMSABI -fsyntax-only -verify %s
+// RUN: %clang_cc1 -triple %ms_abi_triple -DMSABI -fsyntax-only -std=c++98 -verify %s
+// RUN: %clang_cc1 -triple %ms_abi_triple -DMSABI -fsyntax-only -std=c++11 -verify %s
 
 namespace PR5557 {
 template <class T> struct A {
-  A();
-  virtual void anchor();
+  A(); // expected-note{{instantiation}}
   virtual int a(T x);
 };
 template<class T> A<T>::A() {}
-template<class T> void A<T>::anchor() { }
 
 template<class T> int A<T>::a(T x) { 
   return *x; // expected-error{{requires pointer operand}}
 }
 
-void f(A<int> x) {
-  x.anchor(); // expected-note{{instantiation}}
+void f() {
+  A<int> x; // expected-note{{instantiation}}
 }
 
 template<typename T>
@@ -25,6 +27,24 @@ struct X {
 
 template<>
 void X<int>::f() { }
+}
+
+// Like PR5557, but with a defined destructor instead of a defined constructor.
+namespace PR5557_dtor {
+template <class T> struct A {
+  A(); // Don't have an implicit constructor.
+  ~A(); // expected-note{{instantiation}}
+  virtual int a(T x);
+};
+template<class T> A<T>::~A() {}
+
+template<class T> int A<T>::a(T x) { 
+  return *x; // expected-error{{requires pointer operand}}
+}
+
+void f() {
+  A<int> x; // expected-note{{instantiation}}
+}
 }
 
 template<typename T>
@@ -60,46 +80,88 @@ namespace std {
 }
 
 namespace PR7114 {
-  class A { virtual ~A(); }; // expected-note{{declared private here}}
+  class A { virtual ~A(); };
+#if __cplusplus <= 199711L
+  // expected-note@-2{{declared private here}}
+#else
+  // expected-note@-4 3 {{overridden virtual function is here}}
+#endif
 
   template<typename T>
   class B {
   public:
-    class Inner : public A { }; // expected-error{{base class 'PR7114::A' has private destructor}}
+    class Inner : public A { };
+#if __cplusplus <= 199711L
+// expected-error@-2{{base class 'PR7114::A' has private destructor}}
+#else
+// expected-error@-4 2 {{deleted function '~Inner' cannot override a non-deleted function}}
+// expected-note@-5 2 {{destructor of 'Inner' is implicitly deleted because base class 'PR7114::A' has an inaccessible destructor}}
+#ifdef MSABI
+// expected-note@-7 1 {{destructor of 'Inner' is implicitly deleted because base class 'PR7114::A' has an inaccessible destructor}}
+#endif
+#endif
+
     static Inner i;
     static const unsigned value = sizeof(i) == 4;
+#if __cplusplus >= 201103L
+// expected-note@-2 {{in instantiation of member class 'PR7114::B<int>::Inner' requested here}}
+// expected-note@-3 {{in instantiation of member class 'PR7114::B<float>::Inner' requested here}}
+#endif
   };
 
   int f() { return B<int>::value; }
+#if __cplusplus >= 201103L
+// expected-note@-2 {{in instantiation of template class 'PR7114::B<int>' requested here}}
+#endif
 
 #ifdef MSABI
-  void test_typeid(B<float>::Inner bfi) { // expected-note{{implicit destructor}}
+  void test_typeid(B<float>::Inner bfi) {
+#if __cplusplus <= 199711L
+// expected-note@-2 {{implicit destructor}}
+#else
+// expected-error@-4 {{attempt to use a deleted function}}
+// expected-note@-5 {{in instantiation of template class 'PR7114::B<float>' requested here}}
+#endif
+
     (void)typeid(bfi);
 #else
   void test_typeid(B<float>::Inner bfi) {
-    (void)typeid(bfi); // expected-note{{implicit destructor}}
+#if __cplusplus >= 201103L
+// expected-note@-2 {{in instantiation of template class 'PR7114::B<float>' requested here}}
+#endif
+    (void)typeid(bfi);
+#if __cplusplus <= 199711L
+// expected-note@-2 {{implicit destructor}}
+#endif
 #endif
   }
 
   template<typename T>
   struct X : A {
+#if __cplusplus >= 201103L
+// expected-error@-2 {{deleted function '~X' cannot override a non-deleted function}}
+// expected-note@-3  {{destructor of 'X<int>' is implicitly deleted because base class 'PR7114::A' has an inaccessible destructor}}
+#endif
     void f() { }
   };
 
   void test_X(X<int> &xi, X<float> &xf) {
     xi.f();
+#if __cplusplus >= 201103L
+// expected-note@-2 {{in instantiation of template class 'PR7114::X<int>' requested here}}
+#endif
   }
 }
 
 namespace DynamicCast {
   struct Y {};
   template<typename T> struct X : virtual Y {
-    virtual void foo() { T x; } // expected-error {{variable has incomplete type 'void'}}
+    virtual void foo() { T x; }
   };
   template<typename T> struct X2 : virtual Y {
     virtual void foo() { T x; }
   };
-  Y* f(X<void>* x) { return dynamic_cast<Y*>(x); } // expected-note {{in instantiation of member function 'DynamicCast::X<void>::foo' requested here}}
+  Y* f(X<void>* x) { return dynamic_cast<Y*>(x); }
   Y* f2(X<void>* x) { return dynamic_cast<Y*>(x); }
 }
 

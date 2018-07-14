@@ -11,12 +11,12 @@ Standalone Tool
 ===============
 
 :program:`clang-format` is located in `clang/tools/clang-format` and can be used
-to format C/C++/Obj-C code.
+to format C/C++/Java/JavaScript/Objective-C/Protobuf code.
 
 .. code-block:: console
 
   $ clang-format -help
-  OVERVIEW: A tool to format C/C++/Obj-C code.
+  OVERVIEW: A tool to format C/C++/Java/JavaScript/Objective-C/Protobuf code.
 
   If no arguments are specified, it formats the code from standard input
   and writes the result to the standard output.
@@ -30,44 +30,54 @@ to format C/C++/Obj-C code.
 
   Clang-format options:
 
-    -cursor=<uint>           - The position of the cursor when invoking
-                               clang-format from an editor integration
-    -dump-config             - Dump configuration options to stdout and exit.
-                               Can be used with -style option.
-    -i                       - Inplace edit <file>s, if specified.
-    -length=<uint>           - Format a range of this length (in bytes).
-                               Multiple ranges can be formatted by specifying
-                               several -offset and -length pairs.
-                               When only a single -offset is specified without
-                               -length, clang-format will format up to the end
-                               of the file.
-                               Can only be used with one input file.
-    -lines=<string>          - <start line>:<end line> - format a range of
-                               lines (both 1-based).
-                               Multiple ranges can be formatted by specifying
-                               several -lines arguments.
-                               Can't be used with -offset and -length.
-                               Can only be used with one input file.
-    -offset=<uint>           - Format a range starting at this byte offset.
-                               Multiple ranges can be formatted by specifying
-                               several -offset and -length pairs.
-                               Can only be used with one input file.
-    -output-replacements-xml - Output replacements as XML.
-    -style=<string>          - Coding style, currently supports:
-                                 LLVM, Google, Chromium, Mozilla, WebKit.
-                               Use -style=file to load style configuration from
-                               .clang-format file located in one of the parent
-                               directories of the source file (or current
-                               directory for stdin).
-                               Use -style="{key: value, ...}" to set specific
-                               parameters, e.g.:
-                                 -style="{BasedOnStyle: llvm, IndentWidth: 8}"
+    -assume-filename=<string> - When reading from stdin, clang-format assumes this
+                                filename to look for a style config file (with
+                                -style=file) and to determine the language.
+    -cursor=<uint>            - The position of the cursor when invoking
+                                clang-format from an editor integration
+    -dump-config              - Dump configuration options to stdout and exit.
+                                Can be used with -style option.
+    -fallback-style=<string>  - The name of the predefined style used as a
+                                fallback in case clang-format is invoked with
+                                -style=file, but can not find the .clang-format
+                                file to use.
+                                Use -fallback-style=none to skip formatting.
+    -i                        - Inplace edit <file>s, if specified.
+    -length=<uint>            - Format a range of this length (in bytes).
+                                Multiple ranges can be formatted by specifying
+                                several -offset and -length pairs.
+                                When only a single -offset is specified without
+                                -length, clang-format will format up to the end
+                                of the file.
+                                Can only be used with one input file.
+    -lines=<string>           - <start line>:<end line> - format a range of
+                                lines (both 1-based).
+                                Multiple ranges can be formatted by specifying
+                                several -lines arguments.
+                                Can't be used with -offset and -length.
+                                Can only be used with one input file.
+    -offset=<uint>            - Format a range starting at this byte offset.
+                                Multiple ranges can be formatted by specifying
+                                several -offset and -length pairs.
+                                Can only be used with one input file.
+    -output-replacements-xml  - Output replacements as XML.
+    -sort-includes            - Sort touched include lines
+    -style=<string>           - Coding style, currently supports:
+                                  LLVM, Google, Chromium, Mozilla, WebKit.
+                                Use -style=file to load style configuration from
+                                .clang-format file located in one of the parent
+                                directories of the source file (or current
+                                directory for stdin).
+                                Use -style="{key: value, ...}" to set specific
+                                parameters, e.g.:
+                                  -style="{BasedOnStyle: llvm, IndentWidth: 8}"
+    -verbose                  - If set, shows the list of processed files
 
-  General options:
+  Generic Options:
 
-    -help                    - Display available options (-help-hidden for more)
-    -help-list               - Display list of available options (-help-list-hidden for more)
-    -version                 - Display the version of this program
+    -help                     - Display available options (-help-hidden for more)
+    -help-list                - Display list of available options (-help-list-hidden for more)
+    -version                  - Display the version of this program
 
 
 When the desired code formatting style is different from the available options,
@@ -96,8 +106,8 @@ This can be integrated by adding the following to your `.vimrc`:
 
 .. code-block:: vim
 
-  map <C-K> :pyf <path-to-this-file>/clang-format.py<CR>
-  imap <C-K> <ESC>:pyf <path-to-this-file>/clang-format.py<CR>i
+  map <C-K> :pyf <path-to-this-file>/clang-format.py<cr>
+  imap <C-K> <c-o>:pyf <path-to-this-file>/clang-format.py<cr>
 
 The first line enables :program:`clang-format` for NORMAL and VISUAL mode, the
 second line adds support for INSERT mode. Change "C-K" to another binding if
@@ -110,6 +120,18 @@ entity.
 
 It operates on the current, potentially unsaved buffer and does not create
 or save any files. To revert a formatting, just undo.
+
+An alternative option is to format changes when saving a file and thus to
+have a zero-effort integration into the coding workflow. To do this, add this to
+your `.vimrc`:
+
+.. code-block:: vim
+
+  function! Formatonsave()
+    let l:formatdiff = 1
+    pyf ~/llvm/tools/clang/tools/clang-format/clang-format.py
+  endfunction
+  autocmd BufWritePre *.h,*.cc,*.cpp call Formatonsave()
 
 
 Emacs Integration
@@ -153,8 +175,9 @@ Download the latest Visual Studio extension from the `alpha build site
 Script for patch reformatting
 =============================
 
-The python script `clang/tools/clang-format-diff.py` parses the output of
-a unified diff and reformats all contained lines with :program:`clang-format`.
+The python script `clang/tools/clang-format/clang-format-diff.py` parses the
+output of a unified diff and reformats all contained lines with
+:program:`clang-format`.
 
 .. code-block:: console
 
@@ -175,13 +198,13 @@ So to reformat all the lines in the latest :program:`git` commit, just do:
 
 .. code-block:: console
 
-  git diff -U0 HEAD^ | clang-format-diff.py -i -p1
+  git diff -U0 --no-color HEAD^ | clang-format-diff.py -i -p1
 
 In an SVN client, you can do:
 
 .. code-block:: console
 
-  svn diff --diff-cmd=diff -x-U0 | clang-format-diff.py -i
+  svn diff --diff-cmd=diff -x -U0 | clang-format-diff.py -i
 
-The :option:`-U0` will create a diff without context lines (the script would format
+The option `-U0` will create a diff without context lines (the script would format
 those as well).

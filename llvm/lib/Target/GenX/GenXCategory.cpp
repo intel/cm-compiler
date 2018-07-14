@@ -177,7 +177,7 @@ namespace {
   public:
     static char ID;
     explicit GenXCategory() : FunctionGroupPass(ID) { }
-    virtual const char *getPassName() const { return "GenX category conversion"; }
+    virtual StringRef getPassName() const { return "GenX category conversion"; }
     void getAnalysisUsage(AnalysisUsage &AU) const;
     bool runOnFunctionGroup(FunctionGroup &FG);
     // createPrinterPass : get a pass to print the IR, together with the GenX

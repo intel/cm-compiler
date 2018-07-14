@@ -11,7 +11,6 @@
 #include "clang/ASTMatchers/Dynamic/Parser.h"
 #include "clang/ASTMatchers/Dynamic/Registry.h"
 #include "llvm/ADT/Optional.h"
-#include "llvm/ADT/StringMap.h"
 #include "gtest/gtest.h"
 #include <string>
 #include <vector>
@@ -23,12 +22,15 @@ namespace {
 
 class MockSema : public Parser::Sema {
 public:
-  virtual ~MockSema() {}
+  ~MockSema() override {}
 
   uint64_t expectMatcher(StringRef MatcherName) {
-    ast_matchers::internal::Matcher<Stmt> M = stmt();
+    // Optimizations on the matcher framework make simple matchers like
+    // 'stmt()' to be all the same matcher.
+    // Use a more complex expression to prevent that.
+    ast_matchers::internal::Matcher<Stmt> M = stmt(stmt(), stmt());
     ExpectedMatchers.insert(std::make_pair(MatcherName, M));
-    return M.getID();
+    return M.getID().second;
   }
 
   void parse(StringRef Code) {
@@ -39,17 +41,18 @@ public:
     Errors.push_back(Error.toStringFull());
   }
 
-  llvm::Optional<MatcherCtor> lookupMatcherCtor(StringRef MatcherName) {
+  llvm::Optional<MatcherCtor>
+  lookupMatcherCtor(StringRef MatcherName) override {
     const ExpectedMatchersTy::value_type *Matcher =
         &*ExpectedMatchers.find(MatcherName);
     return reinterpret_cast<MatcherCtor>(Matcher);
   }
 
   VariantMatcher actOnMatcherExpression(MatcherCtor Ctor,
-                                        const SourceRange &NameRange,
+                                        SourceRange NameRange,
                                         StringRef BindID,
                                         ArrayRef<ParserValue> Args,
-                                        Diagnostics *Error) {
+                                        Diagnostics *Error) override {
     const ExpectedMatchersTy::value_type *Matcher =
         reinterpret_cast<const ExpectedMatchersTy::value_type *>(Ctor);
     MatcherInfo ToStore = { Matcher->first, NameRange, Args, BindID };
@@ -72,6 +75,30 @@ public:
   ExpectedMatchersTy ExpectedMatchers;
 };
 
+TEST(ParserTest, ParseBoolean) {
+  MockSema Sema;
+  Sema.parse("true");
+  Sema.parse("false");
+  EXPECT_EQ(2U, Sema.Values.size());
+  EXPECT_TRUE(Sema.Values[0].getBoolean());
+  EXPECT_FALSE(Sema.Values[1].getBoolean());
+}
+
+TEST(ParserTest, ParseDouble) {
+  MockSema Sema;
+  Sema.parse("1.0");
+  Sema.parse("2.0f");
+  Sema.parse("34.56e-78");
+  Sema.parse("4.E+6");
+  Sema.parse("1");
+  EXPECT_EQ(5U, Sema.Values.size());
+  EXPECT_EQ(1.0, Sema.Values[0].getDouble());
+  EXPECT_EQ("1:1: Error parsing numeric literal: <2.0f>", Sema.Errors[1]);
+  EXPECT_EQ(34.56e-78, Sema.Values[2].getDouble());
+  EXPECT_EQ(4e+6, Sema.Values[3].getDouble());
+  EXPECT_FALSE(Sema.Values[4].isDouble());
+}
+
 TEST(ParserTest, ParseUnsigned) {
   MockSema Sema;
   Sema.parse("0");
@@ -83,8 +110,8 @@ TEST(ParserTest, ParseUnsigned) {
   EXPECT_EQ(0U, Sema.Values[0].getUnsigned());
   EXPECT_EQ(123U, Sema.Values[1].getUnsigned());
   EXPECT_EQ(31U, Sema.Values[2].getUnsigned());
-  EXPECT_EQ("1:1: Error parsing unsigned token: <12345678901>", Sema.Errors[3]);
-  EXPECT_EQ("1:1: Error parsing unsigned token: <1a1>", Sema.Errors[4]);
+  EXPECT_EQ("1:1: Error parsing numeric literal: <12345678901>", Sema.Errors[3]);
+  EXPECT_EQ("1:1: Error parsing numeric literal: <1a1>", Sema.Errors[4]);
 }
 
 TEST(ParserTest, ParseString) {
@@ -98,7 +125,7 @@ TEST(ParserTest, ParseString) {
   EXPECT_EQ("1:1: Error parsing string token: <\"Baz>", Sema.Errors[2]);
 }
 
-bool matchesRange(const SourceRange &Range, unsigned StartLine,
+bool matchesRange(SourceRange Range, unsigned StartLine,
                   unsigned EndLine, unsigned StartColumn, unsigned EndColumn) {
   EXPECT_EQ(StartLine, Range.Start.Line);
   EXPECT_EQ(EndLine, Range.End.Line);
@@ -125,8 +152,12 @@ TEST(ParserTest, ParseMatcher) {
     EXPECT_EQ("", Sema.Errors[i]);
   }
 
+  EXPECT_NE(ExpectedFoo, ExpectedBar);
+  EXPECT_NE(ExpectedFoo, ExpectedBaz);
+  EXPECT_NE(ExpectedBar, ExpectedBaz);
+
   EXPECT_EQ(1ULL, Sema.Values.size());
-  EXPECT_EQ(ExpectedFoo, getSingleMatcher(Sema.Values[0])->getID());
+  EXPECT_EQ(ExpectedFoo, getSingleMatcher(Sema.Values[0])->getID().second);
 
   EXPECT_EQ(3ULL, Sema.Matchers.size());
   const MockSema::MatcherInfo Bar = Sema.Matchers[0];
@@ -145,12 +176,20 @@ TEST(ParserTest, ParseMatcher) {
   EXPECT_EQ("Foo", Foo.MatcherName);
   EXPECT_TRUE(matchesRange(Foo.NameRange, 1, 2, 2, 12));
   EXPECT_EQ(2ULL, Foo.Args.size());
-  EXPECT_EQ(ExpectedBar, getSingleMatcher(Foo.Args[0].Value)->getID());
-  EXPECT_EQ(ExpectedBaz, getSingleMatcher(Foo.Args[1].Value)->getID());
+  EXPECT_EQ(ExpectedBar, getSingleMatcher(Foo.Args[0].Value)->getID().second);
+  EXPECT_EQ(ExpectedBaz, getSingleMatcher(Foo.Args[1].Value)->getID().second);
   EXPECT_EQ("Yo!", Foo.BoundID);
 }
 
 using ast_matchers::internal::Matcher;
+
+Parser::NamedValueMap getTestNamedValues() {
+  Parser::NamedValueMap Values;
+  Values["nameX"] = llvm::StringRef("x");
+  Values["hasParamA"] =
+      VariantMatcher::SingleMatcher(hasParameter(0, hasName("a")));
+  return Values;
+}
 
 TEST(ParserTest, FullParserTest) {
   Diagnostics Error;
@@ -174,21 +213,11 @@ TEST(ParserTest, FullParserTest) {
   EXPECT_FALSE(matches("void f(int x, int a);", M));
 
   // Test named values.
-  struct NamedSema : public Parser::RegistrySema {
-   public:
-    virtual VariantValue getNamedValue(StringRef Name) {
-      if (Name == "nameX")
-        return std::string("x");
-      if (Name == "param0")
-        return VariantMatcher::SingleMatcher(hasParameter(0, hasName("a")));
-      return VariantValue();
-    }
-  };
-  NamedSema Sema;
+  auto NamedValues = getTestNamedValues();
   llvm::Optional<DynTypedMatcher> HasParameterWithNamedValues(
       Parser::parseMatcherExpression(
-          "functionDecl(param0, hasParameter(1, hasName(nameX)))", &Sema,
-          &Error));
+          "functionDecl(hasParamA, hasParameter(1, hasName(nameX)))",
+          nullptr, &NamedValues, &Error));
   EXPECT_EQ("", Error.toStringFull());
   M = HasParameterWithNamedValues->unconditionalConvertTo<Decl>();
 
@@ -257,7 +286,7 @@ TEST(ParserTest, Errors) {
             "1:1: Matcher does not support binding.",
             ParseWithError("isArrow().bind(\"foo\")"));
   EXPECT_EQ("Input value has unresolved overloaded type: "
-            "Matcher<DoStmt|ForStmt|WhileStmt|CXXForRangeStmt>",
+            "Matcher<DoStmt|ForStmt|WhileStmt|CXXForRangeStmt|FunctionDecl>",
             ParseMatcherWithError("hasBody(stmt())"));
 }
 
@@ -270,7 +299,7 @@ TEST(ParserTest, OverloadErrors) {
             ParseWithError("callee(\"A\")"));
 }
 
-TEST(ParserTest, Completion) {
+TEST(ParserTest, CompletionRegistry) {
   std::vector<MatcherCompletion> Comps =
       Parser::completeExpression("while", 5);
   ASSERT_EQ(1u, Comps.size());
@@ -282,6 +311,40 @@ TEST(ParserTest, Completion) {
   ASSERT_EQ(1u, Comps.size());
   EXPECT_EQ("bind(\"", Comps[0].TypedText);
   EXPECT_EQ("bind", Comps[0].MatcherDecl);
+}
+
+TEST(ParserTest, CompletionNamedValues) {
+  // Can complete non-matcher types.
+  auto NamedValues = getTestNamedValues();
+  StringRef Code = "functionDecl(hasName(";
+  std::vector<MatcherCompletion> Comps =
+      Parser::completeExpression(Code, Code.size(), nullptr, &NamedValues);
+  ASSERT_EQ(1u, Comps.size());
+  EXPECT_EQ("nameX", Comps[0].TypedText);
+  EXPECT_EQ("String nameX", Comps[0].MatcherDecl);
+
+  // Can complete if there are names in the expression.
+  Code = "cxxMethodDecl(hasName(nameX), ";
+  Comps = Parser::completeExpression(Code, Code.size(), nullptr, &NamedValues);
+  EXPECT_LT(0u, Comps.size());
+
+  // Can complete names and registry together.
+  Code = "cxxMethodDecl(hasP";
+  Comps = Parser::completeExpression(Code, Code.size(), nullptr, &NamedValues);
+  ASSERT_EQ(3u, Comps.size());
+  EXPECT_EQ("aramA", Comps[0].TypedText);
+  EXPECT_EQ("Matcher<FunctionDecl> hasParamA", Comps[0].MatcherDecl);
+
+  EXPECT_EQ("arameter(", Comps[1].TypedText);
+  EXPECT_EQ(
+      "Matcher<FunctionDecl> hasParameter(unsigned, Matcher<ParmVarDecl>)",
+      Comps[1].MatcherDecl);
+
+  EXPECT_EQ("arent(", Comps[2].TypedText);
+  EXPECT_EQ(
+      "Matcher<Decl> "
+      "hasParent(Matcher<NestedNameSpecifierLoc|TypeLoc|Decl|...>)",
+      Comps[2].MatcherDecl);
 }
 
 }  // end anonymous namespace

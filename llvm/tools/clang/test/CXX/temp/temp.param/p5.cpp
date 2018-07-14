@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -verify %s -std=c++11
+// RUN: %clang_cc1 -verify %s -std=c++14
 
 template<const int I> struct S {
   decltype(I) n;

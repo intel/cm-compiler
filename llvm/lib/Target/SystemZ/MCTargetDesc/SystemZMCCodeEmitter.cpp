@@ -11,18 +11,28 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/SystemZMCTargetDesc.h"
 #include "MCTargetDesc/SystemZMCFixups.h"
+#include "MCTargetDesc/SystemZMCTargetDesc.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCFixup.h"
+#include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstrInfo.h"
+#include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
+#include <cassert>
+#include <cstdint>
 
 using namespace llvm;
 
 #define DEBUG_TYPE "mccodeemitter"
 
 namespace {
+
 class SystemZMCCodeEmitter : public MCCodeEmitter {
   const MCInstrInfo &MCII;
   MCContext &Ctx;
@@ -32,10 +42,10 @@ public:
     : MCII(mcii), Ctx(ctx) {
   }
 
-  ~SystemZMCCodeEmitter() {}
+  ~SystemZMCCodeEmitter() override = default;
 
   // OVerride MCCodeEmitter.
-  void EncodeInstruction(const MCInst &MI, raw_ostream &OS,
+  void encodeInstruction(const MCInst &MI, raw_ostream &OS,
                          SmallVectorImpl<MCFixup> &Fixups,
                          const MCSubtargetInfo &STI) const override;
 
@@ -67,42 +77,87 @@ private:
   uint64_t getBDXAddr20Encoding(const MCInst &MI, unsigned OpNum,
                                 SmallVectorImpl<MCFixup> &Fixups,
                                 const MCSubtargetInfo &STI) const;
+  uint64_t getBDLAddr12Len4Encoding(const MCInst &MI, unsigned OpNum,
+                                    SmallVectorImpl<MCFixup> &Fixups,
+                                    const MCSubtargetInfo &STI) const;
   uint64_t getBDLAddr12Len8Encoding(const MCInst &MI, unsigned OpNum,
                                     SmallVectorImpl<MCFixup> &Fixups,
                                     const MCSubtargetInfo &STI) const;
+  uint64_t getBDRAddr12Encoding(const MCInst &MI, unsigned OpNum,
+                                SmallVectorImpl<MCFixup> &Fixups,
+                                const MCSubtargetInfo &STI) const;
+  uint64_t getBDVAddr12Encoding(const MCInst &MI, unsigned OpNum,
+                                SmallVectorImpl<MCFixup> &Fixups,
+                                const MCSubtargetInfo &STI) const;
 
   // Operand OpNum of MI needs a PC-relative fixup of kind Kind at
   // Offset bytes from the start of MI.  Add the fixup to Fixups
   // and return the in-place addend, which since we're a RELA target
-  // is always 0.
+  // is always 0.  If AllowTLS is true and optional operand OpNum + 1
+  // is present, also emit a TLS call fixup for it.
   uint64_t getPCRelEncoding(const MCInst &MI, unsigned OpNum,
                             SmallVectorImpl<MCFixup> &Fixups,
-                            unsigned Kind, int64_t Offset) const;
+                            unsigned Kind, int64_t Offset,
+                            bool AllowTLS) const;
 
   uint64_t getPC16DBLEncoding(const MCInst &MI, unsigned OpNum,
                               SmallVectorImpl<MCFixup> &Fixups,
                               const MCSubtargetInfo &STI) const {
-    return getPCRelEncoding(MI, OpNum, Fixups, SystemZ::FK_390_PC16DBL, 2);
+    return getPCRelEncoding(MI, OpNum, Fixups,
+                            SystemZ::FK_390_PC16DBL, 2, false);
   }
   uint64_t getPC32DBLEncoding(const MCInst &MI, unsigned OpNum,
                               SmallVectorImpl<MCFixup> &Fixups,
                               const MCSubtargetInfo &STI) const {
-    return getPCRelEncoding(MI, OpNum, Fixups, SystemZ::FK_390_PC32DBL, 2);
+    return getPCRelEncoding(MI, OpNum, Fixups,
+                            SystemZ::FK_390_PC32DBL, 2, false);
   }
+  uint64_t getPC16DBLTLSEncoding(const MCInst &MI, unsigned OpNum,
+                                 SmallVectorImpl<MCFixup> &Fixups,
+                                 const MCSubtargetInfo &STI) const {
+    return getPCRelEncoding(MI, OpNum, Fixups,
+                            SystemZ::FK_390_PC16DBL, 2, true);
+  }
+  uint64_t getPC32DBLTLSEncoding(const MCInst &MI, unsigned OpNum,
+                                 SmallVectorImpl<MCFixup> &Fixups,
+                                 const MCSubtargetInfo &STI) const {
+    return getPCRelEncoding(MI, OpNum, Fixups,
+                            SystemZ::FK_390_PC32DBL, 2, true);
+  }
+  uint64_t getPC12DBLBPPEncoding(const MCInst &MI, unsigned OpNum,
+                                 SmallVectorImpl<MCFixup> &Fixups,
+                                 const MCSubtargetInfo &STI) const {
+    return getPCRelEncoding(MI, OpNum, Fixups,
+                            SystemZ::FK_390_PC12DBL, 1, false);
+  }
+  uint64_t getPC16DBLBPPEncoding(const MCInst &MI, unsigned OpNum,
+                                 SmallVectorImpl<MCFixup> &Fixups,
+                                 const MCSubtargetInfo &STI) const {
+    return getPCRelEncoding(MI, OpNum, Fixups,
+                            SystemZ::FK_390_PC16DBL, 4, false);
+  }
+  uint64_t getPC24DBLBPPEncoding(const MCInst &MI, unsigned OpNum,
+                                 SmallVectorImpl<MCFixup> &Fixups,
+                                 const MCSubtargetInfo &STI) const {
+    return getPCRelEncoding(MI, OpNum, Fixups,
+                            SystemZ::FK_390_PC24DBL, 3, false);
+  }
+
+private:
+  uint64_t computeAvailableFeatures(const FeatureBitset &FB) const;
+  void verifyInstructionPredicates(const MCInst &MI,
+                                   uint64_t AvailableFeatures) const;
 };
+
 } // end anonymous namespace
 
-MCCodeEmitter *llvm::createSystemZMCCodeEmitter(const MCInstrInfo &MCII,
-                                                const MCRegisterInfo &MRI,
-                                                const MCSubtargetInfo &MCSTI,
-                                                MCContext &Ctx) {
-  return new SystemZMCCodeEmitter(MCII, Ctx);
-}
-
 void SystemZMCCodeEmitter::
-EncodeInstruction(const MCInst &MI, raw_ostream &OS,
+encodeInstruction(const MCInst &MI, raw_ostream &OS,
                   SmallVectorImpl<MCFixup> &Fixups,
                   const MCSubtargetInfo &STI) const {
+  verifyInstructionPredicates(MI,
+                              computeAvailableFeatures(STI.getFeatureBits()));
+
   uint64_t Bits = getBinaryCodeForInstr(MI, Fixups, STI);
   unsigned Size = MCII.get(MI.getOpcode()).getSize();
   // Big-endian insertion of Size bytes.
@@ -168,6 +223,17 @@ getBDXAddr20Encoding(const MCInst &MI, unsigned OpNum,
 }
 
 uint64_t SystemZMCCodeEmitter::
+getBDLAddr12Len4Encoding(const MCInst &MI, unsigned OpNum,
+                         SmallVectorImpl<MCFixup> &Fixups,
+                         const MCSubtargetInfo &STI) const {
+  uint64_t Base = getMachineOpValue(MI, MI.getOperand(OpNum), Fixups, STI);
+  uint64_t Disp = getMachineOpValue(MI, MI.getOperand(OpNum + 1), Fixups, STI);
+  uint64_t Len  = getMachineOpValue(MI, MI.getOperand(OpNum + 2), Fixups, STI) - 1;
+  assert(isUInt<4>(Base) && isUInt<12>(Disp) && isUInt<4>(Len));
+  return (Len << 16) | (Base << 12) | Disp;
+}
+
+uint64_t SystemZMCCodeEmitter::
 getBDLAddr12Len8Encoding(const MCInst &MI, unsigned OpNum,
                          SmallVectorImpl<MCFixup> &Fixups,
                          const MCSubtargetInfo &STI) const {
@@ -178,14 +244,37 @@ getBDLAddr12Len8Encoding(const MCInst &MI, unsigned OpNum,
   return (Len << 16) | (Base << 12) | Disp;
 }
 
+uint64_t SystemZMCCodeEmitter::
+getBDRAddr12Encoding(const MCInst &MI, unsigned OpNum,
+                     SmallVectorImpl<MCFixup> &Fixups,
+                     const MCSubtargetInfo &STI) const {
+  uint64_t Base = getMachineOpValue(MI, MI.getOperand(OpNum), Fixups, STI);
+  uint64_t Disp = getMachineOpValue(MI, MI.getOperand(OpNum + 1), Fixups, STI);
+  uint64_t Len  = getMachineOpValue(MI, MI.getOperand(OpNum + 2), Fixups, STI);
+  assert(isUInt<4>(Base) && isUInt<12>(Disp) && isUInt<4>(Len));
+  return (Len << 16) | (Base << 12) | Disp;
+}
+
+uint64_t SystemZMCCodeEmitter::
+getBDVAddr12Encoding(const MCInst &MI, unsigned OpNum,
+                     SmallVectorImpl<MCFixup> &Fixups,
+                     const MCSubtargetInfo &STI) const {
+  uint64_t Base = getMachineOpValue(MI, MI.getOperand(OpNum), Fixups, STI);
+  uint64_t Disp = getMachineOpValue(MI, MI.getOperand(OpNum + 1), Fixups, STI);
+  uint64_t Index = getMachineOpValue(MI, MI.getOperand(OpNum + 2), Fixups, STI);
+  assert(isUInt<4>(Base) && isUInt<12>(Disp) && isUInt<5>(Index));
+  return (Index << 16) | (Base << 12) | Disp;
+}
+
 uint64_t
 SystemZMCCodeEmitter::getPCRelEncoding(const MCInst &MI, unsigned OpNum,
                                        SmallVectorImpl<MCFixup> &Fixups,
-                                       unsigned Kind, int64_t Offset) const {
+                                       unsigned Kind, int64_t Offset,
+                                       bool AllowTLS) const {
   const MCOperand &MO = MI.getOperand(OpNum);
   const MCExpr *Expr;
   if (MO.isImm())
-    Expr = MCConstantExpr::Create(MO.getImm() + Offset, Ctx);
+    Expr = MCConstantExpr::create(MO.getImm() + Offset, Ctx);
   else {
     Expr = MO.getExpr();
     if (Offset) {
@@ -193,12 +282,26 @@ SystemZMCCodeEmitter::getPCRelEncoding(const MCInst &MI, unsigned OpNum,
       // is relative to the operand field itself, which is Offset bytes
       // into MI.  Add Offset to the relocation value to cancel out
       // this difference.
-      const MCExpr *OffsetExpr = MCConstantExpr::Create(Offset, Ctx);
-      Expr = MCBinaryExpr::CreateAdd(Expr, OffsetExpr, Ctx);
+      const MCExpr *OffsetExpr = MCConstantExpr::create(Offset, Ctx);
+      Expr = MCBinaryExpr::createAdd(Expr, OffsetExpr, Ctx);
     }
   }
-  Fixups.push_back(MCFixup::Create(Offset, Expr, (MCFixupKind)Kind));
+  Fixups.push_back(MCFixup::create(Offset, Expr, (MCFixupKind)Kind));
+
+  // Output the fixup for the TLS marker if present.
+  if (AllowTLS && OpNum + 1 < MI.getNumOperands()) {
+    const MCOperand &MOTLS = MI.getOperand(OpNum + 1);
+    Fixups.push_back(MCFixup::create(0, MOTLS.getExpr(),
+                                     (MCFixupKind)SystemZ::FK_390_TLS_CALL));
+  }
   return 0;
 }
 
+#define ENABLE_INSTR_PREDICATE_VERIFIER
 #include "SystemZGenMCCodeEmitter.inc"
+
+MCCodeEmitter *llvm::createSystemZMCCodeEmitter(const MCInstrInfo &MCII,
+                                                const MCRegisterInfo &MRI,
+                                                MCContext &Ctx) {
+  return new SystemZMCCodeEmitter(MCII, Ctx);
+}

@@ -10,16 +10,16 @@
 # CHECK: callq __asan_report_load1@PLT
 # CHECK: leaq 128(%rsp), %rsp
 #
-# CHECK-NEXT: movb (%rsi), %al
+# CHECK: movb (%rsi), %al
 #
-# CHECK-NEXT: leaq -128(%rsp), %rsp
+# CHECK: leaq -128(%rsp), %rsp
 # CHECK: callq __asan_report_store1@PLT
 # CHECK: leaq 128(%rsp), %rsp
 #
-# CHECK-NEXT: movb %al, (%rdi)
+# CHECK: movb %al, (%rdi)
 mov1b:                                  # @mov1b
 	.cfi_startproc
-# BB#0:
+# %bb.0:
 	#APP
 	movb	(%rsi), %al
 	movb	%al, (%rdi)
@@ -39,16 +39,16 @@ mov1b:                                  # @mov1b
 # CHECK: callq __asan_report_load16@PLT
 # CHECK: leaq 128(%rsp), %rsp
 #
-# CHECK-NEXT: movaps (%rsi), %xmm0
+# CHECK: movaps (%rsi), %xmm0
 #
-# CHECK-NEXT: leaq -128(%rsp), %rsp
+# CHECK: leaq -128(%rsp), %rsp
 # CHECK: callq __asan_report_store16@PLT
 # CHECK: leaq 128(%rsp), %rsp
 #
-# CHECK-NEXT: movaps %xmm0, (%rdi)
+# CHECK: movaps %xmm0, (%rdi)
 mov16b:                                 # @mov16b
 	.cfi_startproc
-# BB#0:
+# %bb.0:
 	#APP
 	movaps	(%rsi), %xmm0
 	movaps	%xmm0, (%rdi)

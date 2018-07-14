@@ -7,7 +7,7 @@ TableGen Language Reference
 
 .. warning::
    This document is extremely rough. If you find something lacking, please
-   fix it, file a documentation bug, or ask about it on llvmdev.
+   fix it, file a documentation bug, or ask about it on llvm-dev.
 
 Introduction
 ============
@@ -55,6 +55,10 @@ One aspect to note is that the :token:`DecimalInteger` token *includes* the
 ``+`` or ``-``, as opposed to having ``+`` and ``-`` be unary operators as
 most languages do.
 
+Also note that :token:`BinInteger` creates a value of type ``bits<n>``
+(where ``n`` is the number of bits).  This will implicitly convert to
+integers when needed.
+
 TableGen has identifier-like tokens:
 
 .. productionlist::
@@ -92,8 +96,10 @@ wide variety of meanings:
 .. productionlist::
    BangOperator: one of
                :!eq     !if      !head    !tail      !con
-               :!add    !shl     !sra     !srl
-               :!cast   !empty   !subst   !foreach   !listconcat   !strconcat
+               :!add    !shl     !sra     !srl       !and
+               :!or     !empty   !subst   !foreach   !strconcat
+               :!cast   !listconcat
+
 
 Syntax
 ======
@@ -150,7 +156,7 @@ programmer.
 .. productionlist::
    Declaration: `Type` `TokIdentifier` ["=" `Value`]
 
-It assigns the value to the identifer.
+It assigns the value to the identifier.
 
 Types
 -----

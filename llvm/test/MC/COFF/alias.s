@@ -21,9 +21,9 @@ weak_aliased_to_external = external2
         .long weak_aliased_to_external
 
 // CHECK:      Relocations [
-// CHECK:        0x0 IMAGE_REL_I386_DIR32 local1
+// CHECK:        0x0 IMAGE_REL_I386_DIR32 external_aliased_to_local
 // CHECK:        0x4 IMAGE_REL_I386_DIR32 external1
-// CHECK:        0x8 IMAGE_REL_I386_DIR32 local2
+// CHECK:        0x8 IMAGE_REL_I386_DIR32 global_aliased_to_local
 // CHECK:        0xC IMAGE_REL_I386_DIR32 external2
 // CHECK:      ]
 // CHECK:      Symbols [
@@ -48,7 +48,7 @@ weak_aliased_to_external = external2
 // CHECK-NEXT:   Symbol {
 // CHECK:          Name: global_aliased_to_external
 // CHECK-NEXT:     Value: 0
-// CHECK-NEXT:     Section:  (0)
+// CHECK-NEXT:     Section: IMAGE_SYM_UNDEFINED (0)
 // CHECK-NEXT:     BaseType: Null (0x0)
 // CHECK-NEXT:     ComplexType: Null (0x0)
 // CHECK-NEXT:     StorageClass: External (0x2)
@@ -57,7 +57,7 @@ weak_aliased_to_external = external2
 // CHECK-NEXT:   Symbol {
 // CHECK-NEXT:     Name: external1
 // CHECK-NEXT:     Value: 0
-// CHECK-NEXT:     Section:  (0)
+// CHECK-NEXT:     Section: IMAGE_SYM_UNDEFINED (0)
 // CHECK-NEXT:     BaseType: Null (0x0)
 // CHECK-NEXT:     ComplexType: Null (0x0)
 // CHECK-NEXT:     StorageClass: External (0x2)
@@ -84,7 +84,7 @@ weak_aliased_to_external = external2
 // CHECK-NEXT:   Symbol {
 // CHECK-NEXT:     Name: weak_aliased_to_external
 // CHECK-NEXT:     Value: 0
-// CHECK-NEXT:     Section:  (0)
+// CHECK-NEXT:     Section: IMAGE_SYM_UNDEFINED (0)
 // CHECK-NEXT:     BaseType: Null (0x0)
 // CHECK-NEXT:     ComplexType: Null (0x0)
 // CHECK-NEXT:     StorageClass: WeakExternal (0x69)
@@ -92,13 +92,12 @@ weak_aliased_to_external = external2
 // CHECK-NEXT:     AuxWeakExternal {
 // CHECK-NEXT:       Linked: external2
 // CHECK-NEXT:       Search: Library (0x2)
-// CHECK-NEXT:       Unused: (00 00 00 00 00 00 00 00 00 00)
 // CHECK-NEXT:     }
 // CHECK-NEXT:   }
 // CHECK-NEXT:   Symbol {
 // CHECK-NEXT:     Name: external2
 // CHECK-NEXT:     Value: 0
-// CHECK-NEXT:     Section:  (0)
+// CHECK-NEXT:     Section: IMAGE_SYM_UNDEFINED (0)
 // CHECK-NEXT:     BaseType: Null (0x0)
 // CHECK-NEXT:     ComplexType: Null (0x0)
 // CHECK-NEXT:     StorageClass: External (0x2)

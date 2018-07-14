@@ -18,7 +18,7 @@ main:                                   # @main
 	.quad	0
 	.text
 .L.main:
-# BB#0:                                 # %entry
+# %bb.0:                                # %entry
 	addis 3, 2, a@got@tlsgd@ha
 	addi 3, 3, a@got@tlsgd@l
 	li 4, 0
@@ -47,7 +47,7 @@ a:
 // for the call to __tls_get_addr.
 //
 // CHECK: Relocations [
-// CHECK:   Section (2) .rela.text {
+// CHECK:   Section {{.*}} .rela.text {
 // CHECK:     0x{{[0-9,A-F]+}} R_PPC64_GOT_TLSGD16_HA a
 // CHECK:     0x{{[0-9,A-F]+}} R_PPC64_GOT_TLSGD16_LO a
 // CHECK:     0x{{[0-9,A-F]+}} R_PPC64_TLSGD          a

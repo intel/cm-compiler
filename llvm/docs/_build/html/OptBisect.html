@@ -1,0 +1,267 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Using -opt-bisect-limit to debug optimization errors &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LLVM Alias Analysis Infrastructure" href="AliasAnalysis.html" />
+    <link rel="prev" title="Scudo Hardened Allocator" href="ScudoHardenedAllocator.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="AliasAnalysis.html" title="LLVM Alias Analysis Infrastructure"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="ScudoHardenedAllocator.html" title="Scudo Hardened Allocator"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="using-opt-bisect-limit-to-debug-optimization-errors">
+<h1>Using -opt-bisect-limit to debug optimization errors<a class="headerlink" href="#using-opt-bisect-limit-to-debug-optimization-errors" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
+<li><a class="reference internal" href="#getting-started" id="id2">Getting Started</a></li>
+<li><a class="reference internal" href="#bisection-index-values" id="id3">Bisection Index Values</a></li>
+<li><a class="reference internal" href="#example-usage" id="id4">Example Usage</a></li>
+<li><a class="reference internal" href="#pass-skipping-implementation" id="id5">Pass Skipping Implementation</a></li>
+<li><a class="reference internal" href="#adding-finer-granularity" id="id6">Adding Finer Granularity</a></li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>The -opt-bisect-limit option provides a way to disable all optimization passes
+above a specified limit without modifying the way in which the Pass Managers
+are populated.  The intention of this option is to assist in tracking down
+problems where incorrect transformations during optimization result in incorrect
+run-time behavior.</p>
+<p>This feature is implemented on an opt-in basis.  Passes which can be safely
+skipped while still allowing correct code generation call a function to
+check the opt-bisect limit before performing optimizations.  Passes which
+either must be run or do not modify the IR do not perform this check and are
+therefore never skipped.  Generally, this means analysis passes, passes
+that are run at CodeGenOpt::None and passes which are required for register
+allocation.</p>
+<p>The -opt-bisect-limit option can be used with any tool, including front ends
+such as clang, that uses the core LLVM library for optimization and code
+generation.  The exact syntax for invoking the option is discussed below.</p>
+<p>This feature is not intended to replace other debugging tools such as bugpoint.
+Rather it provides an alternate course of action when reproducing the problem
+requires a complex build infrastructure that would make using bugpoint
+impractical or when reproducing the failure requires a sequence of
+transformations that is difficult to replicate with tools like opt and llc.</p>
+</div>
+<div class="section" id="getting-started">
+<h2><a class="toc-backref" href="#id2">Getting Started</a><a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
+<p>The -opt-bisect-limit command line option can be passed directly to tools such
+as opt, llc and lli.  The syntax is as follows:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">tool</span> <span class="n">name</span><span class="o">&gt;</span> <span class="p">[</span><span class="n">other</span> <span class="n">options</span><span class="p">]</span> <span class="o">-</span><span class="n">opt</span><span class="o">-</span><span class="n">bisect</span><span class="o">-</span><span class="n">limit</span><span class="o">=&lt;</span><span class="n">limit</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>If a value of -1 is used the tool will perform all optimizations but a message
+will be printed to stderr for each optimization that could be skipped
+indicating the index value that is associated with that optimization.  To skip
+optimizations, pass the value of the last optimization to be performed as the
+opt-bisect-limit.  All optimizations with a higher index value will be skipped.</p>
+<p>In order to use the -opt-bisect-limit option with a driver that provides a
+wrapper around the LLVM core library, an additional prefix option may be
+required, as defined by the driver.  For example, to use this option with
+clang, the “-mllvm” prefix must be used.  A typical clang invocation would look
+like this:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">clang</span> <span class="o">-</span><span class="n">O2</span> <span class="o">-</span><span class="n">mllvm</span> <span class="o">-</span><span class="n">opt</span><span class="o">-</span><span class="n">bisect</span><span class="o">-</span><span class="n">limit</span><span class="o">=</span><span class="mi">256</span> <span class="n">my_file</span><span class="o">.</span><span class="n">c</span>
+</pre></div>
+</div>
+<p>The -opt-bisect-limit option may also be applied to link-time optimizations by
+using a prefix to indicate that this is a plug-in option for the linker. The
+following syntax will set a bisect limit for LTO transformations:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># When using lld, or ld64 (macOS)</span>
+<span class="n">clang</span> <span class="o">-</span><span class="n">flto</span> <span class="o">-</span><span class="n">Wl</span><span class="p">,</span><span class="o">-</span><span class="n">mllvm</span><span class="p">,</span><span class="o">-</span><span class="n">opt</span><span class="o">-</span><span class="n">bisect</span><span class="o">-</span><span class="n">limit</span><span class="o">=</span><span class="mi">256</span> <span class="n">my_file</span><span class="o">.</span><span class="n">o</span> <span class="n">my_other_file</span><span class="o">.</span><span class="n">o</span>
+<span class="c1"># When using Gold</span>
+<span class="n">clang</span> <span class="o">-</span><span class="n">flto</span> <span class="o">-</span><span class="n">Wl</span><span class="p">,</span><span class="o">-</span><span class="n">plugin</span><span class="o">-</span><span class="n">opt</span><span class="p">,</span><span class="o">-</span><span class="n">opt</span><span class="o">-</span><span class="n">bisect</span><span class="o">-</span><span class="n">limit</span><span class="o">=</span><span class="mi">256</span> <span class="n">my_file</span><span class="o">.</span><span class="n">o</span> <span class="n">my_other_file</span><span class="o">.</span><span class="n">o</span>
+</pre></div>
+</div>
+<p>LTO passes are run by a library instance invoked by the linker. Therefore any
+passes run in the primary driver compilation phase are not affected by options
+passed via ‘-Wl,-plugin-opt’ and LTO passes are not affected by options
+passed to the driver-invoked LLVM invocation via ‘-mllvm’.</p>
+</div>
+<div class="section" id="bisection-index-values">
+<h2><a class="toc-backref" href="#id3">Bisection Index Values</a><a class="headerlink" href="#bisection-index-values" title="Permalink to this headline">¶</a></h2>
+<p>The granularity of the optimizations associated with a single index value is
+variable.  Depending on how the optimization pass has been instrumented the
+value may be associated with as much as all transformations that would have
+been performed by an optimization pass on an IR unit for which it is invoked
+(for instance, during a single call of runOnFunction for a FunctionPass) or as
+little as a single transformation. The index values may also be nested so that
+if an invocation of the pass is not skipped individual transformations within
+that invocation may still be skipped.</p>
+<p>The order of the values assigned is guaranteed to remain stable and consistent
+from one run to the next up to and including the value specified as the limit.
+Above the limit value skipping of optimizations can cause a change in the
+numbering, but because all optimizations above the limit are skipped this
+is not a problem.</p>
+<p>When an opt-bisect index value refers to an entire invocation of the run
+function for a pass, the pass will query whether or not it should be skipped
+each time it is invoked and each invocation will be assigned a unique value.
+For example, if a FunctionPass is used with a module containing three functions
+a different index value will be assigned to the pass for each of the functions
+as the pass is run. The pass may be run on two functions but skipped for the
+third.</p>
+<p>If the pass internally performs operations on a smaller IR unit the pass must be
+specifically instrumented to enable bisection at this finer level of granularity
+(see below for details).</p>
+</div>
+<div class="section" id="example-usage">
+<h2><a class="toc-backref" href="#id4">Example Usage</a><a class="headerlink" href="#example-usage" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> opt -O2 -o test-opt.bc -opt-bisect-limit<span class="o">=</span><span class="m">16</span> test.ll
+
+<span class="go">BISECT: running pass (1) Simplify the CFG on function (g)</span>
+<span class="go">BISECT: running pass (2) SROA on function (g)</span>
+<span class="go">BISECT: running pass (3) Early CSE on function (g)</span>
+<span class="go">BISECT: running pass (4) Infer set function attributes on module (test.ll)</span>
+<span class="go">BISECT: running pass (5) Interprocedural Sparse Conditional Constant Propagation on module (test.ll)</span>
+<span class="go">BISECT: running pass (6) Global Variable Optimizer on module (test.ll)</span>
+<span class="go">BISECT: running pass (7) Promote Memory to Register on function (g)</span>
+<span class="go">BISECT: running pass (8) Dead Argument Elimination on module (test.ll)</span>
+<span class="go">BISECT: running pass (9) Combine redundant instructions on function (g)</span>
+<span class="go">BISECT: running pass (10) Simplify the CFG on function (g)</span>
+<span class="go">BISECT: running pass (11) Remove unused exception handling info on SCC (&lt;&lt;null function&gt;&gt;)</span>
+<span class="go">BISECT: running pass (12) Function Integration/Inlining on SCC (&lt;&lt;null function&gt;&gt;)</span>
+<span class="go">BISECT: running pass (13) Deduce function attributes on SCC (&lt;&lt;null function&gt;&gt;)</span>
+<span class="go">BISECT: running pass (14) Remove unused exception handling info on SCC (f)</span>
+<span class="go">BISECT: running pass (15) Function Integration/Inlining on SCC (f)</span>
+<span class="go">BISECT: running pass (16) Deduce function attributes on SCC (f)</span>
+<span class="go">BISECT: NOT running pass (17) Remove unused exception handling info on SCC (g)</span>
+<span class="go">BISECT: NOT running pass (18) Function Integration/Inlining on SCC (g)</span>
+<span class="go">BISECT: NOT running pass (19) Deduce function attributes on SCC (g)</span>
+<span class="go">BISECT: NOT running pass (20) SROA on function (g)</span>
+<span class="go">BISECT: NOT running pass (21) Early CSE on function (g)</span>
+<span class="go">BISECT: NOT running pass (22) Speculatively execute instructions if target has divergent branches on function (g)</span>
+<span class="go">... etc. ...</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="pass-skipping-implementation">
+<h2><a class="toc-backref" href="#id5">Pass Skipping Implementation</a><a class="headerlink" href="#pass-skipping-implementation" title="Permalink to this headline">¶</a></h2>
+<p>The -opt-bisect-limit implementation depends on individual passes opting in to
+the opt-bisect process.  The OptBisect object that manages the process is
+entirely passive and has no knowledge of how any pass is implemented.  When a
+pass is run if the pass may be skipped, it should call the OptBisect object to
+see if it should be skipped.</p>
+<p>The OptBisect object is intended to be accessed through LLVMContext and each
+Pass base class contains a helper function that abstracts the details in order
+to make this check uniform across all passes.  These helper functions are:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">bool</span> <span class="n">ModulePass</span><span class="o">::</span><span class="n">skipModule</span><span class="p">(</span><span class="n">Module</span> <span class="o">&amp;</span><span class="n">M</span><span class="p">);</span>
+<span class="kt">bool</span> <span class="n">CallGraphSCCPass</span><span class="o">::</span><span class="n">skipSCC</span><span class="p">(</span><span class="n">CallGraphSCC</span> <span class="o">&amp;</span><span class="n">SCC</span><span class="p">);</span>
+<span class="kt">bool</span> <span class="n">FunctionPass</span><span class="o">::</span><span class="n">skipFunction</span><span class="p">(</span><span class="k">const</span> <span class="n">Function</span> <span class="o">&amp;</span><span class="n">F</span><span class="p">);</span>
+<span class="kt">bool</span> <span class="n">BasicBlockPass</span><span class="o">::</span><span class="n">skipBasicBlock</span><span class="p">(</span><span class="k">const</span> <span class="n">BasicBlock</span> <span class="o">&amp;</span><span class="n">BB</span><span class="p">);</span>
+<span class="kt">bool</span> <span class="n">LoopPass</span><span class="o">::</span><span class="n">skipLoop</span><span class="p">(</span><span class="k">const</span> <span class="n">Loop</span> <span class="o">*</span><span class="n">L</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>A MachineFunctionPass should use FunctionPass::skipFunction() as such:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">bool</span> <span class="n">MyMachineFunctionPass</span><span class="o">::</span><span class="n">runOnMachineFunction</span><span class="p">(</span><span class="n">Function</span> <span class="o">&amp;</span><span class="n">MF</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">skipFunction</span><span class="p">(</span><span class="o">*</span><span class="n">MF</span><span class="p">.</span><span class="n">getFunction</span><span class="p">())</span>
+        <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+  <span class="c1">// Otherwise, run the pass normally.</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In addition to checking with the OptBisect class to see if the pass should be
+skipped, the skipFunction(), skipLoop() and skipBasicBlock() helper functions
+also look for the presence of the “optnone” function attribute.  The calling
+pass will be unable to determine whether it is being skipped because the
+“optnone” attribute is present or because the opt-bisect-limit has been
+reached.  This is desirable because the behavior should be the same in either
+case.</p>
+<p>The majority of LLVM passes which can be skipped have already been instrumented
+in the manner described above.  If you are adding a new pass or believe you
+have found a pass which is not being included in the opt-bisect process but
+should be, you can add it as described above.</p>
+</div>
+<div class="section" id="adding-finer-granularity">
+<h2><a class="toc-backref" href="#id6">Adding Finer Granularity</a><a class="headerlink" href="#adding-finer-granularity" title="Permalink to this headline">¶</a></h2>
+<p>Once the pass in which an incorrect transformation is performed has been
+determined, it may be useful to perform further analysis in order to determine
+which specific transformation is causing the problem.  Debug counters
+can be used for this purpose.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="AliasAnalysis.html" title="LLVM Alias Analysis Infrastructure"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="ScudoHardenedAllocator.html" title="Scudo Hardened Allocator"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

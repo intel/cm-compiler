@@ -362,7 +362,7 @@ class GenXDepressurizer : public FunctionGroupPass {
 public:
   static char ID;
   explicit GenXDepressurizer() : FunctionGroupPass(ID) {}
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "GenX register pressure reducer";
   }
   void getAnalysisUsage(AnalysisUsage &AU) const;
@@ -448,7 +448,7 @@ void GenXDepressurizer::processFunction(Function *F) {
   MaxPressure = 0;
   DT = getAnalysis<DominatorTreeGroupWrapperPass>().getDomTree(F);
   LI = new LoopInfoBase<BasicBlock, Loop>();
-  LI->Analyze(*DT);
+  LI->analyze(*DT);
   // Calculate the pseudo CFG.
   PCFG = new PseudoCFG();
   PCFG->compute(F, DT, LI);
@@ -676,7 +676,7 @@ void GenXDepressurizer::processInstruction(Instruction *Inst) {
   Bale B;
   Baling->buildBale(Inst, &B);
   DEBUG(dbgs() << '[' << InstNumbers[Inst] << ']';
-    if (!Inst->getDebugLoc().isUnknown())
+    if (!Inst->getDebugLoc())
       dbgs() << " {line " << Inst->getDebugLoc().getLine() << '}';
     B.print(dbgs()));
   unsigned OldFlagPressure = Live->getPressure(Liveness::FLAG);
@@ -737,7 +737,9 @@ void GenXDepressurizer::processInstruction(Instruction *Inst) {
                    /*AllowClone=*/false);
 
   // Attempt sinking of non-flag value(s) if necessary.
-  if (Live->getPressure() > GRFThreshold)
+  if (Live->getPressure() > GRFThreshold &&
+      Live->getPressure(Liveness::FLAG) <= FlagThreshold &&
+      Live->getPressure(Liveness::ADDR) <= AddrThreshold)
     attemptSinking(Inst->getNextNode(), &BaleOperands, Liveness::GENERAL,
                    /*AllowClone=*/false);
 
@@ -1054,7 +1056,8 @@ bool GenXDepressurizer::sink(Instruction *InsertBefore, Superbale *SB,
     Instruction *user = cast<Instruction>(U->getUser());
     DEBUG(dbgs() << " used in [" << InstNumbers[user] << "] "
                  << user->getName() << '\n');
-    if (InstNumbers[user] < CurNumber) {
+    unsigned UserNumber = InstNumbers[user];
+    if (UserNumber < CurNumber) {
       // Skip this user if cloning is allowed.
       if (AllowClone)
         continue;
@@ -1112,6 +1115,7 @@ BasicBlock *GenXDepressurizer::sinkOnce(Instruction *InsertBefore,
   // Insert after the current instruction.
   BasicBlock *InsertBB = InsertBefore->getParent();
   unsigned InsertNum = InstNumbers[InsertBefore];
+  assert(InsertNum != 0);
   DEBUG(dbgs() << "InsertBefore: " << InsertBefore->getName() << '\n');
   // Remove this group of uses from the superbale.
   auto Undef = UndefValue::get(SB->getHead()->getType());
@@ -1127,7 +1131,7 @@ BasicBlock *GenXDepressurizer::sinkOnce(Instruction *InsertBefore,
         Changed = j->Inst;
         Changed->removeFromParent();
         Changed->insertBefore(InsertBefore);
-        InstNumbers[Changed] = InsertNum;
+        InstNumbers[Changed] = InsertNum - 1;
         ++NumSunk;
       }
     }
@@ -1153,7 +1157,7 @@ BasicBlock *GenXDepressurizer::sinkOnce(Instruction *InsertBefore,
           }
         }
         ClonedInsts[InstToClone] = Changed;
-        InstNumbers[Changed] = InsertNum;
+        InstNumbers[Changed] = InsertNum - 1;
         ++NumCloned;
       }
     }
@@ -1287,7 +1291,7 @@ bool GenXDepressurizer::fillSuperbale(Superbale *SB, Instruction *Inst,
       Value *Opnd = BI->Inst->getOperand(oi);
       if (!isa<Instruction>(Opnd) && !isa<Argument>(Opnd))
         continue;
-      if (OperandSet.insert(Opnd))
+      if (OperandSet.insert(Opnd).second)
         SB->Operands.push_back(Opnd);
     }
   }
@@ -1321,7 +1325,7 @@ bool GenXDepressurizer::fillSuperbale(Superbale *SB, Instruction *Inst,
           if (BI->Info.isOperandBaled(oi))
             continue;
           Value *Opnd = BI->Inst->getOperand(oi);
-          if (OperandSet.insert(Opnd))
+          if (OperandSet.insert(Opnd).second)
             SB->Operands.push_back(Opnd);
         }
       }
@@ -1351,7 +1355,7 @@ bool GenXDepressurizer::fillSuperbale(Superbale *SB, Instruction *Inst,
             continue;
           if (!isa<Instruction>(Opnd) && !isa<Argument>(Opnd))
             continue;
-          if (OperandSet.insert(Opnd))
+          if (OperandSet.insert(Opnd).second)
             SB->Operands.push_back(Opnd);
         }
       }

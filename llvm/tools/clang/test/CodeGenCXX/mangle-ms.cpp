@@ -4,6 +4,11 @@
 int a;
 // CHECK-DAG: @"\01?a@@3HA"
 
+extern "C++" {
+static int __attribute__((used)) ignore_transparent_context;
+// CHECK-DAG: @ignore_transparent_context
+}
+
 namespace N {
   int b;
 // CHECK-DAG: @"\01?b@N@@3HA"
@@ -20,6 +25,10 @@ static int c;
 int _c(void) {return N::anonymous + c;}
 // CHECK-DAG: @"\01?_c@@YAHXZ"
 // X64-DAG:   @"\01?_c@@YAHXZ"
+
+const int &NeedsReferenceTemporary = 2;
+// CHECK-DAG: @"\01?NeedsReferenceTemporary@@3ABHB" = constant i32* @"\01?$RT1@NeedsReferenceTemporary@@3ABHB"
+// X64-DAG: @"\01?NeedsReferenceTemporary@@3AEBHEB" = constant i32* @"\01?$RT1@NeedsReferenceTemporary@@3AEBHEB"
 
 class foo {
   static const short d;
@@ -116,6 +125,19 @@ const volatile char foo2::*k;
 
 int (foo2::*l)(int);
 // CHECK-DAG: @"\01?l@@3P8foo@@AEHH@ZQ1@"
+
+// Ensure typedef CV qualifiers are mangled correctly
+typedef const int cInt;
+typedef volatile int vInt;
+typedef const volatile int cvInt;
+
+extern cInt g_cInt = 1;
+vInt g_vInt = 2;
+cvInt g_cvInt = 3;
+
+// CHECK-DAG: @"\01?g_cInt@@3HB"
+// CHECK-DAG: @"\01?g_vInt@@3HC"
+// CHECK-DAG: @"\01?g_cvInt@@3HD"
 
 // Static functions are mangled, too.
 // Also make sure calling conventions, arglists, and throw specs work.
@@ -365,3 +387,107 @@ void TypedefNewDelete::operator delete[](void *) { }
 // CHECK-DAG: ??3TypedefNewDelete@@SAXPAX@Z
 // CHECK-DAG: ??_VTypedefNewDelete@@SAXPAX@Z
 
+void __vectorcall vector_func() { }
+// CHECK-DAG: @"\01?vector_func@@YQXXZ"
+
+template <void (*)(void)>
+void fn_tmpl() {}
+
+template void fn_tmpl<extern_c_func>();
+// CHECK-DAG: @"\01??$fn_tmpl@$1?extern_c_func@@YAXXZ@@YAXXZ"
+
+extern "C" void __attribute__((overloadable)) overloaded_fn() {}
+// CHECK-DAG: @"\01?overloaded_fn@@$$J0YAXXZ"
+
+extern "C" void overloaded_fn2() {}
+// CHECK-DAG: @overloaded_fn2
+//
+extern "C" void __attribute__((overloadable)) overloaded_fn3();
+extern "C" void overloaded_fn3() {}
+// CHECK-DAG: @overloaded_fn3
+
+namespace UnnamedType {
+struct S {
+  typedef struct {} *T1[1];
+  typedef struct {} T2;
+  typedef struct {} *T3, T4;
+  using T5 = struct {};
+  using T6 = struct {} *;
+};
+void f(S::T1) {}
+void f(S::T2) {}
+void f(S::T3) {}
+void f(S::T4) {}
+void f(S::T5) {}
+void f(S::T6) {}
+// CHECK-DAG: @"\01?f@UnnamedType@@YAXQAPAU<unnamed-type-T1>@S@1@@Z"
+// CHECK-DAG: @"\01?f@UnnamedType@@YAXUT2@S@1@@Z"
+// CHECK-DAG: @"\01?f@UnnamedType@@YAXPAUT4@S@1@@Z"
+// CHECK-DAG: @"\01?f@UnnamedType@@YAXUT4@S@1@@Z"
+// CHECK-DAG: @"\01?f@UnnamedType@@YAXUT5@S@1@@Z"
+// CHECK-DAG: @"\01?f@UnnamedType@@YAXPAU<unnamed-type-T6>@S@1@@Z"
+
+// X64-DAG: @"\01?f@UnnamedType@@YAXQEAPEAU<unnamed-type-T1>@S@1@@Z"
+// X64-DAG: @"\01?f@UnnamedType@@YAXUT2@S@1@@Z"
+// X64-DAG: @"\01?f@UnnamedType@@YAXPEAUT4@S@1@@Z"(%"struct.UnnamedType::S::T4"
+// X64-DAG: @"\01?f@UnnamedType@@YAXUT4@S@1@@Z"
+// X64-DAG: @"\01?f@UnnamedType@@YAXUT5@S@1@@Z"
+// X64-DAG: @"\01?f@UnnamedType@@YAXPEAU<unnamed-type-T6>@S@1@@Z"
+}
+
+namespace PassObjectSize {
+// NOTE: This mangling is subject to change.
+// Reiterating from the comment in MicrosoftMangle, the scheme is pretend a
+// parameter of type __clang::__pass_object_sizeN exists after each pass object
+// size param P, where N is the Type of the pass_object_size attribute on P.
+//
+// e.g. we want to mangle:
+//   void foo(void *const __attribute__((pass_object_size(0))));
+// as if it were
+//   namespace __clang { enum __pass_object_size0 : size_t {}; }
+//   void foo(void *const, __clang::__pass_object_size0);
+// where __clang is a top-level namespace.
+
+// CHECK-DAG: define i32 @"\01?foo@PassObjectSize@@YAHQAHW4__pass_object_size0@__clang@@@Z"
+int foo(int *const i __attribute__((pass_object_size(0)))) { return 0; }
+// CHECK-DAG: define i32 @"\01?bar@PassObjectSize@@YAHQAHW4__pass_object_size1@__clang@@@Z"
+int bar(int *const i __attribute__((pass_object_size(1)))) { return 0; }
+// CHECK-DAG: define i32 @"\01?qux@PassObjectSize@@YAHQAHW4__pass_object_size1@__clang@@0W4__pass_object_size0@3@@Z"
+int qux(int *const i __attribute__((pass_object_size(1))), int *const j __attribute__((pass_object_size(0)))) { return 0; }
+// CHECK-DAG: define i32 @"\01?zot@PassObjectSize@@YAHQAHW4__pass_object_size1@__clang@@01@Z"
+int zot(int *const i __attribute__((pass_object_size(1))), int *const j __attribute__((pass_object_size(1)))) { return 0; }
+}
+
+namespace Atomic {
+// CHECK-DAG: define void @"\01?f@Atomic@@YAXU?$_Atomic@H@__clang@@@Z"(
+void f(_Atomic(int)) {}
+}
+namespace Complex {
+// CHECK-DAG: define void @"\01?f@Complex@@YAXU?$_Complex@H@__clang@@@Z"(
+void f(_Complex int) {}
+}
+
+namespace PR26029 {
+template <class>
+struct L {
+  L() {}
+};
+template <class>
+class H;
+struct M : L<H<int *> > {};
+
+template <class>
+struct H {};
+
+template <class GT>
+void m_fn3() {
+  (H<GT *>());
+  M();
+}
+
+void runOnFunction() {
+  L<H<int *> > b;
+  m_fn3<int>();
+}
+// CHECK-DAG: call {{.*}} @"\01??0?$L@V?$H@PAH@PR26029@@@PR26029@@QAE@XZ"
+}

@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=arm-eabi %s -o - | FileCheck %s
+; RUN: llc -mtriple=armv6t2-eabi %s -o - | FileCheck %s
 
 define i64 @f1(i64 %a, i64 %b) {
 ; CHECK-LABEL: f1:
@@ -11,9 +11,10 @@ entry:
 
 define i64 @f2(i64 %a, i64 %b) {
 ; CHECK-LABEL: f2:
-; CHECK: adc r
-; CHECK: subs r
-; CHECK: sbc r
+; CHECK: lsl  r
+; CHECK: orr  r
+; CHECK: rsbs r
+; CHECK: sbc  r
 entry:
         %tmp1 = shl i64 %a, 1
 	%tmp2 = sub i64 %tmp1, %b

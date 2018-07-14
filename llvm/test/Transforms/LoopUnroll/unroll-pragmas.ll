@@ -1,5 +1,5 @@
-; RUN: opt < %s -loop-unroll -S | FileCheck %s
-; RUN: opt < %s -loop-unroll -loop-unroll -S | FileCheck %s
+; RUN: opt < %s -loop-unroll -pragma-unroll-threshold=1024 -S | FileCheck %s
+; RUN: opt < %s -loop-unroll -loop-unroll -pragma-unroll-threshold=1024 -S | FileCheck %s
 ;
 ; Run loop unrolling twice to verify that loop unrolling metadata is properly
 ; removed and further unrolling is disabled after the pass is run once.
@@ -19,8 +19,8 @@ entry:
 
 for.body:                                         ; preds = %for.body, %entry
   %indvars.iv = phi i64 [ 0, %entry ], [ %indvars.iv.next, %for.body ]
-  %arrayidx = getelementptr inbounds i32* %a, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %a, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
   %inc = add nsw i32 %0, 1
   store i32 %inc, i32* %arrayidx, align 4
   %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
@@ -43,8 +43,8 @@ entry:
 
 for.body:                                         ; preds = %for.body, %entry
   %indvars.iv = phi i64 [ 0, %entry ], [ %indvars.iv.next, %for.body ]
-  %arrayidx = getelementptr inbounds i32* %a, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %a, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
   %inc = add nsw i32 %0, 1
   store i32 %inc, i32* %arrayidx, align 4
   %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
@@ -54,12 +54,12 @@ for.body:                                         ; preds = %for.body, %entry
 for.end:                                          ; preds = %for.body
   ret void
 }
-!1 = metadata !{metadata !1, metadata !2}
-!2 = metadata !{metadata !"llvm.loop.unroll.enable", i1 false}
+!1 = !{!1, !2}
+!2 = !{!"llvm.loop.unroll.disable"}
 
 ; loop64 has a high enough count that it should *not* be unrolled by
 ; the default unrolling heuristic.  It serves as the control for the
-; unroll(enable) pragma test loop64_with_.* tests below.
+; unroll(full) pragma test loop64_with_.* tests below.
 ;
 ; CHECK-LABEL: @loop64(
 ; CHECK: store i32
@@ -71,8 +71,8 @@ entry:
 
 for.body:                                         ; preds = %for.body, %entry
   %indvars.iv = phi i64 [ 0, %entry ], [ %indvars.iv.next, %for.body ]
-  %arrayidx = getelementptr inbounds i32* %a, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %a, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
   %inc = add nsw i32 %0, 1
   store i32 %inc, i32* %arrayidx, align 4
   %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
@@ -83,19 +83,19 @@ for.end:                                          ; preds = %for.body
   ret void
 }
 
-; #pragma clang loop unroll(enable)
+; #pragma clang loop unroll(full)
 ; Loop should be fully unrolled.
 ;
-; CHECK-LABEL: @loop64_with_enable(
+; CHECK-LABEL: @loop64_with_full(
 ; CHECK-NOT: br i1
-define void @loop64_with_enable(i32* nocapture %a) {
+define void @loop64_with_full(i32* nocapture %a) {
 entry:
   br label %for.body
 
 for.body:                                         ; preds = %for.body, %entry
   %indvars.iv = phi i64 [ 0, %entry ], [ %indvars.iv.next, %for.body ]
-  %arrayidx = getelementptr inbounds i32* %a, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %a, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
   %inc = add nsw i32 %0, 1
   store i32 %inc, i32* %arrayidx, align 4
   %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
@@ -105,8 +105,8 @@ for.body:                                         ; preds = %for.body, %entry
 for.end:                                          ; preds = %for.body
   ret void
 }
-!3 = metadata !{metadata !3, metadata !4}
-!4 = metadata !{metadata !"llvm.loop.unroll.enable", i1 true}
+!3 = !{!3, !4}
+!4 = !{!"llvm.loop.unroll.full"}
 
 ; #pragma clang loop unroll_count(4)
 ; Loop should be unrolled 4 times.
@@ -124,8 +124,8 @@ entry:
 
 for.body:                                         ; preds = %for.body, %entry
   %indvars.iv = phi i64 [ 0, %entry ], [ %indvars.iv.next, %for.body ]
-  %arrayidx = getelementptr inbounds i32* %a, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %a, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
   %inc = add nsw i32 %0, 1
   store i32 %inc, i32* %arrayidx, align 4
   %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
@@ -135,56 +135,25 @@ for.body:                                         ; preds = %for.body, %entry
 for.end:                                          ; preds = %for.body
   ret void
 }
-!5 = metadata !{metadata !5, metadata !6}
-!6 = metadata !{metadata !"llvm.loop.unroll.count", i32 4}
+!5 = !{!5, !6}
+!6 = !{!"llvm.loop.unroll.count", i32 4}
 
-
-; #pragma clang loop unroll_count(enable) unroll_count(4)
-; Loop should be unrolled 4 times.
-;
-; CHECK-LABEL: @loop64_with_enable_and_count4(
-; CHECK: store i32
-; CHECK: store i32
-; CHECK: store i32
-; CHECK: store i32
-; CHECK-NOT: store i32
-; CHECK: br i1
-define void @loop64_with_enable_and_count4(i32* nocapture %a) {
-entry:
-  br label %for.body
-
-for.body:                                         ; preds = %for.body, %entry
-  %indvars.iv = phi i64 [ 0, %entry ], [ %indvars.iv.next, %for.body ]
-  %arrayidx = getelementptr inbounds i32* %a, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
-  %inc = add nsw i32 %0, 1
-  store i32 %inc, i32* %arrayidx, align 4
-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
-  %exitcond = icmp eq i64 %indvars.iv.next, 64
-  br i1 %exitcond, label %for.end, label %for.body, !llvm.loop !7
-
-for.end:                                          ; preds = %for.body
-  ret void
-}
-!7 = metadata !{metadata !7, metadata !6, metadata !4}
-
-; #pragma clang loop unroll_count(enable)
-; Full unrolling is requested, but loop has a dynamic trip count so
+; #pragma clang loop unroll(full)
+; Full unrolling is requested, but loop has a runtime trip count so
 ; no unrolling should occur.
 ;
-; CHECK-LABEL: @dynamic_loop_with_enable(
+; CHECK-LABEL: @runtime_loop_with_full(
 ; CHECK: store i32
 ; CHECK-NOT: store i32
-; CHECK: br i1
-define void @dynamic_loop_with_enable(i32* nocapture %a, i32 %b) {
+define void @runtime_loop_with_full(i32* nocapture %a, i32 %b) {
 entry:
   %cmp3 = icmp sgt i32 %b, 0
   br i1 %cmp3, label %for.body, label %for.end, !llvm.loop !8
 
 for.body:                                         ; preds = %entry, %for.body
   %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
-  %arrayidx = getelementptr inbounds i32* %a, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %a, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
   %inc = add nsw i32 %0, 1
   store i32 %inc, i32* %arrayidx, align 4
   %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
@@ -195,33 +164,33 @@ for.body:                                         ; preds = %entry, %for.body
 for.end:                                          ; preds = %for.body, %entry
   ret void
 }
-!8 = metadata !{metadata !8, metadata !4}
+!8 = !{!8, !4}
 
 ; #pragma clang loop unroll_count(4)
-; Loop has a dynamic trip count.  Unrolling should occur, but no
-; conditional branches can be removed.
+; Loop has a runtime trip count.  Runtime unrolling should occur and loop
+; should be duplicated (original and 4x unrolled).
 ;
-; CHECK-LABEL: @dynamic_loop_with_count4(
+; CHECK-LABEL: @runtime_loop_with_count4(
+; CHECK: for.body
+; CHECK: store
+; CHECK: store
+; CHECK: store
+; CHECK: store
 ; CHECK-NOT: store
 ; CHECK: br i1
+; CHECK: for.body.epil:
 ; CHECK: store
+; CHECK-NOT: store
 ; CHECK: br i1
-; CHECK: store
-; CHECK: br i1
-; CHECK: store
-; CHECK: br i1
-; CHECK: store
-; CHECK: br i1
-; CHECK-NOT: br i1
-define void @dynamic_loop_with_count4(i32* nocapture %a, i32 %b) {
+define void @runtime_loop_with_count4(i32* nocapture %a, i32 %b) {
 entry:
   %cmp3 = icmp sgt i32 %b, 0
   br i1 %cmp3, label %for.body, label %for.end, !llvm.loop !9
 
 for.body:                                         ; preds = %entry, %for.body
   %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
-  %arrayidx = getelementptr inbounds i32* %a, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %a, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
   %inc = add nsw i32 %0, 1
   store i32 %inc, i32* %arrayidx, align 4
   %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
@@ -232,7 +201,7 @@ for.body:                                         ; preds = %entry, %for.body
 for.end:                                          ; preds = %for.body, %entry
   ret void
 }
-!9 = metadata !{metadata !9, metadata !6}
+!9 = !{!9, !6}
 
 ; #pragma clang loop unroll_count(1)
 ; Loop should not be unrolled
@@ -247,8 +216,8 @@ entry:
 
 for.body:                                         ; preds = %for.body, %entry
   %indvars.iv = phi i64 [ 0, %entry ], [ %indvars.iv.next, %for.body ]
-  %arrayidx = getelementptr inbounds i32* %a, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %a, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
   %inc = add nsw i32 %0, 1
   store i32 %inc, i32* %arrayidx, align 4
   %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
@@ -258,10 +227,10 @@ for.body:                                         ; preds = %for.body, %entry
 for.end:                                          ; preds = %for.body
   ret void
 }
-!10 = metadata !{metadata !10, metadata !11}
-!11 = metadata !{metadata !"llvm.loop.unroll.count", i32 1}
+!10 = !{!10, !11}
+!11 = !{!"llvm.loop.unroll.count", i32 1}
 
-; #pragma clang loop unroll(enable)
+; #pragma clang loop unroll(full)
 ; Loop has very high loop count (1 million) and full unrolling was requested.
 ; Loop should unrolled up to the pragma threshold, but not completely.
 ;
@@ -275,8 +244,8 @@ entry:
 
 for.body:                                         ; preds = %for.body, %entry
   %indvars.iv = phi i64 [ 0, %entry ], [ %indvars.iv.next, %for.body ]
-  %arrayidx = getelementptr inbounds i32* %a, i64 %indvars.iv
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %a, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
   %inc = add nsw i32 %0, 1
   store i32 %inc, i32* %arrayidx, align 4
   %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
@@ -286,4 +255,107 @@ for.body:                                         ; preds = %for.body, %entry
 for.end:                                          ; preds = %for.body
   ret void
 }
-!12 = metadata !{metadata !12, metadata !4}
+!12 = !{!12, !4}
+
+; #pragma clang loop unroll(enable)
+; Loop should be fully unrolled.
+;
+; CHECK-LABEL: @loop64_with_enable(
+; CHECK-NOT: br i1
+define void @loop64_with_enable(i32* nocapture %a) {
+entry:
+  br label %for.body
+
+for.body:                                         ; preds = %for.body, %entry
+  %indvars.iv = phi i64 [ 0, %entry ], [ %indvars.iv.next, %for.body ]
+  %arrayidx = getelementptr inbounds i32, i32* %a, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
+  %inc = add nsw i32 %0, 1
+  store i32 %inc, i32* %arrayidx, align 4
+  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
+  %exitcond = icmp eq i64 %indvars.iv.next, 64
+  br i1 %exitcond, label %for.end, label %for.body, !llvm.loop !13
+
+for.end:                                          ; preds = %for.body
+  ret void
+}
+!13 = !{!13, !14}
+!14 = !{!"llvm.loop.unroll.enable"}
+
+; #pragma clang loop unroll(enable)
+; Loop has a runtime trip count and should be runtime unrolled and duplicated
+; (original and 8x).
+;
+; CHECK-LABEL: @runtime_loop_with_enable(
+; CHECK: for.body:
+; CHECK: store i32
+; CHECK: store i32
+; CHECK: store i32
+; CHECK: store i32
+; CHECK: store i32
+; CHECK: store i32
+; CHECK: store i32
+; CHECK: store i32
+; CHECK-NOT: store i32
+; CHECK: br i1
+; CHECK: for.body.epil:
+; CHECK: store
+; CHECK-NOT: store
+; CHECK: br i1
+define void @runtime_loop_with_enable(i32* nocapture %a, i32 %b) {
+entry:
+  %cmp3 = icmp sgt i32 %b, 0
+  br i1 %cmp3, label %for.body, label %for.end, !llvm.loop !8
+
+for.body:                                         ; preds = %entry, %for.body
+  %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
+  %arrayidx = getelementptr inbounds i32, i32* %a, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
+  %inc = add nsw i32 %0, 1
+  store i32 %inc, i32* %arrayidx, align 4
+  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
+  %lftr.wideiv = trunc i64 %indvars.iv.next to i32
+  %exitcond = icmp eq i32 %lftr.wideiv, %b
+  br i1 %exitcond, label %for.end, label %for.body, !llvm.loop !15
+
+for.end:                                          ; preds = %for.body, %entry
+  ret void
+}
+!15 = !{!15, !14}
+
+; #pragma clang loop unroll_count(3)
+; Loop has a runtime trip count.  Runtime unrolling should occur and loop
+; should be duplicated (original and 3x unrolled).
+;
+; CHECK-LABEL: @runtime_loop_with_count3(
+; CHECK: for.body
+; CHECK: store
+; CHECK: store
+; CHECK: store
+; CHECK-NOT: store
+; CHECK: br i1
+; CHECK: for.body.epil:
+; CHECK: store
+; CHECK-NOT: store
+; CHECK: br i1
+define void @runtime_loop_with_count3(i32* nocapture %a, i32 %b) {
+entry:
+  %cmp3 = icmp sgt i32 %b, 0
+  br i1 %cmp3, label %for.body, label %for.end, !llvm.loop !16
+
+for.body:                                         ; preds = %entry, %for.body
+  %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
+  %arrayidx = getelementptr inbounds i32, i32* %a, i64 %indvars.iv
+  %0 = load i32, i32* %arrayidx, align 4
+  %inc = add nsw i32 %0, 1
+  store i32 %inc, i32* %arrayidx, align 4
+  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
+  %lftr.wideiv = trunc i64 %indvars.iv.next to i32
+  %exitcond = icmp eq i32 %lftr.wideiv, %b
+  br i1 %exitcond, label %for.end, label %for.body, !llvm.loop !16
+
+for.end:                                          ; preds = %for.body, %entry
+  ret void
+}
+!16 = !{!16, !17}
+!17 = !{!"llvm.loop.unroll.count", i32 3}

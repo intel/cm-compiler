@@ -1,4 +1,6 @@
-// RUN: %clang_cc1 -mrtd -triple i386-unknown-unknown -std=c89 -emit-llvm -o - %s | FileCheck %s
+// RUN: %clang_cc1 -mrtd -triple i386-unknown-unknown -std=c89 -emit-llvm -o - %s 2>&1 | FileCheck %s
+
+// CHECK: mrtd.c:10:3: warning: function with no prototype cannot use the stdcall calling convention
 
 void baz(int arg);
 
@@ -21,6 +23,6 @@ void quux(int a1, int a2, int a3) {
   qux(a1, a2, a3);
 }
 // CHECK-LABEL: define x86_stdcallcc void @quux
-// CHECK: call void (i32, ...)* @qux
+// CHECK: call void (i32, ...) @qux
 
-// CHECK: attributes [[NUW]] = { nounwind{{.*}} }
+// CHECK: attributes [[NUW]] = { noinline nounwind{{.*}} }

@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_XCORE_TARGETOBJECTFILE_H
-#define LLVM_TARGET_XCORE_TARGETOBJECTFILE_H
+#ifndef LLVM_LIB_TARGET_XCORE_XCORETARGETOBJECTFILE_H
+#define LLVM_LIB_TARGET_XCORE_XCORETARGETOBJECTFILE_H
 
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 
@@ -17,25 +17,23 @@ namespace llvm {
 static const unsigned CodeModelLargeSize = 256;
 
   class XCoreTargetObjectFile : public TargetLoweringObjectFileELF {
-   const MCSection *BSSSectionLarge;
-   const MCSection *DataSectionLarge;
-   const MCSection *ReadOnlySectionLarge;
-   const MCSection *DataRelROSectionLarge;
+    MCSection *BSSSectionLarge;
+    MCSection *DataSectionLarge;
+    MCSection *ReadOnlySectionLarge;
+    MCSection *DataRelROSectionLarge;
+
   public:
     void Initialize(MCContext &Ctx, const TargetMachine &TM) override;
 
-    const MCSection *
-      getExplicitSectionGlobal(const GlobalValue *GV,
-                               SectionKind Kind, Mangler &Mang,
-                               const TargetMachine &TM) const override;
+    MCSection *getExplicitSectionGlobal(const GlobalObject *GO, SectionKind Kind,
+                                        const TargetMachine &TM) const override;
 
-    const MCSection *
-      SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
-                             Mangler &Mang,
-                             const TargetMachine &TM) const override;
+    MCSection *SelectSectionForGlobal(const GlobalObject *GO, SectionKind Kind,
+                                      const TargetMachine &TM) const override;
 
-    const MCSection *getSectionForConstant(SectionKind Kind,
-                                           const Constant *C) const override;
+    MCSection *getSectionForConstant(const DataLayout &DL, SectionKind Kind,
+                                     const Constant *C,
+                                     unsigned &Align) const override;
   };
 } // end namespace llvm
 

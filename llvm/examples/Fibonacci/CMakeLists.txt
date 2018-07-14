@@ -2,8 +2,8 @@ set(LLVM_LINK_COMPONENTS
   Core
   ExecutionEngine
   Interpreter
-  JIT
   MC
+  MCJIT
   Support
   nativecodegen
   )

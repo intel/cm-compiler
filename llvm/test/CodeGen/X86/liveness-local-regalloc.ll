@@ -49,7 +49,7 @@ bb6:                                              ; preds = %.loopexit
 
 bb8:                                              ; preds = %.loopexit
   %tmp9 = sext i32 %.04 to i64                    ; <i64> [#uses=1]
-  %tmp10 = getelementptr inbounds %0* %arg, i64 0, i32 11, i64 %tmp9 ; <i8*> [#uses=1]
+  %tmp10 = getelementptr inbounds %0, %0* %arg, i64 0, i32 11, i64 %tmp9 ; <i8*> [#uses=1]
   store i8 0, i8* %tmp10, align 1
   ret void
 
@@ -61,8 +61,8 @@ infloop1:                                         ; preds = %infloop1, %bb5
 }
 
 
-; RAFast would forget to add a super-register <imp-def> when rewriting:
-;  %vreg10:sub_32bit<def,read-undef> = COPY %R9D<kill>
+; RAFast would forget to add a super-register implicit-def when rewriting:
+;  %10:sub_32bit<def,read-undef> = COPY killed %R9D
 ; This trips up the machine code verifier.
 define void @autogen_SD24657(i8*, i32*, i64*, i32, i64, i8) {
 BB:
@@ -71,7 +71,7 @@ BB:
   %A2 = alloca <2 x i8>
   %A1 = alloca i1
   %A = alloca i32
-  %L = load i8* %0
+  %L = load i8, i8* %0
   store i8 -37, i8* %0
   %E = extractelement <4 x i64> zeroinitializer, i32 2
   %Shuff = shufflevector <4 x i64> zeroinitializer, <4 x i64> zeroinitializer, <4 x i32> <i32 5, i32 7, i32 1, i32 3>

@@ -1,0 +1,275 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>A guide to Dockerfiles for building LLVM &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LLVM Atomic Instructions and Concurrency Guide" href="Atomics.html" />
+    <link rel="prev" title="Benchmarking tips" href="Benchmarking.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="Atomics.html" title="LLVM Atomic Instructions and Concurrency Guide"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="Benchmarking.html" title="Benchmarking tips"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="a-guide-to-dockerfiles-for-building-llvm">
+<h1>A guide to Dockerfiles for building LLVM<a class="headerlink" href="#a-guide-to-dockerfiles-for-building-llvm" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>You can find a number of sources to build docker images with LLVM components in
+<code class="docutils literal"><span class="pre">llvm/utils/docker</span></code>. They can be used by anyone who wants to build the docker
+images for their own use, or as a starting point for someone who wants to write
+their own Dockerfiles.</p>
+<p>We currently provide Dockerfiles with <code class="docutils literal"><span class="pre">debian8</span></code> and <code class="docutils literal"><span class="pre">nvidia-cuda</span></code> base images.
+We also provide an <code class="docutils literal"><span class="pre">example</span></code> image, which contains placeholders that one would need
+to fill out in order to produce Dockerfiles for a new docker image.</p>
+<div class="section" id="why">
+<h3>Why?<a class="headerlink" href="#why" title="Permalink to this headline">¶</a></h3>
+<p>Docker images provide a way to produce binary distributions of
+software inside a controlled environment. Having Dockerfiles to builds docker images
+inside LLVM repo makes them much more discoverable than putting them into any other
+place.</p>
+</div>
+<div class="section" id="docker-basics">
+<h3>Docker basics<a class="headerlink" href="#docker-basics" title="Permalink to this headline">¶</a></h3>
+<p>If you’ve never heard about Docker before, you might find this section helpful
+to get a very basic explanation of it.
+<a class="reference external" href="https://www.docker.com/">Docker</a> is a popular solution for running programs in
+an isolated and reproducible environment, especially to maintain releases for
+software deployed to large distributed fleets.
+It uses linux kernel namespaces and cgroups to provide a lightweight isolation
+inside currently running linux kernel.
+A single active instance of dockerized environment is called a <em>docker
+container</em>.
+A snapshot of a docker container filesystem is called a <em>docker image</em>.
+One can start a container from a prebuilt docker image.</p>
+<p>Docker images are built from a so-called <em>Dockerfile</em>, a source file written in
+a specialized language that defines instructions to be used when build
+the docker image (see <a class="reference external" href="https://docs.docker.com/engine/reference/builder/">official
+documentation</a> for more
+details). A minimal Dockerfile typically contains a base image and a number
+of RUN commands that have to be executed to build the image. When building a new
+image, docker will first download your base image, mount its filesystem as
+read-only and then add a writable overlay on top of it to keep track of all
+filesystem modifications, performed while building your image. When the build
+process is finished, a diff between your image’s final filesystem state and the
+base image’s filesystem is stored in the resulting image.</p>
+</div>
+</div>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal"><span class="pre">llvm/utils/docker</span></code> folder contains Dockerfiles and simple bash scripts to
+serve as a basis for anyone who wants to create their own Docker image with
+LLVM components, compiled from sources. The sources are checked out from the
+upstream svn repository when building the image.</p>
+<p>Inside each subfolder we host Dockerfiles for two images:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">build/</span></code> image is used to compile LLVM, it installs a system compiler and all
+build dependencies of LLVM. After the build process is finished, the build
+image will have an archive with compiled components at <code class="docutils literal"><span class="pre">/tmp/clang.tar.gz</span></code>.</li>
+<li><code class="docutils literal"><span class="pre">release/</span></code> image usually only contains LLVM components, compiled by the
+<code class="docutils literal"><span class="pre">build/</span></code> image, and also libstdc++ and binutils to make image minimally
+useful for C++ development. The assumption is that you usually want clang to
+be one of the provided components.</li>
+</ul>
+<p>To build both of those images, use <code class="docutils literal"><span class="pre">build_docker_image.sh</span></code> script.
+It will checkout LLVM sources and build clang in the <code class="docutils literal"><span class="pre">build</span></code> container, copy results
+of the build to the local filesystem and then build the <code class="docutils literal"><span class="pre">release</span></code> container using
+those. The <code class="docutils literal"><span class="pre">build_docker_image.sh</span></code> accepts a list of LLVM repositories to
+checkout, and arguments for CMake invocation.</p>
+<p>If you want to write your own docker image, start with an <code class="docutils literal"><span class="pre">example/</span></code> subfolder.
+It provides incomplete Dockerfiles with (very few) FIXMEs explaining the steps
+you need to take in order to make your Dockerfiles functional.</p>
+</div>
+<div class="section" id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal"><span class="pre">llvm/utils/build_docker_image.sh</span></code> script provides a rather high degree of
+control on how to run the build. It allows you to specify the projects to
+checkout from svn and provide a list of CMake arguments to use during when
+building LLVM inside docker container.</p>
+<p>Here’s a very simple example of getting a docker image with clang binary,
+compiled by the system compiler in the debian8 image:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>./llvm/utils/docker/build_docker_image.sh <span class="se">\</span>
+    --source debian8 <span class="se">\</span>
+    --docker-repository clang-debian8 --docker-tag <span class="s2">&quot;staging&quot;</span> <span class="se">\</span>
+    -p clang -i install-clang -i install-clang-headers <span class="se">\</span>
+    -- <span class="se">\</span>
+    -DCMAKE_BUILD_TYPE<span class="o">=</span>Release
+</pre></div>
+</div>
+<p>Note that a build like that doesn’t use a 2-stage build process that
+you probably want for clang. Running a 2-stage build is a little more intricate,
+this command will do that:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="c1"># Run a 2-stage build.</span>
+<span class="c1">#   LLVM_TARGETS_TO_BUILD=Native is to reduce stage1 compile time.</span>
+<span class="c1">#   Options, starting with BOOTSTRAP_* are passed to stage2 cmake invocation.</span>
+./build_docker_image.sh <span class="se">\</span>
+    --source debian8 <span class="se">\</span>
+    --docker-repository clang-debian8 --docker-tag <span class="s2">&quot;staging&quot;</span> <span class="se">\</span>
+    -p clang -i stage2-install-clang -i stage2-install-clang-headers <span class="se">\</span>
+    -- <span class="se">\</span>
+    -DLLVM_TARGETS_TO_BUILD<span class="o">=</span>Native -DCMAKE_BUILD_TYPE<span class="o">=</span>Release <span class="se">\</span>
+    -DBOOTSTRAP_CMAKE_BUILD_TYPE<span class="o">=</span>Release <span class="se">\</span>
+    -DCLANG_ENABLE_BOOTSTRAP<span class="o">=</span>ON -DCLANG_BOOTSTRAP_TARGETS<span class="o">=</span><span class="s2">&quot;install-clang;install-clang-headers&quot;</span>
+</pre></div>
+</div>
+<p>This will produce two images, a release image <code class="docutils literal"><span class="pre">clang-debian8:staging</span></code> and a
+build image <code class="docutils literal"><span class="pre">clang-debian8-build:staging</span></code> from the latest upstream revision.
+After the image is built you can run bash inside a container based on your
+image like this:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>docker run -ti clang-debian8:staging bash
+</pre></div>
+</div>
+<p>Now you can run bash commands as you normally would:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>root@80f351b51825:/# clang -v
+clang version <span class="m">5</span>.0.0 <span class="o">(</span>trunk <span class="m">305064</span><span class="o">)</span>
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /bin
+Found candidate GCC installation: /usr/lib/gcc/x86_64-linux-gnu/4.8
+Found candidate GCC installation: /usr/lib/gcc/x86_64-linux-gnu/4.8.4
+Found candidate GCC installation: /usr/lib/gcc/x86_64-linux-gnu/4.9
+Found candidate GCC installation: /usr/lib/gcc/x86_64-linux-gnu/4.9.2
+Selected GCC installation: /usr/lib/gcc/x86_64-linux-gnu/4.9
+Candidate multilib: .<span class="p">;</span>@m64
+Selected multilib: .<span class="p">;</span>@m64
+</pre></div>
+</div>
+</div>
+<div class="section" id="which-image-should-i-choose">
+<h2>Which image should I choose?<a class="headerlink" href="#which-image-should-i-choose" title="Permalink to this headline">¶</a></h2>
+<p>We currently provide two images: debian8-based and nvidia-cuda-based. They
+differ in the base image that they use, i.e. they have a different set of
+preinstalled binaries. Debian8 is very minimal, nvidia-cuda is larger, but has
+preinstalled CUDA libraries and allows to access a GPU, installed on your
+machine.</p>
+<p>If you need a minimal linux distribution with only clang and libstdc++ included,
+you should try debian8-based image.</p>
+<p>If you want to use CUDA libraries and have access to a GPU on your machine,
+you should choose nvidia-cuda-based image and use <a class="reference external" href="https://github.com/NVIDIA/nvidia-docker">nvidia-docker</a> to run your docker containers. Note
+that you don’t need nvidia-docker to build the images, but you need it in order
+to have an access to GPU from a docker container that is running the built
+image.</p>
+<p>If you have a different use-case, you could create your own image based on
+<code class="docutils literal"><span class="pre">example/</span></code> folder.</p>
+<p>Any docker image can be built and run using only the docker binary, i.e. you can
+run debian8 build on Fedora or any other Linux distribution. You don’t need to
+install CMake, compilers or any other clang dependencies. It is all handled
+during the build process inside Docker’s isolated environment.</p>
+</div>
+<div class="section" id="stable-build">
+<h2>Stable build<a class="headerlink" href="#stable-build" title="Permalink to this headline">¶</a></h2>
+<p>If you want a somewhat recent and somewhat stable build, use the
+<code class="docutils literal"><span class="pre">branches/google/stable</span></code> branch, i.e. the following command will produce a
+debian8-based image using the latest <code class="docutils literal"><span class="pre">google/stable</span></code> sources for you:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>./llvm/utils/docker/build_docker_image.sh <span class="se">\</span>
+    -s debian8 --d clang-debian8 -t <span class="s2">&quot;staging&quot;</span> <span class="se">\</span>
+    --branch branches/google/stable <span class="se">\</span>
+    -p clang -i install-clang -i install-clang-headers <span class="se">\</span>
+    -- <span class="se">\</span>
+    -DCMAKE_BUILD_TYPE<span class="o">=</span>Release
+</pre></div>
+</div>
+</div>
+<div class="section" id="minimizing-docker-image-size">
+<h2>Minimizing docker image size<a class="headerlink" href="#minimizing-docker-image-size" title="Permalink to this headline">¶</a></h2>
+<p>Due to Docker restrictions we use two images (i.e., build and release folders)
+for the release image to be as small as possible. It’s much easier to achieve
+that using two images, because Docker would store a filesystem layer for each
+command in the  Dockerfile, i.e. if you install some packages in one command,
+then remove  those in a separate command, the size of the resulting image will
+still be proportinal to the size of an image with installed packages.
+Therefore, we strive to provide a very simple release image which only copies
+compiled clang and does not do anything else.</p>
+<p>Docker 1.13 added a <code class="docutils literal"><span class="pre">--squash</span></code> flag that allows to flatten the layers of the
+image, i.e. remove the parts that were actually deleted. That is an easier way
+to produce the smallest images possible by using just a single image. We do not
+use it because as of today the flag is in experimental stage and not everyone
+may have the latest docker version available. When the flag is out of
+experimental stage, we should investigate replacing two images approach with
+just a single image, built using <code class="docutils literal"><span class="pre">--squash</span></code> flag.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="Atomics.html" title="LLVM Atomic Instructions and Concurrency Guide"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="Benchmarking.html" title="Benchmarking tips"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

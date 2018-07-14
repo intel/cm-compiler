@@ -1,4 +1,4 @@
-; RUN: llc -march=mipsel < %s | FileCheck %s
+; RUN: llc -march=mipsel -relocation-model=pic < %s | FileCheck %s
 
 
 ; Check that function accesses vector return value from stack in cases when
@@ -12,7 +12,7 @@ declare <4 x double> @d4(...)
 
 define i32 @call_i8() {
 entry:
-  %call = call <8 x i32> (...)* @i8()
+  %call = call <8 x i32> (...) @i8()
   %v0 = extractelement <8 x i32> %call, i32 0
   %v1 = extractelement <8 x i32> %call, i32 1
   %v2 = extractelement <8 x i32> %call, i32 2
@@ -46,7 +46,7 @@ entry:
 
 define float @call_f4() {
 entry:
-  %call = call <4 x float> (...)* @f4()
+  %call = call <4 x float> (...) @f4()
   %v0 = extractelement <4 x float> %call, i32 0
   %v1 = extractelement <4 x float> %call, i32 1
   %v2 = extractelement <4 x float> %call, i32 2
@@ -68,7 +68,7 @@ entry:
 
 define double @call_d4() {
 entry:
-  %call = call <4 x double> (...)* @d4()
+  %call = call <4 x double> (...) @d4()
   %v0 = extractelement <4 x double> %call, i32 0
   %v1 = extractelement <4 x double> %call, i32 1
   %v2 = extractelement <4 x double> %call, i32 2
@@ -99,7 +99,7 @@ declare <2 x double> @d2(...)
 
 define i32 @call_i4() {
 entry:
-  %call = call <4 x i32> (...)* @i4()
+  %call = call <4 x i32> (...) @i4()
   %v0 = extractelement <4 x i32> %call, i32 0
   %v1 = extractelement <4 x i32> %call, i32 1
   %v2 = extractelement <4 x i32> %call, i32 2
@@ -120,7 +120,7 @@ entry:
 
 define float @call_f2() {
 entry:
-  %call = call <2 x float> (...)* @f2()
+  %call = call <2 x float> (...) @f2()
   %v0 = extractelement <2 x float> %call, i32 0
   %v1 = extractelement <2 x float> %call, i32 1
   %add1 = fadd float %v0, %v1
@@ -128,14 +128,17 @@ entry:
 
 ; CHECK-LABEL:        call_f2:
 ; CHECK:        call16(f2)
-; CHECK-NOT:    lwc1
-; CHECK:        add.s    $[[R2:[a-z0-9]+]], $[[R0:[a-z0-9]+]], $[[R1:[a-z0-9]+]]
+; CHECK:        addiu $4, $sp, [[O0:[0-9]+]]
+; CHECK-DAG:    lwc1 $f[[F0:[0-9]]], [[O0]]($sp)
+; CHECK-DAG:    lwc1 $f[[F1:[0-9]]], 20($sp)
+; CHECK:        add.s    $f0, $f[[F0]], $f[[F1]]
+
 }
 
 
 define double @call_d2() {
 entry:
-  %call = call <2 x double> (...)* @d2()
+  %call = call <2 x double> (...) @d2()
   %v0 = extractelement <2 x double> %call, i32 0
   %v1 = extractelement <2 x double> %call, i32 1
   %add1 = fadd double %v0, %v1
@@ -143,11 +146,12 @@ entry:
 
 ; CHECK-LABEL:        call_d2:
 ; CHECK:        call16(d2)
-; CHECK-NOT:    ldc1
-; CHECK:        add.d    $[[R2:[a-z0-9]+]], $[[R0:[a-z0-9]+]], $[[R1:[a-z0-9]+]]
+; CHECK:        addiu $4, $sp, [[O0:[0-9]+]]
+; CHECK-DAG:    ldc1 $f[[F0:[0-9]+]], 24($sp)
+; CHECK-DAG:    ldc1 $f[[F1:[0-9]+]], [[O0]]($sp)
+; CHECK:        add.d    $f0, $f[[F1]], $f[[F0]]
+
 }
-
-
 
 ; Check that function returns vector on stack in cases when vector can't be
 ; returned in registers. Also check that vector is placed on stack starting
@@ -179,11 +183,12 @@ entry:
   ret <4 x float> %vecins4
 
 ; CHECK-LABEL:        return_f4:
-; CHECK-DAG:    lwc1    $[[R0:[a-z0-9]+]], 16($sp)
-; CHECK-DAG:    swc1    $[[R0]], 12($4)
+; CHECK-DAG:    lwc1    $f[[R0:[0-9]+]], 16($sp)
+; CHECK-DAG:    swc1    $f[[R0]], 12($4)
 ; CHECK-DAG:    sw      $7, 8($4)
 ; CHECK-DAG:    sw      $6, 4($4)
 ; CHECK-DAG:    sw      $5, 0($4)
+
 }
 
 
@@ -227,8 +232,8 @@ entry:
   ret <2 x float> %vecins2
 
 ; CHECK-LABEL:        return_f2:
-; CHECK:        mov.s   $f0, $f12
-; CHECK:        mov.s   $f2, $f14
+; CHECK-DAG:    sw   $5, 0($4)
+; CHECK-DAG:    sw   $6, 4($4)
 }
 
 
@@ -239,6 +244,10 @@ entry:
   ret <2 x double> %vecins2
 
 ; CHECK-LABEL:        return_d2:
-; CHECK:        mov.d   $f0, $f12
-; CHECK:        mov.d   $f2, $f14
+; CHECK-DAG:    ldc1 $f[[F0:[0-9]]], 16($sp)
+; CHECK-DAG:    sdc1 $f[[F0]], 8($4)
+; CHECK-DAG:    mtc1 $6, $f[[F1:[0-9]+]]
+; CHECK-DAG:    mtc1 $7, $f
+; CHECK-DAG:    sdc1 $f[[F0]], 0($4)
+
 }

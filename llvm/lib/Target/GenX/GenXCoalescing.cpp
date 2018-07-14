@@ -266,7 +266,7 @@ namespace {
   public:
     static char ID;
     explicit GenXCoalescing() : FunctionGroupPass(ID) {}
-    virtual const char *getPassName() const { return "GenX coalescing and copy insertion"; }
+    virtual StringRef getPassName() const { return "GenX coalescing and copy insertion"; }
     void getAnalysisUsage(AnalysisUsage &AU) const {
       FunctionGroupPass::getAnalysisUsage(AU);
       AU.addRequired<GenXLiveness>();
@@ -1262,6 +1262,25 @@ void GenXCoalescing::coalesceOutputArgs(FunctionGroup *FG) {
   }
 }
 
+static bool isDummyReturnBlock(BasicBlock *BB) {
+  if (!BB)
+    return false;
+  auto TI = BB->getTerminator();
+  if (!isa<ReturnInst>(TI))
+    return false;
+  if (TI == &BB->front())
+    return true;
+  auto Inst = TI->getPrevNode();
+  return Inst == &BB->front() && getIntrinsicID(Inst) == Intrinsic::genx_output;
+}
+
+static BasicBlock *getUnconditionalSuccessor(Instruction *Inst) {
+  auto Br = dyn_cast<BranchInst>(Inst);
+  if (!Br || Br->isConditional())
+    return nullptr;
+  return Br->getSuccessor(0);
+}
+
 void GenXCoalescing::coalesceCallables() {
   for (auto CI : Callables) {
     auto NI = CI->getNextNode();
@@ -1275,7 +1294,9 @@ void GenXCoalescing::coalesceCallables() {
       }
     }
     auto Ret = CI->getNextNode();
-    if (!Ret || !isa<ReturnInst>(Ret)) {
+    if (!Ret ||
+        (!isa<ReturnInst>(Ret) &&
+         !isDummyReturnBlock(getUnconditionalSuccessor(Ret)))) {
       // getRetVal could not determine what happens to this return value.
       DiagnosticInfoFastComposition Err(CI,
         "Callable Call must be right before function return",
@@ -1402,7 +1423,7 @@ void GenXCoalescing::showCoalesceFail(SimpleValue V, DebugLoc DL,
     dbgs() << "GenX " << Intro << " coalesce failed on ";
     V.printName(dbgs());
     dbgs() << " size " << V.getType()->getPrimitiveSizeInBits() / 8U << " bytes at ";
-    DL.print(V.getValue()->getContext(), dbgs());
+    DL.print(dbgs());
     dbgs() << "\nDestLR: " << *DestLR << "\nSourceLR: " << *SourceLR << "\n";
   }
 }
@@ -1419,8 +1440,8 @@ DiagnosticInfoFastComposition::DiagnosticInfoFastComposition(Instruction *Inst,
   : DiagnosticInfo(getKindID(), Severity), Line(0), Col(0)
 {
   auto DL = Inst->getDebugLoc();
-  if (!DL.isUnknown()) {
-    Filename = DIScope(DL.getScope(Inst->getContext())).getFilename();
+  if (!DL) {
+    Filename = DL->getFilename();
     Line = DL.getLine();
     Col = DL.getCol();
   }

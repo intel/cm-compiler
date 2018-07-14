@@ -9,16 +9,16 @@ target triple = "x86_64-unknown-linux-gnu"
 ; Check that debug info for origin propagation code is set correctly.
 
 ; Function Attrs: nounwind
-define void @Store(i32* nocapture %p, i32 %x) #0 {
+define void @Store(i32* nocapture %p, i32 %x) #0 !dbg !4 {
 entry:
-  tail call void @llvm.dbg.value(metadata !{i32* %p}, i64 0, metadata !11), !dbg !16
-  tail call void @llvm.dbg.value(metadata !{i32 %x}, i64 0, metadata !12), !dbg !16
+  tail call void @llvm.dbg.value(metadata i32* %p, i64 0, metadata !11, metadata !DIExpression()), !dbg !16
+  tail call void @llvm.dbg.value(metadata i32 %x, i64 0, metadata !12, metadata !DIExpression()), !dbg !16
   store i32 %x, i32* %p, align 4, !dbg !17, !tbaa !18
   ret void, !dbg !22
 }
 
 ; Function Attrs: nounwind readnone
-declare void @llvm.dbg.value(metadata, i64, metadata) #1
+declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #1
 
 attributes #0 = { nounwind sanitize_memory "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
@@ -27,32 +27,31 @@ attributes #1 = { nounwind readnone }
 !llvm.module.flags = !{!13, !14}
 !llvm.ident = !{!15}
 
-!0 = metadata !{i32 786449, metadata !1, i32 12, metadata !"clang version 3.5.0 (204220)", i1 true, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !"", i32 1} ; [ DW_TAG_compile_unit ] [/tmp/build0/../2.cc] [DW_LANG_C99]
-!1 = metadata !{metadata !"../2.cc", metadata !"/tmp/build0"}
-!2 = metadata !{}
-!3 = metadata !{metadata !4}
-!4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"Store", metadata !"Store", metadata !"", i32 1, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 true, void (i32*, i32)* @Store, null, null, metadata !10, i32 1} ; [ DW_TAG_subprogram ] [line 1] [def] [Store]
-!5 = metadata !{i32 786473, metadata !1}          ; [ DW_TAG_file_type ] [/tmp/build0/../2.cc]
-!6 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !7, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!7 = metadata !{null, metadata !8, metadata !9}
-!8 = metadata !{i32 786447, null, null, metadata !"", i32 0, i64 64, i64 64, i64 0, i32 0, metadata !9} ; [ DW_TAG_pointer_type ] [line 0, size 64, align 64, offset 0] [from int]
-!9 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!10 = metadata !{metadata !11, metadata !12}
-!11 = metadata !{i32 786689, metadata !4, metadata !"p", metadata !5, i32 16777217, metadata !8, i32 0, i32 0} ; [ DW_TAG_arg_variable ] [p] [line 1]
-!12 = metadata !{i32 786689, metadata !4, metadata !"x", metadata !5, i32 33554433, metadata !9, i32 0, i32 0} ; [ DW_TAG_arg_variable ] [x] [line 1]
-!13 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!14 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
-!15 = metadata !{metadata !"clang version 3.5.0 (204220)"}
-!16 = metadata !{i32 1, i32 0, metadata !4, null}
-!17 = metadata !{i32 2, i32 0, metadata !4, null}
-!18 = metadata !{metadata !19, metadata !19, i64 0}
-!19 = metadata !{metadata !"int", metadata !20, i64 0}
-!20 = metadata !{metadata !"omnipotent char", metadata !21, i64 0}
-!21 = metadata !{metadata !"Simple C/C++ TBAA"}
-!22 = metadata !{i32 3, i32 0, metadata !4, null}
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 (204220)", isOptimized: true, emissionKind: FullDebug, file: !1, enums: !2, retainedTypes: !2, globals: !2, imports: !2)
+!1 = !DIFile(filename: "../2.cc", directory: "/tmp/build0")
+!2 = !{}
+!4 = distinct !DISubprogram(name: "Store", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: true, unit: !0, scopeLine: 1, file: !1, scope: !5, type: !6, variables: !10)
+!5 = !DIFile(filename: "../2.cc", directory: "/tmp/build0")
+!6 = !DISubroutineType(types: !7)
+!7 = !{null, !8, !9}
+!8 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: !9)
+!9 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+!10 = !{!11, !12}
+!11 = !DILocalVariable(name: "p", line: 1, arg: 1, scope: !4, file: !5, type: !8)
+!12 = !DILocalVariable(name: "x", line: 1, arg: 2, scope: !4, file: !5, type: !9)
+!13 = !{i32 2, !"Dwarf Version", i32 4}
+!14 = !{i32 1, !"Debug Info Version", i32 3}
+!15 = !{!"clang version 3.5.0 (204220)"}
+!16 = !DILocation(line: 1, scope: !4)
+!17 = !DILocation(line: 2, scope: !4)
+!18 = !{!19, !19, i64 0}
+!19 = !{!"int", !20, i64 0}
+!20 = !{!"omnipotent char", !21, i64 0}
+!21 = !{!"Simple C/C++ TBAA"}
+!22 = !DILocation(line: 3, scope: !4)
 
 
-; CHECK: @Store
+; CHECK-LABEL: @Store
 ; CHECK: load {{.*}} @__msan_param_tls
 ; CHECK: [[ORIGIN:%[01-9a-z]+]] = load {{.*}} @__msan_param_origin_tls
 ; CHECK: store {{.*}}!dbg ![[DBG:[01-9]+]]

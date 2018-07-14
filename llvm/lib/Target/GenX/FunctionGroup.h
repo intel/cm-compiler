@@ -99,7 +99,7 @@ public:
   static char ID;
   explicit FunctionGroupAnalysis() : ModulePass(ID) { }
   ~FunctionGroupAnalysis() { clear(); }
-  virtual const char *getPassName() const { return "function group analysis"; }
+  virtual StringRef getPassName() const { return "function group analysis"; }
   // runOnModule : does almost nothing
   bool runOnModule(Module &ArgM) { clear(); M = &ArgM; return false; }
   // getModule : get the Module that this FunctionGroupAnalysis is for

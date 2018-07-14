@@ -594,7 +594,9 @@ retainable pointer type <arc.misc.c-retainable>` and it is:
 * a message send, and the declared method either has the
   ``cf_returns_not_retained`` attribute or it has neither the
   ``cf_returns_retained`` attribute nor a :ref:`selector family
-  <arc.method-families>` that implies a retained result.
+  <arc.method-families>` that implies a retained result, or
+* :when-revised:`[beginning LLVM 3.6]` :revision:`a load from a` ``const``
+  :revision:`non-system global variable.`
 
 An expression is :arc-term:`known retained` if it is an rvalue of :ref:`C
 retainable pointer type <arc.misc.c-retainable>` and it is:
@@ -630,6 +632,12 @@ retain-agnostic, the conversion is treated as a ``__bridge`` cast.
   that some code patterns  ---  for example, creating a CF value, assigning it
   to an ObjC-typed local, and then calling ``CFRelease`` when done  ---  are a
   bit too likely to be accidentally accepted, leading to mysterious behavior.
+
+  For loads from ``const`` global variables of :ref:`C retainable pointer type
+  <arc.misc.c-retainable>`, it is reasonable to assume that global system
+  constants were initialitzed with true constants (e.g. string literals), but
+  user constants might have been initialized with something dynamically
+  allocated, using a global initializer.
 
 .. _arc.objects.restrictions.conversion-exception-contextual:
 
@@ -902,10 +910,10 @@ not support ``__weak`` references.
   binary compatibility.
 
 A class may indicate that it does not support weak references by providing the
-``objc_arc_weak_unavailable`` attribute on the class's interface declaration.  A
+``objc_arc_weak_reference_unavailable`` attribute on the class's interface declaration.  A
 retainable object pointer type is **weak-unavailable** if
 is a pointer to an (optionally protocol-qualified) Objective-C class ``T`` where
-``T`` or one of its superclasses has the ``objc_arc_weak_unavailable``
+``T`` or one of its superclasses has the ``objc_arc_weak_reference_unavailable``
 attribute.  A program is ill-formed if it applies the ``__weak`` ownership
 qualifier to a weak-unavailable type or if the value operand of a weak
 assignment operation has a weak-unavailable type.
@@ -2250,15 +2258,12 @@ non-block type [*]_.  Equivalent to the following code:
 
 .. code-block:: objc
 
-  id objc_storeStrong(id *object, id value) {
-    value = [value retain];
+  void objc_storeStrong(id *object, id value) {
     id oldValue = *object;
+    value = [value retain];
     *object = value;
     [oldValue release];
-    return value;
   }
-
-Always returns ``value``.
 
 .. [*] This does not imply that a ``__strong`` object of block type is an
    invalid argument to this function. Rather it implies that an ``objc_retain``

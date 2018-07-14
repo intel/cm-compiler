@@ -103,9 +103,9 @@ bool runTest(unsigned N, unsigned block_size)
     // Creates the kernel.
     CmKernel *kernel = nullptr;
     if (block_size == 16 && N >= 16)
-        cm_result_check(device->CreateKernel(program, "tranpose16", kernel));
+        cm_result_check(device->CreateKernel(program, "transpose16", kernel));
     else if (block_size == 8)
-        cm_result_check(device->CreateKernel(program, "tranpose8", kernel));
+        cm_result_check(device->CreateKernel(program, "transpose8", kernel));
     else
         assert("configuration not supported.");
 

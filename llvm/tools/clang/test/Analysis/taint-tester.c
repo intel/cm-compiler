@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -Wno-int-to-pointer-cast -analyze -analyzer-checker=alpha.security.taint,debug.TaintTest %s -verify
+// RUN: %clang_analyze_cc1 -Wno-int-to-pointer-cast -analyzer-checker=alpha.security.taint,debug.TaintTest %s -verify
 
 #include "Inputs/system-header-simulator.h"
 
@@ -189,3 +189,10 @@ void atoiTest() {
 
 }
 
+char *pointer1;
+void *pointer2;
+void noCrashTest() {
+  if (!*pointer1) {
+    __builtin___memcpy_chk(pointer2, pointer1, 0, 0); // no-crash
+  }
+}

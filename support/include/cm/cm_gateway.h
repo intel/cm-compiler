@@ -29,6 +29,7 @@ static_assert(0, "CM:w:cm_gateway.h should not be included explicitly - only "
 #define _CLANG_CM_GATEWAY_H
 
 #include "cm_send.h"
+#include "cm_util.h"
 
 
 
@@ -44,7 +45,13 @@ CM_INLINE void cm_wait(unsigned char mask = 0) { __cm_builtin_cm_wait(mask); }
 
 /// \brief Wrapper function for cm_signal
 ///
-CM_INLINE void cm_signal(void) {}
+CM_INLINE void cm_signal() {}
+
+template <int NumDeps>
+CM_INLINE void cm_signal() {
+  constexpr unsigned N = details::getNextPowerOf2(NumDeps);
+  CM_STATIC_ERROR(N <= 8, "the maximal number dependencies cannot exceed 8");
+}
 
 
 #endif /* _CLANG_CM_GATEWAY_H */

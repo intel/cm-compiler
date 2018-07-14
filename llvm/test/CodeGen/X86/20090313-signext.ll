@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=x86-64 -relocation-model=pic > %t
+; RUN: llc < %s -mtriple=x86_64-- -relocation-model=pic > %t
 ; RUN: grep "movswl	%ax, %edi" %t
 ; RUN: grep "movw	(%rax), %ax" %t
 ; XFAIL: *
@@ -10,7 +10,7 @@ entry:
 	%0 = tail call signext i16 @h() nounwind
 	%1 = sext i16 %0 to i32
 	tail call void @g(i32 %1) nounwind
-	%2 = load i16* @x, align 2
+	%2 = load i16, i16* @x, align 2
 	ret i16 %2
 }
 

@@ -1,0 +1,510 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>5. Building a JIT: Remote-JITing – Process Isolation and Laziness at a Distance &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="LLVM 6.0.0 Release Notes" href="../ReleaseNotes.html" />
+    <link rel="prev" title="4. Building a JIT: Extreme Laziness - Using Compile Callbacks to JIT from ASTs" href="BuildingAJIT4.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../ReleaseNotes.html" title="LLVM 6.0.0 Release Notes"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="BuildingAJIT4.html" title="4. Building a JIT: Extreme Laziness - Using Compile Callbacks to JIT from ASTs"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Tutorial: Table of Contents</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="building-a-jit-remote-jiting-process-isolation-and-laziness-at-a-distance">
+<h1>5. Building a JIT: Remote-JITing – Process Isolation and Laziness at a Distance<a class="headerlink" href="#building-a-jit-remote-jiting-process-isolation-and-laziness-at-a-distance" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#chapter-5-introduction" id="id1">Chapter 5 Introduction</a></li>
+<li><a class="reference internal" href="#full-code-listing" id="id2">Full Code Listing</a></li>
+</ul>
+</div>
+<p><strong>This tutorial is under active development. It is incomplete and details may
+change frequently.</strong> Nonetheless we invite you to try it out as it stands, and
+we welcome any feedback.</p>
+<div class="section" id="chapter-5-introduction">
+<h2><a class="toc-backref" href="#id1">5.1. Chapter 5 Introduction</a><a class="headerlink" href="#chapter-5-introduction" title="Permalink to this headline">¶</a></h2>
+<p>Welcome to Chapter 5 of the “Building an ORC-based JIT in LLVM” tutorial. This
+chapter introduces the ORC RemoteJIT Client/Server APIs and shows how to use
+them to build a JIT stack that will execute its code via a communications
+channel with a different process. This can be a separate process on the same
+machine, a process on a different machine, or even a process on a different
+platform/architecture. The code builds on top of the lazy-AST-compiling JIT
+stack from <a class="reference external" href="BuildingAJIT3.html">Chapter 4</a>.</p>
+<p><strong>To be done – this is going to be a long one:</strong></p>
+<p><strong>(1) Introduce channels, RPC, RemoteJIT Client and Server APIs</strong></p>
+<p><strong>(2) Describe the client code in greater detail. Discuss modifications of the
+KaleidoscopeJIT class, and the REPL itself.</strong></p>
+<p><strong>(3) Describe the server code.</strong></p>
+<p><strong>(4) Describe how to run the demo.</strong></p>
+</div>
+<div class="section" id="full-code-listing">
+<h2><a class="toc-backref" href="#id2">5.2. Full Code Listing</a><a class="headerlink" href="#full-code-listing" title="Permalink to this headline">¶</a></h2>
+<p>Here is the complete code listing for our running example that JITs lazily from
+Kaleidoscope ASTS. To build this example, use:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="c1"># Compile</span>
+clang++ -g toy.cpp <span class="sb">`</span>llvm-config --cxxflags --ldflags --system-libs --libs core orcjit native<span class="sb">`</span> -O3 -o toy
+clang++ -g Server/server.cpp <span class="sb">`</span>llvm-config --cxxflags --ldflags --system-libs --libs core orcjit native<span class="sb">`</span> -O3 -o toy-server
+<span class="c1"># Run</span>
+./toy-server <span class="p">&amp;</span>
+./toy
+</pre></div>
+</div>
+<p>Here is the code for the modified KaleidoscopeJIT:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">//===- KaleidoscopeJIT.h - A simple JIT for Kaleidoscope --------*- C++ -*-===//</span>
+<span class="c1">//</span>
+<span class="c1">//                     The LLVM Compiler Infrastructure</span>
+<span class="c1">//</span>
+<span class="c1">// This file is distributed under the University of Illinois Open Source</span>
+<span class="c1">// License. See LICENSE.TXT for details.</span>
+<span class="c1">//</span>
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+<span class="c1">//</span>
+<span class="c1">// Contains a simple JIT definition for use in the kaleidoscope tutorials.</span>
+<span class="c1">//</span>
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+
+<span class="cp">#ifndef LLVM_EXECUTIONENGINE_ORC_KALEIDOSCOPEJIT_H</span>
+<span class="cp">#define LLVM_EXECUTIONENGINE_ORC_KALEIDOSCOPEJIT_H</span>
+
+<span class="cp">#include</span> <span class="cpf">&quot;RemoteJITUtils.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ADT/SmallVector.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ADT/STLExtras.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ADT/Triple.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/ExecutionEngine.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/JITSymbol.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/CompileUtils.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/IndirectionUtils.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/IRCompileLayer.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/IRTransformLayer.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/LambdaResolver.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/OrcRemoteTargetClient.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/DataLayout.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/LegacyPassManager.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/Mangler.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/DynamicLibrary.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/Error.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/raw_ostream.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Target/TargetMachine.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Transforms/Scalar.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Transforms/Scalar/GVN.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;algorithm&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;cassert&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;cstdlib&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;memory&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;string&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;vector&gt;</span><span class="cp"></span>
+
+<span class="k">class</span> <span class="nc">PrototypeAST</span><span class="p">;</span>
+<span class="k">class</span> <span class="nc">ExprAST</span><span class="p">;</span>
+
+<span class="c1">/// FunctionAST - This class represents a function definition itself.</span>
+<span class="k">class</span> <span class="nc">FunctionAST</span> <span class="p">{</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">PrototypeAST</span><span class="o">&gt;</span> <span class="n">Proto</span><span class="p">;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">Body</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+  <span class="n">FunctionAST</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">PrototypeAST</span><span class="o">&gt;</span> <span class="n">Proto</span><span class="p">,</span>
+              <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">Body</span><span class="p">)</span>
+      <span class="o">:</span> <span class="n">Proto</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Proto</span><span class="p">)),</span> <span class="n">Body</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Body</span><span class="p">))</span> <span class="p">{}</span>
+
+  <span class="k">const</span> <span class="n">PrototypeAST</span><span class="o">&amp;</span> <span class="n">getProto</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span>
+  <span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span> <span class="n">getName</span><span class="p">()</span> <span class="k">const</span><span class="p">;</span>
+  <span class="n">llvm</span><span class="o">::</span><span class="n">Function</span> <span class="o">*</span><span class="n">codegen</span><span class="p">();</span>
+<span class="p">};</span>
+
+<span class="c1">/// This will compile FnAST to IR, rename the function to add the given</span>
+<span class="c1">/// suffix (needed to prevent a name-clash with the function&#39;s stub),</span>
+<span class="c1">/// and then take ownership of the module that the function was compiled</span>
+<span class="c1">/// into.</span>
+<span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">llvm</span><span class="o">::</span><span class="n">Module</span><span class="o">&gt;</span>
+<span class="n">irgenAndTakeOwnership</span><span class="p">(</span><span class="n">FunctionAST</span> <span class="o">&amp;</span><span class="n">FnAST</span><span class="p">,</span> <span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Suffix</span><span class="p">);</span>
+
+<span class="k">namespace</span> <span class="n">llvm</span> <span class="p">{</span>
+<span class="k">namespace</span> <span class="n">orc</span> <span class="p">{</span>
+
+<span class="c1">// Typedef the remote-client API.</span>
+<span class="k">using</span> <span class="n">MyRemote</span> <span class="o">=</span> <span class="n">remote</span><span class="o">::</span><span class="n">OrcRemoteTargetClient</span><span class="p">;</span>
+
+<span class="k">class</span> <span class="nc">KaleidoscopeJIT</span> <span class="p">{</span>
+<span class="k">private</span><span class="o">:</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">TargetMachine</span><span class="o">&gt;</span> <span class="n">TM</span><span class="p">;</span>
+  <span class="k">const</span> <span class="n">DataLayout</span> <span class="n">DL</span><span class="p">;</span>
+  <span class="n">RTDyldObjectLinkingLayer</span> <span class="n">ObjectLayer</span><span class="p">;</span>
+  <span class="n">IRCompileLayer</span><span class="o">&lt;</span><span class="k">decltype</span><span class="p">(</span><span class="n">ObjectLayer</span><span class="p">),</span> <span class="n">SimpleCompiler</span><span class="o">&gt;</span> <span class="n">CompileLayer</span><span class="p">;</span>
+
+  <span class="k">using</span> <span class="n">OptimizeFunction</span> <span class="o">=</span>
+      <span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span><span class="p">)</span><span class="o">&gt;</span><span class="p">;</span>
+
+  <span class="n">IRTransformLayer</span><span class="o">&lt;</span><span class="k">decltype</span><span class="p">(</span><span class="n">CompileLayer</span><span class="p">),</span> <span class="n">OptimizeFunction</span><span class="o">&gt;</span> <span class="n">OptimizeLayer</span><span class="p">;</span>
+
+  <span class="n">JITCompileCallbackManager</span> <span class="o">*</span><span class="n">CompileCallbackMgr</span><span class="p">;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">IndirectStubsManager</span><span class="o">&gt;</span> <span class="n">IndirectStubsMgr</span><span class="p">;</span>
+  <span class="n">MyRemote</span> <span class="o">&amp;</span><span class="n">Remote</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+  <span class="k">using</span> <span class="n">ModuleHandle</span> <span class="o">=</span> <span class="k">decltype</span><span class="p">(</span><span class="n">OptimizeLayer</span><span class="p">)</span><span class="o">::</span><span class="n">ModuleHandleT</span><span class="p">;</span>
+
+  <span class="n">KaleidoscopeJIT</span><span class="p">(</span><span class="n">MyRemote</span> <span class="o">&amp;</span><span class="n">Remote</span><span class="p">)</span>
+      <span class="o">:</span> <span class="n">TM</span><span class="p">(</span><span class="n">EngineBuilder</span><span class="p">().</span><span class="n">selectTarget</span><span class="p">(</span><span class="n">Triple</span><span class="p">(</span><span class="n">Remote</span><span class="p">.</span><span class="n">getTargetTriple</span><span class="p">()),</span> <span class="s">&quot;&quot;</span><span class="p">,</span>
+                                        <span class="s">&quot;&quot;</span><span class="p">,</span> <span class="n">SmallVector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span> <span class="mi">0</span><span class="o">&gt;</span><span class="p">())),</span>
+        <span class="n">DL</span><span class="p">(</span><span class="n">TM</span><span class="o">-&gt;</span><span class="n">createDataLayout</span><span class="p">()),</span>
+        <span class="n">ObjectLayer</span><span class="p">([</span><span class="o">&amp;</span><span class="n">Remote</span><span class="p">]()</span> <span class="p">{</span>
+            <span class="k">return</span> <span class="n">cantFail</span><span class="p">(</span><span class="n">Remote</span><span class="p">.</span><span class="n">createRemoteMemoryManager</span><span class="p">());</span>
+          <span class="p">}),</span>
+        <span class="n">CompileLayer</span><span class="p">(</span><span class="n">ObjectLayer</span><span class="p">,</span> <span class="n">SimpleCompiler</span><span class="p">(</span><span class="o">*</span><span class="n">TM</span><span class="p">)),</span>
+        <span class="n">OptimizeLayer</span><span class="p">(</span><span class="n">CompileLayer</span><span class="p">,</span>
+                      <span class="p">[</span><span class="k">this</span><span class="p">](</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">M</span><span class="p">)</span> <span class="p">{</span>
+                        <span class="k">return</span> <span class="n">optimizeModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">M</span><span class="p">));</span>
+                      <span class="p">}),</span>
+        <span class="n">Remote</span><span class="p">(</span><span class="n">Remote</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">auto</span> <span class="n">CCMgrOrErr</span> <span class="o">=</span> <span class="n">Remote</span><span class="p">.</span><span class="n">enableCompileCallbacks</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">CCMgrOrErr</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">logAllUnhandledErrors</span><span class="p">(</span><span class="n">CCMgrOrErr</span><span class="p">.</span><span class="n">takeError</span><span class="p">(),</span> <span class="n">errs</span><span class="p">(),</span>
+                            <span class="s">&quot;Error enabling remote compile callbacks:&quot;</span><span class="p">);</span>
+      <span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="n">CompileCallbackMgr</span> <span class="o">=</span> <span class="o">&amp;*</span><span class="n">CCMgrOrErr</span><span class="p">;</span>
+    <span class="n">IndirectStubsMgr</span> <span class="o">=</span> <span class="n">cantFail</span><span class="p">(</span><span class="n">Remote</span><span class="p">.</span><span class="n">createIndirectStubsManager</span><span class="p">());</span>
+    <span class="n">llvm</span><span class="o">::</span><span class="n">sys</span><span class="o">::</span><span class="n">DynamicLibrary</span><span class="o">::</span><span class="n">LoadLibraryPermanently</span><span class="p">(</span><span class="k">nullptr</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="n">TargetMachine</span> <span class="o">&amp;</span><span class="n">getTargetMachine</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="o">*</span><span class="n">TM</span><span class="p">;</span> <span class="p">}</span>
+
+  <span class="n">ModuleHandle</span> <span class="n">addModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">M</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// Build our symbol resolver:</span>
+    <span class="c1">// Lambda 1: Look back into the JIT itself to find symbols that are part of</span>
+    <span class="c1">//           the same &quot;logical dylib&quot;.</span>
+    <span class="c1">// Lambda 2: Search for external symbols in the host process.</span>
+    <span class="k">auto</span> <span class="n">Resolver</span> <span class="o">=</span> <span class="n">createLambdaResolver</span><span class="p">(</span>
+        <span class="p">[</span><span class="o">&amp;</span><span class="p">](</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+          <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">Sym</span> <span class="o">=</span> <span class="n">IndirectStubsMgr</span><span class="o">-&gt;</span><span class="n">findStub</span><span class="p">(</span><span class="n">Name</span><span class="p">,</span> <span class="nb">false</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">Sym</span><span class="p">;</span>
+          <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">Sym</span> <span class="o">=</span> <span class="n">OptimizeLayer</span><span class="p">.</span><span class="n">findSymbol</span><span class="p">(</span><span class="n">Name</span><span class="p">,</span> <span class="nb">false</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">Sym</span><span class="p">;</span>
+          <span class="k">return</span> <span class="nf">JITSymbol</span><span class="p">(</span><span class="k">nullptr</span><span class="p">);</span>
+        <span class="p">},</span>
+        <span class="p">[</span><span class="o">&amp;</span><span class="p">](</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+          <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">AddrOrErr</span> <span class="o">=</span> <span class="n">Remote</span><span class="p">.</span><span class="n">getSymbolAddress</span><span class="p">(</span><span class="n">Name</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">JITSymbol</span><span class="p">(</span><span class="o">*</span><span class="n">AddrOrErr</span><span class="p">,</span> <span class="n">JITSymbolFlags</span><span class="o">::</span><span class="n">Exported</span><span class="p">);</span>
+          <span class="k">else</span> <span class="p">{</span>
+            <span class="n">logAllUnhandledErrors</span><span class="p">(</span><span class="n">AddrOrErr</span><span class="p">.</span><span class="n">takeError</span><span class="p">(),</span> <span class="n">errs</span><span class="p">(),</span>
+                                  <span class="s">&quot;Error resolving remote symbol:&quot;</span><span class="p">);</span>
+            <span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+          <span class="p">}</span>
+          <span class="k">return</span> <span class="n">JITSymbol</span><span class="p">(</span><span class="k">nullptr</span><span class="p">);</span>
+        <span class="p">});</span>
+
+    <span class="c1">// Add the set to the JIT with the resolver we created above and a newly</span>
+    <span class="c1">// created SectionMemoryManager.</span>
+    <span class="k">return</span> <span class="nf">cantFail</span><span class="p">(</span><span class="n">OptimizeLayer</span><span class="p">.</span><span class="n">addModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">M</span><span class="p">),</span>
+                                            <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Resolver</span><span class="p">)));</span>
+  <span class="p">}</span>
+
+  <span class="n">Error</span> <span class="n">addFunctionAST</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">FunctionAST</span><span class="o">&gt;</span> <span class="n">FnAST</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// Create a CompileCallback - this is the re-entry point into the compiler</span>
+    <span class="c1">// for functions that haven&#39;t been compiled yet.</span>
+    <span class="k">auto</span> <span class="n">CCInfo</span> <span class="o">=</span> <span class="n">cantFail</span><span class="p">(</span><span class="n">CompileCallbackMgr</span><span class="o">-&gt;</span><span class="n">getCompileCallback</span><span class="p">());</span>
+
+    <span class="c1">// Create an indirect stub. This serves as the functions &quot;canonical</span>
+    <span class="c1">// definition&quot; - an unchanging (constant address) entry point to the</span>
+    <span class="c1">// function implementation.</span>
+    <span class="c1">// Initially we point the stub&#39;s function-pointer at the compile callback</span>
+    <span class="c1">// that we just created. In the compile action for the callback (see below)</span>
+    <span class="c1">// we will update the stub&#39;s function pointer to point at the function</span>
+    <span class="c1">// implementation that we just implemented.</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">Err</span> <span class="o">=</span> <span class="n">IndirectStubsMgr</span><span class="o">-&gt;</span><span class="n">createStub</span><span class="p">(</span><span class="n">mangle</span><span class="p">(</span><span class="n">FnAST</span><span class="o">-&gt;</span><span class="n">getName</span><span class="p">()),</span>
+                                                <span class="n">CCInfo</span><span class="p">.</span><span class="n">getAddress</span><span class="p">(),</span>
+                                                <span class="n">JITSymbolFlags</span><span class="o">::</span><span class="n">Exported</span><span class="p">))</span>
+      <span class="k">return</span> <span class="n">Err</span><span class="p">;</span>
+
+    <span class="c1">// Move ownership of FnAST to a shared pointer - C++11 lambdas don&#39;t support</span>
+    <span class="c1">// capture-by-move, which is be required for unique_ptr.</span>
+    <span class="k">auto</span> <span class="n">SharedFnAST</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">FunctionAST</span><span class="o">&gt;</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">FnAST</span><span class="p">));</span>
+
+    <span class="c1">// Set the action to compile our AST. This lambda will be run if/when</span>
+    <span class="c1">// execution hits the compile callback (via the stub).</span>
+    <span class="c1">//</span>
+    <span class="c1">// The steps to compile are:</span>
+    <span class="c1">// (1) IRGen the function.</span>
+    <span class="c1">// (2) Add the IR module to the JIT to make it executable like any other</span>
+    <span class="c1">//     module.</span>
+    <span class="c1">// (3) Use findSymbol to get the address of the compiled function.</span>
+    <span class="c1">// (4) Update the stub pointer to point at the implementation so that</span>
+    <span class="c1">///    subsequent calls go directly to it and bypass the compiler.</span>
+    <span class="c1">// (5) Return the address of the implementation: this lambda will actually</span>
+    <span class="c1">//     be run inside an attempted call to the function, and we need to</span>
+    <span class="c1">//     continue on to the implementation to complete the attempted call.</span>
+    <span class="c1">//     The JIT runtime (the resolver block) will use the return address of</span>
+    <span class="c1">//     this function as the address to continue at once it has reset the</span>
+    <span class="c1">//     CPU state to what it was immediately before the call.</span>
+    <span class="n">CCInfo</span><span class="p">.</span><span class="n">setCompileAction</span><span class="p">(</span>
+      <span class="p">[</span><span class="k">this</span><span class="p">,</span> <span class="n">SharedFnAST</span><span class="p">]()</span> <span class="p">{</span>
+        <span class="k">auto</span> <span class="n">M</span> <span class="o">=</span> <span class="n">irgenAndTakeOwnership</span><span class="p">(</span><span class="o">*</span><span class="n">SharedFnAST</span><span class="p">,</span> <span class="s">&quot;$impl&quot;</span><span class="p">);</span>
+        <span class="n">addModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">M</span><span class="p">));</span>
+        <span class="k">auto</span> <span class="n">Sym</span> <span class="o">=</span> <span class="n">findSymbol</span><span class="p">(</span><span class="n">SharedFnAST</span><span class="o">-&gt;</span><span class="n">getName</span><span class="p">()</span> <span class="o">+</span> <span class="s">&quot;$impl&quot;</span><span class="p">);</span>
+        <span class="n">assert</span><span class="p">(</span><span class="n">Sym</span> <span class="o">&amp;&amp;</span> <span class="s">&quot;Couldn&#39;t find compiled function?&quot;</span><span class="p">);</span>
+        <span class="n">JITTargetAddress</span> <span class="n">SymAddr</span> <span class="o">=</span> <span class="n">cantFail</span><span class="p">(</span><span class="n">Sym</span><span class="p">.</span><span class="n">getAddress</span><span class="p">());</span>
+        <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">Err</span> <span class="o">=</span>
+              <span class="n">IndirectStubsMgr</span><span class="o">-&gt;</span><span class="n">updatePointer</span><span class="p">(</span><span class="n">mangle</span><span class="p">(</span><span class="n">SharedFnAST</span><span class="o">-&gt;</span><span class="n">getName</span><span class="p">()),</span>
+                                              <span class="n">SymAddr</span><span class="p">))</span> <span class="p">{</span>
+          <span class="n">logAllUnhandledErrors</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Err</span><span class="p">),</span> <span class="n">errs</span><span class="p">(),</span>
+                                <span class="s">&quot;Error updating function pointer: &quot;</span><span class="p">);</span>
+          <span class="n">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">SymAddr</span><span class="p">;</span>
+      <span class="p">});</span>
+
+    <span class="k">return</span> <span class="n">Error</span><span class="o">::</span><span class="n">success</span><span class="p">();</span>
+  <span class="p">}</span>
+
+  <span class="n">Error</span> <span class="n">executeRemoteExpr</span><span class="p">(</span><span class="n">JITTargetAddress</span> <span class="n">ExprAddr</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">Remote</span><span class="p">.</span><span class="n">callVoidVoid</span><span class="p">(</span><span class="n">ExprAddr</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="n">JITSymbol</span> <span class="n">findSymbol</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">OptimizeLayer</span><span class="p">.</span><span class="n">findSymbol</span><span class="p">(</span><span class="n">mangle</span><span class="p">(</span><span class="n">Name</span><span class="p">),</span> <span class="nb">true</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="kt">void</span> <span class="n">removeModule</span><span class="p">(</span><span class="n">ModuleHandle</span> <span class="n">H</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">cantFail</span><span class="p">(</span><span class="n">OptimizeLayer</span><span class="p">.</span><span class="n">removeModule</span><span class="p">(</span><span class="n">H</span><span class="p">));</span>
+  <span class="p">}</span>
+
+<span class="k">private</span><span class="o">:</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">mangle</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">MangledName</span><span class="p">;</span>
+    <span class="n">raw_string_ostream</span> <span class="nf">MangledNameStream</span><span class="p">(</span><span class="n">MangledName</span><span class="p">);</span>
+    <span class="n">Mangler</span><span class="o">::</span><span class="n">getNameWithPrefix</span><span class="p">(</span><span class="n">MangledNameStream</span><span class="p">,</span> <span class="n">Name</span><span class="p">,</span> <span class="n">DL</span><span class="p">);</span>
+    <span class="k">return</span> <span class="n">MangledNameStream</span><span class="p">.</span><span class="n">str</span><span class="p">();</span>
+  <span class="p">}</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">optimizeModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">M</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// Create a function pass manager.</span>
+    <span class="k">auto</span> <span class="n">FPM</span> <span class="o">=</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">legacy</span><span class="o">::</span><span class="n">FunctionPassManager</span><span class="o">&gt;</span><span class="p">(</span><span class="n">M</span><span class="p">.</span><span class="n">get</span><span class="p">());</span>
+
+    <span class="c1">// Add some optimizations.</span>
+    <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createInstructionCombiningPass</span><span class="p">());</span>
+    <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createReassociatePass</span><span class="p">());</span>
+    <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createGVNPass</span><span class="p">());</span>
+    <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createCFGSimplificationPass</span><span class="p">());</span>
+    <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">doInitialization</span><span class="p">();</span>
+
+    <span class="c1">// Run the optimizations over all functions in the module being added to</span>
+    <span class="c1">// the JIT.</span>
+    <span class="k">for</span> <span class="p">(</span><span class="k">auto</span> <span class="o">&amp;</span><span class="nl">F</span> <span class="p">:</span> <span class="o">*</span><span class="n">M</span><span class="p">)</span>
+      <span class="n">FPM</span><span class="o">-&gt;</span><span class="n">run</span><span class="p">(</span><span class="n">F</span><span class="p">);</span>
+
+    <span class="k">return</span> <span class="n">M</span><span class="p">;</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="p">}</span> <span class="c1">// end namespace orc</span>
+<span class="p">}</span> <span class="c1">// end namespace llvm</span>
+
+<span class="cp">#endif </span><span class="c1">// LLVM_EXECUTIONENGINE_ORC_KALEIDOSCOPEJIT_H</span>
+</pre></div>
+</div>
+<p>And the code for the JIT server:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;../RemoteJITUtils.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/RTDyldMemoryManager.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/OrcRemoteTargetServer.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/OrcABISupport.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/CommandLine.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/DynamicLibrary.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/Error.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/raw_ostream.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/TargetSelect.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;cstdint&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;cstdio&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;cstring&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;string&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;netinet/in.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;sys/socket.h&gt;</span><span class="cp"></span>
+
+<span class="k">using</span> <span class="k">namespace</span> <span class="n">llvm</span><span class="p">;</span>
+<span class="k">using</span> <span class="k">namespace</span> <span class="n">llvm</span><span class="o">::</span><span class="n">orc</span><span class="p">;</span>
+
+<span class="c1">// Command line argument for TCP port.</span>
+<span class="n">cl</span><span class="o">::</span><span class="n">opt</span><span class="o">&lt;</span><span class="kt">uint32_t</span><span class="o">&gt;</span> <span class="n">Port</span><span class="p">(</span><span class="s">&quot;port&quot;</span><span class="p">,</span>
+                       <span class="n">cl</span><span class="o">::</span><span class="n">desc</span><span class="p">(</span><span class="s">&quot;TCP port to listen on&quot;</span><span class="p">),</span>
+                       <span class="n">cl</span><span class="o">::</span><span class="n">init</span><span class="p">(</span><span class="mi">20000</span><span class="p">));</span>
+
+<span class="n">ExitOnError</span> <span class="n">ExitOnErr</span><span class="p">;</span>
+
+<span class="k">using</span> <span class="n">MainFun</span> <span class="o">=</span> <span class="kt">int</span> <span class="p">(</span><span class="o">*</span><span class="p">)(</span><span class="kt">int</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span><span class="o">*</span><span class="p">[]);</span>
+
+<span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">NativePtrT</span><span class="o">&gt;</span>
+<span class="n">NativePtrT</span> <span class="n">MakeNative</span><span class="p">(</span><span class="kt">uint64_t</span> <span class="n">P</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">NativePtrT</span><span class="o">&gt;</span><span class="p">(</span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">uintptr_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">P</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="k">extern</span> <span class="s">&quot;C&quot;</span>
+<span class="kt">void</span> <span class="n">printExprResult</span><span class="p">(</span><span class="kt">double</span> <span class="n">Val</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;Expression evaluated to: %f</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">Val</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// --- LAZY COMPILE TEST ---</span>
+<span class="kt">int</span> <span class="n">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">*</span> <span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">argc</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">ExitOnErr</span><span class="p">.</span><span class="n">setBanner</span><span class="p">(</span><span class="s">&quot;jit_server: &quot;</span><span class="p">);</span>
+  <span class="k">else</span>
+    <span class="n">ExitOnErr</span><span class="p">.</span><span class="n">setBanner</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">+</span> <span class="s">&quot;: &quot;</span><span class="p">);</span>
+
+  <span class="c1">// --- Initialize LLVM ---</span>
+  <span class="n">cl</span><span class="o">::</span><span class="n">ParseCommandLineOptions</span><span class="p">(</span><span class="n">argc</span><span class="p">,</span> <span class="n">argv</span><span class="p">,</span> <span class="s">&quot;LLVM lazy JIT example.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+
+  <span class="n">InitializeNativeTarget</span><span class="p">();</span>
+  <span class="n">InitializeNativeTargetAsmPrinter</span><span class="p">();</span>
+  <span class="n">InitializeNativeTargetAsmParser</span><span class="p">();</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">sys</span><span class="o">::</span><span class="n">DynamicLibrary</span><span class="o">::</span><span class="n">LoadLibraryPermanently</span><span class="p">(</span><span class="k">nullptr</span><span class="p">))</span> <span class="p">{</span>
+    <span class="n">errs</span><span class="p">()</span> <span class="o">&lt;&lt;</span> <span class="s">&quot;Error loading program symbols.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+    <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="c1">// --- Initialize remote connection ---</span>
+
+  <span class="kt">int</span> <span class="n">sockfd</span> <span class="o">=</span> <span class="n">socket</span><span class="p">(</span><span class="n">PF_INET</span><span class="p">,</span> <span class="n">SOCK_STREAM</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+  <span class="n">sockaddr_in</span> <span class="n">servAddr</span><span class="p">,</span> <span class="n">clientAddr</span><span class="p">;</span>
+  <span class="kt">socklen_t</span> <span class="n">clientAddrLen</span> <span class="o">=</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">clientAddr</span><span class="p">);</span>
+  <span class="n">memset</span><span class="p">(</span><span class="o">&amp;</span><span class="n">servAddr</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">servAddr</span><span class="p">));</span>
+  <span class="n">servAddr</span><span class="p">.</span><span class="n">sin_family</span> <span class="o">=</span> <span class="n">PF_INET</span><span class="p">;</span>
+  <span class="n">servAddr</span><span class="p">.</span><span class="n">sin_family</span> <span class="o">=</span> <span class="n">INADDR_ANY</span><span class="p">;</span>
+  <span class="n">servAddr</span><span class="p">.</span><span class="n">sin_port</span> <span class="o">=</span> <span class="n">htons</span><span class="p">(</span><span class="n">Port</span><span class="p">);</span>
+
+  <span class="p">{</span>
+    <span class="c1">// avoid &quot;Address already in use&quot; error.</span>
+    <span class="kt">int</span> <span class="n">yes</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">setsockopt</span><span class="p">(</span><span class="n">sockfd</span><span class="p">,</span><span class="n">SOL_SOCKET</span><span class="p">,</span><span class="n">SO_REUSEADDR</span><span class="p">,</span><span class="o">&amp;</span><span class="n">yes</span><span class="p">,</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">int</span><span class="p">))</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">errs</span><span class="p">()</span> <span class="o">&lt;&lt;</span> <span class="s">&quot;Error calling setsockopt.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+      <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">bind</span><span class="p">(</span><span class="n">sockfd</span><span class="p">,</span> <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">sockaddr</span><span class="o">*&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="n">servAddr</span><span class="p">),</span>
+           <span class="k">sizeof</span><span class="p">(</span><span class="n">servAddr</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">errs</span><span class="p">()</span> <span class="o">&lt;&lt;</span> <span class="s">&quot;Error on binding.</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">;</span>
+    <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="n">listen</span><span class="p">(</span><span class="n">sockfd</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+  <span class="kt">int</span> <span class="n">newsockfd</span> <span class="o">=</span> <span class="n">accept</span><span class="p">(</span><span class="n">sockfd</span><span class="p">,</span> <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">sockaddr</span><span class="o">*&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="n">clientAddr</span><span class="p">),</span>
+                         <span class="o">&amp;</span><span class="n">clientAddrLen</span><span class="p">);</span>
+
+  <span class="k">auto</span> <span class="n">SymbolLookup</span> <span class="o">=</span>
+    <span class="p">[](</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="n">RTDyldMemoryManager</span><span class="o">::</span><span class="n">getSymbolAddressInProcess</span><span class="p">(</span><span class="n">Name</span><span class="p">);</span>
+    <span class="p">};</span>
+
+  <span class="k">auto</span> <span class="n">RegisterEHFrames</span> <span class="o">=</span>
+    <span class="p">[](</span><span class="kt">uint8_t</span> <span class="o">*</span><span class="n">Addr</span><span class="p">,</span> <span class="kt">uint32_t</span> <span class="n">Size</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">RTDyldMemoryManager</span><span class="o">::</span><span class="n">registerEHFramesInProcess</span><span class="p">(</span><span class="n">Addr</span><span class="p">,</span> <span class="n">Size</span><span class="p">);</span>
+    <span class="p">};</span>
+
+  <span class="k">auto</span> <span class="n">DeregisterEHFrames</span> <span class="o">=</span>
+    <span class="p">[](</span><span class="kt">uint8_t</span> <span class="o">*</span><span class="n">Addr</span><span class="p">,</span> <span class="kt">uint32_t</span> <span class="n">Size</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">RTDyldMemoryManager</span><span class="o">::</span><span class="n">deregisterEHFramesInProcess</span><span class="p">(</span><span class="n">Addr</span><span class="p">,</span> <span class="n">Size</span><span class="p">);</span>
+    <span class="p">};</span>
+
+  <span class="n">FDRPCChannel</span> <span class="nf">TCPChannel</span><span class="p">(</span><span class="n">newsockfd</span><span class="p">,</span> <span class="n">newsockfd</span><span class="p">);</span>
+
+  <span class="k">using</span> <span class="n">MyServerT</span> <span class="o">=</span> <span class="n">remote</span><span class="o">::</span><span class="n">OrcRemoteTargetServer</span><span class="o">&lt;</span><span class="n">FDRPCChannel</span><span class="p">,</span> <span class="n">OrcX86_64_SysV</span><span class="o">&gt;</span><span class="p">;</span>
+
+  <span class="n">MyServerT</span> <span class="nf">Server</span><span class="p">(</span><span class="n">TCPChannel</span><span class="p">,</span> <span class="n">SymbolLookup</span><span class="p">,</span> <span class="n">RegisterEHFrames</span><span class="p">,</span> <span class="n">DeregisterEHFrames</span><span class="p">);</span>
+
+  <span class="k">while</span> <span class="p">(</span><span class="o">!</span><span class="n">Server</span><span class="p">.</span><span class="n">receivedTerminate</span><span class="p">())</span>
+    <span class="n">ExitOnErr</span><span class="p">(</span><span class="n">Server</span><span class="p">.</span><span class="n">handleOne</span><span class="p">());</span>
+
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../ReleaseNotes.html" title="LLVM 6.0.0 Release Notes"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="BuildingAJIT4.html" title="4. Building a JIT: Extreme Laziness - Using Compile Callbacks to JIT from ASTs"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Tutorial: Table of Contents</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

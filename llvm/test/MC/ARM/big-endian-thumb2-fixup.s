@@ -35,15 +35,21 @@ cond_label:
 
 @ARM::fixup_t2_ldst_precel_12
 .section s_ldst_precel_12,"ax",%progbits
- 	ldr r0, ldst_precel_12_label
+ 	ldr.w r0, ldst_precel_12_label
 	nop
 	nop
 ldst_precel_12_label:
 
 @ARM::fixup_t2_adr_pcrel_12
 .section s_adr_pcrel_12,"ax",%progbits
- 	adr r0, adr_pcrel_12_label
+ 	adr.w r0, adr_pcrel_12_label
 	nop
 	nop
 adr_pcrel_12_label:
 
+@ARM::fixup_t2_so_imm
+.section s_t2_so_imm,"ax",%progbits
+// CHECK-LABEL: Contents of section s_t2_so_imm
+// CHECK: 0000 f1033337
+	add r3, r3,val
+.equ val,0x37373737

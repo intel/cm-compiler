@@ -3,6 +3,7 @@
 ; RUN: llc -code-model=kernel -mtriple=x86_64-pc-linux-gnu < %s -o - | FileCheck --check-prefix=LINUX-KERNEL-X64 %s
 ; RUN: llc -mtriple=x86_64-apple-darwin < %s -o - | FileCheck --check-prefix=DARWIN-X64 %s
 ; RUN: llc -mtriple=amd64-pc-openbsd < %s -o - | FileCheck --check-prefix=OPENBSD-AMD64 %s
+; RUN: llc -mtriple=i386-pc-windows-msvc < %s -o - | FileCheck -check-prefix=MSVC-I386 %s
 
 %struct.foo = type { [16 x i8] }
 %struct.foo.0 = type { [4 x i8] }
@@ -40,14 +41,18 @@ entry:
 ; DARWIN-X64-LABEL: test1a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test1a:
+; MSVC-I386-NOT: calll  @__security_check_cookie@4
+; MSVC-I386: retl
   %a.addr = alloca i8*, align 8
   %buf = alloca [16 x i8], align 16
   store i8* %a, i8** %a.addr, align 8
-  %arraydecay = getelementptr inbounds [16 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %arraydecay = getelementptr inbounds [16 x i8], [16 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %arraydecay1 = getelementptr inbounds [16 x i8]* %buf, i32 0, i32 0
-  %call2 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
+  %arraydecay1 = getelementptr inbounds [16 x i8], [16 x i8]* %buf, i32 0, i32 0
+  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
   ret void
 }
 
@@ -76,14 +81,18 @@ entry:
 ; OPENBSD-AMD64-LABEL: test1b:
 ; OPENBSD-AMD64: movq __guard_local(%rip)
 ; OPENBSD-AMD64: callq __stack_smash_handler
+
+; MSVC-I386-LABEL: test1b:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a.addr = alloca i8*, align 8
   %buf = alloca [16 x i8], align 16
   store i8* %a, i8** %a.addr, align 8
-  %arraydecay = getelementptr inbounds [16 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %arraydecay = getelementptr inbounds [16 x i8], [16 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %arraydecay1 = getelementptr inbounds [16 x i8]* %buf, i32 0, i32 0
-  %call2 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
+  %arraydecay1 = getelementptr inbounds [16 x i8], [16 x i8]* %buf, i32 0, i32 0
+  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
   ret void
 }
 
@@ -108,14 +117,18 @@ entry:
 ; DARWIN-X64-LABEL: test1c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test1c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a.addr = alloca i8*, align 8
   %buf = alloca [16 x i8], align 16
   store i8* %a, i8** %a.addr, align 8
-  %arraydecay = getelementptr inbounds [16 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %arraydecay = getelementptr inbounds [16 x i8], [16 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %arraydecay1 = getelementptr inbounds [16 x i8]* %buf, i32 0, i32 0
-  %call2 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
+  %arraydecay1 = getelementptr inbounds [16 x i8], [16 x i8]* %buf, i32 0, i32 0
+  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
   ret void
 }
 
@@ -140,14 +153,18 @@ entry:
 ; DARWIN-X64-LABEL: test1d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test1d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a.addr = alloca i8*, align 8
   %buf = alloca [16 x i8], align 16
   store i8* %a, i8** %a.addr, align 8
-  %arraydecay = getelementptr inbounds [16 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %arraydecay = getelementptr inbounds [16 x i8], [16 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %arraydecay1 = getelementptr inbounds [16 x i8]* %buf, i32 0, i32 0
-  %call2 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
+  %arraydecay1 = getelementptr inbounds [16 x i8], [16 x i8]* %buf, i32 0, i32 0
+  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
   ret void
 }
 
@@ -171,16 +188,20 @@ entry:
 ; DARWIN-X64-LABEL: test2a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test2a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a.addr = alloca i8*, align 8
   %b = alloca %struct.foo, align 1
   store i8* %a, i8** %a.addr, align 8
-  %buf = getelementptr inbounds %struct.foo* %b, i32 0, i32 0
-  %arraydecay = getelementptr inbounds [16 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %buf = getelementptr inbounds %struct.foo, %struct.foo* %b, i32 0, i32 0
+  %arraydecay = getelementptr inbounds [16 x i8], [16 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %buf1 = getelementptr inbounds %struct.foo* %b, i32 0, i32 0
-  %arraydecay2 = getelementptr inbounds [16 x i8]* %buf1, i32 0, i32 0
-  %call3 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
+  %buf1 = getelementptr inbounds %struct.foo, %struct.foo* %b, i32 0, i32 0
+  %arraydecay2 = getelementptr inbounds [16 x i8], [16 x i8]* %buf1, i32 0, i32 0
+  %call3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
   ret void
 }
 
@@ -208,13 +229,13 @@ entry:
   %a.addr = alloca i8*, align 8
   %b = alloca %struct.foo, align 1
   store i8* %a, i8** %a.addr, align 8
-  %buf = getelementptr inbounds %struct.foo* %b, i32 0, i32 0
-  %arraydecay = getelementptr inbounds [16 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %buf = getelementptr inbounds %struct.foo, %struct.foo* %b, i32 0, i32 0
+  %arraydecay = getelementptr inbounds [16 x i8], [16 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %buf1 = getelementptr inbounds %struct.foo* %b, i32 0, i32 0
-  %arraydecay2 = getelementptr inbounds [16 x i8]* %buf1, i32 0, i32 0
-  %call3 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
+  %buf1 = getelementptr inbounds %struct.foo, %struct.foo* %b, i32 0, i32 0
+  %arraydecay2 = getelementptr inbounds [16 x i8], [16 x i8]* %buf1, i32 0, i32 0
+  %call3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
   ret void
 }
 
@@ -239,16 +260,20 @@ entry:
 ; DARWIN-X64-LABEL: test2c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test2c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a.addr = alloca i8*, align 8
   %b = alloca %struct.foo, align 1
   store i8* %a, i8** %a.addr, align 8
-  %buf = getelementptr inbounds %struct.foo* %b, i32 0, i32 0
-  %arraydecay = getelementptr inbounds [16 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %buf = getelementptr inbounds %struct.foo, %struct.foo* %b, i32 0, i32 0
+  %arraydecay = getelementptr inbounds [16 x i8], [16 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %buf1 = getelementptr inbounds %struct.foo* %b, i32 0, i32 0
-  %arraydecay2 = getelementptr inbounds [16 x i8]* %buf1, i32 0, i32 0
-  %call3 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
+  %buf1 = getelementptr inbounds %struct.foo, %struct.foo* %b, i32 0, i32 0
+  %arraydecay2 = getelementptr inbounds [16 x i8], [16 x i8]* %buf1, i32 0, i32 0
+  %call3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
   ret void
 }
 
@@ -273,16 +298,20 @@ entry:
 ; DARWIN-X64-LABEL: test2d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test2d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a.addr = alloca i8*, align 8
   %b = alloca %struct.foo, align 1
   store i8* %a, i8** %a.addr, align 8
-  %buf = getelementptr inbounds %struct.foo* %b, i32 0, i32 0
-  %arraydecay = getelementptr inbounds [16 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %buf = getelementptr inbounds %struct.foo, %struct.foo* %b, i32 0, i32 0
+  %arraydecay = getelementptr inbounds [16 x i8], [16 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %buf1 = getelementptr inbounds %struct.foo* %b, i32 0, i32 0
-  %arraydecay2 = getelementptr inbounds [16 x i8]* %buf1, i32 0, i32 0
-  %call3 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
+  %buf1 = getelementptr inbounds %struct.foo, %struct.foo* %b, i32 0, i32 0
+  %arraydecay2 = getelementptr inbounds [16 x i8], [16 x i8]* %buf1, i32 0, i32 0
+  %call3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
   ret void
 }
 
@@ -306,14 +335,18 @@ entry:
 ; DARWIN-X64-LABEL: test3a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test3a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a.addr = alloca i8*, align 8
   %buf = alloca [4 x i8], align 1
   store i8* %a, i8** %a.addr, align 8
-  %arraydecay = getelementptr inbounds [4 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %arraydecay = getelementptr inbounds [4 x i8], [4 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %arraydecay1 = getelementptr inbounds [4 x i8]* %buf, i32 0, i32 0
-  %call2 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
+  %arraydecay1 = getelementptr inbounds [4 x i8], [4 x i8]* %buf, i32 0, i32 0
+  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
   ret void
 }
 
@@ -338,14 +371,18 @@ entry:
 ; DARWIN-X64-LABEL: test3b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test3b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a.addr = alloca i8*, align 8
   %buf = alloca [4 x i8], align 1
   store i8* %a, i8** %a.addr, align 8
-  %arraydecay = getelementptr inbounds [4 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %arraydecay = getelementptr inbounds [4 x i8], [4 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %arraydecay1 = getelementptr inbounds [4 x i8]* %buf, i32 0, i32 0
-  %call2 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
+  %arraydecay1 = getelementptr inbounds [4 x i8], [4 x i8]* %buf, i32 0, i32 0
+  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
   ret void
 }
 
@@ -370,14 +407,18 @@ entry:
 ; DARWIN-X64-LABEL: test3c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test3c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a.addr = alloca i8*, align 8
   %buf = alloca [4 x i8], align 1
   store i8* %a, i8** %a.addr, align 8
-  %arraydecay = getelementptr inbounds [4 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %arraydecay = getelementptr inbounds [4 x i8], [4 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %arraydecay1 = getelementptr inbounds [4 x i8]* %buf, i32 0, i32 0
-  %call2 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
+  %arraydecay1 = getelementptr inbounds [4 x i8], [4 x i8]* %buf, i32 0, i32 0
+  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
   ret void
 }
 
@@ -402,14 +443,18 @@ entry:
 ; DARWIN-X64-LABEL: test3d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test3d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a.addr = alloca i8*, align 8
   %buf = alloca [4 x i8], align 1
   store i8* %a, i8** %a.addr, align 8
-  %arraydecay = getelementptr inbounds [4 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %arraydecay = getelementptr inbounds [4 x i8], [4 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %arraydecay1 = getelementptr inbounds [4 x i8]* %buf, i32 0, i32 0
-  %call2 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
+  %arraydecay1 = getelementptr inbounds [4 x i8], [4 x i8]* %buf, i32 0, i32 0
+  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay1)
   ret void
 }
 
@@ -433,16 +478,20 @@ entry:
 ; DARWIN-X64-LABEL: test4a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test4a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a.addr = alloca i8*, align 8
   %b = alloca %struct.foo.0, align 1
   store i8* %a, i8** %a.addr, align 8
-  %buf = getelementptr inbounds %struct.foo.0* %b, i32 0, i32 0
-  %arraydecay = getelementptr inbounds [4 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %buf = getelementptr inbounds %struct.foo.0, %struct.foo.0* %b, i32 0, i32 0
+  %arraydecay = getelementptr inbounds [4 x i8], [4 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %buf1 = getelementptr inbounds %struct.foo.0* %b, i32 0, i32 0
-  %arraydecay2 = getelementptr inbounds [4 x i8]* %buf1, i32 0, i32 0
-  %call3 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
+  %buf1 = getelementptr inbounds %struct.foo.0, %struct.foo.0* %b, i32 0, i32 0
+  %arraydecay2 = getelementptr inbounds [4 x i8], [4 x i8]* %buf1, i32 0, i32 0
+  %call3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
   ret void
 }
 
@@ -467,16 +516,20 @@ entry:
 ; DARWIN-X64-LABEL: test4b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test4b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a.addr = alloca i8*, align 8
   %b = alloca %struct.foo.0, align 1
   store i8* %a, i8** %a.addr, align 8
-  %buf = getelementptr inbounds %struct.foo.0* %b, i32 0, i32 0
-  %arraydecay = getelementptr inbounds [4 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %buf = getelementptr inbounds %struct.foo.0, %struct.foo.0* %b, i32 0, i32 0
+  %arraydecay = getelementptr inbounds [4 x i8], [4 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %buf1 = getelementptr inbounds %struct.foo.0* %b, i32 0, i32 0
-  %arraydecay2 = getelementptr inbounds [4 x i8]* %buf1, i32 0, i32 0
-  %call3 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
+  %buf1 = getelementptr inbounds %struct.foo.0, %struct.foo.0* %b, i32 0, i32 0
+  %arraydecay2 = getelementptr inbounds [4 x i8], [4 x i8]* %buf1, i32 0, i32 0
+  %call3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
   ret void
 }
 
@@ -501,16 +554,20 @@ entry:
 ; DARWIN-X64-LABEL: test4c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test4c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a.addr = alloca i8*, align 8
   %b = alloca %struct.foo.0, align 1
   store i8* %a, i8** %a.addr, align 8
-  %buf = getelementptr inbounds %struct.foo.0* %b, i32 0, i32 0
-  %arraydecay = getelementptr inbounds [4 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %buf = getelementptr inbounds %struct.foo.0, %struct.foo.0* %b, i32 0, i32 0
+  %arraydecay = getelementptr inbounds [4 x i8], [4 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %buf1 = getelementptr inbounds %struct.foo.0* %b, i32 0, i32 0
-  %arraydecay2 = getelementptr inbounds [4 x i8]* %buf1, i32 0, i32 0
-  %call3 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
+  %buf1 = getelementptr inbounds %struct.foo.0, %struct.foo.0* %b, i32 0, i32 0
+  %arraydecay2 = getelementptr inbounds [4 x i8], [4 x i8]* %buf1, i32 0, i32 0
+  %call3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
   ret void
 }
 
@@ -535,16 +592,20 @@ entry:
 ; DARWIN-X64-LABEL: test4d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test4d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a.addr = alloca i8*, align 8
   %b = alloca %struct.foo.0, align 1
   store i8* %a, i8** %a.addr, align 8
-  %buf = getelementptr inbounds %struct.foo.0* %b, i32 0, i32 0
-  %arraydecay = getelementptr inbounds [4 x i8]* %buf, i32 0, i32 0
-  %0 = load i8** %a.addr, align 8
+  %buf = getelementptr inbounds %struct.foo.0, %struct.foo.0* %b, i32 0, i32 0
+  %arraydecay = getelementptr inbounds [4 x i8], [4 x i8]* %buf, i32 0, i32 0
+  %0 = load i8*, i8** %a.addr, align 8
   %call = call i8* @strcpy(i8* %arraydecay, i8* %0)
-  %buf1 = getelementptr inbounds %struct.foo.0* %b, i32 0, i32 0
-  %arraydecay2 = getelementptr inbounds [4 x i8]* %buf1, i32 0, i32 0
-  %call3 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
+  %buf1 = getelementptr inbounds %struct.foo.0, %struct.foo.0* %b, i32 0, i32 0
+  %arraydecay2 = getelementptr inbounds [4 x i8], [4 x i8]* %buf1, i32 0, i32 0
+  %call3 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay2)
   ret void
 }
 
@@ -568,10 +629,14 @@ entry:
 ; DARWIN-X64-LABEL: test5a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test5a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a.addr = alloca i8*, align 8
   store i8* %a, i8** %a.addr, align 8
-  %0 = load i8** %a.addr, align 8
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %0)
+  %0 = load i8*, i8** %a.addr, align 8
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %0)
   ret void
 }
 
@@ -596,10 +661,14 @@ entry:
 ; DARWIN-X64-LABEL: test5b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test5b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a.addr = alloca i8*, align 8
   store i8* %a, i8** %a.addr, align 8
-  %0 = load i8** %a.addr, align 8
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %0)
+  %0 = load i8*, i8** %a.addr, align 8
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %0)
   ret void
 }
 
@@ -624,10 +693,14 @@ entry:
 ; DARWIN-X64-LABEL: test5c:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test5c:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a.addr = alloca i8*, align 8
   store i8* %a, i8** %a.addr, align 8
-  %0 = load i8** %a.addr, align 8
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %0)
+  %0 = load i8*, i8** %a.addr, align 8
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %0)
   ret void
 }
 
@@ -652,10 +725,14 @@ entry:
 ; DARWIN-X64-LABEL: test5d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test5d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a.addr = alloca i8*, align 8
   store i8* %a, i8** %a.addr, align 8
-  %0 = load i8** %a.addr, align 8
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %0)
+  %0 = load i8*, i8** %a.addr, align 8
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %0)
   ret void
 }
 
@@ -679,11 +756,15 @@ entry:
 ; DARWIN-X64-LABEL: test6a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test6a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %retval = alloca i32, align 4
   %a = alloca i32, align 4
   %j = alloca i32*, align 8
   store i32 0, i32* %retval
-  %0 = load i32* %a, align 4
+  %0 = load i32, i32* %a, align 4
   %add = add nsw i32 %0, 1
   store i32 %add, i32* %a, align 4
   store i32* %a, i32** %j, align 8
@@ -711,11 +792,16 @@ entry:
 ; DARWIN-X64-LABEL: test6b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+
+; MSVC-I386-LABEL: test6b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %retval = alloca i32, align 4
   %a = alloca i32, align 4
   %j = alloca i32*, align 8
   store i32 0, i32* %retval
-  %0 = load i32* %a, align 4
+  %0 = load i32, i32* %a, align 4
   %add = add nsw i32 %0, 1
   store i32 %add, i32* %a, align 4
   store i32* %a, i32** %j, align 8
@@ -743,11 +829,15 @@ entry:
 ; DARWIN-X64-LABEL: test6c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test6c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %retval = alloca i32, align 4
   %a = alloca i32, align 4
   %j = alloca i32*, align 8
   store i32 0, i32* %retval
-  %0 = load i32* %a, align 4
+  %0 = load i32, i32* %a, align 4
   %add = add nsw i32 %0, 1
   store i32 %add, i32* %a, align 4
   store i32* %a, i32** %j, align 8
@@ -775,11 +865,15 @@ entry:
 ; DARWIN-X64-LABEL: test6d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test6d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %retval = alloca i32, align 4
   %a = alloca i32, align 4
   %j = alloca i32*, align 8
   store i32 0, i32* %retval
-  %0 = load i32* %a, align 4
+  %0 = load i32, i32* %a, align 4
   %add = add nsw i32 %0, 1
   store i32 %add, i32* %a, align 4
   store i32* %a, i32** %j, align 8
@@ -806,9 +900,13 @@ entry:
 ; DARWIN-X64-LABEL: test7a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test7a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca i32, align 4
   %0 = ptrtoint i32* %a to i64
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i64 %0)
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i64 %0)
   ret void
 }
 
@@ -833,9 +931,13 @@ entry:
 ; DARWIN-X64-LABEL: test7b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test7b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca i32, align 4
   %0 = ptrtoint i32* %a to i64
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i64 %0)
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i64 %0)
   ret void
 }
 
@@ -860,9 +962,13 @@ entry:
 ; DARWIN-X64-LABEL: test7c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test7c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca i32, align 4
   %0 = ptrtoint i32* %a to i64
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i64 %0)
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i64 %0)
   ret void
 }
 
@@ -887,9 +993,13 @@ entry:
 ; DARWIN-X64-LABEL: test7d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test7d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca i32, align 4
   %0 = ptrtoint i32* %a to i64
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i64 %0)
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i64 %0)
   ret void
 }
 
@@ -913,6 +1023,10 @@ entry:
 ; DARWIN-X64-LABEL: test8a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test8a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %b = alloca i32, align 4
   call void @funcall(i32* %b)
   ret void
@@ -939,6 +1053,10 @@ entry:
 ; DARWIN-X64-LABEL: test8b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test8b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %b = alloca i32, align 4
   call void @funcall(i32* %b)
   ret void
@@ -965,6 +1083,10 @@ entry:
 ; DARWIN-X64-LABEL: test8c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test8c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %b = alloca i32, align 4
   call void @funcall(i32* %b)
   ret void
@@ -991,6 +1113,10 @@ entry:
 ; DARWIN-X64-LABEL: test8d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test8d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %b = alloca i32, align 4
   call void @funcall(i32* %b)
   ret void
@@ -1016,12 +1142,16 @@ entry:
 ; DARWIN-X64-LABEL: test9a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test9a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %x = alloca double, align 8
   %call = call double @testi_aux()
   store double %call, double* %x, align 8
   %cmp2 = fcmp ogt double %call, 0.000000e+00
   %y.1 = select i1 %cmp2, double* %x, double* null
-  %call2 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), double* %y.1)
+  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), double* %y.1)
   ret void
 }
 
@@ -1046,12 +1176,16 @@ entry:
 ; DARWIN-X64-LABEL: test9b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test9b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %x = alloca double, align 8
   %call = call double @testi_aux()
   store double %call, double* %x, align 8
   %cmp2 = fcmp ogt double %call, 0.000000e+00
   %y.1 = select i1 %cmp2, double* %x, double* null
-  %call2 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), double* %y.1)
+  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), double* %y.1)
   ret void
 }
 
@@ -1076,12 +1210,16 @@ entry:
 ; DARWIN-X64-LABEL: test9c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test9c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %x = alloca double, align 8
   %call = call double @testi_aux()
   store double %call, double* %x, align 8
   %cmp2 = fcmp ogt double %call, 0.000000e+00
   %y.1 = select i1 %cmp2, double* %x, double* null
-  %call2 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), double* %y.1)
+  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), double* %y.1)
   ret void
 }
 
@@ -1106,12 +1244,16 @@ entry:
 ; DARWIN-X64-LABEL: test9d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test9d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %x = alloca double, align 8
   %call = call double @testi_aux()
   store double %call, double* %x, align 8
   %cmp2 = fcmp ogt double %call, 0.000000e+00
   %y.1 = select i1 %cmp2, double* %x, double* null
-  %call2 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), double* %y.1)
+  %call2 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), double* %y.1)
   ret void
 }
 
@@ -1135,6 +1277,10 @@ entry:
 ; DARWIN-X64-LABEL: test10a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test10a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %x = alloca double, align 8
   %call = call double @testi_aux()
   store double %call, double* %x, align 8
@@ -1155,7 +1301,7 @@ if.then3:                                         ; preds = %if.else
 
 if.end4:                                          ; preds = %if.else, %if.then3, %if.then
   %y.0 = phi double* [ null, %if.then ], [ %x, %if.then3 ], [ null, %if.else ]
-  %call5 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), double* %y.0)
+  %call5 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double* %y.0)
   ret void
 }
 
@@ -1180,6 +1326,10 @@ entry:
 ; DARWIN-X64-LABEL: test10b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test10b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %x = alloca double, align 8
   %call = call double @testi_aux()
   store double %call, double* %x, align 8
@@ -1200,7 +1350,7 @@ if.then3:                                         ; preds = %if.else
 
 if.end4:                                          ; preds = %if.else, %if.then3, %if.then
   %y.0 = phi double* [ null, %if.then ], [ %x, %if.then3 ], [ null, %if.else ]
-  %call5 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), double* %y.0)
+  %call5 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double* %y.0)
   ret void
 }
 
@@ -1225,6 +1375,10 @@ entry:
 ; DARWIN-X64-LABEL: test10c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test10c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %x = alloca double, align 8
   %call = call double @testi_aux()
   store double %call, double* %x, align 8
@@ -1245,7 +1399,7 @@ if.then3:                                         ; preds = %if.else
 
 if.end4:                                          ; preds = %if.else, %if.then3, %if.then
   %y.0 = phi double* [ null, %if.then ], [ %x, %if.then3 ], [ null, %if.else ]
-  %call5 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), double* %y.0)
+  %call5 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double* %y.0)
   ret void
 }
 
@@ -1270,6 +1424,10 @@ entry:
 ; DARWIN-X64-LABEL: test10d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test10d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %x = alloca double, align 8
   %call = call double @testi_aux()
   store double %call, double* %x, align 8
@@ -1290,7 +1448,7 @@ if.then3:                                         ; preds = %if.else
 
 if.end4:                                          ; preds = %if.else, %if.then3, %if.then
   %y.0 = phi double* [ null, %if.then ], [ %x, %if.then3 ], [ null, %if.else ]
-  %call5 = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), double* %y.0)
+  %call5 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), double* %y.0)
   ret void
 }
 
@@ -1314,12 +1472,16 @@ entry:
 ; DARWIN-X64-LABEL: test11a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test11a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %c = alloca %struct.pair, align 4
   %b = alloca i32*, align 8
-  %y = getelementptr inbounds %struct.pair* %c, i32 0, i32 1
+  %y = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 1
   store i32* %y, i32** %b, align 8
-  %0 = load i32** %b, align 8
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i32* %0)
+  %0 = load i32*, i32** %b, align 8
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32* %0)
   ret void
 }
 
@@ -1344,12 +1506,16 @@ entry:
 ; DARWIN-X64-LABEL: test11b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test11b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %c = alloca %struct.pair, align 4
   %b = alloca i32*, align 8
-  %y = getelementptr inbounds %struct.pair* %c, i32 0, i32 1
+  %y = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 1
   store i32* %y, i32** %b, align 8
-  %0 = load i32** %b, align 8
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i32* %0)
+  %0 = load i32*, i32** %b, align 8
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32* %0)
   ret void
 }
 
@@ -1374,12 +1540,16 @@ entry:
 ; DARWIN-X64-LABEL: test11c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test11c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %c = alloca %struct.pair, align 4
   %b = alloca i32*, align 8
-  %y = getelementptr inbounds %struct.pair* %c, i32 0, i32 1
+  %y = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 1
   store i32* %y, i32** %b, align 8
-  %0 = load i32** %b, align 8
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i32* %0)
+  %0 = load i32*, i32** %b, align 8
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32* %0)
   ret void
 }
 
@@ -1404,12 +1574,16 @@ entry:
 ; DARWIN-X64-LABEL: test11d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test11d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %c = alloca %struct.pair, align 4
   %b = alloca i32*, align 8
-  %y = getelementptr inbounds %struct.pair* %c, i32 0, i32 1
+  %y = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 1
   store i32* %y, i32** %b, align 8
-  %0 = load i32** %b, align 8
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i32* %0)
+  %0 = load i32*, i32** %b, align 8
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32* %0)
   ret void
 }
 
@@ -1433,11 +1607,15 @@ entry:
 ; DARWIN-X64-LABEL: test12a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test12a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %c = alloca %struct.pair, align 4
   %b = alloca i32*, align 8
-  %y = getelementptr inbounds %struct.pair* %c, i32 0, i32 1
+  %y = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 1
   %0 = ptrtoint i32* %y to i64
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i64 %0)
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i64 %0)
   ret void
 }
 
@@ -1462,11 +1640,15 @@ entry:
 ; DARWIN-X64-LABEL: test12b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test12b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %c = alloca %struct.pair, align 4
   %b = alloca i32*, align 8
-  %y = getelementptr inbounds %struct.pair* %c, i32 0, i32 1
+  %y = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 1
   %0 = ptrtoint i32* %y to i64
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i64 %0)
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i64 %0)
   ret void
 }
 
@@ -1490,11 +1672,15 @@ entry:
 ; DARWIN-X64-LABEL: test12c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test12c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %c = alloca %struct.pair, align 4
   %b = alloca i32*, align 8
-  %y = getelementptr inbounds %struct.pair* %c, i32 0, i32 1
+  %y = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 1
   %0 = ptrtoint i32* %y to i64
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i64 %0)
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i64 %0)
   ret void
 }
 
@@ -1519,11 +1705,15 @@ entry:
 ; DARWIN-X64-LABEL: test12d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test12d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %c = alloca %struct.pair, align 4
   %b = alloca i32*, align 8
-  %y = getelementptr inbounds %struct.pair* %c, i32 0, i32 1
+  %y = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 1
   %0 = ptrtoint i32* %y to i64
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i64 %0)
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i64 %0)
   ret void
 }
 
@@ -1547,9 +1737,13 @@ entry:
 ; DARWIN-X64-LABEL: test13a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test13a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %c = alloca %struct.pair, align 4
-  %y = getelementptr inbounds %struct.pair* %c, i64 0, i32 1
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), i32* %y)
+  %y = getelementptr inbounds %struct.pair, %struct.pair* %c, i64 0, i32 1
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), i32* %y)
   ret void
 }
 
@@ -1574,9 +1768,13 @@ entry:
 ; DARWIN-X64-LABEL: test13b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test13b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %c = alloca %struct.pair, align 4
-  %y = getelementptr inbounds %struct.pair* %c, i64 0, i32 1
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), i32* %y)
+  %y = getelementptr inbounds %struct.pair, %struct.pair* %c, i64 0, i32 1
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), i32* %y)
   ret void
 }
 
@@ -1601,9 +1799,13 @@ entry:
 ; DARWIN-X64-LABEL: test13c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test13c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %c = alloca %struct.pair, align 4
-  %y = getelementptr inbounds %struct.pair* %c, i64 0, i32 1
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), i32* %y)
+  %y = getelementptr inbounds %struct.pair, %struct.pair* %c, i64 0, i32 1
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), i32* %y)
   ret void
 }
 
@@ -1628,9 +1830,13 @@ entry:
 ; DARWIN-X64-LABEL: test13d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test13d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %c = alloca %struct.pair, align 4
-  %y = getelementptr inbounds %struct.pair* %c, i64 0, i32 1
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), i32* %y)
+  %y = getelementptr inbounds %struct.pair, %struct.pair* %c, i64 0, i32 1
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), i32* %y)
   ret void
 }
 
@@ -1654,9 +1860,13 @@ entry:
 ; DARWIN-X64-LABEL: test14a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test14a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca i32, align 4
-  %add.ptr5 = getelementptr inbounds i32* %a, i64 -12
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), i32* %add.ptr5)
+  %add.ptr5 = getelementptr inbounds i32, i32* %a, i64 -12
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), i32* %add.ptr5)
   ret void
 }
 
@@ -1681,9 +1891,13 @@ entry:
 ; DARWIN-X64-LABEL: test14b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test14b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca i32, align 4
-  %add.ptr5 = getelementptr inbounds i32* %a, i64 -12
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), i32* %add.ptr5)
+  %add.ptr5 = getelementptr inbounds i32, i32* %a, i64 -12
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), i32* %add.ptr5)
   ret void
 }
 
@@ -1708,9 +1922,13 @@ entry:
 ; DARWIN-X64-LABEL: test14c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test14c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca i32, align 4
-  %add.ptr5 = getelementptr inbounds i32* %a, i64 -12
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), i32* %add.ptr5)
+  %add.ptr5 = getelementptr inbounds i32, i32* %a, i64 -12
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), i32* %add.ptr5)
   ret void
 }
 
@@ -1735,9 +1953,13 @@ entry:
 ; DARWIN-X64-LABEL: test14d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test14d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca i32, align 4
-  %add.ptr5 = getelementptr inbounds i32* %a, i64 -12
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), i32* %add.ptr5)
+  %add.ptr5 = getelementptr inbounds i32, i32* %a, i64 -12
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), i32* %add.ptr5)
   ret void
 }
 
@@ -1762,13 +1984,17 @@ entry:
 ; DARWIN-X64-LABEL: test15a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test15a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca i32, align 4
   %b = alloca float*, align 8
   store i32 0, i32* %a, align 4
   %0 = bitcast i32* %a to float*
   store float* %0, float** %b, align 8
-  %1 = load float** %b, align 8
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), float* %1)
+  %1 = load float*, float** %b, align 8
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), float* %1)
   ret void
 }
 
@@ -1794,13 +2020,17 @@ entry:
 ; DARWIN-X64-LABEL: test15b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test15b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca i32, align 4
   %b = alloca float*, align 8
   store i32 0, i32* %a, align 4
   %0 = bitcast i32* %a to float*
   store float* %0, float** %b, align 8
-  %1 = load float** %b, align 8
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), float* %1)
+  %1 = load float*, float** %b, align 8
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), float* %1)
   ret void
 }
 
@@ -1826,13 +2056,17 @@ entry:
 ; DARWIN-X64-LABEL: test15c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test15c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca i32, align 4
   %b = alloca float*, align 8
   store i32 0, i32* %a, align 4
   %0 = bitcast i32* %a to float*
   store float* %0, float** %b, align 8
-  %1 = load float** %b, align 8
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), float* %1)
+  %1 = load float*, float** %b, align 8
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), float* %1)
   ret void
 }
 
@@ -1858,13 +2092,17 @@ entry:
 ; DARWIN-X64-LABEL: test15d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test15d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca i32, align 4
   %b = alloca float*, align 8
   store i32 0, i32* %a, align 4
   %0 = bitcast i32* %a to float*
   store float* %0, float** %b, align 8
-  %1 = load float** %b, align 8
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), float* %1)
+  %1 = load float*, float** %b, align 8
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), float* %1)
   ret void
 }
 
@@ -1889,6 +2127,10 @@ entry:
 ; DARWIN-X64-LABEL: test16a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test16a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca i32, align 4
   store i32 0, i32* %a, align 4
   %0 = bitcast i32* %a to float*
@@ -1918,6 +2160,10 @@ entry:
 ; DARWIN-X64-LABEL: test16b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test16b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca i32, align 4
   store i32 0, i32* %a, align 4
   %0 = bitcast i32* %a to float*
@@ -1947,6 +2193,10 @@ entry:
 ; DARWIN-X64-LABEL: test16c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test16c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca i32, align 4
   store i32 0, i32* %a, align 4
   %0 = bitcast i32* %a to float*
@@ -1976,6 +2226,10 @@ entry:
 ; DARWIN-X64-LABEL: test16d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test16d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca i32, align 4
   store i32 0, i32* %a, align 4
   %0 = bitcast i32* %a to float*
@@ -2003,10 +2257,14 @@ entry:
 ; DARWIN-X64-LABEL: test17a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test17a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %c = alloca %struct.vec, align 16
-  %y = getelementptr inbounds %struct.vec* %c, i64 0, i32 0
-  %add.ptr = getelementptr inbounds <4 x i32>* %y, i64 -12
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), <4 x i32>* %add.ptr)
+  %y = getelementptr inbounds %struct.vec, %struct.vec* %c, i64 0, i32 0
+  %add.ptr = getelementptr inbounds <4 x i32>, <4 x i32>* %y, i64 -12
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), <4 x i32>* %add.ptr)
   ret void
 }
 
@@ -2031,10 +2289,14 @@ entry:
 ; DARWIN-X64-LABEL: test17b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test17b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %c = alloca %struct.vec, align 16
-  %y = getelementptr inbounds %struct.vec* %c, i64 0, i32 0
-  %add.ptr = getelementptr inbounds <4 x i32>* %y, i64 -12
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), <4 x i32>* %add.ptr)
+  %y = getelementptr inbounds %struct.vec, %struct.vec* %c, i64 0, i32 0
+  %add.ptr = getelementptr inbounds <4 x i32>, <4 x i32>* %y, i64 -12
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), <4 x i32>* %add.ptr)
   ret void
 }
 
@@ -2059,10 +2321,14 @@ entry:
 ; DARWIN-X64-LABEL: test17c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test17c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %c = alloca %struct.vec, align 16
-  %y = getelementptr inbounds %struct.vec* %c, i64 0, i32 0
-  %add.ptr = getelementptr inbounds <4 x i32>* %y, i64 -12
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), <4 x i32>* %add.ptr)
+  %y = getelementptr inbounds %struct.vec, %struct.vec* %c, i64 0, i32 0
+  %add.ptr = getelementptr inbounds <4 x i32>, <4 x i32>* %y, i64 -12
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), <4 x i32>* %add.ptr)
   ret void
 }
 
@@ -2087,17 +2353,21 @@ entry:
 ; DARWIN-X64-LABEL: test17d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test17d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %c = alloca %struct.vec, align 16
-  %y = getelementptr inbounds %struct.vec* %c, i64 0, i32 0
-  %add.ptr = getelementptr inbounds <4 x i32>* %y, i64 -12
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), <4 x i32>* %add.ptr)
+  %y = getelementptr inbounds %struct.vec, %struct.vec* %c, i64 0, i32 0
+  %add.ptr = getelementptr inbounds <4 x i32>, <4 x i32>* %y, i64 -12
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), <4 x i32>* %add.ptr)
   ret void
 }
 
 ; test18a: Addr-of a variable passed into an invoke instruction.
 ;          no ssp attribute
 ; Requires no protector.
-define i32 @test18a()  {
+define i32 @test18a() personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
 entry:
 ; LINUX-I386-LABEL: test18a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
@@ -2114,6 +2384,10 @@ entry:
 ; DARWIN-X64-LABEL: test18a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test18a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca i32, align 4
   %exn.slot = alloca i8*
   %ehselector.slot = alloca i32
@@ -2125,7 +2399,7 @@ invoke.cont:
   ret i32 0
 
 lpad:
-  %0 = landingpad { i8*, i32 } personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*)
+  %0 = landingpad { i8*, i32 }
           catch i8* null
   ret i32 0
 }
@@ -2134,7 +2408,7 @@ lpad:
 ;          ssp attribute
 ; Requires no protector.
 ; Function Attrs: ssp 
-define i32 @test18b() #0 {
+define i32 @test18b() #0 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
 entry:
 ; LINUX-I386-LABEL: test18b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
@@ -2151,6 +2425,10 @@ entry:
 ; DARWIN-X64-LABEL: test18b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test18b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca i32, align 4
   %exn.slot = alloca i8*
   %ehselector.slot = alloca i32
@@ -2162,7 +2440,7 @@ invoke.cont:
   ret i32 0
 
 lpad:
-  %0 = landingpad { i8*, i32 } personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*)
+  %0 = landingpad { i8*, i32 }
           catch i8* null
   ret i32 0
 }
@@ -2171,7 +2449,7 @@ lpad:
 ;          sspstrong attribute
 ; Requires protector.
 ; Function Attrs: sspstrong 
-define i32 @test18c() #1 {
+define i32 @test18c() #1 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
 entry:
 ; LINUX-I386-LABEL: test18c:
 ; LINUX-I386: mov{{l|q}} %gs:
@@ -2188,6 +2466,10 @@ entry:
 ; DARWIN-X64-LABEL: test18c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test18c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca i32, align 4
   %exn.slot = alloca i8*
   %ehselector.slot = alloca i32
@@ -2199,7 +2481,7 @@ invoke.cont:
   ret i32 0
 
 lpad:
-  %0 = landingpad { i8*, i32 } personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*)
+  %0 = landingpad { i8*, i32 }
           catch i8* null
   ret i32 0
 }
@@ -2208,7 +2490,7 @@ lpad:
 ;          sspreq attribute
 ; Requires protector.
 ; Function Attrs: sspreq 
-define i32 @test18d() #2 {
+define i32 @test18d() #2 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
 entry:
 ; LINUX-I386-LABEL: test18d:
 ; LINUX-I386: mov{{l|q}} %gs:
@@ -2225,6 +2507,10 @@ entry:
 ; DARWIN-X64-LABEL: test18d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test18d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca i32, align 4
   %exn.slot = alloca i8*
   %ehselector.slot = alloca i32
@@ -2236,7 +2522,7 @@ invoke.cont:
   ret i32 0
 
 lpad:
-  %0 = landingpad { i8*, i32 } personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*)
+  %0 = landingpad { i8*, i32 }
           catch i8* null
   ret i32 0
 }
@@ -2244,7 +2530,7 @@ lpad:
 ;           (GEP followed by an invoke)
 ;          no ssp attribute
 ; Requires no protector.
-define i32 @test19a()  {
+define i32 @test19a() personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
 entry:
 ; LINUX-I386-LABEL: test19a:
 ; LINUX-I386-NOT: calll __stack_chk_fail
@@ -2261,12 +2547,16 @@ entry:
 ; DARWIN-X64-LABEL: test19a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test19a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %c = alloca %struct.pair, align 4
   %exn.slot = alloca i8*
   %ehselector.slot = alloca i32
-  %a = getelementptr inbounds %struct.pair* %c, i32 0, i32 0
+  %a = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 0
   store i32 0, i32* %a, align 4
-  %a1 = getelementptr inbounds %struct.pair* %c, i32 0, i32 0
+  %a1 = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 0
   invoke void @_Z3exceptPi(i32* %a1)
           to label %invoke.cont unwind label %lpad
 
@@ -2274,7 +2564,7 @@ invoke.cont:
   ret i32 0
 
 lpad:
-  %0 = landingpad { i8*, i32 } personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*)
+  %0 = landingpad { i8*, i32 }
           catch i8* null
   ret i32 0
 }
@@ -2284,7 +2574,7 @@ lpad:
 ;          ssp attribute
 ; Requires no protector.
 ; Function Attrs: ssp 
-define i32 @test19b() #0 {
+define i32 @test19b() #0 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
 entry:
 ; LINUX-I386-LABEL: test19b:
 ; LINUX-I386-NOT: calll __stack_chk_fail
@@ -2301,12 +2591,16 @@ entry:
 ; DARWIN-X64-LABEL: test19b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test19b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %c = alloca %struct.pair, align 4
   %exn.slot = alloca i8*
   %ehselector.slot = alloca i32
-  %a = getelementptr inbounds %struct.pair* %c, i32 0, i32 0
+  %a = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 0
   store i32 0, i32* %a, align 4
-  %a1 = getelementptr inbounds %struct.pair* %c, i32 0, i32 0
+  %a1 = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 0
   invoke void @_Z3exceptPi(i32* %a1)
           to label %invoke.cont unwind label %lpad
 
@@ -2314,7 +2608,7 @@ invoke.cont:
   ret i32 0
 
 lpad:
-  %0 = landingpad { i8*, i32 } personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*)
+  %0 = landingpad { i8*, i32 }
           catch i8* null
   ret i32 0
 }
@@ -2324,7 +2618,7 @@ lpad:
 ;          sspstrong attribute
 ; Requires protector.
 ; Function Attrs: sspstrong 
-define i32 @test19c() #1 {
+define i32 @test19c() #1 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
 entry:
 ; LINUX-I386-LABEL: test19c:
 ; LINUX-I386: mov{{l|q}} %gs:
@@ -2341,12 +2635,16 @@ entry:
 ; DARWIN-X64-LABEL: test19c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test19c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %c = alloca %struct.pair, align 4
   %exn.slot = alloca i8*
   %ehselector.slot = alloca i32
-  %a = getelementptr inbounds %struct.pair* %c, i32 0, i32 0
+  %a = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 0
   store i32 0, i32* %a, align 4
-  %a1 = getelementptr inbounds %struct.pair* %c, i32 0, i32 0
+  %a1 = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 0
   invoke void @_Z3exceptPi(i32* %a1)
           to label %invoke.cont unwind label %lpad
 
@@ -2354,7 +2652,7 @@ invoke.cont:
   ret i32 0
 
 lpad:
-  %0 = landingpad { i8*, i32 } personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*)
+  %0 = landingpad { i8*, i32 }
           catch i8* null
   ret i32 0
 }
@@ -2364,7 +2662,7 @@ lpad:
 ;          sspreq attribute
 ; Requires protector.
 ; Function Attrs: sspreq 
-define i32 @test19d() #2 {
+define i32 @test19d() #2 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
 entry:
 ; LINUX-I386-LABEL: test19d:
 ; LINUX-I386: mov{{l|q}} %gs:
@@ -2385,12 +2683,16 @@ entry:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test19d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %c = alloca %struct.pair, align 4
   %exn.slot = alloca i8*
   %ehselector.slot = alloca i32
-  %a = getelementptr inbounds %struct.pair* %c, i32 0, i32 0
+  %a = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 0
   store i32 0, i32* %a, align 4
-  %a1 = getelementptr inbounds %struct.pair* %c, i32 0, i32 0
+  %a1 = getelementptr inbounds %struct.pair, %struct.pair* %c, i32 0, i32 0
   invoke void @_Z3exceptPi(i32* %a1)
           to label %invoke.cont unwind label %lpad
 
@@ -2398,7 +2700,7 @@ invoke.cont:
   ret i32 0
 
 lpad:
-  %0 = landingpad { i8*, i32 } personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*)
+  %0 = landingpad { i8*, i32 }
           catch i8* null
   ret i32 0
 }
@@ -2423,12 +2725,16 @@ entry:
 ; DARWIN-X64-LABEL: test20a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test20a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca i32*, align 8
   %b = alloca i32**, align 8
   %call = call i32* @getp()
   store i32* %call, i32** %a, align 8
   store i32** %a, i32*** %b, align 8
-  %0 = load i32*** %b, align 8
+  %0 = load i32**, i32*** %b, align 8
   call void @funcall2(i32** %0)
   ret void
 }
@@ -2454,12 +2760,16 @@ entry:
 ; DARWIN-X64-LABEL: test20b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test20b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca i32*, align 8
   %b = alloca i32**, align 8
   %call = call i32* @getp()
   store i32* %call, i32** %a, align 8
   store i32** %a, i32*** %b, align 8
-  %0 = load i32*** %b, align 8
+  %0 = load i32**, i32*** %b, align 8
   call void @funcall2(i32** %0)
   ret void
 }
@@ -2485,12 +2795,16 @@ entry:
 ; DARWIN-X64-LABEL: test20c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test20c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca i32*, align 8
   %b = alloca i32**, align 8
   %call = call i32* @getp()
   store i32* %call, i32** %a, align 8
   store i32** %a, i32*** %b, align 8
-  %0 = load i32*** %b, align 8
+  %0 = load i32**, i32*** %b, align 8
   call void @funcall2(i32** %0)
   ret void
 }
@@ -2516,12 +2830,16 @@ entry:
 ; DARWIN-X64-LABEL: test20d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test20d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca i32*, align 8
   %b = alloca i32**, align 8
   %call = call i32* @getp()
   store i32* %call, i32** %a, align 8
   store i32** %a, i32*** %b, align 8
-  %0 = load i32*** %b, align 8
+  %0 = load i32**, i32*** %b, align 8
   call void @funcall2(i32** %0)
   ret void
 }
@@ -2546,13 +2864,17 @@ entry:
 ; DARWIN-X64-LABEL: test21a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test21a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca i32*, align 8
   %b = alloca float**, align 8
   %call = call i32* @getp()
   store i32* %call, i32** %a, align 8
   %0 = bitcast i32** %a to float**
   store float** %0, float*** %b, align 8
-  %1 = load float*** %b, align 8
+  %1 = load float**, float*** %b, align 8
   call void @funfloat2(float** %1)
   ret void
 }
@@ -2578,13 +2900,17 @@ entry:
 ; DARWIN-X64-LABEL: test21b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test21b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca i32*, align 8
   %b = alloca float**, align 8
   %call = call i32* @getp()
   store i32* %call, i32** %a, align 8
   %0 = bitcast i32** %a to float**
   store float** %0, float*** %b, align 8
-  %1 = load float*** %b, align 8
+  %1 = load float**, float*** %b, align 8
   call void @funfloat2(float** %1)
   ret void
 }
@@ -2610,13 +2936,17 @@ entry:
 ; DARWIN-X64-LABEL: test21c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test21c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca i32*, align 8
   %b = alloca float**, align 8
   %call = call i32* @getp()
   store i32* %call, i32** %a, align 8
   %0 = bitcast i32** %a to float**
   store float** %0, float*** %b, align 8
-  %1 = load float*** %b, align 8
+  %1 = load float**, float*** %b, align 8
   call void @funfloat2(float** %1)
   ret void
 }
@@ -2642,13 +2972,17 @@ entry:
 ; DARWIN-X64-LABEL: test21d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test21d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca i32*, align 8
   %b = alloca float**, align 8
   %call = call i32* @getp()
   store i32* %call, i32** %a, align 8
   %0 = bitcast i32** %a to float**
   store float** %0, float*** %b, align 8
-  %1 = load float*** %b, align 8
+  %1 = load float**, float*** %b, align 8
   call void @funfloat2(float** %1)
   ret void
 }
@@ -2673,10 +3007,14 @@ entry:
 ; DARWIN-X64-LABEL: test22a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test22a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca %class.A, align 1
-  %array = getelementptr inbounds %class.A* %a, i32 0, i32 0
-  %arrayidx = getelementptr inbounds [2 x i8]* %array, i32 0, i64 0
-  %0 = load i8* %arrayidx, align 1
+  %array = getelementptr inbounds %class.A, %class.A* %a, i32 0, i32 0
+  %arrayidx = getelementptr inbounds [2 x i8], [2 x i8]* %array, i32 0, i64 0
+  %0 = load i8, i8* %arrayidx, align 1
   ret i8 %0
 }
 
@@ -2701,10 +3039,14 @@ entry:
 ; DARWIN-X64-LABEL: test22b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test22b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca %class.A, align 1
-  %array = getelementptr inbounds %class.A* %a, i32 0, i32 0
-  %arrayidx = getelementptr inbounds [2 x i8]* %array, i32 0, i64 0
-  %0 = load i8* %arrayidx, align 1
+  %array = getelementptr inbounds %class.A, %class.A* %a, i32 0, i32 0
+  %arrayidx = getelementptr inbounds [2 x i8], [2 x i8]* %array, i32 0, i64 0
+  %0 = load i8, i8* %arrayidx, align 1
   ret i8 %0
 }
 
@@ -2729,10 +3071,14 @@ entry:
 ; DARWIN-X64-LABEL: test22c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test22c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca %class.A, align 1
-  %array = getelementptr inbounds %class.A* %a, i32 0, i32 0
-  %arrayidx = getelementptr inbounds [2 x i8]* %array, i32 0, i64 0
-  %0 = load i8* %arrayidx, align 1
+  %array = getelementptr inbounds %class.A, %class.A* %a, i32 0, i32 0
+  %arrayidx = getelementptr inbounds [2 x i8], [2 x i8]* %array, i32 0, i64 0
+  %0 = load i8, i8* %arrayidx, align 1
   ret i8 %0
 }
 
@@ -2757,10 +3103,14 @@ entry:
 ; DARWIN-X64-LABEL: test22d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test22d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca %class.A, align 1
-  %array = getelementptr inbounds %class.A* %a, i32 0, i32 0
-  %arrayidx = getelementptr inbounds [2 x i8]* %array, i32 0, i64 0
-  %0 = load i8* %arrayidx, align 1
+  %array = getelementptr inbounds %class.A, %class.A* %a, i32 0, i32 0
+  %arrayidx = getelementptr inbounds [2 x i8], [2 x i8]* %array, i32 0, i64 0
+  %0 = load i8, i8* %arrayidx, align 1
   ret i8 %0
 }
 
@@ -2784,14 +3134,18 @@ entry:
 ; DARWIN-X64-LABEL: test23a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test23a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %x = alloca %struct.deep, align 1
-  %b = getelementptr inbounds %struct.deep* %x, i32 0, i32 0
+  %b = getelementptr inbounds %struct.deep, %struct.deep* %x, i32 0, i32 0
   %c = bitcast %union.anon* %b to %struct.anon*
-  %d = getelementptr inbounds %struct.anon* %c, i32 0, i32 0
-  %e = getelementptr inbounds %struct.anon.0* %d, i32 0, i32 0
+  %d = getelementptr inbounds %struct.anon, %struct.anon* %c, i32 0, i32 0
+  %e = getelementptr inbounds %struct.anon.0, %struct.anon.0* %d, i32 0, i32 0
   %array = bitcast %union.anon.1* %e to [2 x i8]*
-  %arrayidx = getelementptr inbounds [2 x i8]* %array, i32 0, i64 0
-  %0 = load i8* %arrayidx, align 1
+  %arrayidx = getelementptr inbounds [2 x i8], [2 x i8]* %array, i32 0, i64 0
+  %0 = load i8, i8* %arrayidx, align 1
   ret i8 %0
 }
 
@@ -2816,14 +3170,18 @@ entry:
 ; DARWIN-X64-LABEL: test23b:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test23b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %x = alloca %struct.deep, align 1
-  %b = getelementptr inbounds %struct.deep* %x, i32 0, i32 0
+  %b = getelementptr inbounds %struct.deep, %struct.deep* %x, i32 0, i32 0
   %c = bitcast %union.anon* %b to %struct.anon*
-  %d = getelementptr inbounds %struct.anon* %c, i32 0, i32 0
-  %e = getelementptr inbounds %struct.anon.0* %d, i32 0, i32 0
+  %d = getelementptr inbounds %struct.anon, %struct.anon* %c, i32 0, i32 0
+  %e = getelementptr inbounds %struct.anon.0, %struct.anon.0* %d, i32 0, i32 0
   %array = bitcast %union.anon.1* %e to [2 x i8]*
-  %arrayidx = getelementptr inbounds [2 x i8]* %array, i32 0, i64 0
-  %0 = load i8* %arrayidx, align 1
+  %arrayidx = getelementptr inbounds [2 x i8], [2 x i8]* %array, i32 0, i64 0
+  %0 = load i8, i8* %arrayidx, align 1
   ret i8 %0
 }
 
@@ -2848,14 +3206,18 @@ entry:
 ; DARWIN-X64-LABEL: test23c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test23c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %x = alloca %struct.deep, align 1
-  %b = getelementptr inbounds %struct.deep* %x, i32 0, i32 0
+  %b = getelementptr inbounds %struct.deep, %struct.deep* %x, i32 0, i32 0
   %c = bitcast %union.anon* %b to %struct.anon*
-  %d = getelementptr inbounds %struct.anon* %c, i32 0, i32 0
-  %e = getelementptr inbounds %struct.anon.0* %d, i32 0, i32 0
+  %d = getelementptr inbounds %struct.anon, %struct.anon* %c, i32 0, i32 0
+  %e = getelementptr inbounds %struct.anon.0, %struct.anon.0* %d, i32 0, i32 0
   %array = bitcast %union.anon.1* %e to [2 x i8]*
-  %arrayidx = getelementptr inbounds [2 x i8]* %array, i32 0, i64 0
-  %0 = load i8* %arrayidx, align 1
+  %arrayidx = getelementptr inbounds [2 x i8], [2 x i8]* %array, i32 0, i64 0
+  %0 = load i8, i8* %arrayidx, align 1
   ret i8 %0
 }
 
@@ -2880,14 +3242,18 @@ entry:
 ; DARWIN-X64-LABEL: test23d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test23d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %x = alloca %struct.deep, align 1
-  %b = getelementptr inbounds %struct.deep* %x, i32 0, i32 0
+  %b = getelementptr inbounds %struct.deep, %struct.deep* %x, i32 0, i32 0
   %c = bitcast %union.anon* %b to %struct.anon*
-  %d = getelementptr inbounds %struct.anon* %c, i32 0, i32 0
-  %e = getelementptr inbounds %struct.anon.0* %d, i32 0, i32 0
+  %d = getelementptr inbounds %struct.anon, %struct.anon* %c, i32 0, i32 0
+  %e = getelementptr inbounds %struct.anon.0, %struct.anon.0* %d, i32 0, i32 0
   %array = bitcast %union.anon.1* %e to [2 x i8]*
-  %arrayidx = getelementptr inbounds [2 x i8]* %array, i32 0, i64 0
-  %0 = load i8* %arrayidx, align 1
+  %arrayidx = getelementptr inbounds [2 x i8], [2 x i8]* %array, i32 0, i64 0
+  %0 = load i8, i8* %arrayidx, align 1
   ret i8 %0
 }
 
@@ -2911,10 +3277,14 @@ entry:
 ; DARWIN-X64-LABEL: test24a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test24a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %n.addr = alloca i32, align 4
   %a = alloca i32*, align 8
   store i32 %n, i32* %n.addr, align 4
-  %0 = load i32* %n.addr, align 4
+  %0 = load i32, i32* %n.addr, align 4
   %conv = sext i32 %0 to i64
   %1 = alloca i8, i64 %conv
   %2 = bitcast i8* %1 to i32*
@@ -2943,10 +3313,14 @@ entry:
 ; DARWIN-X64-LABEL: test24b:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test24b:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %n.addr = alloca i32, align 4
   %a = alloca i32*, align 8
   store i32 %n, i32* %n.addr, align 4
-  %0 = load i32* %n.addr, align 4
+  %0 = load i32, i32* %n.addr, align 4
   %conv = sext i32 %0 to i64
   %1 = alloca i8, i64 %conv
   %2 = bitcast i8* %1 to i32*
@@ -2975,10 +3349,14 @@ entry:
 ; DARWIN-X64-LABEL: test24c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test24c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %n.addr = alloca i32, align 4
   %a = alloca i32*, align 8
   store i32 %n, i32* %n.addr, align 4
-  %0 = load i32* %n.addr, align 4
+  %0 = load i32, i32* %n.addr, align 4
   %conv = sext i32 %0 to i64
   %1 = alloca i8, i64 %conv
   %2 = bitcast i8* %1 to i32*
@@ -3007,10 +3385,14 @@ entry:
 ; DARWIN-X64-LABEL: test24d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test24d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %n.addr = alloca i32, align 4
   %a = alloca i32*, align 8
   store i32 %n, i32* %n.addr, align 4
-  %0 = load i32* %n.addr, align 4
+  %0 = load i32, i32* %n.addr, align 4
   %conv = sext i32 %0 to i64
   %1 = alloca i8, i64 %conv
   %2 = bitcast i8* %1 to i32*
@@ -3038,9 +3420,13 @@ entry:
 ; DARWIN-X64-LABEL: test25a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test25a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca [4 x i32], align 16
-  %arrayidx = getelementptr inbounds [4 x i32]* %a, i32 0, i64 0
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds [4 x i32], [4 x i32]* %a, i32 0, i64 0
+  %0 = load i32, i32* %arrayidx, align 4
   ret i32 %0
 }
 
@@ -3065,9 +3451,13 @@ entry:
 ; DARWIN-X64-LABEL: test25b:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test25b:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %a = alloca [4 x i32], align 16
-  %arrayidx = getelementptr inbounds [4 x i32]* %a, i32 0, i64 0
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds [4 x i32], [4 x i32]* %a, i32 0, i64 0
+  %0 = load i32, i32* %arrayidx, align 4
   ret i32 %0
 }
 
@@ -3092,9 +3482,13 @@ entry:
 ; DARWIN-X64-LABEL: test25c:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test25c:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca [4 x i32], align 16
-  %arrayidx = getelementptr inbounds [4 x i32]* %a, i32 0, i64 0
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds [4 x i32], [4 x i32]* %a, i32 0, i64 0
+  %0 = load i32, i32* %arrayidx, align 4
   ret i32 %0
 }
 
@@ -3119,9 +3513,13 @@ entry:
 ; DARWIN-X64-LABEL: test25d:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test25d:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %a = alloca [4 x i32], align 16
-  %arrayidx = getelementptr inbounds [4 x i32]* %a, i32 0, i64 0
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds [4 x i32], [4 x i32]* %a, i32 0, i64 0
+  %0 = load i32, i32* %arrayidx, align 4
   ret i32 %0
 }
 
@@ -3148,11 +3546,15 @@ entry:
 ; DARWIN-X64-LABEL: test26:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test26:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %c = alloca %struct.nest, align 4
-  %b = getelementptr inbounds %struct.nest* %c, i32 0, i32 1
-  %_a = getelementptr inbounds %struct.pair* %b, i32 0, i32 0
-  %0 = load i32* %_a, align 4
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i32 %0)
+  %b = getelementptr inbounds %struct.nest, %struct.nest* %c, i32 0, i32 1
+  %_a = getelementptr inbounds %struct.pair, %struct.pair* %b, i32 0, i32 0
+  %0 = load i32, i32* %_a, align 4
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %0)
   ret void
 }
 
@@ -3180,9 +3582,13 @@ bb:
 ; DARWIN-X64-LABEL: test27:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test27:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %tmp = alloca %struct.small*, align 8
-  %tmp1 = call i32 (...)* @dummy(%struct.small** %tmp)
-  %tmp2 = load %struct.small** %tmp, align 8
+  %tmp1 = call i32 (...) @dummy(%struct.small** %tmp)
+  %tmp2 = load %struct.small*, %struct.small** %tmp, align 8
   %tmp3 = ptrtoint %struct.small* %tmp2 to i64
   %tmp4 = trunc i64 %tmp3 to i32
   %tmp5 = icmp sgt i32 %tmp4, 0
@@ -3192,8 +3598,8 @@ bb6:                                              ; preds = %bb17, %bb
   %tmp7 = phi %struct.small* [ %tmp19, %bb17 ], [ %tmp2, %bb ]
   %tmp8 = phi i64 [ %tmp20, %bb17 ], [ 1, %bb ]
   %tmp9 = phi i32 [ %tmp14, %bb17 ], [ %tmp1, %bb ]
-  %tmp10 = getelementptr inbounds %struct.small* %tmp7, i64 0, i32 0
-  %tmp11 = load i8* %tmp10, align 1
+  %tmp10 = getelementptr inbounds %struct.small, %struct.small* %tmp7, i64 0, i32 0
+  %tmp11 = load i8, i8* %tmp10, align 1
   %tmp12 = icmp eq i8 %tmp11, 1
   %tmp13 = add nsw i32 %tmp9, 8
   %tmp14 = select i1 %tmp12, i32 %tmp13, i32 %tmp9
@@ -3202,14 +3608,14 @@ bb6:                                              ; preds = %bb17, %bb
   br i1 %tmp16, label %bb21, label %bb17
 
 bb17:                                             ; preds = %bb6
-  %tmp18 = getelementptr inbounds %struct.small** %tmp, i64 %tmp8
-  %tmp19 = load %struct.small** %tmp18, align 8
+  %tmp18 = getelementptr inbounds %struct.small*, %struct.small** %tmp, i64 %tmp8
+  %tmp19 = load %struct.small*, %struct.small** %tmp18, align 8
   %tmp20 = add i64 %tmp8, 1
   br label %bb6
 
 bb21:                                             ; preds = %bb6, %bb
   %tmp22 = phi i32 [ %tmp1, %bb ], [ %tmp14, %bb6 ]
-  %tmp23 = call i32 (...)* @dummy(i32 %tmp22)
+  %tmp23 = call i32 (...) @dummy(i32 %tmp22)
   ret i32 undef
 }
 
@@ -3233,9 +3639,13 @@ entry:
 ; DARWIN-X64-LABEL: test28a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test28a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %test = alloca [32 x i8], align 16
-  %arraydecay = getelementptr inbounds [32 x i8]* %test, i32 0, i32 0
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay)
+  %arraydecay = getelementptr inbounds [32 x i8], [32 x i8]* %test, i32 0, i32 0
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay)
   ret i32 %call
 }
 
@@ -3259,9 +3669,13 @@ entry:
 ; DARWIN-X64-LABEL: test28b:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test28b:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %test = alloca [33 x i8], align 16
-  %arraydecay = getelementptr inbounds [33 x i8]* %test, i32 0, i32 0
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay)
+  %arraydecay = getelementptr inbounds [33 x i8], [33 x i8]* %test, i32 0, i32 0
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay)
   ret i32 %call
 }
 
@@ -3285,9 +3699,13 @@ entry:
 ; DARWIN-X64-LABEL: test29a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test29a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %test = alloca [4 x i8], align 1
-  %arraydecay = getelementptr inbounds [4 x i8]* %test, i32 0, i32 0
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay)
+  %arraydecay = getelementptr inbounds [4 x i8], [4 x i8]* %test, i32 0, i32 0
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay)
   ret i32 %call
 }
 
@@ -3311,9 +3729,13 @@ entry:
 ; DARWIN-X64-LABEL: test29b:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test29b:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %test = alloca [5 x i8], align 1
-  %arraydecay = getelementptr inbounds [5 x i8]* %test, i32 0, i32 0
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay)
+  %arraydecay = getelementptr inbounds [5 x i8], [5 x i8]* %test, i32 0, i32 0
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %arraydecay)
   ret i32 %call
 }
 
@@ -3338,16 +3760,20 @@ entry:
 ; DARWIN-X64-LABEL: test30a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test30a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %test = alloca %struct.small_char, align 4
   %test.coerce = alloca { i64, i8 }
   %0 = bitcast { i64, i8 }* %test.coerce to i8*
   %1 = bitcast %struct.small_char* %test to i8*
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* %0, i8* %1, i64 12, i32 0, i1 false)
-  %2 = getelementptr { i64, i8 }* %test.coerce, i32 0, i32 0
-  %3 = load i64* %2, align 1
-  %4 = getelementptr { i64, i8 }* %test.coerce, i32 0, i32 1
-  %5 = load i8* %4, align 1
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i64 %3, i8 %5)
+  %2 = getelementptr { i64, i8 }, { i64, i8 }* %test.coerce, i32 0, i32 0
+  %3 = load i64, i64* %2, align 1
+  %4 = getelementptr { i64, i8 }, { i64, i8 }* %test.coerce, i32 0, i32 1
+  %5 = load i8, i8* %4, align 1
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i64 %3, i8 %5)
   ret i32 %call
 }
 
@@ -3372,16 +3798,20 @@ entry:
 ; DARWIN-X64-LABEL: test30b:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test30b:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %test = alloca %struct.small_char, align 4
   %test.coerce = alloca { i64, i8 }
   %0 = bitcast { i64, i8 }* %test.coerce to i8*
   %1 = bitcast %struct.small_char* %test to i8*
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* %0, i8* %1, i64 12, i32 0, i1 false)
-  %2 = getelementptr { i64, i8 }* %test.coerce, i32 0, i32 0
-  %3 = load i64* %2, align 1
-  %4 = getelementptr { i64, i8 }* %test.coerce, i32 0, i32 1
-  %5 = load i8* %4, align 1
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i64 %3, i8 %5)
+  %2 = getelementptr { i64, i8 }, { i64, i8 }* %test.coerce, i32 0, i32 0
+  %3 = load i64, i64* %2, align 1
+  %4 = getelementptr { i64, i8 }, { i64, i8 }* %test.coerce, i32 0, i32 1
+  %5 = load i8, i8* %4, align 1
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i64 %3, i8 %5)
   ret i32 %call
 }
 
@@ -3406,11 +3836,15 @@ entry:
 ; DARWIN-X64-LABEL: test31a:
 ; DARWIN-X64-NOT: callq ___stack_chk_fail
 ; DARWIN-X64: .cfi_endproc
+
+; MSVC-I386-LABEL: test31a:
+; MSVC-I386-NOT: calll @__security_check_cookie@4
+; MSVC-I386: retl
   %test = alloca i8*, align 8
   %0 = alloca i8, i64 4
   store i8* %0, i8** %test, align 8
-  %1 = load i8** %test, align 8
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %1)
+  %1 = load i8*, i8** %test, align 8
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %1)
   ret i32 %call
 }
 
@@ -3434,12 +3868,47 @@ entry:
 ; DARWIN-X64-LABEL: test31b:
 ; DARWIN-X64: mov{{l|q}} ___stack_chk_guard
 ; DARWIN-X64: callq ___stack_chk_fail
+
+; MSVC-I386-LABEL: test31b:
+; MSVC-I386: movl ___security_cookie,
+; MSVC-I386: calll @__security_check_cookie@4
   %test = alloca i8*, align 8
   %0 = alloca i8, i64 5
   store i8* %0, i8** %test, align 8
-  %1 = load i8** %test, align 8
-  %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i32 0, i32 0), i8* %1)
+  %1 = load i8*, i8** %test, align 8
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i8* %1)
   ret i32 %call
+}
+
+define void @__stack_chk_fail() #1 !dbg !6 {
+entry:
+  ret void
+}
+
+define void @test32() #1 !dbg !7 {
+entry:
+; LINUX-I386-LABEL: test32:
+; LINUX-I386:       .loc 1 4 2 prologue_end
+; LINUX-I386:       .loc 1 0 0
+; LINUX-I386-NEXT:  calll __stack_chk_fail
+
+; LINUX-X64-LABEL: test32:
+; LINUX-X64:       .loc 1 4 2 prologue_end
+; LINUX-X64:       .loc 1 0 0
+; LINUX-X64-NEXT:  callq __stack_chk_fail
+
+; LINUX-KERNEL-X64-LABEL: test32:
+; LINUX-KERNEL-X64:       .loc 1 4 2 prologue_end
+; LINUX-KERNEL-X64:       .loc 1 0 0
+; LINUX-KERNEL-X64-NEXT:  callq __stack_chk_fail
+
+; OPENBSD-AMD64-LABEL: test32:
+; OPENBSD-AMD64:       .loc 1 4 2 prologue_end
+; OPENBSD-AMD64:       .loc 1 0 0
+; OPENBSD-AMD64-NEXT:  movl
+; OPENBSD-AMD64-NEXT:  callq __stack_smash_handler
+  %0 = alloca [5 x i8], align 1
+  ret void, !dbg !9
 }
 
 declare double @testi_aux()
@@ -3461,3 +3930,18 @@ attributes #2 = { sspreq }
 attributes #3 = { ssp "stack-protector-buffer-size"="33" }
 attributes #4 = { ssp "stack-protector-buffer-size"="5" }
 attributes #5 = { ssp "stack-protector-buffer-size"="6" }
+
+!llvm.dbg.cu = !{!0}
+!llvm.module.flags = !{!3, !4}
+!llvm.ident = !{!5}
+
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, emissionKind: FullDebug)
+!1 = !DIFile(filename: "test.c", directory: "/tmp")
+!2 = !{}
+!3 = !{i32 2, !"Dwarf Version", i32 4}
+!4 = !{i32 2, !"Debug Info Version", i32 3}
+!5 = !{!"clang version x.y.z"}
+!6 = distinct !DISubprogram(name: "__stack_chk_fail", scope: !1, type: !8, unit: !0)
+!7 = distinct !DISubprogram(name: "test32", scope: !1, type: !8, unit: !0)
+!8 = !DISubroutineType(types: !2)
+!9 = !DILocation(line: 4, column: 2, scope: !7)

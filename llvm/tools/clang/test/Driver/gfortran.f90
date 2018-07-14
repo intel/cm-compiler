@@ -106,7 +106,6 @@
 ! RUN:     -fsyntax-only \
 ! RUN:     -funderscoring \
 ! RUN:     -fwhole-file \
-! RUN:     -fworking-directory \
 ! RUN:     -imultilib \
 ! RUN:     -iprefix \
 ! RUN:     -iquote \
@@ -226,7 +225,6 @@
 ! CHECK: "-fstack-arrays"
 ! CHECK: "-funderscoring"
 ! CHECK: "-fwhole-file"
-! CHECK: "-fworking-directory"
 ! CHECK: "-imultilib"
 ! CHECK: "-iprefix"
 ! CHECK: "-iquote"
@@ -242,3 +240,19 @@
 !
 ! Clang understands this one and orders it weirdly.
 ! CHECK: "-fsyntax-only"
+!
+! PR22234: Ensure that -fsyntax-only doesn't complain about output types and
+!          passes along correctly.
+! RUN: %clang -no-canonical-prefixes -target i386-linux -fsyntax-only -### %s -o %t 2>&1 | \
+! grep for error message and command-line
+! RUN: grep -e error: -e -fsyntax-only | FileCheck %s --check-prefix=CHECK-PR22234
+!
+! CHECK-PR22234-NOT: clang: error: invalid output type
+! CHECK-PR22234: "-fsyntax-only"
+!
+! Regression test for the bug introduced with PR22234 fix.
+! Make sure -fsyntax-only is not passed to gfortran during normal compilation.
+!
+! RUN: %clang -no-canonical-prefixes -target i386-linux -### %s -o %t 2>&1 \
+! RUN: | FileCheck %s --check-prefix=CHECK-PR22234-R
+! CHECK-PR22234-R-NOT: "-fsyntax-only"

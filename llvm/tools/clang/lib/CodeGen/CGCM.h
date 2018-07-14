@@ -85,7 +85,7 @@ private:
   /// vOffset, hOffset;
   llvm::Value *Indices[2];
 
-  CGCMRegionInfo(CGCMRegionInfo &) LLVM_DELETED_FUNCTION;
+  CGCMRegionInfo(CGCMRegionInfo &) = delete;
 
 public:
   CGCMRegionInfo(RegionKind Kind, LValue Base, unsigned vSize, unsigned vStride,
@@ -692,6 +692,19 @@ public:
 static inline llvm::VectorType *getMaskType(llvm::LLVMContext &Context,
                                             unsigned NumElts = 32u) {
   return llvm::VectorType::get(llvm::Type::getInt1Ty(Context), NumElts);
+}
+
+// Turn a MDNode into llvm::value or its subclass.
+// Return nullptr if the underlying value has type mismatch.
+template <typename Ty = llvm::Value> Ty *getVal(llvm::Metadata *M) {
+  if (auto VM = dyn_cast<llvm::ValueAsMetadata>(M))
+    if (auto V = dyn_cast<Ty>(VM->getValue()))
+      return V;
+  return nullptr;
+}
+
+static inline llvm::Metadata *getMD(llvm::Value *V) {
+  return llvm::ValueAsMetadata::get(V);
 }
 
 } // namespace CodeGen

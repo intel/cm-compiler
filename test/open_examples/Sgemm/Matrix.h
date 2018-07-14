@@ -28,6 +28,7 @@
 typedef  enum{RowMajor, ColMajor, Nd} storage_type_t;
 static char *storagename[Nd] = {"RowMajor", "ColMajor"};
 
+
 #define CORRECTNESS_THRESHOLD 0.00002
 
 class Matrix {
@@ -40,49 +41,47 @@ class Matrix {
   char *mtxname;
 
 public:
-
-  fptype& operator() (int r, int c)
-  {
-       return ((st == ColMajor) ? M[r+c*ld] : M[r*ld+c]);
+  fptype& operator() (int r, int c) {
+    return ((st == ColMajor) ? M[r+c*ld] : M[r*ld+c]);
   }
-
-  Matrix(int nrow, int ncol, int ld, char *surfname, bool init, char *mtxname, storage_type_t st=RowMajor)
-  {
-    if(st == ColMajor)
-        assert(ld >= nrow);
+  
+  Matrix(int nrow, int ncol, int ld, char *surfname, bool init, char *mtxname, storage_type_t st=RowMajor) {
+    if(st == ColMajor) assert(ld >= nrow);
     else {
-        if(ld < ncol) {
-            fprintf(stderr, "ld(%d) should be >= ncol(%d)\n", ld, ncol);
-            exit(123);
-        }
+      if(ld < ncol) {
+	fprintf(stderr, "ld(%d) should be >= ncol(%d)\n", ld, ncol);
+	exit(123);
+      }
     }
-
+    
     this->nrow=nrow;
     this->st=st;
     this->ncol=ncol;
     this->ld=ld;
-
+    
     if(st == ColMajor)
       _size_=(__int64)(sizeof(M[0])*this->ncol*this->ld);
     else
       _size_=(__int64)(sizeof(M[0])*this->nrow*this->ld);
+
     this->mtxname=strdup(mtxname);
-    // printf("Allocating %s \n", mtxname);
+
     M = (fptype *)CM_ALIGNED_MALLOC(_size_, 4096);
 
-    for(int c=0; c < this->ncol; c++)
-      for(int r=0; r < this->nrow; r++)
-      {
-        (*this)(r,c)=(init == true) ? randData(0.0f, 1.0f) : 0.0f;
+    for(int c=0; c < this->ncol; c++) {
+      for(int r=0; r < this->nrow; r++)	{
+	(*this)(r,c)=(init == true) ? randData(0.0f, 1.0f) : 0.0f;
       }
-
+    }
   }
-  Matrix(Matrix & mat, char *mtxname)
-     :nrow(mat.nrow), ncol(mat.ncol), ld(mat.ld), st(mat.st)
-  {
+
+
+ Matrix(Matrix & mat, char *mtxname)
+   :nrow(mat.nrow), ncol(mat.ncol), ld(mat.ld), st(mat.st)
+    {
 
      this->mtxname=strdup(mtxname);
-     // printf("Allocating %s \n", mtxname);
+	 // printf("Allocating %s \n", mtxname);
      M = (fptype *)CM_ALIGNED_MALLOC(mat._size_, 4096);
      for(int c=0; c < this->ncol; c++)
      for(int r=0; r < this->nrow; r++)
@@ -96,18 +95,26 @@ public:
      if( m.n_col()!=this->n_col() ) return false;
 
      double max_relerror=0.0;
+     double max_abserror=0.0;
      for(int c=0; c < ncol; c++)
        for(int r=0; r < nrow; r++)
        {
-         double relerror=fabs((*this)(r,c)-m(r,c))/fabs(min((*this)(r,c), m(r,c)));
-         max_relerror = max(max_relerror, relerror);
-         if(relerror >  CORRECTNESS_THRESHOLD)
+
+	 // printf("I=%3d N=%3d  %08x  %08x\n", r, c, *(unsigned int*)&(*this)(r,c), *(unsigned int *)&m(r,c));
+
+	 double relerror=fabs((*this)(r,c)-m(r,c))/max(fabs((*this)(r,c)), fabs(m(r,c)));
+	 double abserror=fabs((*this)(r,c)-m(r,c));
+
+	 max_relerror = max(max_relerror, relerror);
+	 max_abserror = max(max_abserror, abserror);
+
+	 if(relerror >  CORRECTNESS_THRESHOLD)
          {
-            printf("%f %f relerror: %lf\n", (*this)(r,c), m(r,c), relerror);
-            exit(-1);
+	   printf("Failure %f %f relerror: %lf at [%d, %d]\n", (*this)(r,c), m(r,c), relerror, r, c);
+           exit(-1);
          }
        }
-     printf("max_relerror = %lf\n", max_relerror);
+     printf("max_relerror = %e  absolute error = %e\n", max_relerror, max_abserror);
      return (max_relerror >  CORRECTNESS_THRESHOLD) ? false : true;
      return true;
   }
@@ -116,9 +123,9 @@ public:
   void Print(char *str=NULL)
   {
       if(str) printf("%s ", str);
-      printf(" %d x %d\n",  this->n_row(), this->l_dim());
-      for (int i=0; i<this->n_row(); i++) {
-        for (int j=0; j<this->n_col(); j++)
+	  printf(" %d x %d\n",  this->n_row(), this->l_dim());
+	  for (int i=0; i<this->n_row(); i++) {
+	    for (int j=0; j<this->n_col(); j++)
             printf("C(%d,%d)=%f \n",i,j,(*this)(i,j));
           printf("\n");
       }
@@ -130,21 +137,9 @@ public:
   ~Matrix() {/*printf("Deallocating %s \n", mtxname); */CM_ALIGNED_FREE(M);}
 };
 
-
-#if 0
-ostream& operator<<(ostream& os, Matrix& M)
-{
-        os << M.n_row()* M.l_dim() << endl;
-        for (int j=0; j<M.n_col(); j++) for (int i=0; i<M.n_row(); i++)
-            os << M(i,j) << endl;
-        return os;
-}
-#endif
-
 // C := alpha*A*B + beta*C,
 // A(m x k) , B(k x n) , C(m x n)
-static int sgemmNxN(int m, int n, int k, float alpha,
-                    float *A, int lda, float *B, int ldb,
+static int sgemmNxN(int m, int n, int k, float alpha, float *A, int lda, float *B, int ldb,
                     float beta, float *C, int ldc, storage_type_t st = RowMajor)
 {
 
@@ -165,6 +160,7 @@ static int sgemmNxN(int m, int n, int k, float alpha,
         C[r*ldc+c] = alpha*tmp + beta*C[r*ldc+c];
       }
     }
+
   return 1;
 }
 

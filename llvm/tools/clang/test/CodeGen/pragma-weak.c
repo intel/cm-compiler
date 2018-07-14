@@ -5,18 +5,18 @@
 // CHECK: @correct_linkage = weak global
 
 
-// CHECK-DAG: @both = alias void ()* @__both
-// CHECK-DAG: @both2 = alias void ()* @__both2
-// CHECK-DAG: @weakvar_alias = alias weak i32* @__weakvar_alias
-// CHECK-DAG: @foo = alias weak void ()* @__foo
-// CHECK-DAG: @foo2 = alias weak void ()* @__foo2
-// CHECK-DAG: @stutter = alias weak void ()* @__stutter
-// CHECK-DAG: @stutter2 = alias weak void ()* @__stutter2
-// CHECK-DAG: @declfirst = alias weak void ()* @__declfirst
-// CHECK-DAG: @declfirstattr = alias weak void ()* @__declfirstattr
-// CHECK-DAG: @mix2 = alias weak void ()* @__mix2
-// CHECK-DAG: @a1 = alias weak void ()* @__a1
-// CHECK-DAG: @xxx = alias weak void ()* @__xxx
+// CHECK-DAG: @both = alias void (), void ()* @__both
+// CHECK-DAG: @both2 = alias void (), void ()* @__both2
+// CHECK-DAG: @weakvar_alias = weak alias i32, i32* @__weakvar_alias
+// CHECK-DAG: @foo = weak alias void (), void ()* @__foo
+// CHECK-DAG: @foo2 = weak alias void (), void ()* @__foo2
+// CHECK-DAG: @stutter = weak alias void (), void ()* @__stutter
+// CHECK-DAG: @stutter2 = weak alias void (), void ()* @__stutter2
+// CHECK-DAG: @declfirst = weak alias void (), void ()* @__declfirst
+// CHECK-DAG: @declfirstattr = weak alias void (), void ()* @__declfirstattr
+// CHECK-DAG: @mix2 = weak alias void (), void ()* @__mix2
+// CHECK-DAG: @a1 = weak alias void (), void ()* @__a1
+// CHECK-DAG: @xxx = weak alias void (), void ()* @__xxx
 
 
 
@@ -53,12 +53,14 @@ void __foo2(void) {}
 #pragma weak unused // expected-warning {{weak identifier 'unused' never declared}}
 #pragma weak unused_alias = __unused_alias  // expected-warning {{weak identifier '__unused_alias' never declared}}
 
-#pragma weak td // expected-warning {{weak identifier 'td' never declared}}
+#pragma weak td // expected-warning {{'weak' attribute only applies to variables and functions}}
 typedef int td;
 
-#pragma weak td2 = __td2 // expected-warning {{weak identifier '__td2' never declared}}
+#pragma weak td2 = __td2 // expected-warning {{'weak' attribute only applies to variables and functions}}
 typedef int __td2;
 
+typedef int __td3;
+#pragma weak td3 = __td3 // expected-warning {{'weak' attribute only applies to variables and functions}}
 
 ///// test weird cases
 
@@ -187,4 +189,4 @@ void zzz(void){}
 int correct_linkage;
 
 // CHECK: attributes [[NI]] = { noinline nounwind{{.*}} }
-// CHECK: attributes [[RN]] = { noinline nounwind readnone{{.*}} }
+// CHECK: attributes [[RN]] = { noinline nounwind optnone readnone{{.*}} }

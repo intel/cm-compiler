@@ -1,6 +1,7 @@
 // RUN: %clang_cc1 -std=c++98 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 // RUN: %clang_cc1 -std=c++11 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
-// RUN: %clang_cc1 -std=c++1y %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
+// RUN: %clang_cc1 -std=c++14 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
+// RUN: %clang_cc1 -std=c++1z %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 
 #if __cplusplus < 201103L
 // expected-no-diagnostics
@@ -194,3 +195,179 @@ namespace dr1460 { // dr1460: 3.5
   }
 #endif
 }
+
+#if __cplusplus >= 201103L
+namespace std {
+  typedef decltype(sizeof(int)) size_t;
+
+  // libc++'s implementation
+  template <class _E>
+  class initializer_list
+  {
+    const _E* __begin_;
+    size_t    __size_;
+
+    initializer_list(const _E* __b, size_t __s)
+    : __begin_(__b), __size_(__s) {}
+
+  public:
+    typedef _E        value_type;
+    typedef const _E& reference;
+    typedef const _E& const_reference;
+    typedef size_t    size_type;
+
+    typedef const _E* iterator;
+    typedef const _E* const_iterator;
+
+    initializer_list() : __begin_(nullptr), __size_(0) {}
+
+    size_t    size()  const {return __size_;}
+    const _E* begin() const {return __begin_;}
+    const _E* end()   const {return __begin_ + __size_;}
+  };
+} // std
+
+namespace dr1467 {  // dr1467: 3.7 c++11
+  // List-initialization of aggregate from same-type object
+
+  namespace basic0 {
+    struct S {
+      int i = 42;
+    };
+
+    S a;
+    S b(a);
+    S c{a};
+
+    struct SS : public S { } x;
+    S y(x);
+    S z{x};
+  } // basic0
+
+  namespace basic1 {
+    struct S {
+      int i{42};
+    };
+
+    S a;
+    S b(a);
+    S c{a};
+
+    struct SS : public S { } x;
+    S y(x);
+    S z{x};
+  } // basic1
+
+  namespace basic2 {
+    struct S {
+      int i = {42};
+    };
+
+    S a;
+    S b(a);
+    S c{a};
+
+    struct SS : public S { } x;
+    S y(x);
+    S z{x};
+  } // basic2
+
+  namespace dr_example {
+    struct OK {
+      OK() = default;
+      OK(const OK&) = default;
+      OK(int) { }
+    };
+
+    OK ok;
+    OK ok2{ok};
+
+    struct X {
+      X() = default;
+      X(const X&) = default;
+    };
+
+    X x;
+    X x2{x};
+  } // dr_example
+
+  namespace nonaggregate {
+    struct NonAggregate {
+      NonAggregate() {}
+    };
+
+    struct WantsIt {
+      WantsIt(NonAggregate);
+    };
+
+    void f(NonAggregate);
+    void f(WantsIt);
+
+    void test1() {
+      NonAggregate n;
+      f({n});
+    }
+
+    void test2() {
+      NonAggregate x;
+      NonAggregate y{x};
+      NonAggregate z{{x}};
+    }
+  } // nonaggregate
+
+  namespace SelfInitIsNotListInit {
+    struct S {
+      S();
+      explicit S(S &);
+      S(const S &);
+    };
+    S s1;
+    S s2 = {s1}; // ok, not list-initialization so we pick the non-explicit constructor
+  }
+
+  struct NestedInit { int a, b, c; };
+  NestedInit ni[1] = {{NestedInit{1, 2, 3}}};
+
+  namespace NestedInit2 {
+    struct Pair { int a, b; };
+    struct TwoPairs { TwoPairs(Pair, Pair); };
+    struct Value { Value(Pair); Value(TwoPairs); };
+    void f() { Value{{{1,2},{3,4}}}; }
+  }
+} // dr1467
+
+namespace dr1490 {  // dr1490: 3.7 c++11
+  // List-initialization from a string literal
+
+  char s[4]{"abc"};                   // Ok
+  std::initializer_list<char>{"abc"}; // expected-error {{expected unqualified-id}}}
+} // dr190
+
+namespace dr1495 { // dr1495: 4
+  // Deduction succeeds in both directions.
+  template<typename T, typename U> struct A {}; // expected-note {{template is declared here}}
+  template<typename T, typename U> struct A<U, T> {}; // expected-error {{class template partial specialization is not more specialized}}
+
+  // Primary template is more specialized.
+  template<typename, typename...> struct B {}; // expected-note {{template is declared here}}
+  template<typename ...Ts> struct B<Ts...> {}; // expected-error {{not more specialized}}
+
+  // Deduction fails in both directions.
+  template<int, typename, typename ...> struct C {}; // expected-note {{template is declared here}}
+  template<typename ...Ts> struct C<0, Ts...> {}; // expected-error {{not more specialized}}
+
+#if __cplusplus >= 201402L
+  // Deduction succeeds in both directions.
+  template<typename T, typename U> int a; // expected-note {{template is declared here}}
+  template<typename T, typename U> int a<U, T>; // expected-error {{variable template partial specialization is not more specialized}}
+
+  // Primary template is more specialized.
+  template<typename, typename...> int b; // expected-note {{template is declared here}}
+  template<typename ...Ts> int b<Ts...>; // expected-error {{not more specialized}}
+
+  // Deduction fails in both directions.
+  template<int, typename, typename ...> int c; // expected-note {{template is declared here}}
+  template<typename ...Ts> int c<0, Ts...>; // expected-error {{not more specialized}}
+#endif
+}
+#endif

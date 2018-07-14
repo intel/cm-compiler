@@ -70,7 +70,7 @@
 // rdar://9341593
 @interface Gorf  {
    id __unsafe_unretained x;
-   id y; // expected-error {{existing instance variable 'y' for property 'y' with  assign attribute must be __unsafe_unretained}}
+   id y; // expected-error {{existing instance variable 'y' for property 'y' with assign attribute must be __unsafe_unretained}}
 }
 @property(assign) id __unsafe_unretained x;
 @property(assign) id y; // expected-note {{property declared here}}
@@ -172,7 +172,7 @@ void foo(Baz *f) {
 // rdar://11253688
 @interface Boom 
 {
-  const void * innerPointerIvar __attribute__((objc_returns_inner_pointer)); // expected-error {{'objc_returns_inner_pointer' attribute only applies to methods and properties}}
+  const void * innerPointerIvar __attribute__((objc_returns_inner_pointer)); // expected-error {{'objc_returns_inner_pointer' attribute only applies to Objective-C methods and Objective-C properties}}
 }
 @property (readonly) Boom * NotInnerPointer __attribute__((objc_returns_inner_pointer)); // expected-warning {{'objc_returns_inner_pointer' attribute only applies to properties that return a non-retainable pointer}}
 - (Boom *) NotInnerPointerMethod __attribute__((objc_returns_inner_pointer)); // expected-warning {{'objc_returns_inner_pointer' attribute only applies to methods that return a non-retainable pointer}}
@@ -180,7 +180,7 @@ void foo(Baz *f) {
 @end
 
 @interface Foo2 {
-  id _prop; // expected-error {{existing instance variable '_prop' for property 'prop' with  assign attribute must be __unsafe_unretained}}
+  id _prop; // expected-error {{existing instance variable '_prop' for property 'prop' with assign attribute must be __unsafe_unretained}}
 }
 @property (nonatomic, assign) id prop; // expected-note {{property declared here}}
 @end

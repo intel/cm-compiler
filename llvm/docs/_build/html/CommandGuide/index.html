@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>LLVM Command Guide &#8212; LLVM 3.4 documentation</title>
+    <title>LLVM Command Guide &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -84,14 +84,16 @@ interested in.</p>
 <li class="toctree-l1"><a class="reference internal" href="lli.html">lli - directly execute programs from LLVM bitcode</a></li>
 <li class="toctree-l1"><a class="reference internal" href="llvm-link.html">llvm-link - LLVM bitcode linker</a></li>
 <li class="toctree-l1"><a class="reference internal" href="llvm-ar.html">llvm-ar - LLVM archiver</a></li>
+<li class="toctree-l1"><a class="reference internal" href="llvm-lib.html">llvm-lib - LLVM lib.exe compatible library tool</a></li>
 <li class="toctree-l1"><a class="reference internal" href="llvm-nm.html">llvm-nm - list LLVM bitcode and object file’s symbol table</a></li>
 <li class="toctree-l1"><a class="reference internal" href="llvm-config.html">llvm-config - Print LLVM compilation options</a></li>
 <li class="toctree-l1"><a class="reference internal" href="llvm-diff.html">llvm-diff - LLVM structural ‘diff’</a></li>
 <li class="toctree-l1"><a class="reference internal" href="llvm-cov.html">llvm-cov - emit coverage information</a></li>
-<li class="toctree-l1"><a class="reference internal" href="llvm-profdata.html">llvm-profdata - work with profile data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="llvm-profdata.html">llvm-profdata - Profile data tool</a></li>
 <li class="toctree-l1"><a class="reference internal" href="llvm-stress.html">llvm-stress - generate random .ll files</a></li>
 <li class="toctree-l1"><a class="reference internal" href="llvm-symbolizer.html">llvm-symbolizer - convert addresses into source code locations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="llvm-dwarfdump.html">llvm-dwarfdump - print contents of DWARF sections</a></li>
+<li class="toctree-l1"><a class="reference internal" href="llvm-dwarfdump.html">llvm-dwarfdump - dump and verify DWARF debug information</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dsymutil.html">dsymutil - manipulate archived DWARF debug symbol files</a></li>
 </ul>
 </div>
 </div>
@@ -113,6 +115,7 @@ interested in.</p>
 <li class="toctree-l1"><a class="reference internal" href="tblgen.html">tblgen - Target Description To C++ Code Generator</a></li>
 <li class="toctree-l1"><a class="reference internal" href="lit.html">lit - LLVM Integrated Tester</a></li>
 <li class="toctree-l1"><a class="reference internal" href="llvm-build.html">llvm-build - LLVM Project Build Utility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="llvm-pdbutil.html">llvm-pdbutil - PDB File forensics and diagnostics</a></li>
 <li class="toctree-l1"><a class="reference internal" href="llvm-readobj.html">llvm-readobj - LLVM Object Reader</a></li>
 </ul>
 </div>
@@ -142,8 +145,8 @@ interested in.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

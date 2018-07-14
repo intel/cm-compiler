@@ -1,4 +1,6 @@
-# RUN: llvm-mc -filetype=obj -triple x86_64-pc-linux-gnu %s -o - \
+# RUN: llvm-mc -filetype=obj -triple x86_64-pc-linux-gnu -mcpu=pentiumpro %s -o - \
+# RUN:   | llvm-objdump -disassemble -no-show-raw-insn - | FileCheck %s
+# RUN: llvm-mc -filetype=obj -triple x86_64-pc-linux-gnu -mcpu=pentiumpro -mc-relax-all %s -o - \
 # RUN:   | llvm-objdump -disassemble -no-show-raw-insn - | FileCheck %s
 
 # Test that long nops are generated for padding where possible.
@@ -14,7 +16,7 @@ foo:
 # To align this group to a bundle end, we need a 15-byte NOP and a 12-byte NOP.
 # CHECK:        0:  nop
 # CHECK-NEXT:   f:  nop
-# CHECK-NEXT:   1b: callq
+# CHECK:   1b: callq
 
 # This push instruction is 1 byte long
   .bundle_lock align_to_end

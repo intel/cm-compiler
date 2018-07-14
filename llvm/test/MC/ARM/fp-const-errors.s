@@ -2,10 +2,10 @@
 
 @ Test for floating point constants that are out of the 8-bit encoded value range
 vmov.f32 s2, #32.0
-@ CHECK: error: invalid operand for instruction
+@ CHECK: invalid operand for instruction
 
 vmov.f64 d2, #32.0
-@ CHECK: error: invalid operand for instruction
+@ CHECK: invalid operand for instruction
 
 @ Test that vmov.f instructions do not accept an 8-bit encoded float as an operand
 vmov.f32 s1, #0x70
@@ -20,3 +20,6 @@ fconsts s1, #1.0
 
 fconstd d2, #1.0
 @ CHECK: error: invalid floating point immediate
+
+vmov.i64 d0, 0x8000000000000000
+@ CHECK: invalid operand for instruction

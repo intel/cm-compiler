@@ -1,0 +1,1380 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>4. Kaleidoscope: Adding JIT and Optimizer Support &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="5. Kaleidoscope: Extending the Language: Control Flow" href="LangImpl05.html" />
+    <link rel="prev" title="3. Kaleidoscope: Code generation to LLVM IR" href="LangImpl03.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="LangImpl05.html" title="5. Kaleidoscope: Extending the Language: Control Flow"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="LangImpl03.html" title="3. Kaleidoscope: Code generation to LLVM IR"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Tutorial: Table of Contents</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="kaleidoscope-adding-jit-and-optimizer-support">
+<h1>4. Kaleidoscope: Adding JIT and Optimizer Support<a class="headerlink" href="#kaleidoscope-adding-jit-and-optimizer-support" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#chapter-4-introduction" id="id1">Chapter 4 Introduction</a></li>
+<li><a class="reference internal" href="#trivial-constant-folding" id="id2">Trivial Constant Folding</a></li>
+<li><a class="reference internal" href="#llvm-optimization-passes" id="id3">LLVM Optimization Passes</a></li>
+<li><a class="reference internal" href="#adding-a-jit-compiler" id="id4">Adding a JIT Compiler</a></li>
+<li><a class="reference internal" href="#full-code-listing" id="id5">Full Code Listing</a></li>
+</ul>
+</div>
+<div class="section" id="chapter-4-introduction">
+<h2><a class="toc-backref" href="#id1">4.1. Chapter 4 Introduction</a><a class="headerlink" href="#chapter-4-introduction" title="Permalink to this headline">¶</a></h2>
+<p>Welcome to Chapter 4 of the “<a class="reference external" href="index.html">Implementing a language with
+LLVM</a>” tutorial. Chapters 1-3 described the implementation
+of a simple language and added support for generating LLVM IR. This
+chapter describes two new techniques: adding optimizer support to your
+language, and adding JIT compiler support. These additions will
+demonstrate how to get nice, efficient code for the Kaleidoscope
+language.</p>
+</div>
+<div class="section" id="trivial-constant-folding">
+<h2><a class="toc-backref" href="#id2">4.2. Trivial Constant Folding</a><a class="headerlink" href="#trivial-constant-folding" title="Permalink to this headline">¶</a></h2>
+<p>Our demonstration for Chapter 3 is elegant and easy to extend.
+Unfortunately, it does not produce wonderful code. The IRBuilder,
+however, does give us obvious optimizations when compiling simple code:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ready</span><span class="o">&gt;</span> <span class="k">def</span> <span class="nf">test</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="mi">1</span><span class="o">+</span><span class="mi">2</span><span class="o">+</span><span class="n">x</span><span class="p">;</span>
+<span class="n">Read</span> <span class="n">function</span> <span class="n">definition</span><span class="p">:</span>
+<span class="n">define</span> <span class="n">double</span> <span class="nd">@test</span><span class="p">(</span><span class="n">double</span> <span class="o">%</span><span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+<span class="n">entry</span><span class="p">:</span>
+        <span class="o">%</span><span class="n">addtmp</span> <span class="o">=</span> <span class="n">fadd</span> <span class="n">double</span> <span class="mf">3.000000e+00</span><span class="p">,</span> <span class="o">%</span><span class="n">x</span>
+        <span class="n">ret</span> <span class="n">double</span> <span class="o">%</span><span class="n">addtmp</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This code is not a literal transcription of the AST built by parsing the
+input. That would be:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ready</span><span class="o">&gt;</span> <span class="k">def</span> <span class="nf">test</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="mi">1</span><span class="o">+</span><span class="mi">2</span><span class="o">+</span><span class="n">x</span><span class="p">;</span>
+<span class="n">Read</span> <span class="n">function</span> <span class="n">definition</span><span class="p">:</span>
+<span class="n">define</span> <span class="n">double</span> <span class="nd">@test</span><span class="p">(</span><span class="n">double</span> <span class="o">%</span><span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+<span class="n">entry</span><span class="p">:</span>
+        <span class="o">%</span><span class="n">addtmp</span> <span class="o">=</span> <span class="n">fadd</span> <span class="n">double</span> <span class="mf">2.000000e+00</span><span class="p">,</span> <span class="mf">1.000000e+00</span>
+        <span class="o">%</span><span class="n">addtmp1</span> <span class="o">=</span> <span class="n">fadd</span> <span class="n">double</span> <span class="o">%</span><span class="n">addtmp</span><span class="p">,</span> <span class="o">%</span><span class="n">x</span>
+        <span class="n">ret</span> <span class="n">double</span> <span class="o">%</span><span class="n">addtmp1</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Constant folding, as seen above, in particular, is a very common and
+very important optimization: so much so that many language implementors
+implement constant folding support in their AST representation.</p>
+<p>With LLVM, you don’t need this support in the AST. Since all calls to
+build LLVM IR go through the LLVM IR builder, the builder itself checked
+to see if there was a constant folding opportunity when you call it. If
+so, it just does the constant fold and return the constant instead of
+creating an instruction.</p>
+<p>Well, that was easy :). In practice, we recommend always using
+<code class="docutils literal"><span class="pre">IRBuilder</span></code> when generating code like this. It has no “syntactic
+overhead” for its use (you don’t have to uglify your compiler with
+constant checks everywhere) and it can dramatically reduce the amount of
+LLVM IR that is generated in some cases (particular for languages with a
+macro preprocessor or that use a lot of constants).</p>
+<p>On the other hand, the <code class="docutils literal"><span class="pre">IRBuilder</span></code> is limited by the fact that it does
+all of its analysis inline with the code as it is built. If you take a
+slightly more complex example:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ready</span><span class="o">&gt;</span> <span class="k">def</span> <span class="nf">test</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="mi">2</span><span class="o">+</span><span class="n">x</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="mi">2</span><span class="p">));</span>
+<span class="n">ready</span><span class="o">&gt;</span> <span class="n">Read</span> <span class="n">function</span> <span class="n">definition</span><span class="p">:</span>
+<span class="n">define</span> <span class="n">double</span> <span class="nd">@test</span><span class="p">(</span><span class="n">double</span> <span class="o">%</span><span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+<span class="n">entry</span><span class="p">:</span>
+        <span class="o">%</span><span class="n">addtmp</span> <span class="o">=</span> <span class="n">fadd</span> <span class="n">double</span> <span class="mf">3.000000e+00</span><span class="p">,</span> <span class="o">%</span><span class="n">x</span>
+        <span class="o">%</span><span class="n">addtmp1</span> <span class="o">=</span> <span class="n">fadd</span> <span class="n">double</span> <span class="o">%</span><span class="n">x</span><span class="p">,</span> <span class="mf">3.000000e+00</span>
+        <span class="o">%</span><span class="n">multmp</span> <span class="o">=</span> <span class="n">fmul</span> <span class="n">double</span> <span class="o">%</span><span class="n">addtmp</span><span class="p">,</span> <span class="o">%</span><span class="n">addtmp1</span>
+        <span class="n">ret</span> <span class="n">double</span> <span class="o">%</span><span class="n">multmp</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In this case, the LHS and RHS of the multiplication are the same value.
+We’d really like to see this generate “<code class="docutils literal"><span class="pre">tmp</span> <span class="pre">=</span> <span class="pre">x+3;</span> <span class="pre">result</span> <span class="pre">=</span> <span class="pre">tmp*tmp;</span></code>”
+instead of computing “<code class="docutils literal"><span class="pre">x+3</span></code>” twice.</p>
+<p>Unfortunately, no amount of local analysis will be able to detect and
+correct this. This requires two transformations: reassociation of
+expressions (to make the add’s lexically identical) and Common
+Subexpression Elimination (CSE) to delete the redundant add instruction.
+Fortunately, LLVM provides a broad range of optimizations that you can
+use, in the form of “passes”.</p>
+</div>
+<div class="section" id="llvm-optimization-passes">
+<h2><a class="toc-backref" href="#id3">4.3. LLVM Optimization Passes</a><a class="headerlink" href="#llvm-optimization-passes" title="Permalink to this headline">¶</a></h2>
+<p>LLVM provides many optimization passes, which do many different sorts of
+things and have different tradeoffs. Unlike other systems, LLVM doesn’t
+hold to the mistaken notion that one set of optimizations is right for
+all languages and for all situations. LLVM allows a compiler implementor
+to make complete decisions about what optimizations to use, in which
+order, and in what situation.</p>
+<p>As a concrete example, LLVM supports both “whole module” passes, which
+look across as large of body of code as they can (often a whole file,
+but if run at link time, this can be a substantial portion of the whole
+program). It also supports and includes “per-function” passes which just
+operate on a single function at a time, without looking at other
+functions. For more information on passes and how they are run, see the
+<a class="reference external" href="../WritingAnLLVMPass.html">How to Write a Pass</a> document and the
+<a class="reference external" href="../Passes.html">List of LLVM Passes</a>.</p>
+<p>For Kaleidoscope, we are currently generating functions on the fly, one
+at a time, as the user types them in. We aren’t shooting for the
+ultimate optimization experience in this setting, but we also want to
+catch the easy and quick stuff where possible. As such, we will choose
+to run a few per-function optimizations as the user types the function
+in. If we wanted to make a “static Kaleidoscope compiler”, we would use
+exactly the code we have now, except that we would defer running the
+optimizer until the entire file has been parsed.</p>
+<p>In order to get per-function optimizations going, we need to set up a
+<a class="reference external" href="../WritingAnLLVMPass.html#what-passmanager-doesr">FunctionPassManager</a> to hold
+and organize the LLVM optimizations that we want to run. Once we have
+that, we can add a set of optimizations to run. We’ll need a new
+FunctionPassManager for each module that we want to optimize, so we’ll
+write a function to create and initialize both the module and pass manager
+for us:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">InitializeModuleAndPassManager</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Open a new module.</span>
+  <span class="n">TheModule</span> <span class="o">=</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span><span class="p">(</span><span class="s">&quot;my cool jit&quot;</span><span class="p">,</span> <span class="n">TheContext</span><span class="p">);</span>
+
+  <span class="c1">// Create a new pass manager attached to it.</span>
+  <span class="n">TheFPM</span> <span class="o">=</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">FunctionPassManager</span><span class="o">&gt;</span><span class="p">(</span><span class="n">TheModule</span><span class="p">.</span><span class="n">get</span><span class="p">());</span>
+
+  <span class="c1">// Do simple &quot;peephole&quot; optimizations and bit-twiddling optzns.</span>
+  <span class="n">TheFPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createInstructionCombiningPass</span><span class="p">());</span>
+  <span class="c1">// Reassociate expressions.</span>
+  <span class="n">TheFPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createReassociatePass</span><span class="p">());</span>
+  <span class="c1">// Eliminate Common SubExpressions.</span>
+  <span class="n">TheFPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createGVNPass</span><span class="p">());</span>
+  <span class="c1">// Simplify the control flow graph (deleting unreachable blocks, etc).</span>
+  <span class="n">TheFPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createCFGSimplificationPass</span><span class="p">());</span>
+
+  <span class="n">TheFPM</span><span class="o">-&gt;</span><span class="n">doInitialization</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This code initializes the global module <code class="docutils literal"><span class="pre">TheModule</span></code>, and the function pass
+manager <code class="docutils literal"><span class="pre">TheFPM</span></code>, which is attached to <code class="docutils literal"><span class="pre">TheModule</span></code>. Once the pass manager is
+set up, we use a series of “add” calls to add a bunch of LLVM passes.</p>
+<p>In this case, we choose to add four optimization passes.
+The passes we choose here are a pretty standard set
+of “cleanup” optimizations that are useful for a wide variety of code. I won’t
+delve into what they do but, believe me, they are a good starting place :).</p>
+<p>Once the PassManager is set up, we need to make use of it. We do this by
+running it after our newly created function is constructed (in
+<code class="docutils literal"><span class="pre">FunctionAST::codegen()</span></code>), but before it is returned to the client:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="p">(</span><span class="n">Value</span> <span class="o">*</span><span class="n">RetVal</span> <span class="o">=</span> <span class="n">Body</span><span class="o">-&gt;</span><span class="n">codegen</span><span class="p">())</span> <span class="p">{</span>
+  <span class="c1">// Finish off the function.</span>
+  <span class="n">Builder</span><span class="p">.</span><span class="n">CreateRet</span><span class="p">(</span><span class="n">RetVal</span><span class="p">);</span>
+
+  <span class="c1">// Validate the generated code, checking for consistency.</span>
+  <span class="n">verifyFunction</span><span class="p">(</span><span class="o">*</span><span class="n">TheFunction</span><span class="p">);</span>
+
+  <span class="c1">// Optimize the function.</span>
+  <span class="n">TheFPM</span><span class="o">-&gt;</span><span class="n">run</span><span class="p">(</span><span class="o">*</span><span class="n">TheFunction</span><span class="p">);</span>
+
+  <span class="k">return</span> <span class="n">TheFunction</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>As you can see, this is pretty straightforward. The
+<code class="docutils literal"><span class="pre">FunctionPassManager</span></code> optimizes and updates the LLVM Function* in
+place, improving (hopefully) its body. With this in place, we can try
+our test above again:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ready</span><span class="o">&gt;</span> <span class="k">def</span> <span class="nf">test</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="mi">2</span><span class="o">+</span><span class="n">x</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="mi">2</span><span class="p">));</span>
+<span class="n">ready</span><span class="o">&gt;</span> <span class="n">Read</span> <span class="n">function</span> <span class="n">definition</span><span class="p">:</span>
+<span class="n">define</span> <span class="n">double</span> <span class="nd">@test</span><span class="p">(</span><span class="n">double</span> <span class="o">%</span><span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+<span class="n">entry</span><span class="p">:</span>
+        <span class="o">%</span><span class="n">addtmp</span> <span class="o">=</span> <span class="n">fadd</span> <span class="n">double</span> <span class="o">%</span><span class="n">x</span><span class="p">,</span> <span class="mf">3.000000e+00</span>
+        <span class="o">%</span><span class="n">multmp</span> <span class="o">=</span> <span class="n">fmul</span> <span class="n">double</span> <span class="o">%</span><span class="n">addtmp</span><span class="p">,</span> <span class="o">%</span><span class="n">addtmp</span>
+        <span class="n">ret</span> <span class="n">double</span> <span class="o">%</span><span class="n">multmp</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>As expected, we now get our nicely optimized code, saving a floating
+point add instruction from every execution of this function.</p>
+<p>LLVM provides a wide variety of optimizations that can be used in
+certain circumstances. Some <a class="reference external" href="../Passes.html">documentation about the various
+passes</a> is available, but it isn’t very complete.
+Another good source of ideas can come from looking at the passes that
+<code class="docutils literal"><span class="pre">Clang</span></code> runs to get started. The “<code class="docutils literal"><span class="pre">opt</span></code>” tool allows you to
+experiment with passes from the command line, so you can see if they do
+anything.</p>
+<p>Now that we have reasonable code coming out of our front-end, lets talk
+about executing it!</p>
+</div>
+<div class="section" id="adding-a-jit-compiler">
+<h2><a class="toc-backref" href="#id4">4.4. Adding a JIT Compiler</a><a class="headerlink" href="#adding-a-jit-compiler" title="Permalink to this headline">¶</a></h2>
+<p>Code that is available in LLVM IR can have a wide variety of tools
+applied to it. For example, you can run optimizations on it (as we did
+above), you can dump it out in textual or binary forms, you can compile
+the code to an assembly file (.s) for some target, or you can JIT
+compile it. The nice thing about the LLVM IR representation is that it
+is the “common currency” between many different parts of the compiler.</p>
+<p>In this section, we’ll add JIT compiler support to our interpreter. The
+basic idea that we want for Kaleidoscope is to have the user enter
+function bodies as they do now, but immediately evaluate the top-level
+expressions they type in. For example, if they type in “1 + 2;”, we
+should evaluate and print out 3. If they define a function, they should
+be able to call it from the command line.</p>
+<p>In order to do this, we first prepare the environment to create code for
+the current native target and declare and initialize the JIT. This is
+done by calling some <code class="docutils literal"><span class="pre">InitializeNativeTarget\*</span></code> functions and
+adding a global variable <code class="docutils literal"><span class="pre">TheJIT</span></code>, and initializing it in
+<code class="docutils literal"><span class="pre">main</span></code>:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">KaleidoscopeJIT</span><span class="o">&gt;</span> <span class="n">TheJIT</span><span class="p">;</span>
+<span class="p">...</span>
+<span class="kt">int</span> <span class="n">main</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">InitializeNativeTarget</span><span class="p">();</span>
+  <span class="n">InitializeNativeTargetAsmPrinter</span><span class="p">();</span>
+  <span class="n">InitializeNativeTargetAsmParser</span><span class="p">();</span>
+
+  <span class="c1">// Install standard binary operators.</span>
+  <span class="c1">// 1 is lowest precedence.</span>
+  <span class="n">BinopPrecedence</span><span class="p">[</span><span class="sc">&#39;&lt;&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>
+  <span class="n">BinopPrecedence</span><span class="p">[</span><span class="sc">&#39;+&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">20</span><span class="p">;</span>
+  <span class="n">BinopPrecedence</span><span class="p">[</span><span class="sc">&#39;-&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">20</span><span class="p">;</span>
+  <span class="n">BinopPrecedence</span><span class="p">[</span><span class="sc">&#39;*&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">40</span><span class="p">;</span> <span class="c1">// highest.</span>
+
+  <span class="c1">// Prime the first token.</span>
+  <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;ready&gt; &quot;</span><span class="p">);</span>
+  <span class="n">getNextToken</span><span class="p">();</span>
+
+  <span class="n">TheJIT</span> <span class="o">=</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">KaleidoscopeJIT</span><span class="o">&gt;</span><span class="p">();</span>
+
+  <span class="c1">// Run the main &quot;interpreter loop&quot; now.</span>
+  <span class="n">MainLoop</span><span class="p">();</span>
+
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>We also need to setup the data layout for the JIT:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">InitializeModuleAndPassManager</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Open a new module.</span>
+  <span class="n">TheModule</span> <span class="o">=</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span><span class="p">(</span><span class="s">&quot;my cool jit&quot;</span><span class="p">,</span> <span class="n">TheContext</span><span class="p">);</span>
+  <span class="n">TheModule</span><span class="o">-&gt;</span><span class="n">setDataLayout</span><span class="p">(</span><span class="n">TheJIT</span><span class="o">-&gt;</span><span class="n">getTargetMachine</span><span class="p">().</span><span class="n">createDataLayout</span><span class="p">());</span>
+
+  <span class="c1">// Create a new pass manager attached to it.</span>
+  <span class="n">TheFPM</span> <span class="o">=</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">FunctionPassManager</span><span class="o">&gt;</span><span class="p">(</span><span class="n">TheModule</span><span class="p">.</span><span class="n">get</span><span class="p">());</span>
+  <span class="p">...</span>
+</pre></div>
+</div>
+<p>The KaleidoscopeJIT class is a simple JIT built specifically for these
+tutorials, available inside the LLVM source code
+at llvm-src/examples/Kaleidoscope/include/KaleidoscopeJIT.h.
+In later chapters we will look at how it works and extend it with
+new features, but for now we will take it as given. Its API is very simple:
+<code class="docutils literal"><span class="pre">addModule</span></code> adds an LLVM IR module to the JIT, making its functions
+available for execution; <code class="docutils literal"><span class="pre">removeModule</span></code> removes a module, freeing any
+memory associated with the code in that module; and <code class="docutils literal"><span class="pre">findSymbol</span></code> allows us
+to look up pointers to the compiled code.</p>
+<p>We can take this simple API and change our code that parses top-level expressions to
+look like this:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">static</span> <span class="kt">void</span> <span class="nf">HandleTopLevelExpression</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// Evaluate a top-level expression into an anonymous function.</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">FnAST</span> <span class="o">=</span> <span class="n">ParseTopLevelExpr</span><span class="p">())</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">FnAST</span><span class="o">-&gt;</span><span class="n">codegen</span><span class="p">())</span> <span class="p">{</span>
+
+      <span class="c1">// JIT the module containing the anonymous expression, keeping a handle so</span>
+      <span class="c1">// we can free it later.</span>
+      <span class="k">auto</span> <span class="n">H</span> <span class="o">=</span> <span class="n">TheJIT</span><span class="o">-&gt;</span><span class="n">addModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">TheModule</span><span class="p">));</span>
+      <span class="n">InitializeModuleAndPassManager</span><span class="p">();</span>
+
+      <span class="c1">// Search the JIT for the __anon_expr symbol.</span>
+      <span class="k">auto</span> <span class="n">ExprSymbol</span> <span class="o">=</span> <span class="n">TheJIT</span><span class="o">-&gt;</span><span class="n">findSymbol</span><span class="p">(</span><span class="s">&quot;__anon_expr&quot;</span><span class="p">);</span>
+      <span class="n">assert</span><span class="p">(</span><span class="n">ExprSymbol</span> <span class="o">&amp;&amp;</span> <span class="s">&quot;Function not found&quot;</span><span class="p">);</span>
+
+      <span class="c1">// Get the symbol&#39;s address and cast it to the right type (takes no</span>
+      <span class="c1">// arguments, returns a double) so we can call it as a native function.</span>
+      <span class="kt">double</span> <span class="p">(</span><span class="o">*</span><span class="n">FP</span><span class="p">)()</span> <span class="o">=</span> <span class="p">(</span><span class="kt">double</span> <span class="p">(</span><span class="o">*</span><span class="p">)())(</span><span class="kt">intptr_t</span><span class="p">)</span><span class="n">ExprSymbol</span><span class="p">.</span><span class="n">getAddress</span><span class="p">();</span>
+      <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Evaluated to %f</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">FP</span><span class="p">());</span>
+
+      <span class="c1">// Delete the anonymous expression module from the JIT.</span>
+      <span class="n">TheJIT</span><span class="o">-&gt;</span><span class="n">removeModule</span><span class="p">(</span><span class="n">H</span><span class="p">);</span>
+    <span class="p">}</span>
+</pre></div>
+</div>
+<p>If parsing and codegen succeeed, the next step is to add the module containing
+the top-level expression to the JIT. We do this by calling addModule, which
+triggers code generation for all the functions in the module, and returns a
+handle that can be used to remove the module from the JIT later. Once the module
+has been added to the JIT it can no longer be modified, so we also open a new
+module to hold subsequent code by calling <code class="docutils literal"><span class="pre">InitializeModuleAndPassManager()</span></code>.</p>
+<p>Once we’ve added the module to the JIT we need to get a pointer to the final
+generated code. We do this by calling the JIT’s findSymbol method, and passing
+the name of the top-level expression function: <code class="docutils literal"><span class="pre">__anon_expr</span></code>. Since we just
+added this function, we assert that findSymbol returned a result.</p>
+<p>Next, we get the in-memory address of the <code class="docutils literal"><span class="pre">__anon_expr</span></code> function by calling
+<code class="docutils literal"><span class="pre">getAddress()</span></code> on the symbol. Recall that we compile top-level expressions
+into a self-contained LLVM function that takes no arguments and returns the
+computed double. Because the LLVM JIT compiler matches the native platform ABI,
+this means that you can just cast the result pointer to a function pointer of
+that type and call it directly. This means, there is no difference between JIT
+compiled code and native machine code that is statically linked into your
+application.</p>
+<p>Finally, since we don’t support re-evaluation of top-level expressions, we
+remove the module from the JIT when we’re done to free the associated memory.
+Recall, however, that the module we created a few lines earlier (via
+<code class="docutils literal"><span class="pre">InitializeModuleAndPassManager</span></code>) is still open and waiting for new code to be
+added.</p>
+<p>With just these two changes, lets see how Kaleidoscope works now!</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ready</span><span class="o">&gt;</span> <span class="mi">4</span><span class="o">+</span><span class="mi">5</span><span class="p">;</span>
+<span class="n">Read</span> <span class="n">top</span><span class="o">-</span><span class="n">level</span> <span class="n">expression</span><span class="p">:</span>
+<span class="n">define</span> <span class="n">double</span> <span class="nd">@0</span><span class="p">()</span> <span class="p">{</span>
+<span class="n">entry</span><span class="p">:</span>
+  <span class="n">ret</span> <span class="n">double</span> <span class="mf">9.000000e+00</span>
+<span class="p">}</span>
+
+<span class="n">Evaluated</span> <span class="n">to</span> <span class="mf">9.000000</span>
+</pre></div>
+</div>
+<p>Well this looks like it is basically working. The dump of the function
+shows the “no argument function that always returns double” that we
+synthesize for each top-level expression that is typed in. This
+demonstrates very basic functionality, but can we do more?</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>ready&gt; def testfunc(x y) x + y*2;
+Read function definition:
+define double @testfunc(double %x, double %y) {
+entry:
+  %multmp = fmul double %y, 2.000000e+00
+  %addtmp = fadd double %multmp, %x
+  ret double %addtmp
+}
+
+ready&gt; testfunc(4, 10);
+Read top-level expression:
+define double @1() {
+entry:
+  %calltmp = call double @testfunc(double 4.000000e+00, double 1.000000e+01)
+  ret double %calltmp
+}
+
+Evaluated to 24.000000
+
+ready&gt; testfunc(5, 10);
+ready&gt; LLVM ERROR: Program used external function &#39;testfunc&#39; which could not be resolved!
+</pre></div>
+</div>
+<p>Function definitions and calls also work, but something went very wrong on that
+last line. The call looks valid, so what happened? As you may have guessed from
+the the API a Module is a unit of allocation for the JIT, and testfunc was part
+of the same module that contained anonymous expression. When we removed that
+module from the JIT to free the memory for the anonymous expression, we deleted
+the definition of <code class="docutils literal"><span class="pre">testfunc</span></code> along with it. Then, when we tried to call
+testfunc a second time, the JIT could no longer find it.</p>
+<p>The easiest way to fix this is to put the anonymous expression in a separate
+module from the rest of the function definitions. The JIT will happily resolve
+function calls across module boundaries, as long as each of the functions called
+has a prototype, and is added to the JIT before it is called. By putting the
+anonymous expression in a different module we can delete it without affecting
+the rest of the functions.</p>
+<p>In fact, we’re going to go a step further and put every function in its own
+module. Doing so allows us to exploit a useful property of the KaleidoscopeJIT
+that will make our environment more REPL-like: Functions can be added to the
+JIT more than once (unlike a module where every function must have a unique
+definition). When you look up a symbol in KaleidoscopeJIT it will always return
+the most recent definition:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ready</span><span class="o">&gt;</span> <span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+<span class="n">Read</span> <span class="n">function</span> <span class="n">definition</span><span class="p">:</span>
+<span class="n">define</span> <span class="n">double</span> <span class="nd">@foo</span><span class="p">(</span><span class="n">double</span> <span class="o">%</span><span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+<span class="n">entry</span><span class="p">:</span>
+  <span class="o">%</span><span class="n">addtmp</span> <span class="o">=</span> <span class="n">fadd</span> <span class="n">double</span> <span class="o">%</span><span class="n">x</span><span class="p">,</span> <span class="mf">1.000000e+00</span>
+  <span class="n">ret</span> <span class="n">double</span> <span class="o">%</span><span class="n">addtmp</span>
+<span class="p">}</span>
+
+<span class="n">ready</span><span class="o">&gt;</span> <span class="n">foo</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+<span class="n">Evaluated</span> <span class="n">to</span> <span class="mf">3.000000</span>
+
+<span class="n">ready</span><span class="o">&gt;</span> <span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="n">x</span> <span class="o">+</span> <span class="mi">2</span><span class="p">;</span>
+<span class="n">define</span> <span class="n">double</span> <span class="nd">@foo</span><span class="p">(</span><span class="n">double</span> <span class="o">%</span><span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+<span class="n">entry</span><span class="p">:</span>
+  <span class="o">%</span><span class="n">addtmp</span> <span class="o">=</span> <span class="n">fadd</span> <span class="n">double</span> <span class="o">%</span><span class="n">x</span><span class="p">,</span> <span class="mf">2.000000e+00</span>
+  <span class="n">ret</span> <span class="n">double</span> <span class="o">%</span><span class="n">addtmp</span>
+<span class="p">}</span>
+
+<span class="n">ready</span><span class="o">&gt;</span> <span class="n">foo</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+<span class="n">Evaluated</span> <span class="n">to</span> <span class="mf">4.000000</span>
+</pre></div>
+</div>
+<p>To allow each function to live in its own module we’ll need a way to
+re-generate previous function declarations into each new module we open:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">KaleidoscopeJIT</span><span class="o">&gt;</span> <span class="n">TheJIT</span><span class="p">;</span>
+
+<span class="p">...</span>
+
+<span class="n">Function</span> <span class="o">*</span><span class="n">getFunction</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// First, see if the function has already been added to the current module.</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="o">*</span><span class="n">F</span> <span class="o">=</span> <span class="n">TheModule</span><span class="o">-&gt;</span><span class="n">getFunction</span><span class="p">(</span><span class="n">Name</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">F</span><span class="p">;</span>
+
+  <span class="c1">// If not, check whether we can codegen the declaration from some existing</span>
+  <span class="c1">// prototype.</span>
+  <span class="k">auto</span> <span class="n">FI</span> <span class="o">=</span> <span class="n">FunctionProtos</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">Name</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">FI</span> <span class="o">!=</span> <span class="n">FunctionProtos</span><span class="p">.</span><span class="n">end</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">FI</span><span class="o">-&gt;</span><span class="n">second</span><span class="o">-&gt;</span><span class="n">codegen</span><span class="p">();</span>
+
+  <span class="c1">// If no existing prototype exists, return null.</span>
+  <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="p">...</span>
+
+<span class="n">Value</span> <span class="o">*</span><span class="n">CallExprAST</span><span class="o">::</span><span class="n">codegen</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// Look up the name in the global module table.</span>
+  <span class="n">Function</span> <span class="o">*</span><span class="n">CalleeF</span> <span class="o">=</span> <span class="n">getFunction</span><span class="p">(</span><span class="n">Callee</span><span class="p">);</span>
+
+<span class="p">...</span>
+
+<span class="n">Function</span> <span class="o">*</span><span class="n">FunctionAST</span><span class="o">::</span><span class="n">codegen</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// Transfer ownership of the prototype to the FunctionProtos map, but keep a</span>
+  <span class="c1">// reference to it for use below.</span>
+  <span class="k">auto</span> <span class="o">&amp;</span><span class="n">P</span> <span class="o">=</span> <span class="o">*</span><span class="n">Proto</span><span class="p">;</span>
+  <span class="n">FunctionProtos</span><span class="p">[</span><span class="n">Proto</span><span class="o">-&gt;</span><span class="n">getName</span><span class="p">()]</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Proto</span><span class="p">);</span>
+  <span class="n">Function</span> <span class="o">*</span><span class="n">TheFunction</span> <span class="o">=</span> <span class="n">getFunction</span><span class="p">(</span><span class="n">P</span><span class="p">.</span><span class="n">getName</span><span class="p">());</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">TheFunction</span><span class="p">)</span>
+    <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>To enable this, we’ll start by adding a new global, <code class="docutils literal"><span class="pre">FunctionProtos</span></code>, that
+holds the most recent prototype for each function. We’ll also add a convenience
+method, <code class="docutils literal"><span class="pre">getFunction()</span></code>, to replace calls to <code class="docutils literal"><span class="pre">TheModule-&gt;getFunction()</span></code>.
+Our convenience method searches <code class="docutils literal"><span class="pre">TheModule</span></code> for an existing function
+declaration, falling back to generating a new declaration from FunctionProtos if
+it doesn’t find one. In <code class="docutils literal"><span class="pre">CallExprAST::codegen()</span></code> we just need to replace the
+call to <code class="docutils literal"><span class="pre">TheModule-&gt;getFunction()</span></code>. In <code class="docutils literal"><span class="pre">FunctionAST::codegen()</span></code> we need to
+update the FunctionProtos map first, then call <code class="docutils literal"><span class="pre">getFunction()</span></code>. With this
+done, we can always obtain a function declaration in the current module for any
+previously declared function.</p>
+<p>We also need to update HandleDefinition and HandleExtern:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">static</span> <span class="kt">void</span> <span class="nf">HandleDefinition</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">FnAST</span> <span class="o">=</span> <span class="n">ParseDefinition</span><span class="p">())</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="o">*</span><span class="n">FnIR</span> <span class="o">=</span> <span class="n">FnAST</span><span class="o">-&gt;</span><span class="n">codegen</span><span class="p">())</span> <span class="p">{</span>
+      <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Read function definition:&quot;</span><span class="p">);</span>
+      <span class="n">FnIR</span><span class="o">-&gt;</span><span class="n">print</span><span class="p">(</span><span class="n">errs</span><span class="p">());</span>
+      <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+      <span class="n">TheJIT</span><span class="o">-&gt;</span><span class="n">addModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">TheModule</span><span class="p">));</span>
+      <span class="n">InitializeModuleAndPassManager</span><span class="p">();</span>
+    <span class="p">}</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="c1">// Skip token for error recovery.</span>
+     <span class="n">getNextToken</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">static</span> <span class="kt">void</span> <span class="nf">HandleExtern</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">ProtoAST</span> <span class="o">=</span> <span class="n">ParseExtern</span><span class="p">())</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="o">*</span><span class="n">FnIR</span> <span class="o">=</span> <span class="n">ProtoAST</span><span class="o">-&gt;</span><span class="n">codegen</span><span class="p">())</span> <span class="p">{</span>
+      <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Read extern: &quot;</span><span class="p">);</span>
+      <span class="n">FnIR</span><span class="o">-&gt;</span><span class="n">print</span><span class="p">(</span><span class="n">errs</span><span class="p">());</span>
+      <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+      <span class="n">FunctionProtos</span><span class="p">[</span><span class="n">ProtoAST</span><span class="o">-&gt;</span><span class="n">getName</span><span class="p">()]</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">ProtoAST</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="c1">// Skip token for error recovery.</span>
+    <span class="n">getNextToken</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>In HandleDefinition, we add two lines to transfer the newly defined function to
+the JIT and open a new module. In HandleExtern, we just need to add one line to
+add the prototype to FunctionProtos.</p>
+<p>With these changes made, lets try our REPL again (I removed the dump of the
+anonymous functions this time, you should get the idea by now :) :</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ready</span><span class="o">&gt;</span> <span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+<span class="n">ready</span><span class="o">&gt;</span> <span class="n">foo</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+<span class="n">Evaluated</span> <span class="n">to</span> <span class="mf">3.000000</span>
+
+<span class="n">ready</span><span class="o">&gt;</span> <span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="n">x</span> <span class="o">+</span> <span class="mi">2</span><span class="p">;</span>
+<span class="n">ready</span><span class="o">&gt;</span> <span class="n">foo</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
+<span class="n">Evaluated</span> <span class="n">to</span> <span class="mf">4.000000</span>
+</pre></div>
+</div>
+<p>It works!</p>
+<p>Even with this simple code, we get some surprisingly powerful capabilities -
+check this out:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ready</span><span class="o">&gt;</span> <span class="n">extern</span> <span class="n">sin</span><span class="p">(</span><span class="n">x</span><span class="p">);</span>
+<span class="n">Read</span> <span class="n">extern</span><span class="p">:</span>
+<span class="n">declare</span> <span class="n">double</span> <span class="nd">@sin</span><span class="p">(</span><span class="n">double</span><span class="p">)</span>
+
+<span class="n">ready</span><span class="o">&gt;</span> <span class="n">extern</span> <span class="n">cos</span><span class="p">(</span><span class="n">x</span><span class="p">);</span>
+<span class="n">Read</span> <span class="n">extern</span><span class="p">:</span>
+<span class="n">declare</span> <span class="n">double</span> <span class="nd">@cos</span><span class="p">(</span><span class="n">double</span><span class="p">)</span>
+
+<span class="n">ready</span><span class="o">&gt;</span> <span class="n">sin</span><span class="p">(</span><span class="mf">1.0</span><span class="p">);</span>
+<span class="n">Read</span> <span class="n">top</span><span class="o">-</span><span class="n">level</span> <span class="n">expression</span><span class="p">:</span>
+<span class="n">define</span> <span class="n">double</span> <span class="nd">@2</span><span class="p">()</span> <span class="p">{</span>
+<span class="n">entry</span><span class="p">:</span>
+  <span class="n">ret</span> <span class="n">double</span> <span class="mh">0x3FEAED548F090CEE</span>
+<span class="p">}</span>
+
+<span class="n">Evaluated</span> <span class="n">to</span> <span class="mf">0.841471</span>
+
+<span class="n">ready</span><span class="o">&gt;</span> <span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="n">sin</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">+</span> <span class="n">cos</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">x</span><span class="p">);</span>
+<span class="n">Read</span> <span class="n">function</span> <span class="n">definition</span><span class="p">:</span>
+<span class="n">define</span> <span class="n">double</span> <span class="nd">@foo</span><span class="p">(</span><span class="n">double</span> <span class="o">%</span><span class="n">x</span><span class="p">)</span> <span class="p">{</span>
+<span class="n">entry</span><span class="p">:</span>
+  <span class="o">%</span><span class="n">calltmp</span> <span class="o">=</span> <span class="n">call</span> <span class="n">double</span> <span class="nd">@sin</span><span class="p">(</span><span class="n">double</span> <span class="o">%</span><span class="n">x</span><span class="p">)</span>
+  <span class="o">%</span><span class="n">multmp</span> <span class="o">=</span> <span class="n">fmul</span> <span class="n">double</span> <span class="o">%</span><span class="n">calltmp</span><span class="p">,</span> <span class="o">%</span><span class="n">calltmp</span>
+  <span class="o">%</span><span class="n">calltmp2</span> <span class="o">=</span> <span class="n">call</span> <span class="n">double</span> <span class="nd">@cos</span><span class="p">(</span><span class="n">double</span> <span class="o">%</span><span class="n">x</span><span class="p">)</span>
+  <span class="o">%</span><span class="n">multmp4</span> <span class="o">=</span> <span class="n">fmul</span> <span class="n">double</span> <span class="o">%</span><span class="n">calltmp2</span><span class="p">,</span> <span class="o">%</span><span class="n">calltmp2</span>
+  <span class="o">%</span><span class="n">addtmp</span> <span class="o">=</span> <span class="n">fadd</span> <span class="n">double</span> <span class="o">%</span><span class="n">multmp</span><span class="p">,</span> <span class="o">%</span><span class="n">multmp4</span>
+  <span class="n">ret</span> <span class="n">double</span> <span class="o">%</span><span class="n">addtmp</span>
+<span class="p">}</span>
+
+<span class="n">ready</span><span class="o">&gt;</span> <span class="n">foo</span><span class="p">(</span><span class="mf">4.0</span><span class="p">);</span>
+<span class="n">Read</span> <span class="n">top</span><span class="o">-</span><span class="n">level</span> <span class="n">expression</span><span class="p">:</span>
+<span class="n">define</span> <span class="n">double</span> <span class="nd">@3</span><span class="p">()</span> <span class="p">{</span>
+<span class="n">entry</span><span class="p">:</span>
+  <span class="o">%</span><span class="n">calltmp</span> <span class="o">=</span> <span class="n">call</span> <span class="n">double</span> <span class="nd">@foo</span><span class="p">(</span><span class="n">double</span> <span class="mf">4.000000e+00</span><span class="p">)</span>
+  <span class="n">ret</span> <span class="n">double</span> <span class="o">%</span><span class="n">calltmp</span>
+<span class="p">}</span>
+
+<span class="n">Evaluated</span> <span class="n">to</span> <span class="mf">1.000000</span>
+</pre></div>
+</div>
+<p>Whoa, how does the JIT know about sin and cos? The answer is surprisingly
+simple: The KaleidoscopeJIT has a straightforward symbol resolution rule that
+it uses to find symbols that aren’t available in any given module: First
+it searches all the modules that have already been added to the JIT, from the
+most recent to the oldest, to find the newest definition. If no definition is
+found inside the JIT, it falls back to calling “<code class="docutils literal"><span class="pre">dlsym(&quot;sin&quot;)</span></code>” on the
+Kaleidoscope process itself. Since “<code class="docutils literal"><span class="pre">sin</span></code>” is defined within the JIT’s
+address space, it simply patches up calls in the module to call the libm
+version of <code class="docutils literal"><span class="pre">sin</span></code> directly. But in some cases this even goes further:
+as sin and cos are names of standard math functions, the constant folder
+will directly evaluate the function calls to the correct result when called
+with constants like in the “<code class="docutils literal"><span class="pre">sin(1.0)</span></code>” above.</p>
+<p>In the future we’ll see how tweaking this symbol resolution rule can be used to
+enable all sorts of useful features, from security (restricting the set of
+symbols available to JIT’d code), to dynamic code generation based on symbol
+names, and even lazy compilation.</p>
+<p>One immediate benefit of the symbol resolution rule is that we can now extend
+the language by writing arbitrary C++ code to implement operations. For example,
+if we add:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#ifdef LLVM_ON_WIN32</span>
+<span class="cp">#define DLLEXPORT __declspec(dllexport)</span>
+<span class="cp">#else</span>
+<span class="cp">#define DLLEXPORT</span>
+<span class="cp">#endif</span>
+
+<span class="c1">/// putchard - putchar that takes a double and returns 0.</span>
+<span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="n">DLLEXPORT</span> <span class="kt">double</span> <span class="n">putchard</span><span class="p">(</span><span class="kt">double</span> <span class="n">X</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">fputc</span><span class="p">((</span><span class="kt">char</span><span class="p">)</span><span class="n">X</span><span class="p">,</span> <span class="n">stderr</span><span class="p">);</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Note, that for Windows we need to actually export the functions because
+the dynamic symbol loader will use GetProcAddress to find the symbols.</p>
+<p>Now we can produce simple output to the console by using things like:
+“<code class="docutils literal"><span class="pre">extern</span> <span class="pre">putchard(x);</span> <span class="pre">putchard(120);</span></code>”, which prints a lowercase ‘x’
+on the console (120 is the ASCII code for ‘x’). Similar code could be
+used to implement file I/O, console input, and many other capabilities
+in Kaleidoscope.</p>
+<p>This completes the JIT and optimizer chapter of the Kaleidoscope
+tutorial. At this point, we can compile a non-Turing-complete
+programming language, optimize and JIT compile it in a user-driven way.
+Next up we’ll look into <a class="reference external" href="LangImpl05.html">extending the language with control flow
+constructs</a>, tackling some interesting LLVM IR issues
+along the way.</p>
+</div>
+<div class="section" id="full-code-listing">
+<h2><a class="toc-backref" href="#id5">4.5. Full Code Listing</a><a class="headerlink" href="#full-code-listing" title="Permalink to this headline">¶</a></h2>
+<p>Here is the complete code listing for our running example, enhanced with
+the LLVM JIT and optimizer. To build this example, use:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="c1"># Compile</span>
+clang++ -g toy.cpp <span class="sb">`</span>llvm-config --cxxflags --ldflags --system-libs --libs core mcjit native<span class="sb">`</span> -O3 -o toy
+<span class="c1"># Run</span>
+./toy
+</pre></div>
+</div>
+<p>If you are compiling this on Linux, make sure to add the “-rdynamic”
+option as well. This makes sure that the external functions are resolved
+properly at runtime.</p>
+<p>Here is the code:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;llvm/ADT/APFloat.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ADT/STLExtras.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/BasicBlock.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/Constants.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/DerivedTypes.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/Function.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/IRBuilder.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/LLVMContext.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/LegacyPassManager.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/Module.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/Type.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/Verifier.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/TargetSelect.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Target/TargetMachine.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Transforms/Scalar.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Transforms/Scalar/GVN.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;../include/KaleidoscopeJIT.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;algorithm&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;cassert&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;cctype&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;cstdint&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;cstdio&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;cstdlib&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;map&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;memory&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;string&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;vector&gt;</span><span class="cp"></span>
+
+<span class="k">using</span> <span class="k">namespace</span> <span class="n">llvm</span><span class="p">;</span>
+<span class="k">using</span> <span class="k">namespace</span> <span class="n">llvm</span><span class="o">::</span><span class="n">orc</span><span class="p">;</span>
+
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+<span class="c1">// Lexer</span>
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+
+<span class="c1">// The lexer returns tokens [0-255] if it is an unknown character, otherwise one</span>
+<span class="c1">// of these for known things.</span>
+<span class="k">enum</span> <span class="n">Token</span> <span class="p">{</span>
+  <span class="n">tok_eof</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+
+  <span class="c1">// commands</span>
+  <span class="n">tok_def</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span><span class="p">,</span>
+  <span class="n">tok_extern</span> <span class="o">=</span> <span class="o">-</span><span class="mi">3</span><span class="p">,</span>
+
+  <span class="c1">// primary</span>
+  <span class="n">tok_identifier</span> <span class="o">=</span> <span class="o">-</span><span class="mi">4</span><span class="p">,</span>
+  <span class="n">tok_number</span> <span class="o">=</span> <span class="o">-</span><span class="mi">5</span>
+<span class="p">};</span>
+
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">IdentifierStr</span><span class="p">;</span> <span class="c1">// Filled in if tok_identifier</span>
+<span class="k">static</span> <span class="kt">double</span> <span class="n">NumVal</span><span class="p">;</span>             <span class="c1">// Filled in if tok_number</span>
+
+<span class="c1">/// gettok - Return the next token from standard input.</span>
+<span class="k">static</span> <span class="kt">int</span> <span class="nf">gettok</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">static</span> <span class="kt">int</span> <span class="n">LastChar</span> <span class="o">=</span> <span class="sc">&#39; &#39;</span><span class="p">;</span>
+
+  <span class="c1">// Skip any whitespace.</span>
+  <span class="k">while</span> <span class="p">(</span><span class="n">isspace</span><span class="p">(</span><span class="n">LastChar</span><span class="p">))</span>
+    <span class="n">LastChar</span> <span class="o">=</span> <span class="n">getchar</span><span class="p">();</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">isalpha</span><span class="p">(</span><span class="n">LastChar</span><span class="p">))</span> <span class="p">{</span> <span class="c1">// identifier: [a-zA-Z][a-zA-Z0-9]*</span>
+    <span class="n">IdentifierStr</span> <span class="o">=</span> <span class="n">LastChar</span><span class="p">;</span>
+    <span class="k">while</span> <span class="p">(</span><span class="n">isalnum</span><span class="p">((</span><span class="n">LastChar</span> <span class="o">=</span> <span class="n">getchar</span><span class="p">())))</span>
+      <span class="n">IdentifierStr</span> <span class="o">+=</span> <span class="n">LastChar</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">IdentifierStr</span> <span class="o">==</span> <span class="s">&quot;def&quot;</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">tok_def</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">IdentifierStr</span> <span class="o">==</span> <span class="s">&quot;extern&quot;</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">tok_extern</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">tok_identifier</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">isdigit</span><span class="p">(</span><span class="n">LastChar</span><span class="p">)</span> <span class="o">||</span> <span class="n">LastChar</span> <span class="o">==</span> <span class="sc">&#39;.&#39;</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// Number: [0-9.]+</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">NumStr</span><span class="p">;</span>
+    <span class="k">do</span> <span class="p">{</span>
+      <span class="n">NumStr</span> <span class="o">+=</span> <span class="n">LastChar</span><span class="p">;</span>
+      <span class="n">LastChar</span> <span class="o">=</span> <span class="n">getchar</span><span class="p">();</span>
+    <span class="p">}</span> <span class="k">while</span> <span class="p">(</span><span class="n">isdigit</span><span class="p">(</span><span class="n">LastChar</span><span class="p">)</span> <span class="o">||</span> <span class="n">LastChar</span> <span class="o">==</span> <span class="sc">&#39;.&#39;</span><span class="p">);</span>
+
+    <span class="n">NumVal</span> <span class="o">=</span> <span class="n">strtod</span><span class="p">(</span><span class="n">NumStr</span><span class="p">.</span><span class="n">c_str</span><span class="p">(),</span> <span class="k">nullptr</span><span class="p">);</span>
+    <span class="k">return</span> <span class="n">tok_number</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">LastChar</span> <span class="o">==</span> <span class="sc">&#39;#&#39;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// Comment until end of line.</span>
+    <span class="k">do</span>
+      <span class="n">LastChar</span> <span class="o">=</span> <span class="n">getchar</span><span class="p">();</span>
+    <span class="k">while</span> <span class="p">(</span><span class="n">LastChar</span> <span class="o">!=</span> <span class="n">EOF</span> <span class="o">&amp;&amp;</span> <span class="n">LastChar</span> <span class="o">!=</span> <span class="sc">&#39;\n&#39;</span> <span class="o">&amp;&amp;</span> <span class="n">LastChar</span> <span class="o">!=</span> <span class="sc">&#39;\r&#39;</span><span class="p">);</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">LastChar</span> <span class="o">!=</span> <span class="n">EOF</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">gettok</span><span class="p">();</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Check for end of file.  Don&#39;t eat the EOF.</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">LastChar</span> <span class="o">==</span> <span class="n">EOF</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">tok_eof</span><span class="p">;</span>
+
+  <span class="c1">// Otherwise, just return the character as its ascii value.</span>
+  <span class="kt">int</span> <span class="n">ThisChar</span> <span class="o">=</span> <span class="n">LastChar</span><span class="p">;</span>
+  <span class="n">LastChar</span> <span class="o">=</span> <span class="n">getchar</span><span class="p">();</span>
+  <span class="k">return</span> <span class="n">ThisChar</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+<span class="c1">// Abstract Syntax Tree (aka Parse Tree)</span>
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+
+<span class="k">namespace</span> <span class="p">{</span>
+
+<span class="c1">/// ExprAST - Base class for all expression nodes.</span>
+<span class="k">class</span> <span class="nc">ExprAST</span> <span class="p">{</span>
+<span class="k">public</span><span class="o">:</span>
+  <span class="k">virtual</span> <span class="o">~</span><span class="n">ExprAST</span><span class="p">()</span> <span class="o">=</span> <span class="k">default</span><span class="p">;</span>
+
+  <span class="k">virtual</span> <span class="n">Value</span> <span class="o">*</span><span class="nf">codegen</span><span class="p">()</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">/// NumberExprAST - Expression class for numeric literals like &quot;1.0&quot;.</span>
+<span class="k">class</span> <span class="nc">NumberExprAST</span> <span class="o">:</span> <span class="k">public</span> <span class="n">ExprAST</span> <span class="p">{</span>
+  <span class="kt">double</span> <span class="n">Val</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+  <span class="n">NumberExprAST</span><span class="p">(</span><span class="kt">double</span> <span class="n">Val</span><span class="p">)</span> <span class="o">:</span> <span class="n">Val</span><span class="p">(</span><span class="n">Val</span><span class="p">)</span> <span class="p">{}</span>
+
+  <span class="n">Value</span> <span class="o">*</span><span class="n">codegen</span><span class="p">()</span> <span class="k">override</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">/// VariableExprAST - Expression class for referencing a variable, like &quot;a&quot;.</span>
+<span class="k">class</span> <span class="nc">VariableExprAST</span> <span class="o">:</span> <span class="k">public</span> <span class="n">ExprAST</span> <span class="p">{</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">Name</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+  <span class="n">VariableExprAST</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Name</span><span class="p">)</span> <span class="o">:</span> <span class="n">Name</span><span class="p">(</span><span class="n">Name</span><span class="p">)</span> <span class="p">{}</span>
+
+  <span class="n">Value</span> <span class="o">*</span><span class="n">codegen</span><span class="p">()</span> <span class="k">override</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">/// BinaryExprAST - Expression class for a binary operator.</span>
+<span class="k">class</span> <span class="nc">BinaryExprAST</span> <span class="o">:</span> <span class="k">public</span> <span class="n">ExprAST</span> <span class="p">{</span>
+  <span class="kt">char</span> <span class="n">Op</span><span class="p">;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">LHS</span><span class="p">,</span> <span class="n">RHS</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+  <span class="n">BinaryExprAST</span><span class="p">(</span><span class="kt">char</span> <span class="n">Op</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">LHS</span><span class="p">,</span>
+                <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">RHS</span><span class="p">)</span>
+      <span class="o">:</span> <span class="n">Op</span><span class="p">(</span><span class="n">Op</span><span class="p">),</span> <span class="n">LHS</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">LHS</span><span class="p">)),</span> <span class="n">RHS</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">RHS</span><span class="p">))</span> <span class="p">{}</span>
+
+  <span class="n">Value</span> <span class="o">*</span><span class="n">codegen</span><span class="p">()</span> <span class="k">override</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">/// CallExprAST - Expression class for function calls.</span>
+<span class="k">class</span> <span class="nc">CallExprAST</span> <span class="o">:</span> <span class="k">public</span> <span class="n">ExprAST</span> <span class="p">{</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">Callee</span><span class="p">;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;&gt;</span> <span class="n">Args</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+  <span class="n">CallExprAST</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Callee</span><span class="p">,</span>
+              <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;&gt;</span> <span class="n">Args</span><span class="p">)</span>
+      <span class="o">:</span> <span class="n">Callee</span><span class="p">(</span><span class="n">Callee</span><span class="p">),</span> <span class="n">Args</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Args</span><span class="p">))</span> <span class="p">{}</span>
+
+  <span class="n">Value</span> <span class="o">*</span><span class="n">codegen</span><span class="p">()</span> <span class="k">override</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">/// PrototypeAST - This class represents the &quot;prototype&quot; for a function,</span>
+<span class="c1">/// which captures its name, and its argument names (thus implicitly the number</span>
+<span class="c1">/// of arguments the function takes).</span>
+<span class="k">class</span> <span class="nc">PrototypeAST</span> <span class="p">{</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">Name</span><span class="p">;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span> <span class="n">Args</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+  <span class="n">PrototypeAST</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Name</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span> <span class="n">Args</span><span class="p">)</span>
+      <span class="o">:</span> <span class="n">Name</span><span class="p">(</span><span class="n">Name</span><span class="p">),</span> <span class="n">Args</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Args</span><span class="p">))</span> <span class="p">{}</span>
+
+  <span class="n">Function</span> <span class="o">*</span><span class="n">codegen</span><span class="p">();</span>
+  <span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">getName</span><span class="p">()</span> <span class="k">const</span> <span class="p">{</span> <span class="k">return</span> <span class="n">Name</span><span class="p">;</span> <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="c1">/// FunctionAST - This class represents a function definition itself.</span>
+<span class="k">class</span> <span class="nc">FunctionAST</span> <span class="p">{</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">PrototypeAST</span><span class="o">&gt;</span> <span class="n">Proto</span><span class="p">;</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">Body</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+  <span class="n">FunctionAST</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">PrototypeAST</span><span class="o">&gt;</span> <span class="n">Proto</span><span class="p">,</span>
+              <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">Body</span><span class="p">)</span>
+      <span class="o">:</span> <span class="n">Proto</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Proto</span><span class="p">)),</span> <span class="n">Body</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Body</span><span class="p">))</span> <span class="p">{}</span>
+
+  <span class="n">Function</span> <span class="o">*</span><span class="n">codegen</span><span class="p">();</span>
+<span class="p">};</span>
+
+<span class="p">}</span> <span class="c1">// end anonymous namespace</span>
+
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+<span class="c1">// Parser</span>
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+
+<span class="c1">/// CurTok/getNextToken - Provide a simple token buffer.  CurTok is the current</span>
+<span class="c1">/// token the parser is looking at.  getNextToken reads another token from the</span>
+<span class="c1">/// lexer and updates CurTok with its results.</span>
+<span class="k">static</span> <span class="kt">int</span> <span class="n">CurTok</span><span class="p">;</span>
+<span class="k">static</span> <span class="kt">int</span> <span class="nf">getNextToken</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="n">CurTok</span> <span class="o">=</span> <span class="n">gettok</span><span class="p">();</span> <span class="p">}</span>
+
+<span class="c1">/// BinopPrecedence - This holds the precedence for each binary operator that is</span>
+<span class="c1">/// defined.</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="kt">char</span><span class="p">,</span> <span class="kt">int</span><span class="o">&gt;</span> <span class="n">BinopPrecedence</span><span class="p">;</span>
+
+<span class="c1">/// GetTokPrecedence - Get the precedence of the pending binary operator token.</span>
+<span class="k">static</span> <span class="kt">int</span> <span class="nf">GetTokPrecedence</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">isascii</span><span class="p">(</span><span class="n">CurTok</span><span class="p">))</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+
+  <span class="c1">// Make sure it&#39;s a declared binop.</span>
+  <span class="kt">int</span> <span class="n">TokPrec</span> <span class="o">=</span> <span class="n">BinopPrecedence</span><span class="p">[</span><span class="n">CurTok</span><span class="p">];</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">TokPrec</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+  <span class="k">return</span> <span class="n">TokPrec</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">/// LogError* - These are little helper functions for error handling.</span>
+<span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">LogError</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">Str</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Error: %s</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">Str</span><span class="p">);</span>
+  <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">PrototypeAST</span><span class="o">&gt;</span> <span class="n">LogErrorP</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">Str</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">LogError</span><span class="p">(</span><span class="n">Str</span><span class="p">);</span>
+  <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">ParseExpression</span><span class="p">();</span>
+
+<span class="c1">/// numberexpr ::= number</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">ParseNumberExpr</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">auto</span> <span class="n">Result</span> <span class="o">=</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">NumberExprAST</span><span class="o">&gt;</span><span class="p">(</span><span class="n">NumVal</span><span class="p">);</span>
+  <span class="n">getNextToken</span><span class="p">();</span> <span class="c1">// consume the number</span>
+  <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Result</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">/// parenexpr ::= &#39;(&#39; expression &#39;)&#39;</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">ParseParenExpr</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">getNextToken</span><span class="p">();</span> <span class="c1">// eat (.</span>
+  <span class="k">auto</span> <span class="n">V</span> <span class="o">=</span> <span class="n">ParseExpression</span><span class="p">();</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">V</span><span class="p">)</span>
+    <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">CurTok</span> <span class="o">!=</span> <span class="sc">&#39;)&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">LogError</span><span class="p">(</span><span class="s">&quot;expected &#39;)&#39;&quot;</span><span class="p">);</span>
+  <span class="n">getNextToken</span><span class="p">();</span> <span class="c1">// eat ).</span>
+  <span class="k">return</span> <span class="n">V</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">/// identifierexpr</span>
+<span class="c1">///   ::= identifier</span>
+<span class="c1">///   ::= identifier &#39;(&#39; expression* &#39;)&#39;</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">ParseIdentifierExpr</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">IdName</span> <span class="o">=</span> <span class="n">IdentifierStr</span><span class="p">;</span>
+
+  <span class="n">getNextToken</span><span class="p">();</span> <span class="c1">// eat identifier.</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">CurTok</span> <span class="o">!=</span> <span class="sc">&#39;(&#39;</span><span class="p">)</span> <span class="c1">// Simple variable ref.</span>
+    <span class="k">return</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">VariableExprAST</span><span class="o">&gt;</span><span class="p">(</span><span class="n">IdName</span><span class="p">);</span>
+
+  <span class="c1">// Call.</span>
+  <span class="n">getNextToken</span><span class="p">();</span> <span class="c1">// eat (</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;&gt;</span> <span class="n">Args</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">CurTok</span> <span class="o">!=</span> <span class="sc">&#39;)&#39;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">Arg</span> <span class="o">=</span> <span class="n">ParseExpression</span><span class="p">())</span>
+        <span class="n">Args</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Arg</span><span class="p">));</span>
+      <span class="k">else</span>
+        <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+
+      <span class="k">if</span> <span class="p">(</span><span class="n">CurTok</span> <span class="o">==</span> <span class="sc">&#39;)&#39;</span><span class="p">)</span>
+        <span class="k">break</span><span class="p">;</span>
+
+      <span class="k">if</span> <span class="p">(</span><span class="n">CurTok</span> <span class="o">!=</span> <span class="sc">&#39;,&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">LogError</span><span class="p">(</span><span class="s">&quot;Expected &#39;)&#39; or &#39;,&#39; in argument list&quot;</span><span class="p">);</span>
+      <span class="n">getNextToken</span><span class="p">();</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Eat the &#39;)&#39;.</span>
+  <span class="n">getNextToken</span><span class="p">();</span>
+
+  <span class="k">return</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">CallExprAST</span><span class="o">&gt;</span><span class="p">(</span><span class="n">IdName</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Args</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="c1">/// primary</span>
+<span class="c1">///   ::= identifierexpr</span>
+<span class="c1">///   ::= numberexpr</span>
+<span class="c1">///   ::= parenexpr</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">ParsePrimary</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">switch</span> <span class="p">(</span><span class="n">CurTok</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">default</span><span class="o">:</span>
+    <span class="k">return</span> <span class="n">LogError</span><span class="p">(</span><span class="s">&quot;unknown token when expecting an expression&quot;</span><span class="p">);</span>
+  <span class="k">case</span> <span class="nl">tok_identifier</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">ParseIdentifierExpr</span><span class="p">();</span>
+  <span class="k">case</span> <span class="nl">tok_number</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">ParseNumberExpr</span><span class="p">();</span>
+  <span class="k">case</span> <span class="sc">&#39;(&#39;</span><span class="o">:</span>
+    <span class="k">return</span> <span class="n">ParseParenExpr</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">/// binoprhs</span>
+<span class="c1">///   ::= (&#39;+&#39; primary)*</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">ParseBinOpRHS</span><span class="p">(</span><span class="kt">int</span> <span class="n">ExprPrec</span><span class="p">,</span>
+                                              <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">LHS</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// If this is a binop, find its precedence.</span>
+  <span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kt">int</span> <span class="n">TokPrec</span> <span class="o">=</span> <span class="n">GetTokPrecedence</span><span class="p">();</span>
+
+    <span class="c1">// If this is a binop that binds at least as tightly as the current binop,</span>
+    <span class="c1">// consume it, otherwise we are done.</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">TokPrec</span> <span class="o">&lt;</span> <span class="n">ExprPrec</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">LHS</span><span class="p">;</span>
+
+    <span class="c1">// Okay, we know this is a binop.</span>
+    <span class="kt">int</span> <span class="n">BinOp</span> <span class="o">=</span> <span class="n">CurTok</span><span class="p">;</span>
+    <span class="n">getNextToken</span><span class="p">();</span> <span class="c1">// eat binop</span>
+
+    <span class="c1">// Parse the primary expression after the binary operator.</span>
+    <span class="k">auto</span> <span class="n">RHS</span> <span class="o">=</span> <span class="n">ParsePrimary</span><span class="p">();</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">RHS</span><span class="p">)</span>
+      <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+
+    <span class="c1">// If BinOp binds less tightly with RHS than the operator after RHS, let</span>
+    <span class="c1">// the pending operator take RHS as its LHS.</span>
+    <span class="kt">int</span> <span class="n">NextPrec</span> <span class="o">=</span> <span class="n">GetTokPrecedence</span><span class="p">();</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">TokPrec</span> <span class="o">&lt;</span> <span class="n">NextPrec</span><span class="p">)</span> <span class="p">{</span>
+      <span class="n">RHS</span> <span class="o">=</span> <span class="n">ParseBinOpRHS</span><span class="p">(</span><span class="n">TokPrec</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">RHS</span><span class="p">));</span>
+      <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">RHS</span><span class="p">)</span>
+        <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="c1">// Merge LHS/RHS.</span>
+    <span class="n">LHS</span> <span class="o">=</span>
+        <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">BinaryExprAST</span><span class="o">&gt;</span><span class="p">(</span><span class="n">BinOp</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">LHS</span><span class="p">),</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">RHS</span><span class="p">));</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">/// expression</span>
+<span class="c1">///   ::= primary binoprhs</span>
+<span class="c1">///</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">ExprAST</span><span class="o">&gt;</span> <span class="n">ParseExpression</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">auto</span> <span class="n">LHS</span> <span class="o">=</span> <span class="n">ParsePrimary</span><span class="p">();</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">LHS</span><span class="p">)</span>
+    <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+
+  <span class="k">return</span> <span class="nf">ParseBinOpRHS</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">LHS</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="c1">/// prototype</span>
+<span class="c1">///   ::= id &#39;(&#39; id* &#39;)&#39;</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">PrototypeAST</span><span class="o">&gt;</span> <span class="n">ParsePrototype</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">CurTok</span> <span class="o">!=</span> <span class="n">tok_identifier</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">LogErrorP</span><span class="p">(</span><span class="s">&quot;Expected function name in prototype&quot;</span><span class="p">);</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">FnName</span> <span class="o">=</span> <span class="n">IdentifierStr</span><span class="p">;</span>
+  <span class="n">getNextToken</span><span class="p">();</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">CurTok</span> <span class="o">!=</span> <span class="sc">&#39;(&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">LogErrorP</span><span class="p">(</span><span class="s">&quot;Expected &#39;(&#39; in prototype&quot;</span><span class="p">);</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span> <span class="n">ArgNames</span><span class="p">;</span>
+  <span class="k">while</span> <span class="p">(</span><span class="n">getNextToken</span><span class="p">()</span> <span class="o">==</span> <span class="n">tok_identifier</span><span class="p">)</span>
+    <span class="n">ArgNames</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">IdentifierStr</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">CurTok</span> <span class="o">!=</span> <span class="sc">&#39;)&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">LogErrorP</span><span class="p">(</span><span class="s">&quot;Expected &#39;)&#39; in prototype&quot;</span><span class="p">);</span>
+
+  <span class="c1">// success.</span>
+  <span class="n">getNextToken</span><span class="p">();</span> <span class="c1">// eat &#39;)&#39;.</span>
+
+  <span class="k">return</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">PrototypeAST</span><span class="o">&gt;</span><span class="p">(</span><span class="n">FnName</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">ArgNames</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="c1">/// definition ::= &#39;def&#39; prototype expression</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">FunctionAST</span><span class="o">&gt;</span> <span class="n">ParseDefinition</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">getNextToken</span><span class="p">();</span> <span class="c1">// eat def.</span>
+  <span class="k">auto</span> <span class="n">Proto</span> <span class="o">=</span> <span class="n">ParsePrototype</span><span class="p">();</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">Proto</span><span class="p">)</span>
+    <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">E</span> <span class="o">=</span> <span class="n">ParseExpression</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">FunctionAST</span><span class="o">&gt;</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Proto</span><span class="p">),</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">E</span><span class="p">));</span>
+  <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">/// toplevelexpr ::= expression</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">FunctionAST</span><span class="o">&gt;</span> <span class="n">ParseTopLevelExpr</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">E</span> <span class="o">=</span> <span class="n">ParseExpression</span><span class="p">())</span> <span class="p">{</span>
+    <span class="c1">// Make an anonymous proto.</span>
+    <span class="k">auto</span> <span class="n">Proto</span> <span class="o">=</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">PrototypeAST</span><span class="o">&gt;</span><span class="p">(</span><span class="s">&quot;__anon_expr&quot;</span><span class="p">,</span>
+                                                 <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="p">());</span>
+    <span class="k">return</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">FunctionAST</span><span class="o">&gt;</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Proto</span><span class="p">),</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">E</span><span class="p">));</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">/// external ::= &#39;extern&#39; prototype</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">PrototypeAST</span><span class="o">&gt;</span> <span class="n">ParseExtern</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">getNextToken</span><span class="p">();</span> <span class="c1">// eat extern.</span>
+  <span class="k">return</span> <span class="nf">ParsePrototype</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+<span class="c1">// Code Generation</span>
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+
+<span class="k">static</span> <span class="n">LLVMContext</span> <span class="n">TheContext</span><span class="p">;</span>
+<span class="k">static</span> <span class="n">IRBuilder</span><span class="o">&lt;&gt;</span> <span class="n">Builder</span><span class="p">(</span><span class="n">TheContext</span><span class="p">);</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">TheModule</span><span class="p">;</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span> <span class="n">Value</span> <span class="o">*&gt;</span> <span class="n">NamedValues</span><span class="p">;</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">legacy</span><span class="o">::</span><span class="n">FunctionPassManager</span><span class="o">&gt;</span> <span class="n">TheFPM</span><span class="p">;</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">KaleidoscopeJIT</span><span class="o">&gt;</span> <span class="n">TheJIT</span><span class="p">;</span>
+<span class="k">static</span> <span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span> <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">PrototypeAST</span><span class="o">&gt;&gt;</span> <span class="n">FunctionProtos</span><span class="p">;</span>
+
+<span class="n">Value</span> <span class="o">*</span><span class="nf">LogErrorV</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">Str</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">LogError</span><span class="p">(</span><span class="n">Str</span><span class="p">);</span>
+  <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">Function</span> <span class="o">*</span><span class="nf">getFunction</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// First, see if the function has already been added to the current module.</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="o">*</span><span class="n">F</span> <span class="o">=</span> <span class="n">TheModule</span><span class="o">-&gt;</span><span class="n">getFunction</span><span class="p">(</span><span class="n">Name</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">F</span><span class="p">;</span>
+
+  <span class="c1">// If not, check whether we can codegen the declaration from some existing</span>
+  <span class="c1">// prototype.</span>
+  <span class="k">auto</span> <span class="n">FI</span> <span class="o">=</span> <span class="n">FunctionProtos</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">Name</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">FI</span> <span class="o">!=</span> <span class="n">FunctionProtos</span><span class="p">.</span><span class="n">end</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">FI</span><span class="o">-&gt;</span><span class="n">second</span><span class="o">-&gt;</span><span class="n">codegen</span><span class="p">();</span>
+
+  <span class="c1">// If no existing prototype exists, return null.</span>
+  <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">Value</span> <span class="o">*</span><span class="n">NumberExprAST</span><span class="o">::</span><span class="n">codegen</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="n">ConstantFP</span><span class="o">::</span><span class="n">get</span><span class="p">(</span><span class="n">TheContext</span><span class="p">,</span> <span class="n">APFloat</span><span class="p">(</span><span class="n">Val</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="n">Value</span> <span class="o">*</span><span class="n">VariableExprAST</span><span class="o">::</span><span class="n">codegen</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// Look this variable up in the function.</span>
+  <span class="n">Value</span> <span class="o">*</span><span class="n">V</span> <span class="o">=</span> <span class="n">NamedValues</span><span class="p">[</span><span class="n">Name</span><span class="p">];</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">V</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">LogErrorV</span><span class="p">(</span><span class="s">&quot;Unknown variable name&quot;</span><span class="p">);</span>
+  <span class="k">return</span> <span class="n">V</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">Value</span> <span class="o">*</span><span class="n">BinaryExprAST</span><span class="o">::</span><span class="n">codegen</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">Value</span> <span class="o">*</span><span class="n">L</span> <span class="o">=</span> <span class="n">LHS</span><span class="o">-&gt;</span><span class="n">codegen</span><span class="p">();</span>
+  <span class="n">Value</span> <span class="o">*</span><span class="n">R</span> <span class="o">=</span> <span class="n">RHS</span><span class="o">-&gt;</span><span class="n">codegen</span><span class="p">();</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">L</span> <span class="o">||</span> <span class="o">!</span><span class="n">R</span><span class="p">)</span>
+    <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+
+  <span class="k">switch</span> <span class="p">(</span><span class="n">Op</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">case</span> <span class="sc">&#39;+&#39;</span><span class="o">:</span>
+    <span class="k">return</span> <span class="n">Builder</span><span class="p">.</span><span class="n">CreateFAdd</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="s">&quot;addtmp&quot;</span><span class="p">);</span>
+  <span class="k">case</span> <span class="sc">&#39;-&#39;</span><span class="o">:</span>
+    <span class="k">return</span> <span class="n">Builder</span><span class="p">.</span><span class="n">CreateFSub</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="s">&quot;subtmp&quot;</span><span class="p">);</span>
+  <span class="k">case</span> <span class="sc">&#39;*&#39;</span><span class="o">:</span>
+    <span class="k">return</span> <span class="n">Builder</span><span class="p">.</span><span class="n">CreateFMul</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="s">&quot;multmp&quot;</span><span class="p">);</span>
+  <span class="k">case</span> <span class="sc">&#39;&lt;&#39;</span><span class="o">:</span>
+    <span class="n">L</span> <span class="o">=</span> <span class="n">Builder</span><span class="p">.</span><span class="n">CreateFCmpULT</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">R</span><span class="p">,</span> <span class="s">&quot;cmptmp&quot;</span><span class="p">);</span>
+    <span class="c1">// Convert bool 0/1 to double 0.0 or 1.0</span>
+    <span class="k">return</span> <span class="n">Builder</span><span class="p">.</span><span class="n">CreateUIToFP</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">Type</span><span class="o">::</span><span class="n">getDoubleTy</span><span class="p">(</span><span class="n">TheContext</span><span class="p">),</span> <span class="s">&quot;booltmp&quot;</span><span class="p">);</span>
+  <span class="k">default</span><span class="o">:</span>
+    <span class="k">return</span> <span class="n">LogErrorV</span><span class="p">(</span><span class="s">&quot;invalid binary operator&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="n">Value</span> <span class="o">*</span><span class="n">CallExprAST</span><span class="o">::</span><span class="n">codegen</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// Look up the name in the global module table.</span>
+  <span class="n">Function</span> <span class="o">*</span><span class="n">CalleeF</span> <span class="o">=</span> <span class="n">getFunction</span><span class="p">(</span><span class="n">Callee</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">CalleeF</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">LogErrorV</span><span class="p">(</span><span class="s">&quot;Unknown function referenced&quot;</span><span class="p">);</span>
+
+  <span class="c1">// If argument mismatch error.</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">CalleeF</span><span class="o">-&gt;</span><span class="n">arg_size</span><span class="p">()</span> <span class="o">!=</span> <span class="n">Args</span><span class="p">.</span><span class="n">size</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">LogErrorV</span><span class="p">(</span><span class="s">&quot;Incorrect # arguments passed&quot;</span><span class="p">);</span>
+
+  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Value</span> <span class="o">*&gt;</span> <span class="n">ArgsV</span><span class="p">;</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">e</span> <span class="o">=</span> <span class="n">Args</span><span class="p">.</span><span class="n">size</span><span class="p">();</span> <span class="n">i</span> <span class="o">!=</span> <span class="n">e</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">ArgsV</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">Args</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">codegen</span><span class="p">());</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">ArgsV</span><span class="p">.</span><span class="n">back</span><span class="p">())</span>
+      <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="k">return</span> <span class="n">Builder</span><span class="p">.</span><span class="n">CreateCall</span><span class="p">(</span><span class="n">CalleeF</span><span class="p">,</span> <span class="n">ArgsV</span><span class="p">,</span> <span class="s">&quot;calltmp&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="n">Function</span> <span class="o">*</span><span class="n">PrototypeAST</span><span class="o">::</span><span class="n">codegen</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// Make the function type:  double(double,double) etc.</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Type</span> <span class="o">*&gt;</span> <span class="n">Doubles</span><span class="p">(</span><span class="n">Args</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span> <span class="n">Type</span><span class="o">::</span><span class="n">getDoubleTy</span><span class="p">(</span><span class="n">TheContext</span><span class="p">));</span>
+  <span class="n">FunctionType</span> <span class="o">*</span><span class="n">FT</span> <span class="o">=</span>
+      <span class="n">FunctionType</span><span class="o">::</span><span class="n">get</span><span class="p">(</span><span class="n">Type</span><span class="o">::</span><span class="n">getDoubleTy</span><span class="p">(</span><span class="n">TheContext</span><span class="p">),</span> <span class="n">Doubles</span><span class="p">,</span> <span class="nb">false</span><span class="p">);</span>
+
+  <span class="n">Function</span> <span class="o">*</span><span class="n">F</span> <span class="o">=</span>
+      <span class="n">Function</span><span class="o">::</span><span class="n">Create</span><span class="p">(</span><span class="n">FT</span><span class="p">,</span> <span class="n">Function</span><span class="o">::</span><span class="n">ExternalLinkage</span><span class="p">,</span> <span class="n">Name</span><span class="p">,</span> <span class="n">TheModule</span><span class="p">.</span><span class="n">get</span><span class="p">());</span>
+
+  <span class="c1">// Set names for all arguments.</span>
+  <span class="kt">unsigned</span> <span class="n">Idx</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+  <span class="k">for</span> <span class="p">(</span><span class="k">auto</span> <span class="o">&amp;</span><span class="nl">Arg</span> <span class="p">:</span> <span class="n">F</span><span class="o">-&gt;</span><span class="n">args</span><span class="p">())</span>
+    <span class="n">Arg</span><span class="p">.</span><span class="n">setName</span><span class="p">(</span><span class="n">Args</span><span class="p">[</span><span class="n">Idx</span><span class="o">++</span><span class="p">]);</span>
+
+  <span class="k">return</span> <span class="n">F</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="n">Function</span> <span class="o">*</span><span class="n">FunctionAST</span><span class="o">::</span><span class="n">codegen</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// Transfer ownership of the prototype to the FunctionProtos map, but keep a</span>
+  <span class="c1">// reference to it for use below.</span>
+  <span class="k">auto</span> <span class="o">&amp;</span><span class="n">P</span> <span class="o">=</span> <span class="o">*</span><span class="n">Proto</span><span class="p">;</span>
+  <span class="n">FunctionProtos</span><span class="p">[</span><span class="n">Proto</span><span class="o">-&gt;</span><span class="n">getName</span><span class="p">()]</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Proto</span><span class="p">);</span>
+  <span class="n">Function</span> <span class="o">*</span><span class="n">TheFunction</span> <span class="o">=</span> <span class="n">getFunction</span><span class="p">(</span><span class="n">P</span><span class="p">.</span><span class="n">getName</span><span class="p">());</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">TheFunction</span><span class="p">)</span>
+    <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+
+  <span class="c1">// Create a new basic block to start insertion into.</span>
+  <span class="n">BasicBlock</span> <span class="o">*</span><span class="n">BB</span> <span class="o">=</span> <span class="n">BasicBlock</span><span class="o">::</span><span class="n">Create</span><span class="p">(</span><span class="n">TheContext</span><span class="p">,</span> <span class="s">&quot;entry&quot;</span><span class="p">,</span> <span class="n">TheFunction</span><span class="p">);</span>
+  <span class="n">Builder</span><span class="p">.</span><span class="n">SetInsertPoint</span><span class="p">(</span><span class="n">BB</span><span class="p">);</span>
+
+  <span class="c1">// Record the function arguments in the NamedValues map.</span>
+  <span class="n">NamedValues</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+  <span class="k">for</span> <span class="p">(</span><span class="k">auto</span> <span class="o">&amp;</span><span class="nl">Arg</span> <span class="p">:</span> <span class="n">TheFunction</span><span class="o">-&gt;</span><span class="n">args</span><span class="p">())</span>
+    <span class="n">NamedValues</span><span class="p">[</span><span class="n">Arg</span><span class="p">.</span><span class="n">getName</span><span class="p">()]</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">Arg</span><span class="p">;</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">Value</span> <span class="o">*</span><span class="n">RetVal</span> <span class="o">=</span> <span class="n">Body</span><span class="o">-&gt;</span><span class="n">codegen</span><span class="p">())</span> <span class="p">{</span>
+    <span class="c1">// Finish off the function.</span>
+    <span class="n">Builder</span><span class="p">.</span><span class="n">CreateRet</span><span class="p">(</span><span class="n">RetVal</span><span class="p">);</span>
+
+    <span class="c1">// Validate the generated code, checking for consistency.</span>
+    <span class="n">verifyFunction</span><span class="p">(</span><span class="o">*</span><span class="n">TheFunction</span><span class="p">);</span>
+
+    <span class="c1">// Run the optimizer on the function.</span>
+    <span class="n">TheFPM</span><span class="o">-&gt;</span><span class="n">run</span><span class="p">(</span><span class="o">*</span><span class="n">TheFunction</span><span class="p">);</span>
+
+    <span class="k">return</span> <span class="n">TheFunction</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Error reading body, remove function.</span>
+  <span class="n">TheFunction</span><span class="o">-&gt;</span><span class="n">eraseFromParent</span><span class="p">();</span>
+  <span class="k">return</span> <span class="k">nullptr</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+<span class="c1">// Top-Level parsing and JIT Driver</span>
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+
+<span class="k">static</span> <span class="kt">void</span> <span class="n">InitializeModuleAndPassManager</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// Open a new module.</span>
+  <span class="n">TheModule</span> <span class="o">=</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span><span class="p">(</span><span class="s">&quot;my cool jit&quot;</span><span class="p">,</span> <span class="n">TheContext</span><span class="p">);</span>
+  <span class="n">TheModule</span><span class="o">-&gt;</span><span class="n">setDataLayout</span><span class="p">(</span><span class="n">TheJIT</span><span class="o">-&gt;</span><span class="n">getTargetMachine</span><span class="p">().</span><span class="n">createDataLayout</span><span class="p">());</span>
+
+  <span class="c1">// Create a new pass manager attached to it.</span>
+  <span class="n">TheFPM</span> <span class="o">=</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">legacy</span><span class="o">::</span><span class="n">FunctionPassManager</span><span class="o">&gt;</span><span class="p">(</span><span class="n">TheModule</span><span class="p">.</span><span class="n">get</span><span class="p">());</span>
+
+  <span class="c1">// Do simple &quot;peephole&quot; optimizations and bit-twiddling optzns.</span>
+  <span class="n">TheFPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createInstructionCombiningPass</span><span class="p">());</span>
+  <span class="c1">// Reassociate expressions.</span>
+  <span class="n">TheFPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createReassociatePass</span><span class="p">());</span>
+  <span class="c1">// Eliminate Common SubExpressions.</span>
+  <span class="n">TheFPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createGVNPass</span><span class="p">());</span>
+  <span class="c1">// Simplify the control flow graph (deleting unreachable blocks, etc).</span>
+  <span class="n">TheFPM</span><span class="o">-&gt;</span><span class="n">add</span><span class="p">(</span><span class="n">createCFGSimplificationPass</span><span class="p">());</span>
+
+  <span class="n">TheFPM</span><span class="o">-&gt;</span><span class="n">doInitialization</span><span class="p">();</span>
+<span class="p">}</span>
+
+<span class="k">static</span> <span class="kt">void</span> <span class="n">HandleDefinition</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">FnAST</span> <span class="o">=</span> <span class="n">ParseDefinition</span><span class="p">())</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="o">*</span><span class="n">FnIR</span> <span class="o">=</span> <span class="n">FnAST</span><span class="o">-&gt;</span><span class="n">codegen</span><span class="p">())</span> <span class="p">{</span>
+      <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Read function definition:&quot;</span><span class="p">);</span>
+      <span class="n">FnIR</span><span class="o">-&gt;</span><span class="n">print</span><span class="p">(</span><span class="n">errs</span><span class="p">());</span>
+      <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+      <span class="n">TheJIT</span><span class="o">-&gt;</span><span class="n">addModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">TheModule</span><span class="p">));</span>
+      <span class="n">InitializeModuleAndPassManager</span><span class="p">();</span>
+    <span class="p">}</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="c1">// Skip token for error recovery.</span>
+    <span class="n">getNextToken</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">static</span> <span class="kt">void</span> <span class="n">HandleExtern</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">ProtoAST</span> <span class="o">=</span> <span class="n">ParseExtern</span><span class="p">())</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="o">*</span><span class="n">FnIR</span> <span class="o">=</span> <span class="n">ProtoAST</span><span class="o">-&gt;</span><span class="n">codegen</span><span class="p">())</span> <span class="p">{</span>
+      <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Read extern: &quot;</span><span class="p">);</span>
+      <span class="n">FnIR</span><span class="o">-&gt;</span><span class="n">print</span><span class="p">(</span><span class="n">errs</span><span class="p">());</span>
+      <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+      <span class="n">FunctionProtos</span><span class="p">[</span><span class="n">ProtoAST</span><span class="o">-&gt;</span><span class="n">getName</span><span class="p">()]</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">ProtoAST</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="c1">// Skip token for error recovery.</span>
+    <span class="n">getNextToken</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">static</span> <span class="kt">void</span> <span class="n">HandleTopLevelExpression</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// Evaluate a top-level expression into an anonymous function.</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">FnAST</span> <span class="o">=</span> <span class="n">ParseTopLevelExpr</span><span class="p">())</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">FnAST</span><span class="o">-&gt;</span><span class="n">codegen</span><span class="p">())</span> <span class="p">{</span>
+      <span class="c1">// JIT the module containing the anonymous expression, keeping a handle so</span>
+      <span class="c1">// we can free it later.</span>
+      <span class="k">auto</span> <span class="n">H</span> <span class="o">=</span> <span class="n">TheJIT</span><span class="o">-&gt;</span><span class="n">addModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">TheModule</span><span class="p">));</span>
+      <span class="n">InitializeModuleAndPassManager</span><span class="p">();</span>
+
+      <span class="c1">// Search the JIT for the __anon_expr symbol.</span>
+      <span class="k">auto</span> <span class="n">ExprSymbol</span> <span class="o">=</span> <span class="n">TheJIT</span><span class="o">-&gt;</span><span class="n">findSymbol</span><span class="p">(</span><span class="s">&quot;__anon_expr&quot;</span><span class="p">);</span>
+      <span class="n">assert</span><span class="p">(</span><span class="n">ExprSymbol</span> <span class="o">&amp;&amp;</span> <span class="s">&quot;Function not found&quot;</span><span class="p">);</span>
+
+      <span class="c1">// Get the symbol&#39;s address and cast it to the right type (takes no</span>
+      <span class="c1">// arguments, returns a double) so we can call it as a native function.</span>
+      <span class="kt">double</span> <span class="p">(</span><span class="o">*</span><span class="n">FP</span><span class="p">)()</span> <span class="o">=</span> <span class="p">(</span><span class="kt">double</span> <span class="p">(</span><span class="o">*</span><span class="p">)())(</span><span class="kt">intptr_t</span><span class="p">)</span><span class="n">cantFail</span><span class="p">(</span><span class="n">ExprSymbol</span><span class="p">.</span><span class="n">getAddress</span><span class="p">());</span>
+      <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;Evaluated to %f</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">FP</span><span class="p">());</span>
+
+      <span class="c1">// Delete the anonymous expression module from the JIT.</span>
+      <span class="n">TheJIT</span><span class="o">-&gt;</span><span class="n">removeModule</span><span class="p">(</span><span class="n">H</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="c1">// Skip token for error recovery.</span>
+    <span class="n">getNextToken</span><span class="p">();</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">/// top ::= definition | external | expression | &#39;;&#39;</span>
+<span class="k">static</span> <span class="kt">void</span> <span class="n">MainLoop</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">while</span> <span class="p">(</span><span class="nb">true</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;ready&gt; &quot;</span><span class="p">);</span>
+    <span class="k">switch</span> <span class="p">(</span><span class="n">CurTok</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">case</span> <span class="nl">tok_eof</span><span class="p">:</span>
+      <span class="k">return</span><span class="p">;</span>
+    <span class="k">case</span> <span class="sc">&#39;;&#39;</span><span class="o">:</span> <span class="c1">// ignore top-level semicolons.</span>
+      <span class="n">getNextToken</span><span class="p">();</span>
+      <span class="k">break</span><span class="p">;</span>
+    <span class="k">case</span> <span class="nl">tok_def</span><span class="p">:</span>
+      <span class="n">HandleDefinition</span><span class="p">();</span>
+      <span class="k">break</span><span class="p">;</span>
+    <span class="k">case</span> <span class="nl">tok_extern</span><span class="p">:</span>
+      <span class="n">HandleExtern</span><span class="p">();</span>
+      <span class="k">break</span><span class="p">;</span>
+    <span class="k">default</span><span class="o">:</span>
+      <span class="n">HandleTopLevelExpression</span><span class="p">();</span>
+      <span class="k">break</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+<span class="c1">// &quot;Library&quot; functions that can be &quot;extern&#39;d&quot; from user code.</span>
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+
+<span class="cp">#ifdef LLVM_ON_WIN32</span>
+<span class="cp">#define DLLEXPORT __declspec(dllexport)</span>
+<span class="cp">#else</span>
+<span class="cp">#define DLLEXPORT</span>
+<span class="cp">#endif</span>
+
+<span class="c1">/// putchard - putchar that takes a double and returns 0.</span>
+<span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="n">DLLEXPORT</span> <span class="kt">double</span> <span class="n">putchard</span><span class="p">(</span><span class="kt">double</span> <span class="n">X</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">fputc</span><span class="p">((</span><span class="kt">char</span><span class="p">)</span><span class="n">X</span><span class="p">,</span> <span class="n">stderr</span><span class="p">);</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">/// printd - printf that takes a double prints it as &quot;%f\n&quot;, returning 0.</span>
+<span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="n">DLLEXPORT</span> <span class="kt">double</span> <span class="n">printd</span><span class="p">(</span><span class="kt">double</span> <span class="n">X</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;%f</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">X</span><span class="p">);</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+<span class="c1">// Main driver code.</span>
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+
+<span class="kt">int</span> <span class="n">main</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">InitializeNativeTarget</span><span class="p">();</span>
+  <span class="n">InitializeNativeTargetAsmPrinter</span><span class="p">();</span>
+  <span class="n">InitializeNativeTargetAsmParser</span><span class="p">();</span>
+
+  <span class="c1">// Install standard binary operators.</span>
+  <span class="c1">// 1 is lowest precedence.</span>
+  <span class="n">BinopPrecedence</span><span class="p">[</span><span class="sc">&#39;&lt;&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">10</span><span class="p">;</span>
+  <span class="n">BinopPrecedence</span><span class="p">[</span><span class="sc">&#39;+&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">20</span><span class="p">;</span>
+  <span class="n">BinopPrecedence</span><span class="p">[</span><span class="sc">&#39;-&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">20</span><span class="p">;</span>
+  <span class="n">BinopPrecedence</span><span class="p">[</span><span class="sc">&#39;*&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">40</span><span class="p">;</span> <span class="c1">// highest.</span>
+
+  <span class="c1">// Prime the first token.</span>
+  <span class="n">fprintf</span><span class="p">(</span><span class="n">stderr</span><span class="p">,</span> <span class="s">&quot;ready&gt; &quot;</span><span class="p">);</span>
+  <span class="n">getNextToken</span><span class="p">();</span>
+
+  <span class="n">TheJIT</span> <span class="o">=</span> <span class="n">llvm</span><span class="o">::</span><span class="n">make_unique</span><span class="o">&lt;</span><span class="n">KaleidoscopeJIT</span><span class="o">&gt;</span><span class="p">();</span>
+
+  <span class="n">InitializeModuleAndPassManager</span><span class="p">();</span>
+
+  <span class="c1">// Run the main &quot;interpreter loop&quot; now.</span>
+  <span class="n">MainLoop</span><span class="p">();</span>
+
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><a class="reference external" href="LangImpl05.html">Next: Extending the language: control flow</a></p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="LangImpl05.html" title="5. Kaleidoscope: Extending the Language: Control Flow"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="LangImpl03.html" title="3. Kaleidoscope: Code generation to LLVM IR"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Tutorial: Table of Contents</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

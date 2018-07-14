@@ -204,6 +204,7 @@
 #include "GenXModule.h"
 #include "GenXRegion.h"
 #include "llvm/ADT/MapVector.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/Analysis/CFG.h"
@@ -213,6 +214,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/PatternMatch.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 
@@ -234,11 +236,11 @@ private:
     return KindID;
   }
 public:
-  static void emit(Instruction *Inst, const Twine &Msg, DiagnosticSeverity Severity = DS_Error);
+  static void emit(Instruction *Inst, StringRef Msg, DiagnosticSeverity Severity = DS_Error);
   DiagnosticInfoSimdCF(DiagnosticSeverity Severity, const Function &Fn,
-      const DebugLoc &DLoc, const Twine &Msg)
+      const DebugLoc &DLoc, StringRef Msg)
       : DiagnosticInfoOptimizationBase((DiagnosticKind)getKindID(), Severity,
-          /*PassName=*/nullptr, Fn, DLoc, Msg) {}
+          /*PassName=*/nullptr, Msg, Fn, DLoc) {}
   // This kind of message is always enabled, and not affected by -rpass.
   virtual bool isEnabled() const override { return true; }
   static bool classof(const DiagnosticInfo *DI) {
@@ -305,7 +307,7 @@ class GenXEarlySimdCFConformance
 public:
   static char ID;
   explicit GenXEarlySimdCFConformance() : ModulePass(ID) { }
-  virtual const char *getPassName() const { return "GenX early SIMD control flow conformance"; }
+  virtual StringRef getPassName() const { return "GenX early SIMD control flow conformance"; }
   void getAnalysisUsage(AnalysisUsage &AU) const {
     ModulePass::getAnalysisUsage(AU);
   }
@@ -318,7 +320,7 @@ class GenXLateSimdCFConformance
 public:
   static char ID;
   explicit GenXLateSimdCFConformance() : FunctionGroupPass(ID) { }
-  virtual const char *getPassName() const { return "GenX late SIMD control flow conformance"; }
+  virtual StringRef getPassName() const { return "GenX late SIMD control flow conformance"; }
   void getAnalysisUsage(AnalysisUsage &AU) const {
     FunctionGroupPass::getAnalysisUsage(AU);
     AU.addRequired<DominatorTreeGroupWrapperPass>();
@@ -1234,16 +1236,90 @@ void GenXSimdCFConformance::pushValues(Value *V)
  */
 static bool checkAllUsesAreSelectOrWrRegion(Value *V)
 {
-  for (auto ui2 = V->use_begin(), ue2 = V->use_end();
-      ui2 != ue2; ++ui2) {
+  for (auto ui2 = V->use_begin(); ui2 != V->use_end(); /*empty*/) {
     auto User2 = cast<Instruction>(ui2->getUser());
+    unsigned OpNum = ui2->getOperandNo();
+    ++ui2;
+
     if (isa<SelectInst>(User2))
       continue;
+
+    // Matches uses that can be turned into select.
+    if (auto BI = dyn_cast<BinaryOperator>(User2)) {
+      auto Opc = BI->getOpcode();
+      Constant *AllOne = Constant::getAllOnesValue(V->getType());
+      Constant *AllNul = Constant::getNullValue(V->getType());
+
+      // EM && X -> sel EM X 0
+      // EM || X -> sel EM 1 X
+      if (Opc == BinaryOperator::And ||
+          Opc == BinaryOperator::Or) {
+        Value *Ops[3] = {V, nullptr, nullptr};
+        if (Opc == BinaryOperator::And) {
+          Ops[1] = BI->getOperand(1 - OpNum);
+          Ops[2] = AllNul;
+        } else if (Opc == BinaryOperator::Or) {
+          Ops[1] = AllOne;
+          Ops[2] = BI->getOperand(1 - OpNum);
+        }
+        auto SI = SelectInst::Create(Ops[0], Ops[1], Ops[2], ".revsel", BI, BI);
+        BI->replaceAllUsesWith(SI);
+        BI->eraseFromParent();
+        continue;
+      }
+
+      // ~EM || X ==> sel EM, X, 1
+      using namespace PatternMatch;
+      if (BI->hasOneUse() &&
+          BI->user_back()->getOpcode() == BinaryOperator::Or &&
+          match(BI, m_Xor(m_Specific(V), m_Specific(AllOne)))) {
+        Instruction *OrInst = BI->user_back();
+        Value *Op = OrInst->getOperand(0) != BI ? OrInst->getOperand(0)
+                                                : OrInst->getOperand(1);
+        auto SI = SelectInst::Create(V, Op, AllOne, ".revsel", OrInst, OrInst);
+        OrInst->replaceAllUsesWith(SI);
+        OrInst->eraseFromParent();
+        BI->eraseFromParent();
+        continue;
+      }
+
+      // ~EM && X ==> sel EM, 0, X
+      using namespace PatternMatch;
+      if (BI->hasOneUse() &&
+          BI->user_back()->getOpcode() == BinaryOperator::And &&
+          match(BI, m_Xor(m_Specific(V), m_Specific(AllOne)))) {
+        Instruction *AndInst = BI->user_back();
+        Value *Op = AndInst->getOperand(0) != BI ? AndInst->getOperand(0)
+                                                 : AndInst->getOperand(1);
+        auto SI = SelectInst::Create(V, AllNul, Op, ".revsel", AndInst, AndInst);
+        AndInst->replaceAllUsesWith(SI);
+        AndInst->eraseFromParent();
+        BI->eraseFromParent();
+        continue;
+      }
+    } else if (auto CI = dyn_cast<CastInst>(User2)) {
+      // Turn zext/sext to select.
+      if (CI->getOpcode() == Instruction::CastOps::ZExt ||
+          CI->getOpcode() == Instruction::CastOps::SExt) {
+        unsigned NElts = V->getType()->getVectorNumElements();
+        unsigned NBits = CI->getType()->getScalarSizeInBits();
+        int Val = (CI->getOpcode() == Instruction::CastOps::ZExt) ? 1 : -1;
+        APInt One(NBits, Val);
+        Constant *LHS = ConstantVector::getSplat(
+            NElts, ConstantInt::get(CI->getType()->getScalarType(), One));
+        Constant *AllNul = Constant::getNullValue(CI->getType());
+        auto SI = SelectInst::Create(V, LHS, AllNul, ".revsel", CI, CI);
+        CI->replaceAllUsesWith(SI);
+        CI->eraseFromParent();
+        continue;
+      }
+    }
+
     unsigned IID = getIntrinsicID(User2);
     if (isWrRegion(IID))
       continue;
     if (IID == Intrinsic::genx_wrpredpredregion
-        && ui2->getOperandNo() == cast<CallInst>(User2)->getNumArgOperands() - 1)
+        && OpNum == cast<CallInst>(User2)->getNumArgOperands() - 1)
       continue;
     if (IID != Intrinsic::not_intrinsic
         && !cast<CallInst>(User2)->doesNotAccessMemory())
@@ -1688,14 +1764,14 @@ void GenXSimdCFConformance::checkInterference(SetVector<SimpleValue> *Vals,
           // time we reach the start of a block: in that case, mark only the
           // corresponding phi block is pending.
           if (PhiPred) {
-            if (LiveOut.insert(PhiPred))
+            if (LiveOut.insert(PhiPred).second)
               PendingBBStack.push_back(PhiPred);
             PhiPred = nullptr;
           } else {
             for (auto bui = Inst->getParent()->use_begin(),
                 bue = Inst->getParent()->use_end(); bui != bue; ++bui) {
               auto Pred = cast<TerminatorInst>(bui->getUser())->getParent();
-              if (LiveOut.insert(Pred))
+              if (LiveOut.insert(Pred).second)
                 PendingBBStack.push_back(Pred);
             }
           }
@@ -2108,7 +2184,7 @@ void GenXLateSimdCFConformance::modifyEMUses(Value *EM)
 /***********************************************************************
  * DiagnosticInfoSimdCF::emit : emit an error or warning
  */
-void DiagnosticInfoSimdCF::emit(Instruction *Inst, const Twine &Msg,
+void DiagnosticInfoSimdCF::emit(Instruction *Inst, StringRef Msg,
         DiagnosticSeverity Severity)
 {
   DiagnosticInfoSimdCF Err(Severity, *Inst->getParent()->getParent(),

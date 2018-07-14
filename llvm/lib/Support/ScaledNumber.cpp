@@ -12,9 +12,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/ScaledNumber.h"
-
 #include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 using namespace llvm::ScaledNumbers;
@@ -169,6 +170,7 @@ static std::string toStringAPFloat(uint64_t D, int E, unsigned Precision) {
   int Shift = 63 - (NewE - E);
   assert(Shift <= LeadingZeros);
   assert(Shift == LeadingZeros || NewE == ScaledNumbers::MaxScale);
+  assert(Shift >= 0 && Shift < 64 && "undefined behavior");
   D <<= Shift;
   E = NewE;
 
@@ -181,7 +183,7 @@ static std::string toStringAPFloat(uint64_t D, int E, unsigned Precision) {
 
   // Build the float and print it.
   uint64_t RawBits[2] = {D, AdjustedE};
-  APFloat Float(APFloat::x87DoubleExtended, APInt(80, RawBits));
+  APFloat Float(APFloat::x87DoubleExtended(), APInt(80, RawBits));
   SmallVector<char, 24> Chars;
   Float.toString(Chars, Precision, 0);
   return std::string(Chars.begin(), Chars.end());
@@ -220,6 +222,9 @@ std::string ScaledNumberBase::toString(uint64_t D, int16_t E, int Width,
   } else if (E > -64) {
     Above0 = D >> -E;
     Below0 = D << (64 + E);
+  } else if (E == -64) {
+    // Special case: shift by 64 bits is undefined behavior.
+    Below0 = D;
   } else if (E > -120) {
     Below0 = D >> (-E - 64);
     Extra = D << (128 + E);

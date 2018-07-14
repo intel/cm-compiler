@@ -14,9 +14,9 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/PassManager.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/SourceMgr.h"
 #include "gtest/gtest.h"
@@ -30,20 +30,16 @@ namespace {
 class IsPotentiallyReachableTest : public testing::Test {
 protected:
   void ParseAssembly(const char *Assembly) {
-    M.reset(new Module("Module", getGlobalContext()));
-
     SMDiagnostic Error;
-    bool Parsed = ParseAssemblyString(Assembly, M.get(),
-                                      Error, M->getContext()) == M.get();
+    M = parseAssemblyString(Assembly, Error, Context);
 
     std::string errMsg;
     raw_string_ostream os(errMsg);
     Error.print("", os);
 
-    if (!Parsed) {
-      // A failure here means that the test itself is buggy.
+    // A failure here means that the test itself is buggy.
+    if (!M)
       report_fatal_error(os.str().c_str());
-    }
 
     Function *F = M->getFunction("test");
     if (F == nullptr)
@@ -76,23 +72,23 @@ protected:
         PassInfo *PI = new PassInfo("isPotentiallyReachable testing pass",
                                     "", &ID, nullptr, true, true);
         PassRegistry::getPassRegistry()->registerPass(*PI, false);
-        initializeLoopInfoPass(*PassRegistry::getPassRegistry());
+        initializeLoopInfoWrapperPassPass(*PassRegistry::getPassRegistry());
         initializeDominatorTreeWrapperPassPass(
             *PassRegistry::getPassRegistry());
         return 0;
       }
 
-      void getAnalysisUsage(AnalysisUsage &AU) const {
+      void getAnalysisUsage(AnalysisUsage &AU) const override {
         AU.setPreservesAll();
-        AU.addRequired<LoopInfo>();
+        AU.addRequired<LoopInfoWrapperPass>();
         AU.addRequired<DominatorTreeWrapperPass>();
       }
 
-      bool runOnFunction(Function &F) {
+      bool runOnFunction(Function &F) override {
         if (!F.hasName() || F.getName() != "test")
           return false;
 
-        LoopInfo *LI = &getAnalysis<LoopInfo>();
+        LoopInfo *LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
         DominatorTree *DT =
             &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
         EXPECT_EQ(isPotentiallyReachable(A, B, nullptr, nullptr),
@@ -111,11 +107,12 @@ protected:
 
     IsPotentiallyReachableTestPass *P =
         new IsPotentiallyReachableTestPass(ExpectedResult, A, B);
-    PassManager PM;
+    legacy::PassManager PM;
     PM.add(P);
     PM.run(*M);
   }
 
+  LLVMContext Context;
   std::unique_ptr<Module> M;
   Instruction *A, *B;
 };
@@ -382,7 +379,7 @@ TEST_F(IsPotentiallyReachableTest, BranchInsideLoop) {
 TEST_F(IsPotentiallyReachableTest, ModifyTest) {
   ParseAssembly(BranchInsideLoopIR);
 
-  succ_iterator S = succ_begin(++M->getFunction("test")->begin());
+  succ_iterator S = succ_begin(&*++M->getFunction("test")->begin());
   BasicBlock *OldBB = S[0];
   S[0] = S[1];
   ExpectPath(false);

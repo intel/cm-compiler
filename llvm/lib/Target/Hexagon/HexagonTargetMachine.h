@@ -11,11 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef HexagonTARGETMACHINE_H
-#define HexagonTARGETMACHINE_H
+#ifndef LLVM_LIB_TARGET_HEXAGON_HEXAGONTARGETMACHINE_H
+#define LLVM_LIB_TARGET_HEXAGON_HEXAGONTARGETMACHINE_H
 
 #include "HexagonInstrInfo.h"
 #include "HexagonSubtarget.h"
+#include "HexagonTargetObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
@@ -23,44 +24,27 @@ namespace llvm {
 class Module;
 
 class HexagonTargetMachine : public LLVMTargetMachine {
-  HexagonSubtarget Subtarget;
+  std::unique_ptr<TargetLoweringObjectFile> TLOF;
+  mutable StringMap<std::unique_ptr<HexagonSubtarget>> SubtargetMap;
 
 public:
-  HexagonTargetMachine(const Target &T, StringRef TT,StringRef CPU,
+  HexagonTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options,
-                       Reloc::Model RM, CodeModel::Model CM,
-                       CodeGenOpt::Level OL);
+                       Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
+                       CodeGenOpt::Level OL, bool JIT);
+  ~HexagonTargetMachine() override;
+  const HexagonSubtarget *getSubtargetImpl(const Function &F) const override;
 
-  const HexagonInstrInfo *getInstrInfo() const override {
-    return getSubtargetImpl()->getInstrInfo();
-  }
-  const HexagonSubtarget *getSubtargetImpl() const override {
-    return &Subtarget;
-  }
-  const HexagonRegisterInfo *getRegisterInfo() const override {
-    return getSubtargetImpl()->getRegisterInfo();
-  }
-  const InstrItineraryData* getInstrItineraryData() const override {
-    return &getSubtargetImpl()->getInstrItineraryData();
-  }
-  const HexagonTargetLowering* getTargetLowering() const override {
-    return getSubtargetImpl()->getTargetLowering();
-  }
-  const HexagonFrameLowering* getFrameLowering() const override {
-    return getSubtargetImpl()->getFrameLowering();
-  }
-  const HexagonSelectionDAGInfo* getSelectionDAGInfo() const override {
-    return getSubtargetImpl()->getSelectionDAGInfo();
-  }
-  const DataLayout *getDataLayout() const override {
-    return getSubtargetImpl()->getDataLayout();
-  }
   static unsigned getModuleMatchQuality(const Module &M);
 
+  void adjustPassManager(PassManagerBuilder &PMB) override;
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
-};
+  TargetTransformInfo getTargetTransformInfo(const Function &F) override;
 
-extern bool flag_aligned_memcpy;
+  HexagonTargetObjectFile *getObjFileLowering() const override {
+    return static_cast<HexagonTargetObjectFile*>(TLOF.get());
+  }
+};
 
 } // end namespace llvm
 

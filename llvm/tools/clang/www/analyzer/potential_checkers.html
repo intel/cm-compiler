@@ -104,6 +104,32 @@ void test() {
 </pre></div></div></td>
 <td class="aligned"></td></tr>
 
+<tr><td><div class="namedescr expandable"><span class="name">
+memory.ZeroAlloc</span><span class="lang">
+(C, C++)</span><div class="descr">
+Allocation of zero bytes.
+<br>Note: an enhancement to <span class="name">unix.Malloc</span>.
+<br>Note: <span class="name">unix.API</span> perform C-checks for zero 
+allocation. This should be moved to <span class="name">unix.Malloc</span>.
+<p>Source: C++03 3.7.3.1p2; C++11 3.7.4.1p2.</p></div></div></td>
+<td><div class="exampleContainer expandable">
+<div class="example"><pre>
+#include &lt;stdlib.h&gt;
+
+void test() {
+  int *p = malloc(0); // warn
+  free(p);
+}
+</pre></div>
+<div class="example"><pre>
+void test() {
+  int *p = new int[0]; // warn
+  delete[] p;
+}
+</pre></div></div></td>
+<td class="aligned"><a href="http://reviews.llvm.org/D6178">
+D6178</a></td></tr>
+
 </table>
 
 <!-- ======================= constructors/destructors ====================== -->
@@ -151,64 +177,6 @@ void test(A *dst, A *src) {
 }
 </pre></div></div></td>
 <td class="aligned"><!--rdar://problem/13688366--></td></tr>
-
-</table>
-
-<!-- =============================== va_list =============================== -->
-<h3>va_list</h3>
-<table class="checkers">
-<col class="namedescr"><col class="example"><col class="progress">
-<thead><tr><td>Name, Description</td><td>Example</td><td>Progress</td></tr></thead>
-
-<tr><td><div class="namedescr expandable"><span class="name">
-valist.Uninitialized</span><span class="lang">
-(C)</span><div class="descr">
-Calls to the <code>va_arg</code>, <code>va_copy</code>, or
-<code>va_end</code> macro must happen after calling <code>va_start</code> and
-before calling <code>va_end</code>.</div></div></td>
-<td><div class="exampleContainer expandable">
-<div class="example"><pre>
-#include &lt;stdarg.h&gt;
-
-void test(int x, ...) {
-  va_list args;
-  int y = va_arg(args, int); // warn
-}
-</pre></div>
-<div class="example"><pre>
-#include &lt;stdarg.h&gt;
-
-void test(int x, ...) {
-  va_list args;
-  va_start(args, x); 
-  va_end(args);
-  int z = va_arg(args, int); // warn
-}
-</pre></div></div></td>
-<td class="aligned"><a href="http://llvm.org/bugs/show_bug.cgi?id=16812">
-PR16811</a></td></tr>
-
-<tr><td><div class="namedescr expandable"><span class="name">
-valist.Unterminated</span><span class="lang">
-(C)</span><div class="descr">
-Every <code>va_start</code> must be matched by a <code>va_end</code>. A va_list
-can only be ended once.
-
-<i>This should be folded into the generalized "ownership checker"
-described on the <a href="open_projects.html">
-Open Projects</a> page.</i></div></div></td>
-<td><div class="exampleContainer expandable">
-<div class="example"><pre>
-#include &lt;stdarg.h&gt;
-
-void test(int x, ...) {
-  va_list args;
-  va_start(args, x);
-  int y = x + va_arg(args, int);
-} // warn: missing va_end
-</pre></div></div></td>
-<td class="aligned"><a href="http://llvm.org/bugs/show_bug.cgi?id=16812">
-PR16812</a></td></tr>
 
 </table>
 
@@ -358,7 +326,8 @@ void test() {
    // warn: the right operand to '-' is always 0
 }
 </pre></div></div></td>
-<td class="aligned">removed from alpha.deadcode.* at r198476</td></tr>
+<td class="aligned">removed from alpha.deadcode.* at
+<a href="https://reviews.llvm.org/rL198476">r198476</a></td></tr>
 
 </table>
 
@@ -461,14 +430,24 @@ unix.Malloc</span>.
 <p>Source: C++03 3.7.3.1p2; C++11 3.7.4.1p2.</p></div></div></td>
 <td><div class="exampleContainer expandable">
 <div class="example"><pre>
-int *p = malloc(0);
-*p = 1; // warn
+#include &lt;stdlib.h&gt;
+
+void test() {
+  int *p = (int *)malloc(0);
+  *p = 1; // warn
+  free(p);
+}
 </pre></div>
 <div class="example"><pre>
-int *p = new int{};
-int i = *p; // warn
+void f(int);
+
+void test() {
+  int *p = new int[0];
+  f(*p); // warn
+  delete[] p;
+}
 </pre></div></div></td>
-<td class="aligned"></td></tr>
+<td class="aligned"><a href="http://reviews.llvm.org/D8273">D8273</a></td></tr>
 
 
 <tr><td><div class="namedescr expandable"><span class="name">

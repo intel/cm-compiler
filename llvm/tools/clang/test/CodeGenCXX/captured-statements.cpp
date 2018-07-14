@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++11 -triple %itanium_abi_triple -emit-llvm %s -o %t
+// RUN: %clang_cc1 -std=c++11 -triple %itanium_abi_triple -emit-llvm %s -o %t -debug-info-kind=limited
 // RUN: FileCheck %s -input-file=%t -check-prefix=CHECK-1
 // RUN: FileCheck %s -input-file=%t -check-prefix=CHECK-2
 // RUN: FileCheck %s -input-file=%t -check-prefix=CHECK-3
@@ -21,6 +21,8 @@ struct TestClass {
     Foo f;
     #pragma clang __debug captured
     {
+      static double inner = x;
+      (void)inner;
       f.y = x;
     }
   }
@@ -29,22 +31,26 @@ struct TestClass {
 void test1() {
   TestClass c;
   c.MemberFunc();
-  // CHECK-1: %[[Capture:struct\.anon[\.0-9]*]] = type { %struct.Foo*, %struct.TestClass* }
+  // CHECK-1: %[[Capture:struct\.anon[\.0-9]*]] = type { %struct.TestClass*, %struct.Foo* }
+  // CHECK-1: [[INNER:@.+]] = {{.+}} global double
 
   // CHECK-1: define {{.*}} void @_ZN9TestClass10MemberFuncEv
   // CHECK-1:   alloca %struct.anon
-  // CHECK-1:   getelementptr inbounds %[[Capture]]* %{{[^,]*}}, i32 0, i32 0
+  // CHECK-1:   getelementptr inbounds %[[Capture]], %[[Capture]]* %{{[^,]*}}, i32 0, i32 0
+  // CHECK-1:   getelementptr inbounds %[[Capture]], %[[Capture]]* %{{[^,]*}}, i32 0, i32 1
   // CHECK-1:   store %struct.Foo* %f, %struct.Foo**
-  // CHECK-1:   getelementptr inbounds %[[Capture]]* %{{[^,]*}}, i32 0, i32 1
-  // CHECK-1:   call void @[[HelperName:[A-Za-z0-9_]+]](%[[Capture]]*
+  // CHECK-1:   call void @[[HelperName:[\.A-Za-z0-9_]+]](%[[Capture]]*
   // CHECK-1:   call {{.*}}FooD1Ev
   // CHECK-1:   ret
 }
 
-// CHECK-1: define internal void @[[HelperName]]
-// CHECK-1:   getelementptr inbounds %[[Capture]]* {{[^,]*}}, i32 0, i32 1
-// CHECK-1:   getelementptr inbounds %struct.TestClass* {{[^,]*}}, i32 0, i32 0
-// CHECK-1:   getelementptr inbounds %[[Capture]]* {{[^,]*}}, i32 0, i32 0
+// CHECK-1: define internal {{.*}}void @[[HelperName]]
+// CHECK-1:   getelementptr inbounds %[[Capture]], %[[Capture]]* {{[^,]*}}, i32 0, i32 0
+// CHECK-1:   call {{.*}}i32 @__cxa_guard_acquire(
+// CHECK-1:   store double %{{.+}}, double* [[INNER]],
+// CHECK-1:   call {{.*}}void @__cxa_guard_release(
+// CHECK-1:   getelementptr inbounds %struct.TestClass, %struct.TestClass* {{[^,]*}}, i32 0, i32 0
+// CHECK-1:   getelementptr inbounds %[[Capture]], %[[Capture]]* {{[^,]*}}, i32 0, i32 1
 
 void test2(int x) {
   int y = [&]() {
@@ -55,16 +61,16 @@ void test2(int x) {
     return x;
   }();
 
-  // CHECK-2-LABEL: define void @_Z5test2i
+  // CHECK-2-LABEL: define {{.*}}void @_Z5test2i
   // CHECK-2:   call {{.*}} @[[Lambda:["$\w]+]]
   //
   // CHECK-2: define internal {{.*}} @[[Lambda]]
   // CHECK-2:   call void @[[HelperName:["$_A-Za-z0-9]+]](%[[Capture:.*]]*
   //
-  // CHECK-2: define internal void @[[HelperName]]
-  // CHECK-2:   getelementptr inbounds %[[Capture]]*
-  // CHECK-2:   load i32**
-  // CHECK-2:   load i32*
+  // CHECK-2: define internal {{.*}}void @[[HelperName]]
+  // CHECK-2:   getelementptr inbounds %[[Capture]], %[[Capture]]*
+  // CHECK-2:   load i32*, i32**
+  // CHECK-2:   load i32, i32*
 }
 
 void test3(int x) {
@@ -72,10 +78,11 @@ void test3(int x) {
   {
     x = [=]() { return x + 1; } ();
   }
+  x = [=]() { return x + 1; }();
 
   // CHECK-3: %[[Capture:struct\.anon[\.0-9]*]] = type { i32* }
 
-  // CHECK-3-LABEL: define void @_Z5test3i
+  // CHECK-3-LABEL: define {{.*}}void @_Z5test3i
   // CHECK-3:   store i32*
   // CHECK-3:   call void @{{.*}}__captured_stmt
   // CHECK-3:   ret void
@@ -87,11 +94,11 @@ void test4() {
     Foo f;
     f.x = 5;
   }
-  // CHECK-4-LABEL: define void @_Z5test4v
-  // CHECK-4:   call void @[[HelperName:["$_A-Za-z0-9]+]](%[[Capture:.*]]*
+  // CHECK-4-LABEL: define {{.*}}void @_Z5test4v
+  // CHECK-4:   call void @[[HelperName:[\."$_A-Za-z0-9]+]](%[[Capture:.*]]*
   // CHECK-4:   ret void
   //
-  // CHECK-4: define internal void @[[HelperName]]
+  // CHECK-4: define internal {{.*}}void @[[HelperName]]
   // CHECK-4:   store i32 5, i32*
   // CHECK-4:   call {{.*}}FooD1Ev
 }
@@ -187,3 +194,18 @@ inline int test_captured_linkage() {
 void call_test_captured_linkage() {
   test_captured_linkage();
 }
+
+// CHECK-1-DAG: !DILocalVariable(name: "this", {{.*}}, flags: DIFlagArtificial | DIFlagObjectPointer)
+// CHECK-1-DAG: !DILocalVariable(name: "__context", {{.*}}, flags: DIFlagArtificial)
+// CHECK-2-DAG: !DILocalVariable(name: "this", {{.*}}, flags: DIFlagArtificial | DIFlagObjectPointer)
+// CHECK-2-DAG: !DILocalVariable(name: "__context", {{.*}}, flags: DIFlagArtificial)
+// CHECK-3-DAG: !DILocalVariable(name: "this", {{.*}}, flags: DIFlagArtificial | DIFlagObjectPointer)
+// CHECK-3-DAG: !DILocalVariable(name: "__context", {{.*}}, flags: DIFlagArtificial)
+// CHECK-4-DAG: !DILocalVariable(name: "this", {{.*}}, flags: DIFlagArtificial | DIFlagObjectPointer)
+// CHECK-4-DAG: !DILocalVariable(name: "__context", {{.*}}, flags: DIFlagArtificial)
+// CHECK-5-DAG: !DILocalVariable(name: "this", {{.*}}, flags: DIFlagArtificial | DIFlagObjectPointer)
+// CHECK-5-DAG: !DILocalVariable(name: "__context", {{.*}}, flags: DIFlagArtificial)
+// CHECK-6-DAG: !DILocalVariable(name: "this", {{.*}}, flags: DIFlagArtificial | DIFlagObjectPointer)
+// CHECK-6-DAG: !DILocalVariable(name: "__context", {{.*}}, flags: DIFlagArtificial)
+// CHECK-7-DAG: !DILocalVariable(name: "this", {{.*}}, flags: DIFlagArtificial | DIFlagObjectPointer)
+// CHECK-7-DAG: !DILocalVariable(name: "__context", {{.*}}, flags: DIFlagArtificial)

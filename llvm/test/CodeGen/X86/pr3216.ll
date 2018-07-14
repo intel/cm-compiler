@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=x86 | FileCheck %s 
+; RUN: llc < %s -mtriple=i686-- | FileCheck %s
 
 @foo = global i8 127
 
@@ -8,7 +8,7 @@ define i32 @main() nounwind {
 ; CHECK: sar{{.}} $5
 ; CHECK: ret
 
-   %tmp = load i8* @foo
+   %tmp = load i8, i8* @foo
    %bf.lo = lshr i8 %tmp, 5
    %bf.lo.cleared = and i8 %bf.lo, 7
    %1 = shl i8 %bf.lo.cleared, 5

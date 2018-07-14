@@ -90,7 +90,7 @@ public:
     raw_string_ostream OS(Str);
 
     auto DL = Inst->getDebugLoc();
-    DL.print(Inst->getContext(), OS);
+    DL.print(OS);
 
     OS << ' ' << Description;
     OS << '\n';
@@ -125,7 +125,7 @@ bool VectorDecomposer::run(DominatorTree *ArgDT)
     clearOne();
   }
   for (auto i = ToDelete.begin(), e = ToDelete.end(); i != e; ++i)
-    delete *i;
+    (*i)->deleteValue();
   clear();
   return Modified;
 }
@@ -374,15 +374,15 @@ void VectorDecomposer::adjustDecomposition(Instruction *Inst)
  */
 static void reportLocation(const LLVMContext &Ctx, DebugLoc DL, raw_ostream &OS)
 {
-  if (auto InlinedAt = DL.getInlinedAt(Ctx)) {
-    reportLocation(Ctx, DebugLoc::getFromDILocation(InlinedAt), OS);
+  if (auto InlinedAt = DL.getInlinedAt()) {
+    reportLocation(Ctx, DebugLoc(InlinedAt), OS);
     OS << ": in function inlined here:\n";
   }
   StringRef Filename = "<unknown>";
   unsigned Line = 0;
   unsigned Col = 0;
-  if (!DL.isUnknown()) {
-    Filename = DIScope(DL.getScope(Ctx)).getFilename();
+  if (!DL) {
+    Filename = DL->getFilename();
     Line = DL.getLine();
     Col = DL.getCol();
   }
@@ -394,10 +394,11 @@ static void reportLocation(const LLVMContext &Ctx, DebugLoc DL, raw_ostream &OS)
   }
 }
 
-static MDNode *getVariable(IntrinsicInst *II) {
+static DILocalVariable *getVariable(IntrinsicInst *II) {
   do {
       Value *V = II->getOperand(0);
-      if (MDNode *DbgNode = MDNode::getIfExists(V->getContext(), V))
+      Metadata *M = ValueAsMetadata::get(V);
+      if (auto DbgNode = MetadataAsValue::getIfExists(V->getContext(), M))
         for (auto *U : DbgNode->users())
           if (auto DVI = dyn_cast<DbgValueInst>(U))
             return DVI->getVariable();
@@ -433,7 +434,7 @@ void VectorDecomposer::setNotDecomposing(Instruction *Inst, const char *Text)
   if (!Inst)
     Inst = NotDecomposingReportInst;
   assert(Inst);
-  if (Inst->getDebugLoc().isUnknown())
+  if (Inst->getDebugLoc())
     Inst = Inst->getParent()->getFirstNonPHI();
   reportLocation(Inst->getContext(), Inst->getDebugLoc(), dbgs());
   dbgs() << ": vector decomposition failed because: " << Text << "\n";
@@ -605,8 +606,7 @@ void VectorDecomposer::decomposeRdRegion(Instruction *RdRegion,
     // in a two-addr instruction.
     if (!isUsedInTwoAddr(RdRegion)) {
       if (auto N = getVariable(cast<IntrinsicInst>(RdRegion))) {
-        DIVariable Var(N);
-        emitWarning(RdRegion, "undefined value from '" + Var.getName() +
+        emitWarning(RdRegion, "undefined value from '" + N->getName() +
                               "' is referenced after decomposition");
       } else
         emitWarning(RdRegion,

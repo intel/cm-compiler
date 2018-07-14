@@ -11,11 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPS_FRAMEINFO_H
-#define MIPS_FRAMEINFO_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSFRAMELOWERING_H
+#define LLVM_LIB_TARGET_MIPS_MIPSFRAMELOWERING_H
 
 #include "Mips.h"
-#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/CodeGen/TargetFrameLowering.h"
 
 namespace llvm {
   class MipsSubtarget;
@@ -31,6 +31,15 @@ public:
   static const MipsFrameLowering *create(const MipsSubtarget &ST);
 
   bool hasFP(const MachineFunction &MF) const override;
+
+  bool hasBP(const MachineFunction &MF) const;
+
+  bool isFPCloseToIncomingSP() const override { return false; }
+
+  MachineBasicBlock::iterator
+  eliminateCallFramePseudoInstr(MachineFunction &MF,
+                                MachineBasicBlock &MBB,
+                                MachineBasicBlock::iterator I) const override;
 
 protected:
   uint64_t estimateStackSize(const MachineFunction &MF) const;

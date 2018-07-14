@@ -11,10 +11,23 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_OBJECT_SYMBOLIC_FILE_H
-#define LLVM_OBJECT_SYMBOLIC_FILE_H
+#ifndef LLVM_OBJECT_SYMBOLICFILE_H
+#define LLVM_OBJECT_SYMBOLICFILE_H
 
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/iterator_range.h"
+#include "llvm/BinaryFormat/Magic.h"
 #include "llvm/Object/Binary.h"
+#include "llvm/Support/Error.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Format.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include <cinttypes>
+#include <cstdint>
+#include <cstring>
+#include <iterator>
+#include <memory>
+#include <system_error>
 
 namespace llvm {
 namespace object {
@@ -26,8 +39,16 @@ union DataRefImpl {
     uint32_t a, b;
   } d;
   uintptr_t p;
+
   DataRefImpl() { std::memset(this, 0, sizeof(DataRefImpl)); }
 };
+
+template <typename OStream>
+OStream& operator<<(OStream &OS, const DataRefImpl &D) {
+  OS << "(" << format("0x%08" PRIxPTR, D.p) << " (" << format("0x%08x", D.d.a)
+     << ", " << format("0x%08x", D.d.b) << "))";
+  return OS;
+}
 
 inline bool operator==(const DataRefImpl &a, const DataRefImpl &b) {
   // Check bitwise identical. This is the only legal way to compare a union w/o
@@ -45,11 +66,13 @@ inline bool operator<(const DataRefImpl &a, const DataRefImpl &b) {
   return std::memcmp(&a, &b, sizeof(DataRefImpl)) < 0;
 }
 
-template <class content_type> class content_iterator {
+template <class content_type>
+class content_iterator
+    : public std::iterator<std::forward_iterator_tag, content_type> {
   content_type Current;
 
 public:
-  content_iterator(content_type symb) : Current(symb) {}
+  content_iterator(content_type symb) : Current(std::move(symb)) {}
 
   const content_type *operator->() const { return &Current; }
 
@@ -75,10 +98,9 @@ class SymbolicFile;
 /// symbols in the object file.
 class BasicSymbolRef {
   DataRefImpl SymbolPimpl;
-  const SymbolicFile *OwningObject;
+  const SymbolicFile *OwningObject = nullptr;
 
 public:
-  // FIXME: should we add a SF_Text?
   enum Flags : unsigned {
     SF_None = 0,
     SF_Undefined = 1U << 0,      // Symbol is defined in another object file
@@ -87,11 +109,17 @@ public:
     SF_Absolute = 1U << 3,       // Absolute symbol
     SF_Common = 1U << 4,         // Symbol has common linkage
     SF_Indirect = 1U << 5,       // Symbol is an alias to another symbol
-    SF_FormatSpecific = 1U << 6  // Specific to the object file format
+    SF_Exported = 1U << 6,       // Symbol is visible to other DSOs
+    SF_FormatSpecific = 1U << 7, // Specific to the object file format
                                  // (e.g. section symbols)
+    SF_Thumb = 1U << 8,          // Thumb symbol in a 32-bit ARM binary
+    SF_Hidden = 1U << 9,         // Symbol has hidden visibility
+    SF_Const = 1U << 10,         // Symbol value is constant
+    SF_Executable = 1U << 11,    // Symbol points to an executable section
+                                 // (IR only)
   };
 
-  BasicSymbolRef() : OwningObject(nullptr) { }
+  BasicSymbolRef() = default;
   BasicSymbolRef(DataRefImpl SymbolP, const SymbolicFile *Owner);
 
   bool operator==(const BasicSymbolRef &Other) const;
@@ -108,14 +136,12 @@ public:
   const SymbolicFile *getObject() const;
 };
 
-typedef content_iterator<BasicSymbolRef> basic_symbol_iterator;
-
-const uint64_t UnknownAddressOrSize = ~0ULL;
+using basic_symbol_iterator = content_iterator<BasicSymbolRef>;
 
 class SymbolicFile : public Binary {
 public:
-  virtual ~SymbolicFile();
-  SymbolicFile(unsigned int Type, std::unique_ptr<MemoryBuffer> Source);
+  SymbolicFile(unsigned int Type, MemoryBufferRef Source);
+  ~SymbolicFile() override;
 
   // virtual interface.
   virtual void moveSymbolNext(DataRefImpl &Symb) const = 0;
@@ -125,34 +151,29 @@ public:
 
   virtual uint32_t getSymbolFlags(DataRefImpl Symb) const = 0;
 
-  virtual basic_symbol_iterator symbol_begin_impl() const = 0;
+  virtual basic_symbol_iterator symbol_begin() const = 0;
 
-  virtual basic_symbol_iterator symbol_end_impl() const = 0;
+  virtual basic_symbol_iterator symbol_end() const = 0;
 
   // convenience wrappers.
-  basic_symbol_iterator symbol_begin() const {
-    return symbol_begin_impl();
-  }
-  basic_symbol_iterator symbol_end() const {
-    return symbol_end_impl();
-  }
-  typedef iterator_range<basic_symbol_iterator> basic_symbol_iterator_range;
+  using basic_symbol_iterator_range = iterator_range<basic_symbol_iterator>;
   basic_symbol_iterator_range symbols() const {
     return basic_symbol_iterator_range(symbol_begin(), symbol_end());
   }
 
   // construction aux.
-  static ErrorOr<SymbolicFile *>
-  createSymbolicFile(std::unique_ptr<MemoryBuffer> &Object,
-                     sys::fs::file_magic Type, LLVMContext *Context);
+  static Expected<std::unique_ptr<SymbolicFile>>
+  createSymbolicFile(MemoryBufferRef Object, llvm::file_magic Type,
+                     LLVMContext *Context);
 
-  static ErrorOr<SymbolicFile *>
-  createSymbolicFile(std::unique_ptr<MemoryBuffer> &Object) {
-    return createSymbolicFile(Object, sys::fs::file_magic::unknown, nullptr);
+  static Expected<std::unique_ptr<SymbolicFile>>
+  createSymbolicFile(MemoryBufferRef Object) {
+    return createSymbolicFile(Object, llvm::file_magic::unknown, nullptr);
   }
-  static ErrorOr<SymbolicFile *> createSymbolicFile(StringRef ObjectPath);
+  static Expected<OwningBinary<SymbolicFile>>
+  createSymbolicFile(StringRef ObjectPath);
 
-  static inline bool classof(const Binary *v) {
+  static bool classof(const Binary *v) {
     return v->isSymbolic();
   }
 };
@@ -189,7 +210,7 @@ inline const SymbolicFile *BasicSymbolRef::getObject() const {
   return OwningObject;
 }
 
-}
-}
+} // end namespace object
+} // end namespace llvm
 
-#endif
+#endif // LLVM_OBJECT_SYMBOLICFILE_H

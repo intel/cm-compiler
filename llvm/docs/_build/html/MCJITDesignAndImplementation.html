@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>MCJIT Design and Implementation &#8212; LLVM 3.4 documentation</title>
+    <title>MCJIT Design and Implementation &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -27,8 +27,8 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="LLVM Atomic Instructions and Concurrency Guide" href="Atomics.html" />
-    <link rel="prev" title="The Often Misunderstood GEP Instruction" href="GetElementPtr.html" />
+    <link rel="next" title="LLVM Community Code of Conduct" href="CodeOfConduct.html" />
+    <link rel="prev" title="Performance Tips for Frontend Authors" href="Frontend/PerformanceTips.html" />
 <style type="text/css">
   table.right { float: right; margin-left: 20px; }
   table.right td { border: 1px solid #ccc; }
@@ -49,10 +49,10 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="Atomics.html" title="LLVM Atomic Instructions and Concurrency Guide"
+          <a href="CodeOfConduct.html" title="LLVM Community Code of Conduct"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="GetElementPtr.html" title="The Often Misunderstood GEP Instruction"
+          <a href="Frontend/PerformanceTips.html" title="Performance Tips for Frontend Authors"
              accesskey="P">previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="index.html">Documentation</a>&raquo;</li>
@@ -113,7 +113,7 @@ attempt to retrieve an object image from its ObjectCache member, if one
 has been set.  If a cached object image cannot be retrieved, MCJIT will
 call its emitObject method.  MCJIT::emitObject uses a local PassManager
 instance and creates a new ObjectBufferStream instance, both of which it
-passes to TargetManager::addPassesToEmitMC before calling PassManager::run
+passes to TargetMachine::addPassesToEmitMC before calling PassManager::run
 on the Module with which it was created.</p>
 <img alt="_images/MCJIT-load.png" src="_images/MCJIT-load.png" />
 <p>The PassManager::run call causes the MC code generation mechanisms to emit
@@ -228,10 +228,10 @@ allocated for code and data memory.</p>
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="Atomics.html" title="LLVM Atomic Instructions and Concurrency Guide"
+          <a href="CodeOfConduct.html" title="LLVM Community Code of Conduct"
              >next</a> |</li>
         <li class="right" >
-          <a href="GetElementPtr.html" title="The Often Misunderstood GEP Instruction"
+          <a href="Frontend/PerformanceTips.html" title="Performance Tips for Frontend Authors"
              >previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="index.html">Documentation</a>&raquo;</li>
@@ -239,8 +239,8 @@ allocated for code and data memory.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

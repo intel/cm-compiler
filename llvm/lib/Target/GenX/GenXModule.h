@@ -64,7 +64,7 @@
 #include <vector>
 
 namespace llvm {
-  class formatted_raw_ostream;
+  class raw_pwrite_stream;
   class GenXSubtarget;
 
   namespace genx {
@@ -81,7 +81,7 @@ namespace llvm {
       }
       template<typename T> void push_back(T Val) { push_back(&Val, sizeof(Val)); }
       unsigned size() { return V.size(); }
-      void write(formatted_raw_ostream &Out);
+      void write(raw_pwrite_stream &Out);
       void setData(unsigned Offset, const void *Data, unsigned Size) {
         assert(Offset + Size <= size());
         std::copy_n((const unsigned char *)Data, Size, V.begin() + Offset);
@@ -102,8 +102,8 @@ namespace llvm {
       virtual unsigned getHeaderSize() = 0;
       virtual unsigned getBodySize() = 0;
       // write header/body
-      virtual void writeHeader(formatted_raw_ostream &Out) = 0;
-      virtual void writeBody(formatted_raw_ostream &Out) = 0;
+      virtual void writeHeader(raw_pwrite_stream &Out) = 0;
+      virtual void writeBody(raw_pwrite_stream &Out) = 0;
     };
 
   } // end namespace genx
@@ -122,7 +122,7 @@ namespace llvm {
       for (unsigned i = 0; i != FuncWriters.size(); i++)
         delete FuncWriters[i];
     }
-    virtual const char *getPassName() const { return "GenX module"; }
+    virtual StringRef getPassName() const { return "GenX module"; }
     void getAnalysisUsage(AnalysisUsage &AU) const;
     bool runOnModule(Module &M);
     const GenXSubtarget *getSubtarget() { return ST; }

@@ -20,7 +20,6 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Allocator.h"
 #include "gtest/gtest.h"
-#include <vector>
 
 using namespace llvm;
 using namespace clang;
@@ -54,8 +53,8 @@ protected:
 };
 
 FullComment *CommentParserTest::parseString(const char *Source) {
-  MemoryBuffer *Buf = MemoryBuffer::getMemBuffer(Source);
-  FileID File = SourceMgr.createFileID(Buf);
+  std::unique_ptr<MemoryBuffer> Buf = MemoryBuffer::getMemBuffer(Source);
+  FileID File = SourceMgr.createFileID(std::move(Buf));
   SourceLocation Begin = SourceMgr.getLocForStartOfFile(File);
 
   Lexer L(Allocator, Diags, Traits, Begin, Source, Source + strlen(Source));

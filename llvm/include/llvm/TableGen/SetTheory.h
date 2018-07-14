@@ -44,13 +44,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SETTHEORY_H
-#define SETTHEORY_H
+#ifndef LLVM_TABLEGEN_SETTHEORY_H
+#define LLVM_TABLEGEN_SETTHEORY_H
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/StringMap.h"
-#include "llvm/Support/SourceMgr.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/SMLoc.h"
 #include <map>
+#include <memory>
 #include <vector>
 
 namespace llvm {
@@ -58,23 +61,23 @@ namespace llvm {
 class DagInit;
 class Init;
 class Record;
-class RecordKeeper;
 
 class SetTheory {
 public:
-  typedef std::vector<Record*> RecVec;
-  typedef SmallSetVector<Record*, 16> RecSet;
+  using RecVec = std::vector<Record *>;
+  using RecSet = SmallSetVector<Record *, 16>;
 
   /// Operator - A callback representing a DAG operator.
   class Operator {
     virtual void anchor();
+
   public:
-    virtual ~Operator() {}
+    virtual ~Operator() = default;
 
     /// apply - Apply this operator to Expr's arguments and insert the result
     /// in Elts.
     virtual void apply(SetTheory&, DagInit *Expr, RecSet &Elts,
-                       ArrayRef<SMLoc> Loc) =0;
+                       ArrayRef<SMLoc> Loc) = 0;
   };
 
   /// Expander - A callback function that can transform a Record representing a
@@ -82,30 +85,31 @@ public:
   /// users to define named sets that can be used in DAG expressions.
   class Expander {
     virtual void anchor();
-  public:
-    virtual ~Expander() {}
 
-    virtual void expand(SetTheory&, Record*, RecSet &Elts) =0;
+  public:
+    virtual ~Expander() = default;
+
+    virtual void expand(SetTheory&, Record*, RecSet &Elts) = 0;
   };
 
 private:
   // Map set defs to their fully expanded contents. This serves as a memoization
   // cache and it makes it possible to return const references on queries.
-  typedef std::map<Record*, RecVec> ExpandMap;
+  using ExpandMap = std::map<Record *, RecVec>;
   ExpandMap Expansions;
 
   // Known DAG operators by name.
-  StringMap<Operator*> Operators;
+  StringMap<std::unique_ptr<Operator>> Operators;
 
   // Typed expanders by class name.
-  StringMap<Expander*> Expanders;
+  StringMap<std::unique_ptr<Expander>> Expanders;
 
 public:
   /// Create a SetTheory instance with only the standard operators.
   SetTheory();
 
   /// addExpander - Add an expander for Records with the named super class.
-  void addExpander(StringRef ClassName, Expander*);
+  void addExpander(StringRef ClassName, std::unique_ptr<Expander>);
 
   /// addFieldExpander - Add an expander for ClassName that simply evaluates
   /// FieldName in the Record to get the set elements.  That is all that is
@@ -118,7 +122,7 @@ public:
   void addFieldExpander(StringRef ClassName, StringRef FieldName);
 
   /// addOperator - Add a DAG operator.
-  void addOperator(StringRef Name, Operator*);
+  void addOperator(StringRef Name, std::unique_ptr<Operator>);
 
   /// evaluate - Evaluate Expr and append the resulting set to Elts.
   void evaluate(Init *Expr, RecSet &Elts, ArrayRef<SMLoc> Loc);
@@ -138,5 +142,4 @@ public:
 
 } // end namespace llvm
 
-#endif
-
+#endif // LLVM_TABLEGEN_SETTHEORY_H

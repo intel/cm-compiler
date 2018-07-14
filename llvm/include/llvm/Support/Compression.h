@@ -15,11 +15,10 @@
 #define LLVM_SUPPORT_COMPRESSION_H
 
 #include "llvm/Support/DataTypes.h"
-#include <memory>
-#include "llvm/ADT/SmallVector.h"
 
 namespace llvm {
-
+template <typename T> class SmallVectorImpl;
+class Error;
 class StringRef;
 
 namespace zlib {
@@ -31,23 +30,17 @@ enum CompressionLevel {
   BestSizeCompression
 };
 
-enum Status {
-  StatusOK,
-  StatusUnsupported,    // zlib is unavailable
-  StatusOutOfMemory,    // there was not enough memory
-  StatusBufferTooShort, // there was not enough room in the output buffer
-  StatusInvalidArg,     // invalid input parameter
-  StatusInvalidData     // data was corrupted or incomplete
-};
-
 bool isAvailable();
 
-Status compress(StringRef InputBuffer, SmallVectorImpl<char> &CompressedBuffer,
-                CompressionLevel Level = DefaultCompression);
+Error compress(StringRef InputBuffer, SmallVectorImpl<char> &CompressedBuffer,
+               CompressionLevel Level = DefaultCompression);
 
-Status uncompress(StringRef InputBuffer,
-                  SmallVectorImpl<char> &UncompressedBuffer,
-                  size_t UncompressedSize);
+Error uncompress(StringRef InputBuffer, char *UncompressedBuffer,
+                 size_t &UncompressedSize);
+
+Error uncompress(StringRef InputBuffer,
+                 SmallVectorImpl<char> &UncompressedBuffer,
+                 size_t UncompressedSize);
 
 uint32_t crc32(StringRef Buffer);
 

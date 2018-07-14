@@ -49,6 +49,7 @@ auto bad_init_3 = [&a(void_fn())] {}; // expected-error {{cannot form a referenc
 auto bad_init_4 = [a(void_fn())] {}; // expected-error {{has incomplete type 'void'}}
 auto bad_init_5 = [a(overload_fn)] {}; // expected-error {{cannot deduce type for lambda capture 'a' from initializer of type '<overloaded function}}
 auto bad_init_6 = [a{overload_fn}] {}; // expected-error {{cannot deduce type for lambda capture 'a' from initializer list}}
+auto bad_init_7 = [a{{1}}] {}; // expected-error {{cannot deduce type for lambda capture 'a' from nested initializer list}}
 
 template<typename...T> void pack_1(T...t) { (void)[a(t...)] {}; } // expected-error {{initializer missing for lambda capture 'a'}}
 template void pack_1<>(); // expected-note {{instantiation of}}
@@ -61,7 +62,7 @@ auto a = [a(4), b = 5, &c = static_cast<const int&&>(0)] {
   using T = decltype(c);
   using T = const int &;
 };
-auto b = [a{0}] {}; // expected-error {{include <initializer_list>}}
+auto b = [a{0}] {}; // OK, per N3922
 
 struct S { S(); S(S&&); };
 template<typename T> struct remove_reference { typedef T type; };

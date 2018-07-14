@@ -10,10 +10,13 @@
 #ifndef LLVM_CLANG_FRONTEND_COMPILERINSTANCE_H_
 #define LLVM_CLANG_FRONTEND_COMPILERINSTANCE_H_
 
+#include "clang/AST/ASTConsumer.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/CompilerInvocation.h"
+#include "clang/Frontend/PCHContainerOperations.h"
 #include "clang/Frontend/Utils.h"
+#include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Lex/ModuleLoader.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
@@ -28,11 +31,11 @@
 namespace llvm {
 class raw_fd_ostream;
 class Timer;
+class TimerGroup;
 }
 
 namespace clang {
 class ASTContext;
-class ASTConsumer;
 class ASTReader;
 class CodeCompleteConsumer;
 class DiagnosticsEngine;
@@ -41,6 +44,7 @@ class ExternalASTSource;
 class FileEntry;
 class FileManager;
 class FrontendAction;
+class MemoryBufferCache;
 class Module;
 class Preprocessor;
 class Sema;
@@ -67,13 +71,16 @@ class TargetInfo;
 /// and a long form that takes explicit instances of any required objects.
 class CompilerInstance : public ModuleLoader {
   /// The options used in this compiler instance.
-  IntrusiveRefCntPtr<CompilerInvocation> Invocation;
+  std::shared_ptr<CompilerInvocation> Invocation;
 
   /// The diagnostics engine instance.
   IntrusiveRefCntPtr<DiagnosticsEngine> Diagnostics;
 
   /// The target being compiled for.
   IntrusiveRefCntPtr<TargetInfo> Target;
+
+  /// Auxiliary Target info.
+  IntrusiveRefCntPtr<TargetInfo> AuxTarget;
 
   /// The virtual file system.
   IntrusiveRefCntPtr<vfs::FileSystem> VirtualFileSystem;
@@ -84,11 +91,17 @@ class CompilerInstance : public ModuleLoader {
   /// The source manager.
   IntrusiveRefCntPtr<SourceManager> SourceMgr;
 
+  /// The cache of PCM files.
+  IntrusiveRefCntPtr<MemoryBufferCache> PCMCache;
+
   /// The preprocessor.
-  IntrusiveRefCntPtr<Preprocessor> PP;
+  std::shared_ptr<Preprocessor> PP;
 
   /// The AST context.
   IntrusiveRefCntPtr<ASTContext> Context;
+
+  /// An optional sema source that will be attached to sema.
+  IntrusiveRefCntPtr<ExternalSemaSource> ExternalSemaSrc;
 
   /// The AST consumer.
   std::unique_ptr<ASTConsumer> Consumer;
@@ -99,7 +112,10 @@ class CompilerInstance : public ModuleLoader {
   /// \brief The semantic analysis object.
   std::unique_ptr<Sema> TheSema;
 
-  /// \brief The frontend timer
+  /// \brief The frontend timer group.
+  std::unique_ptr<llvm::TimerGroup> FrontendTimerGroup;
+
+  /// \brief The frontend timer.
   std::unique_ptr<llvm::Timer> FrontendTimer;
 
   /// \brief The ASTReader, if one exists.
@@ -107,6 +123,9 @@ class CompilerInstance : public ModuleLoader {
 
   /// \brief The module dependency collector for crashdumps
   std::shared_ptr<ModuleDependencyCollector> ModuleDepCollector;
+
+  /// \brief The module provider.
+  std::shared_ptr<PCHContainerOperations> ThePCHContainerOperations;
 
   /// \brief The dependency file generator.
   std::unique_ptr<DependencyFileGenerator> TheDependencyFileGenerator;
@@ -116,7 +135,14 @@ class CompilerInstance : public ModuleLoader {
   /// \brief The set of top-level modules that has already been loaded,
   /// along with the module map
   llvm::DenseMap<const IdentifierInfo *, Module *> KnownModules;
-  
+
+  /// \brief The set of top-level modules that has already been built on the
+  /// fly as part of this overall compilation action.
+  std::map<std::string, std::string> BuiltModules;
+
+  /// Should we delete the BuiltModules when we're done?
+  bool DeleteBuiltModules = true;
+
   /// \brief The location of the module-import keyword for the last module
   /// import. 
   SourceLocation LastModuleImportLoc;
@@ -127,13 +153,13 @@ class CompilerInstance : public ModuleLoader {
 
   /// \brief Whether we should (re)build the global module index once we
   /// have finished with this translation unit.
-  bool BuildGlobalModuleIndex;
+  bool BuildGlobalModuleIndex = false;
 
   /// \brief We have a full global module index, with all modules.
-  bool HaveFullGlobalModuleIndex;
+  bool HaveFullGlobalModuleIndex = false;
 
   /// \brief One or more modules failed to build.
-  bool ModuleBuildFailed;
+  bool ModuleBuildFailed = false;
 
   /// \brief Holds information about the output file.
   ///
@@ -143,21 +169,28 @@ class CompilerInstance : public ModuleLoader {
   struct OutputFile {
     std::string Filename;
     std::string TempFilename;
-    raw_ostream *OS;
 
-    OutputFile(const std::string &filename, const std::string &tempFilename,
-               raw_ostream *os)
-      : Filename(filename), TempFilename(tempFilename), OS(os) { }
+    OutputFile(std::string filename, std::string tempFilename)
+        : Filename(std::move(filename)), TempFilename(std::move(tempFilename)) {
+    }
   };
+
+  /// If the output doesn't support seeking (terminal, pipe). we switch
+  /// the stream to a buffer_ostream. These are the buffer and the original
+  /// stream.
+  std::unique_ptr<llvm::raw_fd_ostream> NonSeekStream;
 
   /// The list of active output files.
   std::list<OutputFile> OutputFiles;
 
-  CompilerInstance(const CompilerInstance &) LLVM_DELETED_FUNCTION;
-  void operator=(const CompilerInstance &) LLVM_DELETED_FUNCTION;
+  CompilerInstance(const CompilerInstance &) = delete;
+  void operator=(const CompilerInstance &) = delete;
 public:
-  explicit CompilerInstance(bool BuildingModule = false);
-  ~CompilerInstance();
+  explicit CompilerInstance(
+      std::shared_ptr<PCHContainerOperations> PCHContainerOps =
+          std::make_shared<PCHContainerOperations>(),
+      MemoryBufferCache *SharedPCMCache = nullptr);
+  ~CompilerInstance() override;
 
   /// @name High-Level Operations
   /// {
@@ -206,7 +239,7 @@ public:
   }
 
   /// setInvocation - Replace the current invocation.
-  void setInvocation(CompilerInvocation *Value);
+  void setInvocation(std::shared_ptr<CompilerInvocation> Value);
 
   /// \brief Indicates whether we should (re)build the global module index.
   bool shouldBuildGlobalModuleIndex() const;
@@ -246,6 +279,9 @@ public:
     return Invocation->getDiagnosticOpts();
   }
 
+  FileSystemOptions &getFileSystemOpts() {
+    return Invocation->getFileSystemOpts();
+  }
   const FileSystemOptions &getFileSystemOpts() const {
     return Invocation->getFileSystemOpts();
   }
@@ -262,6 +298,9 @@ public:
   }
   const HeaderSearchOptions &getHeaderSearchOpts() const {
     return Invocation->getHeaderSearchOpts();
+  }
+  std::shared_ptr<HeaderSearchOptions> getHeaderSearchOptsPtr() const {
+    return Invocation->getHeaderSearchOptsPtr();
   }
 
   LangOptions &getLangOpts() {
@@ -324,8 +363,17 @@ public:
     return *Target;
   }
 
-  /// Replace the current diagnostics engine.
+  /// Replace the current Target.
   void setTarget(TargetInfo *Value);
+
+  /// }
+  /// @name AuxTarget Info
+  /// {
+
+  TargetInfo *getAuxTarget() const { return AuxTarget.get(); }
+
+  /// Replace the current AuxTarget.
+  void setAuxTarget(TargetInfo *Value);
 
   /// }
   /// @name Virtual File System
@@ -344,7 +392,7 @@ public:
   /// \note Most clients should use setFileManager, which will implicitly reset
   /// the virtual file system to the one contained in the file manager.
   void setVirtualFileSystem(IntrusiveRefCntPtr<vfs::FileSystem> FS) {
-    VirtualFileSystem = FS;
+    VirtualFileSystem = std::move(FS);
   }
 
   /// }
@@ -399,13 +447,14 @@ public:
     return *PP;
   }
 
+  std::shared_ptr<Preprocessor> getPreprocessorPtr() { return PP; }
+
   void resetAndLeakPreprocessor() {
-    BuryPointer(PP.get());
-    PP.resetWithoutRelease();
+    BuryPointer(new std::shared_ptr<Preprocessor>(PP));
   }
 
   /// Replace the current preprocessor.
-  void setPreprocessor(Preprocessor *Value);
+  void setPreprocessor(std::shared_ptr<Preprocessor> Value);
 
   /// }
   /// @name ASTContext
@@ -443,11 +492,11 @@ public:
 
   /// takeASTConsumer - Remove the current AST consumer and give ownership to
   /// the caller.
-  ASTConsumer *takeASTConsumer() { return Consumer.release(); }
+  std::unique_ptr<ASTConsumer> takeASTConsumer() { return std::move(Consumer); }
 
   /// setASTConsumer - Replace the current AST consumer; the compiler instance
   /// takes ownership of \p Value.
-  void setASTConsumer(ASTConsumer *Value);
+  void setASTConsumer(std::unique_ptr<ASTConsumer> Value);
 
   /// }
   /// @name Semantic analysis
@@ -459,8 +508,8 @@ public:
     return *TheSema;
   }
 
-  Sema *takeSema() { return TheSema.release(); }
-  void resetAndLeakSema() { BuryPointer(TheSema.release()); }
+  std::unique_ptr<Sema> takeSema();
+  void resetAndLeakSema();
 
   /// }
   /// @name Module Management
@@ -473,6 +522,38 @@ public:
   void setModuleDepCollector(
       std::shared_ptr<ModuleDependencyCollector> Collector);
 
+  std::shared_ptr<PCHContainerOperations> getPCHContainerOperations() const {
+    return ThePCHContainerOperations;
+  }
+
+  /// Return the appropriate PCHContainerWriter depending on the
+  /// current CodeGenOptions.
+  const PCHContainerWriter &getPCHContainerWriter() const {
+    assert(Invocation && "cannot determine module format without invocation");
+    StringRef Format = getHeaderSearchOpts().ModuleFormat;
+    auto *Writer = ThePCHContainerOperations->getWriterOrNull(Format);
+    if (!Writer) {
+      if (Diagnostics)
+        Diagnostics->Report(diag::err_module_format_unhandled) << Format;
+      llvm::report_fatal_error("unknown module format");
+    }
+    return *Writer;
+  }
+
+  /// Return the appropriate PCHContainerReader depending on the
+  /// current CodeGenOptions.
+  const PCHContainerReader &getPCHContainerReader() const {
+    assert(Invocation && "cannot determine module format without invocation");
+    StringRef Format = getHeaderSearchOpts().ModuleFormat;
+    auto *Reader = ThePCHContainerOperations->getReaderOrNull(Format);
+    if (!Reader) {
+      if (Diagnostics)
+        Diagnostics->Report(diag::err_module_format_unhandled) << Format;
+      llvm::report_fatal_error("unknown module format");
+    }
+    return *Reader;
+  }
+
   /// }
   /// @name Code Completion
   /// {
@@ -483,12 +564,6 @@ public:
     assert(CompletionConsumer &&
            "Compiler instance has no code completion consumer!");
     return *CompletionConsumer;
-  }
-
-  /// takeCodeCompletionConsumer - Remove the current code completion consumer
-  /// and give ownership to the caller.
-  CodeCompleteConsumer *takeCodeCompletionConsumer() {
-    return CompletionConsumer.release();
   }
 
   /// setCodeCompletionConsumer - Replace the current code completion consumer;
@@ -513,10 +588,10 @@ public:
   /// addOutputFile - Add an output file onto the list of tracked output files.
   ///
   /// \param OutFile - The output file info.
-  void addOutputFile(const OutputFile &OutFile);
+  void addOutputFile(OutputFile &&OutFile);
 
-  /// clearOutputFiles - Clear the output file list, destroying the contained
-  /// output streams.
+  /// clearOutputFiles - Clear the output file list. The underlying output
+  /// streams must have been closed beforehand.
   ///
   /// \param EraseFiles - If true, attempt to erase the files from disk.
   void clearOutputFiles(bool EraseFiles);
@@ -565,7 +640,9 @@ public:
                     const CodeGenOptions *CodeGenOpts = nullptr);
 
   /// Create the file manager and replace any existing one with it.
-  void createFileManager();
+  ///
+  /// \return The new file manager on success, or null on failure.
+  FileManager *createFileManager();
 
   /// Create the source manager and replace any existing one with it.
   void createSourceManager(FileManager &FileMgr);
@@ -573,6 +650,8 @@ public:
   /// Create the preprocessor, using the invocation, file, and source managers,
   /// and replace any existing one with it.
   void createPreprocessor(TranslationUnitKind TUKind);
+
+  std::string getSpecificModuleCachePath();
 
   /// Create the AST context.
   void createASTContext();
@@ -587,9 +666,13 @@ public:
   /// Create an external AST source to read a PCH file.
   ///
   /// \return - The new object on success, or null on failure.
-  static ExternalASTSource *createPCHExternalASTSource(
-      StringRef Path, const std::string &Sysroot, bool DisablePCHValidation,
+  static IntrusiveRefCntPtr<ASTReader> createPCHExternalASTSource(
+      StringRef Path, StringRef Sysroot, bool DisablePCHValidation,
       bool AllowPCHWithCompilerErrors, Preprocessor &PP, ASTContext &Context,
+      const PCHContainerReader &PCHContainerRdr,
+      ArrayRef<std::shared_ptr<ModuleFileExtension>> Extensions,
+      DependencyFileGenerator *DependencyFile,
+      ArrayRef<std::shared_ptr<DependencyCollector>> DependencyCollectors,
       void *DeserializationListener, bool OwnDeserializationListener,
       bool Preamble, bool UseGlobalModuleIndex);
 
@@ -600,11 +683,9 @@ public:
 
   /// Create a code completion consumer to print code completion results, at
   /// \p Filename, \p Line, and \p Column, to the given output stream \p OS.
-  static CodeCompleteConsumer *
-  createCodeCompletionConsumer(Preprocessor &PP, const std::string &Filename,
-                               unsigned Line, unsigned Column,
-                               const CodeCompleteOptions &Opts,
-                               raw_ostream &OS);
+  static CodeCompleteConsumer *createCodeCompletionConsumer(
+      Preprocessor &PP, StringRef Filename, unsigned Line, unsigned Column,
+      const CodeCompleteOptions &Opts, raw_ostream &OS);
 
   /// \brief Create the Sema object to be used for parsing.
   void createSema(TranslationUnitKind TUKind,
@@ -621,7 +702,7 @@ public:
   /// atomically replace the target output on success).
   ///
   /// \return - Null on error.
-  llvm::raw_fd_ostream *
+  std::unique_ptr<raw_pwrite_stream>
   createDefaultOutputFile(bool Binary = true, StringRef BaseInput = "",
                           StringRef Extension = "");
 
@@ -629,12 +710,9 @@ public:
   /// optionally deriving the output path name.
   ///
   /// \return - Null on error.
-  llvm::raw_fd_ostream *
-  createOutputFile(StringRef OutputPath,
-                   bool Binary, bool RemoveFileOnSignal,
-                   StringRef BaseInput,
-                   StringRef Extension,
-                   bool UseTemporary,
+  std::unique_ptr<raw_pwrite_stream>
+  createOutputFile(StringRef OutputPath, bool Binary, bool RemoveFileOnSignal,
+                   StringRef BaseInput, StringRef Extension, bool UseTemporary,
                    bool CreateMissingDirectories = false);
 
   /// Create a new output file, optionally deriving the output path name.
@@ -646,7 +724,7 @@ public:
   /// renamed to \p OutputPath in the end.
   ///
   /// \param OutputPath - If given, the path to the output file.
-  /// \param Error [out] - On failure, the error message.
+  /// \param Error [out] - On failure, the error.
   /// \param BaseInput - If \p OutputPath is empty, the input path name to use
   /// for deriving the output path.
   /// \param Extension - The extension to use for derived output names.
@@ -662,17 +740,14 @@ public:
   /// stored here on success.
   /// \param TempPathName [out] - If given, the temporary file path name
   /// will be stored here on success.
-  static llvm::raw_fd_ostream *
-  createOutputFile(StringRef OutputPath, std::string &Error,
-                   bool Binary, bool RemoveFileOnSignal,
-                   StringRef BaseInput,
-                   StringRef Extension,
-                   bool UseTemporary,
-                   bool CreateMissingDirectories,
-                   std::string *ResultPathName,
+  std::unique_ptr<raw_pwrite_stream>
+  createOutputFile(StringRef OutputPath, std::error_code &Error, bool Binary,
+                   bool RemoveFileOnSignal, StringRef BaseInput,
+                   StringRef Extension, bool UseTemporary,
+                   bool CreateMissingDirectories, std::string *ResultPathName,
                    std::string *TempPathName);
 
-  llvm::raw_null_ostream *createNullOutputFile();
+  std::unique_ptr<raw_pwrite_stream> createNullOutputFile();
 
   /// }
   /// @name Initialization Utility Methods
@@ -689,22 +764,29 @@ public:
   ///
   /// \return True on success.
   static bool InitializeSourceManager(const FrontendInputFile &Input,
-                DiagnosticsEngine &Diags,
-                FileManager &FileMgr,
-                SourceManager &SourceMgr,
-                const FrontendOptions &Opts);
+                                      DiagnosticsEngine &Diags,
+                                      FileManager &FileMgr,
+                                      SourceManager &SourceMgr,
+                                      HeaderSearch *HS,
+                                      DependencyOutputOptions &DepOpts,
+                                      const FrontendOptions &Opts);
 
   /// }
 
   // Create module manager.
   void createModuleManager();
 
+  bool loadModuleFile(StringRef FileName);
+
   ModuleLoadResult loadModule(SourceLocation ImportLoc, ModuleIdPath Path,
                               Module::NameVisibilityKind Visibility,
                               bool IsInclusionDirective) override;
 
+  void loadModuleFromSource(SourceLocation ImportLoc, StringRef ModuleName,
+                            StringRef Source) override;
+
   void makeModuleVisible(Module *Mod, Module::NameVisibilityKind Visibility,
-                         SourceLocation ImportLoc, bool Complain) override;
+                         SourceLocation ImportLoc) override;
 
   bool hadModuleLoaderFatalFailure() const {
     return ModuleLoader::HadFatalFailure;
@@ -717,6 +799,10 @@ public:
   void addDependencyCollector(std::shared_ptr<DependencyCollector> Listener) {
     DependencyCollectors.push_back(std::move(Listener));
   }
+
+  void setExternalSemaSource(IntrusiveRefCntPtr<ExternalSemaSource> ESS);
+
+  MemoryBufferCache &getPCMCache() const { return *PCMCache; }
 };
 
 } // end namespace clang

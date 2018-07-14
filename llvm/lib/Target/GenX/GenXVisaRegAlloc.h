@@ -150,7 +150,7 @@ namespace llvm {
   public:
     static char ID;
     explicit GenXVisaRegAlloc() : FunctionGroupPass(ID) { }
-    virtual const char *getPassName() const { return "GenX vISA virtual register allocator"; }
+    virtual StringRef getPassName() const { return "GenX vISA virtual register allocator"; }
     void getAnalysisUsage(AnalysisUsage &AU) const;
     bool runOnFunctionGroup(FunctionGroup &FG);
     // Get the vISA virtual reg number for a value (assert if none)

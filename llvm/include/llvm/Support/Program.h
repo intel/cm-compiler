@@ -15,7 +15,9 @@
 #define LLVM_SUPPORT_PROGRAM_H
 
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/Support/Path.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ErrorOr.h"
 #include <system_error>
 
 namespace llvm {
@@ -42,6 +44,8 @@ struct ProcessInfo {
 #error "ProcessInfo is not defined for this platform!"
 #endif
 
+  enum : ProcessId { InvalidPid = 0 };
+
   /// The process identifier.
   ProcessId Pid;
 
@@ -51,17 +55,21 @@ struct ProcessInfo {
   ProcessInfo();
 };
 
-  /// This function attempts to locate a program in the operating
-  /// system's file system using some pre-determined set of locations to search
-  /// (e.g. the PATH on Unix). Paths with slashes are returned unmodified.
+  /// \brief Find the first executable file \p Name in \p Paths.
   ///
-  /// It does not perform hashing as a shell would but instead stats each PATH
+  /// This does not perform hashing as a shell would but instead stats each PATH
   /// entry individually so should generally be avoided. Core LLVM library
   /// functions and options should instead require fully specified paths.
   ///
-  /// @returns A string containing the path of the program or an empty string if
-  /// the program could not be found.
-  std::string FindProgramByName(const std::string& name);
+  /// \param Name name of the executable to find. If it contains any system
+  ///   slashes, it will be returned as is.
+  /// \param Paths optional list of paths to search for \p Name. If empty it
+  ///   will use the system PATH environment instead.
+  ///
+  /// \returns The fully qualified path to the first \p Name in \p Paths if it
+  ///   exists. \p Name if \p Name has slashes in it. Otherwise an error.
+  ErrorOr<std::string>
+  findProgramByName(StringRef Name, ArrayRef<StringRef> Paths = {});
 
   // These functions change the specified standard stream (stdin or stdout) to
   // binary mode. They return errc::success if the specified stream
@@ -76,33 +84,33 @@ struct ProcessInfo {
   /// This function waits for the program to finish, so should be avoided in
   /// library functions that aren't expected to block. Consider using
   /// ExecuteNoWait() instead.
-  /// @returns an integer result code indicating the status of the program.
+  /// \returns an integer result code indicating the status of the program.
   /// A zero or positive value indicates the result code of the program.
   /// -1 indicates failure to execute
   /// -2 indicates a crash during execution or timeout
   int ExecuteAndWait(
       StringRef Program, ///< Path of the program to be executed. It is
-      /// presumed this is the result of the FindProgramByName method.
-      const char **args, ///< A vector of strings that are passed to the
+      ///< presumed this is the result of the findProgramByName method.
+      const char **Args, ///< A vector of strings that are passed to the
       ///< program.  The first element should be the name of the program.
       ///< The list *must* be terminated by a null char* entry.
-      const char **env = nullptr, ///< An optional vector of strings to use for
+      const char **Env = nullptr, ///< An optional vector of strings to use for
       ///< the program's environment. If not provided, the current program's
       ///< environment will be used.
-      const StringRef **redirects = nullptr, ///< An optional array of pointers
-      ///< to paths. If the array is null, no redirection is done. The array
-      ///< should have a size of at least three. The inferior process's
-      ///< stdin(0), stdout(1), and stderr(2) will be redirected to the
-      ///< corresponding paths.
-      ///< When an empty path is passed in, the corresponding file
-      ///< descriptor will be disconnected (ie, /dev/null'd) in a portable
-      ///< way.
-      unsigned secondsToWait = 0, ///< If non-zero, this specifies the amount
+      ArrayRef<Optional<StringRef>> Redirects = {}, ///<
+      ///< An array of optional paths. Should have a size of zero or three.
+      ///< If the array is empty, no redirections are performed.
+      ///< Otherwise, the inferior process's stdin(0), stdout(1), and stderr(2)
+      ///< will be redirected to the corresponding paths, if the optional path
+      ///< is present (not \c llvm::None).
+      ///< When an empty path is passed in, the corresponding file descriptor
+      ///< will be disconnected (ie, /dev/null'd) in a portable way.
+      unsigned SecondsToWait = 0, ///< If non-zero, this specifies the amount
       ///< of time to wait for the child process to exit. If the time
       ///< expires, the child is killed and this call returns. If zero,
       ///< this function will wait until the child finishes or forever if
       ///< it doesn't.
-      unsigned memoryLimit = 0, ///< If non-zero, this specifies max. amount
+      unsigned MemoryLimit = 0, ///< If non-zero, this specifies max. amount
       ///< of memory can be allocated by process. If memory usage will be
       ///< higher limit, the child is killed and this call returns. If zero
       ///< - no memory limit.
@@ -114,17 +122,54 @@ struct ProcessInfo {
 
   /// Similar to ExecuteAndWait, but returns immediately.
   /// @returns The \see ProcessInfo of the newly launced process.
-  /// \note On Microsoft Windows systems, users will need to either call \see
-  /// Wait until the process finished execution or win32 CloseHandle() API on
-  /// ProcessInfo.ProcessHandle to avoid memory leaks.
-  ProcessInfo
-  ExecuteNoWait(StringRef Program, const char **args, const char **env = nullptr,
-                const StringRef **redirects = nullptr, unsigned memoryLimit = 0,
-                std::string *ErrMsg = nullptr, bool *ExecutionFailed = nullptr);
+  /// \note On Microsoft Windows systems, users will need to either call
+  /// \see Wait until the process finished execution or win32 CloseHandle() API
+  /// on ProcessInfo.ProcessHandle to avoid memory leaks.
+  ProcessInfo ExecuteNoWait(StringRef Program, const char **Args,
+                            const char **Env = nullptr,
+                            ArrayRef<Optional<StringRef>> Redirects = {},
+                            unsigned MemoryLimit = 0,
+                            std::string *ErrMsg = nullptr,
+                            bool *ExecutionFailed = nullptr);
 
   /// Return true if the given arguments fit within system-specific
   /// argument length limits.
-  bool argumentsFitWithinSystemLimits(ArrayRef<const char*> Args);
+  bool commandLineFitsWithinSystemLimits(StringRef Program,
+                                         ArrayRef<const char *> Args);
+
+  /// File encoding options when writing contents that a non-UTF8 tool will
+  /// read (on Windows systems). For UNIX, we always use UTF-8.
+  enum WindowsEncodingMethod {
+    /// UTF-8 is the LLVM native encoding, being the same as "do not perform
+    /// encoding conversion".
+    WEM_UTF8,
+    WEM_CurrentCodePage,
+    WEM_UTF16
+  };
+
+  /// Saves the UTF8-encoded \p contents string into the file \p FileName
+  /// using a specific encoding.
+  ///
+  /// This write file function adds the possibility to choose which encoding
+  /// to use when writing a text file. On Windows, this is important when
+  /// writing files with internationalization support with an encoding that is
+  /// different from the one used in LLVM (UTF-8). We use this when writing
+  /// response files, since GCC tools on MinGW only understand legacy code
+  /// pages, and VisualStudio tools only understand UTF-16.
+  /// For UNIX, using different encodings is silently ignored, since all tools
+  /// work well with UTF-8.
+  /// This function assumes that you only use UTF-8 *text* data and will convert
+  /// it to your desired encoding before writing to the file.
+  ///
+  /// FIXME: We use EM_CurrentCodePage to write response files for GNU tools in
+  /// a MinGW/MinGW-w64 environment, which has serious flaws but currently is
+  /// our best shot to make gcc/ld understand international characters. This
+  /// should be changed as soon as binutils fix this to support UTF16 on mingw.
+  ///
+  /// \returns non-zero error_code if failed
+  std::error_code
+  writeFileWithEncoding(StringRef FileName, StringRef Contents,
+                        WindowsEncodingMethod Encoding = WEM_UTF8);
 
   /// This function waits for the process specified by \p PI to finish.
   /// \returns A \see ProcessInfo struct with Pid set to:

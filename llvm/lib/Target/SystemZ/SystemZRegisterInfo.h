@@ -7,16 +7,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SystemZREGISTERINFO_H
-#define SystemZREGISTERINFO_H
+#ifndef LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZREGISTERINFO_H
+#define LLVM_LIB_TARGET_SYSTEMZ_SYSTEMZREGISTERINFO_H
 
 #include "SystemZ.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 
 #define GET_REGINFO_HEADER
 #include "SystemZGenRegisterInfo.inc"
 
 namespace llvm {
+
+class LiveIntervals;
 
 namespace SystemZ {
 // Return the subreg to use for referring to the even and odd registers
@@ -33,6 +35,24 @@ struct SystemZRegisterInfo : public SystemZGenRegisterInfo {
 public:
   SystemZRegisterInfo();
 
+  /// getPointerRegClass - Return the register class to use to hold pointers.
+  /// This is currently only used by LOAD_STACK_GUARD, which requires a non-%r0
+  /// register, hence ADDR64.
+  const TargetRegisterClass *
+  getPointerRegClass(const MachineFunction &MF,
+                     unsigned Kind=0) const override {
+    return &SystemZ::ADDR64BitRegClass;
+  }
+
+  bool getRegAllocationHints(unsigned VirtReg,
+                             ArrayRef<MCPhysReg> Order,
+                             SmallVectorImpl<MCPhysReg> &Hints,
+                             const MachineFunction &MF,
+                             const VirtRegMap *VRM,
+                             const LiveRegMatrix *Matrix) const override;
+
+  bool enableMultipleCopyHints() const override { return true; }
+
   // Override TargetRegisterInfo.h.
   bool requiresRegisterScavenging(const MachineFunction &MF) const override {
     return true;
@@ -43,13 +63,23 @@ public:
   bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const override {
     return true;
   }
-  const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF = nullptr) const
-    override;
-  const uint32_t *getCallPreservedMask(CallingConv::ID CC) const override;
+  const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
+  const uint32_t *getCallPreservedMask(const MachineFunction &MF,
+                                       CallingConv::ID CC) const override;
   BitVector getReservedRegs(const MachineFunction &MF) const override;
   void eliminateFrameIndex(MachineBasicBlock::iterator MI,
                            int SPAdj, unsigned FIOperandNum,
                            RegScavenger *RS) const override;
+
+  /// \brief SrcRC and DstRC will be morphed into NewRC if this returns true.
+ bool shouldCoalesce(MachineInstr *MI,
+                      const TargetRegisterClass *SrcRC,
+                      unsigned SubReg,
+                      const TargetRegisterClass *DstRC,
+                      unsigned DstSubReg,
+                      const TargetRegisterClass *NewRC,
+                      LiveIntervals &LIS) const override;
+
   unsigned getFrameRegister(const MachineFunction &MF) const override;
 };
 

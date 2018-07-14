@@ -1,20 +1,20 @@
 // RUN: %clang_cc1 -E -ffreestanding -triple=arm-none-none %s | FileCheck -check-prefix ARM %s
 //
-// ARM:typedef signed long long int int64_t;
-// ARM:typedef unsigned long long int uint64_t;
+// ARM:typedef long long int int64_t;
+// ARM:typedef long long unsigned int uint64_t;
 // ARM:typedef int64_t int_least64_t;
 // ARM:typedef uint64_t uint_least64_t;
 // ARM:typedef int64_t int_fast64_t;
 // ARM:typedef uint64_t uint_fast64_t;
 //
-// ARM:typedef signed int int32_t;
+// ARM:typedef int int32_t;
 // ARM:typedef unsigned int uint32_t;
 // ARM:typedef int32_t int_least32_t;
 // ARM:typedef uint32_t uint_least32_t;
 // ARM:typedef int32_t int_fast32_t;
 // ARM:typedef uint32_t uint_fast32_t;
 // 
-// ARM:typedef signed short int16_t;
+// ARM:typedef short int16_t;
 // ARM:typedef unsigned short uint16_t;
 // ARM:typedef int16_t int_least16_t;
 // ARM:typedef uint16_t uint_least16_t;
@@ -28,8 +28,8 @@
 // ARM:typedef int8_t int_fast8_t;
 // ARM:typedef uint8_t uint_fast8_t;
 //
-// ARM:typedef int32_t intptr_t;
-// ARM:typedef uint32_t uintptr_t;
+// ARM:typedef int intptr_t;
+// ARM:typedef unsigned int uintptr_t;
 // 
 // ARM:typedef long long int intmax_t;
 // ARM:typedef long long unsigned int uintmax_t;
@@ -108,21 +108,21 @@
 //
 // RUN: %clang_cc1 -E -ffreestanding -triple=i386-none-none %s | FileCheck -check-prefix I386 %s
 //
-// I386:typedef signed long long int int64_t;
-// I386:typedef unsigned long long int uint64_t;
+// I386:typedef long long int int64_t;
+// I386:typedef long long unsigned int uint64_t;
 // I386:typedef int64_t int_least64_t;
 // I386:typedef uint64_t uint_least64_t;
 // I386:typedef int64_t int_fast64_t;
 // I386:typedef uint64_t uint_fast64_t;
 //
-// I386:typedef signed int int32_t;
+// I386:typedef int int32_t;
 // I386:typedef unsigned int uint32_t;
 // I386:typedef int32_t int_least32_t;
 // I386:typedef uint32_t uint_least32_t;
 // I386:typedef int32_t int_fast32_t;
 // I386:typedef uint32_t uint_fast32_t;
 //
-// I386:typedef signed short int16_t;
+// I386:typedef short int16_t;
 // I386:typedef unsigned short uint16_t;
 // I386:typedef int16_t int_least16_t;
 // I386:typedef uint16_t uint_least16_t;
@@ -136,8 +136,8 @@
 // I386:typedef int8_t int_fast8_t;
 // I386:typedef uint8_t uint_fast8_t;
 //
-// I386:typedef int32_t intptr_t;
-// I386:typedef uint32_t uintptr_t;
+// I386:typedef int intptr_t;
+// I386:typedef unsigned int uintptr_t;
 //
 // I386:typedef long long int intmax_t;
 // I386:typedef long long unsigned int uintmax_t;
@@ -215,21 +215,21 @@
 //
 // RUN: %clang_cc1 -E -ffreestanding -triple=mips-none-none %s | FileCheck -check-prefix MIPS %s
 //
-// MIPS:typedef signed long long int int64_t;
-// MIPS:typedef unsigned long long int uint64_t;
+// MIPS:typedef long long int int64_t;
+// MIPS:typedef long long unsigned int uint64_t;
 // MIPS:typedef int64_t int_least64_t;
 // MIPS:typedef uint64_t uint_least64_t;
 // MIPS:typedef int64_t int_fast64_t;
 // MIPS:typedef uint64_t uint_fast64_t;
 //
-// MIPS:typedef signed int int32_t;
+// MIPS:typedef int int32_t;
 // MIPS:typedef unsigned int uint32_t;
 // MIPS:typedef int32_t int_least32_t;
 // MIPS:typedef uint32_t uint_least32_t;
 // MIPS:typedef int32_t int_fast32_t;
 // MIPS:typedef uint32_t uint_fast32_t;
 //
-// MIPS:typedef signed short int16_t;
+// MIPS:typedef short int16_t;
 // MIPS:typedef unsigned short uint16_t;
 // MIPS:typedef int16_t int_least16_t;
 // MIPS:typedef uint16_t uint_least16_t;
@@ -243,8 +243,8 @@
 // MIPS:typedef int8_t int_fast8_t;
 // MIPS:typedef uint8_t uint_fast8_t;
 //
-// MIPS:typedef int32_t intptr_t;
-// MIPS:typedef uint32_t uintptr_t;
+// MIPS:typedef long int intptr_t;
+// MIPS:typedef long unsigned int uintptr_t;
 //
 // MIPS:typedef long long int intmax_t;
 // MIPS:typedef long long unsigned int uintmax_t;
@@ -289,9 +289,9 @@
 // MIPS:INT_FAST64_MAX_ 9223372036854775807LL
 // MIPS:UINT_FAST64_MAX_ 18446744073709551615ULL
 //
-// MIPS:INTPTR_MIN_ (-2147483647 -1)
-// MIPS:INTPTR_MAX_ 2147483647
-// MIPS:UINTPTR_MAX_ 4294967295U
+// MIPS:INTPTR_MIN_ (-2147483647L -1)
+// MIPS:INTPTR_MAX_ 2147483647L
+// MIPS:UINTPTR_MAX_ 4294967295UL
 // MIPS:PTRDIFF_MIN_ (-2147483647 -1)
 // MIPS:PTRDIFF_MAX_ 2147483647
 // MIPS:SIZE_MAX_ 4294967295U
@@ -322,21 +322,21 @@
 //
 // RUN: %clang_cc1 -E -ffreestanding -triple=mips64-none-none %s | FileCheck -check-prefix MIPS64 %s
 //
-// MIPS64:typedef signed long long int int64_t;
-// MIPS64:typedef unsigned long long int uint64_t;
+// MIPS64:typedef long int int64_t;
+// MIPS64:typedef long unsigned int uint64_t;
 // MIPS64:typedef int64_t int_least64_t;
 // MIPS64:typedef uint64_t uint_least64_t;
 // MIPS64:typedef int64_t int_fast64_t;
 // MIPS64:typedef uint64_t uint_fast64_t;
 //
-// MIPS64:typedef signed int int32_t;
+// MIPS64:typedef int int32_t;
 // MIPS64:typedef unsigned int uint32_t;
 // MIPS64:typedef int32_t int_least32_t;
 // MIPS64:typedef uint32_t uint_least32_t;
 // MIPS64:typedef int32_t int_fast32_t;
 // MIPS64:typedef uint32_t uint_fast32_t;
 //
-// MIPS64:typedef signed short int16_t;
+// MIPS64:typedef short int16_t;
 // MIPS64:typedef unsigned short uint16_t;
 // MIPS64:typedef int16_t int_least16_t;
 // MIPS64:typedef uint16_t uint_least16_t;
@@ -350,11 +350,11 @@
 // MIPS64:typedef int8_t int_fast8_t;
 // MIPS64:typedef uint8_t uint_fast8_t;
 //
-// MIPS64:typedef int64_t intptr_t;
-// MIPS64:typedef uint64_t uintptr_t;
+// MIPS64:typedef long int intptr_t;
+// MIPS64:typedef long unsigned int uintptr_t;
 //
-// MIPS64:typedef long long int intmax_t;
-// MIPS64:typedef long long unsigned int uintmax_t;
+// MIPS64:typedef long int intmax_t;
+// MIPS64:typedef long unsigned int uintmax_t;
 //
 // MIPS64:INT8_MAX_ 127
 // MIPS64:INT8_MIN_ (-127 -1)
@@ -386,26 +386,26 @@
 // MIPS64:INT_FAST32_MAX_ 2147483647
 // MIPS64:UINT_FAST32_MAX_ 4294967295U
 //
-// MIPS64:INT64_MAX_ 9223372036854775807LL
-// MIPS64:INT64_MIN_ (-9223372036854775807LL -1)
-// MIPS64:UINT64_MAX_ 18446744073709551615ULL
-// MIPS64:INT_LEAST64_MIN_ (-9223372036854775807LL -1)
-// MIPS64:INT_LEAST64_MAX_ 9223372036854775807LL
-// MIPS64:UINT_LEAST64_MAX_ 18446744073709551615ULL
-// MIPS64:INT_FAST64_MIN_ (-9223372036854775807LL -1)
-// MIPS64:INT_FAST64_MAX_ 9223372036854775807LL
-// MIPS64:UINT_FAST64_MAX_ 18446744073709551615ULL
+// MIPS64:INT64_MAX_ 9223372036854775807L
+// MIPS64:INT64_MIN_ (-9223372036854775807L -1)
+// MIPS64:UINT64_MAX_ 18446744073709551615UL
+// MIPS64:INT_LEAST64_MIN_ (-9223372036854775807L -1)
+// MIPS64:INT_LEAST64_MAX_ 9223372036854775807L
+// MIPS64:UINT_LEAST64_MAX_ 18446744073709551615UL
+// MIPS64:INT_FAST64_MIN_ (-9223372036854775807L -1)
+// MIPS64:INT_FAST64_MAX_ 9223372036854775807L
+// MIPS64:UINT_FAST64_MAX_ 18446744073709551615UL
 //
-// MIPS64:INTPTR_MIN_ (-9223372036854775807LL -1)
-// MIPS64:INTPTR_MAX_ 9223372036854775807LL
-// MIPS64:UINTPTR_MAX_ 18446744073709551615ULL
-// MIPS64:PTRDIFF_MIN_ (-9223372036854775807LL -1)
-// MIPS64:PTRDIFF_MAX_ 9223372036854775807LL
-// MIPS64:SIZE_MAX_ 18446744073709551615ULL
+// MIPS64:INTPTR_MIN_ (-9223372036854775807L -1)
+// MIPS64:INTPTR_MAX_ 9223372036854775807L
+// MIPS64:UINTPTR_MAX_ 18446744073709551615UL
+// MIPS64:PTRDIFF_MIN_ (-9223372036854775807L -1)
+// MIPS64:PTRDIFF_MAX_ 9223372036854775807L
+// MIPS64:SIZE_MAX_ 18446744073709551615UL
 //
-// MIPS64:INTMAX_MIN_ (-9223372036854775807LL -1)
-// MIPS64:INTMAX_MAX_ 9223372036854775807LL
-// MIPS64:UINTMAX_MAX_ 18446744073709551615ULL
+// MIPS64:INTMAX_MIN_ (-9223372036854775807L -1)
+// MIPS64:INTMAX_MAX_ 9223372036854775807L
+// MIPS64:UINTMAX_MAX_ 18446744073709551615UL
 //
 // MIPS64:SIG_ATOMIC_MIN_ (-2147483647 -1)
 // MIPS64:SIG_ATOMIC_MAX_ 2147483647
@@ -421,22 +421,22 @@
 // MIPS64:UINT16_C_(0) 0U
 // MIPS64:INT32_C_(0) 0
 // MIPS64:UINT32_C_(0) 0U
-// MIPS64:INT64_C_(0) 0LL
-// MIPS64:UINT64_C_(0) 0ULL
+// MIPS64:INT64_C_(0) 0L
+// MIPS64:UINT64_C_(0) 0UL
 //
-// MIPS64:INTMAX_C_(0) 0LL
-// MIPS64:UINTMAX_C_(0) 0ULL
+// MIPS64:INTMAX_C_(0) 0L
+// MIPS64:UINTMAX_C_(0) 0UL
 //
 // RUN: %clang_cc1 -E -ffreestanding -triple=msp430-none-none %s | FileCheck -check-prefix MSP430 %s
 //
-// MSP430:typedef signed long int int32_t;
-// MSP430:typedef unsigned long int uint32_t;
+// MSP430:typedef long int int32_t;
+// MSP430:typedef long unsigned int uint32_t;
 // MSP430:typedef int32_t int_least32_t;
 // MSP430:typedef uint32_t uint_least32_t;
 // MSP430:typedef int32_t int_fast32_t;
 // MSP430:typedef uint32_t uint_fast32_t;
 //
-// MSP430:typedef signed short int16_t;
+// MSP430:typedef short int16_t;
 // MSP430:typedef unsigned short uint16_t;
 // MSP430:typedef int16_t int_least16_t;
 // MSP430:typedef uint16_t uint_least16_t;
@@ -450,8 +450,8 @@
 // MSP430:typedef int8_t int_fast8_t;
 // MSP430:typedef uint8_t uint_fast8_t;
 //
-// MSP430:typedef int16_t intptr_t;
-// MSP430:typedef uint16_t uintptr_t;
+// MSP430:typedef int intptr_t;
+// MSP430:typedef unsigned int uintptr_t;
 //
 // MSP430:typedef long long int intmax_t;
 // MSP430:typedef long long unsigned int uintmax_t;
@@ -529,21 +529,21 @@
 //
 // RUN: %clang_cc1 -E -ffreestanding -triple=powerpc64-none-none %s | FileCheck -check-prefix PPC64 %s
 //
-// PPC64:typedef signed long int int64_t;
-// PPC64:typedef unsigned long int uint64_t;
+// PPC64:typedef long int int64_t;
+// PPC64:typedef long unsigned int uint64_t;
 // PPC64:typedef int64_t int_least64_t;
 // PPC64:typedef uint64_t uint_least64_t;
 // PPC64:typedef int64_t int_fast64_t;
 // PPC64:typedef uint64_t uint_fast64_t;
 //
-// PPC64:typedef signed int int32_t;
+// PPC64:typedef int int32_t;
 // PPC64:typedef unsigned int uint32_t;
 // PPC64:typedef int32_t int_least32_t;
 // PPC64:typedef uint32_t uint_least32_t;
 // PPC64:typedef int32_t int_fast32_t;
 // PPC64:typedef uint32_t uint_fast32_t;
 //
-// PPC64:typedef signed short int16_t;
+// PPC64:typedef short int16_t;
 // PPC64:typedef unsigned short uint16_t;
 // PPC64:typedef int16_t int_least16_t;
 // PPC64:typedef uint16_t uint_least16_t;
@@ -557,8 +557,8 @@
 // PPC64:typedef int8_t int_fast8_t;
 // PPC64:typedef uint8_t uint_fast8_t;
 //
-// PPC64:typedef int64_t intptr_t;
-// PPC64:typedef uint64_t uintptr_t;
+// PPC64:typedef long int intptr_t;
+// PPC64:typedef long unsigned int uintptr_t;
 //
 // PPC64:typedef long int intmax_t;
 // PPC64:typedef long unsigned int uintmax_t;
@@ -634,24 +634,131 @@
 // PPC64:INTMAX_C_(0) 0L
 // PPC64:UINTMAX_C_(0) 0UL
 //
+// RUN: %clang_cc1 -E -ffreestanding -triple=powerpc64-none-netbsd %s | FileCheck -check-prefix PPC64-NETBSD %s
+//
+// PPC64-NETBSD:typedef long long int int64_t;
+// PPC64-NETBSD:typedef long long unsigned int uint64_t;
+// PPC64-NETBSD:typedef int64_t int_least64_t;
+// PPC64-NETBSD:typedef uint64_t uint_least64_t;
+// PPC64-NETBSD:typedef int64_t int_fast64_t;
+// PPC64-NETBSD:typedef uint64_t uint_fast64_t;
+//
+// PPC64-NETBSD:typedef int int32_t;
+// PPC64-NETBSD:typedef unsigned int uint32_t;
+// PPC64-NETBSD:typedef int32_t int_least32_t;
+// PPC64-NETBSD:typedef uint32_t uint_least32_t;
+// PPC64-NETBSD:typedef int32_t int_fast32_t;
+// PPC64-NETBSD:typedef uint32_t uint_fast32_t;
+//
+// PPC64-NETBSD:typedef short int16_t;
+// PPC64-NETBSD:typedef unsigned short uint16_t;
+// PPC64-NETBSD:typedef int16_t int_least16_t;
+// PPC64-NETBSD:typedef uint16_t uint_least16_t;
+// PPC64-NETBSD:typedef int16_t int_fast16_t;
+// PPC64-NETBSD:typedef uint16_t uint_fast16_t;
+//
+// PPC64-NETBSD:typedef signed char int8_t;
+// PPC64-NETBSD:typedef unsigned char uint8_t;
+// PPC64-NETBSD:typedef int8_t int_least8_t;
+// PPC64-NETBSD:typedef uint8_t uint_least8_t;
+// PPC64-NETBSD:typedef int8_t int_fast8_t;
+// PPC64-NETBSD:typedef uint8_t uint_fast8_t;
+//
+// PPC64-NETBSD:typedef long int intptr_t;
+// PPC64-NETBSD:typedef long unsigned int uintptr_t;
+//
+// PPC64-NETBSD:typedef long long int intmax_t;
+// PPC64-NETBSD:typedef long long unsigned int uintmax_t;
+//
+// PPC64-NETBSD:INT8_MAX_ 127
+// PPC64-NETBSD:INT8_MIN_ (-127 -1)
+// PPC64-NETBSD:UINT8_MAX_ 255
+// PPC64-NETBSD:INT_LEAST8_MIN_ (-127 -1)
+// PPC64-NETBSD:INT_LEAST8_MAX_ 127
+// PPC64-NETBSD:UINT_LEAST8_MAX_ 255
+// PPC64-NETBSD:INT_FAST8_MIN_ (-127 -1)
+// PPC64-NETBSD:INT_FAST8_MAX_ 127
+// PPC64-NETBSD:UINT_FAST8_MAX_ 255
+//
+// PPC64-NETBSD:INT16_MAX_ 32767
+// PPC64-NETBSD:INT16_MIN_ (-32767 -1)
+// PPC64-NETBSD:UINT16_MAX_ 65535
+// PPC64-NETBSD:INT_LEAST16_MIN_ (-32767 -1)
+// PPC64-NETBSD:INT_LEAST16_MAX_ 32767
+// PPC64-NETBSD:UINT_LEAST16_MAX_ 65535
+// PPC64-NETBSD:INT_FAST16_MIN_ (-32767 -1)
+// PPC64-NETBSD:INT_FAST16_MAX_ 32767
+// PPC64-NETBSD:UINT_FAST16_MAX_ 65535
+//
+// PPC64-NETBSD:INT32_MAX_ 2147483647
+// PPC64-NETBSD:INT32_MIN_ (-2147483647 -1)
+// PPC64-NETBSD:UINT32_MAX_ 4294967295U
+// PPC64-NETBSD:INT_LEAST32_MIN_ (-2147483647 -1)
+// PPC64-NETBSD:INT_LEAST32_MAX_ 2147483647
+// PPC64-NETBSD:UINT_LEAST32_MAX_ 4294967295U
+// PPC64-NETBSD:INT_FAST32_MIN_ (-2147483647 -1)
+// PPC64-NETBSD:INT_FAST32_MAX_ 2147483647
+// PPC64-NETBSD:UINT_FAST32_MAX_ 4294967295U
+//
+// PPC64-NETBSD:INT64_MAX_ 9223372036854775807LL
+// PPC64-NETBSD:INT64_MIN_ (-9223372036854775807LL -1)
+// PPC64-NETBSD:UINT64_MAX_ 18446744073709551615ULL
+// PPC64-NETBSD:INT_LEAST64_MIN_ (-9223372036854775807LL -1)
+// PPC64-NETBSD:INT_LEAST64_MAX_ 9223372036854775807LL
+// PPC64-NETBSD:UINT_LEAST64_MAX_ 18446744073709551615ULL
+// PPC64-NETBSD:INT_FAST64_MIN_ (-9223372036854775807LL -1)
+// PPC64-NETBSD:INT_FAST64_MAX_ 9223372036854775807LL
+// PPC64-NETBSD:UINT_FAST64_MAX_ 18446744073709551615ULL
+//
+// PPC64-NETBSD:INTPTR_MIN_ (-9223372036854775807L -1)
+// PPC64-NETBSD:INTPTR_MAX_ 9223372036854775807L
+// PPC64-NETBSD:UINTPTR_MAX_ 18446744073709551615UL
+// PPC64-NETBSD:PTRDIFF_MIN_ (-9223372036854775807L -1)
+// PPC64-NETBSD:PTRDIFF_MAX_ 9223372036854775807L
+// PPC64-NETBSD:SIZE_MAX_ 18446744073709551615UL
+//
+// PPC64-NETBSD:INTMAX_MIN_ (-9223372036854775807LL -1)
+// PPC64-NETBSD:INTMAX_MAX_ 9223372036854775807LL
+// PPC64-NETBSD:UINTMAX_MAX_ 18446744073709551615ULL
+//
+// PPC64-NETBSD:SIG_ATOMIC_MIN_ (-2147483647 -1)
+// PPC64-NETBSD:SIG_ATOMIC_MAX_ 2147483647
+// PPC64-NETBSD:WINT_MIN_ (-2147483647 -1)
+// PPC64-NETBSD:WINT_MAX_ 2147483647
+//
+// PPC64-NETBSD:WCHAR_MAX_ 2147483647
+// PPC64-NETBSD:WCHAR_MIN_ (-2147483647 -1)
+//
+// PPC64-NETBSD:INT8_C_(0) 0
+// PPC64-NETBSD:UINT8_C_(0) 0U
+// PPC64-NETBSD:INT16_C_(0) 0
+// PPC64-NETBSD:UINT16_C_(0) 0U
+// PPC64-NETBSD:INT32_C_(0) 0
+// PPC64-NETBSD:UINT32_C_(0) 0U
+// PPC64-NETBSD:INT64_C_(0) 0LL
+// PPC64-NETBSD:UINT64_C_(0) 0ULL
+//
+// PPC64-NETBSD:INTMAX_C_(0) 0LL
+// PPC64-NETBSD:UINTMAX_C_(0) 0ULL
+//
 // RUN: %clang_cc1 -E -ffreestanding -triple=powerpc-none-none %s | FileCheck -check-prefix PPC %s
 //
 //
-// PPC:typedef signed long long int int64_t;
-// PPC:typedef unsigned long long int uint64_t;
+// PPC:typedef long long int int64_t;
+// PPC:typedef long long unsigned int uint64_t;
 // PPC:typedef int64_t int_least64_t;
 // PPC:typedef uint64_t uint_least64_t;
 // PPC:typedef int64_t int_fast64_t;
 // PPC:typedef uint64_t uint_fast64_t;
 //
-// PPC:typedef signed int int32_t;
+// PPC:typedef int int32_t;
 // PPC:typedef unsigned int uint32_t;
 // PPC:typedef int32_t int_least32_t;
 // PPC:typedef uint32_t uint_least32_t;
 // PPC:typedef int32_t int_fast32_t;
 // PPC:typedef uint32_t uint_fast32_t;
 //
-// PPC:typedef signed short int16_t;
+// PPC:typedef short int16_t;
 // PPC:typedef unsigned short uint16_t;
 // PPC:typedef int16_t int_least16_t;
 // PPC:typedef uint16_t uint_least16_t;
@@ -665,8 +772,8 @@
 // PPC:typedef int8_t int_fast8_t;
 // PPC:typedef uint8_t uint_fast8_t;
 //
-// PPC:typedef int32_t intptr_t;
-// PPC:typedef uint32_t uintptr_t;
+// PPC:typedef long int intptr_t;
+// PPC:typedef long unsigned int uintptr_t;
 //
 // PPC:typedef long long int intmax_t;
 // PPC:typedef long long unsigned int uintmax_t;
@@ -711,12 +818,12 @@
 // PPC:INT_FAST64_MAX_ 9223372036854775807LL
 // PPC:UINT_FAST64_MAX_ 18446744073709551615ULL
 //
-// PPC:INTPTR_MIN_ (-2147483647 -1)
-// PPC:INTPTR_MAX_ 2147483647
-// PPC:UINTPTR_MAX_ 4294967295U
-// PPC:PTRDIFF_MIN_ (-2147483647 -1)
-// PPC:PTRDIFF_MAX_ 2147483647
-// PPC:SIZE_MAX_ 4294967295U
+// PPC:INTPTR_MIN_ (-2147483647L -1)
+// PPC:INTPTR_MAX_ 2147483647L
+// PPC:UINTPTR_MAX_ 4294967295UL
+// PPC:PTRDIFF_MIN_ (-2147483647L -1)
+// PPC:PTRDIFF_MAX_ 2147483647L
+// PPC:SIZE_MAX_ 4294967295UL
 //
 // PPC:INTMAX_MIN_ (-9223372036854775807LL -1)
 // PPC:INTMAX_MAX_ 9223372036854775807LL
@@ -744,21 +851,21 @@
 //
 // RUN: %clang_cc1 -E -ffreestanding -triple=s390x-none-none %s | FileCheck -check-prefix S390X %s
 //
-// S390X:typedef signed long long int int64_t;
-// S390X:typedef unsigned long long int uint64_t;
+// S390X:typedef long int int64_t;
+// S390X:typedef long unsigned int uint64_t;
 // S390X:typedef int64_t int_least64_t;
 // S390X:typedef uint64_t uint_least64_t;
 // S390X:typedef int64_t int_fast64_t;
 // S390X:typedef uint64_t uint_fast64_t;
 //
-// S390X:typedef signed int int32_t;
+// S390X:typedef int int32_t;
 // S390X:typedef unsigned int uint32_t;
 // S390X:typedef int32_t int_least32_t;
 // S390X:typedef uint32_t uint_least32_t;
 // S390X:typedef int32_t int_fast32_t;
 // S390X:typedef uint32_t uint_fast32_t;
 //
-// S390X:typedef signed short int16_t;
+// S390X:typedef short int16_t;
 // S390X:typedef unsigned short uint16_t;
 // S390X:typedef int16_t int_least16_t;
 // S390X:typedef uint16_t uint_least16_t;
@@ -772,11 +879,11 @@
 // S390X:typedef int8_t int_fast8_t;
 // S390X:typedef uint8_t uint_fast8_t;
 //
-// S390X:typedef int64_t intptr_t;
-// S390X:typedef uint64_t uintptr_t;
+// S390X:typedef long int intptr_t;
+// S390X:typedef long unsigned int uintptr_t;
 //
-// S390X:typedef long long int intmax_t;
-// S390X:typedef long long unsigned int uintmax_t;
+// S390X:typedef long int intmax_t;
+// S390X:typedef long unsigned int uintmax_t;
 //
 // S390X:INT8_MAX_ 127
 // S390X:INT8_MIN_ (-127 -1)
@@ -809,23 +916,23 @@
 // S390X:UINT_FAST32_MAX_ 4294967295U
 //
 // S390X:INT64_MAX_ 9223372036854775807L
-// S390X:INT64_MIN_ (-9223372036854775807LL -1)
+// S390X:INT64_MIN_ (-9223372036854775807L -1)
 // S390X:UINT64_MAX_ 18446744073709551615UL
-// S390X:INT_LEAST64_MIN_ (-9223372036854775807LL -1)
+// S390X:INT_LEAST64_MIN_ (-9223372036854775807L -1)
 // S390X:INT_LEAST64_MAX_ 9223372036854775807L
 // S390X:UINT_LEAST64_MAX_ 18446744073709551615UL
-// S390X:INT_FAST64_MIN_ (-9223372036854775807LL -1)
+// S390X:INT_FAST64_MIN_ (-9223372036854775807L -1)
 // S390X:INT_FAST64_MAX_ 9223372036854775807L
 // S390X:UINT_FAST64_MAX_ 18446744073709551615UL
 //
-// S390X:INTPTR_MIN_ (-9223372036854775807LL -1)
+// S390X:INTPTR_MIN_ (-9223372036854775807L -1)
 // S390X:INTPTR_MAX_ 9223372036854775807L
 // S390X:UINTPTR_MAX_ 18446744073709551615UL
-// S390X:PTRDIFF_MIN_ (-9223372036854775807LL -1)
+// S390X:PTRDIFF_MIN_ (-9223372036854775807L -1)
 // S390X:PTRDIFF_MAX_ 9223372036854775807L
 // S390X:SIZE_MAX_ 18446744073709551615UL
 //
-// S390X:INTMAX_MIN_ (-9223372036854775807LL -1)
+// S390X:INTMAX_MIN_ (-9223372036854775807L -1)
 // S390X:INTMAX_MAX_ 9223372036854775807L
 // S390X:UINTMAX_MAX_ 18446744073709551615UL
 //
@@ -851,21 +958,21 @@
 //
 // RUN: %clang_cc1 -E -ffreestanding -triple=sparc-none-none %s | FileCheck -check-prefix SPARC %s
 //
-// SPARC:typedef signed long long int int64_t;
-// SPARC:typedef unsigned long long int uint64_t;
+// SPARC:typedef long long int int64_t;
+// SPARC:typedef long long unsigned int uint64_t;
 // SPARC:typedef int64_t int_least64_t;
 // SPARC:typedef uint64_t uint_least64_t;
 // SPARC:typedef int64_t int_fast64_t;
 // SPARC:typedef uint64_t uint_fast64_t;
 //
-// SPARC:typedef signed int int32_t;
+// SPARC:typedef int int32_t;
 // SPARC:typedef unsigned int uint32_t;
 // SPARC:typedef int32_t int_least32_t;
 // SPARC:typedef uint32_t uint_least32_t;
 // SPARC:typedef int32_t int_fast32_t;
 // SPARC:typedef uint32_t uint_fast32_t;
 //
-// SPARC:typedef signed short int16_t;
+// SPARC:typedef short int16_t;
 // SPARC:typedef unsigned short uint16_t;
 // SPARC:typedef int16_t int_least16_t;
 // SPARC:typedef uint16_t uint_least16_t;
@@ -879,8 +986,8 @@
 // SPARC:typedef int8_t int_fast8_t;
 // SPARC:typedef uint8_t uint_fast8_t;
 //
-// SPARC:typedef int32_t intptr_t;
-// SPARC:typedef uint32_t uintptr_t;
+// SPARC:typedef int intptr_t;
+// SPARC:typedef unsigned int uintptr_t;
 //
 // SPARC:typedef long long int intmax_t;
 // SPARC:typedef long long unsigned int uintmax_t;
@@ -958,14 +1065,14 @@
 //
 // RUN: %clang_cc1 -E -ffreestanding -triple=tce-none-none %s | FileCheck -check-prefix TCE %s
 //
-// TCE:typedef signed int int32_t;
+// TCE:typedef int int32_t;
 // TCE:typedef unsigned int uint32_t;
 // TCE:typedef int32_t int_least32_t;
 // TCE:typedef uint32_t uint_least32_t;
 // TCE:typedef int32_t int_fast32_t;
 // TCE:typedef uint32_t uint_fast32_t;
 //
-// TCE:typedef signed short int16_t;
+// TCE:typedef short int16_t;
 // TCE:typedef unsigned short uint16_t;
 // TCE:typedef int16_t int_least16_t;
 // TCE:typedef uint16_t uint_least16_t;
@@ -979,8 +1086,8 @@
 // TCE:typedef int8_t int_fast8_t;
 // TCE:typedef uint8_t uint_fast8_t;
 //
-// TCE:typedef int32_t intptr_t;
-// TCE:typedef uint32_t uintptr_t;
+// TCE:typedef int intptr_t;
+// TCE:typedef unsigned int uintptr_t;
 //
 // TCE:typedef long int intmax_t;
 // TCE:typedef long unsigned int uintmax_t;
@@ -1032,9 +1139,9 @@
 // TCE:PTRDIFF_MAX_ 2147483647
 // TCE:SIZE_MAX_ 4294967295U
 //
-// TCE:INTMAX_MIN_ (-2147483647 -1)
-// TCE:INTMAX_MAX_ 2147483647
-// TCE:UINTMAX_MAX_ 4294967295U
+// TCE:INTMAX_MIN_ (-2147483647L -1)
+// TCE:INTMAX_MAX_ 2147483647L
+// TCE:UINTMAX_MAX_ 4294967295UL
 //
 // TCE:SIG_ATOMIC_MIN_ (-2147483647 -1)
 // TCE:SIG_ATOMIC_MAX_ 2147483647
@@ -1059,21 +1166,21 @@
 // RUN: %clang_cc1 -E -ffreestanding -triple=x86_64-none-none %s | FileCheck -check-prefix X86_64 %s
 //
 //
-// X86_64:typedef signed long int int64_t;
-// X86_64:typedef unsigned long int uint64_t;
+// X86_64:typedef long int int64_t;
+// X86_64:typedef long unsigned int uint64_t;
 // X86_64:typedef int64_t int_least64_t;
 // X86_64:typedef uint64_t uint_least64_t;
 // X86_64:typedef int64_t int_fast64_t;
 // X86_64:typedef uint64_t uint_fast64_t;
 //
-// X86_64:typedef signed int int32_t;
+// X86_64:typedef int int32_t;
 // X86_64:typedef unsigned int uint32_t;
 // X86_64:typedef int32_t int_least32_t;
 // X86_64:typedef uint32_t uint_least32_t;
 // X86_64:typedef int32_t int_fast32_t;
 // X86_64:typedef uint32_t uint_fast32_t;
 //
-// X86_64:typedef signed short int16_t;
+// X86_64:typedef short int16_t;
 // X86_64:typedef unsigned short uint16_t;
 // X86_64:typedef int16_t int_least16_t;
 // X86_64:typedef uint16_t uint_least16_t;
@@ -1087,8 +1194,8 @@
 // X86_64:typedef int8_t int_fast8_t;
 // X86_64:typedef uint8_t uint_fast8_t;
 //
-// X86_64:typedef int64_t intptr_t;
-// X86_64:typedef uint64_t uintptr_t;
+// X86_64:typedef long int intptr_t;
+// X86_64:typedef long unsigned int uintptr_t;
 //
 // X86_64:typedef long int intmax_t;
 // X86_64:typedef long unsigned int uintmax_t;
@@ -1179,21 +1286,21 @@
 //
 // RUN: %clang_cc1 -E -ffreestanding -triple=xcore-none-none %s | FileCheck -check-prefix XCORE %s
 //
-// XCORE:typedef signed long long int int64_t;
-// XCORE:typedef unsigned long long int uint64_t;
+// XCORE:typedef long long int int64_t;
+// XCORE:typedef long long unsigned int uint64_t;
 // XCORE:typedef int64_t int_least64_t;
 // XCORE:typedef uint64_t uint_least64_t;
 // XCORE:typedef int64_t int_fast64_t;
 // XCORE:typedef uint64_t uint_fast64_t;
 //
-// XCORE:typedef signed int int32_t;
+// XCORE:typedef int int32_t;
 // XCORE:typedef unsigned int uint32_t;
 // XCORE:typedef int32_t int_least32_t;
 // XCORE:typedef uint32_t uint_least32_t;
 // XCORE:typedef int32_t int_fast32_t;
 // XCORE:typedef uint32_t uint_fast32_t;
 //
-// XCORE:typedef signed short int16_t;
+// XCORE:typedef short int16_t;
 // XCORE:typedef unsigned short uint16_t;
 // XCORE:typedef int16_t int_least16_t;
 // XCORE:typedef uint16_t uint_least16_t;
@@ -1207,8 +1314,8 @@
 // XCORE:typedef int8_t int_fast8_t;
 // XCORE:typedef uint8_t uint_fast8_t;
 //
-// XCORE:typedef int32_t intptr_t;
-// XCORE:typedef uint32_t uintptr_t;
+// XCORE:typedef int intptr_t;
+// XCORE:typedef unsigned int uintptr_t;
 //
 // XCORE:typedef long long int intmax_t;
 // XCORE:typedef long long unsigned int uintmax_t;
@@ -1291,9 +1398,14 @@
 // the identifiers used in the operations (int, uint, _t, INT, UINT, _MIN,
 // _MAX, and _C(v)) are themselves macros.
 //
-// RUN: %clang_cc1 -E -ffreestanding -U__UINTMAX_TYPE__ -U__INTMAX_TYPE__ -Dint=a -Duint=b -D_t=c -DINT=d -DUINT=e -D_MIN=f -D_MAX=g '-D_C(v)=h' -triple=i386-none-none %s | FileCheck -check-prefix JOIN %s
-// JOIN:typedef int32_t intptr_t;
-// JOIN:typedef uint32_t uintptr_t;
+// RUN: %clang_cc1 -E -ffreestanding                                 \
+// RUN:   -U__UINTPTR_TYPE__ -U__INTPTR_TYPE__                       \
+// RUN:   -U__UINTMAX_TYPE__ -U__INTMAX_TYPE__                       \
+// RUN:   -Dint=a -Duint=b -D_t=c -DINT=d -DUINT=e -D_MIN=f -D_MAX=g \
+// RUN:   '-D_C(v)=h' -triple=i386-none-none %s                      \
+// RUN: | FileCheck -check-prefix JOIN %s
+// JOIN:typedef __INTPTR_TYPE__ intptr_t;
+// JOIN:typedef __UINTPTR_TYPE__ uintptr_t;
 // JOIN:typedef __INTMAX_TYPE__ intmax_t;
 // JOIN:typedef __UINTMAX_TYPE__ uintmax_t;
 // JOIN:INTPTR_MIN_ (-2147483647 -1)

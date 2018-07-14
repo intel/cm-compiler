@@ -50,7 +50,7 @@ public:
   static char ID;
   explicit GenXPrinter(raw_ostream &OS, const std::string &Banner)
     : FunctionPass(ID), OS(OS), Banner(Banner) { }
-  virtual const char *getPassName() const { return "GenX printer pass"; }
+  virtual StringRef getPassName() const { return "GenX printer pass"; }
   void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.setPreservesAll();
   }
@@ -65,7 +65,7 @@ public:
   static char ID;
   explicit GenXGroupPrinter(raw_ostream &OS, const std::string &Banner)
     : FunctionGroupPass(ID), OS(OS), Banner(Banner) { }
-  virtual const char *getPassName() const { return "GenX FunctionGroup printer pass"; }
+  virtual StringRef getPassName() const { return "GenX FunctionGroup printer pass"; }
   void getAnalysisUsage(AnalysisUsage &AU) const {
     FunctionGroupPass::getAnalysisUsage(AU);
     AU.setPreservesAll();

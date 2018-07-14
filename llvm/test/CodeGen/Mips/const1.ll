@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=mipsel-linux-gnu -march=mipsel -mcpu=mips16 -soft-float -mips16-hard-float -relocation-model=static -mips16-constant-islands < %s | FileCheck %s 
+; RUN: llc -mtriple=mipsel-linux-gnu -march=mipsel -mattr=mips16 -mattr=+soft-float -mips16-hard-float -relocation-model=static -mips16-constant-islands < %s | FileCheck %s 
 
 ; ModuleID = 'const1.c'
 target datalayout = "e-p:32:32:32-i1:8:8-i8:8:32-i16:16:32-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-n32-S64"
@@ -32,4 +32,4 @@ attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"=
 
 !llvm.ident = !{!0}
 
-!0 = metadata !{metadata !"clang version 3.4 (gitosis@dmz-portal.mips.com:clang.git b754974ec32ab712ea7d8b52cd8037b24e7d6ed3) (gitosis@dmz-portal.mips.com:llvm.git 8e211187b501bc73edb938fde0019c9a20bcffd5)"}
+!0 = !{!"clang version 3.4 (gitosis@dmz-portal.mips.com:clang.git b754974ec32ab712ea7d8b52cd8037b24e7d6ed3) (gitosis@dmz-portal.mips.com:llvm.git 8e211187b501bc73edb938fde0019c9a20bcffd5)"}

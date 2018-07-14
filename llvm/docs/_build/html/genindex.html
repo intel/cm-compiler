@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Index &#8212; LLVM 3.4 documentation</title>
+    <title>Index &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -16,7 +16,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -72,10 +72,24 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li>
+    --arch=&lt;arch&gt;
+
+      <ul>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-arch">command line option</a>, <a href="CommandGuide/llvm-dwarfdump.html#cmdoption-arch">[1]</a>
+</li>
+      </ul></li>
+      <li>
     --check-prefix prefix
 
       <ul>
         <li><a href="CommandGuide/FileCheck.html#cmdoption-check-prefix">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --check-prefixes prefix1,prefix2,...
+
+      <ul>
+        <li><a href="CommandGuide/FileCheck.html#cmdoption-check-prefixes">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -93,6 +107,13 @@
 </li>
       </ul></li>
       <li>
+    --debug-abbrev, --debug-aranges, --debug-cu-index, --debug-frame [=&lt;offset&gt;], --debug-gnu-pubnames, --debug-gnu-pubtypes, --debug-info [=&lt;offset&gt;], --debug-line [=&lt;offset&gt;], --debug-loc [=&lt;offset&gt;], --debug-macro, --debug-pubnames, --debug-pubtypes, --debug-ranges, --debug-str, --debug-str-offsets, --debug-tu-index, --debug-types, --eh-frame, --gdb-index, --apple-names, --apple-types, --apple-namespaces, --apple-objc
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-debug-abbrev">command line option</a>
+</li>
+      </ul></li>
+      <li>
     --debug-syms, -a
 
       <ul>
@@ -107,6 +128,13 @@
 </li>
       </ul></li>
       <li>
+    --diff
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-diff">command line option</a>
+</li>
+      </ul></li>
+      <li>
     --disable-excess-fp-precision
 
       <ul>
@@ -118,6 +146,13 @@
 
       <ul>
         <li><a href="CommandGuide/llc.html#cmdoption-disable-fp-elim">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --dump-debug-map
+
+      <ul>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-dump-debug-map">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -149,10 +184,24 @@
 </li>
       </ul></li>
       <li>
+    --enable-var-scope
+
+      <ul>
+        <li><a href="CommandGuide/FileCheck.html#cmdoption-enable-var-scope">command line option</a>
+</li>
+      </ul></li>
+      <li>
     --extern-only, -g
 
       <ul>
         <li><a href="CommandGuide/llvm-nm.html#cmdoption-llvm-nm-extern-only">llvm-nm command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --filter=REGEXP
+
+      <ul>
+        <li><a href="CommandGuide/lit.html#cmdoption-filter">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -166,7 +215,7 @@
     --help
 
       <ul>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-help">command line option</a>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-help">llvm-cov-gcov command line option</a>
 </li>
       </ul></li>
       <li>
@@ -191,6 +240,20 @@
 </li>
       </ul></li>
       <li>
+    --lookup=&lt;address&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-lookup">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --match-full-lines
+
+      <ul>
+        <li><a href="CommandGuide/FileCheck.html#cmdoption-match-full-lines">command line option</a>
+</li>
+      </ul></li>
+      <li>
     --max-tests=N
 
       <ul>
@@ -202,6 +265,20 @@
 
       <ul>
         <li><a href="CommandGuide/lit.html#cmdoption-max-time">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --no-odr
+
+      <ul>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-no-odr">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --no-output
+
+      <ul>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-no-output">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -219,6 +296,20 @@
 </li>
       </ul></li>
       <li>
+    --no-swiftmodule-timestamp
+
+      <ul>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-no-swiftmodule-timestamp">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --num-shards=M
+
+      <ul>
+        <li><a href="CommandGuide/lit.html#cmdoption-num-shards">command line option</a>
+</li>
+      </ul></li>
+      <li>
     --numeric-sort, -n, -v
 
       <ul>
@@ -226,10 +317,10 @@
 </li>
       </ul></li>
       <li>
-    --param NAME=VALUE
+    --oso-prepend-path=&lt;path&gt;
 
       <ul>
-        <li><a href="CommandGuide/lit.html#cmdoption-param">command line option</a>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-oso-prepend-path">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -261,10 +352,24 @@
 </li>
       </ul></li>
       <li>
+    --radix=RADIX, -t
+
+      <ul>
+        <li><a href="CommandGuide/llvm-nm.html#cmdoption-llvm-nm-radix">llvm-nm command line option</a>
+</li>
+      </ul></li>
+      <li>
     --regalloc=&lt;allocator&gt;
 
       <ul>
         <li><a href="CommandGuide/llc.html#cmdoption-regalloc">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --run-shard=N
+
+      <ul>
+        <li><a href="CommandGuide/lit.html#cmdoption-run-shard">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -279,6 +384,20 @@
 
       <ul>
         <li><a href="CommandGuide/lit.html#cmdoption-show-tests">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --show-unsupported
+
+      <ul>
+        <li><a href="CommandGuide/lit.html#cmdoption-show-unsupported">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --show-xfail
+
+      <ul>
+        <li><a href="CommandGuide/lit.html#cmdoption-show-xfail">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -300,6 +419,13 @@
 
       <ul>
         <li><a href="CommandGuide/llc.html#cmdoption-spiller">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --statistics
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-statistics">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -338,6 +464,20 @@
 </li>
       </ul></li>
       <li>
+    --verify
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-verify">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --version
+
+      <ul>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-version">command line option</a>, <a href="CommandGuide/llvm-dwarfdump.html#cmdoption-version">[1]</a>
+</li>
+      </ul></li>
+      <li>
     --vg
 
       <ul>
@@ -366,10 +506,56 @@
 </li>
       </ul></li>
       <li>
+    -a, --all
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-a">command line option</a>
+</li>
+      </ul></li>
+      <li>
     -a, --all-blocks
 
       <ul>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-a">command line option</a>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-a">llvm-cov-gcov command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -a, --show-all
+
+      <ul>
+        <li><a href="CommandGuide/lit.html#cmdoption-a">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -all
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-all">llvm-pdbutil-dump command line option</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-all">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -all-functions
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-all-functions">llvm-profdata-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -arch=&lt;name&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-export-arch">llvm-cov-export command line option</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-report-arch">llvm-cov-report command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -arch=[*NAMES*]
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-arch">llvm-cov-show command line option</a>
 </li>
       </ul></li>
       <li>
@@ -397,14 +583,49 @@
     -b, --branch-probabilities
 
       <ul>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-b">command line option</a>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-b">llvm-cov-gcov command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -binary (default)
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-binary">llvm-profdata-merge command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -block-range=&lt;start[-end]&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-block-range">llvm-pdbutil-bytes command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -byte-range=&lt;start[-end]&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-byte-range">llvm-pdbutil-bytes command line option</a>
 </li>
       </ul></li>
       <li>
     -c, --branch-counts
 
       <ul>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-c">command line option</a>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-c">llvm-cov-gcov command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -c, --show-children
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-c">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -chunks
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-chunks">llvm-pdbutil-bytes command line option</a>
 </li>
       </ul></li>
       <li>
@@ -415,6 +636,62 @@
 </li>
       </ul></li>
       <li>
+    -class-definitions=&lt;format&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-class-definitions">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -class-order
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-class-order">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -class-recurse-depth=&lt;uint&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-class-recurse-depth">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -classes
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-classes">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -code-model=model
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-code-model">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -color-output
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-color-output">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -compilands
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-compilands">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -counts
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-counts">llvm-profdata-show command line option</a>
+</li>
+      </ul></li>
+      <li>
     -d
 
       <ul>
@@ -422,17 +699,24 @@
 </li>
       </ul></li>
       <li>
+    -D NAME[=VALUE], --param NAME[=VALUE]
+
+      <ul>
+        <li><a href="CommandGuide/lit.html#cmdoption-d">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -D&lt;VAR=VALUE&gt;
+
+      <ul>
+        <li><a href="CommandGuide/FileCheck.html#cmdoption-d-var">command line option</a>
+</li>
+      </ul></li>
+      <li>
     -debug
 
       <ul>
         <li><a href="CommandGuide/opt.html#cmdoption-debug">command line option</a>
-</li>
-      </ul></li>
-      <li>
-    -debug-dump=section
-
-      <ul>
-        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-debug-dump">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -450,6 +734,20 @@
 </li>
       </ul></li>
       <li>
+    -dependents
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-dependents">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -disable-excess-fp-precision
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-disable-excess-fp-precision">command line option</a>
+</li>
+      </ul></li>
+      <li>
     -disable-inlining
 
       <ul>
@@ -461,6 +759,27 @@
 
       <ul>
         <li><a href="CommandGuide/opt.html#cmdoption-disable-opt">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -disable-post-RA-scheduler
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-disable-post-ra-scheduler">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -disable-spill-fusing
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-disable-spill-fusing">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -dsym-hint=&lt;path/to/file.dSYM&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-symbolizer.html#cmdoption-dsym-hint">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -485,10 +804,80 @@
 </li>
       </ul></li>
       <li>
+    -ec
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-ec">llvm-pdbutil-bytes command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -elf-section-groups, -g
+
+      <ul>
+        <li><a href="CommandGuide/llvm-readobj.html#cmdoption-elf-section-groups">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -enable-no-infs-fp-math
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-enable-no-infs-fp-math">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -enable-no-nans-fp-math
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-enable-no-nans-fp-math">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -enable-unsafe-fp-math
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-enable-unsafe-fp-math">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -enums
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-enums">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -exclude-compilands=&lt;string&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-exclude-compilands">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -exclude-symbols=&lt;string&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-exclude-symbols">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -exclude-types=&lt;string&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-exclude-types">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
     -expand-relocs
 
       <ul>
         <li><a href="CommandGuide/llvm-readobj.html#cmdoption-expand-relocs">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -externals
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-externals">llvm-pdbutil-pretty command line option</a>
 </li>
       </ul></li>
       <li>
@@ -499,10 +888,38 @@
 </li>
       </ul></li>
       <li>
+    -f &lt;name&gt;, --find=&lt;name&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-f">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -f, --flat
+
+      <ul>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-f">command line option</a>
+</li>
+      </ul></li>
+      <li>
     -f, --function-summaries
 
       <ul>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-f">command line option</a>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-f">llvm-cov-gcov command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -F, --show-form
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-show-form">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -fake-argv0=executable
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-fake-argv0">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -513,10 +930,47 @@
 </li>
       </ul></li>
       <li>
+    -files
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-files">llvm-pdbutil-bytes command line option</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-files">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
     -filetype=&lt;output file type&gt;
 
       <ul>
         <li><a href="CommandGuide/llc.html#cmdoption-filetype">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -force-interpreter={false,true}
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-force-interpreter">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -format=&lt;FORMAT&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-format">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -fpm
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-fpm">llvm-pdbutil-bytes command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -function=string
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-function">llvm-profdata-show command line option</a>
 </li>
       </ul></li>
       <li>
@@ -527,14 +981,19 @@
 </li>
       </ul></li>
       <li>
+    -gcc
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-gcc">llvm-profdata-merge command line option</a>
+</li>
+      </ul></li>
+      <li>
     -gen-asm-matcher
 
       <ul>
         <li><a href="CommandGuide/tblgen.html#cmdoption-tblgen-gen-asm-matcher">tblgen command line option</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     -gen-asm-writer
 
@@ -627,21 +1086,41 @@
 </li>
       </ul></li>
       <li>
+    -global-extras
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-global-extras">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -globals
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-globals">llvm-pdbutil-dump command line option</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-globals">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
     -h, --help
 
       <ul>
-        <li><a href="CommandGuide/lit.html#cmdoption-h">command line option</a>
+        <li><a href="CommandGuide/lit.html#cmdoption-h">command line option</a>, <a href="CommandGuide/llvm-dwarfdump.html#cmdoption-h">[1]</a>
 </li>
       </ul></li>
       <li>
     -help
 
       <ul>
-        <li><a href="CommandGuide/FileCheck.html#cmdoption-help">command line option</a>, <a href="CommandGuide/llc.html#cmdoption-help">[1]</a>, <a href="CommandGuide/llvm-link.html#cmdoption-help">[2]</a>, <a href="CommandGuide/llvm-readobj.html#cmdoption-help">[3]</a>, <a href="CommandGuide/opt.html#cmdoption-help">[4]</a>
+        <li><a href="CommandGuide/FileCheck.html#cmdoption-help">command line option</a>, <a href="CommandGuide/llc.html#cmdoption-help">[1]</a>, <a href="CommandGuide/lli.html#cmdoption-help">[2]</a>, <a href="CommandGuide/llvm-link.html#cmdoption-help">[3]</a>, <a href="CommandGuide/llvm-readobj.html#cmdoption-help">[4]</a>, <a href="CommandGuide/opt.html#cmdoption-help">[5]</a>
 </li>
         <li><a href="CommandGuide/llvm-bcanalyzer.html#cmdoption-llvm-bcanalyzer-help">llvm-bcanalyzer command line option</a>
 </li>
         <li><a href="CommandGuide/llvm-nm.html#cmdoption-llvm-nm-help">llvm-nm command line option</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-help">llvm-profdata-merge command line option</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-help">llvm-profdata-show command line option</a>
 </li>
         <li><a href="CommandGuide/tblgen.html#cmdoption-tblgen-help">tblgen command line option</a>
 </li>
@@ -654,10 +1133,105 @@
 </li>
       </ul></li>
       <li>
+    -i, --ignore-case
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-i">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -id-data
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-id-data">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -id-extras
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-id-extras">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -id-index=&lt;uint&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-id-index">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
+    -id=&lt;uint&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-id">llvm-pdbutil-bytes command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -ids
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-ids">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -il
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-il">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -include-compilands=&lt;string&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-include-compilands">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -include-symbols=&lt;string&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-include-symbols">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -include-types=&lt;string&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-include-types">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
     -inlining
 
       <ul>
         <li><a href="CommandGuide/llvm-symbolizer.html#cmdoption-inlining">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -input-files=path, -f=path
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-input-files">llvm-profdata-merge command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -instr (default)
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-instr">llvm-profdata-merge command line option</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-instr">llvm-profdata-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -j &lt;n&gt;, --num-threads=&lt;n&gt;
+
+      <ul>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-j">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -668,10 +1242,59 @@
 </li>
       </ul></li>
       <li>
+    -jit-enable-eh
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-jit-enable-eh">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -join-liveintervals
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-join-liveintervals">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -l
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-l">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
     -l, --long-file-names
 
       <ul>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-l">command line option</a>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-l">llvm-cov-gcov command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -line-coverage-gt=&lt;N&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-line-coverage-gt">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -line-coverage-lt=&lt;N&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-line-coverage-lt">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -lines
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-lines">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -load-address=&lt;uint&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-load-address">llvm-pdbutil-pretty command line option</a>
 </li>
       </ul></li>
       <li>
@@ -682,6 +1305,13 @@
 </li>
       </ul></li>
       <li>
+    -load=pluginfilename
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-load">command line option</a>
+</li>
+      </ul></li>
+      <li>
     -march=&lt;arch&gt;
 
       <ul>
@@ -689,10 +1319,17 @@
 </li>
       </ul></li>
       <li>
+    -march=arch
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-march">command line option</a>
+</li>
+      </ul></li>
+      <li>
     -mattr=a1,+a2,-a3,...
 
       <ul>
-        <li><a href="CommandGuide/llc.html#cmdoption-mattr">command line option</a>
+        <li><a href="CommandGuide/llc.html#cmdoption-mattr">command line option</a>, <a href="CommandGuide/lli.html#cmdoption-mattr">[1]</a>
 </li>
       </ul></li>
       <li>
@@ -703,6 +1340,83 @@
 </li>
       </ul></li>
       <li>
+    -mcpu=cpuname
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-mcpu">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -meabi=[default|gnu|4|5]
+
+      <ul>
+        <li><a href="CommandGuide/llc.html#cmdoption-meabi">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -memop-sizes
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-memop-sizes">llvm-profdata-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -min-class-padding-imm=&lt;uint&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-min-class-padding-imm">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -min-class-padding=&lt;uint&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-min-class-padding">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -min-type-size=&lt;uint&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-min-type-size">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -mod=&lt;uint&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-mod">llvm-pdbutil-bytes command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -modi
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-modi">llvm-pdbutil-bytes command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -modi=&lt;uint&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-modi">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -module-syms
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-module-syms">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -modules
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-modules">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
     -mtriple=&lt;target triple&gt;
 
       <ul>
@@ -710,10 +1424,52 @@
 </li>
       </ul></li>
       <li>
+    -mtriple=target triple
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-mtriple">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -n &lt;pattern&gt;, --name=&lt;pattern&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-n">command line option</a>
+</li>
+      </ul></li>
+      <li>
     -n, --no-output
 
       <ul>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-n">command line option</a>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-n">llvm-cov-gcov command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -name-map
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-name-map">llvm-pdbutil-bytes command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -name-regex=&lt;PATTERN&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-name-regex">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -name-whitelist=&lt;FILE&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-name-whitelist">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -name=&lt;NAME&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-name">llvm-cov-show command line option</a>
 </li>
       </ul></li>
       <li>
@@ -724,6 +1480,27 @@
 </li>
       </ul></li>
       <li>
+    -no-compiler-generated
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-no-compiler-generated">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -no-enum-definitions
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-no-enum-definitions">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -no-system-libs
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-no-system-libs">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
     -nodetails
 
       <ul>
@@ -731,10 +1508,33 @@
 </li>
       </ul></li>
       <li>
+    -nozero-initialized-in-bss
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-nozero-initialized-in-bss">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -num-threads=N, -j=N
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-num-threads">llvm-cov-show command line option</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-num-threads">llvm-profdata-merge command line option</a>
+</li>
+      </ul></li>
+      <li>
     -o &lt;filename&gt;
 
       <ul>
-        <li><a href="CommandGuide/opt.html#cmdoption-o">command line option</a>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-o">command line option</a>, <a href="CommandGuide/opt.html#cmdoption-o">[1]</a>
+</li>
+      </ul></li>
+      <li>
+    -o &lt;path&gt;, --out-file=&lt;path&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-o">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -750,7 +1550,7 @@
     -o=&lt;DIR|FILE&gt;, --object-directory=&lt;DIR&gt;, --object-file=&lt;FILE&gt;
 
       <ul>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-o">command line option</a>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-o">llvm-cov-gcov command line option</a>
 </li>
       </ul></li>
       <li>
@@ -768,10 +1568,19 @@
 </li>
       </ul></li>
       <li>
-    -output=output
+    -output-dir=PATH
 
       <ul>
-        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-output">command line option</a>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-output-dir">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -output=output, -o=output
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-output">llvm-profdata-merge command line option</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-output">llvm-profdata-show command line option</a>
 </li>
       </ul></li>
       <li>
@@ -792,7 +1601,51 @@
     -p, --preserve-paths
 
       <ul>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-p">command line option</a>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-p">llvm-cov-gcov command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -p, --show-parents
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-p">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -path-equivalence=&lt;from&gt;,&lt;to&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-path-equivalence">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -pdb=&lt;file-name&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-merge-pdb">llvm-pdbutil-merge command line option</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-yaml2pdb-pdb">llvm-pdbutil-yaml2pdb command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -pre-RA-sched=scheduler
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-pre-ra-sched">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -pretty-print
+
+      <ul>
+        <li><a href="CommandGuide/llvm-symbolizer.html#cmdoption-pretty-print">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -print-address
+
+      <ul>
+        <li><a href="CommandGuide/llvm-symbolizer.html#cmdoption-print-address">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -824,10 +1677,59 @@
 </li>
       </ul></li>
       <li>
+    -public-extras
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-public-extras">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -publics
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-publics">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
     -q, --quiet
 
       <ul>
         <li><a href="CommandGuide/lit.html#cmdoption-q">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -r &lt;n&gt;, --recurse-depth=&lt;n&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-r">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -regalloc=allocator
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-regalloc">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -region-coverage-gt=&lt;N&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-region-coverage-gt">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -region-coverage-lt=&lt;N&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-region-coverage-lt">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -relocation-model=model
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-relocation-model">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -852,10 +1754,54 @@
 </li>
       </ul></li>
       <li>
+    -s, --symtab
+
+      <ul>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-s">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -sample
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-sample">llvm-profdata-merge command line option</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-sample">llvm-profdata-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -sc
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-sc">llvm-pdbutil-bytes command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -section-contribs
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-section-contribs">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
     -section-data, -sd
 
       <ul>
         <li><a href="CommandGuide/llvm-readobj.html#cmdoption-section-data">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -section-headers
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-section-headers">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -section-map
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-section-map">llvm-pdbutil-dump command line option</a>
 </li>
       </ul></li>
       <li>
@@ -887,6 +1833,55 @@
 </li>
       </ul></li>
       <li>
+    -show-expansions
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-show-expansions">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -show-functions
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-report-show-functions">llvm-cov-report command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -show-instantiation-summary
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-report-show-instantiation-summary">llvm-cov-report command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -show-instantiations
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-show-instantiations">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -show-line-counts
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-show-line-counts">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -show-line-counts-or-regions
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-show-line-counts-or-regions">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -show-regions
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-show-regions">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
     -size size
 
       <ul>
@@ -894,17 +1889,80 @@
 </li>
       </ul></li>
       <li>
-    -stats
+    -sm
 
       <ul>
-        <li><a href="CommandGuide/opt.html#cmdoption-stats">command line option</a>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-sm">llvm-pdbutil-bytes command line option</a>
 </li>
       </ul></li>
       <li>
-    -std-compile-opts
+    -soft-float
 
       <ul>
-        <li><a href="CommandGuide/opt.html#cmdoption-std-compile-opts">command line option</a>
+        <li><a href="CommandGuide/lli.html#cmdoption-soft-float">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -sparse[=true|false]
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-sparse">llvm-profdata-merge command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -spiller
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-spiller">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -split-chunks
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-split-chunks">llvm-pdbutil-bytes command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -stack-size-section
+
+      <ul>
+        <li><a href="CommandGuide/llc.html#cmdoption-stack-size-section">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -stats
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-stats">command line option</a>, <a href="CommandGuide/opt.html#cmdoption-stats">[1]</a>
+</li>
+      </ul></li>
+      <li>
+    -stream-blocks
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-stream-blocks">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -stream-data=&lt;string&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-stream-data">llvm-pdbutil-bytes command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -streams
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-streams">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -string-table
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-string-table">llvm-pdbutil-dump command line option</a>
 </li>
       </ul></li>
       <li>
@@ -915,6 +1973,48 @@
 </li>
       </ul></li>
       <li>
+    -summary
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-summary">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -summary-only
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-export-summary-only">llvm-cov-export command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -sym-data
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-sym-data">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -sym-types=&lt;types&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-sym-types">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -symbol-order=&lt;order&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-symbol-order">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -symbols
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-symbols">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
     -symbols, -t
 
       <ul>
@@ -922,17 +2022,105 @@
 </li>
       </ul></li>
       <li>
+    -syms
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-syms">llvm-pdbutil-bytes command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -tab-size=&lt;TABSIZE&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-tab-size">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -text
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-text">llvm-profdata-merge command line option</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-text">llvm-profdata-show command line option</a>
+</li>
+      </ul></li>
+      <li>
     -time-passes
 
       <ul>
-        <li><a href="CommandGuide/opt.html#cmdoption-time-passes">command line option</a>
+        <li><a href="CommandGuide/lli.html#cmdoption-time-passes">command line option</a>, <a href="CommandGuide/opt.html#cmdoption-time-passes">[1]</a>
+</li>
+      </ul></li>
+      <li>
+    -topn=n
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-topn">llvm-profdata-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -type-data
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-type-data">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -type-extras
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-type-extras">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -type-index=&lt;uint&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-type-index">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -type-server
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-type-server">llvm-pdbutil-bytes command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -type=&lt;uint&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-type">llvm-pdbutil-bytes command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -typedefs
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-typedefs">llvm-pdbutil-pretty command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -types
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-types">llvm-pdbutil-dump command line option</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-types">llvm-pdbutil-pretty command line option</a>
 </li>
       </ul></li>
       <li>
     -u, --unconditional-branches
 
       <ul>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-u">command line option</a>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-u">llvm-cov-gcov command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -u, --uuid
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-u">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -940,6 +2128,20 @@
 
       <ul>
         <li><a href="CommandGuide/llvm-readobj.html#cmdoption-unwind">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -use-color
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-use-color">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -use-color[=VALUE]
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-report-use-color">llvm-cov-report command line option</a>
 </li>
       </ul></li>
       <li>
@@ -960,7 +2162,7 @@
     -v, --verbose
 
       <ul>
-        <li><a href="CommandGuide/lit.html#cmdoption-v">command line option</a>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-v">command line option</a>, <a href="CommandGuide/lit.html#cmdoption-v">[1]</a>, <a href="CommandGuide/llvm-dwarfdump.html#cmdoption-v">[2]</a>
 </li>
       </ul></li>
       <li>
@@ -981,9 +2183,67 @@
     -version
 
       <ul>
-        <li><a href="CommandGuide/FileCheck.html#cmdoption-version">command line option</a>, <a href="CommandGuide/llvm-cov.html#cmdoption-version">[1]</a>, <a href="CommandGuide/llvm-readobj.html#cmdoption-version">[2]</a>
+        <li><a href="CommandGuide/FileCheck.html#cmdoption-version">command line option</a>, <a href="CommandGuide/lli.html#cmdoption-version">[1]</a>, <a href="CommandGuide/llvm-readobj.html#cmdoption-version">[2]</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-version">llvm-cov-gcov command line option</a>
 </li>
         <li><a href="CommandGuide/tblgen.html#cmdoption-tblgen-version">tblgen command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -vv, --echo-all-commands
+
+      <ul>
+        <li><a href="CommandGuide/lit.html#cmdoption-vv">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -weighted-input=weight,filename
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-weighted-input">llvm-profdata-merge command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -x, --regex
+
+      <ul>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-x">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -x86-asm-syntax=syntax
+
+      <ul>
+        <li><a href="CommandGuide/lli.html#cmdoption-x86-asm-syntax">command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -Xdemangler=&lt;TOOL&gt;|&lt;TOOL-OPTION&gt;
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-xdemangler">llvm-cov-show command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -xme
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-xme">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -xmi
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-xmi">llvm-pdbutil-dump command line option</a>
+</li>
+      </ul></li>
+      <li>
+    -y
+
+      <ul>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-y">command line option</a>
 </li>
       </ul></li>
       <li>
@@ -1003,15 +2263,25 @@
     command line option
 
       <ul>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-arch">--arch=&lt;arch&gt;</a>, <a href="CommandGuide/llvm-dwarfdump.html#cmdoption-arch">[1]</a>
+</li>
         <li><a href="CommandGuide/FileCheck.html#cmdoption-check-prefix">--check-prefix prefix</a>
+</li>
+        <li><a href="CommandGuide/FileCheck.html#cmdoption-check-prefixes">--check-prefixes prefix1,prefix2,...</a>
 </li>
         <li><a href="CommandGuide/lit.html#cmdoption-config-prefix">--config-prefix=NAME</a>
 </li>
         <li><a href="CommandGuide/lit.html#cmdoption-debug">--debug</a>
 </li>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-debug-abbrev">--debug-abbrev, --debug-aranges, --debug-cu-index, --debug-frame [=&lt;offset&gt;], --debug-gnu-pubnames, --debug-gnu-pubtypes, --debug-info [=&lt;offset&gt;], --debug-line [=&lt;offset&gt;], --debug-loc [=&lt;offset&gt;], --debug-macro, --debug-pubnames, --debug-pubtypes, --debug-ranges, --debug-str, --debug-str-offsets, --debug-tu-index, --debug-types, --eh-frame, --gdb-index, --apple-names, --apple-types, --apple-namespaces, --apple-objc</a>
+</li>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-diff">--diff</a>
+</li>
         <li><a href="CommandGuide/llc.html#cmdoption-disable-excess-fp-precision">--disable-excess-fp-precision</a>
 </li>
         <li><a href="CommandGuide/llc.html#cmdoption-disable-fp-elim">--disable-fp-elim</a>
+</li>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-dump-debug-map">--dump-debug-map</a>
 </li>
         <li><a href="CommandGuide/llc.html#cmdoption-enable-no-infs-fp-math">--enable-no-infs-fp-math</a>
 </li>
@@ -1019,7 +2289,9 @@
 </li>
         <li><a href="CommandGuide/llc.html#cmdoption-enable-unsafe-fp-math">--enable-unsafe-fp-math</a>
 </li>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-help">--help</a>
+        <li><a href="CommandGuide/FileCheck.html#cmdoption-enable-var-scope">--enable-var-scope</a>
+</li>
+        <li><a href="CommandGuide/lit.html#cmdoption-filter">--filter=REGEXP</a>
 </li>
         <li><a href="CommandGuide/FileCheck.html#cmdoption-implicit-check-not">--implicit-check-not check-pattern</a>
 </li>
@@ -1027,13 +2299,25 @@
 </li>
         <li><a href="CommandGuide/llc.html#cmdoption-load">--load=&lt;dso_path&gt;</a>
 </li>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-lookup">--lookup=&lt;address&gt;</a>
+</li>
+        <li><a href="CommandGuide/FileCheck.html#cmdoption-match-full-lines">--match-full-lines</a>
+</li>
         <li><a href="CommandGuide/lit.html#cmdoption-max-tests">--max-tests=N</a>
 </li>
         <li><a href="CommandGuide/lit.html#cmdoption-max-time">--max-time=N</a>
 </li>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-no-odr">--no-odr</a>
+</li>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-no-output">--no-output</a>
+</li>
         <li><a href="CommandGuide/lit.html#cmdoption-no-progress-bar">--no-progress-bar</a>
 </li>
-        <li><a href="CommandGuide/lit.html#cmdoption-param">--param NAME=VALUE</a>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-no-swiftmodule-timestamp">--no-swiftmodule-timestamp</a>
+</li>
+        <li><a href="CommandGuide/lit.html#cmdoption-num-shards">--num-shards=M</a>
+</li>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-oso-prepend-path">--oso-prepend-path=&lt;path&gt;</a>
 </li>
         <li><a href="CommandGuide/lit.html#cmdoption-path">--path=PATH</a>
 </li>
@@ -1041,13 +2325,21 @@
 </li>
         <li><a href="CommandGuide/llc.html#cmdoption-regalloc">--regalloc=&lt;allocator&gt;</a>
 </li>
+        <li><a href="CommandGuide/lit.html#cmdoption-run-shard">--run-shard=N</a>
+</li>
         <li><a href="CommandGuide/lit.html#cmdoption-show-suites">--show-suites</a>
 </li>
         <li><a href="CommandGuide/lit.html#cmdoption-show-tests">--show-tests</a>
 </li>
+        <li><a href="CommandGuide/lit.html#cmdoption-show-unsupported">--show-unsupported</a>
+</li>
+        <li><a href="CommandGuide/lit.html#cmdoption-show-xfail">--show-xfail</a>
+</li>
         <li><a href="CommandGuide/lit.html#cmdoption-shuffle">--shuffle</a>
 </li>
         <li><a href="CommandGuide/llc.html#cmdoption-spiller">--spiller=&lt;spiller&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-statistics">--statistics</a>
 </li>
         <li><a href="CommandGuide/llc.html#cmdoption-stats">--stats</a>
 </li>
@@ -1057,6 +2349,10 @@
 </li>
         <li><a href="CommandGuide/lit.html#cmdoption-time-tests">--time-tests</a>
 </li>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-verify">--verify</a>
+</li>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-version">--version</a>, <a href="CommandGuide/llvm-dwarfdump.html#cmdoption-version">[1]</a>
+</li>
         <li><a href="CommandGuide/lit.html#cmdoption-vg">--vg</a>
 </li>
         <li><a href="CommandGuide/lit.html#cmdoption-vg-arg">--vg-arg=ARG</a>
@@ -1065,91 +2361,149 @@
 </li>
         <li><a href="CommandGuide/llc.html#cmdoption-x86-asm-syntax">--x86-asm-syntax=[att|intel]</a>
 </li>
+        <li><a href="CommandGuide/lit.html#cmdoption-d">-D NAME[=VALUE], --param NAME[=VALUE]</a>
+</li>
+        <li><a href="CommandGuide/FileCheck.html#cmdoption-d-var">-D&lt;VAR=VALUE&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-show-form">-F, --show-form</a>
+</li>
         <li><a href="CommandGuide/llc.html#cmdoption-o">-O=uint</a>
 </li>
         <li><a href="CommandGuide/llvm-link.html#cmdoption-s">-S</a>, <a href="CommandGuide/opt.html#cmdoption-s">[1]</a>
 </li>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-a">-a, --all-blocks</a>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-a">-a, --all</a>
 </li>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-b">-b, --branch-probabilities</a>
+        <li><a href="CommandGuide/lit.html#cmdoption-a">-a, --show-all</a>
 </li>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-c">-c, --branch-counts</a>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-c">-c, --show-children</a>
+</li>
+        <li><a href="CommandGuide/lli.html#cmdoption-code-model">-code-model=model</a>
 </li>
         <li><a href="CommandGuide/llvm-link.html#cmdoption-d">-d</a>
 </li>
         <li><a href="CommandGuide/opt.html#cmdoption-debug">-debug</a>
 </li>
-        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-debug-dump">-debug-dump=section</a>
-</li>
         <li><a href="CommandGuide/llvm-symbolizer.html#cmdoption-default-arch">-default-arch</a>
 </li>
         <li><a href="CommandGuide/llvm-symbolizer.html#cmdoption-demangle">-demangle</a>
+</li>
+        <li><a href="CommandGuide/lli.html#cmdoption-disable-excess-fp-precision">-disable-excess-fp-precision</a>
 </li>
         <li><a href="CommandGuide/opt.html#cmdoption-disable-inlining">-disable-inlining</a>
 </li>
         <li><a href="CommandGuide/opt.html#cmdoption-disable-opt">-disable-opt</a>
 </li>
+        <li><a href="CommandGuide/lli.html#cmdoption-disable-post-ra-scheduler">-disable-post-RA-scheduler</a>
+</li>
+        <li><a href="CommandGuide/lli.html#cmdoption-disable-spill-fusing">-disable-spill-fusing</a>
+</li>
+        <li><a href="CommandGuide/llvm-symbolizer.html#cmdoption-dsym-hint">-dsym-hint=&lt;path/to/file.dSYM&gt;</a>
+</li>
         <li><a href="CommandGuide/llvm-readobj.html#cmdoption-dyn-symbols">-dyn-symbols</a>
 </li>
         <li><a href="CommandGuide/llvm-readobj.html#cmdoption-dynamic-table">-dynamic-table</a>
+</li>
+        <li><a href="CommandGuide/llvm-readobj.html#cmdoption-elf-section-groups">-elf-section-groups, -g</a>
+</li>
+        <li><a href="CommandGuide/lli.html#cmdoption-enable-no-infs-fp-math">-enable-no-infs-fp-math</a>
+</li>
+        <li><a href="CommandGuide/lli.html#cmdoption-enable-no-nans-fp-math">-enable-no-nans-fp-math</a>
+</li>
+        <li><a href="CommandGuide/lli.html#cmdoption-enable-unsafe-fp-math">-enable-unsafe-fp-math</a>
 </li>
         <li><a href="CommandGuide/llvm-readobj.html#cmdoption-expand-relocs">-expand-relocs</a>
 </li>
         <li><a href="CommandGuide/llvm-link.html#cmdoption-f">-f</a>, <a href="CommandGuide/opt.html#cmdoption-f">[1]</a>
 </li>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-f">-f, --function-summaries</a>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-f">-f &lt;name&gt;, --find=&lt;name&gt;</a>
+</li>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-f">-f, --flat</a>
+</li>
+        <li><a href="CommandGuide/lli.html#cmdoption-fake-argv0">-fake-argv0=executable</a>
 </li>
         <li><a href="CommandGuide/llvm-readobj.html#cmdoption-file-headers">-file-headers, -h</a>
 </li>
         <li><a href="CommandGuide/llc.html#cmdoption-filetype">-filetype=&lt;output file type&gt;</a>
 </li>
+        <li><a href="CommandGuide/lli.html#cmdoption-force-interpreter">-force-interpreter={false,true}</a>
+</li>
         <li><a href="CommandGuide/llvm-symbolizer.html#cmdoption-functions">-functions=[none|short|linkage]</a>
 </li>
-        <li><a href="CommandGuide/lit.html#cmdoption-h">-h, --help</a>
+        <li><a href="CommandGuide/lit.html#cmdoption-h">-h, --help</a>, <a href="CommandGuide/llvm-dwarfdump.html#cmdoption-h">[1]</a>
 </li>
-        <li><a href="CommandGuide/FileCheck.html#cmdoption-help">-help</a>, <a href="CommandGuide/llc.html#cmdoption-help">[1]</a>, <a href="CommandGuide/llvm-link.html#cmdoption-help">[2]</a>, <a href="CommandGuide/llvm-readobj.html#cmdoption-help">[3]</a>, <a href="CommandGuide/opt.html#cmdoption-help">[4]</a>
+        <li><a href="CommandGuide/FileCheck.html#cmdoption-help">-help</a>, <a href="CommandGuide/llc.html#cmdoption-help">[1]</a>, <a href="CommandGuide/lli.html#cmdoption-help">[2]</a>, <a href="CommandGuide/llvm-link.html#cmdoption-help">[3]</a>, <a href="CommandGuide/llvm-readobj.html#cmdoption-help">[4]</a>, <a href="CommandGuide/opt.html#cmdoption-help">[5]</a>
+</li>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-i">-i, --ignore-case</a>
 </li>
         <li><a href="CommandGuide/llvm-symbolizer.html#cmdoption-inlining">-inlining</a>
 </li>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-j">-j &lt;n&gt;, --num-threads=&lt;n&gt;</a>
+</li>
         <li><a href="CommandGuide/lit.html#cmdoption-j">-j N, --threads=N</a>
 </li>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-l">-l, --long-file-names</a>
+        <li><a href="CommandGuide/lli.html#cmdoption-jit-enable-eh">-jit-enable-eh</a>
+</li>
+        <li><a href="CommandGuide/lli.html#cmdoption-join-liveintervals">-join-liveintervals</a>
 </li>
         <li><a href="CommandGuide/opt.html#cmdoption-load">-load=&lt;plugin&gt;</a>
 </li>
+        <li><a href="CommandGuide/lli.html#cmdoption-load">-load=pluginfilename</a>
+</li>
         <li><a href="CommandGuide/llc.html#cmdoption-march">-march=&lt;arch&gt;</a>
 </li>
-        <li><a href="CommandGuide/llc.html#cmdoption-mattr">-mattr=a1,+a2,-a3,...</a>
+        <li><a href="CommandGuide/lli.html#cmdoption-march">-march=arch</a>
+</li>
+        <li><a href="CommandGuide/llc.html#cmdoption-mattr">-mattr=a1,+a2,-a3,...</a>, <a href="CommandGuide/lli.html#cmdoption-mattr">[1]</a>
 </li>
         <li><a href="CommandGuide/llc.html#cmdoption-mcpu">-mcpu=&lt;cpuname&gt;</a>
 </li>
+        <li><a href="CommandGuide/lli.html#cmdoption-mcpu">-mcpu=cpuname</a>
+</li>
+        <li><a href="CommandGuide/llc.html#cmdoption-meabi">-meabi=[default|gnu|4|5]</a>
+</li>
         <li><a href="CommandGuide/llc.html#cmdoption-mtriple">-mtriple=&lt;target triple&gt;</a>
 </li>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-n">-n, --no-output</a>
+        <li><a href="CommandGuide/lli.html#cmdoption-mtriple">-mtriple=target triple</a>
+</li>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-n">-n &lt;pattern&gt;, --name=&lt;pattern&gt;</a>
 </li>
         <li><a href="CommandGuide/llvm-readobj.html#cmdoption-needed-libs">-needed-libs</a>
 </li>
-        <li><a href="CommandGuide/opt.html#cmdoption-o">-o &lt;filename&gt;</a>
+        <li><a href="CommandGuide/lli.html#cmdoption-nozero-initialized-in-bss">-nozero-initialized-in-bss</a>
+</li>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-o">-o &lt;filename&gt;</a>, <a href="CommandGuide/opt.html#cmdoption-o">[1]</a>
+</li>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-o">-o &lt;path&gt;, --out-file=&lt;path&gt;</a>
 </li>
         <li><a href="CommandGuide/llvm-link.html#cmdoption-o">-o filename</a>, <a href="CommandGuide/llvm-stress.html#cmdoption-o">[1]</a>
 </li>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-o">-o=&lt;DIR|FILE&gt;, --object-directory=&lt;DIR&gt;, --object-file=&lt;FILE&gt;</a>
-</li>
         <li><a href="CommandGuide/llvm-symbolizer.html#cmdoption-obj">-obj</a>
-</li>
-        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-output">-output=output</a>
 </li>
         <li><a href="CommandGuide/opt.html#cmdoption-p">-p</a>
 </li>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-p">-p, --preserve-paths</a>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-p">-p, --show-parents</a>
+</li>
+        <li><a href="CommandGuide/lli.html#cmdoption-pre-ra-sched">-pre-RA-sched=scheduler</a>
+</li>
+        <li><a href="CommandGuide/llvm-symbolizer.html#cmdoption-pretty-print">-pretty-print</a>
+</li>
+        <li><a href="CommandGuide/llvm-symbolizer.html#cmdoption-print-address">-print-address</a>
 </li>
         <li><a href="CommandGuide/llvm-readobj.html#cmdoption-program-headers">-program-headers</a>
 </li>
         <li><a href="CommandGuide/lit.html#cmdoption-q">-q, --quiet</a>
 </li>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-r">-r &lt;n&gt;, --recurse-depth=&lt;n&gt;</a>
+</li>
+        <li><a href="CommandGuide/lli.html#cmdoption-regalloc">-regalloc=allocator</a>
+</li>
+        <li><a href="CommandGuide/lli.html#cmdoption-relocation-model">-relocation-model=model</a>
+</li>
         <li><a href="CommandGuide/llvm-readobj.html#cmdoption-relocations">-relocations, -r</a>
 </li>
         <li><a href="CommandGuide/lit.html#cmdoption-s">-s, --succinct</a>
+</li>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-s">-s, --symtab</a>
 </li>
         <li><a href="CommandGuide/llvm-readobj.html#cmdoption-section-data">-section-data, -sd</a>
 </li>
@@ -1163,17 +2517,21 @@
 </li>
         <li><a href="CommandGuide/llvm-stress.html#cmdoption-size">-size size</a>
 </li>
-        <li><a href="CommandGuide/opt.html#cmdoption-stats">-stats</a>
+        <li><a href="CommandGuide/lli.html#cmdoption-soft-float">-soft-float</a>
 </li>
-        <li><a href="CommandGuide/opt.html#cmdoption-std-compile-opts">-std-compile-opts</a>
+        <li><a href="CommandGuide/lli.html#cmdoption-spiller">-spiller</a>
+</li>
+        <li><a href="CommandGuide/llc.html#cmdoption-stack-size-section">-stack-size-section</a>
+</li>
+        <li><a href="CommandGuide/lli.html#cmdoption-stats">-stats</a>, <a href="CommandGuide/opt.html#cmdoption-stats">[1]</a>
 </li>
         <li><a href="CommandGuide/opt.html#cmdoption-strip-debug">-strip-debug</a>
 </li>
         <li><a href="CommandGuide/llvm-readobj.html#cmdoption-symbols">-symbols, -t</a>
 </li>
-        <li><a href="CommandGuide/opt.html#cmdoption-time-passes">-time-passes</a>
+        <li><a href="CommandGuide/lli.html#cmdoption-time-passes">-time-passes</a>, <a href="CommandGuide/opt.html#cmdoption-time-passes">[1]</a>
 </li>
-        <li><a href="CommandGuide/llvm-cov.html#cmdoption-u">-u, --unconditional-branches</a>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-u">-u, --uuid</a>
 </li>
         <li><a href="CommandGuide/llvm-readobj.html#cmdoption-unwind">-unwind, -u</a>
 </li>
@@ -1181,11 +2539,19 @@
 </li>
         <li><a href="CommandGuide/llvm-link.html#cmdoption-v">-v</a>
 </li>
-        <li><a href="CommandGuide/lit.html#cmdoption-v">-v, --verbose</a>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-v">-v, --verbose</a>, <a href="CommandGuide/lit.html#cmdoption-v">[1]</a>, <a href="CommandGuide/llvm-dwarfdump.html#cmdoption-v">[2]</a>
 </li>
         <li><a href="CommandGuide/opt.html#cmdoption-verify-each">-verify-each</a>
 </li>
-        <li><a href="CommandGuide/FileCheck.html#cmdoption-version">-version</a>, <a href="CommandGuide/llvm-cov.html#cmdoption-version">[1]</a>, <a href="CommandGuide/llvm-readobj.html#cmdoption-version">[2]</a>
+        <li><a href="CommandGuide/FileCheck.html#cmdoption-version">-version</a>, <a href="CommandGuide/lli.html#cmdoption-version">[1]</a>, <a href="CommandGuide/llvm-readobj.html#cmdoption-version">[2]</a>
+</li>
+        <li><a href="CommandGuide/lit.html#cmdoption-vv">-vv, --echo-all-commands</a>
+</li>
+        <li><a href="CommandGuide/llvm-dwarfdump.html#cmdoption-x">-x, --regex</a>
+</li>
+        <li><a href="CommandGuide/lli.html#cmdoption-x86-asm-syntax">-x86-asm-syntax=syntax</a>
+</li>
+        <li><a href="CommandGuide/dsymutil.html#cmdoption-y">-y</a>
 </li>
         <li><a href="CommandGuide/opt.html#cmdoption-passname">-{passname}</a>
 </li>
@@ -1210,6 +2576,100 @@
 </li>
       </ul></li>
       <li>
+    llvm-cov-export command line option
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-export-arch">-arch=&lt;name&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-export-summary-only">-summary-only</a>
+</li>
+      </ul></li>
+      <li>
+    llvm-cov-gcov command line option
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-help">--help</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-a">-a, --all-blocks</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-b">-b, --branch-probabilities</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-c">-c, --branch-counts</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-f">-f, --function-summaries</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-l">-l, --long-file-names</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-n">-n, --no-output</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-o">-o=&lt;DIR|FILE&gt;, --object-directory=&lt;DIR&gt;, --object-file=&lt;FILE&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-p">-p, --preserve-paths</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-u">-u, --unconditional-branches</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-gcov-version">-version</a>
+</li>
+      </ul></li>
+      <li>
+    llvm-cov-report command line option
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-report-arch">-arch=&lt;name&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-report-show-functions">-show-functions</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-report-show-instantiation-summary">-show-instantiation-summary</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-report-use-color">-use-color[=VALUE]</a>
+</li>
+      </ul></li>
+      <li>
+    llvm-cov-show command line option
+
+      <ul>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-xdemangler">-Xdemangler=&lt;TOOL&gt;|&lt;TOOL-OPTION&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-arch">-arch=[*NAMES*]</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-format">-format=&lt;FORMAT&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-line-coverage-gt">-line-coverage-gt=&lt;N&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-line-coverage-lt">-line-coverage-lt=&lt;N&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-name-regex">-name-regex=&lt;PATTERN&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-name-whitelist">-name-whitelist=&lt;FILE&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-name">-name=&lt;NAME&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-num-threads">-num-threads=N, -j=N</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-output-dir">-output-dir=PATH</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-path-equivalence">-path-equivalence=&lt;from&gt;,&lt;to&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-region-coverage-gt">-region-coverage-gt=&lt;N&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-region-coverage-lt">-region-coverage-lt=&lt;N&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-show-expansions">-show-expansions</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-show-instantiations">-show-instantiations</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-show-line-counts">-show-line-counts</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-show-line-counts-or-regions">-show-line-counts-or-regions</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-show-regions">-show-regions</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-tab-size">-tab-size=&lt;TABSIZE&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-cov.html#cmdoption-llvm-cov-show-use-color">-use-color</a>
+</li>
+      </ul></li>
+      <li>
     llvm-nm command line option
 
       <ul>
@@ -1231,6 +2691,8 @@
 </li>
         <li><a href="CommandGuide/llvm-nm.html#cmdoption-llvm-nm-print-size">--print-size, -S</a>
 </li>
+        <li><a href="CommandGuide/llvm-nm.html#cmdoption-llvm-nm-radix">--radix=RADIX, -t</a>
+</li>
         <li><a href="CommandGuide/llvm-nm.html#cmdoption-llvm-nm-size-sort">--size-sort</a>
 </li>
         <li><a href="CommandGuide/llvm-nm.html#cmdoption-llvm-nm-undefined-only">--undefined-only, -u</a>
@@ -1240,6 +2702,241 @@
         <li><a href="CommandGuide/llvm-nm.html#cmdoption-llvm-nm-p">-P</a>
 </li>
         <li><a href="CommandGuide/llvm-nm.html#cmdoption-llvm-nm-help">-help</a>
+</li>
+      </ul></li>
+      <li>
+    llvm-pdbutil-bytes command line option
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-block-range">-block-range=&lt;start[-end]&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-byte-range">-byte-range=&lt;start[-end]&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-chunks">-chunks</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-ec">-ec</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-files">-files</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-fpm">-fpm</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-id">-id=&lt;uint&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-mod">-mod=&lt;uint&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-modi">-modi</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-name-map">-name-map</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-sc">-sc</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-sm">-sm</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-split-chunks">-split-chunks</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-stream-data">-stream-data=&lt;string&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-syms">-syms</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-type-server">-type-server</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-bytes-type">-type=&lt;uint&gt;</a>
+</li>
+      </ul></li>
+      <li>
+    llvm-pdbutil-dump command line option
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-all">-all</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-dependents">-dependents</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-files">-files</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-global-extras">-global-extras</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-globals">-globals</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-id-data">-id-data</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-id-extras">-id-extras</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-id-index">-id-index=&lt;uint&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-ids">-ids</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-il">-il</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-l">-l</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-modi">-modi=&lt;uint&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-modules">-modules</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-public-extras">-public-extras</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-publics">-publics</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-section-contribs">-section-contribs</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-section-headers">-section-headers</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-section-map">-section-map</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-stream-blocks">-stream-blocks</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-streams">-streams</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-string-table">-string-table</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-summary">-summary</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-sym-data">-sym-data</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-symbols">-symbols</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-type-data">-type-data</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-type-extras">-type-extras</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-type-index">-type-index=&lt;uint&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-types">-types</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-xme">-xme</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-dump-xmi">-xmi</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
+    llvm-pdbutil-merge command line option
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-merge-pdb">-pdb=&lt;file-name&gt;</a>
+</li>
+      </ul></li>
+      <li>
+    llvm-pdbutil-pretty command line option
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-all">-all</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-class-definitions">-class-definitions=&lt;format&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-class-order">-class-order</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-class-recurse-depth">-class-recurse-depth=&lt;uint&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-classes">-classes</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-color-output">-color-output</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-compilands">-compilands</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-enums">-enums</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-exclude-compilands">-exclude-compilands=&lt;string&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-exclude-symbols">-exclude-symbols=&lt;string&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-exclude-types">-exclude-types=&lt;string&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-externals">-externals</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-globals">-globals</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-include-compilands">-include-compilands=&lt;string&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-include-symbols">-include-symbols=&lt;string&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-include-types">-include-types=&lt;string&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-lines">-lines</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-load-address">-load-address=&lt;uint&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-min-class-padding-imm">-min-class-padding-imm=&lt;uint&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-min-class-padding">-min-class-padding=&lt;uint&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-min-type-size">-min-type-size=&lt;uint&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-module-syms">-module-syms</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-no-compiler-generated">-no-compiler-generated</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-no-enum-definitions">-no-enum-definitions</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-no-system-libs">-no-system-libs</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-sym-types">-sym-types=&lt;types&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-symbol-order">-symbol-order=&lt;order&gt;</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-typedefs">-typedefs</a>
+</li>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-pretty-types">-types</a>
+</li>
+      </ul></li>
+      <li>
+    llvm-pdbutil-yaml2pdb command line option
+
+      <ul>
+        <li><a href="CommandGuide/llvm-pdbutil.html#cmdoption-llvm-pdbutil-yaml2pdb-pdb">-pdb=&lt;file-name&gt;</a>
+</li>
+      </ul></li>
+      <li>
+    llvm-profdata-merge command line option
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-binary">-binary (default)</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-gcc">-gcc</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-help">-help</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-input-files">-input-files=path, -f=path</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-instr">-instr (default)</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-num-threads">-num-threads=N, -j=N</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-output">-output=output, -o=output</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-sample">-sample</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-sparse">-sparse[=true|false]</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-text">-text</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-merge-weighted-input">-weighted-input=weight,filename</a>
+</li>
+      </ul></li>
+      <li>
+    llvm-profdata-show command line option
+
+      <ul>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-all-functions">-all-functions</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-counts">-counts</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-function">-function=string</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-help">-help</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-instr">-instr (default)</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-memop-sizes">-memop-sizes</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-output">-output=output, -o=output</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-sample">-sample</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-text">-text</a>
+</li>
+        <li><a href="CommandGuide/llvm-profdata.html#cmdoption-llvm-profdata-show-topn">-topn=n</a>
 </li>
       </ul></li>
   </ul></td>
@@ -1322,8 +3019,8 @@
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

@@ -30,7 +30,7 @@
 # CHECK: movl %eax, -16(%ebp)
 0x67 0x66 0x89 0x45 0xf0
 
-# CHECK: testb %bl, %cl
+# CHECK: testb %cl, %bl
 0x84 0xcb
 
 # CHECK: cmpl %eax, %ebx
@@ -207,7 +207,7 @@
 # CHECK: movw %cs, %ax
 0x8c 0xc8
 
-# CHECK: movl %cs, (%eax)
+# CHECK: movw %cs, (%eax)
 0x67 0x66 0x8c 0x08
 
 # CHECK: movw %cs, (%eax)
@@ -216,7 +216,7 @@
 # CHECK: movl %eax, %cs
 0x66 0x8e 0xc8
 
-# CHECK: movl (%eax), %cs
+# CHECK: movw (%eax), %cs
 0x67 0x66 0x8e 0x08
 
 # CHECK: movw (%eax), %cs
@@ -318,10 +318,10 @@
 # CHECK: sysretl
 0x0f 0x07
 
-# CHECK: testl -24(%ebp), %ecx
+# CHECK: testl %ecx, -24(%ebp)
 0x67 0x66 0x85 0x4d 0xe8
 
-# CHECK: testl -24(%ebp), %ecx
+# CHECK: testl %ecx, -24(%ebp)
 0x67 0x66 0x85 0x4d 0xe8
 
 # CHECK: pushw %cs
@@ -407,6 +407,9 @@
 
 # CHECK: popfl
 0x66 0x9d
+
+# CHECK: salc
+0xd6
 
 # CHECK: setb %bl
 0x0f 0x92 0xc3
@@ -786,3 +789,5 @@
 # CHECK: lretl
 0x66 0xcb
 
+# CHECK: callw	-1
+0xe8 0xff 0xff

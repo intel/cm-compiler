@@ -1,26 +1,26 @@
 // Tests for instrumentation of C++11 lambdas
 
-// RUN: %clang_cc1 -x c++ %s -triple %itanium_abi_triple -main-file-name cxx-lambda.cpp -std=c++11 -o - -emit-llvm -fprofile-instr-generate > %tgen
+// RUN: %clang_cc1 -x c++ %s -triple %itanium_abi_triple -main-file-name cxx-lambda.cpp -std=c++11 -o - -emit-llvm -fprofile-instrument=clang > %tgen
 // RUN: FileCheck --input-file=%tgen -check-prefix=PGOGEN %s
 // RUN: FileCheck --input-file=%tgen -check-prefix=LMBGEN %s
 
 // RUN: llvm-profdata merge %S/Inputs/cxx-lambda.proftext -o %t.profdata
-// RUN: %clang_cc1 -x c++ %s -triple %itanium_abi_triple -main-file-name cxx-lambda.cpp -std=c++11 -o - -emit-llvm -fprofile-instr-use=%t.profdata > %tuse
+// RUN: %clang_cc1 -x c++ %s -triple %itanium_abi_triple -main-file-name cxx-lambda.cpp -std=c++11 -o - -emit-llvm -fprofile-instrument-use-path=%t.profdata > %tuse
 // RUN: FileCheck --input-file=%tuse -check-prefix=PGOUSE %s
 // RUN: FileCheck --input-file=%tuse -check-prefix=LMBUSE %s
 
-// PGOGEN: @[[LWC:__llvm_profile_counters__Z7lambdasv]] = hidden global [4 x i64] zeroinitializer
-// PGOGEN: @[[MAC:__llvm_profile_counters_main]] = hidden global [1 x i64] zeroinitializer
-// LMBGEN: @[[LFC:"__llvm_profile_counters__ZZ7lambdasvENK3\$_0clEi"]] = internal global [3 x i64] zeroinitializer
+// PGOGEN: @[[LWC:__profc__Z7lambdasv]] = private global [4 x i64] zeroinitializer
+// PGOGEN: @[[MAC:__profc_main]] = private global [1 x i64] zeroinitializer
+// LMBGEN: @[[LFC:"__profc_cxx_lambda.cpp__ZZ7lambdasvENK3\$_0clEi"]] = private global [3 x i64] zeroinitializer
 
-// PGOGEN-LABEL: define void @_Z7lambdasv()
-// PGOUSE-LABEL: define void @_Z7lambdasv()
+// PGOGEN-LABEL: define {{.*}}void @_Z7lambdasv()
+// PGOUSE-LABEL: define {{.*}}void @_Z7lambdasv()
 // PGOGEN: store {{.*}} @[[LWC]], i64 0, i64 0
 void lambdas() {
   int i = 1;
 
-  // LMBGEN-LABEL: define internal{{( zeroext)?}} i1 @"_ZZ7lambdasvENK3$_0clEi"(
-  // LMBUSE-LABEL: define internal{{( zeroext)?}} i1 @"_ZZ7lambdasvENK3$_0clEi"(
+  // LMBGEN-LABEL: define internal{{( [0-9_a-z]*cc)?( zeroext)?}} i1 @"_ZZ7lambdasvENK3$_0clEi"(
+  // LMBUSE-LABEL: define internal{{( [0-9_a-z]*cc)?( zeroext)?}} i1 @"_ZZ7lambdasvENK3$_0clEi"(
   // LMBGEN: store {{.*}} @[[LFC]], i64 0, i64 0
   auto f = [&i](int k) {
     // LMBGEN: store {{.*}} @[[LFC]], i64 0, i64 1
@@ -45,12 +45,12 @@ void lambdas() {
   if (i) {}
 }
 
-// PGOUSE-DAG: ![[LW1]] = metadata !{metadata !"branch_weights", i32 2, i32 1}
-// PGOUSE-DAG: ![[LW2]] = metadata !{metadata !"branch_weights", i32 11, i32 2}
-// PGOUSE-DAG: ![[LW3]] = metadata !{metadata !"branch_weights", i32 2, i32 1}
+// PGOUSE-DAG: ![[LW1]] = !{!"branch_weights", i32 2, i32 1}
+// PGOUSE-DAG: ![[LW2]] = !{!"branch_weights", i32 11, i32 2}
+// PGOUSE-DAG: ![[LW3]] = !{!"branch_weights", i32 2, i32 1}
 
-// LMBUSE-DAG: ![[LF1]] = metadata !{metadata !"branch_weights", i32 10, i32 2}
-// LMBUSE-DAG: ![[LF2]] = metadata !{metadata !"branch_weights", i32 10, i32 2}
+// LMBUSE-DAG: ![[LF1]] = !{!"branch_weights", i32 10, i32 2}
+// LMBUSE-DAG: ![[LF2]] = !{!"branch_weights", i32 10, i32 2}
 
 int main(int argc, const char *argv[]) {
   lambdas();

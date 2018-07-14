@@ -1,10 +1,12 @@
 ; RUN: llc < %s -mtriple=thumbv7m-none-eabi -mcpu=cortex-m4 | FileCheck %s
+; RUN: llc < %s -mtriple=thumbv8m.main-none-eabi | FileCheck %s
+; RUN: llc < %s -mtriple=thumbv8m.base-none-eabi | FileCheck %s
 
 ; CHECK-LABEL: f0:
 ; CHECK-NOT: ldrexd
 define i64 @f0(i64* %p) nounwind readonly {
 entry:
-  %0 = load atomic i64* %p seq_cst, align 8
+  %0 = load atomic i64, i64* %p seq_cst, align 8
   ret i64 %0
 }
 
@@ -29,7 +31,7 @@ entry:
 ; CHECK: ldr
 define i32 @f3(i32* %p) nounwind readonly {
 entry:
-  %0 = load atomic i32* %p seq_cst, align 4
+  %0 = load atomic i32, i32* %p seq_cst, align 4
   ret i32 %0
 }
 
@@ -37,7 +39,7 @@ entry:
 ; CHECK: ldrb
 define i8 @f4(i8* %p) nounwind readonly {
 entry:
-  %0 = load atomic i8* %p seq_cst, align 4
+  %0 = load atomic i8, i8* %p seq_cst, align 4
   ret i8 %0
 }
 

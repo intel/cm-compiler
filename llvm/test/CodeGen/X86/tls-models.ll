@@ -1,10 +1,10 @@
-; RUN: llc < %s -march=x86-64 -mtriple=x86_64-linux-gnu | FileCheck -check-prefix=X64 %s
-; RUN: llc < %s -march=x86-64 -mtriple=x86_64-linux-gnu -relocation-model=pic | FileCheck -check-prefix=X64_PIC %s
-; RUN: llc < %s -march=x86 -mtriple=i386-linux-gnu | FileCheck -check-prefix=X32 %s
-; RUN: llc < %s -march=x86 -mtriple=i386-linux-gnu -relocation-model=pic | FileCheck -check-prefix=X32_PIC %s
+; RUN: llc < %s -mtriple=x86_64-linux-gnu | FileCheck -check-prefix=X64 %s
+; RUN: llc < %s -mtriple=x86_64-linux-gnu -relocation-model=pic | FileCheck -check-prefix=X64_PIC %s
+; RUN: llc < %s -mtriple=i386-linux-gnu | FileCheck -check-prefix=X32 %s
+; RUN: llc < %s -mtriple=i386-linux-gnu -relocation-model=pic | FileCheck -check-prefix=X32_PIC %s
 
 ; Darwin always uses the same model.
-; RUN: llc < %s -march=x86-64 -mtriple=x86_64-apple-darwin | FileCheck -check-prefix=DARWIN %s
+; RUN: llc < %s -mtriple=x86_64-apple-darwin | FileCheck -check-prefix=DARWIN %s
 
 @external_gd = external thread_local global i32
 @internal_gd = internal thread_local global i32 42
@@ -17,6 +17,8 @@
 
 @external_le = external thread_local(localexec) global i32
 @internal_le = internal thread_local(localexec) global i32 42
+
+; See test cases for emulated model in emutls.ll, emutls-pic.ll and emutls-pie.ll.
 
 ; ----- no model specified -----
 
@@ -128,6 +130,14 @@ entry:
   ; DARWIN:  _internal_ie@TLVP
 }
 
+define i32 @PR22083() {
+entry:
+  ret i32 ptrtoint (i32* @external_ie to i32)
+  ; X64-LABEL:     PR22083:
+  ; X64:     movq    external_ie@GOTTPOFF(%rip), %rax
+  ; X64_PIC-LABEL: PR22083:
+  ; X64_PIC: movq    external_ie@GOTTPOFF(%rip), %rax
+}
 
 ; ----- localexec specified -----
 

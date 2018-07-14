@@ -11,17 +11,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _LLVM_DIFFCONSUMER_H_
-#define _LLVM_DIFFCONSUMER_H_
+#ifndef LLVM_TOOLS_LLVM_DIFF_DIFFCONSUMER_H
+#define LLVM_TOOLS_LLVM_DIFF_DIFFCONSUMER_H
 
 #include "DiffLog.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringRef.h"
+#include "llvm/IR/Value.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
+class StringRef;
   class Module;
   class Value;
   class Function;

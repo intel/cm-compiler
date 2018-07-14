@@ -3,5 +3,7 @@
 extern "C" void test_name1() {}
 void test_name2() {}
 
-// CHECK: metadata !"test_name1", metadata !"test_name1", metadata !"",{{.*}}DW_TAG_subprogram
-// CHECK: metadata !"test_name2", metadata !"test_name2", metadata !"_Z10test_name2v",{{.*}}DW_TAG_subprogram
+// CHECK: !DISubprogram(name: "test_name1",
+// CHECK-NOT:           linkageName:
+// CHECK-SAME:          ){{$}}
+// CHECK: !DISubprogram(name: "test_name2", linkageName: "_Z10test_name2v"

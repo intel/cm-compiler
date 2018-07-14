@@ -93,7 +93,7 @@ define float @fold9(float %f1, float %f2) {
   ret float %t3
 
 ; CHECK-LABEL: @fold9(
-; CHECK: fsub fast float 0.000000e+00, %f2
+; CHECK: fsub fast float -0.000000e+00, %f2
 }
 
 ; Let C3 = C1 + C2. (f1 + C1) + (f2 + C2) => (f1 + f2) + C3 instead of
@@ -241,7 +241,7 @@ define float @fmul2(float %f1) {
 ; X/C1 * C2 => X * (C2/C1) is disabled if X/C1 has multiple uses
 @fmul2_external = external global float
 define float @fmul2_disable(float %f1) {
-  %div = fdiv fast float 1.000000e+00, %f1 
+  %div = fdiv fast float 1.000000e+00, %f1
   store float %div, float* @fmul2_external
   %mul = fmul fast float %div, 2.000000e+00
   ret float %mul
@@ -265,6 +265,14 @@ define <4 x float> @fmul3_vec(<4 x float> %f1, <4 x float> %f2) {
   ret <4 x float> %t3
 ; CHECK-LABEL: @fmul3_vec(
 ; CHECK: fmul fast <4 x float> %f1, <float 3.000000e+00, float 2.000000e+00, float 1.000000e+00, float 1.000000e+00>
+}
+
+; Make sure fmul with constant expression doesn't assert.
+define <4 x float> @fmul3_vec_constexpr(<4 x float> %f1, <4 x float> %f2) {
+  %constExprMul = bitcast i128 trunc (i160 bitcast (<5 x float> <float 6.0e+3, float 6.0e+3, float 2.0e+3, float 1.0e+3, float undef> to i160) to i128) to <4 x float>  
+  %t1 = fdiv <4 x float> %f1, <float 2.0e+3, float 3.0e+3, float 2.0e+3, float 1.0e+3>
+  %t3 = fmul fast <4 x float> %t1, %constExprMul
+  ret <4 x float> %t3
 }
 
 ; Rule "X/C1 * C2 => X * (C2/C1) is not applicable if C2/C1 is either a special
@@ -320,6 +328,14 @@ define float @fneg1(float %f1, float %f2) {
   ret float %mul
 ; CHECK-LABEL: @fneg1(
 ; CHECK: fmul float %f1, %f2
+}
+
+define float @fneg2(float %x) {
+  %sub = fsub nsz float 0.0, %x
+  ret float %sub
+; CHECK-LABEL: @fneg2(
+; CHECK-NEXT: fsub nsz float -0.000000e+00, %x
+; CHECK-NEXT: ret float 
 }
 
 ; =========================================================================
@@ -529,4 +545,312 @@ define float @fact_div6(float %x) {
   ret float %t3
 ; CHECK: fact_div6
 ; CHECK: %t3 = fsub fast float %t1, %t2
+}
+
+; =========================================================================
+;
+;   Test-cases for square root
+;
+; =========================================================================
+
+; A squared factor fed into a square root intrinsic should be hoisted out
+; as a fabs() value.
+
+declare double @llvm.sqrt.f64(double)
+
+define double @sqrt_intrinsic_arg_squared(double %x) {
+  %mul = fmul fast double %x, %x
+  %sqrt = call fast double @llvm.sqrt.f64(double %mul)
+  ret double %sqrt
+
+; CHECK-LABEL: sqrt_intrinsic_arg_squared(
+; CHECK-NEXT: %fabs = call fast double @llvm.fabs.f64(double %x)
+; CHECK-NEXT: ret double %fabs
+}
+
+; Check all 6 combinations of a 3-way multiplication tree where
+; one factor is repeated.
+
+define double @sqrt_intrinsic_three_args1(double %x, double %y) {
+  %mul = fmul fast double %y, %x
+  %mul2 = fmul fast double %mul, %x
+  %sqrt = call fast double @llvm.sqrt.f64(double %mul2)
+  ret double %sqrt
+
+; CHECK-LABEL: sqrt_intrinsic_three_args1(
+; CHECK-NEXT: %fabs = call fast double @llvm.fabs.f64(double %x)
+; CHECK-NEXT: %sqrt1 = call fast double @llvm.sqrt.f64(double %y)
+; CHECK-NEXT: %1 = fmul fast double %fabs, %sqrt1
+; CHECK-NEXT: ret double %1
+}
+
+define double @sqrt_intrinsic_three_args2(double %x, double %y) {
+  %mul = fmul fast double %x, %y
+  %mul2 = fmul fast double %mul, %x
+  %sqrt = call fast double @llvm.sqrt.f64(double %mul2)
+  ret double %sqrt
+
+; CHECK-LABEL: sqrt_intrinsic_three_args2(
+; CHECK-NEXT: %fabs = call fast double @llvm.fabs.f64(double %x)
+; CHECK-NEXT: %sqrt1 = call fast double @llvm.sqrt.f64(double %y)
+; CHECK-NEXT: %1 = fmul fast double %fabs, %sqrt1
+; CHECK-NEXT: ret double %1
+}
+
+define double @sqrt_intrinsic_three_args3(double %x, double %y) {
+  %mul = fmul fast double %x, %x
+  %mul2 = fmul fast double %mul, %y
+  %sqrt = call fast double @llvm.sqrt.f64(double %mul2)
+  ret double %sqrt
+
+; CHECK-LABEL: sqrt_intrinsic_three_args3(
+; CHECK-NEXT: %fabs = call fast double @llvm.fabs.f64(double %x)
+; CHECK-NEXT: %sqrt1 = call fast double @llvm.sqrt.f64(double %y)
+; CHECK-NEXT: %1 = fmul fast double %fabs, %sqrt1
+; CHECK-NEXT: ret double %1
+}
+
+define double @sqrt_intrinsic_three_args4(double %x, double %y) {
+  %mul = fmul fast double %y, %x
+  %mul2 = fmul fast double %x, %mul
+  %sqrt = call fast double @llvm.sqrt.f64(double %mul2)
+  ret double %sqrt
+
+; CHECK-LABEL: sqrt_intrinsic_three_args4(
+; CHECK-NEXT: %fabs = call fast double @llvm.fabs.f64(double %x)
+; CHECK-NEXT: %sqrt1 = call fast double @llvm.sqrt.f64(double %y)
+; CHECK-NEXT: %1 = fmul fast double %fabs, %sqrt1
+; CHECK-NEXT: ret double %1
+}
+
+define double @sqrt_intrinsic_three_args5(double %x, double %y) {
+  %mul = fmul fast double %x, %y
+  %mul2 = fmul fast double %x, %mul
+  %sqrt = call fast double @llvm.sqrt.f64(double %mul2)
+  ret double %sqrt
+
+; CHECK-LABEL: sqrt_intrinsic_three_args5(
+; CHECK-NEXT: %fabs = call fast double @llvm.fabs.f64(double %x)
+; CHECK-NEXT: %sqrt1 = call fast double @llvm.sqrt.f64(double %y)
+; CHECK-NEXT: %1 = fmul fast double %fabs, %sqrt1
+; CHECK-NEXT: ret double %1
+}
+
+define double @sqrt_intrinsic_three_args6(double %x, double %y) {
+  %mul = fmul fast double %x, %x
+  %mul2 = fmul fast double %y, %mul
+  %sqrt = call fast double @llvm.sqrt.f64(double %mul2)
+  ret double %sqrt
+
+; CHECK-LABEL: sqrt_intrinsic_three_args6(
+; CHECK-NEXT: %fabs = call fast double @llvm.fabs.f64(double %x)
+; CHECK-NEXT: %sqrt1 = call fast double @llvm.sqrt.f64(double %y)
+; CHECK-NEXT: %1 = fmul fast double %fabs, %sqrt1
+; CHECK-NEXT: ret double %1
+}
+
+; If any operation is not 'fast', we can't simplify.
+
+define double @sqrt_intrinsic_not_so_fast(double %x, double %y) {
+  %mul = fmul double %x, %x
+  %mul2 = fmul fast double %mul, %y
+  %sqrt = call fast double @llvm.sqrt.f64(double %mul2)
+  ret double %sqrt
+
+; CHECK-LABEL: sqrt_intrinsic_not_so_fast(
+; CHECK-NEXT:  %mul = fmul double %x, %x
+; CHECK-NEXT:  %mul2 = fmul fast double %mul, %y
+; CHECK-NEXT:  %sqrt = call fast double @llvm.sqrt.f64(double %mul2)
+; CHECK-NEXT:  ret double %sqrt
+}
+
+define double @sqrt_intrinsic_arg_4th(double %x) {
+  %mul = fmul fast double %x, %x
+  %mul2 = fmul fast double %mul, %mul
+  %sqrt = call fast double @llvm.sqrt.f64(double %mul2)
+  ret double %sqrt
+
+; CHECK-LABEL: sqrt_intrinsic_arg_4th(
+; CHECK-NEXT: %mul = fmul fast double %x, %x
+; CHECK-NEXT: ret double %mul
+}
+
+define double @sqrt_intrinsic_arg_5th(double %x) {
+  %mul = fmul fast double %x, %x
+  %mul2 = fmul fast double %mul, %x
+  %mul3 = fmul fast double %mul2, %mul
+  %sqrt = call fast double @llvm.sqrt.f64(double %mul3)
+  ret double %sqrt
+
+; CHECK-LABEL: sqrt_intrinsic_arg_5th(
+; CHECK-NEXT: %mul = fmul fast double %x, %x
+; CHECK-NEXT: %sqrt1 = call fast double @llvm.sqrt.f64(double %x)
+; CHECK-NEXT: %1 = fmul fast double %mul, %sqrt1
+; CHECK-NEXT: ret double %1
+}
+
+; Check that square root calls have the same behavior.
+
+declare float @sqrtf(float)
+declare double @sqrt(double)
+declare fp128 @sqrtl(fp128)
+
+define float @sqrt_call_squared_f32(float %x) {
+  %mul = fmul fast float %x, %x
+  %sqrt = call fast float @sqrtf(float %mul)
+  ret float %sqrt
+
+; CHECK-LABEL: sqrt_call_squared_f32(
+; CHECK-NEXT: %fabs = call fast float @llvm.fabs.f32(float %x)
+; CHECK-NEXT: ret float %fabs
+}
+
+define double @sqrt_call_squared_f64(double %x) {
+  %mul = fmul fast double %x, %x
+  %sqrt = call fast double @sqrt(double %mul)
+  ret double %sqrt
+
+; CHECK-LABEL: sqrt_call_squared_f64(
+; CHECK-NEXT: %fabs = call fast double @llvm.fabs.f64(double %x)
+; CHECK-NEXT: ret double %fabs
+}
+
+define fp128 @sqrt_call_squared_f128(fp128 %x) {
+  %mul = fmul fast fp128 %x, %x
+  %sqrt = call fast fp128 @sqrtl(fp128 %mul)
+  ret fp128 %sqrt
+
+; CHECK-LABEL: sqrt_call_squared_f128(
+; CHECK-NEXT: %fabs = call fast fp128 @llvm.fabs.f128(fp128 %x)
+; CHECK-NEXT: ret fp128 %fabs
+}
+
+; =========================================================================
+;
+;   Test-cases for fmin / fmax
+;
+; =========================================================================
+
+declare double @fmax(double, double)
+declare double @fmin(double, double)
+declare float @fmaxf(float, float)
+declare float @fminf(float, float)
+declare fp128 @fmaxl(fp128, fp128)
+declare fp128 @fminl(fp128, fp128)
+
+; No NaNs is the minimum requirement to replace these calls.
+; This should always be set when unsafe-fp-math is true, but
+; alternate the attributes for additional test coverage.
+; 'nsz' is implied by the definition of fmax or fmin itself.
+
+; Shrink and remove the call.
+define float @max1(float %a, float %b) {
+  %c = fpext float %a to double
+  %d = fpext float %b to double
+  %e = call fast double @fmax(double %c, double %d)
+  %f = fptrunc double %e to float
+  ret float %f
+
+; CHECK-LABEL: max1(
+; CHECK-NEXT:  fcmp fast ogt float %a, %b 
+; CHECK-NEXT:  select {{.*}} float %a, float %b 
+; CHECK-NEXT:  ret
+}
+
+define float @max2(float %a, float %b) {
+  %c = call nnan float @fmaxf(float %a, float %b)
+  ret float %c
+
+; CHECK-LABEL: max2(
+; CHECK-NEXT:  fcmp nnan nsz ogt float %a, %b 
+; CHECK-NEXT:  select {{.*}} float %a, float %b 
+; CHECK-NEXT:  ret
+}
+
+
+define double @max3(double %a, double %b) {
+  %c = call fast double @fmax(double %a, double %b)
+  ret double %c
+
+; CHECK-LABEL: max3(
+; CHECK-NEXT:  fcmp fast ogt double %a, %b 
+; CHECK-NEXT:  select {{.*}} double %a, double %b 
+; CHECK-NEXT:  ret
+}
+
+define fp128 @max4(fp128 %a, fp128 %b) {
+  %c = call nnan fp128 @fmaxl(fp128 %a, fp128 %b)
+  ret fp128 %c
+
+; CHECK-LABEL: max4(
+; CHECK-NEXT:  fcmp nnan nsz ogt fp128 %a, %b 
+; CHECK-NEXT:  select {{.*}} fp128 %a, fp128 %b 
+; CHECK-NEXT:  ret
+}
+
+; Shrink and remove the call.
+define float @min1(float %a, float %b) {
+  %c = fpext float %a to double
+  %d = fpext float %b to double
+  %e = call nnan double @fmin(double %c, double %d)
+  %f = fptrunc double %e to float
+  ret float %f
+
+; CHECK-LABEL: min1(
+; CHECK-NEXT:  fcmp nnan nsz olt float %a, %b 
+; CHECK-NEXT:  select {{.*}} float %a, float %b 
+; CHECK-NEXT:  ret
+}
+
+define float @min2(float %a, float %b) {
+  %c = call fast float @fminf(float %a, float %b)
+  ret float %c
+
+; CHECK-LABEL: min2(
+; CHECK-NEXT:  fcmp fast olt float %a, %b 
+; CHECK-NEXT:  select {{.*}} float %a, float %b 
+; CHECK-NEXT:  ret
+}
+
+define double @min3(double %a, double %b) {
+  %c = call nnan double @fmin(double %a, double %b)
+  ret double %c
+
+; CHECK-LABEL: min3(
+; CHECK-NEXT:  fcmp nnan nsz olt double %a, %b 
+; CHECK-NEXT:  select {{.*}} double %a, double %b 
+; CHECK-NEXT:  ret
+}
+
+define fp128 @min4(fp128 %a, fp128 %b) {
+  %c = call fast fp128 @fminl(fp128 %a, fp128 %b)
+  ret fp128 %c
+
+; CHECK-LABEL: min4(
+; CHECK-NEXT:  fcmp fast olt fp128 %a, %b 
+; CHECK-NEXT:  select {{.*}} fp128 %a, fp128 %b 
+; CHECK-NEXT:  ret
+}
+
+define float @test55(i1 %which, float %a) {
+; CHECK-LABEL: @test55(
+; CHECK-NEXT:  entry:
+; CHECK-NEXT:    br i1 [[WHICH:%.*]], label [[FINAL:%.*]], label [[DELAY:%.*]]
+; CHECK:       delay:
+; CHECK-NEXT:    [[PHITMP:%.*]] = fadd fast float [[A:%.*]], 1.000000e+00
+; CHECK-NEXT:    br label [[FINAL]]
+; CHECK:       final:
+; CHECK-NEXT:    [[A:%.*]] = phi float [ 3.000000e+00, [[ENTRY:%.*]] ], [ [[PHITMP]], [[DELAY]] ]
+; CHECK-NEXT:    ret float [[A]]
+;
+entry:
+  br i1 %which, label %final, label %delay
+
+delay:
+  br label %final
+
+final:
+  %A = phi float [ 2.0, %entry ], [ %a, %delay ]
+  %value = fadd fast float %A, 1.0
+  ret float %value
 }

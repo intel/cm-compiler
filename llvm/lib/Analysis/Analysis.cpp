@@ -20,23 +20,27 @@ using namespace llvm;
 
 /// initializeAnalysis - Initialize all passes linked into the Analysis library.
 void llvm::initializeAnalysis(PassRegistry &Registry) {
-  initializeAliasAnalysisAnalysisGroup(Registry);
-  initializeAliasAnalysisCounterPass(Registry);
-  initializeAAEvalPass(Registry);
-  initializeAliasDebuggerPass(Registry);
+  initializeAAEvalLegacyPassPass(Registry);
   initializeAliasSetPrinterPass(Registry);
-  initializeNoAAPass(Registry);
-  initializeBasicAliasAnalysisPass(Registry);
-  initializeBlockFrequencyInfoPass(Registry);
-  initializeBranchProbabilityInfoPass(Registry);
+  initializeBasicAAWrapperPassPass(Registry);
+  initializeBlockFrequencyInfoWrapperPassPass(Registry);
+  initializeBranchProbabilityInfoWrapperPassPass(Registry);
+  initializeCallGraphWrapperPassPass(Registry);
+  initializeCallGraphDOTPrinterPass(Registry);
+  initializeCallGraphPrinterLegacyPassPass(Registry);
+  initializeCallGraphViewerPass(Registry);
   initializeCostModelAnalysisPass(Registry);
-  initializeCFGViewerPass(Registry);
-  initializeCFGPrinterPass(Registry);
-  initializeCFGOnlyViewerPass(Registry);
-  initializeCFGOnlyPrinterPass(Registry);
-  initializeDependenceAnalysisPass(Registry);
+  initializeCFGViewerLegacyPassPass(Registry);
+  initializeCFGPrinterLegacyPassPass(Registry);
+  initializeCFGOnlyViewerLegacyPassPass(Registry);
+  initializeCFGOnlyPrinterLegacyPassPass(Registry);
+  initializeCFLAndersAAWrapperPassPass(Registry);
+  initializeCFLSteensAAWrapperPassPass(Registry);
+  initializeDependenceAnalysisWrapperPassPass(Registry);
   initializeDelinearizationPass(Registry);
-  initializeDominanceFrontierPass(Registry);
+  initializeDemandedBitsWrapperPassPass(Registry);
+  initializeDivergenceAnalysisPass(Registry);
+  initializeDominanceFrontierWrapperPassPass(Registry);
   initializeDomViewerPass(Registry);
   initializeDomPrinterPass(Registry);
   initializeDomOnlyViewerPass(Registry);
@@ -45,30 +49,45 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializePostDomPrinterPass(Registry);
   initializePostDomOnlyViewerPass(Registry);
   initializePostDomOnlyPrinterPass(Registry);
-  initializeIVUsersPass(Registry);
+  initializeAAResultsWrapperPassPass(Registry);
+  initializeGlobalsAAWrapperPassPass(Registry);
+  initializeIVUsersWrapperPassPass(Registry);
   initializeInstCountPass(Registry);
   initializeIntervalPartitionPass(Registry);
-  initializeJumpInstrTableInfoPass(Registry);
-  initializeLazyValueInfoPass(Registry);
-  initializeLibCallAliasAnalysisPass(Registry);
+  initializeLazyBranchProbabilityInfoPassPass(Registry);
+  initializeLazyBlockFrequencyInfoPassPass(Registry);
+  initializeLazyValueInfoWrapperPassPass(Registry);
+  initializeLazyValueInfoPrinterPass(Registry);
   initializeLintPass(Registry);
-  initializeLoopInfoPass(Registry);
+  initializeLoopInfoWrapperPassPass(Registry);
   initializeMemDepPrinterPass(Registry);
-  initializeMemoryDependenceAnalysisPass(Registry);
+  initializeMemDerefPrinterPass(Registry);
+  initializeMemoryDependenceWrapperPassPass(Registry);
   initializeModuleDebugInfoPrinterPass(Registry);
-  initializePostDominatorTreePass(Registry);
+  initializeModuleSummaryIndexWrapperPassPass(Registry);
+  initializeObjCARCAAWrapperPassPass(Registry);
+  initializeOptimizationRemarkEmitterWrapperPassPass(Registry);
+  initializePostDominatorTreeWrapperPassPass(Registry);
   initializeRegionInfoPassPass(Registry);
   initializeRegionViewerPass(Registry);
   initializeRegionPrinterPass(Registry);
   initializeRegionOnlyViewerPass(Registry);
   initializeRegionOnlyPrinterPass(Registry);
-  initializeScalarEvolutionPass(Registry);
-  initializeScalarEvolutionAliasAnalysisPass(Registry);
-  initializeTargetTransformInfoAnalysisGroup(Registry);
-  initializeTypeBasedAliasAnalysisPass(Registry);
+  initializeSCEVAAWrapperPassPass(Registry);
+  initializeScalarEvolutionWrapperPassPass(Registry);
+  initializeTargetTransformInfoWrapperPassPass(Registry);
+  initializeTypeBasedAAWrapperPassPass(Registry);
+  initializeScopedNoAliasAAWrapperPassPass(Registry);
+  initializeLCSSAVerificationPassPass(Registry);
+  initializeMemorySSAWrapperPassPass(Registry);
+  initializeMemorySSAPrinterLegacyPassPass(Registry);
 }
 
 void LLVMInitializeAnalysis(LLVMPassRegistryRef R) {
+  initializeAnalysis(*unwrap(R));
+}
+
+void LLVMInitializeIPA(LLVMPassRegistryRef R) {
   initializeAnalysis(*unwrap(R));
 }
 

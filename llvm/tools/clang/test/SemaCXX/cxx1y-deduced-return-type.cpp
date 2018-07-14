@@ -21,8 +21,8 @@ int conv1c = conv1.operator auto();
 int conv1d = conv1.operator int(); // expected-error {{no member named 'operator int'}}
 
 struct Conv2 {
-  operator auto() { return 0; }  // expected-note 2{{previous}}
-  operator auto() { return 0.; } // expected-error {{cannot be redeclared}} expected-error {{redefinition of 'operator auto'}}
+  operator auto() { return 0; }  // expected-note {{previous}}
+  operator auto() { return 0.; } // expected-error {{cannot be redeclared}} expected-error {{cannot initialize return object of type 'auto' with an rvalue of type 'double'}}
 };
 
 struct Conv3 {
@@ -53,6 +53,25 @@ auto b(bool k) {
   if (k)
     return "hello";
   return "goodbye";
+}
+
+// Allow 'operator auto' to call only the explicit operator auto.
+struct BothOps {
+  template <typename T> operator T();
+  template <typename T> operator T *();
+  operator auto() { return 0; }
+  operator auto *() { return this; }
+};
+struct JustTemplateOp {
+  template <typename T> operator T();
+  template <typename T> operator T *();
+};
+
+auto c() {
+  BothOps().operator auto(); // ok
+  BothOps().operator auto *(); // ok
+  JustTemplateOp().operator auto(); // expected-error {{no member named 'operator auto' in 'JustTemplateOp'}}
+  JustTemplateOp().operator auto *(); // expected-error {{no member named 'operator auto *' in 'JustTemplateOp'}}
 }
 
 auto *ptr_1() {
@@ -314,7 +333,7 @@ namespace NoReturn {
 }
 
 namespace UseBeforeComplete {
-  auto n = n; // expected-error {{variable 'n' declared with 'auto' type cannot appear in its own initializer}}
+  auto n = n; // expected-error {{variable 'n' declared with deduced type 'auto' cannot appear in its own initializer}}
   auto f(); // expected-note {{declared here}}
   void g() { &f; } // expected-error {{function 'f' with deduced return type cannot be used before it is defined}}
   auto sum(int i) {
@@ -383,6 +402,33 @@ namespace MemberTemplatesWithDeduction {
   int Ninst = test<N>();
   
 }
+}
+
+// We resolve a wording bug here: 'decltype(auto)' should not be modeled as a
+// decltype-specifier, just as a simple-type-specifier. All the extra places
+// where a decltype-specifier can appear make no sense for 'decltype(auto)'.
+namespace DecltypeAutoShouldNotBeADecltypeSpecifier {
+  namespace NNS {
+    int n;
+    decltype(auto) i();
+    decltype(n) j();
+    struct X {
+      friend decltype(auto) ::DecltypeAutoShouldNotBeADecltypeSpecifier::NNS::i();
+      friend decltype(n) ::DecltypeAutoShouldNotBeADecltypeSpecifier::NNS::j(); // expected-error {{not a class}}
+    };
+  }
+
+  namespace Dtor {
+    struct A {};
+    void f(A a) { a.~decltype(auto)(); } // expected-error {{'decltype(auto)' not allowed here}}
+  }
+
+  namespace BaseClass {
+    struct A : decltype(auto) {}; // expected-error {{'decltype(auto)' not allowed here}}
+    struct B {
+      B() : decltype(auto)() {} // expected-error {{'decltype(auto)' not allowed here}}
+    };
+  }
 }
 
 namespace CurrentInstantiation {
@@ -482,4 +528,27 @@ namespace OverloadedOperators {
     int f = -a;
     int g = a - a;
   }
+}
+
+namespace TrailingReturnTypeForConversionOperator {
+  struct X {
+    operator auto() -> int { return 0; } // expected-error {{cannot specify any part of a return type in the declaration of a conversion function; put the complete type after 'operator'}}
+  } x;
+  int k = x.operator auto();
+
+  struct Y {
+    operator auto() -> int & { // expected-error {{cannot specify}}
+      return 0; // expected-error {{cannot bind to}}
+    }
+  };
+};
+
+namespace PR24989 {
+  auto x = [](auto){};
+  using T = decltype(x);
+  void (T::*p)(int) const = &T::operator();
+}
+
+void forinit_decltypeauto() {
+  for (decltype(auto) forinit_decltypeauto_inner();;) {} // expected-warning {{interpreted as a function}} expected-note {{replace}}
 }

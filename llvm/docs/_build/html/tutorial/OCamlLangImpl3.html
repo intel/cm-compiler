@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>3. Kaleidoscope: Code generation to LLVM IR &#8212; LLVM 3.4 documentation</title>
+    <title>3. Kaleidoscope: Code generation to LLVM IR &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -129,7 +129,7 @@ functions and global variables in a chunk of code. In many ways, it is
 the top-level structure that the LLVM IR uses to contain code.</p>
 <p>The <code class="docutils literal"><span class="pre">Codegen.builder</span></code> object is a helper object that makes it easy to
 generate LLVM instructions. Instances of the
-<code class="docutils literal"><span class="pre">`IRBuilder</span></code> &lt;<a class="reference external" href="http://llvm.org/doxygen/IRBuilder_8h-source.html">http://llvm.org/doxygen/IRBuilder_8h-source.html</a>&gt;`_
+<a class="reference external" href="http://llvm.org/doxygen/IRBuilder_8h-source.html">IRBuilder</a>
 class keep track of the current place to insert instructions and has
 methods to create new instructions.</p>
 <p>The <code class="docutils literal"><span class="pre">Codegen.named_values</span></code> map keeps track of which values are defined
@@ -170,9 +170,9 @@ emitted somewhere and its value is available. In practice, the only
 values that can be in the <code class="docutils literal"><span class="pre">Codegen.named_values</span></code> map are function
 arguments. This code simply checks to see that the specified name is in
 the map (if not, an unknown variable is being referenced) and returns
-the value for it. In future chapters, we’ll add support for <a class="reference external" href="LangImpl5.html#for">loop
+the value for it. In future chapters, we’ll add support for <a class="reference external" href="LangImpl5.html#for-loop-expression">loop
 induction variables</a> in the symbol table, and for
-<a class="reference external" href="LangImpl7.html#localvars">local variables</a>.</p>
+<a class="reference external" href="LangImpl7.html#user-defined-local-variables">local variables</a>.</p>
 <div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="o">|</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">Binary</span> <span class="o">(</span><span class="n">op</span><span class="o">,</span> <span class="n">lhs</span><span class="o">,</span> <span class="n">rhs</span><span class="o">)</span> <span class="o">-&gt;</span>
     <span class="k">let</span> <span class="n">lhs_val</span> <span class="o">=</span> <span class="n">codegen_expr</span> <span class="n">lhs</span> <span class="k">in</span>
     <span class="k">let</span> <span class="n">rhs_val</span> <span class="o">=</span> <span class="n">codegen_expr</span> <span class="n">rhs</span> <span class="k">in</span>
@@ -204,20 +204,20 @@ if the code above emits multiple “addtmp” variables, LLVM will
 automatically provide each one with an increasing, unique numeric
 suffix. Local value names for instructions are purely optional, but it
 makes it much easier to read the IR dumps.</p>
-<p><a class="reference external" href="../LangRef.html#instref">LLVM instructions</a> are constrained by strict
-rules: for example, the Left and Right operators of an <a class="reference external" href="../LangRef.html#i_add">add
+<p><a class="reference external" href="../LangRef.html#instruction-reference">LLVM instructions</a> are constrained by strict
+rules: for example, the Left and Right operators of an <a class="reference external" href="../LangRef.html#add-instruction">add
 instruction</a> must have the same type, and the
 result type of the add must match the operand types. Because all values
 in Kaleidoscope are doubles, this makes for very simple code for add,
 sub and mul.</p>
-<p>On the other hand, LLVM specifies that the <a class="reference external" href="../LangRef.html#i_fcmp">fcmp
+<p>On the other hand, LLVM specifies that the <a class="reference external" href="../LangRef.html#fcmp-instruction">fcmp
 instruction</a> always returns an ‘i1’ value (a
 one bit integer). The problem with this is that Kaleidoscope wants the
 value to be a 0.0 or 1.0 value. In order to get these semantics, we
-combine the fcmp instruction with a <a class="reference external" href="../LangRef.html#i_uitofp">uitofp
+combine the fcmp instruction with a <a class="reference external" href="../LangRef.html#uitofp-to-instruction">uitofp
 instruction</a>. This instruction converts its
 input integer into a floating point value by treating the input as an
-unsigned value. In contrast, if we used the <a class="reference external" href="../LangRef.html#i_sitofp">sitofp
+unsigned value. In contrast, if we used the <a class="reference external" href="../LangRef.html#sitofp-to-instruction">sitofp
 instruction</a>, the Kaleidoscope ‘&lt;’ operator
 would return 0.0 and -1.0, depending on the input value.</p>
 <div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="o">|</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">Call</span> <span class="o">(</span><span class="n">callee</span><span class="o">,</span> <span class="n">args</span><span class="o">)</span> <span class="o">-&gt;</span>
@@ -243,7 +243,7 @@ holds all of the functions we are JIT’ing. By giving each function the
 same name as what the user specifies, we can use the LLVM symbol table
 to resolve function names for us.</p>
 <p>Once we have the function to call, we recursively codegen each argument
-that is to be passed in, and create an LLVM <a class="reference external" href="../LangRef.html#i_call">call
+that is to be passed in, and create an LLVM <a class="reference external" href="../LangRef.html#call-instruction">call
 instruction</a>. Note that LLVM uses the native C
 calling conventions by default, allowing these calls to also call into
 standard library functions like “sin” and “cos”, with no additional
@@ -292,7 +292,7 @@ just like <code class="docutils literal"><span class="pre">Constant</span></code
 </div>
 <p>This indicates the type and name to use, as well as which module to
 insert into. By default we assume a function has
-<code class="docutils literal"><span class="pre">Llvm.Linkage.ExternalLinkage</span></code>. “<a class="reference external" href="LangRef.html#linkage">external
+<code class="docutils literal"><span class="pre">Llvm.Linkage.ExternalLinkage</span></code>. “<a class="reference external" href="../LangRef.html#linkage">external
 linkage</a>” means that the function may be defined
 outside the current module and/or that it is callable by functions
 outside the module. The “<code class="docutils literal"><span class="pre">name</span></code>” passed in is the name the user
@@ -389,7 +389,7 @@ at this point. We’ll fix this in <a class="reference external" href="OCamlLang
 method for the root expression of the function. If no error happens,
 this emits code to compute the expression into the entry block and
 returns the value that was computed. Assuming no error, we then create
-an LLVM <a class="reference external" href="../LangRef.html#i_ret">ret instruction</a>, which completes the
+an LLVM <a class="reference external" href="../LangRef.html#ret-instruction">ret instruction</a>, which completes the
 function. Once the function is built, we call
 <code class="docutils literal"><span class="pre">Llvm_analysis.assert_valid_function</span></code>, which is provided by LLVM. This
 function does a variety of consistency checks on the generated code, to
@@ -434,10 +434,10 @@ For example:</p>
 </pre></div>
 </div>
 <p>Note how the parser turns the top-level expression into anonymous
-functions for us. This will be handy when we add <a class="reference external" href="OCamlLangImpl4.html#jit">JIT
+functions for us. This will be handy when we add <a class="reference external" href="OCamlLangImpl4.html#adding-a-jit-compiler">JIT
 support</a> in the next chapter. Also note that
 the code is very literally transcribed, no optimizations are being
-performed. We will <a class="reference external" href="OCamlLangImpl4.html#trivialconstfold">add
+performed. We will <a class="reference external" href="OCamlLangImpl4.html#trivial-constant-folding">add
 optimizations</a> explicitly in the
 next chapter.</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ready</span><span class="o">&gt;</span> <span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="n">a</span> <span class="n">b</span><span class="p">)</span> <span class="n">a</span><span class="o">*</span><span class="n">a</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="n">a</span><span class="o">*</span><span class="n">b</span> <span class="o">+</span> <span class="n">b</span><span class="o">*</span><span class="n">b</span><span class="p">;</span>
@@ -996,8 +996,8 @@ ocamlbuild toy.byte
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

@@ -232,11 +232,11 @@ private:
     return KindID;
   }
 public:
-  static void emit(Instruction *Inst, const Twine &Msg, DiagnosticSeverity Severity = DS_Error);
+  static void emit(Instruction *Inst, StringRef Msg, DiagnosticSeverity Severity = DS_Error);
   DiagnosticInfoSimdCF(DiagnosticSeverity Severity, const Function &Fn,
-      const DebugLoc &DLoc, const Twine &Msg)
+      const DebugLoc &DLoc, StringRef Msg)
       : DiagnosticInfoOptimizationBase((DiagnosticKind)getKindID(), Severity,
-          /*PassName=*/nullptr, Fn, DLoc, Msg) {}
+          /*PassName=*/nullptr, Msg, Fn, DLoc) {}
   // This kind of message is always enabled, and not affected by -rpass.
   virtual bool isEnabled() const override { return true; }
   static bool classof(const DiagnosticInfo *DI) {
@@ -509,7 +509,9 @@ void CMSimdCFLowering::findSimdBranches(unsigned CMWidth)
  */
 void CMSimdCFLowering::determinePredicatedBlocks()
 {
-  PostDominatorTree *PDT = nullptr;
+  PostDominatorTree PDT;
+  PDT.recalculate(*F);
+
   for (auto sbi = SimdBranches.begin(), sbe = SimdBranches.end();
       sbi != sbe; ++sbi) {
     BasicBlock *BlockM = sbi->first;
@@ -518,22 +520,16 @@ void CMSimdCFLowering::determinePredicatedBlocks()
     DEBUG(dbgs() << "simd branch (width " << SimdWidth << ") at " << BlockM->getName() << "\n");
     if (SimdWidth < 2 || SimdWidth > MAX_SIMD_CF_WIDTH || !isPowerOf2_32(SimdWidth))
       DiagnosticInfoSimdCF::emit(Br, "illegal SIMD CF width");
-    // BlockM has a simd conditional branch. Get the postdominator tree if we
-    // do not already have it.
-    if (!PDT) {
-      PDT = (PostDominatorTree *)createPostDomTree();
-      PDT->runOnFunction(*F);
-    }
     // For each successor BlockN of BlockM...
     for (unsigned si = 0, se = Br->getNumSuccessors(); si != se; ++si) {
       auto BlockN = Br->getSuccessor(si);
       // Get BlockL, the closest common postdominator.
-      auto BlockL = PDT->findNearestCommonDominator(BlockM, BlockN);
+      auto BlockL = PDT.findNearestCommonDominator(BlockM, BlockN);
       // Trace up the postdominator tree from BlockN (inclusive) to BlockL
       // (exclusive) to find blocks control dependent on BlockM. This also
       // handles the case that BlockN does postdominate BlockM; no blocks
       // are control dependent on BlockM.
-      for (auto Node = PDT->getNode(BlockN); Node && Node->getBlock() != BlockL;
+      for (auto Node = PDT.getNode(BlockN); Node && Node->getBlock() != BlockL;
             Node = Node->getIDom()) {
         auto BB = Node->getBlock();
         DEBUG(dbgs() << "  " << BB->getName() << " needs predicating\n");
@@ -544,7 +540,6 @@ void CMSimdCFLowering::determinePredicatedBlocks()
       }
     }
   }
-  delete PDT;
 }
 
 /***********************************************************************
@@ -916,6 +911,8 @@ void CMSimdCFLowering::predicateInst(Instruction *Inst, unsigned SimdWidth) {
       case Intrinsic::genx_simdcf_any:
       case Intrinsic::genx_vload:
       case Intrinsic::genx_vstore:
+      case Intrinsic::lifetime_start:
+      case Intrinsic::lifetime_end:
         return; // ignore these intrinsics
       case Intrinsic::genx_simdcf_predicate:
         rewritePredication(CI, SimdWidth);
@@ -939,10 +936,11 @@ void CMSimdCFLowering::predicateInst(Instruction *Inst, unsigned SimdWidth) {
         return;
     }
     // An IntrNoMem intrinsic is an ALU intrinsic and can be ignored.
-    if (Callee->doesNotAccessMemory())
+    if (Callee->doesNotAccessMemory() || CI->getNumArgOperands() == 0)
       return;
+ 
     // Look for a predicate operand in operand 2, 1 or 0.
-    unsigned PredNum = std::max(2U, CI->getNumArgOperands());
+    unsigned PredNum = CI->getNumArgOperands() - 1;
     for (;;) {
       if (auto VT = dyn_cast<VectorType>(CI->getArgOperand(PredNum)->getType()))
       {
@@ -1569,7 +1567,8 @@ Value *CMSimdCFLowering::getRMAddr(BasicBlock *JP, unsigned SimdWidth)
     // of the function.
     Type *RMTy = VectorType::get(Type::getInt1Ty(F->getContext()), SimdWidth);
     Instruction *InsertBefore = &F->front().front();
-    *RMAddr = new AllocaInst(RMTy, Twine("RM.") + JP->getName(), InsertBefore);
+    *RMAddr = new AllocaInst(RMTy, /*AddrSpace*/ 0,
+                             Twine("RM.") + JP->getName(), InsertBefore);
     // Initialize to all zeros.
     new StoreInst(Constant::getNullValue(RMTy), *RMAddr, InsertBefore);
   }
@@ -1582,11 +1581,9 @@ Value *CMSimdCFLowering::getRMAddr(BasicBlock *JP, unsigned SimdWidth)
 /***********************************************************************
  * DiagnosticInfoSimdCF::emit : emit an error or warning
  */
-void DiagnosticInfoSimdCF::emit(Instruction *Inst, const Twine &Msg,
-        DiagnosticSeverity Severity)
-{
+void DiagnosticInfoSimdCF::emit(Instruction *Inst, StringRef Msg,
+                                DiagnosticSeverity Severity) {
   DiagnosticInfoSimdCF Err(Severity, *Inst->getParent()->getParent(),
-      Inst->getDebugLoc(), Msg);
+                           Inst->getDebugLoc(), Msg);
   Inst->getContext().diagnose(Err);
 }
-

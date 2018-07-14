@@ -1,6 +1,5 @@
 # RUN: llvm-mc -filetype=obj -triple=mipsel-unknown-nacl %s \
-# RUN:  | llvm-objdump -triple mipsel -disassemble -no-show-raw-insn - \
-# RUN:  | FileCheck %s
+# RUN:   | llvm-objdump -disassemble -no-show-raw-insn - | FileCheck %s
 
 # This test tests that address-masking sandboxing is added when given assembly
 # input.
@@ -252,10 +251,10 @@ test5:
         jalr $t9
         addiu $4, $zero, 5
 
-# CHECK-LABEL:   test5:
 
+# CHECK:             nop
 # CHECK-NEXT:        nop
-# CHECK-NEXT:        nop
+# CHECK-LABEL:       test5:
 # CHECK-NEXT:        jal
 # CHECK-NEXT:        addiu   $4, $zero, 1
 
@@ -301,10 +300,11 @@ test6:
         jalr $t9
         sw      $sp, 0($sp)
 
-# CHECK-LABEL:   test6:
 
+
+# CHECK:             nop
 # CHECK-NEXT:        nop
-# CHECK-NEXT:        nop
+# CHECK-LABEL:       test6:
 # CHECK-NEXT:        jal
 # CHECK-NEXT:        sw      $4, 0($sp)
 

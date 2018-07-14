@@ -112,6 +112,54 @@ void foo3(Test3 *test3) {
 @property (retain) id propProp3;
 @end
 
+@interface TestNullability
+@property (strong, nonnull) id prop1;
+@property (strong, nullable) id prop2;
+@end
+
+@implementation TestNullability
+- (void)meth {
+  TestNullability *o;
+  [o.prop1 meth];
+  [o.prop2 meth];
+  _Nullable id lo1;
+  _Nonnull id lo2;
+  [lo1 meth];
+  [lo2 meth];
+}
+@end
+
+#define NS_ENUM(_name, _type) enum _name : _type _name; enum _name : _type
+typedef NS_ENUM(TestTransparent, int) {
+  TestTransparentFirst = 0,
+  TestTransparentSecond = 1,
+};
+typedef enum TestTransparent NotTransparent;
+
+TestTransparent transparentTypedef;
+enum TestTransparent transparentUnderlying;
+NotTransparent opaqueTypedef;
+
+#define MY_ENUM(_name, _type) enum _name : _type _name##_t; enum _name : _type
+typedef MY_ENUM(TokenPaste, int) {
+  TokenPasteFirst = 0,
+};
+TokenPaste_t opaqueTypedef2;
+
+#define MY_TYPE(_name) struct _name _name; struct _name
+typedef MY_TYPE(SomeT) { int x; };
+SomeT someVar;
+
+#define MY_TYPE2(_name) struct _name *_name; struct _name
+typedef MY_TYPE2(SomeT2) { int x; };
+SomeT2 someVar2;
+
+#define GEN_DECL(mod_name) __attribute__((external_source_symbol(language="Swift", defined_in=mod_name, generated_declaration)))
+
+GEN_DECL("some_module")
+@interface ExtCls
+-(void)method;
+@end
 
 // RUN: c-index-test -cursor-at=%s:4:28 -cursor-at=%s:5:28 %s | FileCheck -check-prefix=CHECK-PROP %s
 // CHECK-PROP: ObjCPropertyDecl=foo1:4:26
@@ -170,3 +218,22 @@ void foo3(Test3 *test3) {
 // CHECK-OBJCOPTIONAL: 108:23 ObjCPropertyDecl=propProp2:108:23 (@optional) [retain,] Extent=[108:1 - 108:32]
 // CHECK-OBJCOPTIONAL: 111:8 ObjCInstanceMethodDecl=protMeth3:111:8 Extent=[111:1 - 111:18]
 // CHECK-OBJCOPTIONAL: 112:23 ObjCPropertyDecl=propProp3:112:23 [retain,] Extent=[112:1 - 112:32]
+
+// RUN: c-index-test -cursor-at=%s:123:12 %s | FileCheck -check-prefix=CHECK-RECEIVER-WITH-NULLABILITY %s
+// RUN: c-index-test -cursor-at=%s:124:12 %s | FileCheck -check-prefix=CHECK-RECEIVER-WITH-NULLABILITY %s
+// RUN: c-index-test -cursor-at=%s:127:8 %s | FileCheck -check-prefix=CHECK-RECEIVER-WITH-NULLABILITY %s
+// RUN: c-index-test -cursor-at=%s:128:8 %s | FileCheck -check-prefix=CHECK-RECEIVER-WITH-NULLABILITY %s
+// CHECK-RECEIVER-WITH-NULLABILITY: Receiver-type=ObjCId
+
+// RUN: c-index-test -cursor-at=%s:139:1 -cursor-at=%s:140:6 -cursor-at=%s:141:1 -cursor-at=%s:147:1 -cursor-at=%s:151:1 -cursor-at=%s:155:1 %s | FileCheck -check-prefix=CHECK-TRANSPARENT %s
+// CHECK-TRANSPARENT: 139:1 TypeRef=TestTransparent:133:17 (Transparent: enum TestTransparent) Extent=[139:1 - 139:16] Spelling=TestTransparent ([139:1 - 139:16])
+// CHECK-TRANSPARENT: 140:6 TypeRef=enum TestTransparent:133:17 Extent=[140:6 - 140:21] Spelling=enum TestTransparent ([140:6 - 140:21])
+// CHECK-TRANSPARENT: 141:1 TypeRef=NotTransparent:137:30 Extent=[141:1 - 141:15] Spelling=NotTransparent ([141:1 - 141:15])
+// CHECK-TRANSPARENT: 147:1 TypeRef=TokenPaste_t:144:9 Extent=[147:1 - 147:13] Spelling=TokenPaste_t ([147:1 - 147:13])
+// CHECK-TRANSPARENT: 151:1 TypeRef=SomeT:150:17 (Transparent: struct SomeT) Extent=[151:1 - 151:6] Spelling=SomeT ([151:1 - 151:6])
+// CHECK-TRANSPARENT: 155:1 TypeRef=SomeT2:154:18 Extent=[155:1 - 155:7] Spelling=SomeT2 ([155:1 - 155:7])
+
+// RUN: c-index-test -cursor-at=%s:160:12 -cursor-at=%s:161:8 %s | FileCheck -check-prefix=CHECK-EXTERNAL %s
+// CHECK-EXTERNAL: 160:12 ObjCInterfaceDecl=ExtCls:160:12 (external lang: Swift, defined: some_module, gen: 1)
+// CHECK-EXTERNAL: 161:8 ObjCInstanceMethodDecl=method:161:8 (external lang: Swift, defined: some_module, gen: 1)
+C

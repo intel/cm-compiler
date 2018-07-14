@@ -56,17 +56,17 @@ bb5:                                              ; preds = %bb, %entry
 define i32 @test_inlineasm(i32 %a) nounwind {
 entry:
 ;CHECK-LABEL:      test_inlineasm:
+;CHECK: cmp
 ;CHECK:      sethi
 ;CHECK:      !NO_APP
-;CHECK-NEXT: cmp
-;CHECK-NEXT: bg
+;CHECK-NEXT: ble
 ;CHECK-NEXT: mov
   tail call void asm sideeffect "sethi 0, %g0", ""() nounwind
   %0 = icmp slt i32 %a, 0
   br i1 %0, label %bb, label %bb1
 
 bb:                                               ; preds = %entry
-  %1 = tail call i32 (...)* @foo(i32 %a) nounwind
+  %1 = tail call i32 (...) @foo(i32 %a) nounwind
   ret i32 %1
 
 bb1:                                              ; preds = %entry

@@ -1827,11 +1827,13 @@ ExprResult Sema::ActOnCMSubscriptAccess(Expr *Base, SourceLocation LLoc,
 }
 
 ExprResult Sema::BuildCMFunctionalCastExpr(TypeSourceInfo *TInfo,
+                                           QualType Ty,
                                            SourceLocation LPLoc,
                                            Expr *CastExpr,
                                            SourceLocation RPLoc,
                                            Expr *Sat) {
-  ExprResult Result = BuildCXXFunctionalCastExpr(TInfo, LPLoc, CastExpr, RPLoc);
+  ExprResult Result =
+      BuildCXXFunctionalCastExpr(TInfo, Ty, LPLoc, CastExpr, RPLoc);
   if (!Result.isUsable())
     return ExprError();
 
@@ -1885,7 +1887,7 @@ bool Sema::CheckCmPrintfCall(CallExpr *TheCall) {
   unsigned NumArgs = TheCall->getNumArgs();
   Expr **Args = TheCall->getArgs();
   // fix up the CallExpr type
-  TheCall->setType(TheCall->getCallReturnType());
+  TheCall->setType(TheCall->getCallReturnType(getASTContext()));
 
   if (NumArgs < 2) {
     Diag(TheCall->getRParenLoc(), diag::err_cm_format_string_expected);
@@ -1905,6 +1907,8 @@ bool Sema::CheckCmPrintfCall(CallExpr *TheCall) {
           << 0 << FS->getByteLength();
       ErrorFound = true;
     }
+#if 0
+// FIXME TODO
     // Check the format string
     llvm::SmallBitVector CheckedVarArgs;
     CheckedVarArgs.resize(NumArgs);
@@ -1916,6 +1920,7 @@ bool Sema::CheckCmPrintfCall(CallExpr *TheCall) {
                         /*formatType*/ Sema::FST_Printf,
                         /*InFunctionCall*/ true,
                         /*CallType*/ Sema::VariadicFunction, CheckedVarArgs);
+#endif
   } else {
     Diag(Args[1]->getExprLoc(), diag::err_cm_format_string_expected)
         << Args[1]->getSourceRange();

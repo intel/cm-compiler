@@ -9,8 +9,8 @@
 // CHECK:   0x14 R_MIPS_GOT_HI16 ext_1
 // CHECK:   0x1C R_MIPS_GOT_LO16 ext_1
 // CHECK:   0x24 R_MIPS_CALL_HI16 printf
-// CHECK:   0x2C R_MIPS_GOT16 $.str
 // CHECK:   0x30 R_MIPS_CALL_LO16 printf
+// CHECK:   0x2C R_MIPS_GOT16 $.str
 // CHECK:   0x38 R_MIPS_LO16 $.str
 // CHECK: ]
 
@@ -31,7 +31,7 @@ fill:                                   # @fill
 	.set	noreorder
 	.set	nomacro
 	.set	noat
-# BB#0:                                 # %entry
+# %bb.0:                                # %entry
 	lui	$2, %hi(_gp_disp)
 	addiu	$2, $2, %lo(_gp_disp)
 	addiu	$sp, $sp, -24

@@ -1,4 +1,4 @@
-//===-- EHStreamer.h - Exception Handling Directive Streamer ---*- C++ -*--===//
+//===- EHStreamer.h - Exception Handling Directive Streamer -----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,24 +11,24 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_ASMPRINTER_EHSTREAMER_H
-#define LLVM_CODEGEN_ASMPRINTER_EHSTREAMER_H
+#ifndef LLVM_LIB_CODEGEN_ASMPRINTER_EHSTREAMER_H
+#define LLVM_LIB_CODEGEN_ASMPRINTER_EHSTREAMER_H
 
 #include "AsmPrinterHandler.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Support/Compiler.h"
 
 namespace llvm {
-struct LandingPadInfo;
-class MachineModuleInfo;
-class MachineInstr;
-class MachineFunction;
-class AsmPrinter;
 
-template <typename T>
-class SmallVectorImpl;
+class AsmPrinter;
+struct LandingPadInfo;
+class MachineInstr;
+class MachineModuleInfo;
+class MCSymbol;
+template <typename T> class SmallVectorImpl;
 
 /// Emits exception handling directives.
-class EHStreamer : public AsmPrinterHandler {
+class LLVM_LIBRARY_VISIBILITY EHStreamer : public AsmPrinterHandler {
 protected:
   /// Target of directive emission.
   AsmPrinter *Asm;
@@ -44,11 +44,12 @@ protected:
   struct PadRange {
     // The index of the landing pad.
     unsigned PadIndex;
+
     // The index of the begin and end labels in the landing pad's label lists.
     unsigned RangeIndex;
   };
 
-  typedef DenseMap<MCSymbol *, PadRange> RangeMapType;
+  using RangeMapType = DenseMap<MCSymbol *, PadRange>;
 
   /// Structure describing an entry in the actions table.
   struct ActionEntry {
@@ -60,11 +61,12 @@ protected:
   /// Structure describing an entry in the call-site table.
   struct CallSiteEntry {
     // The 'try-range' is BeginLabel .. EndLabel.
-    MCSymbol *BeginLabel; // zero indicates the start of the function.
-    MCSymbol *EndLabel;   // zero indicates the end of the function.
+    MCSymbol *BeginLabel; // Null indicates the start of the function.
+    MCSymbol *EndLabel;   // Null indicates the end of the function.
 
-    // The landing pad starts at PadLabel.
-    MCSymbol *PadLabel;   // zero indicates that there is no landing pad.
+    // LPad contains the landing pad start labels.
+    const LandingPadInfo *LPad; // Null indicates that there is no landing pad.
+
     unsigned Action;
   };
 
@@ -74,9 +76,8 @@ protected:
                                SmallVectorImpl<ActionEntry> &Actions,
                                SmallVectorImpl<unsigned> &FirstActions);
 
-  /// Return `true' if this is a call to a function marked `nounwind'. Return
-  /// `false' otherwise.
-  bool callToNoUnwindFunction(const MachineInstr *MI);
+  void computePadMap(const SmallVectorImpl<const LandingPadInfo *> &LandingPads,
+                     RangeMapType &PadMap);
 
   /// Compute the call-site table.  The entry for an invoke has a try-range
   /// containing the call, a non-zero landing pad and an appropriate action.
@@ -84,9 +85,7 @@ protected:
   /// zero for the landing pad and the action.  Calls marked 'nounwind' have
   /// no entry and must not be contained in the try-range of any entry - they
   /// form gaps in the table.  Entries must be ordered by try-range address.
-
   void computeCallSiteTable(SmallVectorImpl<CallSiteEntry> &CallSites,
-                            const RangeMapType &PadMap,
                             const SmallVectorImpl<const LandingPadInfo *> &LPs,
                             const SmallVectorImpl<unsigned> &FirstActions);
 
@@ -113,26 +112,27 @@ protected:
 
   virtual void emitTypeInfos(unsigned TTypeEncoding);
 
+  // Helpers for for identifying what kind of clause an EH typeid or selector
+  // corresponds to. Negative selectors are for filter clauses, the zero
+  // selector is for cleanups, and positive selectors are for catch clauses.
+  static bool isFilterEHSelector(int Selector) { return Selector < 0; }
+  static bool isCleanupEHSelector(int Selector) { return Selector == 0; }
+  static bool isCatchEHSelector(int Selector) { return Selector > 0; }
+
 public:
   EHStreamer(AsmPrinter *A);
-  virtual ~EHStreamer();
-
-  /// Emit all exception information that should come after the content.
-  void endModule() override;
-
-  /// Gather pre-function exception information.  Assumes being emitted
-  /// immediately after the function entry point.
-  void beginFunction(const MachineFunction *MF) override;
-
-  /// Gather and emit post-function exception information.
-  void endFunction(const MachineFunction *) override;
+  ~EHStreamer() override;
 
   // Unused.
   void setSymbolSize(const MCSymbol *Sym, uint64_t Size) override {}
   void beginInstruction(const MachineInstr *MI) override {}
   void endInstruction() override {}
+
+  /// Return `true' if this is a call to a function marked `nounwind'. Return
+  /// `false' otherwise.
+  static bool callToNoUnwindFunction(const MachineInstr *MI);
 };
-}
 
-#endif
+} // end namespace llvm
 
+#endif // LLVM_LIB_CODEGEN_ASMPRINTER_EHSTREAMER_H

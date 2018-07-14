@@ -16,6 +16,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef LLVM_CLANG_UNITTESTS_AST_MATCHVERIFIER_H
+#define LLVM_CLANG_UNITTESTS_AST_MATCHVERIFIER_H
+
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
@@ -25,7 +28,14 @@
 namespace clang {
 namespace ast_matchers {
 
-enum Language { Lang_C, Lang_C89, Lang_CXX, Lang_CXX11, Lang_OpenCL };
+enum Language { 
+    Lang_C,
+    Lang_C89,
+    Lang_CXX,
+    Lang_CXX11,
+    Lang_OpenCL,
+    Lang_OBJCXX
+};
 
 /// \brief Base class for verifying some property of nodes found by a matcher.
 template <typename NodeType>
@@ -52,8 +62,11 @@ public:
                                  std::vector<std::string>& Args,
                                  Language L);
 
+  template <typename MatcherType>
+  testing::AssertionResult match(const Decl *D, const MatcherType &AMatcher);
+
 protected:
-  virtual void run(const MatchFinder::MatchResult &Result);
+  void run(const MatchFinder::MatchResult &Result) override;
   virtual void verify(const MatchFinder::MatchResult &Result,
                       const NodeType &Node) {}
 
@@ -102,12 +115,32 @@ testing::AssertionResult MatchVerifier<NodeType>::match(
     break;
   case Lang_OpenCL:
     FileName = "input.cl";
+    break;
+  case Lang_OBJCXX:
+    FileName = "input.mm";
+    break;
   }
 
   // Default to failure in case callback is never called
   setFailure("Could not find match");
   if (!tooling::runToolOnCodeWithArgs(Factory->create(), Code, Args, FileName))
     return testing::AssertionFailure() << "Parsing error";
+  if (!Verified)
+    return testing::AssertionFailure() << VerifyResult;
+  return testing::AssertionSuccess();
+}
+
+/// \brief Runs a matcher over some AST, and returns the result of the
+/// verifier for the matched node.
+template <typename NodeType> template <typename MatcherType>
+testing::AssertionResult MatchVerifier<NodeType>::match(
+    const Decl *D, const MatcherType &AMatcher) {
+  MatchFinder Finder;
+  Finder.addMatcher(AMatcher.bind(""), this);
+
+  setFailure("Could not find match");
+  Finder.match(*D, D->getASTContext());
+
   if (!Verified)
     return testing::AssertionFailure() << VerifyResult;
   return testing::AssertionSuccess();
@@ -152,7 +185,8 @@ public:
   }
 
 protected:
-  void verify(const MatchFinder::MatchResult &Result, const NodeType &Node) {
+  void verify(const MatchFinder::MatchResult &Result,
+              const NodeType &Node) override {
     SourceLocation Loc = getLocation(Node);
     unsigned Line = Result.SourceManager->getSpellingLineNumber(Loc);
     unsigned Column = Result.SourceManager->getSpellingColumnNumber(Loc);
@@ -191,7 +225,8 @@ public:
   }
 
 protected:
-  void verify(const MatchFinder::MatchResult &Result, const NodeType &Node) {
+  void verify(const MatchFinder::MatchResult &Result,
+              const NodeType &Node) override {
     SourceRange R = getRange(Node);
     SourceLocation Begin = R.getBegin();
     SourceLocation End = R.getEnd();
@@ -230,7 +265,7 @@ public:
 
 protected:
   void verify(const MatchFinder::MatchResult &Result,
-              const ast_type_traits::DynTypedNode &Node) {
+              const ast_type_traits::DynTypedNode &Node) override {
     std::string DumpStr;
     llvm::raw_string_ostream Dump(DumpStr);
     Node.dump(Dump, *Result.SourceManager);
@@ -257,7 +292,7 @@ public:
 
 protected:
   void verify(const MatchFinder::MatchResult &Result,
-              const ast_type_traits::DynTypedNode &Node) {
+              const ast_type_traits::DynTypedNode &Node) override {
     std::string PrintStr;
     llvm::raw_string_ostream Print(PrintStr);
     Node.print(Print, Result.Context->getPrintingPolicy());
@@ -277,3 +312,5 @@ private:
 
 } // end namespace ast_matchers
 } // end namespace clang
+
+#endif

@@ -11,21 +11,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CODEGEN_INSTRUCTION_H
-#define CODEGEN_INSTRUCTION_H
+#ifndef LLVM_UTILS_TABLEGEN_CODEGENINSTRUCTION_H
+#define LLVM_UTILS_TABLEGEN_CODEGENINSTRUCTION_H
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/CodeGen/MachineValueType.h"
-#include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/SMLoc.h"
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace llvm {
+template <typename T> class ArrayRef;
   class Record;
   class DagInit;
   class CodeGenTarget;
-  class StringRef;
 
   class CGIOperandList {
   public:
@@ -206,7 +206,7 @@ namespace llvm {
   class CodeGenInstruction {
   public:
     Record *TheDef;            // The actual record defining this instruction.
-    std::string Namespace;     // The namespace the instruction is in.
+    StringRef Namespace;       // The namespace the instruction is in.
 
     /// AsmString - The format string used to emit a .s file for the
     /// instruction.
@@ -230,6 +230,7 @@ namespace llvm {
     bool isSelect : 1;
     bool isBarrier : 1;
     bool isCall : 1;
+    bool isAdd : 1;
     bool canFoldAsLoad : 1;
     bool mayLoad : 1;
     bool mayLoad_Unset : 1;
@@ -247,12 +248,16 @@ namespace llvm {
     bool isNotDuplicable : 1;
     bool hasSideEffects : 1;
     bool hasSideEffects_Unset : 1;
-    bool neverHasSideEffects : 1;
     bool isAsCheapAsAMove : 1;
     bool hasExtraSrcRegAllocReq : 1;
     bool hasExtraDefRegAllocReq : 1;
     bool isCodeGenOnly : 1;
     bool isPseudo : 1;
+    bool isRegSequence : 1;
+    bool isExtractSubreg : 1;
+    bool isInsertSubreg : 1;
+    bool isConvergent : 1;
+    bool hasNoSchedulingInfo : 1;
 
     std::string DeprecatedReason;
     bool HasComplexDeprecationPredicate;
@@ -279,6 +284,12 @@ namespace llvm {
     /// include text from the specified variant, returning the new string.
     static std::string FlattenAsmStringVariants(StringRef AsmString,
                                                 unsigned Variant);
+
+    // Is the specified operand in a generic instruction implicitly a pointer.
+    // This can be used on intructions that use typeN or ptypeN to identify
+    // operands that should be considered as pointers even though SelectionDAG
+    // didn't make a distinction between integer and pointers.
+    bool isOperandAPointer(unsigned i) const;
   };
 
 
@@ -312,7 +323,8 @@ namespace llvm {
         K_Reg
       } Kind;
 
-      ResultOperand(std::string N, Record *r) : Name(N), R(r), Kind(K_Record) {}
+      ResultOperand(std::string N, Record *r)
+          : Name(std::move(N)), R(r), Kind(K_Record) {}
       ResultOperand(int64_t I) : Imm(I), Kind(K_Imm) {}
       ResultOperand(Record *r) : R(r), Kind(K_Reg) {}
 

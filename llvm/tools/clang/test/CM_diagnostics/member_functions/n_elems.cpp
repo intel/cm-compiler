@@ -35,17 +35,17 @@ void test() {
   s2.template n_elems = 2;           // not a template
   v.n_elems() = 2;                   // not assignable
 }
-// CHECK: n_elems.cpp(18,21) :  error: expected '('
-// CHECK: n_elems.cpp(19,22) :  error: expected ')'
-// CHECK: n_elems.cpp(20,22) :  error: expected ')'
-// CHECK: n_elems.cpp(21,22) :  error: expected ')'
-// CHECK: n_elems.cpp(24,21) :  error: expected '('
-// CHECK: n_elems.cpp(25,22) :  error: expected ')'
-// CHECK: n_elems.cpp(26,22) :  error: expected ')'
-// CHECK: n_elems.cpp(29,16) :  error: no member named 'n_elems' in 'S1'
-// CHECK: n_elems.cpp(30,16) :  error: no member named 'n_elems' in 'S1'
-// CHECK: n_elems.cpp(32,23) :  error: called object type 'int' is not a function or function pointer
-// CHECK: n_elems.cpp(33,25) :  error: 'n_elems' following the 'template' keyword does not refer to a template
-// CHECK: n_elems.cpp(35,15) :  error: 'n_elems' following the 'template' keyword does not refer to a template
-// CHECK: n_elems.cpp(36,15) :  error: expression is not assignable
+// CHECK: n_elems.cpp(18,21):  error: expected '('
+// CHECK: n_elems.cpp(19,22):  error: expected ')'
+// CHECK: n_elems.cpp(20,22):  error: expected ')'
+// CHECK: n_elems.cpp(21,22):  error: expected ')'
+// CHECK: n_elems.cpp(24,21):  error: expected '('
+// CHECK: n_elems.cpp(25,22):  error: expected ')'
+// CHECK: n_elems.cpp(26,22):  error: expected ')'
+// CHECK: n_elems.cpp(29,16):  error: no member named 'n_elems' in 'S1'
+// CHECK: n_elems.cpp(30,16):  error: no member named 'n_elems' in 'S1'
+// CHECK: n_elems.cpp(32,23):  error: called object type 'int' is not a function or function pointer
+// CHECK: n_elems.cpp(33,25):  error: 'n_elems' following the 'template' keyword does not refer to a template
+// CHECK: n_elems.cpp(35,15):  error: 'n_elems' following the 'template' keyword does not refer to a template
+// CHECK: n_elems.cpp(36,15):  error: expression is not assignable
 // CHECK: 13 errors generated.

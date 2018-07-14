@@ -22,12 +22,12 @@
 ##   -l              cygwin/gcc linux/gcc mode (default linux)
 ##   -c              run cmake (not normally needed unless the build directory is
 ##                   in an inconsistent state)
-##   -s              vis studio version (vs2010, vs2012, vs2013 (default), vs2015, vs2017)
+##   -s              vis studio version (vs2013, vs2015(default), vs2017)
 ##   -p path         path to cmake (default C:/Program Files (x86)/CMake 2.8/bin for
 ##                   VS/win, /usr/bin or /Applications/CMake.app/Contents/bin on
 ##                   Mac, otherwise /opt/bin
 ##   -b rpath        relative path for the build (default name will be auto
-##                   generated e.g. build.gcc or build.32.vs2012)
+##                   generated e.g. build.gcc or build.32.vs2015)
 ##   -d              build Debug
 ##   -r              build Release (default)
 ##   --32            32 bit build - (default for 32 bit OS and all windows systems)
@@ -207,7 +207,7 @@ USE_VS=
 USE_GCC=
 USE_XCODE=
 RUN_CMAKE=
-VS_VERSION=vs2013
+VS_VERSION=vs2015
 BUILD_DEBUG=
 BUILD_RELEASE=
 CMAKE_PATH=

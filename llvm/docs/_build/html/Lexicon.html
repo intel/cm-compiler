@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>The LLVM Lexicon &#8212; LLVM 3.4 documentation</title>
+    <title>The LLVM Lexicon &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -98,6 +98,12 @@ call an “annotated abstract syntax tree”.</p>
 <dl class="docutils" id="lexicon-bb-vectorization">
 <dt><strong>BB Vectorization</strong></dt>
 <dd>Basic-Block Vectorization</dd>
+<dt><strong>BDCE</strong></dt>
+<dd>Bit-tracking dead code elimination. Some bit-wise instructions (shifts,
+ands, ors, etc.) “kill” some of their input bits – that is, they make it
+such that those bits can be either zero or one without affecting control or
+data flow of a program. The BDCE pass removes instructions that only
+compute these dead bits.</dd>
 <dt><strong>BURS</strong></dt>
 <dd>Bottom Up Rewriting System — A method of instruction selection for code
 generation.  An example is the <a class="reference external" href="http://www.program-transformation.org/Transform/BURG">BURG</a> tool.</dd>
@@ -106,6 +112,13 @@ generation.  An example is the <a class="reference external" href="http://www.pr
 <div class="section" id="c">
 <h3>C<a class="headerlink" href="#c" title="Permalink to this headline">¶</a></h3>
 <dl class="docutils">
+<dt><strong>CFI</strong></dt>
+<dd>Call Frame Information. Used in DWARF debug info and in C++ unwind info
+to show how the function prolog lays out the stack frame.</dd>
+<dt><strong>CIE</strong></dt>
+<dd>Common Information Entry.  A kind of CFI used to reduce the size of FDEs.
+The compiler creates a CIE which contains the information common across all
+the FDEs.  Each FDE then points to its CIE.</dd>
 <dt><strong>CSE</strong></dt>
 <dd>Common Subexpression Elimination. An optimization that removes common
 subexpression compuation. For example <code class="docutils literal"><span class="pre">(a+b)*(a+b)</span></code> has two subexpressions
@@ -139,6 +152,9 @@ any <a class="reference internal" href="#safe-point">safe point</a>. This term i
 <dl class="docutils">
 <dt><strong>FCA</strong></dt>
 <dd>First Class Aggregate</dd>
+<dt><strong>FDE</strong></dt>
+<dd>Frame Description Entry. A kind of CFI used to describe the stack frame of
+one function.</dd>
 </dl>
 </div>
 <div class="section" id="g">
@@ -147,6 +163,16 @@ any <a class="reference internal" href="#safe-point">safe point</a>. This term i
 <dt><strong>GC</strong></dt>
 <dd>Garbage Collection. The practice of using reachability analysis instead of
 explicit memory management to reclaim unused memory.</dd>
+<dt><strong>GEP</strong></dt>
+<dd><code class="docutils literal"><span class="pre">GetElementPtr</span></code>. An LLVM IR instruction that is used to get the address
+of a subelement of an aggregate data structure. It is documented in detail
+<a class="reference external" href="http://llvm.org/docs/GetElementPtr.html">here</a>.</dd>
+<dt><strong>GVN</strong></dt>
+<dd>Global Value Numbering. GVN is a pass that partitions values computed by a
+function into congruence classes. Values ending up in the same congruence
+class are guaranteed to be the same for every execution of the program.
+In that respect, congruency is a compile-time approximation of equivalence
+of values at runtime.</dd>
 </dl>
 </div>
 <div class="section" id="h">
@@ -175,8 +201,18 @@ that occurs between procedures, functions or compilation units (modules).</dd>
 <dl class="docutils">
 <dt><strong>LCSSA</strong></dt>
 <dd>Loop-Closed Static Single Assignment Form</dd>
+<dt><strong>LGTM</strong></dt>
+<dd>“Looks Good To Me”. In a review thread, this indicates that the
+reviewer thinks that the patch is okay to commit.</dd>
 <dt><strong>LICM</strong></dt>
 <dd>Loop Invariant Code Motion</dd>
+<dt><strong>LSDA</strong></dt>
+<dd>Language Specific Data Area.  C++ “zero cost” unwinding is built on top a
+generic unwinding mechanism.  As the unwinder walks each frame, it calls
+a “personality” function to do language specific analysis.  Each function’s
+FDE points to an optional LSDA which is passed to the personality function.
+For C++, the LSDA contain info about the type and location of catch
+statements in that function.</dd>
 <dt><strong>Load-VN</strong></dt>
 <dd>Load Value Numbering</dd>
 <dt><strong>LTO</strong></dt>
@@ -188,6 +224,16 @@ that occurs between procedures, functions or compilation units (modules).</dd>
 <dl class="docutils">
 <dt><strong>MC</strong></dt>
 <dd>Machine Code</dd>
+</dl>
+</div>
+<div class="section" id="n">
+<h3>N<a class="headerlink" href="#n" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt><strong>NFC</strong></dt>
+<dd>“No functional change”. Used in a commit message to indicate that a patch
+is a pure refactoring/cleanup.
+Usually used in the first line, so it is visible without opening the
+actual commit email.</dd>
 </dl>
 </div>
 <div class="section" id="o">
@@ -202,6 +248,8 @@ references contained within the object. This term is used in opposition to
 <div class="section" id="p">
 <h3>P<a class="headerlink" href="#p" title="Permalink to this headline">¶</a></h3>
 <dl class="docutils">
+<dt><strong>PR</strong></dt>
+<dd>Problem report. A bug filed on <a class="reference external" href="https://bugs.llvm.org/enter_bug.cgi">the LLVM Bug Tracking System</a>.</dd>
 <dt><strong>PRE</strong></dt>
 <dd>Partial Redundancy Elimination</dd>
 </dl>
@@ -250,6 +298,13 @@ pointers</a> must be reloaded from stack roots.</dd>
 <dd>Sparse Conditional Constant Propagation</dd>
 <dt><strong>SLP</strong></dt>
 <dd>Superword-Level Parallelism, same as <a class="reference internal" href="#lexicon-bb-vectorization"><span class="std std-ref">Basic-Block Vectorization</span></a>.</dd>
+<dt><strong>Splat</strong></dt>
+<dd><p class="first">Splat refers to a vector of identical scalar elements.</p>
+<p class="last">The term is based on the PowerPC Altivec instructions that provided
+this functionality in hardware. For example, “vsplth” and the corresponding
+software intrinsic “vec_splat()”. Examples of other hardware names for this
+action include “duplicate” (ARM) and “broadcast” (x86).</p>
+</dd>
 <dt><strong>SRoA</strong></dt>
 <dd>Scalar Replacement of Aggregates</dd>
 <dt><strong>SSA</strong></dt>
@@ -292,8 +347,8 @@ identifies <a class="reference internal" href="#roots">roots</a> within the stac
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

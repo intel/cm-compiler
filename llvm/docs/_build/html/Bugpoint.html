@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>LLVM bugpoint tool: design and usage &#8212; LLVM 3.4 documentation</title>
+    <title>LLVM bugpoint tool: design and usage &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -208,6 +208,11 @@ experiencing a linker bug.</p>
 optimizations to be randomized and applied to the program. This process will
 repeat until a bug is found or the user kills <code class="docutils literal"><span class="pre">bugpoint</span></code>.</p>
 </li>
+<li><p class="first"><code class="docutils literal"><span class="pre">bugpoint</span></code> can produce IR which contains long names. Run <code class="docutils literal"><span class="pre">opt</span>
+<span class="pre">-metarenamer</span></code> over the IR to rename everything using easy-to-read,
+metasyntactic names. Alternatively, run <code class="docutils literal"><span class="pre">opt</span> <span class="pre">-strip</span> <span class="pre">-instnamer</span></code> to rename
+everything with very short (often purely numeric) names.</p>
+</li>
 </ul>
 </div>
 <div class="section" id="what-to-do-when-bugpoint-isn-t-enough">
@@ -256,7 +261,7 @@ calls 212 and 217. This is from an actual test case and raises an important
 point—a simple binary search may not be sufficient, as transformations that
 interact may require isolating more than one call.  In TargetLowering, use
 <code class="docutils literal"><span class="pre">return</span> <span class="pre">SDNode();</span></code> instead of <code class="docutils literal"><span class="pre">return</span> <span class="pre">false;</span></code>.</p>
-<p>Now that that the number of transformations is down to a manageable number, try
+<p>Now that the number of transformations is down to a manageable number, try
 examining the output to see if you can figure out which transformations are
 being done.  If that can be figured out, then do the usual debugging.  If which
 code corresponds to the transformation being performed isn’t obvious, set a
@@ -288,8 +293,8 @@ Alternatively, you can use “<code class="docutils literal"><span class="pre">p
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

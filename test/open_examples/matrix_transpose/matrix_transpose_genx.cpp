@@ -61,8 +61,35 @@ transpose_matrix(matrix_ref<T, N, N> m1, matrix_ref<T, N, N> m2) {
     }
 }
 
+template <typename T>
+CM_NODEBUG _GENX_ inline void
+transpose_matrix(matrix_ref<T, 8, 8> m1, matrix_ref<T, 8, 8> m2) {
+    // 32 bit mask to control how to merge two vectors.
+    uint32_t mask = 0x55555555;
+    matrix_ref<T, 4, 16> t1 = m1.format<T, 4, 16>();
+    matrix_ref<T, 4, 16> t2 = m2.format<T, 4, 16>();
+
+    // j = 1
+    t2.row(0).merge(t1.replicate<8, 1, 2, 0>(0, 0), t1.replicate<8, 1, 2, 0>(2, 0), mask);
+    t2.row(1).merge(t1.replicate<8, 1, 2, 0>(0, 8), t1.replicate<8, 1, 2, 0>(2, 8), mask);
+    t2.row(2).merge(t1.replicate<8, 1, 2, 0>(1, 0), t1.replicate<8, 1, 2, 0>(3, 0), mask);
+    t2.row(3).merge(t1.replicate<8, 1, 2, 0>(1, 8), t1.replicate<8, 1, 2, 0>(3, 8), mask);
+
+    // j = 2
+    t1.row(0).merge(t2.replicate<8, 1, 2, 0>(0, 0), t2.replicate<8, 1, 2, 0>(2, 0), mask);
+    t1.row(1).merge(t2.replicate<8, 1, 2, 0>(0, 8), t2.replicate<8, 1, 2, 0>(2, 8), mask);
+    t1.row(2).merge(t2.replicate<8, 1, 2, 0>(1, 0), t2.replicate<8, 1, 2, 0>(3, 0), mask);
+    t1.row(3).merge(t2.replicate<8, 1, 2, 0>(1, 8), t2.replicate<8, 1, 2, 0>(3, 8), mask);
+
+    // j = 4
+    t2.row(0).merge(t1.replicate<8, 1, 2, 0>(0, 0), t1.replicate<8, 1, 2, 0>(2, 0), mask);
+    t2.row(1).merge(t1.replicate<8, 1, 2, 0>(0, 8), t1.replicate<8, 1, 2, 0>(2, 8), mask);
+    t2.row(2).merge(t1.replicate<8, 1, 2, 0>(1, 0), t1.replicate<8, 1, 2, 0>(3, 0), mask);
+    t2.row(3).merge(t1.replicate<8, 1, 2, 0>(1, 8), t1.replicate<8, 1, 2, 0>(3, 8), mask);
+}
+
 // Square matrix transposition on block of size 8x8
-_GENX_MAIN_ void tranpose8(SurfaceIndex buf) // input & output buffer
+_GENX_MAIN_ void transpose8(SurfaceIndex buf) // input & output buffer
 {
     static const int N = 8;
     int block_col = get_thread_origin_x();
@@ -94,7 +121,7 @@ _GENX_MAIN_ void tranpose8(SurfaceIndex buf) // input & output buffer
 // In this version, a thread handle a block of size 16x16 which allows
 // to better latency hidding and subsentantially improve overall performance.
 //
-_GENX_MAIN_ void tranpose16(SurfaceIndex buf) // input & output buffer
+_GENX_MAIN_ void transpose16(SurfaceIndex buf) // input & output buffer
 {
     static const int N = 16;
     int block_col = get_thread_origin_x();

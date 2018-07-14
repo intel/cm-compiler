@@ -1,4 +1,4 @@
-//===--- ExternalASTSource.h - Abstract External AST Interface --*- C++ -*-===//
+//===- ExternalASTSource.h - Abstract External AST Interface ----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,40 +11,48 @@
 //  construction of AST nodes from some external source.
 //
 //===----------------------------------------------------------------------===//
-#ifndef LLVM_CLANG_AST_EXTERNAL_AST_SOURCE_H
-#define LLVM_CLANG_AST_EXTERNAL_AST_SOURCE_H
+
+#ifndef LLVM_CLANG_AST_EXTERNALASTSOURCE_H
+#define LLVM_CLANG_AST_EXTERNALASTSOURCE_H
 
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/DeclBase.h"
+#include "clang/Basic/LLVM.h"
+#include "clang/Basic/Module.h"
+#include "clang/Basic/SourceLocation.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/PointerUnion.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/iterator.h"
+#include "llvm/Support/PointerLikeTypeTraits.h"
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <string>
+#include <utility>
 
 namespace clang {
 
 class ASTConsumer;
+class ASTContext;
 class CXXBaseSpecifier;
+class CXXCtorInitializer;
+class CXXRecordDecl;
 class DeclarationName;
-class ExternalSemaSource; // layering violation required for downcasting
 class FieldDecl;
-class Module;
+class IdentifierInfo;
 class NamedDecl;
+class ObjCInterfaceDecl;
 class RecordDecl;
 class Selector;
 class Stmt;
 class TagDecl;
-
-/// \brief Enumeration describing the result of loading information from
-/// an external source.
-enum ExternalLoadResult {
-  /// \brief Loading the external information has succeeded.
-  ELR_Success,
-  
-  /// \brief Loading the external information has failed.
-  ELR_Failure,
-  
-  /// \brief The external information has already been loaded, and therefore
-  /// no additional processing is required.
-  ELR_AlreadyLoaded
-};
 
 /// \brief Abstract interface for external sources of AST nodes.
 ///
@@ -54,30 +62,31 @@ enum ExternalLoadResult {
 /// actual type and declaration nodes, and read parts of declaration
 /// contexts.
 class ExternalASTSource : public RefCountedBase<ExternalASTSource> {
+  friend class ExternalSemaSource;
+
   /// Generation number for this external AST source. Must be increased
   /// whenever we might have added new redeclarations for existing decls.
-  uint32_t CurrentGeneration;
+  uint32_t CurrentGeneration = 0;
 
   /// \brief Whether this AST source also provides information for
   /// semantic analysis.
-  bool SemaSource;
-
-  friend class ExternalSemaSource;
+  bool SemaSource = false;
 
 public:
-  ExternalASTSource() : CurrentGeneration(0), SemaSource(false) { }
-
+  ExternalASTSource() = default;
   virtual ~ExternalASTSource();
 
   /// \brief RAII class for safely pairing a StartedDeserializing call
   /// with FinishedDeserializing.
   class Deserializing {
     ExternalASTSource *Source;
+
   public:
     explicit Deserializing(ExternalASTSource *source) : Source(source) {
       assert(Source);
       Source->StartedDeserializing();
     }
+
     ~Deserializing() {
       Source->FinishedDeserializing();
     }
@@ -121,6 +130,12 @@ public:
   /// The default implementation of this method is a no-op.
   virtual Stmt *GetExternalDeclStmt(uint64_t Offset);
 
+  /// \brief Resolve the offset of a set of C++ constructor initializers in
+  /// the decl stream into an array of initializers.
+  ///
+  /// The default implementation of this method is a no-op.
+  virtual CXXCtorInitializer **GetExternalCXXCtorInitializers(uint64_t Offset);
+
   /// \brief Resolve the offset of a set of C++ base specifiers in the decl
   /// stream into an array of specifiers.
   ///
@@ -128,7 +143,7 @@ public:
   virtual CXXBaseSpecifier *GetExternalCXXBaseSpecifiers(uint64_t Offset);
 
   /// \brief Update an out-of-date identifier.
-  virtual void updateOutOfDateIdentifier(IdentifierInfo &II) { }
+  virtual void updateOutOfDateIdentifier(IdentifierInfo &II) {}
 
   /// \brief Find all declarations with the given name in the given context,
   /// and add them to the context by calling SetExternalVisibleDeclsForName
@@ -149,33 +164,55 @@ public:
   /// \brief Retrieve the module that corresponds to the given module ID.
   virtual Module *getModule(unsigned ID) { return nullptr; }
 
+  /// Abstracts clang modules and precompiled header files and holds
+  /// everything needed to generate debug info for an imported module
+  /// or PCH.
+  class ASTSourceDescriptor {
+    StringRef PCHModuleName;
+    StringRef Path;
+    StringRef ASTFile;
+    ASTFileSignature Signature;
+    const Module *ClangModule = nullptr;
+
+  public:
+    ASTSourceDescriptor() = default;
+    ASTSourceDescriptor(StringRef Name, StringRef Path, StringRef ASTFile,
+                        ASTFileSignature Signature)
+        : PCHModuleName(std::move(Name)), Path(std::move(Path)),
+          ASTFile(std::move(ASTFile)), Signature(Signature) {}
+    ASTSourceDescriptor(const Module &M);
+
+    std::string getModuleName() const;
+    StringRef getPath() const { return Path; }
+    StringRef getASTFile() const { return ASTFile; }
+    ASTFileSignature getSignature() const { return Signature; }
+    const Module *getModuleOrNull() const { return ClangModule; }
+  };
+
+  /// Return a descriptor for the corresponding module, if one exists.
+  virtual llvm::Optional<ASTSourceDescriptor> getSourceDescriptor(unsigned ID);
+
+  enum ExtKind { EK_Always, EK_Never, EK_ReplyHazy };
+
+  virtual ExtKind hasExternalDefinitions(const Decl *D);
+
   /// \brief Finds all declarations lexically contained within the given
   /// DeclContext, after applying an optional filter predicate.
   ///
-  /// \param isKindWeWant a predicate function that returns true if the passed
-  /// declaration kind is one we are looking for. If NULL, all declarations
-  /// are returned.
-  ///
-  /// \return an indication of whether the load succeeded or failed.
+  /// \param IsKindWeWant a predicate function that returns true if the passed
+  /// declaration kind is one we are looking for.
   ///
   /// The default implementation of this method is a no-op.
-  virtual ExternalLoadResult FindExternalLexicalDecls(const DeclContext *DC,
-                                        bool (*isKindWeWant)(Decl::Kind),
-                                        SmallVectorImpl<Decl*> &Result);
+  virtual void
+  FindExternalLexicalDecls(const DeclContext *DC,
+                           llvm::function_ref<bool(Decl::Kind)> IsKindWeWant,
+                           SmallVectorImpl<Decl *> &Result);
 
   /// \brief Finds all declarations lexically contained within the given
   /// DeclContext.
-  ///
-  /// \return true if an error occurred
-  ExternalLoadResult FindExternalLexicalDecls(const DeclContext *DC,
-                                SmallVectorImpl<Decl*> &Result) {
-    return FindExternalLexicalDecls(DC, nullptr, Result);
-  }
-
-  template <typename DeclTy>
-  ExternalLoadResult FindExternalLexicalDeclsBy(const DeclContext *DC,
-                                  SmallVectorImpl<Decl*> &Result) {
-    return FindExternalLexicalDecls(DC, DeclTy::classofKind, Result);
+  void FindExternalLexicalDecls(const DeclContext *DC,
+                                SmallVectorImpl<Decl *> &Result) {
+    FindExternalLexicalDecls(DC, [](Decl::Kind) { return true; }, Result);
   }
 
   /// \brief Get the decls that are contained in a file in the Offset/Length
@@ -231,7 +268,6 @@ public:
   /// The default implementation of this method is a no-op.
   virtual void PrintStats();
   
-  
   /// \brief Perform layout on the given record.
   ///
   /// This routine allows the external AST source to provide an specific 
@@ -274,7 +310,7 @@ public:
     size_t mmap_bytes;
     
     MemoryBufferSizes(size_t malloc_bytes, size_t mmap_bytes)
-    : malloc_bytes(malloc_bytes), mmap_bytes(mmap_bytes) {}
+        : malloc_bytes(malloc_bytes), mmap_bytes(mmap_bytes) {}
   };
   
   /// Return the amount of memory used by memory buffers, breaking down
@@ -314,12 +350,12 @@ struct LazyOffsetPtr {
   ///
   /// If the low bit is clear, a pointer to the AST node. If the low
   /// bit is set, the upper 63 bits are the offset.
-  mutable uint64_t Ptr;
+  mutable uint64_t Ptr = 0;
 
 public:
-  LazyOffsetPtr() : Ptr(0) { }
+  LazyOffsetPtr() = default;
+  explicit LazyOffsetPtr(T *Ptr) : Ptr(reinterpret_cast<uint64_t>(Ptr)) {}
 
-  explicit LazyOffsetPtr(T *Ptr) : Ptr(reinterpret_cast<uint64_t>(Ptr)) { }
   explicit LazyOffsetPtr(uint64_t Offset) : Ptr((Offset << 1) | 0x01) {
     assert((Offset << 1 >> 1) == Offset && "Offsets must require < 63 bits");
     if (Offset == 0)
@@ -344,7 +380,7 @@ public:
   /// \brief Whether this pointer is non-NULL.
   ///
   /// This operation does not require the AST node to be deserialized.
-  LLVM_EXPLICIT operator bool() const { return Ptr != 0; }
+  explicit operator bool() const { return Ptr != 0; }
 
   /// \brief Whether this pointer is non-NULL.
   ///
@@ -377,15 +413,16 @@ struct LazyGenerationalUpdatePtr {
   /// A cache of the value of this pointer, in the most recent generation in
   /// which we queried it.
   struct LazyData {
-    LazyData(ExternalASTSource *Source, T Value)
-        : ExternalSource(Source), LastGeneration(0), LastValue(Value) {}
     ExternalASTSource *ExternalSource;
-    uint32_t LastGeneration;
+    uint32_t LastGeneration = 0;
     T LastValue;
+
+    LazyData(ExternalASTSource *Source, T Value)
+        : ExternalSource(Source), LastValue(Value) {}
   };
 
   // Our value is represented as simply T if there is no external AST source.
-  typedef llvm::PointerUnion<T, LazyData*> ValueType;
+  using ValueType = llvm::PointerUnion<T, LazyData*>;
   ValueType Value;
 
   LazyGenerationalUpdatePtr(ValueType V) : Value(V) {}
@@ -444,25 +481,31 @@ public:
     return LazyGenerationalUpdatePtr(ValueType::getFromOpaqueValue(Ptr));
   }
 };
-} // end namespace clang
+
+} // namespace clang
 
 /// Specialize PointerLikeTypeTraits to allow LazyGenerationalUpdatePtr to be
 /// placed into a PointerUnion.
 namespace llvm {
+
 template<typename Owner, typename T,
          void (clang::ExternalASTSource::*Update)(Owner)>
 struct PointerLikeTypeTraits<
     clang::LazyGenerationalUpdatePtr<Owner, T, Update>> {
-  typedef clang::LazyGenerationalUpdatePtr<Owner, T, Update> Ptr;
+  using Ptr = clang::LazyGenerationalUpdatePtr<Owner, T, Update>;
+
   static void *getAsVoidPointer(Ptr P) { return P.getOpaqueValue(); }
   static Ptr getFromVoidPointer(void *P) { return Ptr::getFromOpaqueValue(P); }
+
   enum {
     NumLowBitsAvailable = PointerLikeTypeTraits<T>::NumLowBitsAvailable - 1
   };
 };
-}
+
+} // namespace llvm
 
 namespace clang {
+
 /// \brief Represents a lazily-loaded vector of data.
 ///
 /// The lazily-loaded vector of data contains data that is partially loaded
@@ -477,132 +520,44 @@ class LazyVector {
   SmallVector<T, LocalStorage> Local;
 
 public:
-  // Iteration over the elements in the vector.
-  class iterator {
-    LazyVector *Self;
-    
-    /// \brief Position within the vector..
-    ///
-    /// In a complete iteration, the Position field walks the range [-M, N),
-    /// where negative values are used to indicate elements
-    /// loaded from the external source while non-negative values are used to
-    /// indicate elements added via \c push_back().
-    /// However, to provide iteration in source order (for, e.g., chained
-    /// precompiled headers), dereferencing the iterator flips the negative
-    /// values (corresponding to loaded entities), so that position -M 
-    /// corresponds to element 0 in the loaded entities vector, position -M+1
-    /// corresponds to element 1 in the loaded entities vector, etc. This
-    /// gives us a reasonably efficient, source-order walk.
-    int Position;
-    
+  /// Iteration over the elements in the vector.
+  ///
+  /// In a complete iteration, the iterator walks the range [-M, N),
+  /// where negative values are used to indicate elements
+  /// loaded from the external source while non-negative values are used to
+  /// indicate elements added via \c push_back().
+  /// However, to provide iteration in source order (for, e.g., chained
+  /// precompiled headers), dereferencing the iterator flips the negative
+  /// values (corresponding to loaded entities), so that position -M
+  /// corresponds to element 0 in the loaded entities vector, position -M+1
+  /// corresponds to element 1 in the loaded entities vector, etc. This
+  /// gives us a reasonably efficient, source-order walk.
+  ///
+  /// We define this as a wrapping iterator around an int. The
+  /// iterator_adaptor_base class forwards the iterator methods to basic integer
+  /// arithmetic.
+  class iterator
+      : public llvm::iterator_adaptor_base<
+            iterator, int, std::random_access_iterator_tag, T, int, T *, T &> {
     friend class LazyVector;
-    
+
+    LazyVector *Self;
+
+    iterator(LazyVector *Self, int Position)
+        : iterator::iterator_adaptor_base(Position), Self(Self) {}
+
+    bool isLoaded() const { return this->I < 0; }
+
   public:
-    typedef T                   value_type;
-    typedef value_type&         reference;
-    typedef value_type*         pointer;
-    typedef std::random_access_iterator_tag iterator_category;
-    typedef int                 difference_type;
-    
-    iterator() : Self(0), Position(0) { }
-    
-    iterator(LazyVector *Self, int Position) 
-      : Self(Self), Position(Position) { }
-    
-    reference operator*() const {
-      if (Position < 0)
-        return Self->Loaded.end()[Position];
-      return Self->Local[Position];
-    }
-    
-    pointer operator->() const {
-      if (Position < 0)
-        return &Self->Loaded.end()[Position];
-      
-      return &Self->Local[Position];        
-    }
-    
-    reference operator[](difference_type D) {
-      return *(*this + D);
-    }
-    
-    iterator &operator++() {
-      ++Position;
-      return *this;
-    }
-    
-    iterator operator++(int) {
-      iterator Prev(*this);
-      ++Position;
-      return Prev;
-    }
-    
-    iterator &operator--() {
-      --Position;
-      return *this;
-    }
-    
-    iterator operator--(int) {
-      iterator Prev(*this);
-      --Position;
-      return Prev;
-    }
-    
-    friend bool operator==(const iterator &X, const iterator &Y) {
-      return X.Position == Y.Position;
-    }
-    
-    friend bool operator!=(const iterator &X, const iterator &Y) {
-      return X.Position != Y.Position;
-    }
-    
-    friend bool operator<(const iterator &X, const iterator &Y) {
-      return X.Position < Y.Position;
-    }
-    
-    friend bool operator>(const iterator &X, const iterator &Y) {
-      return X.Position > Y.Position;
-    }
-    
-    friend bool operator<=(const iterator &X, const iterator &Y) {
-      return X.Position < Y.Position;
-    }
-    
-    friend bool operator>=(const iterator &X, const iterator &Y) {
-      return X.Position > Y.Position;
-    }
-    
-    friend iterator& operator+=(iterator &X, difference_type D) {
-      X.Position += D;
-      return X;
-    }
-    
-    friend iterator& operator-=(iterator &X, difference_type D) {
-      X.Position -= D;
-      return X;
-    }
-    
-    friend iterator operator+(iterator X, difference_type D) {
-      X.Position += D;
-      return X;
-    }
-    
-    friend iterator operator+(difference_type D, iterator X) {
-      X.Position += D;
-      return X;
-    }
-    
-    friend difference_type operator-(const iterator &X, const iterator &Y) {
-      return X.Position - Y.Position;
-    }
-    
-    friend iterator operator-(iterator X, difference_type D) {
-      X.Position -= D;
-      return X;
+    iterator() : iterator(nullptr, 0) {}
+
+    typename iterator::reference operator*() const {
+      if (isLoaded())
+        return Self->Loaded.end()[this->I];
+      return Self->Local.begin()[this->I];
     }
   };
-  friend class iterator;
-  
+
   iterator begin(Source *source, bool LocalOnly = false) {
     if (LocalOnly)
       return iterator(this, 0);
@@ -621,33 +576,38 @@ public:
   }
   
   void erase(iterator From, iterator To) {
-    if (From.Position < 0 && To.Position < 0) {
-      Loaded.erase(Loaded.end() + From.Position, Loaded.end() + To.Position);
+    if (From.isLoaded() && To.isLoaded()) {
+      Loaded.erase(&*From, &*To);
       return;
     }
-    
-    if (From.Position < 0) {
-      Loaded.erase(Loaded.end() + From.Position, Loaded.end());
+
+    if (From.isLoaded()) {
+      Loaded.erase(&*From, Loaded.end());
       From = begin(nullptr, true);
     }
-    
-    Local.erase(Local.begin() + From.Position, Local.begin() + To.Position);
+
+    Local.erase(&*From, &*To);
   }
 };
 
 /// \brief A lazy pointer to a statement.
-typedef LazyOffsetPtr<Stmt, uint64_t, &ExternalASTSource::GetExternalDeclStmt>
-  LazyDeclStmtPtr;
+using LazyDeclStmtPtr =
+    LazyOffsetPtr<Stmt, uint64_t, &ExternalASTSource::GetExternalDeclStmt>;
 
 /// \brief A lazy pointer to a declaration.
-typedef LazyOffsetPtr<Decl, uint32_t, &ExternalASTSource::GetExternalDecl>
-  LazyDeclPtr;
+using LazyDeclPtr =
+    LazyOffsetPtr<Decl, uint32_t, &ExternalASTSource::GetExternalDecl>;
+
+/// \brief A lazy pointer to a set of CXXCtorInitializers.
+using LazyCXXCtorInitializersPtr =
+    LazyOffsetPtr<CXXCtorInitializer *, uint64_t,
+                  &ExternalASTSource::GetExternalCXXCtorInitializers>;
 
 /// \brief A lazy pointer to a set of CXXBaseSpecifiers.
-typedef LazyOffsetPtr<CXXBaseSpecifier, uint64_t, 
-                      &ExternalASTSource::GetExternalCXXBaseSpecifiers>
-  LazyCXXBaseSpecifiersPtr;
+using LazyCXXBaseSpecifiersPtr =
+    LazyOffsetPtr<CXXBaseSpecifier, uint64_t,
+                  &ExternalASTSource::GetExternalCXXBaseSpecifiers>;
 
-} // end namespace clang
+} // namespace clang
 
-#endif // LLVM_CLANG_AST_EXTERNAL_AST_SOURCE_H
+#endif // LLVM_CLANG_AST_EXTERNALASTSOURCE_H

@@ -1,4 +1,4 @@
-; RUN: llc -verify-machineinstrs -o - %s -mtriple=arm64-apple-ios7.0 -aarch64-atomic-cfg-tidy=0 | FileCheck %s
+; RUN: llc -verify-machineinstrs -o - %s -mtriple=arm64-apple-ios7.0 -aarch64-enable-atomic-cfg-tidy=0 | FileCheck %s
 
 ; We've got the usual issues with LLVM reordering blocks here. The
 ; tests are correct for the current order, but who knows when that
@@ -9,8 +9,8 @@
 define i32 @test_tbz() {
 ; CHECK-LABEL: test_tbz:
 
-  %val = load i32* @var32
-  %val64 = load i64* @var64
+  %val = load i32, i32* @var32
+  %val64 = load i64, i64* @var64
 
   %tbit0 = and i32 %val, 32768
   %tst0 = icmp ne i32 %tbit0, 0

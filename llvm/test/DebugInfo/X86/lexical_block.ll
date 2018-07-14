@@ -1,11 +1,19 @@
 ; REQUIRES: object-emission
 
 ; RUN: llc -mtriple=x86_64-linux -O0 -filetype=obj < %s \
-; RUN:     | llvm-dwarfdump -debug-dump=info - | FileCheck %s
+; RUN:     | llvm-dwarfdump -v -debug-info - | FileCheck --check-prefix=CHECK --check-prefix=CHECK-V4 %s
+; RUN: llc -mtriple=x86_64-linux -dwarf-version=3 -O0 -filetype=obj < %s \
+; RUN:     | llvm-dwarfdump -v -debug-info - | FileCheck --check-prefix=CHECK --check-prefix=CHECK-V3 %s
+
+; Check that we emit DW_TAG_lexical_block and that it has the right encoding
+; depending on the dwarf version.
 
 ; CHECK: DW_TAG_lexical_block
-; CHECK-NEXT: DW_AT_low_pc [DW_FORM_addr]
-; CHECK-NEXT: DW_AT_high_pc [DW_FORM_data4]
+; CHECK-NOT: DW_TAG
+; CHECK: DW_AT_low_pc [DW_FORM_addr]
+; CHECK-NOT: DW_TAG
+; CHECK-V4: DW_AT_high_pc [DW_FORM_data4]
+; CHECK-V3: DW_AT_high_pc [DW_FORM_addr]
 
 ; Test case produced from:
 ; void b() {
@@ -14,12 +22,12 @@
 ; }
 
 ; Function Attrs: nounwind uwtable
-define void @_Z1bv() #0 {
+define void @_Z1bv() #0 !dbg !4 {
 entry:
   %i = alloca i32, align 4
-  call void @llvm.dbg.declare(metadata !{i32* %i}, metadata !11), !dbg !14
+  call void @llvm.dbg.declare(metadata i32* %i, metadata !11, metadata !DIExpression()), !dbg !14
   store i32 3, i32* %i, align 4, !dbg !14
-  %0 = load i32* %i, align 4, !dbg !14
+  %0 = load i32, i32* %i, align 4, !dbg !14
   %tobool = icmp ne i32 %0, 0, !dbg !14
   br i1 %tobool, label %if.then, label %if.end, !dbg !14
 
@@ -31,7 +39,7 @@ if.end:                                           ; preds = %if.then, %entry
 }
 
 ; Function Attrs: nounwind readnone
-declare void @llvm.dbg.declare(metadata, metadata) #1
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
@@ -40,20 +48,19 @@ attributes #1 = { nounwind readnone }
 !llvm.module.flags = !{!8, !9}
 !llvm.ident = !{!10}
 
-!0 = metadata !{i32 786449, metadata !1, i32 4, metadata !"clang version 3.5.0 ", i1 false, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !"", i32 1} ; [ DW_TAG_compile_unit ] [/tmp/dbginfo/lexical_block.cpp] [DW_LANG_C_plus_plus]
-!1 = metadata !{metadata !"lexical_block.cpp", metadata !"/tmp/dbginfo"}
-!2 = metadata !{}
-!3 = metadata !{metadata !4}
-!4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"b", metadata !"b", metadata !"_Z1bv", i32 1, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, void ()* @_Z1bv, null, null, metadata !2, i32 1} ; [ DW_TAG_subprogram ] [line 1] [def] [b]
-!5 = metadata !{i32 786473, metadata !1}          ; [ DW_TAG_file_type ] [/tmp/dbginfo/lexical_block.cpp]
-!6 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !7, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!7 = metadata !{null}
-!8 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!9 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
-!10 = metadata !{metadata !"clang version 3.5.0 "}
-!11 = metadata !{i32 786688, metadata !12, metadata !"i", metadata !5, i32 2, metadata !13, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [i] [line 2]
-!12 = metadata !{i32 786443, metadata !1, metadata !4, i32 2, i32 0, i32 0, i32 0} ; [ DW_TAG_lexical_block ] [/tmp/dbginfo/lexical_block.cpp]
-!13 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!14 = metadata !{i32 2, i32 0, metadata !12, null}
-!15 = metadata !{i32 3, i32 0, metadata !12, null}
-!16 = metadata !{i32 4, i32 0, metadata !4, null}
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 ", isOptimized: false, emissionKind: FullDebug, file: !1, enums: !2, retainedTypes: !2, globals: !2, imports: !2)
+!1 = !DIFile(filename: "lexical_block.cpp", directory: "/tmp/dbginfo")
+!2 = !{}
+!4 = distinct !DISubprogram(name: "b", linkageName: "_Z1bv", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, unit: !0, scopeLine: 1, file: !1, scope: !5, type: !6, variables: !2)
+!5 = !DIFile(filename: "lexical_block.cpp", directory: "/tmp/dbginfo")
+!6 = !DISubroutineType(types: !7)
+!7 = !{null}
+!8 = !{i32 2, !"Dwarf Version", i32 4}
+!9 = !{i32 1, !"Debug Info Version", i32 3}
+!10 = !{!"clang version 3.5.0 "}
+!11 = !DILocalVariable(name: "i", line: 2, scope: !12, file: !5, type: !13)
+!12 = distinct !DILexicalBlock(line: 2, column: 0, file: !1, scope: !4)
+!13 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+!14 = !DILocation(line: 2, scope: !12)
+!15 = !DILocation(line: 3, scope: !12)
+!16 = !DILocation(line: 4, scope: !4)

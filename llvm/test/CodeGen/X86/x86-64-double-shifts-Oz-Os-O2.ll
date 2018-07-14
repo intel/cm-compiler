@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=x86-64 -mcpu=bdver1 | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-- -mcpu=bdver1 | FileCheck %s
 
 ; clang -Oz -c test1.cpp -emit-llvm -S -o
 ; Verify that we generate shld insruction when we are optimizing for size,
@@ -9,7 +9,7 @@
 ;     return (a << 10) | (b >> 54);
 ; }
 
-; Function Attrs: minsize nounwind optsize readnone uwtable
+; Function Attrs: minsize nounwind readnone uwtable
 define i64 @_Z8lshift10mm(i64 %a, i64 %b) #0 {
 entry:
 ; CHECK:   shldq   $10
@@ -19,7 +19,7 @@ entry:
   ret i64 %or
 }
 
-attributes #0 = { minsize nounwind optsize readnone uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { minsize nounwind readnone uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 
 
 ; clang -Os -c test2.cpp -emit-llvm -S

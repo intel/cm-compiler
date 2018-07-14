@@ -283,16 +283,6 @@ cm_shl(T1 src0, T2 src1, int flag = _GENX_NOSAT) {
   return _Result(0);
 }
 
-template <typename T0, typename T1, typename T2>
-CM_NODEBUG CM_INLINE typename std::enable_if<
-    details::is_cm_scalar<T1>::value &&details::is_cm_vector<T2>::value &&
-        std::is_integral<T0>::value &&std::is_integral<T1>::value &&
-            std::is_integral<T2>::value,
-    decltype(cm_shl<T0>(T2(), T1()))>::type
-cm_shl(T1 src0, T2 src1, int flag = _GENX_NOSAT) {
-  return cm_shl<T0>(src1, src0, flag);
-}
-
 // cm_shr
 template <typename T0, typename T1, int SZ, typename U>
 CM_NODEBUG CM_INLINE typename std::enable_if<
@@ -333,16 +323,6 @@ cm_shr(T1 src0, T2 src1, int flag = _GENX_NOSAT) {
   typename details::vector_type<ComputationTy>::type _Src1 = src1;
   vector<T0, 1> _Result = cm_shr<T0>(_Src0, _Src1, flag);
   return _Result(0);
-}
-
-template <typename T0, typename T1, typename T2>
-CM_NODEBUG CM_INLINE typename std::enable_if<
-    details::is_cm_scalar<T1>::value &&details::is_cm_vector<T2>::value &&
-        std::is_integral<T0>::value &&std::is_integral<T1>::value &&
-            std::is_integral<T2>::value,
-    decltype(cm_shr<T0>(T2(), T1()))>::type
-cm_shr(T1 src0, T2 src1, int flag = _GENX_NOSAT) {
-  return cm_shr<T0>(src1, src0, flag);
 }
 
 // cm_lsr

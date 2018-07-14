@@ -1,10 +1,10 @@
-; RUN: llc < %s -march=arm64 -aarch64-neon-syntax=apple | FileCheck %s
+; RUN: llc < %s -mtriple=arm64-eabi -aarch64-neon-syntax=apple | FileCheck %s
 
 ; CHECK: autogen_SD19655
 ; CHECK: scvtf
 ; CHECK: ret
 define void @autogen_SD19655(<2 x i64>* %addr, <2 x float>* %addrfloat) {
-  %T = load <2 x i64>* %addr
+  %T = load <2 x i64>, <2 x i64>* %addr
   %F = sitofp <2 x i64> %T to <2 x float>
   store <2 x float> %F, <2 x float>* %addrfloat
   ret void
@@ -155,7 +155,7 @@ define <4 x float> @test_signed_v4i8_to_v4f32(<4 x i8> %v) nounwind readnone {
 }
 define <4 x float> @test_unsigned_v4i8_to_v4f32(<4 x i8> %v) nounwind readnone {
 ; CHECK-LABEL: test_unsigned_v4i8_to_v4f32
-; CHECK: bic.4h v0, #0xff, lsl #8
+; CHECK: bic.4h v0, #255, lsl #8
 ; CHECK: ushll.4s [[VAL32:v[0-9]+]], v0, #0
 ; CHECK: ucvtf.4s v0, [[VAL32]]
 

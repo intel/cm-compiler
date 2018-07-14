@@ -1,4 +1,5 @@
 ; RUN: opt < %s -analyze -block-freq | FileCheck %s
+; RUN: opt < %s -passes='print<block-freq>' -disable-output 2>&1 | FileCheck %s
 
 ; CHECK-LABEL: Printing analysis {{.*}} for function 'double_exit':
 ; CHECK-NEXT: block-frequency-info: double_exit
@@ -66,9 +67,9 @@ exit:
   ret i32 %Return.2
 }
 
-!0 = metadata !{metadata !"branch_weights", i32 1, i32 3}
-!1 = metadata !{metadata !"branch_weights", i32 4, i32 1}
-!2 = metadata !{metadata !"branch_weights", i32 2, i32 1}
+!0 = !{!"branch_weights", i32 1, i32 3}
+!1 = !{!"branch_weights", i32 4, i32 1}
+!2 = !{!"branch_weights", i32 2, i32 1}
 
 declare i32 @c2(i32, i32)
 declare i32 @logic2(i32, i32, i32)
@@ -159,7 +160,7 @@ exit:
   ret i32 %Return.0
 }
 
-!3 = metadata !{metadata !"branch_weights", i32 1, i32 1}
+!3 = !{!"branch_weights", i32 1, i32 1}
 
 declare i32 @c3(i32, i32, i32)
 declare i32 @logic3(i32, i32, i32, i32)

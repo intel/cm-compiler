@@ -62,37 +62,37 @@ void test() {
   m.format<short>() = 1;                                                  // OK
   v2.format<int>() = 9;                                                   // OK
 }
-// CHECK: format.cpp(20,35) :  error: expected '<'
-// CHECK: format.cpp(21,36) :  error: expected a type
-// CHECK: format.cpp(22,36) :  error: expected a type
-// CHECK: format.cpp(23,39) :  error: expected '>'
-// CHECK: format.cpp(24,44) :  error: expected '(' for function-style cast or type construction
-// CHECK: format.cpp(26,41) :  error: expected ')'
-// CHECK: format.cpp(28,41) :  error: format<>() expects 0 or 2 dimensions
-// CHECK: format.cpp(29,45) :  error: format<>() expects no more than 2 dimensions
-// CHECK: format.cpp(31,29) :  error: format matrix size 64 does not match the source size 32 in bytes
-// CHECK: format.cpp(32,45) :  error: format rows value must be a constant integer expression
-// CHECK: format.cpp(33,29) :  error: format matrix size 64 does not match the source size 32 in bytes
-// CHECK: format.cpp(34,45) :  error: format columns value must be a constant integer expression
-// CHECK: format.cpp(35,43) :  error: format rows value must be greater than 0
-// CHECK: format.cpp(36,45) :  error: format columns value must be greater than 0
-// CHECK: format.cpp(37,43) :  error: format rows value must be greater than 0
-// CHECK: format.cpp(38,45) :  error: format columns value must be greater than 0
-// CHECK: format.cpp(39,45) :  error: format columns value must be greater than 0
-// CHECK: format.cpp(40,45) :  error: format columns value must be greater than 0
-// CHECK: format.cpp(45,33) :  error: format matrix size 8 does not match the source size 32 in bytes
-// CHECK: format.cpp(45,66) :  error: expected '(' for function-style cast or type construction
-// CHECK: format.cpp(45,67) :  error: expected unqualified-id
-// CHECK: format.cpp(45,67) :  error: expected ';' at end of declaration
-// CHECK: format.cpp(47,16) :  error: no member named 'format' in 'S1'
-// CHECK: format.cpp(48,16) :  error: no member named 'format' in 'S1'
-// CHECK: format.cpp(49,25) :  error: 'format' following the 'template' keyword does not refer to a template
-// CHECK: format.cpp(52,22) :  error: called object type 'int' is not a function or function pointer
-// CHECK: format.cpp(53,25) :  error: 'format' following the 'template' keyword does not refer to a template
-// CHECK: format.cpp(55,31) :  error: format matrix size 18 does not match the source size 32 in bytes
-// CHECK: format.cpp(56,31) :  error: format matrix size 31 does not match the source size 32 in bytes
-// CHECK: format.cpp(57,32) :  error: format matrix size 30 does not match the source size 32 in bytes
-// CHECK: format.cpp(58,31) :  error: format matrix size 31 does not match the source size 32 in bytes
-// CHECK: format.cpp(60,3) :  warning: expression result unused [-Wunused-value]
-// CHECK: format.cpp(61,3) :  warning: expression result unused [-Wunused-value]
+// CHECK: format.cpp(20,35):  error: expected '<'
+// CHECK: format.cpp(21,36):  error: expected a type
+// CHECK: format.cpp(22,36):  error: expected a type
+// CHECK: format.cpp(23,39):  error: expected '>'
+// CHECK: format.cpp(24,44):  error: expected '(' for function-style cast or type construction
+// CHECK: format.cpp(26,41):  error: expected ')'
+// CHECK: format.cpp(28,41):  error: format<>() expects 0 or 2 dimensions
+// CHECK: format.cpp(29,45):  error: format<>() expects no more than 2 dimensions
+// CHECK: format.cpp(31,29):  error: format matrix size 64 does not match the source size 32 in bytes
+// CHECK: format.cpp(32,45):  error: format rows value must be a constant integer expression
+// CHECK: format.cpp(33,29):  error: format matrix size 64 does not match the source size 32 in bytes
+// CHECK: format.cpp(34,45):  error: format columns value must be a constant integer expression
+// CHECK: format.cpp(35,43):  error: format rows value must be greater than 0
+// CHECK: format.cpp(36,45):  error: format columns value must be greater than 0
+// CHECK: format.cpp(37,43):  error: format rows value must be greater than 0
+// CHECK: format.cpp(38,45):  error: format columns value must be greater than 0
+// CHECK: format.cpp(39,45):  error: format columns value must be greater than 0
+// CHECK: format.cpp(40,45):  error: format columns value must be greater than 0
+// CHECK: format.cpp(45,33):  error: format matrix size 8 does not match the source size 32 in bytes
+// CHECK: format.cpp(45,66):  error: expected '(' for function-style cast or type construction
+// CHECK: format.cpp(45,67):  error: expected unqualified-id
+// CHECK: format.cpp(45,67):  error: expected ';' at end of declaration
+// CHECK: format.cpp(47,16):  error: no member named 'format' in 'S1'
+// CHECK: format.cpp(48,16):  error: no member named 'format' in 'S1'
+// CHECK: format.cpp(49,25):  error: 'format' following the 'template' keyword does not refer to a template
+// CHECK: format.cpp(52,22):  error: called object type 'int' is not a function or function pointer
+// CHECK: format.cpp(53,25):  error: 'format' following the 'template' keyword does not refer to a template
+// CHECK: format.cpp(55,31):  error: format matrix size 18 does not match the source size 32 in bytes
+// CHECK: format.cpp(56,31):  error: format matrix size 31 does not match the source size 32 in bytes
+// CHECK: format.cpp(57,32):  error: format matrix size 30 does not match the source size 32 in bytes
+// CHECK: format.cpp(58,31):  error: format matrix size 31 does not match the source size 32 in bytes
+// CHECK: format.cpp(60,3):  warning: expression result unused [-Wunused-value]
+// CHECK: format.cpp(61,3):  warning: expression result unused [-Wunused-value]
 // CHECK: 2 warnings and 31 errors generated.

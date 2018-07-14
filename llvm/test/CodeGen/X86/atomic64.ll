@@ -1,4 +1,4 @@
-; RUN: llc < %s -O0 -march=x86-64 -mcpu=corei7 -verify-machineinstrs | FileCheck %s --check-prefix X64
+; RUN: llc < %s -O0 -mtriple=x86_64-- -mcpu=corei7 -verify-machineinstrs | FileCheck %s --check-prefix X64
 
 @sc64 = external global i64
 
@@ -48,7 +48,7 @@ define void @atomic_fetch_and64() nounwind {
 ; X64:       lock
 ; X64:       andq $3
   %t2 = atomicrmw and  i64* @sc64, i64 5 acquire
-; X64:       andq
+; X64:       andl
 ; X64:       lock
 ; X64:       cmpxchgq
   %t3 = atomicrmw and  i64* @sc64, i64 %t2 acquire

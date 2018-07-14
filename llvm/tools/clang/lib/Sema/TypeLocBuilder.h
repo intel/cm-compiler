@@ -7,13 +7,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  This files defines TypeLocBuilder, a class for building TypeLocs
+//  This file defines TypeLocBuilder, a class for building TypeLocs
 //  bottom-up.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SEMA_TYPELOCBUILDER_H
-#define LLVM_CLANG_SEMA_TYPELOCBUILDER_H
+#ifndef LLVM_CLANG_LIB_SEMA_TYPELOCBUILDER_H
+#define LLVM_CLANG_LIB_SEMA_TYPELOCBUILDER_H
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/TypeLoc.h"
@@ -39,7 +39,7 @@ class TypeLocBuilder {
 #endif
     
   /// The inline buffer.
-  enum { BufferMaxAlignment = llvm::AlignOf<void*>::Alignment };
+  enum { BufferMaxAlignment = alignof(void *) };
   llvm::AlignedCharArray<BufferMaxAlignment, InlineCapacity> InlineBuffer;
   unsigned NumBytesAtAlign4, NumBytesAtAlign8;
 

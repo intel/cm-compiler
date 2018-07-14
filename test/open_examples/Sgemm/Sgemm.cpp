@@ -59,10 +59,6 @@ int RunGemm(int m, int niterations, int gx, int gy)
     storage_type_t st = RowMajor;
     float alpha=+1.0, beta=+1.0;
 
-    // Could try to make it more general if needed!
-    ///////int nthreadsY    = _ttoi(argv[2]);
-    ///////int nthreadsX    = _ttoi(argv[3]);
-
     // Each thread computes 32x16 block of result matrix
     int nthreadsY    = GEMM_BLOCK/32;
     int nthreadsX    = GEMM_BLOCK/16;

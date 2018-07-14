@@ -1,25 +1,30 @@
 ; RUN: opt -strip-dead-debug-info -verify %s -S | FileCheck %s
 
 ; CHECK: ModuleID = '{{.*}}'
-; CHECK-NOT: bar
-; CHECK-NOT: abcd
+; CHECK-NOT: "bar"
+; CHECK-NOT: "abcd"
+; CHECK-NOT: "GCC"
+; CHECK: "Globals"
+; CHECK: "abcd2"
 
-@xyz = global i32 2
+source_filename = "test/Transforms/StripSymbols/strip-dead-debug-info.ll"
+
+@xyz = global i32 2, !dbg !0
 
 ; Function Attrs: nounwind readnone
-declare void @llvm.dbg.value(metadata, i64, metadata) #0
+declare void @llvm.dbg.value(metadata, metadata, metadata) #0
 
 ; Function Attrs: nounwind readnone ssp
-define i32 @fn() #1 {
+define i32 @fn() #1 !dbg !10 {
 entry:
-  ret i32 0, !dbg !18
+  ret i32 0, !dbg !13
 }
 
 ; Function Attrs: nounwind readonly ssp
-define i32 @foo(i32 %i) #2 {
+define i32 @foo(i32 %i) #2 !dbg !15 {
 entry:
-  tail call void @llvm.dbg.value(metadata !{i32 %i}, i64 0, metadata !15), !dbg !20
-  %.0 = load i32* @xyz, align 4
+  tail call void @llvm.dbg.value(metadata i32 %i, metadata !18, metadata !19), !dbg !20
+  %.0 = load i32, i32* @xyz, align 4, !dbg !30
   ret i32 %.0, !dbg !21
 }
 
@@ -27,32 +32,37 @@ attributes #0 = { nounwind readnone }
 attributes #1 = { nounwind readnone ssp }
 attributes #2 = { nounwind readonly ssp }
 
-!llvm.dbg.cu = !{!0}
-!llvm.module.flags = !{!25}
+!llvm.dbg.cu = !{!4, !23, !24, !28}
+!llvm.module.flags = !{!9}
 
-!0 = metadata !{i32 524305, metadata !1, i32 1, metadata !"4.2.1 (Based on Apple Inc. build 5658) (LLVM build)", i1 true, metadata !"", i32 0, metadata !2, metadata !2, metadata !23, metadata !24, null, metadata !"", i32 1} ; [ DW_TAG_compile_unit ] [/tmp//g.c] [DW_LANG_C89]
-!1 = metadata !{metadata !"g.c", metadata !"/tmp/"}
-!2 = metadata !{null}
-!3 = metadata !{i32 524334, metadata !1, null, metadata !"bar", metadata !"bar", metadata !"", i32 5, metadata !4, i1 true, i1 true, i32 0, i32 0, null, i1 false, i1 true, null, null, null, null, i32 0} ; [ DW_TAG_subprogram ] [line 5] [local] [def] [scope 0] [bar]
-!4 = metadata !{i32 524309, metadata !1, metadata !5, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !2, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!5 = metadata !{i32 524329, metadata !1}          ; [ DW_TAG_file_type ] [/tmp//g.c]
-!6 = metadata !{i32 524334, metadata !1, null, metadata !"fn", metadata !"fn", metadata !"fn", i32 6, metadata !7, i1 false, i1 true, i32 0, i32 0, null, i1 false, i1 true, i32 ()* @fn, null, null, null, i32 0} ; [ DW_TAG_subprogram ] [line 6] [def] [scope 0] [fn]
-!7 = metadata !{i32 524309, metadata !1, metadata !5, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !8, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!8 = metadata !{metadata !9}
-!9 = metadata !{i32 524324, metadata !1, metadata !5, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!10 = metadata !{i32 524334, metadata !1, null, metadata !"foo", metadata !"foo", metadata !"foo", i32 7, metadata !11, i1 false, i1 true, i32 0, i32 0, null, i1 false, i1 true, i32 (i32)* @foo, null, null, null, i32 0} ; [ DW_TAG_subprogram ] [line 7] [def] [scope 0] [foo]
-!11 = metadata !{i32 524309, metadata !1, metadata !5, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !12, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!12 = metadata !{metadata !9, metadata !9}
-!13 = metadata !{i32 524544, metadata !14, metadata !"bb", metadata !5, i32 5, metadata !9}
-!14 = metadata !{i32 524299, metadata !1, metadata !3, i32 5, i32 0, i32 0} ; [ DW_TAG_lexical_block ] [/tmp//g.c]
-!15 = metadata !{i32 524545, metadata !10, metadata !"i", metadata !5, i32 7, metadata !9}
-!16 = metadata !{i32 524340, i32 0, metadata !5, metadata !"abcd", metadata !"abcd", metadata !"", metadata !5, i32 2, metadata !9, i1 true, i1 true, null, null}
-!17 = metadata !{i32 524340, i32 0, metadata !5, metadata !"xyz", metadata !"xyz", metadata !"", metadata !5, i32 3, metadata !9, i1 false, i1 true, i32* @xyz, null}
-!18 = metadata !{i32 6, i32 0, metadata !19, null}
-!19 = metadata !{i32 524299, metadata !1, metadata !6, i32 6, i32 0, i32 0} ; [ DW_TAG_lexical_block ] [/tmp//g.c]
-!20 = metadata !{i32 7, i32 0, metadata !10, null}
-!21 = metadata !{i32 10, i32 0, metadata !22, null}
-!22 = metadata !{i32 524299, metadata !1, metadata !10, i32 7, i32 0, i32 0} ; [ DW_TAG_lexical_block ] [/tmp//g.c]
-!23 = metadata !{metadata !3, metadata !6, metadata !10}
-!24 = metadata !{metadata !16, metadata !17}
-!25 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
+!0 = !DIGlobalVariableExpression(var: !1, expr: !DIExpression())
+!1 = !DIGlobalVariable(name: "xyz", scope: !2, file: !2, line: 3, type: !3, isLocal: false, isDefinition: true)
+!2 = !DIFile(filename: "g.c", directory: "/tmp/")
+!3 = !DIBasicType(name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+!4 = distinct !DICompileUnit(language: DW_LANG_C89, file: !2, producer: "4.2.1 (Based on Apple Inc. build 5658) (LLVM build)", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, enums: !5, retainedTypes: !5, globals: !6)
+!5 = !{}
+!6 = !{!7, !0}
+!7 = !DIGlobalVariableExpression(var: !8, expr: !DIExpression())
+!8 = !DIGlobalVariable(name: "abcd", scope: !2, file: !2, line: 2, type: !3, isLocal: true, isDefinition: true)
+!9 = !{i32 1, !"Debug Info Version", i32 3}
+!10 = distinct !DISubprogram(name: "fn", linkageName: "fn", scope: null, file: !2, line: 6, type: !11, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: true, unit: !4)
+!11 = !DISubroutineType(types: !12)
+!12 = !{!3}
+!13 = !DILocation(line: 6, scope: !14)
+!14 = distinct !DILexicalBlock(scope: !10, file: !2, line: 6)
+!15 = distinct !DISubprogram(name: "foo", linkageName: "foo", scope: null, file: !2, line: 7, type: !16, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: true, unit: !4)
+!16 = !DISubroutineType(types: !17)
+!17 = !{!3, !3}
+!18 = !DILocalVariable(name: "i", arg: 1, scope: !15, file: !2, line: 7, type: !3)
+!19 = !DIExpression()
+!20 = !DILocation(line: 7, scope: !15)
+!21 = !DILocation(line: 10, scope: !22)
+!22 = distinct !DILexicalBlock(scope: !15, file: !2, line: 7)
+!23 = distinct !DICompileUnit(language: DW_LANG_C89, file: !2, producer: "GCC", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, enums: !5, retainedTypes: !5, globals: !5)
+!24 = distinct !DICompileUnit(language: DW_LANG_C89, file: !2, producer: "Globals", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, enums: !5, retainedTypes: !5, globals: !25)
+!25 = !{!26}
+!26 = !DIGlobalVariableExpression(var: !27, expr: !DIExpression(DW_OP_constu, 0, DW_OP_stack_value))
+!27 = !DIGlobalVariable(name: "abcd2", scope: !2, file: !2, line: 2, type: !3, isLocal: true, isDefinition: true)
+!28 = distinct !DICompileUnit(language: DW_LANG_C89, file: !2, producer: "InlineTest", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, enums: !5, retainedTypes: !5, globals: !5)
+!29 = distinct !DISubprogram(name: "inlinefunc", linkageName: "inlinefunc", scope: null, file: !2, line: 7, type: !16, isLocal: false, isDefinition: true, isOptimized: true, unit: !28)
+!30 = !DILocation(line: 100, scope: !29, inlinedAt: !21)

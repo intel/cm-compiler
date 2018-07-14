@@ -55,7 +55,7 @@ public:
   explicit GenXIMadPostLegalization() :
       FunctionPass(ID), DT(nullptr), Baling(nullptr) {}
 
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "GenX IMAD post-legalization pass";
   }
 
@@ -219,6 +219,7 @@ bool GenXIMadPostLegalization::runOnFunction(Function &F) {
   for (auto &BB : F)
     Changed |= fixMadChain(&BB);
 
+
   return Changed;
 }
 
@@ -313,7 +314,11 @@ bool GenXIMadPostLegalization::fixMadChain(BasicBlock *BB) {
         if (OpI == In)
           continue;
         // Skip if that input dominates the chain-in but record it as inputs.
-        if (dominates(OpI, In)) {
+        //
+        // FIXME: revisit the following check. This stops sinking non-mad bales
+        // which may increase register pressure and inserts non-mad instructions
+        // among mads.
+        if (true || !OpI->hasOneUse() || dominates(OpI, In)) {
           Inputs.insert(OpI);
           continue;
         }

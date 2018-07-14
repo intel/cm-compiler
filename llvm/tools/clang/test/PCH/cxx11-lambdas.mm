@@ -38,6 +38,11 @@ int init_capture(T t) {
   return [&, x(t)] { return sizeof(x); };
 }
 
+struct X {
+  template <typename T> X(T) {}
+};
+struct Y { Y(const X &x = [] {}); };
+
 #else
 
 // CHECK-PRINT: T add_slowly
@@ -52,6 +57,8 @@ int add(int x, int y) {
 // CHECK-PRINT: lambda = [&] (int z)
 
 // CHECK-PRINT: init_capture
-// CHECK-PRINT: [&, x( t )]
+// CHECK-PRINT: [&, x(t)]
+
+X x = [] {};
 
 #endif

@@ -821,8 +821,8 @@ llvm::AllocaInst *CGCMRuntime::getOrCreateSLMIndexVar(CodeGenFunction &CGF) {
     return iter->second;
 
   // Create and initialize the slm index variable.
-  auto IndexVar = new llvm::AllocaInst(CGF.Int32Ty, nullptr, "slm.index",
-                                       CGF.AllocaInsertPt);
+  auto IndexVar = new llvm::AllocaInst(CGF.Int32Ty, /*AddrSpace*/ 0, nullptr,
+                                       "slm.index", CGF.AllocaInsertPt);
   IndexVar->setAlignment(CGF.Int32Ty->getIntegerBitWidth() / 8);
   SLMAllocas.insert(std::make_pair(CGF.CurFn, IndexVar));
 
@@ -836,8 +836,8 @@ llvm::AllocaInst *CGCMRuntime::getOrCreateSLMIndexVar(CodeGenFunction &CGF) {
   {
     // We intentionally emit the initialization code in the first basic block.
     // That is, initialization will always be performed and it should be.
-    CGBuilderTy Builder(CGF.AllocaInsertPt);
-    Builder.CreateStore(llvm::Constant::getNullValue(CGF.Int32Ty), IndexVar);
+    CGBuilderTy Builder(CGF, CGF.AllocaInsertPt);
+    Builder.CreateDefaultAlignedStore(llvm::Constant::getNullValue(CGF.Int32Ty), IndexVar);
   }
 
   return IndexVar;
@@ -847,7 +847,7 @@ llvm::AllocaInst *CGCMRuntime::getOrCreateSLMIndexVar(CodeGenFunction &CGF) {
 static llvm::MDNode *getSLMSizeMDNode(llvm::Function *F) {
   llvm::NamedMDNode *Nodes = F->getParent()->getNamedMetadata("genx.kernels");
   for (auto Node : Nodes->operands()) {
-    if (Node->getNumOperands() >= 4 && Node->getOperand(0) == F)
+    if (Node->getNumOperands() >= 4 && getVal(Node->getOperand(0)) == F)
       return Node;
   }
   return nullptr;
@@ -857,7 +857,7 @@ static void checkSLMSize(CGCMRuntime &CMRT, SourceLocation Loc,
                          llvm::Function *F) {
   uint64_t SLMSize = 0;
   if (llvm::MDNode *Node = getSLMSizeMDNode(F)) {
-    llvm::Value *SzVal = Node->getOperand(4);
+    llvm::Value *SzVal = getVal(Node->getOperand(4));
     if (auto *CI = dyn_cast_or_null<llvm::ConstantInt>(SzVal))
       SLMSize = CI->getZExtValue();
   }
@@ -891,12 +891,12 @@ void CGCMRuntime::EmitBuiltinSLMInit(CodeGenFunction &CGF, const CallExpr *E) {
 
   // find the corresponding kernel metadata and set the SLM size.
   if (llvm::MDNode *Node = getSLMSizeMDNode(CGF.CurFn)) {
-    if (llvm::Value *OldSz = Node->getOperand(4)) {
+    if (llvm::Value *OldSz = getVal(Node->getOperand(4))) {
       assert(isa<llvm::ConstantInt>(OldSz) && "integer constant expected");
       llvm::Value *NewSz = llvm::ConstantInt::get(OldSz->getType(), NewVal);
       uint64_t OldVal = cast<llvm::ConstantInt>(OldSz)->getZExtValue();
       if (OldVal < NewVal)
-        Node->replaceOperandWith(4, NewSz);
+        Node->replaceOperandWith(4, getMD(NewSz));
     }
   }
 
@@ -917,11 +917,11 @@ llvm::Value *CGCMRuntime::EmitBuiltinSLMAlloc(CodeGenFunction &CGF,
   checkSLMSize(*this, E->getExprLoc(), CGF.CurFn);
 
   llvm::AllocaInst *IndexVar = getOrCreateSLMIndexVar(CGF);
-  llvm::Value *CurIndex = CGF.Builder.CreateLoad(IndexVar, "cur.index");
+  llvm::Value *CurIndex = CGF.Builder.CreateDefaultAlignedLoad(IndexVar);
   llvm::Value *OffsetInBytes = CGF.EmitAnyExpr(E->getArg(0)).getScalarVal();
   // FIXME: We are not aligning the index. Should it be at least dword-aligned?
   llvm::Value *NextIndex = CGF.Builder.CreateAdd(CurIndex, OffsetInBytes);
-  CGF.Builder.CreateStore(NextIndex, IndexVar);
+  CGF.Builder.CreateDefaultAlignedStore(NextIndex, IndexVar);
   return CurIndex;
 }
 
@@ -937,11 +937,11 @@ llvm::Value *CGCMRuntime::EmitBuiltinSLMFree(CodeGenFunction &CGF,
   checkSLMSize(*this, E->getExprLoc(), CGF.CurFn);
 
   llvm::AllocaInst *IndexVar = getOrCreateSLMIndexVar(CGF);
-  llvm::Value *CurIndex = CGF.Builder.CreateLoad(IndexVar, "cur.index");
+  llvm::Value *CurIndex = CGF.Builder.CreateDefaultAlignedLoad(IndexVar);
   llvm::Value *OffsetInBytes = CGF.EmitAnyExpr(E->getArg(0)).getScalarVal();
   // FIXME: We are not aligning the index. Should it be at least dword-aligned?
   llvm::Value *NextIndex = CGF.Builder.CreateSub(CurIndex, OffsetInBytes);
-  CGF.Builder.CreateStore(NextIndex, IndexVar);
+  CGF.Builder.CreateDefaultAlignedStore(NextIndex, IndexVar);
   return NextIndex;
 }
 
@@ -949,10 +949,11 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
                                    ReturnValueSlot ReturnValue) {
 
   const FunctionDecl *FD = E->getDirectCallee();
-  llvm::Value *Callee = CGF.EmitScalarExpr(E->getCallee());
+  CGCallee Callee = CGF.EmitCallee(E->getCallee());
   if (FD->hasAttr<CMGenxMainAttr>()) {
     if (FD->hasAttr<CMCallableAttr>()) {
-      if (llvm::Function *Fn = llvm::dyn_cast<llvm::Function>(Callee)) {
+      if (llvm::Function *Fn =
+              llvm::dyn_cast<llvm::Function>(Callee.getFunctionPointer())) {
         if (!Fn->hasFnAttribute("CMCallable"))
           Fn->addFnAttr("CMCallable", FD->getName());
       }
@@ -964,8 +965,12 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
 
   // We first emit the call normally, and then transform this call into a proper
   // form. For different builtin, may transfrom it differently.
-  RValue RV = CGF.EmitCall(E->getCallee()->getType(), Callee, E->getLocStart(),
-                           ReturnValue, E->arg_begin(), E->arg_end(), FD);
+  RValue RV;
+  if (Callee.isBuiltin())
+    RV = CGF.EmitBuiltinExpr(Callee.getBuiltinDecl(), Callee.getBuiltinID(), E,
+                             ReturnValue);
+  else
+    RV = CGF.EmitCall(E->getCallee()->getType(), Callee, E, ReturnValue);
 
   CMBuiltinKind Kind = getCMBuiltinKind(FD);
   switch (Kind) {
@@ -1360,7 +1365,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinDotProductImpl(CMCallInfo &CallInfo,
   llvm::CallInst *CI = CallInfo.CI;
   llvm::Value *Args[2] = {CI->getArgOperand(0), CI->getArgOperand(1)};
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
   llvm::CallInst *Result = Builder.CreateCall(GenxFn, Args, CI->getName());
   Result->setDebugLoc(CI->getDebugLoc());
 
@@ -1383,7 +1388,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinLineImpl(CMCallInfo &CallInfo,
   llvm::CallInst *CI = CallInfo.CI;
   llvm::Value *Args[2] = {CI->getArgOperand(0), CI->getArgOperand(1)};
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
   llvm::CallInst *NewCI = Builder.CreateCall(GenxFn, Args, CI->getName());
   NewCI->setDebugLoc(CI->getDebugLoc());
 
@@ -1429,7 +1434,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinFblFbhImpl(CMCallInfo &CallInfo,
 
   llvm::CallInst *CI = CallInfo.CI;
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   llvm::Function *F = getIntrinsic(ID, CI->getType());
   llvm::CallInst *Result = Builder.CreateCall(F, CI->getArgOperand(0), CI->getName());
@@ -1453,7 +1458,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinFrcImpl(CMCallInfo &CallInfo,
 
   llvm::CallInst *CI = CallInfo.CI;
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   llvm::Function *F = getIntrinsic(llvm::Intrinsic::genx_frc, CI->getType());
   llvm::CallInst *Result = Builder.CreateCall(F, CI->getArgOperand(0), CI->getName());
@@ -1477,7 +1482,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinLzdImpl(CMCallInfo &CallInfo,
 
   llvm::CallInst *CI = CallInfo.CI;
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   llvm::Type *Tys[] = {CI->getType()};
 
@@ -1529,7 +1534,7 @@ static llvm::Value *EmitBuiltinCommonOneArg(CGCMRuntime &CMRT, unsigned ID,
   llvm::CallInst *CI = CallInfo.CI;
   llvm::Value *Arg = CI->getArgOperand(0);
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
   llvm::CallInst *NewCI = Builder.CreateCall(GenxFn, Arg, CI->getName());
   NewCI->setDebugLoc(CI->getDebugLoc());
 
@@ -1552,11 +1557,10 @@ static llvm::Value *EmitBuiltinCommonTwoArg(CGCMRuntime &CMRT, unsigned ID,
 
   assert(CallInfo.CI->getNumArgOperands() == 2);
   llvm::CallInst *CI = CallInfo.CI;
-  llvm::Value *Arg0 = CI->getArgOperand(0);
-  llvm::Value *Arg1 = CI->getArgOperand(1);
+  llvm::Value *Args[] = {CI->getArgOperand(0), CI->getArgOperand(1)};
 
-  CGBuilderTy Builder(CI);
-  llvm::CallInst *NewCI = Builder.CreateCall2(Fn, Arg0, Arg1, CI->getName());
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+  llvm::CallInst *NewCI = Builder.CreateCall(Fn, Args, CI->getName());
   NewCI->setDebugLoc(CI->getDebugLoc());
 
   CI->eraseFromParent();
@@ -1613,7 +1617,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinMulAddImpl(CMCallInfo &CallInfo,
   llvm::Value *Arg1 = CI->getArgOperand(1);
   llvm::Value *Flag = CI->getArgOperand(2);
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
   llvm::Value *Result = 0;
   llvm::Function *SatFn = 0;
 
@@ -1685,8 +1689,9 @@ llvm::Value *CGCMRuntime::HandleBuiltinMulAddImpl(CMCallInfo &CallInfo,
       assert(NeedsConv);
       llvm::Value *Conv0 = Builder.CreateCast(CastOp, R0, CI->getType(), "conv");
 
+      llvm::Value *Args[] = {Arg0, Arg1};
       llvm::Function *F1 = getIntrinsic(ID1, Tys);
-      llvm::CallInst *R1 = Builder.CreateCall2(F1, Arg0, Arg1, CI->getName());
+      llvm::CallInst *R1 = Builder.CreateCall(F1, Args, CI->getName());
       R1->setDebugLoc(CI->getDebugLoc());
       llvm::Value *Conv1 = Builder.CreateCast(CastOp, R1, CI->getType(), "conv");
 
@@ -1712,8 +1717,9 @@ llvm::Value *CGCMRuntime::HandleBuiltinMulAddImpl(CMCallInfo &CallInfo,
       cast<llvm::Instruction>(R0)->setDebugLoc(CI->getDebugLoc());
 
       llvm::Type *Tys[] = {CI->getType(), Arg0->getType() };
+      llvm::Value *Args[] = {Arg0, Arg1};
       llvm::Function *F1 = getIntrinsic(ID1, Tys);
-      llvm::CallInst *R1 = Builder.CreateCall2(F1, Arg0, Arg1, CI->getName());
+      llvm::CallInst *R1 = Builder.CreateCall(F1, Args, CI->getName());
       R1->setDebugLoc(CI->getDebugLoc());
 
       // The final result depends on the saturation flag.
@@ -1749,7 +1755,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinAvgImpl(CMCallInfo &CallInfo,
   llvm::Value *Arg1 = CI->getArgOperand(1);
   llvm::Value *Flag = CI->getArgOperand(2);
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   // Check the saturation flag, compare it with 0.
   llvm::Value *CMP = Builder.CreateICmpEQ(
@@ -1763,13 +1769,14 @@ llvm::Value *CGCMRuntime::HandleBuiltinAvgImpl(CMCallInfo &CallInfo,
 
   // cm_avg<int>(int, int, SAT) => genx.ssavg.sat(int, int)
   llvm::Type *Tys[] = {CI->getType(), Arg0->getType()};
+  llvm::Value *Args[] = { Arg0, Arg1 };
 
   llvm::Function *F0 = getIntrinsic(ID0, Tys);
-  llvm::CallInst *R0 = Builder.CreateCall2(F0, Arg0, Arg1, CI->getName());
+  llvm::CallInst *R0 = Builder.CreateCall(F0, Args, CI->getName());
   R0->setDebugLoc(CI->getDebugLoc());
 
   llvm::Function *F1 = getIntrinsic(ID1, Tys);
-  llvm::CallInst *R1 = Builder.CreateCall2(F1, Arg0, Arg1, CI->getName());
+  llvm::CallInst *R1 = Builder.CreateCall(F1, Args, CI->getName());
   R1->setDebugLoc(CI->getDebugLoc());
 
   // The final result depends on the saturation flag.
@@ -1797,12 +1804,11 @@ llvm::Value *CGCMRuntime::HandleBuiltinIMulImpl(CMCallInfo &CallInfo) {
 
   llvm::CallInst *CI = CallInfo.CI;
 
-  llvm::Value *Arg0 = CI->getArgOperand(0); // src0
-  llvm::Value *Arg1 = CI->getArgOperand(1); // src1
-  CGBuilderTy Builder(CI);
+  llvm::Value *Args[] = {CI->getArgOperand(0), CI->getArgOperand(1)};
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
   llvm::Type *Tys[] = {CI->getType(), CI->getType()};
   llvm::Function *F = getIntrinsic(ID, Tys);
-  llvm::CallInst *NewCI = Builder.CreateCall2(F, Arg0, Arg1, CI->getName());
+  llvm::CallInst *NewCI = Builder.CreateCall(F, Args, CI->getName());
   NewCI->setDebugLoc(CI->getDebugLoc());
 
   CI->eraseFromParent();
@@ -1833,7 +1839,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinShlImpl(CMCallInfo &CallInfo,
   llvm::Value *Arg1 = CI->getArgOperand(1);
   llvm::Value *Flag = CI->getArgOperand(2);
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   // Check the saturation flag, compare it with 0.
   llvm::Value *CMP = Builder.CreateICmpEQ(
@@ -1847,13 +1853,14 @@ llvm::Value *CGCMRuntime::HandleBuiltinShlImpl(CMCallInfo &CallInfo,
 
   // cm_shl<int>(int, int, SAT) => genx.ssshl.sat(int, int)
   llvm::Type *Tys[] = {CI->getType(), Arg0->getType()};
+  llvm::Value *Args[] = { Arg0, Arg1 };
 
   llvm::Function *F0 = getIntrinsic(ID0, Tys);
-  llvm::CallInst *R0 = Builder.CreateCall2(F0, Arg0, Arg1, CI->getName());
+  llvm::CallInst *R0 = Builder.CreateCall(F0, Args, CI->getName());
   R0->setDebugLoc(CI->getDebugLoc());
 
   llvm::Function *F1 = getIntrinsic(ID1, Tys);
-  llvm::CallInst *R1 = Builder.CreateCall2(F1, Arg0, Arg1, CI->getName());
+  llvm::CallInst *R1 = Builder.CreateCall(F1, Args, CI->getName());
   R1->setDebugLoc(CI->getDebugLoc());
 
   // The final result depends on the saturation flag.
@@ -1886,15 +1893,16 @@ llvm::Value *CGCMRuntime::HandleBuiltinSad2Impl(CMCallInfo &CallInfo,
   llvm::Value *Arg0 = CI->getArgOperand(0);
   llvm::Value *Arg1 = CI->getArgOperand(1);
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   unsigned ID = GetGenxIntrinsicID(CallInfo, Kind, false);
 
   // cm_sad2<int>(int, int, SAT) => genx.*sad2(int, int)
   llvm::Type *Tys[] = { CI->getType(), Arg0->getType() };
+  llvm::Value *Args[] = { Arg0, Arg1 };
 
   llvm::Function *F = getIntrinsic(ID, Tys);
-  llvm::CallInst *Result = Builder.CreateCall2(F, Arg0, Arg1, CI->getName());
+  llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
   Result->setDebugLoc(CI->getDebugLoc());
 
   CI->eraseFromParent();
@@ -1926,7 +1934,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinSad2AddImpl(CMCallInfo &CallInfo,
   llvm::Value *Arg2 = CI->getArgOperand(2);
   llvm::Value *Flag = CI->getArgOperand(3);
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   // Check the saturation flag, compare it with 0.
   llvm::Value *CMP = Builder.CreateICmpEQ(
@@ -1940,13 +1948,14 @@ llvm::Value *CGCMRuntime::HandleBuiltinSad2AddImpl(CMCallInfo &CallInfo,
 
   // cm_sada2<int>(int, int, SAT) => genx.ssad2add.sat(int, int)
   llvm::Type *Tys[] = {CI->getType(), Arg0->getType()};
+  llvm::Value *Args[] = { Arg0, Arg1, Arg2 };
 
   llvm::Function *F0 = getIntrinsic(ID0, Tys);
-  llvm::CallInst *R0 = Builder.CreateCall3(F0, Arg0, Arg1, Arg2, CI->getName());
+  llvm::CallInst *R0 = Builder.CreateCall(F0, Args, CI->getName());
   R0->setDebugLoc(CI->getDebugLoc());
 
   llvm::Function *F1 = getIntrinsic(ID1, Tys);
-  llvm::CallInst *R1 = Builder.CreateCall3(F1, Arg0, Arg1, Arg2, CI->getName());
+  llvm::CallInst *R1 = Builder.CreateCall(F1, Args, CI->getName());
   R1->setDebugLoc(CI->getDebugLoc());
 
   // The final result depends on the saturation flag.
@@ -1970,17 +1979,16 @@ llvm::Value *CGCMRuntime::HandleBuiltinLrpImpl(CMCallInfo &CallInfo,
   assert(CallInfo.CE->getNumArgs() == 3);
 
   llvm::CallInst *CI = CallInfo.CI;
-  llvm::Value *Arg0 = CI->getArgOperand(0);
-  llvm::Value *Arg1 = CI->getArgOperand(1);
-  llvm::Value *Arg2 = CI->getArgOperand(2);
+  llvm::Value *Args[] = {CI->getArgOperand(0), CI->getArgOperand(1),
+                         CI->getArgOperand(2)};
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   // cm_lrp(float, float, float) => genx.lrp(float, float, float)
   llvm::Type *Tys[] = {CI->getType()};
 
   llvm::Function *F = getIntrinsic(llvm::Intrinsic::genx_lrp, Tys);
-  llvm::CallInst *Result = Builder.CreateCall3(F, Arg0, Arg1, Arg2, CI->getName());
+  llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
   Result->setDebugLoc(CI->getDebugLoc());
 
   CI->eraseFromParent();
@@ -2017,12 +2025,13 @@ llvm::Value *CGCMRuntime::HandleBuiltinPlnImpl(CMCallInfo &CallInfo,
   assert(CallInfo.CE->getType()->getAs<CMVectorType>()->getNumElements() == T1->getAs<CMVectorType>()->getNumElements() / 2);
 #endif
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   // cm_pln(float, float) => genx.pln(float, float)
   llvm::Type *Tys[] = {CI->getType(), Arg1->getType()};
+  llvm::Value *Args[] = {Arg0, Arg1};
   llvm::Function *F = getIntrinsic(llvm::Intrinsic::genx_pln, Tys);
-  llvm::CallInst *Result = Builder.CreateCall2(F, Arg0, Arg1, CI->getName());
+  llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
   Result->setDebugLoc(CI->getDebugLoc());
 
   CI->eraseFromParent();
@@ -2044,7 +2053,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinCountBitsImpl(CMCallInfo &CallInfo,
 
   llvm::CallInst *CI = CallInfo.CI;
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   // cm_cbit<uint>(anyint) => genx.cbit(anyint)
   llvm::Type *Tys[] = { CI->getType(), CI->getOperand(0)->getType() };
@@ -2071,7 +2080,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinBitFieldReverseImpl(CMCallInfo &CallInfo,
 
   llvm::CallInst *CI = CallInfo.CI;
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   // cm_bfrev<int>(int) => genx.bfrev(int)
   llvm::Function *F = getIntrinsic(llvm::Intrinsic::genx_bfrev, CI->getType());
@@ -2096,16 +2105,14 @@ llvm::Value *CGCMRuntime::HandleBuiltinBitFieldInsertImpl(CMCallInfo &CallInfo,
   assert(CallInfo.CE->getNumArgs() == 4);
 
   llvm::CallInst *CI = CallInfo.CI;
-  llvm::Value *Arg0 = CI->getArgOperand(0);
-  llvm::Value *Arg1 = CI->getArgOperand(1);
-  llvm::Value *Arg2 = CI->getArgOperand(2);
-  llvm::Value *Arg3 = CI->getArgOperand(3);
+  llvm::Value *Args[] = {CI->getArgOperand(0), CI->getArgOperand(1),
+                         CI->getArgOperand(2), CI->getArgOperand(3)};
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   // cm_bf_insert<int>(int,int,int,int) => genx.bfi(int,int,int,int)
   llvm::Function *F = getIntrinsic(llvm::Intrinsic::genx_bfi, CI->getType());
-  llvm::CallInst *Result = Builder.CreateCall4(F, Arg0, Arg1, Arg2, Arg3, CI->getName());
+  llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
   Result->setDebugLoc(CI->getDebugLoc());
 
   CI->eraseFromParent();
@@ -2126,15 +2133,14 @@ llvm::Value *CGCMRuntime::HandleBuiltinBitFieldExtractImpl(CMCallInfo &CallInfo,
   assert(CallInfo.CE->getNumArgs() == 3);
 
   llvm::CallInst *CI = CallInfo.CI;
-  llvm::Value *Arg0 = CI->getArgOperand(0);
-  llvm::Value *Arg1 = CI->getArgOperand(1);
-  llvm::Value *Arg2 = CI->getArgOperand(2);
+  llvm::Value *Args[] = {CI->getArgOperand(0), CI->getArgOperand(1),
+                         CI->getArgOperand(2)};
 
-  CGBuilderTy Builder(CI);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   // cm_bf_extract<int>(int,int,int) => genx.sbfe(int,int,int)
   llvm::Function *F = getIntrinsic(GetGenxIntrinsicID(CallInfo, Kind, false), CI->getType());
-  llvm::CallInst *Result = Builder.CreateCall3(F, Arg0, Arg1, Arg2, CI->getName());
+  llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
   Result->setDebugLoc(CI->getDebugLoc());
 
   CI->eraseFromParent();
@@ -2762,8 +2768,9 @@ llvm::Value *CMReductionEmitter::reduce(llvm::Value *LHS, llvm::Value *RHS) {
     assert(LHS->getType()->getScalarType() == CallInfo.CI->getType());
 
     llvm::Type *Tys[2] = { LHS->getType(), LHS->getType() };
+    llvm::Value *Args[] = { LHS, RHS };
     llvm::Function *GenxFn = CMRT.getIntrinsic(ID, Tys);
-    LHS = CGF.Builder.CreateCall2(GenxFn, LHS, RHS);
+    LHS = CGF.Builder.CreateCall(GenxFn, Args);
     cast<llvm::Instruction>(LHS)->setDebugLoc(CallInfo.CI->getDebugLoc());
   }
 
@@ -2879,8 +2886,9 @@ llvm::Value *CMReductionEmitter::reduceAddMul(llvm::Value *LHS,
     } else {
       // Saturating case.
       llvm::Type *Tys[] = {LHS->getType(), LHS->getType()};
+      llvm::Value *Args[] = { LHS, RHS };
       llvm::Function *Fn = CMRT.getIntrinsic(IDs[Offset], Tys);
-      R0 = CGF.Builder.CreateCall2(Fn, LHS, RHS);
+      R0 = CGF.Builder.CreateCall(Fn, Args);
       cast<llvm::Instruction>(R0)->setDebugLoc(CallInfo.CI->getDebugLoc());
     }
 
@@ -2916,8 +2924,9 @@ llvm::Value *CMReductionEmitter::reduceAddMul(llvm::Value *LHS,
       Offset += T1->isSignedIntegerType() ? 0 : 1;
 
       llvm::Type *Tys[] = {DstTy, LHS->getType()};
+      llvm::Value *Args[] = { LHS, RHS };
       llvm::Function *Fn = CMRT.getIntrinsic(IDs[Offset], Tys);
-      LHS = CGF.Builder.CreateCall2(Fn, LHS, RHS);
+      LHS = CGF.Builder.CreateCall(Fn, Args);
       cast<llvm::Instruction>(LHS)->setDebugLoc(CallInfo.CI->getDebugLoc());
     }
   }
@@ -2998,7 +3007,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinOWordReadImpl(CMCallInfo &Info,
   llvm::Function *LoadFn = getIntrinsic(ID, RetTy);
   llvm::FunctionType *LoadFnTy = LoadFn->getFunctionType();
 
-  CGBuilderTy Builder(Info.CI);
+  CGBuilderTy Builder(*Info.CGF, Info.CI);
   SmallVector<llvm::Value *, 3> Args;
 
   // Modifiers, always null value.
@@ -3038,7 +3047,7 @@ void CGCMRuntime::HandleBuiltinOWordWriteImpl(CMCallInfo &Info) {
   assert(VecTy->getPrimitiveSizeInBits() / 8 <= 8 * OWORD);
   assert(VecTy->getPrimitiveSizeInBits() / 8 >= OWORD);
 
-  CGBuilderTy Builder(Info.CI);
+  CGBuilderTy Builder(*Info.CGF, Info.CI);
   SmallVector<llvm::Value *, 4> Args;
 
   // SurfaceIndex.
@@ -3119,7 +3128,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinMediaReadImpl(CMCallInfo &Info) {
   // y byte offset, the input is already in bytes.
   Args.push_back(Info.CI->getArgOperand(2));
 
-  CGBuilderTy Builder(Info.CI);
+  CGBuilderTy Builder(*Info.CGF, Info.CI);
   llvm::CallInst *NewCI = Builder.CreateCall(LoadFn, Args);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
   NewCI->setName(Info.CI->getName());
@@ -3186,7 +3195,7 @@ void CGCMRuntime::HandleBuiltinMediaWriteImpl(CMCallInfo &Info) {
   // data to write.
   Args.push_back(Info.CI->getArgOperand(3));
 
-  CGBuilderTy Builder(Info.CI);
+  CGBuilderTy Builder(*Info.CGF, Info.CI);
   llvm::CallInst *NewCI = Builder.CreateCall(StoreFn, Args);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
 
@@ -3247,7 +3256,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinMediaReadPlane(CMCallInfo &Info) {
   // y byte offset, the input is already in bytes.
   Args.push_back(Info.CI->getArgOperand(2));
 
-  CGBuilderTy Builder(Info.CI);
+  CGBuilderTy Builder(*Info.CGF, Info.CI);
   llvm::CallInst *NewCI = Builder.CreateCall(LoadFn, Args);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
   NewCI->setName(Info.CI->getName());
@@ -3372,7 +3381,7 @@ void CGCMRuntime::HandleBuiltinMediaWritePlane(CMCallInfo &Info) {
   // data to write.
   Args.push_back(Info.CI->getArgOperand(3));
 
-  CGBuilderTy Builder(Info.CI);
+  CGBuilderTy Builder(*Info.CGF, Info.CI);
   llvm::CallInst *NewCI = Builder.CreateCall(StoreFn, Args);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
 
@@ -3551,7 +3560,7 @@ void CGCMRuntime::HandleBuiltin3dOperationImpl(CMCallInfo &CallInfo, CMBuiltinKi
   NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
 
   // Store its result
-  CGF.Builder.CreateStore(NewCI, Dst);
+  CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   CallInfo.CI->eraseFromParent();
 }
@@ -4012,13 +4021,13 @@ llvm::Value *CGCMRuntime::HandleBuiltinSendImpl(CMCallInfo &CallInfo) {
   Args.push_back(CallInfo.CI->getArgOperand(3)); // msgDesc
   Args.push_back(CallInfo.CI->getArgOperand(1)); // msgVar
   if (HasDst)
-    Args.push_back(CGF.Builder.CreateLoad(Arg0)); // oldDst
+    Args.push_back(CGF.Builder.CreateDefaultAlignedLoad(Arg0)); // oldDst
 
   llvm::CallInst *NewCI = CGF.Builder.CreateCall(Fn, Args);
   NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
   if (HasDst) {
     NewCI->takeName(CallInfo.CI);
-    CGF.Builder.CreateStore(NewCI, Arg0);
+    CGF.Builder.CreateDefaultAlignedStore(NewCI, Arg0);
   }
 
   CallInfo.CI->eraseFromParent();
@@ -4072,13 +4081,13 @@ llvm::Value *CGCMRuntime::HandleBuiltinSendsImpl(CMCallInfo &CallInfo) {
   Args.push_back(CallInfo.CI->getArgOperand(1)); // msgVar
   Args.push_back(CallInfo.CI->getArgOperand(2)); // msgVar
   if (HasDst)
-    Args.push_back(CGF.Builder.CreateLoad(Arg0)); // oldDst
+    Args.push_back(CGF.Builder.CreateDefaultAlignedLoad(Arg0)); // oldDst
 
   llvm::CallInst *NewCI = CGF.Builder.CreateCall(Fn, Args);
   NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
   if (HasDst) {
     NewCI->takeName(CallInfo.CI);
-    CGF.Builder.CreateStore(NewCI, Arg0);
+    CGF.Builder.CreateDefaultAlignedStore(NewCI, Arg0);
   }
 
   CallInfo.CI->eraseFromParent();
@@ -4183,17 +4192,17 @@ void CGCMRuntime::HandleBuiltinReadWriteUntypedImpl(CMCallInfo &CallInfo,
   if (IsRead) {
     auto NewCI = EmitGatherScatterScaled(
         CGF,
-        ID,                            // Intrinsic ID
-        llvm::APInt(32, Mask),         // channel mask
-        0,                             // scale
-        CallInfo.CI->getArgOperand(0), // surface index
-        CGF.Builder.getInt32(0),       // global offset in bytes
-        EltOffset,                     // element offset in bytes
-        CGF.Builder.CreateLoad(Arg2)   // old value data
+        ID,                                        // Intrinsic ID
+        llvm::APInt(32, Mask),                     // channel mask
+        0,                                         // scale
+        CallInfo.CI->getArgOperand(0),             // surface index
+        CGF.Builder.getInt32(0),                   // global offset in bytes
+        EltOffset,                                 // element offset in bytes
+        CGF.Builder.CreateDefaultAlignedLoad(Arg2) // old value data
     );
     NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
     CallInfo.CI->eraseFromParent();
-    CGF.Builder.CreateStore(NewCI, Arg2);
+    CGF.Builder.CreateDefaultAlignedStore(NewCI, Arg2);
   } else {
     auto NewCI = EmitGatherScatterScaled(
         CGF,
@@ -4260,16 +4269,16 @@ void CGCMRuntime::HandleBuiltinReadTypedImpl(CMCallInfo &CallInfo) {
       llvm::ConstantInt::get(FTy->getParamType(0),
                              Mask & 0xF), // channel mask, DO NOT INVERT.
       llvm::Constant::getAllOnesValue(FTy->getParamType(1)), // predicate
-      CallInfo.CI->getArgOperand(0),                    // surface index
-      CallInfo.CI->getArgOperand(3),                    // U pixel
-      CallInfo.CI->getArgOperand(4),                    // V pixel
-      CallInfo.CI->getArgOperand(5),                    // V pixel
-      CGF.Builder.CreateLoad(Arg2)                      // old value
+      CallInfo.CI->getArgOperand(0),                         // surface index
+      CallInfo.CI->getArgOperand(3),                         // U pixel
+      CallInfo.CI->getArgOperand(4),                         // V pixel
+      CallInfo.CI->getArgOperand(5),                         // V pixel
+      CGF.Builder.CreateDefaultAlignedLoad(Arg2)             // old value
   };
 
   llvm::CallInst *NewCI = CGF.Builder.CreateCall(Fn, Args, "call");
   NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
-  CGF.Builder.CreateStore(NewCI, Arg2);
+  CGF.Builder.CreateDefaultAlignedStore(NewCI, Arg2);
 
   CallInfo.CI->eraseFromParent();
 }
@@ -4467,7 +4476,7 @@ void CGCMRuntime::HandleBuiltinSLMRead4(CMCallInfo &CallInfo) {
 
   llvm::Value *Dst = CallInfo.CI->getArgOperand(2);
   assert(isa<llvm::PointerType>(Dst->getType()));
-  llvm::Value *OldValue = CGF.Builder.CreateLoad(Dst);
+  llvm::Value *OldValue = CGF.Builder.CreateDefaultAlignedLoad(Dst);
   llvm::Value *Offset = CallInfo.CI->getArgOperand(1);
 
   // Convert the offest type to UD if it is not.
@@ -4492,7 +4501,7 @@ void CGCMRuntime::HandleBuiltinSLMRead4(CMCallInfo &CallInfo) {
       OldValue  // old value of data read
   );
   NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
-  CGF.Builder.CreateStore(NewCI, Dst);
+  CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   CallInfo.CI->eraseFromParent();
 }
@@ -4782,7 +4791,7 @@ void CGCMRuntime::HandleBuiltinSLMAtomic(CMCallInfo &CallInfo) {
 
   // The old value for the return value.
   if (NeedResult)
-    Args.push_back(CGF.Builder.CreateLoad(Dst));
+    Args.push_back(CGF.Builder.CreateDefaultAlignedLoad(Dst));
   else
     Args.push_back(llvm::UndefValue::get(Tys[0]));
 
@@ -4792,7 +4801,7 @@ void CGCMRuntime::HandleBuiltinSLMAtomic(CMCallInfo &CallInfo) {
   NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
 
   if (NeedResult)
-    CGF.Builder.CreateStore(NewCI, Dst);
+    CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   CallInfo.CI->eraseFromParent();
 }
@@ -4822,7 +4831,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinSVMBlockReadImpl(CMCallInfo &Info,
 
   llvm::Function *LoadFn = getIntrinsic(ID, RetTy);
 
-  CGBuilderTy Builder(Info.CI);
+  CGBuilderTy Builder(*Info.CGF, Info.CI);
 
   llvm::CallInst *NewCI = Builder.CreateCall(LoadFn, Info.CI->getArgOperand(0));
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
@@ -4848,7 +4857,7 @@ void CGCMRuntime::HandleBuiltinSVMBlockWriteImpl(CMCallInfo &Info) {
   assert(VecTy->getPrimitiveSizeInBits() / 8 <= 8 * OWORD);
   assert(VecTy->getPrimitiveSizeInBits() / 8 >= OWORD);
 
-  CGBuilderTy Builder(Info.CI);
+  CGBuilderTy Builder(*Info.CGF, Info.CI);
   SmallVector<llvm::Value *, 3> Args;
 
   // Address
@@ -5189,7 +5198,7 @@ void CGCMRuntime::HandleBuiltinSVMAtomicOpImpl(CMCallInfo &CallInfo) {
   }
 
   // The old value for the return value, cast if necessary.
-  llvm::Value *DstDeref = Builder.CreateLoad(Dst);
+  llvm::Value *DstDeref = Builder.CreateDefaultAlignedLoad(Dst);
   if (NeedsCast)
     DstDeref = Builder.CreateCast(CastOp, DstDeref, ConvTy, "conv");
   Args.push_back(DstDeref);
@@ -5199,7 +5208,7 @@ void CGCMRuntime::HandleBuiltinSVMAtomicOpImpl(CMCallInfo &CallInfo) {
   NewCI->takeName(CallInfo.CI);
   NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
 
-  CGF.Builder.CreateStore(NewCI, Dst);
+  CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   CallInfo.CI->eraseFromParent();
 }
@@ -5273,7 +5282,7 @@ void CGCMRuntime::HandleBuiltinAVSSampler(CMCallInfo &Info) {
   llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(Fn, Args);
   NewCI->takeName(Info.CI);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
-  CGF.Builder.CreateStore(NewCI, Dst);
+  CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   Info.CI->eraseFromParent();
 }
@@ -5360,7 +5369,7 @@ void CGCMRuntime::HandleBuiltinVA2dConvolve(CMCallInfo &Info, CMBuiltinKind Kind
   NewCI->takeName(Info.CI);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
   if (Kind == CMBK_cm_va_2d_convolve)
-    CGF.Builder.CreateStore(NewCI, Dst);
+    CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   Info.CI->eraseFromParent();
 }
@@ -5413,7 +5422,7 @@ void CGCMRuntime::HandleBuiltinVAErodeDilate(CMCallInfo &Info, CMBuiltinKind Kin
   llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(Fn, Args);
   NewCI->takeName(Info.CI);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
-  CGF.Builder.CreateStore(NewCI, Dst);
+  CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   Info.CI->eraseFromParent();
 }
@@ -5506,7 +5515,7 @@ void CGCMRuntime::HandleBuiltinVAMinMax(CMCallInfo &Info) {
   llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(Fn, Args);
   NewCI->takeName(Info.CI);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
-  CGF.Builder.CreateStore(NewCI, Dst);
+  CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   Info.CI->eraseFromParent();
 }
@@ -5594,7 +5603,7 @@ void CGCMRuntime::HandleBuiltinVAMinMaxFilter(CMCallInfo &Info) {
   llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(Fn, Args);
   NewCI->takeName(Info.CI);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
-  CGF.Builder.CreateStore(NewCI, Dst);
+  CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   Info.CI->eraseFromParent();
 }
@@ -5695,7 +5704,7 @@ void CGCMRuntime::HandleBuiltinVACentroid(CMCallInfo &Info, CMBuiltinKind Kind) 
   llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(Fn, CentroidArgs);
   NewCI->takeName(Info.CI);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
-  Info.CGF->Builder.CreateStore(NewCI, Dst);
+  Info.CGF->Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   Info.CI->eraseFromParent();
 }
@@ -5793,7 +5802,7 @@ void CGCMRuntime::HandleBuiltinVA1dConvolution(CMCallInfo &Info, CMBuiltinKind K
   NewCI->takeName(Info.CI);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
   if (Kind == CMBK_cm_va_1d_convolution)
-    CGF.Builder.CreateStore(NewCI, Dst);
+    CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   Info.CI->eraseFromParent();
 }
@@ -5891,7 +5900,7 @@ void CGCMRuntime::HandleBuiltinVA1PixelConvolve(CMCallInfo &Info) {
   llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(Fn, ConvArgs);
   NewCI->takeName(Info.CI);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
-  CGF.Builder.CreateStore(NewCI, Dst);
+  CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   Info.CI->eraseFromParent();
 }
@@ -6010,7 +6019,7 @@ void CGCMRuntime::HandleBuiltinVALbpCreation(CMCallInfo &Info, CMBuiltinKind Kin
   NewCI->takeName(Info.CI);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
   if (Kind == CMBK_cm_va_lbp_creation)
-    CGF.Builder.CreateStore(NewCI, Dst);
+    CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   Info.CI->eraseFromParent();
 }
@@ -6074,7 +6083,7 @@ void CGCMRuntime::HandleBuiltinVALbpCorrelation(CMCallInfo &Info, CMBuiltinKind 
   NewCI->takeName(Info.CI);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
   if (Kind == CMBK_cm_va_lbp_correlation)
-    CGF.Builder.CreateStore(NewCI, Dst);
+    CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   Info.CI->eraseFromParent();
 }
@@ -6127,7 +6136,7 @@ void CGCMRuntime::HandleBuiltinVACorrelationSearch(CMCallInfo &Info) {
   llvm::CallInst *NewCI = CGF.Builder.CreateCall(Fn, Args);
   NewCI->takeName(Info.CI);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
-  CGF.Builder.CreateStore(NewCI, Dst);
+  CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   Info.CI->eraseFromParent();
 }
@@ -6173,7 +6182,7 @@ void CGCMRuntime::HandleBuiltinVAFloodFill(CMCallInfo &Info) {
   llvm::CallInst *NewCI = CGF.Builder.CreateCall(Fn, Args);
   NewCI->takeName(Info.CI);
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
-  CGF.Builder.CreateStore(NewCI, Dst);
+  CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   Info.CI->eraseFromParent();
 }
@@ -6238,7 +6247,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinSimdcfGenericPredicationImpl(CMCallInfo &
   }
 
   llvm::Function *Fn = getIntrinsic(llvm::Intrinsic::genx_simdcf_predicate, Arg0Ty);
-  llvm::CallInst *NewCI = CallInfo.CGF->Builder.CreateCall2(Fn, Arg0, Arg1, "simdcfpref");
+  llvm::Value *Args[] = {Arg0, Arg1};
+  llvm::CallInst *NewCI = CallInfo.CGF->Builder.CreateCall(Fn, Args, "simdcfpref");
   NewCI->takeName(CI);
   NewCI->setDebugLoc(CI->getDebugLoc());
   CI->eraseFromParent();
@@ -6296,7 +6306,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinSimdcfMinMaxPredicationImpl(CMCallInfo &C
   }
 
   llvm::Function *Fn = getIntrinsic(llvm::Intrinsic::genx_simdcf_predicate, Arg0Ty);
-  llvm::CallInst *NewCI = CallInfo.CGF->Builder.CreateCall2(Fn, Arg0, Arg1);
+  llvm::Value *Args[] = { Arg0, Arg1 };
+  llvm::CallInst *NewCI = CallInfo.CGF->Builder.CreateCall(Fn, Args);
   NewCI->takeName(CI);
   NewCI->setDebugLoc(CI->getDebugLoc());
   CI->eraseFromParent();

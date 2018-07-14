@@ -34,9 +34,8 @@ static bool GenX_TripleMatchQuality(Triple::ArchType Arch) {
 }
 
 extern "C" void LLVMInitializeGenXTargetInfo() {
-  TargetRegistry::RegisterTarget(TheGenXTarget, "genx32",
-                                  "GenX vISA (32 bit host)",
-                                  &GenX_TripleMatchQuality);
+  RegisterTarget<Triple::genx32, /*HasJIT=*/false> X(
+      TheGenXTarget, "genx32", "GenX vISA (32 bit host)", "genx32");
 }
 
 extern "C" void LLVMInitializeGenXTargetMC() {}

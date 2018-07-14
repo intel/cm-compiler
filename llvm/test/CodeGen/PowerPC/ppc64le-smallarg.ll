@@ -1,7 +1,7 @@
 ; Verify that small structures and float arguments are passed in the
 ; least significant part of a stack slot doubleword.
 
-; RUN: llc < %s | FileCheck %s
+; RUN: llc -verify-machineinstrs < %s | FileCheck %s
 
 target datalayout = "e-m:e-i64:64-n32:64"
 target triple = "powerpc64le-unknown-linux-gnu"
@@ -17,7 +17,7 @@ define void @callee1(%struct.small_arg* noalias nocapture sret %agg.result, %str
 entry:
   %0 = bitcast %struct.small_arg* %x to i32*
   %1 = bitcast %struct.small_arg* %agg.result to i32*
-  %2 = load i32* %0, align 2
+  %2 = load i32, i32* %0, align 2
   store i32 %2, i32* %1, align 2
   ret void
 }
@@ -42,17 +42,19 @@ entry:
   ret float %x
 }
 ; CHECK: @callee2
-; CHECK: lfs {{[0-9]+}}, 136(1)
+; CHECK: addi [[TOCREG:[0-9]+]], 1, 136
+; CHECK: lfsx {{[0-9]+}}, {{[0-9]+}}, [[TOCREG]]
 ; CHECK: blr
 
 define void @caller2() {
 entry:
-  %0 = load float* @gf, align 4
+  %0 = load float, float* @gf, align 4
   %call = tail call float @test2(float 0.000000e+00, float 0.000000e+00, float 0.000000e+00, float 0.000000e+00, float 0.000000e+00, float 0.000000e+00, float 0.000000e+00, float 0.000000e+00, float 0.000000e+00, float 0.000000e+00, float 0.000000e+00, float 0.000000e+00, float 0.000000e+00, float %0)
   ret void
 }
 ; CHECK: @caller2
-; CHECK: stfs {{[0-9]+}}, 136(1)
+; CHECK: addi [[TOCOFF:[0-9]+]], {{[0-9]+}}, 136
+; CHECK: stfsx {{[0-9]+}}, 0, [[TOCOFF]]
 ; CHECK: bl test2
 
 declare float @test2(float, float, float, float, float, float, float, float, float, float, float, float, float, float)

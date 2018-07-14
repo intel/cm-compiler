@@ -3,7 +3,7 @@
 // Check that the appropriate relocations were created.
 
 // CHECK: Relocations [
-// CHECK:   Section (2) .rel.text {
+// CHECK:   Section {{.*}} .rel.text {
 // CHECK:     R_MIPS_TLS_LDM
 // CHECK:     R_MIPS_TLS_DTPREL_HI16
 // CHECK:     R_MIPS_TLS_DTPREL_LO16
@@ -27,7 +27,7 @@ f1:                                     # @f1
 	.set	noreorder
 	.set	nomacro
 	.set	noat
-# BB#0:                                 # %entry
+# %bb.0:                                # %entry
 	lui	$2, %hi(_gp_disp)
 	addiu	$2, $2, %lo(_gp_disp)
 	addiu	$sp, $sp, -24
@@ -59,7 +59,7 @@ f2:                                     # @f2
 	.set	noreorder
 	.set	nomacro
 	.set	noat
-# BB#0:                                 # %entry
+# %bb.0:                                # %entry
 	lui	$2, %hi(_gp_disp)
 	addiu	$2, $2, %lo(_gp_disp)
 	addiu	$sp, $sp, -24
@@ -91,7 +91,7 @@ f3:                                     # @f3
 	.set	noreorder
 	.set	nomacro
 	.set	noat
-# BB#0:                                 # %entry
+# %bb.0:                                # %entry
 	lui	$2, %hi(_gp_disp)
 	addiu	$2, $2, %lo(_gp_disp)
 	addiu	$sp, $sp, -24

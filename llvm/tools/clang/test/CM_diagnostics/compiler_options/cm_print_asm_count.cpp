@@ -53,7 +53,7 @@ void test2(SurfaceIndex S) {
 //
 // RUN: %cmc /Qxcm_print_asm_count %w 2>&1 | FileCheck %w 
 
-// CHECK: cm_print_asm_count.cpp(6,2) :  warning: CM_GENX not defined [-W#warnings]
+// CHECK: cm_print_asm_count.cpp(6,2):  warning: CM_GENX not defined [-W#warnings]
 // CHECK: 1 warning generated.
 // CHECK-NOT: -platform
 // CHECK-NOT: asm_count
@@ -66,8 +66,8 @@ void test2(SurfaceIndex S) {
 // RUN: %cmc /Qxcm_jit_target=BDW /Qxcm_print_asm_count %w 2>&1 | FileCheck --check-prefix=CHECK-BDW %w 
 // RUN: rm %W.isa %W_0.visaasm %W_0.asm %W_0.dat %W_1.visaasm %W_1.asm %W_1.dat
 
-// CHECK-BDW: cm_print_asm_count.cpp(4,2) :  warning: CM_GENX defined [-W#warnings]
-// CHECK-BDW: cm_print_asm_count.cpp(14,2) :  warning: CM_GEN8 defined [-W#warnings]
+// CHECK-BDW: cm_print_asm_count.cpp(4,2):  warning: CM_GENX defined [-W#warnings]
+// CHECK-BDW: cm_print_asm_count.cpp(14,2):  warning: CM_GEN8 defined [-W#warnings]
 // CHECK-BDW: 2 warnings generated.
 // CHECK-BDW: -platform BDW
 // CHECK-BDW: Kernel cm_print_asm_count_0 : {{[0-9]+}} asm_count 

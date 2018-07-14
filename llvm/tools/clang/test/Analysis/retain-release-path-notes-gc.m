@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core,osx.coreFoundation.CFRetainRelease,osx.cocoa.ClassRelease,osx.cocoa.RetainCount -analyzer-store=region -fobjc-gc-only -analyzer-output=text -verify %s
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core,osx.coreFoundation.CFRetainRelease,osx.cocoa.ClassRelease,osx.cocoa.RetainCount -analyzer-store=region -fobjc-gc-only -analyzer-output=plist-multi-file -analyzer-config path-diagnostics-alternate=false %s -o %t.plist
+// RUN: %clang_analyze_cc1 -triple x86_64-apple-darwin10 -analyzer-checker=core,osx.coreFoundation.CFRetainRelease,osx.cocoa.ClassRelease,osx.cocoa.RetainCount -analyzer-store=region -fobjc-gc-only -analyzer-output=text -verify %s
+// RUN: %clang_analyze_cc1 -triple x86_64-apple-darwin10 -analyzer-checker=core,osx.coreFoundation.CFRetainRelease,osx.cocoa.ClassRelease,osx.cocoa.RetainCount -analyzer-store=region -fobjc-gc-only -analyzer-output=plist-multi-file -analyzer-config path-diagnostics-alternate=false %s -o %t.plist
 // RUN: FileCheck --input-file=%t.plist %s
 
 /***
@@ -40,12 +40,12 @@ CFTypeRef CFGetSomething();
 
 
 void creationViaCFCreate () {
-  CFTypeRef leaked = CFCreateSomething(); // expected-note{{Call to function 'CFCreateSomething' returns a Core Foundation object with a +1 retain count.  Core Foundation objects are not automatically garbage collected}}
+  CFTypeRef leaked = CFCreateSomething(); // expected-note{{Call to function 'CFCreateSomething' returns a Core Foundation object of type CFTypeRef with a +1 retain count.  Core Foundation objects are not automatically garbage collected}}
   return; // expected-warning{{leak}} expected-note{{Object leaked: object allocated and stored into 'leaked' is not referenced later in this execution path and has a retain count of +1}}
 }
 
 void makeCollectable () {
-  CFTypeRef leaked = CFCreateSomething(); // expected-note{{Call to function 'CFCreateSomething' returns a Core Foundation object with a +1 retain count.  Core Foundation objects are not automatically garbage collected}}
+  CFTypeRef leaked = CFCreateSomething(); // expected-note{{Call to function 'CFCreateSomething' returns a Core Foundation object of type CFTypeRef with a +1 retain count.  Core Foundation objects are not automatically garbage collected}}
   CFRetain(leaked); // expected-note{{Reference count incremented. The object now has a +2 retain count}}
   CFMakeCollectable(leaked); // expected-note{{In GC mode a call to 'CFMakeCollectable' decrements an object's retain count and registers the object with the garbage collector. An object must have a 0 retain count to be garbage collected. After this call its retain count is +1}}
   NSMakeCollectable(leaked); // expected-note{{In GC mode a call to 'NSMakeCollectable' decrements an object's retain count and registers the object with the garbage collector. Since it now has a 0 retain count the object can be automatically collected by the garbage collector}}
@@ -54,7 +54,7 @@ void makeCollectable () {
 }
 
 void retainReleaseIgnored () {
-  id object = [[NSObject alloc] init]; // expected-note{{Method returns an Objective-C object with a +0 retain count}}
+  id object = [[NSObject alloc] init]; // expected-note{{Method returns an instance of NSObject with a +0 retain count}}
   [object retain]; // expected-note{{In GC mode the 'retain' message has no effect}}
   [object release]; // expected-note{{In GC mode the 'release' message has no effect}}
   [object autorelease]; // expected-note{{In GC mode an 'autorelease' has no effect}}
@@ -63,12 +63,12 @@ void retainReleaseIgnored () {
 
 @implementation Foo (FundamentalRuleUnderGC)
 - (id)getViolation {
-  id object = (id) CFCreateSomething(); // expected-note{{Call to function 'CFCreateSomething' returns a Core Foundation object with a +1 retain count.  Core Foundation objects are not automatically garbage collected}}
+  id object = (id) CFCreateSomething(); // expected-note{{Call to function 'CFCreateSomething' returns a Core Foundation object of type CFTypeRef with a +1 retain count.  Core Foundation objects are not automatically garbage collected}}
   return object; // expected-warning{{leak}} expected-note{{Object returned to caller as an owning reference (single retain count transferred to caller)}} expected-note{{Object leaked: object allocated and stored into 'object' and returned from method 'getViolation' is potentially leaked when using garbage collection.  Callers of this method do not expect a returned object with a +1 retain count since they expect the object to be managed by the garbage collector}}
 }
 
 - (id)copyViolation {
-  id object = (id) CFCreateSomething(); // expected-note{{Call to function 'CFCreateSomething' returns a Core Foundation object with a +1 retain count.  Core Foundation objects are not automatically garbage collected}}
+  id object = (id) CFCreateSomething(); // expected-note{{Call to function 'CFCreateSomething' returns a Core Foundation object of type CFTypeRef with a +1 retain count.  Core Foundation objects are not automatically garbage collected}}
   return object; // expected-warning{{leak}} expected-note{{Object returned to caller as an owning reference (single retain count transferred to caller)}} expected-note{{Object leaked: object allocated and stored into 'object' and returned from method 'copyViolation' is potentially leaked when using garbage collection.  Callers of this method do not expect a returned object with a +1 retain count since they expect the object to be managed by the garbage collector}}
 }
 @end
@@ -137,9 +137,9 @@ void retainReleaseIgnored () {
 // CHECK-NEXT:      </array>
 // CHECK-NEXT:      <key>depth</key><integer>0</integer>
 // CHECK-NEXT:      <key>extended_message</key>
-// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
+// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object of type CFTypeRef with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
 // CHECK-NEXT:      <key>message</key>
-// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
+// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object of type CFTypeRef with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
 // CHECK-NEXT:     </dict>
 // CHECK-NEXT:     <dict>
 // CHECK-NEXT:      <key>kind</key><string>control</string>
@@ -208,9 +208,12 @@ void retainReleaseIgnored () {
 // CHECK-NEXT:    <key>description</key><string>Potential leak (when using garbage collection) of an object stored into &apos;leaked&apos;</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Leak of object when using garbage collection</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
+// CHECK-NEXT:    <!-- This hash is experimental and going to change! -->
+// CHECK-NEXT:    <key>issue_hash_content_of_line_in_context</key><string>487197d1f3d333a1fb4d7610b6d852df</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>creationViaCFCreate</string>
-// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
+// CHECK-NEXT:   <key>issue_hash_function_offset</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>44</integer>
@@ -280,9 +283,9 @@ void retainReleaseIgnored () {
 // CHECK-NEXT:      </array>
 // CHECK-NEXT:      <key>depth</key><integer>0</integer>
 // CHECK-NEXT:      <key>extended_message</key>
-// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
+// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object of type CFTypeRef with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
 // CHECK-NEXT:      <key>message</key>
-// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
+// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object of type CFTypeRef with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
 // CHECK-NEXT:     </dict>
 // CHECK-NEXT:     <dict>
 // CHECK-NEXT:      <key>kind</key><string>control</string>
@@ -651,9 +654,12 @@ void retainReleaseIgnored () {
 // CHECK-NEXT:    <key>description</key><string>Potential leak (when using garbage collection) of an object stored into &apos;leaked&apos;</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Leak of object when using garbage collection</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
+// CHECK-NEXT:    <!-- This hash is experimental and going to change! -->
+// CHECK-NEXT:    <key>issue_hash_content_of_line_in_context</key><string>4f71073d5e7f2546564c1614dfc95420</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>makeCollectable</string>
-// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
+// CHECK-NEXT:   <key>issue_hash_function_offset</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>53</integer>
@@ -723,9 +729,9 @@ void retainReleaseIgnored () {
 // CHECK-NEXT:      </array>
 // CHECK-NEXT:      <key>depth</key><integer>0</integer>
 // CHECK-NEXT:      <key>extended_message</key>
-// CHECK-NEXT:      <string>Method returns an Objective-C object with a +0 retain count</string>
+// CHECK-NEXT:      <string>Method returns an instance of NSObject with a +0 retain count</string>
 // CHECK-NEXT:      <key>message</key>
-// CHECK-NEXT:      <string>Method returns an Objective-C object with a +0 retain count</string>
+// CHECK-NEXT:      <string>Method returns an instance of NSObject with a +0 retain count</string>
 // CHECK-NEXT:     </dict>
 // CHECK-NEXT:     <dict>
 // CHECK-NEXT:      <key>kind</key><string>control</string>
@@ -1019,9 +1025,12 @@ void retainReleaseIgnored () {
 // CHECK-NEXT:    <key>description</key><string>Incorrect decrement of the reference count of an object that is not owned at this point by the caller</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Bad release</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
+// CHECK-NEXT:    <!-- This hash is experimental and going to change! -->
+// CHECK-NEXT:    <key>issue_hash_content_of_line_in_context</key><string>3d18c66bf99e8cd2938e8c63c345f6ea</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>function</string>
 // CHECK-NEXT:   <key>issue_context</key><string>retainReleaseIgnored</string>
-// CHECK-NEXT:   <key>issue_hash</key><string>5</string>
+// CHECK-NEXT:   <key>issue_hash_function_offset</key><string>5</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>61</integer>
@@ -1091,9 +1100,9 @@ void retainReleaseIgnored () {
 // CHECK-NEXT:      </array>
 // CHECK-NEXT:      <key>depth</key><integer>0</integer>
 // CHECK-NEXT:      <key>extended_message</key>
-// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
+// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object of type CFTypeRef with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
 // CHECK-NEXT:      <key>message</key>
-// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
+// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object of type CFTypeRef with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
 // CHECK-NEXT:     </dict>
 // CHECK-NEXT:     <dict>
 // CHECK-NEXT:      <key>kind</key><string>control</string>
@@ -1203,9 +1212,12 @@ void retainReleaseIgnored () {
 // CHECK-NEXT:    <key>description</key><string>Potential leak (when using garbage collection) of an object stored into &apos;object&apos;</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Leak of returned object when using garbage collection</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
+// CHECK-NEXT:    <!-- This hash is experimental and going to change! -->
+// CHECK-NEXT:    <key>issue_hash_content_of_line_in_context</key><string>d012b4dfd7d763f06cdb53f8b5708275</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>Objective-C method</string>
 // CHECK-NEXT:   <key>issue_context</key><string>getViolation</string>
-// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
+// CHECK-NEXT:   <key>issue_hash_function_offset</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>67</integer>
@@ -1275,9 +1287,9 @@ void retainReleaseIgnored () {
 // CHECK-NEXT:      </array>
 // CHECK-NEXT:      <key>depth</key><integer>0</integer>
 // CHECK-NEXT:      <key>extended_message</key>
-// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
+// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object of type CFTypeRef with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
 // CHECK-NEXT:      <key>message</key>
-// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
+// CHECK-NEXT:      <string>Call to function &apos;CFCreateSomething&apos; returns a Core Foundation object of type CFTypeRef with a +1 retain count.  Core Foundation objects are not automatically garbage collected</string>
 // CHECK-NEXT:     </dict>
 // CHECK-NEXT:     <dict>
 // CHECK-NEXT:      <key>kind</key><string>control</string>
@@ -1387,9 +1399,12 @@ void retainReleaseIgnored () {
 // CHECK-NEXT:    <key>description</key><string>Potential leak (when using garbage collection) of an object stored into &apos;object&apos;</string>
 // CHECK-NEXT:    <key>category</key><string>Memory (Core Foundation/Objective-C)</string>
 // CHECK-NEXT:    <key>type</key><string>Leak of returned object when using garbage collection</string>
+// CHECK-NEXT:    <key>check_name</key><string>osx.cocoa.RetainCount</string>
+// CHECK-NEXT:    <!-- This hash is experimental and going to change! -->
+// CHECK-NEXT:    <key>issue_hash_content_of_line_in_context</key><string>b241509266f9d666b8335e0ee2f45adf</string>
 // CHECK-NEXT:   <key>issue_context_kind</key><string>Objective-C method</string>
 // CHECK-NEXT:   <key>issue_context</key><string>copyViolation</string>
-// CHECK-NEXT:   <key>issue_hash</key><string>1</string>
+// CHECK-NEXT:   <key>issue_hash_function_offset</key><string>1</string>
 // CHECK-NEXT:   <key>location</key>
 // CHECK-NEXT:   <dict>
 // CHECK-NEXT:    <key>line</key><integer>72</integer>

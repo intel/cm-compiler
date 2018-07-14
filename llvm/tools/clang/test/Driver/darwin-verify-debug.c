@@ -1,13 +1,12 @@
 // Check that we verify debug output properly with multiple -arch options.
 //
-// REQUIRES: asserts
 // RUN: %clang -target x86_64-apple-darwin10 -ccc-print-phases \
 // RUN:   --verify-debug-info -arch i386 -arch x86_64 %s -g 2> %t
 // RUN: FileCheck -check-prefix=CHECK-MULTIARCH-ACTIONS < %t %s
 //
 // CHECK-MULTIARCH-ACTIONS: 0: input, "{{.*}}darwin-verify-debug.c", c
-// CHECK-MULTIARCH-ACTIONS: 8: dsymutil, {7}, dSYM
-// CHECK-MULTIARCH-ACTIONS: 9: verify-debug-info, {8}, none
+// CHECK-MULTIARCH-ACTIONS: 9: dsymutil, {8}, dSYM
+// CHECK-MULTIARCH-ACTIONS: 10: verify-debug-info, {9}, none
 //
 // RUN: %clang -target x86_64-apple-darwin10 -ccc-print-bindings \
 // RUN:   --verify-debug-info -arch i386 -arch x86_64 %s -g 2> %t
@@ -22,7 +21,7 @@
 // RUN:   --verify-debug-info -o foo %s -g 2> %t
 // RUN: FileCheck -check-prefix=CHECK-OUTPUT-NAME < %t %s
 //
-// CHECK-OUTPUT-NAME: "x86_64-apple-darwin10" - "darwin::Link", inputs: [{{.*}}], output: "foo"
+// CHECK-OUTPUT-NAME: "x86_64-apple-darwin10" - "darwin::Linker", inputs: [{{.*}}], output: "foo"
 // CHECK-OUTPUT-NAME: "x86_64-apple-darwin10" - "darwin::Dsymutil", inputs: ["foo"], output: "foo.dSYM"
 // CHECK-OUTPUT-NAME: "x86_64-apple-darwin10" - "darwin::VerifyDebug", inputs: ["foo.dSYM"], output: (nothing)
 

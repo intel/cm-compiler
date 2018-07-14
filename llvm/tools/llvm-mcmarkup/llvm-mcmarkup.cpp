@@ -12,14 +12,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Format.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
-#include <system_error>
 using namespace llvm;
 
 static cl::list<std::string>
@@ -141,14 +139,15 @@ static void parseMCMarkup(StringRef Filename) {
     errs() << ToolName << ": " << EC.message() << '\n';
     return;
   }
-  MemoryBuffer *Buffer = BufferPtr->release();
+  std::unique_ptr<MemoryBuffer> &Buffer = BufferPtr.get();
 
   SourceMgr SrcMgr;
 
-  // Tell SrcMgr about this buffer, which is what the parser will pick up.
-  SrcMgr.AddNewSourceBuffer(Buffer, SMLoc());
-
   StringRef InputSource = Buffer->getBuffer();
+
+  // Tell SrcMgr about this buffer, which is what the parser will pick up.
+  SrcMgr.AddNewSourceBuffer(std::move(Buffer), SMLoc());
+
   MarkupLexer Lex(InputSource);
   MarkupParser Parser(Lex, SrcMgr);
 
@@ -207,7 +206,7 @@ static void parseMCMarkup(StringRef Filename) {
 
 int main(int argc, char **argv) {
   // Print a stack trace if we signal out.
-  sys::PrintStackTraceOnErrorSignal();
+  sys::PrintStackTraceOnErrorSignal(argv[0]);
   PrettyStackTraceProgram X(argc, argv);
 
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
@@ -219,7 +218,6 @@ int main(int argc, char **argv) {
   if (InputFilenames.size() == 0)
     InputFilenames.push_back("-");
 
-  std::for_each(InputFilenames.begin(), InputFilenames.end(),
-                parseMCMarkup);
+  llvm::for_each(InputFilenames, parseMCMarkup);
   return 0;
 }

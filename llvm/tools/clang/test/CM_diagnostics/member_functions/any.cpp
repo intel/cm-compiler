@@ -29,15 +29,15 @@ void test() {
   v.any() = 0;                           // not assignable
   v.any().any();                         // ushort not a structure or union
 }
-// CHECK: any.cpp(15,28) :  error: expected '('
-// CHECK: any.cpp(16,29) :  error: expected ')'
-// CHECK: any.cpp(17,29) :  error: expected ')'
-// CHECK: any.cpp(18,29) :  error: expected ')'
-// CHECK: any.cpp(24,36) :  error: 'any' following the 'template' keyword does not refer to a template
-// CHECK: any.cpp(25,27) :  error: no member named 'any' in 'S2'
-// CHECK: any.cpp(28,11) :  error: expression is not assignable
-// CHECK: any.cpp(29,11) :  error: expression is not assignable
-// CHECK: any.cpp(30,10) :  error: member reference base type 'unsigned short' is not a structure or union
-// CHECK: any.cpp(26,3) :  warning: expression result unused [-Wunused-value]
-// CHECK: any.cpp(27,3) :  warning: expression result unused [-Wunused-value]
+// CHECK: any.cpp(15,28):  error: expected '('
+// CHECK: any.cpp(16,29):  error: expected ')'
+// CHECK: any.cpp(17,29):  error: expected ')'
+// CHECK: any.cpp(18,29):  error: expected ')'
+// CHECK: any.cpp(24,36):  error: 'any' following the 'template' keyword does not refer to a template
+// CHECK: any.cpp(25,27):  error: no member named 'any' in 'S2'
+// CHECK: any.cpp(28,11):  error: expression is not assignable
+// CHECK: any.cpp(29,11):  error: expression is not assignable
+// CHECK: any.cpp(30,10):  error: member reference base type 'unsigned short' is not a structure or union
+// CHECK: any.cpp(26,3):  warning: expression result unused [-Wunused-value]
+// CHECK: any.cpp(27,3):  warning: expression result unused [-Wunused-value]
 // CHECK: 2 warnings and 9 errors generated.

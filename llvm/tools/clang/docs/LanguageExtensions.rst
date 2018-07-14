@@ -109,12 +109,71 @@ following ``__`` (double underscore) to avoid interference from a macro with
 the same name.  For instance, ``__cxx_rvalue_references__`` can be used instead
 of ``cxx_rvalue_references``.
 
+``__has_cpp_attribute``
+-----------------------
+
+This function-like macro takes a single argument that is the name of a
+C++11-style attribute. The argument can either be a single identifier, or a
+scoped identifier. If the attribute is supported, a nonzero value is returned.
+If the attribute is a standards-based attribute, this macro returns a nonzero
+value based on the year and month in which the attribute was voted into the
+working draft. If the attribute is not supported by the current compliation
+target, this macro evaluates to 0.  It can be used like this:
+
+.. code-block:: c++
+
+  #ifndef __has_cpp_attribute         // Optional of course.
+    #define __has_cpp_attribute(x) 0  // Compatibility with non-clang compilers.
+  #endif
+
+  ...
+  #if __has_cpp_attribute(clang::fallthrough)
+  #define FALLTHROUGH [[clang::fallthrough]]
+  #else
+  #define FALLTHROUGH
+  #endif
+  ...
+
+The attribute identifier (but not scope) can also be specified with a preceding
+and following ``__`` (double underscore) to avoid interference from a macro with
+the same name.  For instance, ``gnu::__const__`` can be used instead of
+``gnu::const``.
+
+``__has_c_attribute``
+---------------------
+
+This function-like macro takes a single argument that is the name of an
+attribute exposed with the double square-bracket syntax in C mode. The argument
+can either be a single identifier or a scoped identifier. If the attribute is
+supported, a nonzero value is returned. If the attribute is not supported by the
+current compilation target, this macro evaluates to 0. It can be used like this:
+
+.. code-block:: c
+
+  #ifndef __has_c_attribute         // Optional of course.
+    #define __has_c_attribute(x) 0  // Compatibility with non-clang compilers.
+  #endif
+
+  ...
+  #if __has_c_attribute(fallthrough)
+    #define FALLTHROUGH [[fallthrough]]
+  #else
+    #define FALLTHROUGH
+  #endif
+  ...
+
+The attribute identifier (but not scope) can also be specified with a preceding
+and following ``__`` (double underscore) to avoid interference from a macro with
+the same name.  For instance, ``gnu::__const__`` can be used instead of
+``gnu::const``.
+
+
 ``__has_attribute``
 -------------------
 
 This function-like macro takes a single identifier argument that is the name of
-an attribute.  It evaluates to 1 if the attribute is supported by the current
-compilation target, or 0 if not.  It can be used like this:
+a GNU-style attribute.  It evaluates to 1 if the attribute is supported by the
+current compilation target, or 0 if not.  It can be used like this:
 
 .. code-block:: c++
 
@@ -133,6 +192,33 @@ compilation target, or 0 if not.  It can be used like this:
 The attribute name can also be specified with a preceding and following ``__``
 (double underscore) to avoid interference from a macro with the same name.  For
 instance, ``__always_inline__`` can be used instead of ``always_inline``.
+
+
+``__has_declspec_attribute``
+----------------------------
+
+This function-like macro takes a single identifier argument that is the name of
+an attribute implemented as a Microsoft-style ``__declspec`` attribute.  It
+evaluates to 1 if the attribute is supported by the current compilation target,
+or 0 if not.  It can be used like this:
+
+.. code-block:: c++
+
+  #ifndef __has_declspec_attribute         // Optional of course.
+    #define __has_declspec_attribute(x) 0  // Compatibility with non-clang compilers.
+  #endif
+
+  ...
+  #if __has_declspec_attribute(dllexport)
+  #define DLLEXPORT __declspec(dllexport)
+  #else
+  #define DLLEXPORT
+  #endif
+  ...
+
+The attribute name can also be specified with a preceding and following ``__``
+(double underscore) to avoid interference from a macro with the same name.  For
+instance, ``__dllexport__`` can be used instead of ``dllexport``.
 
 ``__is_identifier``
 -------------------
@@ -299,7 +385,7 @@ is:
 
 Query for this feature with ``__has_extension(attribute_ext_vector_type)``.
 
-Giving ``-faltivec`` option to clang enables support for AltiVec vector syntax
+Giving ``-maltivec`` option to clang enables support for AltiVec vector syntax
 and functions.  For example:
 
 .. code-block:: c++
@@ -357,23 +443,70 @@ The table below shows the support for each operation by vector extension.  A
 dash indicates that an operation is not accepted according to a corresponding
 specification.
 
-============================== ====== ======= === ====
-         Opeator               OpenCL AltiVec GCC NEON
-============================== ====== ======= === ====
-[]                              yes     yes   yes  --
-unary operators +, --           yes     yes   yes  --
-++, -- --                       yes     yes   yes  --
-+,--,*,/,%                      yes     yes   yes  --
-bitwise operators &,|,^,~       yes     yes   yes  --
->>,<<                           yes     yes   yes  --
-!, &&, ||                       no      --    --   --
-==, !=, >, <, >=, <=            yes     yes   --   --
-=                               yes     yes   yes yes
-:?                              yes     --    --   --
-sizeof                          yes     yes   yes yes
-============================== ====== ======= === ====
+============================== ======= ======= ======= =======
+         Operator              OpenCL  AltiVec   GCC    NEON
+============================== ======= ======= ======= =======
+[]                               yes     yes     yes     --
+unary operators +, --            yes     yes     yes     --
+++, -- --                        yes     yes     yes     --
++,--,*,/,%                       yes     yes     yes     --
+bitwise operators &,|,^,~        yes     yes     yes     --
+>>,<<                            yes     yes     yes     --
+!, &&, ||                        yes     --      --      --
+==, !=, >, <, >=, <=             yes     yes     --      --
+=                                yes     yes     yes     yes
+:?                               yes     --      --      --
+sizeof                           yes     yes     yes     yes
+C-style cast                     yes     yes     yes     no
+reinterpret_cast                 yes     no      yes     no
+static_cast                      yes     no      yes     no
+const_cast                       no      no      no      no
+============================== ======= ======= ======= =======
 
-See also :ref:`langext-__builtin_shufflevector`.
+See also :ref:`langext-__builtin_shufflevector`, :ref:`langext-__builtin_convertvector`.
+
+Half-Precision Floating Point
+=============================
+
+Clang supports two half-precision (16-bit) floating point types: ``__fp16`` and
+``_Float16``. ``__fp16`` is defined in the ARM C Language Extensions (`ACLE
+<http://infocenter.arm.com/help/topic/com.arm.doc.ihi0053d/IHI0053D_acle_2_1.pdf>`_)
+and ``_Float16`` in ISO/IEC TS 18661-3:2015.
+
+``__fp16`` is a storage and interchange format only. This means that values of
+``__fp16`` promote to (at least) float when used in arithmetic operations.
+There are two ``__fp16`` formats. Clang supports the IEEE 754-2008 format and
+not the ARM alternative format.
+
+ISO/IEC TS 18661-3:2015 defines C support for additional floating point types.
+``_FloatN`` is defined as a binary floating type, where the N suffix denotes
+the number of bits and is 16, 32, 64, or greater and equal to 128 and a
+multiple of 32. Clang supports ``_Float16``. The difference from ``__fp16`` is
+that arithmetic on ``_Float16`` is performed in half-precision, thus it is not
+a storage-only format. ``_Float16`` is available as a source language type in
+both C and C++ mode.
+
+It is recommended that portable code use the ``_Float16`` type because
+``__fp16`` is an ARM C-Language Extension (ACLE), whereas ``_Float16`` is
+defined by the C standards committee, so using ``_Float16`` will not prevent
+code from being ported to architectures other than Arm.  Also, ``_Float16``
+arithmetic and operations will directly map on half-precision instructions when
+they are available (e.g. Armv8.2-A), avoiding conversions to/from
+single-precision, and thus will result in more performant code. If
+half-precision instructions are unavailable, values will be promoted to
+single-precision, similar to the semantics of ``__fp16`` except that the
+results will be stored in single-precision.
+
+In an arithmetic operation where one operand is of ``__fp16`` type and the
+other is of ``_Float16`` type, the ``_Float16`` type is first converted to
+``__fp16`` type and then the operation is completed as if both operands were of
+``__fp16`` type.
+
+To define a ``_Float16`` literal, suffix ``f16`` can be appended to the compile-time
+constant declaration. There is no default argument promotion for ``_Float16``; this
+applies to the standard floating types only. As a consequence, for example, an
+explicit cast is required for printing a ``_Float16`` value (there is no string
+format specifier for ``_Float16``).
 
 Messages on ``deprecated`` and ``unavailable`` Attributes
 =========================================================
@@ -388,7 +521,7 @@ An optional string message can be added to the ``deprecated`` and
 If the deprecated or unavailable declaration is used, the message will be
 incorporated into the appropriate diagnostic:
 
-.. code-block:: c++
+.. code-block:: none
 
   harmless.c:4:3: warning: 'explode' is deprecated: extremely unsafe, use 'combust' instead!!!
         [-Wdeprecated-declarations]
@@ -454,6 +587,13 @@ features are enabled.  The ``__has_extension`` macro can be used to query if
 language features are available as an extension when compiling for a standard
 which does not provide them.  The features which can be tested are listed here.
 
+Since Clang 3.4, the C++ SD-6 feature test macros are also supported.
+These are macros with names of the form ``__cpp_<feature_name>``, and are
+intended to be a portable way to query the supported features of the compiler.
+See `the C++ status page <http://clang.llvm.org/cxx_status.html#ts>`_ for
+information on the version of SD-6 supported by each Clang release, and the
+macros provided by that revision of the recommendations.
+
 C++98
 -----
 
@@ -501,6 +641,9 @@ C++11 alignment specifiers
 
 Use ``__has_feature(cxx_alignas)`` or ``__has_extension(cxx_alignas)`` to
 determine if support for alignment specifiers using ``alignas`` is enabled.
+
+Use ``__has_feature(cxx_alignof)`` or ``__has_extension(cxx_alignof)`` to
+determine if support for the ``alignof`` keyword is enabled.
 
 C++11 attributes
 ^^^^^^^^^^^^^^^^
@@ -709,14 +852,14 @@ Use ``__has_feature(cxx_variadic_templates)`` or
 ``__has_extension(cxx_variadic_templates)`` to determine if support for
 variadic templates is enabled.
 
-C++1y
+C++14
 -----
 
-The features listed below are part of the committee draft for the C++1y
-standard.  As a result, all these features are enabled with the ``-std=c++1y``
-or ``-std=gnu++1y`` option when compiling C++ code.
+The features listed below are part of the C++14 standard.  As a result, all
+these features are enabled with the ``-std=C++14`` or ``-std=gnu++14`` option
+when compiling C++ code.
 
-C++1y binary literals
+C++14 binary literals
 ^^^^^^^^^^^^^^^^^^^^^
 
 Use ``__has_feature(cxx_binary_literals)`` or
@@ -724,30 +867,37 @@ Use ``__has_feature(cxx_binary_literals)`` or
 binary literals (for instance, ``0b10010``) are recognized. Clang supports this
 feature as an extension in all language modes.
 
-C++1y contextual conversions
+C++14 contextual conversions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use ``__has_feature(cxx_contextual_conversions)`` or
-``__has_extension(cxx_contextual_conversions)`` to determine if the C++1y rules
+``__has_extension(cxx_contextual_conversions)`` to determine if the C++14 rules
 are used when performing an implicit conversion for an array bound in a
 *new-expression*, the operand of a *delete-expression*, an integral constant
 expression, or a condition in a ``switch`` statement.
 
-C++1y decltype(auto)
+C++14 decltype(auto)
 ^^^^^^^^^^^^^^^^^^^^
 
 Use ``__has_feature(cxx_decltype_auto)`` or
 ``__has_extension(cxx_decltype_auto)`` to determine if support
 for the ``decltype(auto)`` placeholder type is enabled.
 
-C++1y default initializers for aggregates
+C++14 default initializers for aggregates
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use ``__has_feature(cxx_aggregate_nsdmi)`` or
 ``__has_extension(cxx_aggregate_nsdmi)`` to determine if support
 for default initializers in aggregate members is enabled.
 
-C++1y generalized lambda capture
+C++14 digit separators
+^^^^^^^^^^^^^^^^^^^^^^
+
+Use ``__cpp_digit_separators`` to determine if support for digit separators
+using single quotes (for instance, ``10'000``) is enabled. At this time, there
+is no corresponding ``__has_feature`` name
+
+C++14 generalized lambda capture
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use ``__has_feature(cxx_init_captures)`` or
@@ -755,7 +905,7 @@ Use ``__has_feature(cxx_init_captures)`` or
 lambda captures with explicit initializers is enabled
 (for instance, ``[n(0)] { return ++n; }``).
 
-C++1y generic lambdas
+C++14 generic lambdas
 ^^^^^^^^^^^^^^^^^^^^^
 
 Use ``__has_feature(cxx_generic_lambdas)`` or
@@ -763,7 +913,7 @@ Use ``__has_feature(cxx_generic_lambdas)`` or
 (polymorphic) lambdas is enabled
 (for instance, ``[] (auto x) { return x + 1; }``).
 
-C++1y relaxed constexpr
+C++14 relaxed constexpr
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 Use ``__has_feature(cxx_relaxed_constexpr)`` or
@@ -771,7 +921,7 @@ Use ``__has_feature(cxx_relaxed_constexpr)`` or
 declarations, local variable modification, and control flow constructs
 are permitted in ``constexpr`` functions.
 
-C++1y return type deduction
+C++14 return type deduction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use ``__has_feature(cxx_return_type_deduction)`` or
@@ -779,7 +929,7 @@ Use ``__has_feature(cxx_return_type_deduction)`` or
 for return type deduction for functions (using ``auto`` as a return type)
 is enabled.
 
-C++1y runtime-sized arrays
+C++14 runtime-sized arrays
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use ``__has_feature(cxx_runtime_array)`` or
@@ -788,7 +938,7 @@ for arrays of runtime bound (a restricted form of variable-length arrays)
 is enabled.
 Clang's implementation of this feature is incomplete.
 
-C++1y variable templates
+C++14 variable templates
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 Use ``__has_feature(cxx_variable_templates)`` or
@@ -809,13 +959,25 @@ C11 alignment specifiers
 Use ``__has_feature(c_alignas)`` or ``__has_extension(c_alignas)`` to determine
 if support for alignment specifiers using ``_Alignas`` is enabled.
 
+Use ``__has_feature(c_alignof)`` or ``__has_extension(c_alignof)`` to determine
+if support for the ``_Alignof`` keyword is enabled.
+
 C11 atomic operations
 ^^^^^^^^^^^^^^^^^^^^^
 
 Use ``__has_feature(c_atomic)`` or ``__has_extension(c_atomic)`` to determine
 if support for atomic types using ``_Atomic`` is enabled.  Clang also provides
 :ref:`a set of builtins <langext-__c11_atomic>` which can be used to implement
-the ``<stdatomic.h>`` operations on ``_Atomic`` types.
+the ``<stdatomic.h>`` operations on ``_Atomic`` types. Use
+``__has_include(<stdatomic.h>)`` to determine if C11's ``<stdatomic.h>`` header
+is available.
+
+Clang will use the system's ``<stdatomic.h>`` header when one is available, and
+will otherwise use its own. When using its own, implementations of the atomic
+operations are provided as macros. In the cases where C11 also requires a real
+function, this header provides only the declaration of that function (along
+with a shadowing macro implementation), and you must link to a library which
+provides a definition of the function if you use it instead of the macro.
 
 C11 generic selections
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -844,6 +1006,14 @@ C11 ``_Thread_local``
 
 Use ``__has_feature(c_thread_local)`` or ``__has_extension(c_thread_local)``
 to determine if support for ``_Thread_local`` variables is enabled.
+
+Modules
+-------
+
+Use ``__has_feature(modules)`` to determine if Modules have been enabled.
+For example, compiling code with ``-fmodules`` enables the use of Modules.
+
+More information could be found `here <http://clang.llvm.org/docs/Modules.html>`_.
 
 Checks for Type Trait Primitives
 ================================
@@ -895,6 +1065,7 @@ The following type trait primitives are supported by Clang:
 * ``__has_trivial_destructor`` (GNU, Microsoft)
 * ``__has_virtual_destructor`` (GNU, Microsoft)
 * ``__is_abstract`` (GNU, Microsoft)
+* ``__is_aggregate`` (GNU, Microsoft)
 * ``__is_base_of`` (GNU, Microsoft)
 * ``__is_class`` (GNU, Microsoft)
 * ``__is_convertible_to`` (Microsoft)
@@ -919,11 +1090,12 @@ The following type trait primitives are supported by Clang:
   ``argtypes...`` such that no non-trivial functions are called as part of
   that initialization.  This trait is required to implement the C++11 standard
   library.
-* ``__is_destructible`` (MSVC 2013): partially implemented
-* ``__is_nothrow_destructible`` (MSVC 2013): partially implemented
+* ``__is_destructible`` (MSVC 2013)
+* ``__is_nothrow_destructible`` (MSVC 2013)
 * ``__is_nothrow_assignable`` (MSVC 2013, clang)
 * ``__is_constructible`` (MSVC 2013, clang)
 * ``__is_nothrow_constructible`` (MSVC 2013, clang)
+* ``__is_assignable`` (MSVC 2015, clang)
 
 Blocks
 ======
@@ -1171,6 +1343,87 @@ Further examples of these attributes are available in the static analyzer's `lis
 Query for these features with ``__has_attribute(ns_consumed)``,
 ``__has_attribute(ns_returns_retained)``, etc.
 
+Objective-C @available
+----------------------
+
+It is possible to use the newest SDK but still build a program that can run on
+older versions of macOS and iOS by passing ``-mmacosx-version-min=`` /
+``-miphoneos-version-min=``.
+
+Before LLVM 5.0, when calling a function that exists only in the OS that's
+newer than the target OS (as determined by the minimum deployment version),
+programmers had to carefully check if the function exists at runtime, using
+null checks for weakly-linked C functions, ``+class`` for Objective-C classes,
+and ``-respondsToSelector:`` or ``+instancesRespondToSelector:`` for
+Objective-C methods.  If such a check was missed, the program would compile
+fine, run fine on newer systems, but crash on older systems.
+
+As of LLVM 5.0, ``-Wunguarded-availability`` uses the `availability attributes
+<http://clang.llvm.org/docs/AttributeReference.html#availability>`_ together
+with the new ``@available()`` keyword to assist with this issue.
+When a method that's introduced in the OS newer than the target OS is called, a
+-Wunguarded-availability warning is emitted if that call is not guarded:
+
+.. code-block:: objc
+
+  void my_fun(NSSomeClass* var) {
+    // If fancyNewMethod was added in e.g. macOS 10.12, but the code is
+    // built with -mmacosx-version-min=10.11, then this unconditional call
+    // will emit a -Wunguarded-availability warning:
+    [var fancyNewMethod];
+  }
+
+To fix the warning and to avoid the crash on macOS 10.11, wrap it in
+``if(@available())``:
+
+.. code-block:: objc
+
+  void my_fun(NSSomeClass* var) {
+    if (@available(macOS 10.12, *)) {
+      [var fancyNewMethod];
+    } else {
+      // Put fallback behavior for old macOS versions (and for non-mac
+      // platforms) here.
+    }
+  }
+
+The ``*`` is required and means that platforms not explicitly listed will take
+the true branch, and the compiler will emit ``-Wunguarded-availability``
+warnings for unlisted platforms based on those platform's deployment target.
+More than one platform can be listed in ``@available()``:
+
+.. code-block:: objc
+
+  void my_fun(NSSomeClass* var) {
+    if (@available(macOS 10.12, iOS 10, *)) {
+      [var fancyNewMethod];
+    }
+  }
+
+If the caller of ``my_fun()`` already checks that ``my_fun()`` is only called
+on 10.12, then add an `availability attribute
+<http://clang.llvm.org/docs/AttributeReference.html#availability>`_ to it,
+which will also suppress the warning and require that calls to my_fun() are
+checked:
+
+.. code-block:: objc
+
+  API_AVAILABLE(macos(10.12)) void my_fun(NSSomeClass* var) {
+    [var fancyNewMethod];  // Now ok.
+  }
+
+``@available()`` is only available in Objective-C code.  To use the feature
+in C and C++ code, use the ``__builtin_available()`` spelling instead.
+
+If existing code uses null checks or ``-respondsToSelector:``, it should
+be changed to use ``@available()`` (or ``__builtin_available``) instead.
+
+``-Wunguarded-availability`` is disabled by default, but
+``-Wunguarded-availability-new``, which only emits this warning for APIs
+that have been introduced in macOS >= 10.13, iOS >= 11, watchOS >= 4 and
+tvOS >= 11, is enabled by default.
+
+.. _langext-overloading:
 
 Objective-C++ ABI: protocol-qualifier mangling of parameters
 ------------------------------------------------------------
@@ -1186,8 +1439,6 @@ parameters of protocol-qualified type.
 
 Query the presence of this new mangling with
 ``__has_feature(objc_protocol_qualifier_mangling)``.
-
-.. _langext-overloading:
 
 Initializer lists for complex numbers in C
 ==========================================
@@ -1224,8 +1475,9 @@ Builtin Functions
 Clang supports a number of builtin library functions with the same syntax as
 GCC, including things like ``__builtin_nan``, ``__builtin_constant_p``,
 ``__builtin_choose_expr``, ``__builtin_types_compatible_p``,
-``__sync_fetch_and_add``, etc.  In addition to the GCC builtins, Clang supports
-a number of builtins that GCC does not, which are listed here.
+``__builtin_assume_aligned``, ``__sync_fetch_and_add``, etc.  In addition to
+the GCC builtins, Clang supports a number of builtins that GCC does not, which
+are listed here.
 
 Please note that Clang does not and will not support all of the GCC builtins
 for vector operations.  Instead of using builtins, you should use the functions
@@ -1234,6 +1486,42 @@ portable wrappers for these.  Many of the Clang versions of these functions are
 implemented directly in terms of :ref:`extended vector support
 <langext-vectors>` instead of builtins, in order to reduce the number of
 builtins that we need to implement.
+
+``__builtin_assume``
+------------------------------
+
+``__builtin_assume`` is used to provide the optimizer with a boolean
+invariant that is defined to be true.
+
+**Syntax**:
+
+.. code-block:: c++
+
+  __builtin_assume(bool)
+
+**Example of Use**:
+
+.. code-block:: c++
+
+  int foo(int x) {
+    __builtin_assume(x != 0);
+
+    // The optimizer may short-circuit this check using the invariant.
+    if (x == 0)
+      return do_something();
+
+    return do_something_else();
+  }
+
+**Description**:
+
+The boolean argument to this function is defined to be true. The optimizer may
+analyze the form of the expression provided as the argument and deduce from
+that information used to optimize the program. If the condition is violated
+during execution, the behavior is undefined. The argument itself is never
+evaluated, so any side effects of the expression will be discarded.
+
+Query for this feature with ``__has_builtin(__builtin_assume)``.
 
 ``__builtin_readcyclecounter``
 ------------------------------
@@ -1324,6 +1612,8 @@ indices specified.
 
 Query for this feature with ``__has_builtin(__builtin_shufflevector)``.
 
+.. _langext-__builtin_convertvector:
+
 ``__builtin_convertvector``
 ---------------------------
 
@@ -1354,7 +1644,7 @@ type must have the same number of elements.
   // convert from a vector of 4 shorts to a vector of 4 floats.
   __builtin_convertvector(vs, vector4float)
   // equivalent to:
-  (vector4float) { (float) vf[0], (float) vf[1], (float) vf[2], (float) vf[3] }
+  (vector4float) { (float) vs[0], (float) vs[1], (float) vs[2], (float) vs[3] }
 
 **Description**:
 
@@ -1367,6 +1657,35 @@ type as the second argument, with a value defined in terms of the action of a
 C-style cast applied to each element of the first argument.
 
 Query for this feature with ``__has_builtin(__builtin_convertvector)``.
+
+``__builtin_bitreverse``
+------------------------
+
+* ``__builtin_bitreverse8``
+* ``__builtin_bitreverse16``
+* ``__builtin_bitreverse32``
+* ``__builtin_bitreverse64``
+
+**Syntax**:
+
+.. code-block:: c++
+
+     __builtin_bitreverse32(x)
+
+**Examples**:
+
+.. code-block:: c++
+
+      uint8_t rev_x = __builtin_bitreverse8(x);
+      uint16_t rev_x = __builtin_bitreverse16(x);
+      uint32_t rev_y = __builtin_bitreverse32(y);
+      uint64_t rev_z = __builtin_bitreverse64(z);
+
+**Description**:
+
+The '``__builtin_bitreverse``' family of builtins is used to reverse
+the bitpattern of an integer value; for example ``0b10110110`` becomes
+``0b01101101``.
 
 ``__builtin_unreachable``
 -------------------------
@@ -1402,6 +1721,33 @@ the optimizer can take advantage of this to produce better code.  This builtin
 takes no arguments and produces a void result.
 
 Query for this feature with ``__has_builtin(__builtin_unreachable)``.
+
+``__builtin_unpredictable``
+---------------------------
+
+``__builtin_unpredictable`` is used to indicate that a branch condition is
+unpredictable by hardware mechanisms such as branch prediction logic.
+
+**Syntax**:
+
+.. code-block:: c++
+
+    __builtin_unpredictable(long long)
+
+**Example of use**:
+
+.. code-block:: c++
+
+  if (__builtin_unpredictable(x > 0)) {
+     foo();
+  }
+
+**Description**:
+
+The ``__builtin_unpredictable()`` builtin is expected to be used with control
+flow conditions such as in ``if`` and ``switch`` statements.
+
+Query for this feature with ``__has_builtin(__builtin_unpredictable)``.
 
 ``__sync_swap``
 ---------------
@@ -1515,17 +1861,20 @@ an example of their usage:
   errorcode_t security_critical_application(...) {
     unsigned x, y, result;
     ...
-    if (__builtin_umul_overflow(x, y, &result))
+    if (__builtin_mul_overflow(x, y, &result))
       return kErrorCodeHackers;
     ...
     use_multiply(result);
     ...
   }
 
-A complete enumeration of the builtins are:
+Clang provides the following checked arithmetic builtins:
 
 .. code-block:: c
 
+  bool __builtin_add_overflow   (type1 x, type2 y, type3 *sum);
+  bool __builtin_sub_overflow   (type1 x, type2 y, type3 *diff);
+  bool __builtin_mul_overflow   (type1 x, type2 y, type3 *prod);
   bool __builtin_uadd_overflow  (unsigned x, unsigned y, unsigned *sum);
   bool __builtin_uaddl_overflow (unsigned long x, unsigned long y, unsigned long *sum);
   bool __builtin_uaddll_overflow(unsigned long long x, unsigned long long y, unsigned long long *sum);
@@ -1545,6 +1894,79 @@ A complete enumeration of the builtins are:
   bool __builtin_smull_overflow (long x, long y, long *prod);
   bool __builtin_smulll_overflow(long long x, long long y, long long *prod);
 
+Each builtin performs the specified mathematical operation on the
+first two arguments and stores the result in the third argument.  If
+possible, the result will be equal to mathematically-correct result
+and the builtin will return 0.  Otherwise, the builtin will return
+1 and the result will be equal to the unique value that is equivalent
+to the mathematically-correct result modulo two raised to the *k*
+power, where *k* is the number of bits in the result type.  The
+behavior of these builtins is well-defined for all argument values.
+
+The first three builtins work generically for operands of any integer type,
+including boolean types.  The operands need not have the same type as each
+other, or as the result.  The other builtins may implicitly promote or
+convert their operands before performing the operation.
+
+Query for this feature with ``__has_builtin(__builtin_add_overflow)``, etc.
+
+Floating point builtins
+---------------------------------------
+
+``__builtin_canonicalize``
+--------------------------
+
+.. code-block:: c
+
+   double __builtin_canonicalize(double);
+   float __builtin_canonicalizef(float);
+   long double__builtin_canonicalizel(long double);
+
+Returns the platform specific canonical encoding of a floating point
+number. This canonicalization is useful for implementing certain
+numeric primitives such as frexp. See `LLVM canonicalize intrinsic
+<http://llvm.org/docs/LangRef.html#llvm-canonicalize-intrinsic>`_ for
+more information on the semantics.
+
+String builtins
+---------------
+
+Clang provides constant expression evaluation support for builtins forms of
+the following functions from the C standard library ``<string.h>`` header:
+
+* ``memchr``
+* ``memcmp``
+* ``strchr``
+* ``strcmp``
+* ``strlen``
+* ``strncmp``
+* ``wcschr``
+* ``wcscmp``
+* ``wcslen``
+* ``wcsncmp``
+* ``wmemchr``
+* ``wmemcmp``
+
+In each case, the builtin form has the name of the C library function prefixed
+by ``__builtin_``. Example:
+
+.. code-block:: c
+
+  void *p = __builtin_memchr("foobar", 'b', 5);
+
+In addition to the above, one further builtin is provided:
+
+.. code-block:: c
+
+  char *__builtin_char_memchr(const char *haystack, int needle, size_t size);
+
+``__builtin_char_memchr(a, b, c)`` is identical to
+``(char*)__builtin_memchr(a, b, c)`` except that its use is permitted within
+constant expressions in C++11 onwards (where a cast from ``void*`` to ``char*``
+is disallowed in general).
+
+Support for constant expression evaluation for the above builtins be detected
+with ``__has_feature(cxx_constexpr_string_builtins)``.
 
 .. _langext-__c11_atomic:
 
@@ -1554,12 +1976,14 @@ __c11_atomic builtins
 Clang provides a set of builtins which are intended to be used to implement
 C11's ``<stdatomic.h>`` header.  These builtins provide the semantics of the
 ``_explicit`` form of the corresponding C11 operation, and are named with a
-``__c11_`` prefix.  The supported operations are:
+``__c11_`` prefix.  The supported operations, and the differences from
+the corresponding C11 operations, are:
 
 * ``__c11_atomic_init``
 * ``__c11_atomic_thread_fence``
 * ``__c11_atomic_signal_fence``
-* ``__c11_atomic_is_lock_free``
+* ``__c11_atomic_is_lock_free`` (The argument is the size of the
+  ``_Atomic(...)`` object, instead of its address)
 * ``__c11_atomic_store``
 * ``__c11_atomic_load``
 * ``__c11_atomic_exchange``
@@ -1570,6 +1994,20 @@ C11's ``<stdatomic.h>`` header.  These builtins provide the semantics of the
 * ``__c11_atomic_fetch_and``
 * ``__c11_atomic_fetch_or``
 * ``__c11_atomic_fetch_xor``
+
+The macros ``__ATOMIC_RELAXED``, ``__ATOMIC_CONSUME``, ``__ATOMIC_ACQUIRE``,
+``__ATOMIC_RELEASE``, ``__ATOMIC_ACQ_REL``, and ``__ATOMIC_SEQ_CST`` are
+provided, with values corresponding to the enumerators of C11's
+``memory_order`` enumeration.
+
+(Note that Clang additionally provides GCC-compatible ``__atomic_*``
+builtins and OpenCL 2.0 ``__opencl_atomic_*`` builtins. The OpenCL 2.0
+atomic builtins are an explicit form of the corresponding OpenCL 2.0
+builtin function, and are named with a ``__opencl_`` prefix. The macros
+``__OPENCL_MEMORY_SCOPE_WORK_ITEM``, ``__OPENCL_MEMORY_SCOPE_WORK_GROUP``,
+``__OPENCL_MEMORY_SCOPE_DEVICE``, ``__OPENCL_MEMORY_SCOPE_ALL_SVM_DEVICES``,
+and ``__OPENCL_MEMORY_SCOPE_SUB_GROUP`` are provided, with values
+corresponding to the enumerators of OpenCL's ``memory_scope`` enumeration.)
 
 Low-level ARM exclusive memory builtins
 ---------------------------------------
@@ -1586,6 +2024,7 @@ instructions for implementing atomic operations.
   void __builtin_arm_clrex(void);
 
 The types ``T`` currently supported are:
+
 * Integer types with width at most 64 bits (or 128 bits on AArch64).
 * Floating-point types
 * Pointer types.
@@ -1603,6 +2042,102 @@ care should be exercised.
 
 For these reasons the higher level atomic primitives should be preferred where
 possible.
+
+Non-temporal load/store builtins
+--------------------------------
+
+Clang provides overloaded builtins allowing generation of non-temporal memory
+accesses.
+
+.. code-block:: c
+
+  T __builtin_nontemporal_load(T *addr);
+  void __builtin_nontemporal_store(T value, T *addr);
+
+The types ``T`` currently supported are:
+
+* Integer types.
+* Floating-point types.
+* Vector types.
+
+Note that the compiler does not guarantee that non-temporal loads or stores
+will be used.
+
+C++ Coroutines support builtins
+--------------------------------
+
+.. warning::
+  This is a work in progress. Compatibility across Clang/LLVM releases is not 
+  guaranteed.
+
+Clang provides experimental builtins to support C++ Coroutines as defined by
+http://wg21.link/P0057. The following four are intended to be used by the
+standard library to implement `std::experimental::coroutine_handle` type.
+
+**Syntax**:
+
+.. code-block:: c
+
+  void  __builtin_coro_resume(void *addr);
+  void  __builtin_coro_destroy(void *addr);
+  bool  __builtin_coro_done(void *addr);
+  void *__builtin_coro_promise(void *addr, int alignment, bool from_promise)
+
+**Example of use**:
+
+.. code-block:: c++
+
+  template <> struct coroutine_handle<void> {
+    void resume() const { __builtin_coro_resume(ptr); }
+    void destroy() const { __builtin_coro_destroy(ptr); }
+    bool done() const { return __builtin_coro_done(ptr); }
+    // ...
+  protected:
+    void *ptr;
+  };
+
+  template <typename Promise> struct coroutine_handle : coroutine_handle<> {
+    // ...
+    Promise &promise() const {
+      return *reinterpret_cast<Promise *>(
+        __builtin_coro_promise(ptr, alignof(Promise), /*from-promise=*/false));
+    }
+    static coroutine_handle from_promise(Promise &promise) {
+      coroutine_handle p;
+      p.ptr = __builtin_coro_promise(&promise, alignof(Promise),
+                                                      /*from-promise=*/true);
+      return p;
+    }
+  };
+
+
+Other coroutine builtins are either for internal clang use or for use during
+development of the coroutine feature. See `Coroutines in LLVM
+<http://llvm.org/docs/Coroutines.html#intrinsics>`_ for
+more information on their semantics. Note that builtins matching the intrinsics
+that take token as the first parameter (llvm.coro.begin, llvm.coro.alloc, 
+llvm.coro.free and llvm.coro.suspend) omit the token parameter and fill it to
+an appropriate value during the emission.
+
+**Syntax**:
+
+.. code-block:: c
+
+  size_t __builtin_coro_size()
+  void  *__builtin_coro_frame()
+  void  *__builtin_coro_free(void *coro_frame)
+
+  void  *__builtin_coro_id(int align, void *promise, void *fnaddr, void *parts)
+  bool   __builtin_coro_alloc()
+  void  *__builtin_coro_begin(void *memory)
+  void   __builtin_coro_end(void *coro_frame, bool unwind)
+  char   __builtin_coro_suspend(bool final)
+  bool   __builtin_coro_param(void *original, void *copy)
+
+Note that there is no builtin matching the `llvm.coro.save` intrinsic. LLVM
+automatically will insert one if the first argument to `llvm.coro.suspend` is
+token `none`. If a user calls `__builin_suspend`, clang will insert `token none`
+as the first argument to the intrinsic.
 
 Non-standard C++11 Attributes
 =============================
@@ -1634,17 +2169,31 @@ Target-Specific Extensions
 
 Clang supports some language features conditionally on some targets.
 
+ARM/AArch64 Language Extensions
+-------------------------------
+
+Memory Barrier Intrinsics
+^^^^^^^^^^^^^^^^^^^^^^^^^
+Clang implements the ``__dmb``, ``__dsb`` and ``__isb`` intrinsics as defined
+in the `ARM C Language Extensions Release 2.0
+<http://infocenter.arm.com/help/topic/com.arm.doc.ihi0053c/IHI0053C_acle_2_0.pdf>`_.
+Note that these intrinsics are implemented as motion barriers that block
+reordering of memory accesses and side effect instructions. Other instructions
+like simple arithmetic may be reordered around the intrinsic. If you expect to
+have no reordering at all, use inline assembly instead.
+
 X86/X86-64 Language Extensions
 ------------------------------
 
 The X86 backend has these language extensions:
 
-Memory references off the GS segment
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Memory references to specified segments
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Annotating a pointer with address space #256 causes it to be code generated
-relative to the X86 GS segment register, and address space #257 causes it to be
-relative to the X86 FS segment.  Note that this is a very very low-level
+relative to the X86 GS segment register, address space #257 causes it to be
+relative to the X86 FS segment, and address space #258 causes it to be
+relative to the X86 SS segment.  Note that this is a very very low-level
 feature that should only be used if you know what you're doing (for example in
 an OS kernel).
 
@@ -1687,6 +2236,9 @@ with :doc:`ThreadSanitizer`.
 
 Use ``__has_feature(memory_sanitizer)`` to check if the code is being built
 with :doc:`MemorySanitizer`.
+
+Use ``__has_feature(safe_stack)`` to check if the code is being built
+with :doc:`SafeStack`.
 
 
 Extensions for selectively disabling optimization
@@ -1772,9 +2324,9 @@ Extensions for loop hint optimizations
 
 The ``#pragma clang loop`` directive is used to specify hints for optimizing the
 subsequent for, while, do-while, or c++11 range-based for loop. The directive
-provides options for vectorization, interleaving, and unrolling. Loop hints can
-be specified before any loop and will be ignored if the optimization is not safe
-to apply.
+provides options for vectorization, interleaving, unrolling and
+distribution. Loop hints can be specified before any loop and will be ignored if
+the optimization is not safe to apply.
 
 Vectorization and Interleaving
 ------------------------------
@@ -1831,10 +2383,10 @@ compile time. Partial unrolling replicates the loop body within the loop and
 reduces the trip count.
 
 If ``unroll(enable)`` is specified the unroller will attempt to fully unroll the
-loop if the trip count is known at compile time. If the loop count is not known
-or the fully unrolled code size is greater than the limit specified by the
-`-pragma-unroll-threshold` command line option the loop will be partially
-unrolled subject to the same limit.
+loop if the trip count is known at compile time. If the fully unrolled code size
+is greater than an internal limit the loop will be partially unrolled up to this
+limit. If the trip count is not known at compile time the loop will be partially
+unrolled with a heuristically chosen unroll factor.
 
 .. code-block:: c++
 
@@ -1843,10 +2395,22 @@ unrolled subject to the same limit.
     ...
   }
 
+If ``unroll(full)`` is specified the unroller will attempt to fully unroll the
+loop if the trip count is known at compile time identically to
+``unroll(enable)``. However, with ``unroll(full)`` the loop will not be unrolled
+if the loop count is not known at compile time.
+
+.. code-block:: c++
+
+  #pragma clang loop unroll(full)
+  for(...) {
+    ...
+  }
+
 The unroll count can be specified explicitly with ``unroll_count(_value_)`` where
 _value_ is a positive integer. If this value is greater than the trip count the
 loop will be fully unrolled. Otherwise the loop is partially unrolled subject
-to the `-pragma-unroll-threshold` limit.
+to the same code size limit as with ``unroll(enable)``.
 
 .. code-block:: c++
 
@@ -1856,6 +2420,38 @@ to the `-pragma-unroll-threshold` limit.
   }
 
 Unrolling of a loop can be prevented by specifying ``unroll(disable)``.
+
+Loop Distribution
+-----------------
+
+Loop Distribution allows splitting a loop into multiple loops.  This is
+beneficial for example when the entire loop cannot be vectorized but some of the
+resulting loops can.
+
+If ``distribute(enable))`` is specified and the loop has memory dependencies
+that inhibit vectorization, the compiler will attempt to isolate the offending
+operations into a new loop.  This optimization is not enabled by default, only
+loops marked with the pragma are considered.
+
+.. code-block:: c++
+
+  #pragma clang loop distribute(enable)
+  for (i = 0; i < N; ++i) {
+    S1: A[i + 1] = A[i] + B[i];
+    S2: C[i] = D[i] * E[i];
+  }
+
+This loop will be split into two loops between statements S1 and S2.  The
+second loop containing S2 will be vectorized.
+
+Loop Distribution is currently not enabled by default in the optimizer because
+it can hurt performance in some cases.  For example, instruction-level
+parallelism could be reduced by sequentializing the execution of the
+statements S1 and S2 above.
+
+If Loop Distribution is turned on globally with
+``-mllvm -enable-loop-distribution``, specifying ``distribute(disable)`` can
+be used the disable it on a per-loop basis.
 
 Additional Information
 ----------------------
@@ -1874,3 +2470,253 @@ For example, the hint ``vectorize_width(4)`` is ignored if the loop is not
 proven safe to vectorize. To identify and diagnose optimization issues use
 `-Rpass`, `-Rpass-missed`, and `-Rpass-analysis` command line options. See the
 user guide for details.
+
+Extensions to specify floating-point flags
+====================================================
+
+The ``#pragma clang fp`` pragma allows floating-point options to be specified
+for a section of the source code. This pragma can only appear at file scope or
+at the start of a compound statement (excluding comments). When using within a
+compound statement, the pragma is active within the scope of the compound
+statement.
+
+Currently, only FP contraction can be controlled with the pragma. ``#pragma
+clang fp contract`` specifies whether the compiler should contract a multiply
+and an addition (or subtraction) into a fused FMA operation when supported by
+the target.
+
+The pragma can take three values: ``on``, ``fast`` and ``off``.  The ``on``
+option is identical to using ``#pragma STDC FP_CONTRACT(ON)`` and it allows
+fusion as specified the language standard.  The ``fast`` option allows fusiong
+in cases when the language standard does not make this possible (e.g. across
+statements in C)
+
+.. code-block:: c++
+
+  for(...) {
+    #pragma clang fp contract(fast)
+    a = b[i] * c[i];
+    d[i] += a;
+  }
+
+
+The pragma can also be used with ``off`` which turns FP contraction off for a
+section of the code. This can be useful when fast contraction is otherwise
+enabled for the translation unit with the ``-ffp-contract=fast`` flag.
+
+Specifying an attribute for multiple declarations (#pragma clang attribute)
+===========================================================================
+
+The ``#pragma clang attribute`` directive can be used to apply an attribute to
+multiple declarations. The ``#pragma clang attribute push`` variation of the
+directive pushes a new attribute to the attribute stack. The declarations that
+follow the pragma receive the attributes that are on the attribute stack, until
+the stack is cleared using a ``#pragma clang attribute pop`` directive. Multiple
+push directives can be nested inside each other.
+
+The attributes that are used in the ``#pragma clang attribute`` directives
+can be written using the GNU-style syntax:
+
+.. code-block:: c++
+
+  #pragma clang attribute push(__attribute__((annotate("custom"))), apply_to = function)
+
+  void function(); // The function now has the annotate("custom") attribute
+
+  #pragma clang attribute pop
+
+The attributes can also be written using the C++11 style syntax:
+
+.. code-block:: c++
+
+  #pragma clang attribute push([[noreturn]], apply_to = function)
+
+  void function(); // The function now has the [[noreturn]] attribute
+
+  #pragma clang attribute pop
+
+The ``__declspec`` style syntax is also supported:
+
+.. code-block:: c++
+
+  #pragma clang attribute push(__declspec(dllexport), apply_to = function)
+
+  void function(); // The function now has the __declspec(dllexport) attribute
+
+  #pragma clang attribute pop
+
+A single push directive accepts only one attribute regardless of the syntax
+used.
+
+Subject Match Rules
+-------------------
+
+The set of declarations that receive a single attribute from the attribute stack
+depends on the subject match rules that were specified in the pragma. Subject
+match rules are specified after the attribute. The compiler expects an
+identifier that corresponds to the subject set specifier. The ``apply_to``
+specifier is currently the only supported subject set specifier. It allows you
+to specify match rules that form a subset of the attribute's allowed subject
+set, i.e. the compiler doesn't require all of the attribute's subjects. For
+example, an attribute like ``[[nodiscard]]`` whose subject set includes
+``enum``, ``record`` and ``hasType(functionType)``, requires the presence of at
+least one of these rules after ``apply_to``:
+
+.. code-block:: c++
+
+  #pragma clang attribute push([[nodiscard]], apply_to = enum)
+
+  enum Enum1 { A1, B1 }; // The enum will receive [[nodiscard]]
+
+  struct Record1 { }; // The struct will *not* receive [[nodiscard]]
+
+  #pragma clang attribute pop
+
+  #pragma clang attribute push([[nodiscard]], apply_to = any(record, enum))
+
+  enum Enum2 { A2, B2 }; // The enum will receive [[nodiscard]]
+
+  struct Record2 { }; // The struct *will* receive [[nodiscard]]
+
+  #pragma clang attribute pop
+
+  // This is an error, since [[nodiscard]] can't be applied to namespaces:
+  #pragma clang attribute push([[nodiscard]], apply_to = any(record, namespace))
+
+  #pragma clang attribute pop
+
+Multiple match rules can be specified using the ``any`` match rule, as shown
+in the example above. The ``any`` rule applies attributes to all declarations
+that are matched by at least one of the rules in the ``any``. It doesn't nest
+and can't be used inside the other match rules. Redundant match rules or rules
+that conflict with one another should not be used inside of ``any``.
+
+Clang supports the following match rules:
+
+- ``function``: Can be used to apply attributes to functions. This includes C++
+  member functions, static functions, operators, and constructors/destructors.
+
+- ``function(is_member)``: Can be used to apply attributes to C++ member
+  functions. This includes members like static functions, operators, and
+  constructors/destructors.
+
+- ``hasType(functionType)``: Can be used to apply attributes to functions, C++
+  member functions, and variables/fields whose type is a function pointer. It
+  does not apply attributes to Objective-C methods or blocks.
+
+- ``type_alias``: Can be used to apply attributes to ``typedef`` declarations
+  and C++11 type aliases.
+
+- ``record``: Can be used to apply attributes to ``struct``, ``class``, and
+  ``union`` declarations.
+
+- ``record(unless(is_union))``: Can be used to apply attributes only to
+  ``struct`` and ``class`` declarations.
+
+- ``enum``: Can be be used to apply attributes to enumeration declarations.
+
+- ``enum_constant``: Can be used to apply attributes to enumerators.
+
+- ``variable``: Can be used to apply attributes to variables, including
+  local variables, parameters, global variables, and static member variables.
+  It does not apply attributes to instance member variables or Objective-C
+  ivars.
+
+- ``variable(is_thread_local)``: Can be used to apply attributes to thread-local
+  variables only.
+
+- ``variable(is_global)``: Can be used to apply attributes to global variables
+  only.
+
+- ``variable(is_parameter)``: Can be used to apply attributes to parameters
+  only.
+
+- ``variable(unless(is_parameter))``: Can be used to apply attributes to all
+  the variables that are not parameters.
+
+- ``field``: Can be used to apply attributes to non-static member variables
+  in a record. This includes Objective-C ivars.
+
+- ``namespace``: Can be used to apply attributes to ``namespace`` declarations.
+
+- ``objc_interface``: Can be used to apply attributes to ``@interface``
+  declarations.
+
+- ``objc_protocol``: Can be used to apply attributes to ``@protocol``
+  declarations.
+
+- ``objc_category``: Can be used to apply attributes to category declarations,
+  including class extensions.
+
+- ``objc_method``: Can be used to apply attributes to Objective-C methods,
+  including instance and class methods. Implicit methods like implicit property
+  getters and setters do not receive the attribute.
+
+- ``objc_method(is_instance)``: Can be used to apply attributes to Objective-C
+  instance methods.
+
+- ``objc_property``: Can be used to apply attributes to ``@property``
+  declarations.
+
+- ``block``: Can be used to apply attributes to block declarations. This does
+  not include variables/fields of block pointer type.
+
+The use of ``unless`` in match rules is currently restricted to a strict set of
+sub-rules that are used by the supported attributes. That means that even though
+``variable(unless(is_parameter))`` is a valid match rule,
+``variable(unless(is_thread_local))`` is not.
+
+Supported Attributes
+--------------------
+
+Not all attributes can be used with the ``#pragma clang attribute`` directive.
+Notably, statement attributes like ``[[fallthrough]]`` or type attributes
+like ``address_space`` aren't supported by this directive. You can determine
+whether or not an attribute is supported by the pragma by referring to the
+:doc:`individual documentation for that attribute <AttributeReference>`.
+
+The attributes are applied to all matching declarations individually, even when
+the attribute is semantically incorrect. The attributes that aren't applied to
+any declaration are not verified semantically.
+
+Specifying section names for global objects (#pragma clang section)
+===================================================================
+
+The ``#pragma clang section`` directive provides a means to assign section-names
+to global variables, functions and static variables.
+
+The section names can be specified as:
+
+.. code-block:: c++
+
+  #pragma clang section bss="myBSS" data="myData" rodata="myRodata" text="myText"
+
+The section names can be reverted back to default name by supplying an empty
+string to the section kind, for example:
+
+.. code-block:: c++
+
+  #pragma clang section bss="" data="" text="" rodata=""
+
+The ``#pragma clang section`` directive obeys the following rules:
+
+* The pragma applies to all global variable, statics and function declarations
+  from the pragma to the end of the translation unit.
+
+* The pragma clang section is enabled automatically, without need of any flags.
+
+* This feature is only defined to work sensibly for ELF targets.
+
+* If section name is specified through _attribute_((section("myname"))), then
+  the attribute name gains precedence.
+
+* Global variables that are initialized to zero will be placed in the named
+  bss section, if one is present.
+
+* The ``#pragma clang section`` directive does not does try to infer section-kind
+  from the name. For example, naming a section "``.bss.mySec``" does NOT mean
+  it will be a bss section name.
+
+* The decision about which section-kind applies to each global is taken in the back-end.
+  Once the section-kind is known, appropriate section name, as specified by the user using
+  ``#pragma clang section`` directive, is applied to that global.

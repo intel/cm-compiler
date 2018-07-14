@@ -1,4 +1,7 @@
-// RUN: %clang_cc1 %s -pedantic -verify -triple=x86_64-apple-darwin9
+// RUN: %clang_cc1 %s -fblocks -pedantic -verify -triple=x86_64-apple-darwin9
+// RUN: %clang_cc1 %s -fblocks -pedantic -verify -triple=mips64-linux-gnu
+// RUN: %clang_cc1 %s -fblocks -pedantic -verify -triple=x86_64-unknown-linux
+// RUN: %clang_cc1 %s -fblocks -pedantic -verify -triple=x86_64-unknown-linux-gnux32
 
 // rdar://6097662
 typedef int (*T)[2];
@@ -27,12 +30,12 @@ int c() {
   int __int128; // expected-error {{cannot combine with previous}} expected-warning {{does not declare anything}}
 }
 // __int128_t is __int128; __uint128_t is unsigned __int128.
-typedef __int128 check_int_128; // expected-note {{here}}
-typedef __int128_t check_int_128; // expected-note {{here}} expected-warning {{redefinition}}
+typedef __int128 check_int_128;
+typedef __int128_t check_int_128; // expected-note {{here}}
 typedef int check_int_128; // expected-error {{different types ('int' vs '__int128_t' (aka '__int128'))}}
 
-typedef unsigned __int128 check_uint_128; // expected-note {{here}}
-typedef __uint128_t check_uint_128; // expected-note {{here}} expected-warning {{redefinition}}
+typedef unsigned __int128 check_uint_128;
+typedef __uint128_t check_uint_128; // expected-note {{here}}
 typedef int check_uint_128; // expected-error {{different types ('int' vs '__uint128_t' (aka 'unsigned __int128'))}}
 
 // Array type merging should convert array size to whatever matches the target
@@ -42,7 +45,7 @@ extern int i[1LL];
 int i[(short)1];
 
 enum e { e_1 };
-extern int j[sizeof(enum e)];  // expected-note {{previous definition}}
+extern int j[sizeof(enum e)];  // expected-note {{previous declaration}}
 int j[42];   // expected-error {{redefinition of 'j' with a different type: 'int [42]' vs 'int [4]'}}
 
 // rdar://6880104
@@ -72,7 +75,7 @@ typedef int __attribute__ ((ext_vector_type(8192))) x2; // expected-error {{vect
 // no support for vector enum type
 enum { e_2 } x3 __attribute__((vector_size(64))); // expected-error {{invalid vector element type}}
 
-int x4 __attribute__((ext_vector_type(64)));  // expected-error {{'ext_vector_type' attribute only applies to types}}
+int x4 __attribute__((ext_vector_type(64)));  // expected-error {{'ext_vector_type' attribute only applies to typedefs}}
 
 // rdar://16492792
 typedef __attribute__ ((ext_vector_type(32),__aligned__(32))) unsigned char uchar32;
@@ -81,3 +84,7 @@ void convert() {
     uchar32 r = 0;
     r.s[ 1234 ] = 1; // expected-error {{illegal vector component name 's'}}
 }
+
+int &*_Atomic null_type_0; // expected-error {{expected identifier or '('}}
+int &*__restrict__ null_type_1; // expected-error {{expected identifier or '('}}
+int ^_Atomic null_type_2; // expected-error {{block pointer to non-function type is invalid}}

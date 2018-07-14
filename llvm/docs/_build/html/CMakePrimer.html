@@ -1,0 +1,505 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>CMake Primer &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Advanced Build Configurations" href="AdvancedBuilds.html" />
+    <link rel="prev" title="Building LLVM with CMake" href="CMake.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="AdvancedBuilds.html" title="Advanced Build Configurations"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="CMake.html" title="Building LLVM with CMake"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="cmake-primer">
+<h1>CMake Primer<a class="headerlink" href="#cmake-primer" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
+<li><a class="reference internal" href="#ft-view" id="id2">10,000 ft View</a></li>
+<li><a class="reference internal" href="#scripting-overview" id="id3">Scripting Overview</a></li>
+<li><a class="reference internal" href="#variables-types-and-scope" id="id4">Variables, Types, and Scope</a><ul>
+<li><a class="reference internal" href="#dereferencing" id="id5">Dereferencing</a></li>
+<li><a class="reference internal" href="#lists" id="id6">Lists</a></li>
+<li><a class="reference internal" href="#lists-of-lists" id="id7">Lists of Lists</a></li>
+<li><a class="reference internal" href="#other-types" id="id8">Other Types</a></li>
+<li><a class="reference internal" href="#scope" id="id9">Scope</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#control-flow" id="id10">Control Flow</a><ul>
+<li><a class="reference internal" href="#if-elseif-else" id="id11">If, ElseIf, Else</a></li>
+<li><a class="reference internal" href="#loops" id="id12">Loops</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modules-functions-and-macros" id="id13">Modules, Functions and Macros</a><ul>
+<li><a class="reference internal" href="#modules" id="id14">Modules</a></li>
+<li><a class="reference internal" href="#argument-handling" id="id15">Argument Handling</a></li>
+<li><a class="reference internal" href="#functions-vs-macros" id="id16">Functions Vs Macros</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#llvm-project-wrappers" id="id17">LLVM Project Wrappers</a></li>
+<li><a class="reference internal" href="#useful-built-in-commands" id="id18">Useful Built-in Commands</a></li>
+</ul>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Disclaimer: This documentation is written by LLVM project contributors <cite>not</cite>
+anyone affiliated with the CMake project. This document may contain
+inaccurate terminology, phrasing, or technical details. It is provided with
+the best intentions.</p>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>The LLVM project and many of the core projects built on LLVM build using CMake.
+This document aims to provide a brief overview of CMake for developers modifying
+LLVM projects or building their own projects on top of LLVM.</p>
+<p>The official CMake language references is available in the cmake-language
+manpage and <a class="reference external" href="https://cmake.org/cmake/help/v3.4/manual/cmake-language.7.html">cmake-language online documentation</a>.</p>
+</div>
+<div class="section" id="ft-view">
+<h2><a class="toc-backref" href="#id2">10,000 ft View</a><a class="headerlink" href="#ft-view" title="Permalink to this headline">¶</a></h2>
+<p>CMake is a tool that reads script files in its own language that describe how a
+software project builds. As CMake evaluates the scripts it constructs an
+internal representation of the software project. Once the scripts have been
+fully processed, if there are no errors, CMake will generate build files to
+actually build the project. CMake supports generating build files for a variety
+of command line build tools as well as for popular IDEs.</p>
+<p>When a user runs CMake it performs a variety of checks similar to how autoconf
+worked historically. During the checks and the evaluation of the build
+description scripts CMake caches values into the CMakeCache. This is useful
+because it allows the build system to skip long-running checks during
+incremental development. CMake caching also has some drawbacks, but that will be
+discussed later.</p>
+</div>
+<div class="section" id="scripting-overview">
+<h2><a class="toc-backref" href="#id3">Scripting Overview</a><a class="headerlink" href="#scripting-overview" title="Permalink to this headline">¶</a></h2>
+<p>CMake’s scripting language has a very simple grammar. Every language construct
+is a command that matches the pattern _name_(_args_). Commands come in three
+primary types: language-defined (commands implemented in C++ in CMake), defined
+functions, and defined macros. The CMake distribution also contains a suite of
+CMake modules that contain definitions for useful functionality.</p>
+<p>The example below is the full CMake build for building a C++ “Hello World”
+program. The example uses only CMake language-defined functions.</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="nb">cmake_minimum_required</span><span class="p">(</span><span class="s">VERSION</span> <span class="s">3.2</span><span class="p">)</span>
+<span class="nb">project</span><span class="p">(</span><span class="s">HelloWorld</span><span class="p">)</span>
+<span class="nb">add_executable</span><span class="p">(</span><span class="s">HelloWorld</span> <span class="s">HelloWorld.cpp</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The CMake language provides control flow constructs in the form of foreach loops
+and if blocks. To make the example above more complicated you could add an if
+block to define “APPLE” when targeting Apple platforms:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="nb">cmake_minimum_required</span><span class="p">(</span><span class="s">VERSION</span> <span class="s">3.2</span><span class="p">)</span>
+<span class="nb">project</span><span class="p">(</span><span class="s">HelloWorld</span><span class="p">)</span>
+<span class="nb">add_executable</span><span class="p">(</span><span class="s">HelloWorld</span> <span class="s">HelloWorld.cpp</span><span class="p">)</span>
+<span class="nb">if</span><span class="p">(</span><span class="s">APPLE</span><span class="p">)</span>
+  <span class="nb">target_compile_definitions</span><span class="p">(</span><span class="s">HelloWorld</span> <span class="s">PUBLIC</span> <span class="s">APPLE</span><span class="p">)</span>
+<span class="nb">endif</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="variables-types-and-scope">
+<h2><a class="toc-backref" href="#id4">Variables, Types, and Scope</a><a class="headerlink" href="#variables-types-and-scope" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="dereferencing">
+<h3><a class="toc-backref" href="#id5">Dereferencing</a><a class="headerlink" href="#dereferencing" title="Permalink to this headline">¶</a></h3>
+<p>In CMake variables are “stringly” typed. All variables are represented as
+strings throughout evaluation. Wrapping a variable in <code class="docutils literal"><span class="pre">${}</span></code> dereferences it
+and results in a literal substitution of the name for the value. CMake refers to
+this as “variable evaluation” in their documentation. Dereferences are performed
+<em>before</em> the command being called receives the arguments. This means
+dereferencing a list results in multiple separate arguments being passed to the
+command.</p>
+<p>Variable dereferences can be nested and be used to model complex data. For
+example:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="nb">set</span><span class="p">(</span><span class="s">var_name</span> <span class="s">var1</span><span class="p">)</span>
+<span class="nb">set</span><span class="p">(</span><span class="o">${</span><span class="nv">var_name</span><span class="o">}</span> <span class="s">foo</span><span class="p">)</span> <span class="c"># same as &quot;set(var1 foo)&quot;</span>
+<span class="nb">set</span><span class="p">(</span><span class="o">${</span><span class="nv">${var_name</span><span class="o">}</span><span class="s">}_var</span> <span class="s">bar</span><span class="p">)</span> <span class="c"># same as &quot;set(foo_var bar)&quot;</span>
+</pre></div>
+</div>
+<p>Dereferencing an unset variable results in an empty expansion. It is a common
+pattern in CMake to conditionally set variables knowing that it will be used in
+code paths that the variable isn’t set. There are examples of this throughout
+the LLVM CMake build system.</p>
+<p>An example of variable empty expansion is:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="nb">if</span><span class="p">(</span><span class="s">APPLE</span><span class="p">)</span>
+  <span class="nb">set</span><span class="p">(</span><span class="s">extra_sources</span> <span class="s">Apple.cpp</span><span class="p">)</span>
+<span class="nb">endif</span><span class="p">()</span>
+<span class="nb">add_executable</span><span class="p">(</span><span class="s">HelloWorld</span> <span class="s">HelloWorld.cpp</span> <span class="o">${</span><span class="nv">extra_sources</span><span class="o">}</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In this example the <code class="docutils literal"><span class="pre">extra_sources</span></code> variable is only defined if you’re
+targeting an Apple platform. For all other targets the <code class="docutils literal"><span class="pre">extra_sources</span></code> will be
+evaluated as empty before add_executable is given its arguments.</p>
+</div>
+<div class="section" id="lists">
+<h3><a class="toc-backref" href="#id6">Lists</a><a class="headerlink" href="#lists" title="Permalink to this headline">¶</a></h3>
+<p>In CMake lists are semi-colon delimited strings, and it is strongly advised that
+you avoid using semi-colons in lists; it doesn’t go smoothly. A few examples of
+defining lists:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="c"># Creates a list with members a, b, c, and d</span>
+<span class="nb">set</span><span class="p">(</span><span class="s">my_list</span> <span class="s">a</span> <span class="s">b</span> <span class="s">c</span> <span class="s">d</span><span class="p">)</span>
+<span class="nb">set</span><span class="p">(</span><span class="s">my_list</span> <span class="s2">&quot;a;b;c;d&quot;</span><span class="p">)</span>
+
+<span class="c"># Creates a string &quot;a b c d&quot;</span>
+<span class="nb">set</span><span class="p">(</span><span class="s">my_string</span> <span class="s2">&quot;a b c d&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="lists-of-lists">
+<h3><a class="toc-backref" href="#id7">Lists of Lists</a><a class="headerlink" href="#lists-of-lists" title="Permalink to this headline">¶</a></h3>
+<p>One of the more complicated patterns in CMake is lists of lists. Because a list
+cannot contain an element with a semi-colon to construct a list of lists you
+make a list of variable names that refer to other lists. For example:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="nb">set</span><span class="p">(</span><span class="s">list_of_lists</span> <span class="s">a</span> <span class="s">b</span> <span class="s">c</span><span class="p">)</span>
+<span class="nb">set</span><span class="p">(</span><span class="s">a</span> <span class="s">1</span> <span class="s">2</span> <span class="s">3</span><span class="p">)</span>
+<span class="nb">set</span><span class="p">(</span><span class="s">b</span> <span class="s">4</span> <span class="s">5</span> <span class="s">6</span><span class="p">)</span>
+<span class="nb">set</span><span class="p">(</span><span class="s">c</span> <span class="s">7</span> <span class="s">8</span> <span class="s">9</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>With this layout you can iterate through the list of lists printing each value
+with the following code:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="nb">foreach</span><span class="p">(</span><span class="s">list_name</span> <span class="s">IN</span> <span class="s">LISTS</span> <span class="s">list_of_lists</span><span class="p">)</span>
+  <span class="nb">foreach</span><span class="p">(</span><span class="s">value</span> <span class="s">IN</span> <span class="s">LISTS</span> <span class="o">${</span><span class="nv">list_name</span><span class="o">}</span><span class="p">)</span>
+    <span class="nb">message</span><span class="p">(</span><span class="o">${</span><span class="nv">value</span><span class="o">}</span><span class="p">)</span>
+  <span class="nb">endforeach</span><span class="p">()</span>
+<span class="nb">endforeach</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>You’ll notice that the inner foreach loop’s list is doubly dereferenced. This is
+because the first dereference turns <code class="docutils literal"><span class="pre">list_name</span></code> into the name of the sub-list
+(a, b, or c in the example), then the second dereference is to get the value of
+the list.</p>
+<p>This pattern is used throughout CMake, the most common example is the compiler
+flags options, which CMake refers to using the following variable expansions:
+CMAKE_${LANGUAGE}_FLAGS and CMAKE_${LANGUAGE}_FLAGS_${CMAKE_BUILD_TYPE}.</p>
+</div>
+<div class="section" id="other-types">
+<h3><a class="toc-backref" href="#id8">Other Types</a><a class="headerlink" href="#other-types" title="Permalink to this headline">¶</a></h3>
+<p>Variables that are cached or specified on the command line can have types
+associated with them. The variable’s type is used by CMake’s UI tool to display
+the right input field. A variable’s type generally doesn’t impact evaluation,
+however CMake does have special handling for some variables such as PATH.
+You can read more about the special handling in <a class="reference external" href="https://cmake.org/cmake/help/v3.5/command/set.html#set-cache-entry">CMake’s set documentation</a>.</p>
+</div>
+<div class="section" id="scope">
+<h3><a class="toc-backref" href="#id9">Scope</a><a class="headerlink" href="#scope" title="Permalink to this headline">¶</a></h3>
+<p>CMake inherently has a directory-based scoping. Setting a variable in a
+CMakeLists file, will set the variable for that file, and all subdirectories.
+Variables set in a CMake module that is included in a CMakeLists file will be
+set in the scope they are included from, and all subdirectories.</p>
+<p>When a variable that is already set is set again in a subdirectory it overrides
+the value in that scope and any deeper subdirectories.</p>
+<p>The CMake set command provides two scope-related options. PARENT_SCOPE sets a
+variable into the parent scope, and not the current scope. The CACHE option sets
+the variable in the CMakeCache, which results in it being set in all scopes. The
+CACHE option will not set a variable that already exists in the CACHE unless the
+FORCE option is specified.</p>
+<p>In addition to directory-based scope, CMake functions also have their own scope.
+This means variables set inside functions do not bleed into the parent scope.
+This is not true of macros, and it is for this reason LLVM prefers functions
+over macros whenever reasonable.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Unlike C-based languages, CMake’s loop and control flow blocks do not have
+their own scopes.</p>
+</div>
+</div>
+</div>
+<div class="section" id="control-flow">
+<h2><a class="toc-backref" href="#id10">Control Flow</a><a class="headerlink" href="#control-flow" title="Permalink to this headline">¶</a></h2>
+<p>CMake features the same basic control flow constructs you would expect in any
+scripting language, but there are a few quirks because, as with everything in
+CMake, control flow constructs are commands.</p>
+<div class="section" id="if-elseif-else">
+<h3><a class="toc-backref" href="#id11">If, ElseIf, Else</a><a class="headerlink" href="#if-elseif-else" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">For the full documentation on the CMake if command go
+<a class="reference external" href="https://cmake.org/cmake/help/v3.4/command/if.html">here</a>. That resource is
+far more complete.</p>
+</div>
+<p>In general CMake if blocks work the way you’d expect:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="nb">if</span><span class="p">(</span><span class="s">&lt;condition&gt;</span><span class="p">)</span>
+  <span class="nb">message</span><span class="p">(</span><span class="s2">&quot;do stuff&quot;</span><span class="p">)</span>
+<span class="nb">elseif</span><span class="p">(</span><span class="s">&lt;condition&gt;</span><span class="p">)</span>
+  <span class="nb">message</span><span class="p">(</span><span class="s2">&quot;do other stuff&quot;</span><span class="p">)</span>
+<span class="nb">else</span><span class="p">()</span>
+  <span class="nb">message</span><span class="p">(</span><span class="s2">&quot;do other other stuff&quot;</span><span class="p">)</span>
+<span class="nb">endif</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The single most important thing to know about CMake’s if blocks coming from a C
+background is that they do not have their own scope. Variables set inside
+conditional blocks persist after the <code class="docutils literal"><span class="pre">endif()</span></code>.</p>
+</div>
+<div class="section" id="loops">
+<h3><a class="toc-backref" href="#id12">Loops</a><a class="headerlink" href="#loops" title="Permalink to this headline">¶</a></h3>
+<p>The most common form of the CMake <code class="docutils literal"><span class="pre">foreach</span></code> block is:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="nb">foreach</span><span class="p">(</span><span class="s">var</span> <span class="s">...</span><span class="p">)</span>
+  <span class="nb">message</span><span class="p">(</span><span class="s2">&quot;do stuff&quot;</span><span class="p">)</span>
+<span class="nb">endforeach</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The variable argument portion of the <code class="docutils literal"><span class="pre">foreach</span></code> block can contain dereferenced
+lists, values to iterate, or a mix of both:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="nb">foreach</span><span class="p">(</span><span class="s">var</span> <span class="s">foo</span> <span class="s">bar</span> <span class="s">baz</span><span class="p">)</span>
+  <span class="nb">message</span><span class="p">(</span><span class="o">${</span><span class="nv">var</span><span class="o">}</span><span class="p">)</span>
+<span class="nb">endforeach</span><span class="p">()</span>
+<span class="c"># prints:</span>
+<span class="c">#  foo</span>
+<span class="c">#  bar</span>
+<span class="c">#  baz</span>
+
+<span class="nb">set</span><span class="p">(</span><span class="s">my_list</span> <span class="s">1</span> <span class="s">2</span> <span class="s">3</span><span class="p">)</span>
+<span class="nb">foreach</span><span class="p">(</span><span class="s">var</span> <span class="o">${</span><span class="nv">my_list</span><span class="o">}</span><span class="p">)</span>
+  <span class="nb">message</span><span class="p">(</span><span class="o">${</span><span class="nv">var</span><span class="o">}</span><span class="p">)</span>
+<span class="nb">endforeach</span><span class="p">()</span>
+<span class="c"># prints:</span>
+<span class="c">#  1</span>
+<span class="c">#  2</span>
+<span class="c">#  3</span>
+
+<span class="nb">foreach</span><span class="p">(</span><span class="s">var</span> <span class="o">${</span><span class="nv">my_list</span><span class="o">}</span> <span class="s">out_of_bounds</span><span class="p">)</span>
+  <span class="nb">message</span><span class="p">(</span><span class="o">${</span><span class="nv">var</span><span class="o">}</span><span class="p">)</span>
+<span class="nb">endforeach</span><span class="p">()</span>
+<span class="c"># prints:</span>
+<span class="c">#  1</span>
+<span class="c">#  2</span>
+<span class="c">#  3</span>
+<span class="c">#  out_of_bounds</span>
+</pre></div>
+</div>
+<p>There is also a more modern CMake foreach syntax. The code below is equivalent
+to the code above:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="nb">foreach</span><span class="p">(</span><span class="s">var</span> <span class="s">IN</span> <span class="s">ITEMS</span> <span class="s">foo</span> <span class="s">bar</span> <span class="s">baz</span><span class="p">)</span>
+  <span class="nb">message</span><span class="p">(</span><span class="o">${</span><span class="nv">var</span><span class="o">}</span><span class="p">)</span>
+<span class="nb">endforeach</span><span class="p">()</span>
+<span class="c"># prints:</span>
+<span class="c">#  foo</span>
+<span class="c">#  bar</span>
+<span class="c">#  baz</span>
+
+<span class="nb">set</span><span class="p">(</span><span class="s">my_list</span> <span class="s">1</span> <span class="s">2</span> <span class="s">3</span><span class="p">)</span>
+<span class="nb">foreach</span><span class="p">(</span><span class="s">var</span> <span class="s">IN</span> <span class="s">LISTS</span> <span class="s">my_list</span><span class="p">)</span>
+  <span class="nb">message</span><span class="p">(</span><span class="o">${</span><span class="nv">var</span><span class="o">}</span><span class="p">)</span>
+<span class="nb">endforeach</span><span class="p">()</span>
+<span class="c"># prints:</span>
+<span class="c">#  1</span>
+<span class="c">#  2</span>
+<span class="c">#  3</span>
+
+<span class="nb">foreach</span><span class="p">(</span><span class="s">var</span> <span class="s">IN</span> <span class="s">LISTS</span> <span class="s">my_list</span> <span class="s">ITEMS</span> <span class="s">out_of_bounds</span><span class="p">)</span>
+  <span class="nb">message</span><span class="p">(</span><span class="o">${</span><span class="nv">var</span><span class="o">}</span><span class="p">)</span>
+<span class="nb">endforeach</span><span class="p">()</span>
+<span class="c"># prints:</span>
+<span class="c">#  1</span>
+<span class="c">#  2</span>
+<span class="c">#  3</span>
+<span class="c">#  out_of_bounds</span>
+</pre></div>
+</div>
+<p>Similar to the conditional statements, these generally behave how you would
+expect, and they do not have their own scope.</p>
+<p>CMake also supports <code class="docutils literal"><span class="pre">while</span></code> loops, although they are not widely used in LLVM.</p>
+</div>
+</div>
+<div class="section" id="modules-functions-and-macros">
+<h2><a class="toc-backref" href="#id13">Modules, Functions and Macros</a><a class="headerlink" href="#modules-functions-and-macros" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="modules">
+<h3><a class="toc-backref" href="#id14">Modules</a><a class="headerlink" href="#modules" title="Permalink to this headline">¶</a></h3>
+<p>Modules are CMake’s vehicle for enabling code reuse. CMake modules are just
+CMake script files. They can contain code to execute on include as well as
+definitions for commands.</p>
+<p>In CMake macros and functions are universally referred to as commands, and they
+are the primary method of defining code that can be called multiple times.</p>
+<p>In LLVM we have several CMake modules that are included as part of our
+distribution for developers who don’t build our project from source. Those
+modules are the fundamental pieces needed to build LLVM-based projects with
+CMake. We also rely on modules as a way of organizing the build system’s
+functionality for maintainability and re-use within LLVM projects.</p>
+</div>
+<div class="section" id="argument-handling">
+<h3><a class="toc-backref" href="#id15">Argument Handling</a><a class="headerlink" href="#argument-handling" title="Permalink to this headline">¶</a></h3>
+<p>When defining a CMake command handling arguments is very useful. The examples
+in this section will all use the CMake <code class="docutils literal"><span class="pre">function</span></code> block, but this all applies
+to the <code class="docutils literal"><span class="pre">macro</span></code> block as well.</p>
+<p>CMake commands can have named arguments that are requried at every call site. In
+addition, all commands will implicitly accept a variable number of extra
+arguments (In C parlance, all commands are varargs functions). When a command is
+invoked with extra arguments (beyond the named ones) CMake will store the full
+list of arguments (both named and unnamed) in a list named <code class="docutils literal"><span class="pre">ARGV</span></code>, and the
+sublist of unnamed arguments in <code class="docutils literal"><span class="pre">ARGN</span></code>. Below is a trivial example of
+providing a wrapper function for CMake’s built in function <code class="docutils literal"><span class="pre">add_dependencies</span></code>.</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="nb">function</span><span class="p">(</span><span class="s">add_deps</span> <span class="s">target</span><span class="p">)</span>
+  <span class="nb">add_dependencies</span><span class="p">(</span><span class="o">${</span><span class="nv">target</span><span class="o">}</span> <span class="o">${</span><span class="nv">ARGN</span><span class="o">}</span><span class="p">)</span>
+<span class="nb">endfunction</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>This example defines a new macro named <code class="docutils literal"><span class="pre">add_deps</span></code> which takes a required first
+argument, and just calls another function passing through the first argument and
+all trailing arguments.</p>
+<p>CMake provides a module <code class="docutils literal"><span class="pre">CMakeParseArguments</span></code> which provides an implementation
+of advanced argument parsing. We use this all over LLVM, and it is recommended
+for any function that has complex argument-based behaviors or optional
+arguments. CMake’s official documentation for the module is in the
+<code class="docutils literal"><span class="pre">cmake-modules</span></code> manpage, and is also available at the
+<a class="reference external" href="https://cmake.org/cmake/help/v3.4/module/CMakeParseArguments.html">cmake-modules online documentation</a>.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">As of CMake 3.5 the cmake_parse_arguments command has become a native command
+and the CMakeParseArguments module is empty and only left around for
+compatibility.</p>
+</div>
+</div>
+<div class="section" id="functions-vs-macros">
+<h3><a class="toc-backref" href="#id16">Functions Vs Macros</a><a class="headerlink" href="#functions-vs-macros" title="Permalink to this headline">¶</a></h3>
+<p>Functions and Macros look very similar in how they are used, but there is one
+fundamental difference between the two. Functions have their own scope, and
+macros don’t. This means variables set in macros will bleed out into the calling
+scope. That makes macros suitable for defining very small bits of functionality
+only.</p>
+<p>The other difference between CMake functions and macros is how arguments are
+passed. Arguments to macros are not set as variables, instead dereferences to
+the parameters are resolved across the macro before executing it. This can
+result in some unexpected behavior if using unreferenced variables. For example:</p>
+<div class="highlight-cmake"><div class="highlight"><pre><span></span><span class="nb">macro</span><span class="p">(</span><span class="s">print_list</span> <span class="s">my_list</span><span class="p">)</span>
+  <span class="nb">foreach</span><span class="p">(</span><span class="s">var</span> <span class="s">IN</span> <span class="s">LISTS</span> <span class="s">my_list</span><span class="p">)</span>
+    <span class="nb">message</span><span class="p">(</span><span class="s2">&quot;${var}&quot;</span><span class="p">)</span>
+  <span class="nb">endforeach</span><span class="p">()</span>
+<span class="nb">endmacro</span><span class="p">()</span>
+
+<span class="nb">set</span><span class="p">(</span><span class="s">my_list</span> <span class="s">a</span> <span class="s">b</span> <span class="s">c</span> <span class="s">d</span><span class="p">)</span>
+<span class="nb">set</span><span class="p">(</span><span class="s">my_list_of_numbers</span> <span class="s">1</span> <span class="s">2</span> <span class="s">3</span> <span class="s">4</span><span class="p">)</span>
+<span class="nb">print_list</span><span class="p">(</span><span class="s">my_list_of_numbers</span><span class="p">)</span>
+<span class="c"># prints:</span>
+<span class="c"># a</span>
+<span class="c"># b</span>
+<span class="c"># c</span>
+<span class="c"># d</span>
+</pre></div>
+</div>
+<p>Generally speaking this issue is uncommon because it requires using
+non-dereferenced variables with names that overlap in the parent scope, but it
+is important to be aware of because it can lead to subtle bugs.</p>
+</div>
+</div>
+<div class="section" id="llvm-project-wrappers">
+<h2><a class="toc-backref" href="#id17">LLVM Project Wrappers</a><a class="headerlink" href="#llvm-project-wrappers" title="Permalink to this headline">¶</a></h2>
+<p>LLVM projects provide lots of wrappers around critical CMake built-in commands.
+We use these wrappers to provide consistent behaviors across LLVM components
+and to reduce code duplication.</p>
+<p>We generally (but not always) follow the convention that commands prefaced with
+<code class="docutils literal"><span class="pre">llvm_</span></code> are intended to be used only as building blocks for other commands.
+Wrapper commands that are intended for direct use are generally named following
+with the project in the middle of the command name (i.e. <code class="docutils literal"><span class="pre">add_llvm_executable</span></code>
+is the wrapper for <code class="docutils literal"><span class="pre">add_executable</span></code>). The LLVM <code class="docutils literal"><span class="pre">add_*</span></code> wrapper functions are
+all defined in <code class="docutils literal"><span class="pre">AddLLVM.cmake</span></code> which is installed as part of the LLVM
+distribution. It can be included and used by any LLVM sub-project that requires
+LLVM.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Not all LLVM projects require LLVM for all use cases. For example compiler-rt
+can be built without LLVM, and the compiler-rt sanitizer libraries are used
+with GCC.</p>
+</div>
+</div>
+<div class="section" id="useful-built-in-commands">
+<h2><a class="toc-backref" href="#id18">Useful Built-in Commands</a><a class="headerlink" href="#useful-built-in-commands" title="Permalink to this headline">¶</a></h2>
+<p>CMake has a bunch of useful built-in commands. This document isn’t going to
+go into details about them because The CMake project has excellent
+documentation. To highlight a few useful functions see:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://cmake.org/cmake/help/v3.4/command/add_custom_command.html">add_custom_command</a></li>
+<li><a class="reference external" href="https://cmake.org/cmake/help/v3.4/command/add_custom_target.html">add_custom_target</a></li>
+<li><a class="reference external" href="https://cmake.org/cmake/help/v3.4/command/file.html">file</a></li>
+<li><a class="reference external" href="https://cmake.org/cmake/help/v3.4/command/list.html">list</a></li>
+<li><a class="reference external" href="https://cmake.org/cmake/help/v3.4/command/math.html">math</a></li>
+<li><a class="reference external" href="https://cmake.org/cmake/help/v3.4/command/string.html">string</a></li>
+</ul>
+<p>The full documentation for CMake commands is in the <code class="docutils literal"><span class="pre">cmake-commands</span></code> manpage
+and available on <a class="reference external" href="https://cmake.org/cmake/help/v3.4/manual/cmake-commands.7.html">CMake’s website</a></p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="AdvancedBuilds.html" title="Advanced Build Configurations"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="CMake.html" title="Building LLVM with CMake"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -emit-llvm -g -triple x86_64-apple-darwin10 %s -o - | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm -debug-info-kind=limited -triple x86_64-apple-darwin10 %s -o - | FileCheck %s
 // rdar://problem/13359718
 // Substitute the actual type for a method returning instancetype.
 @interface NSObject
@@ -13,11 +13,14 @@
 
 @implementation Foo
 +(instancetype)defaultFoo {return 0;}
-// CHECK: ![[FOO:[0-9]+]] = metadata {{.*}}; [ DW_TAG_structure_type ] [Foo]
-// CHECK: metadata !"+[Foo defaultFoo]", metadata !"", i32 [[@LINE-2]], metadata ![[TYPE:[0-9]+]]
-// CHECK: ![[TYPE]] = {{.*}} metadata ![[RESULT:[0-9]+]], i32 {{.*}}, null, null, null} ; [ DW_TAG_subroutine_type ]
-// CHECK: ![[RESULT]] = metadata {{.*}}{metadata ![[FOOPTR:[0-9]+]],
-// CHECK: ![[FOOPTR]] = {{.*}}, metadata ![[FOO]]}{{.*}}[ DW_TAG_pointer_type ] {{.*}} [from Foo]
+// CHECK: ![[FOO:[0-9]+]] = !DICompositeType(tag: DW_TAG_structure_type, name: "Foo"
+// CHECK: !DISubprogram(name: "+[Foo defaultFoo]"
+// CHECK-SAME:          line: [[@LINE-3]]
+// CHECK-SAME:          type: ![[TYPE:[0-9]+]]
+// CHECK: ![[TYPE]] = !DISubroutineType(types: ![[RESULT:[0-9]+]])
+// CHECK: ![[RESULT]] = !{![[FOOPTR:[0-9]+]],
+// CHECK: ![[FOOPTR]] = !DIDerivedType(tag: DW_TAG_pointer_type
+// CHECK-SAME:                         baseType: ![[FOO]]
 @end
 
 

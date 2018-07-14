@@ -158,7 +158,7 @@ namespace dependent {
   }
 
   template<typename T> void n() {
-    extern T n_var; // expected-error {{redefinition of 'n_var' with a different type: 'double' vs 'int'}} expected-note {{previous}}
+    extern T n_var; // expected-error {{redeclaration of 'n_var' with a different type: 'double' vs 'int'}} expected-note {{previous}}
     extern T n_fn(); // expected-error {{functions that differ only in their return type cannot be overloaded}} expected-note {{previous}}
   }
   template void n<int>();
@@ -207,3 +207,7 @@ namespace use_outside_ns {
     int j() { return sizeof(d); }
   }
 }
+
+extern int arr[];
+void f1() { extern int arr[2]; } // expected-note {{previous}}
+void f2() { extern int arr[3]; } // expected-error {{different type: 'int [3]' vs 'int [2]'}}

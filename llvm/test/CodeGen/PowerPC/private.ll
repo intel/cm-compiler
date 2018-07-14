@@ -1,9 +1,9 @@
 ; Test to make sure that the 'private' is used correctly.
 ;
-; RUN: llc < %s -mtriple=powerpc-unknown-linux-gnu | \
+; RUN: llc -verify-machineinstrs < %s -mtriple=powerpc-unknown-linux-gnu | \
 ; RUN: FileCheck --check-prefix=LINUX %s
 ;
-; RUN: llc < %s -mtriple=powerpc-apple-darwin | \
+; RUN: llc -verify-machineinstrs < %s -mtriple=powerpc-apple-darwin | \
 ; RUN: FileCheck --check-prefix=OSX %s
 
 ; LINUX: .Lfoo:
@@ -19,7 +19,7 @@ define i32 @bar() nounwind {
 
 ; LINUX: lis{{.*}}.Lbaz
 ; OSX:  lis{{.*}}l_baz
-	%1 = load i32* @baz, align 4
+	%1 = load i32, i32* @baz, align 4
         ret i32 %1
 }
 

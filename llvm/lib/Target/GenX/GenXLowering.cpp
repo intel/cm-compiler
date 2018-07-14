@@ -67,6 +67,8 @@
 ///    GenXCoalescing will coalesce the bitcast, and possibly bale in the region
 ///    read, so this will hopefully save an instruction or two.
 ///
+/// 6. Certain floating point comparison instructions are lowered.
+///
 /// **IR restriction**: LLVM IR instructions not supported after this pass:
 /// 
 /// * shufflevector
@@ -132,7 +134,7 @@ class GenXLowering : public FunctionPass {
 public:
   static char ID;
   explicit GenXLowering() : FunctionPass(ID), DT(nullptr) {}
-  virtual const char *getPassName() const { return "GenX lowering"; }
+  virtual StringRef getPassName() const { return "GenX lowering"; }
   void getAnalysisUsage(AnalysisUsage &AU) const;
   bool runOnFunction(Function &F);
   static bool splitStructPhi(PHINode *Phi);
@@ -154,10 +156,12 @@ private:
   bool lowerBoolShuffle(ShuffleVectorInst *Inst);
   bool lowerBoolSplat(ShuffleVectorInst *SI, Value *In, unsigned Idx);
   bool lowerShuffle(ShuffleVectorInst *Inst);
+  bool lowerShuffleToSelect(ShuffleVectorInst *Inst);
   bool lowerShr(Instruction *Inst);
   bool lowerExtractValue(ExtractValueInst *Inst);
   bool lowerInsertValue(InsertValueInst *Inst);
   bool lowerUAddWithOverflow(CallInst *CI);
+  bool lowerFCmpInst(FCmpInst *Inst);
   bool widenByteOp(Instruction *Inst);
 };
 
@@ -178,7 +182,7 @@ FunctionPass *llvm::createGenXLoweringPass()
 void GenXLowering::getAnalysisUsage(AnalysisUsage &AU) const
 {
   AU.addPreserved<DominatorTreeWrapperPass>();
-  AU.addPreserved<LoopInfo>();
+  AU.addPreserved<LoopInfoWrapperPass>();
   AU.addPreserved<GenXModule>();
 }
 
@@ -403,6 +407,8 @@ bool GenXLowering::processInst(Instruction *Inst)
   }
   if (Inst->getOpcode() == Instruction::ICmp)
     return widenByteOp(Inst);
+  else if (auto CI = dyn_cast<FCmpInst>(Inst))
+    return lowerFCmpInst(CI);
   if (CallInst *CI = dyn_cast<CallInst>(Inst)) {
     unsigned IntrinsicID = Intrinsic::not_intrinsic;
     if (Function *Callee = CI->getCalledFunction()) {
@@ -970,8 +976,8 @@ bool GenXLowering::lowerBoolScalarSelect(SelectInst *SI)
   //         BB4
   //
   auto BB1 = SI->getParent();
-  auto BB2 = SplitBlock(BB1, SI, this);
-  auto BB4 = SplitEdge(BB1, BB2, this);
+  auto BB2 = SplitBlock(BB1, SI, DT);
+  auto BB4 = SplitEdge(BB1, BB2, DT);
   BB2->setName("select.false");
   BB4->setName("select.true");
 
@@ -991,7 +997,7 @@ bool GenXLowering::lowerBoolScalarSelect(SelectInst *SI)
   SI->replaceAllUsesWith(Phi);
   ToErase.push_back(SI);
   // Split the (critical) edge from BB1 to BB4 to avoid having critical edge.
-  auto BB3 = SplitEdge(BB1, BB4, this);
+  auto BB3 = SplitEdge(BB1, BB4, DT);
   BB3->setName("select.crit");
   return true;
 }
@@ -1213,35 +1219,77 @@ bool GenXLowering::lowerBoolSplat(ShuffleVectorInst *SI, Value *In, unsigned Idx
 }
 
 /***********************************************************************
- * lowerShuffle : lower a ShuffleInst (element type not i1)
- *
- * Mostly these are splats. These are lowered to a rdregion
- * Any other shuffle is currently unsupported
- */
+* lowerShuffle : lower a ShuffleInst (element type not i1)
+*
+* Mostly these are splats. These are lowered to a rdregion
+* Any other shuffle is currently unsupported
+*/
 bool GenXLowering::lowerShuffle(ShuffleVectorInst *SI)
 {
   auto Splat = ShuffleVectorAnalyzer(SI).getAsSplat();
-  assert(Splat.Input && "non-splat shuffle vector instruction not implemented");
-  // This is a splat. Turn it into a splatting rdregion.
-  if (!isa<VectorType>(Splat.Input->getType())) {
-    // The input is a scalar rather than a 1-vector. Bitcast it to a 1-vector.
-    auto *BC = CastInst::Create(Instruction::BitCast, Splat.Input,
+  if (Splat.Input) {
+    // This is a splat. Turn it into a splatting rdregion.
+    if (!isa<VectorType>(Splat.Input->getType())) {
+      // The input is a scalar rather than a 1-vector. Bitcast it to a 1-vector.
+      auto *BC = CastInst::Create(Instruction::BitCast, Splat.Input,
         VectorType::get(Splat.Input->getType(), 1), SI->getName(), SI);
-    BC->setDebugLoc(SI->getDebugLoc());
-    Splat.Input = BC;
-  }
-  // Create a rdregion with a stride of 0 to represent this splat
-  Region R(Splat.Input);
-  R.NumElements = SI->getType()->getVectorNumElements();
-  R.Width = R.NumElements;
-  R.Stride = 0;
-  R.VStride = 0;
-  R.Offset = Splat.Index * R.ElementBytes;
-  Instruction *NewInst = R.createRdRegion(Splat.Input, "", SI/*InsertBefore*/,
+      BC->setDebugLoc(SI->getDebugLoc());
+      Splat.Input = BC;
+    }
+    // Create a rdregion with a stride of 0 to represent this splat
+    Region R(Splat.Input);
+    R.NumElements = SI->getType()->getVectorNumElements();
+    R.Width = R.NumElements;
+    R.Stride = 0;
+    R.VStride = 0;
+    R.Offset = Splat.Index * R.ElementBytes;
+    Instruction *NewInst = R.createRdRegion(Splat.Input, "", SI/*InsertBefore*/,
       SI->getDebugLoc());
-  NewInst->takeName(SI);
-  NewInst->setDebugLoc(SI->getDebugLoc());
-  SI->replaceAllUsesWith(NewInst);
+    NewInst->takeName(SI);
+    NewInst->setDebugLoc(SI->getDebugLoc());
+    SI->replaceAllUsesWith(NewInst);
+    ToErase.push_back(SI);
+    return true;
+  }
+  if (lowerShuffleToSelect(SI)) {
+    return true;
+  }
+  assert(0 && "generic shuffle-vector is not supported yet in GenX backend");
+  return false;
+}
+
+// lower those shuffle-vector that can be implemented efficiently as select on GenX
+bool GenXLowering::lowerShuffleToSelect(ShuffleVectorInst *SI)
+{
+  int NumElements = SI->getType()->getVectorNumElements();
+  if (NumElements >= 16)
+    return false;
+  int NumOpnd = SI->getNumOperands();
+  for (int i = 0; i < NumOpnd; ++i) {
+    if (SI->getOperand(i)->getType()->getVectorNumElements() != NumElements)
+      return false;
+  }
+  for (int i = 0; i < NumElements; ++i) {
+    auto idx = SI->getMaskValue(i);
+    if (idx != i && idx != i + NumElements)
+      return false;
+  }
+  IRBuilder<> Builder(SI);
+  Type *Int1Ty = Builder.getInt1Ty();
+  SmallVector<Constant*, 16> MaskVec;
+  MaskVec.reserve(NumElements);
+  for (int i = 0; i < NumElements; ++i) {
+    auto idx = SI->getMaskValue(i);
+    if (idx == i)
+      MaskVec.push_back(ConstantInt::get(Int1Ty, 1));
+    else
+      MaskVec.push_back(ConstantInt::get(Int1Ty, 0));
+  }
+  Value *Mask = ConstantVector::get(MaskVec);
+  auto NewSel = SelectInst::Create(Mask, SI->getOperand(0), SI->getOperand(1), "", SI);
+  NewSel->takeName(SI);
+  NewSel->setDebugLoc(SI->getDebugLoc());
+  SI->replaceAllUsesWith(NewSel);
   ToErase.push_back(SI);
   return true;
 }
@@ -1531,6 +1579,46 @@ bool GenXLowering::lowerUAddWithOverflow(CallInst *CI)
   }
   ToErase.push_back(CI);
   return true;
+}
+
+// Lower cmp instructions that GenX cannot deal with.
+bool GenXLowering::lowerFCmpInst(FCmpInst *Inst) {
+  IRBuilder<> Builder(Inst);
+  Builder.SetCurrentDebugLocation(Inst->getDebugLoc());
+  Value *Ops[] = {Inst->getOperand(0), Inst->getOperand(1)};
+
+  switch (Inst->getPredicate()) {
+  default:
+    break;
+  case CmpInst::FCMP_ORD: // True if ordered (no nans)
+  {
+    // %c = fcmp ord %a %b
+    // =>
+    // %1 = fcmp oeq %a %a
+    // %2 = fcmp oeq %b %b
+    // %c = and %1 %2
+    Value *LHS = Builder.CreateFCmpOEQ(Ops[0], Ops[0]);
+    Value *RHS = Builder.CreateFCmpOEQ(Ops[1], Ops[1]);
+    Value *New = Builder.CreateAnd(LHS, RHS);
+    Inst->replaceAllUsesWith(New);
+    ToErase.push_back(Inst);
+    return true;
+  }
+  case CmpInst::FCMP_UNO: // True if unordered: isnan(X) | isnan(Y)
+    // %c = fcmp uno %a %b
+    // =>
+    // %1 = fcmp une %a %a
+    // %2 = fcmp une %b %b
+    // %c = or %1 %2
+    Value *LHS = Builder.CreateFCmpUNE(Ops[0], Ops[0]);
+    Value *RHS = Builder.CreateFCmpUNE(Ops[1], Ops[1]);
+    Value *New = Builder.CreateOr(LHS, RHS);
+    Inst->replaceAllUsesWith(New);
+    ToErase.push_back(Inst);
+    return true;
+  }
+
+  return false;
 }
 
 /***********************************************************************

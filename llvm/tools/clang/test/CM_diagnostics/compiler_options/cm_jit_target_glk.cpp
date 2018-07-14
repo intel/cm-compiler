@@ -92,7 +92,7 @@ void test() {
 // RUN: %cmc -Qxcm_jit_target -march=Gen9_5LP %w 2>&1 | FileCheck %w
 // RUN: rm %W.isa %W_0.visaasm %W_0.asm %W_0.dat
 
-// CHECK: cm_jit_target_glk.cpp(11,9) :  warning: CM_GENX defined with value 970 [-W#pragma-messages]
-// CHECK: cm_jit_target_glk.cpp(33,2) :  warning: CM_GEN9_5 defined [-W#warnings]
+// CHECK: cm_jit_target_glk.cpp(11,9):  warning: CM_GENX defined with value 970 [-W#pragma-messages]
+// CHECK: cm_jit_target_glk.cpp(33,2):  warning: CM_GEN9_5 defined [-W#warnings]
 // CHECK: 2 warnings generated.
 // CHECK: -platform BXT

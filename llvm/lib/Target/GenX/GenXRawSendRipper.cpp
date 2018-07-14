@@ -49,7 +49,7 @@ public:
   static char ID;
   explicit GenXRawSendRipper() : FunctionPass(ID) {}
 
-  const char *getPassName() const override {
+  StringRef getPassName() const override {
     return "GenX RAW send ripper";
   }
 

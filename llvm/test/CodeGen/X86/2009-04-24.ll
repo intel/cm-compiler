@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=x86-64 -mtriple=x86_64-linux-gnu -regalloc=fast -optimize-regalloc=0 -relocation-model=pic | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-linux-gnu -regalloc=fast -optimize-regalloc=0 -relocation-model=pic | FileCheck %s
 ; PR4004
 
 ; CHECK: {{leaq.*TLSGD}}
@@ -8,6 +8,6 @@
 
 define i32 @f() {
 entry:
-	%tmp1 = load i32* @i
+	%tmp1 = load i32, i32* @i
 	ret i32 %tmp1
 }

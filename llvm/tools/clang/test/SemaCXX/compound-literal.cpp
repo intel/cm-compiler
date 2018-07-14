@@ -36,31 +36,31 @@ namespace brace_initializers {
 
   void test() {
     (void)(POD){1, 2};
-    // CHECK-NOT: CXXBindTemporaryExpr {{.*}} 'struct brace_initializers::POD'
-    // CHECK: CompoundLiteralExpr {{.*}} 'struct brace_initializers::POD'
-    // CHECK-NEXT: InitListExpr {{.*}} 'struct brace_initializers::POD'
+    // CHECK-NOT: CXXBindTemporaryExpr {{.*}} 'brace_initializers::POD'
+    // CHECK: CompoundLiteralExpr {{.*}} 'brace_initializers::POD'
+    // CHECK-NEXT: InitListExpr {{.*}} 'brace_initializers::POD'
     // CHECK-NEXT: IntegerLiteral {{.*}} 1{{$}}
     // CHECK-NEXT: IntegerLiteral {{.*}} 2{{$}}
 
     (void)(HasDtor){1, 2};
-    // CHECK: CXXBindTemporaryExpr {{.*}} 'struct brace_initializers::HasDtor'
-    // CHECK-NEXT: CompoundLiteralExpr {{.*}} 'struct brace_initializers::HasDtor'
-    // CHECK-NEXT: InitListExpr {{.*}} 'struct brace_initializers::HasDtor'
+    // CHECK: CXXBindTemporaryExpr {{.*}} 'brace_initializers::HasDtor'
+    // CHECK-NEXT: CompoundLiteralExpr {{.*}} 'brace_initializers::HasDtor'
+    // CHECK-NEXT: InitListExpr {{.*}} 'brace_initializers::HasDtor'
     // CHECK-NEXT: IntegerLiteral {{.*}} 1{{$}}
     // CHECK-NEXT: IntegerLiteral {{.*}} 2{{$}}
 
 #if __cplusplus >= 201103L
     (void)(HasCtor){1, 2};
-    // CHECK-CXX11-NOT: CXXBindTemporaryExpr {{.*}} 'struct brace_initializers::HasCtor'
-    // CHECK-CXX11: CompoundLiteralExpr {{.*}} 'struct brace_initializers::HasCtor'
-    // CHECK-CXX11-NEXT: CXXTemporaryObjectExpr {{.*}} 'struct brace_initializers::HasCtor'
+    // CHECK-CXX11-NOT: CXXBindTemporaryExpr {{.*}} 'brace_initializers::HasCtor'
+    // CHECK-CXX11: CompoundLiteralExpr {{.*}} 'brace_initializers::HasCtor'
+    // CHECK-CXX11-NEXT: CXXTemporaryObjectExpr {{.*}} 'brace_initializers::HasCtor'
     // CHECK-CXX11-NEXT: IntegerLiteral {{.*}} 1{{$}}
     // CHECK-CXX11-NEXT: IntegerLiteral {{.*}} 2{{$}}
 
     (void)(HasCtorDtor){1, 2};
-    // CHECK-CXX11: CXXBindTemporaryExpr {{.*}} 'struct brace_initializers::HasCtorDtor'
-    // CHECK-CXX11-NEXT: CompoundLiteralExpr {{.*}} 'struct brace_initializers::HasCtorDtor'
-    // CHECK-CXX11-NEXT: CXXTemporaryObjectExpr {{.*}} 'struct brace_initializers::HasCtorDtor'
+    // CHECK-CXX11: CXXBindTemporaryExpr {{.*}} 'brace_initializers::HasCtorDtor'
+    // CHECK-CXX11-NEXT: CompoundLiteralExpr {{.*}} 'brace_initializers::HasCtorDtor'
+    // CHECK-CXX11-NEXT: CXXTemporaryObjectExpr {{.*}} 'brace_initializers::HasCtorDtor'
     // CHECK-CXX11-NEXT: IntegerLiteral {{.*}} 1{{$}}
     // CHECK-CXX11-NEXT: IntegerLiteral {{.*}} 2{{$}}
 #endif
@@ -86,3 +86,13 @@ int PR17415 = (int){PR17415}; // expected-error {{initializer element is not a c
 template<unsigned> struct Value { };
 template<typename T>
 int &check_narrowed(Value<sizeof((T){1.1})>);
+
+#if __cplusplus >= 201103L
+// Compound literals in global lambdas have automatic storage duration
+// and are not subject to the constant-initialization rules.
+int computed_with_lambda = [] {
+  int x = 5;
+  int result = ((int[]) { x, x + 2, x + 4, x + 6 })[0];
+  return result;
+}();
+#endif

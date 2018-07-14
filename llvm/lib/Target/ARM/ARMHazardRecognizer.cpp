@@ -13,7 +13,7 @@
 #include "ARMSubtarget.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 using namespace llvm;
 
 static bool hasRAWHazard(MachineInstr *DefMI, MachineInstr *MI,
@@ -44,16 +44,13 @@ ARMHazardRecognizer::getHazardType(SUnit *SU, int Stalls) {
     if (LastMI && (MCID.TSFlags & ARMII::DomainMask) != ARMII::DomainGeneral) {
       MachineInstr *DefMI = LastMI;
       const MCInstrDesc &LastMCID = LastMI->getDesc();
-      const TargetMachine &TM =
-        MI->getParent()->getParent()->getTarget();
-      const ARMBaseInstrInfo &TII =
-        *static_cast<const ARMBaseInstrInfo*>(TM.getInstrInfo());
+      const MachineFunction *MF = MI->getParent()->getParent();
+      const ARMBaseInstrInfo &TII = *static_cast<const ARMBaseInstrInfo *>(
+                                        MF->getSubtarget().getInstrInfo());
 
       // Skip over one non-VFP / NEON instruction.
       if (!LastMI->isBarrier() &&
-          // On A9, AGU and NEON/FPU are muxed.
-          !(TII.getSubtarget().isLikeA9() &&
-            (LastMI->mayLoad() || LastMI->mayStore())) &&
+          !(TII.getSubtarget().hasMuxedUnits() && LastMI->mayLoadOrStore()) &&
           (LastMCID.TSFlags & ARMII::DomainMask) == ARMII::DomainGeneral) {
         MachineBasicBlock::iterator I = LastMI;
         if (I != LastMI->getParent()->begin()) {

@@ -1,16 +1,19 @@
-; RUN: echo '!16 = metadata !{metadata !"%T/global-ctor.ll", metadata !0}' > %t1
-; RUN: cat %s %t1 > %t2
-; RUN: opt -insert-gcov-profiling -disable-output < %t2
-; RUN: not grep '_GLOBAL__sub_I_global-ctor' %T/global-ctor.gcno
-; RUN: rm %T/global-ctor.gcno
+; RUN: rm -rf %t && mkdir -p %t
+; RUN: echo '!16 = !{!"%/t/global-ctor.ll", !0}' > %t/1
+; RUN: cat %s %t/1 > %t/2
+; RUN: opt -insert-gcov-profiling -disable-output < %t/2
+; RUN: not grep '_GLOBAL__sub_I_global-ctor' %t/global-ctor.gcno
+; RUN: rm %t/global-ctor.gcno
 
-; REQUIRES: shell
+; RUN: opt -passes=insert-gcov-profiling -disable-output < %t/2
+; RUN: not grep '_GLOBAL__sub_I_global-ctor' %t/global-ctor.gcno
+; RUN: rm %t/global-ctor.gcno
 
 @x = global i32 0, align 4
 @llvm.global_ctors = appending global [1 x { i32, void ()*, i8* }] [{ i32, void ()*, i8* } { i32 65535, void ()* @_GLOBAL__sub_I_global-ctor.ll, i8* null }]
 
 ; Function Attrs: nounwind
-define internal void @__cxx_global_var_init() #0 section ".text.startup" {
+define internal void @__cxx_global_var_init() #0 section ".text.startup" !dbg !4 {
 entry:
   br label %0
 
@@ -40,19 +43,18 @@ attributes #1 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "
 !llvm.gcov = !{!16}
 !llvm.ident = !{!12}
 
-!0 = metadata !{i32 786449, metadata !1, i32 4, metadata !"clang version 3.5.0 (trunk 210217)", i1 false, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !"", i32 2} ; [ DW_TAG_compile_unit ] [/home/nlewycky/<stdin>] [DW_LANG_C_plus_plus]
-!1 = metadata !{metadata !"<stdin>", metadata !"/home/nlewycky"}
-!2 = metadata !{}
-!3 = metadata !{metadata !4, metadata !8}
-!4 = metadata !{i32 786478, metadata !5, metadata !6, metadata !"__cxx_global_var_init", metadata !"__cxx_global_var_init", metadata !"", i32 2, metadata !7, i1 true, i1 true, i32 0, i32 0, null, i32 256, i1 false, void ()* @__cxx_global_var_init, null, null, metadata !2, i32 2} ; [ DW_TAG_subprogram ] [line 2] [local] [def] [__cxx_global_var_init]
-!5 = metadata !{metadata !"global-ctor.ll", metadata !"/home/nlewycky"}
-!6 = metadata !{i32 786473, metadata !5}          ; [ DW_TAG_file_type ] [/home/nlewycky/global-ctor.ll]
-!7 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !2, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!8 = metadata !{i32 786478, metadata !1, metadata !9, metadata !"", metadata !"", metadata !"_GLOBAL__sub_I_global-ctor.ll", i32 0, metadata !7, i1 true, i1 true, i32 0, i32 0, null, i32 64, i1 false, void ()* @_GLOBAL__sub_I_global-ctor.ll, null, null, metadata !2, i32 0} ; [ DW_TAG_subprogram ] [line 0] [local] [def]
-!9 = metadata !{i32 786473, metadata !1}          ; [ DW_TAG_file_type ] [/home/nlewycky/<stdin>]
-!10 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!11 = metadata !{i32 2, metadata !"Debug Info Version", i32 1}
-!12 = metadata !{metadata !"clang version 3.5.0 (trunk 210217)"}
-!13 = metadata !{i32 2, i32 0, metadata !4, null}
-!14 = metadata !{i32 0, i32 0, metadata !15, null}
-!15 = metadata !{i32 786443, metadata !5, metadata !8} ; [ DW_TAG_lexical_block ] [/home/nlewycky/global-ctor.ll]
+!0 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, producer: "clang version 3.5.0 (trunk 210217)", isOptimized: false, emissionKind: LineTablesOnly, file: !1, enums: !2, retainedTypes: !2, globals: !2, imports: !2)
+!1 = !DIFile(filename: "<stdin>", directory: "/home/nlewycky")
+!2 = !{}
+!4 = distinct !DISubprogram(name: "__cxx_global_var_init", line: 2, isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, unit: !0, scopeLine: 2, file: !5, scope: !6, type: !7, variables: !2)
+!5 = !DIFile(filename: "global-ctor.ll", directory: "/home/nlewycky")
+!6 = !DIFile(filename: "global-ctor.ll", directory: "/home/nlewycky")
+!7 = !DISubroutineType(types: !2)
+!8 = distinct !DISubprogram(name: "", linkageName: "_GLOBAL__sub_I_global-ctor.ll", isLocal: true, isDefinition: true, virtualIndex: 6, flags: DIFlagArtificial, isOptimized: false, unit: !0, file: !1, scope: !9, type: !7, variables: !2)
+!9 = !DIFile(filename: "<stdin>", directory: "/home/nlewycky")
+!10 = !{i32 2, !"Dwarf Version", i32 4}
+!11 = !{i32 2, !"Debug Info Version", i32 3}
+!12 = !{!"clang version 3.5.0 (trunk 210217)"}
+!13 = !DILocation(line: 2, scope: !4)
+!14 = !DILocation(line: 0, scope: !15)
+!15 = !DILexicalBlockFile(discriminator: 0, file: !5, scope: !8)

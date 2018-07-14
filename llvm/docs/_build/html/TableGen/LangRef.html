@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>TableGen Language Reference &#8212; LLVM 3.4 documentation</title>
+    <title>TableGen Language Reference &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -91,7 +91,7 @@
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
 <p class="last">This document is extremely rough. If you find something lacking, please
-fix it, file a documentation bug, or ask about it on llvmdev.</p>
+fix it, file a documentation bug, or ask about it on llvm-dev.</p>
 </div>
 <div class="section" id="introduction">
 <h2><a class="toc-backref" href="#id10">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
@@ -127,6 +127,9 @@ comments.</p>
 <p>One aspect to note is that the <a class="reference internal" href="#grammar-token-DecimalInteger"><code class="xref std std-token docutils literal"><span class="pre">DecimalInteger</span></code></a> token <em>includes</em> the
 <code class="docutils literal"><span class="pre">+</span></code> or <code class="docutils literal"><span class="pre">-</span></code>, as opposed to having <code class="docutils literal"><span class="pre">+</span></code> and <code class="docutils literal"><span class="pre">-</span></code> be unary operators as
 most languages do.</p>
+<p>Also note that <a class="reference internal" href="#grammar-token-BinInteger"><code class="xref std std-token docutils literal"><span class="pre">BinInteger</span></code></a> creates a value of type <code class="docutils literal"><span class="pre">bits&lt;n&gt;</span></code>
+(where <code class="docutils literal"><span class="pre">n</span></code> is the number of bits).  This will implicitly convert to
+integers when needed.</p>
 <p>TableGen has identifier-like tokens:</p>
 <pre>
 <strong id="grammar-token-ualpha">ualpha       </strong> ::=  “a”…”z” | “A”…”Z” | “_”
@@ -161,8 +164,9 @@ wide variety of meanings:</p>
 <pre>
 <strong id="grammar-token-BangOperator">BangOperator</strong> ::=  one of
                  !eq     !if      !head    !tail      !con
-                 !add    !shl     !sra     !srl
-                 !cast   !empty   !subst   !foreach   !listconcat   !strconcat
+                 !add    !shl     !sra     !srl       !and
+                 !or     !empty   !subst   !foreach   !strconcat
+                 !cast   !listconcat
 </pre>
 </div>
 <div class="section" id="syntax">
@@ -209,7 +213,7 @@ programmer.</p>
 <pre>
 <strong id="grammar-token-Declaration">Declaration</strong> ::=  <a class="reference internal" href="#grammar-token-Type"><code class="xref docutils literal"><span class="pre">Type</span></code></a> <a class="reference internal" href="#grammar-token-TokIdentifier"><code class="xref docutils literal"><span class="pre">TokIdentifier</span></code></a> [“=” <a class="reference internal" href="#grammar-token-Value"><code class="xref docutils literal"><span class="pre">Value</span></code></a>]
 </pre>
-<p>It assigns the value to the identifer.</p>
+<p>It assigns the value to the identifier.</p>
 </div>
 <div class="section" id="types">
 <h3><a class="toc-backref" href="#id16">Types</a><a class="headerlink" href="#types" title="Permalink to this headline">¶</a></h3>
@@ -437,8 +441,8 @@ applied at the end of parsing the base classes of a record.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

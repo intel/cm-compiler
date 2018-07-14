@@ -38,13 +38,13 @@ namespace VariableLengthArrays {
   using T = int[n]; // expected-error {{variable length array declaration not allowed at file scope}}
 
   const int m = 42;
-  using U = int[m]; // expected-note {{previous definition}}
-  using U = int[42]; // ok
+  using U = int[m];
+  using U = int[42]; // expected-note {{previous definition}}
   using U = int; // expected-error {{type alias redefinition with different types ('int' vs 'int [42]')}}
 
   void f() {
     int n = 42;
-    goto foo; // expected-error {{goto into protected scope}}
+    goto foo; // expected-error {{cannot jump}}
     using T = int[n]; // expected-note {{bypasses initialization of VLA type alias}}
   foo: ;
   }
@@ -83,12 +83,10 @@ namespace InFunctions {
 
 namespace ClassNameRedecl {
   class C0 {
-    // FIXME: this diagnostic is pretty poor
-    using C0 = int; // expected-error {{name defined in alias declaration must be an identifier}}
+    using C0 = int; // expected-error {{member 'C0' has the same name as its class}}
   };
   class C1 {
-    // FIXME: this diagnostic is pretty poor
-    using C1 = C1; // expected-error {{name defined in alias declaration must be an identifier}}
+    using C1 = C1; // expected-error {{member 'C1' has the same name as its class}}
   };
   class C2 {
     using C0 = C1; // ok

@@ -13,12 +13,12 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SEMA_LAMBDA_H
-#define LLVM_CLANG_SEMA_LAMBDA_H
+#ifndef LLVM_CLANG_SEMA_SEMALAMBDA_H
+#define LLVM_CLANG_SEMA_SEMALAMBDA_H
 #include "clang/AST/ASTLambda.h"
 #include "clang/Sema/ScopeInfo.h"
 namespace clang {
- 
+class Sema;
 
 /// \brief Examines the FunctionScopeInfo stack to determine the nearest
 /// enclosing lambda (to the current lambda) that is 'capture-capable' for 
@@ -33,4 +33,4 @@ Optional<unsigned> getStackIndexOfNearestEnclosingCaptureCapableLambda(
 
 } // clang
 
-#endif // LLVM_CLANG_SEMA_LAMBDA_H
+#endif

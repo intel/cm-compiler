@@ -1,28 +1,14 @@
-#ifdef AS_SYSTEM
-#pragma clang system_header
-
-namespace system {
-  class A {
-  public:
-    A() {
-      foo(); // no-warning
-    }
-
-    virtual int foo();
-  };
-}
-
-#else
-
 namespace header {
-  class A {
+  class Z {
   public:
-    A() {
-      foo(); // expected-warning{{Call virtual functions during construction or destruction will never go to a more derived class}}
+    Z() {
+      foo();
+#if !PUREONLY
+	// expected-warning-re@-2 {{{{^}}Call to virtual function during construction}}
+	// expected-note-re@-3 {{{{^}}This constructor of an object of type 'Z' has not returned when the virtual method was called}}
+	// expected-note-re@-4 {{{{^}}Call to virtual function during construction}}	
+#endif
     }
-
     virtual int foo();
   };
 }
-
-#endif

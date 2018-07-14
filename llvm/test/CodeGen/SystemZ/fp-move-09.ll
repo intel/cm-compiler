@@ -1,4 +1,4 @@
-; Test moves between FPRs and GPRs for z196 and above.
+; Test moves between FPRs and GPRs for z196 and zEC12.
 ;
 ; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z196 | FileCheck %s
 
@@ -9,7 +9,7 @@ define float @f1(i16 *%ptr) {
 ; CHECK: oihh [[REG]], 16256
 ; CHECK: ldgr %f0, [[REG]]
 ; CHECK: br %r14
-  %base = load i16 *%ptr
+  %base = load i16 , i16 *%ptr
   %ext = zext i16 %base to i32
   %full = or i32 %ext, 1065353216
   %res = bitcast i32 %full to float
@@ -32,13 +32,14 @@ define void @f2(float %val, i8 *%ptr) {
 ; Like f2, but with a conditional store.
 define void @f3(float %val, i8 *%ptr, i32 %which) {
 ; CHECK-LABEL: f3:
-; CHECK: cijlh %r3, 0,
+; CHECK: ciblh %r3, 0, 0(%r14)
+
 ; CHECK: lgdr [[REG:%r[0-5]]], %f0
 ; CHECK: stch [[REG]], 0(%r2)
 ; CHECK: br %r14
   %int = bitcast float %val to i32
   %trunc = trunc i32 %int to i8
-  %old = load i8 *%ptr
+  %old = load i8 , i8 *%ptr
   %cmp = icmp eq i32 %which, 0
   %res = select i1 %cmp, i8 %trunc, i8 %old
   store i8 %res, i8 *%ptr
@@ -48,13 +49,13 @@ define void @f3(float %val, i8 *%ptr, i32 %which) {
 ; ...and again with 16-bit memory.
 define void @f4(float %val, i16 *%ptr, i32 %which) {
 ; CHECK-LABEL: f4:
-; CHECK: cijlh %r3, 0,
+; CHECK: ciblh %r3, 0, 0(%r14)
 ; CHECK: lgdr [[REG:%r[0-5]]], %f0
 ; CHECK: sthh [[REG]], 0(%r2)
 ; CHECK: br %r14
   %int = bitcast float %val to i32
   %trunc = trunc i32 %int to i16
-  %old = load i16 *%ptr
+  %old = load i16 , i16 *%ptr
   %cmp = icmp eq i32 %which, 0
   %res = select i1 %cmp, i16 %trunc, i16 %old
   store i16 %res, i16 *%ptr

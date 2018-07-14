@@ -30,7 +30,7 @@ for.end:                                          ; preds = %cond.end
   %call85 = tail call double @exp(double %mul84) nounwind
   %mul86 = fmul double %conv78, %call85
   %add88 = fadd double 0.000000e+00, %mul86
-; CHECK: blx _exp
+; CHECK: bl _exp
   %call100 = tail call double @exp(double %mul84) nounwind
   %mul101 = fmul double undef, %call100
   %add103 = fadd double %add46, %mul101
@@ -61,7 +61,7 @@ for.end:                                          ; preds = %cond.end
 
 ; CHECK: insert_elem
 ; This test has a sub-register copy with a kill flag:
-;   %vreg6:ssub_3<def> = COPY %vreg6:ssub_2<kill>; QPR_VFP2:%vreg6
+;   %6:ssub_3 = COPY killed %6:ssub_2; QPR_VFP2:%6
 ; The rewriter must do something sensible with that, or the scavenger crashes.
 define void @insert_elem() nounwind {
 entry:

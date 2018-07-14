@@ -55,6 +55,7 @@
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
@@ -64,7 +65,6 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Target/TargetLibraryInfo.h"
 
 using namespace llvm;
 using namespace genx;
@@ -80,10 +80,10 @@ class GenXRegionCollapsing : public FunctionPass {
 public:
   static char ID;
   explicit GenXRegionCollapsing() : FunctionPass(ID) { }
-  virtual const char *getPassName() const { return "GenX Region Collapsing"; }
+  virtual StringRef getPassName() const { return "GenX Region Collapsing"; }
   void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.addRequired<DominatorTreeWrapperPass>();
-    AU.addRequired<TargetLibraryInfo>();
+    AU.addRequired<TargetLibraryInfoWrapperPass>();
     AU.setPreservesCFG();
   }
   bool runOnFunction(Function &F);
@@ -117,7 +117,7 @@ namespace llvm { void initializeGenXRegionCollapsingPass(PassRegistry &); }
 INITIALIZE_PASS_BEGIN(GenXRegionCollapsing, "GenXRegionCollapsing",
                       "GenXRegionCollapsing", false, false)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
+INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
 INITIALIZE_PASS_END(GenXRegionCollapsing, "GenXRegionCollapsing",
                     "GenXRegionCollapsing", false, false)
 
@@ -133,9 +133,8 @@ FunctionPass *llvm::createGenXRegionCollapsingPass()
  */
 bool GenXRegionCollapsing::runOnFunction(Function &F)
 {
-  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-  DL = DLP ? &DLP->getDataLayout() : nullptr;
-  TLI = &getAnalysis<TargetLibraryInfo>();
+  DL = &F.getParent()->getDataLayout();
+  TLI = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
 
   // Track if there is any modification to the function.
@@ -203,7 +202,7 @@ void GenXRegionCollapsing::runOnBasicBlock(BasicBlock *BB) {
   // Code simplification in block first.
   for (auto BI = BB->begin(), E = --BB->end(); BI != E;) {
     assert(!BI->isTerminator());
-    Instruction *Inst = BI++;
+    Instruction *Inst = &*BI++;
     if (Inst->use_empty())
       continue;
 
@@ -264,7 +263,7 @@ void GenXRegionCollapsing::runOnBasicBlock(BasicBlock *BB) {
       }
     }
   }
-  Modified |= SimplifyInstructionsInBlock(BB, DL, TLI);
+  Modified |= SimplifyInstructionsInBlock(BB, TLI);
 
   // This loop processes instructions in reverse, tolerating an instruction
   // being removed during its processing, and not re-processing any new
@@ -780,8 +779,8 @@ static bool isBitwiseIdentical(Value *V1, Value *V2) {
     for (; &*I != L1 && &*I != L2; ++I)
       /*empty*/;
     assert(&*I == L1 || &*I == L2);
-    BasicBlock::iterator IEnd = (&*I == L1) ? L2 : L1;
-    for (; &*I != IEnd; ++I) {
+    auto IEnd = (&*I == L1) ? L2->getIterator() : L1->getIterator();
+    for (; I->getIterator() != IEnd; ++I) {
       Instruction *Inst = &*I;
       if (getIntrinsicID(Inst) == Intrinsic::genx_vstore &&
           Inst->getOperand(1) == Addr)
@@ -935,10 +934,10 @@ Instruction *GenXRegionCollapsing::processWrRegionSplat(Instruction *OuterWr)
     return OuterWr;
 
   auto OuterSrc = dyn_cast<Constant>(OuterWr->getOperand(0));
+  if (!OuterSrc)
+   return OuterWr;
   if (isa<UndefValue>(InnerSrc)) {
     // OK.
-  } else if (!OuterSrc) {
-    return OuterWr;
   } else {
     auto InnerSplat = InnerSrc->getSplatValue();
     auto OuterSplat = OuterSrc->getSplatValue();

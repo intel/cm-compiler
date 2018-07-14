@@ -16,7 +16,7 @@ void *operator new(size_t, const noncopyable&);
 void *q = new (nc) int[4]; // expected-error {{calling a private constructor}}
 
 struct bitfield { int n : 3; } bf; // expected-note {{here}}
-void *operator new[](size_t, int &);
+void *operator new[](size_t, int &); // expected-note {{passing argument to parameter here}}
 void *operator new(size_t, const int &);
 void *r = new (bf.n) int[4]; // expected-error {{non-const reference cannot bind to bit-field}}
 
@@ -31,4 +31,4 @@ struct explicit_ctor_tag {} ect;
 void *operator new[](size_t, explicit_ctor_tag, explicit_ctor);
 void *operator new(size_t, explicit_ctor_tag, int);
 void *t = new (ect, 0) int[4];
-void *u = new (ect, {0}) int[4];
+void *u = new (ect, {0}) int[4]; // expected-warning {{braces around scalar init}}

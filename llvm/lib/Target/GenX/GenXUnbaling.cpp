@@ -318,7 +318,7 @@ class GenXUnbaling : public FunctionGroupPass {
 public:
   static char ID;
   explicit GenXUnbaling() : FunctionGroupPass(ID) {}
-  const char *getPassName() const override { return "GenX unbaling"; }
+  StringRef getPassName() const override { return "GenX unbaling"; }
   void getAnalysisUsage(AnalysisUsage &AU) const;
   bool runOnFunctionGroup(FunctionGroup &FG);
   // createPrinterPass : get a pass to print the IR, together with the GenX
@@ -847,7 +847,7 @@ bool GenXUnbaling::scanUsesForUnbaleAndMove(Instruction *Inst,
   unsigned NumBytes = TwoAddrOperand->getType()->getPrimitiveSizeInBits() / 8U;
   unsigned NumCopies = NumBytes / 64U; // one copy per 2 GRFs
   NumBytes -= NumCopies * 64U;
-  NumCopies += CountPopulation_32(NumBytes); // extra copy per power of 2
+  NumCopies += countPopulation(NumBytes); // extra copy per power of 2
   DEBUG(dbgs() << NumCopies << " copy insts, vs "
                << UnbaleCount << " unbales\n");
   if (NumCopies < UnbaleCount) {
@@ -979,10 +979,13 @@ void GenXUnbaling::processNonOverlappingRegion(CallInst *EndWr)
     for (auto bi = B.begin(), be = B.end(); bi != be; ++bi) {
       if (bi->Info.Type != BaleInfo::RDREGION)
         continue;
-      Value *Input = bi->Inst->getOperand(
-            Intrinsic::GenXRegion::OldValueOperandNum);
-      if (Input->getType() == StartWrInput->getType()) {
-        RdInput = Input;
+      Value *Input = bi->Inst->getOperand(Intrinsic::GenXRegion::OldValueOperandNum);
+      if (Input->getType() != StartWrInput->getType())
+        continue;
+      RdInput = Input;
+      if (isa<PHINode>(Input)) {
+        // Prefer to save a live-range on Phi, which may help to
+        // save phi copies. This is observed on Histogram1.
         break;
       }
     }

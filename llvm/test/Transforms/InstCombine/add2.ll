@@ -68,15 +68,6 @@ define <2 x i64> @test7(<2 x i64> %A) {
 ; CHECK-NEXT: ret <2 x i64> %add
 }
 
-define <2 x i64> @test8(<2 x i64> %A) {
-  %xor = xor <2 x i64> %A, <i64 -1, i64 -1>
-  %add = add <2 x i64> %xor, <i64 2, i64 3>
-  ret <2 x i64> %add
-; CHECK-LABEL: @test8(
-; CHECK-NEXT: %add = sub <2 x i64> <i64 1, i64 2>, %A
-; CHECK-NEXT: ret <2 x i64> %add
-}
-
 define i16 @test9(i16 %a) {
        %b = mul i16 %a, 2
        %c = mul i16 %a, 32767
@@ -273,6 +264,35 @@ define i32 @mul_add_to_mul_6(i32 %x, i32 %y) {
 ; CHECK-NEXT: ret i32 %add
 }
 
+define i16 @mul_add_to_mul_7(i16 %x) {
+  %mul1 = mul nsw i16 %x, 32767
+  %add2 = add nsw i16 %x, %mul1
+  ret i16 %add2
+; CHECK-LABEL: @mul_add_to_mul_7(
+; CHECK-NEXT: %add2 = shl i16 %x, 15
+; CHECK-NEXT: ret i16 %add2
+}
+
+define i16 @mul_add_to_mul_8(i16 %a) {
+  %mul1 = mul nsw i16 %a, 16383
+  %mul2 = mul nsw i16 %a, 16384
+  %add = add nsw i16 %mul1, %mul2
+  ret i16 %add
+; CHECK-LABEL: @mul_add_to_mul_8(
+; CHECK-NEXT: %add = mul nsw i16 %a, 32767
+; CHECK-NEXT: ret i16 %add
+}
+
+define i16 @mul_add_to_mul_9(i16 %a) {
+  %mul1 = mul nsw i16 %a, 16384
+  %mul2 = mul nsw i16 %a, 16384
+  %add = add nsw i16 %mul1, %mul2
+  ret i16 %add
+; CHECK-LABEL: @mul_add_to_mul_9(
+; CHECK-NEXT: %add = shl i16 %a, 15
+; CHECK-NEXT: ret i16 %add
+}
+
 ; This test and the next test verify that when a range metadata is attached to
 ; llvm.cttz, ValueTracking correctly intersects the range specified by the
 ; metadata and the range implied by the intrinsic.
@@ -294,7 +314,7 @@ define i16 @add_cttz(i16 %a) {
   ret i16 %b
 }
 declare i16 @llvm.cttz.i16(i16, i1)
-!0 = metadata !{i16 0, i16 8}
+!0 = !{i16 0, i16 8}
 
 ; Similar to @add_cttz, but in this test, the range implied by the
 ; intrinsic is more strict. Therefore, ValueTracking uses that range.
@@ -312,4 +332,67 @@ define i16 @add_cttz_2(i16 %a) {
 ; CHECK: or i16 %cttz, -16
   ret i16 %b
 }
-!1 = metadata !{i16 0, i16 32}
+!1 = !{i16 0, i16 32}
+
+define i32 @add_or_and(i32 %x, i32 %y) {
+  %or = or i32 %x, %y
+  %and = and i32 %x, %y
+  %add = add i32 %or, %and
+  ret i32 %add
+; CHECK-LABEL: @add_or_and(
+; CHECK-NEXT: add i32 %x, %y
+; CHECK-NEXT: ret i32
+}
+
+define i32 @add_nsw_or_and(i32 %x, i32 %y) {
+  %or = or i32 %x, %y
+  %and = and i32 %x, %y
+  %add = add nsw i32 %or, %and
+  ret i32 %add
+; CHECK-LABEL: @add_nsw_or_and(
+; CHECK-NEXT: add nsw i32 %x, %y
+; CHECK-NEXT: ret i32
+}
+
+define i32 @add_nuw_or_and(i32 %x, i32 %y) {
+  %or = or i32 %x, %y
+  %and = and i32 %x, %y
+  %add = add nuw i32 %or, %and
+  ret i32 %add
+; CHECK-LABEL: @add_nuw_or_and(
+; CHECK-NEXT: add nuw i32 %x, %y
+; CHECK-NEXT: ret i32
+}
+
+define i32 @add_nuw_nsw_or_and(i32 %x, i32 %y) {
+  %or = or i32 %x, %y
+  %and = and i32 %x, %y
+  %add = add nsw nuw i32 %or, %and
+  ret i32 %add
+; CHECK-LABEL: @add_nuw_nsw_or_and(
+; CHECK-NEXT: add nuw nsw i32 %x, %y
+; CHECK-NEXT: ret i32
+}
+
+; A *nsw B + A *nsw C != A *nsw (B + C)
+; e.g. A = -1, B = 1, C = INT_SMAX
+
+define i8 @add_of_mul(i8 %x, i8 %y, i8 %z) {
+; CHECK-LABEL: @add_of_mul(
+ entry:
+  %mA = mul nsw i8 %x, %y
+  %mB = mul nsw i8 %x, %z
+; CHECK: %sum = mul i8
+  %sum = add nsw i8 %mA, %mB
+  ret i8 %sum
+}
+
+define i32 @add_of_selects(i1 %A, i32 %B) {
+  %sel0 = select i1 %A, i32 0, i32 -2
+  %sel1 = select i1 %A, i32 %B, i32 2
+  %add = add i32 %sel0, %sel1
+  ret i32 %add
+; CHECK-LABEL: @add_of_selects(
+; CHECK-NEXT: %[[sel:.*]] = select i1 %A, i32 %B, i32 0
+; CHECK-NEXT: ret i32 %[[sel]]
+}

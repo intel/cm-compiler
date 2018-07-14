@@ -704,7 +704,7 @@ void GenXVisaRegAlloc::print(raw_ostream &OS, const Module *M) const
           unsigned Num = Numbering->getNumber(Inst);
           if (Num < BestNum) {
             auto DL = Inst->getDebugLoc();
-            if (!DL.isUnknown()) {
+            if (!DL) {
               BestNum = Num;
               BestInst = Inst;
             }
@@ -716,8 +716,7 @@ void GenXVisaRegAlloc::print(raw_ostream &OS, const Module *M) const
       OS << KernelArg->getName();
     else if (BestInst) {
       DebugLoc DL = BestInst->getDebugLoc();
-      DIScope Scope(DL.getScope(BestInst->getContext()));
-      OS << Scope.getFilename() << ":" << DL.getLine();
+      OS << DL->getFilename() << ":" << DL.getLine();
     }
     // Dump the live range segments, and add each to the pressure score.
     OS << ":";
@@ -746,7 +745,7 @@ void GenXVisaRegAlloc::print(raw_ostream &OS, const Module *M) const
       BasicBlock *BB = &*fi;
       for (auto bi = BB->begin(), be = BB->end(); bi != be; ++bi) {
         Instruction *Inst = &*bi;
-        if (!Inst->getDebugLoc().isUnknown()) {
+        if (!Inst->getDebugLoc()) {
           unsigned Num = Numbering->getNumber(Inst);
           if (Num >= Insts.size())
             Insts.resize(Num + 1, nullptr);
@@ -777,7 +776,7 @@ void GenXVisaRegAlloc::print(raw_ostream &OS, const Module *M) const
           HadInst = true;
           OS << " ";
           DebugLoc DL = Inst->getDebugLoc();
-          DL.print(Inst->getContext(), OS);
+          DL.print(OS);
         }
         OS << "\n";
       }
@@ -798,8 +797,7 @@ void GenXVisaRegAlloc::print(raw_ostream &OS, const Module *M) const
       if (Inst) {
         HadInst = true;
         DebugLoc DL = Inst->getDebugLoc();
-        DIScope Scope(DL.getScope(Inst->getContext()));
-        OS << " " << Scope.getFilename() << ":" << DL.getLine();
+        OS << " " << DL->getFilename() << ":" << DL.getLine();
       }
       OS << "\n";
     }

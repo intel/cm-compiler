@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>The LLVM Target-Independent Code Generator &#8212; LLVM 3.4 documentation</title>
+    <title>The LLVM Target-Independent Code Generator &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -91,7 +91,7 @@
 <li><a class="reference internal" href="#the-targetlowering-class" id="id15">The <code class="docutils literal"><span class="pre">TargetLowering</span></code> class</a></li>
 <li><a class="reference internal" href="#the-targetregisterinfo-class" id="id16">The <code class="docutils literal"><span class="pre">TargetRegisterInfo</span></code> class</a></li>
 <li><a class="reference internal" href="#the-targetinstrinfo-class" id="id17">The <code class="docutils literal"><span class="pre">TargetInstrInfo</span></code> class</a></li>
-<li><a class="reference internal" href="#the-targetframeinfo-class" id="id18">The <code class="docutils literal"><span class="pre">TargetFrameInfo</span></code> class</a></li>
+<li><a class="reference internal" href="#the-targetframelowering-class" id="id18">The <code class="docutils literal"><span class="pre">TargetFrameLowering</span></code> class</a></li>
 <li><a class="reference internal" href="#the-targetsubtarget-class" id="id19">The <code class="docutils literal"><span class="pre">TargetSubtarget</span></code> class</a></li>
 <li><a class="reference internal" href="#the-targetjitinfo-class" id="id20">The <code class="docutils literal"><span class="pre">TargetJITInfo</span></code> class</a></li>
 </ul>
@@ -147,54 +147,67 @@
 </li>
 <li><a class="reference internal" href="#prolog-epilog-code-insertion" id="id58">Prolog/Epilog Code Insertion</a></li>
 <li><a class="reference internal" href="#late-machine-code-optimizations" id="id59">Late Machine Code Optimizations</a></li>
-<li><a class="reference internal" href="#code-emission" id="id60">Code Emission</a></li>
-<li><a class="reference internal" href="#vliw-packetizer" id="id61">VLIW Packetizer</a><ul>
-<li><a class="reference internal" href="#mapping-from-instructions-to-functional-units" id="id62">Mapping from instructions to functional units</a></li>
-<li><a class="reference internal" href="#how-the-packetization-tables-are-generated-and-used" id="id63">How the packetization tables are generated and used</a></li>
+<li><a class="reference internal" href="#code-emission" id="id60">Code Emission</a><ul>
+<li><a class="reference internal" href="#emitting-function-stack-size-information" id="id61">Emitting function stack size information</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#vliw-packetizer" id="id62">VLIW Packetizer</a><ul>
+<li><a class="reference internal" href="#mapping-from-instructions-to-functional-units" id="id63">Mapping from instructions to functional units</a></li>
+<li><a class="reference internal" href="#how-the-packetization-tables-are-generated-and-used" id="id64">How the packetization tables are generated and used</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a class="reference internal" href="#implementing-a-native-assembler" id="id64">Implementing a Native Assembler</a><ul>
-<li><a class="reference internal" href="#instruction-parsing" id="id65">Instruction Parsing</a></li>
-<li><a class="reference internal" href="#instruction-alias-processing" id="id66">Instruction Alias Processing</a><ul>
-<li><a class="reference internal" href="#mnemonic-aliases" id="id67">Mnemonic Aliases</a></li>
-<li><a class="reference internal" href="#instruction-aliases" id="id68">Instruction Aliases</a></li>
+<li><a class="reference internal" href="#implementing-a-native-assembler" id="id65">Implementing a Native Assembler</a><ul>
+<li><a class="reference internal" href="#instruction-parsing" id="id66">Instruction Parsing</a></li>
+<li><a class="reference internal" href="#instruction-alias-processing" id="id67">Instruction Alias Processing</a><ul>
+<li><a class="reference internal" href="#mnemonic-aliases" id="id68">Mnemonic Aliases</a></li>
+<li><a class="reference internal" href="#instruction-aliases" id="id69">Instruction Aliases</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#instruction-matching" id="id69">Instruction Matching</a></li>
+<li><a class="reference internal" href="#instruction-matching" id="id70">Instruction Matching</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#target-specific-implementation-notes" id="id70">Target-specific Implementation Notes</a><ul>
-<li><a class="reference internal" href="#target-feature-matrix" id="id71">Target Feature Matrix</a><ul>
-<li><a class="reference internal" href="#is-generally-reliable" id="id72">Is Generally Reliable</a></li>
-<li><a class="reference internal" href="#assembly-parser" id="id73">Assembly Parser</a></li>
-<li><a class="reference internal" href="#disassembler" id="id74">Disassembler</a></li>
-<li><a class="reference internal" href="#inline-asm" id="id75">Inline Asm</a></li>
-<li><a class="reference internal" href="#jit-support" id="id76">JIT Support</a></li>
-<li><a class="reference internal" href="#o-file-writing" id="id77">.o File Writing</a></li>
-<li><a class="reference internal" href="#tail-calls" id="id78">Tail Calls</a></li>
-<li><a class="reference internal" href="#segmented-stacks" id="id79">Segmented Stacks</a></li>
+<li><a class="reference internal" href="#target-specific-implementation-notes" id="id71">Target-specific Implementation Notes</a><ul>
+<li><a class="reference internal" href="#target-feature-matrix" id="id72">Target Feature Matrix</a><ul>
+<li><a class="reference internal" href="#is-generally-reliable" id="id73">Is Generally Reliable</a></li>
+<li><a class="reference internal" href="#assembly-parser" id="id74">Assembly Parser</a></li>
+<li><a class="reference internal" href="#disassembler" id="id75">Disassembler</a></li>
+<li><a class="reference internal" href="#inline-asm" id="id76">Inline Asm</a></li>
+<li><a class="reference internal" href="#jit-support" id="id77">JIT Support</a></li>
+<li><a class="reference internal" href="#o-file-writing" id="id78">.o File Writing</a></li>
+<li><a class="reference internal" href="#tail-calls" id="id79">Tail Calls</a></li>
+<li><a class="reference internal" href="#segmented-stacks" id="id80">Segmented Stacks</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#tail-call-optimization" id="id80">Tail call optimization</a></li>
-<li><a class="reference internal" href="#sibling-call-optimization" id="id81">Sibling call optimization</a></li>
-<li><a class="reference internal" href="#the-x86-backend" id="id82">The X86 backend</a><ul>
-<li><a class="reference internal" href="#x86-target-triples-supported" id="id83">X86 Target Triples supported</a></li>
-<li><a class="reference internal" href="#x86-calling-conventions-supported" id="id84">X86 Calling Conventions supported</a></li>
-<li><a class="reference internal" href="#representing-x86-addressing-modes-in-machineinstrs" id="id85">Representing X86 addressing modes in MachineInstrs</a></li>
-<li><a class="reference internal" href="#x86-address-spaces-supported" id="id86">X86 address spaces supported</a></li>
-<li><a class="reference internal" href="#instruction-naming" id="id87">Instruction naming</a></li>
+<li><a class="reference internal" href="#tail-call-optimization" id="id81">Tail call optimization</a></li>
+<li><a class="reference internal" href="#sibling-call-optimization" id="id82">Sibling call optimization</a></li>
+<li><a class="reference internal" href="#the-x86-backend" id="id83">The X86 backend</a><ul>
+<li><a class="reference internal" href="#x86-target-triples-supported" id="id84">X86 Target Triples supported</a></li>
+<li><a class="reference internal" href="#x86-calling-conventions-supported" id="id85">X86 Calling Conventions supported</a></li>
+<li><a class="reference internal" href="#representing-x86-addressing-modes-in-machineinstrs" id="id86">Representing X86 addressing modes in MachineInstrs</a></li>
+<li><a class="reference internal" href="#x86-address-spaces-supported" id="id87">X86 address spaces supported</a></li>
+<li><a class="reference internal" href="#instruction-naming" id="id88">Instruction naming</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#the-powerpc-backend" id="id88">The PowerPC backend</a><ul>
-<li><a class="reference internal" href="#llvm-powerpc-abi" id="id89">LLVM PowerPC ABI</a></li>
-<li><a class="reference internal" href="#frame-layout" id="id90">Frame Layout</a></li>
-<li><a class="reference internal" href="#prolog-epilog" id="id91">Prolog/Epilog</a></li>
-<li><a class="reference internal" href="#dynamic-allocation" id="id92">Dynamic Allocation</a></li>
+<li><a class="reference internal" href="#the-powerpc-backend" id="id89">The PowerPC backend</a><ul>
+<li><a class="reference internal" href="#llvm-powerpc-abi" id="id90">LLVM PowerPC ABI</a></li>
+<li><a class="reference internal" href="#frame-layout" id="id91">Frame Layout</a></li>
+<li><a class="reference internal" href="#prolog-epilog" id="id92">Prolog/Epilog</a></li>
+<li><a class="reference internal" href="#dynamic-allocation" id="id93">Dynamic Allocation</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#the-nvptx-backend" id="id93">The NVPTX backend</a></li>
+<li><a class="reference internal" href="#the-nvptx-backend" id="id94">The NVPTX backend</a></li>
+<li><a class="reference internal" href="#the-extended-berkeley-packet-filter-ebpf-backend" id="id95">The extended Berkeley Packet Filter (eBPF) backend</a><ul>
+<li><a class="reference internal" href="#instruction-encoding-arithmetic-and-jump" id="id96">Instruction encoding (arithmetic and jump)</a></li>
+<li><a class="reference internal" href="#instruction-encoding-load-store" id="id97">Instruction encoding (load, store)</a></li>
+<li><a class="reference internal" href="#packet-data-access-bpf-abs-bpf-ind" id="id98">Packet data access (BPF_ABS, BPF_IND)</a></li>
+<li><a class="reference internal" href="#ebpf-maps" id="id99">eBPF maps</a></li>
+<li><a class="reference internal" href="#function-calls" id="id100">Function calls</a></li>
+<li><a class="reference internal" href="#program-start" id="id101">Program start</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#the-amdgpu-backend" id="id102">The AMDGPU backend</a></li>
 </ul>
 </li>
 </ul>
@@ -220,7 +233,7 @@ classes are intended to be abstract enough to represent the machine code for
 <em>any</em> target machine.  These classes are defined in
 <code class="docutils literal"><span class="pre">include/llvm/CodeGen/</span></code>. At this level, concepts like “constant pool
 entries” and “jump tables” are explicitly exposed.</li>
-<li>Classes and algorithms used to represent code as the object file level, the
+<li>Classes and algorithms used to represent code at the object file level, the
 <a class="reference internal" href="#mc-layer">MC Layer</a>.  These classes represent assembly level constructs like labels,
 sections, and instructions.  At this level, concepts like “constant pool
 entries” and “jump tables” don’t exist.</li>
@@ -419,9 +432,9 @@ the opcode, the number of operands, the list of implicit register uses and defs,
 whether the instruction has certain target-independent properties (accesses
 memory, is commutable, etc), and holds any target-specific flags.</p>
 </div>
-<div class="section" id="the-targetframeinfo-class">
-<h3><a class="toc-backref" href="#id18">The <code class="docutils literal"><span class="pre">TargetFrameInfo</span></code> class</a><a class="headerlink" href="#the-targetframeinfo-class" title="Permalink to this headline">¶</a></h3>
-<p>The <code class="docutils literal"><span class="pre">TargetFrameInfo</span></code> class is used to provide information about the stack
+<div class="section" id="the-targetframelowering-class">
+<h3><a class="toc-backref" href="#id18">The <code class="docutils literal"><span class="pre">TargetFrameLowering</span></code> class</a><a class="headerlink" href="#the-targetframelowering-class" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal"><span class="pre">TargetFrameLowering</span></code> class is used to provide information about the stack
 frame layout of the target. It holds the direction of stack growth, the known
 stack alignment on entry to each function, and the offset to the local area.
 The offset to the local area is the offset from the stack pointer on function
@@ -492,33 +505,28 @@ the <code class="docutils literal"><span class="pre">include/llvm/CodeGen/Machin
 functions make it easy to build arbitrary machine instructions.  Usage of the
 <code class="docutils literal"><span class="pre">BuildMI</span></code> functions look like this:</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// Create a &#39;DestReg = mov 42&#39; (rendered in X86 assembly as &#39;mov DestReg, 42&#39;)</span>
-<span class="c1">// instruction.  The &#39;1&#39; specifies how many operands will be added.</span>
-<span class="n">MachineInstr</span> <span class="o">*</span><span class="n">MI</span> <span class="o">=</span> <span class="n">BuildMI</span><span class="p">(</span><span class="n">X86</span><span class="o">::</span><span class="n">MOV32ri</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">DestReg</span><span class="p">).</span><span class="n">addImm</span><span class="p">(</span><span class="mi">42</span><span class="p">);</span>
-
-<span class="c1">// Create the same instr, but insert it at the end of a basic block.</span>
+<span class="c1">// instruction and insert it at the end of the given MachineBasicBlock.</span>
+<span class="k">const</span> <span class="n">TargetInstrInfo</span> <span class="o">&amp;</span><span class="n">TII</span> <span class="o">=</span> <span class="p">...</span>
 <span class="n">MachineBasicBlock</span> <span class="o">&amp;</span><span class="n">MBB</span> <span class="o">=</span> <span class="p">...</span>
-<span class="n">BuildMI</span><span class="p">(</span><span class="n">MBB</span><span class="p">,</span> <span class="n">X86</span><span class="o">::</span><span class="n">MOV32ri</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">DestReg</span><span class="p">).</span><span class="n">addImm</span><span class="p">(</span><span class="mi">42</span><span class="p">);</span>
+<span class="n">DebugLoc</span> <span class="n">DL</span><span class="p">;</span>
+<span class="n">MachineInstr</span> <span class="o">*</span><span class="n">MI</span> <span class="o">=</span> <span class="n">BuildMI</span><span class="p">(</span><span class="n">MBB</span><span class="p">,</span> <span class="n">DL</span><span class="p">,</span> <span class="n">TII</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="n">X86</span><span class="o">::</span><span class="n">MOV32ri</span><span class="p">),</span> <span class="n">DestReg</span><span class="p">).</span><span class="n">addImm</span><span class="p">(</span><span class="mi">42</span><span class="p">);</span>
 
 <span class="c1">// Create the same instr, but insert it before a specified iterator point.</span>
 <span class="n">MachineBasicBlock</span><span class="o">::</span><span class="n">iterator</span> <span class="n">MBBI</span> <span class="o">=</span> <span class="p">...</span>
-<span class="n">BuildMI</span><span class="p">(</span><span class="n">MBB</span><span class="p">,</span> <span class="n">MBBI</span><span class="p">,</span> <span class="n">X86</span><span class="o">::</span><span class="n">MOV32ri</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">DestReg</span><span class="p">).</span><span class="n">addImm</span><span class="p">(</span><span class="mi">42</span><span class="p">);</span>
+<span class="n">BuildMI</span><span class="p">(</span><span class="n">MBB</span><span class="p">,</span> <span class="n">MBBI</span><span class="p">,</span> <span class="n">DL</span><span class="p">,</span> <span class="n">TII</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="n">X86</span><span class="o">::</span><span class="n">MOV32ri</span><span class="p">),</span> <span class="n">DestReg</span><span class="p">).</span><span class="n">addImm</span><span class="p">(</span><span class="mi">42</span><span class="p">);</span>
 
 <span class="c1">// Create a &#39;cmp Reg, 0&#39; instruction, no destination reg.</span>
-<span class="n">MI</span> <span class="o">=</span> <span class="n">BuildMI</span><span class="p">(</span><span class="n">X86</span><span class="o">::</span><span class="n">CMP32ri</span><span class="p">,</span> <span class="mi">2</span><span class="p">).</span><span class="n">addReg</span><span class="p">(</span><span class="n">Reg</span><span class="p">).</span><span class="n">addImm</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="n">MI</span> <span class="o">=</span> <span class="n">BuildMI</span><span class="p">(</span><span class="n">MBB</span><span class="p">,</span> <span class="n">DL</span><span class="p">,</span> <span class="n">TII</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="n">X86</span><span class="o">::</span><span class="n">CMP32ri8</span><span class="p">)).</span><span class="n">addReg</span><span class="p">(</span><span class="n">Reg</span><span class="p">).</span><span class="n">addImm</span><span class="p">(</span><span class="mi">42</span><span class="p">);</span>
 
 <span class="c1">// Create an &#39;sahf&#39; instruction which takes no operands and stores nothing.</span>
-<span class="n">MI</span> <span class="o">=</span> <span class="n">BuildMI</span><span class="p">(</span><span class="n">X86</span><span class="o">::</span><span class="n">SAHF</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+<span class="n">MI</span> <span class="o">=</span> <span class="n">BuildMI</span><span class="p">(</span><span class="n">MBB</span><span class="p">,</span> <span class="n">DL</span><span class="p">,</span> <span class="n">TII</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="n">X86</span><span class="o">::</span><span class="n">SAHF</span><span class="p">));</span>
 
 <span class="c1">// Create a self looping branch instruction.</span>
-<span class="n">BuildMI</span><span class="p">(</span><span class="n">MBB</span><span class="p">,</span> <span class="n">X86</span><span class="o">::</span><span class="n">JNE</span><span class="p">,</span> <span class="mi">1</span><span class="p">).</span><span class="n">addMBB</span><span class="p">(</span><span class="o">&amp;</span><span class="n">MBB</span><span class="p">);</span>
+<span class="n">BuildMI</span><span class="p">(</span><span class="n">MBB</span><span class="p">,</span> <span class="n">DL</span><span class="p">,</span> <span class="n">TII</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="n">X86</span><span class="o">::</span><span class="n">JNE</span><span class="p">)).</span><span class="n">addMBB</span><span class="p">(</span><span class="o">&amp;</span><span class="n">MBB</span><span class="p">);</span>
 </pre></div>
 </div>
-<p>The key thing to remember with the <code class="docutils literal"><span class="pre">BuildMI</span></code> functions is that you have to
-specify the number of operands that the machine instruction will take.  This
-allows for efficient memory allocation.  You also need to specify if operands
-default to be uses of values, not definitions.  If you need to add a definition
-operand (other than the optional destination register), you must explicitly mark
-it as such:</p>
+<p>If you need to add a definition operand (other than the optional destination
+register), you must explicitly mark it as such:</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">MI</span><span class="p">.</span><span class="n">addReg</span><span class="p">(</span><span class="n">Reg</span><span class="p">,</span> <span class="n">RegState</span><span class="o">::</span><span class="n">Define</span><span class="p">);</span>
 </pre></div>
 </div>
@@ -542,7 +550,7 @@ of a physical register when needed.</p>
 </div>
 <p>The X86 instruction selector might produce this machine code for the <code class="docutils literal"><span class="pre">div</span></code> and
 <code class="docutils literal"><span class="pre">ret</span></code>:</p>
-<div class="highlight-none"><div class="highlight"><pre><span></span>;; Start of div
+<div class="highlight-text"><div class="highlight"><pre><span></span>;; Start of div
 %EAX = mov %reg1024           ;; Copy X (in reg1024) into EAX
 %reg1027 = sar %reg1024, 31
 %EDX = mov %reg1027           ;; Sign extend X into EDX
@@ -557,7 +565,7 @@ ret
 <p>By the end of code generation, the register allocator would coalesce the
 registers and delete the resultant identity moves producing the following
 code:</p>
-<div class="highlight-none"><div class="highlight"><pre><span></span>;; X is in EAX, Y is in ECX
+<div class="highlight-text"><div class="highlight"><pre><span></span>;; X is in EAX, Y is in ECX
 mov %EAX, %EDX
 sar %EDX, 31
 idiv %ECX
@@ -707,14 +715,14 @@ higher level LLVM IR and Machine* constructs down to the MC layer, emitting
 directives through MCStreamer.</p>
 <p>On the implementation side of MCStreamer, there are two major implementations:
 one for writing out a .s file (MCAsmStreamer), and one for writing out a .o
-file (MCObjectStreamer).  MCAsmStreamer is a straight-forward implementation
+file (MCObjectStreamer).  MCAsmStreamer is a straightforward implementation
 that prints out a directive for each method (e.g. <code class="docutils literal"><span class="pre">EmitValue</span> <span class="pre">-&gt;</span> <span class="pre">.byte</span></code>), but
 MCObjectStreamer implements a full assembler.</p>
 <p>For target specific directives, the MCStreamer has a MCTargetStreamer instance.
 Each target that needs it defines a class that inherits from it and is a lot
 like MCStreamer itself: It has one method per directive and two classes that
 inherit from it, a target object streamer and a target asm streamer. The target
-asm streamer just prints it (<code class="docutils literal"><span class="pre">emitFnStart</span> <span class="pre">-&gt;</span> <span class="pre">.fnstrart</span></code>), and the object
+asm streamer just prints it (<code class="docutils literal"><span class="pre">emitFnStart</span> <span class="pre">-&gt;</span> <span class="pre">.fnstart</span></code>), and the object
 streamer implement the assembler logic for it.</p>
 <p>To make llvm use these classes, the target initialization must call
 TargetRegistry::RegisterAsmStreamer and TargetRegistry::RegisterMCObjectStreamer
@@ -798,7 +806,7 @@ efficiently supported by the target.</p>
 <code class="docutils literal"><span class="pre">SDNode</span></code> class.  The primary payload of the <code class="docutils literal"><span class="pre">SDNode</span></code> is its operation code
 (Opcode) that indicates what operation the node performs and the operands to the
 operation.  The various operation node types are described at the top of the
-<code class="docutils literal"><span class="pre">include/llvm/CodeGen/SelectionDAGNodes.h</span></code> file.</p>
+<code class="docutils literal"><span class="pre">include/llvm/CodeGen/ISDOpcodes.h</span></code> file.</p>
 <p>Although most operations define a single value, each node in the graph may
 define multiple values.  For example, a combined div/rem operation will define
 both the dividend and the remainder. Many other situations require multiple
@@ -816,7 +824,9 @@ provide an ordering between nodes that have side effects (such as loads, stores,
 calls, returns, etc).  All nodes that have side effects should take a token
 chain as input and produce a new one as output.  By convention, token chain
 inputs are always operand #0, and chain results are always the last value
-produced by an operation.</p>
+produced by an operation. However, after instruction selection, the
+machine nodes have their chain after the instruction’s operands, and
+may be followed by glue nodes.</p>
 <p>A SelectionDAG has designated “Entry” and “Root” nodes.  The Entry node is
 always a marker node with an Opcode of <code class="docutils literal"><span class="pre">ISD::EntryToken</span></code>.  The Root node is
 the final side-effecting node in the token chain. For example, in a single basic
@@ -860,7 +870,7 @@ rest of the code generation passes are run.</p>
 <p>One great way to visualize what is going on here is to take advantage of a few
 LLC command line options.  The following options pop up a window displaying the
 SelectionDAG at specific times (if you only get errors printed to the console
-while using this, you probably <a class="reference external" href="ProgrammersManual.html#ViewGraph">need to configure your
+while using this, you probably <a class="reference external" href="ProgrammersManual.html#viewing-graphs-while-debugging-code">need to configure your
 system</a> to add support for it).</p>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">-view-dag-combine1-dags</span></code> displays the DAG after being built, before the
@@ -875,6 +885,9 @@ pass.</li>
 is based on the final SelectionDAG, with nodes that must be scheduled together
 bundled into a single scheduling-unit node, and with immediate operands and
 other nodes that aren’t relevant for scheduling omitted.</p>
+<p>The option <code class="docutils literal"><span class="pre">-filter-view-dags</span></code> allows to select the name of the basic block
+that you are interested to visualize and filters all the previous
+<code class="docutils literal"><span class="pre">view-*-dags</span></code> options.</p>
 </div>
 <div class="section" id="initial-selectiondag-construction">
 <span id="build-initial-dag"></span><h4><a class="toc-backref" href="#id40">Initial SelectionDAG Construction</a><a class="headerlink" href="#initial-selectiondag-construction" title="Permalink to this headline">¶</a></h4>
@@ -962,7 +975,7 @@ target code.  For example, consider the following LLVM fragment:</p>
 </pre></div>
 </div>
 <p>This LLVM code corresponds to a SelectionDAG that looks basically like this:</p>
-<div class="highlight-none"><div class="highlight"><pre><span></span>(fadd:f32 (fmul:f32 (fadd:f32 W, X), Y), Z)
+<div class="highlight-text"><div class="highlight"><pre><span></span>(fadd:f32 (fmul:f32 (fadd:f32 W, X), Y), Z)
 </pre></div>
 </div>
 <p>If a target supports floating point multiply-and-add (FMA) operations, one of
@@ -995,7 +1008,7 @@ are defined in the <code class="docutils literal"><span class="pre">include/llvm
 in the <code class="docutils literal"><span class="pre">.td</span></code> file and automatically builds parts of the pattern matching code
 for your target.  It has the following strengths:</p>
 <ul>
-<li><p class="first">At compiler-compiler time, it analyzes your instruction patterns and tells you
+<li><p class="first">At compiler-compile time, it analyzes your instruction patterns and tells you
 if your patterns make sense or not.</p>
 </li>
 <li><p class="first">It can handle arbitrary constraints on operands for the pattern match.  In
@@ -1016,7 +1029,7 @@ propagate this knowledge from the fact that <code class="docutils literal"><span
 </li>
 <li><p class="first">Targets can define their own (and rely on built-in) “pattern fragments”.
 Pattern fragments are chunks of reusable patterns that get inlined into your
-patterns during compiler-compiler time.  For example, the integer “<code class="docutils literal"><span class="pre">(not</span>
+patterns during compiler-compile time.  For example, the integer “<code class="docutils literal"><span class="pre">(not</span>
 <span class="pre">x)</span></code>” operation is actually defined as a pattern fragment that expands as
 “<code class="docutils literal"><span class="pre">(xor</span> <span class="pre">x,</span> <span class="pre">-1)</span></code>”, since the SelectionDAG does not have a native ‘<code class="docutils literal"><span class="pre">not</span></code>’
 operation.  Targets can define their own short-hand fragments as they see fit.
@@ -1287,7 +1300,7 @@ found before being stored or after being reloaded.</p>
 <p>If the indirect strategy is used, after all the virtual registers have been
 mapped to physical registers or stack slots, it is necessary to use a spiller
 object to place load and store instructions in the code. Every virtual that has
-been mapped to a stack slot will be stored to memory after been defined and will
+been mapped to a stack slot will be stored to memory after being defined and will
 be loaded before being used. The implementation of the spiller tries to recycle
 load/store instructions, avoiding unnecessary instructions. For an example of
 how to invoke the spiller, see <code class="docutils literal"><span class="pre">RegAllocLinearScan::runOnMachineFunction</span></code> in
@@ -1299,7 +1312,7 @@ how to invoke the spiller, see <code class="docutils literal"><span class="pre">
 instructions are three address instructions. That is, each instruction is
 expected to define at most one register, and to use at most two registers.
 However, some architectures use two address instructions. In this case, the
-defined register is also one of the used register. For instance, an instruction
+defined register is also one of the used registers. For instance, an instruction
 such as <code class="docutils literal"><span class="pre">ADD</span> <span class="pre">%EAX,</span> <span class="pre">%EBX</span></code>, in X86 is actually equivalent to <code class="docutils literal"><span class="pre">%EAX</span> <span class="pre">=</span> <span class="pre">%EAX</span> <span class="pre">+</span>
 <span class="pre">%EBX</span></code>.</p>
 <p>In order to produce correct code, LLVM must convert three address instructions
@@ -1525,20 +1538,30 @@ ops used by the code generator into the actual machine instructions they
 correspond to. The MCInsts that are generated by this are fed into the
 instruction printer or the encoder.</li>
 </ol>
-<p>Finally, at your choosing, you can also implement an subclass of MCCodeEmitter
+<p>Finally, at your choosing, you can also implement a subclass of MCCodeEmitter
 which lowers MCInst’s into machine code bytes and relocations.  This is
 important if you want to support direct .o file emission, or would like to
 implement an assembler for your target.</p>
+<div class="section" id="emitting-function-stack-size-information">
+<h4><a class="toc-backref" href="#id61">Emitting function stack size information</a><a class="headerlink" href="#emitting-function-stack-size-information" title="Permalink to this headline">¶</a></h4>
+<p>A section containing metadata on function stack sizes will be emitted when
+<code class="docutils literal"><span class="pre">TargetLoweringObjectFile::StackSizesSection</span></code> is not null, and
+<code class="docutils literal"><span class="pre">TargetOptions::EmitStackSizeSection</span></code> is set (-stack-size-section). The
+section will contain an array of pairs of function symbol references (8 byte)
+and stack sizes (unsigned LEB128). The stack size values only include the space
+allocated in the function prologue. Functions with dynamic stack allocations are
+not included.</p>
+</div>
 </div>
 <div class="section" id="vliw-packetizer">
-<h3><a class="toc-backref" href="#id61">VLIW Packetizer</a><a class="headerlink" href="#vliw-packetizer" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id62">VLIW Packetizer</a><a class="headerlink" href="#vliw-packetizer" title="Permalink to this headline">¶</a></h3>
 <p>In a Very Long Instruction Word (VLIW) architecture, the compiler is responsible
 for mapping instructions to functional-units available on the architecture. To
 that end, the compiler creates groups of instructions called <em>packets</em> or
 <em>bundles</em>. The VLIW packetizer in LLVM is a target-independent mechanism to
 enable the packetization of machine instructions.</p>
 <div class="section" id="mapping-from-instructions-to-functional-units">
-<h4><a class="toc-backref" href="#id62">Mapping from instructions to functional units</a><a class="headerlink" href="#mapping-from-instructions-to-functional-units" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id63">Mapping from instructions to functional units</a><a class="headerlink" href="#mapping-from-instructions-to-functional-units" title="Permalink to this headline">¶</a></h4>
 <p>Instructions in a VLIW target can typically be mapped to multiple functional
 units. During the process of packetizing, the compiler must be able to reason
 about whether an instruction can be added to a packet. This decision can be
@@ -1550,7 +1573,7 @@ machine-independent API to determine if an instruction can be accommodated in a
 packet.</p>
 </div>
 <div class="section" id="how-the-packetization-tables-are-generated-and-used">
-<h4><a class="toc-backref" href="#id63">How the packetization tables are generated and used</a><a class="headerlink" href="#how-the-packetization-tables-are-generated-and-used" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id64">How the packetization tables are generated and used</a><a class="headerlink" href="#how-the-packetization-tables-are-generated-and-used" title="Permalink to this headline">¶</a></h4>
 <p>The packetizer reads instruction classes from a target’s itineraries and creates
 a deterministic finite automaton (DFA) to represent the state of a packet. A DFA
 consists of three major elements: inputs, states, and transitions. The set of
@@ -1573,7 +1596,7 @@ whether an instruction can be added to a packet. See
 </div>
 </div>
 <div class="section" id="implementing-a-native-assembler">
-<h2><a class="toc-backref" href="#id64">Implementing a Native Assembler</a><a class="headerlink" href="#implementing-a-native-assembler" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id65">Implementing a Native Assembler</a><a class="headerlink" href="#implementing-a-native-assembler" title="Permalink to this headline">¶</a></h2>
 <p>Though you’re probably reading this because you want to write or maintain a
 compiler backend, LLVM also fully supports building a native assembler.
 We’ve tried hard to automate the generation of the assembler from the .td files
@@ -1581,14 +1604,14 @@ We’ve tried hard to automate the generation of the assembler from the .td file
 part of the manual and repetitive data entry can be factored and shared with the
 compiler.</p>
 <div class="section" id="instruction-parsing">
-<h3><a class="toc-backref" href="#id65">Instruction Parsing</a><a class="headerlink" href="#instruction-parsing" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id66">Instruction Parsing</a><a class="headerlink" href="#instruction-parsing" title="Permalink to this headline">¶</a></h3>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">To Be Written</p>
 </div>
 </div>
 <div class="section" id="instruction-alias-processing">
-<h3><a class="toc-backref" href="#id66">Instruction Alias Processing</a><a class="headerlink" href="#instruction-alias-processing" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id67">Instruction Alias Processing</a><a class="headerlink" href="#instruction-alias-processing" title="Permalink to this headline">¶</a></h3>
 <p>Once the instruction is parsed, it enters the MatchInstructionImpl function.
 The MatchInstructionImpl function performs alias processing and then does actual
 matching.</p>
@@ -1600,7 +1623,7 @@ complex/powerful).  Generally you want to use the first alias mechanism that
 meets the needs of your instruction, because it will allow a more concise
 description.</p>
 <div class="section" id="mnemonic-aliases">
-<h4><a class="toc-backref" href="#id67">Mnemonic Aliases</a><a class="headerlink" href="#mnemonic-aliases" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id68">Mnemonic Aliases</a><a class="headerlink" href="#mnemonic-aliases" title="Permalink to this headline">¶</a></h4>
 <p>The first phase of alias processing is simple instruction mnemonic remapping for
 classes of instructions which are allowed with two different mnemonics.  This
 phase is a simple and unconditionally remapping from one input mnemonic to one
@@ -1626,7 +1649,7 @@ def : MnemonicAlias&lt;&quot;pushf&quot;, &quot;pushfl&quot;&gt;, Requires&lt;[I
 the current instruction set.</p>
 </div>
 <div class="section" id="instruction-aliases">
-<h4><a class="toc-backref" href="#id68">Instruction Aliases</a><a class="headerlink" href="#instruction-aliases" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id69">Instruction Aliases</a><a class="headerlink" href="#instruction-aliases" title="Permalink to this headline">¶</a></h4>
 <p>The most general phase of alias processing occurs while matching is happening:
 it provides new forms for the matcher to match along with a specific instruction
 to generate.  An instruction alias has two parts: the string to match and the
@@ -1676,7 +1699,7 @@ as the third parameter to the InstAlias definition.</p>
 </div>
 </div>
 <div class="section" id="instruction-matching">
-<h3><a class="toc-backref" href="#id69">Instruction Matching</a><a class="headerlink" href="#instruction-matching" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id70">Instruction Matching</a><a class="headerlink" href="#instruction-matching" title="Permalink to this headline">¶</a></h3>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">To Be Written</p>
@@ -1684,19 +1707,17 @@ as the third parameter to the InstAlias definition.</p>
 </div>
 </div>
 <div class="section" id="target-specific-implementation-notes">
-<span id="implement-the-target-description"></span><span id="implementations-of-the-abstract-target-description-interfaces"></span><h2><a class="toc-backref" href="#id70">Target-specific Implementation Notes</a><a class="headerlink" href="#target-specific-implementation-notes" title="Permalink to this headline">¶</a></h2>
+<span id="implement-the-target-description"></span><span id="implementations-of-the-abstract-target-description-interfaces"></span><h2><a class="toc-backref" href="#id71">Target-specific Implementation Notes</a><a class="headerlink" href="#target-specific-implementation-notes" title="Permalink to this headline">¶</a></h2>
 <p>This section of the document explains features or design decisions that are
 specific to the code generator for a particular target.  First we start with a
 table that summarizes what features are supported by each target.</p>
 <div class="section" id="target-feature-matrix">
-<span id="id7"></span><h3><a class="toc-backref" href="#id71">Target Feature Matrix</a><a class="headerlink" href="#target-feature-matrix" title="Permalink to this headline">¶</a></h3>
-<p>Note that this table does not include the C backend or Cpp backends, since they
-do not use the target independent code generator infrastructure.  It also
-doesn’t list features that are not supported fully by any target yet.  It
-considers a feature to be supported if at least one subtarget supports it.  A
-feature being supported means that it is useful and works for most cases, it
-does not indicate that there are zero known bugs in the implementation.  Here is
-the key:</p>
+<span id="id7"></span><h3><a class="toc-backref" href="#id72">Target Feature Matrix</a><a class="headerlink" href="#target-feature-matrix" title="Permalink to this headline">¶</a></h3>
+<p>Note that this table does not list features that are not supported fully by any
+target yet.  It considers a feature to be supported if at least one subtarget
+supports it.  A feature being supported means that it is useful and works for
+most cases, it does not indicate that there are zero known bugs in the
+implementation.  Here is the key:</p>
 <p><span class="raw-html"><table border="1" cellspacing="0"></span>
 <span class="raw-html"><tr></span>
 <span class="raw-html"><th>Unknown</th></span>
@@ -1730,6 +1751,7 @@ the key:</p>
 <span class="raw-html"><th>SystemZ</th></span>
 <span class="raw-html"><th>X86</th></span>
 <span class="raw-html"><th>XCore</th></span>
+<span class="raw-html"><th>eBPF</th></span>
 <span class="raw-html"></tr></span></p>
 <p><span class="raw-html"><tr></span>
 <span class="raw-html"><td><a href="#feat_reliable">is generally reliable</a></td></span>
@@ -1743,6 +1765,7 @@ the key:</p>
 <span class="raw-html"><td class="yes"></td> <!-- SystemZ --></span>
 <span class="raw-html"><td class="yes"></td> <!-- X86 --></span>
 <span class="raw-html"><td class="yes"></td> <!-- XCore --></span>
+<span class="raw-html"><td class="yes"></td> <!-- eBPF --></span>
 <span class="raw-html"></tr></span></p>
 <p><span class="raw-html"><tr></span>
 <span class="raw-html"><td><a href="#feat_asmparser">assembly parser</a></td></span>
@@ -1756,6 +1779,7 @@ the key:</p>
 <span class="raw-html"><td class="yes"></td> <!-- SystemZ --></span>
 <span class="raw-html"><td class="yes"></td> <!-- X86 --></span>
 <span class="raw-html"><td class="no"></td> <!-- XCore --></span>
+<span class="raw-html"><td class="no"></td> <!-- eBPF --></span>
 <span class="raw-html"></tr></span></p>
 <p><span class="raw-html"><tr></span>
 <span class="raw-html"><td><a href="#feat_disassembler">disassembler</a></td></span>
@@ -1769,6 +1793,7 @@ the key:</p>
 <span class="raw-html"><td class="no"></td> <!-- Sparc --></span>
 <span class="raw-html"><td class="yes"></td> <!-- X86 --></span>
 <span class="raw-html"><td class="yes"></td> <!-- XCore --></span>
+<span class="raw-html"><td class="yes"></td> <!-- eBPF --></span>
 <span class="raw-html"></tr></span></p>
 <p><span class="raw-html"><tr></span>
 <span class="raw-html"><td><a href="#feat_inlineasm">inline asm</a></td></span>
@@ -1782,6 +1807,7 @@ the key:</p>
 <span class="raw-html"><td class="yes"></td> <!-- SystemZ --></span>
 <span class="raw-html"><td class="yes"></td> <!-- X86 --></span>
 <span class="raw-html"><td class="yes"></td> <!-- XCore --></span>
+<span class="raw-html"><td class="no"></td> <!-- eBPF --></span>
 <span class="raw-html"></tr></span></p>
 <p><span class="raw-html"><tr></span>
 <span class="raw-html"><td><a href="#feat_jit">jit</a></td></span>
@@ -1795,6 +1821,7 @@ the key:</p>
 <span class="raw-html"><td class="yes"></td> <!-- SystemZ --></span>
 <span class="raw-html"><td class="yes"></td> <!-- X86 --></span>
 <span class="raw-html"><td class="no"></td> <!-- XCore --></span>
+<span class="raw-html"><td class="yes"></td> <!-- eBPF --></span>
 <span class="raw-html"></tr></span></p>
 <p><span class="raw-html"><tr></span>
 <span class="raw-html"><td><a href="#feat_objectwrite">.o&nbsp;file writing</a></td></span>
@@ -1808,6 +1835,7 @@ the key:</p>
 <span class="raw-html"><td class="yes"></td> <!-- SystemZ --></span>
 <span class="raw-html"><td class="yes"></td> <!-- X86 --></span>
 <span class="raw-html"><td class="no"></td> <!-- XCore --></span>
+<span class="raw-html"><td class="yes"></td> <!-- eBPF --></span>
 <span class="raw-html"></tr></span></p>
 <p><span class="raw-html"><tr></span>
 <span class="raw-html"><td><a hr:raw-html:`ef="#feat_tailcall">tail calls</a></td></span>
@@ -1821,6 +1849,7 @@ the key:</p>
 <span class="raw-html"><td class="no"></td> <!-- SystemZ --></span>
 <span class="raw-html"><td class="yes"></td> <!-- X86 --></span>
 <span class="raw-html"><td class="no"></td> <!-- XCore --></span>
+<span class="raw-html"><td class="no"></td> <!-- eBPF --></span>
 <span class="raw-html"></tr></span></p>
 <p><span class="raw-html"><tr></span>
 <span class="raw-html"><td><a href="#feat_segstacks">segmented stacks</a></td></span>
@@ -1834,40 +1863,41 @@ the key:</p>
 <span class="raw-html"><td class="no"></td> <!-- SystemZ --></span>
 <span class="raw-html"><td class="partial"><a href="#feat_segstacks_x86">*</a></td> <!-- X86 --></span>
 <span class="raw-html"><td class="no"></td> <!-- XCore --></span>
+<span class="raw-html"><td class="no"></td> <!-- eBPF --></span>
 <span class="raw-html"></tr></span></p>
 <p><span class="raw-html"></table></span></p>
 <div class="section" id="is-generally-reliable">
-<span id="feat-reliable"></span><h4><a class="toc-backref" href="#id72">Is Generally Reliable</a><a class="headerlink" href="#is-generally-reliable" title="Permalink to this headline">¶</a></h4>
+<span id="feat-reliable"></span><h4><a class="toc-backref" href="#id73">Is Generally Reliable</a><a class="headerlink" href="#is-generally-reliable" title="Permalink to this headline">¶</a></h4>
 <p>This box indicates whether the target is considered to be production quality.
 This indicates that the target has been used as a static compiler to compile
 large amounts of code by a variety of different people and is in continuous use.</p>
 </div>
 <div class="section" id="assembly-parser">
-<span id="feat-asmparser"></span><h4><a class="toc-backref" href="#id73">Assembly Parser</a><a class="headerlink" href="#assembly-parser" title="Permalink to this headline">¶</a></h4>
+<span id="feat-asmparser"></span><h4><a class="toc-backref" href="#id74">Assembly Parser</a><a class="headerlink" href="#assembly-parser" title="Permalink to this headline">¶</a></h4>
 <p>This box indicates whether the target supports parsing target specific .s files
 by implementing the MCAsmParser interface.  This is required for llvm-mc to be
 able to act as a native assembler and is required for inline assembly support in
 the native .o file writer.</p>
 </div>
 <div class="section" id="disassembler">
-<span id="feat-disassembler"></span><h4><a class="toc-backref" href="#id74">Disassembler</a><a class="headerlink" href="#disassembler" title="Permalink to this headline">¶</a></h4>
+<span id="feat-disassembler"></span><h4><a class="toc-backref" href="#id75">Disassembler</a><a class="headerlink" href="#disassembler" title="Permalink to this headline">¶</a></h4>
 <p>This box indicates whether the target supports the MCDisassembler API for
 disassembling machine opcode bytes into MCInst’s.</p>
 </div>
 <div class="section" id="inline-asm">
-<span id="feat-inlineasm"></span><h4><a class="toc-backref" href="#id75">Inline Asm</a><a class="headerlink" href="#inline-asm" title="Permalink to this headline">¶</a></h4>
+<span id="feat-inlineasm"></span><h4><a class="toc-backref" href="#id76">Inline Asm</a><a class="headerlink" href="#inline-asm" title="Permalink to this headline">¶</a></h4>
 <p>This box indicates whether the target supports most popular inline assembly
 constraints and modifiers.</p>
 </div>
 <div class="section" id="jit-support">
-<span id="feat-jit"></span><h4><a class="toc-backref" href="#id76">JIT Support</a><a class="headerlink" href="#jit-support" title="Permalink to this headline">¶</a></h4>
+<span id="feat-jit"></span><h4><a class="toc-backref" href="#id77">JIT Support</a><a class="headerlink" href="#jit-support" title="Permalink to this headline">¶</a></h4>
 <p>This box indicates whether the target supports the JIT compiler through the
 ExecutionEngine interface.</p>
 <p id="feat-jit-arm">The ARM backend has basic support for integer code in ARM codegen mode, but
 lacks NEON and full Thumb support.</p>
 </div>
 <div class="section" id="o-file-writing">
-<span id="feat-objectwrite"></span><h4><a class="toc-backref" href="#id77">.o File Writing</a><a class="headerlink" href="#o-file-writing" title="Permalink to this headline">¶</a></h4>
+<span id="feat-objectwrite"></span><h4><a class="toc-backref" href="#id78">.o File Writing</a><a class="headerlink" href="#o-file-writing" title="Permalink to this headline">¶</a></h4>
 <p>This box indicates whether the target supports writing .o files (e.g. MachO,
 ELF, and/or COFF) files directly from the target.  Note that the target also
 must include an assembly parser and general inline assembly support for full
@@ -1877,13 +1907,13 @@ they just rely on having an external assembler to translate from a .s file to a
 .o file (as is the case for many C compilers).</p>
 </div>
 <div class="section" id="tail-calls">
-<span id="feat-tailcall"></span><h4><a class="toc-backref" href="#id78">Tail Calls</a><a class="headerlink" href="#tail-calls" title="Permalink to this headline">¶</a></h4>
+<span id="feat-tailcall"></span><h4><a class="toc-backref" href="#id79">Tail Calls</a><a class="headerlink" href="#tail-calls" title="Permalink to this headline">¶</a></h4>
 <p>This box indicates whether the target supports guaranteed tail calls.  These are
 calls marked “<a class="reference external" href="LangRef.html#i_call">tail</a>” and use the fastcc calling
 convention.  Please see the <a class="reference internal" href="#tail-call-section">tail call section</a> for more details.</p>
 </div>
 <div class="section" id="segmented-stacks">
-<span id="feat-segstacks"></span><h4><a class="toc-backref" href="#id79">Segmented Stacks</a><a class="headerlink" href="#segmented-stacks" title="Permalink to this headline">¶</a></h4>
+<span id="feat-segstacks"></span><h4><a class="toc-backref" href="#id80">Segmented Stacks</a><a class="headerlink" href="#segmented-stacks" title="Permalink to this headline">¶</a></h4>
 <p>This box indicates whether the target supports segmented stacks. This replaces
 the traditional large C stack with many linked segments. It is compatible with
 the <a class="reference external" href="http://gcc.gnu.org/wiki/SplitStacks">gcc implementation</a> used by the Go
@@ -1894,7 +1924,7 @@ programs can be built by dragonegg.</p>
 </div>
 </div>
 <div class="section" id="tail-call-optimization">
-<span id="tail-call-section"></span><h3><a class="toc-backref" href="#id80">Tail call optimization</a><a class="headerlink" href="#tail-call-optimization" title="Permalink to this headline">¶</a></h3>
+<span id="tail-call-section"></span><h3><a class="toc-backref" href="#id81">Tail call optimization</a><a class="headerlink" href="#tail-call-optimization" title="Permalink to this headline">¶</a></h3>
 <p>Tail call optimization, callee reusing the stack of the caller, is currently
 supported on x86/x86-64 and PowerPC. It is performed if:</p>
 <ul class="simple">
@@ -1937,7 +1967,7 @@ one or more of above constraints are not met) to be followed by a readjustment
 of the stack. So performance might be worse in such cases.</p>
 </div>
 <div class="section" id="sibling-call-optimization">
-<h3><a class="toc-backref" href="#id81">Sibling call optimization</a><a class="headerlink" href="#sibling-call-optimization" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id82">Sibling call optimization</a><a class="headerlink" href="#sibling-call-optimization" title="Permalink to this headline">¶</a></h3>
 <p>Sibling call optimization is a restricted form of tail call optimization.
 Unlike tail call optimization described in the previous section, it can be
 performed automatically on any tail calls when <code class="docutils literal"><span class="pre">-tailcallopt</span></code> option is not
@@ -1966,12 +1996,12 @@ be the same.</li>
 </div>
 </div>
 <div class="section" id="the-x86-backend">
-<h3><a class="toc-backref" href="#id82">The X86 backend</a><a class="headerlink" href="#the-x86-backend" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id83">The X86 backend</a><a class="headerlink" href="#the-x86-backend" title="Permalink to this headline">¶</a></h3>
 <p>The X86 code generator lives in the <code class="docutils literal"><span class="pre">lib/Target/X86</span></code> directory.  This code
 generator is capable of targeting a variety of x86-32 and x86-64 processors, and
 includes support for ISA extensions such as MMX and SSE.</p>
 <div class="section" id="x86-target-triples-supported">
-<h4><a class="toc-backref" href="#id83">X86 Target Triples supported</a><a class="headerlink" href="#x86-target-triples-supported" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id84">X86 Target Triples supported</a><a class="headerlink" href="#x86-target-triples-supported" title="Permalink to this headline">¶</a></h4>
 <p>The following are the known target triples that are supported by the X86
 backend.  This is not an exhaustive list, and it would be useful to add those
 that people test.</p>
@@ -1986,7 +2016,7 @@ that people test.</p>
 </ul>
 </div>
 <div class="section" id="x86-calling-conventions-supported">
-<h4><a class="toc-backref" href="#id84">X86 Calling Conventions supported</a><a class="headerlink" href="#x86-calling-conventions-supported" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id85">X86 Calling Conventions supported</a><a class="headerlink" href="#x86-calling-conventions-supported" title="Permalink to this headline">¶</a></h4>
 <p>The following target-specific calling conventions are known to backend:</p>
 <ul class="simple">
 <li><strong>x86_StdCall</strong> — stdcall calling convention seen on Microsoft Windows
@@ -1999,7 +2029,7 @@ used by MSVC by default for methods in its ABI (CC ID = 70).</li>
 </ul>
 </div>
 <div class="section" id="representing-x86-addressing-modes-in-machineinstrs">
-<span id="x86-addressing-mode"></span><h4><a class="toc-backref" href="#id85">Representing X86 addressing modes in MachineInstrs</a><a class="headerlink" href="#representing-x86-addressing-modes-in-machineinstrs" title="Permalink to this headline">¶</a></h4>
+<span id="x86-addressing-mode"></span><h4><a class="toc-backref" href="#id86">Representing X86 addressing modes in MachineInstrs</a><a class="headerlink" href="#representing-x86-addressing-modes-in-machineinstrs" title="Permalink to this headline">¶</a></h4>
 <p>The x86 has a very flexible way of accessing memory.  It is capable of forming
 memory addresses of the following expression directly in integer instructions
 (which use ModR/M addressing):</p>
@@ -2020,16 +2050,16 @@ then no segment override is generated.  “Lea” operations do not have a segme
 register specified, so they only have 4 operands for their memory reference.</p>
 </div>
 <div class="section" id="x86-address-spaces-supported">
-<h4><a class="toc-backref" href="#id86">X86 address spaces supported</a><a class="headerlink" href="#x86-address-spaces-supported" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id87">X86 address spaces supported</a><a class="headerlink" href="#x86-address-spaces-supported" title="Permalink to this headline">¶</a></h4>
 <p>x86 has a feature which provides the ability to perform loads and stores to
 different address spaces via the x86 segment registers.  A segment override
 prefix byte on an instruction causes the instruction’s memory access to go to
 the specified segment.  LLVM address space 0 is the default address space, which
 includes the stack, and any unqualified memory accesses in a program.  Address
 spaces 1-255 are currently reserved for user-defined code.  The GS-segment is
-represented by address space 256, while the FS-segment is represented by address
-space 257. Other x86 segments have yet to be allocated address space
-numbers.</p>
+represented by address space 256, the FS-segment is represented by address space
+257, and the SS-segment is represented by address space 258. Other x86 segments
+have yet to be allocated address space numbers.</p>
 <p>While these address spaces may seem similar to TLS via the <code class="docutils literal"><span class="pre">thread_local</span></code>
 keyword, and often use the same underlying hardware, there are some fundamental
 differences.</p>
@@ -2052,7 +2082,7 @@ the FS/GS-segment registers for various low-level purposes, so care should be
 taken when considering them.</p>
 </div>
 <div class="section" id="instruction-naming">
-<h4><a class="toc-backref" href="#id87">Instruction naming</a><a class="headerlink" href="#instruction-naming" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id88">Instruction naming</a><a class="headerlink" href="#instruction-naming" title="Permalink to this headline">¶</a></h4>
 <p>An instruction name consists of the base name, a default operand size, and a a
 character per operand with an optional special size. For example:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">ADD8rr</span>      <span class="o">-&gt;</span> <span class="n">add</span><span class="p">,</span> <span class="mi">8</span><span class="o">-</span><span class="n">bit</span> <span class="n">register</span><span class="p">,</span> <span class="mi">8</span><span class="o">-</span><span class="n">bit</span> <span class="n">register</span>
@@ -2064,12 +2094,12 @@ character per operand with an optional special size. For example:</p>
 </div>
 </div>
 <div class="section" id="the-powerpc-backend">
-<h3><a class="toc-backref" href="#id88">The PowerPC backend</a><a class="headerlink" href="#the-powerpc-backend" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id89">The PowerPC backend</a><a class="headerlink" href="#the-powerpc-backend" title="Permalink to this headline">¶</a></h3>
 <p>The PowerPC code generator lives in the lib/Target/PowerPC directory.  The code
 generation is retargetable to several variations or <em>subtargets</em> of the PowerPC
 ISA; including ppc32, ppc64 and altivec.</p>
 <div class="section" id="llvm-powerpc-abi">
-<h4><a class="toc-backref" href="#id89">LLVM PowerPC ABI</a><a class="headerlink" href="#llvm-powerpc-abi" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id90">LLVM PowerPC ABI</a><a class="headerlink" href="#llvm-powerpc-abi" title="Permalink to this headline">¶</a></h4>
 <p>LLVM follows the AIX PowerPC ABI, with two deviations. LLVM uses a PC relative
 (PIC) or static addressing for accessing global values, so no TOC (r2) is
 used. Second, r31 is used as a frame pointer to allow dynamic growth of a stack
@@ -2079,7 +2109,7 @@ PowerPC ABI can be found at <a class="reference external" href="http://developer
 space for GPRs are 8 bytes wide (not 4) and r13 is reserved for system use.</p>
 </div>
 <div class="section" id="frame-layout">
-<h4><a class="toc-backref" href="#id90">Frame Layout</a><a class="headerlink" href="#frame-layout" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id91">Frame Layout</a><a class="headerlink" href="#frame-layout" title="Permalink to this headline">¶</a></h4>
 <p>The size of a PowerPC frame is usually fixed for the duration of a function’s
 invocation.  Since the frame is fixed size, all references into the frame can be
 accessed via fixed offsets from the stack pointer.  The exception to this is
@@ -2203,16 +2233,16 @@ allocations in the dynamic space need to observe 16 byte alignment.</p>
 registers on entry to the callee.</p>
 </div>
 <div class="section" id="prolog-epilog">
-<h4><a class="toc-backref" href="#id91">Prolog/Epilog</a><a class="headerlink" href="#prolog-epilog" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id92">Prolog/Epilog</a><a class="headerlink" href="#prolog-epilog" title="Permalink to this headline">¶</a></h4>
 <p>The llvm prolog and epilog are the same as described in the PowerPC ABI, with
 the following exceptions.  Callee saved registers are spilled after the frame is
 created.  This allows the llvm epilog/prolog support to be common with other
 targets.  The base pointer callee saved register r31 is saved in the TOC slot of
 linkage area.  This simplifies allocation of space for the base pointer and
-makes it convenient to locate programatically and during debugging.</p>
+makes it convenient to locate programmatically and during debugging.</p>
 </div>
 <div class="section" id="dynamic-allocation">
-<h4><a class="toc-backref" href="#id92">Dynamic Allocation</a><a class="headerlink" href="#dynamic-allocation" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id93">Dynamic Allocation</a><a class="headerlink" href="#dynamic-allocation" title="Permalink to this headline">¶</a></h4>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">TODO - More to come.</p>
@@ -2220,7 +2250,7 @@ makes it convenient to locate programatically and during debugging.</p>
 </div>
 </div>
 <div class="section" id="the-nvptx-backend">
-<h3><a class="toc-backref" href="#id93">The NVPTX backend</a><a class="headerlink" href="#the-nvptx-backend" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id94">The NVPTX backend</a><a class="headerlink" href="#the-nvptx-backend" title="Permalink to this headline">¶</a></h3>
 <p>The NVPTX code generator under lib/Target/NVPTX is an open-source version of
 the NVIDIA NVPTX code generator for LLVM.  It is contributed by NVIDIA and is
 a port of the code generator used in the CUDA compiler (nvcc).  It targets the
@@ -2260,6 +2290,179 @@ the official NVIDIA toolchain.</p>
 <span class="raw-html"></tr></span>
 <span class="raw-html"></table></span></p>
 </div>
+<div class="section" id="the-extended-berkeley-packet-filter-ebpf-backend">
+<h3><a class="toc-backref" href="#id95">The extended Berkeley Packet Filter (eBPF) backend</a><a class="headerlink" href="#the-extended-berkeley-packet-filter-ebpf-backend" title="Permalink to this headline">¶</a></h3>
+<p>Extended BPF (or eBPF) is similar to the original (“classic”) BPF (cBPF) used
+to filter network packets.  The
+<a class="reference external" href="http://man7.org/linux/man-pages/man2/bpf.2.html">bpf() system call</a>
+performs a range of operations related to eBPF.  For both cBPF and eBPF
+programs, the Linux kernel statically analyzes the programs before loading
+them, in order to ensure that they cannot harm the running system.  eBPF is
+a 64-bit RISC instruction set designed for one to one mapping to 64-bit CPUs.
+Opcodes are 8-bit encoded, and 87 instructions are defined.  There are 10
+registers, grouped by function as outlined below.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">R0</span>        <span class="k">return</span> <span class="n">value</span> <span class="kn">from</span> <span class="nn">in</span><span class="o">-</span><span class="n">kernel</span> <span class="n">functions</span><span class="p">;</span> <span class="n">exit</span> <span class="n">value</span> <span class="k">for</span> <span class="n">eBPF</span> <span class="n">program</span>
+<span class="n">R1</span> <span class="o">-</span> <span class="n">R5</span>   <span class="n">function</span> <span class="n">call</span> <span class="n">arguments</span> <span class="n">to</span> <span class="ow">in</span><span class="o">-</span><span class="n">kernel</span> <span class="n">functions</span>
+<span class="n">R6</span> <span class="o">-</span> <span class="n">R9</span>   <span class="n">callee</span><span class="o">-</span><span class="n">saved</span> <span class="n">registers</span> <span class="n">preserved</span> <span class="n">by</span> <span class="ow">in</span><span class="o">-</span><span class="n">kernel</span> <span class="n">functions</span>
+<span class="n">R10</span>       <span class="n">stack</span> <span class="n">frame</span> <span class="n">pointer</span> <span class="p">(</span><span class="n">read</span> <span class="n">only</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="section" id="instruction-encoding-arithmetic-and-jump">
+<h4><a class="toc-backref" href="#id96">Instruction encoding (arithmetic and jump)</a><a class="headerlink" href="#instruction-encoding-arithmetic-and-jump" title="Permalink to this headline">¶</a></h4>
+<p>eBPF is reusing most of the opcode encoding from classic to simplify conversion
+of classic BPF to eBPF.  For arithmetic and jump instructions the 8-bit ‘code’
+field is divided into three parts:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>+----------------+--------+--------------------+
+|   4 bits       |  1 bit |   3 bits           |
+| operation code | source | instruction class  |
++----------------+--------+--------------------+
+(MSB)                                      (LSB)
+</pre></div>
+</div>
+<p>Three LSB bits store instruction class which is one of:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">BPF_LD</span>     <span class="mh">0x0</span>
+<span class="n">BPF_LDX</span>    <span class="mh">0x1</span>
+<span class="n">BPF_ST</span>     <span class="mh">0x2</span>
+<span class="n">BPF_STX</span>    <span class="mh">0x3</span>
+<span class="n">BPF_ALU</span>    <span class="mh">0x4</span>
+<span class="n">BPF_JMP</span>    <span class="mh">0x5</span>
+<span class="p">(</span><span class="n">unused</span><span class="p">)</span>   <span class="mh">0x6</span>
+<span class="n">BPF_ALU64</span>  <span class="mh">0x7</span>
+</pre></div>
+</div>
+<p>When BPF_CLASS(code) == BPF_ALU or BPF_ALU64 or BPF_JMP,
+4th bit encodes source operand</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">BPF_X</span>     <span class="mh">0x0</span>  <span class="n">use</span> <span class="n">src_reg</span> <span class="n">register</span> <span class="k">as</span> <span class="n">source</span> <span class="n">operand</span>
+<span class="n">BPF_K</span>     <span class="mh">0x1</span>  <span class="n">use</span> <span class="mi">32</span> <span class="n">bit</span> <span class="n">immediate</span> <span class="k">as</span> <span class="n">source</span> <span class="n">operand</span>
+</pre></div>
+</div>
+<p>and four MSB bits store operation code</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">BPF_ADD</span>   <span class="mh">0x0</span>  <span class="n">add</span>
+<span class="n">BPF_SUB</span>   <span class="mh">0x1</span>  <span class="n">subtract</span>
+<span class="n">BPF_MUL</span>   <span class="mh">0x2</span>  <span class="n">multiply</span>
+<span class="n">BPF_DIV</span>   <span class="mh">0x3</span>  <span class="n">divide</span>
+<span class="n">BPF_OR</span>    <span class="mh">0x4</span>  <span class="n">bitwise</span> <span class="n">logical</span> <span class="n">OR</span>
+<span class="n">BPF_AND</span>   <span class="mh">0x5</span>  <span class="n">bitwise</span> <span class="n">logical</span> <span class="n">AND</span>
+<span class="n">BPF_LSH</span>   <span class="mh">0x6</span>  <span class="n">left</span> <span class="n">shift</span>
+<span class="n">BPF_RSH</span>   <span class="mh">0x7</span>  <span class="n">right</span> <span class="n">shift</span> <span class="p">(</span><span class="n">zero</span> <span class="n">extended</span><span class="p">)</span>
+<span class="n">BPF_NEG</span>   <span class="mh">0x8</span>  <span class="n">arithmetic</span> <span class="n">negation</span>
+<span class="n">BPF_MOD</span>   <span class="mh">0x9</span>  <span class="n">modulo</span>
+<span class="n">BPF_XOR</span>   <span class="mh">0xa</span>  <span class="n">bitwise</span> <span class="n">logical</span> <span class="n">XOR</span>
+<span class="n">BPF_MOV</span>   <span class="mh">0xb</span>  <span class="n">move</span> <span class="n">register</span> <span class="n">to</span> <span class="n">register</span>
+<span class="n">BPF_ARSH</span>  <span class="mh">0xc</span>  <span class="n">right</span> <span class="n">shift</span> <span class="p">(</span><span class="n">sign</span> <span class="n">extended</span><span class="p">)</span>
+<span class="n">BPF_END</span>   <span class="mh">0xd</span>  <span class="n">endianness</span> <span class="n">conversion</span>
+</pre></div>
+</div>
+<p>If BPF_CLASS(code) == BPF_JMP, BPF_OP(code) is one of</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">BPF_JA</span>    <span class="mh">0x0</span>  <span class="n">unconditional</span> <span class="n">jump</span>
+<span class="n">BPF_JEQ</span>   <span class="mh">0x1</span>  <span class="n">jump</span> <span class="o">==</span>
+<span class="n">BPF_JGT</span>   <span class="mh">0x2</span>  <span class="n">jump</span> <span class="o">&gt;</span>
+<span class="n">BPF_JGE</span>   <span class="mh">0x3</span>  <span class="n">jump</span> <span class="o">&gt;=</span>
+<span class="n">BPF_JSET</span>  <span class="mh">0x4</span>  <span class="n">jump</span> <span class="k">if</span> <span class="p">(</span><span class="n">DST</span> <span class="o">&amp;</span> <span class="n">SRC</span><span class="p">)</span>
+<span class="n">BPF_JNE</span>   <span class="mh">0x5</span>  <span class="n">jump</span> <span class="o">!=</span>
+<span class="n">BPF_JSGT</span>  <span class="mh">0x6</span>  <span class="n">jump</span> <span class="n">signed</span> <span class="o">&gt;</span>
+<span class="n">BPF_JSGE</span>  <span class="mh">0x7</span>  <span class="n">jump</span> <span class="n">signed</span> <span class="o">&gt;=</span>
+<span class="n">BPF_CALL</span>  <span class="mh">0x8</span>  <span class="n">function</span> <span class="n">call</span>
+<span class="n">BPF_EXIT</span>  <span class="mh">0x9</span>  <span class="n">function</span> <span class="k">return</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="instruction-encoding-load-store">
+<h4><a class="toc-backref" href="#id97">Instruction encoding (load, store)</a><a class="headerlink" href="#instruction-encoding-load-store" title="Permalink to this headline">¶</a></h4>
+<p>For load and store instructions the 8-bit ‘code’ field is divided as:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>+--------+--------+-------------------+
+| 3 bits | 2 bits |   3 bits          |
+|  mode  |  size  | instruction class |
++--------+--------+-------------------+
+(MSB)                             (LSB)
+</pre></div>
+</div>
+<p>Size modifier is one of</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">BPF_W</span>       <span class="mh">0x0</span>  <span class="n">word</span>
+<span class="n">BPF_H</span>       <span class="mh">0x1</span>  <span class="n">half</span> <span class="n">word</span>
+<span class="n">BPF_B</span>       <span class="mh">0x2</span>  <span class="n">byte</span>
+<span class="n">BPF_DW</span>      <span class="mh">0x3</span>  <span class="n">double</span> <span class="n">word</span>
+</pre></div>
+</div>
+<p>Mode modifier is one of</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">BPF_IMM</span>     <span class="mh">0x0</span>  <span class="n">immediate</span>
+<span class="n">BPF_ABS</span>     <span class="mh">0x1</span>  <span class="n">used</span> <span class="n">to</span> <span class="n">access</span> <span class="n">packet</span> <span class="n">data</span>
+<span class="n">BPF_IND</span>     <span class="mh">0x2</span>  <span class="n">used</span> <span class="n">to</span> <span class="n">access</span> <span class="n">packet</span> <span class="n">data</span>
+<span class="n">BPF_MEM</span>     <span class="mh">0x3</span>  <span class="n">memory</span>
+<span class="p">(</span><span class="n">reserved</span><span class="p">)</span>  <span class="mh">0x4</span>
+<span class="p">(</span><span class="n">reserved</span><span class="p">)</span>  <span class="mh">0x5</span>
+<span class="n">BPF_XADD</span>    <span class="mh">0x6</span>  <span class="n">exclusive</span> <span class="n">add</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="packet-data-access-bpf-abs-bpf-ind">
+<h4><a class="toc-backref" href="#id98">Packet data access (BPF_ABS, BPF_IND)</a><a class="headerlink" href="#packet-data-access-bpf-abs-bpf-ind" title="Permalink to this headline">¶</a></h4>
+<p>Two non-generic instructions: (BPF_ABS | &lt;size&gt; | BPF_LD) and
+(BPF_IND | &lt;size&gt; | BPF_LD) which are used to access packet data.
+Register R6 is an implicit input that must contain pointer to sk_buff.
+Register R0 is an implicit output which contains the data fetched
+from the packet.  Registers R1-R5 are scratch registers and must not
+be used to store the data across BPF_ABS | BPF_LD or BPF_IND | BPF_LD
+instructions.  These instructions have implicit program exit condition
+as well.  When eBPF program is trying to access the data beyond
+the packet boundary, the interpreter will abort the execution of the program.</p>
+<dl class="docutils">
+<dt>BPF_IND | BPF_W | BPF_LD is equivalent to:</dt>
+<dd>R0 = ntohl(*(u32 *) (((struct sk_buff *) R6)-&gt;data + src_reg + imm32))</dd>
+</dl>
+</div>
+<div class="section" id="ebpf-maps">
+<h4><a class="toc-backref" href="#id99">eBPF maps</a><a class="headerlink" href="#ebpf-maps" title="Permalink to this headline">¶</a></h4>
+<p>eBPF maps are provided for sharing data between kernel and user-space.
+Currently implemented types are hash and array, with potential extension to
+support bloom filters, radix trees, etc.  A map is defined by its type,
+maximum number of elements, key size and value size in bytes.  eBPF syscall
+supports create, update, find and delete functions on maps.</p>
+</div>
+<div class="section" id="function-calls">
+<h4><a class="toc-backref" href="#id100">Function calls</a><a class="headerlink" href="#function-calls" title="Permalink to this headline">¶</a></h4>
+<p>Function call arguments are passed using up to five registers (R1 - R5).
+The return value is passed in a dedicated register (R0).  Four additional
+registers (R6 - R9) are callee-saved, and the values in these registers
+are preserved within kernel functions.  R0 - R5 are scratch registers within
+kernel functions, and eBPF programs must therefor store/restore values in
+these registers if needed across function calls.  The stack can be accessed
+using the read-only frame pointer R10.  eBPF registers map 1:1 to hardware
+registers on x86_64 and other 64-bit architectures.  For example, x86_64
+in-kernel JIT maps them as</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">R0</span> <span class="o">-</span> <span class="n">rax</span>
+<span class="n">R1</span> <span class="o">-</span> <span class="n">rdi</span>
+<span class="n">R2</span> <span class="o">-</span> <span class="n">rsi</span>
+<span class="n">R3</span> <span class="o">-</span> <span class="n">rdx</span>
+<span class="n">R4</span> <span class="o">-</span> <span class="n">rcx</span>
+<span class="n">R5</span> <span class="o">-</span> <span class="n">r8</span>
+<span class="n">R6</span> <span class="o">-</span> <span class="n">rbx</span>
+<span class="n">R7</span> <span class="o">-</span> <span class="n">r13</span>
+<span class="n">R8</span> <span class="o">-</span> <span class="n">r14</span>
+<span class="n">R9</span> <span class="o">-</span> <span class="n">r15</span>
+<span class="n">R10</span> <span class="o">-</span> <span class="n">rbp</span>
+</pre></div>
+</div>
+<p>since x86_64 ABI mandates rdi, rsi, rdx, rcx, r8, r9 for argument passing
+and rbx, r12 - r15 are callee saved.</p>
+</div>
+<div class="section" id="program-start">
+<h4><a class="toc-backref" href="#id101">Program start</a><a class="headerlink" href="#program-start" title="Permalink to this headline">¶</a></h4>
+<p>An eBPF program receives a single argument and contains
+a single eBPF main routine; the program does not contain eBPF functions.
+Function calls are limited to a predefined set of kernel functions.  The size
+of a program is limited to 4K instructions:  this ensures fast termination and
+a limited number of kernel function calls.  Prior to running an eBPF program,
+a verifier performs static analysis to prevent loops in the code and
+to ensure valid register usage and operand types.</p>
+</div>
+</div>
+<div class="section" id="the-amdgpu-backend">
+<h3><a class="toc-backref" href="#id102">The AMDGPU backend</a><a class="headerlink" href="#the-amdgpu-backend" title="Permalink to this headline">¶</a></h3>
+<p>The AMDGPU code generator lives in the <code class="docutils literal"><span class="pre">lib/Target/AMDGPU</span></code>
+directory. This code generator is capable of targeting a variety of
+AMD GPU processors. Refer to <a class="reference internal" href="AMDGPUUsage.html"><span class="doc">User Guide for AMDGPU Backend</span></a> for more information.</p>
+</div>
 </div>
 </div>
 
@@ -2286,8 +2489,8 @@ the official NVIDIA toolchain.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

@@ -1,4 +1,5 @@
 // RUN: %clang_cc1 -fsyntax-only -Wunused-private-field -Wused-but-marked-unused -Wno-uninitialized -verify -std=c++11 %s
+// RUN: %clang_cc1 -fsyntax-only -Wunused-private-field -Wused-but-marked-unused -Wno-uninitialized -verify -std=c++17 %s
 
 class NotFullyDefined {
  public:
@@ -128,6 +129,7 @@ class EverythingUsed {
     int *use = &by_reference_;
     int test[2];
     test[as_array_index_] = 42;
+    int EverythingUsed::*ptr = &EverythingUsed::by_pointer_to_member_;
   }
 
   template<class T>
@@ -142,6 +144,7 @@ class EverythingUsed {
   int by_template_function_;
   int as_array_index_;
   int by_initializer_;
+  int by_pointer_to_member_;
 };
 
 class HasFeatureTest {
@@ -244,3 +247,19 @@ namespace pr13543 {
     X x[4]; // no-warning
   };
 }
+
+class implicit_special_member {
+public:
+  static implicit_special_member make() { return implicit_special_member(); }
+
+private:
+  int n; // expected-warning{{private field 'n' is not used}}
+};
+
+class defaulted_special_member {
+public:
+  defaulted_special_member(const defaulted_special_member&) = default;
+
+private:
+  int n; // expected-warning{{private field 'n' is not used}}
+};

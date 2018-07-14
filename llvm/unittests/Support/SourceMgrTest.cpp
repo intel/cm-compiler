@@ -23,8 +23,9 @@ public:
   std::string Output;
 
   void setMainBuffer(StringRef Text, StringRef BufferName) {
-    MemoryBuffer *MainBuffer = MemoryBuffer::getMemBuffer(Text, BufferName);
-    MainBufferID = SM.AddNewSourceBuffer(MainBuffer, llvm::SMLoc());
+    std::unique_ptr<MemoryBuffer> MainBuffer =
+        MemoryBuffer::getMemBuffer(Text, BufferName);
+    MainBufferID = SM.AddNewSourceBuffer(std::move(MainBuffer), llvm::SMLoc());
   }
 
   SMLoc getLoc(unsigned Offset) {
@@ -61,6 +62,16 @@ TEST_F(SourceMgrTest, BasicWarning) {
   printMessage(getLoc(4), SourceMgr::DK_Warning, "message", None, None);
 
   EXPECT_EQ("file.in:1:5: warning: message\n"
+            "aaa bbb\n"
+            "    ^\n",
+            Output);
+}
+
+TEST_F(SourceMgrTest, BasicRemark) {
+  setMainBuffer("aaa bbb\nccc ddd\n", "file.in");
+  printMessage(getLoc(4), SourceMgr::DK_Remark, "message", None, None);
+
+  EXPECT_EQ("file.in:1:5: remark: message\n"
             "aaa bbb\n"
             "    ^\n",
             Output);

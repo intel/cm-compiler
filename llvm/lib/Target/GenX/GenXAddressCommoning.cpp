@@ -114,7 +114,10 @@ namespace {
 struct Bucket {
   SmallVector<Instruction *, 4> Addrs;
   SmallSet<Instruction *, 4> AddrSet;
-  void add(Instruction *Addr) { if (AddrSet.insert(Addr)) Addrs.push_back(Addr); }
+  void add(Instruction *Addr) {
+    if (AddrSet.insert(Addr).second)
+      Addrs.push_back(Addr);
+  }
 };
 
 // ExtractBucket : a bucket for collecting address conversions with the same
@@ -123,7 +126,10 @@ struct Bucket {
 struct ExtractBucket {
   SmallVector<Instruction *, 4> Addrs;
   SmallSet<Instruction *, 4> AddrSet;
-  void add(Instruction *Addr) { if (AddrSet.insert(Addr)) Addrs.push_back(Addr); }
+  void add(Instruction *Addr) {
+    if (AddrSet.insert(Addr).second)
+      Addrs.push_back(Addr);
+  }
 };
 
 // GenX address conversion pass
@@ -164,7 +170,7 @@ public:
   static char ID;
   explicit GenXAddressCommoning() : FunctionGroupPass(ID),
       OuterMap(OuterMap_t(BaseRegAndBaleHash::less)) { }
-  virtual const char *getPassName() const { return "GenX address commoning"; }
+  virtual StringRef getPassName() const { return "GenX address commoning"; }
   void getAnalysisUsage(AnalysisUsage &AU) const {
     FunctionGroupPass::getAnalysisUsage(AU);
     AU.addRequired<DominatorTreeGroupWrapperPass>();

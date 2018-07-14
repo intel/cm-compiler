@@ -1,6 +1,7 @@
 ; Test the "m" asm constraint, which is equivalent to "T".
+; Likewise for the "o" asm constraint.
 ;
-; RUN: llc < %s -mtriple=s390x-linux-gnu | FileCheck %s
+; RUN: llc < %s -mtriple=s390x-linux-gnu -no-integrated-as | FileCheck %s
 
 define void @f1(i64 %base) {
 ; CHECK-LABEL: f1:
@@ -11,5 +12,11 @@ define void @f1(i64 %base) {
   ret void
 }
 
-; FIXME: at the moment the precise constraint is not passed down to
-; target code, so we must conservatively treat "m" as "Q".
+define void @f2(i64 %base) {
+; CHECK-LABEL: f2:
+; CHECK: blah 0(%r2)
+; CHECK: br %r14
+  %addr = inttoptr i64 %base to i64 *
+  call void asm "blah $0", "=*o" (i64 *%addr)
+  ret void
+}

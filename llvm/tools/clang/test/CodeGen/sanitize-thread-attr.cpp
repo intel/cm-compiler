@@ -1,9 +1,7 @@
 // RUN: %clang_cc1 -triple x86_64-apple-darwin -emit-llvm -o - %s | FileCheck -check-prefix=WITHOUT %s
 // RUN: %clang_cc1 -triple x86_64-apple-darwin -emit-llvm -o - %s -fsanitize=thread | FileCheck -check-prefix=TSAN %s
-// RUN: echo "src:%s" > %t
+// RUN: echo "src:%s" | sed -e 's/\\/\\\\/g' > %t
 // RUN: %clang_cc1 -triple x86_64-apple-darwin -emit-llvm -o - %s -fsanitize=thread -fsanitize-blacklist=%t | FileCheck -check-prefix=BL %s
-
-// REQUIRES: shell
 
 // The sanitize_thread attribute should be attached to functions
 // when ThreadSanitizer is enabled, unless no_sanitize_thread attribute
@@ -21,6 +19,12 @@ int NoTSAN1(int *a) { return *a; }
 __attribute__((no_sanitize_thread))
 int NoTSAN2(int *a);
 int NoTSAN2(int *a) { return *a; }
+
+// WITHOUT:  NoTSAN3{{.*}}) [[NOATTR:#[0-9]+]]
+// BL:  NoTSAN3{{.*}}) [[NOATTR:#[0-9]+]]
+// TSAN:  NoTSAN3{{.*}}) [[NOATTR:#[0-9]+]]
+__attribute__((no_sanitize("thread")))
+int NoTSAN3(int *a) { return *a; }
 
 // WITHOUT:  TSANOk{{.*}}) [[NOATTR]]
 // BL:  TSANOk{{.*}}) [[NOATTR]]
@@ -46,16 +50,13 @@ int force_instance = TemplateTSANOk<42>()
 // Check that __cxx_global_var_init* get the sanitize_thread attribute.
 int global1 = 0;
 int global2 = *(int*)((char*)&global1+1);
-// WITHOUT: @__cxx_global_var_init{{.*}}[[NOATTR_NO_TF:#[0-9]+]]
-// BL: @__cxx_global_var_init{{.*}}[[NOATTR_NO_TF:#[0-9]+]]
-// TSAN: @__cxx_global_var_init{{.*}}[[WITH_NO_TF:#[0-9]+]]
+// WITHOUT: @__cxx_global_var_init{{.*}}[[NOATTR:#[0-9]+]]
+// BL: @__cxx_global_var_init{{.*}}[[NOATTR:#[0-9]+]]
+// TSAN: @__cxx_global_var_init{{.*}}[[WITH:#[0-9]+]]
 
-// WITHOUT: attributes [[NOATTR]] = { nounwind{{.*}} }
-// WITHOUT: attributes [[NOATTR_NO_TF]] = { nounwind }
+// WITHOUT: attributes [[NOATTR]] = { noinline nounwind{{.*}} }
 
-// BL: attributes [[NOATTR]] = { nounwind{{.*}} }
-// BL: attributes [[NOATTR_NO_TF]] = { nounwind{{.*}} }
+// BL: attributes [[NOATTR]] = { noinline nounwind{{.*}} }
 
-// TSAN: attributes [[NOATTR]] = { nounwind{{.*}} }
-// TSAN: attributes [[WITH]] = { nounwind sanitize_thread{{.*}} }
-// TSAN: attributes [[WITH_NO_TF]] = { nounwind sanitize_thread }
+// TSAN: attributes [[NOATTR]] = { noinline nounwind{{.*}} }
+// TSAN: attributes [[WITH]] = { noinline nounwind sanitize_thread{{.*}} }

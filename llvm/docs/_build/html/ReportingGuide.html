@@ -1,0 +1,221 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Reporting Guide &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Benchmarking tips" href="Benchmarking.html" />
+    <link rel="prev" title="Compiling CUDA with clang" href="CompileCudaWithLLVM.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="Benchmarking.html" title="Benchmarking tips"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="CompileCudaWithLLVM.html" title="Compiling CUDA with clang"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="reporting-guide">
+<h1>Reporting Guide<a class="headerlink" href="#reporting-guide" title="Permalink to this headline">¶</a></h1>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">This document is currently a <strong>DRAFT</strong> document while it is being discussed
+by the community.</p>
+</div>
+<p>If you believe someone is violating the <a class="reference internal" href="CodeOfConduct.html"><span class="doc">code of conduct</span></a>
+you can always report it to the LLVM Foundation Code of Conduct Advisory
+Committee by emailing <a class="reference external" href="mailto:conduct&#37;&#52;&#48;llvm&#46;org">conduct<span>&#64;</span>llvm<span>&#46;</span>org</a>. <strong>All reports will be kept
+confidential.</strong> This isn’t a public list and only <a class="reference internal" href="#members">members</a> of the advisory
+committee will receive the report.</p>
+<p>If you believe anyone is in <strong>physical danger</strong>, please notify appropriate law
+enforcement first. If you are unsure what law enforcement agency is
+appropriate, please include this in your report and we will attempt to notify
+them.</p>
+<p>If the violation occurs at an event such as a Developer Meeting and requires
+immediate attention, you can also reach out to any of the event organizers or
+staff. Event organizers and staff will be prepared to handle the incident and
+able to help. If you cannot find one of the organizers, the venue staff can
+locate one for you. We will also post detailed contact information for specific
+events as part of each events’ information. In person reports will still be
+kept confidential exactly as above, but also feel free to (anonymously if
+needed) email <a class="reference external" href="mailto:conduct&#37;&#52;&#48;llvm&#46;org">conduct<span>&#64;</span>llvm<span>&#46;</span>org</a>.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The LLVM community has long handled inappropriate behavior on its own, using
+both private communication and public responses. Nothing in this document is
+intended to discourage this self enforcement of community norms. Instead,
+the mechanisms described here are intended to supplement any self
+enforcement within the community. They provide avenues for handling severe
+cases or cases where the reporting party does not wish to respond directly
+for any reason.</p>
+</div>
+<div class="section" id="filing-a-report">
+<h2>Filing a report<a class="headerlink" href="#filing-a-report" title="Permalink to this headline">¶</a></h2>
+<p>Reports can be as formal or informal as needed for the situation at hand. If
+possible, please include as much information as you can. If you feel
+comfortable, please consider including:</p>
+<ul class="simple">
+<li>Your contact info (so we can get in touch with you if we need to follow up).</li>
+<li>Names (real, nicknames, or pseudonyms) of any individuals involved. If there
+were other witnesses besides you, please try to include them as well.</li>
+<li>When and where the incident occurred. Please be as specific as possible.</li>
+<li>Your account of what occurred. If there is a publicly available record (e.g.
+a mailing list archive or a public IRC logger) please include a link.</li>
+<li>Any extra context you believe existed for the incident.</li>
+<li>If you believe this incident is ongoing.</li>
+<li>Any other information you believe we should have.</li>
+</ul>
+</div>
+<div class="section" id="what-happens-after-you-file-a-report">
+<h2>What happens after you file a report?<a class="headerlink" href="#what-happens-after-you-file-a-report" title="Permalink to this headline">¶</a></h2>
+<p>You will receive an email from the advisory committee acknowledging receipt
+within 24 hours (and we will aim to respond much quicker than that).</p>
+<p>The advisory committee will immediately meet to review the incident and try to
+determine:</p>
+<ul class="simple">
+<li>What happened and who was involved.</li>
+<li>Whether this event constitutes a code of conduct violation.</li>
+<li>Whether this is an ongoing situation, or if there is a threat to anyone’s
+physical safety.</li>
+</ul>
+<p>If this is determined to be an ongoing incident or a threat to physical safety,
+the working groups’ immediate priority will be to protect everyone involved.
+This means we may delay an “official” response until we believe that the
+situation has ended and that everyone is physically safe.</p>
+<p>The working group will try to contact other parties involved or witnessing the
+event to gain clarity on what happened and understand any different
+perspectives.</p>
+<p>Once the advisory committee has a complete account of the events they will make
+a decision as to how to respond. Responses may include:</p>
+<ul class="simple">
+<li>Nothing, if we determine no violation occurred or it has already been
+appropriately resolved.</li>
+<li>Providing either moderation or mediation to ongoing interactions (where
+appropriate, safe, and desired by both parties).</li>
+<li>A private reprimand from the working group to the individuals involved.</li>
+<li>An imposed vacation (i.e. asking someone to “take a week off” from a mailing
+list or IRC).</li>
+<li>A public reprimand.</li>
+<li>A permanent or temporary ban from some or all LLVM spaces (mailing lists,
+IRC, etc.)</li>
+<li>Involvement of relevant law enforcement if appropriate.</li>
+</ul>
+<p>If the situation is not resolved within one week, we’ll respond within one week
+to the original reporter with an update and explanation.</p>
+<p>Once we’ve determined our response, we will separately contact the original
+reporter and other individuals to let them know what actions (if any) we’ll be
+taking. We will take into account feedback from the individuals involved on the
+appropriateness of our response, but we don’t guarantee we’ll act on it.</p>
+<p>After any incident, the advisory committee will make a report on the situation
+to the LLVM Foundation board. The board may choose to make a public statement
+about the incident. If that’s the case, the identities of anyone involved will
+remain confidential unless instructed by those inviduals otherwise.</p>
+</div>
+<div class="section" id="appealing">
+<h2>Appealing<a class="headerlink" href="#appealing" title="Permalink to this headline">¶</a></h2>
+<p>Only permanent resolutions (such as bans) or requests for public actions may be
+appealed. To appeal a decision of the working group, contact the LLVM
+Foundation board at <a class="reference external" href="mailto:board&#37;&#52;&#48;llvm&#46;org">board<span>&#64;</span>llvm<span>&#46;</span>org</a> with your appeal and the board will review
+the case.</p>
+<p>In general, it is <strong>not</strong> appropriate to appeal a particular decision on
+a public mailing list. Doing so would involve disclosure of information which
+whould be confidential. Disclosing this kind of information publicly may be
+considered a separate and (potentially) more serious violation of the Code of
+Conduct. This is not meant to limit discussion of the Code of Conduct, the
+advisory board itself, or the appropriateness of responses in general, but
+<strong>please</strong> refrain from mentioning specific facts about cases without the
+explicit permission of all parties involved.</p>
+</div>
+<div class="section" id="members-of-the-code-of-conduct-advisory-committee">
+<span id="members"></span><h2>Members of the Code of Conduct Advisory Committee<a class="headerlink" href="#members-of-the-code-of-conduct-advisory-committee" title="Permalink to this headline">¶</a></h2>
+<p>The members serving on the advisory committee are listed here with contact
+information in case you are more comfortable talking directly to a specific
+member of the committee.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">FIXME: When we form the initial advisory committee, the members names and private contact info need to be added here.</p>
+</div>
+<p>(This text is based on the <a class="reference external" href="https://www.djangoproject.com/conduct/">Django Project</a> Code of Conduct, which is in turn
+based on wording from the <a class="reference external" href="http://speakup.io/coc.html">Speak Up! project</a>.)</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="Benchmarking.html" title="Benchmarking tips"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="CompileCudaWithLLVM.html" title="Compiling CUDA with clang"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

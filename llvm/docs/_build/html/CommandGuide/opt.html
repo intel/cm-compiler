@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>opt - LLVM optimizer &#8212; LLVM 3.4 documentation</title>
+    <title>opt - LLVM optimizer &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -133,30 +133,16 @@ order in which they are executed (within pass constraints).</p>
 </dd></dl>
 
 <dl class="option">
-<dt id="cmdoption-std-compile-opts">
-<code class="descname">-std-compile-opts</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-std-compile-opts" title="Permalink to this definition">¶</a></dt>
-<dd><p>This is short hand for a standard list of <em>compile time optimization</em> passes.
-It might be useful for other front end compilers as well.  To discover the
-full set of options available, use the following command:</p>
-<div class="highlight-sh"><div class="highlight"><pre><span></span>llvm-as &lt; /dev/null <span class="p">|</span> opt -std-compile-opts -disable-output -debug-pass<span class="o">=</span>Arguments
-</pre></div>
-</div>
-</dd></dl>
-
-<dl class="option">
 <dt id="cmdoption-disable-inlining">
 <code class="descname">-disable-inlining</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-disable-inlining" title="Permalink to this definition">¶</a></dt>
-<dd><p>This option is only meaningful when <a class="reference internal" href="#cmdoption-std-compile-opts"><code class="xref std std-option docutils literal"><span class="pre">-std-compile-opts</span></code></a> is given.  It
-simply removes the inlining pass from the standard list.</p>
+<dd><p>This option simply removes the inlining pass from the standard list.</p>
 </dd></dl>
 
 <dl class="option">
 <dt id="cmdoption-disable-opt">
 <code class="descname">-disable-opt</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-disable-opt" title="Permalink to this definition">¶</a></dt>
-<dd><p>This option is only meaningful when <a class="reference internal" href="#cmdoption-std-compile-opts"><code class="xref std std-option docutils literal"><span class="pre">-std-compile-opts</span></code></a> is given.  It
-disables most, but not all, of the <a class="reference internal" href="#cmdoption-std-compile-opts"><code class="xref std std-option docutils literal"><span class="pre">-std-compile-opts</span></code></a>.  The ones that
-remain are <cite>-verify</cite>, <cite>-lower-setjmp</cite>, and
-<cite>-funcresolve</cite>.</p>
+<dd><p>This option is only meaningful when <cite>-std-link-opts</cite> is given.  It
+disables most passes.</p>
 </dd></dl>
 
 <dl class="option">
@@ -173,9 +159,7 @@ but it ensures that stripping of debug information is done first.</p>
 <dd><p>This option causes opt to add a verify pass after every pass otherwise
 specified on the command line (including <cite>-verify</cite>).  This is useful
 for cases where it is suspected that a pass is creating an invalid module but
-it is not clear which pass is doing it.  The combination of
-<a class="reference internal" href="#cmdoption-std-compile-opts"><code class="xref std std-option docutils literal"><span class="pre">-std-compile-opts</span></code></a> and <a class="reference internal" href="#cmdoption-verify-each"><code class="xref std std-option docutils literal"><span class="pre">-verify-each</span></code></a> can quickly track down
-this kind of problem.</p>
+it is not clear which pass is doing it.</p>
 </dd></dl>
 
 <dl class="option">
@@ -249,8 +233,8 @@ occurs, it will exit with a non-zero value.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

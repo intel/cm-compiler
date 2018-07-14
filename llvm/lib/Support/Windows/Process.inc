@@ -47,46 +47,11 @@
 #endif
 
 using namespace llvm;
-using namespace sys;
-
-process::id_type self_process::get_id() {
-  return GetCurrentProcessId();
-}
-
-static TimeValue getTimeValueFromFILETIME(FILETIME Time) {
-  ULARGE_INTEGER TimeInteger;
-  TimeInteger.LowPart = Time.dwLowDateTime;
-  TimeInteger.HighPart = Time.dwHighDateTime;
-
-  // FILETIME's are # of 100 nanosecond ticks (1/10th of a microsecond)
-  return TimeValue(
-      static_cast<TimeValue::SecondsType>(TimeInteger.QuadPart / 10000000),
-      static_cast<TimeValue::NanoSecondsType>(
-          (TimeInteger.QuadPart % 10000000) * 100));
-}
-
-TimeValue self_process::get_user_time() const {
-  FILETIME ProcCreate, ProcExit, KernelTime, UserTime;
-  if (GetProcessTimes(GetCurrentProcess(), &ProcCreate, &ProcExit, &KernelTime,
-                      &UserTime) == 0)
-    return TimeValue();
-
-  return getTimeValueFromFILETIME(UserTime);
-}
-
-TimeValue self_process::get_system_time() const {
-  FILETIME ProcCreate, ProcExit, KernelTime, UserTime;
-  if (GetProcessTimes(GetCurrentProcess(), &ProcCreate, &ProcExit, &KernelTime,
-                      &UserTime) == 0)
-    return TimeValue();
-
-  return getTimeValueFromFILETIME(KernelTime);
-}
 
 // This function retrieves the page size using GetNativeSystemInfo() and is
 // present solely so it can be called once to initialize the self_process member
 // below.
-static unsigned getPageSize() {
+static unsigned computePageSize() {
   // GetNativeSystemInfo() provides the physical page size which may differ
   // from GetSystemInfo() in 32-bit applications running under WOW64.
   SYSTEM_INFO info;
@@ -96,11 +61,10 @@ static unsigned getPageSize() {
   return static_cast<unsigned>(info.dwPageSize);
 }
 
-// This constructor guaranteed to be run exactly once on a single thread, and
-// sets up various process invariants that can be queried cheaply from then on.
-self_process::self_process() : PageSize(getPageSize()) {
+unsigned Process::getPageSize() {
+  static unsigned Ret = computePageSize();
+  return Ret;
 }
-
 
 size_t
 Process::GetMallocUsage()
@@ -116,17 +80,17 @@ Process::GetMallocUsage()
   return size;
 }
 
-void Process::GetTimeUsage(TimeValue &elapsed, TimeValue &user_time,
-                           TimeValue &sys_time) {
-  elapsed = TimeValue::now();
+void Process::GetTimeUsage(TimePoint<> &elapsed, std::chrono::nanoseconds &user_time,
+                           std::chrono::nanoseconds &sys_time) {
+  elapsed = std::chrono::system_clock::now();;
 
   FILETIME ProcCreate, ProcExit, KernelTime, UserTime;
   if (GetProcessTimes(GetCurrentProcess(), &ProcCreate, &ProcExit, &KernelTime,
                       &UserTime) == 0)
     return;
 
-  user_time = getTimeValueFromFILETIME(UserTime);
-  sys_time = getTimeValueFromFILETIME(KernelTime);
+  user_time = toDuration(UserTime);
+  sys_time = toDuration(KernelTime);
 }
 
 // Some LLVM programs such as bugpoint produce core files as a normal part of
@@ -146,6 +110,8 @@ void Process::PreventCoreFiles() {
   SetErrorMode(SEM_FAILCRITICALERRORS |
                SEM_NOGPFAULTERRORBOX |
                SEM_NOOPENFILEERRORBOX);
+
+  coreFilesPrevented = true;
 }
 
 /// Returns the environment variable \arg Name's value as a string encoded in
@@ -163,9 +129,10 @@ Optional<std::string> Process::GetEnv(StringRef Name) {
   size_t Size = MAX_PATH;
   do {
     Buf.reserve(Size);
+    SetLastError(NO_ERROR);
     Size =
-        GetEnvironmentVariableW(NameUTF16.data(), Buf.data(), Buf.capacity());
-    if (Size == 0)
+      GetEnvironmentVariableW(NameUTF16.data(), Buf.data(), Buf.capacity());
+    if (Size == 0 && GetLastError() == ERROR_ENVVAR_NOT_FOUND)
       return None;
 
     // Try again with larger buffer.
@@ -177,10 +144,6 @@ Optional<std::string> Process::GetEnv(StringRef Name) {
   if (windows::UTF16ToUTF8(Buf.data(), Size, Res))
     return None;
   return std::string(Res.data());
-}
-
-static std::error_code windows_error(DWORD E) {
-  return mapWindowsError(E);
 }
 
 static void AllocateAndPush(const SmallVectorImpl<char> &S,
@@ -213,6 +176,11 @@ WildcardExpand(const wchar_t *Arg, SmallVectorImpl<const char *> &Args,
     return ConvertAndPushArg(Arg, Args, Allocator);
   }
 
+  if (wcscmp(Arg, L"/?") == 0 || wcscmp(Arg, L"-?") == 0) {
+    // Don't wildcard expand /?. Always treat it as an option.
+    return ConvertAndPushArg(Arg, Args, Allocator);
+  }
+
   // Extract any directory part of the argument.
   SmallVector<char, MAX_PATH> Dir;
   if (std::error_code ec = windows::UTF16ToUTF8(Arg, wcslen(Arg), Dir))
@@ -221,6 +189,9 @@ WildcardExpand(const wchar_t *Arg, SmallVectorImpl<const char *> &Args,
   const int DirSize = Dir.size();
 
   // Search for matching files.
+  // FIXME:  This assumes the wildcard is only in the file name and not in the
+  // directory portion of the file path.  For example, it doesn't handle
+  // "*\foo.c" nor "s?c\bar.cpp".
   WIN32_FIND_DATAW FileData;
   HANDLE FindHandle = FindFirstFileW(Arg, &FileData);
   if (FindHandle == INVALID_HANDLE_VALUE) {
@@ -235,7 +206,7 @@ WildcardExpand(const wchar_t *Arg, SmallVectorImpl<const char *> &Args,
     if (ec)
       break;
 
-    // Push the filename onto Dir, and remove it afterwards.
+    // Append FileName to Dir, and remove it afterwards.
     llvm::sys::path::append(Dir, StringRef(FileName.data(), FileName.size()));
     AllocateAndPush(Dir, Args, Allocator);
     Dir.resize(DirSize);
@@ -243,6 +214,23 @@ WildcardExpand(const wchar_t *Arg, SmallVectorImpl<const char *> &Args,
 
   FindClose(FindHandle);
   return ec;
+}
+
+static std::error_code
+ExpandShortFileName(const wchar_t *Arg, SmallVectorImpl<const char *> &Args,
+                    SpecificBumpPtrAllocator<char> &Allocator) {
+  SmallVector<wchar_t, MAX_PATH> LongPath;
+  DWORD Length = GetLongPathNameW(Arg, LongPath.data(), LongPath.capacity());
+  if (Length == 0)
+    return mapWindowsError(GetLastError());
+  if (Length > LongPath.capacity()) {
+    // We're not going to try to deal with paths longer than MAX_PATH, so we'll
+    // treat this as an error.  GetLastError() returns ERROR_SUCCESS, which
+    // isn't useful, so we'll hardcode an appropriate error value.
+    return mapWindowsError(ERROR_INSUFFICIENT_BUFFER);
+  }
+  LongPath.set_size(Length);
+  return ConvertAndPushArg(LongPath.data(), Args, Allocator);
 }
 
 std::error_code
@@ -253,12 +241,24 @@ Process::GetArgumentVector(SmallVectorImpl<const char *> &Args,
   wchar_t **UnicodeCommandLine =
       CommandLineToArgvW(GetCommandLineW(), &ArgCount);
   if (!UnicodeCommandLine)
-    return windows_error(::GetLastError());
+    return mapWindowsError(::GetLastError());
 
   Args.reserve(ArgCount);
   std::error_code ec;
 
-  for (int i = 0; i < ArgCount; ++i) {
+  // The first argument may contain just the name of the executable (e.g.,
+  // "clang") rather than the full path, so swap it with the full path.
+  wchar_t ModuleName[MAX_PATH];
+  int Length = ::GetModuleFileNameW(NULL, ModuleName, MAX_PATH);
+  if (0 < Length && Length < MAX_PATH)
+    UnicodeCommandLine[0] = ModuleName;
+
+  // If the first argument is a shortened (8.3) name (which is possible even
+  // if we got the module name), the driver will have trouble distinguishing it
+  // (e.g., clang.exe v. clang++.exe), so expand it now.
+  ec = ExpandShortFileName(UnicodeCommandLine[0], Args, ArgAllocator);
+
+  for (int i = 1; i < ArgCount && !ec; ++i) {
     ec = WildcardExpand(UnicodeCommandLine[i], Args, ArgAllocator);
     if (ec)
       break;
@@ -266,6 +266,16 @@ Process::GetArgumentVector(SmallVectorImpl<const char *> &Args,
 
   LocalFree(UnicodeCommandLine);
   return ec;
+}
+
+std::error_code Process::FixupStandardFileDescriptors() {
+  return std::error_code();
+}
+
+std::error_code Process::SafelyCloseFileDescriptor(int FD) {
+  if (::close(FD) < 0)
+    return std::error_code(errno, std::generic_category());
+  return std::error_code();
 }
 
 bool Process::StandardInIsUserInput() {
@@ -337,6 +347,16 @@ class DefaultColors
 };
 
 DefaultColors defaultColors;
+
+WORD fg_color(WORD color) {
+  return color & (FOREGROUND_BLUE | FOREGROUND_GREEN |
+                  FOREGROUND_INTENSITY | FOREGROUND_RED);
+}
+
+WORD bg_color(WORD color) {
+  return color & (BACKGROUND_BLUE | BACKGROUND_GREEN |
+                  BACKGROUND_INTENSITY | BACKGROUND_RED);
+}
 }
 
 bool Process::ColorNeedsFlush() {
@@ -358,6 +378,7 @@ const char *Process::OutputBold(bool bg) {
 const char *Process::OutputColor(char code, bool bold, bool bg) {
   if (UseANSI) return colorcodes[bg?1:0][bold?1:0][code&7];
 
+  WORD current = DefaultColors::GetCurrentColor();
   WORD colors;
   if (bg) {
     colors = ((code&1) ? BACKGROUND_RED : 0) |
@@ -365,12 +386,14 @@ const char *Process::OutputColor(char code, bool bold, bool bg) {
       ((code&4) ? BACKGROUND_BLUE : 0);
     if (bold)
       colors |= BACKGROUND_INTENSITY;
+    colors |= fg_color(current);
   } else {
     colors = ((code&1) ? FOREGROUND_RED : 0) |
       ((code&2) ? FOREGROUND_GREEN : 0 ) |
       ((code&4) ? FOREGROUND_BLUE : 0);
     if (bold)
       colors |= FOREGROUND_INTENSITY;
+    colors |= bg_color(current);
   }
   SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), colors);
   return 0;
@@ -416,16 +439,23 @@ const char *Process::ResetColor() {
   return 0;
 }
 
+// Include GetLastError() in a fatal error message.
+static void ReportLastErrorFatal(const char *Msg) {
+  std::string ErrMsg;
+  MakeErrMsg(&ErrMsg, Msg);
+  report_fatal_error(ErrMsg);
+}
+
 unsigned Process::GetRandomNumber() {
   HCRYPTPROV HCPC;
   if (!::CryptAcquireContextW(&HCPC, NULL, NULL, PROV_RSA_FULL,
                               CRYPT_VERIFYCONTEXT))
-    report_fatal_error("Could not acquire a cryptographic context");
+    ReportLastErrorFatal("Could not acquire a cryptographic context");
 
   ScopedCryptContext CryptoProvider(HCPC);
   unsigned Ret;
   if (!::CryptGenRandom(CryptoProvider, sizeof(Ret),
                         reinterpret_cast<BYTE *>(&Ret)))
-    report_fatal_error("Could not generate a random number");
+    ReportLastErrorFatal("Could not generate a random number");
   return Ret;
 }

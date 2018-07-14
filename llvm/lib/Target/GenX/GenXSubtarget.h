@@ -45,7 +45,7 @@
 #include "llvm/ADT/Triple.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/Pass.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include <string>
 
 #define GET_SUBTARGETINFO_HEADER
@@ -97,11 +97,12 @@ private:
   // Only generate warning when callable is used in the middle of the kernel
   bool WarnCallable;
 
+
 public:
   // This constructor initializes the data members to match that
   // of the specified triple.
   //
-  GenXSubtarget(const std::string &TT, const std::string &CPU,
+  GenXSubtarget(const Triple &TT, const std::string &CPU,
                 const std::string &FS);
 
   // hasLongLong - true for Gen8+
@@ -112,9 +113,7 @@ public:
   void ParseSubtargetFeatures(StringRef CPU, StringRef FS);
 
   // \brief Reset the features for the GenX target.
-  using llvm::TargetSubtargetInfo::resetSubtargetFeatures; // Ensure we overload
-                                                           // not override
-  virtual void resetSubtargetFeatures(StringRef CPU, StringRef FS);
+  void resetSubtargetFeatures(StringRef CPU, StringRef FS);
 
 public:
 

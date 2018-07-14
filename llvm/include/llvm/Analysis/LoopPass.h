@@ -82,10 +82,16 @@ public:
   /// deleteAnalysisValue - Delete analysis info associated with value V.
   virtual void deleteAnalysisValue(Value *V, Loop *L) {}
 
+  /// Delete analysis info associated with Loop L.
+  /// Called to notify a Pass that a loop has been deleted and any
+  /// associated analysis values can be deleted.
+  virtual void deleteAnalysisLoop(Loop *L) {}
+
 protected:
-  /// skipOptnoneFunction - Containing function has Attribute::OptimizeNone
-  /// and most transformation passes should skip it.
-  bool skipOptnoneFunction(const Loop *L) const;
+  /// Optional passes call this function to check whether the pass should be
+  /// skipped. This is the case when Attribute::OptimizeNone is set or when
+  /// optimization bisect is over the limit.
+  bool skipLoop(const Loop *L) const;
 };
 
 class LPPassManager : public FunctionPass, public PMDataManager {
@@ -101,9 +107,7 @@ public:
   // LPPassManager needs LoopInfo.
   void getAnalysisUsage(AnalysisUsage &Info) const override;
 
-  const char *getPassName() const override {
-    return "Loop Pass Manager";
-  }
+  StringRef getPassName() const override { return "Loop Pass Manager"; }
 
   PMDataManager *getAsPMDataManager() override { return this; }
   Pass *getAsPass() override { return this; }
@@ -122,20 +126,11 @@ public:
   }
 
 public:
-  // Delete loop from the loop queue and loop nest (LoopInfo).
-  void deleteLoopFromQueue(Loop *L);
+  // Add a new loop into the loop queue.
+  void addLoop(Loop &L);
 
-  // Insert loop into the loop queue and add it as a child of the
-  // given parent.
-  void insertLoop(Loop *L, Loop *ParentLoop);
-
-  // Insert a loop into the loop queue.
-  void insertLoopIntoQueue(Loop *L);
-
-  // Reoptimize this loop. LPPassManager will re-insert this loop into the
-  // queue. This allows LoopPass to change loop nest for the loop. This
-  // utility may send LPPassManager into infinite loops so use caution.
-  void redoLoop(Loop *L);
+  // Mark \p L as deleted.
+  void markLoopAsDeleted(Loop &L);
 
   //===--------------------------------------------------------------------===//
   /// SimpleAnalysis - Provides simple interface to update analysis info
@@ -152,12 +147,31 @@ public:
   /// that implement simple analysis interface.
   void deleteSimpleAnalysisValue(Value *V, Loop *L);
 
+  /// Invoke deleteAnalysisLoop hook for all passes that implement simple
+  /// analysis interface.
+  void deleteSimpleAnalysisLoop(Loop *L);
+
 private:
   std::deque<Loop *> LQ;
-  bool skipThisLoop;
-  bool redoThisLoop;
   LoopInfo *LI;
   Loop *CurrentLoop;
+  bool CurrentLoopDeleted;
+};
+
+// This pass is required by the LCSSA transformation. It is used inside
+// LPPassManager to check if current pass preserves LCSSA form, and if it does
+// pass manager calls lcssa verification for the current loop.
+struct LCSSAVerificationPass : public FunctionPass {
+  static char ID;
+  LCSSAVerificationPass() : FunctionPass(ID) {
+    initializeLCSSAVerificationPassPass(*PassRegistry::getPassRegistry());
+  }
+
+  bool runOnFunction(Function &F) override { return false; }
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.setPreservesAll();
+  }
 };
 
 } // End llvm namespace

@@ -2,7 +2,6 @@
 ; RUN: opt -loop-unswitch -disable-output -stats -info-output-file - < %s | FileCheck --check-prefix=STATS %s
 ; RUN: opt -S -loop-unswitch -verify-loop-info -verify-dom-info < %s | FileCheck %s
 
-; STATS: 1 loop-simplify - Number of pre-header or exit blocks inserted
 ; STATS: 2 loop-unswitch - Number of switches unswitched
 
 ; CHECK:      %1 = icmp eq i32 %c, 1
@@ -15,7 +14,7 @@
 ; CHECK-NEXT:   br label %loop_begin.us
 
 ; CHECK:      loop_begin.us:                                    ; preds = %loop_begin.backedge.us, %.split.us
-; CHECK-NEXT:   %var_val.us = load i32* %var
+; CHECK-NEXT:   %var_val.us = load i32, i32* %var
 ; CHECK-NEXT:   switch i32 1, label %default.us-lcssa.us [
 ; CHECK-NEXT:     i32 1, label %inc.us
 
@@ -34,7 +33,7 @@
 ; CHECK-NEXT:   br label %loop_begin.us1
 
 ; CHECK:      loop_begin.us1:                                   ; preds = %loop_begin.backedge.us5, %.split.split.us
-; CHECK-NEXT:   %var_val.us2 = load i32* %var
+; CHECK-NEXT:   %var_val.us2 = load i32, i32* %var
 ; CHECK-NEXT:   switch i32 2, label %default.us-lcssa.us-lcssa.us [
 ; CHECK-NEXT:     i32 1, label %inc.us4
 ; CHECK-NEXT:     i32 2, label %dec.us3
@@ -48,7 +47,7 @@
 ; CHECK-NEXT:   br label %loop_begin
 
 ; CHECK:      loop_begin:                                       ; preds = %loop_begin.backedge, %.split.split
-; CHECK-NEXT:   %var_val = load i32* %var
+; CHECK-NEXT:   %var_val = load i32, i32* %var
 ; CHECK-NEXT:   switch i32 %c, label %default.us-lcssa.us-lcssa [
 ; CHECK-NEXT:     i32 1, label %inc
 ; CHECK-NEXT:     i32 2, label %dec
@@ -63,13 +62,13 @@
 define i32 @test(i32* %var) {
   %mem = alloca i32
   store i32 2, i32* %mem
-  %c = load i32* %mem
+  %c = load i32, i32* %mem
 
   br label %loop_begin
 
 loop_begin:
 
-  %var_val = load i32* %var
+  %var_val = load i32, i32* %var
 
   switch i32 %c, label %default [
       i32 1, label %inc

@@ -1,5 +1,5 @@
-; RUN: llc -mcpu=pwr7 -O0 -code-model=medium <%s | FileCheck -check-prefix=MEDIUM %s
-; RUN: llc -mcpu=pwr7 -O0 -code-model=large <%s | FileCheck -check-prefix=LARGE %s
+; RUN: llc -relocation-model=static -verify-machineinstrs -mcpu=pwr7 -O0 -code-model=medium <%s | FileCheck -check-prefix=MEDIUM %s
+; RUN: llc -relocation-model=static -verify-machineinstrs -mcpu=pwr7 -O0 -code-model=large <%s | FileCheck -check-prefix=LARGE %s
 
 ; Test correct code generation for medium and large code model
 ; for loading and storing a file-scope static variable.
@@ -11,7 +11,7 @@ target triple = "powerpc64-unknown-linux-gnu"
 
 define signext i32 @test_file_static() nounwind {
 entry:
-  %0 = load i32* @gi, align 4
+  %0 = load i32, i32* @gi, align 4
   %inc = add nsw i32 %0, 1
   store i32 %inc, i32* @gi, align 4
   ret i32 %0

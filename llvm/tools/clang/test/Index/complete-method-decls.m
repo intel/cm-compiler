@@ -82,7 +82,29 @@ typedef A *MyObjectRef;
 @end
 
 @implementation I1
--
+-(void)foo {}
+@end
+
+@interface I2
+-(nonnull I2 *)produceI2:(nullable I2 *)i2;
+-(int *__nullable *__nullable)something:(void(^__nullable)(int *__nullable))b;
+@property (nullable, strong) id prop;
+@property (nullable, strong) void(^propWB)(int *_Nullable);
+@end
+
+@implementation I2
+-(void)foo {}
+@end
+
+#pragma clang assume_nonnull begin
+@interface I3
+-(I3 *)produceI3:(I3 *)i3;
+-(instancetype)getI3;
+@end
+#pragma clang assume_nonnull end
+
+@implementation I3
+-(void)foo {}
 @end
 
 // RUN: c-index-test -code-completion-at=%s:17:3 %s | FileCheck -check-prefix=CHECK-CC1 %s
@@ -153,6 +175,8 @@ typedef A *MyObjectRef;
 // CHECK-CCF: NotImplemented:{TypedText byref} (40)
 // CHECK-CCF: NotImplemented:{TypedText in} (40)
 // CHECK-CCF: NotImplemented:{TypedText inout} (40)
+// CHECK-CCF: NotImplemented:{TypedText nonnull} (40)
+// CHECK-CCF: NotImplemented:{TypedText nullable} (40)
 // CHECK-CCF: NotImplemented:{TypedText oneway} (40)
 // CHECK-CCF: NotImplemented:{TypedText out} (40)
 // CHECK-CCF: NotImplemented:{TypedText unsigned} (50)
@@ -171,7 +195,7 @@ typedef A *MyObjectRef;
 // CHECK-CCG: NotImplemented:{TypedText void} (50)
 // CHECK-CCG: NotImplemented:{TypedText volatile} (50)
 // RUN: c-index-test -code-completion-at=%s:60:24 %s | FileCheck -check-prefix=CHECK-CCF %s
-// RUN: c-index-test -code-completion-at=%s:60:26 %s | FileCheck -check-prefix=CHECK-CCH %s
+// RUN: c-index-test -code-completion-at=%s:60:27 %s | FileCheck -check-prefix=CHECK-CCH %s
 // CHECK-CCH: ObjCInterfaceDecl:{TypedText A} (50)
 // CHECK-CCH: ObjCInterfaceDecl:{TypedText B} (50)
 // CHECK-CCH: NotImplemented:{TypedText bycopy} (40)
@@ -198,6 +222,39 @@ typedef A *MyObjectRef;
 
 // RUN: c-index-test -code-completion-at=%s:85:2 %s | FileCheck -check-prefix=CHECK-CLASSTY %s
 // CHECK-CLASSTY: ObjCInstanceMethodDecl:{LeftParen (}{Text Class<P1>}{RightParen )}{TypedText meth}
-// FIXME: It should be "MyObject <P1> *""
-// CHECK-CLASSTY: ObjCInstanceMethodDecl:{LeftParen (}{Text A<P1> *}{RightParen )}{TypedText meth2}
+// CHECK-CLASSTY: ObjCInstanceMethodDecl:{LeftParen (}{Text MyObject<P1> *}{RightParen )}{TypedText meth2}
 // CHECK-CLASSTY: ObjCInstanceMethodDecl:{LeftParen (}{Text MyObjectRef}{RightParen )}{TypedText meth3}
+
+// RUN: c-index-test -code-completion-at=%s:96:2 %s -target x86_64-apple-macosx10.7 | FileCheck -check-prefix=CHECK-NULLABILITY %s
+// CHECK-NULLABILITY: ObjCInstanceMethodDecl:{LeftParen (}{Text I2 *}{RightParen )}{TypedText produceI2}{TypedText :}{LeftParen (}{Text I2 *}{RightParen )}{Text i2} (40)
+// CHECK-NULLABILITY: ObjCInstanceMethodDecl:{LeftParen (}{Text id}{RightParen )}{TypedText prop}
+// CHECK-NULLABILITY: ObjCInstanceMethodDecl:{LeftParen (}{Text void (^)(int * _Nullable)}{RightParen )}{TypedText propWB}
+// CHECK-NULLABILITY: ObjCInstanceMethodDecl:{LeftParen (}{Text void}{RightParen )}{TypedText setProp}{TypedText :}{LeftParen (}{Text id}{RightParen )}{Text prop}
+// CHECK-NULLABILITY: ObjCInstanceMethodDecl:{LeftParen (}{Text void}{RightParen )}{TypedText setPropWB}{TypedText :}{LeftParen (}{Text void (^)(int * _Nullable)}{RightParen )}{Text propWB}
+// CHECK-NULLABILITY: ObjCInstanceMethodDecl:{LeftParen (}{Text int * _Nullable *}{RightParen )}{TypedText something}{TypedText :}{LeftParen (}{Text void (^)(int * _Nullable)}{RightParen )}{Text b}
+
+// RUN: c-index-test -code-completion-at=%s:107:2 %s -target x86_64-apple-macosx10.7 | FileCheck -check-prefix=CHECK-NULLABILITY2 %s
+// CHECK-NULLABILITY2: ObjCInstanceMethodDecl:{LeftParen (}{Text instancetype}{RightParen )}{TypedText getI3} (40)
+// CHECK-NULLABILITY2: ObjCInstanceMethodDecl:{LeftParen (}{Text I3 *}{RightParen )}{TypedText produceI3}{TypedText :}{LeftParen (}{Text I3 *}{RightParen )}{Text i3} (40)
+
+@interface CompleteWithoutLeadingPrefix
+
+- (void)aMethod;
++ (int)aClassMethod:(int)x;
+@property int p;
+
+@end
+
+@implementation CompleteWithoutLeadingPrefix
+
+
+
+@end
+
+// RUN: c-index-test -code-completion-at=%s:250:1 %s | FileCheck -check-prefix=CHECK-COMP-NO-PREFIX %s
+// CHECK-COMP-NO-PREFIX: NotImplemented:{TypedText @end} (40)
+// CHECK-COMP-NO-PREFIX: ObjCClassMethodDecl:{Text +}{HorizontalSpace  }{LeftParen (}{Text int}{RightParen )}{TypedText aClassMethod}{TypedText :}{LeftParen (}{Text int}{RightParen )}{Text x} (40)
+// CHECK-COMP-NO-PREFIX: ObjCInstanceMethodDecl:{Text -}{HorizontalSpace  }{LeftParen (}{Text void}{RightParen )}{TypedText aMethod} (40)
+// CHECK-COMP-NO-PREFIX: ObjCInterfaceDecl:{TypedText I1}
+// CHECK-COMP-NO-PREFIX: ObjCInstanceMethodDecl:{Text -}{HorizontalSpace  }{LeftParen (}{Text int}{RightParen )}{TypedText p} (40)
+// CHECK-COMP-NO-PREFIX: ObjCInstanceMethodDecl:{Text -}{HorizontalSpace  }{LeftParen (}{Text void}{RightParen )}{TypedText setP}{TypedText :}{LeftParen (}{Text int}{RightParen )}{Text p} (40)

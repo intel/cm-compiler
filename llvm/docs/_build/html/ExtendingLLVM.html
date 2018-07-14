@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Extending LLVM: Adding instructions, intrinsics, types, etc. &#8212; LLVM 3.4 documentation</title>
+    <title>Extending LLVM: Adding instructions, intrinsics, types, etc. &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -76,7 +76,7 @@ function, or a whole new instruction.</p>
 <p>When you come to this realization, stop and think. Do you really need to extend
 LLVM? Is it a new fundamental capability that LLVM does not support at its
 current incarnation or can it be synthesized from already pre-existing LLVM
-elements? If you are not sure, ask on the <a class="reference external" href="http://mail.cs.uiuc.edu/mailman/listinfo/llvmdev">LLVM-dev</a> list. The reason is that
+elements? If you are not sure, ask on the <a class="reference external" href="http://lists.llvm.org/mailman/listinfo/llvm-dev">LLVM-dev</a> list. The reason is that
 extending LLVM will get involved as you need to update all the different passes
 that you intend to use with your extension, and there are <code class="docutils literal"><span class="pre">many</span></code> LLVM analyses
 and transformations, so it may be quite a bit of work.</p>
@@ -103,15 +103,15 @@ sure it’s a good idea.</p>
 <li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/IR/Intrinsics*.td</span></code>:</p>
 <p>Add an entry for your intrinsic.  Describe its memory access characteristics
 for optimization (this controls whether it will be DCE’d, CSE’d, etc). Note
-that any intrinsic using the <code class="docutils literal"><span class="pre">llvm_int_ty</span></code> type for an argument will
-be deemed by <code class="docutils literal"><span class="pre">tblgen</span></code> as overloaded and the corresponding suffix will
-be required on the intrinsic’s name.</p>
+that any intrinsic using one of the <code class="docutils literal"><span class="pre">llvm_any*_ty</span></code> types for an argument or
+return type will be deemed by <code class="docutils literal"><span class="pre">tblgen</span></code> as overloaded and the corresponding
+suffix will be required on the intrinsic’s name.</p>
 </li>
 <li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Analysis/ConstantFolding.cpp</span></code>:</p>
 <p>If it is possible to constant fold your intrinsic, add support to it in the
 <code class="docutils literal"><span class="pre">canConstantFoldCallTo</span></code> and <code class="docutils literal"><span class="pre">ConstantFoldCall</span></code> functions.</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/test/Regression/*</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/test/*</span></code>:</p>
 <p>Add test cases for your test cases to the test suite</p>
 </li>
 </ol>
@@ -211,9 +211,9 @@ See the patterns for <code class="docutils literal"><span class="pre">rotl</span
 </li>
 <li><p class="first">TODO: document complex patterns.</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/test/Regression/CodeGen/*</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/test/CodeGen/*</span></code>:</p>
 <p>Add test cases for your new node to the test suite.
-<code class="docutils literal"><span class="pre">llvm/test/Regression/CodeGen/X86/bswap.ll</span></code> is a good example.</p>
+<code class="docutils literal"><span class="pre">llvm/test/CodeGen/X86/bswap.ll</span></code> is a good example.</p>
 </li>
 </ol>
 </div>
@@ -226,29 +226,32 @@ to maintain compatibility with the previous version. Only add an instruction
 if it is absolutely necessary.</p>
 </div>
 <ol class="arabic">
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/Instruction.def</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/IR/Instruction.def</span></code>:</p>
 <p>add a number for your instruction and an enum name</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/Instructions.h</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/IR/Instructions.h</span></code>:</p>
 <p>add a definition for the class that will represent your instruction</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/Support/InstVisitor.h</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/IR/InstVisitor.h</span></code>:</p>
 <p>add a prototype for a visitor to your new instruction type</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/AsmParser/Lexer.l</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/AsmParser/LLLexer.cpp</span></code>:</p>
 <p>add a new token to parse your instruction from assembly text file</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/AsmParser/llvmAsmParser.y</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/AsmParser/LLParser.cpp</span></code>:</p>
 <p>add the grammar on how your instruction can be read and what it will
 construct as a result</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Bitcode/Reader/Reader.cpp</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Bitcode/Reader/BitcodeReader.cpp</span></code>:</p>
 <p>add a case for your instruction and how it will be parsed from bitcode</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/VMCore/Instruction.cpp</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Bitcode/Writer/BitcodeWriter.cpp</span></code>:</p>
+<p>add a case for your instruction and how it will be parsed from bitcode</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/IR/Instruction.cpp</span></code>:</p>
 <p>add a case for how your instruction will be printed out to assembly</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/VMCore/Instructions.cpp</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/IR/Instructions.cpp</span></code>:</p>
 <p>implement the class you defined in <code class="docutils literal"><span class="pre">llvm/include/llvm/Instructions.h</span></code></p>
 </li>
 <li><p class="first">Test your instruction</p>
@@ -256,7 +259,7 @@ construct as a result</p>
 <li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Target/*</span></code>:</p>
 <p>add support for your instruction to code generators, or add a lowering pass.</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/test/Regression/*</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/test/*</span></code>:</p>
 <p>add your test cases to the test suite.</p>
 </li>
 </ol>
@@ -274,59 +277,74 @@ necessary.</p>
 <div class="section" id="adding-a-fundamental-type">
 <h3>Adding a fundamental type<a class="headerlink" href="#adding-a-fundamental-type" title="Permalink to this headline">¶</a></h3>
 <ol class="arabic">
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/Type.h</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/IR/Type.h</span></code>:</p>
 <p>add enum for the new type; add static <code class="docutils literal"><span class="pre">Type*</span></code> for this type</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/VMCore/Type.cpp</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/IR/Type.cpp</span></code> and <code class="docutils literal"><span class="pre">llvm/lib/IR/ValueTypes.cpp</span></code>:</p>
 <p>add mapping from <code class="docutils literal"><span class="pre">TypeID</span></code> =&gt; <code class="docutils literal"><span class="pre">Type*</span></code>; initialize the static <code class="docutils literal"><span class="pre">Type*</span></code></p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/AsmReader/Lexer.l</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/llvm/llvm-c/Core.cpp</span></code>:</p>
+<p>add enum <code class="docutils literal"><span class="pre">LLVMTypeKind</span></code> and modify
+<code class="docutils literal"><span class="pre">LLVMTypeKind</span> <span class="pre">LLVMGetTypeKind(LLVMTypeRef</span> <span class="pre">Ty)</span></code> for the new type</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/IR/TypeBuilder.h</span></code>:</p>
+<p>add new class to represent new type in the hierarchy</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/AsmParser/LLLexer.cpp</span></code>:</p>
 <p>add ability to parse in the type from text assembly</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/AsmReader/llvmAsmParser.y</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/AsmParser/LLParser.cpp</span></code>:</p>
 <p>add a token for that type</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Bitcode/Writer/BitcodeWriter.cpp</span></code>:</p>
+<p>modify <code class="docutils literal"><span class="pre">static</span> <span class="pre">void</span> <span class="pre">WriteTypeTable(const</span> <span class="pre">ValueEnumerator</span> <span class="pre">&amp;VE,</span>
+<span class="pre">BitstreamWriter</span> <span class="pre">&amp;Stream)</span></code> to serialize your type</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Bitcode/Reader/BitcodeReader.cpp</span></code>:</p>
+<p>modify <code class="docutils literal"><span class="pre">bool</span> <span class="pre">BitcodeReader::ParseTypeType()</span></code> to read your data type</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">include/llvm/Bitcode/LLVMBitCodes.h</span></code>:</p>
+<p>add enum <code class="docutils literal"><span class="pre">TypeCodes</span></code> for the new type</p>
 </li>
 </ol>
 </div>
 <div class="section" id="adding-a-derived-type">
 <h3>Adding a derived type<a class="headerlink" href="#adding-a-derived-type" title="Permalink to this headline">¶</a></h3>
 <ol class="arabic">
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/Type.h</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/IR/Type.h</span></code>:</p>
 <p>add enum for the new type; add a forward declaration of the type also</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/DerivedTypes.h</span></code>:</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/IR/DerivedTypes.h</span></code>:</p>
 <p>add new class to represent new class in the hierarchy; add forward
 declaration to the TypeMap value type</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/VMCore/Type.cpp</span></code>:</p>
-<p>add support for derived type to:</p>
-<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">getTypeDescription</span><span class="p">(</span><span class="k">const</span> <span class="n">Type</span> <span class="o">&amp;</span><span class="n">Ty</span><span class="p">,</span>
-                               <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="k">const</span> <span class="n">Type</span><span class="o">*&gt;</span> <span class="o">&amp;</span><span class="n">TypeStack</span><span class="p">)</span>
-<span class="kt">bool</span> <span class="n">TypesEqual</span><span class="p">(</span><span class="k">const</span> <span class="n">Type</span> <span class="o">*</span><span class="n">Ty</span><span class="p">,</span> <span class="k">const</span> <span class="n">Type</span> <span class="o">*</span><span class="n">Ty2</span><span class="p">,</span>
-                <span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="k">const</span> <span class="n">Type</span><span class="o">*</span><span class="p">,</span> <span class="k">const</span> <span class="n">Type</span><span class="o">*&gt;</span> <span class="o">&amp;</span><span class="n">EqTypes</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>add necessary member functions for type, and factory methods</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/IR/Type.cpp</span></code> and <code class="docutils literal"><span class="pre">llvm/lib/IR/ValueTypes.cpp</span></code>:</p>
+<p>add support for derived type, notably <cite>enum TypeID</cite> and <cite>is</cite>, <cite>get</cite> methods.</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/AsmReader/Lexer.l</span></code>:</p>
-<p>add ability to parse in the type from text assembly</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/llvm/llvm-c/Core.cpp</span></code>:</p>
+<p>add enum <code class="docutils literal"><span class="pre">LLVMTypeKind</span></code> and modify
+<cite>LLVMTypeKind LLVMGetTypeKind(LLVMTypeRef Ty)</cite> for the new type</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Bitcode/Writer/Writer.cpp</span></code>:</p>
-<p>modify <code class="docutils literal"><span class="pre">void</span> <span class="pre">BitcodeWriter::outputType(const</span> <span class="pre">Type</span> <span class="pre">*T)</span></code> to serialize your
-type</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/include/llvm/IR/TypeBuilder.h</span></code>:</p>
+<p>add new class to represent new class in the hierarchy</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Bitcode/Reader/Reader.cpp</span></code>:</p>
-<p>modify <code class="docutils literal"><span class="pre">const</span> <span class="pre">Type</span> <span class="pre">*BitcodeReader::ParseType()</span></code> to read your data type</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/AsmParser/LLLexer.cpp</span></code>:</p>
+<p>modify <code class="docutils literal"><span class="pre">lltok::Kind</span> <span class="pre">LLLexer::LexIdentifier()</span></code> to add ability to
+parse in the type from text assembly</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/VMCore/AsmWriter.cpp</span></code>:</p>
-<p>modify</p>
-<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="n">calcTypeName</span><span class="p">(</span><span class="k">const</span> <span class="n">Type</span> <span class="o">*</span><span class="n">Ty</span><span class="p">,</span>
-                  <span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="k">const</span> <span class="n">Type</span><span class="o">*&gt;</span> <span class="o">&amp;</span><span class="n">TypeStack</span><span class="p">,</span>
-                  <span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="k">const</span> <span class="n">Type</span><span class="o">*</span><span class="p">,</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span> <span class="o">&amp;</span><span class="n">TypeNames</span><span class="p">,</span>
-                  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Result</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>to output the new derived type</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Bitcode/Writer/BitcodeWriter.cpp</span></code>:</p>
+<p>modify <code class="docutils literal"><span class="pre">static</span> <span class="pre">void</span> <span class="pre">WriteTypeTable(const</span> <span class="pre">ValueEnumerator</span> <span class="pre">&amp;VE,</span>
+<span class="pre">BitstreamWriter</span> <span class="pre">&amp;Stream)</span></code> to serialize your type</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/Bitcode/Reader/BitcodeReader.cpp</span></code>:</p>
+<p>modify <code class="docutils literal"><span class="pre">bool</span> <span class="pre">BitcodeReader::ParseTypeType()</span></code> to read your data type</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">include/llvm/Bitcode/LLVMBitCodes.h</span></code>:</p>
+<p>add enum <code class="docutils literal"><span class="pre">TypeCodes</span></code> for the new type</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">llvm/lib/IR/AsmWriter.cpp</span></code>:</p>
+<p>modify <code class="docutils literal"><span class="pre">void</span> <span class="pre">TypePrinting::print(Type</span> <span class="pre">*Ty,</span> <span class="pre">raw_ostream</span> <span class="pre">&amp;OS)</span></code>
+to output the new derived type</p>
 </li>
 </ol>
 </div>
@@ -356,8 +374,8 @@ type</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

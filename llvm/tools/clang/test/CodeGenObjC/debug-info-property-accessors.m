@@ -1,11 +1,12 @@
-// RUN: %clang_cc1 -emit-llvm -x objective-c -g -triple x86_64-apple-macosx10.8.0 %s -o - | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm -x objective-c -debug-info-kind=limited -triple x86_64-apple-macosx10.8.0 %s -o - | FileCheck %s
 //
 // rdar://problem/14035789
 //
 // Ensure we emit the names of explicit/renamed accessors even if they
 // are defined later in the implementation section.
 //
-// CHECK: metadata !{i32 {{.*}}, metadata !"blah", {{.*}} metadata !"isBlah", metadata !"", {{.*}}} ; [ DW_TAG_APPLE_property ] [blah]
+// CHECK:  !DIObjCProperty(name: "blah"
+// CHECK-SAME:             getter: "isBlah"
 
 @class NSString;
 extern void NSLog(NSString *format, ...);

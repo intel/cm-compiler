@@ -52,24 +52,55 @@ void test1() {
   
   // DEFAULT: add nsw i32 {{.*}}, -1
   // WRAPV: add i32 {{.*}}, -1
-  // TRAPV: llvm.sadd.with.overflow.i32({{.*}}, i32 -1)
-  // CATCH_UB: llvm.sadd.with.overflow.i32({{.*}}, i32 -1)
+  // TRAPV: llvm.ssub.with.overflow.i32({{.*}}, i32 1)
+  // CATCH_UB: llvm.ssub.with.overflow.i32({{.*}}, i32 1)
   // TRAPV_HANDLER: foo(
   --a;
   
   // -fwrapv should turn off inbounds for GEP's, PR9256
   extern int* P;
   ++P;
-  // DEFAULT: getelementptr inbounds i32*
-  // WRAPV: getelementptr i32*
-  // TRAPV: getelementptr inbounds i32*
-  // CATCH_UB: getelementptr inbounds i32*
+  // DEFAULT: getelementptr inbounds i32, i32*
+  // WRAPV: getelementptr i32, i32*
+  // TRAPV: getelementptr inbounds i32, i32*
+  // CATCH_UB: getelementptr inbounds i32, i32*
 
-  // PR9350: char increment never overflows.
-  extern volatile signed char PR9350;
+  // PR9350: char pre-increment never overflows.
+  extern volatile signed char PR9350_char_inc;
   // DEFAULT: add i8 {{.*}}, 1
   // WRAPV: add i8 {{.*}}, 1
   // TRAPV: add i8 {{.*}}, 1
   // CATCH_UB: add i8 {{.*}}, 1
-  ++PR9350;
+  ++PR9350_char_inc;
+
+  // PR9350: char pre-decrement never overflows.
+  extern volatile signed char PR9350_char_dec;
+  // DEFAULT: add i8 {{.*}}, -1
+  // WRAPV: add i8 {{.*}}, -1
+  // TRAPV: add i8 {{.*}}, -1
+  // CATCH_UB: add i8 {{.*}}, -1
+  --PR9350_char_dec;
+
+  // PR9350: short pre-increment never overflows.
+  extern volatile signed short PR9350_short_inc;
+  // DEFAULT: add i16 {{.*}}, 1
+  // WRAPV: add i16 {{.*}}, 1
+  // TRAPV: add i16 {{.*}}, 1
+  // CATCH_UB: add i16 {{.*}}, 1
+  ++PR9350_short_inc;
+
+  // PR9350: short pre-decrement never overflows.
+  extern volatile signed short PR9350_short_dec;
+  // DEFAULT: add i16 {{.*}}, -1
+  // WRAPV: add i16 {{.*}}, -1
+  // TRAPV: add i16 {{.*}}, -1
+  // CATCH_UB: add i16 {{.*}}, -1
+  --PR9350_short_dec;
+
+  // PR24256: don't instrument __builtin_frame_address.
+  __builtin_frame_address(0 + 0);
+  // DEFAULT:  call i8* @llvm.frameaddress(i32 0)
+  // WRAPV:    call i8* @llvm.frameaddress(i32 0)
+  // TRAPV:    call i8* @llvm.frameaddress(i32 0)
+  // CATCH_UB: call i8* @llvm.frameaddress(i32 0)
 }

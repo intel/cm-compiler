@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import filecmp
 import os
 import sys
 
@@ -41,7 +42,7 @@ def mk_quote_string_for_target(value):
     """
     mk_quote_string_for_target(target_name) -> str
 
-    Return a quoted form of the given target_name suitable for including in a 
+    Return a quoted form of the given target_name suitable for including in a
     Makefile as a target name.
     """
 
@@ -340,7 +341,7 @@ subdirectories = %s
             # Compute the llvm-config "component name". For historical reasons,
             # this is lowercased based on the library name.
             llvmconfig_component_name = c.get_llvmconfig_component_name()
-            
+
             # Get the library name, or None for LibraryGroups.
             if c.type_name == 'Library' or c.type_name == 'OptionalLibrary':
                 library_name = c.get_prefixed_library_name()
@@ -382,7 +383,7 @@ subdirectories = %s
 
         # Write out the library table.
         make_install_dir(os.path.dirname(output_path))
-        f = open(output_path, 'w')
+        f = open(output_path+'.new', 'w')
         f.write("""\
 //===- llvm-build generated file --------------------------------*- C++ -*-===//
 //
@@ -410,15 +411,27 @@ subdirectories = %s
         f.write('} AvailableComponents[%d] = {\n' % len(entries))
         for name,library_name,required_names,is_installed in entries:
             if library_name is None:
-                library_name_as_cstr = '0'
+                library_name_as_cstr = 'nullptr'
             else:
-                library_name_as_cstr = '"lib%s.a"' % library_name
-            f.write('  { "%s", %s, %d, { %s } },\n' % (
-                name, library_name_as_cstr, is_installed,
+                library_name_as_cstr = '"%s"' % library_name
+            if is_installed:
+                is_installed_as_cstr = 'true'
+            else:
+                is_installed_as_cstr = 'false'
+            f.write('  { "%s", %s, %s, { %s } },\n' % (
+                name, library_name_as_cstr, is_installed_as_cstr,
                 ', '.join('"%s"' % dep
                           for dep in required_names)))
         f.write('};\n')
         f.close()
+
+        if not os.path.isfile(output_path):
+            os.rename(output_path+'.new', output_path)
+        elif filecmp.cmp(output_path, output_path+'.new'):
+            os.remove(output_path+'.new')
+        else:
+            os.remove(output_path)
+            os.rename(output_path+'.new', output_path)
 
     def get_required_libraries_for_component(self, ci, traverse_groups = False):
         """
@@ -430,14 +443,14 @@ subdirectories = %s
         traversed to include their required libraries.
         """
 
-        assert ci.type_name in ('Library', 'LibraryGroup', 'TargetGroup')
+        assert ci.type_name in ('Library', 'OptionalLibrary', 'LibraryGroup', 'TargetGroup')
 
         for name in ci.required_libraries:
             # Get the dependency info.
             dep = self.component_info_map[name]
 
             # If it is a library, yield it.
-            if dep.type_name == 'Library':
+            if dep.type_name == 'Library' or dep.type_name == 'OptionalLibrary':
                 yield dep
                 continue
 
@@ -492,7 +505,34 @@ subdirectories = %s
             if (path.startswith(self.source_root) and os.path.exists(path)):
                 yield path
 
-    def write_cmake_fragment(self, output_path):
+    def foreach_cmake_library(self, f,
+                              enabled_optional_components,
+                              skip_disabled,
+                              skip_not_installed):
+        for ci in self.ordered_component_infos:
+            # Skip optional components which are not enabled.
+            if ci.type_name == 'OptionalLibrary' \
+                and ci.name not in enabled_optional_components:
+                continue
+
+            # We only write the information for libraries currently.
+            if ci.type_name not in ('Library', 'OptionalLibrary'):
+                continue
+
+            # Skip disabled targets.
+            if skip_disabled:
+                tg = ci.get_parent_target_group()
+                if tg and not tg.enabled:
+                    continue
+
+            # Skip targets that will not be installed
+            if skip_not_installed and not ci.installed:
+                continue
+
+            f(ci)
+
+
+    def write_cmake_fragment(self, output_path, enabled_optional_components):
         """
         write_cmake_fragment(output_path) -> None
 
@@ -560,20 +600,22 @@ configure_file(\"%s\"
 # The following property assignments effectively create a map from component
 # names to required libraries, in a way that is easily accessed from CMake.
 """)
-        for ci in self.ordered_component_infos:
-            # We only write the information for libraries currently.
-            if ci.type_name != 'Library':
-                continue
-
-            f.write("""\
+        self.foreach_cmake_library(
+            lambda ci:
+              f.write("""\
 set_property(GLOBAL PROPERTY LLVMBUILD_LIB_DEPS_%s %s)\n""" % (
                 ci.get_prefixed_library_name(), " ".join(sorted(
                      dep.get_prefixed_library_name()
                      for dep in self.get_required_libraries_for_component(ci)))))
+            ,
+            enabled_optional_components,
+            skip_disabled = False,
+            skip_not_installed = False # Dependency info must be emitted for internals libs too
+            )
 
         f.close()
 
-    def write_cmake_exports_fragment(self, output_path):
+    def write_cmake_exports_fragment(self, output_path, enabled_optional_components):
         """
         write_cmake_exports_fragment(output_path) -> None
 
@@ -594,25 +636,22 @@ set_property(GLOBAL PROPERTY LLVMBUILD_LIB_DEPS_%s %s)\n""" % (
 # The following property assignments tell CMake about link
 # dependencies of libraries imported from LLVM.
 """)
-        for ci in self.ordered_component_infos:
-            # We only write the information for libraries currently.
-            if ci.type_name != 'Library':
-                continue
-
-            # Skip disabled targets.
-            tg = ci.get_parent_target_group()
-            if tg and not tg.enabled:
-                continue
-
-            f.write("""\
+        self.foreach_cmake_library(
+            lambda ci:
+              f.write("""\
 set_property(TARGET %s PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES %s)\n""" % (
                 ci.get_prefixed_library_name(), " ".join(sorted(
                      dep.get_prefixed_library_name()
                      for dep in self.get_required_libraries_for_component(ci)))))
+            ,
+            enabled_optional_components,
+            skip_disabled = True,
+            skip_not_installed = True # Do not export internal libraries like gtest
+            )
 
         f.close()
 
-    def write_make_fragment(self, output_path):
+    def write_make_fragment(self, output_path, enabled_optional_components):
         """
         write_make_fragment(output_path) -> None
 
@@ -678,6 +717,19 @@ set_property(TARGET %s PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES %s)\n""" % (
             f.write("%s:\n" % (mk_quote_string_for_target(dep),))
         f.write('endif\n')
 
+        f.write("""
+# List of libraries to be exported for use by applications.
+# See 'cmake/modules/Makefile'.
+LLVM_LIBS_TO_EXPORT :=""")
+        self.foreach_cmake_library(
+            lambda ci:
+                f.write(' \\\n  %s' % ci.get_prefixed_library_name())
+            ,
+            enabled_optional_components,
+            skip_disabled = True,
+            skip_not_installed = True # Do not export internal libraries like gtest
+            )
+        f.write('\n')
         f.close()
 
 def add_magic_target_components(parser, project, opts):
@@ -783,7 +835,7 @@ def add_magic_target_components(parser, project, opts):
     # If we have a native target with a JIT, use that for the engine. Otherwise,
     # use the interpreter.
     if native_target and native_target.enabled and native_target.has_jit:
-        engine_group.required_libraries.append('JIT')
+        engine_group.required_libraries.append('MCJIT')
         engine_group.required_libraries.append(native_group.name)
     else:
         engine_group.required_libraries.append('Interpreter')
@@ -901,13 +953,16 @@ given by --build-root) at the same SUBPATH""",
 
     # Write out the make fragment, if requested.
     if opts.write_make_fragment:
-        project_info.write_make_fragment(opts.write_make_fragment)
+        project_info.write_make_fragment(opts.write_make_fragment,
+                                         opts.optional_components)
 
     # Write out the cmake fragment, if requested.
     if opts.write_cmake_fragment:
-        project_info.write_cmake_fragment(opts.write_cmake_fragment)
+        project_info.write_cmake_fragment(opts.write_cmake_fragment,
+                                          opts.optional_components)
     if opts.write_cmake_exports_fragment:
-        project_info.write_cmake_exports_fragment(opts.write_cmake_exports_fragment)
+        project_info.write_cmake_exports_fragment(opts.write_cmake_exports_fragment,
+                                                  opts.optional_components)
 
     # Configure target definition files, if requested.
     if opts.configure_target_def_files:

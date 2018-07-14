@@ -1,4 +1,4 @@
-//===-- llvm/MC/MCELFObjectWriter.h - ELF Object Writer ---------*- C++ -*-===//
+//===- llvm/MC/MCELFObjectWriter.h - ELF Object Writer ----------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,60 +11,85 @@
 #define LLVM_MC_MCELFOBJECTWRITER_H
 
 #include "llvm/ADT/Triple.h"
-#include "llvm/Support/DataTypes.h"
-#include "llvm/Support/ELF.h"
+#include "llvm/BinaryFormat/ELF.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/raw_ostream.h"
+#include <cstdint>
 #include <vector>
 
 namespace llvm {
+
 class MCAssembler;
+class MCContext;
 class MCFixup;
-class MCFragment;
 class MCObjectWriter;
-class MCSectionData;
 class MCSymbol;
-class MCSymbolData;
+class MCSymbolELF;
 class MCValue;
+
+struct ELFRelocationEntry {
+  uint64_t Offset; // Where is the relocation.
+  const MCSymbolELF *Symbol; // The symbol to relocate with.
+  unsigned Type;   // The type of the relocation.
+  uint64_t Addend; // The addend to use.
+  const MCSymbolELF *OriginalSymbol; // The original value of Symbol if we changed it.
+  uint64_t OriginalAddend; // The original value of addend.
+
+  ELFRelocationEntry(uint64_t Offset, const MCSymbolELF *Symbol, unsigned Type,
+                     uint64_t Addend, const MCSymbolELF *OriginalSymbol,
+                     uint64_t OriginalAddend)
+      : Offset(Offset), Symbol(Symbol), Type(Type), Addend(Addend),
+        OriginalSymbol(OriginalSymbol), OriginalAddend(OriginalAddend) {}
+
+  void print(raw_ostream &Out) const {
+    Out << "Off=" << Offset << ", Sym=" << Symbol << ", Type=" << Type
+        << ", Addend=" << Addend << ", OriginalSymbol=" << OriginalSymbol
+        << ", OriginalAddend=" << OriginalAddend;
+  }
+
+  void dump() const { print(errs()); }
+};
 
 class MCELFObjectTargetWriter {
   const uint8_t OSABI;
   const uint16_t EMachine;
   const unsigned HasRelocationAddend : 1;
   const unsigned Is64Bit : 1;
-  const unsigned IsN64 : 1;
 
 protected:
-
-  MCELFObjectTargetWriter(bool Is64Bit_, uint8_t OSABI_,
-                          uint16_t EMachine_,  bool HasRelocationAddend,
-                          bool IsN64=false);
+  MCELFObjectTargetWriter(bool Is64Bit_, uint8_t OSABI_, uint16_t EMachine_,
+                          bool HasRelocationAddend);
 
 public:
+  virtual ~MCELFObjectTargetWriter() = default;
+
   static uint8_t getOSABI(Triple::OSType OSType) {
     switch (OSType) {
+      case Triple::CloudABI:
+        return ELF::ELFOSABI_CLOUDABI;
+      case Triple::PS4:
       case Triple::FreeBSD:
         return ELF::ELFOSABI_FREEBSD;
-      case Triple::Linux:
-        return ELF::ELFOSABI_LINUX;
       default:
         return ELF::ELFOSABI_NONE;
     }
   }
 
-  virtual ~MCELFObjectTargetWriter() {}
+  virtual unsigned getRelocType(MCContext &Ctx, const MCValue &Target,
+                                const MCFixup &Fixup, bool IsPCRel) const = 0;
 
-  virtual unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
-                                bool IsPCRel) const = 0;
-
-  virtual bool needsRelocateWithSymbol(const MCSymbolData &SD,
+  virtual bool needsRelocateWithSymbol(const MCSymbol &Sym,
                                        unsigned Type) const;
 
-  /// @name Accessors
+  virtual void sortRelocs(const MCAssembler &Asm,
+                          std::vector<ELFRelocationEntry> &Relocs);
+
+  /// \name Accessors
   /// @{
   uint8_t getOSABI() const { return OSABI; }
   uint16_t getEMachine() const { return EMachine; }
   bool hasRelocationAddend() const { return HasRelocationAddend; }
   bool is64Bit() const { return Is64Bit; }
-  bool isN64() const { return IsN64; }
   /// @}
 
   // Instead of changing everyone's API we pack the N64 Type fields
@@ -112,8 +137,10 @@ public:
 /// \param MOTW - The target specific ELF writer subclass.
 /// \param OS - The stream to write to.
 /// \returns The constructed object writer.
-MCObjectWriter *createELFObjectWriter(MCELFObjectTargetWriter *MOTW,
-                                      raw_ostream &OS, bool IsLittleEndian);
-} // End llvm namespace
+std::unique_ptr<MCObjectWriter>
+createELFObjectWriter(std::unique_ptr<MCELFObjectTargetWriter> MOTW,
+                      raw_pwrite_stream &OS, bool IsLittleEndian);
 
-#endif
+} // end namespace llvm
+
+#endif // LLVM_MC_MCELFOBJECTWRITER_H

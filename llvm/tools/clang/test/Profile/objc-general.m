@@ -1,9 +1,11 @@
 // Test instrumentation of general constructs in objective C.
 
-// RUN: %clang_cc1 -triple x86_64-apple-macosx10.9 -main-file-name objc-general.m %s -o - -emit-llvm -fblocks -fprofile-instr-generate | FileCheck -check-prefix=PGOGEN %s
+// RUN: %clang_cc1 -triple x86_64-apple-macosx10.9 -main-file-name objc-general.m %s -o - -emit-llvm -fblocks -fprofile-instrument=clang | FileCheck -check-prefix=PGOGEN %s
 
 // RUN: llvm-profdata merge %S/Inputs/objc-general.proftext -o %t.profdata
-// RUN: %clang_cc1 -triple x86_64-apple-macosx10.9 -main-file-name objc-general.m %s -o - -emit-llvm -fblocks -fprofile-instr-use=%t.profdata | FileCheck -check-prefix=PGOUSE %s
+// RUN: %clang_cc1 -triple x86_64-apple-macosx10.9 -main-file-name objc-general.m %s -o - -emit-llvm -fblocks -fprofile-instrument-use-path=%t.profdata 2>&1 | FileCheck -check-prefix=PGOUSE %s
+
+// PGOUSE-NOT: warning: profile data may be out of date
 
 #ifdef HAVE_FOUNDATION
 
@@ -31,9 +33,9 @@ struct NSFastEnumerationState;
 @end;
 #endif
 
-// PGOGEN: @[[FRC:"__llvm_profile_counters_\+\[A foreach:\]"]] = internal global [2 x i64] zeroinitializer
-// PGOGEN: @[[BLC:"__llvm_profile_counters___13\+\[A foreach:\]_block_invoke"]] = internal global [2 x i64] zeroinitializer
-// PGOGEN: @[[MAC:__llvm_profile_counters_main]] = hidden global [1 x i64] zeroinitializer
+// PGOGEN: @[[FRC:"__profc_objc_general.m_\+\[A foreach_\]"]] = private global [2 x i64] zeroinitializer
+// PGOGEN: @[[BLC:"__profc_objc_general.m___13\+\[A foreach_\]_block_invoke"]] = private global [2 x i64] zeroinitializer
+// PGOGEN: @[[MAC:__profc_main]] = private global [1 x i64] zeroinitializer
 
 @interface A : NSObject
 + (void)foreach: (NSArray *)array;
@@ -63,9 +65,23 @@ struct NSFastEnumerationState;
 }
 @end
 
-// PGOUSE-DAG: ![[FR1]] = metadata !{metadata !"branch_weights", i32 2, i32 3}
-// PGOUSE-DAG: ![[FR2]] = metadata !{metadata !"branch_weights", i32 3, i32 2}
-// PGOUSE-DAG: ![[BL1]] = metadata !{metadata !"branch_weights", i32 2, i32 2}
+void nested_objc_for_ranges(NSArray *arr) {
+  int x = 0;
+  for (id a in arr)
+    for (id b in arr)
+      ++x;
+}
+
+void consecutive_objc_for_ranges(NSArray *arr) {
+  int x = 0;
+  for (id a in arr) {}
+  for (id b in arr)
+    ++x;
+}
+
+// PGOUSE-DAG: ![[FR1]] = !{!"branch_weights", i32 2, i32 3}
+// PGOUSE-DAG: ![[FR2]] = !{!"branch_weights", i32 3, i32 2}
+// PGOUSE-DAG: ![[BL1]] = !{!"branch_weights", i32 2, i32 2}
 
 int main(int argc, const char *argv[]) {
   A *a = [[A alloc] init];

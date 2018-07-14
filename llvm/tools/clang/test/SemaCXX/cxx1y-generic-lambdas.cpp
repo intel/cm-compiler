@@ -181,7 +181,7 @@ int test() {
     int (*fp2)(int) = [](auto b) -> int {  return b; };
     int (*fp3)(char) = [](auto c) -> int { return c; };
     char (*fp4)(int) = [](auto d) { return d; }; //expected-error{{no viable conversion}}\
-                                                 //expected-note{{candidate template ignored}}
+                                                 //expected-note{{candidate function[with $0 = int]}}
     char (*fp5)(char) = [](auto e) -> int { return e; }; //expected-error{{no viable conversion}}\
                                                  //expected-note{{candidate template ignored}}
 
@@ -207,12 +207,22 @@ int variadic_test() {
 } // end ns
 
 namespace conversion_operator {
-void test() {
-    auto L = [](auto a) -> int { return a; };
+  void test() {
+    auto L = [](auto a) -> int { return a; }; // expected-error {{cannot initialize}}
     int (*fp)(int) = L; 
     int (&fp2)(int) = [](auto a) { return a; };  // expected-error{{non-const lvalue}}
     int (&&fp3)(int) = [](auto a) { return a; };  // expected-error{{no viable conversion}}\
                                                   //expected-note{{candidate}}
+
+    using F = int(int);
+    using G = int(void*);
+    L.operator F*();
+    L.operator G*(); // expected-note-re {{instantiation of function template specialization '{{.*}}::operator()<void *>'}}
+
+    // Here, the conversion function is named 'operator auto (*)(int)', and
+    // there is no way to write that name in valid C++.
+    auto M = [](auto a) -> auto { return a; };
+    M.operator F*(); // expected-error {{no member named 'operator int (*)(int)'}}
   }
 }
 }
@@ -859,11 +869,13 @@ namespace ns1 {
 struct X1 {  
   struct X2 {
     enum { E = [](auto i) { return i; }(3) }; //expected-error{{inside of a constant expression}}\
-                                          //expected-error{{not an integral constant}}
+                                          //expected-error{{constant}}\
+                                          //expected-note{{non-literal type}}
     int L = ([] (int i) { return i; })(2);
     void foo(int i = ([] (int i) { return i; })(2)) { }
     int B : ([](int i) { return i; })(3); //expected-error{{inside of a constant expression}}\
-                                          //expected-error{{not an integral constant}}
+                                          //expected-error{{not an integral constant}}\
+                                          //expected-note{{non-literal type}}
     int arr[([](int i) { return i; })(3)]; //expected-error{{inside of a constant expression}}\
                                            //expected-error{{must have a constant size}}
     int (*fp)(int) = [](int i) { return i; };
@@ -871,9 +883,10 @@ struct X1 {
     int L2 = ([](auto i) { return i; })(2);
     void fooG(int i = ([] (auto i) { return i; })(2)) { }
     int BG : ([](auto i) { return i; })(3); //expected-error{{inside of a constant expression}}  \
-                                             //expected-error{{not an integral constant}}
+                                            //expected-error{{not an integral constant}}\
+                                            //expected-note{{non-literal type}}
     int arrG[([](auto i) { return i; })(3)]; //expected-error{{inside of a constant expression}}\
-                                           //expected-error{{must have a constant size}}
+                                             //expected-error{{must have a constant size}}
     int (*fpG)(int) = [](auto i) { return i; };
     void fooptrG(int (*fp)(char) = [](auto c) { return 0; }) { }
   };
@@ -887,15 +900,19 @@ struct X1 {
     int L = ([] (T i) { return i; })(2);
     void foo(int i = ([] (int i) { return i; })(2)) { }
     int B : ([](T i) { return i; })(3); //expected-error{{inside of a constant expression}}\
-                                          //expected-error{{not an integral constant}}
+                                        //expected-error{{not an integral constant}}\
+                                        //expected-note{{non-literal type}}
     int arr[([](T i) { return i; })(3)]; //expected-error{{inside of a constant expression}}\
-                                           //expected-error{{must have a constant size}}
+                                         //expected-error{{must have a constant size}}
     int (*fp)(T) = [](T i) { return i; };
     void fooptr(T (*fp)(char) = [](char c) { return 0; }) { }
     int L2 = ([](auto i) { return i; })(2);
     void fooG(T i = ([] (auto i) { return i; })(2)) { }
-    int BG : ([](auto i) { return i; })(3); //expected-error{{not an integral constant}}
-    int arrG[([](auto i) { return i; })(3)]; //expected-error{{must have a constant size}}
+    int BG : ([](auto i) { return i; })(3); //expected-error{{not an integral constant}}\
+                                            //expected-note{{non-literal type}}\
+                                            //expected-error{{inside of a constant expression}}
+    int arrG[([](auto i) { return i; })(3)]; //expected-error{{must have a constant size}} \
+                                             //expected-error{{inside of a constant expression}}
     int (*fpG)(T) = [](auto i) { return i; };
     void fooptrG(T (*fp)(char) = [](auto c) { return 0; }) { }
     template<class U = char> int fooG2(T (*fp)(U) = [](auto a) { return 0; }) { return 0; }
@@ -905,7 +922,7 @@ struct X1 {
 template<class T> 
 template<class U>
 int X1::X2<T>::fooG3(T (*fp)(U)) { return 0; } 
-X1::X2<int> x2; //expected-note 3{{in instantiation of}}
+X1::X2<int> x2; //expected-note {{in instantiation of}}
 int run1 = x2.fooG2();
 int run2 = x2.fooG3();
 } // end ns
@@ -913,3 +930,76 @@ int run2 = x2.fooG3();
 
 
 } //end ns inclass_lambdas_within_nested_classes
+
+namespace pr21684_disambiguate_auto_followed_by_ellipsis_no_id {
+int a = [](auto ...) { return 0; }();
+}
+
+namespace PR22117 {
+  int x = [](auto) {
+    return [](auto... run_args) {
+      using T = int(decltype(run_args)...);
+      return 0;
+    };
+  }(0)(0);
+}
+
+namespace PR23716 {
+template<typename T>
+auto f(T x) {
+  auto g = [](auto&&... args) {
+    auto h = [args...]() -> int {
+      return 0;
+    };
+    return h;
+  };
+  return g;
+}
+
+auto x = f(0)();
+}
+
+namespace PR13987 {
+class Enclosing {
+  void Method(char c = []()->char {
+    int d = [](auto x)->int {
+        struct LocalClass {
+          int Method() { return 0; }
+        };
+      return 0;
+    }(0);
+    return d; }()
+  );
+};
+
+class Enclosing2 {
+  void Method(char c = [](auto x)->char {
+    int d = []()->int {
+        struct LocalClass {
+          int Method() { return 0; }
+        };
+      return 0;
+    }();
+    return d; }(0)
+  );
+};
+
+class Enclosing3 {
+  void Method(char c = [](auto x)->char {
+    int d = [](auto y)->int {
+        struct LocalClass {
+          int Method() { return 0; }
+        };
+      return 0;
+    }(0);
+    return d; }(0)
+  );
+};
+}
+
+namespace PR32638 {
+ //https://bugs.llvm.org/show_bug.cgi?id=32638
+ void test() {
+    [](auto x) noexcept(noexcept(x)) { } (0);
+ }
+}

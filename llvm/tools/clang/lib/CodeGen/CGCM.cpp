@@ -99,7 +99,7 @@ void CGCMRegionInfo::print(raw_ostream &OS) const {
 
   OS << "{ ";
   if (Base.isSimple())
-    OS << Base.getAddress()  << "(base)";
+    OS << Base.getAddress().getPointer()  << "(base)";
   else if (Base.isCMRegion())
     OS << Base.getCMRegionAddr() << "(nested)";
 
@@ -133,7 +133,7 @@ static unsigned EmitAsConstantInt(CodeGenFunction &CGF, const Expr *E) {
 
 static llvm::Value *getBaseAddr(LValue Base) {
   if (Base.isSimple())
-    return Base.getAddress();
+    return Base.getAddress().getPointer();
   else if (Base.isCMRegion())
     return Base.getCMRegionAddr();
 
@@ -309,7 +309,7 @@ LValue CGCMRuntime::EmitCMSelectExprLValue(CodeGenFunction &CGF,
     assert(Base->getType()->isCMBaseType() && "Cm base type expected");
     llvm::Value *Val = CGF.EmitAnyExpr(Base).getScalarVal();
     llvm::Value *Addr = CGF.CreateTempAlloca(Val->getType(), "rvalue.addr");
-    CGF.Builder.CreateStore(Val, Addr);
+    CGF.Builder.CreateDefaultAlignedStore(Val, Addr);
     BaseAddr = CGF.MakeNaturalAlignAddrLValue(Addr, Base->getType());
   } else
     BaseAddr = CGF.EmitLValue(Base);
@@ -509,9 +509,11 @@ CGCMRuntime::EmitCMBoolReductionExpr(CodeGenFunction &CGF,
   // Add the SIMD CF predication of the result.
   llvm::Function *PredFn = getIntrinsic(llvm::Intrinsic::genx_simdcf_predicate,
       Cmp->getType());
-  llvm::Value *CmpPred = CGF.Builder.CreateCall2(PredFn, Cmp,
-      E->isAny() ? llvm::Constant::getNullValue(Cmp->getType()) :
-                   llvm::Constant::getAllOnesValue(Cmp->getType()), "cmppred");
+
+  llvm::Value *Vals[] = {
+      Cmp, E->isAny() ? llvm::Constant::getNullValue(Cmp->getType())
+                      : llvm::Constant::getAllOnesValue(Cmp->getType())};
+  llvm::Value *CmpPred = CGF.Builder.CreateCall(PredFn, Vals, "cmppred");
 
   // Build all/any intrinsic call.
   llvm::Function *Fn = getIntrinsic(
@@ -1219,7 +1221,7 @@ void CGCMRuntime::EmitCMConstantInitializer(
 
   // If initializer has less values, then use write region to insert values.
   // Otherwise, emit a simple store.
-  LValue LV = CGF.MakeAddrLValue(E.Address, VarType, E.Alignment);
+  LValue LV = CGF.MakeAddrLValue(E.Addr, VarType);
   if (DstNumElts > SrcNumElts)
     Src = EmitWriteRegion1D(CGF.Builder, llvm::UndefValue::get(DstTy), Src,
                             SrcNumElts, /*Stride*/ 1,
@@ -1335,8 +1337,8 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
 
   // Kernel arg kinds
   llvm::Type *I32Ty = llvm::Type::getInt32Ty(Context);
-  llvm::SmallVector<llvm::Value *, 8> ArgKinds;
-  llvm::SmallVector<llvm::Value *, 8> ArgInOutKinds;
+  llvm::SmallVector<llvm::Metadata *, 8> ArgKinds;
+  llvm::SmallVector<llvm::Metadata *, 8> ArgInOutKinds;
   enum { AK_NORMAL, AK_SAMPLER, AK_SURFACE, AK_VME };
   enum { IK_NORMAL, IK_INPUT, IK_OUTPUT, IK_INPUT_OUTPUT };
   for (FunctionDecl::param_const_iterator i = FD->param_begin(), e = FD->param_end();
@@ -1358,7 +1360,7 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
         Kind = AK_SAMPLER;
     } else if (T->isCMVmeIndexType())
       Kind = AK_VME;
-    ArgKinds.push_back(llvm::ConstantInt::get(I32Ty, Kind));
+    ArgKinds.push_back(getMD(llvm::ConstantInt::get(I32Ty, Kind)));
 
     // IN + OUT = IN_OUT
     // IN + IN_OUT = IN_OUT
@@ -1372,18 +1374,18 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
       if (PVD->hasAttr<CMOutputAttr>())
         IKind |= IK_OUTPUT;
     }
-    ArgInOutKinds.push_back(llvm::ConstantInt::get(I32Ty, IKind));
+    ArgInOutKinds.push_back(getMD(llvm::ConstantInt::get(I32Ty, IKind)));
   }
 
   llvm::MDNode *Kinds = llvm::MDNode::get(Context, ArgKinds);
   llvm::MDNode *IOKinds = llvm::MDNode::get(Context, ArgInOutKinds);
-  llvm::Value *MDArgs[] = {
-      Fn,
+  llvm::Metadata *MDArgs[] = {
+      getMD(Fn),
       llvm::MDString::get(Context, KernelName.str()),
       llvm::MDString::get(Context, AsmName),
       Kinds,
-      llvm::ConstantInt::getNullValue(I32Ty),
-      llvm::ConstantInt::getNullValue(I32Ty), // placeholder for arg offsets
+      getMD(llvm::ConstantInt::getNullValue(I32Ty)),
+      getMD(llvm::ConstantInt::getNullValue(I32Ty)), // placeholder for arg offsets
       IOKinds
   };
 
@@ -1402,8 +1404,8 @@ void CGCMRuntime::finalize() {
     while (I != E && I != --E) {
       auto LHS = *I;
       auto RHS = *E;
-      llvm::Value *AsmName = LHS->getOperand(2);
-      LHS->replaceOperandWith(2, RHS->getOperand(2));
+      llvm::Metadata *AsmName = LHS->getOperand(2).get();
+      LHS->replaceOperandWith(2, RHS->getOperand(2).get());
       RHS->replaceOperandWith(2, AsmName);
       ++I;
     }
@@ -1412,7 +1414,7 @@ void CGCMRuntime::finalize() {
 
 /// \brief Emit kernel output marker calls.
 void CGCMRuntime::EmitCMOutput(CodeGenFunction &CGF) {
-  const FunctionDecl *FD = dyn_cast<FunctionDecl>(CGF.CurFuncDecl);
+  auto FD = dyn_cast_or_null<FunctionDecl>(CGF.CurFuncDecl);
   if (!FD || !FD->hasAttr<CMGenxMainAttr>())
     return;
 
@@ -1420,7 +1422,7 @@ void CGCMRuntime::EmitCMOutput(CodeGenFunction &CGF) {
   auto &Builder = CGF.Builder;
   for (auto VD : FD->parameters()) {
     if (VD->hasAttr<CMOutputAttr>() || VD->hasAttr<CMInputOutputAttr>()) {
-      llvm::Value *Addr = CGF.GetAddrOfLocalVar(VD);
+      Address Addr = CGF.GetAddrOfLocalVar(VD);
       OutArgs.push_back(Builder.CreateLoad(Addr));
     }
   }
@@ -1457,7 +1459,7 @@ public:
 llvm::Value *CGCMRuntime::EmitCMReferenceArg(CodeGenFunction &CGF, LValue LV) {
   assert(LV.isCMRegion());
   QualType VarType = CGF.getContext().getCMVectorMatrixBaseType(LV.getType());
-  llvm::Value *Address = CGF.CreateMemTemp(VarType, "argref");
+  llvm::Value *Address = CGF.CreateMemTemp(VarType, "argref").getPointer();
   llvm::Value *Region = EmitCMReadRegion(CGF, LV).getScalarVal();
   CGCMRuntime::EmitCMRefStore(CGF, Region, Address);
 
@@ -1478,7 +1480,7 @@ static bool isScalar(llvm::Value *Addr) {
 llvm::Value *CGCMRuntime::EmitCMRefLoad(CodeGenFunction &CGF, llvm::Value *Addr) {
 
   if (!CGF.CGM.getCodeGenOpts().EmitVLoadStore || isScalar(Addr))
-    return CGF.Builder.CreateLoad(Addr);
+    return CGF.Builder.CreateDefaultAlignedLoad(Addr);
 
   unsigned ID = llvm::Intrinsic::genx_vload;
   llvm::Type *Tys[] = {Addr->getType()->getPointerElementType(),
@@ -1492,12 +1494,13 @@ void CGCMRuntime::EmitCMRefStore(CodeGenFunction &CGF, llvm::Value *Val,
                                  llvm::Value *Addr) {
 
   if (!CGF.CGM.getCodeGenOpts().EmitVLoadStore || isScalar(Addr)) {
-    CGF.Builder.CreateStore(Val, Addr);
+    CGF.Builder.CreateDefaultAlignedStore(Val, Addr);
     return;
   }
 
   unsigned ID = llvm::Intrinsic::genx_vstore;
   llvm::Type *Tys[] = {Val->getType(), Addr->getType()};
   llvm::Function *Fn = CGF.CGM.getIntrinsic(ID, Tys);
-  CGF.Builder.CreateCall2(Fn, Val, Addr);
+  llvm::Value *Vals[] = {Val, Addr};
+  CGF.Builder.CreateCall(Fn, Vals);
 }

@@ -77,6 +77,7 @@
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/KnownBits.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Transforms/Utils/Local.h"
 
@@ -111,7 +112,7 @@ public:
       : FunctionPass(ID), DT(nullptr), DL(nullptr), Options(Options),
         Changed(false) {}
 
-  const char *getPassName() const override { return "GenX pattern match"; }
+  StringRef getPassName() const override { return "GenX pattern match"; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<DominatorTreeWrapperPass>();
@@ -173,8 +174,7 @@ FunctionPass *llvm::createGenXPatternMatchPass(const TargetOptions *Options) {
 
 bool GenXPatternMatch::runOnFunction(Function &F) {
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-  DL = DLP ? &DLP->getDataLayout() : nullptr;
+  DL = &F.getParent()->getDataLayout();
 
   // Before we get the simd-control-flow representation right,
   // we avoid dealing with predicate constants
@@ -389,10 +389,8 @@ void GenXPatternMatch::visitICmpInst(ICmpInst &I) {
       C1->getType()->isVectorTy()) {
     Type *Ty = V0->getType();
     if (auto Elt = dyn_cast_or_null<ConstantInt>(C1->getSplatValue())) {
-      unsigned BitWidth = Elt->getType()->getPrimitiveSizeInBits();
-      APInt KnownZero(BitWidth, 0), KnownOne(BitWidth, 0);
-      computeKnownBits(C2, KnownZero, KnownOne, DL);
-      unsigned NBits = KnownZero.countLeadingOnes();
+      auto Known = computeKnownBits(C2, *DL);
+      unsigned NBits = Known.Zero.countLeadingOnes();
 
       IRBuilder<> Builder(&I);
       uint64_t Int16Mask = std::numeric_limits<uint16_t>::max();
@@ -402,6 +400,7 @@ void GenXPatternMatch::visitICmpInst(ICmpInst &I) {
       Type *DstTy = nullptr;
       uint64_t Val = Elt->getZExtValue();
       unsigned NElts = Ty->getVectorNumElements();
+      unsigned BitWidth = Elt->getType()->getPrimitiveSizeInBits();
       if (Val == Int16Mask && NBits + 16 >= BitWidth)
         DstTy = VectorType::get(Builder.getInt16Ty(), NElts);
       else if (Val == Int8Mask && NBits + 8 >= BitWidth)
@@ -1540,7 +1539,7 @@ void GenXPatternMatch::visitFDiv(BinaryOperator &I) {
     Constant *Rcp = getReciprocal(C1, I.hasAllowReciprocal());
     if (!Rcp)
       return;
-    IRB.SetFastMathFlags(I.getFastMathFlags());
+    IRB.setFastMathFlags(I.getFastMathFlags());
     Value *FMul = IRB.CreateFMul(Op0, Rcp);
     I.replaceAllUsesWith(FMul);
     I.eraseFromParent();
@@ -1579,7 +1578,7 @@ void GenXPatternMatch::visitFDiv(BinaryOperator &I) {
     Value *NewVal = Rcp;
     if (!match(Op0, m_FPOne())) {
       IRB.SetInsertPoint(User);
-      IRB.SetFastMathFlags(User->getFastMathFlags());
+      IRB.setFastMathFlags(User->getFastMathFlags());
       NewVal = IRB.CreateFMul(Op0, Rcp);
     }
     User->replaceAllUsesWith(NewVal);
@@ -2131,7 +2130,8 @@ bool GenXPatternMatch::distributeIntegerMul(Function *F) {
 // V[24:31] = ShtAmt[0] + ShtAmt[3]
 // where ShtAmt[0] is a constant vector and ShtAmt[i] are constant splats.
 static bool analyzeForShiftPattern(Constant *C,
-                                   SmallVectorImpl<Constant *> &ShtAmt) {
+                                   SmallVectorImpl<Constant *> &ShtAmt,
+                                   const DataLayout &DL) {
   unsigned Width = 8;
   VectorType *VT = dyn_cast<VectorType>(C->getType());
   if (!VT || VT->getVectorNumElements() <= Width ||
@@ -2162,7 +2162,7 @@ static bool analyzeForShiftPattern(Constant *C,
     unsigned Op = Base->getType()->isFPOrFPVectorTy() ? Instruction::FSub
                                                       : Instruction::Sub;
     Constant *A[] = {ConstantVector::get(Elts), Base};
-    auto X = ConstantFoldInstOperands(Op, Base->getType(), A);
+    auto X = ConstantFoldBinaryOpOperands(Op, A[0], A[1], DL);
     if (!X)
       return false;
     if (!X->getSplatValue()) {
@@ -2222,7 +2222,7 @@ bool GenXPatternMatch::vectorizeConstants(Function *F) {
             C->getSplatValue())
           continue;
         SmallVector<Constant *, 8> ShtAmt;
-        if (analyzeForShiftPattern(C, ShtAmt)) {
+        if (analyzeForShiftPattern(C, ShtAmt, *DL)) {
           // W1 = wrrregion(undef, ShtAmt[0], 0);
           // V2 = fadd ShtAmt[0], ShtAmt[1]
           // W2 = wrregion(W1, V2, Width)

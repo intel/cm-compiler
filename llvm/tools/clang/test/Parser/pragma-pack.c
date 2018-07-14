@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -Wno-pragma-pack -verify %s
 
 // Note that this puts the expected lines before the directives to work around
 // limitations in the -verify mode.
@@ -44,3 +44,7 @@ struct S
 #pragma pack()
   int e;
 };
+
+_Pragma("pack(push, 1)") struct PR28094 {
+  int a;
+} _Pragma("pack(pop)");

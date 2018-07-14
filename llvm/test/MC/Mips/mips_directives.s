@@ -17,6 +17,7 @@ $BB0_2:
 # CHECK-NOT: nop
 # CHECK:   jal 1328             # encoding: [0x0c,0x00,0x01,0x4c]
 # CHECK-NOT: nop
+# CHECK: .set nomacro
 
     .set    noreorder
      b 1332
@@ -33,6 +34,7 @@ $JTI0_0:
 # CHECK:     .4byte    2013265916
     .set  at=$12
     .set macro
+# CHECK:   .set macro
 # CHECK:   .set reorder
 # CHECK:   b 1332               # encoding: [0x10,0x00,0x01,0x4d]
 # CHECK:   nop                  # encoding: [0x00,0x00,0x00,0x00]
@@ -52,7 +54,7 @@ $BB0_4:
     .set f6,$f6
 # CHECK:    abs.s   $f6, $f7           # encoding: [0x46,0x00,0x39,0x85]
 # CHECK:    lui     $1, %hi($tmp7)     # encoding: [0x3c,0x01,A,A]
-# CHECK:                               #   fixup A - offset: 0, value: ($tmp7)@ABS_HI, kind: fixup_Mips_HI16
+# CHECK:                               #   fixup A - offset: 0, value: %hi($tmp7), kind: fixup_Mips_HI16
     abs.s  f6,FPU_MASK
     lui $1, %hi($tmp7)
 
@@ -81,3 +83,10 @@ $BB0_4:
    .set dsp
    lbux    $7, $10($11)
    lhx     $5, $6($7)
+
+# CHECK:   .set dspr2
+# CHECK:   append   $7, $10, 2          # encoding: [0x7d,0x47,0x10,0x31]
+# CHECK:   balign   $5, $6, 3           # encoding: [0x7c,0xc5,0x1c,0x31]
+   .set dspr2
+   append   $7, $10, 2
+   balign   $5, $6, 3

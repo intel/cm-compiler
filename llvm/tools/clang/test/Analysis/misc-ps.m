@@ -1,6 +1,6 @@
 // NOTE: Use '-fobjc-gc' to test the analysis being run twice, and multiple reports are not issued.
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,alpha.core,osx.cocoa.AtSync -analyzer-store=region -analyzer-constraints=range -verify -fblocks -Wno-unreachable-code -Wno-null-dereference -Wno-objc-root-class %s
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core,alpha.core,osx.cocoa.AtSync -analyzer-store=region -analyzer-constraints=range -verify -fblocks -Wno-unreachable-code -Wno-null-dereference -Wno-objc-root-class %s
+// RUN: %clang_analyze_cc1 -triple i386-apple-darwin10 -analyzer-checker=core,alpha.core,osx.cocoa.AtSync -analyzer-store=region -verify -fblocks -Wno-unreachable-code -Wno-null-dereference -Wno-objc-root-class %s
+// RUN: %clang_analyze_cc1 -triple x86_64-apple-darwin10 -analyzer-checker=core,alpha.core,osx.cocoa.AtSync -analyzer-store=region -verify -fblocks -Wno-unreachable-code -Wno-null-dereference -Wno-objc-root-class %s
 
 #ifndef __clang_analyzer__
 #error __clang_analyzer__ not defined
@@ -116,19 +116,6 @@ __m128i vec128i(long long __q1, long long __q0) {
   // This compound literal returns true for both isVectorType() and 
   // isIntegerType().
   return __extension__ (__m128i)(__v2di){ __q0, __q1 };
-}
-
-// Zero-sized VLAs.
-void check_zero_sized_VLA(int x) {
-  if (x)
-    return;
-
-  int vla[x]; // expected-warning{{Declared variable-length array (VLA) has zero size}}
-}
-
-void check_uninit_sized_VLA() {
-  int x;
-  int vla[x]; // expected-warning{{Declared variable-length array (VLA) uses a garbage value as its size}}
 }
 
 // sizeof(void)
@@ -809,7 +796,7 @@ int test_uninit_branch_c(void) {
 void test_bad_call_aux(int x);
 void test_bad_call(void) {
   int y;
-  test_bad_call_aux(y); // expected-warning{{Function call argument is an uninitialized value}}
+  test_bad_call_aux(y); // expected-warning{{1st function call argument is an uninitialized value}}
 }
 
 @interface TestBadArg {}
@@ -818,7 +805,7 @@ void test_bad_call(void) {
 
 void test_bad_msg(TestBadArg *p) {
   int y;
-  [p testBadArg:y]; // expected-warning{{Argument in message expression is an uninitialized value}}
+  [p testBadArg:y]; // expected-warning{{1st argument in message expression is an uninitialized value}}
 }
 
 //===----------------------------------------------------------------------===//

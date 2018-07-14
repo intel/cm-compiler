@@ -7,6 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef LLVM_CLANG_TOOLS_DIAGTOOL_DIAGNOSTICNAMES_H
+#define LLVM_CLANG_TOOLS_DIAGTOOL_DIAGNOSTICNAMES_H
+
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataTypes.h"
@@ -17,7 +20,7 @@ namespace diagtool {
     const char *NameStr;
     short DiagID;
     uint8_t NameLen;
-    
+
     llvm::StringRef getName() const {
       return llvm::StringRef(NameStr, NameLen);
     }
@@ -77,7 +80,7 @@ namespace diagtool {
       bool operator==(group_iterator &Other) const {
         return CurrentID == Other.CurrentID;
       }
-      
+
       bool operator!=(group_iterator &Other) const {
         return CurrentID != Other.CurrentID;
       }
@@ -86,10 +89,12 @@ namespace diagtool {
     typedef group_iterator<GroupRecord> subgroup_iterator;
     subgroup_iterator subgroup_begin() const;
     subgroup_iterator subgroup_end() const;
+    llvm::iterator_range<subgroup_iterator> subgroups() const;
 
     typedef group_iterator<DiagnosticRecord> diagnostics_iterator;
     diagnostics_iterator diagnostics_begin() const;
     diagnostics_iterator diagnostics_end() const;
+    llvm::iterator_range<diagnostics_iterator> diagnostics() const;
 
     bool operator<(llvm::StringRef Other) const {
       return getName() < Other;
@@ -112,3 +117,4 @@ namespace diagtool {
   }
 } // end namespace diagtool
 
+#endif

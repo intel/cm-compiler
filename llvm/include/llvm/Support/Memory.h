@@ -1,4 +1,4 @@
-//===- llvm/Support/Memory.h - Memory Support --------------------*- C++ -*-===//
+//===- llvm/Support/Memory.h - Memory Support -------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -32,6 +32,7 @@ namespace sys {
     MemoryBlock(void *addr, size_t size) : Address(addr), Size(size) { }
     void *base() const { return Address; }
     size_t size() const { return Size; }
+
   private:
     void *Address;    ///< Address of first byte of memory area
     size_t Size;      ///< Size, in bytes of the memory area
@@ -70,7 +71,7 @@ namespace sys {
     /// If the address following \p NearBlock is not so aligned, it will be
     /// rounded up to the next allocation granularity boundary.
     ///
-    /// \r a non-null MemoryBlock if the function was successful, 
+    /// \r a non-null MemoryBlock if the function was successful,
     /// otherwise a null MemoryBlock is with \p EC describing the error.
     ///
     /// @brief Allocate mapped memory.
@@ -86,7 +87,7 @@ namespace sys {
     ///
     /// \r error_success if the function was successful, or an error_code
     /// describing the failure if an error occurred.
-    /// 
+    ///
     /// @brief Release mapped memory.
     static std::error_code releaseMappedMemory(MemoryBlock &Block);
 
@@ -108,53 +109,36 @@ namespace sys {
     static std::error_code protectMappedMemory(const MemoryBlock &Block,
                                                unsigned Flags);
 
-    /// This method allocates a block of Read/Write/Execute memory that is
-    /// suitable for executing dynamically generated code (e.g. JIT). An
-    /// attempt to allocate \p NumBytes bytes of virtual memory is made.
-    /// \p NearBlock may point to an existing allocation in which case
-    /// an attempt is made to allocate more memory near the existing block.
-    ///
-    /// On success, this returns a non-null memory block, otherwise it returns
-    /// a null memory block and fills in *ErrMsg.
-    ///
-    /// @brief Allocate Read/Write/Execute memory.
-    static MemoryBlock AllocateRWX(size_t NumBytes,
-                                   const MemoryBlock *NearBlock,
-                                   std::string *ErrMsg = nullptr);
-
-    /// This method releases a block of Read/Write/Execute memory that was
-    /// allocated with the AllocateRWX method. It should not be used to
-    /// release any memory block allocated any other way.
-    ///
-    /// On success, this returns false, otherwise it returns true and fills
-    /// in *ErrMsg.
-    /// @brief Release Read/Write/Execute memory.
-    static bool ReleaseRWX(MemoryBlock &block, std::string *ErrMsg = nullptr);
-
-
     /// InvalidateInstructionCache - Before the JIT can run a block of code
     /// that has been emitted it must invalidate the instruction cache on some
     /// platforms.
     static void InvalidateInstructionCache(const void *Addr, size_t Len);
-
-    /// setExecutable - Before the JIT can run a block of code, it has to be
-    /// given read and executable privilege. Return true if it is already r-x
-    /// or the system is able to change its previlege.
-    static bool setExecutable(MemoryBlock &M, std::string *ErrMsg = nullptr);
-
-    /// setWritable - When adding to a block of code, the JIT may need
-    /// to mark a block of code as RW since the protections are on page
-    /// boundaries, and the JIT internal allocations are not page aligned.
-    static bool setWritable(MemoryBlock &M, std::string *ErrMsg = nullptr);
-
-    /// setRangeExecutable - Mark the page containing a range of addresses
-    /// as executable.
-    static bool setRangeExecutable(const void *Addr, size_t Size);
-
-    /// setRangeWritable - Mark the page containing a range of addresses
-    /// as writable.
-    static bool setRangeWritable(const void *Addr, size_t Size);
   };
+
+  /// Owning version of MemoryBlock.
+  class OwningMemoryBlock {
+  public:
+    OwningMemoryBlock() = default;
+    explicit OwningMemoryBlock(MemoryBlock M) : M(M) {}
+    OwningMemoryBlock(OwningMemoryBlock &&Other) {
+      M = Other.M;
+      Other.M = MemoryBlock();
+    }
+    OwningMemoryBlock& operator=(OwningMemoryBlock &&Other) {
+      M = Other.M;
+      Other.M = MemoryBlock();
+      return *this;
+    }
+    ~OwningMemoryBlock() {
+      Memory::releaseMappedMemory(M);
+    }
+    void *base() const { return M.base(); }
+    size_t size() const { return M.size(); }
+    MemoryBlock getMemoryBlock() const { return M; }
+  private:
+    MemoryBlock M;
+  };
+
 }
 }
 

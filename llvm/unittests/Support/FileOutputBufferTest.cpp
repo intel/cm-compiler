@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/FileOutputBuffer.h"
+#include "llvm/Support/Errc.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
@@ -19,9 +20,12 @@ using namespace llvm::sys;
 
 #define ASSERT_NO_ERROR(x)                                                     \
   if (std::error_code ASSERT_NO_ERROR_ec = x) {                                \
-    errs() << #x ": did not return errc::success.\n"                           \
-           << "error number: " << ASSERT_NO_ERROR_ec.value() << "\n"           \
-           << "error message: " << ASSERT_NO_ERROR_ec.message() << "\n";       \
+    SmallString<128> MessageStorage;                                           \
+    raw_svector_ostream Message(MessageStorage);                               \
+    Message << #x ": did not return errc::success.\n"                          \
+            << "error number: " << ASSERT_NO_ERROR_ec.value() << "\n"          \
+            << "error message: " << ASSERT_NO_ERROR_ec.message() << "\n";      \
+    GTEST_FATAL_FAILURE_(MessageStorage.c_str());                              \
   } else {                                                                     \
   }
 
@@ -36,16 +40,18 @@ TEST(FileOutputBuffer, Test) {
 
   // TEST 1: Verify commit case.
   SmallString<128> File1(TestDirectory);
-	File1.append("/file1");
+  File1.append("/file1");
   {
-    std::unique_ptr<FileOutputBuffer> Buffer;
-    ASSERT_NO_ERROR(FileOutputBuffer::create(File1, 8192, Buffer));
+    Expected<std::unique_ptr<FileOutputBuffer>> BufferOrErr =
+        FileOutputBuffer::create(File1, 8192);
+    ASSERT_NO_ERROR(errorToErrorCode(BufferOrErr.takeError()));
+    std::unique_ptr<FileOutputBuffer> &Buffer = *BufferOrErr;
     // Start buffer with special header.
     memcpy(Buffer->getBufferStart(), "AABBCCDDEEFFGGHHIIJJ", 20);
     // Write to end of buffer to verify it is writable.
     memcpy(Buffer->getBufferEnd() - 20, "AABBCCDDEEFFGGHHIIJJ", 20);
     // Commit buffer.
-    ASSERT_NO_ERROR(Buffer->commit());
+    ASSERT_NO_ERROR(errorToErrorCode(Buffer->commit()));
   }
 
   // Verify file is correct size.
@@ -54,53 +60,56 @@ TEST(FileOutputBuffer, Test) {
   ASSERT_EQ(File1Size, 8192ULL);
   ASSERT_NO_ERROR(fs::remove(File1.str()));
 
- 	// TEST 2: Verify abort case.
+  // TEST 2: Verify abort case.
   SmallString<128> File2(TestDirectory);
-	File2.append("/file2");
+  File2.append("/file2");
   {
-    std::unique_ptr<FileOutputBuffer> Buffer2;
-    ASSERT_NO_ERROR(FileOutputBuffer::create(File2, 8192, Buffer2));
+    Expected<std::unique_ptr<FileOutputBuffer>> Buffer2OrErr =
+        FileOutputBuffer::create(File2, 8192);
+    ASSERT_NO_ERROR(errorToErrorCode(Buffer2OrErr.takeError()));
+    std::unique_ptr<FileOutputBuffer> &Buffer2 = *Buffer2OrErr;
     // Fill buffer with special header.
     memcpy(Buffer2->getBufferStart(), "AABBCCDDEEFFGGHHIIJJ", 20);
     // Do *not* commit buffer.
   }
   // Verify file does not exist (because buffer not committed).
-  bool Exists = false;
-  ASSERT_NO_ERROR(fs::exists(Twine(File2), Exists));
-  EXPECT_FALSE(Exists);
+  ASSERT_EQ(fs::access(Twine(File2), fs::AccessMode::Exist),
+            errc::no_such_file_or_directory);
   ASSERT_NO_ERROR(fs::remove(File2.str()));
 
   // TEST 3: Verify sizing down case.
   SmallString<128> File3(TestDirectory);
-	File3.append("/file3");
+  File3.append("/file3");
   {
-    std::unique_ptr<FileOutputBuffer> Buffer;
-    ASSERT_NO_ERROR(FileOutputBuffer::create(File3, 8192000, Buffer));
+    Expected<std::unique_ptr<FileOutputBuffer>> BufferOrErr =
+        FileOutputBuffer::create(File3, 8192000);
+    ASSERT_NO_ERROR(errorToErrorCode(BufferOrErr.takeError()));
+    std::unique_ptr<FileOutputBuffer> &Buffer = *BufferOrErr;
     // Start buffer with special header.
     memcpy(Buffer->getBufferStart(), "AABBCCDDEEFFGGHHIIJJ", 20);
     // Write to end of buffer to verify it is writable.
     memcpy(Buffer->getBufferEnd() - 20, "AABBCCDDEEFFGGHHIIJJ", 20);
-    // Commit buffer, but size down to smaller size
-    ASSERT_NO_ERROR(Buffer->commit(5000));
+    ASSERT_NO_ERROR(errorToErrorCode(Buffer->commit()));
   }
 
   // Verify file is correct size.
   uint64_t File3Size;
   ASSERT_NO_ERROR(fs::file_size(Twine(File3), File3Size));
-  ASSERT_EQ(File3Size, 5000ULL);
+  ASSERT_EQ(File3Size, 8192000ULL);
   ASSERT_NO_ERROR(fs::remove(File3.str()));
 
   // TEST 4: Verify file can be made executable.
   SmallString<128> File4(TestDirectory);
-	File4.append("/file4");
+  File4.append("/file4");
   {
-    std::unique_ptr<FileOutputBuffer> Buffer;
-    ASSERT_NO_ERROR(FileOutputBuffer::create(File4, 8192, Buffer,
-                                              FileOutputBuffer::F_executable));
+    Expected<std::unique_ptr<FileOutputBuffer>> BufferOrErr =
+        FileOutputBuffer::create(File4, 8192, FileOutputBuffer::F_executable);
+    ASSERT_NO_ERROR(errorToErrorCode(BufferOrErr.takeError()));
+    std::unique_ptr<FileOutputBuffer> &Buffer = *BufferOrErr;
     // Start buffer with special header.
     memcpy(Buffer->getBufferStart(), "AABBCCDDEEFFGGHHIIJJ", 20);
     // Commit buffer.
-    ASSERT_NO_ERROR(Buffer->commit());
+    ASSERT_NO_ERROR(errorToErrorCode(Buffer->commit()));
   }
   // Verify file exists and is executable.
   fs::file_status Status;

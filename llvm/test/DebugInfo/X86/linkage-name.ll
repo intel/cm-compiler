@@ -1,52 +1,61 @@
 ; RUN: llc -mtriple=x86_64-macosx %s -o %t -filetype=obj
-; RUN: llvm-dwarfdump -debug-dump=info %t | FileCheck %s
+; RUN: llvm-dwarfdump -v -debug-info %t | FileCheck %s
 
 ; CHECK: DW_TAG_subprogram [9] *
-; CHECK-NOT: DW_AT_MIPS_linkage_name
+; CHECK-NOT: DW_AT_{{(MIPS_)?}}linkage_name
 ; CHECK: DW_AT_specification
+
+source_filename = "test/DebugInfo/X86/linkage-name.ll"
 
 %class.A = type { i8 }
 
-@a = global %class.A zeroinitializer, align 1
+@a = global %class.A zeroinitializer, align 1, !dbg !0
 
-define i32 @_ZN1A1aEi(%class.A* %this, i32 %b) nounwind uwtable ssp align 2 {
+; Function Attrs: nounwind ssp uwtable
+define i32 @_ZN1A1aEi(%class.A* %this, i32 %b) #0 align 2 !dbg !14 {
 entry:
   %this.addr = alloca %class.A*, align 8
   %b.addr = alloca i32, align 4
   store %class.A* %this, %class.A** %this.addr, align 8
-  call void @llvm.dbg.declare(metadata !{%class.A** %this.addr}, metadata !21), !dbg !23
+  call void @llvm.dbg.declare(metadata %class.A** %this.addr, metadata !15, metadata !17), !dbg !18
   store i32 %b, i32* %b.addr, align 4
-  call void @llvm.dbg.declare(metadata !{i32* %b.addr}, metadata !24), !dbg !25
-  %this1 = load %class.A** %this.addr
-  %0 = load i32* %b.addr, align 4, !dbg !26
-  ret i32 %0, !dbg !26
+  call void @llvm.dbg.declare(metadata i32* %b.addr, metadata !19, metadata !17), !dbg !20
+  %this1 = load %class.A*, %class.A** %this.addr
+  %0 = load i32, i32* %b.addr, align 4, !dbg !21
+  ret i32 %0, !dbg !21
 }
 
-declare void @llvm.dbg.declare(metadata, metadata) nounwind readnone
+; Function Attrs: nounwind readnone
 
-!llvm.dbg.cu = !{!0}
-!llvm.module.flags = !{!29}
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
-!0 = metadata !{i32 786449, metadata !28, i32 4, metadata !"clang version 3.1 (trunk 152691) (llvm/trunk 152692)", i1 false, metadata !"", i32 0, metadata !1, metadata !1, metadata !3, metadata !18,  metadata !1, metadata !""} ; [ DW_TAG_compile_unit ]
-!1 = metadata !{}
-!3 = metadata !{metadata !5}
-!5 = metadata !{i32 786478, metadata !6, null, metadata !"a", metadata !"a", metadata !"_ZN1A1aEi", i32 5, metadata !7, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, i32 (%class.A*, i32)* @_ZN1A1aEi, null, metadata !13, null, i32 5} ; [ DW_TAG_subprogram ]
-!6 = metadata !{i32 786473, metadata !28} ; [ DW_TAG_file_type ]
-!7 = metadata !{i32 786453, i32 0, null, i32 0, i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !8, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!8 = metadata !{metadata !9, metadata !10, metadata !9}
-!9 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ]
-!10 = metadata !{i32 786447, i32 0, null, i32 0, i32 0, i64 64, i64 64, i64 0, i32 64, metadata !11} ; [ DW_TAG_pointer_type ]
-!11 = metadata !{i32 786434, metadata !28, null, metadata !"A", i32 1, i64 8, i64 8, i32 0, i32 0, null, metadata !12, i32 0, null, null, null} ; [ DW_TAG_class_type ] [A] [line 1, size 8, align 8, offset 0] [def] [from ]
-!12 = metadata !{metadata !13}
-!13 = metadata !{i32 786478, metadata !6, metadata !11, metadata !"a", metadata !"a", metadata !"_ZN1A1aEi", i32 2, metadata !7, i1 false, i1 false, i32 0, i32 0, null, i32 257, i1 false, null, null, i32 0, null, i32 0} ; [ DW_TAG_subprogram ]
-!18 = metadata !{metadata !20}
-!20 = metadata !{i32 786484, i32 0, null, metadata !"a", metadata !"a", metadata !"", metadata !6, i32 9, metadata !11, i32 0, i32 1, %class.A* @a, null} ; [ DW_TAG_variable ]
-!21 = metadata !{i32 786689, metadata !5, metadata !"this", metadata !6, i32 16777221, metadata !22, i32 64, i32 0} ; [ DW_TAG_arg_variable ]
-!22 = metadata !{i32 786447, null, null, metadata !"", i32 0, i64 64, i64 64, i64 0, i32 0, metadata !11} ; [ DW_TAG_pointer_type ]
-!23 = metadata !{i32 5, i32 8, metadata !5, null}
-!24 = metadata !{i32 786689, metadata !5, metadata !"b", metadata !6, i32 33554437, metadata !9, i32 0, i32 0} ; [ DW_TAG_arg_variable ]
-!25 = metadata !{i32 5, i32 14, metadata !5, null}
-!26 = metadata !{i32 6, i32 4, metadata !27, null}
-!27 = metadata !{i32 786443, metadata !6, metadata !5, i32 5, i32 17, i32 0} ; [ DW_TAG_lexical_block ]
-!28 = metadata !{metadata !"foo.cpp", metadata !"/Users/echristo"}
-!29 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
+attributes #0 = { nounwind ssp uwtable }
+attributes #1 = { nounwind readnone }
+
+!llvm.dbg.cu = !{!10}
+!llvm.module.flags = !{!13}
+
+!0 = !DIGlobalVariableExpression(var: !1, expr: !DIExpression())
+!1 = !DIGlobalVariable(name: "a", scope: null, file: !2, line: 9, type: !3, isLocal: false, isDefinition: true)
+!2 = !DIFile(filename: "foo.cpp", directory: "/Users/echristo")
+!3 = !DICompositeType(tag: DW_TAG_class_type, name: "A", file: !2, line: 1, size: 8, align: 8, elements: !4)
+!4 = !{!5}
+!5 = !DISubprogram(name: "a", linkageName: "_ZN1A1aEi", scope: !3, file: !2, line: 2, type: !6, isLocal: false, isDefinition: false, virtualIndex: 6, flags: DIFlagPrivate | DIFlagPrototyped, isOptimized: false)
+!6 = !DISubroutineType(types: !7)
+!7 = !{!8, !9, !8}
+!8 = !DIBasicType(name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+!9 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !3, size: 64, align: 64, flags: DIFlagArtificial)
+!10 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, file: !2, producer: "clang version 3.1 (trunk 152691) (llvm/trunk 152692)", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, enums: !11, retainedTypes: !11, globals: !12, imports: !11)
+!11 = !{}
+!12 = !{!0}
+!13 = !{i32 1, !"Debug Info Version", i32 3}
+!14 = distinct !DISubprogram(name: "a", linkageName: "_ZN1A1aEi", scope: null, file: !2, line: 5, type: !6, isLocal: false, isDefinition: true, scopeLine: 5, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, unit: !10, declaration: !5)
+!15 = !DILocalVariable(name: "this", arg: 1, scope: !14, file: !2, line: 5, type: !16, flags: DIFlagArtificial)
+!16 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !3, size: 64, align: 64)
+!17 = !DIExpression()
+!18 = !DILocation(line: 5, column: 8, scope: !14)
+!19 = !DILocalVariable(name: "b", arg: 2, scope: !14, file: !2, line: 5, type: !8)
+!20 = !DILocation(line: 5, column: 14, scope: !14)
+!21 = !DILocation(line: 6, column: 4, scope: !22)
+!22 = distinct !DILexicalBlock(scope: !14, file: !2, line: 5, column: 17)
+

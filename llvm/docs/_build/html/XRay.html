@@ -1,0 +1,450 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>XRay Instrumentation &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Debugging with XRay" href="XRayExample.html" />
+    <link rel="prev" title="Global Instruction Selection" href="GlobalISel.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="XRayExample.html" title="Debugging with XRay"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="GlobalISel.html" title="Global Instruction Selection"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="xray-instrumentation">
+<h1>XRay Instrumentation<a class="headerlink" href="#xray-instrumentation" title="Permalink to this headline">¶</a></h1>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Version:</th><td class="field-body">1 as of 2016-11-08</td>
+</tr>
+</tbody>
+</table>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id2">Introduction</a></li>
+<li><a class="reference internal" href="#xray-in-llvm" id="id3">XRay in LLVM</a></li>
+<li><a class="reference internal" href="#using-xray" id="id4">Using XRay</a><ul>
+<li><a class="reference internal" href="#instrumenting-your-c-c-objective-c-application" id="id5">Instrumenting your C/C++/Objective-C Application</a></li>
+<li><a class="reference internal" href="#llvm-function-attribute" id="id6">LLVM Function Attribute</a></li>
+<li><a class="reference internal" href="#xray-runtime-library" id="id7">XRay Runtime Library</a></li>
+<li><a class="reference internal" href="#flight-data-recorder-mode" id="id8">Flight Data Recorder Mode</a></li>
+<li><a class="reference internal" href="#trace-analysis-tools" id="id9">Trace Analysis Tools</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#future-work" id="id10">Future Work</a><ul>
+<li><a class="reference internal" href="#id1" id="id11">Trace Analysis Tools</a></li>
+<li><a class="reference internal" href="#more-platforms" id="id12">More Platforms</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id2">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>XRay is a function call tracing system which combines compiler-inserted
+instrumentation points and a runtime library that can dynamically enable and
+disable the instrumentation.</p>
+<p>More high level information about XRay can be found in the <a class="reference external" href="http://research.google.com/pubs/pub45287.html">XRay whitepaper</a>.</p>
+<p>This document describes how to use XRay as implemented in LLVM.</p>
+</div>
+<div class="section" id="xray-in-llvm">
+<h2><a class="toc-backref" href="#id3">XRay in LLVM</a><a class="headerlink" href="#xray-in-llvm" title="Permalink to this headline">¶</a></h2>
+<p>XRay consists of three main parts:</p>
+<ul>
+<li><p class="first">Compiler-inserted instrumentation points.</p>
+</li>
+<li><p class="first">A runtime library for enabling/disabling tracing at runtime.</p>
+</li>
+<li><p class="first">A suite of tools for analysing the traces.</p>
+<p><strong>NOTE:</strong> As of February 27, 2017 , XRay is only available for the following
+architectures running Linux: x86_64, arm7 (no thumb), aarch64, powerpc64le,
+mips, mipsel, mips64, mips64el.</p>
+</li>
+</ul>
+<p>The compiler-inserted instrumentation points come in the form of nop-sleds in
+the final generated binary, and an ELF section named <code class="docutils literal"><span class="pre">xray_instr_map</span></code> which
+contains entries pointing to these instrumentation points. The runtime library
+relies on being able to access the entries of the <code class="docutils literal"><span class="pre">xray_instr_map</span></code>, and
+overwrite the instrumentation points at runtime.</p>
+</div>
+<div class="section" id="using-xray">
+<h2><a class="toc-backref" href="#id4">Using XRay</a><a class="headerlink" href="#using-xray" title="Permalink to this headline">¶</a></h2>
+<p>You can use XRay in a couple of ways:</p>
+<ul class="simple">
+<li>Instrumenting your C/C++/Objective-C/Objective-C++ application.</li>
+<li>Generating LLVM IR with the correct function attributes.</li>
+</ul>
+<p>The rest of this section covers these main ways and later on how to customise
+what XRay does in an XRay-instrumented binary.</p>
+<div class="section" id="instrumenting-your-c-c-objective-c-application">
+<h3><a class="toc-backref" href="#id5">Instrumenting your C/C++/Objective-C Application</a><a class="headerlink" href="#instrumenting-your-c-c-objective-c-application" title="Permalink to this headline">¶</a></h3>
+<p>The easiest way of getting XRay instrumentation for your application is by
+enabling the <code class="docutils literal"><span class="pre">-fxray-instrument</span></code> flag in your clang invocation.</p>
+<p>For example:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">clang</span> <span class="o">-</span><span class="n">fxray</span><span class="o">-</span><span class="n">instrument</span> <span class="o">..</span>
+</pre></div>
+</div>
+<p>By default, functions that have at least 200 instructions will get XRay
+instrumentation points. You can tweak that number through the
+<code class="docutils literal"><span class="pre">-fxray-instruction-threshold=</span></code> flag:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">clang</span> <span class="o">-</span><span class="n">fxray</span><span class="o">-</span><span class="n">instrument</span> <span class="o">-</span><span class="n">fxray</span><span class="o">-</span><span class="n">instruction</span><span class="o">-</span><span class="n">threshold</span><span class="o">=</span><span class="mi">1</span> <span class="o">..</span>
+</pre></div>
+</div>
+<p>You can also specifically instrument functions in your binary to either always
+or never be instrumented using source-level attributes. You can do it using the
+GCC-style attributes or C++11-style attributes.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="p">[[</span><span class="n">clang</span><span class="o">::</span><span class="n">xray_always_instrument</span><span class="p">]]</span> <span class="kt">void</span> <span class="n">always_instrumented</span><span class="p">();</span>
+
+<span class="p">[[</span><span class="n">clang</span><span class="o">::</span><span class="n">xray_never_instrument</span><span class="p">]]</span> <span class="kt">void</span> <span class="n">never_instrumented</span><span class="p">();</span>
+
+<span class="kt">void</span> <span class="nf">alt_always_instrumented</span><span class="p">()</span> <span class="n">__attribute__</span><span class="p">((</span><span class="n">xray_always_instrument</span><span class="p">));</span>
+
+<span class="kt">void</span> <span class="nf">alt_never_instrumented</span><span class="p">()</span> <span class="n">__attribute__</span><span class="p">((</span><span class="n">xray_never_instrument</span><span class="p">));</span>
+</pre></div>
+</div>
+<p>When linking a binary, you can either manually link in the <a class="reference internal" href="#xray-runtime-library">XRay Runtime
+Library</a> or use <code class="docutils literal"><span class="pre">clang</span></code> to link it in automatically with the
+<code class="docutils literal"><span class="pre">-fxray-instrument</span></code> flag. Alternatively, you can statically link-in the XRay
+runtime library from compiler-rt – those archive files will take the name of
+<cite>libclang_rt.xray-{arch}</cite> where <cite>{arch}</cite> is the mnemonic supported by clang
+(x86_64, arm7, etc.).</p>
+</div>
+<div class="section" id="llvm-function-attribute">
+<h3><a class="toc-backref" href="#id6">LLVM Function Attribute</a><a class="headerlink" href="#llvm-function-attribute" title="Permalink to this headline">¶</a></h3>
+<p>If you’re using LLVM IR directly, you can add the <code class="docutils literal"><span class="pre">function-instrument</span></code>
+string attribute to your functions, to get the similar effect that the
+C/C++/Objective-C source-level attributes would get:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="k">i32</span> <span class="vg">@always_instrument</span><span class="p">()</span> <span class="k">uwtable</span> <span class="s">&quot;function-instrument&quot;</span><span class="p">=</span><span class="s">&quot;xray-always&quot;</span> <span class="p">{</span>
+  <span class="c">; ...</span>
+<span class="p">}</span>
+
+<span class="k">define</span> <span class="k">i32</span> <span class="vg">@never_instrument</span><span class="p">()</span> <span class="k">uwtable</span> <span class="s">&quot;function-instrument&quot;</span><span class="p">=</span><span class="s">&quot;xray-never&quot;</span> <span class="p">{</span>
+  <span class="c">; ...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>You can also set the <code class="docutils literal"><span class="pre">xray-instruction-threshold</span></code> attribute and provide a
+numeric string value for how many instructions should be in the function before
+it gets instrumented.</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="k">i32</span> <span class="vg">@maybe_instrument</span><span class="p">()</span> <span class="k">uwtable</span> <span class="s">&quot;xray-instruction-threshold&quot;</span><span class="p">=</span><span class="s">&quot;2&quot;</span> <span class="p">{</span>
+  <span class="c">; ...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="xray-runtime-library">
+<h3><a class="toc-backref" href="#id7">XRay Runtime Library</a><a class="headerlink" href="#xray-runtime-library" title="Permalink to this headline">¶</a></h3>
+<p>The XRay Runtime Library is part of the compiler-rt project, which implements
+the runtime components that perform the patching and unpatching of inserted
+instrumentation points. When you use <code class="docutils literal"><span class="pre">clang</span></code> to link your binaries and the
+<code class="docutils literal"><span class="pre">-fxray-instrument</span></code> flag, it will automatically link in the XRay runtime.</p>
+<p>The default implementation of the XRay runtime will enable XRay instrumentation
+before <code class="docutils literal"><span class="pre">main</span></code> starts, which works for applications that have a short
+lifetime. This implementation also records all function entry and exit events
+which may result in a lot of records in the resulting trace.</p>
+<p>Also by default the filename of the XRay trace is <code class="docutils literal"><span class="pre">xray-log.XXXXXX</span></code> where the
+<code class="docutils literal"><span class="pre">XXXXXX</span></code> part is randomly generated.</p>
+<p>These options can be controlled through the <code class="docutils literal"><span class="pre">XRAY_OPTIONS</span></code> environment
+variable, where we list down the options and their defaults below.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="25%" />
+<col width="23%" />
+<col width="20%" />
+<col width="32%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Option</th>
+<th class="head">Type</th>
+<th class="head">Default</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>patch_premain</td>
+<td><code class="docutils literal"><span class="pre">bool</span></code></td>
+<td><code class="docutils literal"><span class="pre">false</span></code></td>
+<td>Whether to patch
+instrumentation points
+before main.</td>
+</tr>
+<tr class="row-odd"><td>xray_mode</td>
+<td><code class="docutils literal"><span class="pre">const</span> <span class="pre">char*</span></code></td>
+<td><code class="docutils literal"><span class="pre">&quot;&quot;</span></code></td>
+<td>Default mode to
+install and initialize
+before <code class="docutils literal"><span class="pre">main</span></code>.</td>
+</tr>
+<tr class="row-even"><td>xray_logfile_base</td>
+<td><code class="docutils literal"><span class="pre">const</span> <span class="pre">char*</span></code></td>
+<td><code class="docutils literal"><span class="pre">xray-log.</span></code></td>
+<td>Filename base for the
+XRay logfile.</td>
+</tr>
+<tr class="row-odd"><td>xray_naive_log</td>
+<td><code class="docutils literal"><span class="pre">bool</span></code></td>
+<td><code class="docutils literal"><span class="pre">false</span></code></td>
+<td><strong>DEPRECATED:</strong> Use
+xray_mode=xray-basic
+instead. Whether to
+install the basic log
+the naive log
+implementation.</td>
+</tr>
+<tr class="row-even"><td>xray_fdr_log</td>
+<td><code class="docutils literal"><span class="pre">bool</span></code></td>
+<td><code class="docutils literal"><span class="pre">false</span></code></td>
+<td><strong>DEPRECATED:</strong> Use
+xray_mode=xray-fdr
+instead. Whether to
+install the Flight
+Data Recorder
+(FDR) mode.</td>
+</tr>
+<tr class="row-odd"><td>verbosity</td>
+<td><code class="docutils literal"><span class="pre">int</span></code></td>
+<td><code class="docutils literal"><span class="pre">0</span></code></td>
+<td>Runtime verbosity
+level.</td>
+</tr>
+</tbody>
+</table>
+<p>If you choose to not use the default logging implementation that comes with the
+XRay runtime and/or control when/how the XRay instrumentation runs, you may use
+the XRay APIs directly for doing so. To do this, you’ll need to include the
+<code class="docutils literal"><span class="pre">xray_interface.h</span></code> from the compiler-rt <code class="docutils literal"><span class="pre">xray</span></code> directory. The important API
+functions we list below:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">__xray_set_handler(void</span> <span class="pre">(*entry)(int32_t,</span> <span class="pre">XRayEntryType))</span></code>: Install your
+own logging handler for when an event is encountered. See
+<code class="docutils literal"><span class="pre">xray/xray_interface.h</span></code> for more details.</li>
+<li><code class="docutils literal"><span class="pre">__xray_remove_handler()</span></code>: Removes whatever the installed handler is.</li>
+<li><code class="docutils literal"><span class="pre">__xray_patch()</span></code>: Patch all the instrumentation points defined in the
+binary.</li>
+<li><code class="docutils literal"><span class="pre">__xray_unpatch()</span></code>: Unpatch the instrumentation points defined in the
+binary.</li>
+</ul>
+<p>There are some requirements on the logging handler to be installed for the
+thread-safety of operations to be performed by the XRay runtime library:</p>
+<ul class="simple">
+<li>The function should be thread-safe, as multiple threads may be invoking the
+function at the same time. If the logging function needs to do
+synchronisation, it must do so internally as XRay does not provide any
+synchronisation guarantees outside from the atomicity of updates to the
+pointer.</li>
+<li>The pointer provided to <code class="docutils literal"><span class="pre">__xray_set_handler(...)</span></code> must be live even after
+calls to <code class="docutils literal"><span class="pre">__xray_remove_handler()</span></code> and <code class="docutils literal"><span class="pre">__xray_unpatch()</span></code> have succeeded.
+XRay cannot guarantee that all threads that have ever gotten a copy of the
+pointer will not invoke the function.</li>
+</ul>
+</div>
+<div class="section" id="flight-data-recorder-mode">
+<h3><a class="toc-backref" href="#id8">Flight Data Recorder Mode</a><a class="headerlink" href="#flight-data-recorder-mode" title="Permalink to this headline">¶</a></h3>
+<p>XRay supports a logging mode which allows the application to only capture a
+fixed amount of memory’s worth of events. Flight Data Recorder (FDR) mode works
+very much like a plane’s “black box” which keeps recording data to memory in a
+fixed-size circular queue of buffers, and have the data available
+programmatically until the buffers are finalized and flushed. To use FDR mode
+on your application, you may set the <code class="docutils literal"><span class="pre">xray_fdr_log</span></code> option to <code class="docutils literal"><span class="pre">true</span></code> in the
+<code class="docutils literal"><span class="pre">XRAY_OPTIONS</span></code> environment variable (while also optionally setting the
+<code class="docutils literal"><span class="pre">xray_naive_log</span></code> to <code class="docutils literal"><span class="pre">false</span></code>).</p>
+<p>When the buffers are flushed to disk, the result is a binary trace format
+described by <a class="reference external" href="XRayFDRFormat.html">XRay FDR format</a></p>
+<p>When FDR mode is on, it will keep writing and recycling memory buffers until
+the logging implementation is finalized – at which point it can be flushed and
+re-initialised later. To do this programmatically, we follow the workflow
+provided below:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// Patch the sleds, if we haven&#39;t yet.</span>
+<span class="k">auto</span> <span class="n">patch_status</span> <span class="o">=</span> <span class="n">__xray_patch</span><span class="p">();</span>
+
+<span class="c1">// Maybe handle the patch_status errors.</span>
+
+<span class="c1">// When we want to flush the log, we need to finalize it first, to give</span>
+<span class="c1">// threads a chance to return buffers to the queue.</span>
+<span class="k">auto</span> <span class="n">finalize_status</span> <span class="o">=</span> <span class="n">__xray_log_finalize</span><span class="p">();</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">finalize_status</span> <span class="o">!=</span> <span class="n">XRAY_LOG_FINALIZED</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// maybe retry, or bail out.</span>
+<span class="p">}</span>
+
+<span class="c1">// At this point, we are sure that the log is finalized, so we may try</span>
+<span class="c1">// flushing the log.</span>
+<span class="k">auto</span> <span class="n">flush_status</span> <span class="o">=</span> <span class="n">__xray_log_flushLog</span><span class="p">();</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">flush_status</span> <span class="o">!=</span> <span class="n">XRAY_LOG_FLUSHED</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// maybe retry, or bail out.</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The default settings for the FDR mode implementation will create logs named
+similarly to the naive log implementation, but will have a different log
+format. All the trace analysis tools (and the trace reading library) will
+support all versions of the FDR mode format as we add more functionality and
+record types in the future.</p>
+<blockquote>
+<div><strong>NOTE:</strong> We do not however promise perpetual support for when we update the
+log versions we support going forward. Deprecation of the formats will be
+announced and discussed on the developers mailing list.</div></blockquote>
+<p>XRay allows for replacing the default FDR mode logging implementation using the
+following API:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">__xray_set_log_impl(...)</span></code>: This function takes a struct of type
+<code class="docutils literal"><span class="pre">XRayLogImpl</span></code>, which is defined in <code class="docutils literal"><span class="pre">xray/xray_log_interface.h</span></code>, part of
+the XRay compiler-rt installation.</li>
+<li><code class="docutils literal"><span class="pre">__xray_log_register_mode(...)</span></code>: Register a logging implementation against
+a string Mode. The implementation is an instance of <code class="docutils literal"><span class="pre">XRayLogImpl</span></code> defined
+in <code class="docutils literal"><span class="pre">xray/xray_log_interface.h</span></code>.</li>
+<li><code class="docutils literal"><span class="pre">__xray_log_select_mode(...)</span></code>: Select the mode to install, associated with
+a string Mode. Only implementations registered with
+<code class="docutils literal"><span class="pre">__xray_log_register_mode(...)</span></code> can be chosen with this function. When
+successful, has the same effects as calling <code class="docutils literal"><span class="pre">__xray_set_log_impl(...)</span></code> with
+the registered logging implementation.</li>
+<li><code class="docutils literal"><span class="pre">__xray_log_init(...)</span></code>: This function allows for initializing and
+re-initializing an installed logging implementation. See
+<code class="docutils literal"><span class="pre">xray/xray_log_interface.h</span></code> for details, part of the XRay compiler-rt
+installation.</li>
+</ul>
+</div>
+<div class="section" id="trace-analysis-tools">
+<h3><a class="toc-backref" href="#id9">Trace Analysis Tools</a><a class="headerlink" href="#trace-analysis-tools" title="Permalink to this headline">¶</a></h3>
+<p>We currently have the beginnings of a trace analysis tool in LLVM, which can be
+found in the <code class="docutils literal"><span class="pre">tools/llvm-xray</span></code> directory. The <code class="docutils literal"><span class="pre">llvm-xray</span></code> tool currently
+supports the following subcommands:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">extract</span></code>: Extract the instrumentation map from a binary, and return it as
+YAML.</li>
+<li><code class="docutils literal"><span class="pre">account</span></code>: Performs basic function call accounting statistics with various
+options for sorting, and output formats (supports CSV, YAML, and
+console-friendly TEXT).</li>
+<li><code class="docutils literal"><span class="pre">convert</span></code>: Converts an XRay log file from one format to another. We can
+convert from binary XRay traces (both naive and FDR mode) to YAML,
+<a class="reference external" href="https://github.com/brendangregg/FlameGraph">flame-graph</a> friendly text
+formats, as well as <cite>Chrome Trace Viewer (catapult)
+&lt;https://github.com/catapult-project/catapult&gt;</cite> formats.</li>
+<li><code class="docutils literal"><span class="pre">graph</span></code>: Generates a DOT graph of the function call relationships between
+functions found in an XRay trace.</li>
+<li><code class="docutils literal"><span class="pre">stack</span></code>: Reconstructs function call stacks from a timeline of function
+calls in an XRay trace.</li>
+</ul>
+<p>These subcommands use various library components found as part of the XRay
+libraries, distributed with the LLVM distribution. These are:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">llvm/XRay/Trace.h</span></code> : A trace reading library for conveniently loading
+an XRay trace of supported forms, into a convenient in-memory representation.
+All the analysis tools that deal with traces use this implementation.</li>
+<li><code class="docutils literal"><span class="pre">llvm/XRay/Graph.h</span></code> : A semi-generic graph type used by the graph
+subcommand to conveniently represent a function call graph with statistics
+associated with edges and vertices.</li>
+<li><code class="docutils literal"><span class="pre">llvm/XRay/InstrumentationMap.h</span></code>: A convenient tool for analyzing the
+instrumentation map in XRay-instrumented object files and binaries. The
+<code class="docutils literal"><span class="pre">extract</span></code> and <code class="docutils literal"><span class="pre">stack</span></code> subcommands uses this particular library.</li>
+</ul>
+</div>
+</div>
+<div class="section" id="future-work">
+<h2><a class="toc-backref" href="#id10">Future Work</a><a class="headerlink" href="#future-work" title="Permalink to this headline">¶</a></h2>
+<p>There are a number of ongoing efforts for expanding the toolset building around
+the XRay instrumentation system.</p>
+<div class="section" id="id1">
+<h3><a class="toc-backref" href="#id11">Trace Analysis Tools</a><a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li>Work is in progress to integrate with or develop tools to visualize findings
+from an XRay trace. Particularly, the <code class="docutils literal"><span class="pre">stack</span></code> tool is being expanded to
+output formats that allow graphing and exploring the duration of time in each
+call stack.</li>
+<li>With a large instrumented binary, the size of generated XRay traces can
+quickly become unwieldy. We are working on integrating pruning techniques and
+heuristics for the analysis tools to sift through the traces and surface only
+relevant information.</li>
+</ul>
+</div>
+<div class="section" id="more-platforms">
+<h3><a class="toc-backref" href="#id12">More Platforms</a><a class="headerlink" href="#more-platforms" title="Permalink to this headline">¶</a></h3>
+<p>We’re looking forward to contributions to port XRay to more architectures and
+operating systems.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="XRayExample.html" title="Debugging with XRay"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="GlobalISel.html" title="Global Instruction Selection"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

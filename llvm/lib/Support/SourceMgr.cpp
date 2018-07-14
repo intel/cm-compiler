@@ -14,39 +14,44 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/Locale.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/SMLoc.h"
 #include "llvm/Support/raw_ostream.h"
-#include <system_error>
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <utility>
+
 using namespace llvm;
 
 static const size_t TabStop = 8;
 
 namespace {
+
   struct LineNoCacheTy {
-    unsigned LastQueryBufferID;
     const char *LastQuery;
+    unsigned LastQueryBufferID;
     unsigned LineNoOfQuery;
   };
-}
+
+} // end anonymous namespace
 
 static LineNoCacheTy *getCache(void *Ptr) {
   return (LineNoCacheTy*)Ptr;
 }
 
-
 SourceMgr::~SourceMgr() {
-  // Delete the line # cache if allocated.
-  if (LineNoCacheTy *Cache = getCache(LineNoCache))
-    delete Cache;
-
-  while (!Buffers.empty()) {
-    delete Buffers.back().Buffer;
-    Buffers.pop_back();
-  }
+  delete getCache(LineNoCache);
 }
 
 unsigned SourceMgr::AddIncludeFile(const std::string &Filename,
@@ -54,20 +59,20 @@ unsigned SourceMgr::AddIncludeFile(const std::string &Filename,
                                    std::string &IncludedFile) {
   IncludedFile = Filename;
   ErrorOr<std::unique_ptr<MemoryBuffer>> NewBufOrErr =
-      MemoryBuffer::getFile(IncludedFile.c_str());
+    MemoryBuffer::getFile(IncludedFile);
 
   // If the file didn't exist directly, see if it's in an include path.
   for (unsigned i = 0, e = IncludeDirectories.size(); i != e && !NewBufOrErr;
        ++i) {
     IncludedFile =
         IncludeDirectories[i] + sys::path::get_separator().data() + Filename;
-    NewBufOrErr = MemoryBuffer::getFile(IncludedFile.c_str());
+    NewBufOrErr = MemoryBuffer::getFile(IncludedFile);
   }
 
   if (!NewBufOrErr)
     return 0;
 
-  return AddNewSourceBuffer(NewBufOrErr.get().release(), IncludeLoc);
+  return AddNewSourceBuffer(std::move(*NewBufOrErr), IncludeLoc);
 }
 
 unsigned SourceMgr::FindBufferContainingLoc(SMLoc Loc) const {
@@ -138,17 +143,15 @@ void SourceMgr::PrintIncludeStack(SMLoc IncludeLoc, raw_ostream &OS) const {
      << ":" << FindLineNumber(IncludeLoc, CurBuf) << ":\n";
 }
 
-
 SMDiagnostic SourceMgr::GetMessage(SMLoc Loc, SourceMgr::DiagKind Kind,
                                    const Twine &Msg,
                                    ArrayRef<SMRange> Ranges,
                                    ArrayRef<SMFixIt> FixIts) const {
-
   // First thing to do: find the current buffer containing the specified
   // location to pull out the source line.
   SmallVector<std::pair<unsigned, unsigned>, 4> ColRanges;
   std::pair<unsigned, unsigned> LineAndCol;
-  const char *BufferID = "<unknown>";
+  StringRef BufferID = "<unknown>";
   std::string LineStr;
   
   if (Loc.isValid()) {
@@ -229,7 +232,7 @@ void SourceMgr::PrintMessage(raw_ostream &OS, SMLoc Loc,
 void SourceMgr::PrintMessage(SMLoc Loc, SourceMgr::DiagKind Kind,
                              const Twine &Msg, ArrayRef<SMRange> Ranges,
                              ArrayRef<SMFixIt> FixIts, bool ShowColors) const {
-  PrintMessage(llvm::errs(), Loc, Kind, Msg, Ranges, FixIts, ShowColors);
+  PrintMessage(errs(), Loc, Kind, Msg, Ranges, FixIts, ShowColors);
 }
 
 //===----------------------------------------------------------------------===//
@@ -239,7 +242,7 @@ void SourceMgr::PrintMessage(SMLoc Loc, SourceMgr::DiagKind Kind,
 SMDiagnostic::SMDiagnostic(const SourceMgr &sm, SMLoc L, StringRef FN,
                            int Line, int Col, SourceMgr::DiagKind Kind,
                            StringRef Msg, StringRef LineStr,
-                           ArrayRef<std::pair<unsigned,unsigned> > Ranges,
+                           ArrayRef<std::pair<unsigned,unsigned>> Ranges,
                            ArrayRef<SMFixIt> Hints)
   : SM(&sm), Loc(L), Filename(FN), LineNo(Line), ColumnNo(Col), Kind(Kind),
     Message(Msg), LineContents(LineStr), Ranges(Ranges.vec()),
@@ -292,7 +295,7 @@ static void buildFixItLine(std::string &CaretLine, std::string &FixItLine,
     // FIXME: This assertion is intended to catch unintended use of multibyte
     // characters in fixits. If we decide to do this, we'll have to track
     // separate byte widths for the source and fixit lines.
-    assert((size_t)llvm::sys::locale::columnWidth(I->getText()) ==
+    assert((size_t)sys::locale::columnWidth(I->getText()) ==
            I->getText().size());
 
     // This relies on one byte per column in our fixit hints.
@@ -339,8 +342,8 @@ static bool isNonASCII(char c) {
   return c & 0x80;
 }
 
-void SMDiagnostic::print(const char *ProgName, raw_ostream &S,
-                         bool ShowColors) const {
+void SMDiagnostic::print(const char *ProgName, raw_ostream &S, bool ShowColors,
+                         bool ShowKindLabel) const {
   // Display colors only if OS supports colors.
   ShowColors &= S.has_colors();
 
@@ -364,27 +367,34 @@ void SMDiagnostic::print(const char *ProgName, raw_ostream &S,
     S << ": ";
   }
 
-  switch (Kind) {
-  case SourceMgr::DK_Error:
-    if (ShowColors)
-      S.changeColor(raw_ostream::RED, true);
-    S << "error: ";
-    break;
-  case SourceMgr::DK_Warning:
-    if (ShowColors)
-      S.changeColor(raw_ostream::MAGENTA, true);
-    S << "warning: ";
-    break;
-  case SourceMgr::DK_Note:
-    if (ShowColors)
-      S.changeColor(raw_ostream::BLACK, true);
-    S << "note: ";
-    break;
-  }
+  if (ShowKindLabel) {
+    switch (Kind) {
+    case SourceMgr::DK_Error:
+      if (ShowColors)
+        S.changeColor(raw_ostream::RED, true);
+      S << "error: ";
+      break;
+    case SourceMgr::DK_Warning:
+      if (ShowColors)
+        S.changeColor(raw_ostream::MAGENTA, true);
+      S << "warning: ";
+      break;
+    case SourceMgr::DK_Note:
+      if (ShowColors)
+        S.changeColor(raw_ostream::BLACK, true);
+      S << "note: ";
+      break;
+    case SourceMgr::DK_Remark:
+      if (ShowColors)
+        S.changeColor(raw_ostream::BLUE, true);
+      S << "remark: ";
+      break;
+    }
 
-  if (ShowColors) {
-    S.resetColor();
-    S.changeColor(raw_ostream::SAVEDCOLOR, true);
+    if (ShowColors) {
+      S.resetColor();
+      S.changeColor(raw_ostream::SAVEDCOLOR, true);
+    }
   }
 
   S << Message << '\n';
@@ -400,8 +410,7 @@ void SMDiagnostic::print(const char *ProgName, raw_ostream &S,
   // map like Clang's TextDiagnostic. For now, we'll just handle tabs by
   // expanding them later, and bail out rather than show incorrect ranges and
   // misaligned fixits for any other odd characters.
-  if (std::find_if(LineContents.begin(), LineContents.end(), isNonASCII) !=
-      LineContents.end()) {
+  if (find_if(LineContents, isNonASCII) != LineContents.end()) {
     printSourceLine(S, LineContents);
     return;
   }

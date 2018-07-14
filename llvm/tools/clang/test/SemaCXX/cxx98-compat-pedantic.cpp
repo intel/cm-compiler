@@ -2,7 +2,7 @@
 // RUN: %clang_cc1 -fsyntax-only -std=c++1y -DCXX1Y -Wc++98-compat -Werror %s -DCXX1Y2
 // RUN: %clang_cc1 -fsyntax-only -std=c++11 -Wc++98-compat-pedantic -verify %s
 // RUN: %clang_cc1 -fsyntax-only -std=c++11 -Wc++98-compat -Werror %s
-// RUN: %clang_cc1 -fsyntax-only -std=c++98 -Werror %s
+// RUN: %clang_cc1 -fsyntax-only -std=c++98 -Werror %s -DCXX98
 
 // RUN: %clang_cc1 -fsyntax-only -std=c++1y -Wc++98-compat-pedantic -verify %s -Wno-c++98-c++11-compat-pedantic -DCXX1Y2
 
@@ -20,10 +20,6 @@ VA_MACRO(,x) // expected-warning {{empty macro arguments are incompatible with C
 enum Enum {
   Enum_value, // expected-warning {{commas at the end of enumerator lists are incompatible with C++98}}
 };
-
-template<typename T> struct InstantiationAfterSpecialization {};
-template<> struct InstantiationAfterSpecialization<int> {}; // expected-note {{here}}
-template struct InstantiationAfterSpecialization<int>; // expected-warning {{explicit instantiation of 'InstantiationAfterSpecialization<int>' that occurs after an explicit specialization is incompatible with C++98}}
 
 void *dlsym();
 void (*FnPtr)() = (void(*)())dlsym(); // expected-warning {{cast between pointer-to-function and pointer-to-object is incompatible with C++98}}
@@ -49,5 +45,32 @@ unsigned long long ull1 = // expected-warning {{'long long' is incompatible with
 
 int k = 0b1001;
 #ifdef CXX1Y
-// expected-warning@-2 {{binary integer literals are incompatible with C++ standards before C++1y}}
+// expected-warning@-2 {{binary integer literals are incompatible with C++ standards before C++14}}
 #endif
+
+namespace CopyCtorIssues {
+  struct Private {
+    Private();
+  private:
+    Private(const Private&); // expected-note {{declared private here}}
+  };
+  struct NoViable {
+    NoViable(); // expected-note {{not viable}}
+    NoViable(NoViable&); // expected-note {{not viable}}
+  };
+  struct Ambiguous {
+    Ambiguous();
+    Ambiguous(const Ambiguous &, int = 0); // expected-note {{candidate}}
+    Ambiguous(const Ambiguous &, double = 0); // expected-note {{candidate}}
+  };
+  struct Deleted {
+    Private p; // expected-note {{implicitly deleted}}
+  };
+
+  const Private &a = Private(); // expected-warning {{copying variable of type 'CopyCtorIssues::Private' when binding a reference to a temporary would invoke an inaccessible constructor in C++98}}
+  const NoViable &b = NoViable(); // expected-warning {{copying variable of type 'CopyCtorIssues::NoViable' when binding a reference to a temporary would find no viable constructor in C++98}}
+#if !CXX98
+  const Ambiguous &c = Ambiguous(); // expected-warning {{copying variable of type 'CopyCtorIssues::Ambiguous' when binding a reference to a temporary would find ambiguous constructors in C++98}}
+#endif
+  const Deleted &d = Deleted(); // expected-warning {{copying variable of type 'CopyCtorIssues::Deleted' when binding a reference to a temporary would invoke a deleted constructor in C++98}}
+}

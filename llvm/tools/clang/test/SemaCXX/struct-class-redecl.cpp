@@ -7,6 +7,12 @@ union X { int x; float y; }; // expected-error{{use of 'X' with tag type that do
 template<typename T> struct Y; // expected-note{{did you mean class here?}}
 template<class U> class Y { }; // expected-warning{{previously declared}}
 
+template <typename>
+struct Z {
+  struct Z { // expected-error{{member 'Z' has the same name as its class}}
+  };
+};
+
 class A;
 class A;  // expected-note{{previous use is here}}
 struct A;  // expected-warning{{struct 'A' was previously declared as a class}}

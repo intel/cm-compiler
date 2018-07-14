@@ -38,24 +38,22 @@
 
 namespace llvm {
 
-class formatted_raw_ostream;
+class raw_pwrite_stream;
+class MachineModuleInfo;
 
 class GenXTargetMachine : public TargetMachine {
-  const DataLayout DL;
-  GenXSubtarget    Subtarget;
+  GenXSubtarget Subtarget;
 
 public:
-  GenXTargetMachine(const Target &T, StringRef TT,
-                    StringRef CPU, StringRef FS, const TargetOptions &Options,
-                    Reloc::Model RM, CodeModel::Model CM,
-                    CodeGenOpt::Level OL);
+  GenXTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+                    StringRef FS, const TargetOptions &Options,
+                    Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
+                    CodeGenOpt::Level OL, bool JIT);
 
-  virtual bool addPassesToEmitFile(PassManagerBase &PM,
-                                   formatted_raw_ostream &Out,
+  virtual bool addPassesToEmitFile(PassManagerBase &PM, raw_pwrite_stream &o,
                                    CodeGenFileType FileType,
-                                   bool DisableVerify,
-                                   AnalysisID StartAfter,
-                                   AnalysisID StopAfter);
+                                   bool /*DisableVerify*/ = true,
+                                   MachineModuleInfo *MMI = nullptr) override;
 
   virtual const DataLayout *getDataLayout() const { return &DL; }
 };

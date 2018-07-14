@@ -14,19 +14,21 @@ struct Foo {
 };
 
 void t1() {
+// CHECK-LABEL: define void @_Z2t1v()
   Foo::ptr = (int *)0xDEADBEEF;
   Foo::Bar::ptr = (int *)0xDEADBEEF;
+// CHECK: call void asm sideeffect inteldialect
+// CHECK-SAME: mov eax, $0
+// CHECK-SAME: mov eax, $1
+// CHECK-SAME: mov eax, $2
+// CHECK-SAME: mov eax, dword ptr $3
+// CHECK-SAME: mov eax, dword ptr $4
+// CHECK-SAME: "*m,*m,*m,*m,*m,~{eax},~{dirflag},~{fpsr},~{flags}"(i32** @_ZN3Foo3ptrE, i32** @_ZN3Foo3Bar3ptrE, i32** @_ZN3Foo3ptrE, i32** @_ZN3Foo3ptrE, i32** @_ZN3Foo3ptrE)
   __asm mov eax, Foo ::ptr
   __asm mov eax, Foo :: Bar :: ptr
   __asm mov eax, [Foo:: ptr]
   __asm mov eax, dword ptr [Foo :: ptr]
   __asm mov eax, dword ptr [Foo :: ptr]
-// CHECK: @_Z2t1v
-// CHECK: call void asm sideeffect inteldialect "mov eax, dword ptr $0", "*m,~{eax},~{dirflag},~{fpsr},~{flags}"(i32** @_ZN3Foo3ptrE)
-// CHECK: call void asm sideeffect inteldialect "mov eax, dword ptr $0", "*m,~{eax},~{dirflag},~{fpsr},~{flags}"(i32** @_ZN3Foo3Bar3ptrE)
-// CHECK: call void asm sideeffect inteldialect "mov eax, dword ptr $0", "*m,~{eax},~{dirflag},~{fpsr},~{flags}"(i32** @_ZN3Foo3ptrE)
-// CHECK: call void asm sideeffect inteldialect "mov eax, dword ptr $0", "*m,~{eax},~{dirflag},~{fpsr},~{flags}"(i32** @_ZN3Foo3ptrE)
-// CHECK: call void asm sideeffect inteldialect "mov eax, dword ptr $0", "*m,~{eax},~{dirflag},~{fpsr},~{flags}"(i32** @_ZN3Foo3ptrE)
 }
 
 int gvar = 10;
@@ -34,39 +36,43 @@ void t2() {
   int lvar = 10;
   __asm mov eax, offset Foo::ptr
   __asm mov eax, offset Foo::Bar::ptr
-// CHECK: t2
-// CHECK: call void asm sideeffect inteldialect "mov eax, $0", "r,~{eax},~{dirflag},~{fpsr},~{flags}"(i32** @_ZN3Foo3ptrE)
-// CHECK: call void asm sideeffect inteldialect "mov eax, $0", "r,~{eax},~{dirflag},~{fpsr},~{flags}"(i32** @_ZN3Foo3Bar3ptrE)
+// CHECK-LABEL: define void @_Z2t2v()
+// CHECK: call void asm sideeffect inteldialect
+// CHECK-SAME: mov eax, $0
+// CHECK-SAME: mov eax, $1
+// CHECK-SAME: "r,r,~{eax},~{dirflag},~{fpsr},~{flags}"(i32** @_ZN3Foo3ptrE, i32** @_ZN3Foo3Bar3ptrE)
 }
 
 // CHECK-LABEL: define void @_Z2t3v()
 void t3() {
   __asm mov eax, LENGTH Foo::ptr
-// CHECK: call void asm sideeffect inteldialect "mov eax, $$1", "~{eax},~{dirflag},~{fpsr},~{flags}"()
   __asm mov eax, LENGTH Foo::Bar::ptr
-// CHECK: call void asm sideeffect inteldialect "mov eax, $$1", "~{eax},~{dirflag},~{fpsr},~{flags}"()
   __asm mov eax, LENGTH Foo::arr
-// CHECK: call void asm sideeffect inteldialect "mov eax, $$4", "~{eax},~{dirflag},~{fpsr},~{flags}"()
   __asm mov eax, LENGTH Foo::Bar::arr
-// CHECK: call void asm sideeffect inteldialect "mov eax, $$2", "~{eax},~{dirflag},~{fpsr},~{flags}"()
 
   __asm mov eax, TYPE Foo::ptr
-// CHECK: call void asm sideeffect inteldialect "mov eax, $$4", "~{eax},~{dirflag},~{fpsr},~{flags}"()
   __asm mov eax, TYPE Foo::Bar::ptr
-// CHECK: call void asm sideeffect inteldialect "mov eax, $$4", "~{eax},~{dirflag},~{fpsr},~{flags}"()
   __asm mov eax, TYPE Foo::arr
-// CHECK: call void asm sideeffect inteldialect "mov eax, $$4", "~{eax},~{dirflag},~{fpsr},~{flags}"()
   __asm mov eax, TYPE Foo::Bar::arr
-// CHECK: call void asm sideeffect inteldialect "mov eax, $$1", "~{eax},~{dirflag},~{fpsr},~{flags}"()
 
   __asm mov eax, SIZE Foo::ptr
-// CHECK: call void asm sideeffect inteldialect "mov eax, $$4", "~{eax},~{dirflag},~{fpsr},~{flags}"()
   __asm mov eax, SIZE Foo::Bar::ptr
-// CHECK: call void asm sideeffect inteldialect "mov eax, $$4", "~{eax},~{dirflag},~{fpsr},~{flags}"()
   __asm mov eax, SIZE Foo::arr
-// CHECK: call void asm sideeffect inteldialect "mov eax, $$16", "~{eax},~{dirflag},~{fpsr},~{flags}"()
   __asm mov eax, SIZE Foo::Bar::arr
-// CHECK: call void asm sideeffect inteldialect "mov eax, $$2", "~{eax},~{dirflag},~{fpsr},~{flags}"()
+// CHECK: call void asm sideeffect inteldialect
+// CHECK-SAME: mov eax, $$1
+// CHECK-SAME: mov eax, $$1
+// CHECK-SAME: mov eax, $$4
+// CHECK-SAME: mov eax, $$2
+// CHECK-SAME: mov eax, $$4
+// CHECK-SAME: mov eax, $$4
+// CHECK-SAME: mov eax, $$4
+// CHECK-SAME: mov eax, $$1
+// CHECK-SAME: mov eax, $$4
+// CHECK-SAME: mov eax, $$4
+// CHECK-SAME: mov eax, $$16
+// CHECK-SAME: mov eax, $$2
+// CHECK-SAME: "~{eax},~{dirflag},~{fpsr},~{flags}"()
 
 }
 
@@ -79,12 +85,14 @@ struct T4 {
 // CHECK-LABEL: define void @_ZN2T44testEv(
 void T4::test() {
 // CHECK: [[T0:%.*]] = alloca [[T4:%.*]]*,
-// CHECK: [[THIS:%.*]] = load [[T4]]** [[T0]]
-// CHECK: [[X:%.*]] = getelementptr inbounds [[T4]]* [[THIS]], i32 0, i32 0
+// CHECK: [[THIS:%.*]] = load [[T4]]*, [[T4]]** [[T0]]
+// CHECK: [[X:%.*]] = getelementptr inbounds [[T4]], [[T4]]* [[THIS]], i32 0, i32 0
   __asm mov eax, x;
-// CHECK: call void asm sideeffect inteldialect "mov eax, dword ptr $0", "*m,~{eax},~{dirflag},~{fpsr},~{flags}"(i32* [[X]])
   __asm mov y, eax;
-// CHECK: call void asm sideeffect inteldialect "mov dword ptr $0, eax", "=*m,~{dirflag},~{fpsr},~{flags}"(i32* @_ZN2T41yE)
+// CHECK: call void asm sideeffect inteldialect
+// CHECK-SAME: mov eax, $1
+// CHECK-SAME: mov $0, eax
+// CHECK-SAME: "=*m,*m,~{eax},~{dirflag},~{fpsr},~{flags}"(i32* @_ZN2T41yE, i32* {{.*}})
 }
 
 template <class T> struct T5 {
@@ -97,11 +105,13 @@ void test5() {
   // CHECK: [[Y:%.*]] = alloca i32
   int x, y;
   __asm push y
-  // CHECK: call void asm sideeffect inteldialect "push dword ptr $0", "=*m,~{esp},~{dirflag},~{fpsr},~{flags}"(i32* [[Y]])
   __asm call T5<int>::create<float>
-  // CHECK: call void asm sideeffect inteldialect "call $0", "r,~{dirflag},~{fpsr},~{flags}"(i32 (float)* @_ZN2T5IiE6createIfEEiT_)
   __asm mov x, eax
-  // CHECK: call void asm sideeffect inteldialect "mov dword ptr $0, eax", "=*m,~{dirflag},~{fpsr},~{flags}"(i32* [[X]])
+  // CHECK: call void asm sideeffect inteldialect
+  // CHECK-SAME: push $0
+  // CHECK-SAME: call dword ptr $2
+  // CHECK-SAME: mov $1, eax
+  // CHECK-SAME: "=*m,=*m,*m,~{esp},~{dirflag},~{fpsr},~{flags}"(i32* %y, i32* %x, i32 (float)* @_ZN2T5IiE6createIfEEiT_)
 }
 
 // Just verify this doesn't emit an error.
@@ -119,7 +129,9 @@ void t7_struct() {
   };
   __asm mov eax, [eax].A.b
   // CHECK-LABEL: define void @_Z9t7_structv
-  // CHECK: call void asm sideeffect inteldialect "mov eax, [eax].4", "~{eax},~{dirflag},~{fpsr},~{flags}"()
+  // CHECK: call void asm sideeffect inteldialect
+  // CHECK-SAME: mov eax, [eax + $$4]
+  // CHECK-SAME: "~{eax},~{dirflag},~{fpsr},~{flags}"()
 }
 
 void t7_typedef() {
@@ -129,7 +141,9 @@ void t7_typedef() {
   } A;
   __asm mov eax, [eax].A.b
   // CHECK-LABEL: define void @_Z10t7_typedefv
-  // CHECK: call void asm sideeffect inteldialect "mov eax, [eax].4", "~{eax},~{dirflag},~{fpsr},~{flags}"()
+  // CHECK: call void asm sideeffect inteldialect
+  // CHECK-SAME: mov eax, [eax + $$4]
+  // CHECK-SAME: "~{eax},~{dirflag},~{fpsr},~{flags}"()
 }
 
 void t7_using() {
@@ -139,5 +153,46 @@ void t7_using() {
   };
   __asm mov eax, [eax].A.b
   // CHECK-LABEL: define void @_Z8t7_usingv
-  // CHECK: call void asm sideeffect inteldialect "mov eax, [eax].4", "~{eax},~{dirflag},~{fpsr},~{flags}"()
+  // CHECK: call void asm sideeffect inteldialect
+  // CHECK-SAME: mov eax, [eax + $$4]
+  // CHECK-SAME: "~{eax},~{dirflag},~{fpsr},~{flags}"()
 }
+
+void t8() {
+  __asm some_label:
+  // CHECK-LABEL: define void @_Z2t8v()
+  // CHECK: call void asm sideeffect inteldialect
+  // CHECK-SAME: L__MSASMLABEL_.${:uid}__some_label:
+  // CHECK-SAME: "~{dirflag},~{fpsr},~{flags}"()
+  struct A {
+    static void g() {
+      __asm jmp some_label ; This should jump forwards
+      __asm some_label:
+      __asm nop
+      // CHECK-LABEL: define internal void @_ZZ2t8vEN1A1gEv()
+      // CHECK: call void asm sideeffect inteldialect
+      // CHECK-SAME: jmp L__MSASMLABEL_.${:uid}__some_label
+      // CHECK-SAME: L__MSASMLABEL_.${:uid}__some_label:
+      // CHECK-SAME: nop
+      // CHECK-SAME: "~{dirflag},~{fpsr},~{flags}"()
+    }
+  };
+  A::g();
+}
+
+void t9() {
+  // CHECK-LABEL: define void @_Z2t9v()
+  struct A {
+    int a;
+    int b;
+    void g() {
+      __asm mov eax, dword ptr [eax]this.b
+      // CHECK: call void asm sideeffect inteldialect
+      // CHECK-SAME: mov eax, dword ptr [eax + $$4]
+      // CHECK-SAME: "~{eax},~{dirflag},~{fpsr},~{flags}"()
+    }
+  };
+  A AA;
+  AA.g();
+}
+

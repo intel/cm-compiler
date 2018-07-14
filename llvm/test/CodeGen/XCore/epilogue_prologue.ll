@@ -6,7 +6,7 @@
 ; When using FP, for large or small frames, we may need one scratch register.
 
 ; FP + small frame: spill FP+SR = entsp 2
-; CHECKFP-LABEL: f1
+; CHECKFP-LABEL: f1:
 ; CHECKFP: entsp 2
 ; CHECKFP-NEXT: stw r10, sp[1]
 ; CHECKFP-NEXT: ldaw r10, sp[0]
@@ -15,7 +15,7 @@
 ; CHECKFP-NEXT: retsp 2
 ;
 ; !FP + small frame: no spills = no stack adjustment needed
-; CHECK-LABEL: f1
+; CHECK-LABEL: f1:
 ; CHECK: stw lr, sp[0]
 ; CHECK: ldw lr, sp[0]
 ; CHECK-NEXT: retsp 0
@@ -27,7 +27,7 @@ entry:
 
 
 ; FP + small frame: spill FP+SR+R0+LR = entsp 3 + extsp 1
-; CHECKFP-LABEL:f3
+; CHECKFP-LABEL: f3:
 ; CHECKFP: entsp 3
 ; CHECKFP-NEXT: stw r10, sp[1]
 ; CHECKFP-NEXT: ldaw r10, sp[0]
@@ -43,7 +43,7 @@ entry:
 ; CHECKFP-NEXT: retsp 3
 ;
 ; !FP + small frame: spill R0+LR = entsp 2
-; CHECK-LABEL: f3
+; CHECK-LABEL: f3:
 ; CHECK: entsp 2
 ; CHECK-NEXT: stw [[REG:r[4-9]+]], sp[1]
 ; CHECK-NEXT: mov [[REG]], r0
@@ -60,20 +60,15 @@ entry:
 
 
 ; FP + large frame: spill FP+SR = entsp 2 + 100000
-; CHECKFP-LABEL: f4
+; CHECKFP-LABEL: f4:
 ; CHECKFP: entsp 65535
-; CHECKFP-NEXT: .Ltmp{{[0-9]+}}
 ; CHECKFP-NEXT: .cfi_def_cfa_offset 262140
-; CHECKFP-NEXT: .Ltmp{{[0-9]+}}
 ; CHECKFP-NEXT: .cfi_offset 15, 0
 ; CHECKFP-NEXT: extsp 34467
-; CHECKFP-NEXT: .Ltmp{{[0-9]+}}
 ; CHECKFP-NEXT: .cfi_def_cfa_offset 400008
 ; CHECKFP-NEXT: stw r10, sp[1]
-; CHECKFP-NEXT: .Ltmp{{[0-9]+}}
 ; CHECKFP-NEXT: .cfi_offset 10, -400004
 ; CHECKFP-NEXT: ldaw r10, sp[0]
-; CHECKFP-NEXT: .Ltmp{{[0-9]+}}
 ; CHECKFP-NEXT: .cfi_def_cfa_register 10
 ; CHECKFP-NEXT: set sp, r10
 ; CHECKFP-NEXT: ldw r10, sp[1]
@@ -81,14 +76,11 @@ entry:
 ; CHECKFP-NEXT: retsp 34467
 ;
 ; !FP + large frame: spill SR+SR = entsp 2 + 100000
-; CHECK-LABEL: f4
+; CHECK-LABEL: f4:
 ; CHECK: entsp 65535
-; CHECK-NEXT: .Ltmp{{[0-9]+}}
 ; CHECK-NEXT: .cfi_def_cfa_offset 262140
-; CHECK-NEXT: .Ltmp{{[0-9]+}}
 ; CHECK-NEXT: .cfi_offset 15, 0
 ; CHECK-NEXT: extsp 34467
-; CHECK-NEXT: .Ltmp{{[0-9]+}}
 ; CHECK-NEXT: .cfi_def_cfa_offset 400008
 ; CHECK-NEXT: ldaw sp, sp[65535]
 ; CHECK-NEXT: retsp 34467
@@ -101,36 +93,28 @@ entry:
 
 ; FP + large frame: spill FP+SR+R4+LR = entsp 3 + 200000  + extsp 1
 ; CHECKFP: .section .cp.rodata.cst4,"aMc",@progbits,4
-; CHECKFP-NEXT: .align 4
+; CHECKFP-NEXT: .p2align 2
 ; CHECKFP-NEXT: .LCPI[[CNST0:[0-9_]+]]:
 ; CHECKFP-NEXT: .long 200002
 ; CHECKFP-NEXT: .LCPI[[CNST1:[0-9_]+]]:
 ; CHECKFP-NEXT: .long 200001
 ; CHECKFP-NEXT: .text
-; CHECKFP-LABEL: f6
+; CHECKFP-LABEL: f6:
 ; CHECKFP: entsp 65535
-; CHECKFP-NEXT: .Ltmp{{[0-9]+}}
 ; CHECKFP-NEXT: .cfi_def_cfa_offset 262140
-; CHECKFP-NEXT: .Ltmp{{[0-9]+}}
 ; CHECKFP-NEXT: .cfi_offset 15, 0
 ; CHECKFP-NEXT: extsp 65535
-; CHECKFP-NEXT: .Ltmp{{[0-9]+}}
 ; CHECKFP-NEXT: .cfi_def_cfa_offset 524280
 ; CHECKFP-NEXT: extsp 65535
-; CHECKFP-NEXT: .Ltmp{{[0-9]+}}
 ; CHECKFP-NEXT: .cfi_def_cfa_offset 786420
 ; CHECKFP-NEXT: extsp 3398
-; CHECKFP-NEXT: .Ltmp{{[0-9]+}}
 ; CHECKFP-NEXT: .cfi_def_cfa_offset 800012
 ; CHECKFP-NEXT: stw r10, sp[1]
-; CHECKFP-NEXT: .Ltmp{{[0-9]+}}
 ; CHECKFP-NEXT: .cfi_offset 10, -800008
 ; CHECKFP-NEXT: ldaw r10, sp[0]
-; CHECKFP-NEXT: .Ltmp{{[0-9]+}}
 ; CHECKFP-NEXT: .cfi_def_cfa_register 10
 ; CHECKFP-NEXT: ldw r1, cp[.LCPI[[CNST0]]]
 ; CHECKFP-NEXT: stw [[REG:r[4-9]+]], r10[r1]
-; CHECKFP-NEXT: .Ltmp{{[0-9]+}}
 ; CHECKFP-NEXT: .cfi_offset 4, -4
 ; CHECKFP-NEXT: mov [[REG]], r0
 ; CHECKFP-NEXT: extsp 1
@@ -154,31 +138,25 @@ entry:
 ;
 ; !FP + large frame: spill SR+SR+R4+LR = entsp 4 + 200000
 ; CHECK: .section .cp.rodata.cst4,"aMc",@progbits,4
-; CHECK-NEXT: .align 4
+; CHECK-NEXT: .p2align 2
 ; CHECK-NEXT: .LCPI[[CNST0:[0-9_]+]]:
 ; CHECK-NEXT: .long 200003
 ; CHECK-NEXT: .LCPI[[CNST1:[0-9_]+]]:
 ; CHECK-NEXT: .long 200002
 ; CHECK-NEXT: .text
-; CHECK-LABEL: f6
+; CHECK-LABEL: f6:
 ; CHECK: entsp 65535
-; CHECK-NEXT: .Ltmp{{[0-9]+}}
 ; CHECK-NEXT: .cfi_def_cfa_offset 262140
-; CHECK-NEXT: .Ltmp{{[0-9]+}}
 ; CHECK-NEXT: .cfi_offset 15, 0
 ; CHECK-NEXT: extsp 65535
-; CHECK-NEXT: .Ltmp{{[0-9]+}}
 ; CHECK-NEXT: .cfi_def_cfa_offset 524280
 ; CHECK-NEXT: extsp 65535
-; CHECK-NEXT: .Ltmp{{[0-9]+}}
 ; CHECK-NEXT: .cfi_def_cfa_offset 786420
 ; CHECK-NEXT: extsp 3399
-; CHECK-NEXT: .Ltmp{{[0-9]+}}
 ; CHECK-NEXT: .cfi_def_cfa_offset 800016
 ; CHECK-NEXT: ldaw r1, sp[0]
 ; CHECK-NEXT: ldw r2, cp[.LCPI[[CNST0]]]
 ; CHECK-NEXT: stw [[REG:r[4-9]+]], r1[r2]
-; CHECK-NEXT: .Ltmp{{[0-9]+}}
 ; CHECK-NEXT: .cfi_offset 4, -4
 ; CHECK-NEXT: mov [[REG]], r0
 ; CHECK-NEXT: ldaw r0, sp[3]
@@ -199,15 +177,15 @@ declare void @f5(i32*)
 define i32 @f6(i32 %i) {
 entry:
   %0 = alloca [200000 x i32]
-  %1 = getelementptr inbounds [200000 x i32]* %0, i32 0, i32 0
+  %1 = getelementptr inbounds [200000 x i32], [200000 x i32]* %0, i32 0, i32 0
   call void @f5(i32* %1)
-  %2 = getelementptr inbounds [200000 x i32]* %0, i32 0, i32 199999
+  %2 = getelementptr inbounds [200000 x i32], [200000 x i32]* %0, i32 0, i32 199999
   call void @f5(i32* %2)
   ret i32 %i
 }
 
 ; FP + large frame: spill FP+SR+LR = entsp 2 + 256  + extsp 1
-; CHECKFP-LABEL:f8
+; CHECKFP-LABEL: f8:
 ; CHECKFP: entsp 258
 ; CHECKFP-NEXT: stw r10, sp[1]
 ; CHECKFP-NEXT: ldaw r10, sp[0]
@@ -221,7 +199,7 @@ entry:
 ; CHECKFP-NEXT: retsp 258
 ;
 ; !FP + large frame: spill SR+SR+LR = entsp 3 + 256
-; CHECK-LABEL:f8
+; CHECK-LABEL: f8:
 ; CHECK: entsp 257
 ; CHECK-NEXT: ldaw r0, sp[254]
 ; CHECK-NEXT: bl f5
@@ -229,13 +207,13 @@ entry:
 define void @f8() nounwind {
 entry:
   %0 = alloca [256 x i32]
-  %1 = getelementptr inbounds [256 x i32]* %0, i32 0, i32 253
+  %1 = getelementptr inbounds [256 x i32], [256 x i32]* %0, i32 0, i32 253
   call void @f5(i32* %1)
   ret void
 }
 
 ; FP + large frame: spill FP+SR+LR = entsp 2 + 32768  + extsp 1
-; CHECKFP-LABEL:f9
+; CHECKFP-LABEL: f9:
 ; CHECKFP: entsp 32770
 ; CHECKFP-NEXT: stw r10, sp[1]
 ; CHECKFP-NEXT: ldaw r10, sp[0]
@@ -249,7 +227,7 @@ entry:
 ; CHECKFP-NEXT: retsp 32770
 ;
 ; !FP + large frame: spill SR+SR+LR = entsp 3 + 32768
-; CHECK-LABEL:f9
+; CHECK-LABEL: f9:
 ; CHECK: entsp 32771
 ; CHECK-NEXT: ldaw r0, sp[32768]
 ; CHECK-NEXT: bl f5
@@ -257,7 +235,7 @@ entry:
 define void @f9() nounwind {
 entry:
   %0 = alloca [32768 x i32]
-  %1 = getelementptr inbounds [32768 x i32]* %0, i32 0, i32 32765
+  %1 = getelementptr inbounds [32768 x i32], [32768 x i32]* %0, i32 0, i32 32765
   call void @f5(i32* %1)
   ret void
 }

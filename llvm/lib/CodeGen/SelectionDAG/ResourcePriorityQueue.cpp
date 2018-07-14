@@ -22,10 +22,11 @@
 #include "llvm/CodeGen/ResourcePriorityQueue.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
+#include "llvm/CodeGen/TargetLowering.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetMachine.h"
 
 using namespace llvm;
@@ -36,47 +37,41 @@ static cl::opt<bool> DisableDFASched("disable-dfa-sched", cl::Hidden,
   cl::ZeroOrMore, cl::init(false),
   cl::desc("Disable use of DFA during scheduling"));
 
-static cl::opt<signed> RegPressureThreshold(
+static cl::opt<int> RegPressureThreshold(
   "dfa-sched-reg-pressure-threshold", cl::Hidden, cl::ZeroOrMore, cl::init(5),
   cl::desc("Track reg pressure and switch priority to in-depth"));
 
+ResourcePriorityQueue::ResourcePriorityQueue(SelectionDAGISel *IS)
+    : Picker(this), InstrItins(IS->MF->getSubtarget().getInstrItineraryData()) {
+  const TargetSubtargetInfo &STI = IS->MF->getSubtarget();
+  TRI = STI.getRegisterInfo();
+  TLI = IS->TLI;
+  TII = STI.getInstrInfo();
+  ResourcesModel.reset(TII->CreateTargetScheduleState(STI));
+  // This hard requirement could be relaxed, but for now
+  // do not let it proceed.
+  assert(ResourcesModel && "Unimplemented CreateTargetScheduleState.");
 
-ResourcePriorityQueue::ResourcePriorityQueue(SelectionDAGISel *IS) :
-  Picker(this),
- InstrItins(IS->getTargetLowering()->getTargetMachine().getInstrItineraryData())
-{
-   TII = IS->getTargetLowering()->getTargetMachine().getInstrInfo();
-   TRI = IS->getTargetLowering()->getTargetMachine().getRegisterInfo();
-   TLI = IS->getTargetLowering();
+  unsigned NumRC = TRI->getNumRegClasses();
+  RegLimit.resize(NumRC);
+  RegPressure.resize(NumRC);
+  std::fill(RegLimit.begin(), RegLimit.end(), 0);
+  std::fill(RegPressure.begin(), RegPressure.end(), 0);
+  for (const TargetRegisterClass *RC : TRI->regclasses())
+    RegLimit[RC->getID()] = TRI->getRegPressureLimit(RC, *IS->MF);
 
-   const TargetMachine &tm = (*IS->MF).getTarget();
-   ResourcesModel = tm.getInstrInfo()->CreateTargetScheduleState(&tm,nullptr);
-   // This hard requirement could be relaxed, but for now
-   // do not let it procede.
-   assert (ResourcesModel && "Unimplemented CreateTargetScheduleState.");
-
-   unsigned NumRC = TRI->getNumRegClasses();
-   RegLimit.resize(NumRC);
-   RegPressure.resize(NumRC);
-   std::fill(RegLimit.begin(), RegLimit.end(), 0);
-   std::fill(RegPressure.begin(), RegPressure.end(), 0);
-   for (TargetRegisterInfo::regclass_iterator I = TRI->regclass_begin(),
-        E = TRI->regclass_end(); I != E; ++I)
-     RegLimit[(*I)->getID()] = TRI->getRegPressureLimit(*I, *IS->MF);
-
-   ParallelLiveRanges = 0;
-   HorizontalVerticalBalance = 0;
+  ParallelLiveRanges = 0;
+  HorizontalVerticalBalance = 0;
 }
 
 unsigned
 ResourcePriorityQueue::numberRCValPredInSU(SUnit *SU, unsigned RCId) {
   unsigned NumberDeps = 0;
-  for (SUnit::pred_iterator I = SU->Preds.begin(), E = SU->Preds.end();
-       I != E; ++I) {
-    if (I->isCtrl())
+  for (SDep &Pred : SU->Preds) {
+    if (Pred.isCtrl())
       continue;
 
-    SUnit *PredSU = I->getSUnit();
+    SUnit *PredSU = Pred.getSUnit();
     const SDNode *ScegN = PredSU->getNode();
 
     if (!ScegN)
@@ -109,12 +104,11 @@ ResourcePriorityQueue::numberRCValPredInSU(SUnit *SU, unsigned RCId) {
 unsigned ResourcePriorityQueue::numberRCValSuccInSU(SUnit *SU,
                                                     unsigned RCId) {
   unsigned NumberDeps = 0;
-  for (SUnit::const_succ_iterator I = SU->Succs.begin(), E = SU->Succs.end();
-       I != E; ++I) {
-    if (I->isCtrl())
+  for (const SDep &Succ : SU->Succs) {
+    if (Succ.isCtrl())
       continue;
 
-    SUnit *SuccSU = I->getSUnit();
+    SUnit *SuccSU = Succ.getSUnit();
     const SDNode *ScegN = SuccSU->getNode();
     if (!ScegN)
       continue;
@@ -146,9 +140,8 @@ unsigned ResourcePriorityQueue::numberRCValSuccInSU(SUnit *SU,
 
 static unsigned numberCtrlDepsInSU(SUnit *SU) {
   unsigned NumberDeps = 0;
-  for (SUnit::const_succ_iterator I = SU->Succs.begin(), E = SU->Succs.end();
-       I != E; ++I)
-    if (I->isCtrl())
+  for (const SDep &Succ : SU->Succs)
+    if (Succ.isCtrl())
       NumberDeps++;
 
   return NumberDeps;
@@ -156,9 +149,8 @@ static unsigned numberCtrlDepsInSU(SUnit *SU) {
 
 static unsigned numberCtrlPredInSU(SUnit *SU) {
   unsigned NumberDeps = 0;
-  for (SUnit::pred_iterator I = SU->Preds.begin(), E = SU->Preds.end();
-       I != E; ++I)
-    if (I->isCtrl())
+  for (SDep &Pred : SU->Preds)
+    if (Pred.isCtrl())
       NumberDeps++;
 
   return NumberDeps;
@@ -216,15 +208,14 @@ bool resource_sort::operator()(const SUnit *LHS, const SUnit *RHS) const {
 /// of SU, return it, otherwise return null.
 SUnit *ResourcePriorityQueue::getSingleUnscheduledPred(SUnit *SU) {
   SUnit *OnlyAvailablePred = nullptr;
-  for (SUnit::const_pred_iterator I = SU->Preds.begin(), E = SU->Preds.end();
-       I != E; ++I) {
-    SUnit &Pred = *I->getSUnit();
-    if (!Pred.isScheduled) {
+  for (const SDep &Pred : SU->Preds) {
+    SUnit &PredSU = *Pred.getSUnit();
+    if (!PredSU.isScheduled) {
       // We found an available, but not scheduled, predecessor.  If it's the
       // only one we have found, keep track of it... otherwise give up.
-      if (OnlyAvailablePred && OnlyAvailablePred != &Pred)
+      if (OnlyAvailablePred && OnlyAvailablePred != &PredSU)
         return nullptr;
-      OnlyAvailablePred = &Pred;
+      OnlyAvailablePred = &PredSU;
     }
   }
   return OnlyAvailablePred;
@@ -234,9 +225,8 @@ void ResourcePriorityQueue::push(SUnit *SU) {
   // Look at all of the successors of this node.  Count the number of nodes that
   // this node is the sole unscheduled node for.
   unsigned NumNodesBlocking = 0;
-  for (SUnit::const_succ_iterator I = SU->Succs.begin(), E = SU->Succs.end();
-       I != E; ++I)
-    if (getSingleUnscheduledPred(I->getSUnit()) == SU)
+  for (const SDep &Succ : SU->Succs)
+    if (getSingleUnscheduledPred(Succ.getSUnit()) == SU)
       ++NumNodesBlocking;
 
   NumNodesSolelyBlocking[SU->NodeNum] = NumNodesBlocking;
@@ -262,6 +252,7 @@ bool ResourcePriorityQueue::isResourceAvailable(SUnit *SU) {
       if (!ResourcesModel->canReserveResources(&TII->get(
           SU->getNode()->getMachineOpcode())))
            return false;
+      break;
     case TargetOpcode::EXTRACT_SUBREG:
     case TargetOpcode::INSERT_SUBREG:
     case TargetOpcode::SUBREG_TO_REG:
@@ -271,16 +262,15 @@ bool ResourcePriorityQueue::isResourceAvailable(SUnit *SU) {
     }
 
   // Now see if there are no other dependencies
-  // to instructions alredy in the packet.
+  // to instructions already in the packet.
   for (unsigned i = 0, e = Packet.size(); i != e; ++i)
-    for (SUnit::const_succ_iterator I = Packet[i]->Succs.begin(),
-         E = Packet[i]->Succs.end(); I != E; ++I) {
+    for (const SDep &Succ : Packet[i]->Succs) {
       // Since we do not add pseudos to packets, might as well
-      // ignor order deps.
-      if (I->isCtrl())
+      // ignore order deps.
+      if (Succ.isCtrl())
         continue;
 
-      if (I->getSUnit() == SU)
+      if (Succ.getSUnit() == SU)
         return false;
     }
 
@@ -319,14 +309,14 @@ void ResourcePriorityQueue::reserveResources(SUnit *SU) {
 
   // If packet is now full, reset the state so in the next cycle
   // we start fresh.
-  if (Packet.size() >= InstrItins->SchedModel->IssueWidth) {
+  if (Packet.size() >= InstrItins->SchedModel.IssueWidth) {
     ResourcesModel->clearResources();
     Packet.clear();
   }
 }
 
-signed ResourcePriorityQueue::rawRegPressureDelta(SUnit *SU, unsigned RCId) {
-  signed RegBalance    = 0;
+int ResourcePriorityQueue::rawRegPressureDelta(SUnit *SU, unsigned RCId) {
+  int RegBalance = 0;
 
   if (!SU || !SU->getNode() || !SU->getNode()->isMachineOpcode())
     return RegBalance;
@@ -359,23 +349,18 @@ signed ResourcePriorityQueue::rawRegPressureDelta(SUnit *SU, unsigned RCId) {
 /// The RawPressure flag makes this function to ignore
 /// existing reg file sizes, and report raw def/use
 /// balance.
-signed ResourcePriorityQueue::regPressureDelta(SUnit *SU, bool RawPressure) {
-  signed RegBalance    = 0;
+int ResourcePriorityQueue::regPressureDelta(SUnit *SU, bool RawPressure) {
+  int RegBalance = 0;
 
   if (!SU || !SU->getNode() || !SU->getNode()->isMachineOpcode())
     return RegBalance;
 
   if (RawPressure) {
-    for (TargetRegisterInfo::regclass_iterator I = TRI->regclass_begin(),
-             E = TRI->regclass_end(); I != E; ++I) {
-      const TargetRegisterClass *RC = *I;
+    for (const TargetRegisterClass *RC : TRI->regclasses())
       RegBalance += rawRegPressureDelta(SU, RC->getID());
-    }
   }
   else {
-    for (TargetRegisterInfo::regclass_iterator I = TRI->regclass_begin(),
-         E = TRI->regclass_end(); I != E; ++I) {
-      const TargetRegisterClass *RC = *I;
+    for (const TargetRegisterClass *RC : TRI->regclasses()) {
       if ((RegPressure[RC->getID()] +
            rawRegPressureDelta(SU, RC->getID()) > 0) &&
           (RegPressure[RC->getID()] +
@@ -400,9 +385,9 @@ static const unsigned FactorOne = 2;
 
 /// Returns single number reflecting benefit of scheduling SU
 /// in the current cycle.
-signed ResourcePriorityQueue::SUSchedulingCost(SUnit *SU) {
+int ResourcePriorityQueue::SUSchedulingCost(SUnit *SU) {
   // Initial trivial priority.
-  signed ResCount = 1;
+  int ResCount = 1;
 
   // Do not waste time on a node that is already scheduled.
   if (SU->isScheduled)
@@ -508,11 +493,10 @@ void ResourcePriorityQueue::scheduledNode(SUnit *SU) {
         }
       }
     }
-    for (SUnit::pred_iterator I = SU->Preds.begin(), E = SU->Preds.end();
-                              I != E; ++I) {
-      if (I->isCtrl() || (I->getSUnit()->NumRegDefsLeft == 0))
+    for (SDep &Pred : SU->Preds) {
+      if (Pred.isCtrl() || (Pred.getSUnit()->NumRegDefsLeft == 0))
         continue;
-      --I->getSUnit()->NumRegDefsLeft;
+      --Pred.getSUnit()->NumRegDefsLeft;
     }
   }
 
@@ -524,10 +508,9 @@ void ResourcePriorityQueue::scheduledNode(SUnit *SU) {
   // number of live ranges. All others, increase it.
   unsigned NumberNonControlDeps = 0;
 
-  for (SUnit::const_succ_iterator I = SU->Succs.begin(), E = SU->Succs.end();
-                                  I != E; ++I) {
-    adjustPriorityOfUnscheduledPreds(I->getSUnit());
-    if (!I->isCtrl())
+  for (const SDep &Succ : SU->Succs) {
+    adjustPriorityOfUnscheduledPreds(Succ.getSUnit());
+    if (!Succ.isCtrl())
       NumberNonControlDeps++;
   }
 
@@ -603,9 +586,8 @@ SUnit *ResourcePriorityQueue::pop() {
 
   std::vector<SUnit *>::iterator Best = Queue.begin();
   if (!DisableDFASched) {
-    signed BestCost = SUSchedulingCost(*Best);
-    for (std::vector<SUnit *>::iterator I = std::next(Queue.begin()),
-           E = Queue.end(); I != E; ++I) {
+    int BestCost = SUSchedulingCost(*Best);
+    for (auto I = std::next(Queue.begin()), E = Queue.end(); I != E; ++I) {
 
       if (SUSchedulingCost(*I) > BestCost) {
         BestCost = SUSchedulingCost(*I);
@@ -615,8 +597,7 @@ SUnit *ResourcePriorityQueue::pop() {
   }
   // Use default TD scheduling mechanism.
   else {
-    for (std::vector<SUnit *>::iterator I = std::next(Queue.begin()),
-       E = Queue.end(); I != E; ++I)
+    for (auto I = std::next(Queue.begin()), E = Queue.end(); I != E; ++I)
       if (Picker(*Best, *I))
         Best = I;
   }
@@ -633,23 +614,9 @@ SUnit *ResourcePriorityQueue::pop() {
 
 void ResourcePriorityQueue::remove(SUnit *SU) {
   assert(!Queue.empty() && "Queue is empty!");
-  std::vector<SUnit *>::iterator I = std::find(Queue.begin(), Queue.end(), SU);
+  std::vector<SUnit *>::iterator I = find(Queue, SU);
   if (I != std::prev(Queue.end()))
     std::swap(*I, Queue.back());
 
   Queue.pop_back();
 }
-
-
-#ifdef NDEBUG
-void ResourcePriorityQueue::dump(ScheduleDAG *DAG) const {}
-#else
-void ResourcePriorityQueue::dump(ScheduleDAG *DAG) const {
-  ResourcePriorityQueue q = *this;
-  while (!q.empty()) {
-    SUnit *su = q.pop();
-    dbgs() << "Height " << su->getHeight() << ": ";
-    su->dump(DAG);
-  }
-}
-#endif

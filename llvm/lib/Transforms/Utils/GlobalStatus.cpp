@@ -7,12 +7,25 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Transforms/Utils/GlobalStatus.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CallSite.h"
+#include "llvm/IR/Constant.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/InstrTypes.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/Transforms/Utils/GlobalStatus.h"
+#include "llvm/IR/Use.h"
+#include "llvm/IR/User.h"
+#include "llvm/IR/Value.h"
+#include "llvm/Support/AtomicOrdering.h"
+#include "llvm/Support/Casting.h"
+#include <algorithm>
+#include <cassert>
 
 using namespace llvm;
 
@@ -20,11 +33,10 @@ using namespace llvm;
 /// and release, then return AcquireRelease.
 ///
 static AtomicOrdering strongerOrdering(AtomicOrdering X, AtomicOrdering Y) {
-  if (X == Acquire && Y == Release)
-    return AcquireRelease;
-  if (Y == Acquire && X == Release)
-    return AcquireRelease;
-  return (AtomicOrdering)std::max(X, Y);
+  if ((X == AtomicOrdering::Acquire && Y == AtomicOrdering::Release) ||
+      (Y == AtomicOrdering::Acquire && X == AtomicOrdering::Release))
+    return AtomicOrdering::AcquireRelease;
+  return (AtomicOrdering)std::max((unsigned)X, (unsigned)Y);
 }
 
 /// It is safe to destroy a constant iff it is only used by constants itself.
@@ -33,6 +45,9 @@ static AtomicOrdering strongerOrdering(AtomicOrdering X, AtomicOrdering Y) {
 ///
 bool llvm::isSafeToDestroyConstant(const Constant *C) {
   if (isa<GlobalValue>(C))
+    return false;
+
+  if (isa<ConstantData>(C))
     return false;
 
   for (const User *U : C->users())
@@ -45,7 +60,11 @@ bool llvm::isSafeToDestroyConstant(const Constant *C) {
 }
 
 static bool analyzeGlobalAux(const Value *V, GlobalStatus &GS,
-                             SmallPtrSet<const PHINode *, 16> &PhiUsers) {
+                             SmallPtrSetImpl<const PHINode *> &PhiUsers) {
+  if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(V))
+    if (GV->isExternallyInitialized())
+      GS.StoredType = GlobalStatus::StoredOnce;
+
   for (const Use &U : V->uses()) {
     const User *UR = U.getUser();
     if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(UR)) {
@@ -98,7 +117,7 @@ static bool analyzeGlobalAux(const Value *V, GlobalStatus &GS,
               }
             }
 
-            if (StoredVal == GV->getInitializer()) {
+            if (GV->hasInitializer() && StoredVal == GV->getInitializer()) {
               if (GS.StoredType < GlobalStatus::InitializerStored)
                 GS.StoredType = GlobalStatus::InitializerStored;
             } else if (isa<LoadInst>(StoredVal) &&
@@ -130,7 +149,7 @@ static bool analyzeGlobalAux(const Value *V, GlobalStatus &GS,
       } else if (const PHINode *PN = dyn_cast<PHINode>(I)) {
         // PHI nodes we can check just like select or GEP instructions, but we
         // have to be careful about infinite recursion.
-        if (PhiUsers.insert(PN)) // Not already visited.
+        if (PhiUsers.insert(PN).second) // Not already visited.
           if (analyzeGlobalAux(I, GS, PhiUsers))
             return true;
       } else if (isa<CmpInst>(I)) {
@@ -147,7 +166,7 @@ static bool analyzeGlobalAux(const Value *V, GlobalStatus &GS,
         if (MSI->isVolatile())
           return true;
         GS.StoredType = GlobalStatus::Stored;
-      } else if (ImmutableCallSite C = I) {
+      } else if (auto C = ImmutableCallSite(I)) {
         if (!C.isCallee(&U))
           return true;
         GS.IsLoaded = true;
@@ -169,13 +188,9 @@ static bool analyzeGlobalAux(const Value *V, GlobalStatus &GS,
   return false;
 }
 
+GlobalStatus::GlobalStatus() = default;
+
 bool GlobalStatus::analyzeGlobal(const Value *V, GlobalStatus &GS) {
   SmallPtrSet<const PHINode *, 16> PhiUsers;
   return analyzeGlobalAux(V, GS, PhiUsers);
 }
-
-GlobalStatus::GlobalStatus()
-    : IsCompared(false), IsLoaded(false), StoredType(NotStored),
-      StoredOnceValue(nullptr), AccessingFunction(nullptr),
-      HasMultipleAccessingFunctions(false), HasNonInstructionUser(false),
-      Ordering(NotAtomic) {}

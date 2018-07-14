@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>LLVM Atomic Instructions and Concurrency Guide &#8212; LLVM 3.4 documentation</title>
+    <title>LLVM Atomic Instructions and Concurrency Guide &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -28,7 +28,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="LLVM Coding Standards" href="CodingStandards.html" />
-    <link rel="prev" title="MCJIT Design and Implementation" href="MCJITDesignAndImplementation.html" />
+    <link rel="prev" title="A guide to Dockerfiles for building LLVM" href="Docker.html" />
 <style type="text/css">
   table.right { float: right; margin-left: 20px; }
   table.right td { border: 1px solid #ccc; }
@@ -52,7 +52,7 @@
           <a href="CodingStandards.html" title="LLVM Coding Standards"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="MCJITDesignAndImplementation.html" title="MCJIT Design and Implementation"
+          <a href="Docker.html" title="A guide to Dockerfiles for building LLVM"
              accesskey="P">previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="index.html">Documentation</a>&raquo;</li>
@@ -84,23 +84,21 @@
 </li>
 <li><a class="reference internal" href="#atomics-and-ir-optimization" id="id15">Atomics and IR optimization</a></li>
 <li><a class="reference internal" href="#atomics-and-codegen" id="id16">Atomics and Codegen</a></li>
+<li><a class="reference internal" href="#libcalls-atomic" id="id17">Libcalls: __atomic_*</a></li>
+<li><a class="reference internal" href="#libcalls-sync" id="id18">Libcalls: __sync_*</a></li>
 </ul>
 </div>
 <div class="section" id="introduction">
 <h2><a class="toc-backref" href="#id4">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
-<p>Historically, LLVM has not had very strong support for concurrency; some minimal
-intrinsics were provided, and <code class="docutils literal"><span class="pre">volatile</span></code> was used in some cases to achieve
-rough semantics in the presence of concurrency.  However, this is changing;
-there are now new instructions which are well-defined in the presence of threads
-and asynchronous signals, and the model for existing instructions has been
-clarified in the IR.</p>
+<p>LLVM supports instructions which are well-defined in the presence of threads and
+asynchronous signals.</p>
 <p>The atomic instructions are designed specifically to provide readable IR and
 optimized code generation for the following:</p>
 <ul class="simple">
-<li>The new C++0x <code class="docutils literal"><span class="pre">&lt;atomic&gt;</span></code> header.  (<a class="reference external" href="http://www.open-std.org/jtc1/sc22/wg21/">C++0x draft available here</a>.) (<a class="reference external" href="http://www.open-std.org/jtc1/sc22/wg14/">C1x draft available here</a>.)</li>
+<li>The C++11 <code class="docutils literal"><span class="pre">&lt;atomic&gt;</span></code> header.  (<a class="reference external" href="http://www.open-std.org/jtc1/sc22/wg21/">C++11 draft available here</a>.) (<a class="reference external" href="http://www.open-std.org/jtc1/sc22/wg14/">C11 draft available here</a>.)</li>
 <li>Proper semantics for Java-style memory, for both <code class="docutils literal"><span class="pre">volatile</span></code> and regular
-shared variables. (<a class="reference external" href="http://java.sun.com/docs/books/jls/third_edition/html/memory.html">Java Specification</a>)</li>
-<li>gcc-compatible <code class="docutils literal"><span class="pre">__sync_*</span></code> builtins. (<a class="reference external" href="http://gcc.gnu.org/onlinedocs/gcc/Atomic-Builtins.html">Description</a>)</li>
+shared variables. (<a class="reference external" href="http://docs.oracle.com/javase/specs/jls/se8/html/jls-17.html">Java Specification</a>)</li>
+<li>gcc-compatible <code class="docutils literal"><span class="pre">__sync_*</span></code> builtins. (<a class="reference external" href="https://gcc.gnu.org/onlinedocs/gcc/_005f_005fsync-Builtins.html">Description</a>)</li>
 <li>Other scenarios with atomic semantics, including <code class="docutils literal"><span class="pre">static</span></code> variables with
 non-trivial constructors in C++.</li>
 </ul>
@@ -173,7 +171,10 @@ memory operation can happen on any thread between the load and store.</p>
 <p>A <code class="docutils literal"><span class="pre">fence</span></code> provides Acquire and/or Release ordering which is not part of
 another operation; it is normally used along with Monotonic memory operations.
 A Monotonic load followed by an Acquire fence is roughly equivalent to an
-Acquire load.</p>
+Acquire load, and a Monotonic store following a Release fence is roughly
+equivalent to a Release store. SequentiallyConsistent fences behave as both
+an Acquire and a Release fence, and offer some additional complicated
+guarantees, see the C++11 standard for details.</p>
 <p>Frontends generating atomic instructions generally need to be aware of the
 target to some degree; atomic instructions are guaranteed to be lock-free, and
 therefore an instruction which is wider than the target natively supports can be
@@ -217,17 +218,17 @@ into two aligned stores of the same width as the unaligned store. Backends are
 also expected to generate an i8 store as an i8 store, and not an instruction
 which writes to surrounding bytes.  (If you are writing a backend for an
 architecture which cannot satisfy these restrictions and cares about
-concurrency, please send an email to llvmdev.)</dd>
+concurrency, please send an email to llvm-dev.)</dd>
 </dl>
 </div>
 <div class="section" id="unordered">
 <h3><a class="toc-backref" href="#id9">Unordered</a><a class="headerlink" href="#unordered" title="Permalink to this headline">¶</a></h3>
 <p>Unordered is the lowest level of atomicity. It essentially guarantees that races
 produce somewhat sane results instead of having undefined behavior.  It also
-guarantees the operation to be lock-free, so it do not depend on the data being
-part of a special atomic structure or depend on a separate per-process global
-lock.  Note that code generation will fail for unsupported atomic operations; if
-you need such an operation, use explicit locking.</p>
+guarantees the operation to be lock-free, so it does not depend on the data
+being part of a special atomic structure or depend on a separate per-process
+global lock.  Note that code generation will fail for unsupported atomic
+operations; if you need such an operation, use explicit locking.</p>
 <dl class="docutils">
 <dt>Relevant standard</dt>
 <dd>This is intended to match the Java memory model for shared variables.</dd>
@@ -265,7 +266,7 @@ essentially guarantees that if you take all the operations affecting a specific
 address, a consistent ordering exists.</p>
 <dl class="docutils">
 <dt>Relevant standard</dt>
-<dd>This corresponds to the C++0x/C1x <code class="docutils literal"><span class="pre">memory_order_relaxed</span></code>; see those
+<dd>This corresponds to the C++11/C11 <code class="docutils literal"><span class="pre">memory_order_relaxed</span></code>; see those
 standards for the exact definition.</dd>
 <dt>Notes for frontends</dt>
 <dd>If you are writing a frontend which uses this directly, use with caution.  The
@@ -292,8 +293,8 @@ to appear as a single operation.</dd>
 other memory with normal loads and stores.</p>
 <dl class="docutils">
 <dt>Relevant standard</dt>
-<dd>This corresponds to the C++0x/C1x <code class="docutils literal"><span class="pre">memory_order_acquire</span></code>. It should also be
-used for C++0x/C1x <code class="docutils literal"><span class="pre">memory_order_consume</span></code>.</dd>
+<dd>This corresponds to the C++11/C11 <code class="docutils literal"><span class="pre">memory_order_acquire</span></code>. It should also be
+used for C++11/C11 <code class="docutils literal"><span class="pre">memory_order_consume</span></code>.</dd>
 <dt>Notes for frontends</dt>
 <dd>If you are writing a frontend which uses this directly, use with caution.
 Acquire only provides a semantic guarantee when paired with a Release
@@ -319,7 +320,7 @@ maintain Acquire semantics for a memory operation.</dd>
 release a lock.</p>
 <dl class="docutils">
 <dt>Relevant standard</dt>
-<dd>This corresponds to the C++0x/C1x <code class="docutils literal"><span class="pre">memory_order_release</span></code>.</dd>
+<dd>This corresponds to the C++11/C11 <code class="docutils literal"><span class="pre">memory_order_release</span></code>.</dd>
 <dt>Notes for frontends</dt>
 <dd>If you are writing a frontend which uses this directly, use with caution.
 Release only provides a semantic guarantee when paired with a Acquire
@@ -342,7 +343,7 @@ IR because they are extremely difficult to use correctly.</dd>
 barrier (for fences and operations which both read and write memory).</p>
 <dl class="docutils">
 <dt>Relevant standard</dt>
-<dd>This corresponds to the C++0x/C1x <code class="docutils literal"><span class="pre">memory_order_acq_rel</span></code>.</dd>
+<dd>This corresponds to the C++11/C11 <code class="docutils literal"><span class="pre">memory_order_acq_rel</span></code>.</dd>
 <dt>Notes for frontends</dt>
 <dd>If you are writing a frontend which uses this directly, use with caution.
 Acquire only provides a semantic guarantee when paired with a Release
@@ -362,7 +363,7 @@ and Release semantics for stores. Additionally, it guarantees that a total
 ordering exists between all SequentiallyConsistent operations.</p>
 <dl class="docutils">
 <dt>Relevant standard</dt>
-<dd>This corresponds to the C++0x/C1x <code class="docutils literal"><span class="pre">memory_order_seq_cst</span></code>, Java volatile, and
+<dd>This corresponds to the C++11/C11 <code class="docutils literal"><span class="pre">memory_order_seq_cst</span></code>, Java volatile, and
 the gcc-compatible <code class="docutils literal"><span class="pre">__sync_*</span></code> builtins which do not specify otherwise.</dd>
 <dt>Notes for frontends</dt>
 <dd>If a frontend is exposing atomic operations, these are much easier to reason
@@ -395,6 +396,10 @@ operation.</li>
 <li><code class="docutils literal"><span class="pre">mayReadFromMemory()</span></code>/<code class="docutils literal"><span class="pre">mayWriteToMemory()</span></code>: Existing predicate, but note
 that they return true for any operation which is volatile or at least
 Monotonic.</li>
+<li><code class="docutils literal"><span class="pre">isStrongerThan</span></code> / <code class="docutils literal"><span class="pre">isAtLeastOrStrongerThan</span></code>: These are predicates on
+orderings. They can be useful for passes that are aware of atomics, for
+example to do DSE across a single atomic access, but not across a
+release-acquire pair (see MemoryDependencyAnalysis for an example of this)</li>
 <li>Alias analysis: Note that AA will return ModRef for anything Acquire or
 Release, and for the address accessed by any Monotonic operation.</li>
 </ul>
@@ -413,9 +418,11 @@ monotonic operations like a read+write to a memory location, and anything
 stricter than that like a nothrow call.</li>
 <li>DSE: Unordered stores can be DSE’ed like normal stores.  Monotonic stores can
 be DSE’ed in some cases, but it’s tricky to reason about, and not especially
-important.</li>
+important. It is possible in some case for DSE to operate across a stronger
+atomic operation, but it is fairly tricky. DSE delegates this reasoning to
+MemoryDependencyAnalysis (which is also used by other passes like GVN).</li>
 <li>Folding a load: Any atomic load from a constant global can be constant-folded,
-because it cannot be observed.  Similar reasoning allows scalarrepl with
+because it cannot be observed.  Similar reasoning allows sroa with
 atomic loads and stores.</li>
 </ul>
 </div>
@@ -423,26 +430,30 @@ atomic loads and stores.</li>
 <h2><a class="toc-backref" href="#id16">Atomics and Codegen</a><a class="headerlink" href="#atomics-and-codegen" title="Permalink to this headline">¶</a></h2>
 <p>Atomic operations are represented in the SelectionDAG with <code class="docutils literal"><span class="pre">ATOMIC_*</span></code> opcodes.
 On architectures which use barrier instructions for all atomic ordering (like
-ARM), appropriate fences are split out as the DAG is built.</p>
+ARM), appropriate fences can be emitted by the AtomicExpand Codegen pass if
+<code class="docutils literal"><span class="pre">setInsertFencesForAtomic()</span></code> was used.</p>
 <p>The MachineMemOperand for all atomic operations is currently marked as volatile;
 this is not correct in the IR sense of volatile, but CodeGen handles anything
 marked volatile very conservatively.  This should get fixed at some point.</p>
-<p>Common architectures have some way of representing at least a pointer-sized
-lock-free <code class="docutils literal"><span class="pre">cmpxchg</span></code>; such an operation can be used to implement all the other
-atomic operations which can be represented in IR up to that size.  Backends are
-expected to implement all those operations, but not operations which cannot be
-implemented in a lock-free manner.  It is expected that backends will give an
-error when given an operation which cannot be implemented.  (The LLVM code
-generator is not very helpful here at the moment, but hopefully that will
-change.)</p>
-<p>The implementation of atomics on LL/SC architectures (like ARM) is currently a
-bit of a mess; there is a lot of copy-pasted code across targets, and the
-representation is relatively unsuited to optimization (it would be nice to be
-able to optimize loops involving cmpxchg etc.).</p>
+<p>One very important property of the atomic operations is that if your backend
+supports any inline lock-free atomic operations of a given size, you should
+support <em>ALL</em> operations of that size in a lock-free manner.</p>
+<p>When the target implements atomic <code class="docutils literal"><span class="pre">cmpxchg</span></code> or LL/SC instructions (as most do)
+this is trivial: all the other operations can be implemented on top of those
+primitives. However, on many older CPUs (e.g. ARMv5, SparcV8, Intel 80386) there
+are atomic load and store instructions, but no <code class="docutils literal"><span class="pre">cmpxchg</span></code> or LL/SC. As it is
+invalid to implement <code class="docutils literal"><span class="pre">atomic</span> <span class="pre">load</span></code> using the native instruction, but
+<code class="docutils literal"><span class="pre">cmpxchg</span></code> using a library call to a function that uses a mutex, <code class="docutils literal"><span class="pre">atomic</span>
+<span class="pre">load</span></code> must <em>also</em> expand to a library call on such architectures, so that it
+can remain atomic with regards to a simultaneous <code class="docutils literal"><span class="pre">cmpxchg</span></code>, by using the same
+mutex.</p>
+<p>AtomicExpandPass can help with that: it will expand all atomic operations to the
+proper <code class="docutils literal"><span class="pre">__atomic_*</span></code> libcalls for any size above the maximum set by
+<code class="docutils literal"><span class="pre">setMaxAtomicSizeInBitsSupported</span></code> (which defaults to 0).</p>
 <p>On x86, all atomic loads generate a <code class="docutils literal"><span class="pre">MOV</span></code>. SequentiallyConsistent stores
 generate an <code class="docutils literal"><span class="pre">XCHG</span></code>, other stores generate a <code class="docutils literal"><span class="pre">MOV</span></code>. SequentiallyConsistent
 fences generate an <code class="docutils literal"><span class="pre">MFENCE</span></code>, other fences do not cause any code to be
-generated.  cmpxchg uses the <code class="docutils literal"><span class="pre">LOCK</span> <span class="pre">CMPXCHG</span></code> instruction.  <code class="docutils literal"><span class="pre">atomicrmw</span> <span class="pre">xchg</span></code>
+generated.  <code class="docutils literal"><span class="pre">cmpxchg</span></code> uses the <code class="docutils literal"><span class="pre">LOCK</span> <span class="pre">CMPXCHG</span></code> instruction.  <code class="docutils literal"><span class="pre">atomicrmw</span> <span class="pre">xchg</span></code>
 uses <code class="docutils literal"><span class="pre">XCHG</span></code>, <code class="docutils literal"><span class="pre">atomicrmw</span> <span class="pre">add</span></code> and <code class="docutils literal"><span class="pre">atomicrmw</span> <span class="pre">sub</span></code> use <code class="docutils literal"><span class="pre">XADD</span></code>, and all
 other <code class="docutils literal"><span class="pre">atomicrmw</span></code> operations generate a loop with <code class="docutils literal"><span class="pre">LOCK</span> <span class="pre">CMPXCHG</span></code>.  Depending
 on the users of the result, some <code class="docutils literal"><span class="pre">atomicrmw</span></code> operations can be translated into
@@ -453,6 +464,145 @@ operation. Loads and stores generate normal instructions.  <code class="docutils
 <code class="docutils literal"><span class="pre">atomicrmw</span></code> can be represented using a loop with LL/SC-style instructions
 which take some sort of exclusive lock on a cache line (<code class="docutils literal"><span class="pre">LDREX</span></code> and <code class="docutils literal"><span class="pre">STREX</span></code>
 on ARM, etc.).</p>
+<p>It is often easiest for backends to use AtomicExpandPass to lower some of the
+atomic constructs. Here are some lowerings it can do:</p>
+<ul class="simple">
+<li>cmpxchg -&gt; loop with load-linked/store-conditional
+by overriding <code class="docutils literal"><span class="pre">shouldExpandAtomicCmpXchgInIR()</span></code>, <code class="docutils literal"><span class="pre">emitLoadLinked()</span></code>,
+<code class="docutils literal"><span class="pre">emitStoreConditional()</span></code></li>
+<li>large loads/stores -&gt; ll-sc/cmpxchg
+by overriding <code class="docutils literal"><span class="pre">shouldExpandAtomicStoreInIR()</span></code>/<code class="docutils literal"><span class="pre">shouldExpandAtomicLoadInIR()</span></code></li>
+<li>strong atomic accesses -&gt; monotonic accesses + fences by overriding
+<code class="docutils literal"><span class="pre">shouldInsertFencesForAtomic()</span></code>, <code class="docutils literal"><span class="pre">emitLeadingFence()</span></code>, and
+<code class="docutils literal"><span class="pre">emitTrailingFence()</span></code></li>
+<li>atomic rmw -&gt; loop with cmpxchg or load-linked/store-conditional
+by overriding <code class="docutils literal"><span class="pre">expandAtomicRMWInIR()</span></code></li>
+<li>expansion to __atomic_* libcalls for unsupported sizes.</li>
+</ul>
+<p>For an example of all of these, look at the ARM backend.</p>
+</div>
+<div class="section" id="libcalls-atomic">
+<h2><a class="toc-backref" href="#id17">Libcalls: __atomic_*</a><a class="headerlink" href="#libcalls-atomic" title="Permalink to this headline">¶</a></h2>
+<p>There are two kinds of atomic library calls that are generated by LLVM. Please
+note that both sets of library functions somewhat confusingly share the names of
+builtin functions defined by clang. Despite this, the library functions are
+not directly related to the builtins: it is <em>not</em> the case that <code class="docutils literal"><span class="pre">__atomic_*</span></code>
+builtins lower to <code class="docutils literal"><span class="pre">__atomic_*</span></code> library calls and <code class="docutils literal"><span class="pre">__sync_*</span></code> builtins lower
+to <code class="docutils literal"><span class="pre">__sync_*</span></code> library calls.</p>
+<p>The first set of library functions are named <code class="docutils literal"><span class="pre">__atomic_*</span></code>. This set has been
+“standardized” by GCC, and is described below. (See also <a class="reference external" href="https://gcc.gnu.org/wiki/Atomic/GCCMM/LIbrary">GCC’s documentation</a>)</p>
+<p>LLVM’s AtomicExpandPass will translate atomic operations on data sizes above
+<code class="docutils literal"><span class="pre">MaxAtomicSizeInBitsSupported</span></code> into calls to these functions.</p>
+<p>There are four generic functions, which can be called with data of any size or
+alignment:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">void</span> <span class="n">__atomic_load</span><span class="p">(</span><span class="n">size_t</span> <span class="n">size</span><span class="p">,</span> <span class="n">void</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">void</span> <span class="o">*</span><span class="n">ret</span><span class="p">,</span> <span class="nb">int</span> <span class="n">ordering</span><span class="p">)</span>
+<span class="n">void</span> <span class="n">__atomic_store</span><span class="p">(</span><span class="n">size_t</span> <span class="n">size</span><span class="p">,</span> <span class="n">void</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">void</span> <span class="o">*</span><span class="n">val</span><span class="p">,</span> <span class="nb">int</span> <span class="n">ordering</span><span class="p">)</span>
+<span class="n">void</span> <span class="n">__atomic_exchange</span><span class="p">(</span><span class="n">size_t</span> <span class="n">size</span><span class="p">,</span> <span class="n">void</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">void</span> <span class="o">*</span><span class="n">val</span><span class="p">,</span> <span class="n">void</span> <span class="o">*</span><span class="n">ret</span><span class="p">,</span> <span class="nb">int</span> <span class="n">ordering</span><span class="p">)</span>
+<span class="nb">bool</span> <span class="n">__atomic_compare_exchange</span><span class="p">(</span><span class="n">size_t</span> <span class="n">size</span><span class="p">,</span> <span class="n">void</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">void</span> <span class="o">*</span><span class="n">expected</span><span class="p">,</span> <span class="n">void</span> <span class="o">*</span><span class="n">desired</span><span class="p">,</span> <span class="nb">int</span> <span class="n">success_order</span><span class="p">,</span> <span class="nb">int</span> <span class="n">failure_order</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>There are also size-specialized versions of the above functions, which can only
+be used with <em>naturally-aligned</em> pointers of the appropriate size. In the
+signatures below, “N” is one of 1, 2, 4, 8, and 16, and “iN” is the appropriate
+integer type of that size; if no such integer type exists, the specialization
+cannot be used:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">iN</span> <span class="n">__atomic_load_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">,</span> <span class="nb">int</span> <span class="n">ordering</span><span class="p">)</span>
+<span class="n">void</span> <span class="n">__atomic_store_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">,</span> <span class="nb">int</span> <span class="n">ordering</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__atomic_exchange_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">,</span> <span class="nb">int</span> <span class="n">ordering</span><span class="p">)</span>
+<span class="nb">bool</span> <span class="n">__atomic_compare_exchange_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="o">*</span><span class="n">expected</span><span class="p">,</span> <span class="n">iN</span> <span class="n">desired</span><span class="p">,</span> <span class="nb">int</span> <span class="n">success_order</span><span class="p">,</span> <span class="nb">int</span> <span class="n">failure_order</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Finally there are some read-modify-write functions, which are only available in
+the size-specific variants (any other sizes use a <code class="docutils literal"><span class="pre">__atomic_compare_exchange</span></code>
+loop):</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">iN</span> <span class="n">__atomic_fetch_add_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">,</span> <span class="nb">int</span> <span class="n">ordering</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__atomic_fetch_sub_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">,</span> <span class="nb">int</span> <span class="n">ordering</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__atomic_fetch_and_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">,</span> <span class="nb">int</span> <span class="n">ordering</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__atomic_fetch_or_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">,</span> <span class="nb">int</span> <span class="n">ordering</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__atomic_fetch_xor_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">,</span> <span class="nb">int</span> <span class="n">ordering</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__atomic_fetch_nand_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">,</span> <span class="nb">int</span> <span class="n">ordering</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This set of library functions have some interesting implementation requirements
+to take note of:</p>
+<ul class="simple">
+<li>They support all sizes and alignments – including those which cannot be
+implemented natively on any existing hardware. Therefore, they will certainly
+use mutexes in for some sizes/alignments.</li>
+<li>As a consequence, they cannot be shipped in a statically linked
+compiler-support library, as they have state which must be shared amongst all
+DSOs loaded in the program. They must be provided in a shared library used by
+all objects.</li>
+<li>The set of atomic sizes supported lock-free must be a superset of the sizes
+any compiler can emit. That is: if a new compiler introduces support for
+inline-lock-free atomics of size N, the <code class="docutils literal"><span class="pre">__atomic_*</span></code> functions must also have a
+lock-free implementation for size N. This is a requirement so that code
+produced by an old compiler (which will have called the <code class="docutils literal"><span class="pre">__atomic_*</span></code> function)
+interoperates with code produced by the new compiler (which will use native
+the atomic instruction).</li>
+</ul>
+<p>Note that it’s possible to write an entirely target-independent implementation
+of these library functions by using the compiler atomic builtins themselves to
+implement the operations on naturally-aligned pointers of supported sizes, and a
+generic mutex implementation otherwise.</p>
+</div>
+<div class="section" id="libcalls-sync">
+<h2><a class="toc-backref" href="#id18">Libcalls: __sync_*</a><a class="headerlink" href="#libcalls-sync" title="Permalink to this headline">¶</a></h2>
+<p>Some targets or OS/target combinations can support lock-free atomics, but for
+various reasons, it is not practical to emit the instructions inline.</p>
+<p>There’s two typical examples of this.</p>
+<p>Some CPUs support multiple instruction sets which can be swiched back and forth
+on function-call boundaries. For example, MIPS supports the MIPS16 ISA, which
+has a smaller instruction encoding than the usual MIPS32 ISA. ARM, similarly,
+has the Thumb ISA. In MIPS16 and earlier versions of Thumb, the atomic
+instructions are not encodable. However, those instructions are available via a
+function call to a function with the longer encoding.</p>
+<p>Additionally, a few OS/target pairs provide kernel-supported lock-free
+atomics. ARM/Linux is an example of this: the kernel <a class="reference external" href="https://www.kernel.org/doc/Documentation/arm/kernel_user_helpers.txt">provides</a> a
+function which on older CPUs contains a “magically-restartable” atomic sequence
+(which looks atomic so long as there’s only one CPU), and contains actual atomic
+instructions on newer multicore models. This sort of functionality can typically
+be provided on any architecture, if all CPUs which are missing atomic
+compare-and-swap support are uniprocessor (no SMP). This is almost always the
+case. The only common architecture without that property is SPARC – SPARCV8 SMP
+systems were common, yet it doesn’t support any sort of compare-and-swap
+operation.</p>
+<p>In either of these cases, the Target in LLVM can claim support for atomics of an
+appropriate size, and then implement some subset of the operations via libcalls
+to a <code class="docutils literal"><span class="pre">__sync_*</span></code> function. Such functions <em>must</em> not use locks in their
+implementation, because unlike the <code class="docutils literal"><span class="pre">__atomic_*</span></code> routines used by
+AtomicExpandPass, these may be mixed-and-matched with native instructions by the
+target lowering.</p>
+<p>Further, these routines do not need to be shared, as they are stateless. So,
+there is no issue with having multiple copies included in one binary. Thus,
+typically these routines are implemented by the statically-linked compiler
+runtime support library.</p>
+<p>LLVM will emit a call to an appropriate <code class="docutils literal"><span class="pre">__sync_*</span></code> routine if the target
+ISelLowering code has set the corresponding <code class="docutils literal"><span class="pre">ATOMIC_CMPXCHG</span></code>, <code class="docutils literal"><span class="pre">ATOMIC_SWAP</span></code>,
+or <code class="docutils literal"><span class="pre">ATOMIC_LOAD_*</span></code> operation to “Expand”, and if it has opted-into the
+availability of those library functions via a call to <code class="docutils literal"><span class="pre">initSyncLibcalls()</span></code>.</p>
+<p>The full set of functions that may be called by LLVM is (for <code class="docutils literal"><span class="pre">N</span></code> being 1, 2,
+4, 8, or 16):</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">iN</span> <span class="n">__sync_val_compare_and_swap_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">expected</span><span class="p">,</span> <span class="n">iN</span> <span class="n">desired</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__sync_lock_test_and_set_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__sync_fetch_and_add_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__sync_fetch_and_sub_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__sync_fetch_and_and_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__sync_fetch_and_or_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__sync_fetch_and_xor_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__sync_fetch_and_nand_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__sync_fetch_and_max_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__sync_fetch_and_umax_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__sync_fetch_and_min_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">)</span>
+<span class="n">iN</span> <span class="n">__sync_fetch_and_umin_N</span><span class="p">(</span><span class="n">iN</span> <span class="o">*</span><span class="n">ptr</span><span class="p">,</span> <span class="n">iN</span> <span class="n">val</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This list doesn’t include any function for atomic load or store; all known
+architectures support atomic loads and stores directly (possibly by emitting a
+fence on either side of a normal load or store.)</p>
+<p>There’s also, somewhat separately, the possibility to lower <code class="docutils literal"><span class="pre">ATOMIC_FENCE</span></code> to
+<code class="docutils literal"><span class="pre">__sync_synchronize()</span></code>. This may happen or not happen independent of all the
+above, controlled purely by <code class="docutils literal"><span class="pre">setOperationAction(ISD::ATOMIC_FENCE,</span> <span class="pre">...)</span></code>.</p>
 </div>
 </div>
 
@@ -471,7 +621,7 @@ on ARM, etc.).</p>
           <a href="CodingStandards.html" title="LLVM Coding Standards"
              >next</a> |</li>
         <li class="right" >
-          <a href="MCJITDesignAndImplementation.html" title="MCJIT Design and Implementation"
+          <a href="Docker.html" title="A guide to Dockerfiles for building LLVM"
              >previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="index.html">Documentation</a>&raquo;</li>
@@ -479,8 +629,8 @@ on ARM, etc.).</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

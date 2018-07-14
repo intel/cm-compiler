@@ -9,7 +9,7 @@
 	.type	check_extern,@function
 check_extern:                           // @check_extern
 	.cfi_startproc
-// BB#0:
+// %bb.0:
 	sub	sp, sp, #16
 .Ltmp2:
 	.cfi_def_cfa sp, 16
@@ -27,7 +27,7 @@ check_extern:                           // @check_extern
 
 
 // CHECK: Relocations [
-// CHECK:   Section (2) .rela.text {
+// CHECK:   Section {{.*}} .rela.text {
 // CHECK:     0x{{[0-9,A-F]+}} R_AARCH64_CALL26 memcpy
 // CHECK:   }
 // CHECK: ]

@@ -1,0 +1,738 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Global Instruction Selection &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="XRay Instrumentation" href="XRay.html" />
+    <link rel="prev" title="Coroutines in LLVM" href="Coroutines.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="XRay.html" title="XRay Instrumentation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="Coroutines.html" title="Coroutines in LLVM"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="global-instruction-selection">
+<h1>Global Instruction Selection<a class="headerlink" href="#global-instruction-selection" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id12">Introduction</a></li>
+<li><a class="reference internal" href="#generic-machine-ir" id="id13">Generic Machine IR</a></li>
+<li><a class="reference internal" href="#core-pipeline" id="id14">Core Pipeline</a></li>
+<li><a class="reference internal" href="#maintainability" id="id15">Maintainability</a></li>
+<li><a class="reference internal" href="#progress-and-future-work" id="id16">Progress and Future Work</a></li>
+<li><a class="reference internal" href="#porting-globalisel-to-a-new-target" id="id17">Porting GlobalISel to A New Target</a></li>
+<li><a class="reference internal" href="#resources" id="id18">Resources</a></li>
+</ul>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">This document is a work in progress.  It reflects the current state of the
+implementation, as well as open design and implementation issues.</p>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id12">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>GlobalISel is a framework that provides a set of reusable passes and utilities
+for instruction selection — translation from LLVM IR to target-specific
+Machine IR (MIR).</p>
+<p>GlobalISel is intended to be a replacement for SelectionDAG and FastISel, to
+solve three major problems:</p>
+<ul>
+<li><p class="first"><strong>Performance</strong> — SelectionDAG introduces a dedicated intermediate
+representation, which has a compile-time cost.</p>
+<p>GlobalISel directly operates on the post-isel representation used by the
+rest of the code generator, MIR.
+It does require extensions to that representation to support arbitrary
+incoming IR: <a class="reference internal" href="#gmir"><span class="std std-ref">Generic Machine IR</span></a>.</p>
+</li>
+<li><p class="first"><strong>Granularity</strong> — SelectionDAG and FastISel operate on individual basic
+blocks, losing some global optimization opportunities.</p>
+<p>GlobalISel operates on the whole function.</p>
+</li>
+<li><p class="first"><strong>Modularity</strong> — SelectionDAG and FastISel are radically different and share
+very little code.</p>
+<p>GlobalISel is built in a way that enables code reuse. For instance, both the
+optimized and fast selectors share the <a class="reference internal" href="#pipeline"><span class="std std-ref">Core Pipeline</span></a>, and targets can
+configure that pipeline to better suit their needs.</p>
+</li>
+</ul>
+</div>
+<div class="section" id="generic-machine-ir">
+<span id="gmir"></span><h2><a class="toc-backref" href="#id13">Generic Machine IR</a><a class="headerlink" href="#generic-machine-ir" title="Permalink to this headline">¶</a></h2>
+<p>Machine IR operates on physical registers, register classes, and (mostly)
+target-specific instructions.</p>
+<p>To bridge the gap with LLVM IR, GlobalISel introduces “generic” extensions to
+Machine IR:</p>
+<div class="contents local topic" id="id1">
+<ul class="simple">
+<li><a class="reference internal" href="#generic-instructions" id="id19">Generic Instructions</a></li>
+<li><a class="reference internal" href="#generic-virtual-registers" id="id20">Generic Virtual Registers</a></li>
+<li><a class="reference internal" href="#register-bank" id="id21">Register Bank</a></li>
+<li><a class="reference internal" href="#low-level-type" id="id22">Low Level Type</a></li>
+</ul>
+</div>
+<p><code class="docutils literal"><span class="pre">NOTE</span></code>:
+The generic MIR (GMIR) representation still contains references to IR
+constructs (such as <code class="docutils literal"><span class="pre">GlobalValue</span></code>).  Removing those should let us write more
+accurate tests, or delete IR after building the initial MIR.  However, it is
+not part of the GlobalISel effort.</p>
+<div class="section" id="generic-instructions">
+<span id="gmir-instructions"></span><h3><a class="toc-backref" href="#id19">Generic Instructions</a><a class="headerlink" href="#generic-instructions" title="Permalink to this headline">¶</a></h3>
+<p>The main addition is support for pre-isel generic machine instructions (e.g.,
+<code class="docutils literal"><span class="pre">G_ADD</span></code>).  Like other target-independent instructions (e.g., <code class="docutils literal"><span class="pre">COPY</span></code> or
+<code class="docutils literal"><span class="pre">PHI</span></code>), these are available on all targets.</p>
+<p><code class="docutils literal"><span class="pre">TODO</span></code>:
+While we’re progressively adding instructions, one kind in particular exposes
+interesting problems: compares and how to represent condition codes.
+Some targets (x86, ARM) have generic comparisons setting multiple flags,
+which are then used by predicated variants.
+Others (IR) specify the predicate in the comparison and users just get a single
+bit.  SelectionDAG uses SETCC/CONDBR vs BR_CC (and similar for select) to
+represent this.</p>
+<p>The <code class="docutils literal"><span class="pre">MachineIRBuilder</span></code> class wraps the <code class="docutils literal"><span class="pre">MachineInstrBuilder</span></code> and provides
+a convenient way to create these generic instructions.</p>
+</div>
+<div class="section" id="generic-virtual-registers">
+<span id="gmir-gvregs"></span><h3><a class="toc-backref" href="#id20">Generic Virtual Registers</a><a class="headerlink" href="#generic-virtual-registers" title="Permalink to this headline">¶</a></h3>
+<p>Generic instructions operate on a new kind of register: “generic” virtual
+registers.  As opposed to non-generic vregs, they are not assigned a Register
+Class.  Instead, generic vregs have a <a class="reference internal" href="#gmir-llt"><span class="std std-ref">Low Level Type</span></a>, and can be assigned
+a <a class="reference internal" href="#gmir-regbank"><span class="std std-ref">Register Bank</span></a>.</p>
+<p><code class="docutils literal"><span class="pre">MachineRegisterInfo</span></code> tracks the same information that it does for
+non-generic vregs (e.g., use-def chains).  Additionally, it also tracks the
+<a class="reference internal" href="#gmir-llt"><span class="std std-ref">Low Level Type</span></a> of the register, and, instead of the <code class="docutils literal"><span class="pre">TargetRegisterClass</span></code>,
+its <a class="reference internal" href="#gmir-regbank"><span class="std std-ref">Register Bank</span></a>, if any.</p>
+<p>For simplicity, most generic instructions only accept generic vregs:</p>
+<ul class="simple">
+<li>instead of immediates, they use a gvreg defined by an instruction
+materializing the immediate value (see <a class="reference internal" href="#irtranslator-constants"><span class="std std-ref">Constant Lowering</span></a>).</li>
+<li>instead of physical register, they use a gvreg defined by a <code class="docutils literal"><span class="pre">COPY</span></code>.</li>
+</ul>
+<p><code class="docutils literal"><span class="pre">NOTE</span></code>:
+We started with an alternative representation, where MRI tracks a size for
+each gvreg, and instructions have lists of types.
+That had two flaws: the type and size are redundant, and there was no generic
+way of getting a given operand’s type (as there was no 1:1 mapping between
+instruction types and operands).
+We considered putting the type in some variant of MCInstrDesc instead:
+See <a class="reference external" href="http://llvm.org/PR26576">PR26576</a>: [GlobalISel] Generic MachineInstrs
+need a type but this increases the memory footprint of the related objects</p>
+</div>
+<div class="section" id="register-bank">
+<span id="gmir-regbank"></span><h3><a class="toc-backref" href="#id21">Register Bank</a><a class="headerlink" href="#register-bank" title="Permalink to this headline">¶</a></h3>
+<p>A Register Bank is a set of register classes defined by the target.
+A bank has a size, which is the maximum store size of all covered classes.</p>
+<p>In general, cross-class copies inside a bank are expected to be cheaper than
+copies across banks.  They are also coalesceable by the register coalescer,
+whereas cross-bank copies are not.</p>
+<p>Also, equivalent operations can be performed on different banks using different
+instructions.</p>
+<p>For example, X86 can be seen as having 3 main banks: general-purpose, x87, and
+vector (which could be further split into a bank per domain for single vs
+double precision instructions).</p>
+<p>Register banks are described by a target-provided API,
+<a class="reference internal" href="#api-registerbankinfo"><span class="std std-ref">RegisterBankInfo</span></a>.</p>
+</div>
+<div class="section" id="low-level-type">
+<span id="gmir-llt"></span><h3><a class="toc-backref" href="#id22">Low Level Type</a><a class="headerlink" href="#low-level-type" title="Permalink to this headline">¶</a></h3>
+<p>Additionally, every generic virtual register has a type, represented by an
+instance of the <code class="docutils literal"><span class="pre">LLT</span></code> class.</p>
+<p>Like <code class="docutils literal"><span class="pre">EVT</span></code>/<code class="docutils literal"><span class="pre">MVT</span></code>/<code class="docutils literal"><span class="pre">Type</span></code>, it has no distinction between unsigned and signed
+integer types.  Furthermore, it also has no distinction between integer and
+floating-point types: it mainly conveys absolutely necessary information, such
+as size and number of vector lanes:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">sN</span></code> for scalars</li>
+<li><code class="docutils literal"><span class="pre">pN</span></code> for pointers</li>
+<li><code class="docutils literal"><span class="pre">&lt;N</span> <span class="pre">x</span> <span class="pre">sM&gt;</span></code> for vectors</li>
+<li><code class="docutils literal"><span class="pre">unsized</span></code> for labels, etc..</li>
+</ul>
+<p><code class="docutils literal"><span class="pre">LLT</span></code> is intended to replace the usage of <code class="docutils literal"><span class="pre">EVT</span></code> in SelectionDAG.</p>
+<p>Here are some LLT examples and their <code class="docutils literal"><span class="pre">EVT</span></code> and <code class="docutils literal"><span class="pre">Type</span></code> equivalents:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="22%" />
+<col width="15%" />
+<col width="63%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">LLT</th>
+<th class="head">EVT</th>
+<th class="head">IR Type</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td><code class="docutils literal"><span class="pre">s1</span></code></td>
+<td><code class="docutils literal"><span class="pre">i1</span></code></td>
+<td><code class="docutils literal"><span class="pre">i1</span></code></td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal"><span class="pre">s8</span></code></td>
+<td><code class="docutils literal"><span class="pre">i8</span></code></td>
+<td><code class="docutils literal"><span class="pre">i8</span></code></td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal"><span class="pre">s32</span></code></td>
+<td><code class="docutils literal"><span class="pre">i32</span></code></td>
+<td><code class="docutils literal"><span class="pre">i32</span></code></td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal"><span class="pre">s32</span></code></td>
+<td><code class="docutils literal"><span class="pre">f32</span></code></td>
+<td><code class="docutils literal"><span class="pre">float</span></code></td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal"><span class="pre">s17</span></code></td>
+<td><code class="docutils literal"><span class="pre">i17</span></code></td>
+<td><code class="docutils literal"><span class="pre">i17</span></code></td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal"><span class="pre">s16</span></code></td>
+<td>N/A</td>
+<td><code class="docutils literal"><span class="pre">{i8,</span> <span class="pre">i8}</span></code></td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal"><span class="pre">s32</span></code></td>
+<td>N/A</td>
+<td><code class="docutils literal"><span class="pre">[4</span> <span class="pre">x</span> <span class="pre">i8]</span></code></td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal"><span class="pre">p0</span></code></td>
+<td><code class="docutils literal"><span class="pre">iPTR</span></code></td>
+<td><code class="docutils literal"><span class="pre">i8*</span></code>, <code class="docutils literal"><span class="pre">i32*</span></code>, <code class="docutils literal"><span class="pre">%opaque*</span></code></td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal"><span class="pre">p2</span></code></td>
+<td><code class="docutils literal"><span class="pre">iPTR</span></code></td>
+<td><code class="docutils literal"><span class="pre">i8</span> <span class="pre">addrspace(2)*</span></code></td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal"><span class="pre">&lt;4</span> <span class="pre">x</span> <span class="pre">s32&gt;</span></code></td>
+<td><code class="docutils literal"><span class="pre">v4f32</span></code></td>
+<td><code class="docutils literal"><span class="pre">&lt;4</span> <span class="pre">x</span> <span class="pre">float&gt;</span></code></td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal"><span class="pre">s64</span></code></td>
+<td><code class="docutils literal"><span class="pre">v1f64</span></code></td>
+<td><code class="docutils literal"><span class="pre">&lt;1</span> <span class="pre">x</span> <span class="pre">double&gt;</span></code></td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal"><span class="pre">&lt;3</span> <span class="pre">x</span> <span class="pre">s32&gt;</span></code></td>
+<td><code class="docutils literal"><span class="pre">v3i32</span></code></td>
+<td><code class="docutils literal"><span class="pre">&lt;3</span> <span class="pre">x</span> <span class="pre">i32&gt;</span></code></td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal"><span class="pre">unsized</span></code></td>
+<td><code class="docutils literal"><span class="pre">Other</span></code></td>
+<td><code class="docutils literal"><span class="pre">label</span></code></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Rationale: instructions already encode a specific interpretation of types
+(e.g., <code class="docutils literal"><span class="pre">add</span></code> vs. <code class="docutils literal"><span class="pre">fadd</span></code>, or <code class="docutils literal"><span class="pre">sdiv</span></code> vs. <code class="docutils literal"><span class="pre">udiv</span></code>).  Also encoding that
+information in the type system requires introducing bitcast with no real
+advantage for the selector.</p>
+<p>Pointer types are distinguished by address space.  This matches IR, as opposed
+to SelectionDAG where address space is an attribute on operations.
+This representation better supports pointers having different sizes depending
+on their addressspace.</p>
+<p><code class="docutils literal"><span class="pre">NOTE</span></code>:
+Currently, LLT requires at least 2 elements in vectors, but some targets have
+the concept of a ‘1-element vector’.  Representing them as their underlying
+scalar type is a nice simplification.</p>
+<p><code class="docutils literal"><span class="pre">TODO</span></code>:
+Currently, non-generic virtual registers, defined by non-pre-isel-generic
+instructions, cannot have a type, and thus cannot be used by a pre-isel generic
+instruction.  Instead, they are given a type using a COPY.  We could relax that
+and allow types on all vregs: this would reduce the number of MI required when
+emitting target-specific MIR early in the pipeline.  This should purely be
+a compile-time optimization.</p>
+</div>
+</div>
+<div class="section" id="core-pipeline">
+<span id="pipeline"></span><h2><a class="toc-backref" href="#id14">Core Pipeline</a><a class="headerlink" href="#core-pipeline" title="Permalink to this headline">¶</a></h2>
+<p>There are four required passes, regardless of the optimization mode:</p>
+<div class="contents local topic" id="id2">
+<ul class="simple">
+<li><a class="reference internal" href="#irtranslator" id="id23">IRTranslator</a><ul>
+<li><a class="reference internal" href="#api-calllowering" id="id24">API: CallLowering</a></li>
+<li><a class="reference internal" href="#aggregates" id="id25">Aggregates</a></li>
+<li><a class="reference internal" href="#constant-lowering" id="id26">Constant Lowering</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#legalizer" id="id27">Legalizer</a><ul>
+<li><a class="reference internal" href="#api-legalizerinfo" id="id28">API: LegalizerInfo</a></li>
+<li><a class="reference internal" href="#non-power-of-2-types" id="id29">Non-power of 2 types</a></li>
+<li><a class="reference internal" href="#vector-types" id="id30">Vector types</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#regbankselect" id="id31">RegBankSelect</a><ul>
+<li><a class="reference internal" href="#api-registerbankinfo" id="id32">API: RegisterBankInfo</a></li>
+<li><a class="reference internal" href="#regbankselect-modes" id="id33">RegBankSelect Modes</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#instructionselect" id="id34">InstructionSelect</a><ul>
+<li><a class="reference internal" href="#api-instructionselector" id="id35">API: InstructionSelector</a></li>
+<li><a class="reference internal" href="#selectiondag-rule-imports" id="id36">SelectionDAG Rule Imports</a></li>
+<li><a class="reference internal" href="#patleaf-predicates" id="id37">PatLeaf Predicates</a></li>
+<li><a class="reference internal" href="#custom-sdnodes" id="id38">Custom SDNodes</a></li>
+<li><a class="reference internal" href="#complexpatterns" id="id39">ComplexPatterns</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<p>Additional passes can then be inserted at higher optimization levels or for
+specific targets. For example, to match the current SelectionDAG set of
+transformations: MachineCSE and a better MachineCombiner between every pass.</p>
+<p><code class="docutils literal"><span class="pre">NOTE</span></code>:
+In theory, not all passes are always necessary.
+As an additional compile-time optimization, we could skip some of the passes by
+setting the relevant MachineFunction properties.  For instance, if the
+IRTranslator did not encounter any illegal instruction, it would set the
+<code class="docutils literal"><span class="pre">legalized</span></code> property to avoid running the <a class="reference internal" href="#milegalizer"><span class="std std-ref">Legalizer</span></a>.
+Similarly, we considered specializing the IRTranslator per-target to directly
+emit target-specific MI.
+However, we instead decided to keep the core pipeline simple, and focus on
+minimizing the overhead of the passes in the no-op cases.</p>
+<div class="section" id="irtranslator">
+<span id="id3"></span><h3><a class="toc-backref" href="#id23">IRTranslator</a><a class="headerlink" href="#irtranslator" title="Permalink to this headline">¶</a></h3>
+<p>This pass translates the input LLVM IR <code class="docutils literal"><span class="pre">Function</span></code> to a GMIR
+<code class="docutils literal"><span class="pre">MachineFunction</span></code>.</p>
+<p><code class="docutils literal"><span class="pre">TODO</span></code>:
+This currently doesn’t support the more complex instructions, in particular
+those involving control flow (<code class="docutils literal"><span class="pre">switch</span></code>, <code class="docutils literal"><span class="pre">invoke</span></code>, …).
+For <code class="docutils literal"><span class="pre">switch</span></code> in particular, we can initially use the <code class="docutils literal"><span class="pre">LowerSwitch</span></code> pass.</p>
+<div class="section" id="api-calllowering">
+<span id="id4"></span><h4><a class="toc-backref" href="#id24">API: CallLowering</a><a class="headerlink" href="#api-calllowering" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">IRTranslator</span></code> (using the <code class="docutils literal"><span class="pre">CallLowering</span></code> target-provided utility) also
+implements the ABI’s calling convention by lowering calls, returns, and
+arguments to the appropriate physical register usage and instruction sequences.</p>
+</div>
+<div class="section" id="aggregates">
+<span id="irtranslator-aggregates"></span><h4><a class="toc-backref" href="#id25">Aggregates</a><a class="headerlink" href="#aggregates" title="Permalink to this headline">¶</a></h4>
+<p>Aggregates are lowered to a single scalar vreg.
+This differs from SelectionDAG’s multiple vregs via <code class="docutils literal"><span class="pre">GetValueVTs</span></code>.</p>
+<p><code class="docutils literal"><span class="pre">TODO</span></code>:
+As some of the bits are undef (padding), we should consider augmenting the
+representation with additional metadata (in effect, caching computeKnownBits
+information on vregs).
+See <a class="reference external" href="http://llvm.org/PR26161">PR26161</a>: [GlobalISel] Value to vreg during
+IR to MachineInstr translation for aggregate type</p>
+</div>
+<div class="section" id="constant-lowering">
+<span id="irtranslator-constants"></span><h4><a class="toc-backref" href="#id26">Constant Lowering</a><a class="headerlink" href="#constant-lowering" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">IRTranslator</span></code> lowers <code class="docutils literal"><span class="pre">Constant</span></code> operands into uses of gvregs defined
+by <code class="docutils literal"><span class="pre">G_CONSTANT</span></code> or <code class="docutils literal"><span class="pre">G_FCONSTANT</span></code> instructions.
+Currently, these instructions are always emitted in the entry basic block.
+In a <code class="docutils literal"><span class="pre">MachineFunction</span></code>, each <code class="docutils literal"><span class="pre">Constant</span></code> is materialized by a single gvreg.</p>
+<p>This is beneficial as it allows us to fold constants into immediate operands
+during <a class="reference internal" href="#instructionselect"><span class="std std-ref">InstructionSelect</span></a>, while still avoiding redundant materializations
+for expensive non-foldable constants.
+However, this can lead to unnecessary spills and reloads in an -O0 pipeline, as
+these vregs can have long live ranges.</p>
+<p><code class="docutils literal"><span class="pre">TODO</span></code>:
+We’re investigating better placement of these instructions, in fast and
+optimized modes.</p>
+</div>
+</div>
+<div class="section" id="legalizer">
+<span id="milegalizer"></span><h3><a class="toc-backref" href="#id27">Legalizer</a><a class="headerlink" href="#legalizer" title="Permalink to this headline">¶</a></h3>
+<p>This pass transforms the generic machine instructions such that they are legal.</p>
+<p>A legal instruction is defined as:</p>
+<ul class="simple">
+<li><strong>selectable</strong> — the target will later be able to select it to a
+target-specific (non-generic) instruction.</li>
+<li>operating on <strong>vregs that can be loaded and stored</strong> – if necessary, the
+target can select a <code class="docutils literal"><span class="pre">G_LOAD</span></code>/<code class="docutils literal"><span class="pre">G_STORE</span></code> of each gvreg operand.</li>
+</ul>
+<p>As opposed to SelectionDAG, there are no legalization phases.  In particular,
+‘type’ and ‘operation’ legalization are not separate.</p>
+<p>Legalization is iterative, and all state is contained in GMIR.  To maintain the
+validity of the intermediate code, instructions are introduced:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">G_MERGE_VALUES</span></code> — concatenate multiple registers of the same
+size into a single wider register.</li>
+<li><code class="docutils literal"><span class="pre">G_UNMERGE_VALUES</span></code> — extract multiple registers of the same size
+from a single wider register.</li>
+<li><code class="docutils literal"><span class="pre">G_EXTRACT</span></code> — extract a simple register (as contiguous sequences of bits)
+from a single wider register.</li>
+</ul>
+<p>As they are expected to be temporary byproducts of the legalization process,
+they are combined at the end of the <a class="reference internal" href="#milegalizer"><span class="std std-ref">Legalizer</span></a> pass.
+If any remain, they are expected to always be selectable, using loads and stores
+if necessary.</p>
+<div class="section" id="api-legalizerinfo">
+<span id="id5"></span><h4><a class="toc-backref" href="#id28">API: LegalizerInfo</a><a class="headerlink" href="#api-legalizerinfo" title="Permalink to this headline">¶</a></h4>
+<p>Currently the API is broadly similar to SelectionDAG/TargetLowering, but
+extended in two ways:</p>
+<ul class="simple">
+<li>The set of available actions is wider, avoiding the currently very
+overloaded <code class="docutils literal"><span class="pre">Expand</span></code> (which can cover everything from libcalls to
+scalarization depending on the node’s opcode).</li>
+<li>Since there’s no separate type legalization, independently varying
+types on an instruction can have independent actions. For example a
+<code class="docutils literal"><span class="pre">G_ICMP</span></code> has 2 independent types: the result and the inputs; we need
+to be able to say that comparing 2 s32s is OK, but the s1 result
+must be dealt with in another way.</li>
+</ul>
+<p>As such, the primary key when deciding what to do is the <code class="docutils literal"><span class="pre">InstrAspect</span></code>,
+essentially a tuple consisting of <code class="docutils literal"><span class="pre">(Opcode,</span> <span class="pre">TypeIdx,</span> <span class="pre">Type)</span></code> and mapping to a
+suggested course of action.</p>
+<p>An example use might be:</p>
+<blockquote>
+<div><div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// The CPU can&#39;t deal with an s1 result, do something about it.</span>
+<span class="n">setAction</span><span class="p">({</span><span class="n">G_ICMP</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">s1</span><span class="p">},</span> <span class="n">WidenScalar</span><span class="p">);</span>
+<span class="c1">// An s32 input (the second type) is fine though.</span>
+<span class="n">setAction</span><span class="p">({</span><span class="n">G_ICMP</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">s32</span><span class="p">},</span> <span class="n">Legal</span><span class="p">);</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p><code class="docutils literal"><span class="pre">TODO</span></code>:
+An alternative worth investigating is to generalize the API to represent
+actions using <code class="docutils literal"><span class="pre">std::function</span></code> that implements the action, instead of explicit
+enum tokens (<code class="docutils literal"><span class="pre">Legal</span></code>, <code class="docutils literal"><span class="pre">WidenScalar</span></code>, …).</p>
+<p><code class="docutils literal"><span class="pre">TODO</span></code>:
+Moreover, we could use TableGen to initially infer legality of operation from
+existing patterns (as any pattern we can select is by definition legal).
+Expanding that to describe legalization actions is a much larger but
+potentially useful project.</p>
+</div>
+<div class="section" id="non-power-of-2-types">
+<span id="milegalizer-non-power-of-2"></span><h4><a class="toc-backref" href="#id29">Non-power of 2 types</a><a class="headerlink" href="#non-power-of-2-types" title="Permalink to this headline">¶</a></h4>
+<p><code class="docutils literal"><span class="pre">TODO</span></code>:
+Types which have a size that isn’t a power of 2 aren’t currently supported.
+The setAction API will probably require changes to support them.
+Even notionally explicitly specified operations only make suggestions
+like “Widen” or “Narrow”. The eventual type is still unspecified and a
+search is performed by repeated doubling/halving of the type’s
+size.
+This is incorrect for types that aren’t a power of 2.  It’s reasonable to
+expect we could construct an efficient set of side-tables for more general
+lookups though, encoding a map from the integers (i.e. the size of the current
+type) to types (the legal size).</p>
+</div>
+<div class="section" id="vector-types">
+<span id="milegalizer-vector"></span><h4><a class="toc-backref" href="#id30">Vector types</a><a class="headerlink" href="#vector-types" title="Permalink to this headline">¶</a></h4>
+<p>Vectors first get their element type legalized: <code class="docutils literal"><span class="pre">&lt;A</span> <span class="pre">x</span> <span class="pre">sB&gt;</span></code> becomes
+<code class="docutils literal"><span class="pre">&lt;A</span> <span class="pre">x</span> <span class="pre">sC&gt;</span></code> such that at least one operation is legal with <code class="docutils literal"><span class="pre">sC</span></code>.</p>
+<p>This is currently specified by the function <code class="docutils literal"><span class="pre">setScalarInVectorAction</span></code>, called
+for example as:</p>
+<blockquote>
+<div>setScalarInVectorAction(G_ICMP, s1, WidenScalar);</div></blockquote>
+<p>Next the number of elements is chosen so that the entire operation is
+legal. This aspect is not controllable at the moment, but probably
+should be (you could imagine disagreements on whether a <code class="docutils literal"><span class="pre">&lt;2</span> <span class="pre">x</span> <span class="pre">s8&gt;</span></code>
+operation should be scalarized or extended to <code class="docutils literal"><span class="pre">&lt;8</span> <span class="pre">x</span> <span class="pre">s8&gt;</span></code>).</p>
+</div>
+</div>
+<div class="section" id="regbankselect">
+<span id="id6"></span><h3><a class="toc-backref" href="#id31">RegBankSelect</a><a class="headerlink" href="#regbankselect" title="Permalink to this headline">¶</a></h3>
+<p>This pass constrains the <a class="reference internal" href="#gmir-gvregs"><span class="std std-ref">Generic Virtual Registers</span></a> operands of generic
+instructions to some <a class="reference internal" href="#gmir-regbank"><span class="std std-ref">Register Bank</span></a>.</p>
+<p>It iteratively maps instructions to a set of per-operand bank assignment.
+The possible mappings are determined by the target-provided
+<a class="reference internal" href="#api-registerbankinfo"><span class="std std-ref">RegisterBankInfo</span></a>.
+The mapping is then applied, possibly introducing <code class="docutils literal"><span class="pre">COPY</span></code> instructions if
+necessary.</p>
+<p>It traverses the <code class="docutils literal"><span class="pre">MachineFunction</span></code> top down so that all operands are already
+mapped when analyzing an instruction.</p>
+<p>This pass could also remap target-specific instructions when beneficial.
+In the future, this could replace the ExeDepsFix pass, as we can directly
+select the best variant for an instruction that’s available on multiple banks.</p>
+<div class="section" id="api-registerbankinfo">
+<span id="id7"></span><h4><a class="toc-backref" href="#id32">API: RegisterBankInfo</a><a class="headerlink" href="#api-registerbankinfo" title="Permalink to this headline">¶</a></h4>
+<p>The <code class="docutils literal"><span class="pre">RegisterBankInfo</span></code> class describes multiple aspects of register banks.</p>
+<ul class="simple">
+<li><strong>Banks</strong>: <code class="docutils literal"><span class="pre">addRegBankCoverage</span></code> — which register bank covers each
+register class.</li>
+<li><strong>Cross-Bank Copies</strong>: <code class="docutils literal"><span class="pre">copyCost</span></code> — the cost of a <code class="docutils literal"><span class="pre">COPY</span></code> from one bank
+to another.</li>
+<li><strong>Default Mapping</strong>: <code class="docutils literal"><span class="pre">getInstrMapping</span></code> — the default bank assignments for
+a given instruction.</li>
+<li><strong>Alternative Mapping</strong>: <code class="docutils literal"><span class="pre">getInstrAlternativeMapping</span></code> — the other
+possible bank assignments for a given instruction.</li>
+</ul>
+<p><code class="docutils literal"><span class="pre">TODO</span></code>:
+All this information should eventually be static and generated by TableGen,
+mostly using existing information augmented by bank descriptions.</p>
+<p><code class="docutils literal"><span class="pre">TODO</span></code>:
+<code class="docutils literal"><span class="pre">getInstrMapping</span></code> is currently separate from <code class="docutils literal"><span class="pre">getInstrAlternativeMapping</span></code>
+because the latter is more expensive: as we move to static mapping info,
+both methods should be free, and we should merge them.</p>
+</div>
+<div class="section" id="regbankselect-modes">
+<span id="id8"></span><h4><a class="toc-backref" href="#id33">RegBankSelect Modes</a><a class="headerlink" href="#regbankselect-modes" title="Permalink to this headline">¶</a></h4>
+<p><code class="docutils literal"><span class="pre">RegBankSelect</span></code> currently has two modes:</p>
+<ul class="simple">
+<li><strong>Fast</strong> — For each instruction, pick a target-provided “default” bank
+assignment.  This is the default at -O0.</li>
+<li><strong>Greedy</strong> — For each instruction, pick the cheapest of several
+target-provided bank assignment alternatives.</li>
+</ul>
+<p>We intend to eventually introduce an additional optimizing mode:</p>
+<ul class="simple">
+<li><strong>Global</strong> — Across multiple instructions, pick the cheapest combination of
+bank assignments.</li>
+</ul>
+<p><code class="docutils literal"><span class="pre">NOTE</span></code>:
+On AArch64, we are considering using the Greedy mode even at -O0 (or perhaps at
+backend -O1):  because <a class="reference internal" href="#gmir-llt"><span class="std std-ref">Low Level Type</span></a> doesn’t distinguish floating point from
+integer scalars, the default assignment for loads and stores is the integer
+bank, introducing cross-bank copies on most floating point operations.</p>
+</div>
+</div>
+<div class="section" id="instructionselect">
+<span id="id9"></span><h3><a class="toc-backref" href="#id34">InstructionSelect</a><a class="headerlink" href="#instructionselect" title="Permalink to this headline">¶</a></h3>
+<p>This pass transforms generic machine instructions into equivalent
+target-specific instructions.  It traverses the <code class="docutils literal"><span class="pre">MachineFunction</span></code> bottom-up,
+selecting uses before definitions, enabling trivial dead code elimination.</p>
+<div class="section" id="api-instructionselector">
+<span id="id10"></span><h4><a class="toc-backref" href="#id35">API: InstructionSelector</a><a class="headerlink" href="#api-instructionselector" title="Permalink to this headline">¶</a></h4>
+<p>The target implements the <code class="docutils literal"><span class="pre">InstructionSelector</span></code> class, containing the
+target-specific selection logic proper.</p>
+<p>The instance is provided by the subtarget, so that it can specialize the
+selector by subtarget feature (with, e.g., a vector selector overriding parts
+of a general-purpose common selector).
+We might also want to parameterize it by MachineFunction, to enable selector
+variants based on function attributes like optsize.</p>
+<p>The simple API consists of:</p>
+<blockquote>
+<div><div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">virtual</span> <span class="kt">bool</span> <span class="n">select</span><span class="p">(</span><span class="n">MachineInstr</span> <span class="o">&amp;</span><span class="n">MI</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>This target-provided method is responsible for mutating (or replacing) a
+possibly-generic MI into a fully target-specific equivalent.
+It is also responsible for doing the necessary constraining of gvregs into the
+appropriate register classes as well as passing through COPY instructions to
+the register allocator.</p>
+<p>The <code class="docutils literal"><span class="pre">InstructionSelector</span></code> can fold other instructions into the selected MI,
+by walking the use-def chain of the vreg operands.
+As GlobalISel is Global, this folding can occur across basic blocks.</p>
+</div>
+<div class="section" id="selectiondag-rule-imports">
+<h4><a class="toc-backref" href="#id36">SelectionDAG Rule Imports</a><a class="headerlink" href="#selectiondag-rule-imports" title="Permalink to this headline">¶</a></h4>
+<p>TableGen will import SelectionDAG rules and provide the following function to
+execute them:</p>
+<blockquote>
+<div><div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">bool</span> <span class="n">selectImpl</span><span class="p">(</span><span class="n">MachineInstr</span> <span class="o">&amp;</span><span class="n">MI</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>The <code class="docutils literal"><span class="pre">--stats</span></code> option can be used to determine what proportion of rules were
+successfully imported. The easiest way to use this is to copy the
+<code class="docutils literal"><span class="pre">-gen-globalisel</span></code> tablegen command from <code class="docutils literal"><span class="pre">ninja</span> <span class="pre">-v</span></code> and modify it.</p>
+<p>Similarly, the <code class="docutils literal"><span class="pre">--warn-on-skipped-patterns</span></code> option can be used to obtain the
+reasons that rules weren’t imported. This can be used to focus on the most
+important rejection reasons.</p>
+</div>
+<div class="section" id="patleaf-predicates">
+<h4><a class="toc-backref" href="#id37">PatLeaf Predicates</a><a class="headerlink" href="#patleaf-predicates" title="Permalink to this headline">¶</a></h4>
+<p>PatLeafs cannot be imported because their C++ is implemented in terms of
+<code class="docutils literal"><span class="pre">SDNode</span></code> objects. PatLeafs that handle immediate predicates should be
+replaced by <code class="docutils literal"><span class="pre">ImmLeaf</span></code>, <code class="docutils literal"><span class="pre">IntImmLeaf</span></code>, or <code class="docutils literal"><span class="pre">FPImmLeaf</span></code> as appropriate.</p>
+<p>There’s no standard answer for other PatLeafs. Some standard predicates have
+been baked into TableGen but this should not generally be done.</p>
+</div>
+<div class="section" id="custom-sdnodes">
+<h4><a class="toc-backref" href="#id38">Custom SDNodes</a><a class="headerlink" href="#custom-sdnodes" title="Permalink to this headline">¶</a></h4>
+<p>Custom SDNodes should be mapped to Target Pseudos using <code class="docutils literal"><span class="pre">GINodeEquiv</span></code>. This
+will cause the instruction selector to import them but you will also need to
+ensure the target pseudo is introduced to the MIR before the instruction
+selector. Any preceeding pass is suitable but the legalizer will be a
+particularly common choice.</p>
+</div>
+<div class="section" id="complexpatterns">
+<h4><a class="toc-backref" href="#id39">ComplexPatterns</a><a class="headerlink" href="#complexpatterns" title="Permalink to this headline">¶</a></h4>
+<p>ComplexPatterns cannot be imported because their C++ is implemented in terms of
+<code class="docutils literal"><span class="pre">SDNode</span></code> objects. GlobalISel versions should be defined with
+<code class="docutils literal"><span class="pre">GIComplexOperandMatcher</span></code> and mapped to ComplexPattern with
+<code class="docutils literal"><span class="pre">GIComplexPatternEquiv</span></code>.</p>
+<p>The following predicates are useful for porting ComplexPattern:</p>
+<ul class="simple">
+<li>isBaseWithConstantOffset() - Check for base+offset structures</li>
+<li>isOperandImmEqual() - Check for a particular constant</li>
+<li>isObviouslySafeToFold() - Check for reasons an instruction can’t be sunk and folded into another.</li>
+</ul>
+<p>There are some important points for the C++ implementation:</p>
+<ul class="simple">
+<li>Don’t modify MIR in the predicate</li>
+<li>Renderer lambdas should capture by value to avoid use-after-free. They will be used after the predicate returns.</li>
+<li>Only create instructions in a renderer lambda. GlobalISel won’t clean up things you create but don’t use.</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="section" id="maintainability">
+<span id="id11"></span><h2><a class="toc-backref" href="#id15">Maintainability</a><a class="headerlink" href="#maintainability" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="iterative-transformations">
+<span id="maintainability-iterative"></span><h3>Iterative Transformations<a class="headerlink" href="#iterative-transformations" title="Permalink to this headline">¶</a></h3>
+<p>Passes are split into small, iterative transformations, with all state
+represented in the MIR.</p>
+<p>This differs from SelectionDAG (in particular, the legalizer) using various
+in-memory side-tables.</p>
+</div>
+<div class="section" id="mir-serialization">
+<span id="maintainability-mir"></span><h3>MIR Serialization<a class="headerlink" href="#mir-serialization" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference internal" href="#gmir"><span class="std std-ref">Generic Machine IR</span></a> is serializable (see <a class="reference internal" href="MIRLangRef.html"><span class="doc">Machine IR (MIR) Format Reference Manual</span></a>).
+Combined with <a class="reference internal" href="#maintainability-iterative"><span class="std std-ref">Iterative Transformations</span></a>, this enables much finer-grained
+testing, rather than requiring large and fragile IR-to-assembly tests.</p>
+<p>The current “stage” in the <a class="reference internal" href="#pipeline"><span class="std std-ref">Core Pipeline</span></a> is represented by a set of
+<code class="docutils literal"><span class="pre">MachineFunctionProperties</span></code>:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">legalized</span></code></li>
+<li><code class="docutils literal"><span class="pre">regBankSelected</span></code></li>
+<li><code class="docutils literal"><span class="pre">selected</span></code></li>
+</ul>
+</div>
+<div class="section" id="machineverifier">
+<span id="maintainability-verifier"></span><h3>MachineVerifier<a class="headerlink" href="#machineverifier" title="Permalink to this headline">¶</a></h3>
+<p>The pass approach lets us use the <code class="docutils literal"><span class="pre">MachineVerifier</span></code> to enforce invariants.
+For instance, a <code class="docutils literal"><span class="pre">regBankSelected</span></code> function may not have gvregs without
+a bank.</p>
+<p><code class="docutils literal"><span class="pre">TODO</span></code>:
+The <code class="docutils literal"><span class="pre">MachineVerifier</span></code> being monolithic, some of the checks we want to do
+can’t be integrated to it:  GlobalISel is a separate library, so we can’t
+directly reference it from CodeGen.  For instance, legality checks are
+currently done in RegBankSelect/InstructionSelect proper.  We could #ifdef out
+the checks, or we could add some sort of verifier API.</p>
+</div>
+</div>
+<div class="section" id="progress-and-future-work">
+<span id="progress"></span><h2><a class="toc-backref" href="#id16">Progress and Future Work</a><a class="headerlink" href="#progress-and-future-work" title="Permalink to this headline">¶</a></h2>
+<p>The initial goal is to replace FastISel on AArch64.  The next step will be to
+replace SelectionDAG as the optimized ISel.</p>
+<p><code class="docutils literal"><span class="pre">NOTE</span></code>:
+While we iterate on GlobalISel, we strive to avoid affecting the performance of
+SelectionDAG, FastISel, or the other MIR passes.  For instance, the types of
+<a class="reference internal" href="#gmir-gvregs"><span class="std std-ref">Generic Virtual Registers</span></a> are stored in a separate table in <code class="docutils literal"><span class="pre">MachineRegisterInfo</span></code>,
+that is destroyed after <a class="reference internal" href="#instructionselect"><span class="std std-ref">InstructionSelect</span></a>.</p>
+<div class="section" id="fastisel-replacement">
+<span id="progress-fastisel"></span><h3>FastISel Replacement<a class="headerlink" href="#fastisel-replacement" title="Permalink to this headline">¶</a></h3>
+<p>For the initial FastISel replacement, we intend to fallback to SelectionDAG on
+selection failures.</p>
+<p>Currently, compile-time of the fast pipeline is within 1.5x of FastISel.
+We’re optimistic we can get to within 1.1/1.2x, but beating FastISel will be
+challenging given the multi-pass approach.
+Still, supporting all IR (via a complete legalizer) and avoiding the fallback
+to SelectionDAG in the worst case should enable better amortized performance
+than SelectionDAG+FastISel.</p>
+<p><code class="docutils literal"><span class="pre">NOTE</span></code>:
+We considered never having a fallback to SelectionDAG, instead deciding early
+whether a given function is supported by GlobalISel or not.  The decision would
+be based on <a class="reference internal" href="#milegalizer"><span class="std std-ref">Legalizer</span></a> queries.
+We abandoned that for two reasons:
+a) on IR inputs, we’d need to basically simulate the <a class="reference internal" href="#irtranslator"><span class="std std-ref">IRTranslator</span></a>;
+b) to be robust against unforeseen failures and to enable iterative
+improvements.</p>
+</div>
+<div class="section" id="support-for-other-targets">
+<span id="progress-targets"></span><h3>Support For Other Targets<a class="headerlink" href="#support-for-other-targets" title="Permalink to this headline">¶</a></h3>
+<p>In parallel, we’re investigating adding support for other - ideally quite
+different - targets.  For instance, there is some initial AMDGPU support.</p>
+</div>
+</div>
+<div class="section" id="porting-globalisel-to-a-new-target">
+<span id="porting"></span><h2><a class="toc-backref" href="#id17">Porting GlobalISel to A New Target</a><a class="headerlink" href="#porting-globalisel-to-a-new-target" title="Permalink to this headline">¶</a></h2>
+<p>There are four major classes to implement by the target:</p>
+<ul class="simple">
+<li><a class="reference internal" href="#api-calllowering"><span class="std std-ref">CallLowering</span></a> — lower calls, returns, and arguments
+according to the ABI.</li>
+<li><a class="reference internal" href="#api-registerbankinfo"><span class="std std-ref">RegisterBankInfo</span></a> — describe
+<a class="reference internal" href="#gmir-regbank"><span class="std std-ref">Register Bank</span></a> coverage, cross-bank copy cost, and the mapping of
+operands onto banks for each instruction.</li>
+<li><a class="reference internal" href="#api-legalizerinfo"><span class="std std-ref">LegalizerInfo</span></a> — describe what is legal, and how
+to legalize what isn’t.</li>
+<li><a class="reference internal" href="#api-instructionselector"><span class="std std-ref">InstructionSelector</span></a> — select generic MIR
+to target-specific MIR.</li>
+</ul>
+<p>Additionally:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">TargetPassConfig</span></code> — create the passes constituting the pipeline,
+including additional passes not included in the <a class="reference internal" href="#pipeline"><span class="std std-ref">Core Pipeline</span></a>.</li>
+</ul>
+</div>
+<div class="section" id="resources">
+<span id="other-resources"></span><h2><a class="toc-backref" href="#id18">Resources</a><a class="headerlink" href="#resources" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><a class="reference external" href="https://www.youtube.com/watch?v=F6GGbYtae3g">Global Instruction Selection - A Proposal by Quentin Colombet &#64;LLVMDevMeeting 2015</a></li>
+<li><a class="reference external" href="https://www.youtube.com/watch?v=6tfb344A7w8">Global Instruction Selection - Status by Quentin Colombet, Ahmed Bougacha, and Tim Northover &#64;LLVMDevMeeting 2016</a></li>
+<li><a class="reference external" href="https://www.youtube.com/watch?v=d6dF6E4BPeU">GlobalISel - LLVM’s Latest Instruction Selection Framework by Diana Picus &#64;FOSDEM17</a></li>
+<li>GlobalISel: Past, Present, and Future by Quentin Colombet and Ahmed Bougacha &#64;LLVMDevMeeting 2017</li>
+<li>Head First into GlobalISel by Daniel Sanders, Aditya Nandakumar, and Justin Bogner &#64;LLVMDevMeeting 2017</li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="XRay.html" title="XRay Instrumentation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="Coroutines.html" title="Coroutines in LLVM"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

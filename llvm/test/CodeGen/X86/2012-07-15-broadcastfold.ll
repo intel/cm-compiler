@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=x86 -mcpu=corei7 -mattr=+avx2 | FileCheck %s
+; RUN: llc < %s -mtriple=i686-- -mcpu=corei7 -mattr=+avx2 | FileCheck %s
 
 declare x86_fastcallcc i64 @barrier()
 
@@ -9,7 +9,7 @@ declare x86_fastcallcc i64 @barrier()
 ;CHECK: ret
 define <8 x float> @bcast_fold( float* %A) {
 BB:
-  %A0 = load float* %A
+  %A0 = load float, float* %A
   %tt3 = call x86_fastcallcc i64 @barrier()
   br i1 undef, label %work, label %exit
 

@@ -429,7 +429,7 @@ let TargetPrefix = "genx" in {  // All intrinsics start with "llvm.genx.".
   /// The elements of the returned struct are calculated as follows:
   ///
   /// * NewEM = OldEM & (SimdCond one extended to v16i1)
-  /// * NewRM = OldRM | ~(SimdCond & (OldEM truncated to size of SimdCond))
+  /// * NewRM = OldRM | (OldEM & ~(SimdCond & (OldEM truncated to size of SimdCond)))
   /// * BranchCond = !any(NewEM truncated to size of SimdCond)
   /// 
   /// ``llvm.genx.simdcf.goto`` represents a Gen goto instruction, taking a

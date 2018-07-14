@@ -17,11 +17,11 @@ entry:
   br i1 %4, label %bb1, label %bb
 
 bb:                                               ; preds = %entry
-  %5 = tail call i32 (...)* @foo() nounwind       ; <i32> [#uses=1]
+  %5 = tail call i32 (...) @foo() nounwind       ; <i32> [#uses=1]
   ret i32 %5
 
 bb1:                                              ; preds = %entry
-  %6 = tail call i32 (...)* @bar() nounwind       ; <i32> [#uses=1]
+  %6 = tail call i32 (...) @bar() nounwind       ; <i32> [#uses=1]
   ret i32 %6
 }
 
@@ -29,45 +29,6 @@ declare i32 @foo(...)
 
 declare i32 @bar(...)
 
-
-
-; PR3351 - (P == 0) & (Q == 0) -> (P|Q) == 0
-define i32 @test2(i32* %P, i32* %Q) nounwind ssp {
-entry:
-  %a = icmp eq i32* %P, null                    ; <i1> [#uses=1]
-  %b = icmp eq i32* %Q, null                    ; <i1> [#uses=1]
-  %c = and i1 %a, %b
-  br i1 %c, label %bb1, label %return
-
-bb1:                                              ; preds = %entry
-  ret i32 4
-
-return:                                           ; preds = %entry
-  ret i32 192
-; CHECK-LABEL: test2:
-; CHECK:	movl	4(%esp), %eax
-; CHECK-NEXT:	orl	8(%esp), %eax
-; CHECK-NEXT:	jne	LBB1_2
-}
-
-; PR3351 - (P != 0) | (Q != 0) -> (P|Q) != 0
-define i32 @test3(i32* %P, i32* %Q) nounwind ssp {
-entry:
-  %a = icmp ne i32* %P, null                    ; <i1> [#uses=1]
-  %b = icmp ne i32* %Q, null                    ; <i1> [#uses=1]
-  %c = or i1 %a, %b
-  br i1 %c, label %bb1, label %return
-
-bb1:                                              ; preds = %entry
-  ret i32 4
-
-return:                                           ; preds = %entry
-  ret i32 192
-; CHECK-LABEL: test3:
-; CHECK:	movl	4(%esp), %eax
-; CHECK-NEXT:	orl	8(%esp), %eax
-; CHECK-NEXT:	je	LBB2_2
-}
 
 ; <rdar://problem/7598384>:
 ;

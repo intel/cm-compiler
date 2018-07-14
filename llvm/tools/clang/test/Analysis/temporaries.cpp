@@ -1,8 +1,9 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,debug.ExprInspection -verify -w -std=c++03 %s
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,debug.ExprInspection -verify -w -std=c++11 %s
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,debug.ExprInspection -DTEMPORARY_DTORS -verify -w -analyzer-config cfg-temporary-dtors=true %s 
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,debug.ExprInspection -verify -w -std=c++03 %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,debug.ExprInspection -verify -w -std=c++11 %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,debug.ExprInspection -DTEMPORARY_DTORS -verify -w -analyzer-config cfg-temporary-dtors=true %s -std=c++11
 
 extern bool clang_analyzer_eval(bool);
+extern bool clang_analyzer_warnIfReached();
 
 struct Trivial {
   Trivial(int x) : value(x) {}
@@ -111,13 +112,13 @@ namespace compound_literals {
 }
 
 namespace destructors {
-  void testPR16664andPR18159Crash() {
-    struct Dtor {
-      ~Dtor();
-    };
-    extern bool coin();
-    extern bool check(const Dtor &);
+  struct Dtor {
+    ~Dtor();
+  };
+  extern bool coin();
+  extern bool check(const Dtor &);
 
+  void testPR16664andPR18159Crash() {
     // Regression test: we used to assert here when tmp dtors are enabled.
     // PR16664 and PR18159
     if (coin() && (coin() || coin() || check(Dtor()))) {
@@ -193,8 +194,7 @@ namespace destructors {
                 (i == 4 || i == 4 ||
                  compute(i == 5 && (i == 4 || check(NoReturnDtor()))))) ||
         i != 4) {
-      // FIXME: This shouldn't cause a warning.
-      clang_analyzer_eval(true);  // expected-warning{{TRUE}}
+      clang_analyzer_eval(true);  // no warning, unreachable code
     }
   }
 
@@ -211,8 +211,7 @@ namespace destructors {
   void testConsistencyNestedComplex(bool value) {
     if (value) {
       if (!value || !value || check(NoReturnDtor())) {
-        // FIXME: This shouldn't cause a warning.
-        clang_analyzer_eval(true); // expected-warning{{TRUE}}
+        clang_analyzer_eval(true);  // no warning, unreachable code
       }
     }
   }
@@ -225,6 +224,114 @@ namespace destructors {
       }
     }
   }
+  // PR16664 and PR18159
+  void testConsistencyNestedComplexMidBranch(bool value) {
+    if (value) {
+      if (!value || !value || check(NoReturnDtor()) || value) {
+        clang_analyzer_eval(true);  // no warning, unreachable code
+      }
+    }
+  }
+
+  // PR16664 and PR18159
+  void testConsistencyNestedComplexNestedBranch(bool value) {
+    if (value) {
+      if (!value || (!value || check(NoReturnDtor()) || value)) {
+        clang_analyzer_eval(true);  // no warning, unreachable code
+      }
+    }
+  }
+
+  // PR16664 and PR18159
+  void testConsistencyNestedVariableModification(bool value) {
+    bool other = true;
+    if (value) {
+      if (!other || !value || (other = false) || check(NoReturnDtor()) ||
+          !other) {
+        clang_analyzer_eval(true);  // no warning, unreachable code
+      }
+    }
+  }
+
+  void testTernaryNoReturnTrueBranch(bool value) {
+    if (value) {
+      bool b = value && (value ? check(NoReturnDtor()) : true);
+      clang_analyzer_eval(true);  // no warning, unreachable code
+    }
+  }
+  void testTernaryNoReturnFalseBranch(bool value) {
+    if (value) {
+      bool b = !value && !value ? true : check(NoReturnDtor());
+      clang_analyzer_eval(true);  // no warning, unreachable code
+    }
+  }
+  void testTernaryIgnoreNoreturnBranch(bool value) {
+    if (value) {
+      bool b = !value && !value ? check(NoReturnDtor()) : true;
+      clang_analyzer_eval(true);  // expected-warning{{TRUE}}
+    }
+  }
+  void testTernaryTrueBranchReached(bool value) {
+    value ? clang_analyzer_warnIfReached() : // expected-warning{{REACHABLE}}
+            check(NoReturnDtor());
+  }
+  void testTernaryFalseBranchReached(bool value) {
+    value ? check(NoReturnDtor()) :
+            clang_analyzer_warnIfReached(); // expected-warning{{REACHABLE}}
+  }
+
+  void testLoop() {
+    for (int i = 0; i < 10; ++i) {
+      if (i < 3 && (i >= 2 || check(NoReturnDtor()))) {
+        clang_analyzer_eval(true);  // no warning, unreachable code
+      }
+    }
+  }
+
+  bool testRecursiveFrames(bool isInner) {
+    if (isInner ||
+        (clang_analyzer_warnIfReached(), false) || // expected-warning{{REACHABLE}}
+        check(NoReturnDtor()) ||
+        testRecursiveFrames(true)) {
+      clang_analyzer_warnIfReached(); // expected-warning{{REACHABLE}}
+    }
+  }
+  void testRecursiveFramesStart() { testRecursiveFrames(false); }
+
+  void testLambdas() {
+    []() { check(NoReturnDtor()); } != nullptr || check(Dtor());
+  }
+
+  void testGnuExpressionStatements(int v) {
+    ({ ++v; v == 10 || check(NoReturnDtor()); v == 42; }) || v == 23;
+    clang_analyzer_warnIfReached();  // expected-warning{{REACHABLE}}
+
+    ({ ++v; check(NoReturnDtor()); v == 42; }) || v == 23;
+    clang_analyzer_warnIfReached();  // no warning, unreachable code
+  }
+
+  void testGnuExpressionStatementsDestructionPoint(int v) {
+    // In normal context, the temporary destructor runs at the end of the full
+    // statement, thus the last statement is reached.
+    (++v, check(NoReturnDtor()), v == 42),
+        clang_analyzer_warnIfReached();  // expected-warning{{REACHABLE}}
+
+    // GNU expression statements execute temporary destructors within the
+    // blocks, thus the last statement is not reached.
+    ({ ++v; check(NoReturnDtor()); v == 42; }),
+        clang_analyzer_warnIfReached();  // no warning, unreachable code
+  }
+
+  void testMultipleTemporaries(bool value) {
+    if (value) {
+      // FIXME: Find a way to verify construction order.
+      // ~Dtor should run before ~NoReturnDtor() because construction order is
+      // guaranteed by comma operator.
+      if (!value || check((NoReturnDtor(), Dtor())) || value) {
+        clang_analyzer_eval(true);  // no warning, unreachable code
+      }
+    }
+  }
 
   void testBinaryOperatorShortcut(bool value) {
     if (value) {
@@ -232,6 +339,104 @@ namespace destructors {
         clang_analyzer_eval(true);
       }
     }
+  }
+
+  void testIfAtEndOfLoop() {
+    int y = 0;
+    while (true) {
+      if (y > 0) {
+        clang_analyzer_warnIfReached();  // expected-warning{{REACHABLE}}
+      }
+      ++y;
+      // Test that the CFG gets hooked up correctly when temporary destructors
+      // are handled after a statically known branch condition.
+      if (true) (void)0; else (void)check(NoReturnDtor());
+    }
+  }
+
+  void testTernaryAtEndOfLoop() {
+    int y = 0;
+    while (true) {
+      if (y > 0) {
+        clang_analyzer_warnIfReached();  // expected-warning{{REACHABLE}}
+      }
+      ++y;
+      // Test that the CFG gets hooked up correctly when temporary destructors
+      // are handled after a statically known branch condition.
+      true ? (void)0 : (void)check(NoReturnDtor());
+    }
+  }
+
+  void testNoReturnInComplexCondition() {
+    check(Dtor()) &&
+        (check(NoReturnDtor()) || check(NoReturnDtor())) && check(Dtor());
+    clang_analyzer_warnIfReached();  // expected-warning{{REACHABLE}}
+  }
+
+  void testSequencingOfConditionalTempDtors(bool b) {
+    b || (check(Dtor()), check(NoReturnDtor()));
+    clang_analyzer_warnIfReached();  // expected-warning{{REACHABLE}}
+  }
+
+  void testSequencingOfConditionalTempDtors2(bool b) {
+    (b || check(Dtor())), check(NoReturnDtor());
+    clang_analyzer_warnIfReached();  // no warning, unreachable code
+  }
+
+  void testSequencingOfConditionalTempDtorsWithinBinaryOperators(bool b) {
+    b || (check(Dtor()) + check(NoReturnDtor()));
+    clang_analyzer_warnIfReached();  // expected-warning{{REACHABLE}}
+  }
+
+  void f(Dtor d = Dtor());
+  void testDefaultParameters() {
+    f();
+  }
+
+  struct DefaultParam {
+    DefaultParam(int, const Dtor& d = Dtor());
+    ~DefaultParam();
+  };
+  void testDefaultParamConstructorsInLoops() {
+    while (true) {
+      // FIXME: This exact pattern triggers the temporary cleanup logic
+      // to fail when adding a 'clean' state.
+      DefaultParam(42);
+      DefaultParam(42);
+    }
+  }
+  void testDefaultParamConstructorsInTernariesInLoops(bool value) {
+    while (true) {
+      // FIXME: This exact pattern triggers the temporary cleanup logic
+      // to visit the bind-temporary logic with a state that already has that
+      // temporary marked as executed.
+      value ? DefaultParam(42) : DefaultParam(42);
+    }
+  }
+#else // !TEMPORARY_DTORS
+
+// Test for fallback logic that conservatively stops exploration after
+// executing a temporary constructor for a class with a no-return destructor
+// when temporary destructors are not enabled in the CFG.
+
+  struct CtorWithNoReturnDtor {
+    CtorWithNoReturnDtor() = default;
+
+    ~CtorWithNoReturnDtor() __attribute__((noreturn));
+  };
+
+  void testDefaultContructorWithNoReturnDtor() {
+    CtorWithNoReturnDtor();
+    clang_analyzer_warnIfReached();  // no-warning
+  }
+
+  void testLifeExtensionWithNoReturnDtor() {
+    const CtorWithNoReturnDtor &c = CtorWithNoReturnDtor();
+
+    // This represents an (expected) loss of coverage, since the destructor
+    // of the lifetime-exended temporary is executed at at the end of
+    // scope.
+    clang_analyzer_warnIfReached();  // no-warning
   }
 
 #endif // TEMPORARY_DTORS
@@ -287,4 +492,41 @@ namespace PR16629 {
     callSet(A(&x));
     clang_analyzer_eval(x == 47); // expected-warning{{TRUE}}
   }
+}
+
+namespace PR32088 {
+  void testReturnFromStmtExprInitializer() {
+    // We shouldn't try to destroy the object pointed to by `obj' upon return.
+    const NonTrivial &obj = ({
+      return; // no-crash
+      NonTrivial(42);
+    });
+  }
+}
+
+namespace CopyToTemporaryCorrectly {
+class Super {
+public:
+  void m() {
+    mImpl();
+  }
+  virtual void mImpl() = 0;
+};
+class Sub : public Super {
+public:
+  Sub(const int &p) : j(p) {}
+  virtual void mImpl() override {
+    // Used to be undefined pointer dereference because we didn't copy
+    // the subclass data (j) to the temporary object properly.
+    (void)(j + 1); // no-warning
+    if (j != 22) {
+      clang_analyzer_warnIfReached(); // no-warning
+    }
+  }
+  const int &j;
+};
+void run() {
+  int i = 22;
+  Sub(i).m();
+}
 }

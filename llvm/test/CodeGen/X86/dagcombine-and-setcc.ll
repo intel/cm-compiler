@@ -12,10 +12,11 @@ declare i32 @printf(i8* nocapture readonly, ...)
 
 
 ;CHECK: cmpl
-;CHECK: setg
+;CHECK: setl
 ;CHECK: cmpl
-;CHECK: setg
-;CHECK: andb
+;CHECK: setl
+;CHECK: orb
+;CHECK: je
 
 @.str = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 ; Function Attrs: optsize ssp uwtable
@@ -39,7 +40,7 @@ ret2:
 define i32 @main(i32 %argc, i8** nocapture readnone %argv) {
   %res = alloca i32, align 4
   %t = call i32 @foo(i32 1, i32 2, i32* %res) #3
-  %v = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([4 x i8]* @.str, i64 0, i64 0), i32 %t)
+  %v = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i64 0, i64 0), i32 %t)
   ret i32 0
 }
 

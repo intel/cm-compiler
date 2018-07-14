@@ -11,20 +11,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/SchedulerRegistry.h"
 #include "InstrEmitter.h"
 #include "ScheduleDAGSDNodes.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/CodeGen/SchedulerRegistry.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "pre-RA-sched"
@@ -160,18 +160,17 @@ void ScheduleDAGFast::ReleasePred(SUnit *SU, SDep *PredEdge) {
 
 void ScheduleDAGFast::ReleasePredecessors(SUnit *SU, unsigned CurCycle) {
   // Bottom up: release predecessors
-  for (SUnit::pred_iterator I = SU->Preds.begin(), E = SU->Preds.end();
-       I != E; ++I) {
-    ReleasePred(SU, &*I);
-    if (I->isAssignedRegDep()) {
+  for (SDep &Pred : SU->Preds) {
+    ReleasePred(SU, &Pred);
+    if (Pred.isAssignedRegDep()) {
       // This is a physical register dependency and it's impossible or
       // expensive to copy the register. Make sure nothing that can
       // clobber the register is scheduled between the predecessor and
       // this node.
-      if (!LiveRegDefs[I->getReg()]) {
+      if (!LiveRegDefs[Pred.getReg()]) {
         ++NumLiveRegs;
-        LiveRegDefs[I->getReg()] = I->getSUnit();
-        LiveRegCycles[I->getReg()] = CurCycle;
+        LiveRegDefs[Pred.getReg()] = Pred.getSUnit();
+        LiveRegCycles[Pred.getReg()] = CurCycle;
       }
     }
   }
@@ -191,16 +190,15 @@ void ScheduleDAGFast::ScheduleNodeBottomUp(SUnit *SU, unsigned CurCycle) {
   ReleasePredecessors(SU, CurCycle);
 
   // Release all the implicit physical register defs that are live.
-  for (SUnit::succ_iterator I = SU->Succs.begin(), E = SU->Succs.end();
-       I != E; ++I) {
-    if (I->isAssignedRegDep()) {
-      if (LiveRegCycles[I->getReg()] == I->getSUnit()->getHeight()) {
+  for (SDep &Succ : SU->Succs) {
+    if (Succ.isAssignedRegDep()) {
+      if (LiveRegCycles[Succ.getReg()] == Succ.getSUnit()->getHeight()) {
         assert(NumLiveRegs > 0 && "NumLiveRegs is already zero!");
-        assert(LiveRegDefs[I->getReg()] == SU &&
+        assert(LiveRegDefs[Succ.getReg()] == SU &&
                "Physical register dependency violated?");
         --NumLiveRegs;
-        LiveRegDefs[I->getReg()] = nullptr;
-        LiveRegCycles[I->getReg()] = 0;
+        LiveRegDefs[Succ.getReg()] = nullptr;
+        LiveRegCycles[Succ.getReg()] = 0;
       }
     }
   }
@@ -221,15 +219,14 @@ SUnit *ScheduleDAGFast::CopyAndMoveSuccessors(SUnit *SU) {
   SUnit *NewSU;
   bool TryUnfold = false;
   for (unsigned i = 0, e = N->getNumValues(); i != e; ++i) {
-    EVT VT = N->getValueType(i);
+    MVT VT = N->getSimpleValueType(i);
     if (VT == MVT::Glue)
       return nullptr;
     else if (VT == MVT::Other)
       TryUnfold = true;
   }
-  for (unsigned i = 0, e = N->getNumOperands(); i != e; ++i) {
-    const SDValue &Op = N->getOperand(i);
-    EVT VT = Op.getNode()->getValueType(Op.getResNo());
+  for (const SDValue &Op : N->op_values()) {
+    MVT VT = Op.getNode()->getSimpleValueType(Op.getResNo());
     if (VT == MVT::Glue)
       return nullptr;
   }
@@ -283,22 +280,20 @@ SUnit *ScheduleDAGFast::CopyAndMoveSuccessors(SUnit *SU) {
     SmallVector<SDep, 4> LoadPreds;
     SmallVector<SDep, 4> NodePreds;
     SmallVector<SDep, 4> NodeSuccs;
-    for (SUnit::pred_iterator I = SU->Preds.begin(), E = SU->Preds.end();
-         I != E; ++I) {
-      if (I->isCtrl())
-        ChainPred = *I;
-      else if (I->getSUnit()->getNode() &&
-               I->getSUnit()->getNode()->isOperandOf(LoadNode))
-        LoadPreds.push_back(*I);
+    for (SDep &Pred : SU->Preds) {
+      if (Pred.isCtrl())
+        ChainPred = Pred;
+      else if (Pred.getSUnit()->getNode() &&
+               Pred.getSUnit()->getNode()->isOperandOf(LoadNode))
+        LoadPreds.push_back(Pred);
       else
-        NodePreds.push_back(*I);
+        NodePreds.push_back(Pred);
     }
-    for (SUnit::succ_iterator I = SU->Succs.begin(), E = SU->Succs.end();
-         I != E; ++I) {
-      if (I->isCtrl())
-        ChainSuccs.push_back(*I);
+    for (SDep &Succ : SU->Succs) {
+      if (Succ.isCtrl())
+        ChainSuccs.push_back(Succ);
       else
-        NodeSuccs.push_back(*I);
+        NodeSuccs.push_back(Succ);
     }
 
     if (ChainPred.getSUnit()) {
@@ -355,21 +350,19 @@ SUnit *ScheduleDAGFast::CopyAndMoveSuccessors(SUnit *SU) {
   NewSU = Clone(SU);
 
   // New SUnit has the exact same predecessors.
-  for (SUnit::pred_iterator I = SU->Preds.begin(), E = SU->Preds.end();
-       I != E; ++I)
-    if (!I->isArtificial())
-      AddPred(NewSU, *I);
+  for (SDep &Pred : SU->Preds)
+    if (!Pred.isArtificial())
+      AddPred(NewSU, Pred);
 
   // Only copy scheduled successors. Cut them from old node's successor
   // list and move them over.
   SmallVector<std::pair<SUnit *, SDep>, 4> DelDeps;
-  for (SUnit::succ_iterator I = SU->Succs.begin(), E = SU->Succs.end();
-       I != E; ++I) {
-    if (I->isArtificial())
+  for (SDep &Succ : SU->Succs) {
+    if (Succ.isArtificial())
       continue;
-    SUnit *SuccSU = I->getSUnit();
+    SUnit *SuccSU = Succ.getSUnit();
     if (SuccSU->isScheduled) {
-      SDep D = *I;
+      SDep D = Succ;
       D.setSUnit(NewSU);
       AddPred(SuccSU, D);
       D.setSUnit(SU);
@@ -400,16 +393,15 @@ void ScheduleDAGFast::InsertCopiesAndMoveSuccs(SUnit *SU, unsigned Reg,
   // Only copy scheduled successors. Cut them from old node's successor
   // list and move them over.
   SmallVector<std::pair<SUnit *, SDep>, 4> DelDeps;
-  for (SUnit::succ_iterator I = SU->Succs.begin(), E = SU->Succs.end();
-       I != E; ++I) {
-    if (I->isArtificial())
+  for (SDep &Succ : SU->Succs) {
+    if (Succ.isArtificial())
       continue;
-    SUnit *SuccSU = I->getSUnit();
+    SUnit *SuccSU = Succ.getSUnit();
     if (SuccSU->isScheduled) {
-      SDep D = *I;
+      SDep D = Succ;
       D.setSUnit(CopyToSU);
       AddPred(SuccSU, D);
-      DelDeps.push_back(std::make_pair(SuccSU, *I));
+      DelDeps.push_back(std::make_pair(SuccSU, Succ));
     }
   }
   for (unsigned i = 0, e = DelDeps.size(); i != e; ++i) {
@@ -431,17 +423,23 @@ void ScheduleDAGFast::InsertCopiesAndMoveSuccs(SUnit *SU, unsigned Reg,
 /// getPhysicalRegisterVT - Returns the ValueType of the physical register
 /// definition of the specified node.
 /// FIXME: Move to SelectionDAG?
-static EVT getPhysicalRegisterVT(SDNode *N, unsigned Reg,
+static MVT getPhysicalRegisterVT(SDNode *N, unsigned Reg,
                                  const TargetInstrInfo *TII) {
-  const MCInstrDesc &MCID = TII->get(N->getMachineOpcode());
-  assert(MCID.ImplicitDefs && "Physical reg def must be in implicit def list!");
-  unsigned NumRes = MCID.getNumDefs();
-  for (const uint16_t *ImpDef = MCID.getImplicitDefs(); *ImpDef; ++ImpDef) {
-    if (Reg == *ImpDef)
-      break;
-    ++NumRes;
+  unsigned NumRes;
+  if (N->getOpcode() == ISD::CopyFromReg) {
+    // CopyFromReg has: "chain, Val, glue" so operand 1 gives the type.
+    NumRes = 1;
+  } else {
+    const MCInstrDesc &MCID = TII->get(N->getMachineOpcode());
+    assert(MCID.ImplicitDefs && "Physical reg def must be in implicit def list!");
+    NumRes = MCID.getNumDefs();
+    for (const MCPhysReg *ImpDef = MCID.getImplicitDefs(); *ImpDef; ++ImpDef) {
+      if (Reg == *ImpDef)
+        break;
+      ++NumRes;
+    }
   }
-  return N->getValueType(NumRes);
+  return N->getSimpleValueType(NumRes);
 }
 
 /// CheckForLiveRegDef - Return true and update live register vector if the
@@ -454,7 +452,7 @@ static bool CheckForLiveRegDef(SUnit *SU, unsigned Reg,
   bool Added = false;
   for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI) {
     if (LiveRegDefs[*AI] && LiveRegDefs[*AI] != SU) {
-      if (RegAdded.insert(*AI)) {
+      if (RegAdded.insert(*AI).second) {
         LRegs.push_back(*AI);
         Added = true;
       }
@@ -474,10 +472,9 @@ bool ScheduleDAGFast::DelayForLiveRegsBottomUp(SUnit *SU,
 
   SmallSet<unsigned, 4> RegAdded;
   // If this node would clobber any "live" register, then it's not ready.
-  for (SUnit::pred_iterator I = SU->Preds.begin(), E = SU->Preds.end();
-       I != E; ++I) {
-    if (I->isAssignedRegDep()) {
-      CheckForLiveRegDef(I->getSUnit(), I->getReg(), LiveRegDefs,
+  for (SDep &Pred : SU->Preds) {
+    if (Pred.isAssignedRegDep()) {
+      CheckForLiveRegDef(Pred.getSUnit(), Pred.getReg(), LiveRegDefs,
                          RegAdded, LRegs, TRI);
     }
   }
@@ -514,7 +511,7 @@ bool ScheduleDAGFast::DelayForLiveRegsBottomUp(SUnit *SU,
     const MCInstrDesc &MCID = TII->get(Node->getMachineOpcode());
     if (!MCID.ImplicitDefs)
       continue;
-    for (const uint16_t *Reg = MCID.getImplicitDefs(); *Reg; ++Reg) {
+    for (const MCPhysReg *Reg = MCID.getImplicitDefs(); *Reg; ++Reg) {
       CheckForLiveRegDef(SU, *Reg, LiveRegDefs, RegAdded, LRegs, TRI);
     }
   }
@@ -572,7 +569,7 @@ void ScheduleDAGFast::ListScheduleBottomUp() {
         assert(LRegs.size() == 1 && "Can't handle this yet!");
         unsigned Reg = LRegs[0];
         SUnit *LRDef = LiveRegDefs[Reg];
-        EVT VT = getPhysicalRegisterVT(LRDef->getNode(), Reg, TII);
+        MVT VT = getPhysicalRegisterVT(LRDef->getNode(), Reg, TII);
         const TargetRegisterClass *RC =
           TRI->getMinimalPhysRegClass(Reg, VT);
         const TargetRegisterClass *DestRC = TRI->getCrossCopyRegClass(RC);
@@ -720,9 +717,8 @@ void ScheduleDAGLinearize::Schedule() {
 
   SmallVector<SDNode*, 8> Glues;
   unsigned DAGSize = 0;
-  for (SelectionDAG::allnodes_iterator I = DAG->allnodes_begin(),
-         E = DAG->allnodes_end(); I != E; ++I) {
-    SDNode *N = I;
+  for (SDNode &Node : DAG->allnodes()) {
+    SDNode *N = &Node;
 
     // Use node id to record degree.
     unsigned Degree = N->use_size();
@@ -751,9 +747,8 @@ void ScheduleDAGLinearize::Schedule() {
     // Glue user must be scheduled together with the glue operand. So other
     // users of the glue operand must be treated as its users.
     SDNode *ImmGUser = Glue->getGluedUser();
-    for (SDNode::use_iterator ui = Glue->use_begin(), ue = Glue->use_end();
-         ui != ue; ++ui)
-      if (*ui == ImmGUser)
+    for (const SDNode *U : Glue->uses())
+      if (U == ImmGUser)
         --Degree;
     GUser->setNodeId(UDegree + Degree);
     Glue->setNodeId(1);

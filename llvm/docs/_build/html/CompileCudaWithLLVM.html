@@ -1,0 +1,612 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Compiling CUDA with clang &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Reporting Guide" href="ReportingGuide.html" />
+    <link rel="prev" title="LLVM Community Code of Conduct" href="CodeOfConduct.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="ReportingGuide.html" title="Reporting Guide"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="CodeOfConduct.html" title="LLVM Community Code of Conduct"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="compiling-cuda-with-clang">
+<h1>Compiling CUDA with clang<a class="headerlink" href="#compiling-cuda-with-clang" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
+<li><a class="reference internal" href="#compiling-cuda-code" id="id2">Compiling CUDA Code</a><ul>
+<li><a class="reference internal" href="#prerequisites" id="id3">Prerequisites</a></li>
+<li><a class="reference internal" href="#invoking-clang" id="id4">Invoking clang</a></li>
+<li><a class="reference internal" href="#flags-that-control-numerical-code" id="id5">Flags that control numerical code</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#standard-library-support" id="id6">Standard library support</a><ul>
+<li><a class="reference internal" href="#math-h-and-cmath" id="id7"><code class="docutils literal"><span class="pre">&lt;math.h&gt;</span></code> and <code class="docutils literal"><span class="pre">&lt;cmath&gt;</span></code></a></li>
+<li><a class="reference internal" href="#std-complex" id="id8"><code class="docutils literal"><span class="pre">&lt;std::complex&gt;</span></code></a></li>
+<li><a class="reference internal" href="#algorithm" id="id9"><code class="docutils literal"><span class="pre">&lt;algorithm&gt;</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#detecting-clang-vs-nvcc-from-code" id="id10">Detecting clang vs NVCC from code</a></li>
+<li><a class="reference internal" href="#dialect-differences-between-clang-and-nvcc" id="id11">Dialect Differences Between clang and nvcc</a><ul>
+<li><a class="reference internal" href="#compilation-models" id="id12">Compilation Models</a></li>
+<li><a class="reference internal" href="#overloading-based-on-host-and-device-attributes" id="id13">Overloading Based on <code class="docutils literal"><span class="pre">__host__</span></code> and <code class="docutils literal"><span class="pre">__device__</span></code> Attributes</a></li>
+<li><a class="reference internal" href="#using-a-different-class-on-host-device" id="id14">Using a Different Class on Host/Device</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#optimizations" id="id15">Optimizations</a></li>
+<li><a class="reference internal" href="#publication" id="id16">Publication</a></li>
+<li><a class="reference internal" href="#obtaining-help" id="id17">Obtaining Help</a></li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>This document describes how to compile CUDA code with clang, and gives some
+details about LLVM and clang’s CUDA implementations.</p>
+<p>This document assumes a basic familiarity with CUDA. Information about CUDA
+programming can be found in the
+<a class="reference external" href="http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html">CUDA programming guide</a>.</p>
+</div>
+<div class="section" id="compiling-cuda-code">
+<h2><a class="toc-backref" href="#id2">Compiling CUDA Code</a><a class="headerlink" href="#compiling-cuda-code" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="prerequisites">
+<h3><a class="toc-backref" href="#id3">Prerequisites</a><a class="headerlink" href="#prerequisites" title="Permalink to this headline">¶</a></h3>
+<p>CUDA is supported in llvm 3.9, but it’s still in active development, so we
+recommend you <a class="reference external" href="http://llvm.org/docs/GettingStarted.html">compile clang/LLVM from HEAD</a>.</p>
+<p>Before you build CUDA code, you’ll need to have installed the appropriate
+driver for your nvidia GPU and the CUDA SDK.  See <a class="reference external" href="https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html">NVIDIA’s CUDA installation
+guide</a>
+for details.  Note that clang <a class="reference external" href="https://llvm.org/bugs/show_bug.cgi?id=26966">does not support</a> the CUDA toolkit as installed
+by many Linux package managers; you probably need to install nvidia’s package.</p>
+<p>You will need CUDA 7.0, 7.5, or 8.0 to compile with clang.</p>
+<p>CUDA compilation is supported on Linux, on MacOS as of 2016-11-18, and on
+Windows as of 2017-01-05.</p>
+</div>
+<div class="section" id="invoking-clang">
+<h3><a class="toc-backref" href="#id4">Invoking clang</a><a class="headerlink" href="#invoking-clang" title="Permalink to this headline">¶</a></h3>
+<p>Invoking clang for CUDA compilation works similarly to compiling regular C++.
+You just need to be aware of a few additional flags.</p>
+<p>You can use <a class="reference external" href="https://gist.github.com/855e277884eb6b388cd2f00d956c2fd4">this</a>
+program as a toy example.  Save it as <code class="docutils literal"><span class="pre">axpy.cu</span></code>.  (Clang detects that you’re
+compiling CUDA code by noticing that your filename ends with <code class="docutils literal"><span class="pre">.cu</span></code>.
+Alternatively, you can pass <code class="docutils literal"><span class="pre">-x</span> <span class="pre">cuda</span></code>.)</p>
+<p>To build and run, run the following commands, filling in the parts in angle
+brackets as described below:</p>
+<div class="highlight-console"><div class="highlight"><pre><span></span><span class="gp">$</span> clang++ axpy.cu -o axpy --cuda-gpu-arch<span class="o">=</span>&lt;GPU arch&gt; <span class="se">\</span>
+    -L&lt;CUDA install path&gt;/&lt;lib64 or lib&gt;             <span class="se">\</span>
+    -lcudart_static -ldl -lrt -pthread
+<span class="gp">$</span> ./axpy
+<span class="go">y[0] = 2</span>
+<span class="go">y[1] = 4</span>
+<span class="go">y[2] = 6</span>
+<span class="go">y[3] = 8</span>
+</pre></div>
+</div>
+<p>On MacOS, replace <cite>-lcudart_static</cite> with <cite>-lcudart</cite>; otherwise, you may get
+“CUDA driver version is insufficient for CUDA runtime version” errors when you
+run your program.</p>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">&lt;CUDA</span> <span class="pre">install</span> <span class="pre">path&gt;</span></code> – the directory where you installed CUDA SDK.
+Typically, <code class="docutils literal"><span class="pre">/usr/local/cuda</span></code>.</p>
+<p>Pass e.g. <code class="docutils literal"><span class="pre">-L/usr/local/cuda/lib64</span></code> if compiling in 64-bit mode; otherwise,
+pass e.g. <code class="docutils literal"><span class="pre">-L/usr/local/cuda/lib</span></code>.  (In CUDA, the device code and host code
+always have the same pointer widths, so if you’re compiling 64-bit code for
+the host, you’re also compiling 64-bit code for the device.)</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">&lt;GPU</span> <span class="pre">arch&gt;</span></code> – the <a class="reference external" href="https://developer.nvidia.com/cuda-gpus">compute capability</a> of your GPU. For example, if you
+want to run your program on a GPU with compute capability of 3.5, specify
+<code class="docutils literal"><span class="pre">--cuda-gpu-arch=sm_35</span></code>.</p>
+<p>Note: You cannot pass <code class="docutils literal"><span class="pre">compute_XX</span></code> as an argument to <code class="docutils literal"><span class="pre">--cuda-gpu-arch</span></code>;
+only <code class="docutils literal"><span class="pre">sm_XX</span></code> is currently supported.  However, clang always includes PTX in
+its binaries, so e.g. a binary compiled with <code class="docutils literal"><span class="pre">--cuda-gpu-arch=sm_30</span></code> would be
+forwards-compatible with e.g. <code class="docutils literal"><span class="pre">sm_35</span></code> GPUs.</p>
+<p>You can pass <code class="docutils literal"><span class="pre">--cuda-gpu-arch</span></code> multiple times to compile for multiple archs.</p>
+</li>
+</ul>
+<p>The <cite>-L</cite> and <cite>-l</cite> flags only need to be passed when linking.  When compiling,
+you may also need to pass <code class="docutils literal"><span class="pre">--cuda-path=/path/to/cuda</span></code> if you didn’t install
+the CUDA SDK into <code class="docutils literal"><span class="pre">/usr/local/cuda</span></code>, <code class="docutils literal"><span class="pre">/usr/local/cuda-7.0</span></code>, or
+<code class="docutils literal"><span class="pre">/usr/local/cuda-7.5</span></code>.</p>
+</div>
+<div class="section" id="flags-that-control-numerical-code">
+<h3><a class="toc-backref" href="#id5">Flags that control numerical code</a><a class="headerlink" href="#flags-that-control-numerical-code" title="Permalink to this headline">¶</a></h3>
+<p>If you’re using GPUs, you probably care about making numerical code run fast.
+GPU hardware allows for more control over numerical operations than most CPUs,
+but this results in more compiler options for you to juggle.</p>
+<p>Flags you may wish to tweak include:</p>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">-ffp-contract={on,off,fast}</span></code> (defaults to <code class="docutils literal"><span class="pre">fast</span></code> on host and device when
+compiling CUDA) Controls whether the compiler emits fused multiply-add
+operations.</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">off</span></code>: never emit fma operations, and prevent ptxas from fusing multiply
+and add instructions.</li>
+<li><code class="docutils literal"><span class="pre">on</span></code>: fuse multiplies and adds within a single statement, but never
+across statements (C11 semantics).  Prevent ptxas from fusing other
+multiplies and adds.</li>
+<li><code class="docutils literal"><span class="pre">fast</span></code>: fuse multiplies and adds wherever profitable, even across
+statements.  Doesn’t prevent ptxas from fusing additional multiplies and
+adds.</li>
+</ul>
+<p>Fused multiply-add instructions can be much faster than the unfused
+equivalents, but because the intermediate result in an fma is not rounded,
+this flag can affect numerical code.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">-fcuda-flush-denormals-to-zero</span></code> (default: off) When this is enabled,
+floating point operations may flush <a class="reference external" href="https://en.wikipedia.org/wiki/Denormal_number">denormal</a> inputs and/or outputs to 0.
+Operations on denormal numbers are often much slower than the same operations
+on normal numbers.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">-fcuda-approx-transcendentals</span></code> (default: off) When this is enabled, the
+compiler may emit calls to faster, approximate versions of transcendental
+functions, instead of using the slower, fully IEEE-compliant versions.  For
+example, this flag allows clang to emit the ptx <code class="docutils literal"><span class="pre">sin.approx.f32</span></code>
+instruction.</p>
+<p>This is implied by <code class="docutils literal"><span class="pre">-ffast-math</span></code>.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="standard-library-support">
+<h2><a class="toc-backref" href="#id6">Standard library support</a><a class="headerlink" href="#standard-library-support" title="Permalink to this headline">¶</a></h2>
+<p>In clang and nvcc, most of the C++ standard library is not supported on the
+device side.</p>
+<div class="section" id="math-h-and-cmath">
+<h3><a class="toc-backref" href="#id7"><code class="docutils literal"><span class="pre">&lt;math.h&gt;</span></code> and <code class="docutils literal"><span class="pre">&lt;cmath&gt;</span></code></a><a class="headerlink" href="#math-h-and-cmath" title="Permalink to this headline">¶</a></h3>
+<p>In clang, <code class="docutils literal"><span class="pre">math.h</span></code> and <code class="docutils literal"><span class="pre">cmath</span></code> are available and <a class="reference external" href="https://github.com/llvm-mirror/test-suite/blob/master/External/CUDA/math_h.cu">pass</a>
+<a class="reference external" href="https://github.com/llvm-mirror/test-suite/blob/master/External/CUDA/cmath.cu">tests</a>
+adapted from libc++’s test suite.</p>
+<p>In nvcc <code class="docutils literal"><span class="pre">math.h</span></code> and <code class="docutils literal"><span class="pre">cmath</span></code> are mostly available.  Versions of <code class="docutils literal"><span class="pre">::foof</span></code>
+in namespace std (e.g. <code class="docutils literal"><span class="pre">std::sinf</span></code>) are not available, and where the standard
+calls for overloads that take integral arguments, these are usually not
+available.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;math.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;cmath.h&gt;</span><span class="cp"></span>
+
+<span class="c1">// clang is OK with everything in this function.</span>
+<span class="n">__device__</span> <span class="kt">void</span> <span class="nf">test</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">sin</span><span class="p">(</span><span class="mf">0.</span><span class="p">);</span> <span class="c1">// nvcc - ok</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">sin</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>  <span class="c1">// nvcc - error, because no std::sin(int) override is available.</span>
+  <span class="n">sin</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>       <span class="c1">// nvcc - same as above.</span>
+
+  <span class="n">sinf</span><span class="p">(</span><span class="mf">0.</span><span class="p">);</span>       <span class="c1">// nvcc - ok</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">sinf</span><span class="p">(</span><span class="mf">0.</span><span class="p">);</span>  <span class="c1">// nvcc - no such function</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="std-complex">
+<h3><a class="toc-backref" href="#id8"><code class="docutils literal"><span class="pre">&lt;std::complex&gt;</span></code></a><a class="headerlink" href="#std-complex" title="Permalink to this headline">¶</a></h3>
+<p>nvcc does not officially support <code class="docutils literal"><span class="pre">std::complex</span></code>.  It’s an error to use
+<code class="docutils literal"><span class="pre">std::complex</span></code> in <code class="docutils literal"><span class="pre">__device__</span></code> code, but it often works in <code class="docutils literal"><span class="pre">__host__</span>
+<span class="pre">__device__</span></code> code due to nvcc’s interpretation of the “wrong-side rule” (see
+below).  However, we have heard from implementers that it’s possible to get
+into situations where nvcc will omit a call to an <code class="docutils literal"><span class="pre">std::complex</span></code> function,
+especially when compiling without optimizations.</p>
+<p>As of 2016-11-16, clang supports <code class="docutils literal"><span class="pre">std::complex</span></code> without these caveats.  It is
+tested with libstdc++ 4.8.5 and newer, but is known to work only with libc++
+newer than 2016-11-16.</p>
+</div>
+<div class="section" id="algorithm">
+<h3><a class="toc-backref" href="#id9"><code class="docutils literal"><span class="pre">&lt;algorithm&gt;</span></code></a><a class="headerlink" href="#algorithm" title="Permalink to this headline">¶</a></h3>
+<p>In C++14, many useful functions from <code class="docutils literal"><span class="pre">&lt;algorithm&gt;</span></code> (notably, <code class="docutils literal"><span class="pre">std::min</span></code> and
+<code class="docutils literal"><span class="pre">std::max</span></code>) become constexpr.  You can therefore use these in device code,
+when compiling with clang.</p>
+</div>
+</div>
+<div class="section" id="detecting-clang-vs-nvcc-from-code">
+<h2><a class="toc-backref" href="#id10">Detecting clang vs NVCC from code</a><a class="headerlink" href="#detecting-clang-vs-nvcc-from-code" title="Permalink to this headline">¶</a></h2>
+<p>Although clang’s CUDA implementation is largely compatible with NVCC’s, you may
+still want to detect when you’re compiling CUDA code specifically with clang.</p>
+<p>This is tricky, because NVCC may invoke clang as part of its own compilation
+process!  For example, NVCC uses the host compiler’s preprocessor when
+compiling for device code, and that host compiler may in fact be clang.</p>
+<p>When clang is actually compiling CUDA code – rather than being used as a
+subtool of NVCC’s – it defines the <code class="docutils literal"><span class="pre">__CUDA__</span></code> macro.  <code class="docutils literal"><span class="pre">__CUDA_ARCH__</span></code> is
+defined only in device mode (but will be defined if NVCC is using clang as a
+preprocessor).  So you can use the following incantations to detect clang CUDA
+compilation, in host and device modes:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#if defined(__clang__) &amp;&amp; defined(__CUDA__) &amp;&amp; !defined(__CUDA_ARCH__)</span>
+<span class="c1">// clang compiling CUDA code, host mode.</span>
+<span class="cp">#endif</span>
+
+<span class="cp">#if defined(__clang__) &amp;&amp; defined(__CUDA__) &amp;&amp; defined(__CUDA_ARCH__)</span>
+<span class="c1">// clang compiling CUDA code, device mode.</span>
+<span class="cp">#endif</span>
+</pre></div>
+</div>
+<p>Both clang and nvcc define <code class="docutils literal"><span class="pre">__CUDACC__</span></code> during CUDA compilation.  You can
+detect NVCC specifically by looking for <code class="docutils literal"><span class="pre">__NVCC__</span></code>.</p>
+</div>
+<div class="section" id="dialect-differences-between-clang-and-nvcc">
+<h2><a class="toc-backref" href="#id11">Dialect Differences Between clang and nvcc</a><a class="headerlink" href="#dialect-differences-between-clang-and-nvcc" title="Permalink to this headline">¶</a></h2>
+<p>There is no formal CUDA spec, and clang and nvcc speak slightly different
+dialects of the language.  Below, we describe some of the differences.</p>
+<p>This section is painful; hopefully you can skip this section and live your life
+blissfully unaware.</p>
+<div class="section" id="compilation-models">
+<h3><a class="toc-backref" href="#id12">Compilation Models</a><a class="headerlink" href="#compilation-models" title="Permalink to this headline">¶</a></h3>
+<p>Most of the differences between clang and nvcc stem from the different
+compilation models used by clang and nvcc.  nvcc uses <em>split compilation</em>,
+which works roughly as follows:</p>
+<blockquote>
+<div><ul class="simple">
+<li>Run a preprocessor over the input <code class="docutils literal"><span class="pre">.cu</span></code> file to split it into two source
+files: <code class="docutils literal"><span class="pre">H</span></code>, containing source code for the host, and <code class="docutils literal"><span class="pre">D</span></code>, containing
+source code for the device.</li>
+<li>For each GPU architecture <code class="docutils literal"><span class="pre">arch</span></code> that we’re compiling for, do:<ul>
+<li>Compile <code class="docutils literal"><span class="pre">D</span></code> using nvcc proper.  The result of this is a <code class="docutils literal"><span class="pre">ptx</span></code> file for
+<code class="docutils literal"><span class="pre">P_arch</span></code>.</li>
+<li>Optionally, invoke <code class="docutils literal"><span class="pre">ptxas</span></code>, the PTX assembler, to generate a file,
+<code class="docutils literal"><span class="pre">S_arch</span></code>, containing GPU machine code (SASS) for <code class="docutils literal"><span class="pre">arch</span></code>.</li>
+</ul>
+</li>
+<li>Invoke <code class="docutils literal"><span class="pre">fatbin</span></code> to combine all <code class="docutils literal"><span class="pre">P_arch</span></code> and <code class="docutils literal"><span class="pre">S_arch</span></code> files into a
+single “fat binary” file, <code class="docutils literal"><span class="pre">F</span></code>.</li>
+<li>Compile <code class="docutils literal"><span class="pre">H</span></code> using an external host compiler (gcc, clang, or whatever you
+like).  <code class="docutils literal"><span class="pre">F</span></code> is packaged up into a header file which is force-included into
+<code class="docutils literal"><span class="pre">H</span></code>; nvcc generates code that calls into this header to e.g. launch
+kernels.</li>
+</ul>
+</div></blockquote>
+<p>clang uses <em>merged parsing</em>.  This is similar to split compilation, except all
+of the host and device code is present and must be semantically-correct in both
+compilation steps.</p>
+<blockquote>
+<div><ul>
+<li><p class="first">For each GPU architecture <code class="docutils literal"><span class="pre">arch</span></code> that we’re compiling for, do:</p>
+<ul>
+<li><p class="first">Compile the input <code class="docutils literal"><span class="pre">.cu</span></code> file for device, using clang.  <code class="docutils literal"><span class="pre">__host__</span></code> code
+is parsed and must be semantically correct, even though we’re not
+generating code for the host at this time.</p>
+<p>The output of this step is a <code class="docutils literal"><span class="pre">ptx</span></code> file <code class="docutils literal"><span class="pre">P_arch</span></code>.</p>
+</li>
+<li><p class="first">Invoke <code class="docutils literal"><span class="pre">ptxas</span></code> to generate a SASS file, <code class="docutils literal"><span class="pre">S_arch</span></code>.  Note that, unlike
+nvcc, clang always generates SASS code.</p>
+</li>
+</ul>
+</li>
+<li><p class="first">Invoke <code class="docutils literal"><span class="pre">fatbin</span></code> to combine all <code class="docutils literal"><span class="pre">P_arch</span></code> and <code class="docutils literal"><span class="pre">S_arch</span></code> files into a
+single fat binary file, <code class="docutils literal"><span class="pre">F</span></code>.</p>
+</li>
+<li><p class="first">Compile <code class="docutils literal"><span class="pre">H</span></code> using clang.  <code class="docutils literal"><span class="pre">__device__</span></code> code is parsed and must be
+semantically correct, even though we’re not generating code for the device
+at this time.</p>
+<p><code class="docutils literal"><span class="pre">F</span></code> is passed to this compilation, and clang includes it in a special ELF
+section, where it can be found by tools like <code class="docutils literal"><span class="pre">cuobjdump</span></code>.</p>
+</li>
+</ul>
+</div></blockquote>
+<p>(You may ask at this point, why does clang need to parse the input file
+multiple times?  Why not parse it just once, and then use the AST to generate
+code for the host and each device architecture?</p>
+<p>Unfortunately this can’t work because we have to define different macros during
+host compilation and during device compilation for each GPU architecture.)</p>
+<p>clang’s approach allows it to be highly robust to C++ edge cases, as it doesn’t
+need to decide at an early stage which declarations to keep and which to throw
+away.  But it has some consequences you should be aware of.</p>
+</div>
+<div class="section" id="overloading-based-on-host-and-device-attributes">
+<h3><a class="toc-backref" href="#id13">Overloading Based on <code class="docutils literal"><span class="pre">__host__</span></code> and <code class="docutils literal"><span class="pre">__device__</span></code> Attributes</a><a class="headerlink" href="#overloading-based-on-host-and-device-attributes" title="Permalink to this headline">¶</a></h3>
+<p>Let “H”, “D”, and “HD” stand for “<code class="docutils literal"><span class="pre">__host__</span></code> functions”, “<code class="docutils literal"><span class="pre">__device__</span></code>
+functions”, and “<code class="docutils literal"><span class="pre">__host__</span> <span class="pre">__device__</span></code> functions”, respectively.  Functions
+with no attributes behave the same as H.</p>
+<p>nvcc does not allow you to create H and D functions with the same signature:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// nvcc: error - function &quot;foo&quot; has already been defined</span>
+<span class="n">__host__</span> <span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{}</span>
+<span class="n">__device__</span> <span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{}</span>
+</pre></div>
+</div>
+<p>However, nvcc allows you to “overload” H and D functions with different
+signatures:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// nvcc: no error</span>
+<span class="n">__host__</span> <span class="kt">void</span> <span class="nf">foo</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span> <span class="p">{}</span>
+<span class="n">__device__</span> <span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{}</span>
+</pre></div>
+</div>
+<p>In clang, the <code class="docutils literal"><span class="pre">__host__</span></code> and <code class="docutils literal"><span class="pre">__device__</span></code> attributes are part of a
+function’s signature, and so it’s legal to have H and D functions with
+(otherwise) the same signature:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// clang: no error</span>
+<span class="n">__host__</span> <span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{}</span>
+<span class="n">__device__</span> <span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{}</span>
+</pre></div>
+</div>
+<p>HD functions cannot be overloaded by H or D functions with the same signature:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// nvcc: error - function &quot;foo&quot; has already been defined</span>
+<span class="c1">// clang: error - redefinition of &#39;foo&#39;</span>
+<span class="n">__host__</span> <span class="n">__device__</span> <span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{}</span>
+<span class="n">__device__</span> <span class="kt">void</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{}</span>
+
+<span class="c1">// nvcc: no error</span>
+<span class="c1">// clang: no error</span>
+<span class="n">__host__</span> <span class="n">__device__</span> <span class="kt">void</span> <span class="nf">bar</span><span class="p">(</span><span class="kt">int</span><span class="p">)</span> <span class="p">{}</span>
+<span class="n">__device__</span> <span class="kt">void</span> <span class="nf">bar</span><span class="p">()</span> <span class="p">{}</span>
+</pre></div>
+</div>
+<p>When resolving an overloaded function, clang considers the host/device
+attributes of the caller and callee.  These are used as a tiebreaker during
+overload resolution.  See <a class="reference external" href="http://clang.llvm.org/doxygen/SemaCUDA_8cpp.html">IdentifyCUDAPreference</a> for the full set of rules,
+but at a high level they are:</p>
+<blockquote>
+<div><ul>
+<li><p class="first">D functions prefer to call other Ds.  HDs are given lower priority.</p>
+</li>
+<li><p class="first">Similarly, H functions prefer to call other Hs, or <code class="docutils literal"><span class="pre">__global__</span></code> functions
+(with equal priority).  HDs are given lower priority.</p>
+</li>
+<li><p class="first">HD functions prefer to call other HDs.</p>
+<p>When compiling for device, HDs will call Ds with lower priority than HD, and
+will call Hs with still lower priority.  If it’s forced to call an H, the
+program is malformed if we emit code for this HD function.  We call this the
+“wrong-side rule”, see example below.</p>
+<p>The rules are symmetrical when compiling for host.</p>
+</li>
+</ul>
+</div></blockquote>
+<p>Some examples:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">__host__</span> <span class="kt">void</span> <span class="nf">foo</span><span class="p">();</span>
+<span class="n">__device__</span> <span class="kt">void</span> <span class="nf">foo</span><span class="p">();</span>
+
+<span class="n">__host__</span> <span class="kt">void</span> <span class="nf">bar</span><span class="p">();</span>
+<span class="n">__host__</span> <span class="n">__device__</span> <span class="kt">void</span> <span class="nf">bar</span><span class="p">();</span>
+
+<span class="n">__host__</span> <span class="kt">void</span> <span class="nf">test_host</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">foo</span><span class="p">();</span>  <span class="c1">// calls H overload</span>
+  <span class="n">bar</span><span class="p">();</span>  <span class="c1">// calls H overload</span>
+<span class="p">}</span>
+
+<span class="n">__device__</span> <span class="kt">void</span> <span class="nf">test_device</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">foo</span><span class="p">();</span>  <span class="c1">// calls D overload</span>
+  <span class="n">bar</span><span class="p">();</span>  <span class="c1">// calls HD overload</span>
+<span class="p">}</span>
+
+<span class="n">__host__</span> <span class="n">__device__</span> <span class="kt">void</span> <span class="nf">test_hd</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">foo</span><span class="p">();</span>  <span class="c1">// calls H overload when compiling for host, otherwise D overload</span>
+  <span class="n">bar</span><span class="p">();</span>  <span class="c1">// always calls HD overload</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Wrong-side rule example:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">__host__</span> <span class="kt">void</span> <span class="nf">host_only</span><span class="p">();</span>
+
+<span class="c1">// We don&#39;t codegen inline functions unless they&#39;re referenced by a</span>
+<span class="c1">// non-inline function.  inline_hd1() is called only from the host side, so</span>
+<span class="c1">// does not generate an error.  inline_hd2() is called from the device side,</span>
+<span class="c1">// so it generates an error.</span>
+<span class="kr">inline</span> <span class="n">__host__</span> <span class="n">__device__</span> <span class="kt">void</span> <span class="nf">inline_hd1</span><span class="p">()</span> <span class="p">{</span> <span class="n">host_only</span><span class="p">();</span> <span class="p">}</span>  <span class="c1">// no error</span>
+<span class="kr">inline</span> <span class="n">__host__</span> <span class="n">__device__</span> <span class="kt">void</span> <span class="nf">inline_hd2</span><span class="p">()</span> <span class="p">{</span> <span class="n">host_only</span><span class="p">();</span> <span class="p">}</span>  <span class="c1">// error</span>
+
+<span class="n">__host__</span> <span class="kt">void</span> <span class="nf">host_fn</span><span class="p">()</span> <span class="p">{</span> <span class="n">inline_hd1</span><span class="p">();</span> <span class="p">}</span>
+<span class="n">__device__</span> <span class="kt">void</span> <span class="nf">device_fn</span><span class="p">()</span> <span class="p">{</span> <span class="n">inline_hd2</span><span class="p">();</span> <span class="p">}</span>
+
+<span class="c1">// This function is not inline, so it&#39;s always codegen&#39;ed on both the host</span>
+<span class="c1">// and the device.  Therefore, it generates an error.</span>
+<span class="n">__host__</span> <span class="n">__device__</span> <span class="kt">void</span> <span class="nf">not_inline_hd</span><span class="p">()</span> <span class="p">{</span> <span class="n">host_only</span><span class="p">();</span> <span class="p">}</span>
+</pre></div>
+</div>
+<p>For the purposes of the wrong-side rule, templated functions also behave like
+<code class="docutils literal"><span class="pre">inline</span></code> functions: They aren’t codegen’ed unless they’re instantiated
+(usually as part of the process of invoking them).</p>
+<p>clang’s behavior with respect to the wrong-side rule matches nvcc’s, except
+nvcc only emits a warning for <code class="docutils literal"><span class="pre">not_inline_hd</span></code>; device code is allowed to call
+<code class="docutils literal"><span class="pre">not_inline_hd</span></code>.  In its generated code, nvcc may omit <code class="docutils literal"><span class="pre">not_inline_hd</span></code>’s
+call to <code class="docutils literal"><span class="pre">host_only</span></code> entirely, or it may try to generate code for
+<code class="docutils literal"><span class="pre">host_only</span></code> on the device.  What you get seems to depend on whether or not
+the compiler chooses to inline <code class="docutils literal"><span class="pre">host_only</span></code>.</p>
+<p>Member functions, including constructors, may be overloaded using H and D
+attributes.  However, destructors cannot be overloaded.</p>
+</div>
+<div class="section" id="using-a-different-class-on-host-device">
+<h3><a class="toc-backref" href="#id14">Using a Different Class on Host/Device</a><a class="headerlink" href="#using-a-different-class-on-host-device" title="Permalink to this headline">¶</a></h3>
+<p>Occasionally you may want to have a class with different host/device versions.</p>
+<p>If all of the class’s members are the same on the host and device, you can just
+provide overloads for the class’s member functions.</p>
+<p>However, if you want your class to have different members on host/device, you
+won’t be able to provide working H and D overloads in both classes. In this
+case, clang is likely to be unhappy with you.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#ifdef __CUDA_ARCH__</span>
+<span class="k">struct</span> <span class="n">S</span> <span class="p">{</span>
+  <span class="n">__device__</span> <span class="kt">void</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{</span> <span class="cm">/* use device_only */</span> <span class="p">}</span>
+  <span class="kt">int</span> <span class="n">device_only</span><span class="p">;</span>
+<span class="p">};</span>
+<span class="cp">#else</span>
+<span class="k">struct</span> <span class="n">S</span> <span class="p">{</span>
+  <span class="n">__host__</span> <span class="kt">void</span> <span class="n">foo</span><span class="p">()</span> <span class="p">{</span> <span class="cm">/* use host_only */</span> <span class="p">}</span>
+  <span class="kt">double</span> <span class="n">host_only</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="n">__device__</span> <span class="kt">void</span> <span class="nf">test</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">S</span> <span class="n">s</span><span class="p">;</span>
+  <span class="c1">// clang generates an error here, because during host compilation, we</span>
+  <span class="c1">// have ifdef&#39;ed away the __device__ overload of S::foo().  The __device__</span>
+  <span class="c1">// overload must be present *even during host compilation*.</span>
+  <span class="n">S</span><span class="p">.</span><span class="n">foo</span><span class="p">();</span>
+<span class="p">}</span>
+<span class="cp">#endif</span>
+</pre></div>
+</div>
+<p>We posit that you don’t really want to have classes with different members on H
+and D.  For example, if you were to pass one of these as a parameter to a
+kernel, it would have a different layout on H and D, so would not work
+properly.</p>
+<p>To make code like this compatible with clang, we recommend you separate it out
+into two classes.  If you need to write code that works on both host and
+device, consider writing an overloaded wrapper function that returns different
+types on host and device.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">HostS</span> <span class="p">{</span> <span class="p">...</span> <span class="p">};</span>
+<span class="k">struct</span> <span class="n">DeviceS</span> <span class="p">{</span> <span class="p">...</span> <span class="p">};</span>
+
+<span class="n">__host__</span> <span class="n">HostS</span> <span class="nf">MakeStruct</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="n">HostS</span><span class="p">();</span> <span class="p">}</span>
+<span class="n">__device__</span> <span class="n">DeviceS</span> <span class="nf">MakeStruct</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="n">DeviceS</span><span class="p">();</span> <span class="p">}</span>
+
+<span class="c1">// Now host and device code can call MakeStruct().</span>
+</pre></div>
+</div>
+<p>Unfortunately, this idiom isn’t compatible with nvcc, because it doesn’t allow
+you to overload based on the H/D attributes.  Here’s an idiom that works with
+both clang and nvcc:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">HostS</span> <span class="p">{</span> <span class="p">...</span> <span class="p">};</span>
+<span class="k">struct</span> <span class="n">DeviceS</span> <span class="p">{</span> <span class="p">...</span> <span class="p">};</span>
+
+<span class="cp">#ifdef __NVCC__</span>
+  <span class="cp">#ifndef __CUDA_ARCH__</span>
+    <span class="n">__host__</span> <span class="n">HostS</span> <span class="nf">MakeStruct</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="n">HostS</span><span class="p">();</span> <span class="p">}</span>
+  <span class="cp">#else</span>
+    <span class="n">__device__</span> <span class="n">DeviceS</span> <span class="nf">MakeStruct</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="n">DeviceS</span><span class="p">();</span> <span class="p">}</span>
+  <span class="cp">#endif</span>
+<span class="cp">#else</span>
+  <span class="n">__host__</span> <span class="n">HostS</span> <span class="nf">MakeStruct</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="n">HostS</span><span class="p">();</span> <span class="p">}</span>
+  <span class="n">__device__</span> <span class="n">DeviceS</span> <span class="nf">MakeStruct</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="n">DeviceS</span><span class="p">();</span> <span class="p">}</span>
+<span class="cp">#endif</span>
+
+<span class="c1">// Now host and device code can call MakeStruct().</span>
+</pre></div>
+</div>
+<p>Hopefully you don’t have to do this sort of thing often.</p>
+</div>
+</div>
+<div class="section" id="optimizations">
+<h2><a class="toc-backref" href="#id15">Optimizations</a><a class="headerlink" href="#optimizations" title="Permalink to this headline">¶</a></h2>
+<p>Modern CPUs and GPUs are architecturally quite different, so code that’s fast
+on a CPU isn’t necessarily fast on a GPU.  We’ve made a number of changes to
+LLVM to make it generate good GPU code.  Among these changes are:</p>
+<ul>
+<li><p class="first"><a class="reference external" href="https://goo.gl/4Rb9As">Straight-line scalar optimizations</a> – These
+reduce redundancy within straight-line code.</p>
+</li>
+<li><p class="first"><a class="reference external" href="http://llvm.org/docs/doxygen/html/SpeculativeExecution_8cpp_source.html">Aggressive speculative execution</a>
+– This is mainly for promoting straight-line scalar optimizations, which are
+most effective on code along dominator paths.</p>
+</li>
+<li><p class="first"><a class="reference external" href="http://llvm.org/doxygen/NVPTXInferAddressSpaces_8cpp_source.html">Memory space inference</a> –
+In PTX, we can operate on pointers that are in a paricular “address space”
+(global, shared, constant, or local), or we can operate on pointers in the
+“generic” address space, which can point to anything.  Operations in a
+non-generic address space are faster, but pointers in CUDA are not explicitly
+annotated with their address space, so it’s up to LLVM to infer it where
+possible.</p>
+</li>
+<li><p class="first"><a class="reference external" href="http://llvm.org/docs/doxygen/html/BypassSlowDivision_8cpp_source.html">Bypassing 64-bit divides</a> –
+This was an existing optimization that we enabled for the PTX backend.</p>
+<p>64-bit integer divides are much slower than 32-bit ones on NVIDIA GPUs.
+Many of the 64-bit divides in our benchmarks have a divisor and dividend
+which fit in 32-bits at runtime. This optimization provides a fast path for
+this common case.</p>
+</li>
+<li><p class="first">Aggressive loop unrooling and function inlining – Loop unrolling and
+function inlining need to be more aggressive for GPUs than for CPUs because
+control flow transfer in GPU is more expensive. More aggressive unrolling and
+inlining also promote other optimizations, such as constant propagation and
+SROA, which sometimes speed up code by over 10x.</p>
+<p>(Programmers can force unrolling and inline using clang’s <a class="reference external" href="http://clang.llvm.org/docs/AttributeReference.html#pragma-unroll-pragma-nounroll">loop unrolling pragmas</a>
+and <code class="docutils literal"><span class="pre">__attribute__((always_inline))</span></code>.)</p>
+</li>
+</ul>
+</div>
+<div class="section" id="publication">
+<h2><a class="toc-backref" href="#id16">Publication</a><a class="headerlink" href="#publication" title="Permalink to this headline">¶</a></h2>
+<p>The team at Google published a paper in CGO 2016 detailing the optimizations
+they’d made to clang/LLVM.  Note that “gpucc” is no longer a meaningful name:
+The relevant tools are now just vanilla clang/LLVM.</p>
+<div class="line-block">
+<div class="line"><a class="reference external" href="http://dl.acm.org/citation.cfm?id=2854041">gpucc: An Open-Source GPGPU Compiler</a></div>
+<div class="line">Jingyue Wu, Artem Belevich, Eli Bendersky, Mark Heffernan, Chris Leary, Jacques Pienaar, Bjarke Roune, Rob Springer, Xuetian Weng, Robert Hundt</div>
+<div class="line"><em>Proceedings of the 2016 International Symposium on Code Generation and Optimization (CGO 2016)</em></div>
+<div class="line"><br /></div>
+<div class="line"><a class="reference external" href="http://wujingyue.com/docs/gpucc-talk.pdf">Slides from the CGO talk</a></div>
+<div class="line"><br /></div>
+<div class="line"><a class="reference external" href="http://wujingyue.com/docs/gpucc-tutorial.pdf">Tutorial given at CGO</a></div>
+</div>
+</div>
+<div class="section" id="obtaining-help">
+<h2><a class="toc-backref" href="#id17">Obtaining Help</a><a class="headerlink" href="#obtaining-help" title="Permalink to this headline">¶</a></h2>
+<p>To obtain help on LLVM in general and its CUDA support, see <a class="reference external" href="http://llvm.org/docs/#mailing-lists">the LLVM
+community</a>.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="ReportingGuide.html" title="Reporting Guide"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="CodeOfConduct.html" title="LLVM Community Code of Conduct"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

@@ -1,4 +1,6 @@
-// RUN: %clang_cc1 -fsyntax-only -fopenmp=libiomp5 -verify %s
+// RUN: %clang_cc1 -fsyntax-only -fopenmp -verify %s
+
+// RUN: %clang_cc1 -fsyntax-only -fopenmp-simd -verify %s
 
 // expected-error@+1 {{unexpected OpenMP directive '#pragma omp parallel for'}}
 #pragma omp parallel for
@@ -57,11 +59,6 @@ void test_non_identifiers() {
 
 // expected-warning@+1 {{extra tokens at the end of '#pragma omp parallel for' are ignored}}
 #pragma omp parallel for;
-  for (i = 0; i < 16; ++i)
-    ;
-// expected-error@+2 {{unexpected OpenMP clause 'linear' in directive '#pragma omp parallel for'}}
-// expected-warning@+1 {{extra tokens at the end of '#pragma omp parallel for' are ignored}}
-#pragma omp parallel for linear(x);
   for (i = 0; i < 16; ++i)
     ;
 
@@ -153,18 +150,28 @@ void test_collapse() {
 #pragma omp parallel for collapse(foo())
   for (i = 0; i < 16; ++i)
     ;
-// expected-error@+1 {{argument to 'collapse' clause must be a positive integer value}}
+// expected-error@+1 {{argument to 'collapse' clause must be a strictly positive integer value}}
 #pragma omp parallel for collapse(-5)
   for (i = 0; i < 16; ++i)
     ;
-// expected-error@+1 {{argument to 'collapse' clause must be a positive integer value}}
+// expected-error@+1 {{argument to 'collapse' clause must be a strictly positive integer value}}
 #pragma omp parallel for collapse(0)
   for (i = 0; i < 16; ++i)
     ;
-// expected-error@+1 {{argument to 'collapse' clause must be a positive integer value}}
+// expected-error@+1 {{argument to 'collapse' clause must be a strictly positive integer value}}
 #pragma omp parallel for collapse(5 - 5)
   for (i = 0; i < 16; ++i)
     ;
+// expected-note@+1 {{defined as firstprivate}}
+#pragma omp parallel for collapse(2) firstprivate(i)
+  for (i = 0; i < 16; ++i)
+// expected-note@+1 {{variable with automatic storage duration is predetermined as private; perhaps you forget to enclose 'omp for' directive into a parallel or another task region?}}
+    for (int j = 0; j < 16; ++j)
+// expected-error@+2 2 {{reduction variable must be shared}}
+// expected-error@+1 {{region cannot be closely nested inside 'parallel for' region; perhaps you forget to enclose 'omp for' directive into a parallel region?}}
+#pragma omp for reduction(+ : i, j)
+      for (int k = 0; k < 16; ++k)
+        i += j;
 }
 
 void test_private() {

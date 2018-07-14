@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=nvptx -mcpu=sm_20 | FileCheck %s
+; RUN: llc < %s -march=nvptx -mcpu=sm_20 -verify-machineinstrs | FileCheck %s
 
 target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64"
 
@@ -13,7 +13,7 @@ define i8 @callee(i8 %a) {
 ; CHECK: .visible .func caller
 define void @caller(i8* %a) {
 ; CHECK: ld.u8
-  %val = load i8* %a
+  %val = load i8, i8* %a
   %ret = tail call i8 @callee(i8 %val)
 ; CHECK: ld.param.b32
   store i8 %ret, i8* %a

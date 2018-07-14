@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>CommandLine 2.0 Library Manual &#8212; LLVM 3.4 documentation</title>
+    <title>CommandLine 2.0 Library Manual &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -118,6 +118,7 @@
 <li><a class="reference internal" href="#extending-the-library" id="id44">Extension Guide</a><ul>
 <li><a class="reference internal" href="#writing-a-custom-parser" id="id45">Writing a custom parser</a></li>
 <li><a class="reference internal" href="#exploiting-external-storage" id="id46">Exploiting external storage</a></li>
+<li><a class="reference internal" href="#dynamically-adding-command-line-options" id="id47">Dynamically adding command line options</a></li>
 </ul>
 </li>
 </ul>
@@ -403,8 +404,7 @@ library fill it in with the appropriate level directly, which is used like this:
     <span class="n">clEnumVal</span><span class="p">(</span><span class="n">g</span> <span class="p">,</span> <span class="s">&quot;No optimizations, enable debugging&quot;</span><span class="p">),</span>
     <span class="n">clEnumVal</span><span class="p">(</span><span class="n">O1</span><span class="p">,</span> <span class="s">&quot;Enable trivial optimizations&quot;</span><span class="p">),</span>
     <span class="n">clEnumVal</span><span class="p">(</span><span class="n">O2</span><span class="p">,</span> <span class="s">&quot;Enable default optimizations&quot;</span><span class="p">),</span>
-    <span class="n">clEnumVal</span><span class="p">(</span><span class="n">O3</span><span class="p">,</span> <span class="s">&quot;Enable expensive optimizations&quot;</span><span class="p">),</span>
-   <span class="n">clEnumValEnd</span><span class="p">));</span>
+    <span class="n">clEnumVal</span><span class="p">(</span><span class="n">O3</span><span class="p">,</span> <span class="s">&quot;Enable expensive optimizations&quot;</span><span class="p">)));</span>
 
 <span class="p">...</span>
   <span class="k">if</span> <span class="p">(</span><span class="n">OptimizationLevel</span> <span class="o">&gt;=</span> <span class="n">O2</span><span class="p">)</span> <span class="n">doPartialRedundancyElimination</span><span class="p">(...);</span>
@@ -413,8 +413,7 @@ library fill it in with the appropriate level directly, which is used like this:
 </div>
 <p>This declaration defines a variable “<code class="docutils literal"><span class="pre">OptimizationLevel</span></code>” of the
 “<code class="docutils literal"><span class="pre">OptLevel</span></code>” enum type.  This variable can be assigned any of the values that
-are listed in the declaration (Note that the declaration list must be terminated
-with the “<code class="docutils literal"><span class="pre">clEnumValEnd</span></code>” argument!).  The CommandLine library enforces that
+are listed in the declaration.  The CommandLine library enforces that
 the user can only specify one of the options, and it ensure that only valid enum
 values can be specified.  The “<code class="docutils literal"><span class="pre">clEnumVal</span></code>” macros ensure that the command
 line arguments matched the enum values.  With this option added, our help output
@@ -445,8 +444,7 @@ program.  Because of this, we can alternatively write this example like this:</p
    <span class="n">clEnumValN</span><span class="p">(</span><span class="n">Debug</span><span class="p">,</span> <span class="s">&quot;g&quot;</span><span class="p">,</span> <span class="s">&quot;No optimizations, enable debugging&quot;</span><span class="p">),</span>
     <span class="n">clEnumVal</span><span class="p">(</span><span class="n">O1</span>        <span class="p">,</span> <span class="s">&quot;Enable trivial optimizations&quot;</span><span class="p">),</span>
     <span class="n">clEnumVal</span><span class="p">(</span><span class="n">O2</span>        <span class="p">,</span> <span class="s">&quot;Enable default optimizations&quot;</span><span class="p">),</span>
-    <span class="n">clEnumVal</span><span class="p">(</span><span class="n">O3</span>        <span class="p">,</span> <span class="s">&quot;Enable expensive optimizations&quot;</span><span class="p">),</span>
-   <span class="n">clEnumValEnd</span><span class="p">));</span>
+    <span class="n">clEnumVal</span><span class="p">(</span><span class="n">O3</span>        <span class="p">,</span> <span class="s">&quot;Enable expensive optimizations&quot;</span><span class="p">)));</span>
 
 <span class="p">...</span>
   <span class="k">if</span> <span class="p">(</span><span class="n">OptimizationLevel</span> <span class="o">==</span> <span class="n">Debug</span><span class="p">)</span> <span class="n">outputDebugInfo</span><span class="p">(...);</span>
@@ -477,8 +475,7 @@ the code looks like this:</p>
   <span class="n">cl</span><span class="o">::</span><span class="n">values</span><span class="p">(</span>
     <span class="n">clEnumValN</span><span class="p">(</span><span class="n">nodebuginfo</span><span class="p">,</span> <span class="s">&quot;none&quot;</span><span class="p">,</span> <span class="s">&quot;disable debug information&quot;</span><span class="p">),</span>
      <span class="n">clEnumVal</span><span class="p">(</span><span class="n">quick</span><span class="p">,</span>               <span class="s">&quot;enable quick debug information&quot;</span><span class="p">),</span>
-     <span class="n">clEnumVal</span><span class="p">(</span><span class="n">detailed</span><span class="p">,</span>            <span class="s">&quot;enable detailed debug information&quot;</span><span class="p">),</span>
-    <span class="n">clEnumValEnd</span><span class="p">));</span>
+     <span class="n">clEnumVal</span><span class="p">(</span><span class="n">detailed</span><span class="p">,</span>            <span class="s">&quot;enable detailed debug information&quot;</span><span class="p">)));</span>
 </pre></div>
 </div>
 <p>This definition defines an enumerated command line variable of type “<code class="docutils literal"><span class="pre">enum</span>
@@ -530,8 +527,7 @@ defining an enum of the optimizations that you would like to perform:</p>
     <span class="n">clEnumVal</span><span class="p">(</span><span class="n">dce</span>               <span class="p">,</span> <span class="s">&quot;Dead Code Elimination&quot;</span><span class="p">),</span>
     <span class="n">clEnumVal</span><span class="p">(</span><span class="n">constprop</span>         <span class="p">,</span> <span class="s">&quot;Constant Propagation&quot;</span><span class="p">),</span>
    <span class="n">clEnumValN</span><span class="p">(</span><span class="n">inlining</span><span class="p">,</span> <span class="s">&quot;inline&quot;</span><span class="p">,</span> <span class="s">&quot;Procedure Integration&quot;</span><span class="p">),</span>
-    <span class="n">clEnumVal</span><span class="p">(</span><span class="n">strip</span>             <span class="p">,</span> <span class="s">&quot;Strip Symbols&quot;</span><span class="p">),</span>
-  <span class="n">clEnumValEnd</span><span class="p">));</span>
+    <span class="n">clEnumVal</span><span class="p">(</span><span class="n">strip</span>             <span class="p">,</span> <span class="s">&quot;Strip Symbols&quot;</span><span class="p">)));</span>
 </pre></div>
 </div>
 <p>This defines a variable that is conceptually of the type
@@ -579,8 +575,7 @@ the first are discarded.</p>
     <span class="n">clEnumVal</span><span class="p">(</span><span class="n">dce</span>               <span class="p">,</span> <span class="s">&quot;Dead Code Elimination&quot;</span><span class="p">),</span>
     <span class="n">clEnumVal</span><span class="p">(</span><span class="n">constprop</span>         <span class="p">,</span> <span class="s">&quot;Constant Propagation&quot;</span><span class="p">),</span>
    <span class="n">clEnumValN</span><span class="p">(</span><span class="n">inlining</span><span class="p">,</span> <span class="s">&quot;inline&quot;</span><span class="p">,</span> <span class="s">&quot;Procedure Integration&quot;</span><span class="p">),</span>
-    <span class="n">clEnumVal</span><span class="p">(</span><span class="n">strip</span>             <span class="p">,</span> <span class="s">&quot;Strip Symbols&quot;</span><span class="p">),</span>
-  <span class="n">clEnumValEnd</span><span class="p">));</span>
+    <span class="n">clEnumVal</span><span class="p">(</span><span class="n">strip</span>             <span class="p">,</span> <span class="s">&quot;Strip Symbols&quot;</span><span class="p">)));</span>
 </pre></div>
 </div>
 <p>To test to see if <code class="docutils literal"><span class="pre">constprop</span></code> was specified, we can use the <code class="docutils literal"><span class="pre">cl:bits::isSet</span></code>
@@ -922,11 +917,10 @@ an alias for.</li>
 </ul>
 <ul id="cl-values">
 <li><p class="first">The <strong>cl::values</strong> attribute specifies the string-to-value mapping to be used
-by the generic parser.  It takes a <strong>clEnumValEnd terminated</strong> list of
-(option, value, description) triplets that specify the option name, the value
-mapped to, and the description shown in the <code class="docutils literal"><span class="pre">-help</span></code> for the tool.  Because
-the generic parser is used most frequently with enum values, two macros are
-often useful:</p>
+by the generic parser.  It takes a list of (option, value, description)
+triplets that specify the option name, the value mapped to, and the
+description shown in the <code class="docutils literal"><span class="pre">-help</span></code> for the tool.  Because the generic parser
+is used most frequently with enum values, two macros are often useful:</p>
 <ol class="arabic simple">
 <li>The <strong>clEnumVal</strong> macro is used as a nice simple way to specify a triplet
 for an enum.  This macro automatically makes the option name be the same as
@@ -1165,9 +1159,7 @@ Unices have a relatively low limit on command-line length. It is therefore
 customary to use the so-called ‘response files’ to circumvent this
 restriction. These files are mentioned on the command-line (using the “&#64;file”)
 syntax. The program reads these files and inserts the contents into argv,
-thereby working around the command-line length limits. Response files are
-enabled by an optional fourth argument to <a class="reference internal" href="#cl-parseenvironmentoptions">cl::ParseEnvironmentOptions</a> and
-<a class="reference internal" href="#cl-parsecommandlineoptions">cl::ParseCommandLineOptions</a>.</p>
+thereby working around the command-line length limits.</p>
 </div>
 </div>
 <div class="section" id="top-level-classes-and-functions">
@@ -1193,8 +1185,7 @@ string (e.g. <code class="docutils literal"><span class="pre">-help</span></code
 <span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">**</span><span class="n">argv</span><span class="p">)</span> <span class="p">{</span>
   <span class="n">cl</span><span class="o">::</span><span class="n">OptionCategory</span> <span class="n">AnotherCategory</span><span class="p">(</span><span class="s">&quot;Some options&quot;</span><span class="p">);</span>
 
-  <span class="n">StringMap</span><span class="o">&lt;</span><span class="n">cl</span><span class="o">::</span><span class="n">Option</span><span class="o">*&gt;</span> <span class="n">Map</span><span class="p">;</span>
-  <span class="n">cl</span><span class="o">::</span><span class="n">getRegisteredOptions</span><span class="p">(</span><span class="n">Map</span><span class="p">);</span>
+  <span class="n">StringMap</span><span class="o">&lt;</span><span class="n">cl</span><span class="o">::</span><span class="n">Option</span><span class="o">*&gt;</span> <span class="o">&amp;</span><span class="n">Map</span> <span class="o">=</span> <span class="n">cl</span><span class="o">::</span><span class="n">getRegisteredOptions</span><span class="p">();</span>
 
   <span class="c1">//Unhide useful option and put it in a different category</span>
   <span class="n">assert</span><span class="p">(</span><span class="n">Map</span><span class="p">.</span><span class="n">count</span><span class="p">(</span><span class="s">&quot;print-all-options&quot;</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">);</span>
@@ -1226,8 +1217,7 @@ from <code class="docutils literal"><span class="pre">main</span></code>, and is
 option variables once <code class="docutils literal"><span class="pre">argc</span></code> and <code class="docutils literal"><span class="pre">argv</span></code> are available.</p>
 <p>The <code class="docutils literal"><span class="pre">cl::ParseCommandLineOptions</span></code> function requires two parameters (<code class="docutils literal"><span class="pre">argc</span></code>
 and <code class="docutils literal"><span class="pre">argv</span></code>), but may also take an optional third parameter which holds
-<a class="reference internal" href="#additional-extra-text">additional extra text</a> to emit when the <code class="docutils literal"><span class="pre">-help</span></code> option is invoked, and a
-fourth boolean parameter that enables <a class="reference internal" href="#response-files">response files</a>.</p>
+<a class="reference internal" href="#additional-extra-text">additional extra text</a> to emit when the <code class="docutils literal"><span class="pre">-help</span></code> option is invoked.</p>
 </div>
 <div class="section" id="the-cl-parseenvironmentoptions-function">
 <span id="cl-parseenvironmentoptions"></span><h4><a class="toc-backref" href="#id35">The <code class="docutils literal"><span class="pre">cl::ParseEnvironmentOptions</span></code> function</a><a class="headerlink" href="#the-cl-parseenvironmentoptions-function" title="Permalink to this headline">¶</a></h4>
@@ -1238,9 +1228,8 @@ command line is not convenient or desired. It fills in the values of all the
 command line option variables just like <a class="reference internal" href="#cl-parsecommandlineoptions">cl::ParseCommandLineOptions</a> does.</p>
 <p>It takes four parameters: the name of the program (since <code class="docutils literal"><span class="pre">argv</span></code> may not be
 available, it can’t just look in <code class="docutils literal"><span class="pre">argv[0]</span></code>), the name of the environment
-variable to examine, the optional <a class="reference internal" href="#additional-extra-text">additional extra text</a> to emit when the
-<code class="docutils literal"><span class="pre">-help</span></code> option is invoked, and the boolean switch that controls whether
-<a class="reference internal" href="#response-files">response files</a> should be read.</p>
+variable to examine, and the optional <a class="reference internal" href="#additional-extra-text">additional extra text</a> to emit when the
+<code class="docutils literal"><span class="pre">-help</span></code> option is invoked.</p>
 <p><code class="docutils literal"><span class="pre">cl::ParseEnvironmentOptions</span></code> will break the environment variable’s value up
 into words and then process them using <a class="reference internal" href="#cl-parsecommandlineoptions">cl::ParseCommandLineOptions</a>.
 <strong>Note:</strong> Currently <code class="docutils literal"><span class="pre">cl::ParseEnvironmentOptions</span></code> does not support quoting, so
@@ -1452,14 +1441,14 @@ this case, the underlying data type we want to parse into is ‘<code class="doc
 choose approach #2 above because we don’t want to make this the default for all
 <code class="docutils literal"><span class="pre">unsigned</span></code> options.</p>
 <p>To start out, we declare our new <code class="docutils literal"><span class="pre">FileSizeParser</span></code> class:</p>
-<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="nl">FileSizeParser</span> <span class="p">:</span> <span class="k">public</span> <span class="n">cl</span><span class="o">::</span><span class="n">basic_parser</span><span class="o">&lt;</span><span class="kt">unsigned</span><span class="o">&gt;</span> <span class="p">{</span>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="nl">FileSizeParser</span> <span class="p">:</span> <span class="k">public</span> <span class="n">cl</span><span class="o">::</span><span class="n">parser</span><span class="o">&lt;</span><span class="kt">unsigned</span><span class="o">&gt;</span> <span class="p">{</span>
   <span class="c1">// parse - Return true on error.</span>
-  <span class="kt">bool</span> <span class="n">parse</span><span class="p">(</span><span class="n">cl</span><span class="o">::</span><span class="n">Option</span> <span class="o">&amp;</span><span class="n">O</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ArgName</span><span class="p">,</span> <span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">ArgValue</span><span class="p">,</span>
+  <span class="kt">bool</span> <span class="n">parse</span><span class="p">(</span><span class="n">cl</span><span class="o">::</span><span class="n">Option</span> <span class="o">&amp;</span><span class="n">O</span><span class="p">,</span> <span class="n">StringRef</span> <span class="n">ArgName</span><span class="p">,</span> <span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">ArgValue</span><span class="p">,</span>
              <span class="kt">unsigned</span> <span class="o">&amp;</span><span class="n">Val</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
 </div>
-<p>Our new class inherits from the <code class="docutils literal"><span class="pre">cl::basic_parser</span></code> template class to fill in
+<p>Our new class inherits from the <code class="docutils literal"><span class="pre">cl::parser</span></code> template class to fill in
 the default, boiler plate code for us.  We give it the data type that we parse
 into, the last argument to the <code class="docutils literal"><span class="pre">parse</span></code> method, so that clients of our custom
 parser know what object type to pass in to the parse method.  (Here we declare
@@ -1471,7 +1460,7 @@ a reference to a return value.  If the string to parse is not well-formed, the
 parser should output an error message and return true.  Otherwise it should
 return false and set ‘<code class="docutils literal"><span class="pre">Val</span></code>’ to the parsed value.  In our example, we
 implement <code class="docutils literal"><span class="pre">parse</span></code> as:</p>
-<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">bool</span> <span class="n">FileSizeParser</span><span class="o">::</span><span class="n">parse</span><span class="p">(</span><span class="n">cl</span><span class="o">::</span><span class="n">Option</span> <span class="o">&amp;</span><span class="n">O</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ArgName</span><span class="p">,</span>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">bool</span> <span class="n">FileSizeParser</span><span class="o">::</span><span class="n">parse</span><span class="p">(</span><span class="n">cl</span><span class="o">::</span><span class="n">Option</span> <span class="o">&amp;</span><span class="n">O</span><span class="p">,</span> <span class="n">StringRef</span> <span class="n">ArgName</span><span class="p">,</span>
                            <span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Arg</span><span class="p">,</span> <span class="kt">unsigned</span> <span class="o">&amp;</span><span class="n">Val</span><span class="p">)</span> <span class="p">{</span>
   <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ArgStart</span> <span class="o">=</span> <span class="n">Arg</span><span class="p">.</span><span class="n">c_str</span><span class="p">();</span>
   <span class="kt">char</span> <span class="o">*</span><span class="n">End</span><span class="p">;</span>
@@ -1513,7 +1502,7 @@ use it like this:</p>
 <div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">OPTIONS</span><span class="p">:</span>
   <span class="o">-</span><span class="n">help</span>                 <span class="o">-</span> <span class="n">display</span> <span class="n">available</span> <span class="n">options</span> <span class="p">(</span><span class="o">-</span><span class="n">help</span><span class="o">-</span><span class="n">hidden</span> <span class="k">for</span> <span class="n">more</span><span class="p">)</span>
   <span class="o">...</span>
- <span class="o">-</span><span class="nb">max</span><span class="o">-</span><span class="n">file</span><span class="o">-</span><span class="n">size</span><span class="o">=&lt;</span><span class="n">size</span><span class="o">&gt;</span> <span class="o">-</span> <span class="n">Maximum</span> <span class="n">file</span> <span class="n">size</span> <span class="n">to</span> <span class="n">accept</span>
+  <span class="o">-</span><span class="nb">max</span><span class="o">-</span><span class="n">file</span><span class="o">-</span><span class="n">size</span><span class="o">=&lt;</span><span class="n">size</span><span class="o">&gt;</span> <span class="o">-</span> <span class="n">Maximum</span> <span class="n">file</span> <span class="n">size</span> <span class="n">to</span> <span class="n">accept</span>
 </pre></div>
 </div>
 <p>And we can test that our parse works correctly now (the test program just prints
@@ -1542,7 +1531,9 @@ provide an external storage location that is accessible to users of the
 library. Examples of this include the <code class="docutils literal"><span class="pre">llvm::DebugFlag</span></code> exported by the
 <code class="docutils literal"><span class="pre">lib/Support/Debug.cpp</span></code> file and the <code class="docutils literal"><span class="pre">llvm::TimePassesIsEnabled</span></code> flag
 exported by the <code class="docutils literal"><span class="pre">lib/VMCore/PassManager.cpp</span></code> file.</p>
-<p id="dynamically-loaded-options">Dynamically adding command line options</p>
+</div>
+<div class="section" id="dynamically-adding-command-line-options">
+<span id="dynamically-loaded-options"></span><h3><a class="toc-backref" href="#id47">Dynamically adding command line options</a><a class="headerlink" href="#dynamically-adding-command-line-options" title="Permalink to this headline">¶</a></h3>
 </div>
 </div>
 </div>
@@ -1570,8 +1561,8 @@ exported by the <code class="docutils literal"><span class="pre">lib/VMCore/Pass
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

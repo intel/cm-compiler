@@ -179,12 +179,10 @@ namespace string_assign {
   static_assert(!test1(100), "");
   static_assert(!test1(101), ""); // expected-error {{constant expression}} expected-note {{in call to 'test1(101)'}}
 
-  // FIXME: We should be able to reject this before it's called
-  constexpr void f() {
+  constexpr void f() { // expected-error{{constexpr function never produces a constant expression}} expected-note@+2{{assignment to dereferenced one-past-the-end pointer is not allowed in a constant expression}}
     char foo[10] = { "z" }; // expected-note {{here}}
-    foo[10] = 'x'; // expected-warning {{past the end}} expected-note {{assignment to dereferenced one-past-the-end pointer}}
+    foo[10] = 'x'; // expected-warning {{past the end}}
   }
-  constexpr int k = (f(), 0); // expected-error {{constant expression}} expected-note {{in call}}
 }
 
 namespace array_resize {
@@ -462,7 +460,7 @@ namespace loops {
       if ((c % 7) == 0) break;
     } while (c != 21);
 
-    return a == 10 && b == 12 & c == 14;
+    return a == 10 && b == 12 && c == 14;
   }
   static_assert(breaks_work(), "");
 
@@ -719,8 +717,7 @@ namespace deduced_return_type {
 namespace modify_temporary_during_construction {
   struct A { int &&temporary; int x; int y; };
   constexpr int f(int &r) { r *= 9; return r - 12; }
-  // FIXME: The 'uninitialized' warning here is bogus.
-  constexpr A a = { 6, f(a.temporary), a.temporary }; // expected-warning {{uninitialized}} expected-note {{temporary created here}}
+  constexpr A a = { 6, f(a.temporary), a.temporary }; // expected-note {{temporary created here}}
   static_assert(a.x == 42, "");
   static_assert(a.y == 54, "");
   constexpr int k = a.temporary++; // expected-error {{constant expression}} expected-note {{outside the expression that created the temporary}}
@@ -873,7 +870,7 @@ namespace Lifetime {
 
 namespace Bitfields {
   struct A {
-    bool b : 3;
+    bool b : 1;
     int n : 4;
     unsigned u : 5;
   };
@@ -911,3 +908,116 @@ namespace PR17331 {
   constexpr int ARR[] = { 1, 2, 3, 4, 5 };
   static_assert(sum(ARR) == 15, "");
 }
+
+namespace EmptyClass {
+  struct E1 {} e1;
+  union E2 {} e2; // expected-note 4{{here}}
+  struct E3 : E1 {} e3;
+
+  template<typename E>
+  constexpr int f(E &a, int kind) {
+    switch (kind) {
+    case 0: { E e(a); return 0; } // expected-note {{read}} expected-note {{in call}}
+    case 1: { E e(static_cast<E&&>(a)); return 0; } // expected-note {{read}} expected-note {{in call}}
+    case 2: { E e; e = a; return 0; } // expected-note {{read}} expected-note {{in call}}
+    case 3: { E e; e = static_cast<E&&>(a); return 0; } // expected-note {{read}} expected-note {{in call}}
+    }
+  }
+  constexpr int test1 = f(e1, 0);
+  constexpr int test2 = f(e2, 0); // expected-error {{constant expression}} expected-note {{in call}}
+  constexpr int test3 = f(e3, 0);
+  constexpr int test4 = f(e1, 1);
+  constexpr int test5 = f(e2, 1); // expected-error {{constant expression}} expected-note {{in call}}
+  constexpr int test6 = f(e3, 1);
+  constexpr int test7 = f(e1, 2);
+  constexpr int test8 = f(e2, 2); // expected-error {{constant expression}} expected-note {{in call}}
+  constexpr int test9 = f(e3, 2);
+  constexpr int testa = f(e1, 3);
+  constexpr int testb = f(e2, 3); // expected-error {{constant expression}} expected-note {{in call}}
+  constexpr int testc = f(e3, 3);
+}
+
+namespace SpeculativeEvalWrites {
+  // Ensure that we don't try to speculatively evaluate writes.
+  constexpr int f() {
+    int i = 0;
+    int a = 0;
+    // __builtin_object_size speculatively evaluates its first argument.
+    __builtin_object_size((i = 1, &a), 0);
+    return i;
+  }
+
+  static_assert(!f(), "");
+}
+
+namespace PR27989 {
+  constexpr int f(int n) {
+    int a = (n = 1, 0);
+    return n;
+  }
+  static_assert(f(0) == 1, "");
+}
+
+namespace const_char {
+template <int N>
+constexpr int sum(const char (&Arr)[N]) {
+  int S = 0;
+  for (unsigned I = 0; I != N; ++I)
+    S += Arr[I]; // expected-note 2{{read of non-constexpr variable 'Cs' is not allowed}}
+  return S;
+}
+
+// As an extension, we support evaluating some things that are `const` as though
+// they were `constexpr` when folding, but it should not be allowed in normal
+// constexpr evaluation.
+const char Cs[] = {'a', 'b'};
+void foo() __attribute__((enable_if(sum(Cs) == 'a' + 'b', "")));
+void run() { foo(); }
+
+static_assert(sum(Cs) == 'a' + 'b', ""); // expected-error{{not an integral constant expression}} expected-note{{in call to 'sum(Cs)'}}
+constexpr int S = sum(Cs); // expected-error{{must be initialized by a constant expression}} expected-note{{in call}}
+}
+
+constexpr void PR28739(int n) { // expected-error {{never produces a constant}}
+  int *p = &n;
+  p += (__int128)(unsigned long)-1; // expected-note {{cannot refer to element 18446744073709551615 of non-array object in a constant expression}}
+}
+
+constexpr void Void(int n) {
+  void(n + 1);
+  void();
+}
+constexpr int void_test = (Void(0), 1);
+
+namespace PR19741 {
+constexpr void addone(int &m) { m++; }
+
+struct S {
+  int m = 0;
+  constexpr S() { addone(m); }
+};
+constexpr bool evalS() {
+  constexpr S s;
+  return s.m == 1;
+}
+static_assert(evalS(), "");
+
+struct Nested {
+  struct First { int x = 42; };
+  union {
+    First first;
+    int second;
+  };
+  int x;
+  constexpr Nested(int x) : first(), x(x) { x = 4; }
+  constexpr Nested() : Nested(42) {
+    addone(first.x);
+    x = 3;
+  }
+};
+constexpr bool evalNested() {
+  constexpr Nested N;
+  return N.first.x == 43;
+}
+static_assert(evalNested(), "");
+} // namespace PR19741

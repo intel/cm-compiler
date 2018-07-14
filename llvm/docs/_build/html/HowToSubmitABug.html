@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>How to submit an LLVM bug report &#8212; LLVM 3.4 documentation</title>
+    <title>How to submit an LLVM bug report &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -79,7 +79,7 @@ compiler successfully produces an executable, but it doesn’t run right).
 Based on what type of bug it is, follow the instructions in the linked
 section to narrow down the bug so that the person who fixes it will be able
 to find the problem more easily.</p>
-<p>Once you have a reduced test-case, go to <a class="reference external" href="http://llvm.org/bugs/enter_bug.cgi">the LLVM Bug Tracking System</a> and fill out the form with the
+<p>Once you have a reduced test-case, go to <a class="reference external" href="https://bugs.llvm.org/enter_bug.cgi">the LLVM Bug Tracking System</a> and fill out the form with the
 necessary details (note that you don’t need to pick a category, just use
 the “new-bugs” category if you’re not sure).  The bug description should
 contain the following information:</p>
@@ -130,7 +130,7 @@ on the best way to use delta.</p>
 <p>If you find that a bug crashes in the optimizer, compile your test-case to a
 <code class="docutils literal"><span class="pre">.bc</span></code> file by passing “<code class="docutils literal"><span class="pre">-emit-llvm</span> <span class="pre">-O0</span> <span class="pre">-c</span> <span class="pre">-o</span> <span class="pre">foo.bc</span></code>”.
 Then run:</p>
-<div class="highlight-bash"><div class="highlight"><pre><span></span>opt -std-compile-opts -debug-pass<span class="o">=</span>Arguments foo.bc -disable-output
+<div class="highlight-bash"><div class="highlight"><pre><span></span>opt -O3 -debug-pass<span class="o">=</span>Arguments foo.bc -disable-output
 </pre></div>
 </div>
 <p>This command should do two things: it should print out a list of passes, and
@@ -273,8 +273,8 @@ bitcode:</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

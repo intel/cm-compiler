@@ -33,15 +33,15 @@ void test() {
   s1.column(2);                                // no column() in s
   s2.column = 1;                               // OK
 }
-// CHECK: column.cpp(18,31) :  error: expected '('
-// CHECK: column.cpp(19,32) :  error: expected expression
-// CHECK: column.cpp(20,33) :  error: expected ')'
-// CHECK: column.cpp(21,32) :  error: expected expression
-// CHECK: column.cpp(25,25) :  error: column() member function is only valid for matrix/matrix_ref
-// CHECK: column.cpp(26,34) :  error: column() member function is only valid for matrix/matrix_ref
-// CHECK: column.cpp(27,33) :  error: column index must be positive
-// CHECK: column.cpp(29,33) :  warning: column index '6' is out of bounds, matrix has 6 columns [-Wcm-bounds-check]
-// CHECK: column.cpp(31,33) :  error: column index must be an integer expression
-// CHECK: column.cpp(33,6) :  error: no member named 'column' in 'S1'
-// CHECK: column.cpp(32,3) :  warning: expression result unused [-Wunused-value]
+// CHECK: column.cpp(18,31):  error: expected '('
+// CHECK: column.cpp(19,32):  error: expected expression
+// CHECK: column.cpp(20,33):  error: expected ')'
+// CHECK: column.cpp(21,32):  error: expected expression
+// CHECK: column.cpp(25,25):  error: column() member function is only valid for matrix/matrix_ref
+// CHECK: column.cpp(26,34):  error: column() member function is only valid for matrix/matrix_ref
+// CHECK: column.cpp(27,33):  error: column index must be positive
+// CHECK: column.cpp(29,33):  warning: column index '6' is out of bounds, matrix has 6 columns [-Wcm-bounds-check]
+// CHECK: column.cpp(31,33):  error: column index must be an integer expression
+// CHECK: column.cpp(33,6):  error: no member named 'column' in 'S1'
+// CHECK: column.cpp(32,3):  warning: expression result unused [-Wunused-value]
 // CHECK: 2 warnings and 9 errors generated.

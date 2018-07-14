@@ -160,12 +160,17 @@ namespace Operators {
 namespace ElaboratedTypeSpecifiers {
   struct S {
     int f(int x = T<a, struct S>());
-    int g(int x = T<a, class __declspec() C>());
     int h(int x = T<a, union __attribute__(()) U>());
     int i(int x = T<a, enum E>());
     int j(int x = T<a, struct S::template T<0, enum E>>());
     template <int, typename> struct T { operator int(); };
     static const int a = 0;
     enum E {};
+  };
+}
+
+namespace PR20459 {
+  template <typename EncTraits> struct A {
+     void foo(int = EncTraits::template TypeEnc<int, int>::val); // ok
   };
 }

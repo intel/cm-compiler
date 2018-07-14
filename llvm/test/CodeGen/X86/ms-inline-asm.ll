@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=x86 -mcpu=core2 -no-integrated-as | FileCheck %s
+; RUN: llc < %s -mtriple=i686-- -mcpu=core2 -no-integrated-as | FileCheck %s
 
 define i32 @t1() nounwind {
 entry:
@@ -44,13 +44,13 @@ entry:
 define i32 @t18() nounwind {
 entry:
   %foo = alloca %struct.t18_type, align 4
-  %a = getelementptr inbounds %struct.t18_type* %foo, i32 0, i32 0
+  %a = getelementptr inbounds %struct.t18_type, %struct.t18_type* %foo, i32 0, i32 0
   store i32 1, i32* %a, align 4
-  %b = getelementptr inbounds %struct.t18_type* %foo, i32 0, i32 1
+  %b = getelementptr inbounds %struct.t18_type, %struct.t18_type* %foo, i32 0, i32 1
   store i32 2, i32* %b, align 4
   call void asm sideeffect inteldialect "lea ebx, foo\0A\09mov eax, [ebx].0\0A\09mov [ebx].4, ecx", "~{eax},~{dirflag},~{fpsr},~{flags}"() nounwind
-  %b1 = getelementptr inbounds %struct.t18_type* %foo, i32 0, i32 1
-  %0 = load i32* %b1, align 4
+  %b1 = getelementptr inbounds %struct.t18_type, %struct.t18_type* %foo, i32 0, i32 1
+  %0 = load i32, i32* %b1, align 4
   ret i32 %0
 ; CHECK: t18
 ; CHECK: {{## InlineAsm Start|#APP}}
@@ -87,7 +87,7 @@ entry:
   %res = alloca i32*, align 4
   call void asm sideeffect inteldialect "lea edi, dword ptr $0", "*m,~{edi},~{dirflag},~{fpsr},~{flags}"([2 x i32]* @results) nounwind
   call void asm sideeffect inteldialect "mov dword ptr $0, edi", "=*m,~{dirflag},~{fpsr},~{flags}"(i32** %res) nounwind
-  %0 = load i32** %res, align 4
+  %0 = load i32*, i32** %res, align 4
   ret i32* %0
 ; CHECK-LABEL: t30:
 ; CHECK: {{## InlineAsm Start|#APP}}
@@ -110,8 +110,8 @@ define i32 @t31() {
 entry:
   %val = alloca i32, align 64
   store i32 -1, i32* %val, align 64
-  call void asm sideeffect inteldialect "mov dword ptr $0, esp", "=*m,~{dirflag},~{fpsr},~{flags}"(i32* %val) #1
-  %sp = load i32* %val, align 64
+  call void asm sideeffect inteldialect "mov dword ptr $0, esp", "=*m,~{dirflag},~{fpsr},~{flags}"(i32* %val)
+  %sp = load i32, i32* %val, align 64
   ret i32 %sp
 ; CHECK-LABEL: t31:
 ; CHECK: pushl %ebp
@@ -125,3 +125,43 @@ entry:
 ; CHECK: movl (%esp), %eax
 ; CHECK: ret
 }
+
+; Make sure ${:uid} works. Clang uses it for MS inline asm labels.
+;
+; C source:
+; int uid() {
+;   int r;
+;   __asm {
+;     xor eax, eax
+; wloop:
+;     inc eax
+;     cmp eax, 42
+;     jne wloop
+;     mov r, eax
+;   }
+;   return r;
+; }
+define i32 @uid() {
+entry:
+  %r = alloca i32, align 4
+  %0 = bitcast i32* %r to i8*
+  call void asm sideeffect inteldialect "xor eax, eax\0A\09.L__MSASMLABEL_.${:uid}__wloop:\0A\09inc eax\0A\09cmp eax, $$42\0A\09jne .L__MSASMLABEL_.${:uid}__wloop\0A\09mov dword ptr $0, eax", "=*m,~{eax},~{flags},~{dirflag},~{fpsr},~{flags}"(i32* nonnull %r)
+  %1 = load i32, i32* %r, align 4
+  ret i32 %1
+; CHECK-LABEL: uid:
+; CHECK: {{## InlineAsm Start|#APP}}
+; CHECK: .L__MSASMLABEL_.0__wloop:
+; CHECK: jne .L__MSASMLABEL_.0__wloop
+; CHECK: .att_syntax
+; CHECK: {{## InlineAsm End|#NO_APP}}
+; CHECK: ret
+}
+
+declare hidden void @other_func()
+
+define void @naked() #0 {
+  call void asm sideeffect inteldialect "call dword ptr $0", "*m,~{eax},~{ebx},~{ecx},~{edx},~{edi},~{esi},~{esp},~{ebp},~{dirflag},~{fpsr},~{flags}"(void()* @other_func)
+  unreachable
+}
+
+attributes #0 = { naked }

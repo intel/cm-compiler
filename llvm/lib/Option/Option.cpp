@@ -1,4 +1,4 @@
-//===--- Option.cpp - Abstract Driver Options -----------------------------===//
+//===- Option.cpp - Abstract Driver Options -------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,21 +7,24 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Option/Option.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
+#include "llvm/Option/Option.h"
+#include "llvm/Option/OptTable.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include <algorithm>
 #include <cassert>
+#include <cstring>
 
 using namespace llvm;
 using namespace llvm::opt;
 
 Option::Option(const OptTable::Info *info, const OptTable *owner)
   : Info(info), Owner(owner) {
-
   // Multi-level aliases are not supported. This just simplifies option
   // tracking, it is not an inherent limitation.
   assert((!Info || !getAlias().isValid() || !getAlias().getAlias().isValid()) &&
@@ -35,54 +38,57 @@ Option::Option(const OptTable::Info *info, const OptTable *owner)
   }
 }
 
-Option::~Option() {
-}
-
-void Option::dump() const {
-  llvm::errs() << "<";
+void Option::print(raw_ostream &O) const {
+  O << "<";
   switch (getKind()) {
-#define P(N) case N: llvm::errs() << #N; break
+#define P(N) case N: O << #N; break
     P(GroupClass);
     P(InputClass);
     P(UnknownClass);
     P(FlagClass);
     P(JoinedClass);
+    P(ValuesClass);
     P(SeparateClass);
     P(CommaJoinedClass);
     P(MultiArgClass);
     P(JoinedOrSeparateClass);
     P(JoinedAndSeparateClass);
     P(RemainingArgsClass);
+    P(RemainingArgsJoinedClass);
 #undef P
   }
 
   if (Info->Prefixes) {
-    llvm::errs() << " Prefixes:[";
-    for (const char * const *Pre = Info->Prefixes; *Pre != nullptr; ++Pre) {
-      llvm::errs() << '"' << *Pre << (*(Pre + 1) == nullptr ? "\"" : "\", ");
+    O << " Prefixes:[";
+    for (const char *const *Pre = Info->Prefixes; *Pre != nullptr; ++Pre) {
+      O << '"' << *Pre << (*(Pre + 1) == nullptr ? "\"" : "\", ");
     }
-    llvm::errs() << ']';
+    O << ']';
   }
 
-  llvm::errs() << " Name:\"" << getName() << '"';
+  O << " Name:\"" << getName() << '"';
 
   const Option Group = getGroup();
   if (Group.isValid()) {
-    llvm::errs() << " Group:";
-    Group.dump();
+    O << " Group:";
+    Group.print(O);
   }
 
   const Option Alias = getAlias();
   if (Alias.isValid()) {
-    llvm::errs() << " Alias:";
-    Alias.dump();
+    O << " Alias:";
+    Alias.print(O);
   }
 
   if (getKind() == MultiArgClass)
-    llvm::errs() << " NumArgs:" << getNumArgs();
+    O << " NumArgs:" << getNumArgs();
 
-  llvm::errs() << ">\n";
+  O << ">\n";
 }
+
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
+LLVM_DUMP_METHOD void Option::dump() const { print(dbgs()); }
+#endif
 
 bool Option::matches(OptSpecifier Opt) const {
   // Aliases are never considered in matching, look through them.
@@ -128,6 +134,11 @@ Arg *Option::accept(const ArgList &Args,
         Val += strlen(Val) + 1;
       }
     }
+
+    if (UnaliasedOption.getKind() == JoinedClass && !getAliasArgs())
+      // A Flag alias for a Joined option must provide an argument.
+      A->getValues().push_back("");
+
     return A;
   }
   case JoinedClass: {
@@ -169,7 +180,8 @@ Arg *Option::accept(const ArgList &Args,
       return nullptr;
 
     Index += 2;
-    if (Index > Args.getNumInputArgStrings())
+    if (Index > Args.getNumInputArgStrings() ||
+        Args.getArgString(Index - 1) == nullptr)
       return nullptr;
 
     return new Arg(UnaliasedOption, Spelling,
@@ -200,7 +212,8 @@ Arg *Option::accept(const ArgList &Args,
 
     // Otherwise it must be separate.
     Index += 2;
-    if (Index > Args.getNumInputArgStrings())
+    if (Index > Args.getNumInputArgStrings() ||
+        Args.getArgString(Index - 1) == nullptr)
       return nullptr;
 
     return new Arg(UnaliasedOption, Spelling,
@@ -209,7 +222,8 @@ Arg *Option::accept(const ArgList &Args,
   case JoinedAndSeparateClass:
     // Always matches.
     Index += 2;
-    if (Index > Args.getNumInputArgStrings())
+    if (Index > Args.getNumInputArgStrings() ||
+        Args.getArgString(Index - 1) == nullptr)
       return nullptr;
 
     return new Arg(UnaliasedOption, Spelling, Index - 2,
@@ -221,10 +235,24 @@ Arg *Option::accept(const ArgList &Args,
     if (ArgSize != strlen(Args.getArgString(Index)))
       return nullptr;
     Arg *A = new Arg(UnaliasedOption, Spelling, Index++);
-    while (Index < Args.getNumInputArgStrings())
+    while (Index < Args.getNumInputArgStrings() &&
+           Args.getArgString(Index) != nullptr)
       A->getValues().push_back(Args.getArgString(Index++));
     return A;
   }
+  case RemainingArgsJoinedClass: {
+    Arg *A = new Arg(UnaliasedOption, Spelling, Index);
+    if (ArgSize != strlen(Args.getArgString(Index))) {
+      // An inexact match means there is a joined arg.
+      A->getValues().push_back(Args.getArgString(Index) + ArgSize);
+    }
+    Index++;
+    while (Index < Args.getNumInputArgStrings() &&
+           Args.getArgString(Index) != nullptr)
+      A->getValues().push_back(Args.getArgString(Index++));
+    return A;
+  }
+
   default:
     llvm_unreachable("Invalid option kind!");
   }

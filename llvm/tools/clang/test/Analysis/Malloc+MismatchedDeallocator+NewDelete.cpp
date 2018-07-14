@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,unix.Malloc,unix.MismatchedDeallocator,cplusplus.NewDelete -std=c++11 -verify %s
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,unix.Malloc,unix.MismatchedDeallocator,cplusplus.NewDelete,alpha.cplusplus.NewDeleteLeaks -DLEAKS -std=c++11 -verify %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.Malloc,unix.MismatchedDeallocator,cplusplus.NewDelete -std=c++11 -verify %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.Malloc,unix.MismatchedDeallocator,cplusplus.NewDelete,cplusplus.NewDeleteLeaks -DLEAKS -std=c++11 -verify %s
 
 #include "Inputs/system-header-simulator-for-malloc.h"
 
@@ -97,9 +97,11 @@ void testShouldReportDoubleFreeNotMismatched() {
   free(p);
   delete globalPtr; // expected-warning {{Attempt to free released memory}}
 }
-
+int *allocIntArray(unsigned c) {
+  return new int[c];
+}
 void testMismatchedChangePointeeThroughAssignment() {
-  int *arr = new int[4];
+  int *arr = allocIntArray(4);
   globalPtr = arr;
   delete arr; // expected-warning{{Memory allocated by 'new[]' should be deallocated by 'delete[]', not 'delete'}}
 }

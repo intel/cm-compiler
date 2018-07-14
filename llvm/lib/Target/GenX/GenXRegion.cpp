@@ -32,12 +32,12 @@
 #include "GenXSubtarget.h"
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/Analysis/ConstantFolding.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Target/TargetLibraryInfo.h"
 
 using namespace llvm;
 using namespace genx;
@@ -272,7 +272,7 @@ Region::Region(unsigned Bits, unsigned ElementBytes)
   Offset *= ElementBytes;
   if (Bits != 1) {
     Stride = countTrailingZeros(Bits & ~1, ZB_Undefined);
-    NumElements = Width = CountPopulation_32(Bits);
+    NumElements = Width = countPopulation(Bits);
   }
 }
 
@@ -1551,7 +1551,7 @@ Value *llvm::genx::simplifyRegionInst(Instruction *Inst, const DataLayout *DL,
   if (Inst->use_empty())
     return nullptr;
 
-  if (Constant *C = ConstantFoldInstruction(Inst, DL, TLI))
+  if (Constant *C = ConstantFoldInstruction(Inst, *DL, TLI))
     return C;
 
   unsigned ID = getIntrinsicID(Inst);

@@ -82,7 +82,31 @@ void xpc_connection_resume(xpc_connection_t connection);
 void fakeSystemHeaderCallInt(int *);
 void fakeSystemHeaderCallIntPtr(int **);
 
+// Some data strauctures may hold onto the pointer and free it later.
+void fake_insque(void *, void *);
+typedef struct fake_rb_tree { void *opaque[8]; } fake_rb_tree_t;
+void fake_rb_tree_init(fake_rb_tree_t *, const void *);
+void *fake_rb_tree_insert_node(fake_rb_tree_t *, void *);
+
 typedef struct __SomeStruct {
   char * p;
 } SomeStruct;
 void fakeSystemHeaderCall(SomeStruct *);
+
+typedef int pid_t;
+pid_t fork(void);
+pid_t vfork(void);
+int execl(const char *path, const char *arg, ...);
+
+void exit(int status) __attribute__ ((__noreturn__));
+void _exit(int status) __attribute__ ((__noreturn__));
+void _Exit(int status) __attribute__ ((__noreturn__));
+
+#define UINT32_MAX        4294967295U
+#define INT64_MIN        (-INT64_MAX-1)
+#define __DBL_MAX__ 1.7976931348623157e+308
+#define DBL_MAX __DBL_MAX__
+#ifndef NULL
+#define __DARWIN_NULL 0
+#define NULL __DARWIN_NULL
+#endif

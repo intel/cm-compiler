@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=mipsel-linux-gnu -march=mipsel -mcpu=mips16 -soft-float -mips16-hard-float -relocation-model=static     < %s | FileCheck %s -check-prefix=ci
+; RUN: llc -mtriple=mipsel-linux-gnu -march=mipsel -mattr=mips16 -mattr=+soft-float -mips16-hard-float -relocation-model=static     < %s | FileCheck %s -check-prefix=ci
 
 @i = global i32 0, align 4
 @j = common global i32 0, align 4
@@ -7,7 +7,7 @@
 ; Function Attrs: nounwind optsize
 define i32 @foo() #0 {
 entry:
-  %0 = load i32* @i, align 4, !tbaa !1
+  %0 = load i32, i32* @i, align 4, !tbaa !1
   %cmp = icmp eq i32 %0, 0
   br i1 %cmp, label %if.then, label %if.else
 
@@ -26,13 +26,13 @@ if.end:                                           ; preds = %if.else, %if.then
 }
 
 ; ci:	beqz	$3, $BB0_2
-; ci: # BB#1:                                 # %if.else
+; ci: # %bb.1:                                 # %if.else
 
 
 ; Function Attrs: nounwind optsize
 define i32 @goo() #0 {
 entry:
-  %0 = load i32* @i, align 4, !tbaa !1
+  %0 = load i32, i32* @i, align 4, !tbaa !1
   %cmp = icmp eq i32 %0, 0
   br i1 %cmp, label %if.then, label %if.else
 
@@ -59,11 +59,11 @@ attributes #0 = { nounwind optsize "less-precise-fpmad"="false" "no-frame-pointe
 attributes #1 = { nounwind }
 
 
-!1 = metadata !{metadata !2, metadata !2, i64 0}
-!2 = metadata !{metadata !"int", metadata !3, i64 0}
-!3 = metadata !{metadata !"omnipotent char", metadata !4, i64 0}
-!4 = metadata !{metadata !"Simple C/C++ TBAA"}
-!5 = metadata !{i32 58}
-!6 = metadata !{i32 108}
-!7 = metadata !{i32 190}
-!8 = metadata !{i32 243}
+!1 = !{!2, !2, i64 0}
+!2 = !{!"int", !3, i64 0}
+!3 = !{!"omnipotent char", !4, i64 0}
+!4 = !{!"Simple C/C++ TBAA"}
+!5 = !{i32 58}
+!6 = !{i32 108}
+!7 = !{i32 190}
+!8 = !{i32 243}

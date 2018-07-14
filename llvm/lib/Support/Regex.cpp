@@ -14,10 +14,12 @@
 #include "llvm/Support/Regex.h"
 #include "regex_impl.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Twine.h"
 #include <string>
 using namespace llvm;
+
+Regex::Regex() : preg(nullptr), error(REG_BADPAT) {}
 
 Regex::Regex(StringRef regex, unsigned Flags) {
   unsigned flags = 0;
@@ -32,6 +34,13 @@ Regex::Regex(StringRef regex, unsigned Flags) {
   error = llvm_regcomp(preg, regex.data(), flags|REG_PEND);
 }
 
+Regex::Regex(Regex &&regex) {
+  preg = regex.preg;
+  error = regex.error;
+  regex.preg = nullptr;
+  regex.error = REG_BADPAT;
+}
+
 Regex::~Regex() {
   if (preg) {
     llvm_regfree(preg);
@@ -39,7 +48,7 @@ Regex::~Regex() {
   }
 }
 
-bool Regex::isValid(std::string &Error) {
+bool Regex::isValid(std::string &Error) const {
   if (!error)
     return true;
   
@@ -57,6 +66,9 @@ unsigned Regex::getNumMatches() const {
 }
 
 bool Regex::match(StringRef String, SmallVectorImpl<StringRef> *Matches){
+  if (error)
+    return false;
+
   unsigned nmatch = Matches ? preg->re_nsub+1 : 0;
 
   // pmatch needs to have at least one element.
@@ -159,7 +171,7 @@ std::string Regex::sub(StringRef Repl, StringRef String,
           RefValue < Matches.size())
         Res += Matches[RefValue];
       else if (Error && Error->empty())
-        *Error = "invalid backreference string '" + Ref.str() + "'";
+        *Error = ("invalid backreference string '" + Twine(Ref) + "'").str();
       break;
     }
     }

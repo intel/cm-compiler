@@ -37,7 +37,7 @@ void test() {
 #warning CM_GEN10 defined
 #endif
 
-// CHECK: cm_asm_output_colon.cpp(13,2) :  warning: CM_GENX defined [-W#warnings]
-// CHECK: cm_asm_output_colon.cpp(29,2) :  warning: CM_GEN9 defined [-W#warnings]
+// CHECK: cm_asm_output_colon.cpp(13,2):  warning: CM_GENX defined [-W#warnings]
+// CHECK: cm_asm_output_colon.cpp(29,2):  warning: CM_GEN9 defined [-W#warnings]
 // CHECK: 2 warnings generated.
 // CHECK: -platform SKL

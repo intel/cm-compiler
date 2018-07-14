@@ -16,19 +16,19 @@ SetupTest_from_cm(ColorAdjustSIMDCF "ColorAdjustSIMDCF" "" "ColorAdjustSIMDCF.cp
 
 SetupTest_from_cm(gaussian_blur_test "gaussian_blur_test" "" "gaussian_blur_test.cpp" "gaussian_blur_test_genx.cpp" "blur_gold.bmp;lena.bmp" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
 
-SetupTest_from_cm(histogram_64 "histogram_64" "" "histogram.cpp" "histogram_genx.cpp" "" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
+SetupTest_from_cm(histogram_64 "histogram_64" "" "histogram.cpp" "histogram_genx.cpp" "" "HW" "DX9" "" "" "" "TRUE" "" "" "" "" "" ${TAGS})
 
-SetupTest_from_cm(histogram_64_slm "histogram_64_slm" "" "histogram.cpp" "histogram_genx.cpp" "" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
+SetupTest_from_cm(histogram_64_slm "histogram_64_slm" "" "histogram.cpp" "histogram_genx.cpp" "" "HW" "DX9" "" "" "" "TRUE" "" "" "" "" "" ${TAGS})
 
-SetupTest_from_cm(histogram_256 "histogram_256" "" "histogram.cpp" "histogram_genx.cpp" "" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
+SetupTest_from_cm(histogram_256 "histogram_256" "" "histogram.cpp" "histogram_genx.cpp" "" "HW" "DX9" "" "" "" "TRUE" "" "" "" "" "" ${TAGS})
 
-SetupTest_from_cm(histogram_256_slm "histogram_256_slm" "" "histogram.cpp" "histogram_genx.cpp" "" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
+SetupTest_from_cm(histogram_256_slm "histogram_256_slm" "" "histogram.cpp" "histogram_genx.cpp" "" "HW" "DX9" "" "" "" "TRUE" "" "" "" "" "" ${TAGS})
 
 SetupTest_from_cm(linear_up_walker "linear_up_walker" "" "linear_up_walker.cpp" "linear_up_walker_genx.cpp" "linear_in.bmp;linear_gold.bmp;linear_gold_hw.bmp" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
 
 SetupTest_from_cm (mandelbrot "mandelbrot" "" "mandelbrot.cpp" "mandelbrot_genx.cpp" "" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
 
-SetupTest_from_cm(matrix_transpose "matrix_transpose" "" "matrix_transpose.cpp" "matrix_transpose_genx.cpp" "" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
+SetupTest_from_cm(matrix_transpose "matrix_transpose" "" "matrix_transpose.cpp" "matrix_transpose_genx.cpp" "" "HW" "DX9" "" "" "" "TRUE" "" "" "" "" "" ${TAGS})
 
 #SetupTest_from_cm(fft "fft" "" "fft.cpp" "fft_genx.cpp" "" "HW" "DX9" "-ffast-math" "" "2000" "" "" "" "" "" "" ${TAGS})
 
@@ -44,7 +44,7 @@ SetupTest_from_cm(Sgemm "Sgemm" "" "Sgemm.cpp" "Sgemm_genx.cpp" "" "HW" "DX9" ""
 
 SetupTest_from_cm(Sampler3D "Sampler3D" "" "Sampler3D.cpp" "Sampler3D_genx.cpp" "*.bmp" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
 
-SetupTest_from_cm(SparseMatrixMul "SparseMatrixMul" "" "SparseMatrixMul.cpp" "SparseMatrixMul_genx.cpp" "*.dat" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS} "Webbase_csr.dat" "100")
+SetupTest_from_cm(SparseMatrixMul "SparseMatrixMul" "" "SparseMatrixMul.cpp" "SparseMatrixMul_genx.cpp" "*.dat" "HW" "DX9" "" "" "" "TRUE" "" "" "" "" "" ${TAGS} "Webbase_csr.dat" "100")
 
 SetupTest_from_cm(vcaOpSAD "vcaOpSAD" "" "vcaOpSAD.cpp" "vcaOpSAD_genx.cpp" "" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS} "4096" "8" "-random")
 

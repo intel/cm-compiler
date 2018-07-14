@@ -47,7 +47,7 @@ int printf(const char * restrict, ...) ;
 
 void check_nslog(unsigned k) {
   NSLog(@"%d%%", k); // no-warning
-  NSLog(@"%s%lb%d", "unix", 10,20); // expected-warning {{invalid conversion specifier 'b'}}
+  NSLog(@"%s%lb%d", "unix", 10, 20); // expected-warning {{invalid conversion specifier 'b'}} expected-warning {{data argument not used by format string}}
 }
 
 // Check type validation
@@ -116,6 +116,7 @@ NSString *test_literal_propagation(void) {
   NSLog(ns2); // expected-warning {{more '%' conversions than data arguments}}
   NSString * ns3 = ns1;
   NSLog(ns3); // expected-warning {{format string is not a string literal}}}
+  // expected-note@-1{{treat the string as an argument to avoid this}}
 
   NSString * const ns6 = @"split" " string " @"%s"; // expected-note {{format string is defined here}}
   NSLog(ns6); // expected-warning {{more '%' conversions than data arguments}}
@@ -243,7 +244,7 @@ void testByValueObjectInFormat(Foo *obj) {
 
 // <rdar://problem/13557053>
 void testTypeOf(NSInteger dW, NSInteger dH) {
-  NSLog(@"dW %d  dH %d",({ __typeof__(dW) __a = (dW); __a < 0 ? -__a : __a; }),({ __typeof__(dH) __a = (dH); __a < 0 ? -__a : __a; })); // expected-warning 2 {{values of type 'NSInteger' should not be used as format arguments; add an explicit cast to 'long' instead}}
+  NSLog(@"dW %d  dH %d",({ __typeof__(dW) __a = (dW); __a < 0 ? -__a : __a; }),({ __typeof__(dH) __a = (dH); __a < 0 ? -__a : __a; })); // expected-warning 2 {{format specifies type 'int' but the argument has type 'long'}}
 }
 
 void testUnicode() {
@@ -251,3 +252,53 @@ void testUnicode() {
   NSLog(@"%C", 0x202200); // expected-warning{{format specifies type 'unichar' (aka 'unsigned short') but the argument has type 'int'}}
 }
 
+// Test Objective-C modifier flags.
+void testObjCModifierFlags() {
+  NSLog(@"%[]@", @"Foo"); // expected-warning {{missing object format flag}}
+  NSLog(@"%[", @"Foo"); // expected-warning {{incomplete format specifier}}
+  NSLog(@"%[tt", @"Foo");  // expected-warning {{incomplete format specifier}}
+  NSLog(@"%[tt]@", @"Foo"); // no-warning
+  NSLog(@"%[tt]@ %s", @"Foo", "hello"); // no-warning
+  NSLog(@"%s %[tt]@", "hello", @"Foo"); // no-warning
+  NSLog(@"%[blark]@", @"Foo"); // expected-warning {{'blark' is not a valid object format flag}}
+  NSLog(@"%2$[tt]@ %1$[tt]@", @"Foo", @"Bar"); // no-warning
+  NSLog(@"%2$[tt]@ %1$[tt]s", @"Foo", @"Bar"); // expected-warning {{object format flags cannot be used with 's' conversion specifier}}
+}
+
+// rdar://23622446
+@interface RD23622446_Tester: NSObject
+
++ (void)stringWithFormat:(const char *)format, ... __attribute__((format(__printf__, 1, 2)));
+
+@end
+
+@implementation RD23622446_Tester
+
+__attribute__ ((format_arg(1)))
+const char *rd23622446(const char *format) {
+  return format;
+}
+
++ (void)stringWithFormat:(const char *)format, ... {
+  return;
+}
+
+- (const char *)test:(const char *)format __attribute__ ((format_arg(1))) {
+  return format;
+}
+
+- (NSString *)str:(NSString *)format __attribute__ ((format_arg(1))) {
+  return format;
+}
+
+- (void)foo {
+  [RD23622446_Tester stringWithFormat:rd23622446("%u"), 1, 2]; // expected-warning {{data argument not used by format string}}
+  [RD23622446_Tester stringWithFormat:[self test: "%u"], 1, 2]; // expected-warning {{data argument not used by format string}}
+  [RD23622446_Tester stringWithFormat:[self test: "%s %s"], "name"]; // expected-warning {{more '%' conversions than data arguments}}
+  NSLog([self str: @"%@ %@"], @"name"); // expected-warning {{more '%' conversions than data arguments}}
+  [RD23622446_Tester stringWithFormat:rd23622446("%d"), 1]; // ok
+  [RD23622446_Tester stringWithFormat:[self test: "%d %d"], 1, 2]; // ok
+  NSLog([self str: @"%@"], @"string"); // ok
+}
+
+@end

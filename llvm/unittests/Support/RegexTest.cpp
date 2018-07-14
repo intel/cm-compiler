@@ -151,6 +151,32 @@ TEST_F(RegexTest, MoveAssign) {
   Regex r2("abc");
   r2 = std::move(r1);
   EXPECT_TRUE(r2.match("916"));
+  std::string Error;
+  EXPECT_FALSE(r1.isValid(Error));
+}
+
+TEST_F(RegexTest, NoArgConstructor) {
+  std::string Error;
+  Regex r1;
+  EXPECT_FALSE(r1.isValid(Error));
+  EXPECT_EQ("invalid regular expression", Error);
+  r1 = Regex("abc");
+  EXPECT_TRUE(r1.isValid(Error));
+}
+
+TEST_F(RegexTest, MatchInvalid) {
+  Regex r1;
+  std::string Error;
+  EXPECT_FALSE(r1.isValid(Error));
+  EXPECT_FALSE(r1.match("X"));
+}
+
+// https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=3727
+TEST_F(RegexTest, OssFuzz3727Regression) {
+  // Wrap in a StringRef so the NUL byte doesn't terminate the string
+  Regex r(StringRef("[[[=GS\x00[=][", 10));
+  std::string Error;
+  EXPECT_FALSE(r.isValid(Error));
 }
 
 }

@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>How To Cross-Compile Clang/LLVM using Clang/LLVM &#8212; LLVM 3.4 documentation</title>
+    <title>How To Cross-Compile Clang/LLVM using Clang/LLVM &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -28,7 +28,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="LLVM Command Guide" href="CommandGuide/index.html" />
-    <link rel="prev" title="How To Build On ARM" href="HowToBuildOnARM.html" />
+    <link rel="prev" title="How to Cross Compile Compiler-rt Builtins For Arm" href="HowToCrossCompileBuiltinsOnArm.html" />
 <style type="text/css">
   table.right { float: right; margin-left: 20px; }
   table.right td { border: 1px solid #ccc; }
@@ -52,7 +52,7 @@
           <a href="CommandGuide/index.html" title="LLVM Command Guide"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="HowToBuildOnARM.html" title="How To Build On ARM"
+          <a href="HowToCrossCompileBuiltinsOnArm.html" title="How to Cross Compile Compiler-rt Builtins For Arm"
              accesskey="P">previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="index.html">Documentation</a>&raquo;</li>
@@ -98,9 +98,9 @@ nowadays) to a hard-float ARM target (most ARM targets nowadays).</p>
 <h3>Configuring CMake<a class="headerlink" href="#configuring-cmake" title="Permalink to this headline">¶</a></h3>
 <p>For more information on how to configure CMake for LLVM/Clang,
 see <a class="reference internal" href="CMake.html"><span class="doc">Building LLVM with CMake</span></a>.</p>
-<dl class="docutils">
-<dt>The CMake options you need to add are:</dt>
-<dd><ul class="first last simple">
+<p>The CMake options you need to add are:</p>
+<blockquote>
+<div><ul class="simple">
 <li><code class="docutils literal"><span class="pre">-DCMAKE_CROSSCOMPILING=True</span></code></li>
 <li><code class="docutils literal"><span class="pre">-DCMAKE_INSTALL_PREFIX=&lt;install-dir&gt;</span></code></li>
 <li><code class="docutils literal"><span class="pre">-DLLVM_TABLEGEN=&lt;path-to-host-bin&gt;/llvm-tblgen</span></code></li>
@@ -108,21 +108,42 @@ see <a class="reference internal" href="CMake.html"><span class="doc">Building L
 <li><code class="docutils literal"><span class="pre">-DLLVM_DEFAULT_TARGET_TRIPLE=arm-linux-gnueabihf</span></code></li>
 <li><code class="docutils literal"><span class="pre">-DLLVM_TARGET_ARCH=ARM</span></code></li>
 <li><code class="docutils literal"><span class="pre">-DLLVM_TARGETS_TO_BUILD=ARM</span></code></li>
-<li><code class="docutils literal"><span class="pre">-DCMAKE_CXX_FLAGS='-target</span> <span class="pre">armv7a-linux-gnueabihf</span> <span class="pre">-mcpu=cortex-a9</span> <span class="pre">-I/usr/arm-linux-gnueabihf/include/c++/4.7.2/arm-linux-gnueabihf/</span> <span class="pre">-I/usr/arm-linux-gnueabihf/include/</span> <span class="pre">-mfloat-abi=hard</span> <span class="pre">-ccc-gcc-name</span> <span class="pre">arm-linux-gnueabihf-gcc'</span></code></li>
 </ul>
-</dd>
-</dl>
+</div></blockquote>
+<p>If you’re compiling with GCC, you can use architecture options for your target,
+and the compiler driver will detect everything that it needs:</p>
+<blockquote>
+<div><ul class="simple">
+<li><code class="docutils literal"><span class="pre">-DCMAKE_CXX_FLAGS='-march=armv7-a</span> <span class="pre">-mcpu=cortex-a9</span> <span class="pre">-mfloat-abi=hard'</span></code></li>
+</ul>
+</div></blockquote>
+<p>However, if you’re using Clang, the driver might not be up-to-date with your
+specific Linux distribution, version or GCC layout, so you’ll need to fudge.</p>
+<p>In addition to the ones above, you’ll also need:</p>
+<blockquote>
+<div><ul class="simple">
+<li><code class="docutils literal"><span class="pre">'-target</span> <span class="pre">arm-linux-gnueabihf'</span></code> or whatever is the triple of your cross GCC.</li>
+<li><code class="docutils literal"><span class="pre">'--sysroot=/usr/arm-linux-gnueabihf'</span></code>, <code class="docutils literal"><span class="pre">'--sysroot=/opt/gcc/arm-linux-gnueabihf'</span></code>
+or whatever is the location of your GCC’s sysroot (where /lib, /bin etc are).</li>
+<li>Appropriate use of <code class="docutils literal"><span class="pre">-I</span></code> and <code class="docutils literal"><span class="pre">-L</span></code>, depending on how the cross GCC is installed,
+and where are the libraries and headers.</li>
+</ul>
+</div></blockquote>
 <p>The TableGen options are required to compile it with the host compiler,
 so you’ll need to compile LLVM (or at least <code class="docutils literal"><span class="pre">llvm-tblgen</span></code>) to your host
-platform before you start. The CXX flags define the target, cpu (which
+platform before you start. The CXX flags define the target, cpu (which in this case
 defaults to <code class="docutils literal"><span class="pre">fpu=VFP3</span></code> with NEON), and forcing the hard-float ABI. If you’re
-using Clang as a cross-compiler, you will <em>also</em> have to set <code class="docutils literal"><span class="pre">-ccc-gcc-name</span></code>,
+using Clang as a cross-compiler, you will <em>also</em> have to set <code class="docutils literal"><span class="pre">--sysroot</span></code>
 to make sure it picks the correct linker.</p>
+<p>When using Clang, it’s important that you choose the triple to be <em>identical</em>
+to the GCC triple and the sysroot. This will make it easier for Clang to
+find the correct tools and include headers. But that won’t mean all headers and
+libraries will be found. You’ll still need to use <code class="docutils literal"><span class="pre">-I</span></code> and <code class="docutils literal"><span class="pre">-L</span></code> to locate
+those extra ones, depending on your distribution.</p>
 <p>Most of the time, what you want is to have a native compiler to the
-platform itself, but not others. It might not even be feasible to
-produce x86 binaries from ARM targets, so there’s no point in compiling
+platform itself, but not others. So there’s rarely a point in compiling
 all back-ends. For that reason, you should also set the
-<code class="docutils literal"><span class="pre">TARGETS_TO_BUILD</span></code> to only build the ARM back-end.</p>
+<code class="docutils literal"><span class="pre">TARGETS_TO_BUILD</span></code> to only build the back-end you’re targeting to.</p>
 <p>You must set the <code class="docutils literal"><span class="pre">CMAKE_INSTALL_PREFIX</span></code>, otherwise a <code class="docutils literal"><span class="pre">ninja</span> <span class="pre">install</span></code>
 will copy ARM binaries to your root filesystem, which is not what you
 want.</p>
@@ -142,13 +163,20 @@ should disable PIC:</p>
 <p>This is not a problem, since Clang/LLVM libraries are statically
 linked anyway, it shouldn’t affect much.</p>
 </li>
-<li><p class="first">The ARM libraries won’t be installed in your system, and possibly
-not easily installable anyway, so you’ll have to build/download
-them separately. But the CMake prepare step, which checks for
+<li><p class="first">The ARM libraries won’t be installed in your system.
+But the CMake prepare step, which checks for
 dependencies, will check the <em>host</em> libraries, not the <em>target</em>
-ones.</p>
+ones. Below there’s a list of some dependencies, but your project could
+have more, or this document could be outdated. You’ll see the errors
+while linking as an indication of that.</p>
+<p>Debian based distros have a way to add <code class="docutils literal"><span class="pre">multiarch</span></code>, which adds
+a new architecture and allows you to install packages for those
+systems. See <a class="reference external" href="https://wiki.debian.org/Multiarch/HOWTO">https://wiki.debian.org/Multiarch/HOWTO</a> for more info.</p>
+<p>But not all distros will have that, and possibly not an easy way to
+install them in any anyway, so you’ll have to build/download
+them separately.</p>
 <p>A quick way of getting the libraries is to download them from
-a distribution repository, like Debian (<a class="reference external" href="http://packages.debian.org/wheezy/">http://packages.debian.org/wheezy/</a>),
+a distribution repository, like Debian (<a class="reference external" href="http://packages.debian.org/jessie/">http://packages.debian.org/jessie/</a>),
 and download the missing libraries. Note that the <code class="docutils literal"><span class="pre">libXXX</span></code>
 will have the shared objects (<code class="docutils literal"><span class="pre">.so</span></code>) and the <code class="docutils literal"><span class="pre">libXXX-dev</span></code> will
 give you the headers and the static (<code class="docutils literal"><span class="pre">.a</span></code>) library. Just in
@@ -245,7 +273,7 @@ you’ll need the <cite>pwd</cite> trick above.</p>
           <a href="CommandGuide/index.html" title="LLVM Command Guide"
              >next</a> |</li>
         <li class="right" >
-          <a href="HowToBuildOnARM.html" title="How To Build On ARM"
+          <a href="HowToCrossCompileBuiltinsOnArm.html" title="How to Cross Compile Compiler-rt Builtins For Arm"
              >previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="index.html">Documentation</a>&raquo;</li>
@@ -253,8 +281,8 @@ you’ll need the <cite>pwd</cite> trick above.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

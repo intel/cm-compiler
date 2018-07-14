@@ -1,4 +1,4 @@
-; RUN: llc -code-model=small < %s | FileCheck %s
+; RUN: llc -verify-machineinstrs -code-model=small < %s | FileCheck %s
 target datalayout = "E-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v128:128:128-n32:64"
 target triple = "powerpc64-unknown-linux-gnu"
 
@@ -19,9 +19,9 @@ define i32 @foo(double %X, double %Y) nounwind readnone {
 }
 
 ; Check the creation of 2 .tc entries for both double constants. They
-; should be .LC1 and .LC3 to avoid name clash with global constants
-; .LC0 and .LC2
-; CHECK: .LC{{[13]}}:
+; avoid name clash with global constants .LC0 and .LC2
+; CHECK: .section	.toc,"aw",@progbits
+; CHECK: .LC{{.*}}:
 ; CHECK-NEXT: .tc {{[\._a-zA-Z0-9]+}}[TC],{{[\._a-zA-Z0-9]+}}
-; CHECK: .LC{{[13]}}:
+; CHECK: .LC{{.*}}:
 ; CHECK-NEXT: .tc {{[\._a-zA-Z0-9]+}}[TC],{{[\._a-zA-Z0-9]+}}

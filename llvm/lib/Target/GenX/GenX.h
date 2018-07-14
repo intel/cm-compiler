@@ -31,6 +31,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/Support/raw_ostream.h"
 #include <string>
 
 namespace llvm {
@@ -53,6 +54,7 @@ class TargetOptions;
 class Twine;
 class Value;
 class raw_ostream;
+class raw_pwrite_stream;
 
 enum BalingKind {
   BK_Legalization, // build baling info for legalization
@@ -96,7 +98,7 @@ FunctionGroupPass *createGenXArgIndirectionPass();
 FunctionPass *createGenXTidyControlFlowPass();
 FunctionGroupPass *createGenXVisaRegAllocPass();
 FunctionGroupPass *createGenXVisaFuncWriterPass();
-ModulePass *createGenXVisaWriterPass(formatted_raw_ostream &o);
+ModulePass *createGenXVisaWriterPass(raw_pwrite_stream &o);
 
 // Utility function to get the integral log base 2 of an integer, or -1 if
 // the input is not a power of 2.
@@ -401,6 +403,16 @@ static inline bool isMaskPacking(const Value *V) {
     return V->getType()->getScalarType()->isIntegerTy(NElts);
   }
   return false;
+}
+
+// Turn a MDNode into llvm::value or its subclass.
+// Return nullptr if the underlying value has type mismatch.
+template <typename Ty = llvm::Value>
+Ty *getValueAsMetadata(Metadata *M) {
+  if (auto VM = dyn_cast<ValueAsMetadata>(M))
+    if (auto V = dyn_cast<Ty>(VM->getValue()))
+      return V;
+  return nullptr;
 }
 
 } // End genx namespace

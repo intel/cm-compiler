@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -emit-llvm -g -triple x86_64-apple-darwin %s -o - | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm -debug-info-kind=limited -triple x86_64-apple-darwin %s -o - | FileCheck %s
 
 template<class X> class B {
 public:
@@ -22,8 +22,11 @@ int main(int argc, char **argv) {
   A reallyA (500);
 }
 
-// CHECK: ![[CLASSTYPE:.*]] = {{.*}}, metadata !"_ZTS1A"} ; [ DW_TAG_class_type ] [A]
-// CHECK: ![[ARTARG:.*]] = {{.*}} ; [ DW_TAG_pointer_type ] [line 0, size 64, align 64, offset 0] [artificial] [from _ZTS1A]
-// CHECK: metadata !"_ZTS1A", {{.*}} ; [ DW_TAG_subprogram ] [line 12] [A]
-// CHECK: metadata [[FUNCTYPE:![0-9]*]], i32 0, null, null, null} ; [ DW_TAG_subroutine_type ]
-// CHECK: [[FUNCTYPE]] = metadata !{null, metadata ![[ARTARG]], metadata !{{.*}}, metadata !{{.*}}}
+// CHECK: ![[CLASSTYPE:.*]] = distinct !DICompositeType(tag: DW_TAG_class_type, name: "A",
+// CHECK-SAME:                                 identifier: "_ZTS1A"
+// CHECK: ![[ARTARG:.*]] = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: ![[CLASSTYPE]],{{.*}} DIFlagArtificial
+// CHECK: !DISubprogram(name: "A", scope: ![[CLASSTYPE]]
+// CHECK-SAME:          line: 12
+// CHECK-SAME:          DIFlagPublic
+// CHECK: !DISubroutineType(types: [[FUNCTYPE:![0-9]*]])
+// CHECK: [[FUNCTYPE]] = !{null, ![[ARTARG]], !{{.*}}, !{{.*}}}

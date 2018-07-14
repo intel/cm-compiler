@@ -1,4 +1,5 @@
 ; RUN: opt < %s -analyze -block-freq | FileCheck %s
+; RUN: opt < %s -passes='print<block-freq>' -disable-output 2>&1 | FileCheck %s
 
 ; CHECK-LABEL: Printing analysis {{.*}} for function 'nested_loop_with_branches'
 ; CHECK-NEXT: block-frequency-info: nested_loop_with_branches
@@ -55,5 +56,5 @@ declare i1 @foo4(i32)
 declare i1 @foo5(i32)
 declare i1 @foo6(i32)
 
-!0 = metadata !{metadata !"branch_weights", i32 1, i32 3}
-!1 = metadata !{metadata !"branch_weights", i32 3, i32 1}
+!0 = !{!"branch_weights", i32 1, i32 3}
+!1 = !{!"branch_weights", i32 3, i32 1}

@@ -108,7 +108,6 @@ CMakeLists.txt should have the following contents:
 ::
 
       set(LLVM_LINK_COMPONENTS support)
-      set(LLVM_USED_LIBS clangTooling clangBasic clangAST)
 
       add_clang_executable(loop-convert
         LoopConvert.cpp
@@ -169,7 +168,7 @@ You should now be able to run the syntax checker, which is located in
 
 .. code-block:: console
 
-      cat "int main() { return 0; }" > test.cpp
+      echo "int main() { return 0; }" > test.cpp
       bin/loop-convert test.cpp --
 
 Note the two dashes after we specify the source file. The additional
@@ -497,9 +496,9 @@ And change ``LoopPrinter::run`` to
 
       void LoopPrinter::run(const MatchFinder::MatchResult &Result) {
         ASTContext *Context = Result.Context;
-        const ForStmt *FS = Result.Nodes.getStmtAs<ForStmt>("forLoop");
+        const ForStmt *FS = Result.Nodes.getNodeAs<ForStmt>("forLoop");
         // We do not want to convert header files!
-        if (!FS || !Context->getSourceManager().isFromMainFile(FS->getForLoc()))
+        if (!FS || !Context->getSourceManager().isWrittenInMainFile(FS->getForLoc()))
           return;
         const VarDecl *IncVar = Result.Nodes.getNodeAs<VarDecl>("incVarName");
         const VarDecl *CondVar = Result.Nodes.getNodeAs<VarDecl>("condVarName");

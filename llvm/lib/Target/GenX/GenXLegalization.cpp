@@ -276,7 +276,7 @@ class GenXLegalization : public FunctionPass {
 public:
   static char ID;
   explicit GenXLegalization() : FunctionPass(ID) { clearBale(); }
-  virtual const char *getPassName() const {
+  virtual StringRef getPassName() const {
     return "GenX execution width and GRF crossing legalization";
   }
   void getAnalysisUsage(AnalysisUsage &AU) const;
@@ -327,7 +327,7 @@ char GenXLegalization::ID = 0;
 namespace llvm { void initializeGenXLegalizationPass(PassRegistry &); }
 INITIALIZE_PASS_BEGIN(GenXLegalization, "GenXLegalization", "GenXLegalization", false, false)
 INITIALIZE_PASS_DEPENDENCY(GenXFuncBaling)
-INITIALIZE_PASS_DEPENDENCY(ScalarEvolution)
+INITIALIZE_PASS_DEPENDENCY(ScalarEvolutionWrapperPass)
 INITIALIZE_PASS_END(GenXLegalization, "GenXLegalization", "GenXLegalization", false, false)
 
 FunctionPass *llvm::createGenXLegalizationPass()
@@ -339,7 +339,7 @@ FunctionPass *llvm::createGenXLegalizationPass()
 void GenXLegalization::getAnalysisUsage(AnalysisUsage &AU) const
 {
   AU.addRequired<GenXFuncBaling>();
-  AU.addRequired<ScalarEvolution>();
+  AU.addRequired<ScalarEvolutionWrapperPass>();
   AU.addPreserved<GenXModule>();
 }
 
@@ -350,7 +350,7 @@ void GenXLegalization::getAnalysisUsage(AnalysisUsage &AU) const
 bool GenXLegalization::runOnFunction(Function &F)
 {
   Baling = &getAnalysis<GenXFuncBaling>();
-  SE = &getAnalysis<ScalarEvolution>();
+  SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
   auto P = getAnalysisIfAvailable<GenXSubtargetPass>();
   ST = P ? P->getSubtarget() : nullptr;
   // Check args for illegal predicates.
@@ -403,6 +403,19 @@ bool GenXLegalization::runOnFunction(Function &F)
  */
 unsigned GenXLegalization::getExecSizeAllowedBits(Instruction *Inst)
 {
+  // HW does not support simd16/32 integer div/rem. Here it allows
+  // simd16 but not simdD32, as jitter will split it. This emits simd16
+  // moves not simd8 ones.
+  switch (Inst->getOpcode()) {
+  default:
+    break;
+  case BinaryOperator::SDiv:
+  case BinaryOperator::UDiv:
+  case BinaryOperator::SRem:
+  case BinaryOperator::URem:
+    return 0x1f;
+  }
+
   unsigned ID = getIntrinsicID(Inst);
   switch (ID) {
   case Intrinsic::fma:
@@ -994,8 +1007,10 @@ unsigned GenXLegalization::determineWidth(unsigned WholeWidth,
         break;
       }
       case BaleInfo::NOTP:
-        // Only process notp if it does not have rdpredregion baled in.
-        if (!i->Info.isOperandBaled(0)) {
+        // Only process notp
+        // - if predicate is a vector and
+        // - if it does not have rdpredregion baled in.
+        if (!i->Info.isOperandBaled(0) && i->Inst->getType()->isVectorTy()) {
           // Get the min and max legal predicate size. First get the element type from the
           // wrregion or select that the notp is baled into.
           Type *ElementTy = nullptr;
@@ -2247,7 +2262,7 @@ void GenXLegalization::fixIntrinsicCalls(Function *F) {
   }
 
   BasicBlock *EntryBB = &F->getEntryBlock();
-  auto InsertPos = EntryBB->getFirstInsertionPt();
+  Instruction *InsertPos = &*EntryBB->getFirstInsertionPt();
 
   for (auto I = Calls.begin(), E = Calls.end(); I != E; ++I) {
     Instruction *EntryDef = nullptr;

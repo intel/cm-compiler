@@ -1,7 +1,7 @@
 // RUN: %clang_cc1 -fsyntax-only -fcxx-exceptions -verify -std=c++11 -Wall %s
 
 struct Bitfield {
-  int n : 3 = 7; // expected-error {{bitfield member cannot have an in-class initializer}}
+  int n : 3 = 7; // expected-warning {{C++2a extension}} expected-warning {{changes value from 7 to -1}}
 };
 
 int a;
@@ -14,7 +14,10 @@ public:
 bool b();
 int k;
 struct Recurse {
-  int &n = b() ? Recurse().n : k; // expected-error {{defaulted default constructor of 'Recurse' cannot be used by non-static data member initializer which appears before end of class definition}}
+  int &n = // expected-note {{declared here}}
+      b() ?
+      Recurse().n : // expected-error {{initializer for 'n' needed}}
+      k;
 };
 
 struct UnknownBound {
@@ -84,7 +87,7 @@ namespace PR14838 {
   struct thing {};
   struct another {
     another() : r(thing()) {}
-    // expected-error@-1 {{temporary of type 'const PR14838::function' has private destructor}}
+    // expected-error@-1 {{temporary of type 'PR14838::function' has private destructor}}
     // expected-warning@-2 {{binding reference member 'r' to a temporary value}}
     const function &r; // expected-note {{reference member declared here}}
   } af;
@@ -109,4 +112,89 @@ namespace PR18560 {
   int f();
 
   struct Y { int b = f(); };
+}
+
+namespace template_valid {
+// Valid, we shouldn't build a CXXDefaultInitExpr until A's ctor definition.
+struct A {
+  A();
+  template <typename T>
+  struct B { int m1 = sizeof(A) + sizeof(T); };
+  B<int> m2;
+};
+A::A() {}
+}
+
+namespace template_default_ctor {
+struct A {
+  template <typename T>
+  struct B {
+    int m1 = 0; // expected-note {{declared here}}
+  };
+  enum { NOE = noexcept(B<int>()) }; // expected-error {{initializer for 'm1' needed}}
+};
+}
+
+namespace default_ctor {
+struct A {
+  struct B {
+    int m1 = 0; // expected-note {{declared here}}
+  };
+  enum { NOE = noexcept(B()) }; // expected-error {{initializer for 'm1' needed}}
+};
+}
+
+namespace member_template {
+struct A {
+  template <typename T>
+  struct B {
+    struct C {
+      int m1 = 0; // expected-note {{declared here}}
+    };
+    template <typename U>
+    struct D {
+      int m1 = 0; // expected-note {{declared here}}
+    };
+  };
+  enum {
+    NOE1 = noexcept(B<int>::C()), // expected-error {{initializer for 'm1' needed}}
+    NOE2 = noexcept(B<int>::D<int>()) // expected-error {{initializer for 'm1' needed}}
+  };
+};
+}
+
+namespace explicit_instantiation {
+template<typename T> struct X {
+  X(); // expected-note {{in instantiation of default member initializer 'explicit_instantiation::X<float>::n' requested here}}
+  int n = T::error; // expected-error {{type 'float' cannot be used prior to '::' because it has no members}}
+};
+template struct X<int>; // ok
+template<typename T> X<T>::X() {}
+template struct X<float>; // expected-note {{in instantiation of member function 'explicit_instantiation::X<float>::X' requested here}}
+}
+
+namespace local_class {
+template<typename T> void f() {
+  struct X { // expected-note {{in instantiation of default member initializer 'local_class::f()::X::n' requested here}}
+    int n = T::error; // expected-error {{type 'int' cannot be used prior to '::' because it has no members}}
+  };
+}
+void g() { f<int>(); } // expected-note {{in instantiation of function template specialization 'local_class::f<int>' requested here}}
+}
+
+namespace PR22056 {
+template <int N>
+struct S {
+  int x[3] = {[N] = 3};
+};
+}
+
+namespace PR28060 {
+template <class T>
+void foo(T v) {
+  struct s {
+    T *s = 0;
+  };
+}
+template void foo(int);
 }

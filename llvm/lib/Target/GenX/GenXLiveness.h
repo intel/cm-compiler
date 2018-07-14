@@ -252,9 +252,7 @@ class SimpleValue {
 public:
   SimpleValue() : V(nullptr), Index(0) {}
   // Constructor from a non-struct value
-  SimpleValue(Value *V) : V(V), Index(0) {
-    assert(!isa<StructType>(V->getType()));
-  }
+  SimpleValue(Value *V) : V(V), Index(0) {}
   // Constructor from a struct value and an already flattened index
   SimpleValue(Value *V, unsigned Index) : V(V), Index(Index) {}
   // Constructor from a struct value and unflattened indices (as found in extractelement)
@@ -473,7 +471,7 @@ public:
   static char ID;
   explicit GenXLiveness() : FunctionGroupPass(ID), CG(0), Baling(0), Numbering(0) { }
   ~GenXLiveness() { clear(); }
-  virtual const char *getPassName() const { return "GenX liveness analysis"; }
+  virtual StringRef getPassName() const { return "GenX liveness analysis"; }
   void getAnalysisUsage(AnalysisUsage &AU) const;
   bool runOnFunctionGroup(FunctionGroup &FG);
   // setBaling : tell GenXLiveness where GenXBaling is
@@ -593,5 +591,23 @@ private:
 
 void initializeGenXLivenessPass(PassRegistry &);
 
+// Specialize DenseMapInfo for SimpleValue.
+template <> struct DenseMapInfo<genx::SimpleValue> {
+  static inline genx::SimpleValue getEmptyKey() {
+    return genx::SimpleValue(DenseMapInfo<Value *>::getEmptyKey());
+  }
+  static inline genx::SimpleValue getTombstoneKey() {
+    return genx::SimpleValue(DenseMapInfo<Value *>::getTombstoneKey());
+  }
+  static unsigned getHashValue(const genx::SimpleValue &SV) {
+    return DenseMapInfo<Value *>::getHashValue(SV.getValue()) ^
+           DenseMapInfo<unsigned>::getHashValue(SV.getIndex());
+  }
+  static bool isEqual(const genx::SimpleValue &LHS,
+                      const genx::SimpleValue &RHS) {
+    return LHS == RHS;
+  }
+};
+
 } // end namespace llvm
-#endif //ndef GENXLIVENESS_H
+#endif // GENXLIVENESS_H

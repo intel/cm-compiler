@@ -60,8 +60,8 @@ protected:
 
 void CommentLexerTest::lexString(const char *Source,
                                  std::vector<Token> &Toks) {
-  MemoryBuffer *Buf = MemoryBuffer::getMemBuffer(Source);
-  FileID File = SourceMgr.createFileID(Buf);
+  std::unique_ptr<MemoryBuffer> Buf = MemoryBuffer::getMemBuffer(Source);
+  FileID File = SourceMgr.createFileID(std::move(Buf));
   SourceLocation Begin = SourceMgr.getLocForStartOfFile(File);
 
   Lexer L(Allocator, Diags, Traits, Begin, Source, Source + strlen(Source));
@@ -320,9 +320,10 @@ TEST_F(CommentLexerTest, DoxygenCommand4) {
     ASSERT_EQ(array_lengthof(Text), Toks.size());
 
     for (size_t j = 0, e = Toks.size(); j != e; j++) {
-      if(Toks[j].is(tok::text))
+      if(Toks[j].is(tok::text)) {
         ASSERT_EQ(StringRef(Text[j]), Toks[j].getText())
           << "index " << i;
+      }
     }
   }
 }

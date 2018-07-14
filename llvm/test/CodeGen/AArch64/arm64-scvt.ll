@@ -1,4 +1,5 @@
-; RUN: llc < %s -march=arm64 -aarch64-neon-syntax=apple | FileCheck %s
+; RUN: llc < %s -mtriple=arm64-eabi -mcpu=cyclone -aarch64-neon-syntax=apple | FileCheck -enable-var-scope %s
+; RUN: llc < %s -mtriple=arm64-eabi -mcpu=cortex-a57 | FileCheck -enable-var-scope --check-prefix=CHECK-A57 %s
 ; rdar://13082402
 
 define float @t1(i32* nocapture %src) nounwind ssp {
@@ -6,7 +7,7 @@ entry:
 ; CHECK-LABEL: t1:
 ; CHECK: ldr s0, [x0]
 ; CHECK: scvtf s0, s0
-  %tmp1 = load i32* %src, align 4
+  %tmp1 = load i32, i32* %src, align 4
   %tmp2 = sitofp i32 %tmp1 to float
   ret float %tmp2
 }
@@ -16,7 +17,7 @@ entry:
 ; CHECK-LABEL: t2:
 ; CHECK: ldr s0, [x0]
 ; CHECK: ucvtf s0, s0
-  %tmp1 = load i32* %src, align 4
+  %tmp1 = load i32, i32* %src, align 4
   %tmp2 = uitofp i32 %tmp1 to float
   ret float %tmp2
 }
@@ -26,7 +27,7 @@ entry:
 ; CHECK-LABEL: t3:
 ; CHECK: ldr d0, [x0]
 ; CHECK: scvtf d0, d0
-  %tmp1 = load i64* %src, align 4
+  %tmp1 = load i64, i64* %src, align 4
   %tmp2 = sitofp i64 %tmp1 to double
   ret double %tmp2
 }
@@ -36,7 +37,7 @@ entry:
 ; CHECK-LABEL: t4:
 ; CHECK: ldr d0, [x0]
 ; CHECK: ucvtf d0, d0
-  %tmp1 = load i64* %src, align 4
+  %tmp1 = load i64, i64* %src, align 4
   %tmp2 = uitofp i64 %tmp1 to double
   ret double %tmp2
 }
@@ -47,7 +48,7 @@ entry:
 ; CHECK-LABEL: t5:
 ; CHECK: ldr [[REG:w[0-9]+]], [x0]
 ; CHECK: scvtf d0, [[REG]]
-  %tmp1 = load i32* %src, align 4
+  %tmp1 = load i32, i32* %src, align 4
   %tmp2 = sitofp i32 %tmp1 to double
   ret double %tmp2
 }
@@ -74,8 +75,8 @@ define float @fct1(i8* nocapture %sp0) {
 ; CHECK-NEXT: ucvtf [[REG:s[0-9]+]], s[[REGNUM]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i8* %sp0, i64 1
-  %pix_sp0.0.copyload = load i8* %addr, align 1
+  %addr = getelementptr i8, i8* %sp0, i64 1
+  %pix_sp0.0.copyload = load i8, i8* %addr, align 1
   %val = uitofp i8 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -87,8 +88,8 @@ define float @fct2(i16* nocapture %sp0) {
 ; CHECK-NEXT: ucvtf [[REG:s[0-9]+]], s[[REGNUM]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i16* %sp0, i64 1
-  %pix_sp0.0.copyload = load i16* %addr, align 1
+  %addr = getelementptr i16, i16* %sp0, i64 1
+  %pix_sp0.0.copyload = load i16, i16* %addr, align 1
   %val = uitofp i16 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -100,8 +101,8 @@ define float @fct3(i32* nocapture %sp0) {
 ; CHECK-NEXT: ucvtf [[REG:s[0-9]+]], s[[REGNUM]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i32* %sp0, i64 1
-  %pix_sp0.0.copyload = load i32* %addr, align 1
+  %addr = getelementptr i32, i32* %sp0, i64 1
+  %pix_sp0.0.copyload = load i32, i32* %addr, align 1
   %val = uitofp i32 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -114,8 +115,8 @@ define float @fct4(i64* nocapture %sp0) {
 ; CHECK-NEXT: ucvtf [[REG:s[0-9]+]], x[[REGNUM]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i64* %sp0, i64 1
-  %pix_sp0.0.copyload = load i64* %addr, align 1
+  %addr = getelementptr i64, i64* %sp0, i64 1
+  %pix_sp0.0.copyload = load i64, i64* %addr, align 1
   %val = uitofp i64 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -128,8 +129,8 @@ define float @fct5(i8* nocapture %sp0, i64 %offset) {
 ; CHECK-NEXT: ucvtf [[REG:s[0-9]+]], s[[REGNUM]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i8* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i8* %addr, align 1
+  %addr = getelementptr i8, i8* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i8, i8* %addr, align 1
   %val = uitofp i8 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -141,8 +142,8 @@ define float @fct6(i16* nocapture %sp0, i64 %offset) {
 ; CHECK-NEXT: ucvtf [[REG:s[0-9]+]], s[[REGNUM]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i16* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i16* %addr, align 1
+  %addr = getelementptr i16, i16* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i16, i16* %addr, align 1
   %val = uitofp i16 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -154,8 +155,8 @@ define float @fct7(i32* nocapture %sp0, i64 %offset) {
 ; CHECK-NEXT: ucvtf [[REG:s[0-9]+]], s[[REGNUM]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i32* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i32* %addr, align 1
+  %addr = getelementptr i32, i32* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i32, i32* %addr, align 1
   %val = uitofp i32 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -168,8 +169,8 @@ define float @fct8(i64* nocapture %sp0, i64 %offset) {
 ; CHECK-NEXT: ucvtf [[REG:s[0-9]+]], x[[REGNUM]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i64* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i64* %addr, align 1
+  %addr = getelementptr i64, i64* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i64, i64* %addr, align 1
   %val = uitofp i64 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -183,8 +184,8 @@ define double @fct9(i8* nocapture %sp0) {
 ; CHECK-NEXT: ucvtf [[REG:d[0-9]+]], d[[REGNUM]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i8* %sp0, i64 1
-  %pix_sp0.0.copyload = load i8* %addr, align 1
+  %addr = getelementptr i8, i8* %sp0, i64 1
+  %pix_sp0.0.copyload = load i8, i8* %addr, align 1
   %val = uitofp i8 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -196,8 +197,8 @@ define double @fct10(i16* nocapture %sp0) {
 ; CHECK-NEXT: ucvtf [[REG:d[0-9]+]], d[[REGNUM]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i16* %sp0, i64 1
-  %pix_sp0.0.copyload = load i16* %addr, align 1
+  %addr = getelementptr i16, i16* %sp0, i64 1
+  %pix_sp0.0.copyload = load i16, i16* %addr, align 1
   %val = uitofp i16 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -209,8 +210,8 @@ define double @fct11(i32* nocapture %sp0) {
 ; CHECK-NEXT: ucvtf [[REG:d[0-9]+]], d[[REGNUM]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i32* %sp0, i64 1
-  %pix_sp0.0.copyload = load i32* %addr, align 1
+  %addr = getelementptr i32, i32* %sp0, i64 1
+  %pix_sp0.0.copyload = load i32, i32* %addr, align 1
   %val = uitofp i32 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -222,8 +223,8 @@ define double @fct12(i64* nocapture %sp0) {
 ; CHECK-NEXT: ucvtf [[REG:d[0-9]+]], d[[REGNUM]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i64* %sp0, i64 1
-  %pix_sp0.0.copyload = load i64* %addr, align 1
+  %addr = getelementptr i64, i64* %sp0, i64 1
+  %pix_sp0.0.copyload = load i64, i64* %addr, align 1
   %val = uitofp i64 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -236,8 +237,8 @@ define double @fct13(i8* nocapture %sp0, i64 %offset) {
 ; CHECK-NEXT: ucvtf [[REG:d[0-9]+]], d[[REGNUM]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i8* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i8* %addr, align 1
+  %addr = getelementptr i8, i8* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i8, i8* %addr, align 1
   %val = uitofp i8 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -249,8 +250,8 @@ define double @fct14(i16* nocapture %sp0, i64 %offset) {
 ; CHECK-NEXT: ucvtf [[REG:d[0-9]+]], d[[REGNUM]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i16* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i16* %addr, align 1
+  %addr = getelementptr i16, i16* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i16, i16* %addr, align 1
   %val = uitofp i16 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -262,8 +263,8 @@ define double @fct15(i32* nocapture %sp0, i64 %offset) {
 ; CHECK-NEXT: ucvtf [[REG:d[0-9]+]], d[[REGNUM]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i32* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i32* %addr, align 1
+  %addr = getelementptr i32, i32* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i32, i32* %addr, align 1
   %val = uitofp i32 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -275,8 +276,8 @@ define double @fct16(i64* nocapture %sp0, i64 %offset) {
 ; CHECK-NEXT: ucvtf [[REG:d[0-9]+]], d[[REGNUM]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i64* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i64* %addr, align 1
+  %addr = getelementptr i64, i64* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i64, i64* %addr, align 1
   %val = uitofp i64 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -292,7 +293,7 @@ entry:
   %bitcast = ptrtoint i8* %sp0 to i64
   %add = add i64 %bitcast, -1
   %addr = inttoptr i64 %add to i8*
-  %pix_sp0.0.copyload = load i8* %addr, align 1
+  %pix_sp0.0.copyload = load i8, i8* %addr, align 1
   %val = uitofp i8 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -306,7 +307,7 @@ define float @fct18(i16* nocapture %sp0) {
   %bitcast = ptrtoint i16* %sp0 to i64
   %add = add i64 %bitcast, 1
   %addr = inttoptr i64 %add to i16*
-  %pix_sp0.0.copyload = load i16* %addr, align 1
+  %pix_sp0.0.copyload = load i16, i16* %addr, align 1
   %val = uitofp i16 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -320,7 +321,7 @@ define float @fct19(i32* nocapture %sp0) {
   %bitcast = ptrtoint i32* %sp0 to i64
   %add = add i64 %bitcast, 1
   %addr = inttoptr i64 %add to i32*
-  %pix_sp0.0.copyload = load i32* %addr, align 1
+  %pix_sp0.0.copyload = load i32, i32* %addr, align 1
   %val = uitofp i32 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -335,7 +336,7 @@ define float @fct20(i64* nocapture %sp0) {
   %bitcast = ptrtoint i64* %sp0 to i64
   %add = add i64 %bitcast, 1
   %addr = inttoptr i64 %add to i64*
-  %pix_sp0.0.copyload = load i64* %addr, align 1
+  %pix_sp0.0.copyload = load i64, i64* %addr, align 1
   %val = uitofp i64 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -352,7 +353,7 @@ entry:
   %bitcast = ptrtoint i8* %sp0 to i64
   %add = add i64 %bitcast, -1
   %addr = inttoptr i64 %add to i8*
-  %pix_sp0.0.copyload = load i8* %addr, align 1
+  %pix_sp0.0.copyload = load i8, i8* %addr, align 1
   %val = uitofp i8 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -366,7 +367,7 @@ define double @fct22(i16* nocapture %sp0) {
   %bitcast = ptrtoint i16* %sp0 to i64
   %add = add i64 %bitcast, 1
   %addr = inttoptr i64 %add to i16*
-  %pix_sp0.0.copyload = load i16* %addr, align 1
+  %pix_sp0.0.copyload = load i16, i16* %addr, align 1
   %val = uitofp i16 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -380,7 +381,7 @@ define double @fct23(i32* nocapture %sp0) {
   %bitcast = ptrtoint i32* %sp0 to i64
   %add = add i64 %bitcast, 1
   %addr = inttoptr i64 %add to i32*
-  %pix_sp0.0.copyload = load i32* %addr, align 1
+  %pix_sp0.0.copyload = load i32, i32* %addr, align 1
   %val = uitofp i32 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -394,7 +395,7 @@ define double @fct24(i64* nocapture %sp0) {
   %bitcast = ptrtoint i64* %sp0 to i64
   %add = add i64 %bitcast, 1
   %addr = inttoptr i64 %add to i64*
-  %pix_sp0.0.copyload = load i64* %addr, align 1
+  %pix_sp0.0.copyload = load i64, i64* %addr, align 1
   %val = uitofp i64 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -409,9 +410,13 @@ define float @sfct1(i8* nocapture %sp0) {
 ; CHECK-NEXT: sshll.4s v[[SEXTREG:[0-9]+]], [[SEXTREG1]], #0
 ; CHECK: scvtf [[REG:s[0-9]+]], s[[SEXTREG]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
+; CHECK-A57-LABEL: sfct1:
+; CHECK-A57: ldrsb w[[REGNUM:[0-9]+]], [x0, #1]
+; CHECK-A57-NEXT: scvtf [[REG:s[0-9]+]], w[[REGNUM]]
+; CHECK-A57-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i8* %sp0, i64 1
-  %pix_sp0.0.copyload = load i8* %addr, align 1
+  %addr = getelementptr i8, i8* %sp0, i64 1
+  %pix_sp0.0.copyload = load i8, i8* %addr, align 1
   %val = sitofp i8 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -424,8 +429,8 @@ define float @sfct2(i16* nocapture %sp0) {
 ; CHECK: scvtf [[REG:s[0-9]+]], s[[SEXTREG]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i16* %sp0, i64 1
-  %pix_sp0.0.copyload = load i16* %addr, align 1
+  %addr = getelementptr i16, i16* %sp0, i64 1
+  %pix_sp0.0.copyload = load i16, i16* %addr, align 1
   %val = sitofp i16 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -434,11 +439,11 @@ entry:
 define float @sfct3(i32* nocapture %sp0) {
 ; CHECK-LABEL: sfct3:
 ; CHECK: ldr s[[REGNUM:[0-9]+]], [x0, #4]
-; CHECK-NEXT: scvtf [[REG:s[0-9]+]], s[[SEXTREG]]
+; CHECK-NEXT: scvtf [[REG:s[0-9]+]], s[[REGNUM]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i32* %sp0, i64 1
-  %pix_sp0.0.copyload = load i32* %addr, align 1
+  %addr = getelementptr i32, i32* %sp0, i64 1
+  %pix_sp0.0.copyload = load i32, i32* %addr, align 1
   %val = sitofp i32 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -451,8 +456,8 @@ define float @sfct4(i64* nocapture %sp0) {
 ; CHECK-NEXT: scvtf [[REG:s[0-9]+]], x[[REGNUM]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i64* %sp0, i64 1
-  %pix_sp0.0.copyload = load i64* %addr, align 1
+  %addr = getelementptr i64, i64* %sp0, i64 1
+  %pix_sp0.0.copyload = load i64, i64* %addr, align 1
   %val = sitofp i64 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -466,9 +471,13 @@ define float @sfct5(i8* nocapture %sp0, i64 %offset) {
 ; CHECK-NEXT: sshll.4s v[[SEXTREG:[0-9]+]], [[SEXTREG1]], #0
 ; CHECK: scvtf [[REG:s[0-9]+]], s[[SEXTREG]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
+; CHECK-A57-LABEL: sfct5:
+; CHECK-A57: ldrsb w[[REGNUM:[0-9]+]], [x0, x1]
+; CHECK-A57-NEXT: scvtf [[REG:s[0-9]+]], w[[REGNUM]]
+; CHECK-A57-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i8* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i8* %addr, align 1
+  %addr = getelementptr i8, i8* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i8, i8* %addr, align 1
   %val = sitofp i8 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -481,8 +490,8 @@ define float @sfct6(i16* nocapture %sp0, i64 %offset) {
 ; CHECK: scvtf [[REG:s[0-9]+]], s[[SEXTREG]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i16* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i16* %addr, align 1
+  %addr = getelementptr i16, i16* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i16, i16* %addr, align 1
   %val = sitofp i16 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -491,11 +500,11 @@ entry:
 define float @sfct7(i32* nocapture %sp0, i64 %offset) {
 ; CHECK-LABEL: sfct7:
 ; CHECK: ldr s[[REGNUM:[0-9]+]], [x0, x1, lsl #2]
-; CHECK-NEXT: scvtf [[REG:s[0-9]+]], s[[SEXTREG]]
+; CHECK-NEXT: scvtf [[REG:s[0-9]+]], s[[REGNUM]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i32* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i32* %addr, align 1
+  %addr = getelementptr i32, i32* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i32, i32* %addr, align 1
   %val = sitofp i32 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -508,8 +517,8 @@ define float @sfct8(i64* nocapture %sp0, i64 %offset) {
 ; CHECK-NEXT: scvtf [[REG:s[0-9]+]], x[[REGNUM]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i64* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i64* %addr, align 1
+  %addr = getelementptr i64, i64* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i64, i64* %addr, align 1
   %val = sitofp i64 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -522,8 +531,8 @@ define double @sfct9(i8* nocapture %sp0) {
 ; CHECK-NEXT: scvtf [[REG:d[0-9]+]], w[[REGNUM]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i8* %sp0, i64 1
-  %pix_sp0.0.copyload = load i8* %addr, align 1
+  %addr = getelementptr i8, i8* %sp0, i64 1
+  %pix_sp0.0.copyload = load i8, i8* %addr, align 1
   %val = sitofp i8 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -536,9 +545,13 @@ define double @sfct10(i16* nocapture %sp0) {
 ; CHECK-NEXT: sshll.2d v[[SEXTREG:[0-9]+]], [[SEXTREG1]], #0
 ; CHECK: scvtf [[REG:d[0-9]+]], d[[SEXTREG]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
+; CHECK-A57-LABEL: sfct10:
+; CHECK-A57: ldrsh w[[REGNUM:[0-9]+]], [x0, #2]
+; CHECK-A57-NEXT: scvtf [[REG:d[0-9]+]], w[[REGNUM]]
+; CHECK-A57-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i16* %sp0, i64 1
-  %pix_sp0.0.copyload = load i16* %addr, align 1
+  %addr = getelementptr i16, i16* %sp0, i64 1
+  %pix_sp0.0.copyload = load i16, i16* %addr, align 1
   %val = sitofp i16 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -551,8 +564,8 @@ define double @sfct11(i32* nocapture %sp0) {
 ; CHECK: scvtf [[REG:d[0-9]+]], d[[SEXTREG]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i32* %sp0, i64 1
-  %pix_sp0.0.copyload = load i32* %addr, align 1
+  %addr = getelementptr i32, i32* %sp0, i64 1
+  %pix_sp0.0.copyload = load i32, i32* %addr, align 1
   %val = sitofp i32 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -561,11 +574,11 @@ entry:
 define double @sfct12(i64* nocapture %sp0) {
 ; CHECK-LABEL: sfct12:
 ; CHECK: ldr d[[REGNUM:[0-9]+]], [x0, #8]
-; CHECK-NEXT: scvtf [[REG:d[0-9]+]], d[[SEXTREG]]
+; CHECK-NEXT: scvtf [[REG:d[0-9]+]], d[[REGNUM]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i64* %sp0, i64 1
-  %pix_sp0.0.copyload = load i64* %addr, align 1
+  %addr = getelementptr i64, i64* %sp0, i64 1
+  %pix_sp0.0.copyload = load i64, i64* %addr, align 1
   %val = sitofp i64 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -578,8 +591,8 @@ define double @sfct13(i8* nocapture %sp0, i64 %offset) {
 ; CHECK-NEXT: scvtf [[REG:d[0-9]+]], w[[REGNUM]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i8* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i8* %addr, align 1
+  %addr = getelementptr i8, i8* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i8, i8* %addr, align 1
   %val = sitofp i8 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -592,9 +605,13 @@ define double @sfct14(i16* nocapture %sp0, i64 %offset) {
 ; CHECK-NEXT: sshll.2d v[[SEXTREG:[0-9]+]], [[SEXTREG1]], #0
 ; CHECK: scvtf [[REG:d[0-9]+]], d[[SEXTREG]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
+; CHECK-A57-LABEL: sfct14:
+; CHECK-A57: ldrsh w[[REGNUM:[0-9]+]], [x0, x1, lsl #1]
+; CHECK-A57-NEXT: scvtf [[REG:d[0-9]+]], w[[REGNUM]]
+; CHECK-A57-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i16* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i16* %addr, align 1
+  %addr = getelementptr i16, i16* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i16, i16* %addr, align 1
   %val = sitofp i16 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -607,8 +624,8 @@ define double @sfct15(i32* nocapture %sp0, i64 %offset) {
 ; CHECK: scvtf [[REG:d[0-9]+]], d[[SEXTREG]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i32* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i32* %addr, align 1
+  %addr = getelementptr i32, i32* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i32, i32* %addr, align 1
   %val = sitofp i32 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -617,11 +634,11 @@ entry:
 define double @sfct16(i64* nocapture %sp0, i64 %offset) {
 ; CHECK-LABEL: sfct16:
 ; CHECK: ldr d[[REGNUM:[0-9]+]], [x0, x1, lsl #3]
-; CHECK-NEXT: scvtf [[REG:d[0-9]+]], d[[SEXTREG]]
+; CHECK-NEXT: scvtf [[REG:d[0-9]+]], d[[REGNUM]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i64* %sp0, i64 %offset
-  %pix_sp0.0.copyload = load i64* %addr, align 1
+  %addr = getelementptr i64, i64* %sp0, i64 %offset
+  %pix_sp0.0.copyload = load i64, i64* %addr, align 1
   %val = sitofp i64 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -636,10 +653,14 @@ entry:
 ; CHECK-NEXT: sshll.4s v[[SEXTREG:[0-9]+]], [[SEXTREG1]], #0
 ; CHECK: scvtf [[REG:s[0-9]+]], s[[SEXTREG]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
+; CHECK-A57-LABEL: sfct17:
+; CHECK-A57: ldursb w[[REGNUM:[0-9]+]], [x0, #-1]
+; CHECK-A57-NEXT: scvtf [[REG:s[0-9]+]], w[[REGNUM]]
+; CHECK-A57-NEXT: fmul s0, [[REG]], [[REG]]
   %bitcast = ptrtoint i8* %sp0 to i64
   %add = add i64 %bitcast, -1
   %addr = inttoptr i64 %add to i8*
-  %pix_sp0.0.copyload = load i8* %addr, align 1
+  %pix_sp0.0.copyload = load i8, i8* %addr, align 1
   %val = sitofp i8 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -654,7 +675,7 @@ define float @sfct18(i16* nocapture %sp0) {
   %bitcast = ptrtoint i16* %sp0 to i64
   %add = add i64 %bitcast, 1
   %addr = inttoptr i64 %add to i16*
-  %pix_sp0.0.copyload = load i16* %addr, align 1
+  %pix_sp0.0.copyload = load i16, i16* %addr, align 1
   %val = sitofp i16 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -663,12 +684,12 @@ define float @sfct18(i16* nocapture %sp0) {
 define float @sfct19(i32* nocapture %sp0) {
 ; CHECK-LABEL: sfct19:
 ; CHECK: ldur s[[REGNUM:[0-9]+]], [x0, #1]
-; CHECK-NEXT: scvtf [[REG:s[0-9]+]], s[[SEXTREG]]
+; CHECK-NEXT: scvtf [[REG:s[0-9]+]], s[[REGNUM]]
 ; CHECK-NEXT: fmul s0, [[REG]], [[REG]]
   %bitcast = ptrtoint i32* %sp0 to i64
   %add = add i64 %bitcast, 1
   %addr = inttoptr i64 %add to i32*
-  %pix_sp0.0.copyload = load i32* %addr, align 1
+  %pix_sp0.0.copyload = load i32, i32* %addr, align 1
   %val = sitofp i32 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -683,7 +704,7 @@ define float @sfct20(i64* nocapture %sp0) {
   %bitcast = ptrtoint i64* %sp0 to i64
   %add = add i64 %bitcast, 1
   %addr = inttoptr i64 %add to i64*
-  %pix_sp0.0.copyload = load i64* %addr, align 1
+  %pix_sp0.0.copyload = load i64, i64* %addr, align 1
   %val = sitofp i64 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -700,7 +721,7 @@ entry:
   %bitcast = ptrtoint i8* %sp0 to i64
   %add = add i64 %bitcast, -1
   %addr = inttoptr i64 %add to i8*
-  %pix_sp0.0.copyload = load i8* %addr, align 1
+  %pix_sp0.0.copyload = load i8, i8* %addr, align 1
   %val = sitofp i8 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -713,10 +734,14 @@ define double @sfct22(i16* nocapture %sp0) {
 ; CHECK-NEXT: sshll.2d v[[SEXTREG:[0-9]+]], [[SEXTREG1]], #0
 ; CHECK: scvtf [[REG:d[0-9]+]], d[[SEXTREG]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
+; CHECK-A57-LABEL: sfct22:
+; CHECK-A57: ldursh w[[REGNUM:[0-9]+]], [x0, #1]
+; CHECK-A57-NEXT: scvtf [[REG:d[0-9]+]], w[[REGNUM]]
+; CHECK-A57-NEXT: fmul d0, [[REG]], [[REG]]
   %bitcast = ptrtoint i16* %sp0 to i64
   %add = add i64 %bitcast, 1
   %addr = inttoptr i64 %add to i16*
-  %pix_sp0.0.copyload = load i16* %addr, align 1
+  %pix_sp0.0.copyload = load i16, i16* %addr, align 1
   %val = sitofp i16 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -731,7 +756,7 @@ define double @sfct23(i32* nocapture %sp0) {
   %bitcast = ptrtoint i32* %sp0 to i64
   %add = add i64 %bitcast, 1
   %addr = inttoptr i64 %add to i32*
-  %pix_sp0.0.copyload = load i32* %addr, align 1
+  %pix_sp0.0.copyload = load i32, i32* %addr, align 1
   %val = sitofp i32 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -740,12 +765,12 @@ define double @sfct23(i32* nocapture %sp0) {
 define double @sfct24(i64* nocapture %sp0) {
 ; CHECK-LABEL: sfct24:
 ; CHECK: ldur d[[REGNUM:[0-9]+]], [x0, #1]
-; CHECK-NEXT: scvtf [[REG:d[0-9]+]], d[[SEXTREG]]
+; CHECK-NEXT: scvtf [[REG:d[0-9]+]], d[[REGNUM]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
   %bitcast = ptrtoint i64* %sp0 to i64
   %add = add i64 %bitcast, 1
   %addr = inttoptr i64 %add to i64*
-  %pix_sp0.0.copyload = load i64* %addr, align 1
+  %pix_sp0.0.copyload = load i64, i64* %addr, align 1
   %val = sitofp i64 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i
@@ -762,7 +787,7 @@ entry:
   %bitcast = ptrtoint i8* %sp0 to i64
   %add = add i64 %bitcast, -1
   %addr = inttoptr i64 %add to i8*
-  %pix_sp0.0.copyload = load i8* %addr, align 1
+  %pix_sp0.0.copyload = load i8, i8* %addr, align 1
   %val = sitofp i8 %pix_sp0.0.copyload to float
   %vmull.i = fmul float %val, %val
   ret float %vmull.i
@@ -774,8 +799,8 @@ define double @codesize_sfct11(i32* nocapture %sp0) minsize {
 ; CHECK-NEXT: scvtf [[REG:d[0-9]+]], w[[REGNUM]]
 ; CHECK-NEXT: fmul d0, [[REG]], [[REG]]
 entry:
-  %addr = getelementptr i32* %sp0, i64 1
-  %pix_sp0.0.copyload = load i32* %addr, align 1
+  %addr = getelementptr i32, i32* %sp0, i64 1
+  %pix_sp0.0.copyload = load i32, i32* %addr, align 1
   %val = sitofp i32 %pix_sp0.0.copyload to double
   %vmull.i = fmul double %val, %val
   ret double %vmull.i

@@ -1,9 +1,15 @@
-// RUN: %clang_cc1 %s -fsyntax-only -Wno-unused-value -Wmicrosoft -verify -fms-extensions
+// RUN: %clang_cc1 -triple i686-windows %s -fsyntax-only -Wno-unused-value -Wmicrosoft -verify -fms-extensions
 
 
 struct A
 {
    int a[];  /* expected-warning {{flexible array member 'a' in otherwise empty struct is a Microsoft extension}} */
+};
+
+struct PR28407
+{
+  int : 1;
+  int a[]; /* expected-warning {{flexible array member 'a' in otherwise empty struct is a Microsoft extension}} */
 };
 
 struct C {
@@ -22,6 +28,8 @@ struct D {
 
 struct __declspec(uuid("00000000-0000-0000-C000-000000000046")) IUnknown {}; /* expected-error {{'uuid' attribute is not supported in C}} */
 
+[uuid("00000000-0000-0000-C000-000000000046")] struct IUnknown2 {}; /* expected-error {{'uuid' attribute is not supported in C}} */
+
 typedef struct notnested {
   long bad1;
   long bad2;
@@ -39,9 +47,26 @@ struct nested2 {
   NESTED1;  // expected-warning {{anonymous structs are a Microsoft extension}}
 };
 
+struct nested2 PR20573 = { .a = 3 };
+
+struct nested3 {
+  long d;
+  struct nested4 { // expected-warning {{anonymous structs are a Microsoft extension}}
+    long e;
+  };
+  union nested5 { // expected-warning {{anonymous unions are a Microsoft extension}}
+    long f;
+  };
+};
+
+typedef union nested6 {
+  long f;
+} NESTED6;
+
 struct test {
   int c;
   struct nested2;   // expected-warning {{anonymous structs are a Microsoft extension}}
+  NESTED6;   // expected-warning {{anonymous unions are a Microsoft extension}}
 };
 
 void foo()
@@ -86,6 +111,14 @@ typedef struct {
 typedef struct {
   AA; // expected-warning {{anonymous structs are a Microsoft extension}}
 } BB;
+
+struct anon_fault {
+  struct undefined; // expected-warning {{anonymous structs are a Microsoft extension}}
+                    // expected-error@-1 {{field has incomplete type 'struct undefined'}}
+                    // expected-note@-2 {{forward declaration of 'struct undefined'}}
+};
+
+const int anon_falt_size = sizeof(struct anon_fault);
 
 __declspec(deprecated("This is deprecated")) enum DE1 { one, two } e1; // expected-note {{'e1' has been explicitly marked deprecated here}}
 struct __declspec(deprecated) DS1 { int i; float f; }; // expected-note {{'DS1' has been explicitly marked deprecated here}}
@@ -145,3 +178,13 @@ void myprintf(const char *f, ...) {
     __va_start(ap, f); // expected-warning {{incompatible pointer types passing 'my_va_list'}}
   }
 }
+
+// __unaligned handling
+void test_unaligned() {
+  __unaligned int *p1 = 0;
+  int *p2 = p1; // expected-warning {{initializing 'int *' with an expression of type '__unaligned int *' discards qualifiers}}
+  __unaligned int *p3 = p2;
+}
+
+void test_unaligned2(int x[__unaligned 4]) {}
+

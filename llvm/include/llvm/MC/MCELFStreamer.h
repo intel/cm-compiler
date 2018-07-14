@@ -10,44 +10,38 @@
 #ifndef LLVM_MC_MCELFSTREAMER_H
 #define LLVM_MC_MCELFSTREAMER_H
 
-#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/MC/MCDirectives.h"
 #include "llvm/MC/MCObjectStreamer.h"
-#include "llvm/MC/SectionKind.h"
-#include "llvm/Support/DataTypes.h"
-#include <vector>
 
 namespace llvm {
+
 class MCAsmBackend;
-class MCAssembler;
 class MCCodeEmitter;
 class MCExpr;
 class MCInst;
-class MCSymbol;
-class MCSymbolData;
-class raw_ostream;
 
 class MCELFStreamer : public MCObjectStreamer {
 public:
-  MCELFStreamer(MCContext &Context, MCAsmBackend &TAB, raw_ostream &OS,
-                MCCodeEmitter *Emitter)
-      : MCObjectStreamer(Context, TAB, OS, Emitter),
-        SeenIdent(false) {}
+  MCELFStreamer(MCContext &Context, std::unique_ptr<MCAsmBackend> TAB,
+                raw_pwrite_stream &OS, std::unique_ptr<MCCodeEmitter> Emitter);
 
-  MCELFStreamer(MCContext &Context, MCAsmBackend &TAB, raw_ostream &OS,
-                MCCodeEmitter *Emitter, MCAssembler *Assembler)
-      : MCObjectStreamer(Context, TAB, OS, Emitter, Assembler),
-        SeenIdent(false) {}
+  ~MCELFStreamer() override = default;
 
-  virtual ~MCELFStreamer();
+  /// state management
+  void reset() override {
+    SeenIdent = false;
+    BundleGroups.clear();
+    MCObjectStreamer::reset();
+  }
 
-  /// @name MCStreamer Interface
+  /// \name MCStreamer Interface
   /// @{
 
-  void InitSections() override;
-  void ChangeSection(const MCSection *Section,
-                     const MCExpr *Subsection) override;
-  void EmitLabel(MCSymbol *Symbol) override;
+  void InitSections(bool NoExecStack) override;
+  void ChangeSection(MCSection *Section, const MCExpr *Subsection) override;
+  void EmitLabel(MCSymbol *Symbol, SMLoc Loc = SMLoc()) override;
+  void EmitLabel(MCSymbol *Symbol, SMLoc Loc, MCFragment *F) override;
   void EmitAssemblerFlag(MCAssemblerFlag Flag) override;
   void EmitThumbFunc(MCSymbol *Func) override;
   void EmitWeakReference(MCSymbol *Alias, const MCSymbol *Symbol) override;
@@ -55,30 +49,22 @@ public:
   void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue) override;
   void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                         unsigned ByteAlignment) override;
-  void BeginCOFFSymbolDef(const MCSymbol *Symbol) override;
-  void EmitCOFFSymbolStorageClass(int StorageClass) override;
-  void EmitCOFFSymbolType(int Type) override;
-  void EndCOFFSymbolDef() override;
 
-  void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) override;
+  void emitELFSize(MCSymbol *Symbol, const MCExpr *Value) override;
 
   void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                              unsigned ByteAlignment) override;
 
-  void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = nullptr,
+  void EmitZerofill(MCSection *Section, MCSymbol *Symbol = nullptr,
                     uint64_t Size = 0, unsigned ByteAlignment = 0) override;
-  void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
-                      uint64_t Size, unsigned ByteAlignment = 0) override;
+  void EmitTBSSSymbol(MCSection *Section, MCSymbol *Symbol, uint64_t Size,
+                      unsigned ByteAlignment = 0) override;
   void EmitValueImpl(const MCExpr *Value, unsigned Size,
-                     const SMLoc &Loc = SMLoc()) override;
-
-  void EmitFileDirective(StringRef Filename) override;
+                     SMLoc Loc = SMLoc()) override;
 
   void EmitIdent(StringRef IdentString) override;
 
   void EmitValueToAlignment(unsigned, int64_t, unsigned, unsigned) override;
-
-  void Flush() override;
 
   void FinishImpl() override;
 
@@ -87,29 +73,28 @@ public:
   void EmitBundleUnlock() override;
 
 private:
+  bool isBundleLocked() const;
   void EmitInstToFragment(const MCInst &Inst, const MCSubtargetInfo &) override;
   void EmitInstToData(const MCInst &Inst, const MCSubtargetInfo &) override;
 
   void fixSymbolsInTLSFixups(const MCExpr *expr);
 
-  bool SeenIdent;
+  /// \brief Merge the content of the fragment \p EF into the fragment \p DF.
+  void mergeFragment(MCDataFragment *, MCDataFragment *);
 
-  struct LocalCommon {
-    MCSymbolData *SD;
-    uint64_t Size;
-    unsigned ByteAlignment;
-  };
+  bool SeenIdent = false;
 
-  std::vector<LocalCommon> LocalCommons;
-
-  SmallPtrSet<MCSymbol *, 16> BindingExplicitlySet;
+  /// BundleGroups - The stack of fragments holding the bundle-locked
+  /// instructions.
+  SmallVector<MCDataFragment *, 4> BundleGroups;
 };
 
-MCELFStreamer *createARMELFStreamer(MCContext &Context, MCAsmBackend &TAB,
-                                    raw_ostream &OS, MCCodeEmitter *Emitter,
-                                    bool RelaxAll, bool NoExecStack,
-                                    bool IsThumb);
+MCELFStreamer *createARMELFStreamer(MCContext &Context,
+                                    std::unique_ptr<MCAsmBackend> TAB,
+                                    raw_pwrite_stream &OS,
+                                    std::unique_ptr<MCCodeEmitter> Emitter,
+                                    bool RelaxAll, bool IsThumb);
 
 } // end namespace llvm
 
-#endif
+#endif // LLVM_MC_MCELFSTREAMER_H

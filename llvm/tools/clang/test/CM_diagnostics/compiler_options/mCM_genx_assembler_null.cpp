@@ -37,7 +37,7 @@ void test() {
 #warning CM_GEN10 defined
 #endif
 
-// CHECK: mCM_genx_assembler_null.cpp(13,2) :  warning: CM_GENX defined [-W#warnings]
-// CHECK: mCM_genx_assembler_null.cpp(21,2) :  warning: CM_GEN8 defined [-W#warnings]
+// CHECK: mCM_genx_assembler_null.cpp(13,2):  warning: CM_GENX defined [-W#warnings]
+// CHECK: mCM_genx_assembler_null.cpp(21,2):  warning: CM_GEN8 defined [-W#warnings]
 // CHECK: 2 warnings generated.
 // CHECK-NOT: -platform BDW

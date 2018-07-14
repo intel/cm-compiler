@@ -298,6 +298,19 @@ namespace PR18044 {
   int E::*p; // expected-error {{does not point into a class}}
   using E::f; // expected-error {{no member named 'f'}}
 
-  using E::a; // ok!
-  E b = a;
+  using E::a; // expected-error {{using declaration cannot refer to a scoped enumerator}}
+  E b = a; // expected-error {{undeclared}}
 }
+
+namespace test11 {
+  enum class E { a };
+  typedef E E2;
+  E2 f1() { return E::a; }
+
+  bool f() { return !f1(); } // expected-error {{invalid argument type 'test11::E2' (aka 'test11::E') to unary expression}}
+}
+
+namespace PR35586 {
+  enum C { R, G, B };
+  enum B { F = (enum C) -1, T}; // this should compile cleanly, it used to assert.
+};

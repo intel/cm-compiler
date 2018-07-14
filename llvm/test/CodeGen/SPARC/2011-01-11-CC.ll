@@ -70,7 +70,7 @@ entry:
 ;V8: {{fbe|fbne}}
 ;V9-LABEL: test_select_int_fcc:
 ;V9: fcmps
-;V9-NEXT-NOT: nop
+;V9-NOT: nop
 ;V9-NOT: {{fbe|fbne}}
 ;V9: mov{{e|ne}} %fcc0
   %0 = fcmp une float %f, 0.000000e+00
@@ -101,7 +101,7 @@ entry:
 ;V8: {{fbne|fbe}}
 ;V9-LABEL: test_select_dfp_fcc:
 ;V9: fcmpd
-;V9-NEXT-NOT: nop
+;V9-NOT: nop
 ;V9-NOT: {{fbne|fbe}}
 ;V9: fmovd{{e|ne}} %fcc0
   %0 = fcmp une double %f, 0.000000e+00
@@ -177,13 +177,13 @@ define void @test_adde_sube(i8* %a, i8* %b, i8* %sum, i8* %diff) {
 entry:
    %0 = bitcast i8* %a to i128*
    %1 = bitcast i8* %b to i128*
-   %2 = load i128* %0
-   %3 = load i128* %1
+   %2 = load i128, i128* %0
+   %3 = load i128, i128* %1
    %4 = add i128 %2, %3
    %5 = bitcast i8* %sum to i128*
    store i128 %4, i128* %5
    tail call void asm sideeffect "", "=*m,*m"(i128 *%0, i128* %5) nounwind
-   %6 = load i128* %0
+   %6 = load i128, i128* %0
    %7 = sub i128 %2, %6
    %8 = bitcast i8* %diff to i128*
    store i128 %7, i128* %8

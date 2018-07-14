@@ -1,8 +1,8 @@
 // RUN: rm -rf %t
-// RUN: %clang_cc1 -triple x86_64-linux-gnu -std=c++11 -x objective-c++ -fmodules -fmodules-cache-path=%t -I %S/Inputs -verify %s -Wno-objc-root-class
-// RUN: %clang_cc1 -triple x86_64-linux-gnu -std=c++11 -x objective-c++ -fmodules -fmodules-cache-path=%t -I %S/Inputs -emit-llvm %s -o - -Wno-objc-root-class | FileCheck %s
+// RUN: %clang_cc1 -triple x86_64-linux-gnu -std=c++11 -x objective-c++ -fmodules -fimplicit-module-maps -fmodules-cache-path=%t -I %S/Inputs -verify %s -Wno-objc-root-class
+// RUN: %clang_cc1 -triple x86_64-linux-gnu -std=c++11 -x objective-c++ -fmodules -fimplicit-module-maps -fmodules-cache-path=%t -I %S/Inputs -emit-llvm %s -o - -Wno-objc-root-class | FileCheck %s
 // expected-no-diagnostics
-
+// REQUIRES: x86-registered-target
 @import templates_left;
 
 void testInlineRedeclEarly() {
@@ -12,10 +12,11 @@ void testInlineRedeclEarly() {
 
 @import templates_right;
 
-// CHECK: @list_left = global { %{{.*}}*, i32, [4 x i8] } { %{{.*}}* null, i32 8,
-// CHECK: @list_right = global { %{{.*}}*, i32, [4 x i8] } { %{{.*}}* null, i32 12,
-// CHECK: @_ZZ15testMixedStructvE1l = {{.*}} constant { %{{.*}}*, i32, [4 x i8] } { %{{.*}}* null, i32 1,
-// CHECK: @_ZZ15testMixedStructvE1r = {{.*}} constant { %{{.*}}*, i32, [4 x i8] } { %{{.*}}* null, i32 2,
+// CHECK-DAG: @list_left = global %[[LIST:.*]] { %[[LISTNODE:.*]]* null, i32 8 }, align 8
+// CHECK-DAG: @list_right = global %[[LIST]] { %[[LISTNODE]]* null, i32 12 }, align 8
+// CHECK-DAG: @_ZZ15testMixedStructvE1l = {{.*}} constant %[[LIST]] { %{{.*}}* null, i32 1 }, align 8
+// CHECK-DAG: @_ZZ15testMixedStructvE1r = {{.*}} constant %[[LIST]] { %{{.*}}* null, i32 2 }, align 8
+// CHECK-DAG: @_ZN29WithUndefinedStaticDataMemberIA_iE9undefinedE = external global
 
 void testTemplateClasses() {
   Vector<int> vec_int;
@@ -26,6 +27,8 @@ void testTemplateClasses() {
 
   N::Set<char> set_char;
   set_char.insert('A');
+
+  static_assert(sizeof(List<long>) == sizeof(List<short>), "");
 
   List<double> list_double;
   list_double.push_back(0.0);
@@ -85,8 +88,8 @@ unsigned testMixedStruct() {
   // CHECK: call void @_Z10useListIntR4ListIiE(%[[ListInt]]* dereferenceable({{[0-9]+}}) %[[r]])
   useListInt(r);
 
-  // CHECK: load i32* bitcast (i8* getelementptr inbounds (i8* bitcast ({{.*}}* @list_left to i8*), i64 8) to i32*)
-  // CHECK: load i32* bitcast (i8* getelementptr inbounds (i8* bitcast ({{.*}}* @list_right to i8*), i64 8) to i32*)
+  // CHECK: load i32, i32* bitcast (i8* getelementptr inbounds (i8, i8* bitcast ({{.*}}* @list_left to i8*), i64 8) to i32*)
+  // CHECK: load i32, i32* bitcast (i8* getelementptr inbounds (i8, i8* bitcast ({{.*}}* @list_right to i8*), i64 8) to i32*)
   return list_left.*size_right + list_right.*size_left;
 }
 
@@ -100,3 +103,22 @@ template struct ExplicitInstantiation<false, true>;
 template struct ExplicitInstantiation<true, true>;
 
 void testDelayUpdatesImpl() { testDelayUpdates<int>(); }
+
+void testStaticDataMember() {
+  WithUndefinedStaticDataMember<int[]> load_it;
+
+  // CHECK-LABEL: define linkonce_odr i32* @_Z23getStaticDataMemberLeftv(
+  // CHECK: ret i32* getelementptr inbounds ([0 x i32], [0 x i32]* @_ZN29WithUndefinedStaticDataMemberIA_iE9undefinedE, i32 0, i32 0)
+  (void) getStaticDataMemberLeft();
+
+  // CHECK-LABEL: define linkonce_odr i32* @_Z24getStaticDataMemberRightv(
+  // CHECK: ret i32* getelementptr inbounds ([0 x i32], [0 x i32]* @_ZN29WithUndefinedStaticDataMemberIA_iE9undefinedE, i32 0, i32 0)
+  (void) getStaticDataMemberRight();
+}
+
+void testWithAttributes() {
+  auto a = make_with_attributes_left();
+  auto b = make_with_attributes_right();
+  static_assert(alignof(decltype(a)) == 2, "");
+  static_assert(alignof(decltype(b)) == 2, "");
+}

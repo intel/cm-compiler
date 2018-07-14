@@ -53,10 +53,11 @@
 #include "GenXTargetMachine.h"
 #include "GenXModule.h"
 #include "llvm/Analysis/Passes.h"
+#include "llvm/Analysis/BasicAliasAnalysis.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/Pass.h"
-#include "llvm/PassManager.h"
 #include "llvm/PassRegistry.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -66,13 +67,14 @@ using namespace llvm;
 static cl::opt<bool> DumpRegAlloc("genx-dump-regalloc", cl::init(false), cl::Hidden,
                   cl::desc("Enable dumping of GenX liveness and register allocation to a file."));
 
-GenXTargetMachine::GenXTargetMachine(const Target &T, StringRef TT, StringRef CPU,
-                                   StringRef FS, const TargetOptions &Options,
-                                   Reloc::Model RM, CodeModel::Model CM,
-                                   CodeGenOpt::Level OL)
-    : TargetMachine(T, TT, CPU, FS, Options),
-      // There's another copy of this in clang/lib/Basic/Targets.cpp
-      DL("e-p:32:32-i64:64-n8:16:32"),
+GenXTargetMachine::GenXTargetMachine(const Target &T, const Triple &TT,
+                                     StringRef CPU, StringRef FS,
+                                     const TargetOptions &Options,
+                                     Optional<Reloc::Model> RM,
+                                     Optional<CodeModel::Model> CM,
+                                     CodeGenOpt::Level OL, bool JIT)
+    // There's another copy of DL string in clang/lib/Basic/Targets.cpp
+    : TargetMachine(T, "e-p:32:32-i64:64-n8:16:32", TT, CPU, FS, Options),
       Subtarget(TT, CPU, FS) {}
 
 //===----------------------------------------------------------------------===//
@@ -80,11 +82,10 @@ GenXTargetMachine::GenXTargetMachine(const Target &T, StringRef TT, StringRef CP
 //===----------------------------------------------------------------------===//
 
 bool GenXTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
-                                           formatted_raw_ostream &o,
-                                           CodeGenFileType FileType,
-                                           bool DisableVerify,
-                                           AnalysisID StartAfter,
-                                           AnalysisID StopAfter) {
+                                            raw_pwrite_stream &o,
+                                            CodeGenFileType FileType,
+                                            bool DisableVerify,
+                                            MachineModuleInfo *) {
   // We can consider the .isa file to be an object file, or an assembly file
   // which may later be converted to GenX code by the Finalizer. If we're
   // asked to produce any other type of file return true to indicate an error.
@@ -105,7 +106,7 @@ bool GenXTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   /// ------------------
   /// This is a standard LLVM analysis pass to provide basic AliasAnalysis
   /// support.
-  PM.add(createBasicAliasAnalysisPass());
+  PM.add(createBasicAAWrapperPass());
   /// SROA
   /// ----
   /// This is a standard LLVM pass, used at this point in the GenX backend.
@@ -264,7 +265,7 @@ bool GenXTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   /// .. include:: GenXArgIndirection.cpp
   PM.add(createGenXArgIndirectionPass());
   /// .. include:: GenXTidyControlFlow.cpp
-  initializeLoopInfoPass(*PassRegistry::getPassRegistry());
+  //initializeLoopInfoPass(*PassRegistry::getPassRegistry());
   PM.add(createGenXTidyControlFlowPass());
   /// .. include:: GenXVisaRegAlloc.h
   auto RegAlloc = createGenXVisaRegAllocPass();

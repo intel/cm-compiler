@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Getting Started with the LLVM System using Microsoft Visual Studio &#8212; LLVM 3.4 documentation</title>
+    <title>Getting Started with the LLVM System using Microsoft Visual Studio &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -86,23 +86,18 @@
 <p>Welcome to LLVM on Windows! This document only covers LLVM on Windows using
 Visual Studio, not mingw or cygwin. In order to get started, you first need to
 know some basic information.</p>
-<p>There are many different projects that compose LLVM. The first is the LLVM
-suite. This contains all of the tools, libraries, and header files needed to
-use LLVM. It contains an assembler, disassembler,
-bitcode analyzer and bitcode optimizer. It also contains a test suite that can
-be used to test the LLVM tools.</p>
-<p>Another useful project on Windows is <a class="reference external" href="http://clang.llvm.org/">Clang</a>.
-Clang is a C family ([Objective]C/C++) compiler. Clang mostly works on
-Windows, but does not currently understand all of the Microsoft extensions
-to C and C++. Because of this, clang cannot parse the C++ standard library
-included with Visual Studio, nor parts of the Windows Platform SDK. However,
-most standard C programs do compile. Clang can be used to emit bitcode,
-directly emit object files or even linked executables using Visual Studio’s
-<code class="docutils literal"><span class="pre">link.exe</span></code>.</p>
-<p>The large LLVM test suite cannot be run on the Visual Studio port at this
-time.</p>
-<p>Most of the tools build and work.  <code class="docutils literal"><span class="pre">bugpoint</span></code> does build, but does
-not work.</p>
+<p>There are many different projects that compose LLVM. The first piece is the
+LLVM suite. This contains all of the tools, libraries, and header files needed
+to use LLVM. It contains an assembler, disassembler, bitcode analyzer and
+bitcode optimizer. It also contains basic regression tests that can be used to
+test the LLVM tools and the Clang front end.</p>
+<p>The second piece is the <a class="reference external" href="http://clang.llvm.org/">Clang</a> front end.  This
+component compiles C, C++, Objective C, and Objective C++ code into LLVM
+bitcode. Clang typically uses LLVM libraries to optimize the bitcode and emit
+machine code. LLVM fully supports the COFF object file format, which is
+compatible with all other existing Windows toolchains.</p>
+<p>The last major part of LLVM, the execution Test Suite, does not run on Windows,
+and this document does not discuss it.</p>
 <p>Additional information about the LLVM directory structure and tool chain
 can be found on the main <a class="reference internal" href="GettingStarted.html"><span class="doc">Getting Started with the LLVM System</span></a> page.</p>
 </div>
@@ -113,17 +108,17 @@ below.  This may save you some trouble by knowing ahead of time what hardware
 and software you will need.</p>
 <div class="section" id="hardware">
 <h3><a class="toc-backref" href="#id4">Hardware</a><a class="headerlink" href="#hardware" title="Permalink to this headline">¶</a></h3>
-<p>Any system that can adequately run Visual Studio 2012 is fine. The LLVM
+<p>Any system that can adequately run Visual Studio 2015 is fine. The LLVM
 source tree and object files, libraries and executables will consume
 approximately 3GB.</p>
 </div>
 <div class="section" id="software">
 <h3><a class="toc-backref" href="#id5">Software</a><a class="headerlink" href="#software" title="Permalink to this headline">¶</a></h3>
-<p>You will need Visual Studio 2012 or higher.</p>
+<p>You will need Visual Studio 2015 or higher, with the latest Update installed.</p>
 <p>You will also need the <a class="reference external" href="http://www.cmake.org/">CMake</a> build system since it
 generates the project files you will use to build with.</p>
-<p>If you would like to run the LLVM tests you will need <a class="reference external" href="http://www.python.org/">Python</a>. Versions 2.4-2.7 are known to work. You will need
-<a class="reference external" href="http://gnuwin32.sourceforge.net/">GnuWin32</a> tools, too.</p>
+<p>If you would like to run the LLVM tests you will need <a class="reference external" href="http://www.python.org/">Python</a>. Version 2.7 and newer are known to work. You will
+need <a class="reference external" href="http://gnuwin32.sourceforge.net/">GnuWin32</a> tools, too.</p>
 <p>Do not install the LLVM directory tree into a path containing spaces (e.g.
 <code class="docutils literal"><span class="pre">C:\Documents</span> <span class="pre">and</span> <span class="pre">Settings\...</span></code>) as the configure step will fail.</p>
 </div>
@@ -151,6 +146,10 @@ generates the project files you will use to build with.</p>
 </div></blockquote>
 </li>
 <li><p class="first">With anonymous Subversion access:</p>
+<p><em>Note:</em> some regression tests require Unix-style line ending (<code class="docutils literal"><span class="pre">\n</span></code>). To
+pass all regression tests, please add two lines <em>enable-auto-props = yes</em>
+and <em>* = svn:mime-type=application/octet-stream</em> to
+<code class="docutils literal"><span class="pre">C:\Users\&lt;username&gt;\AppData\Roaming\Subversion\config</span></code>.</p>
 <blockquote>
 <div><ol class="arabic simple">
 <li><code class="docutils literal"><span class="pre">cd</span> <span class="pre">&lt;where-you-want-llvm-to-live&gt;</span></code></li>
@@ -172,11 +171,19 @@ once compiling is complete, although installation is not mandatory for
 using LLVM.  Another important option is <code class="docutils literal"><span class="pre">LLVM_TARGETS_TO_BUILD</span></code>,
 which controls the LLVM target architectures that are included on the
 build.</li>
+<li>If CMake complains that it cannot find the compiler, make sure that
+you have the Visual Studio C++ Tools installed, not just Visual Studio
+itself (trying to create a C++ project in Visual Studio will generally
+download the C++ tools if they haven’t already been).</li>
 <li>See the <a class="reference internal" href="CMake.html"><span class="doc">LLVM CMake guide</span></a> for detailed information about
 how to configure the LLVM build.</li>
 <li>CMake generates project files for all build types. To select a specific
 build type, use the Configuration manager from the VS IDE or the
 <code class="docutils literal"><span class="pre">/property:Configuration</span></code> command line option when using MSBuild.</li>
+<li>By default, the Visual Studio project files generated by CMake use the
+32-bit toolset. If you are developing on a 64-bit version of Windows and
+want to use the 64-bit toolset, pass the <code class="docutils literal"><span class="pre">-Thost=x64</span></code> flag when
+generating the Visual Studio solution. This requires CMake 3.8.0 or later.</li>
 </ul>
 </li>
 <li><p class="first">Start Visual Studio</p>
@@ -324,8 +331,8 @@ write something up!).  For more information about LLVM, check out:</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

@@ -21,7 +21,6 @@
  */
 
 #include "cm/cm.h"
-
 #include "HoughCircle.h"
 
 const float pi = 3.1415926f;

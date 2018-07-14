@@ -12,12 +12,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef XCOREISELLOWERING_H
-#define XCOREISELLOWERING_H
+#ifndef LLVM_LIB_TARGET_XCORE_XCOREISELLOWERING_H
+#define LLVM_LIB_TARGET_XCORE_XCOREISELLOWERING_H
 
 #include "XCore.h"
 #include "llvm/CodeGen/SelectionDAG.h"
-#include "llvm/Target/TargetLowering.h"
+#include "llvm/CodeGen/TargetLowering.h"
 
 namespace llvm {
 
@@ -26,7 +26,7 @@ namespace llvm {
   class XCoreTargetMachine;
 
   namespace XCoreISD {
-    enum NodeType {
+    enum NodeType : unsigned {
       // Start the numbering where the builtin ops and target ops leave off.
       FIRST_NUMBER = ISD::BUILTIN_OP_END,
 
@@ -93,15 +93,17 @@ namespace llvm {
   class XCoreTargetLowering : public TargetLowering
   {
   public:
-
-    explicit XCoreTargetLowering(const TargetMachine &TM);
+    explicit XCoreTargetLowering(const TargetMachine &TM,
+                                 const XCoreSubtarget &Subtarget);
 
     using TargetLowering::isZExtFree;
     bool isZExtFree(SDValue Val, EVT VT2) const override;
 
 
     unsigned getJumpTableEncoding() const override;
-    MVT getScalarShiftAmountTy(EVT LHSTy) const override { return MVT::i32; }
+    MVT getScalarShiftAmountTy(const DataLayout &DL, EVT) const override {
+      return MVT::i32;
+    }
 
     /// LowerOperation - Provide custom lowering hooks for some operations.
     SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
@@ -117,21 +119,36 @@ namespace llvm {
     const char *getTargetNodeName(unsigned Opcode) const override;
 
     MachineBasicBlock *
-      EmitInstrWithCustomInserter(MachineInstr *MI,
-                                  MachineBasicBlock *MBB) const override;
+    EmitInstrWithCustomInserter(MachineInstr &MI,
+                                MachineBasicBlock *MBB) const override;
 
-    bool isLegalAddressingMode(const AddrMode &AM, Type *Ty) const override;
+    bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM,
+                               Type *Ty, unsigned AS,
+                               Instruction *I = nullptr) const override;
+
+    /// If a physical register, this returns the register that receives the
+    /// exception address on entry to an EH pad.
+    unsigned
+    getExceptionPointerRegister(const Constant *PersonalityFn) const override {
+      return XCore::R0;
+    }
+
+    /// If a physical register, this returns the register that receives the
+    /// exception typeid on entry to a landing pad.
+    unsigned
+    getExceptionSelectorRegister(const Constant *PersonalityFn) const override {
+      return XCore::R1;
+    }
 
   private:
     const TargetMachine &TM;
     const XCoreSubtarget &Subtarget;
 
     // Lower Operand helpers
-    SDValue LowerCCCArguments(SDValue Chain,
-                              CallingConv::ID CallConv,
+    SDValue LowerCCCArguments(SDValue Chain, CallingConv::ID CallConv,
                               bool isVarArg,
                               const SmallVectorImpl<ISD::InputArg> &Ins,
-                              SDLoc dl, SelectionDAG &DAG,
+                              const SDLoc &dl, SelectionDAG &DAG,
                               SmallVectorImpl<SDValue> &InVals) const;
     SDValue LowerCCCCallTo(SDValue Chain, SDValue Callee,
                            CallingConv::ID CallConv, bool isVarArg,
@@ -139,13 +156,14 @@ namespace llvm {
                            const SmallVectorImpl<ISD::OutputArg> &Outs,
                            const SmallVectorImpl<SDValue> &OutVals,
                            const SmallVectorImpl<ISD::InputArg> &Ins,
-                           SDLoc dl, SelectionDAG &DAG,
+                           const SDLoc &dl, SelectionDAG &DAG,
                            SmallVectorImpl<SDValue> &InVals) const;
     SDValue getReturnAddressFrameIndex(SelectionDAG &DAG) const;
     SDValue getGlobalAddressWrapper(SDValue GA, const GlobalValue *GV,
                                     SelectionDAG &DAG) const;
-    SDValue lowerLoadWordFromAlignedBasePlusOffset(SDLoc DL, SDValue Chain,
-                                                   SDValue Base, int64_t Offset,
+    SDValue lowerLoadWordFromAlignedBasePlusOffset(const SDLoc &DL,
+                                                   SDValue Chain, SDValue Base,
+                                                   int64_t Offset,
                                                    SelectionDAG &DAG) const;
 
     // Lower Operand specifics
@@ -172,9 +190,9 @@ namespace llvm {
     SDValue LowerATOMIC_STORE(SDValue Op, SelectionDAG &DAG) const;
 
     // Inline asm support
-    std::pair<unsigned, const TargetRegisterClass*>
-    getRegForInlineAsmConstraint(const std::string &Constraint,
-                                 MVT VT) const override;
+    std::pair<unsigned, const TargetRegisterClass *>
+    getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
+                                 StringRef Constraint, MVT VT) const override;
 
     // Expand specifics
     SDValue TryExpandADDWithMul(SDNode *Op, SelectionDAG &DAG) const;
@@ -183,36 +201,35 @@ namespace llvm {
     SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
 
     void computeKnownBitsForTargetNode(const SDValue Op,
-                                       APInt &KnownZero,
-                                       APInt &KnownOne,
+                                       KnownBits &Known,
+                                       const APInt &DemandedElts,
                                        const SelectionDAG &DAG,
                                        unsigned Depth = 0) const override;
 
     SDValue
-      LowerFormalArguments(SDValue Chain,
-                           CallingConv::ID CallConv,
-                           bool isVarArg,
-                           const SmallVectorImpl<ISD::InputArg> &Ins,
-                           SDLoc dl, SelectionDAG &DAG,
-                           SmallVectorImpl<SDValue> &InVals) const override;
+    LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
+                         const SmallVectorImpl<ISD::InputArg> &Ins,
+                         const SDLoc &dl, SelectionDAG &DAG,
+                         SmallVectorImpl<SDValue> &InVals) const override;
 
     SDValue
       LowerCall(TargetLowering::CallLoweringInfo &CLI,
                 SmallVectorImpl<SDValue> &InVals) const override;
 
-    SDValue
-      LowerReturn(SDValue Chain,
-                  CallingConv::ID CallConv, bool isVarArg,
-                  const SmallVectorImpl<ISD::OutputArg> &Outs,
-                  const SmallVectorImpl<SDValue> &OutVals,
-                  SDLoc dl, SelectionDAG &DAG) const override;
+    SDValue LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
+                        const SmallVectorImpl<ISD::OutputArg> &Outs,
+                        const SmallVectorImpl<SDValue> &OutVals,
+                        const SDLoc &dl, SelectionDAG &DAG) const override;
 
     bool
       CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
                      bool isVarArg,
                      const SmallVectorImpl<ISD::OutputArg> &ArgsFlags,
                      LLVMContext &Context) const override;
+    bool shouldInsertFencesForAtomic(const Instruction *I) const override {
+      return true;
+    }
   };
 }
 
-#endif // XCOREISELLOWERING_H
+#endif

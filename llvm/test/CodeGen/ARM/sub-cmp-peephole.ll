@@ -73,11 +73,11 @@ if.else:
 ; CHECK: bc_raise
 ; CHECK: rsbeq
 ; CHECK: cmp
-define i32 @bc_raise() nounwind ssp {
+define i32 @bc_raise(i1 %cond) nounwind ssp {
 entry:
-  %val.2.i = select i1 undef, i32 0, i32 undef
+  %val.2.i = select i1 %cond, i32 0, i32 undef
   %sub.i = sub nsw i32 0, %val.2.i
-  %retval.0.i = select i1 undef, i32 %val.2.i, i32 %sub.i
+  %retval.0.i = select i1 %cond, i32 %val.2.i, i32 %sub.i
   %cmp1 = icmp eq i32 %retval.0.i, 0
   br i1 %cmp1, label %land.lhs.true, label %if.end11
 
@@ -86,6 +86,19 @@ land.lhs.true:                                    ; preds = %num2long.exit
 
 if.end11:                                         ; preds = %num2long.exit
   ret i32 23
+}
+
+; When considering the producer of cmp's src as the subsuming instruction,
+; only consider that when the comparison is to 0.
+define i32 @cmp_src_nonzero(i32 %a, i32 %b, i32 %x, i32 %y) {
+entry:
+; CHECK-LABEL: cmp_src_nonzero:
+; CHECK: sub
+; CHECK: cmp
+  %sub = sub i32 %a, %b
+  %cmp = icmp eq i32 %sub, 17
+  %ret = select i1 %cmp, i32 %x, i32 %y
+  ret i32 %ret
 }
 
 define float @float_sel(i32 %a, i32 %b, float %x, float %y) {
@@ -143,4 +156,51 @@ entry:
   %ret = select i1 %cmp, double %x, double %y
   store i32 %sub, i32* @t
   ret double %ret
+}
+
+declare void @abort()
+declare void @exit(i32)
+
+; If the comparison uses the V bit (signed overflow/underflow), we can't
+; omit the comparison.
+define i32 @cmp_slt0(i32 %a, i32 %b, i32 %x, i32 %y) {
+entry:
+; CHECK-LABEL: cmp_slt0
+; CHECK: sub
+; CHECK: cmp
+; CHECK: bge
+  %load = load i32, i32* @t, align 4
+  %sub = sub i32 %load, 17
+  %cmp = icmp slt i32 %sub, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:
+  call void @abort()
+  unreachable
+
+if.else:
+  call void @exit(i32 0)
+  unreachable
+}
+
+; Same for the C bit. (Note the ult X, 0 is trivially
+; false, so the DAG combiner may or may not optimize it).
+define i32 @cmp_ult0(i32 %a, i32 %b, i32 %x, i32 %y) {
+entry:
+; CHECK-LABEL: cmp_ult0
+; CHECK: sub
+; CHECK: cmp
+; CHECK: bhs
+  %load = load i32, i32* @t, align 4
+  %sub = sub i32 %load, 17
+  %cmp = icmp ult i32 %sub, 0
+  br i1 %cmp, label %if.then, label %if.else
+
+if.then:
+  call void @abort()
+  unreachable
+
+if.else:
+  call void @exit(i32 0)
+  unreachable
 }

@@ -6,26 +6,26 @@
 ; Loop unswitching shouldn't trivially unswitch the true case of condition %a
 ; in the code here because it leads to an infinite loop. While this doesn't
 ; contain any instructions with side effects, it's still a kind of side effect.
-; It can trivially unswitch on the false cas of condition %a though.
+; It can trivially unswitch on the false case of condition %a though.
 
 ; STATS: 2 loop-unswitch - Number of branches unswitched
-; STATS: 1 loop-unswitch - Number of unswitches that are trivial
+; STATS: 2 loop-unswitch - Number of unswitches that are trivial
 
 ; CHECK-LABEL: @func_16(
 ; CHECK-NEXT: entry:
 ; CHECK-NEXT: br i1 %a, label %entry.split, label %abort0.split
 
 ; CHECK: entry.split:
-; CHECK-NEXT: br i1 %b, label %cond.end.us, label %abort1
+; CHECK-NEXT: br i1 %b, label %entry.split.split, label %abort1.split
 
-; CHECK: cond.end.us:
-; CHECK-NEXT: br label %cond.end.us
+; CHECK: for.body:
+; CHECK-NEXT: br label %for.body
 
 ; CHECK: abort0.split:
 ; CHECK-NEXT: call void @end0() [[NOR_NUW:#[0-9]+]]
 ; CHECK-NEXT: unreachable
 
-; CHECK: abort1:
+; CHECK: abort1.split:
 ; CHECK-NEXT: call void @end1() [[NOR_NUW]]
 ; CHECK-NEXT: unreachable
 

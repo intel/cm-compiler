@@ -1,4 +1,4 @@
-; RUN: llc < %s -mcpu=generic -march=x86 -mattr=+cmov,cx16 -verify-machineinstrs | FileCheck %s
+; RUN: llc < %s -mcpu=generic -mtriple=i686-- -mattr=+cmov,cx16 -verify-machineinstrs | FileCheck %s
 
 target datalayout = "e-p:32:32:32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-f32:32:32-f64:32:64-v64:64:64-v128:128:128-a0:0:64-f80:128:128"
 
@@ -22,7 +22,7 @@ entry:
 	store i32 3855, i32* %ort
 	store i32 3855, i32* %xort
 	store i32 4, i32* %temp
-	%tmp = load i32* %temp
+	%tmp = load i32, i32* %temp
         ; CHECK: lock
         ; CHECK: xaddl
   %0 = atomicrmw add i32* %val1, i32 %tmp monotonic

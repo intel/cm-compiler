@@ -38,15 +38,14 @@ constexpr ClassTemp<int> classtemplate2[] = {};
 
 //  - it has a trivial destructor
 struct UserProvDtor {
-  constexpr int f() const; // expected-error {{non-literal type 'UserProvDtor' cannot have constexpr members}}
   ~UserProvDtor(); // expected-note {{has a user-provided destructor}}
 };
-
+constexpr int f(UserProvDtor) { return 0; } // expected-error {{'UserProvDtor' is not a literal type}}
 struct NonTrivDtor {
   constexpr NonTrivDtor();
-  constexpr int f() const; // expected-error {{non-literal type 'NonTrivDtor' cannot have constexpr members}}
   virtual ~NonTrivDtor() = default; // expected-note {{has a non-trivial destructor}} expected-note {{because it is virtual}}
 };
+constexpr int f(NonTrivDtor) { return 0; } // expected-error {{'NonTrivDtor' is not a literal type}}
 struct NonTrivDtorBase {
   ~NonTrivDtorBase();
 };
@@ -77,12 +76,12 @@ struct CtorTemplate {
 };
 struct CopyCtorOnly { // expected-note {{'CopyCtorOnly' is not literal because it is not an aggregate and has no constexpr constructors other than copy or move constructors}}
   constexpr CopyCtorOnly(CopyCtorOnly&);
-  constexpr int f() const; // expected-error {{non-literal type 'CopyCtorOnly' cannot have constexpr members}}
 };
+constexpr int f(CopyCtorOnly) { return 0; } // expected-error {{'CopyCtorOnly' is not a literal type}}
 struct MoveCtorOnly { // expected-note {{no constexpr constructors other than copy or move constructors}}
   constexpr MoveCtorOnly(MoveCtorOnly&&);
-  constexpr int f() const; // expected-error {{non-literal type 'MoveCtorOnly' cannot have constexpr members}}
 };
+constexpr int f(MoveCtorOnly) { return 0; } // expected-error {{'MoveCtorOnly' is not a literal type}}
 template<typename T>
 struct CtorArg {
   constexpr CtorArg(T);
@@ -110,8 +109,8 @@ constexpr int f(NonLitMember) {} // expected-error {{1st parameter type 'NonLitM
 struct NonLitBase :
   S { // expected-note {{base class 'S' of non-literal type}}
   constexpr NonLitBase();
-  constexpr int f() const { return 0; } // expected-error {{non-literal type 'NonLitBase' cannot have constexpr members}}
 };
+constexpr int f(NonLitBase) { return 0; } // expected-error {{'NonLitBase' is not a literal type}}
 struct LitMemBase : Agg {
   Agg agg;
 };
@@ -139,4 +138,48 @@ constexpr int f(ArrBad) { return 0; } // expected-error {{1st parameter type 'Ar
 
 constexpr int arb(int n) {
   int a[n]; // expected-error {{variable of non-literal type 'int [n]' cannot be defined in a constexpr function}}
+}
+constexpr long Overflow[ // expected-error {{constexpr variable cannot have non-literal type 'long const[(1 << 30) << 2]'}}
+    (1 << 30) << 2]{};   // expected-warning {{requires 34 bits to represent}}
+
+namespace inherited_ctor {
+  struct A { constexpr A(int); };
+  struct B : A {
+    B();
+    using A::A;
+  };
+  constexpr int f(B) { return 0; } // ok
+
+  struct C { constexpr C(int); };
+  struct D : C { // expected-note {{because}}
+    D(int);
+    using C::C;
+  };
+  constexpr int f(D) { return 0; } // expected-error {{not a literal type}}
+
+  // This one is a bit odd: F inherits E's default constructor, which is
+  // constexpr. Because F has a constructor of its own, it doesn't declare a
+  // default constructor hiding E's one.
+  struct E {};
+  struct F : E {
+    F(int);
+    using E::E;
+  };
+  constexpr int f(F) { return 0; }
+
+  // FIXME: Is this really the right behavior? We presumably should be checking
+  // whether the inherited constructor would be a copy or move constructor for
+  // the derived class, not for the base class.
+  struct G { constexpr G(const G&); };
+  struct H : G { // expected-note {{because}}
+    using G::G;
+  };
+  constexpr int f(H) { return 0; } // expected-error {{not a literal type}}
+
+  struct J;
+  struct I { constexpr I(const J&); };
+  struct J : I {
+    using I::I;
+  };
+  constexpr int f(J) { return 0; }
 }

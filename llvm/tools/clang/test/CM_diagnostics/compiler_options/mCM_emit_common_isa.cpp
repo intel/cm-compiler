@@ -38,7 +38,7 @@ void test() {
 #warning CM_GEN10 defined
 #endif
 
-// CHECK: mCM_emit_common_isa.cpp(12,2) : warning: CM_GENX defined [-W#warnings]
-// CHECK: mCM_emit_common_isa.cpp(30,2) : warning: CM_GEN9 defined [-W#warnings]
+// CHECK: mCM_emit_common_isa.cpp(12,2): warning: CM_GENX defined [-W#warnings]
+// CHECK: mCM_emit_common_isa.cpp(30,2): warning: CM_GEN9 defined [-W#warnings]
 // CHECK: 2 warnings generated.
 // CHECK: -platform SKL

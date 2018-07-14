@@ -1,7 +1,7 @@
 // Force x86-64 because some of our heuristics are actually based
 // on integer sizes.
 
-// RUN: %clang_cc1 -triple x86_64-apple-darwin -fsyntax-only -pedantic -verify -Wsign-compare -std=c++11 %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin -fsyntax-only -pedantic -verify -Wsign-compare -Wtautological-constant-in-range-compare -std=c++11 %s
 
 int test0(long a, unsigned long b) {
   enum EnumA {A};
@@ -73,7 +73,7 @@ int test0(long a, unsigned long b) {
          ((int) a == (unsigned int) B) +
          ((short) a == (unsigned short) B) +
          ((signed char) a == (unsigned char) B) +
-         (a < (unsigned long) B) +  // expected-warning {{comparison of integers of different signs}}
+         (a < (unsigned long) B) +  // expected-warning {{comparison of unsigned expression < 0 is always false}}
          (a < (unsigned int) B) +
          (a < (unsigned short) B) +
          (a < (unsigned char) B) +
@@ -81,8 +81,8 @@ int test0(long a, unsigned long b) {
          ((int) a < B) +
          ((short) a < B) +
          ((signed char) a < B) +
-         ((long) a < (unsigned long) B) +  // expected-warning {{comparison of integers of different signs}}
-         ((int) a < (unsigned int) B) +  // expected-warning {{comparison of integers of different signs}}
+         ((long) a < (unsigned long) B) +  // expected-warning {{comparison of unsigned expression < 0 is always false}}
+         ((int) a < (unsigned int) B) +  // expected-warning {{comparison of unsigned expression < 0 is always false}}
          ((short) a < (unsigned short) B) +
          ((signed char) a < (unsigned char) B) +
 
@@ -201,9 +201,10 @@ int test1(int i) {
 
 enum E { e };
 void test2(int i, void *vp) {
+  if (&i == vp) { } // ok
   if (test1 == vp) { } // expected-warning{{equality comparison between function pointer and void pointer}}
   if (test1 == e) { } // expected-error{{comparison between pointer and integer}}
-  if (vp < 0) { }
+  if (vp < 0) { } // expected-error {{comparison between pointer and zero}}
   if (test1 < e) { } // expected-error{{comparison between pointer and integer}}
 }
 
@@ -244,8 +245,8 @@ void test4(short s) {
   // unsigned.
   const unsigned B = -1;
   void (s < B); // expected-warning{{comparison of integers of different signs: 'short' and 'const unsigned int'}}
-  void (s > B); // expected-warning{{comparison of integers of different signs: 'short' and 'const unsigned int'}}
-  void (s <= B); // expected-warning{{comparison of integers of different signs: 'short' and 'const unsigned int'}}
+  void (s > B); // expected-warning{{comparison 'short' > 4294967295 is always false}}
+  void (s <= B); // expected-warning{{comparison 'short' <= 4294967295 is always true}}
   void (s >= B); // expected-warning{{comparison of integers of different signs: 'short' and 'const unsigned int'}}
   void (s == B); // expected-warning{{comparison of integers of different signs: 'short' and 'const unsigned int'}}
   void (s != B); // expected-warning{{comparison of integers of different signs: 'short' and 'const unsigned int'}}
@@ -421,4 +422,20 @@ namespace templates {
     testx<A>();
     testx<B>();
   }
+}
+
+namespace tautological_enum {
+  enum E { a, b, c } e;
+
+  // FIXME: We should warn about constructing this out-of-range numeration value.
+  const E invalid = (E)-1;
+  // ... but we should not warn about comparing against it.
+  bool x = e == invalid;
+
+  // We should not warn about relational comparisons for enumerators, even if
+  // they're tautological.
+  bool y = e >= a && e <= b;
+  const E first_in_range = a;
+  const E last_in_range = b;
+  bool z = e >= first_in_range && e <= last_in_range;
 }

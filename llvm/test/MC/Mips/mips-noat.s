@@ -7,12 +7,14 @@
 # CHECK:  lui   $1, 1
 # CHECK:  addu  $1, $1, $2
 # CHECK:  lw    $2, 0($1)
+# CHECK-LABEL: test2:
+# CHECK:  .set noat
 test1:
         lw      $2, 65536($2)
 
 test2:
         .set noat
-        lw      $2, 65536($2) # ERROR: mips-noat.s:[[@LINE]]:9: error: Pseudo instruction requires $at, which is not available
+        lw      $2, 65536($2) # ERROR: mips-noat.s:[[@LINE]]:9: error: pseudo-instruction requires $at, which is not available
 
 
 # Can we switch it back on successfully?
@@ -20,10 +22,12 @@ test2:
 # CHECK:  lui   $1, 1
 # CHECK:  addu  $1, $1, $2
 # CHECK:  lw    $2, 0($1)
+# CHECK-LABEL: test4:
+# CHECK:  .set  at=$0
 test3:
         .set at
         lw      $2, 65536($2)
 
 test4:
         .set at=$0
-        lw      $2, 65536($2) # ERROR: mips-noat.s:[[@LINE]]:9: error: Pseudo instruction requires $at, which is not available
+        lw      $2, 65536($2) # ERROR: mips-noat.s:[[@LINE]]:9: error: pseudo-instruction requires $at, which is not available

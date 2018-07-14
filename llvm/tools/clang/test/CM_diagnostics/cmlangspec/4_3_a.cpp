@@ -29,7 +29,5 @@ _GENX_ void test()
   v8 = cm_line<float>(v6, v7); // v8 = {0.5, 0.6, 0.8, 1.2, 2.0, 3.6, 6.8, 13.2}
 }
 
-// RUN: %cmc -march=SKL %w 2>&1 | FileCheck --implicit-check-not error %w
+// RUN: %cmc -march=SKL %w 2>&1 | FileCheck -allow-empty --implicit-check-not error %w
 // RUN: rm %W.isa
-// CHECK: warning: No CM kernel definitions found
-// CHECK: 1 warning generated

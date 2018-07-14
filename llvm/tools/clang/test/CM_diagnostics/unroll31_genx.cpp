@@ -23,5 +23,5 @@ void test(SurfaceIndex pInputIndex,SurfaceIndex pOutputIndex ) {
 	write(pOutputIndex, 0, 0, v );
 }
 
-// CHECK: unroll31_genx.cpp(20,7) :  error: vector element access out-of-bound [0, 8)
+// CHECK: error: vector element access out-of-bound [0, 8)
 // CHECK: 1 error generated.

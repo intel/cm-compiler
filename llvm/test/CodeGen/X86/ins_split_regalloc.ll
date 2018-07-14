@@ -1,4 +1,4 @@
-; RUN: llc -O1 -regalloc=greedy -mtriple=x86_64-apple-macosx -march x86-64  < %s -o - | FileCheck %s
+; RUN: llc -O1 -regalloc=greedy -mtriple=x86_64-apple-macosx < %s -o - | FileCheck %s
 ; Check that last chance split (RAGreedy::tryInstructonSplit) just split
 ; when this is beneficial, otherwise we end up with uncoalesced copies.
 ; <rdar://problem/15570057> 
@@ -25,7 +25,7 @@ target datalayout = "e-i64:64-f80:128-s:64-n8:16:32:64-S128"
 ; CHECK: jmpq *[[F_ADDR_TC]]
 define void @test(i32 %a, i32 %b, i32 %c) {
 entry:
-  %fct_f = load void (i32)** @f, align 8
+  %fct_f = load void (i32)*, void (i32)** @f, align 8
   tail call void %fct_f(i32 %a)
   tail call void %fct_f(i32 %b)
   tail call void %fct_f(i32 %c)

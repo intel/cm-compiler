@@ -15,7 +15,7 @@ _GENX_MAIN_ void foo(SurfaceIndex S, short a, short b, short c, short d)
 // RUN: %cmc -Qxcm_jit_target=SKL %w 2>&1 | FileCheck %w
 // RUN: rm %W_0.dat %W_0.visaasm %W_0.asm %W.isa
 //
-// CHECK:  cm_nonstrict.cpp(8,11) :  warning: cm_nonstrict is deprecated - see CM LLVM Porting Guide [-Wdeprecated]
+// CHECK:  cm_nonstrict.cpp(8,11):  warning: cm_nonstrict is deprecated - see CM LLVM Porting Guide [-Wdeprecated]
 // CHECK: 1 warning generated.
 // CHECK -platform SKL
 

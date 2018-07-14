@@ -1,7 +1,7 @@
-; RUN: llc -march=mips64el -mcpu=mips4 -verify-machineinstrs < %s | FileCheck -check-prefix=ALL -check-prefix=MIPS4 -check-prefix=ACCMULDIV %s
-; RUN: llc -march=mips64el -mcpu=mips64 -verify-machineinstrs < %s | FileCheck -check-prefix=ALL -check-prefix=HAS-DCLO -check-prefix=ACCMULDIV %s
-; RUN: llc -march=mips64el -mcpu=mips64r2 -verify-machineinstrs < %s | FileCheck -check-prefix=ALL -check-prefix=HAS-DCLO -check-prefix=ACCMULDIV %s
-; RUN: llc -march=mips64el -mcpu=mips64r6 -verify-machineinstrs < %s | FileCheck -check-prefix=ALL -check-prefix=HAS-DCLO -check-prefix=GPRMULDIV %s
+; RUN: llc -march=mips64el -mcpu=mips4 -verify-machineinstrs < %s | FileCheck -check-prefixes=ALL,MIPS4,ACCMULDIV %s
+; RUN: llc -march=mips64el -mcpu=mips64 -verify-machineinstrs < %s | FileCheck -check-prefixes=ALL,HAS-DCLO,ACCMULDIV %s
+; RUN: llc -march=mips64el -mcpu=mips64r2 -verify-machineinstrs < %s | FileCheck -check-prefixes=ALL,HAS-DCLO,ACCMULDIV %s
+; RUN: llc -march=mips64el -mcpu=mips64r6 -verify-machineinstrs < %s | FileCheck -check-prefixes=ALL,HAS-DCLO,GPRMULDIV %s
 
 @gll0 = common global i64 0, align 8
 @gll1 = common global i64 0, align 8
@@ -111,10 +111,8 @@ entry:
 define i64 @f14(i64 %a, i64 %b) nounwind readnone {
 entry:
 ; ALL-LABEL: f14:
-; ALL-DAG:       ld $[[P0:[0-9]+]], %got_disp(gll0)(
-; ALL-DAG:       ld $[[P1:[0-9]+]], %got_disp(gll1)(
-; ALL-DAG:       ld $[[T0:[0-9]+]], 0($[[P0]])
-; ALL-DAG:       ld $[[T1:[0-9]+]], 0($[[P1]])
+; ALL-DAG:       ld $[[T0:[0-9]+]], %lo(gll0)(${{[0-9]+}})
+; ALL-DAG:       ld $[[T1:[0-9]+]], %lo(gll1)(${{[0-9]+}})
 
 ; ACCMULDIV:     ddiv $zero, $[[T0]], $[[T1]]
 ; ACCMULDIV:     teq $[[T1]], $zero, 7
@@ -123,8 +121,8 @@ entry:
 ; GPRMULDIV:     ddiv $2, $[[T0]], $[[T1]]
 ; GPRMULDIV:     teq $[[T1]], $zero, 7
 
-  %0 = load i64* @gll0, align 8
-  %1 = load i64* @gll1, align 8
+  %0 = load i64, i64* @gll0, align 8
+  %1 = load i64, i64* @gll1, align 8
   %div = sdiv i64 %0, %1
   ret i64 %div
 }
@@ -132,10 +130,8 @@ entry:
 define i64 @f15() nounwind readnone {
 entry:
 ; ALL-LABEL: f15:
-; ALL-DAG:       ld $[[P0:[0-9]+]], %got_disp(gll0)(
-; ALL-DAG:       ld $[[P1:[0-9]+]], %got_disp(gll1)(
-; ALL-DAG:       ld $[[T0:[0-9]+]], 0($[[P0]])
-; ALL-DAG:       ld $[[T1:[0-9]+]], 0($[[P1]])
+; ALL-DAG:       ld $[[T0:[0-9]+]], %lo(gll0)(${{[0-9]+}})
+; ALL-DAG:       ld $[[T1:[0-9]+]], %lo(gll1)(${{[0-9]+}})
 
 ; ACCMULDIV:     ddivu $zero, $[[T0]], $[[T1]]
 ; ACCMULDIV:     teq $[[T1]], $zero, 7
@@ -144,8 +140,8 @@ entry:
 ; GPRMULDIV:     ddivu $2, $[[T0]], $[[T1]]
 ; GPRMULDIV:     teq $[[T1]], $zero, 7
 
-  %0 = load i64* @gll0, align 8
-  %1 = load i64* @gll1, align 8
+  %0 = load i64, i64* @gll0, align 8
+  %1 = load i64, i64* @gll1, align 8
   %div = udiv i64 %0, %1
   ret i64 %div
 }

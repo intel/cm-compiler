@@ -1,15 +1,21 @@
-// RUN: %clang_cc1 -triple i686-win32     -fsyntax-only -verify -std=c99 %s
-// RUN: %clang_cc1 -triple x86_64-win32   -fsyntax-only -verify -std=c11 %s
-// RUN: %clang_cc1 -triple i686-mingw32   -fsyntax-only -verify -std=c11 %s
-// RUN: %clang_cc1 -triple x86_64-mingw32 -fsyntax-only -verify -std=c99 %s
+// RUN: %clang_cc1 -triple i686-win32     -fsyntax-only -fms-extensions -verify -std=c99 %s
+// RUN: %clang_cc1 -triple x86_64-win32   -fsyntax-only -fms-extensions -verify -std=c11 %s
+// RUN: %clang_cc1 -triple i686-mingw32   -fsyntax-only -fms-extensions -verify -std=c11 %s
+// RUN: %clang_cc1 -triple x86_64-mingw32 -fsyntax-only -fms-extensions -verify -std=c99 %s
 
 // Invalid usage.
-__declspec(dllexport) typedef int typedef1; // expected-warning{{'dllexport' attribute only applies to variables and functions}}
-typedef __declspec(dllexport) int typedef2; // expected-warning{{'dllexport' attribute only applies to variables and functions}}
-typedef int __declspec(dllexport) typedef3; // expected-warning{{'dllexport' attribute only applies to variables and functions}}
-typedef __declspec(dllexport) void (*FunTy)(); // expected-warning{{'dllexport' attribute only applies to variables and functions}}
-enum __declspec(dllexport) Enum { EnumVal }; // expected-warning{{'dllexport' attribute only applies to variables and functions}}
-struct __declspec(dllexport) Record {}; // expected-warning{{'dllexport' attribute only applies to variables and functions}}
+__declspec(dllexport) typedef int typedef1;
+// expected-warning@-1{{'dllexport' attribute only applies to functions, variables, classes, and Objective-C interfaces}}
+typedef __declspec(dllexport) int typedef2;
+// expected-warning@-1{{'dllexport' attribute only applies to}}
+typedef int __declspec(dllexport) typedef3;
+// expected-warning@-1{{'dllexport' attribute only applies to}}
+typedef __declspec(dllexport) void (*FunTy)();
+// expected-warning@-1{{'dllexport' attribute only applies to}}
+enum __declspec(dllexport) Enum { EnumVal };
+// expected-warning@-1{{'dllexport' attribute only applies to}}
+struct __declspec(dllexport) Record {};
+// expected-warning@-1{{'dllexport' attribute only applies to}}
 
 
 
@@ -39,10 +45,18 @@ __declspec(dllexport) extern int GlobalRedecl2;
                              int GlobalRedecl2;
 
                       extern int GlobalRedecl3; // expected-note{{previous declaration is here}}
+int useGlobalRedecl3() { return GlobalRedecl3; }
 __declspec(dllexport) extern int GlobalRedecl3; // expected-error{{redeclaration of 'GlobalRedecl3' cannot add 'dllexport' attribute}}
+
+                      extern int GlobalRedecl4; // expected-note{{previous declaration is here}}
+__declspec(dllexport) extern int GlobalRedecl4; // expected-warning{{redeclaration of 'GlobalRedecl4' should not add 'dllexport' attribute}}
+
 
 // External linkage is required.
 __declspec(dllexport) static int StaticGlobal; // expected-error{{'StaticGlobal' must have external linkage when declared 'dllexport'}}
+
+// Thread local variables are invalid.
+__declspec(dllexport) __thread int ThreadLocalGlobal; // expected-error{{'ThreadLocalGlobal' cannot be thread local when declared 'dllexport'}}
 
 // Export in local scope.
 void functionScope() {
@@ -86,13 +100,25 @@ __declspec(dllexport) void redecl3();
                       void redecl3() {}
 
                       void redecl4(); // expected-note{{previous declaration is here}}
+void useRedecl4() { redecl4(); }
 __declspec(dllexport) void redecl4(); // expected-error{{redeclaration of 'redecl4' cannot add 'dllexport' attribute}}
 
                       void redecl5(); // expected-note{{previous declaration is here}}
+void useRedecl5() { redecl5(); }
 __declspec(dllexport) inline void redecl5() {} // expected-error{{redeclaration of 'redecl5' cannot add 'dllexport' attribute}}
+
+// Allow with a warning if the decl hasn't been used yet.
+                      void redecl6(); // expected-note{{previous declaration is here}}
+__declspec(dllexport) void redecl6(); // expected-warning{{redeclaration of 'redecl6' should not add 'dllexport' attribute}}
+
 
 // External linkage is required.
 __declspec(dllexport) static int staticFunc(); // expected-error{{'staticFunc' must have external linkage when declared 'dllexport'}}
+
+// Static locals don't count as having external linkage.
+void staticLocalFunc() {
+  __declspec(dllexport) static int staticLocal; // expected-error{{'staticLocal' must have external linkage when declared 'dllexport'}}
+}
 
 
 

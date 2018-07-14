@@ -1,8 +1,8 @@
-; RUN: llc < %s -march=x86-64 -mtriple=x86_64-apple-darwin -mcpu=knl | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-apple-darwin -mcpu=knl | FileCheck %s
 
 ;CHECK-LABEL: test
 ;CHECK-NOT: dec
-;CHECK_NOT: enc
+;CHECK-NOT: enc
 ;CHECK: ret
 define i32 @test(i32 %a, i32 %b) {
  %a1 = add i32 %a, -1

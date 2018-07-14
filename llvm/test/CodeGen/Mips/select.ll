@@ -1,14 +1,14 @@
-; RUN: llc < %s -march=mipsel   -mcpu=mips32   | FileCheck %s -check-prefix=ALL -check-prefix=32
-; RUN: llc < %s -march=mipsel   -mcpu=mips32r2 | FileCheck %s -check-prefix=ALL -check-prefix=32R2
-; RUN: llc < %s -march=mipsel   -mcpu=mips32r6 | FileCheck %s -check-prefix=ALL -check-prefix=32R6
-; RUN: llc < %s -march=mips64el -mcpu=mips64   | FileCheck %s -check-prefix=ALL -check-prefix=64
-; RUN: llc < %s -march=mips64el -mcpu=mips64r2 | FileCheck %s -check-prefix=ALL -check-prefix=64R2
-; RUN: llc < %s -march=mips64el -mcpu=mips64r6 | FileCheck %s -check-prefix=ALL -check-prefix=64R6
+; RUN: llc < %s -march=mipsel   -mcpu=mips32   -relocation-model=pic -verify-machineinstrs | FileCheck %s -check-prefixes=ALL,32
+; RUN: llc < %s -march=mipsel   -mcpu=mips32r2 -relocation-model=pic -verify-machineinstrs | FileCheck %s -check-prefixes=ALL,32R2
+; RUN: llc < %s -march=mipsel   -mcpu=mips32r6 -relocation-model=pic -verify-machineinstrs | FileCheck %s -check-prefixes=ALL,32R6
+; RUN: llc < %s -march=mips64el -mcpu=mips64   -relocation-model=pic -verify-machineinstrs | FileCheck %s -check-prefixes=ALL,64
+; RUN: llc < %s -march=mips64el -mcpu=mips64r2 -relocation-model=pic -verify-machineinstrs | FileCheck %s -check-prefixes=ALL,64R2
+; RUN: llc < %s -march=mips64el -mcpu=mips64r6 -relocation-model=pic -verify-machineinstrs | FileCheck %s -check-prefixes=ALL,64R6
 
 @d2 = external global double
 @d3 = external global double
 
-define i32 @i32_icmp_ne_i32_val(i32 %s, i32 %f0, i32 %f1) nounwind readnone {
+define i32 @i32_icmp_ne_i32_val(i32 signext %s, i32 signext %f0, i32 signext %f1) nounwind readnone {
 entry:
 ; ALL-LABEL: i32_icmp_ne_i32_val:
 
@@ -37,7 +37,7 @@ entry:
   ret i32 %cond
 }
 
-define i64 @i32_icmp_ne_i64_val(i32 %s, i64 %f0, i64 %f1) nounwind readnone {
+define i64 @i32_icmp_ne_i64_val(i32 signext %s, i64 %f0, i64 %f1) nounwind readnone {
 entry:
 ; ALL-LABEL: i32_icmp_ne_i64_val:
 
@@ -128,7 +128,7 @@ entry:
   ret i64 %cond
 }
 
-define float @i32_icmp_ne_f32_val(i32 %s, float %f0, float %f1) nounwind readnone {
+define float @i32_icmp_ne_f32_val(i32 signext %s, float %f0, float %f1) nounwind readnone {
 entry:
 ; ALL-LABEL: i32_icmp_ne_f32_val:
 
@@ -140,9 +140,10 @@ entry:
 ; 32R2-DAG:      mtc1 $6, $[[F1:f0]]
 ; 32R2:          movn.s $[[F1]], $[[F0]], $4
 
+; 32R6:          sltu $[[T0:[0-9]+]], $zero, $4
+; 32R6:          negu $[[T0]], $[[T0]]
 ; 32R6-DAG:      mtc1 $5, $[[F0:f[0-9]+]]
 ; 32R6-DAG:      mtc1 $6, $[[F1:f[0-9]+]]
-; 32R6:          sltu $[[T0:[0-9]+]], $zero, $4
 ; 32R6:          mtc1 $[[T0]], $[[CC:f0]]
 ; 32R6:          sel.s $[[CC]], $[[F1]], $[[F0]]
 
@@ -161,7 +162,7 @@ entry:
   ret float %cond
 }
 
-define double @i32_icmp_ne_f64_val(i32 %s, double %f0, double %f1) nounwind readnone {
+define double @i32_icmp_ne_f64_val(i32 signext %s, double %f0, double %f1) nounwind readnone {
 entry:
 ; ALL-LABEL: i32_icmp_ne_f64_val:
 
@@ -496,7 +497,7 @@ entry:
   ret float %cond
 }
 
-define i32 @f32_fcmp_oeq_i32_val(i32 %f0, i32 %f1, float %f2, float %f3) nounwind readnone {
+define i32 @f32_fcmp_oeq_i32_val(i32 signext %f0, i32 signext %f1, float %f2, float %f3) nounwind readnone {
 entry:
 ; ALL-LABEL: f32_fcmp_oeq_i32_val:
 
@@ -541,7 +542,7 @@ entry:
   ret i32 %cond
 }
 
-define i32 @f32_fcmp_olt_i32_val(i32 %f0, i32 %f1, float %f2, float %f3) nounwind readnone {
+define i32 @f32_fcmp_olt_i32_val(i32 signext %f0, i32 signext %f1, float %f2, float %f3) nounwind readnone {
 entry:
 ; ALL-LABEL: f32_fcmp_olt_i32_val:
 
@@ -585,7 +586,7 @@ entry:
   ret i32 %cond
 }
 
-define i32 @f32_fcmp_ogt_i32_val(i32 %f0, i32 %f1, float %f2, float %f3) nounwind readnone {
+define i32 @f32_fcmp_ogt_i32_val(i32 signext %f0, i32 signext %f1, float %f2, float %f3) nounwind readnone {
 entry:
 ; ALL-LABEL: f32_fcmp_ogt_i32_val:
 
@@ -630,7 +631,7 @@ entry:
   ret i32 %cond
 }
 
-define i32 @f64_fcmp_oeq_i32_val(i32 %f0, i32 %f1) nounwind readonly {
+define i32 @f64_fcmp_oeq_i32_val(i32 signext %f0, i32 signext %f1) nounwind readonly {
 entry:
 ; ALL-LABEL: f64_fcmp_oeq_i32_val:
 
@@ -700,14 +701,14 @@ entry:
 ; 64R6:          selnez $[[NE:[0-9]+]], $4, $[[CCGPR]]
 ; 64R6:          or $2, $[[NE]], $[[EQ]]
 
-  %tmp = load double* @d2, align 8
-  %tmp1 = load double* @d3, align 8
+  %tmp = load double, double* @d2, align 8
+  %tmp1 = load double, double* @d3, align 8
   %cmp = fcmp oeq double %tmp, %tmp1
   %cond = select i1 %cmp, i32 %f0, i32 %f1
   ret i32 %cond
 }
 
-define i32 @f64_fcmp_olt_i32_val(i32 %f0, i32 %f1) nounwind readonly {
+define i32 @f64_fcmp_olt_i32_val(i32 signext %f0, i32 signext %f1) nounwind readonly {
 entry:
 ; ALL-LABEL: f64_fcmp_olt_i32_val:
 
@@ -777,14 +778,14 @@ entry:
 ; 64R6:          selnez $[[NE:[0-9]+]], $4, $[[CCGPR]]
 ; 64R6:          or $2, $[[NE]], $[[EQ]]
 
-  %tmp = load double* @d2, align 8
-  %tmp1 = load double* @d3, align 8
+  %tmp = load double, double* @d2, align 8
+  %tmp1 = load double, double* @d3, align 8
   %cmp = fcmp olt double %tmp, %tmp1
   %cond = select i1 %cmp, i32 %f0, i32 %f1
   ret i32 %cond
 }
 
-define i32 @f64_fcmp_ogt_i32_val(i32 %f0, i32 %f1) nounwind readonly {
+define i32 @f64_fcmp_ogt_i32_val(i32 signext %f0, i32 signext %f1) nounwind readonly {
 entry:
 ; ALL-LABEL: f64_fcmp_ogt_i32_val:
 
@@ -854,8 +855,8 @@ entry:
 ; 64R6:          selnez $[[NE:[0-9]+]], $4, $[[CCGPR]]
 ; 64R6:          or $2, $[[NE]], $[[EQ]]
 
-  %tmp = load double* @d2, align 8
-  %tmp1 = load double* @d3, align 8
+  %tmp = load double, double* @d2, align 8
+  %tmp1 = load double, double* @d3, align 8
   %cmp = fcmp ogt double %tmp, %tmp1
   %cond = select i1 %cmp, i32 %f0, i32 %f1
   ret i32 %cond

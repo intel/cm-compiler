@@ -30,9 +30,7 @@ struct X0 {
 };
 
 struct X1 : X0 {
-  // FIXME: give this operator() a 'float' parameter to test overloading
-  // behavior. It currently fails.
-  void operator()();
+  void operator()(float&);
   using X0::operator();
   
   void test() {
@@ -245,6 +243,41 @@ namespace PR19171 {
   struct F : E {
     using E::EE; // expected-error-re {{no member named 'EE' in 'PR19171::E'{{$}}}}
   };
+
+  struct TypoDuplicate { // expected-note 0-4{{here}}
+    TypoDuplicate(int);
+    void foobar(); // expected-note 2{{here}}
+  };
+  struct TypoDuplicateDerived1 : TypoDuplicate {
+#if __cplusplus >= 201103L
+    using TypoDuplicate::TypoFuplicate; // expected-error {{did you mean 'TypoDuplicate'}} expected-note {{previous}}
+    using TypoDuplicate::TypoDuplicate; // expected-error {{redeclaration}}
+#endif
+    using TypoDuplicate::goobar; // expected-error {{did you mean 'foobar'}} expected-note {{previous}}
+    using TypoDuplicate::foobar; // expected-error {{redeclaration}}
+  };
+  struct TypoDuplicateDerived2 : TypoDuplicate {
+#if __cplusplus >= 201103L
+    using TypoFuplicate::TypoDuplicate; // expected-error {{did you mean 'TypoDuplicate'}} expected-note {{previous}}
+    using TypoDuplicate::TypoDuplicate; // expected-error {{redeclaration}}
+#endif
+  };
+  struct TypoDuplicateDerived3 : TypoDuplicate {
+#if __cplusplus >= 201103L
+    // FIXME: Don't suggest a correction that would lead to a redeclaration
+    // error here... or at least diagnose the error.
+    using TypoDuplicate::TypoDuplicate;
+    using TypoDuplicate::TypoFuplicate; // expected-error {{did you mean 'TypoDuplicate'}}
+#endif
+    using TypoDuplicate::foobar;
+    using TypoDuplicate::goobar; // expected-error {{did you mean 'foobar'}}
+  };
+  struct TypoDuplicateDerived4 : TypoDuplicate {
+#if __cplusplus >= 201103L
+    using TypoDuplicate::TypoDuplicate; // expected-note {{previous}}
+    using TypoFuplicate::TypoDuplicate; // expected-error {{did you mean 'TypoDuplicate'}} expected-error {{redeclaration}}
+#endif
+  };
 }
 
 namespace TypoCorrectTemplateMember {
@@ -254,4 +287,112 @@ namespace TypoCorrectTemplateMember {
   struct B : A {
     using A::goobar; // expected-error {{no member named 'goobar' in 'TypoCorrectTemplateMember::A'; did you mean 'foobar'?}}
   };
+}
+
+namespace use_instance_in_static {
+struct A { int n; };
+struct B : A {
+  using A::n;
+  static int f() { return n; } // expected-error {{invalid use of member 'n' in static member function}}
+};
+}
+
+namespace PR24030 {
+  namespace X {
+    class A; // expected-note {{target}}
+    int i; // expected-note {{target}}
+  }
+  namespace Y {
+    using X::A; // expected-note {{using}}
+    using X::i; // expected-note {{using}}
+    class A {}; // expected-error {{conflicts}}
+    int i; // expected-error {{conflicts}}
+  }
+}
+
+namespace PR24033 {
+  extern int a; // expected-note 2{{target of using declaration}}
+  void f(); // expected-note 2{{target of using declaration}}
+  struct s; // expected-note 2{{target of using declaration}}
+  enum e {}; // expected-note 2{{target of using declaration}}
+
+  template<typename> extern int vt; // expected-note 2{{target of using declaration}} expected-warning 0-1{{extension}}
+  template<typename> void ft(); // expected-note 2{{target of using declaration}}
+  template<typename> struct st; // expected-note 2{{target of using declaration}}
+
+  namespace X {
+    using PR24033::a; // expected-note {{using declaration}}
+    using PR24033::f; // expected-note {{using declaration}}
+    using PR24033::s; // expected-note {{using declaration}}
+    using PR24033::e; // expected-note {{using declaration}}
+
+    using PR24033::vt; // expected-note {{using declaration}}
+    using PR24033::ft; // expected-note {{using declaration}}
+    using PR24033::st; // expected-note {{using declaration}}
+
+    extern int a; // expected-error {{declaration conflicts with target of using declaration already in scope}}
+    void f(); // expected-error {{declaration conflicts with target of using declaration already in scope}}
+    struct s; // expected-error {{declaration conflicts with target of using declaration already in scope}}
+    enum e {}; // expected-error {{declaration conflicts with target of using declaration already in scope}}
+
+    template<typename> extern int vt; // expected-error {{declaration conflicts with target of using declaration already in scope}} expected-warning 0-1{{extension}}
+    template<typename> void ft(); // expected-error {{declaration conflicts with target of using declaration already in scope}}
+    template<typename> struct st; // expected-error {{declaration conflicts with target of using declaration already in scope}}
+  }
+
+  namespace Y {
+    extern int a; // expected-note {{conflicting declaration}}
+    void f(); // expected-note {{conflicting declaration}}
+    struct s; // expected-note {{conflicting declaration}}
+    enum e {}; // expected-note {{conflicting declaration}}
+
+    template<typename> extern int vt; // expected-note {{conflicting declaration}} expected-warning 0-1{{extension}}
+    template<typename> void ft(); // expected-note {{conflicting declaration}}
+    template<typename> struct st; // expected-note {{conflicting declaration}}
+
+    using PR24033::a; // expected-error {{target of using declaration conflicts with declaration already in scope}}
+    using PR24033::f; // expected-error {{target of using declaration conflicts with declaration already in scope}}
+    using PR24033::s; // expected-error {{target of using declaration conflicts with declaration already in scope}}
+    using PR24033::e; // expected-error {{target of using declaration conflicts with declaration already in scope}}
+
+    using PR24033::vt; // expected-error {{target of using declaration conflicts with declaration already in scope}}
+    using PR24033::ft; // expected-error {{target of using declaration conflicts with declaration already in scope}}
+    using PR24033::st; // expected-error {{target of using declaration conflicts with declaration already in scope}}
+  }
+}
+
+namespace field_use {
+struct A { int field; };
+struct B : A {
+  // Previously Clang rejected this valid C++11 code because it didn't look
+  // through the UsingShadowDecl.
+  using A::field;
+#if __cplusplus < 201103L
+  // expected-error@+2 {{invalid use of non-static data member 'field'}}
+#endif
+  enum { X = sizeof(field) };
+};
+}
+
+namespace tag_vs_var {
+  namespace N {
+    struct X {};
+
+    struct Y {};
+    int Y;
+
+    int Z;
+  }
+  using N::X;
+  using N::Y;
+  using N::Z;
+
+  namespace N {
+    int X;
+
+    struct Z {};
+  }
+  using N::X;
+  using N::Y;
+  using N::Z;
 }

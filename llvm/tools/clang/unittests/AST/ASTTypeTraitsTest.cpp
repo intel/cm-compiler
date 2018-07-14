@@ -26,6 +26,12 @@ template <typename T> static ASTNodeKind DNT() {
   return ASTNodeKind::getFromNodeKind<T>();
 }
 
+TEST(ASTNodeKind, IsNone) {
+  EXPECT_TRUE(ASTNodeKind().isNone());
+  EXPECT_FALSE(DNT<Decl>().isNone());
+  EXPECT_FALSE(DNT<VarDecl>().isNone());
+}
+
 TEST(ASTNodeKind, Bases) {
   EXPECT_TRUE(DNT<Decl>().isBaseOf(DNT<VarDecl>()));
   EXPECT_FALSE(DNT<Decl>().isSame(DNT<VarDecl>()));
@@ -60,6 +66,39 @@ TEST(ASTNodeKind, DiffBase) {
   EXPECT_FALSE(DNT<Type>().isSame(DNT<QualType>()));
 }
 
+TEST(ASTNodeKind, MostDerivedType) {
+  EXPECT_TRUE(DNT<BinaryOperator>().isSame(
+      ASTNodeKind::getMostDerivedType(DNT<Expr>(), DNT<BinaryOperator>())));
+  EXPECT_TRUE(DNT<BinaryOperator>().isSame(
+      ASTNodeKind::getMostDerivedType(DNT<BinaryOperator>(), DNT<Expr>())));
+  EXPECT_TRUE(DNT<VarDecl>().isSame(
+      ASTNodeKind::getMostDerivedType(DNT<VarDecl>(), DNT<VarDecl>())));
+
+  // Not related. Returns nothing.
+  EXPECT_TRUE(
+      ASTNodeKind::getMostDerivedType(DNT<IfStmt>(), DNT<VarDecl>()).isNone());
+  EXPECT_TRUE(ASTNodeKind::getMostDerivedType(DNT<IfStmt>(),
+                                              DNT<BinaryOperator>()).isNone());
+}
+
+TEST(ASTNodeKind, MostDerivedCommonAncestor) {
+  EXPECT_TRUE(DNT<Expr>().isSame(ASTNodeKind::getMostDerivedCommonAncestor(
+      DNT<Expr>(), DNT<BinaryOperator>())));
+  EXPECT_TRUE(DNT<Expr>().isSame(ASTNodeKind::getMostDerivedCommonAncestor(
+      DNT<BinaryOperator>(), DNT<Expr>())));
+  EXPECT_TRUE(DNT<VarDecl>().isSame(ASTNodeKind::getMostDerivedCommonAncestor(
+      DNT<VarDecl>(), DNT<VarDecl>())));
+
+  // A little related. Returns the ancestor.
+  EXPECT_TRUE(
+      DNT<NamedDecl>().isSame(ASTNodeKind::getMostDerivedCommonAncestor(
+          DNT<CXXMethodDecl>(), DNT<RecordDecl>())));
+
+  // Not related. Returns nothing.
+  EXPECT_TRUE(ASTNodeKind::getMostDerivedCommonAncestor(
+                  DNT<IfStmt>(), DNT<VarDecl>()).isNone());
+}
+
 struct Foo {};
 
 TEST(ASTNodeKind, UnknownKind) {
@@ -68,10 +107,21 @@ TEST(ASTNodeKind, UnknownKind) {
 }
 
 TEST(ASTNodeKind, Name) {
-  EXPECT_EQ("Decl", DNT<Decl>().asStringRef());
-  EXPECT_EQ("CallExpr", DNT<CallExpr>().asStringRef());
-  EXPECT_EQ("ConstantArrayType", DNT<ConstantArrayType>().asStringRef());
   EXPECT_EQ("<None>", ASTNodeKind().asStringRef());
+#define VERIFY_NAME(Node) EXPECT_EQ(#Node, DNT<Node>().asStringRef());
+  VERIFY_NAME(TemplateArgument);
+  VERIFY_NAME(NestedNameSpecifierLoc);
+  VERIFY_NAME(QualType);
+  VERIFY_NAME(TypeLoc);
+  VERIFY_NAME(CXXCtorInitializer);
+  VERIFY_NAME(NestedNameSpecifier);
+  VERIFY_NAME(Decl);
+  VERIFY_NAME(CXXRecordDecl);
+  VERIFY_NAME(Stmt);
+  VERIFY_NAME(CallExpr);
+  VERIFY_NAME(Type);
+  VERIFY_NAME(ConstantArrayType);
+#undef VERIFY_NAME
 }
 
 TEST(DynTypedNode, DeclSourceRange) {
@@ -113,7 +163,7 @@ TEST(DynTypedNode, StmtDump) {
 
 TEST(DynTypedNode, DeclPrint) {
   PrintVerifier Verifier;
-  Verifier.expectString("void f() {\n}\n\n");
+  Verifier.expectString("void f() {\n}\n");
   EXPECT_TRUE(Verifier.match("void f() {}", functionDecl()));
 }
 
@@ -121,6 +171,13 @@ TEST(DynTypedNode, StmtPrint) {
   PrintVerifier Verifier;
   Verifier.expectString("{\n}\n");
   EXPECT_TRUE(Verifier.match("void f() {}", stmt()));
+}
+
+TEST(DynTypedNode, QualType) {
+  QualType Q;
+  DynTypedNode Node = DynTypedNode::create(Q);
+  EXPECT_TRUE(Node == Node);
+  EXPECT_FALSE(Node < Node);
 }
 
 }  // namespace ast_type_traits

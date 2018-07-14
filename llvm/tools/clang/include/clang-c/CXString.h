@@ -11,8 +11,8 @@
 |*                                                                            *|
 \*===----------------------------------------------------------------------===*/
 
-#ifndef CLANG_CXSTRING_H
-#define CLANG_CXSTRING_H
+#ifndef LLVM_CLANG_C_CXSTRING_H
+#define LLVM_CLANG_C_CXSTRING_H
 
 #include "clang-c/Platform.h"
 
@@ -40,6 +40,11 @@ typedef struct {
   unsigned private_flags;
 } CXString;
 
+typedef struct {
+  CXString *Strings;
+  unsigned Count;
+} CXStringSet;
+
 /**
  * \brief Retrieve the character data associated with the given string.
  */
@@ -49,6 +54,11 @@ CINDEX_LINKAGE const char *clang_getCString(CXString string);
  * \brief Free the given string.
  */
 CINDEX_LINKAGE void clang_disposeString(CXString string);
+
+/**
+ * \brief Free the given string set.
+ */
+CINDEX_LINKAGE void clang_disposeStringSet(CXStringSet *set);
 
 /**
  * @}

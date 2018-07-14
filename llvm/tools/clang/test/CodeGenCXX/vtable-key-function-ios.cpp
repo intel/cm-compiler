@@ -1,9 +1,12 @@
 // RUN: %clang_cc1 %s -triple=armv7-apple-darwin -emit-llvm -o - | FileCheck %s
 // RUN: %clang_cc1 %s -triple=armv7-apple-darwin -emit-llvm -o - | FileCheck -check-prefix=CHECK-LATE %s
 
-// The 'a' variants ask for the v-table first.
-// The 'b' variants ask for the v-table second.
-// The 'c' variants ask for the v-table third.
+// RUN: %clang_cc1 %s -triple=x86_64-pc-windows-gnu -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 %s -triple=x86_64-pc-windows-gnu -emit-llvm -o - | FileCheck -check-prefix=CHECK-LATE %s
+
+// The 'a' variants ask for the vtable first.
+// The 'b' variants ask for the vtable second.
+// The 'c' variants ask for the vtable third.
 // We do a separate CHECK-LATE pass because the RTTI definition gets
 // changed after the fact, which causes reordering of the globals.
 

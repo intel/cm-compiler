@@ -28,6 +28,8 @@ enum OpaqueValueMode {
 
 static void BuildParentMap(MapTy& M, Stmt* S,
                            OpaqueValueMode OVMode = OV_Transparent) {
+  if (!S)
+    return;
 
   switch (S->getStmtClass()) {
   case Stmt::PseudoObjectExprClass: {
@@ -36,8 +38,8 @@ static void BuildParentMap(MapTy& M, Stmt* S,
 
     // If we are rebuilding the map, clear out any existing state.
     if (M[POE->getSyntacticForm()])
-      for (Stmt::child_range I = S->children(); I; ++I)
-        M[*I] = nullptr;
+      for (Stmt *SubStmt : S->children())
+        M[SubStmt] = nullptr;
 
     M[POE->getSyntacticForm()] = S;
     BuildParentMap(M, POE->getSyntacticForm(), OV_Transparent);
@@ -82,10 +84,10 @@ static void BuildParentMap(MapTy& M, Stmt* S,
     break;
   }
   default:
-    for (Stmt::child_range I = S->children(); I; ++I) {
-      if (*I) {
-        M[*I] = S;
-        BuildParentMap(M, *I, OVMode);
+    for (Stmt *SubStmt : S->children()) {
+      if (SubStmt) {
+        M[SubStmt] = S;
+        BuildParentMap(M, SubStmt, OVMode);
       }
     }
     break;

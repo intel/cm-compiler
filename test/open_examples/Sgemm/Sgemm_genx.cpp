@@ -22,13 +22,15 @@
 
 #define GEN_KERNEL
 
+#undef CM_DEBUG
+
 #include <cm/cm.h>
 #include "share.h"
 
 // Process 32x16 block of result matrix:
 
 extern "C" _GENX_MAIN_ void sgemm_kernel (
-                                int M, int N, int K,
+                                int m, int n, int k,
                                 int ib, int jb, int kb,
                                 SurfaceIndex indxA,
                                 SurfaceIndex indxB,
@@ -41,9 +43,18 @@ extern "C" _GENX_MAIN_ void sgemm_kernel (
 
   int idx = cm_group_id(0)*cm_local_size(0) + cm_local_id(0);
   int idy = cm_group_id(1)*cm_local_size(1) + cm_local_id(1);
-  int dst_col = (jb + idx * 16) * sizeof(float);
-  int dst_row = ib + idy * 32;
+  int dst_col = (jb + idx * Tn) * sizeof(float);
+  int dst_row = ib + idy * Tm;
+  int kk;
 
+  kk = k;
+  if (kk > GEMM_BLOCK) kk = GEMM_BLOCK;
+  
+#ifdef CM_DEBUG
+  printf(">>> M = %d N = %d K = %d  idx = %d  idy = %d  ib = %d  jb = %d  kb = %d\n",
+	 m, n, k, idx, idy, ib, jb, kb);
+#endif
+  
   // Read the earlier value of C matrix (Read 32x16 block of C)
   read (indxC, dst_col,    dst_row   , c.select<8, 1, 8, 1> (0, 0));
   read (indxC, dst_col+32, dst_row   , c.select<8, 1, 8, 1> (0, 8));
@@ -54,36 +65,36 @@ extern "C" _GENX_MAIN_ void sgemm_kernel (
   read (indxC, dst_col,    dst_row+24, c.select<8, 1, 8, 1> (24, 0));
   read (indxC, dst_col+32, dst_row+24, c.select<8, 1, 8, 1> (24, 8));
 
-  int kb_m4 = kb << 2;
+  int kb_m4 = kb * sizeof(float);
 
-  for (int k = kb_m4; k < (kb_m4 + GEMM_BLOCK*4); k += 32) {
+  for (int l = kb_m4; l < kb_m4 + kk * sizeof(float); l += Tk * sizeof(float)) {
 
-      // Read 8x16 block of B matrix
-      int k_d4 = k >> 2;
+    // Read 8x16 block of B matrix
+      int k_d4 = l / sizeof(float);
       read (indxB, dst_col,    k_d4, b.select<8,1,8,1>(0,0));
       read (indxB, dst_col+32, k_d4, b.select<8,1,8,1>(8,0));
 
       // Read 32x8 block of A matrix
-      read (indxA, k, dst_row   , a.select<8, 1, 8, 1> (0, 0));
-      read (indxA, k, dst_row+8 , a.select<8, 1, 8, 1> (8, 0));
-      read (indxA, k, dst_row+16, a.select<8, 1, 8, 1> (16, 0));
-      read (indxA, k, dst_row+24, a.select<8, 1, 8, 1> (24, 0));
+      read (indxA, l, dst_row   , a.select<8, 1, 8, 1> (0, 0));
+      read (indxA, l, dst_row+8 , a.select<8, 1, 8, 1> (8, 0));
+      read (indxA, l, dst_row+16, a.select<8, 1, 8, 1> (16, 0));
+      read (indxA, l, dst_row+24, a.select<8, 1, 8, 1> (24, 0));
 
       // Compute a 32x8 block of C
       #pragma  unroll
-      for(int kk = 0; kk < Tk; kk ++)  {
+      for(int ll = 0; ll < Tk; ll ++)  {
         #pragma unroll
         for(int ii = 0; ii < Tm; ii ++) {
-            c.select<1,1,8,1>(ii,0) += a(ii,kk) * b.select<1,1,8,1>(kk,0);
+            c.select<1,1,8,1>(ii,0) += a(ii,ll) * b.select<1,1,8,1>(ll,0);
         }
       }
 
       // Compute the next 32x8 block of C
       #pragma  unroll
-      for(int kk = 0; kk < Tk; kk ++)  {
+      for(int ll = 0; ll < Tk; ll ++)  {
         #pragma unroll
         for(int ii = 0; ii < Tm; ii ++) {
-            c.select<1,1,8,1>(ii,8) += a(ii,kk) * b.select<1,1,8,1>(kk+8,0);
+            c.select<1,1,8,1>(ii,8) += a(ii,ll) * b.select<1,1,8,1>(ll+8,0);
         }
       }
 

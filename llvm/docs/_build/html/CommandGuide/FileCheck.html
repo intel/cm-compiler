@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>FileCheck - Flexible pattern matching file verifier &#8212; LLVM 3.4 documentation</title>
+    <title>FileCheck - Flexible pattern matching file verifier &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -106,9 +106,29 @@ change for different run options, but most lines remain the same.</p>
 </dd></dl>
 
 <dl class="option">
+<dt id="cmdoption-check-prefixes">
+<code class="descname">–check-prefixes</code><code class="descclassname"> prefix1,prefix2,…</code><a class="headerlink" href="#cmdoption-check-prefixes" title="Permalink to this definition">¶</a></dt>
+<dd><p>An alias of <a class="reference internal" href="#cmdoption-check-prefix"><code class="xref std std-option docutils literal"><span class="pre">--check-prefix</span></code></a> that allows multiple prefixes to be
+specified as a comma separated list.</p>
+</dd></dl>
+
+<dl class="option">
 <dt id="cmdoption-input-file">
 <code class="descname">–input-file</code><code class="descclassname"> filename</code><a class="headerlink" href="#cmdoption-input-file" title="Permalink to this definition">¶</a></dt>
 <dd><p>File to check (defaults to stdin).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-match-full-lines">
+<code class="descname">–match-full-lines</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-match-full-lines" title="Permalink to this definition">¶</a></dt>
+<dd><p>By default, FileCheck allows matches of anywhere on a line. This
+option will require all positive matches to cover an entire
+line. Leading and trailing whitespace is ignored, unless
+<a class="reference internal" href="#cmdoption-strict-whitespace"><code class="xref std std-option docutils literal"><span class="pre">--strict-whitespace</span></code></a> is also specified. (Note: negative
+matches from <code class="docutils literal"><span class="pre">CHECK-NOT</span></code> are not affected by this option!)</p>
+<p>Passing this option is equivalent to inserting <code class="docutils literal"><span class="pre">{{^</span> <span class="pre">*}}</span></code> or
+<code class="docutils literal"><span class="pre">{{^}}</span></code> before, and <code class="docutils literal"><span class="pre">{{</span> <span class="pre">*$}}</span></code> or <code class="docutils literal"><span class="pre">{{$}}</span></code> after every positive
+check pattern.</p>
 </dd></dl>
 
 <dl class="option">
@@ -130,6 +150,22 @@ checks. The option allows writing stricter tests without stuffing them with
 diagnostic messages from tools that don’t have an option similar to <code class="docutils literal"><span class="pre">clang</span>
 <span class="pre">-verify</span></code>. With this option FileCheck will verify that input does not contain
 warnings not covered by any <code class="docutils literal"><span class="pre">CHECK:</span></code> patterns.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-enable-var-scope">
+<code class="descname">–enable-var-scope</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-enable-var-scope" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enables scope for regex variables.</p>
+<p>Variables with names that start with <code class="docutils literal"><span class="pre">$</span></code> are considered global and
+remain set throughout the file.</p>
+<p>All other variables get undefined after each encountered <code class="docutils literal"><span class="pre">CHECK-LABEL</span></code>.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-d-var">
+<code class="descname">-D&lt;VAR</code><code class="descclassname">=VALUE&gt;</code><a class="headerlink" href="#cmdoption-d-var" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets a filecheck variable <code class="docutils literal"><span class="pre">VAR</span></code> with value <code class="docutils literal"><span class="pre">VALUE</span></code> that can be used in
+<code class="docutils literal"><span class="pre">CHECK:</span></code> lines.</p>
 </dd></dl>
 
 <dl class="option">
@@ -245,6 +281,26 @@ For example, something like this works as you’d expect:</p>
 newline between it and the previous directive.  A “<code class="docutils literal"><span class="pre">CHECK-NEXT:</span></code>” cannot be
 the first directive in a file.</p>
 </div>
+<div class="section" id="the-check-same-directive">
+<h3>The “CHECK-SAME:” directive<a class="headerlink" href="#the-check-same-directive" title="Permalink to this headline">¶</a></h3>
+<p>Sometimes you want to match lines and would like to verify that matches happen
+on the same line as the previous match.  In this case, you can use “<code class="docutils literal"><span class="pre">CHECK:</span></code>”
+and “<code class="docutils literal"><span class="pre">CHECK-SAME:</span></code>” directives to specify this.  If you specified a custom
+check prefix, just use “<code class="docutils literal"><span class="pre">&lt;PREFIX&gt;-SAME:</span></code>”.</p>
+<p>“<code class="docutils literal"><span class="pre">CHECK-SAME:</span></code>” is particularly powerful in conjunction with “<code class="docutils literal"><span class="pre">CHECK-NOT:</span></code>”
+(described below).</p>
+<p>For example, the following works like you’d expect:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!0</span> <span class="p">=</span> <span class="nv">!DILocation</span><span class="p">(</span><span class="nl">line:</span> <span class="m">5</span><span class="p">,</span> <span class="nl">scope:</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span> <span class="nl">inlinedAt:</span> <span class="nv nv-Anonymous">!2</span><span class="p">)</span>
+
+<span class="c">; CHECK:       !DILocation(line: 5,</span>
+<span class="c">; CHECK-NOT:               column:</span>
+<span class="c">; CHECK-SAME:              scope: ![[SCOPE:[0-9]+]]</span>
+</pre></div>
+</div>
+<p>“<code class="docutils literal"><span class="pre">CHECK-SAME:</span></code>” directives reject the input if there are any newlines between
+it and the previous directive.  A “<code class="docutils literal"><span class="pre">CHECK-SAME:</span></code>” cannot be the first
+directive in a file.</p>
+</div>
 <div class="section" id="the-check-not-directive">
 <h3>The “CHECK-NOT:” directive<a class="headerlink" href="#the-check-not-directive" title="Permalink to this headline">¶</a></h3>
 <p>The “<code class="docutils literal"><span class="pre">CHECK-NOT:</span></code>” directive is used to verify that a string doesn’t occur
@@ -308,14 +364,14 @@ sequences from the instruction scheduler. For example,</p>
 <p>If you are defining <cite>and</cite> using variables in the same <code class="docutils literal"><span class="pre">CHECK-DAG:</span></code> block,
 be aware that the definition rule can match <cite>after</cite> its use.</p>
 <p>So, for instance, the code below will pass:</p>
-<div class="highlight-none"><div class="highlight"><pre><span></span>; CHECK-DAG: vmov.32 [[REG2:d[0-9]+]][0]
+<div class="highlight-text"><div class="highlight"><pre><span></span>; CHECK-DAG: vmov.32 [[REG2:d[0-9]+]][0]
 ; CHECK-DAG: vmov.32 [[REG2]][1]
 vmov.32 d0[1]
 vmov.32 d0[0]
 </pre></div>
 </div>
 <p>While this other code, will not:</p>
-<div class="highlight-none"><div class="highlight"><pre><span></span>; CHECK-DAG: vmov.32 [[REG2:d[0-9]+]][0]
+<div class="highlight-text"><div class="highlight"><pre><span></span>; CHECK-DAG: vmov.32 [[REG2:d[0-9]+]][0]
 ; CHECK-DAG: vmov.32 [[REG2]][1]
 vmov.32 d1[1]
 vmov.32 d0[0]
@@ -343,7 +399,9 @@ matched by the directive cannot also be matched by any other check present in
 other unique identifiers. Conceptually, the presence of <code class="docutils literal"><span class="pre">CHECK-LABEL</span></code> divides
 the input stream into separate blocks, each of which is processed independently,
 preventing a <code class="docutils literal"><span class="pre">CHECK:</span></code> directive in one block matching a line in another block.
-For example,</p>
+If <code class="docutils literal"><span class="pre">--enable-var-scope</span></code> is in effect, all local variables are cleared at the
+beginning of the block.</p>
+<p>For example,</p>
 <div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="nv">%struct.C</span><span class="p">*</span> <span class="vg">@C_ctor_base</span><span class="p">(</span><span class="nv">%struct.C</span><span class="p">*</span> <span class="nv">%this</span><span class="p">,</span> <span class="k">i32</span> <span class="nv">%x</span><span class="p">)</span> <span class="p">{</span>
 <span class="nl">entry:</span>
 <span class="c">; CHECK-LABEL: C_ctor_base:</span>
@@ -375,14 +433,15 @@ simply uniquely match a single line in the file being verified.</p>
 </div>
 <div class="section" id="filecheck-pattern-matching-syntax">
 <h3>FileCheck Pattern Matching Syntax<a class="headerlink" href="#filecheck-pattern-matching-syntax" title="Permalink to this headline">¶</a></h3>
-<p>The “<code class="docutils literal"><span class="pre">CHECK:</span></code>” and “<code class="docutils literal"><span class="pre">CHECK-NOT:</span></code>” directives both take a pattern to match.
+<p>All FileCheck directives take a pattern to match.
 For most uses of FileCheck, fixed string matching is perfectly sufficient.  For
 some things, a more flexible form of matching is desired.  To support this,
 FileCheck allows you to specify regular expressions in matching strings,
-surrounded by double braces: <code class="docutils literal"><span class="pre">{{yourregex}}</span></code>.  Because we want to use fixed
-string matching for a majority of what we do, FileCheck has been designed to
-support mixing and matching fixed string matching with regular expressions.
-This allows you to write things like this:</p>
+surrounded by double braces: <code class="docutils literal"><span class="pre">{{yourregex}}</span></code>. FileCheck implements a POSIX
+regular expression matcher; it supports Extended POSIX regular expressions
+(ERE). Because we want to use fixed string matching for a majority of what we
+do, FileCheck has been designed to support mixing and matching fixed string
+matching with regular expressions.  This allows you to write things like this:</p>
 <div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="c">; CHECK: movhpd      {{[0-9]+}}(%esp), {{%xmm[0-7]}}</span>
 </pre></div>
 </div>
@@ -410,7 +469,7 @@ patterns.  Here is a simple example:</p>
 variable <code class="docutils literal"><span class="pre">REGISTER</span></code>.  The second line verifies that whatever is in
 <code class="docutils literal"><span class="pre">REGISTER</span></code> occurs later in the file after an “<code class="docutils literal"><span class="pre">andw</span></code>”.  <strong class="program">FileCheck</strong>
 variable references are always contained in <code class="docutils literal"><span class="pre">[[</span> <span class="pre">]]</span></code> pairs, and their names can
-be formed with the regex <code class="docutils literal"><span class="pre">[a-zA-Z][a-zA-Z0-9]*</span></code>.  If a colon follows the name,
+be formed with the regex <code class="docutils literal"><span class="pre">[a-zA-Z_][a-zA-Z0-9_]*</span></code>.  If a colon follows the name,
 then it is a definition of the variable; otherwise, it is a use.</p>
 <p><strong class="program">FileCheck</strong> variables can be defined multiple times, and uses always
 get the latest value.  Variables can also be used later on the same line they
@@ -420,6 +479,12 @@ were defined on. For example:</p>
 </div>
 <p>Can be useful if you want the operands of <code class="docutils literal"><span class="pre">op</span></code> to be the same register,
 and don’t care exactly which register it is.</p>
+<p>If <code class="docutils literal"><span class="pre">--enable-var-scope</span></code> is in effect, variables with names that
+start with <code class="docutils literal"><span class="pre">$</span></code> are considered to be global. All others variables are
+local.  All local variables get undefined at the beginning of each
+CHECK-LABEL block. Global variables are not affected by CHECK-LABEL.
+This makes it easier to ensure that individual tests are not affected
+by variables set in preceding tests.</p>
 </div>
 <div class="section" id="filecheck-expressions">
 <h3>FileCheck Expressions<a class="headerlink" href="#filecheck-expressions" title="Permalink to this headline">¶</a></h3>
@@ -441,6 +506,21 @@ relative line number references, for example:</p>
 <span class="kt">int</span> <span class="n">a</span>
 </pre></div>
 </div>
+</div>
+<div class="section" id="matching-newline-characters">
+<h3>Matching Newline Characters<a class="headerlink" href="#matching-newline-characters" title="Permalink to this headline">¶</a></h3>
+<p>To match newline characters in regular expressions the character class
+<code class="docutils literal"><span class="pre">[[:space:]]</span></code> can be used. For example, the following pattern:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">// CHECK: DW_AT_location [DW_FORM_sec_offset] ([[DLOC:0x[0-9a-f]+]]){{[[:space:]].*}}&quot;intd&quot;</span>
+</pre></div>
+</div>
+<p>matches output of the form (from llvm-dwarfdump):</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>DW_AT_location [DW_FORM_sec_offset]   (0x00000233)
+DW_AT_name [DW_FORM_strp]  ( .debug_str[0x000000c9] = &quot;intd&quot;)
+</pre></div>
+</div>
+<p>letting us set the <strong class="program">FileCheck</strong> variable <code class="docutils literal"><span class="pre">DLOC</span></code> to the desired value
+<code class="docutils literal"><span class="pre">0x00000233</span></code>, extracted from the line immediately preceding “<code class="docutils literal"><span class="pre">intd</span></code>”.</p>
 </div>
 </div>
 </div>
@@ -469,8 +549,8 @@ relative line number references, for example:</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

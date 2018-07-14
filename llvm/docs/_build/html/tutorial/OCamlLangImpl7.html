@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>7. Kaleidoscope: Extending the Language: Mutable Variables &#8212; LLVM 3.4 documentation</title>
+    <title>7. Kaleidoscope: Extending the Language: Mutable Variables &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -180,7 +180,7 @@ operator. Notice how the type of the &#64;G/&#64;H global variables is actually
 that &#64;G defines <em>space</em> for an i32 in the global data area, but its
 <em>name</em> actually refers to the address for that space. Stack variables
 work the same way, except that instead of being declared with global
-variable definitions, they are declared with the <a class="reference external" href="../LangRef.html#i_alloca">LLVM alloca
+variable definitions, they are declared with the <a class="reference external" href="../LangRef.html#alloca-instruction">LLVM alloca
 instruction</a>:</p>
 <div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="k">i32</span> <span class="vg">@example</span><span class="p">()</span> <span class="p">{</span>
 <span class="nl">entry:</span>
@@ -277,11 +277,11 @@ executed once, which makes analysis simpler.</li>
 If the address of the stack object is passed to a function, or if any
 funny pointer arithmetic is involved, the alloca will not be
 promoted.</li>
-<li>mem2reg only works on allocas of <a class="reference external" href="../LangRef.html#t_classifications">first
+<li>mem2reg only works on allocas of <a class="reference external" href="../LangRef.html#first-class-types">first
 class</a> values (such as pointers,
 scalars and vectors), and only if the array size of the allocation is
 1 (or missing in the .ll file). mem2reg is not capable of promoting
-structs or arrays to registers. Note that the “scalarrepl” pass is
+structs or arrays to registers. Note that the “sroa” pass is
 more powerful and can promote structs, “unions”, and arrays in many
 cases.</li>
 </ol>
@@ -410,7 +410,7 @@ from the stack slot:</p>
 </div>
 <p>As you can see, this is pretty straightforward. Now we need to update
 the things that define the variables to set up the alloca. We’ll start
-with <code class="docutils literal"><span class="pre">codegen_expr</span> <span class="pre">Ast.For</span> <span class="pre">...</span></code> (see the <a class="reference external" href="#code">full code listing</a>
+with <code class="docutils literal"><span class="pre">codegen_expr</span> <span class="pre">Ast.For</span> <span class="pre">...</span></code> (see the <a class="reference external" href="#id1">full code listing</a>
 for the unabridged code):</p>
 <div class="highlight-ocaml"><div class="highlight"><pre><span></span><span class="o">|</span> <span class="nn">Ast</span><span class="p">.</span><span class="nc">For</span> <span class="o">(</span><span class="n">var_name</span><span class="o">,</span> <span class="n">start</span><span class="o">,</span> <span class="n">end_</span><span class="o">,</span> <span class="n">step</span><span class="o">,</span> <span class="n">body</span><span class="o">)</span> <span class="o">-&gt;</span>
     <span class="k">let</span> <span class="n">the_function</span> <span class="o">=</span> <span class="n">block_parent</span> <span class="o">(</span><span class="n">insertion_block</span> <span class="n">builder</span><span class="o">)</span> <span class="k">in</span>
@@ -447,7 +447,7 @@ for the unabridged code):</p>
     <span class="o">...</span>
 </pre></div>
 </div>
-<p>This code is virtually identical to the code <a class="reference external" href="OCamlLangImpl5.html#forcodegen">before we allowed mutable
+<p>This code is virtually identical to the code <a class="reference external" href="OCamlLangImpl5.html#code-generation-for-the-for-loop">before we allowed mutable
 variables</a>. The big difference is that
 we no longer have to construct a PHI node, and we use load/store to
 access the variable as needed.</p>
@@ -1744,8 +1744,8 @@ ocamlbuild toy.byte
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

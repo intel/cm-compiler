@@ -1,5 +1,6 @@
 ; RUN: llc < %s -mtriple=arm-apple-ios5.0 -mcpu=cortex-a8 | FileCheck %s -check-prefix=A8
 ; RUN: llc < %s -mtriple=arm-apple-ios5.0 -mcpu=swift     | FileCheck %s -check-prefix=SWIFT
+; RUN: llc < %s -mtriple=thumbv7-apple-macho -mcpu=cortex-a8     | FileCheck %s -check-prefix=A8
 
 ; rdar://12481395
 
@@ -16,7 +17,7 @@ entry:
   %div = sdiv i32 %x, %y
   store i32 %div, i32* %P, align 4
   %rem = srem i32 %x, %y
-  %arrayidx6 = getelementptr inbounds i32* %P, i32 1
+  %arrayidx6 = getelementptr inbounds i32, i32* %P, i32 1
   store i32 %rem, i32* %arrayidx6, align 4
   ret void
 }
@@ -34,7 +35,7 @@ entry:
   %div = udiv i32 %x, %y
   store i32 %div, i32* %P, align 4
   %rem = urem i32 %x, %y
-  %arrayidx6 = getelementptr inbounds i32* %P, i32 1
+  %arrayidx6 = getelementptr inbounds i32, i32* %P, i32 1
   store i32 %rem, i32* %arrayidx6, align 4
   ret void
 }
@@ -47,7 +48,7 @@ define void @do_indent(i32 %cols) nounwind {
 entry:
 ; A8-LABEL: do_indent:
 ; SWIFT-LABEL: do_indent:
-  %0 = load i32* @flags, align 4
+  %0 = load i32, i32* @flags, align 4
   %1 = and i32 %0, 67108864
   %2 = icmp eq i32 %1, 0
   br i1 %2, label %bb1, label %bb
@@ -57,7 +58,7 @@ bb:
 ; SWIFT: sdiv
 ; SWIFT: mls
 ; SWIFT-NOT: bl __divmodsi4
-  %3 = load i32* @tabsize, align 4
+  %3 = load i32, i32* @tabsize, align 4
   %4 = srem i32 %cols, %3
   %5 = sdiv i32 %cols, %3
   %6 = tail call i32 @llvm.objectsize.i32.p0i8(i8* null, i1 false)
@@ -66,7 +67,7 @@ bb:
 
 bb1:
   %line_indent_len.0 = phi i32 [ %4, %bb ], [ 0, %entry ]
-  %8 = getelementptr inbounds i8* null, i32 %line_indent_len.0
+  %8 = getelementptr inbounds i8, i8* null, i32 %line_indent_len.0
   store i8 0, i8* %8, align 1
   ret void
 }

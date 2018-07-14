@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_CODEGEN_CODE_GEN_ACTION_H
-#define LLVM_CLANG_CODEGEN_CODE_GEN_ACTION_H
+#ifndef LLVM_CLANG_CODEGEN_CODEGENACTION_H
+#define LLVM_CLANG_CODEGEN_CODEGENACTION_H
 
 #include "clang/Frontend/FrontendAction.h"
 #include <memory>
@@ -23,11 +23,35 @@ class BackendConsumer;
 
 class CodeGenAction : public ASTFrontendAction {
 private:
+  // Let BackendConsumer access LinkModule.
+  friend class BackendConsumer;
+
+  /// Info about module to link into a module we're generating.
+  struct LinkModule {
+    /// The module to link in.
+    std::unique_ptr<llvm::Module> Module;
+
+    /// If true, we set attributes on Module's functions according to our
+    /// CodeGenOptions and LangOptions, as though we were generating the
+    /// function ourselves.
+    bool PropagateAttrs;
+
+    /// If true, we use LLVM module internalizer.
+    bool Internalize;
+
+    /// Bitwise combination of llvm::LinkerFlags used when we link the module.
+    unsigned LinkFlags;
+  };
+
   unsigned Act;
   std::unique_ptr<llvm::Module> TheModule;
-  llvm::Module *LinkModule;
+
+  /// Bitcode modules to link in to our module.
+  SmallVector<LinkModule, 4> LinkModules;
   llvm::LLVMContext *VMContext;
   bool OwnsVMContext;
+
+  std::unique_ptr<llvm::Module> loadModule(llvm::MemoryBufferRef MBRef);
 
 protected:
   /// Create a new code generation action.  If the optional \p _VMContext
@@ -37,24 +61,19 @@ protected:
 
   bool hasIRSupport() const override;
 
-  ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                 StringRef InFile) override;
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                 StringRef InFile) override;
 
   void ExecuteAction() override;
 
   void EndSourceFileAction() override;
 
 public:
-  ~CodeGenAction();
+  ~CodeGenAction() override;
 
-  /// setLinkModule - Set the link module to be used by this action.  If a link
-  /// module is not provided, and CodeGenOptions::LinkBitcodeFile is non-empty,
-  /// the action will load it from the specified file.
-  void setLinkModule(llvm::Module *Mod) { LinkModule = Mod; }
-
-  /// takeModule - Take the generated LLVM module, for use after the action has
-  /// been run. The result may be null on failure.
-  llvm::Module *takeModule();
+  /// Take the generated LLVM module, for use after the action has been run.
+  /// The result may be null on failure.
+  std::unique_ptr<llvm::Module> takeModule();
 
   /// Take the LLVM context used by this action.
   llvm::LLVMContext *takeLLVMContext();
@@ -96,6 +115,12 @@ class EmitObjAction : public CodeGenAction {
   virtual void anchor();
 public:
   EmitObjAction(llvm::LLVMContext *_VMContext = nullptr);
+};
+
+class EmitSPIRVAction : public CodeGenAction {
+  virtual void anchor();
+public:
+  EmitSPIRVAction(llvm::LLVMContext *_VMContext = nullptr);
 };
 
 }

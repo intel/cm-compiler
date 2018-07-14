@@ -3,33 +3,33 @@
 ; We are testing that a value in a 16 bit register gets reported as
 ; being in its superregister.
 
-; CHECK: .byte   80                      # super-register
-; CHECK-NEXT:                            # DW_OP_reg0
-; CHECK-NEXT: .byte   147                # DW_OP_piece
-; CHECK-NEXT: .byte   2                  # 2
+; CHECK: .byte   80                      # super-register DW_OP_reg0
+; No need to a piece at offset 0.
+; CHECK-NOT: DW_OP_piece
+; CHECK-NOT: DW_OP_bit_piece
 
-define i16 @f(i16 signext %zzz) nounwind {
+define i16 @f(i16 signext %zzz) nounwind !dbg !1 {
 entry:
-  call void @llvm.dbg.value(metadata !{i16 %zzz}, i64 0, metadata !0)
+  call void @llvm.dbg.value(metadata i16 %zzz, metadata !0, metadata !DIExpression()), !dbg !DILocation(scope: !1)
   %conv = sext i16 %zzz to i32, !dbg !7
   %conv1 = trunc i32 %conv to i16
   ret i16 %conv1
 }
 
-declare void @llvm.dbg.value(metadata, i64, metadata) nounwind readnone
+declare void @llvm.dbg.value(metadata, metadata, metadata) nounwind readnone
 
 !llvm.dbg.cu = !{!3}
 !llvm.module.flags = !{!11}
-!9 = metadata !{metadata !1}
+!9 = !{!1}
 
-!0 = metadata !{i32 786689, metadata !1, metadata !"zzz", metadata !2, i32 16777219, metadata !6, i32 0, null} ; [ DW_TAG_arg_variable ]
-!1 = metadata !{i32 786478, metadata !10, metadata !2, metadata !"f", metadata !"f", metadata !"", i32 3, metadata !4, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, i16 (i16)* @f, null, null, null, i32 3} ; [ DW_TAG_subprogram ] [line 3] [def] [f]
-!2 = metadata !{i32 786473, metadata !10} ; [ DW_TAG_file_type ]
-!3 = metadata !{i32 786449, metadata !10, i32 12, metadata !"clang version 3.0 ()", i1 false, metadata !"", i32 0, metadata !5, metadata !5, metadata !9, null,  null, metadata !""} ; [ DW_TAG_compile_unit ]
-!4 = metadata !{i32 786453, metadata !10, metadata !2, metadata !"", i32 0, i64 0, i64 0, i32 0, i32 0, null, metadata !5, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!5 = metadata !{null}
-!6 = metadata !{i32 786468, null, metadata !3, metadata !"short", i32 0, i64 16, i64 16, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ]
-!7 = metadata !{i32 4, i32 22, metadata !8, null}
-!8 = metadata !{i32 786443, metadata !10, metadata !1, i32 3, i32 19, i32 0} ; [ DW_TAG_lexical_block ]
-!10 = metadata !{metadata !"/home/espindola/llvm/test.c", metadata !"/home/espindola/tmpfs/build"}
-!11 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
+!0 = !DILocalVariable(name: "zzz", line: 3, arg: 1, scope: !1, file: !2, type: !6)
+!1 = distinct !DISubprogram(name: "f", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, unit: !3, scopeLine: 3, file: !10, scope: !2, type: !4)
+!2 = !DIFile(filename: "/home/espindola/llvm/test.c", directory: "/home/espindola/tmpfs/build")
+!3 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.0 ()", isOptimized: false, emissionKind: FullDebug, file: !10, enums: !{}, retainedTypes: !{}, imports:  null)
+!4 = !DISubroutineType(types: !5)
+!5 = !{null}
+!6 = !DIBasicType(tag: DW_TAG_base_type, name: "short", size: 16, align: 16, encoding: DW_ATE_signed)
+!7 = !DILocation(line: 4, column: 22, scope: !8)
+!8 = distinct !DILexicalBlock(line: 3, column: 19, file: !10, scope: !1)
+!10 = !DIFile(filename: "/home/espindola/llvm/test.c", directory: "/home/espindola/tmpfs/build")
+!11 = !{i32 1, !"Debug Info Version", i32 3}

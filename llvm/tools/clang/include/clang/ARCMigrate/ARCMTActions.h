@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_ARCMIGRATE_ARCMT_ACTION_H
-#define LLVM_CLANG_ARCMIGRATE_ARCMT_ACTION_H
+#ifndef LLVM_CLANG_ARCMIGRATE_ARCMTACTIONS_H
+#define LLVM_CLANG_ARCMIGRATE_ARCMTACTIONS_H
 
 #include "clang/ARCMigrate/FileRemapper.h"
 #include "clang/Frontend/FrontendAction.h"
@@ -22,7 +22,7 @@ protected:
   bool BeginInvocation(CompilerInstance &CI) override;
 
 public:
-  CheckAction(FrontendAction *WrappedAction);
+  CheckAction(std::unique_ptr<FrontendAction> WrappedAction);
 };
 
 class ModifyAction : public WrapperFrontendAction {
@@ -30,15 +30,15 @@ protected:
   bool BeginInvocation(CompilerInstance &CI) override;
 
 public:
-  ModifyAction(FrontendAction *WrappedAction);
+  ModifyAction(std::unique_ptr<FrontendAction> WrappedAction);
 };
 
 class MigrateSourceAction : public ASTFrontendAction {
   FileRemapper Remapper;
 protected:
   bool BeginInvocation(CompilerInstance &CI) override;
-  ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                 StringRef InFile) override;
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                 StringRef InFile) override;
 };
 
 class MigrateAction : public WrapperFrontendAction {
@@ -49,7 +49,8 @@ protected:
   bool BeginInvocation(CompilerInstance &CI) override;
 
 public:
-  MigrateAction(FrontendAction *WrappedAction, StringRef migrateDir,
+  MigrateAction(std::unique_ptr<FrontendAction> WrappedAction,
+                StringRef migrateDir,
                 StringRef plistOut,
                 bool emitPremigrationARCErrors);
 };
@@ -61,12 +62,12 @@ class ObjCMigrateAction : public WrapperFrontendAction {
   FileRemapper Remapper;
   CompilerInstance *CompInst;
 public:
-  ObjCMigrateAction(FrontendAction *WrappedAction, StringRef migrateDir,
-                    unsigned migrateAction);
+  ObjCMigrateAction(std::unique_ptr<FrontendAction> WrappedAction,
+                    StringRef migrateDir, unsigned migrateAction);
 
 protected:
-  ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                 StringRef InFile) override;
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                 StringRef InFile) override;
   bool BeginInvocation(CompilerInstance &CI) override;
 };
 

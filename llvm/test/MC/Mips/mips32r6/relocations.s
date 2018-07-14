@@ -5,35 +5,38 @@
 #------------------------------------------------------------------------------
 # Check that the assembler can handle the documented syntax for fixups.
 #------------------------------------------------------------------------------
-# CHECK-FIXUP: addiupc $2, bar  # encoding: [0xec,0b01000AAA,A,A]
+# CHECK-FIXUP: lapc $2, bar     # encoding: [0xec,0b01000AAA,A,A]
 # CHECK-FIXUP:                  # fixup A - offset: 0,
 # CHECK-FIXUP:                    value: bar, kind: fixup_MIPS_PC19_S2
 # CHECK-FIXUP: beqc $5, $6, bar # encoding: [0x20,0xa6,A,A]
 # CHECK-FIXUP:                  #   fixup A - offset: 0,
-# CHECK-FIXUP:                      value: bar, kind: fixup_Mips_PC16
+# CHECK-FIXUP:                      value: bar-4, kind: fixup_Mips_PC16
 # CHECK-FIXUP: bnec $5, $6, bar # encoding: [0x60,0xa6,A,A]
 # CHECK-FIXUP:                  #   fixup A - offset: 0,
-# CHECK-FIXUP:                      value: bar, kind: fixup_Mips_PC16
+# CHECK-FIXUP:                      value: bar-4, kind: fixup_Mips_PC16
 # CHECK-FIXUP: beqzc $9, bar    # encoding: [0xd9,0b001AAAAA,A,A]
 # CHECK-FIXUP:                  #   fixup A - offset: 0,
-# CHECK-FIXUP:                      value: bar, kind: fixup_MIPS_PC21_S2
+# CHECK-FIXUP:                      value: bar-4, kind: fixup_MIPS_PC21_S2
 # CHECK-FIXUP: bnezc $9, bar    # encoding: [0xf9,0b001AAAAA,A,A]
 # CHECK-FIXUP:                  #   fixup A - offset: 0,
-# CHECK-FIXUP:                      value: bar, kind: fixup_MIPS_PC21_S2
+# CHECK-FIXUP:                      value: bar-4, kind: fixup_MIPS_PC21_S2
 # CHECK-FIXUP: balc  bar        # encoding: [0b111010AA,A,A,A]
 # CHECK-FIXUP:                  #   fixup A - offset: 0,
-# CHECK-FIXUP:                      value: bar, kind: fixup_MIPS_PC26_S2
+# CHECK-FIXUP:                      value: bar-4, kind: fixup_MIPS_PC26_S2
 # CHECK-FIXUP: bc    bar        # encoding: [0b110010AA,A,A,A]
 # CHECK-FIXUP:                  #   fixup A - offset: 0,
-# CHECK-FIXUP:                      value: bar, kind: fixup_MIPS_PC26_S2
+# CHECK-FIXUP:                      value: bar-4, kind: fixup_MIPS_PC26_S2
 # CHECK-FIXUP: aluipc $2, %pcrel_hi(bar)    # encoding: [0xec,0x5f,A,A]
 # CHECK-FIXUP:                              #   fixup A - offset: 0,
-# CHECK-FIXUP:                                  value: bar@PCREL_HI16,
+# CHECK-FIXUP:                                  value: %pcrel_hi(bar),
 # CHECK-FIXUP:                                  kind: fixup_MIPS_PCHI16
 # CHECK-FIXUP: addiu $2, $2, %pcrel_lo(bar) # encoding: [0x24,0x42,A,A]
 # CHECK-FIXUP:                              #   fixup A - offset: 0,
-# CHECK-FIXUP:                                  value: bar@PCREL_LO16,
+# CHECK-FIXUP:                                  value: %pcrel_lo(bar),
 # CHECK-FIXUP:                                  kind: fixup_MIPS_PCLO16
+# CHECK-FIXUP: lapc $2, bar     # encoding: [0xec,0b01000AAA,A,A]
+# CHECK-FIXUP:                  # fixup A - offset: 0,
+# CHECK-FIXUP:                    value: bar, kind: fixup_MIPS_PC19_S2
 # CHECK-FIXUP: lwpc    $2, bar  # encoding: [0xec,0b01001AAA,A,A]
 # CHECK-FIXUP:                  #   fixup A - offset: 0,
 # CHECK-FIXUP:                      value: bar, kind: fixup_MIPS_PC19_S2
@@ -55,6 +58,7 @@
 # CHECK-ELF:     0x20 R_MIPS_PCLO16 bar 0x0
 # CHECK-ELF:     0x24 R_MIPS_PC19_S2 bar 0x0
 # CHECK-ELF:     0x28 R_MIPS_PC19_S2 bar 0x0
+# CHECK-ELF:     0x2C R_MIPS_PC19_S2 bar 0x0
 # CHECK-ELF: ]
 
   addiupc   $2,bar
@@ -66,5 +70,6 @@
   bc    bar
   aluipc $2, %pcrel_hi(bar)
   addiu  $2, $2, %pcrel_lo(bar)
+  lapc      $2,bar
   lwpc      $2,bar
   lwupc     $2,bar

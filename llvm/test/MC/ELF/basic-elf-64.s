@@ -5,7 +5,7 @@
 	.align	16, 0x90
 	.type	main,@function
 main:                                   # @main
-# BB#0:
+# %bb.0:
 	subq	$8, %rsp
 	movl	$.L.str1, %edi
 	callq	puts
@@ -45,7 +45,7 @@ main:                                   # @main
 // CHECK:     Name: .rela.text
 
 // CHECK: Relocations [
-// CHECK:   Section (2) .rela.text {
+// CHECK:   Section {{.*}} .rela.text {
 // CHECK:     0x5  R_X86_64_32   .rodata.str1.1 0x0
 // CHECK:     0xA  R_X86_64_PC32 puts           0xFFFFFFFFFFFFFFFC
 // CHECK:     0xF  R_X86_64_32   .rodata.str1.1 0x6
@@ -56,16 +56,6 @@ main:                                   # @main
 // CHECK:   Symbol {
 // CHECK:     Binding: Local
 // CHECK:     Type: Section
-
-// CHECK:   Symbol {
-// CHECK:     Binding: Local
-// CHECK:     Type: Section
-// CHECK:   }
-
-// CHECK:   Symbol {
-// CHECK:     Binding: Local
-// CHECK:     Type: Section
-// CHECK:   }
 
 // CHECK:   Symbol {
 // CHECK:     Name: main

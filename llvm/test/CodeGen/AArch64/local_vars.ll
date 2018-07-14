@@ -17,31 +17,32 @@ declare void @foo()
 
 define void @trivial_func() nounwind {
 ; CHECK-LABEL: trivial_func: // @trivial_func
-; CHECK-NEXT: // BB#0
+; CHECK-NEXT: // %bb.0
 ; CHECK-NEXT: ret
 
   ret void
 }
 
 define void @trivial_fp_func() {
-; CHECK-WITHFP-AARCH64-LABEL: trivial_fp_func:
-; CHECK-WITHFP-AARCH64: sub sp, sp, #16
-; CHECK-WITHFP-AARCH64: stp x29, x30, [sp]
-; CHECK-WITHFP-AARCH64-NEXT: mov x29, sp
+; CHECK-LABEL: trivial_fp_func:
+; CHECK: str x30, [sp, #-16]!
+; CHECK-NOT: mov x29, sp
 
 ; CHECK-WITHFP-ARM64-LABEL: trivial_fp_func:
 ; CHECK-WITHFP-ARM64: stp x29, x30, [sp, #-16]!
 ; CHECK-WITHFP-ARM64-NEXT: mov x29, sp
 
 ; Dont't really care, but it would be a Bad Thing if this came after the epilogue.
+; CHECK-WITHFP-ARM64: bl foo
 ; CHECK: bl foo
   call void @foo()
   ret void
 
-; CHECK-WITHFP: ldp x29, x30, [sp]
-; CHECK-WITHFP: add sp, sp, #16
+; CHECK: ldr x30, [sp], #16
+; CHECK-NEXT: ret
 
-; CHECK-WITHFP: ret
+; CHECK-WITHFP-ARM64: ldp x29, x30, [sp], #16
+; CHECK-WITHFP-ARM64-NEXT: ret
 }
 
 define void @stack_local() {
@@ -49,7 +50,7 @@ define void @stack_local() {
 ; CHECK-LABEL: stack_local:
 ; CHECK: sub sp, sp, #16
 
-  %val = load i64* @var
+  %val = load i64, i64* @var
   store i64 %val, i64* %local_var
 ; CHECK-DAG: str {{x[0-9]+}}, [sp, #{{[0-9]+}}]
 

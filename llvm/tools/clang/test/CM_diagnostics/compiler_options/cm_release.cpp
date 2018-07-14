@@ -49,8 +49,8 @@ void test1(SurfaceIndex S, vector<uchar,64> i) {
 // RUN: cat %W_0.asm | FileCheck --check-prefix=ASM %w
 // RUN: rm %W.isa %W_0.visaasm %W_0.asm %W_0.dat
 
-// CHECK: cm_release.cpp(4,2) :  warning: CM_GENX defined [-W#warnings]
-// CHECK: cm_release.cpp(14,2) :  warning: CM_GEN8 defined [-W#warnings]
+// CHECK: cm_release.cpp(4,2):  warning: CM_GENX defined [-W#warnings]
+// CHECK: cm_release.cpp(14,2):  warning: CM_GEN8 defined [-W#warnings]
 // CHECK: 2 warnings generated.
 // CHECK: -platform BDW
 // CHECK-NOT: -stripcomment
@@ -68,11 +68,10 @@ void test1(SurfaceIndex S, vector<uchar,64> i) {
 // RUN: cat %W_0.asm | FileCheck --check-prefix=ASM-RELEASE %w
 // RUN: rm %W.isa %W_0.visaasm %W_0.asm %W_0.dat
 
-// CHECK-RELEASE: cm_release.cpp(4,2) :  warning: CM_GENX defined [-W#warnings]
-// CHECK-RELEASE: cm_release.cpp(14,2) :  warning: CM_GEN8 defined [-W#warnings]
+// CHECK-RELEASE: cm_release.cpp(4,2):  warning: CM_GENX defined [-W#warnings]
+// CHECK-RELEASE: cm_release.cpp(14,2):  warning: CM_GEN8 defined [-W#warnings]
 // CHECK-RELEASE: 2 warnings generated.
 // CHECK-RELEASE: -platform BDW
-// CHECK-RELEASE-SAME: -stripcomment
 
 // ASM-RELEASE-NOT: .kernel
 // ASM-RELEASE-NOT: .declare

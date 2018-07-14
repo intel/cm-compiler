@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -emit-llvm -fobjc-arc -g -triple x86_64-apple-darwin10 %s -o - | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm -fobjc-arc -debug-info-kind=limited -triple x86_64-apple-darwin10 %s -o - | FileCheck %s
 // Ensure that the line info is making sense:
 // ARC cleanups should be at the closing '}'.
 @protocol NSObject
@@ -32,8 +32,8 @@ NSRect NSMakeRect(CGFloat x, CGFloat y, CGFloat w, CGFloat h);
   // CHECK: call void @objc_storeStrong{{.*}} !dbg ![[ARC:[0-9]+]]
   // CHECK: call {{.*}} @objc_autoreleaseReturnValue{{.*}} !dbg ![[ARC]]
   // CHECK: ret {{.*}} !dbg ![[ARC]]
-  // CHECK: ![[RET]] = metadata !{i32 [[@LINE+1]], i32 0, metadata !{{.*}}, null}
+  // CHECK: ![[RET]] = !DILocation(line: [[@LINE+1]], scope: !{{.*}})
   return path;
-  // CHECK: ![[ARC]] = metadata !{i32 [[@LINE+1]], i32 0, metadata !{{.*}}, null}
+  // CHECK: ![[ARC]] = !DILocation(line: [[@LINE+1]], scope: !{{.*}})
 }
 @end

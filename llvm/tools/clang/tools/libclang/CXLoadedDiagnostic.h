@@ -11,13 +11,12 @@
 |*                                                                            *|
 \*===----------------------------------------------------------------------===*/
 
-#ifndef LLVM_CLANG_CINDEX_LOADED_DIAGNOSTIC_H
-#define LLVM_CLANG_CINDEX_LOADED_DIAGNOSTIC_H
+#ifndef LLVM_CLANG_TOOLS_LIBCLANG_CXLOADEDDIAGNOSTIC_H
+#define LLVM_CLANG_TOOLS_LIBCLANG_CXLOADEDDIAGNOSTIC_H
 
 #include "CIndexDiagnostic.h"
 #include "llvm/ADT/StringRef.h"
 #include "clang/Basic/LLVM.h"
-#include <string>
 #include <vector>
 
 namespace clang {
@@ -26,8 +25,8 @@ public:
   CXLoadedDiagnostic() : CXDiagnosticImpl(LoadedDiagnosticKind),
     severity(0), category(0) {}
 
-  virtual ~CXLoadedDiagnostic();
-  
+  ~CXLoadedDiagnostic() override;
+
   /// \brief Return the severity of the diagnostic.
   CXDiagnosticSeverity getSeverity() const override;
 

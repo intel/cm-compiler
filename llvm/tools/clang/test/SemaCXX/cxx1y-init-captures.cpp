@@ -167,3 +167,50 @@ int test(T t = T{}) {
 int run = test(); //expected-note {{instantiation}}
 
 }
+
+namespace classification_of_captures_of_init_captures {
+
+template <typename T>
+void f() {
+  [a = 24] () mutable {
+    [&a] { a = 3; }();
+  }();
+}
+
+template <typename T>
+void h() {
+  [a = 24] (auto param) mutable {
+    [&a] { a = 3; }();
+  }(42);
+}
+
+int run() {
+  f<int>();
+  h<int>();
+}
+
+}
+
+namespace N3922 {
+  struct X { X(); explicit X(const X&); int n; };
+  auto a = [x{X()}] { return x.n; }; // ok
+  auto b = [x = {X()}] {}; // expected-error{{<initializer_list>}}
+}
+
+namespace init_capture_non_mutable {
+void test(double weight) {
+  double init;
+  auto find = [max = init](auto current) {
+    max = current; // expected-error{{cannot assign to a variable captured by copy in a non-mutable lambda}}
+  };
+  find(weight); // expected-note {{in instantiation of function template specialization}}
+}
+}
+
+namespace init_capture_undeclared_identifier {
+  auto a = [x = y]{}; // expected-error{{use of undeclared identifier 'y'}}
+
+  int typo_foo; // expected-note 2 {{'typo_foo' declared here}}
+  auto b = [x = typo_boo]{}; // expected-error{{use of undeclared identifier 'typo_boo'; did you mean 'typo_foo'}}
+  auto c = [x(typo_boo)]{}; // expected-error{{use of undeclared identifier 'typo_boo'; did you mean 'typo_foo'}}
+}

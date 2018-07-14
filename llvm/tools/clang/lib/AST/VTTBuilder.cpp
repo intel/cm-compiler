@@ -1,4 +1,4 @@
-//===--- VTTBuilder.cpp - C++ VTT layout builder --------------------------===//
+//===- VTTBuilder.cpp - C++ VTT layout builder ----------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,12 +14,16 @@
 
 #include "clang/AST/VTTBuilder.h"
 #include "clang/AST/ASTContext.h"
-#include "clang/AST/CXXInheritance.h"
+#include "clang/AST/BaseSubobject.h"
+#include "clang/AST/CharUnits.h"
+#include "clang/AST/Decl.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/RecordLayout.h"
-#include "clang/Basic/TargetInfo.h"
-#include "llvm/Support/Format.h"
-#include <algorithm>
-#include <cstdio>
+#include "clang/AST/Type.h"
+#include "clang/Basic/LLVM.h"
+#include "llvm/Support/Casting.h"
+#include <cassert>
+#include <cstdint>
 
 using namespace clang;
 
@@ -28,9 +32,9 @@ using namespace clang;
 VTTBuilder::VTTBuilder(ASTContext &Ctx,
                        const CXXRecordDecl *MostDerivedClass,
                        bool GenerateDefinition)
-  : Ctx(Ctx), MostDerivedClass(MostDerivedClass), 
-  MostDerivedClassLayout(Ctx.getASTRecordLayout(MostDerivedClass)),
-    GenerateDefinition(GenerateDefinition) {
+    : Ctx(Ctx), MostDerivedClass(MostDerivedClass), 
+      MostDerivedClassLayout(Ctx.getASTRecordLayout(MostDerivedClass)),
+      GenerateDefinition(GenerateDefinition) {
   // Lay out this VTT.
   LayoutVTT(BaseSubobject(MostDerivedClass, CharUnits::Zero()), 
             /*BaseIsVirtual=*/false);
@@ -56,7 +60,7 @@ void VTTBuilder::AddVTablePointer(BaseSubobject Base, uint64_t VTableIndex,
 void VTTBuilder::LayoutSecondaryVTTs(BaseSubobject Base) {
   const CXXRecordDecl *RD = Base.getBase();
 
-  for (const auto &I : RD->bases()) {    
+  for (const auto &I : RD->bases()) {
     // Don't layout virtual bases.
     if (I.isVirtual())
         continue;
@@ -105,7 +109,7 @@ VTTBuilder::LayoutSecondaryVirtualPointers(BaseSubobject Base,
     CharUnits BaseOffset;
     if (I.isVirtual()) {
       // Ignore virtual bases that we've already visited.
-      if (!VBases.insert(BaseDecl))
+      if (!VBases.insert(BaseDecl).second)
         continue;
       
       BaseOffset = MostDerivedClassLayout.getVBaseClassOffset(BaseDecl);
@@ -157,7 +161,7 @@ void VTTBuilder::LayoutVirtualVTTs(const CXXRecordDecl *RD,
     // Check if this is a virtual base.
     if (I.isVirtual()) {
       // Check if we've seen this base before.
-      if (!VBases.insert(BaseDecl))
+      if (!VBases.insert(BaseDecl).second)
         continue;
     
       CharUnits BaseOffset = 

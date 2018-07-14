@@ -3,13 +3,15 @@ set(LLVM_LINK_COMPONENTS
   Core
   ExecutionEngine
   InstCombine
-  JIT
-  MC
+  Object
+  RuntimeDyld
   ScalarOpts
   Support
-  nativecodegen
+  native
   )
 
-add_llvm_example(Kaleidoscope-Ch5
+add_kaleidoscope_chapter(Kaleidoscope-Ch5
   toy.cpp
   )
+
+export_executable_symbols(Kaleidoscope-Ch5)

@@ -83,44 +83,77 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-// RUN: %clang -target x86_64-unknown_unknown -emit-llvm -g -S %s -o - | FileCheck %s
-// RUN: %clang -target i686-cygwin -emit-llvm -g -S %s -o - | FileCheck %s
-// RUN: %clang -target armv7l-unknown-linux-gnueabihf -emit-llvm -g -S %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple x86_64-unknown_unknown -emit-llvm -debug-info-kind=limited -fexceptions -std=c++98 %s -o - | FileCheck -check-prefix=CHECK98 %s
+// RUN: %clang_cc1 -triple i686-cygwin -emit-llvm -debug-info-kind=limited -fexceptions -std=c++98 %s -o - | FileCheck -check-prefix=CHECK98 %s
+// RUN: %clang_cc1 -triple armv7l-unknown-linux-gnueabihf -emit-llvm -debug-info-kind=limited -fexceptions -std=c++98 %s -o - | FileCheck -check-prefix=CHECK98 %s
+// RUN: %clang_cc1 -triple x86_64-unknown_unknown -emit-llvm -debug-info-kind=limited -fexceptions -std=c++11 %s -o - | FileCheck -check-prefix=CHECK11 %s
+// RUN: %clang_cc1 -triple i686-cygwin -emit-llvm -debug-info-kind=limited -fexceptions -std=c++11 %s -o - | FileCheck -check-prefix=CHECK11 %s
+// RUN: %clang_cc1 -triple armv7l-unknown-linux-gnueabihf -emit-llvm -debug-info-kind=limited -fexceptions -std=c++11 %s -o - | FileCheck -check-prefix=CHECK11 %s
 
-// CHECK: invoke {{.+}} @_ZN1BD1Ev(%class.B* %b)
-// CHECK-NEXT: unwind label %{{.+}}, !dbg ![[EXCEPTLOC:.*]]
+// CHECK98: invoke {{.+}} @_ZN1BD1Ev(%class.B* %b)
+// CHECK98-NEXT: unwind label %{{.+}}, !dbg ![[EXCEPTLOC:.*]]
+// CHECK11: call {{.+}} @_ZN1BD1Ev(%class.B* %b){{.*}}, !dbg ![[EXCEPTLOC:.*]]
+
 // CHECK: store i32 0, i32* %{{.+}}, !dbg ![[RETLOC:.*]]
-// CHECK: DW_TAG_structure_type ] [foo]
-// CHECK: DW_TAG_class_type ] [bar]
-// CHECK: DW_TAG_union_type ] [baz]
-// CHECK: DW_TAG_class_type ] [B] {{.*}} [def]
-// CHECK: metadata !"_vptr$B", {{.*}}, i32 64, metadata !{{.*}}} ; [ DW_TAG_member ]
 
-// CHECK: [[C:![0-9]*]] = {{.*}} metadata [[C_MEM:![0-9]*]], i32 0, metadata !"_ZTS1C", null, metadata !"_ZTS1C"} ; [ DW_TAG_structure_type ] [C] {{.*}} [def]
-// CHECK: [[C_MEM]] = metadata !{metadata [[C_VPTR:![0-9]*]], metadata [[C_S:![0-9]*]], metadata [[C_DTOR:![0-9]*]]}
-// CHECK: [[C_VPTR]] = {{.*}} ; [ DW_TAG_member ] [_vptr$C] {{.*}} [artificial]
-// CHECK: [[C_S]] = {{.*}} ; [ DW_TAG_member ] [s] {{.*}} [static] [from int]
-// CHECK: [[C_DTOR]] = {{.*}} ; [ DW_TAG_subprogram ] {{.*}} [~C]
+// CHECK: [[F:![0-9]*]] = !DICompositeType(tag: DW_TAG_structure_type, name: "F"
+// CHECK-SAME:                             DIFlagFwdDecl
+// CHECK-SAME:                             identifier: "_ZTS1F"
+// CHECK: !DICompositeType(tag: DW_TAG_structure_type, name: "I"
+// CHECK-NOT:              DIFlagFwdDecl
+// CHECK-SAME:             ){{$}}
 
-// CHECK: null, i32 0, null, null, metadata !"_ZTS1D"} ; [ DW_TAG_structure_type ] [D] {{.*}} [decl]
-// CHECK: null, i32 0, null, null, metadata !"_ZTS1E"} ; [ DW_TAG_structure_type ] [E] {{.*}} [decl]
-// CHECK: [[F:![0-9]*]] = {{.*}} null, i32 0, null, null, metadata !"_ZTS1F"} ; [ DW_TAG_structure_type ] [F] {{.*}} [decl]
+// CHECK: ![[INT:[0-9]+]] = !DIBasicType(name: "int"
+// CHECK: !DICompositeType(tag: DW_TAG_structure_type, name: "foo"
+// CHECK: !DICompositeType(tag: DW_TAG_class_type, name: "bar"
+// CHECK: !DICompositeType(tag: DW_TAG_union_type, name: "baz"
+// CHECK: !DICompositeType(tag: DW_TAG_class_type, name: "B"
+// CHECK-NOT:              DIFlagFwdDecl
+// CHECK-SAME:             ){{$}}
+// CHECK: !DIDerivedType(tag: DW_TAG_member, name: "_vptr$B",
+// CHECK-SAME:           DIFlagArtificial
 
-// CHECK: null, i32 0, null, null, metadata !"_ZTS1G"} ; [ DW_TAG_structure_type ] [G] {{.*}} [decl]
-// CHECK: metadata [[G_INNER_MEM:![0-9]*]], i32 0, null, null, metadata !"_ZTSN1G5innerE"} ; [ DW_TAG_structure_type ] [inner] [line 50, {{.*}} [def]
-// CHECK: [[G_INNER_MEM]] = metadata !{metadata [[G_INNER_I:![0-9]*]]}
-// CHECK: [[G_INNER_I]] = {{.*}} ; [ DW_TAG_member ] [j] {{.*}} [from int]
+// CHECK: [[C:![0-9]*]] = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "C",
+// CHECK-NOT:                              DIFlagFwdDecl
+// CHECK-SAME:                             elements: [[C_MEM:![0-9]*]]
+// CHECK-SAME:                             vtableHolder: [[C]]
+// CHECK-SAME:                             identifier: "_ZTS1C"
+// CHECK: [[C_MEM]] = !{[[C_VPTR:![0-9]*]], [[C_S:![0-9]*]], [[C_DTOR:![0-9]*]]}
+// CHECK: [[C_VPTR]] = !DIDerivedType(tag: DW_TAG_member, name: "_vptr$C"
+// CHECK-SAME:                        DIFlagArtificial
+// CHECK: [[C_S]] = !DIDerivedType(tag: DW_TAG_member, name: "s"
+// CHECK-SAME:                     baseType: ![[INT]]
+// CHECK-SAME:                     DIFlagStaticMember
+// CHECK: [[C_DTOR]] = !DISubprogram(name: "~C"
 
-// CHECK: ; [ DW_TAG_structure_type ] [A]
-// CHECK: HdrSize
-// CHECK: ; [ DW_TAG_structure_type ] [I] {{.*}} [def]
+// CHECK: [[D:![0-9]+]] = !DICompositeType(tag: DW_TAG_structure_type, name: "D"
+// CHECK-NOT:              size:
+// CHECK-SAME:             DIFlagFwdDecl
+// CHECK-SAME:             identifier: "_ZTS1D"
+// CHECK: !DICompositeType(tag: DW_TAG_structure_type, name: "E"
+// CHECK-SAME:             DIFlagFwdDecl
+// CHECK-SAME:             identifier: "_ZTS1E"
+
+// CHECK: !DISubprogram(name: "func",{{.*}} scope: [[D]]
+// CHECK-SAME:          isDefinition: true
+// CHECK-SAME:          declaration: [[D_FUNC_DECL:![0-9]*]]
+// CHECK: [[D_FUNC_DECL]] = !DISubprogram(name: "func",{{.*}} scope: [[D]]
+// CHECK-SAME:                            isDefinition: false
+
+// CHECK: !DICompositeType(tag: DW_TAG_structure_type, name: "inner",{{.*}} line: 50
+// CHECK-NOT: DIFlagFwdDecl
+// CHECK-SAME: elements: [[G_INNER_MEM:![0-9]*]]
+// CHECK-SAME: identifier: "_ZTSN1G5innerE"
+
+// CHECK: !DICompositeType(tag: DW_TAG_structure_type, name: "G"
+// CHECK-SAME:             DIFlagFwdDecl
+// CHECK-SAME:             identifier: "_ZTS1G"
+// CHECK: [[G_INNER_MEM]] = !{[[G_INNER_I:![0-9]*]]}
+// CHECK: [[G_INNER_I]] = !DIDerivedType(tag: DW_TAG_member, name: "j"
+// CHECK-SAME:                           baseType: ![[INT]]
+
+// CHECK: !DICompositeType(tag: DW_TAG_structure_type, name: "A"
+// CHECK: !DIDerivedType(tag: DW_TAG_member, name: "HdrSize"
 //
-// CHECK: metadata !"_ZTS1D", {{.*}}, metadata [[D_FUNC_DECL:![0-9]*]], metadata {{![0-9]*}}, i32 {{[0-9]*}}} ; [ DW_TAG_subprogram ] {{.*}} [def] [func]
-// CHECK: [[D_FUNC_DECL]] = {{.*}}, metadata !"_ZTS1D", {{.*}}, i32 0, null, i32 {{[0-9]*}}} ; [ DW_TAG_subprogram ] {{.*}} [func]
-
-// CHECK: [[F_I_DEF:![0-9]*]] = {{.*}}, metadata [[F_I:![0-9]*]]} ; [ DW_TAG_variable ] [i]
-
-// CHECK: [[F_I]] = {{.*}}, metadata !"_ZTS1F", {{.*}} ; [ DW_TAG_member ] [i]
-
-// CHECK: ![[EXCEPTLOC]] = metadata !{i32 84,
-// CHECK: ![[RETLOC]] = metadata !{i32 83,
+// CHECK: ![[EXCEPTLOC]] = !DILocation(line: 84,
+// CHECK: ![[RETLOC]] = !DILocation(line: 83,

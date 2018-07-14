@@ -1,6 +1,8 @@
-// RUN: %clang_cc1 -std=c++11 -fsanitize=signed-integer-overflow,integer-divide-by-zero,float-divide-by-zero,shift,unreachable,return,vla-bound,alignment,null,vptr,object-size,float-cast-overflow,bool,enum,array-bounds,function -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s
-// RUN: %clang_cc1 -std=c++11 -fsanitize=vptr,address -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s --check-prefix=CHECK-ASAN
-// RUN: %clang_cc1 -std=c++11 -fsanitize=vptr -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s --check-prefix=DOWNCAST-NULL
+// RUN: %clang_cc1 -std=c++11 -fsanitize=signed-integer-overflow,integer-divide-by-zero,float-divide-by-zero,shift-base,shift-exponent,unreachable,return,vla-bound,alignment,null,vptr,object-size,float-cast-overflow,bool,enum,array-bounds,function -fsanitize-recover=signed-integer-overflow,integer-divide-by-zero,float-divide-by-zero,shift-base,shift-exponent,vla-bound,alignment,null,vptr,object-size,float-cast-overflow,bool,enum,array-bounds,function -emit-llvm %s -o - -triple x86_64-linux-gnu | opt -instnamer -S | FileCheck %s
+// RUN: %clang_cc1 -std=c++11 -fsanitize=vptr,address -fsanitize-recover=vptr,address -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s --check-prefix=CHECK-ASAN
+// RUN: %clang_cc1 -std=c++11 -fsanitize=vptr -fsanitize-recover=vptr -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s --check-prefix=DOWNCAST-NULL
+// RUN: %clang_cc1 -std=c++11 -fsanitize=function -emit-llvm %s -o - -triple x86_64-linux-gnux32 | FileCheck %s --check-prefix=CHECK-X32
+// RUN: %clang_cc1 -std=c++11 -fsanitize=function -emit-llvm %s -o - -triple i386-linux-gnu | FileCheck %s --check-prefix=CHECK-X86
 
 struct S {
   double d;
@@ -13,6 +15,10 @@ struct S {
 
 // Check that type mismatch handler is not modified by ASan.
 // CHECK-ASAN: private unnamed_addr global { { [{{.*}} x i8]*, i32, i32 }, { i16, i16, [4 x i8] }*, i8*, i8 } { {{.*}}, { i16, i16, [4 x i8] }* [[TYPE_DESCR]], {{.*}} }
+
+// CHECK: [[IndirectRTTI_ZTIFvPFviEE:@.+]] = private constant i8* bitcast ({ i8*, i8* }* @_ZTIFvPFviEE to i8*)
+// CHECK-X86: [[IndirectRTTI_ZTIFvPFviEE:@.+]] = private constant i8* bitcast ({ i8*, i8* }* @_ZTIFvPFviEE to i8*)
+// CHECK-X32: [[IndirectRTTI_ZTIFvPFviEE:@.+]] = private constant i8* bitcast ({ i8*, i8* }* @_ZTIFvPFviEE to i8*)
 
 struct T : S {};
 
@@ -55,7 +61,7 @@ void member_access(S *p) {
   // (1b) Check that 'p' actually points to an 'S'.
 
   // CHECK: %[[VPTRADDR:.*]] = bitcast {{.*}} to i64*
-  // CHECK-NEXT: %[[VPTR:.*]] = load i64* %[[VPTRADDR]]
+  // CHECK-NEXT: %[[VPTR:.*]] = load i64, i64* %[[VPTRADDR]]
   //
   // hash_16_bytes:
   //
@@ -79,8 +85,8 @@ void member_access(S *p) {
   // Check the hash against the table:
   //
   // CHECK-NEXT: %[[IDX:.*]] = and i64 %{{.*}}, 127
-  // CHECK-NEXT: getelementptr inbounds [128 x i64]* @__ubsan_vptr_type_cache, i32 0, i64 %[[IDX]]
-  // CHECK-NEXT: %[[CACHEVAL:.*]] = load i64*
+  // CHECK-NEXT: getelementptr inbounds [128 x i64], [128 x i64]* @__ubsan_vptr_type_cache, i32 0, i64 %[[IDX]]
+  // CHECK-NEXT: %[[CACHEVAL:.*]] = load i64, i64*
   // CHECK-NEXT: icmp eq i64 %[[CACHEVAL]], %[[HASH]]
   // CHECK-NEXT: br i1
 
@@ -114,10 +120,10 @@ void member_access(S *p) {
 
   // (3b) Check that 'p' actually points to an 'S'
 
-  // CHECK: load i64*
+  // CHECK: load i64, i64*
   // CHECK-NEXT: xor i64 {{-4030275160588942838|2562089159}},
   // [...]
-  // CHECK: getelementptr inbounds [128 x i64]* @__ubsan_vptr_type_cache, i32 0, i64 %
+  // CHECK: getelementptr inbounds [128 x i64], [128 x i64]* @__ubsan_vptr_type_cache, i32 0, i64 %
   // CHECK: br i1
   // CHECK: call void @__ubsan_handle_dynamic_type_cache_miss({{.*}}, i64 %{{.*}}, i64 %{{.*}})
   // CHECK-NOT: unreachable
@@ -128,10 +134,11 @@ void member_access(S *p) {
 
 // CHECK-LABEL: @_Z12lsh_overflow
 int lsh_overflow(int a, int b) {
-  // CHECK: %[[INBOUNDS:.*]] = icmp ule i32 %[[RHS:.*]], 31
-  // CHECK-NEXT: br i1 %[[INBOUNDS]]
+  // CHECK: %[[RHS_INBOUNDS:.*]] = icmp ule i32 %[[RHS:.*]], 31
+  // CHECK-NEXT: br i1 %[[RHS_INBOUNDS]], label %[[CHECK_BB:.*]], label %[[CONT_BB:.*]],
 
-  // CHECK: %[[SHIFTED_OUT_WIDTH:.*]] = sub nuw nsw i32 31, %[[RHS]]
+  // CHECK:      [[CHECK_BB]]:
+  // CHECK-NEXT: %[[SHIFTED_OUT_WIDTH:.*]] = sub nuw nsw i32 31, %[[RHS]]
   // CHECK-NEXT: %[[SHIFTED_OUT:.*]] = lshr i32 %[[LHS:.*]], %[[SHIFTED_OUT_WIDTH]]
 
   // This is present for C++11 but not for C: C++ core issue 1457 allows a '1'
@@ -139,8 +146,11 @@ int lsh_overflow(int a, int b) {
   // CHECK-NEXT: %[[SHIFTED_OUT_NOT_SIGN:.*]] = lshr i32 %[[SHIFTED_OUT]], 1
 
   // CHECK-NEXT: %[[NO_OVERFLOW:.*]] = icmp eq i32 %[[SHIFTED_OUT_NOT_SIGN]], 0
+  // CHECK-NEXT: br label %[[CONT_BB]]
 
-  // CHECK: %[[VALID:.*]] = phi i1 [ %[[INBOUNDS]], {{.*}} ], [ %[[NO_OVERFLOW]], {{.*}} ]
+  // CHECK:      [[CONT_BB]]:
+  // CHECK-NEXT: %[[VALID_BASE:.*]] = phi i1 [ true, {{.*}} ], [ %[[NO_OVERFLOW]], %[[CHECK_BB]] ]
+  // CHECK-NEXT: %[[VALID:.*]] = and i1 %[[RHS_INBOUNDS]], %[[VALID_BASE]]
   // CHECK-NEXT: br i1 %[[VALID]]
 
   // CHECK: call void @__ubsan_handle_shift_out_of_bounds
@@ -221,11 +231,14 @@ void bad_downcast_pointer(S *p) {
 void bad_downcast_reference(S &p) {
   // CHECK: %[[E1:.*]] = icmp ne {{.*}}, null
   // CHECK-NOT: br i1
+
   // CHECK: %[[SIZE:.*]] = call i64 @llvm.objectsize.i64.p0i8(
   // CHECK: %[[E2:.*]] = icmp uge i64 %[[SIZE]], 24
-  // CHECK: %[[E12:.*]] = and i1 %[[E1]], %[[E2]]
+
   // CHECK: %[[MISALIGN:.*]] = and i64 %{{.*}}, 7
   // CHECK: %[[E3:.*]] = icmp eq i64 %[[MISALIGN]], 0
+
+  // CHECK: %[[E12:.*]] = and i1 %[[E1]], %[[E2]]
   // CHECK: %[[E123:.*]] = and i1 %[[E12]], %[[E3]]
   // CHECK: br i1 %[[E123]],
 
@@ -268,12 +281,12 @@ int array_index(const int (&a)[4], int n) {
 int multi_array_index(int n, int m) {
   int arr[4][6];
 
-  // CHECK: %[[IDX2_OK:.*]] = icmp ult i64 %{{.*}}, 6
-  // CHECK: br i1 %[[IDX2_OK]]
-  // CHECK: call void @__ubsan_handle_out_of_bounds(
-
   // CHECK: %[[IDX1_OK:.*]] = icmp ult i64 %{{.*}}, 4
   // CHECK: br i1 %[[IDX1_OK]]
+  // CHECK: call void @__ubsan_handle_out_of_bounds(
+
+  // CHECK: %[[IDX2_OK:.*]] = icmp ult i64 %{{.*}}, 6
+  // CHECK: br i1 %[[IDX2_OK]]
   // CHECK: call void @__ubsan_handle_out_of_bounds(
   return arr[n][m];
 }
@@ -358,16 +371,16 @@ class C : public A, public B // align=16
 void downcast_pointer(B *b) {
   (void) static_cast<C*>(b);
   // Alignment check from EmitTypeCheck(TCK_DowncastPointer, ...)
-  // CHECK: [[SUB:%[.a-z0-9]*]] = getelementptr i8* {{.*}}, i64 -16
-  // CHECK-NEXT: [[C:%[0-9]*]] = bitcast i8* [[SUB]] to %class.C*
+  // CHECK: [[SUB:%[.a-z0-9]*]] = getelementptr i8, i8* {{.*}}, i64 -16
+  // CHECK-NEXT: [[C:%.+]] = bitcast i8* [[SUB]] to %class.C*
   // null check goes here
-  // CHECK: [[FROM_PHI:%[0-9]*]] = phi %class.C* [ [[C]], {{.*}} ], {{.*}}
+  // CHECK: [[FROM_PHI:%.+]] = phi %class.C* [ [[C]], {{.*}} ], {{.*}}
   // Objectsize check goes here
-  // CHECK: [[C_INT:%[0-9]*]] = ptrtoint %class.C* [[FROM_PHI]] to i64
-  // CHECK-NEXT: [[MASKED:%[0-9]*]] = and i64 [[C_INT]], 15
-  // CHECK-NEXT: [[TEST:%[0-9]*]] = icmp eq i64 [[MASKED]], 0
+  // CHECK: [[C_INT:%.+]] = ptrtoint %class.C* [[FROM_PHI]] to i64
+  // CHECK-NEXT: [[MASKED:%.+]] = and i64 [[C_INT]], 15
+  // CHECK-NEXT: [[TEST:%.+]] = icmp eq i64 [[MASKED]], 0
   // AND the alignment test with the objectsize test.
-  // CHECK-NEXT: [[AND:%[0-9]*]] = and i1 {{.*}}, [[TEST]]
+  // CHECK-NEXT: [[AND:%.+]] = and i1 {{.*}}, [[TEST]]
   // CHECK-NEXT: br i1 [[AND]]
 }
 
@@ -375,33 +388,158 @@ void downcast_pointer(B *b) {
 void downcast_reference(B &b) {
   (void) static_cast<C&>(b);
   // Alignment check from EmitTypeCheck(TCK_DowncastReference, ...)
-  // CHECK:      [[SUB:%[.a-z0-9]*]] = getelementptr i8* {{.*}}, i64 -16
-  // CHECK-NEXT: [[C:%[0-9]*]] = bitcast i8* [[SUB]] to %class.C*
+  // CHECK:      [[SUB:%[.a-z0-9]*]] = getelementptr i8, i8* {{.*}}, i64 -16
+  // CHECK-NEXT: [[C:%.+]] = bitcast i8* [[SUB]] to %class.C*
   // Objectsize check goes here
-  // CHECK:      [[C_INT:%[0-9]*]] = ptrtoint %class.C* [[C]] to i64
-  // CHECK-NEXT: [[MASKED:%[0-9]*]] = and i64 [[C_INT]], 15
-  // CHECK-NEXT: [[TEST:%[0-9]*]] = icmp eq i64 [[MASKED]], 0
+  // CHECK:      [[C_INT:%.+]] = ptrtoint %class.C* [[C]] to i64
+  // CHECK-NEXT: [[MASKED:%.+]] = and i64 [[C_INT]], 15
+  // CHECK-NEXT: [[TEST:%.+]] = icmp eq i64 [[MASKED]], 0
   // AND the alignment test with the objectsize test.
-  // CHECK-NEXT: [[AND:%[0-9]*]] = and i1 {{.*}}, [[TEST]]
+  // CHECK:      [[AND:%.+]] = and i1 {{.*}}, [[TEST]]
   // CHECK-NEXT: br i1 [[AND]]
 }
 
-// CHECK-LABEL: @_Z22indirect_function_callPFviE({{.*}} prefix <{ i32, i8* }> <{ i32 1413876459, i8* bitcast ({ i8*, i8* }* @_ZTIFvPFviEE to i8*) }>
+//
+// CHECK-LABEL: @_Z22indirect_function_callPFviE({{.*}} prologue <{ i32, i32 }> <{ i32 846595819, i32 trunc (i64 sub (i64 ptrtoint (i8** {{.*}} to i64), i64 ptrtoint (void (void (i32)*)* @_Z22indirect_function_callPFviE to i64)) to i32) }>
+// CHECK-X32: @_Z22indirect_function_callPFviE({{.*}} prologue <{ i32, i32 }> <{ i32 846595819, i32 sub (i32 ptrtoint (i8** [[IndirectRTTI_ZTIFvPFviEE]] to i32), i32 ptrtoint (void (void (i32)*)* @_Z22indirect_function_callPFviE to i32)) }>
+// CHECK-X86: @_Z22indirect_function_callPFviE({{.*}} prologue <{ i32, i32 }> <{ i32 846595819, i32 sub (i32 ptrtoint (i8** [[IndirectRTTI_ZTIFvPFviEE]] to i32), i32 ptrtoint (void (void (i32)*)* @_Z22indirect_function_callPFviE to i32)) }>
 void indirect_function_call(void (*p)(int)) {
-  // CHECK: [[PTR:%[0-9]*]] = bitcast void (i32)* {{.*}} to <{ i32, i8* }>*
+  // CHECK: [[PTR:%.+]] = bitcast void (i32)* {{.*}} to <{ i32, i32 }>*
 
   // Signature check
-  // CHECK-NEXT: [[SIGPTR:%[0-9]*]] = getelementptr <{ i32, i8* }>* [[PTR]], i32 0, i32 0
-  // CHECK-NEXT: [[SIG:%[0-9]*]] = load i32* [[SIGPTR]]
-  // CHECK-NEXT: [[SIGCMP:%[0-9]*]] = icmp eq i32 [[SIG]], 1413876459
+  // CHECK-NEXT: [[SIGPTR:%.+]] = getelementptr <{ i32, i32 }>, <{ i32, i32 }>* [[PTR]], i32 0, i32 0
+  // CHECK-NEXT: [[SIG:%.+]] = load i32, i32* [[SIGPTR]]
+  // CHECK-NEXT: [[SIGCMP:%.+]] = icmp eq i32 [[SIG]], 846595819
   // CHECK-NEXT: br i1 [[SIGCMP]]
 
   // RTTI pointer check
-  // CHECK: [[RTTIPTR:%[0-9]*]] = getelementptr <{ i32, i8* }>* [[PTR]], i32 0, i32 1
-  // CHECK-NEXT: [[RTTI:%[0-9]*]] = load i8** [[RTTIPTR]]
-  // CHECK-NEXT: [[RTTICMP:%[0-9]*]] = icmp eq i8* [[RTTI]], bitcast ({ i8*, i8* }* @_ZTIFviE to i8*)
+  // CHECK: [[RTTIPTR:%.+]] = getelementptr <{ i32, i32 }>, <{ i32, i32 }>* [[PTR]], i32 0, i32 1
+  // CHECK-NEXT: [[RTTIEncIntTrunc:%.+]] = load i32, i32* [[RTTIPTR]]
+  // CHECK-NEXT: [[RTTIEncInt:%.+]] = sext i32 [[RTTIEncIntTrunc]] to i64
+  // CHECK-NEXT: [[FuncAddrInt:%.+]] = ptrtoint void (i32)* {{.*}} to i64
+  // CHECK-NEXT: [[IndirectGVInt:%.+]] = add i64 [[RTTIEncInt]], [[FuncAddrInt]]
+  // CHECK-NEXT: [[IndirectGV:%.+]] = inttoptr i64 [[IndirectGVInt]] to i8**
+  // CHECK-NEXT: [[RTTI:%.+]] = load i8*, i8** [[IndirectGV]], align 8
+  // CHECK-NEXT: [[RTTICMP:%.+]] = icmp eq i8* [[RTTI]], bitcast ({ i8*, i8* }* @_ZTIFviE to i8*)
   // CHECK-NEXT: br i1 [[RTTICMP]]
+
   p(42);
+}
+
+namespace FunctionSanitizerVirtualCalls {
+struct A {
+  virtual void f() {}
+  virtual void g() {}
+  void h() {}
+};
+
+struct B : virtual A {
+  virtual void b() {}
+  virtual void f();
+  void g() final {}
+  static void q() {}
+};
+
+void B::f() {}
+
+void force_irgen() {
+  A a;
+  a.g();
+  a.h();
+
+  B b;
+  b.f();
+  b.b();
+  b.g();
+  B::q();
+}
+
+// CHECK-LABEL: define void @_ZN29FunctionSanitizerVirtualCalls1B1fEv
+// CHECK-NOT: prologue
+//
+// CHECK-LABEL: define void @_ZTv0_n24_N29FunctionSanitizerVirtualCalls1B1fEv
+// CHECK-NOT: prologue
+//
+// CHECK-LABEL: define void @_ZN29FunctionSanitizerVirtualCalls11force_irgenEv()
+// CHECK: prologue
+//
+// CHECK-LABEL: define linkonce_odr void @_ZN29FunctionSanitizerVirtualCalls1AC1Ev
+// CHECK-NOT: prologue
+//
+// CHECK-LABEL: define linkonce_odr void @_ZN29FunctionSanitizerVirtualCalls1A1gEv
+// CHECK-NOT: prologue
+//
+// CHECK-LABEL: define linkonce_odr void @_ZN29FunctionSanitizerVirtualCalls1A1hEv
+// CHECK-NOT: prologue
+//
+// CHECK-LABEL: define linkonce_odr void @_ZN29FunctionSanitizerVirtualCalls1BC1Ev
+// CHECK-NOT: prologue
+//
+// CHECK-LABEL: define linkonce_odr void @_ZN29FunctionSanitizerVirtualCalls1B1bEv
+// CHECK-NOT: prologue
+//
+// CHECK-LABEL: define linkonce_odr void @_ZN29FunctionSanitizerVirtualCalls1B1gEv
+// CHECK-NOT: prologue
+//
+// CHECK-LABEL: define linkonce_odr void @_ZN29FunctionSanitizerVirtualCalls1B1qEv
+// CHECK: prologue
+
+}
+
+namespace UpcastPointerTest {
+struct S {};
+struct T : S { double d; };
+struct V : virtual S {};
+
+// CHECK-LABEL: upcast_pointer
+S* upcast_pointer(T* t) {
+  // Check for null pointer
+  // CHECK: %[[NONNULL:.*]] = icmp ne {{.*}}, null
+  // CHECK: br i1 %[[NONNULL]]
+
+  // Check alignment
+  // CHECK: %[[MISALIGN:.*]] = and i64 %{{.*}}, 7
+  // CHECK: icmp eq i64 %[[MISALIGN]], 0
+
+  // CHECK: call void @__ubsan_handle_type_mismatch
+  return t;
+}
+
+V getV();
+
+// CHECK-LABEL: upcast_to_vbase
+void upcast_to_vbase() {
+  // No need to check for null here, as we have a temporary here.
+
+  // CHECK-NOT: br i1
+
+  // CHECK: call i64 @llvm.objectsize
+  // CHECK: call void @__ubsan_handle_type_mismatch
+  // CHECK: call void @__ubsan_handle_dynamic_type_cache_miss
+  const S& s = getV();
+}
+}
+
+struct ThisAlign {
+  void this_align_lambda();
+  void this_align_lambda_2();
+};
+void ThisAlign::this_align_lambda() {
+  // CHECK-LABEL: define internal %struct.ThisAlign* @"_ZZN9ThisAlign17this_align_lambdaEvENK3$_0clEv"
+  // CHECK-SAME: (%{{.*}}* %[[this:[^)]*]])
+  // CHECK: %[[this_addr:.*]] = alloca
+  // CHECK: store %{{.*}}* %[[this]], %{{.*}}** %[[this_addr]],
+  // CHECK: %[[this_inner:.*]] = load %{{.*}}*, %{{.*}}** %[[this_addr]],
+  // CHECK: %[[this_outer_addr:.*]] = getelementptr inbounds %{{.*}}, %{{.*}}* %[[this_inner]], i32 0, i32 0
+  // CHECK: %[[this_outer:.*]] = load %{{.*}}*, %{{.*}}** %[[this_outer_addr]],
+  //
+  // CHECK: %[[this_inner_isnonnull:.*]] = icmp ne %{{.*}}* %[[this_inner]], null
+  // CHECK: %[[this_inner_asint:.*]] = ptrtoint %{{.*}}* %[[this_inner]] to i
+  // CHECK: %[[this_inner_misalignment:.*]] = and i{{32|64}} %[[this_inner_asint]], {{3|7}},
+  // CHECK: %[[this_inner_isaligned:.*]] = icmp eq i{{32|64}} %[[this_inner_misalignment]], 0
+  // CHECK: %[[this_inner_valid:.*]] = and i1 %[[this_inner_isnonnull]], %[[this_inner_isaligned]],
+  // CHECK: br i1 %[[this_inner_valid:.*]]
+  [&] { return this; } ();
 }
 
 namespace CopyValueRepresentation {
@@ -409,11 +547,11 @@ namespace CopyValueRepresentation {
   // CHECK-NOT: call {{.*}} @__ubsan_handle_load_invalid_value
   // CHECK-LABEL: define {{.*}} @_ZN23CopyValueRepresentation2S4aSEOS0_
   // CHECK-NOT: call {{.*}} @__ubsan_handle_load_invalid_value
-  // CHECK-LABEL: define {{.*}} @_ZN23CopyValueRepresentation2S5C2ERKS0_
+  // CHECK-LABEL: define {{.*}} @_ZN23CopyValueRepresentation2S1C2ERKS0_
   // CHECK-NOT: call {{.*}} __ubsan_handle_load_invalid_value
   // CHECK-LABEL: define {{.*}} @_ZN23CopyValueRepresentation2S2C2ERKS0_
   // CHECK: __ubsan_handle_load_invalid_value
-  // CHECK-LABEL: define {{.*}} @_ZN23CopyValueRepresentation2S1C2ERKS0_
+  // CHECK-LABEL: define {{.*}} @_ZN23CopyValueRepresentation2S5C2ERKS0_
   // CHECK-NOT: call {{.*}} __ubsan_handle_load_invalid_value
 
   struct CustomCopy { CustomCopy(); CustomCopy(const CustomCopy&); };
@@ -485,6 +623,20 @@ namespace CopyValueRepresentation {
     S5 s52;
     s52 = s51;
   }
+}
+
+void ThisAlign::this_align_lambda_2() {
+  // CHECK-LABEL: define internal void @"_ZZN9ThisAlign19this_align_lambda_2EvENK3$_1clEv"
+  // CHECK-SAME: (%{{.*}}* %[[this:[^)]*]])
+  // CHECK: %[[this_addr:.*]] = alloca
+  // CHECK: store %{{.*}}* %[[this]], %{{.*}}** %[[this_addr]],
+  // CHECK: %[[this_inner:.*]] = load %{{.*}}*, %{{.*}}** %[[this_addr]],
+  //
+  // Do not perform a null check on the 'this' pointer if the function might be
+  // called from a static invoker.
+  // CHECK-NOT: icmp ne %{{.*}}* %[[this_inner]], null
+  auto *p = +[] {};
+  p();
 }
 
 // CHECK: attributes [[NR_NUW]] = { noreturn nounwind }

@@ -10,8 +10,9 @@ define void @t(i32 %a, %struct.s* byval %s) nounwind {
 entry:
 
 ; Here we need to only check proper start address of restored %s argument.
-; CHECK:      sub     sp, sp, #16
+; CHECK:      sub     sp, sp, #12
 ; CHECK:      push    {r11, lr}
+; CHECK:      sub     sp, sp, #4
 ; CHECK:      add     r0, sp, #12
 ; CHECK:      stm     r0, {r1, r2, r3}
 ; CHECK:      add     r0, sp, #12
@@ -23,7 +24,7 @@ entry:
 ; CHECK-LABEL: caller:
 define void @caller() {
 
-; CHECK:      ldm     r0, {r1, r2, r3}
+; CHECK:      ldm     r{{[0-9]+}}, {r1, r2, r3}
   call void @t(i32 0, %struct.s* @v);
   ret void
 }

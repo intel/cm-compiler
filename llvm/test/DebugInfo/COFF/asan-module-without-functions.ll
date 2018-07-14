@@ -45,9 +45,9 @@ define internal void @asan.module_dtor() {
 !llvm.module.flags = !{!3, !4}
 !llvm.ident = !{!5}
 
-!0 = metadata !{i32 786449, metadata !1, i32 12, metadata !"clang version 3.5.0 ", i1 false, metadata !"", i32 0, metadata !2, metadata !2, metadata !2, metadata !2, metadata !2, metadata !"", i32 2} ; [ DW_TAG_compile_unit ] [D:\/asan.c] [DW_LANG_C99]
-!1 = metadata !{metadata !"asan.c", metadata !"D:\5C"}
-!2 = metadata !{}
-!3 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!4 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
-!5 = metadata !{metadata !"clang version 3.5.0 "}
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 ", isOptimized: false, emissionKind: LineTablesOnly, file: !1, enums: !2, retainedTypes: !2, globals: !2, imports: !2)
+!1 = !DIFile(filename: "asan.c", directory: "D:\5C")
+!2 = !{}
+!3 = !{i32 2, !"CodeView", i32 1}
+!4 = !{i32 1, !"Debug Info Version", i32 3}
+!5 = !{!"clang version 3.5.0 "}

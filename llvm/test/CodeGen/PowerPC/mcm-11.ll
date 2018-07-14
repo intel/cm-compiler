@@ -1,4 +1,4 @@
-; RUN: llc -mcpu=pwr7 -O1 -code-model=medium <%s | FileCheck %s
+; RUN: llc -relocation-model=static -verify-machineinstrs -mcpu=pwr7 -O1 -code-model=medium <%s | FileCheck %s
 
 ; Test peephole optimization for medium code model (32-bit TOC offsets)
 ; for loading and storing a file-scope static variable.
@@ -10,7 +10,7 @@ target triple = "powerpc64-unknown-linux-gnu"
 
 define signext i32 @test_file_static() nounwind {
 entry:
-  %0 = load i32* @gi, align 4
+  %0 = load i32, i32* @gi, align 4
   %inc = add nsw i32 %0, 1
   store i32 %inc, i32* @gi, align 4
   ret i32 %0

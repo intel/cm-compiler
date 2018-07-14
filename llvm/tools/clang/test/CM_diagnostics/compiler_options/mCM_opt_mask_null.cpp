@@ -38,6 +38,6 @@ void test() {
 #warning CM_GEN10 defined
 #endif
 
-// CHECK: mCM_opt_mask_null.cpp(14,2) :  warning: CM_GENX not defined [-W#warnings]
+// CHECK: mCM_opt_mask_null.cpp(14,2):  warning: CM_GENX not defined [-W#warnings]
 // CHECK: 1 warning generated.
 // CHECK-NOT: -platform

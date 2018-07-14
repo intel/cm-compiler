@@ -74,3 +74,32 @@ namespace b6981007 {
     }
   }
 }
+
+namespace incorrect_auto_type_deduction_for_typo {
+struct S {
+  template <typename T> S(T t) {
+    (void)sizeof(t);
+    (void)new auto(t);
+  }
+};
+
+void Foo(S);
+
+void test(int some_number) {  // expected-note {{'some_number' declared here}}
+  auto x = sum_number;  // expected-error {{use of undeclared identifier 'sum_number'; did you mean 'some_number'?}}
+  auto lambda = [x] {};
+  Foo(lambda);
+}
+}
+
+namespace pr29091 {
+  struct X{ X(const X &x); };
+  struct Y: X { using X::X; };
+  bool foo() { return __has_nothrow_constructor(Y); }
+  bool bar() { return __has_nothrow_copy(Y); }
+
+  struct A { template <typename T> A(); };
+  struct B : A { using A::A; };
+  bool baz() { return __has_nothrow_constructor(B); }
+  bool qux() { return __has_nothrow_copy(B); }
+}

@@ -1,4 +1,8 @@
-; RUN: llc -mcpu=pwr7 < %s | FileCheck %s
+; RUN: llc -verify-machineinstrs -mcpu=pwr7 < %s | FileCheck %s
+; RUN: llc -verify-machineinstrs -O1 -mcpu=pwr7 < %s | FileCheck %s
+; RUN: llc -verify-machineinstrs -mcpu=pwr7 -ppc-gen-isel=false  < %s | FileCheck --check-prefix=CHECK-NO-ISEL %s
+; RUN: llc -verify-machineinstrs -O1 -mcpu=pwr7 -ppc-gen-isel=false < %s | FileCheck --check-prefix=CHECK-NO-ISEL %s
+
 target datalayout = "E-m:e-i64:64-n32:64"
 target triple = "powerpc64-unknown-linux-gnu"
 
@@ -12,11 +16,15 @@ entry:
 ; CHECK-LABEL: @testi1
 ; CHECK-DAG: andi. {{[0-9]+}}, 3, 1
 ; CHECK-DAG: li [[REG1:[0-9]+]], 0
-; CHECK-DAG: cror [[REG2:[0-9]+]], 1, 1
+; CHECK-DAG: crmove [[REG2:[0-9]+]], 1
 ; CHECK-DAG: andi. {{[0-9]+}}, 4, 1
 ; CHECK-DAG: crand [[REG3:[0-9]+]], [[REG2]], 1
 ; CHECK-DAG: li [[REG4:[0-9]+]], 1
 ; CHECK: isel 3, [[REG4]], [[REG1]], [[REG3]]
+; CHECK-NO-ISEL-LABEL: @testi1
+; CHECK-NO-ISEL: bclr 12, 20, 0
+; CHECK-NO-ISEL: ori 3, 5, 0
+; CHECK-NO-ISEL-NEXT: blr
 ; CHECK: blr
 }
 
@@ -31,7 +39,7 @@ entry:
 ; CHECK-LABEL: @testi32
 ; CHECK-DAG: andi. {{[0-9]+}}, 3, 1
 ; CHECK-DAG: li [[REG1:[0-9]+]], 0
-; CHECK-DAG: cror [[REG2:[0-9]+]], 1, 1
+; CHECK-DAG: crmove [[REG2:[0-9]+]], 1
 ; CHECK-DAG: andi. {{[0-9]+}}, 4, 1
 ; CHECK-DAG: crand [[REG3:[0-9]+]], [[REG2]], 1
 ; CHECK-DAG: li [[REG4:[0-9]+]], -1
@@ -47,7 +55,7 @@ entry:
 ; CHECK-LABEL: @testi8
 ; CHECK-DAG: andi. {{[0-9]+}}, 3, 1
 ; CHECK-DAG: li [[REG1:[0-9]+]], 0
-; CHECK-DAG: cror [[REG2:[0-9]+]], 1, 1
+; CHECK-DAG: crmove [[REG2:[0-9]+]], 1
 ; CHECK-DAG: andi. {{[0-9]+}}, 4, 1
 ; CHECK-DAG: crand [[REG3:[0-9]+]], [[REG2]], 1
 ; CHECK-DAG: li [[REG4:[0-9]+]], 1
@@ -55,5 +63,5 @@ entry:
 ; CHECK: blr
 }
 
-attributes #0 = { nounwind }
+attributes #0 = { nounwind "target-features"="+crbits" }
 

@@ -32,16 +32,16 @@ void test() {
   s2.template n_rows = 2;           // not a template
   m.n_rows() = 2;                   // not assignable
 }
-// CHECK: n_rows.cpp(18,20) :  error: expected '('
-// CHECK: n_rows.cpp(19,21) :  error: expected ')'
-// CHECK: n_rows.cpp(20,21) :  error: expected ')'
-// CHECK: n_rows.cpp(22,21) :  error: expected ')'
-// CHECK: n_rows.cpp(24,14) :  error: n_rows() member function is only valid for matrix/matrix_ref
-// CHECK: n_rows.cpp(25,23) :  error: n_rows() member function is only valid for matrix/matrix_ref
-// CHECK: n_rows.cpp(26,15) :  error: no member named 'n_rows' in 'S1'
-// CHECK: n_rows.cpp(27,16) :  error: no member named 'n_rows' in 'S1'
-// CHECK: n_rows.cpp(29,22) :  error: called object type 'int' is not a function or function pointer
-// CHECK: n_rows.cpp(30,25) :  error: 'n_rows' following the 'template' keyword does not refer to a template
-// CHECK: n_rows.cpp(32,15) :  error: 'n_rows' following the 'template' keyword does not refer to a template
-// CHECK: n_rows.cpp(33,14) :  error: expression is not assignable
+// CHECK: n_rows.cpp(18,20):  error: expected '('
+// CHECK: n_rows.cpp(19,21):  error: expected ')'
+// CHECK: n_rows.cpp(20,21):  error: expected ')'
+// CHECK: n_rows.cpp(22,21):  error: expected ')'
+// CHECK: n_rows.cpp(24,14):  error: n_rows() member function is only valid for matrix/matrix_ref
+// CHECK: n_rows.cpp(25,23):  error: n_rows() member function is only valid for matrix/matrix_ref
+// CHECK: n_rows.cpp(26,15):  error: no member named 'n_rows' in 'S1'
+// CHECK: n_rows.cpp(27,16):  error: no member named 'n_rows' in 'S1'
+// CHECK: n_rows.cpp(29,22):  error: called object type 'int' is not a function or function pointer
+// CHECK: n_rows.cpp(30,25):  error: 'n_rows' following the 'template' keyword does not refer to a template
+// CHECK: n_rows.cpp(32,15):  error: 'n_rows' following the 'template' keyword does not refer to a template
+// CHECK: n_rows.cpp(33,14):  error: expression is not assignable
 // CHECK: 12 errors generated.

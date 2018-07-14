@@ -951,6 +951,13 @@ void GenXBaling::processMainInst(Instruction *Inst, int IntrinID)
             // These instructions take a logic modifier.
             ModType = GenXIntrinsicInfo::MODIFIER_LOGIC;
             break;
+          case Instruction::LShr:
+          case Instruction::AShr:
+          case Instruction::Shl:
+            // Do not allow source modifier on integer shift operations,
+            // because of extra precision introduced.
+            ModType = GenXIntrinsicInfo::MODIFIER_DEFAULT;
+            break;
           default:
             // All other (non-intrinsic) instructions take an arith modifier.
             break;
@@ -1031,9 +1038,10 @@ void GenXBaling::processMainInst(Instruction *Inst, int IntrinID)
   // forwards, a constant will propagate through a chain of modifiers.
   if (BI.Type != BaleInfo::MAININST) {
     Value *Simplified = nullptr;
-    if (BI.Type != BaleInfo::ABSMOD)
-      Simplified = SimplifyInstruction(Inst);
-    else {
+    if (BI.Type != BaleInfo::ABSMOD) {
+      const DataLayout &DL = Inst->getModule()->getDataLayout();
+      Simplified = SimplifyInstruction(Inst, SimplifyQuery(DL));
+    } else {
       // SimplifyInstruction does not work on abs, so we roll our own for now.
       if (auto C = dyn_cast<Constant>(Inst->getOperand(0))) {
         if (C->getType()->isIntOrIntVectorTy()) {

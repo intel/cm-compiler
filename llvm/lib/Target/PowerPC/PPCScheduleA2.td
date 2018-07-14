@@ -1,10 +1,10 @@
 //===- PPCScheduleA2.td - PPC A2 Scheduling Definitions --*- tablegen -*-===//
-// 
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 
 // Primary reference:
@@ -29,6 +29,8 @@ def PPCA2Itineraries : ProcessorItineraries<
                                  [1, 0, 0]>,
   InstrItinData<IIC_IntGeneral,  [InstrStage<1, [A2_XU]>],
                                  [2, 0, 0]>,
+  InstrItinData<IIC_IntISEL,     [InstrStage<1, [A2_XU]>],
+                                 [2, 0, 0, 0]>,
   InstrItinData<IIC_IntCompare,  [InstrStage<1, [A2_XU]>],
                                  [2, 0, 0]>,
   InstrItinData<IIC_IntDivW,     [InstrStage<1, [A2_XU]>],
@@ -158,11 +160,12 @@ def PPCA2Itineraries : ProcessorItineraries<
 
 def PPCA2Model : SchedMachineModel {
   let IssueWidth = 1;  // 1 instruction is dispatched per cycle.
-  let MinLatency = -1; // OperandCycles are interpreted as MinLatency.
   let LoadLatency = 6; // Optimistic load latency assuming bypass.
                        // This is overriden by OperandCycles if the
                        // Itineraries are queried instead.
   let MispredictPenalty = 13;
+
+  let CompleteModel = 0;
 
   let Itineraries = PPCA2Itineraries;
 }

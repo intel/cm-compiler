@@ -7,10 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_REWRITE_FRONTENDACTIONS_H
-#define LLVM_CLANG_REWRITE_FRONTENDACTIONS_H
+#ifndef LLVM_CLANG_REWRITE_FRONTEND_FRONTENDACTIONS_H
+#define LLVM_CLANG_REWRITE_FRONTEND_FRONTENDACTIONS_H
 
 #include "clang/Frontend/FrontendAction.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace clang {
 class FixItRewriter;
@@ -22,8 +23,8 @@ class FixItOptions;
 
 class HTMLPrintAction : public ASTFrontendAction {
 protected:
-  ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                 StringRef InFile) override;
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                 StringRef InFile) override;
 };
 
 class FixItAction : public ASTFrontendAction {
@@ -31,11 +32,10 @@ protected:
   std::unique_ptr<FixItRewriter> Rewriter;
   std::unique_ptr<FixItOptions> FixItOpts;
 
-  ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                 StringRef InFile) override;
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                 StringRef InFile) override;
 
-  bool BeginSourceFileAction(CompilerInstance &CI,
-                             StringRef Filename) override;
+  bool BeginSourceFileAction(CompilerInstance &CI) override;
 
   void EndSourceFileAction() override;
 
@@ -43,15 +43,15 @@ protected:
 
 public:
   FixItAction();
-  ~FixItAction();
+  ~FixItAction() override;
 };
 
 /// \brief Emits changes to temporary files and uses them for the original
 /// frontend action.
 class FixItRecompile : public WrapperFrontendAction {
 public:
-  FixItRecompile(FrontendAction *WrappedAction)
-    : WrapperFrontendAction(WrappedAction) {}
+  FixItRecompile(std::unique_ptr<FrontendAction> WrappedAction)
+    : WrapperFrontendAction(std::move(WrappedAction)) {}
 
 protected:
   bool BeginInvocation(CompilerInstance &CI) override;
@@ -59,8 +59,8 @@ protected:
 
 class RewriteObjCAction : public ASTFrontendAction {
 protected:
-  ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                 StringRef InFile) override;
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                 StringRef InFile) override;
 };
 
 class RewriteMacrosAction : public PreprocessorFrontendAction {
@@ -74,7 +74,10 @@ protected:
 };
 
 class RewriteIncludesAction : public PreprocessorFrontendAction {
+  std::shared_ptr<raw_ostream> OutputStream;
+  class RewriteImportsListener;
 protected:
+  bool BeginSourceFileAction(CompilerInstance &CI) override;
   void ExecuteAction() override;
 };
 

@@ -449,7 +449,7 @@ public:
   static char ID;
   explicit GenXFuncBaling(BalingKind Kind = BalingKind::BK_Legalization)
       : FunctionPass(ID), GenXBaling(Kind) {}
-  virtual const char *getPassName() const {
+  virtual StringRef getPassName() const {
     return "GenX instruction baling analysis for a function";
   }
   void getAnalysisUsage(AnalysisUsage &AU) const;
@@ -474,7 +474,7 @@ public:
   static char ID;
   explicit GenXGroupBaling(BalingKind Kind = BalingKind::BK_Legalization)
       : FunctionGroupPass(ID), GenXBaling(Kind) {}
-  virtual const char *getPassName() const {
+  virtual StringRef getPassName() const {
     return "GenX instruction baling analysis for a function group";
   }
   void getAnalysisUsage(AnalysisUsage &AU) const;

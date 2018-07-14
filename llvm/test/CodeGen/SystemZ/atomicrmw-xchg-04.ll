@@ -20,7 +20,7 @@ define i64 @f2(i64 %dummy, i64 *%src, i64 %b) {
 ; CHECK: lg %r2, 524280(%r3)
 ; CHECK: csg %r2, {{%r[0-9]+}}, 524280(%r3)
 ; CHECK: br %r14
-  %ptr = getelementptr i64 *%src, i64 65535
+  %ptr = getelementptr i64, i64 *%src, i64 65535
   %res = atomicrmw xchg i64 *%ptr, i64 %b seq_cst
   ret i64 %res
 }
@@ -32,7 +32,7 @@ define i64 @f3(i64 %dummy, i64 *%src, i64 %b) {
 ; CHECK: lg %r2, 0(%r3)
 ; CHECK: csg %r2, {{%r[0-9]+}}, 0(%r3)
 ; CHECK: br %r14
-  %ptr = getelementptr i64 *%src, i64 65536
+  %ptr = getelementptr i64, i64 *%src, i64 65536
   %res = atomicrmw xchg i64 *%ptr, i64 %b seq_cst
   ret i64 %res
 }
@@ -43,7 +43,7 @@ define i64 @f4(i64 %dummy, i64 *%src, i64 %b) {
 ; CHECK: lg %r2, -524288(%r3)
 ; CHECK: csg %r2, {{%r[0-9]+}}, -524288(%r3)
 ; CHECK: br %r14
-  %ptr = getelementptr i64 *%src, i64 -65536
+  %ptr = getelementptr i64, i64 *%src, i64 -65536
   %res = atomicrmw xchg i64 *%ptr, i64 %b seq_cst
   ret i64 %res
 }
@@ -55,7 +55,7 @@ define i64 @f5(i64 %dummy, i64 *%src, i64 %b) {
 ; CHECK: lg %r2, 0(%r3)
 ; CHECK: csg %r2, {{%r[0-9]+}}, 0(%r3)
 ; CHECK: br %r14
-  %ptr = getelementptr i64 *%src, i64 -65537
+  %ptr = getelementptr i64, i64 *%src, i64 -65537
   %res = atomicrmw xchg i64 *%ptr, i64 %b seq_cst
   ret i64 %res
 }
@@ -77,8 +77,8 @@ define i64 @f6(i64 %dummy, i64 %base, i64 %index, i64 %b) {
 ; use the sequence above.
 define i64 @f7(i64 %dummy, i64 *%ptr) {
 ; CHECK-LABEL: f7:
-; CHECK: llilf [[VALUE:%r[0-9+]]], 3000000000
-; CHECK: lg %r2, 0(%r3)
+; CHECK-DAG: llilf [[VALUE:%r[0-9+]]], 3000000000
+; CHECK-DAG: lg %r2, 0(%r3)
 ; CHECK: [[LABEL:\.[^:]*]]:
 ; CHECK: csg %r2, [[VALUE]], 0(%r3)
 ; CHECK: jl [[LABEL]]

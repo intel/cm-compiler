@@ -1,10 +1,17 @@
 set(LLVM_LINK_COMPONENTS
-  ${LLVM_TARGETS_TO_BUILD}
-  DebugInfo
+  AllTargetsAsmPrinters
+  AllTargetsDescs
+  AllTargetsDisassemblers
+  AllTargetsInfos
+  CodeGen
+  DebugInfoDWARF
+  DebugInfoPDB
+  Demangle
   MC
-  MCAnalysis
+  MCDisassembler
   Object
   Support
+  Symbolize
   )
 
 add_llvm_tool(llvm-objdump
@@ -12,4 +19,13 @@ add_llvm_tool(llvm-objdump
   COFFDump.cpp
   ELFDump.cpp
   MachODump.cpp
+  WasmDump.cpp
   )
+
+if(HAVE_LIBXAR)
+  target_link_libraries(llvm-objdump PRIVATE ${XAR_LIB})
+endif()
+
+if(LLVM_INSTALL_BINUTILS_SYMLINKS)
+  add_llvm_tool_symlink(objdump llvm-objdump)
+endif()

@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SIMPLE_FORM_CONTEXT_H
-#define LLVM_CLANG_SIMPLE_FORM_CONTEXT_H
+#ifndef LLVM_CLANG_LIB_INDEX_SIMPLEFORMATCONTEXT_H
+#define LLVM_CLANG_LIB_INDEX_SIMPLEFORMATCONTEXT_H
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticOptions.h"
@@ -38,19 +38,17 @@ public:
       : DiagOpts(new DiagnosticOptions()),
         Diagnostics(new DiagnosticsEngine(new DiagnosticIDs,
                                           DiagOpts.get())),
-        Files((FileSystemOptions())),
+        InMemoryFileSystem(new vfs::InMemoryFileSystem),
+        Files(FileSystemOptions(), InMemoryFileSystem),
         Sources(*Diagnostics, Files),
         Rewrite(Sources, Options) {
     Diagnostics->setClient(new IgnoringDiagConsumer, true);
   }
 
-  ~SimpleFormatContext() { }
-
   FileID createInMemoryFile(StringRef Name, StringRef Content) {
-    llvm::MemoryBuffer *Source = llvm::MemoryBuffer::getMemBuffer(Content);
-    const FileEntry *Entry =
-        Files.getVirtualFile(Name, Source->getBufferSize(), 0);
-    Sources.overrideFileContents(Entry, Source);
+    InMemoryFileSystem->addFile(Name, 0,
+                                llvm::MemoryBuffer::getMemBuffer(Content));
+    const FileEntry *Entry = Files.getFile(Name);
     assert(Entry != nullptr);
     return Sources.createFileID(Entry, SourceLocation(), SrcMgr::C_User);
   }
@@ -65,6 +63,7 @@ public:
 
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;
   IntrusiveRefCntPtr<DiagnosticsEngine> Diagnostics;
+  IntrusiveRefCntPtr<vfs::InMemoryFileSystem> InMemoryFileSystem;
   FileManager Files;
   SourceManager Sources;
   Rewriter Rewrite;

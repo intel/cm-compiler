@@ -6,10 +6,10 @@
 define double @f1(double %a, double %b, i64 *%ptr) {
 ; CHECK-LABEL: f1:
 ; CHECK: cghsi 0(%r2), 0
-; CHECK-NEXT: jl
+; CHECK-NEXT: blr %r14
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %val = load i64 *%ptr
+  %val = load i64 , i64 *%ptr
   %cond = icmp slt i64 %val, 0
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -19,10 +19,10 @@ define double @f1(double %a, double %b, i64 *%ptr) {
 define double @f2(double %a, double %b, i64 *%ptr) {
 ; CHECK-LABEL: f2:
 ; CHECK: cghsi 0(%r2), 0
-; CHECK-NEXT: jle
+; CHECK-NEXT: bler %r14
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %val = load i64 *%ptr
+  %val = load i64 , i64 *%ptr
   %cond = icmp slt i64 %val, 1
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -32,10 +32,10 @@ define double @f2(double %a, double %b, i64 *%ptr) {
 define double @f3(double %a, double %b, i64 *%ptr) {
 ; CHECK-LABEL: f3:
 ; CHECK: cghsi 0(%r2), 32767
-; CHECK-NEXT: jl
+; CHECK-NEXT: blr %r14
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %val = load i64 *%ptr
+  %val = load i64 , i64 *%ptr
   %cond = icmp slt i64 %val, 32767
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -46,7 +46,7 @@ define double @f4(double %a, double %b, i64 *%ptr) {
 ; CHECK-LABEL: f4:
 ; CHECK-NOT: cghsi
 ; CHECK: br %r14
-  %val = load i64 *%ptr
+  %val = load i64 , i64 *%ptr
   %cond = icmp slt i64 %val, 32768
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -56,10 +56,10 @@ define double @f4(double %a, double %b, i64 *%ptr) {
 define double @f5(double %a, double %b, i64 *%ptr) {
 ; CHECK-LABEL: f5:
 ; CHECK: cghsi 0(%r2), -1
-; CHECK-NEXT: jl
+; CHECK-NEXT: blr %r14
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %val = load i64 *%ptr
+  %val = load i64 , i64 *%ptr
   %cond = icmp slt i64 %val, -1
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -69,10 +69,10 @@ define double @f5(double %a, double %b, i64 *%ptr) {
 define double @f6(double %a, double %b, i64 *%ptr) {
 ; CHECK-LABEL: f6:
 ; CHECK: cghsi 0(%r2), -32768
-; CHECK-NEXT: jl
+; CHECK-NEXT: blr %r14
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %val = load i64 *%ptr
+  %val = load i64 , i64 *%ptr
   %cond = icmp slt i64 %val, -32768
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -83,7 +83,7 @@ define double @f7(double %a, double %b, i64 *%ptr) {
 ; CHECK-LABEL: f7:
 ; CHECK-NOT: cghsi
 ; CHECK: br %r14
-  %val = load i64 *%ptr
+  %val = load i64 , i64 *%ptr
   %cond = icmp slt i64 %val, -32769
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -93,10 +93,10 @@ define double @f7(double %a, double %b, i64 *%ptr) {
 define double @f8(double %a, double %b, i64 *%ptr) {
 ; CHECK-LABEL: f8:
 ; CHECK: cghsi 0(%r2), 0
-; CHECK-NEXT: je
+; CHECK-NEXT: ber %r14
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %val = load i64 *%ptr
+  %val = load i64 , i64 *%ptr
   %cond = icmp eq i64 %val, 0
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -106,10 +106,10 @@ define double @f8(double %a, double %b, i64 *%ptr) {
 define double @f9(double %a, double %b, i64 *%ptr) {
 ; CHECK-LABEL: f9:
 ; CHECK: cghsi 0(%r2), 1
-; CHECK-NEXT: je
+; CHECK-NEXT: ber %r14
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %val = load i64 *%ptr
+  %val = load i64 , i64 *%ptr
   %cond = icmp eq i64 %val, 1
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -119,10 +119,10 @@ define double @f9(double %a, double %b, i64 *%ptr) {
 define double @f10(double %a, double %b, i64 *%ptr) {
 ; CHECK-LABEL: f10:
 ; CHECK: cghsi 0(%r2), 32767
-; CHECK-NEXT: je
+; CHECK-NEXT: ber %r14
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %val = load i64 *%ptr
+  %val = load i64 , i64 *%ptr
   %cond = icmp eq i64 %val, 32767
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -133,7 +133,7 @@ define double @f11(double %a, double %b, i64 *%ptr) {
 ; CHECK-LABEL: f11:
 ; CHECK-NOT: cghsi
 ; CHECK: br %r14
-  %val = load i64 *%ptr
+  %val = load i64 , i64 *%ptr
   %cond = icmp eq i64 %val, 32768
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -143,10 +143,10 @@ define double @f11(double %a, double %b, i64 *%ptr) {
 define double @f12(double %a, double %b, i64 *%ptr) {
 ; CHECK-LABEL: f12:
 ; CHECK: cghsi 0(%r2), -1
-; CHECK-NEXT: je
+; CHECK-NEXT: ber %r14
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %val = load i64 *%ptr
+  %val = load i64 , i64 *%ptr
   %cond = icmp eq i64 %val, -1
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -156,10 +156,10 @@ define double @f12(double %a, double %b, i64 *%ptr) {
 define double @f13(double %a, double %b, i64 *%ptr) {
 ; CHECK-LABEL: f13:
 ; CHECK: cghsi 0(%r2), -32768
-; CHECK-NEXT: je
+; CHECK-NEXT: ber %r14
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %val = load i64 *%ptr
+  %val = load i64 , i64 *%ptr
   %cond = icmp eq i64 %val, -32768
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -170,7 +170,7 @@ define double @f14(double %a, double %b, i64 *%ptr) {
 ; CHECK-LABEL: f14:
 ; CHECK-NOT: cghsi
 ; CHECK: br %r14
-  %val = load i64 *%ptr
+  %val = load i64 , i64 *%ptr
   %cond = icmp eq i64 %val, -32769
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -180,11 +180,11 @@ define double @f14(double %a, double %b, i64 *%ptr) {
 define double @f15(double %a, double %b, i64 %i1, i64 *%base) {
 ; CHECK-LABEL: f15:
 ; CHECK: cghsi 4088(%r3), 0
-; CHECK-NEXT: jl
+; CHECK-NEXT: blr %r14
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %ptr = getelementptr i64 *%base, i64 511
-  %val = load i64 *%ptr
+  %ptr = getelementptr i64, i64 *%base, i64 511
+  %val = load i64 , i64 *%ptr
   %cond = icmp slt i64 %val, 0
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -195,11 +195,11 @@ define double @f16(double %a, double %b, i64 *%base) {
 ; CHECK-LABEL: f16:
 ; CHECK: aghi %r2, 4096
 ; CHECK: cghsi 0(%r2), 0
-; CHECK-NEXT: jl
+; CHECK-NEXT: blr %r14
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %ptr = getelementptr i64 *%base, i64 512
-  %val = load i64 *%ptr
+  %ptr = getelementptr i64, i64 *%base, i64 512
+  %val = load i64 , i64 *%ptr
   %cond = icmp slt i64 %val, 0
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -210,11 +210,11 @@ define double @f17(double %a, double %b, i64 *%base) {
 ; CHECK-LABEL: f17:
 ; CHECK: aghi %r2, -8
 ; CHECK: cghsi 0(%r2), 0
-; CHECK-NEXT: jl
+; CHECK-NEXT: blr %r14
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
-  %ptr = getelementptr i64 *%base, i64 -1
-  %val = load i64 *%ptr
+  %ptr = getelementptr i64, i64 *%base, i64 -1
+  %val = load i64 , i64 *%ptr
   %cond = icmp slt i64 %val, 0
   %res = select i1 %cond, double %a, double %b
   ret double %res
@@ -225,12 +225,12 @@ define double @f18(double %a, double %b, i64 %base, i64 %index) {
 ; CHECK-LABEL: f18:
 ; CHECK: agr {{%r2, %r3|%r3, %r2}}
 ; CHECK: cghsi 0({{%r[23]}}), 0
-; CHECK-NEXT: jl
+; CHECK-NEXT: blr %r14
 ; CHECK: ldr %f0, %f2
 ; CHECK: br %r14
   %add = add i64 %base, %index
   %ptr = inttoptr i64 %add to i64 *
-  %val = load i64 *%ptr
+  %val = load i64 , i64 *%ptr
   %cond = icmp slt i64 %val, 0
   %res = select i1 %cond, double %a, double %b
   ret double %res

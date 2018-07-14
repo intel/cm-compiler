@@ -1,0 +1,665 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>LLVM Code Coverage Mapping Format &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Garbage Collection Safepoints in LLVM" href="Statepoints.html" />
+    <link rel="prev" title="LLVM IR for the GenX backend" href="GenXLangRef.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="Statepoints.html" title="Garbage Collection Safepoints in LLVM"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="GenXLangRef.html" title="LLVM IR for the GenX backend"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-code-coverage-mapping-format">
+<h1>LLVM Code Coverage Mapping Format<a class="headerlink" href="#llvm-code-coverage-mapping-format" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id11">Introduction</a></li>
+<li><a class="reference internal" href="#quick-start" id="id12">Quick Start</a></li>
+<li><a class="reference internal" href="#high-level-overview" id="id13">High Level Overview</a></li>
+<li><a class="reference internal" href="#advanced-concepts" id="id14">Advanced Concepts</a><ul>
+<li><a class="reference internal" href="#mapping-region" id="id15">Mapping Region</a><ul>
+<li><a class="reference internal" href="#source-range" id="id16">Source Range:</a></li>
+<li><a class="reference internal" href="#file-id" id="id17">File ID:</a></li>
+<li><a class="reference internal" href="#counter" id="id18">Counter:</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#llvm-ir-representation" id="id19">LLVM IR Representation</a><ul>
+<li><a class="reference internal" href="#coverage-mapping-header" id="id20">Coverage Mapping Header:</a></li>
+<li><a class="reference internal" href="#function-record" id="id21">Function record:</a></li>
+<li><a class="reference internal" href="#encoded-data" id="id22">Encoded data:</a><ul>
+<li><a class="reference internal" href="#dissecting-the-sample" id="id23">Dissecting the sample:</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#encoding" id="id24">Encoding</a><ul>
+<li><a class="reference internal" href="#types" id="id25">Types</a><ul>
+<li><a class="reference internal" href="#leb128" id="id26">LEB128</a></li>
+<li><a class="reference internal" href="#strings" id="id27">Strings</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#file-id-mapping" id="id28">File ID Mapping</a></li>
+<li><a class="reference internal" href="#id3" id="id29">Counter</a><ul>
+<li><a class="reference internal" href="#tag" id="id30">Tag:</a></li>
+<li><a class="reference internal" href="#data" id="id31">Data:</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#counter-expressions" id="id32">Counter Expressions</a></li>
+<li><a class="reference internal" href="#mapping-regions" id="id33">Mapping Regions</a><ul>
+<li><a class="reference internal" href="#sub-array-of-regions" id="id34">Sub-Array of Regions</a></li>
+<li><a class="reference internal" href="#id6" id="id35">Mapping Region</a></li>
+<li><a class="reference internal" href="#header" id="id36">Header</a><ul>
+<li><a class="reference internal" href="#id8" id="id37">Counter:</a></li>
+<li><a class="reference internal" href="#pseudo-counter" id="id38">Pseudo-Counter:</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id9" id="id39">Source Range</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id11">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>LLVM’s code coverage mapping format is used to provide code coverage
+analysis using LLVM’s and Clang’s instrumenation based profiling
+(Clang’s <code class="docutils literal"><span class="pre">-fprofile-instr-generate</span></code> option).</p>
+<p>This document is aimed at those who use LLVM’s code coverage mapping to provide
+code coverage analysis for their own programs, and for those who would like
+to know how it works under the hood. A prior knowledge of how Clang’s profile
+guided optimization works is useful, but not required.</p>
+<p>We start by showing how to use LLVM and Clang for code coverage analysis,
+then we briefly describe LLVM’s code coverage mapping format and the
+way that Clang and LLVM’s code coverage tool work with this format. After
+the basics are down, more advanced features of the coverage mapping format
+are discussed - such as the data structures, LLVM IR representation and
+the binary encoding.</p>
+</div>
+<div class="section" id="quick-start">
+<h2><a class="toc-backref" href="#id12">Quick Start</a><a class="headerlink" href="#quick-start" title="Permalink to this headline">¶</a></h2>
+<p>Here’s a short story that describes how to generate code coverage overview
+for a sample source file called <em>test.c</em>.</p>
+<ul>
+<li><p class="first">First, compile an instrumented version of your program using Clang’s
+<code class="docutils literal"><span class="pre">-fprofile-instr-generate</span></code> option with the additional <code class="docutils literal"><span class="pre">-fcoverage-mapping</span></code>
+option:</p>
+<p><code class="docutils literal"><span class="pre">clang</span> <span class="pre">-o</span> <span class="pre">test</span> <span class="pre">-fprofile-instr-generate</span> <span class="pre">-fcoverage-mapping</span> <span class="pre">test.c</span></code></p>
+</li>
+<li><p class="first">Then, run the instrumented binary. The runtime will produce a file called
+<em>default.profraw</em> containing the raw profile instrumentation data:</p>
+<p><code class="docutils literal"><span class="pre">./test</span></code></p>
+</li>
+<li><p class="first">After that, merge the profile data using the <em>llvm-profdata</em> tool:</p>
+<p><code class="docutils literal"><span class="pre">llvm-profdata</span> <span class="pre">merge</span> <span class="pre">-o</span> <span class="pre">test.profdata</span> <span class="pre">default.profraw</span></code></p>
+</li>
+<li><p class="first">Finally, run LLVM’s code coverage tool (<em>llvm-cov</em>) to produce the code
+coverage overview for the sample source file:</p>
+<p><code class="docutils literal"><span class="pre">llvm-cov</span> <span class="pre">show</span> <span class="pre">./test</span> <span class="pre">-instr-profile=test.profdata</span> <span class="pre">test.c</span></code></p>
+</li>
+</ul>
+</div>
+<div class="section" id="high-level-overview">
+<h2><a class="toc-backref" href="#id13">High Level Overview</a><a class="headerlink" href="#high-level-overview" title="Permalink to this headline">¶</a></h2>
+<p>LLVM’s code coverage mapping format is designed to be a self contained
+data format, that can be embedded into the LLVM IR and object files.
+It’s described in this document as a <strong>mapping</strong> format because its goal is
+to store the data that is required for a code coverage tool to map between
+the specific source ranges in a file and the execution counts obtained
+after running the instrumented version of the program.</p>
+<p>The mapping data is used in two places in the code coverage process:</p>
+<ol class="arabic simple">
+<li>When clang compiles a source file with <code class="docutils literal"><span class="pre">-fcoverage-mapping</span></code>, it
+generates the mapping information that describes the mapping between the
+source ranges and the profiling instrumentation counters.
+This information gets embedded into the LLVM IR and conveniently
+ends up in the final executable file when the program is linked.</li>
+<li>It is also used by <em>llvm-cov</em> - the mapping information is extracted from an
+object file and is used to associate the execution counts (the values of the
+profile instrumentation counters), and the source ranges in a file.
+After that, the tool is able to generate various code coverage reports
+for the program.</li>
+</ol>
+<p>The coverage mapping format aims to be a “universal format” that would be
+suitable for usage by any frontend, and not just by Clang. It also aims to
+provide the frontend the possibility of generating the minimal coverage mapping
+data in order to reduce the size of the IR and object files - for example,
+instead of emitting mapping information for each statement in a function, the
+frontend is allowed to group the statements with the same execution count into
+regions of code, and emit the mapping information only for those regions.</p>
+</div>
+<div class="section" id="advanced-concepts">
+<h2><a class="toc-backref" href="#id14">Advanced Concepts</a><a class="headerlink" href="#advanced-concepts" title="Permalink to this headline">¶</a></h2>
+<p>The remainder of this guide is meant to give you insight into the way the
+coverage mapping format works.</p>
+<p>The coverage mapping format operates on a per-function level as the
+profile instrumentation counters are associated with a specific function.
+For each function that requires code coverage, the frontend has to create
+coverage mapping data that can map between the source code ranges and
+the profile instrumentation counters for that function.</p>
+<div class="section" id="mapping-region">
+<h3><a class="toc-backref" href="#id15">Mapping Region</a><a class="headerlink" href="#mapping-region" title="Permalink to this headline">¶</a></h3>
+<p>The function’s coverage mapping data contains an array of mapping regions.
+A mapping region stores the <a class="reference internal" href="#source-code-range">source code range</a> that is covered by this region,
+the <a class="reference internal" href="#coverage-file-id">file id</a>, the <a class="reference internal" href="#coverage-mapping-counter">coverage mapping counter</a> and
+the region’s kind.
+There are several kinds of mapping regions:</p>
+<ul>
+<li><p class="first">Code regions associate portions of source code and <a class="reference internal" href="#coverage-mapping-counters">coverage mapping
+counters</a>. They make up the majority of the mapping regions. They are used
+by the code coverage tool to compute the execution counts for lines,
+highlight the regions of code that were never executed, and to obtain
+the various code coverage statistics for a function.
+For example:</p>
+<p><span class="raw-html"><pre class='highlight' style='line-height:initial;'><span>int main(int argc, const char *argv[]) </span><span style='background-color:#4A789C'>{    </span> <span class='c1'>// Code Region from 1:40 to 9:2</span>
+<span style='background-color:#4A789C'>                                            </span>
+<span style='background-color:#4A789C'>  if (argc &gt; 1) </span><span style='background-color:#85C1F5'>{                         </span>   <span class='c1'>// Code Region from 3:17 to 5:4</span>
+<span style='background-color:#85C1F5'>    printf("%s\n", argv[1]);              </span>
+<span style='background-color:#85C1F5'>  }</span><span style='background-color:#4A789C'> else </span><span style='background-color:#F6D55D'>{                                </span>   <span class='c1'>// Code Region from 5:10 to 7:4</span>
+<span style='background-color:#F6D55D'>    printf("\n");                         </span>
+<span style='background-color:#F6D55D'>  }</span><span style='background-color:#4A789C'>                                         </span>
+<span style='background-color:#4A789C'>  return 0;                                 </span>
+<span style='background-color:#4A789C'>}</span>
+</pre></span></p>
+</li>
+<li><p class="first">Skipped regions are used to represent source ranges that were skipped
+by Clang’s preprocessor. They don’t associate with
+<a class="reference internal" href="#coverage-mapping-counters">coverage mapping counters</a>, as the frontend knows that they are never
+executed. They are used by the code coverage tool to mark the skipped lines
+inside a function as non-code lines that don’t have execution counts.
+For example:</p>
+<p><span class="raw-html"><pre class='highlight' style='line-height:initial;'><span>int main() </span><span style='background-color:#4A789C'>{               </span> <span class='c1'>// Code Region from 1:12 to 6:2</span>
+<span style='background-color:#85C1F5'>#ifdef DEBUG             </span>   <span class='c1'>// Skipped Region from 2:1 to 4:2</span>
+<span style='background-color:#85C1F5'>  printf("Hello world"); </span>
+<span style='background-color:#85C1F5'>#</span><span style='background-color:#4A789C'>endif                     </span>
+<span style='background-color:#4A789C'>  return 0;                </span>
+<span style='background-color:#4A789C'>}</span>
+</pre></span></p>
+</li>
+<li><p class="first">Expansion regions are used to represent Clang’s macro expansions. They
+have an additional property - <em>expanded file id</em>. This property can be
+used by the code coverage tool to find the mapping regions that are created
+as a result of this macro expansion, by checking if their file id matches the
+expanded file id. They don’t associate with <a class="reference internal" href="#coverage-mapping-counters">coverage mapping counters</a>,
+as the code coverage tool can determine the execution count for this region
+by looking up the execution count of the first region with a corresponding
+file id.
+For example:</p>
+<p><span class="raw-html"><pre class='highlight' style='line-height:initial;'><span>int func(int x) </span><span style='background-color:#4A789C'>{                             </span>
+<span style='background-color:#4A789C'>  #define MAX(x,y) </span><span style='background-color:#85C1F5'>((x) &gt; (y)? </span><span style='background-color:#F6D55D'>(x)</span><span style='background-color:#85C1F5'> : </span><span style='background-color:#F4BA70'>(y)</span><span style='background-color:#85C1F5'>)</span><span style='background-color:#4A789C'>     </span>
+<span style='background-color:#4A789C'>  return </span><span style='background-color:#7FCA9F'>MAX</span><span style='background-color:#4A789C'>(x, 42);                          </span> <span class='c1'>// Expansion Region from 3:10 to 3:13</span>
+<span style='background-color:#4A789C'>}</span>
+</pre></span></p>
+</li>
+</ul>
+<div class="section" id="source-range">
+<span id="source-code-range"></span><h4><a class="toc-backref" href="#id16">Source Range:</a><a class="headerlink" href="#source-range" title="Permalink to this headline">¶</a></h4>
+<p>The source range record contains the starting and ending location of a certain
+mapping region. Both locations include the line and the column numbers.</p>
+</div>
+<div class="section" id="file-id">
+<span id="coverage-file-id"></span><h4><a class="toc-backref" href="#id17">File ID:</a><a class="headerlink" href="#file-id" title="Permalink to this headline">¶</a></h4>
+<p>The file id an integer value that tells us
+in which source file or macro expansion is this region located.
+It enables Clang to produce mapping information for the code
+defined inside macros, like this example demonstrates:</p>
+<p><span class="raw-html"><pre class='highlight' style='line-height:initial;'><span>void func(const char *str) </span><span style='background-color:#4A789C'>{        </span> <span class='c1'>// Code Region from 1:28 to 6:2 with file id 0</span>
+<span style='background-color:#4A789C'>  #define PUT </span><span style='background-color:#85C1F5'>printf("%s\n", str)</span><span style='background-color:#4A789C'>   </span> <span class='c1'>// 2 Code Regions from 2:15 to 2:34 with file ids 1 and 2</span>
+<span style='background-color:#4A789C'>  if(*str)                          </span>
+<span style='background-color:#4A789C'>    </span><span style='background-color:#F6D55D'>PUT</span><span style='background-color:#4A789C'>;                            </span> <span class='c1'>// Expansion Region from 4:5 to 4:8 with file id 0 that expands a macro with file id 1</span>
+<span style='background-color:#4A789C'>  </span><span style='background-color:#F6D55D'>PUT</span><span style='background-color:#4A789C'>;                              </span> <span class='c1'>// Expansion Region from 5:3 to 5:6 with file id 0 that expands a macro with file id 2</span>
+<span style='background-color:#4A789C'>}</span>
+</pre></span></p>
+</div>
+<div class="section" id="counter">
+<span id="coverage-mapping-counters"></span><span id="coverage-mapping-counter"></span><h4><a class="toc-backref" href="#id18">Counter:</a><a class="headerlink" href="#counter" title="Permalink to this headline">¶</a></h4>
+<p>A coverage mapping counter can represents a reference to the profile
+instrumentation counter. The execution count for a region with such counter
+is determined by looking up the value of the corresponding profile
+instrumentation counter.</p>
+<p>It can also represent a binary arithmetical expression that operates on
+coverage mapping counters or other expressions.
+The execution count for a region with an expression counter is determined by
+evaluating the expression’s arguments and then adding them together or
+subtracting them from one another.
+In the example below, a subtraction expression is used to compute the execution
+count for the compound statement that follows the <em>else</em> keyword:</p>
+<p><span class="raw-html"><pre class='highlight' style='line-height:initial;'><span>int main(int argc, const char *argv[]) </span><span style='background-color:#4A789C'>{   </span> <span class='c1'>// Region's counter is a reference to the profile counter #0</span>
+<span style='background-color:#4A789C'>                                           </span>
+<span style='background-color:#4A789C'>  if (argc &gt; 1) </span><span style='background-color:#85C1F5'>{                        </span>   <span class='c1'>// Region's counter is a reference to the profile counter #1</span>
+<span style='background-color:#85C1F5'>    printf("%s\n", argv[1]);             </span><span>   </span>
+<span style='background-color:#85C1F5'>  }</span><span style='background-color:#4A789C'> else </span><span style='background-color:#F6D55D'>{                               </span>   <span class='c1'>// Region's counter is an expression (reference to the profile counter #0 - reference to the profile counter #1)</span>
+<span style='background-color:#F6D55D'>    printf("\n");                        </span>
+<span style='background-color:#F6D55D'>  }</span><span style='background-color:#4A789C'>                                        </span>
+<span style='background-color:#4A789C'>  return 0;                                </span>
+<span style='background-color:#4A789C'>}</span>
+</pre></span></p>
+<p>Finally, a coverage mapping counter can also represent an execution count of
+of zero. The zero counter is used to provide coverage mapping for
+unreachable statements and expressions, like in the example below:</p>
+<p><span class="raw-html"><pre class='highlight' style='line-height:initial;'><span>int main() </span><span style='background-color:#4A789C'>{                  </span>
+<span style='background-color:#4A789C'>  return 0;                   </span>
+<span style='background-color:#4A789C'>  </span><span style='background-color:#85C1F5'>printf("Hello world!\n")</span><span style='background-color:#4A789C'>;   </span> <span class='c1'>// Unreachable region's counter is zero</span>
+<span style='background-color:#4A789C'>}</span>
+</pre></span></p>
+<p>The zero counters allow the code coverage tool to display proper line execution
+counts for the unreachable lines and highlight the unreachable code.
+Without them, the tool would think that those lines and regions were still
+executed, as it doesn’t possess the frontend’s knowledge.</p>
+</div>
+</div>
+</div>
+<div class="section" id="llvm-ir-representation">
+<h2><a class="toc-backref" href="#id19">LLVM IR Representation</a><a class="headerlink" href="#llvm-ir-representation" title="Permalink to this headline">¶</a></h2>
+<p>The coverage mapping data is stored in the LLVM IR using a single global
+constant structure variable called <em>__llvm_coverage_mapping</em>
+with the <em>__llvm_covmap</em> section specifier.</p>
+<p>For example, let’s consider a C file and how it gets compiled to LLVM:</p>
+<div class="highlight-c" id="coverage-mapping-sample"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">foo</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="mi">42</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="kt">int</span> <span class="nf">bar</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="mi">13</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The coverage mapping variable generated by Clang has 3 fields:</p>
+<ul class="simple">
+<li>Coverage mapping header.</li>
+<li>An array of function records.</li>
+<li>Coverage mapping data which is an array of bytes. Zero paddings are added at the end to force 8 byte alignment.</li>
+</ul>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="vg">@__llvm_coverage_mapping</span> <span class="p">=</span> <span class="k">internal</span> <span class="k">constant</span> <span class="p">{</span> <span class="p">{</span> <span class="k">i32</span><span class="p">,</span> <span class="k">i32</span><span class="p">,</span> <span class="k">i32</span><span class="p">,</span> <span class="k">i32</span> <span class="p">},</span> <span class="p">[</span><span class="m">2</span> <span class="k">x</span> <span class="p">{</span> <span class="k">i64</span><span class="p">,</span> <span class="k">i32</span><span class="p">,</span> <span class="k">i64</span> <span class="p">}],</span> <span class="p">[</span><span class="m">40</span> <span class="k">x</span> <span class="k">i8</span><span class="p">]</span> <span class="p">}</span>
+<span class="p">{</span>
+  <span class="p">{</span> <span class="k">i32</span><span class="p">,</span> <span class="k">i32</span><span class="p">,</span> <span class="k">i32</span><span class="p">,</span> <span class="k">i32</span> <span class="p">}</span> <span class="c">; Coverage map header</span>
+  <span class="p">{</span>
+    <span class="k">i32</span> <span class="m">2</span><span class="p">,</span>  <span class="c">; The number of function records</span>
+    <span class="k">i32</span> <span class="m">20</span><span class="p">,</span> <span class="c">; The length of the string that contains the encoded translation unit filenames</span>
+    <span class="k">i32</span> <span class="m">20</span><span class="p">,</span> <span class="c">; The length of the string that contains the encoded coverage mapping data</span>
+    <span class="k">i32</span> <span class="m">2</span><span class="p">,</span>  <span class="c">; Coverage mapping format version</span>
+  <span class="p">},</span>
+  <span class="p">[</span><span class="m">2</span> <span class="k">x</span> <span class="p">{</span> <span class="k">i64</span><span class="p">,</span> <span class="k">i32</span><span class="p">,</span> <span class="k">i64</span> <span class="p">}]</span> <span class="p">[</span> <span class="c">; Function records</span>
+   <span class="p">{</span> <span class="k">i64</span><span class="p">,</span> <span class="k">i32</span><span class="p">,</span> <span class="k">i64</span> <span class="p">}</span> <span class="p">{</span>
+     <span class="k">i64</span> <span class="m">0x5cf8c24cdb18bdac</span><span class="p">,</span> <span class="c">; Function&#39;s name MD5</span>
+     <span class="k">i32</span> <span class="m">9</span><span class="p">,</span> <span class="c">; Function&#39;s encoded coverage mapping data string length</span>
+     <span class="k">i64</span> <span class="m">0</span>  <span class="c">; Function&#39;s structural hash</span>
+   <span class="p">},</span>
+   <span class="p">{</span> <span class="k">i64</span><span class="p">,</span> <span class="k">i32</span><span class="p">,</span> <span class="k">i64</span> <span class="p">}</span> <span class="p">{</span>
+     <span class="k">i64</span> <span class="m">0xe413754a191db537</span><span class="p">,</span> <span class="c">; Function&#39;s name MD5</span>
+     <span class="k">i32</span> <span class="m">9</span><span class="p">,</span> <span class="c">; Function&#39;s encoded coverage mapping data string length</span>
+     <span class="k">i64</span> <span class="m">0</span>  <span class="c">; Function&#39;s structural hash</span>
+   <span class="p">}],</span>
+ <span class="p">[</span><span class="m">40</span> <span class="k">x</span> <span class="k">i8</span><span class="p">]</span> <span class="k">c</span><span class="s">&quot;...&quot;</span> <span class="c">; Encoded data (dissected later)</span>
+<span class="p">},</span> <span class="k">section</span> <span class="s">&quot;__llvm_covmap&quot;</span><span class="p">,</span> <span class="k">align</span> <span class="m">8</span>
+</pre></div>
+</div>
+<p>The current version of the format is version 3. The only difference from version 2 is that a special encoding for column end locations was introduced to indicate gap regions.</p>
+<p>The function record layout has evolved since version 1. In version 1, the function record for <em>foo</em> is defined as follows:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="p">{</span> <span class="k">i8</span><span class="p">*,</span> <span class="k">i32</span><span class="p">,</span> <span class="k">i32</span><span class="p">,</span> <span class="k">i64</span> <span class="p">}</span> <span class="p">{</span> <span class="k">i8</span><span class="p">*</span> <span class="k">getelementptr</span> <span class="k">inbounds</span> <span class="p">([</span><span class="m">3</span> <span class="k">x</span> <span class="k">i8</span><span class="p">]*</span> <span class="vg">@__profn_foo</span><span class="p">,</span> <span class="k">i32</span> <span class="m">0</span><span class="p">,</span> <span class="k">i32</span> <span class="m">0</span><span class="p">),</span> <span class="c">; Function&#39;s name</span>
+  <span class="k">i32</span> <span class="m">3</span><span class="p">,</span> <span class="c">; Function&#39;s name length</span>
+  <span class="k">i32</span> <span class="m">9</span><span class="p">,</span> <span class="c">; Function&#39;s encoded coverage mapping data string length</span>
+  <span class="k">i64</span> <span class="m">0</span>  <span class="c">; Function&#39;s structural hash</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="section" id="coverage-mapping-header">
+<h3><a class="toc-backref" href="#id20">Coverage Mapping Header:</a><a class="headerlink" href="#coverage-mapping-header" title="Permalink to this headline">¶</a></h3>
+<p>The coverage mapping header has the following fields:</p>
+<ul class="simple">
+<li>The number of function records.</li>
+<li>The length of the string in the third field of <em>__llvm_coverage_mapping</em> that contains the encoded translation unit filenames.</li>
+<li>The length of the string in the third field of <em>__llvm_coverage_mapping</em> that contains the encoded coverage mapping data.</li>
+<li>The format version. The current version is 3 (encoded as a 2).</li>
+</ul>
+</div>
+<div class="section" id="function-record">
+<span id="function-records"></span><h3><a class="toc-backref" href="#id21">Function record:</a><a class="headerlink" href="#function-record" title="Permalink to this headline">¶</a></h3>
+<p>A function record is a structure of the following type:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="p">{</span> <span class="k">i64</span><span class="p">,</span> <span class="k">i32</span><span class="p">,</span> <span class="k">i64</span> <span class="p">}</span>
+</pre></div>
+</div>
+<p>It contains function name’s MD5, the length of the encoded mapping data for that function, and function’s
+structural hash value.</p>
+</div>
+<div class="section" id="encoded-data">
+<h3><a class="toc-backref" href="#id22">Encoded data:</a><a class="headerlink" href="#encoded-data" title="Permalink to this headline">¶</a></h3>
+<p>The encoded data is stored in a single string that contains
+the encoded filenames used by this translation unit and the encoded coverage
+mapping data for each function in this translation unit.</p>
+<p>The encoded data has the following structure:</p>
+<p><code class="docutils literal"><span class="pre">[filenames,</span> <span class="pre">coverageMappingDataForFunctionRecord0,</span> <span class="pre">coverageMappingDataForFunctionRecord1,</span> <span class="pre">...,</span> <span class="pre">padding]</span></code></p>
+<p>If necessary, the encoded data is padded with zeroes so that the size
+of the data string is rounded up to the nearest multiple of 8 bytes.</p>
+<div class="section" id="dissecting-the-sample">
+<h4><a class="toc-backref" href="#id23">Dissecting the sample:</a><a class="headerlink" href="#dissecting-the-sample" title="Permalink to this headline">¶</a></h4>
+<p>Here’s an overview of the encoded data that was stored in the
+IR for the <a class="reference internal" href="#coverage-mapping-sample">coverage mapping sample</a> that was shown earlier:</p>
+<ul>
+<li><p class="first">The IR contains the following string constant that represents the encoded
+coverage mapping data for the sample translation unit:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">c</span><span class="s">&quot;\01\12/Users/alex/test.c\01\00\00\01\01\01\0C\02\02\01\00\00\01\01\04\0C\02\02\00\00&quot;</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">The string contains values that are encoded in the LEB128 format, which is
+used throughout for storing integers. It also contains a string value.</p>
+</li>
+<li><p class="first">The length of the substring that contains the encoded translation unit
+filenames is the value of the second field in the <em>__llvm_coverage_mapping</em>
+structure, which is 20, thus the filenames are encoded in this string:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">c</span><span class="s">&quot;\01\12/Users/alex/test.c&quot;</span>
+</pre></div>
+</div>
+<p>This string contains the following data:</p>
+<ul class="simple">
+<li>Its first byte has a value of <code class="docutils literal"><span class="pre">0x01</span></code>. It stores the number of filenames
+contained in this string.</li>
+<li>Its second byte stores the length of the first filename in this string.</li>
+<li>The remaining 18 bytes are used to store the first filename.</li>
+</ul>
+</li>
+<li><p class="first">The length of the substring that contains the encoded coverage mapping data
+for the first function is the value of the third field in the first
+structure in an array of <a class="reference internal" href="#function-records">function records</a> stored in the
+third field of the <em>__llvm_coverage_mapping</em> structure, which is the 9.
+Therefore, the coverage mapping for the first function record is encoded
+in this string:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">c</span><span class="s">&quot;\01\00\00\01\01\01\0C\02\02&quot;</span>
+</pre></div>
+</div>
+<p>This string consists of the following bytes:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="8%" />
+<col width="92%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><code class="docutils literal"><span class="pre">0x01</span></code></td>
+<td>The number of file ids used by this function. There is only one file id used by the mapping data in this function.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal"><span class="pre">0x00</span></code></td>
+<td>An index into the filenames array which corresponds to the file “/Users/alex/test.c”.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal"><span class="pre">0x00</span></code></td>
+<td>The number of counter expressions used by this function. This function doesn’t use any expressions.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal"><span class="pre">0x01</span></code></td>
+<td>The number of mapping regions that are stored in an array for the function’s file id #0.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal"><span class="pre">0x01</span></code></td>
+<td>The coverage mapping counter for the first region in this function. The value of 1 tells us that it’s a coverage
+mapping counter that is a reference to the profile instrumentation counter with an index of 0.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal"><span class="pre">0x01</span></code></td>
+<td>The starting line of the first mapping region in this function.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal"><span class="pre">0x0C</span></code></td>
+<td>The starting column of the first mapping region in this function.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal"><span class="pre">0x02</span></code></td>
+<td>The ending line of the first mapping region in this function.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal"><span class="pre">0x02</span></code></td>
+<td>The ending column of the first mapping region in this function.</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li><p class="first">The length of the substring that contains the encoded coverage mapping data
+for the second function record is also 9. It’s structured like the mapping data
+for the first function record.</p>
+</li>
+<li><p class="first">The two trailing bytes are zeroes and are used to pad the coverage mapping
+data to give it the 8 byte alignment.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="section" id="encoding">
+<h2><a class="toc-backref" href="#id24">Encoding</a><a class="headerlink" href="#encoding" title="Permalink to this headline">¶</a></h2>
+<p>The per-function coverage mapping data is encoded as a stream of bytes,
+with a simple structure. The structure consists of the encoding
+<a class="reference internal" href="#cvmtypes">types</a> like variable-length unsigned integers, that
+are used to encode <a class="reference internal" href="#file-id-mapping">File ID Mapping</a>, <a class="reference internal" href="#counter-expressions">Counter Expressions</a> and
+the <a class="reference internal" href="#mapping-regions">Mapping Regions</a>.</p>
+<p>The format of the structure follows:</p>
+<blockquote>
+<div><code class="docutils literal"><span class="pre">[file</span> <span class="pre">id</span> <span class="pre">mapping,</span> <span class="pre">counter</span> <span class="pre">expressions,</span> <span class="pre">mapping</span> <span class="pre">regions]</span></code></div></blockquote>
+<p>The translation unit filenames are encoded using the same encoding
+<a class="reference internal" href="#cvmtypes">types</a> as the per-function coverage mapping data, with the
+following structure:</p>
+<blockquote>
+<div><code class="docutils literal"><span class="pre">[numFilenames</span> <span class="pre">:</span> <span class="pre">LEB128,</span> <span class="pre">filename0</span> <span class="pre">:</span> <span class="pre">string,</span> <span class="pre">filename1</span> <span class="pre">:</span> <span class="pre">string,</span> <span class="pre">...]</span></code></div></blockquote>
+<div class="section" id="types">
+<span id="cvmtypes"></span><h3><a class="toc-backref" href="#id25">Types</a><a class="headerlink" href="#types" title="Permalink to this headline">¶</a></h3>
+<p>This section describes the basic types that are used by the encoding format
+and can appear after <code class="docutils literal"><span class="pre">:</span></code> in the <code class="docutils literal"><span class="pre">[foo</span> <span class="pre">:</span> <span class="pre">type]</span></code> description.</p>
+<div class="section" id="leb128">
+<span id="id1"></span><h4><a class="toc-backref" href="#id26">LEB128</a><a class="headerlink" href="#leb128" title="Permalink to this headline">¶</a></h4>
+<p>LEB128 is an unsigned integer value that is encoded using DWARF’s LEB128
+encoding, optimizing for the case where values are small
+(1 byte for values less than 128).</p>
+</div>
+<div class="section" id="strings">
+<span id="coveragestrings"></span><h4><a class="toc-backref" href="#id27">Strings</a><a class="headerlink" href="#strings" title="Permalink to this headline">¶</a></h4>
+<p><code class="docutils literal"><span class="pre">[length</span> <span class="pre">:</span> <span class="pre">LEB128,</span> <span class="pre">characters...]</span></code></p>
+<p>String values are encoded with a <a class="reference internal" href="#leb128">LEB value</a> for the length
+of the string and a sequence of bytes for its characters.</p>
+</div>
+</div>
+<div class="section" id="file-id-mapping">
+<span id="id2"></span><h3><a class="toc-backref" href="#id28">File ID Mapping</a><a class="headerlink" href="#file-id-mapping" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">[numIndices</span> <span class="pre">:</span> <span class="pre">LEB128,</span> <span class="pre">filenameIndex0</span> <span class="pre">:</span> <span class="pre">LEB128,</span> <span class="pre">filenameIndex1</span> <span class="pre">:</span> <span class="pre">LEB128,</span> <span class="pre">...]</span></code></p>
+<p>File id mapping in a function’s coverage mapping stream
+contains the indices into the translation unit’s filenames array.</p>
+</div>
+<div class="section" id="id3">
+<h3><a class="toc-backref" href="#id29">Counter</a><a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">[value</span> <span class="pre">:</span> <span class="pre">LEB128]</span></code></p>
+<p>A <a class="reference internal" href="#coverage-mapping-counter">coverage mapping counter</a> is stored in a single <a class="reference internal" href="#leb128">LEB value</a>.
+It is composed of two things — the <a class="reference internal" href="#counter-tag">tag</a>
+which is stored in the lowest 2 bits, and the <a class="reference internal" href="#counter-data">counter data</a> which is stored
+in the remaining bits.</p>
+<div class="section" id="tag">
+<span id="counter-tag"></span><h4><a class="toc-backref" href="#id30">Tag:</a><a class="headerlink" href="#tag" title="Permalink to this headline">¶</a></h4>
+<p>The counter’s tag encodes the counter’s kind
+and, if the counter is an expression, the expression’s kind.
+The possible tag values are:</p>
+<ul class="simple">
+<li>0 - The counter is zero.</li>
+<li>1 - The counter is a reference to the profile instrumentation counter.</li>
+<li>2 - The counter is a subtraction expression.</li>
+<li>3 - The counter is an addition expression.</li>
+</ul>
+</div>
+<div class="section" id="data">
+<span id="counter-data"></span><h4><a class="toc-backref" href="#id31">Data:</a><a class="headerlink" href="#data" title="Permalink to this headline">¶</a></h4>
+<p>The counter’s data is interpreted in the following manner:</p>
+<ul class="simple">
+<li>When the counter is a reference to the profile instrumentation counter,
+then the counter’s data is the id of the profile counter.</li>
+<li>When the counter is an expression, then the counter’s data
+is the index into the array of counter expressions.</li>
+</ul>
+</div>
+</div>
+<div class="section" id="counter-expressions">
+<span id="id4"></span><h3><a class="toc-backref" href="#id32">Counter Expressions</a><a class="headerlink" href="#counter-expressions" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">[numExpressions</span> <span class="pre">:</span> <span class="pre">LEB128,</span> <span class="pre">expr0LHS</span> <span class="pre">:</span> <span class="pre">LEB128,</span> <span class="pre">expr0RHS</span> <span class="pre">:</span> <span class="pre">LEB128,</span> <span class="pre">expr1LHS</span> <span class="pre">:</span> <span class="pre">LEB128,</span> <span class="pre">expr1RHS</span> <span class="pre">:</span> <span class="pre">LEB128,</span> <span class="pre">...]</span></code></p>
+<p>Counter expressions consist of two counters as they
+represent binary arithmetic operations.
+The expression’s kind is determined from the <a class="reference internal" href="#counter-tag">tag</a> of the
+counter that references this expression.</p>
+</div>
+<div class="section" id="mapping-regions">
+<span id="id5"></span><h3><a class="toc-backref" href="#id33">Mapping Regions</a><a class="headerlink" href="#mapping-regions" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">[numRegionArrays</span> <span class="pre">:</span> <span class="pre">LEB128,</span> <span class="pre">regionsForFile0,</span> <span class="pre">regionsForFile1,</span> <span class="pre">...]</span></code></p>
+<p>The mapping regions are stored in an array of sub-arrays where every
+region in a particular sub-array has the same file id.</p>
+<p>The file id for a sub-array of regions is the index of that
+sub-array in the main array e.g. The first sub-array will have the file id
+of 0.</p>
+<div class="section" id="sub-array-of-regions">
+<h4><a class="toc-backref" href="#id34">Sub-Array of Regions</a><a class="headerlink" href="#sub-array-of-regions" title="Permalink to this headline">¶</a></h4>
+<p><code class="docutils literal"><span class="pre">[numRegions</span> <span class="pre">:</span> <span class="pre">LEB128,</span> <span class="pre">region0,</span> <span class="pre">region1,</span> <span class="pre">...]</span></code></p>
+<p>The mapping regions for a specific file id are stored in an array that is
+sorted in an ascending order by the region’s starting location.</p>
+</div>
+<div class="section" id="id6">
+<h4><a class="toc-backref" href="#id35">Mapping Region</a><a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h4>
+<p><code class="docutils literal"><span class="pre">[header,</span> <span class="pre">source</span> <span class="pre">range]</span></code></p>
+<p>The mapping region record contains two sub-records —
+the <a class="reference internal" href="#header">header</a>, which stores the counter and/or the region’s kind,
+and the <a class="reference internal" href="#id9">source range</a> that contains the starting and ending
+location of this region.</p>
+</div>
+<div class="section" id="header">
+<span id="id7"></span><h4><a class="toc-backref" href="#id36">Header</a><a class="headerlink" href="#header" title="Permalink to this headline">¶</a></h4>
+<p><code class="docutils literal"><span class="pre">[counter]</span></code></p>
+<p>or</p>
+<p><code class="docutils literal"><span class="pre">[pseudo-counter]</span></code></p>
+<p>The header encodes the region’s counter and the region’s kind.</p>
+<p>The value of the counter’s tag distinguishes between the counters and
+pseudo-counters — if the tag is zero, than this header contains a
+pseudo-counter, otherwise this header contains an ordinary counter.</p>
+<div class="section" id="id8">
+<h5><a class="toc-backref" href="#id37">Counter:</a><a class="headerlink" href="#id8" title="Permalink to this headline">¶</a></h5>
+<p>A mapping region whose header has a counter with a non-zero tag is
+a code region.</p>
+</div>
+<div class="section" id="pseudo-counter">
+<h5><a class="toc-backref" href="#id38">Pseudo-Counter:</a><a class="headerlink" href="#pseudo-counter" title="Permalink to this headline">¶</a></h5>
+<p><code class="docutils literal"><span class="pre">[value</span> <span class="pre">:</span> <span class="pre">LEB128]</span></code></p>
+<p>A pseudo-counter is stored in a single <a class="reference internal" href="#leb128">LEB value</a>, just like
+the ordinary counter. It has the following interpretation:</p>
+<ul>
+<li><p class="first">bits 0-1: tag, which is always 0.</p>
+</li>
+<li><p class="first">bit 2: expansionRegionTag. If this bit is set, then this mapping region
+is an expansion region.</p>
+</li>
+<li><p class="first">remaining bits: data. If this region is an expansion region, then the data
+contains the expanded file id of that region.</p>
+<p>Otherwise, the data contains the region’s kind. The possible region
+kind values are:</p>
+<ul class="simple">
+<li>0 - This mapping region is a code region with a counter of zero.</li>
+<li>2 - This mapping region is a skipped region.</li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="id9">
+<span id="id10"></span><h4><a class="toc-backref" href="#id39">Source Range</a><a class="headerlink" href="#id9" title="Permalink to this headline">¶</a></h4>
+<p><code class="docutils literal"><span class="pre">[deltaLineStart</span> <span class="pre">:</span> <span class="pre">LEB128,</span> <span class="pre">columnStart</span> <span class="pre">:</span> <span class="pre">LEB128,</span> <span class="pre">numLines</span> <span class="pre">:</span> <span class="pre">LEB128,</span> <span class="pre">columnEnd</span> <span class="pre">:</span> <span class="pre">LEB128]</span></code></p>
+<p>The source range record contains the following fields:</p>
+<ul>
+<li><p class="first"><em>deltaLineStart</em>: The difference between the starting line of the
+current mapping region and the starting line of the previous mapping region.</p>
+<p>If the current mapping region is the first region in the current
+sub-array, then it stores the starting line of that region.</p>
+</li>
+<li><p class="first"><em>columnStart</em>: The starting column of the mapping region.</p>
+</li>
+<li><p class="first"><em>numLines</em>: The difference between the ending line and the starting line
+of the current mapping region.</p>
+</li>
+<li><p class="first"><em>columnEnd</em>: The ending column of the mapping region. If the high bit is set,
+the current mapping region is a gap area. A count for a gap area is only used
+as the line execution count if there are no other regions on a line.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="Statepoints.html" title="Garbage Collection Safepoints in LLVM"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="GenXLangRef.html" title="LLVM IR for the GenX backend"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

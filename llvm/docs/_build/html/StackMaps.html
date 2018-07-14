@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Stack maps and patch points in LLVM &#8212; LLVM 3.4 documentation</title>
+    <title>Stack maps and patch points in LLVM &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -28,7 +28,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Design and Usage of the InAlloca Attribute" href="InAlloca.html" />
-    <link rel="prev" title="User Guide for NVPTX Back-end" href="NVPTXUsage.html" />
+    <link rel="prev" title="User Guide for AMDGPU Backend" href="AMDGPUUsage.html" />
 <style type="text/css">
   table.right { float: right; margin-left: 20px; }
   table.right td { border: 1px solid #ccc; }
@@ -52,7 +52,7 @@
           <a href="InAlloca.html" title="Design and Usage of the InAlloca Attribute"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="NVPTXUsage.html" title="User Guide for NVPTX Back-end"
+          <a href="AMDGPUUsage.html" title="User Guide for AMDGPU Backend"
              accesskey="P">previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="index.html">Documentation</a>&raquo;</li>
@@ -84,6 +84,7 @@
 <li><a class="reference internal" href="#direct-stack-map-entries" id="id13">Direct Stack Map Entries</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#supported-architectures" id="id14">Supported Architectures</a></li>
 </ul>
 </div>
 <div class="section" id="definitions">
@@ -270,6 +271,10 @@ is not a constant null. The function call and its arguments are
 lowered according to the calling convention specified at the
 intrinsic’s callsite. Variants of the intrinsic with non-void return
 type also return a value according to calling convention.</p>
+<p>On PowerPC, note that <code class="docutils literal"><span class="pre">&lt;target&gt;</span></code> must be the ABI function pointer for the
+intended target of the indirect call. Specifically, when compiling for the
+ELF V1 ABI, <code class="docutils literal"><span class="pre">&lt;target&gt;</span></code> is the function-descriptor address normally used as
+the C/C++ function-pointer representation.</p>
 <p>Requesting zero patch point arguments is valid. In this case, all
 variable operands are handled just like
 <code class="docutils literal"><span class="pre">llvm.experimental.stackmap.*</span></code>. The difference is that space will
@@ -346,7 +351,7 @@ allocated in %r8 and return a value allocated in %r9:</p>
 Module forces code emission to create a <a class="reference internal" href="#stackmap-section"><span class="std std-ref">Stack Map Section</span></a>. The
 format of this section follows:</p>
 <div class="highlight-none"><div class="highlight"><pre><span></span>Header {
-  uint8  : Stack Map Version (current version is 1)
+  uint8  : Stack Map Version (current version is 3)
   uint8  : Reserved (expected to be 0)
   uint16 : Reserved (expected to be 0)
 }
@@ -356,6 +361,7 @@ uint32 : NumRecords
 StkSizeRecord[NumFunctions] {
   uint64 : Function Address
   uint64 : Stack Size
+  uint64 : Record Count
 }
 Constants[NumConstants] {
   uint64 : LargeConstant
@@ -367,10 +373,13 @@ StkMapRecord[NumRecords] {
   uint16 : NumLocations
   Location[NumLocations] {
     uint8  : Register | Direct | Indirect | Constant | ConstantIndex
-    uint8  : Reserved (location flags)
+    uint8  : Reserved (expected to be 0)
+    uint16 : Location Size
     uint16 : Dwarf RegNum
+    uint16 : Reserved (expected to be 0)
     int32  : Offset or SmallConstant
   }
+  uint32 : Padding (only if required to align to 8 byte)
   uint16 : Padding
   uint16 : NumLiveOuts
   LiveOuts[NumLiveOuts]
@@ -482,7 +491,7 @@ precisely determine the location of values at a specific position in
 the code. LLVM does not maintain any mapping between those values and
 any higher-level entity. The runtime must be able to interpret the
 stack map record given only the ID, offset, and the order of the
-locations, which LLVM preserves.</p>
+locations, records, and functions, which LLVM preserves.</p>
 <p>Note that this is quite different from the goal of debug information,
 which is a best-effort attempt to track the location of named
 variables at every instruction.</p>
@@ -539,6 +548,13 @@ value. This can be verified by the runtime simply by checking that the
 stack map’s location is a Direct location type.</p>
 </div>
 </div>
+<div class="section" id="supported-architectures">
+<h2><a class="toc-backref" href="#id14">Supported Architectures</a><a class="headerlink" href="#supported-architectures" title="Permalink to this headline">¶</a></h2>
+<p>Support for StackMap generation and the related intrinsics requires
+some code for each backend.  Today, only a subset of LLVM’s backends
+are supported.  The currently supported architectures are X86_64,
+PowerPC, and Aarch64.</p>
+</div>
 </div>
 
 
@@ -556,7 +572,7 @@ stack map’s location is a Direct location type.</p>
           <a href="InAlloca.html" title="Design and Usage of the InAlloca Attribute"
              >next</a> |</li>
         <li class="right" >
-          <a href="NVPTXUsage.html" title="User Guide for NVPTX Back-end"
+          <a href="AMDGPUUsage.html" title="User Guide for AMDGPU Backend"
              >previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="index.html">Documentation</a>&raquo;</li>
@@ -564,8 +580,8 @@ stack map’s location is a Direct location type.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

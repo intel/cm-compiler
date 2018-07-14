@@ -297,11 +297,18 @@ bool CMABI::doInitialization(CallGraph &CG) {
   // variables to be copy-in and copy-out.
   AnalyzeGlobals(CG);
 
+  auto getValue = [](Metadata *M) -> Value * {
+    if (auto VM = dyn_cast<ValueAsMetadata>(M))
+      return VM->getValue();
+    return nullptr;
+  };
+
   // Collect all CM kernels from named metadata.
   if (NamedMDNode *Named = CG.getModule().getNamedMetadata("genx.kernels")) {
     for (unsigned I = 0, E = Named->getNumOperands(); I != E; ++I) {
       MDNode *Node = Named->getOperand(I);
-      if (Function *F = dyn_cast_or_null<Function>(Node->getOperand(0)))
+      if (Function *F =
+              dyn_cast_or_null<Function>(getValue(Node->getOperand(0))))
         Kernels.insert(F);
     }
   }
@@ -314,7 +321,7 @@ bool CMABI::doFinalization(CallGraph &CG) {
   bool Changed = false;
   for (Module::global_iterator I = CG.getModule().global_begin();
        I != CG.getModule().global_end(); /*empty*/) {
-    GlobalVariable *GV = I++;
+    GlobalVariable *GV = &*I++;
     if (GV->use_empty()) {
       GV->eraseFromParent();
       Changed = true;
@@ -478,12 +485,12 @@ CallGraphNode *CMABI::TransformKernel(Function *F) {
   assert(F->getReturnType()->isVoidTy());
   LLVMContext &Context = F->getContext();
 
-  SmallVector<AttributeSet, 8> AttributesVec;
-  const AttributeSet &PAL = F->getAttributes();
+  AttributeList AttrVec;
+  const AttributeList &PAL = F->getAttributes();
 
   // First, determine the new argument list
   SmallVector<Type *, 8> ArgTys;
-  unsigned ArgIndex = 1;
+  unsigned ArgIndex = 0;
   for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E;
        ++I, ++ArgIndex) {
     Type *ArgTy = I->getType();
@@ -496,12 +503,12 @@ CallGraphNode *CMABI::TransformKernel(Function *F) {
         ArgTys.push_back(Ty);
     } else {
       // Unchanged argument
-      ArgTys.push_back(I->getType());
       AttributeSet attrs = PAL.getParamAttributes(ArgIndex);
-      if (attrs.hasAttributes(ArgIndex)) {
-        AttrBuilder B(attrs, ArgIndex);
-        AttributesVec.push_back(AttributeSet::get(Context, ArgTys.size(), B));
+      if (attrs.hasAttributes()) {
+        AttrBuilder B(attrs);
+        AttrVec = AttrVec.addParamAttributes(Context, ArgTys.size(), B);
       }
+      ArgTys.push_back(I->getType());
     }
   }
 
@@ -510,16 +517,19 @@ CallGraphNode *CMABI::TransformKernel(Function *F) {
          "type out of sync, expect bool arguments");
 
   // Add any function attributes.
-  if (PAL.hasAttributes(AttributeSet::FunctionIndex))
-    AttributesVec.push_back(AttributeSet::get(Context, PAL.getFnAttributes()));
+  AttributeSet FnAttrs = PAL.getFnAttributes();
+  if (FnAttrs.hasAttributes()) {
+    AttrBuilder B(FnAttrs);
+    AttrVec = AttrVec.addAttributes(Context, AttributeList::FunctionIndex, B);
+  }
 
   // Create the new function body and insert it into the module.
   Function *NF = Function::Create(NFTy, F->getLinkage(), F->getName());
-  NF->setAttributes(AttributeSet::get(NF->getContext(), AttributesVec));
-  AttributesVec.clear();
+  NF->setAttributes(AttrVec);
   DEBUG(dbgs() << "CMABI:  Transforming to:" << *NF << "\n" << "From: " << *F);
-  F->getParent()->getFunctionList().insert(F, NF);
+  F->getParent()->getFunctionList().insert(F->getIterator(), NF);
   NF->takeName(F);
+  NF->setSubprogram(F->getSubprogram()); // tranfer debug-info
 
   // Since we have now created the new function, splice the body of the old
   // function right into the new function.
@@ -535,7 +545,7 @@ CallGraphNode *CMABI::TransformKernel(Function *F) {
       I->replaceAllUsesWith(I2);
       I2->takeName(I);
     } else {
-      Instruction *InsertPt = NF->begin()->begin();
+      Instruction *InsertPt = &*(NF->begin()->begin());
       Instruction *Conv = new TruncInst(I2, I->getType(), "tobool", InsertPt);
       I->replaceAllUsesWith(Conv);
       I2->takeName(I);
@@ -549,12 +559,18 @@ CallGraphNode *CMABI::TransformKernel(Function *F) {
   assert(F->hasDLLExportStorageClass());
   NF->setDLLStorageClass(F->getDLLStorageClass());
 
+  auto getValue = [](Metadata *M) -> Value * {
+    if (auto VM = dyn_cast<ValueAsMetadata>(M))
+      return VM->getValue();
+    return nullptr;
+  };
+
   // Scan the CM kernel metadata and replace with NF.
   if (NamedMDNode *Named = CG.getModule().getNamedMetadata("genx.kernels")) {
     for (unsigned I = 0, E = Named->getNumOperands(); I != E; ++I) {
       MDNode *Node = Named->getOperand(I);
-      if (F == dyn_cast_or_null<Function>(Node->getOperand(0)))
-        Node->replaceOperandWith(0, NF);
+      if (F == dyn_cast_or_null<Function>(getValue(Node->getOperand(0))))
+        Node->replaceOperandWith(0, ValueAsMetadata::get(NF));
     }
   }
 
@@ -609,23 +625,23 @@ CallGraphNode *CMABI::TransformNode(Function *F,
 
   // Keep track of parameter attributes for the arguments that we are *not*
   // transforming. For the ones we do transform, parameter attributes are lost.
-  SmallVector<AttributeSet, 8> AttributesVec;
-  const AttributeSet &PAL = F->getAttributes();
+  AttributeList AttrVec;
+  const AttributeList &PAL = F->getAttributes();
   LLVMContext &Context = F->getContext();
 
   // First, determine the new argument list
   SmallVector<Type *, 8> Params;
-  unsigned ArgIndex = 1;
+  unsigned ArgIndex = 0;
   for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E;
        ++I, ++ArgIndex) {
     if (!ArgsToTransform.count(I)) {
       // Unchanged argument
-      Params.push_back(I->getType());
       AttributeSet attrs = PAL.getParamAttributes(ArgIndex);
-      if (attrs.hasAttributes(ArgIndex)) {
-        AttrBuilder B(attrs, ArgIndex);
-        AttributesVec.push_back(AttributeSet::get(Context, Params.size(), B));
+      if (attrs.hasAttributes()) {
+        AttrBuilder B(attrs);
+        AttrVec = AttrVec.addParamAttributes(Context, Params.size(), B);
       }
+      Params.push_back(I->getType());
     } else if (I->use_empty()) {
       // Delete unused arguments
       ++NumArgumentsDead;
@@ -651,8 +667,11 @@ CallGraphNode *CMABI::TransformNode(Function *F,
   }
 
   // Add any function attributes.
-  if (PAL.hasAttributes(AttributeSet::FunctionIndex))
-    AttributesVec.push_back(AttributeSet::get(Context, PAL.getFnAttributes()));
+  AttributeSet FnAttrs = PAL.getFnAttributes();
+  if (FnAttrs.hasAttributes()) {
+    AttrBuilder B(FnAttrs);
+    AttrVec = AttrVec.addAttributes(Context, AttributeList::FunctionIndex, B);
+  }
 
   // Construct the new function type using the new arguments.
   llvm::Type *RetTy = StructType::get(Context, RetTys);
@@ -660,10 +679,9 @@ CallGraphNode *CMABI::TransformNode(Function *F,
 
   // Create the new function body and insert it into the module.
   Function *NF = Function::Create(NFTy, F->getLinkage(), F->getName());
-  NF->setAttributes(AttributeSet::get(NF->getContext(), AttributesVec));
-  AttributesVec.clear();
+  NF->setAttributes(AttrVec);
   DEBUG(dbgs() << "CMABI:  Transforming to:" << *NF << "\n" << "From: " << *F);
-  F->getParent()->getFunctionList().insert(F, NF);
+  F->getParent()->getFunctionList().insert(F->getIterator(), NF);
   NF->takeName(F);
 
   // Get a new callgraph node for NF.
@@ -672,26 +690,28 @@ CallGraphNode *CMABI::TransformNode(Function *F,
 
   // Loop over all of the callers of the function, transforming the call sites
   // to pass in the loaded pointers.
-  SmallVector<Value*, 16> Args;
   while (!F->use_empty()) {
     CallSite CS(F->user_back());
     assert(CS.getCalledFunction() == F);
     Instruction *Call = CS.getInstruction();
-    const AttributeSet &CallPAL = CS.getAttributes();
+    const AttributeList &CallPAL = CS.getAttributes();
+
+    SmallVector<Value*, 16> Args;
+    AttributeList NewAttrVec;
 
     // Loop over the operands, inserting loads in the caller.
     CallSite::arg_iterator AI = CS.arg_begin();
-    ArgIndex = 1;
+    ArgIndex = 0;
     for (Function::arg_iterator I = F->arg_begin(), E = F->arg_end(); I != E;
          ++I, ++AI, ++ArgIndex) {
       if (!ArgsToTransform.count(I)) {
         // Unchanged argument
-        Args.push_back(*AI);
-
-        if (CallPAL.hasAttributes(ArgIndex)) {
-          AttrBuilder B(CallPAL, ArgIndex);
-          AttributesVec.push_back(AttributeSet::get(Context, Args.size(), B));
+        AttributeSet attrs = CallPAL.getParamAttributes(ArgIndex);
+        if (attrs.hasAttributes()) {
+          AttrBuilder B(attrs);
+          NewAttrVec = NewAttrVec.addParamAttributes(Context, Args.size(), B);
         }
+        Args.push_back(*AI);
       } else if (!I->use_empty()) {
         LoadInst *Load = new LoadInst(*AI, (*AI)->getName() + ".val", Call);
         Args.push_back(Load);
@@ -700,11 +720,12 @@ CallGraphNode *CMABI::TransformNode(Function *F,
 
     // Push any varargs arguments on the list.
     for (; AI != CS.arg_end(); ++AI, ++ArgIndex) {
-      Args.push_back(*AI);
-      if (CallPAL.hasAttributes(ArgIndex)) {
-        AttrBuilder B(CallPAL, ArgIndex);
-        AttributesVec.push_back(AttributeSet::get(Context, Args.size(), B));
+      AttributeSet attrs = CallPAL.getParamAttributes(ArgIndex);
+      if (attrs.hasAttributes()) {
+        AttrBuilder B(attrs);
+        NewAttrVec = NewAttrVec.addParamAttributes(Context, Args.size(), B);
       }
+      Args.push_back(*AI);
     }
 
     // Push any localized globals.
@@ -716,26 +737,24 @@ CallGraphNode *CMABI::TransformNode(Function *F,
     }
 
     // Add any function attributes.
-    if (CallPAL.hasAttributes(AttributeSet::FunctionIndex))
-      AttributesVec.push_back(
-          AttributeSet::get(Context, CallPAL.getFnAttributes()));
+    if (CallPAL.hasAttributes(AttributeList::FunctionIndex)) {
+      AttrBuilder B(CallPAL.getFnAttributes());
+      NewAttrVec = NewAttrVec.addAttributes(Context, AttributeList::FunctionIndex, B);
+    }
 
     if (isa<InvokeInst>(Call))
       llvm_unreachable("InvokeInst not supported");
 
     CallInst *New = CallInst::Create(NF, Args, "", Call);
     New->setCallingConv(CS.getCallingConv());
-    New->setAttributes(AttributeSet::get(New->getContext(), AttributesVec));
+    New->setAttributes(NewAttrVec);
     if (cast<CallInst>(Call)->isTailCall())
       New->setTailCall();
     New->setDebugLoc(Call->getDebugLoc());
 
-    Args.clear();
-    AttributesVec.clear();
-
     // Update the callgraph to know that the callsite has been transformed.
     CallGraphNode *CalleeNode = CG[Call->getParent()->getParent()];
-    CalleeNode->replaceCallEdge(Call, New, NF_CGN);
+    CalleeNode->replaceCallEdge(CallSite(Call), New, NF_CGN);
 
     unsigned Index = 0;
     IRBuilder<> Builder(Call);
@@ -794,7 +813,7 @@ CallGraphNode *CMABI::TransformNode(Function *F,
     //
     // In the callee, we create an alloca, and store each of the new incoming
     // arguments into the alloca.
-    Instruction *InsertPt = NF->begin()->begin();
+    Instruction *InsertPt = &*(NF->begin()->begin());
     Type *AgTy = I->getType()->getPointerElementType();
     AllocaInst *TheAlloca = new AllocaInst(AgTy, 0, "", InsertPt);
     Allocas.push_back(TheAlloca);
@@ -815,13 +834,12 @@ CallGraphNode *CMABI::TransformNode(Function *F,
        I != E; ++I) {
     GlobalVariable *GV = *I;
 
-    Instruction *InsertPt = NF->begin()->begin();
+    Instruction *InsertPt = &*(NF->begin()->begin());
     Type *AgTy = GV->getType()->getPointerElementType();
     AllocaInst *TheAlloca = new AllocaInst(AgTy, 0, "", InsertPt);
     Allocas.push_back(TheAlloca);
 
-    typedef Function::ArgumentListType::iterator ArgIterTy;
-    ArgIterTy ArgIter = NF->arg_begin();
+    auto ArgIter = NF->arg_begin();
     std::advance(ArgIter, LI.getArgIndex(GV));
     ArgIter->setName(GV->getName() + ".in");
     new StoreInst(ArgIter, TheAlloca, InsertPt);
@@ -963,7 +981,7 @@ void CMABI::diagnoseOverlappingArgs(CallInst *CI)
 {
   DEBUG(dbgs() << "diagnoseOverlappingArgs " << *CI << "\n");
   auto DL = CI->getDebugLoc();
-  if (DL.isUnknown())
+  if (!DL)
     return;
   std::map<Value *, SmallVector<uint8_t, 16>> ValMap;
   SmallVector<Instruction *, 8> WorkList;
@@ -1050,6 +1068,8 @@ void CMABI::diagnoseOverlappingArgs(CallInst *CI)
     } else if (auto CI = dyn_cast<CallInst>(Inst)) {
       if (auto CF = CI->getCalledFunction()) {
         switch (CF->getIntrinsicID()) {
+          default:
+            break;
           case Intrinsic::genx_wrregionf:
           case Intrinsic::genx_wrregioni:
             // wrregion: As long as it is constant index, propagate the argument
@@ -1165,8 +1185,8 @@ DiagnosticInfoOverlappingArgs::DiagnosticInfoOverlappingArgs(Instruction *Inst,
     : DiagnosticInfo(getKindID(), Severity), Line(0), Col(0)
 {
   auto DL = Inst->getDebugLoc();
-  if (!DL.isUnknown()) {
-    Filename = DIScope(DL.getScope(Inst->getContext())).getFilename();
+  if (!DL) {
+    Filename = DL.get()->getFilename();
     Line = DL.getLine();
     Col = DL.getCol();
   }
@@ -1242,7 +1262,7 @@ struct CMLowerLoadStore : public FunctionPass {
   }
   virtual void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<DominatorTreeWrapperPass>();
-    AU.addRequired<PostDominatorTree>();
+    AU.addRequired<PostDominatorTreeWrapperPass>();
     AU.setPreservesCFG();
   }
 
@@ -1259,7 +1279,7 @@ char CMLowerLoadStore::ID = 0;
 INITIALIZE_PASS_BEGIN(CMLowerLoadStore, "CMLowerLoadStore",
                       "Lower CM reference loads and stores", false, false)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
-INITIALIZE_PASS_DEPENDENCY(PostDominatorTree)
+INITIALIZE_PASS_DEPENDENCY(PostDominatorTreeWrapperPass)
 INITIALIZE_PASS_END(CMLowerLoadStore, "CMLowerLoadStore",
                     "Lower CM reference loads and stores", false, false)
 
@@ -1408,8 +1428,8 @@ static bool isBitwiseIdentical(Value *V1, Value *V2) {
     for (; &*I != L1 && &*I != L2; ++I)
       /*empty*/;
     assert(&*I == L1 || &*I == L2);
-    BasicBlock::iterator IEnd = (&*I == L1) ? L2 : L1;
-    for (; &*I != IEnd; ++I) {
+    auto IEnd = (&*I == L1) ? L2->getIterator() : L1->getIterator();
+    for (; I != IEnd; ++I) {
       Instruction *Inst = &*I;
       if (getIntrinsicID(Inst) == Intrinsic::genx_vstore &&
           Inst->getOperand(1) == Addr)
@@ -1567,7 +1587,7 @@ void ArgRefPattern::process() {
 // base region.
 bool CMLowerLoadStore::promoteAllocas(Function &F) {
   auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-  auto &PDT = getAnalysis<PostDominatorTree>();
+  auto &PDT = getAnalysis<PostDominatorTreeWrapperPass>().getPostDomTree();
   bool Modified = false;
 
   SmallVector<AllocaInst *, 8> Allocas;

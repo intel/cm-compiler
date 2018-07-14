@@ -2,7 +2,6 @@
 ; RUN: opt -loop-unswitch -loop-unswitch-threshold 13 -disable-output -stats -info-output-file - < %s | FileCheck --check-prefix=STATS %s
 ; RUN: opt -S -loop-unswitch -loop-unswitch-threshold 13 -verify-loop-info -verify-dom-info < %s | FileCheck %s
 
-; STATS: 1 loop-simplify - Number of pre-header or exit blocks inserted
 ; STATS: 1 loop-unswitch - Number of switches unswitched
 
 ; ModuleID = '../llvm/test/Transforms/LoopUnswitch/2011-11-18-TwoSwitches.ll'
@@ -52,14 +51,14 @@
 define i32 @test(i32* %var) {
   %mem = alloca i32
   store i32 2, i32* %mem
-  %c = load i32* %mem
-  %d = load i32* %mem
+  %c = load i32, i32* %mem
+  %d = load i32, i32* %mem
 
   br label %loop_begin
 
 loop_begin:
 
-  %var_val = load i32* %var
+  %var_val = load i32, i32* %var
 
   switch i32 %c, label %second_switch [
       i32 1, label %inc

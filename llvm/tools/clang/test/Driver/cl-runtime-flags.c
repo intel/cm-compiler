@@ -1,6 +1,3 @@
-// Don't attempt slash switches on msys bash.
-// REQUIRES: shell-preserves-root
-
 // Note: %s must be preceded by --, otherwise it may be interpreted as a
 // command-line option, e.g. on Mac where %s is commonly under /Users.
 
@@ -16,6 +13,7 @@
 // CHECK-MT-NOT: "-D_DEBUG"
 // CHECK-MT: "-D_MT"
 // CHECK-MT-NOT: "-D_DLL"
+// CHECK-MT: "-flto-visibility-public-std"
 // CHECK-MT: "--dependent-lib=libcmt"
 // CHECK-MT: "--dependent-lib=oldnames"
 
@@ -24,6 +22,7 @@
 // CHECK-MTd: "-D_DEBUG"
 // CHECK-MTd: "-D_MT"
 // CHECK-MTd-NOT: "-D_DLL"
+// CHECK-MTd: "-flto-visibility-public-std"
 // CHECK-MTd: "--dependent-lib=libcmtd"
 // CHECK-MTd: "--dependent-lib=oldnames"
 
@@ -87,3 +86,12 @@
 
 // RUN: %clang_cl /MD /MT -### -- %s 2>&1 | FileCheck -check-prefix=MTOVERRIDE %s
 // MTOVERRIDE: "--dependent-lib=libcmt"
+
+// RUN: %clang_cl -### /Zl -- %s 2>&1 | FileCheck -check-prefix=CHECK-MTZl %s
+// RUN: %clang_cl -### /MT /Zl -- %s 2>&1 | FileCheck -check-prefix=CHECK-MTZl %s
+// CHECK-MTZl-NOT: "-D_DEBUG"
+// CHECK-MTZl: "-D_MT"
+// CHECK-MTZl-NOT: "-D_DLL"
+// CHECK-MTZl-SAME: "-D_VC_NODEFAULTLIB"
+// CHECK-MTZl-NOT: "--dependent-lib=libcmt"
+// CHECK-MTZl-NOT: "--dependent-lib=oldnames"

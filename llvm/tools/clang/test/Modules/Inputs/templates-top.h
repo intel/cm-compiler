@@ -10,6 +10,7 @@ public:
 };
 
 extern List<double> *instantiateListDoubleDeclaration;
+extern List<long> *instantiateListLongDeclaration;
 
 namespace A {
   class Y {
@@ -40,3 +41,25 @@ template<typename T> struct OutOfLineInline {
 template<typename T> inline void OutOfLineInline<T>::f() {}
 template<typename T> inline void OutOfLineInline<T>::g() {}
 template<typename T> inline void OutOfLineInline<T>::h() {}
+
+namespace EmitDefaultedSpecialMembers {
+  template<typename T> struct SmallVectorImpl {
+    SmallVectorImpl() {}
+    ~SmallVectorImpl() {} // non-trivial dtor
+  };
+  template<typename T, unsigned N> struct SmallVector : SmallVectorImpl<T> {
+    // trivial dtor
+  };
+  template<unsigned N> struct SmallString : SmallVector<char, N> {
+    // trivial dtor
+  };
+}
+
+template<typename T> struct WithUndefinedStaticDataMember {
+  static T undefined;
+};
+
+template<typename T> struct __attribute__((packed, aligned(2))) WithAttributes {
+  T value;
+};
+WithAttributes<int> *get_with_attributes();

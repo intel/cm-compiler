@@ -3,14 +3,14 @@
 ; Test linking of incompatible debug info versions. The debug info
 ; from the other file should be dropped.
 
-; CHECK-NOT: metadata !{metadata !"b.c", metadata !""}
-; CHECK: metadata !{metadata !"a.c", metadata !""}
-; CHECK-NOT: metadata !{metadata !"b.c", metadata !""}
+; CHECK-NOT: !DIFile(filename: "b.c", directory: "")
+; CHECK:     !DIFile(filename: "a.c", directory: "")
+; CHECK-NOT: !DIFile(filename: "b.c", directory: "")
 
 !llvm.module.flags = !{ !0 }
 !llvm.dbg.cu = !{!1}
 
-!0 = metadata !{i32 2, metadata !"Debug Info Version", i32 1}
-!1 = metadata !{i32 589841, metadata !2, i32 12, metadata !"clang", i1 true, metadata !"", i32 0, metadata !3, metadata !3, metadata !3, null, null, metadata !""} ; [ DW_TAG_compile_unit ]
-!2 = metadata !{metadata !"a.c", metadata !""}
-!3 = metadata !{}
+!0 = !{i32 2, !"Debug Info Version", i32 3}
+!1 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang", isOptimized: true, emissionKind: FullDebug, file: !2, enums: !3, retainedTypes: !3)
+!2 = !DIFile(filename: "a.c", directory: "")
+!3 = !{}

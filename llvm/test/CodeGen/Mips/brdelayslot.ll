@@ -1,27 +1,28 @@
 ; RUN: llc -march=mipsel -O0 < %s | FileCheck %s -check-prefix=None
-; RUN: llc -march=mipsel < %s | FileCheck %s -check-prefix=Default
+; RUN: llc -march=mipsel     -relocation-model=pic    < %s | \
+; RUN: FileCheck %s -check-prefix=Default
 ; RUN: llc -march=mipsel -O1 -relocation-model=static < %s | \
 ; RUN: FileCheck %s -check-prefix=STATICO1
 ; RUN: llc -march=mipsel -disable-mips-df-forward-search=false \
 ; RUN: -relocation-model=static < %s | FileCheck %s -check-prefix=FORWARD
-; RUN: llc -march=mipsel -disable-mips-df-backward-search \
-; RUN: -disable-mips-df-succbb-search=false < %s | \
+; RUN: llc -march=mipsel -disable-mips-df-backward-search -relocation-model=pic \
+; RUN: -disable-mips-df-succbb-search=false -disable-preheader-prot=true < %s | \
 ; RUN: FileCheck %s -check-prefix=SUCCBB
 
 define void @foo1() nounwind {
 entry:
-; Default:     jalr 
-; Default-NOT: nop 
-; Default:     jr 
+; Default:     jalr
+; Default-NOT: nop
+; Default:     jr
 ; Default-NOT: nop
 ; Default:     .end
-; None: jalr 
-; None: nop 
-; None: jr 
+; None: jalr
+; None: nop
+; None: jr
 ; None: nop
 ; None: .end
 
-  tail call void @foo2(i32 3) nounwind
+  call void @foo2(i32 3) nounwind
   ret void
 }
 
@@ -36,7 +37,7 @@ entry:
 ; Default:     cvt.d.w
 
   %conv = sitofp i32 %a to double
-  tail call void @foo4(double %conv) nounwind
+  call void @foo4(double %conv) nounwind
   ret void
 }
 
@@ -54,18 +55,18 @@ declare void @foo4(double)
 
 define void @foo5(i32 %a) nounwind {
 entry:
-  %0 = load i32* @g2, align 4
+  %0 = load i32, i32* @g2, align 4
   %tobool = icmp eq i32 %a, 0
   br i1 %tobool, label %if.else, label %if.then
 
 if.then:
-  %1 = load i32* @g1, align 4
+  %1 = load i32, i32* @g1, align 4
   %add = add nsw i32 %1, %0
   store i32 %add, i32* @g1, align 4
   br label %if.end
 
 if.else:
-  %2 = load i32* @g3, align 4
+  %2 = load i32, i32* @g3, align 4
   %sub = sub nsw i32 %2, %0
   store i32 %sub, i32* @g3, align 4
   br label %if.end
@@ -82,7 +83,7 @@ if.end:
 
 define void @foo6(float %a0, double %a1) nounwind {
 entry:
-  tail call void @foo7(double %a1, float %a0) nounwind
+  call void @foo7(double %a1, float %a0) nounwind
   ret void
 }
 
@@ -99,9 +100,9 @@ declare void @foo7(double, float)
 define i32 @foo8(i32 %a) nounwind {
 entry:
   store i32 %a, i32* @g1, align 4
-  %0 = load void ()** @foo9, align 4
-  tail call void %0() nounwind
-  %1 = load i32* @g1, align 4
+  %0 = load void ()*, void ()** @foo9, align 4
+  call void %0() nounwind
+  %1 = load i32, i32* @g1, align 4
   %add = add nsw i32 %1, %a
   ret i32 %add
 }
@@ -144,8 +145,8 @@ entry:
 for.body:                                         ; preds = %entry, %for.body
   %s.06 = phi i32 [ %add, %for.body ], [ 0, %entry ]
   %i.05 = phi i32 [ %inc, %for.body ], [ 0, %entry ]
-  %arrayidx = getelementptr inbounds i32* %a, i32 %i.05
-  %0 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds i32, i32* %a, i32 %i.05
+  %0 = load i32, i32* %arrayidx, align 4
   %add = add nsw i32 %0, %s.06
   %inc = add nsw i32 %i.05, 1
   %exitcond = icmp eq i32 %inc, %n

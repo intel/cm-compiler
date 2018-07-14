@@ -1,6 +1,7 @@
-; RUN: %lli_mcjit -remote-mcjit -disable-lazy-compilation=false -mcjit-remote-process=lli-child-target%exeext %s
-; XFAIL: *
-; This test should fail until remote symbol resolution is supported.
+; RUN: %lli -remote-mcjit -disable-lazy-compilation=false -mcjit-remote-process=lli-child-target%exeext %s
+; XFAIL: mingw32,win32
+; UNSUPPORTED: powerpc64-unknown-linux-gnu
+; Remove UNSUPPORTED for powerpc64-unknown-linux-gnu if problem caused by r266663 is fixed
 
 define i32 @main() nounwind {
 entry:
@@ -21,14 +22,14 @@ entry:
 pass_block:
 	ret void
 fail_block:
-	call i32 @puts(i8* getelementptr([46 x i8]* @lcaic_failure, i32 0, i32 0))
+	call i32 @puts(i8* getelementptr([46 x i8], [46 x i8]* @lcaic_failure, i32 0, i32 0))
 	call void @exit(i32 1)
 	unreachable
 }
 
 define i1 @test() nounwind {
 entry:
-	%tmp = load i1 ()** @funcPtr
+	%tmp = load i1 ()*, i1 ()** @funcPtr
 	%eq = icmp eq i1 ()* %tmp, @test
 	ret i1 %eq
 }

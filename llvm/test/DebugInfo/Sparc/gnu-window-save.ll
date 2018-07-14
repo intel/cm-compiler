@@ -1,5 +1,5 @@
-; RUN: llc -filetype=obj -O0 < %s -mtriple sparc64-unknown-linux-gnu | llvm-dwarfdump - | FileCheck %s --check-prefix=SPARC64
-; RUN: llc -filetype=obj -O0 < %s -mtriple sparc-unknown-linux-gnu   | llvm-dwarfdump - | FileCheck %s --check-prefix=SPARC32
+; RUN: llc -filetype=obj -O0 < %s -mtriple sparc64-unknown-linux-gnu | llvm-dwarfdump -v - | FileCheck %s --check-prefix=SPARC64
+; RUN: llc -filetype=obj -O0 < %s -mtriple sparc-unknown-linux-gnu   | llvm-dwarfdump -v - | FileCheck %s --check-prefix=SPARC32
 
 ; Check for DW_CFA_GNU_Window_save in debug_frame. Also, Ensure that relocations
 ; are performed correctly in debug_info.
@@ -38,11 +38,11 @@
 @.str = private unnamed_addr constant [14 x i8] c"hello, world\0A\00", align 1
 
 ; Function Attrs: nounwind
-define signext i32 @main() #0 {
+define signext i32 @main() #0 !dbg !4 {
 entry:
   %retval = alloca i32, align 4
   store i32 0, i32* %retval
-  %call = call signext i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([14 x i8]* @.str, i32 0, i32 0)), !dbg !12
+  %call = call signext i32 (i8*, ...) @printf(i8* getelementptr inbounds ([14 x i8], [14 x i8]* @.str, i32 0, i32 0)), !dbg !12
   ret i32 0, !dbg !13
 }
 
@@ -55,17 +55,16 @@ attributes #1 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "n
 !llvm.module.flags = !{!9, !10}
 !llvm.ident = !{!11}
 
-!0 = metadata !{i32 786449, metadata !1, i32 12, metadata !"clang version 3.5 (http://llvm.org/git/clang.git 6a0714fee07fb7c4e32d3972b4fe2ce2f5678cf4) (llvm/ 672e88e934757f76d5c5e5258be41e7615094844)", i1 false, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !""} ; [ DW_TAG_compile_unit ] [/home/venkatra/work/benchmarks/test/hello/hello.c] [DW_LANG_C99]
-!1 = metadata !{metadata !"hello.c", metadata !"/home/venkatra/work/benchmarks/test/hello"}
-!2 = metadata !{}
-!3 = metadata !{metadata !4}
-!4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"main", metadata !"main", metadata !"", i32 3, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, i32 ()* @main, null, null, metadata !2, i32 4} ; [ DW_TAG_subprogram ] [line 3] [def] [scope 4] [main]
-!5 = metadata !{i32 786473, metadata !1}          ; [ DW_TAG_file_type ] [/home/venkatra/work/benchmarks/test/hello/hello.c]
-!6 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !7, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!7 = metadata !{metadata !8}
-!8 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!9 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!10 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
-!11 = metadata !{metadata !"clang version 3.5 (http://llvm.org/git/clang.git 6a0714fee07fb7c4e32d3972b4fe2ce2f5678cf4) (llvm/ 672e88e934757f76d5c5e5258be41e7615094844)"}
-!12 = metadata !{i32 5, i32 0, metadata !4, null}
-!13 = metadata !{i32 6, i32 0, metadata !4, null}
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5 (http://llvm.org/git/clang.git 6a0714fee07fb7c4e32d3972b4fe2ce2f5678cf4) (llvm/ 672e88e934757f76d5c5e5258be41e7615094844)", isOptimized: false, emissionKind: FullDebug, file: !1, enums: !2, retainedTypes: !2, globals: !2, imports: !2)
+!1 = !DIFile(filename: "hello.c", directory: "/home/venkatra/work/benchmarks/test/hello")
+!2 = !{}
+!4 = distinct !DISubprogram(name: "main", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, unit: !0, scopeLine: 4, file: !1, scope: !5, type: !6, variables: !2)
+!5 = !DIFile(filename: "hello.c", directory: "/home/venkatra/work/benchmarks/test/hello")
+!6 = !DISubroutineType(types: !7)
+!7 = !{!8}
+!8 = !DIBasicType(tag: DW_TAG_base_type, name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+!9 = !{i32 2, !"Dwarf Version", i32 4}
+!10 = !{i32 1, !"Debug Info Version", i32 3}
+!11 = !{!"clang version 3.5 (http://llvm.org/git/clang.git 6a0714fee07fb7c4e32d3972b4fe2ce2f5678cf4) (llvm/ 672e88e934757f76d5c5e5258be41e7615094844)"}
+!12 = !DILocation(line: 5, scope: !4)
+!13 = !DILocation(line: 6, scope: !4)

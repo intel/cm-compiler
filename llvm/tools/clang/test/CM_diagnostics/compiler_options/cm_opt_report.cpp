@@ -53,7 +53,7 @@ void test2() {
 //
 // RUN: %cmc /Qxcm_opt_report %w 2>&1 | FileCheck %w 
 
-// CHECK: cm_opt_report.cpp(6,2) :  warning: CM_GENX not defined [-W#warnings]
+// CHECK: cm_opt_report.cpp(6,2):  warning: CM_GENX not defined [-W#warnings]
 // CHECK: 1 warning generated.
 // CHECK-NOT: -platform
 // CHECK-NOT: Fix Inst Size for:
@@ -68,7 +68,7 @@ void test2() {
 // RUN: rm %W_0.visaasm %W_0.asm %W_0.dat %W.isa
 // RUN: rm %W_1.visaasm %W_1.asm %W_1.dat %W_1_optreport.txt
 
-// CHECK-BDW: cm_opt_report.cpp(4,2) :  warning: CM_GENX defined [-W#warnings]
-// CHECK-BDW: cm_opt_report.cpp(14,2) :  warning: CM_GEN8 defined [-W#warnings]
+// CHECK-BDW: cm_opt_report.cpp(4,2):  warning: CM_GENX defined [-W#warnings]
+// CHECK-BDW: cm_opt_report.cpp(14,2):  warning: CM_GEN8 defined [-W#warnings]
 // CHECK-BDW: 2 warnings generated.
 // CHECK-BDW: -platform BDW

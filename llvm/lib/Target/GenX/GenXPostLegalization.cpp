@@ -48,6 +48,7 @@
 #include "GenXRegion.h"
 #include "GenXSubtarget.h"
 #include "GenXVectorDecomposer.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
@@ -55,7 +56,6 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Target/TargetLibraryInfo.h"
 #include <set>
 
 using namespace llvm;
@@ -74,7 +74,7 @@ class GenXPostLegalization : public FunctionPass {
 public:
   static char ID;
   explicit GenXPostLegalization() : FunctionPass(ID) { }
-  virtual const char *getPassName() const { return "GenX post-legalization pass"; }
+  virtual StringRef getPassName() const { return "GenX post-legalization pass"; }
   void getAnalysisUsage(AnalysisUsage &AU) const;
   bool runOnFunction(Function &F);
 };
@@ -97,7 +97,7 @@ FunctionPass *llvm::createGenXPostLegalizationPass()
 void GenXPostLegalization::getAnalysisUsage(AnalysisUsage &AU) const
 {
   AU.addRequired<DominatorTreeWrapperPass>();
-  AU.addRequired<TargetLibraryInfo>();
+  AU.addRequired<TargetLibraryInfoWrapperPass>();
   AU.setPreservesCFG();
 }
 
@@ -106,14 +106,13 @@ void GenXPostLegalization::getAnalysisUsage(AnalysisUsage &AU) const
  */
 bool GenXPostLegalization::runOnFunction(Function &F)
 {
-  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
-  DL = DLP ? &DLP->getDataLayout() : nullptr;
+  DL = &F.getParent()->getDataLayout();
   auto P = getAnalysisIfAvailable<GenXSubtargetPass>();
   if (P)
     ST = P->getSubtarget();
   else
     return false;
-  TLI = &getAnalysis<TargetLibraryInfo>();
+  TLI = &getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
 
   bool Modified = false;

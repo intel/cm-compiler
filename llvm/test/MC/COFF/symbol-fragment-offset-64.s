@@ -11,7 +11,7 @@
 	.globl	_main
 	.align	16, 0x90
 _main:                                  # @main
-# BB#0:                                 # %entry
+# %bb.0:                                # %entry
 	subl	$4, %esp
 	movl	$.L_.str0, (%esp)
 	callq	_printf
@@ -114,10 +114,9 @@ _main:                                  # @main
 // CHECK:       Length: 48
 // CHECK:       RelocationCount: 6
 // CHECK:       LineNumberCount: 0
-// CHECK:       Checksum: 0x0
+// CHECK:       Checksum: 0x7BD396E3
 // CHECK:       Number: 1
 // CHECK:       Selection: 0x0
-// CHECK:       Unused: (00 00 00)
 // CHECK:     }
 // CHECK:   }
 // CHECK:   Symbol {
@@ -132,10 +131,9 @@ _main:                                  # @main
 // CHECK:       Length: 35
 // CHECK:       RelocationCount: 0
 // CHECK:       LineNumberCount: 0
-// CHECK:       Checksum: 0x0
+// CHECK:       Checksum: 0xB0A4C21
 // CHECK:       Number: 2
 // CHECK:       Selection: 0x0
-// CHECK:       Unused: (00 00 00)
 // CHECK:     }
 // CHECK:   }
 // CHECK:   Symbol {
@@ -150,7 +148,7 @@ _main:                                  # @main
 // CHECK:   Symbol {
 // CHECK:     Name:                      _printf
 // CHECK:     Value:                     0
-// CHECK:     Section:                   (0)
+// CHECK:     Section:                   IMAGE_SYM_UNDEFINED (0)
 // CHECK:     BaseType:                  Null
 // CHECK:     ComplexType:               Null
 // CHECK:     StorageClass:              External
@@ -159,7 +157,7 @@ _main:                                  # @main
 // CHECK:   Symbol {
 // CHECK:     Name:                      _puts
 // CHECK:     Value:                     0
-// CHECK:     Section:                   (0)
+// CHECK:     Section:                   IMAGE_SYM_UNDEFINED (0)
 // CHECK:     BaseType:                  Null
 // CHECK:     ComplexType:               Null
 // CHECK:     StorageClass:              External

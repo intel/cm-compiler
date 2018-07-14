@@ -26,12 +26,12 @@ void A::h(A* a)
 }
 
 struct B {
-  virtual void f() __attribute__((deprecated)); // expected-note 4 {{'f' has been explicitly marked deprecated here}}
+  virtual void f() __attribute__((deprecated)); // expected-note 6 {{'f' has been explicitly marked deprecated here}}
   void g();
 };
 
 void B::g() {
-  f();
+  f(); // expected-warning{{'f' is deprecated}}
   B::f(); // expected-warning{{'f' is deprecated}}
 }
 
@@ -47,7 +47,7 @@ void C::g() {
 }
 
 void f(B* b, C *c) {
-  b->f();
+  b->f(); // expected-warning{{'f' is deprecated}}
   b->B::f(); // expected-warning{{'f' is deprecated}}
   
   c->f();
@@ -56,13 +56,19 @@ void f(B* b, C *c) {
 }
 
 struct D {
-  virtual void f() __attribute__((deprecated));
+  virtual void f() __attribute__((deprecated));// expected-note{{'f' has been explicitly marked deprecated here}}
+  virtual void f(int) __attribute__((deprecated));// expected-note{{'f' has been explicitly marked deprecated here}}
+  virtual void f(int, int) __attribute__((deprecated));// expected-note{{'f' has been explicitly marked deprecated here}}
 };
 
-void D::f() { }
+void D::f() { } 
+void D::f(int v) { } 
+void D::f(int v1, int v2) { } 
 
 void f(D* d) {
-  d->f();
+  d->f(); // expected-warning{{'f' is deprecated}}
+  d->f(42); // expected-warning{{'f' is deprecated}}
+  d->f(42, 24); // expected-warning{{'f' is deprecated}}
 }
 
 
@@ -193,8 +199,8 @@ namespace test5 {
 
 // rdar://problem/8518751
 namespace test6 {
-  enum __attribute__((deprecated)) A { // expected-note {{'A' has been explicitly marked deprecated here}}
-    a0 // expected-note {{'a0' has been explicitly marked deprecated here}}
+  enum __attribute__((deprecated)) A { // expected-note 2 {{'A' has been explicitly marked deprecated here}}
+    a0
   };
   void testA() {
     A x; // expected-warning {{'A' is deprecated}}
@@ -212,8 +218,8 @@ namespace test6 {
   }
 
   template <class T> struct C {
-    enum __attribute__((deprecated)) Enum { // expected-note {{'Enum' has been explicitly marked deprecated here}}
-      c0 // expected-note {{'c0' has been explicitly marked deprecated here}}
+    enum __attribute__((deprecated)) Enum { // expected-note 2 {{'Enum' has been explicitly marked deprecated here}}
+      c0
     };
   };
   void testC() {

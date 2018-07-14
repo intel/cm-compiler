@@ -11,9 +11,9 @@ DESCRIPTION
 
 :program:`llvm-symbolizer` reads object file names and addresses from standard
 input and prints corresponding source code locations to standard output.
-If object file is specified in command line, :program:`llvm-symbolizer` reads
-only addresses from standard input. This
-program uses debug info sections and symbol table in the object files.
+If object file is specified in command line, :program:`llvm-symbolizer` 
+processes only addresses from standard input, the rest is output verbatim.
+This program uses debug info sections and symbol table in the object files.
 
 EXAMPLE
 --------
@@ -56,6 +56,14 @@ EXAMPLE
 
   foo(int)
   /tmp/a.cc:12
+  $cat addr.txt
+  0x40054d
+  $llvm-symbolizer -inlining -print-address -pretty-print -obj=addr.exe < addr.txt
+  0x40054d: inc at /tmp/x.c:3:3
+   (inlined by) main at /tmp/x.c:9:0
+  $llvm-symbolizer -inlining -pretty-print -obj=addr.exe < addr.txt
+  inc at /tmp/x.c:3:3
+   (inlined by) main at /tmp/x.c:9:0
 
 OPTIONS
 -------
@@ -91,6 +99,21 @@ OPTIONS
  You can also specify architecture by writing ``binary_name:arch_name`` in the
  input (see example above). If architecture is not specified in either way,
  address will not be symbolized. Defaults to empty string.
+
+.. option:: -dsym-hint=<path/to/file.dSYM>
+
+ (Darwin-only flag). If the debug info for a binary isn't present in the default
+ location, look for the debug info at the .dSYM path provided via the
+ ``-dsym-hint`` flag. This flag can be used multiple times.
+
+.. option:: -print-address
+
+ Print address before the source code location. Defaults to false.
+
+.. option:: -pretty-print
+
+ Print human readable output. If ``-inlining`` is specified, enclosing scope is
+ prefixed by (inlined by). Refer to listed examples.
 
 EXIT STATUS
 -----------

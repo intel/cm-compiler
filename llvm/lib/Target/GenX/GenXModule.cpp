@@ -140,8 +140,7 @@ bool GenXModule::runOnModule(Module &M)
               DEBUG(dbgs() << "GenXModule: Function " << F->getName() << " is in FunctionGroup " << FGA->getGroup(Caller)->getName() << "\n");
             } else {
               ValueToValueMapTy VMap;
-              Function *ClonedFunc = CloneFunction(F, VMap, false);
-              F->getParent()->getFunctionList().push_back(ClonedFunc);
+              Function *ClonedFunc = CloneFunction(F, VMap);
               i->second = ClonedFunc;
               DEBUG(dbgs() << "GenXModule: cloned Function " << ClonedFunc->getName() << " is in FunctionGroup " << FGA->getGroup(Caller)->getName() << "\n");
             }

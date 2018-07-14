@@ -1,0 +1,211 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>The MSF File Format &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="The PDB Info Stream (aka the PDB Stream)" href="PdbStream.html" />
+    <link rel="prev" title="The PDB File Format" href="index.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="PdbStream.html" title="The PDB Info Stream (aka the PDB Stream)"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="The PDB File Format"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">The PDB File Format</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="the-msf-file-format">
+<h1>The MSF File Format<a class="headerlink" href="#the-msf-file-format" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#the-superblock" id="id1">The Superblock</a></li>
+<li><a class="reference internal" href="#the-stream-directory" id="id2">The Stream Directory</a></li>
+<li><a class="reference internal" href="#alignment-and-block-boundaries" id="id3">Alignment and Block Boundaries</a></li>
+</ul>
+</div>
+<div class="section" id="the-superblock">
+<span id="msf-superblock"></span><h2><a class="toc-backref" href="#id1">The Superblock</a><a class="headerlink" href="#the-superblock" title="Permalink to this headline">¶</a></h2>
+<p>At file offset 0 in an MSF file is the MSF <em>SuperBlock</em>, which is laid out as
+follows:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">SuperBlock</span> <span class="p">{</span>
+  <span class="kt">char</span> <span class="n">FileMagic</span><span class="p">[</span><span class="k">sizeof</span><span class="p">(</span><span class="n">Magic</span><span class="p">)];</span>
+  <span class="n">ulittle32_t</span> <span class="n">BlockSize</span><span class="p">;</span>
+  <span class="n">ulittle32_t</span> <span class="n">FreeBlockMapBlock</span><span class="p">;</span>
+  <span class="n">ulittle32_t</span> <span class="n">NumBlocks</span><span class="p">;</span>
+  <span class="n">ulittle32_t</span> <span class="n">NumDirectoryBytes</span><span class="p">;</span>
+  <span class="n">ulittle32_t</span> <span class="n">Unknown</span><span class="p">;</span>
+  <span class="n">ulittle32_t</span> <span class="n">BlockMapAddr</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><strong>FileMagic</strong> - Must be equal to <code class="docutils literal"><span class="pre">&quot;Microsoft</span> <span class="pre">C</span> <span class="pre">/</span> <span class="pre">C++</span> <span class="pre">MSF</span> <span class="pre">7.00\\r\\n&quot;</span></code>
+followed by the bytes <code class="docutils literal"><span class="pre">1A</span> <span class="pre">44</span> <span class="pre">53</span> <span class="pre">00</span> <span class="pre">00</span> <span class="pre">00</span></code>.</li>
+<li><strong>BlockSize</strong> - The block size of the internal file system.  Valid values are
+512, 1024, 2048, and 4096 bytes.  Certain aspects of the MSF file layout vary
+depending on the block sizes.  For the purposes of LLVM, we handle only block
+sizes of 4KiB, and all further discussion assumes a block size of 4KiB.</li>
+<li><strong>FreeBlockMapBlock</strong> - The index of a block within the file, at which begins
+a bitfield representing the set of all blocks within the file which are “free”
+(i.e. the data within that block is not used).  This bitfield is spread across
+the MSF file at <code class="docutils literal"><span class="pre">BlockSize</span></code> intervals.
+<strong>Important</strong>: <code class="docutils literal"><span class="pre">FreeBlockMapBlock</span></code> can only be <code class="docutils literal"><span class="pre">1</span></code> or <code class="docutils literal"><span class="pre">2</span></code>!  This field
+is designed to support incremental and atomic updates of the underlying MSF
+file.  While writing to an MSF file, if the value of this field is <cite>1</cite>, you
+can write your new modified bitfield to page 2, and vice versa.  Only when
+you commit the file to disk do you need to swap the value in the SuperBlock
+to point to the new <code class="docutils literal"><span class="pre">FreeBlockMapBlock</span></code>.</li>
+<li><strong>NumBlocks</strong> - The total number of blocks in the file.  <code class="docutils literal"><span class="pre">NumBlocks</span> <span class="pre">*</span> <span class="pre">BlockSize</span></code>
+should equal the size of the file on disk.</li>
+<li><strong>NumDirectoryBytes</strong> - The size of the stream directory, in bytes.  The stream
+directory contains information about each stream’s size and the set of blocks
+that it occupies.  It will be described in more detail later.</li>
+<li><strong>BlockMapAddr</strong> - The index of a block within the MSF file.  At this block is
+an array of <code class="docutils literal"><span class="pre">ulittle32_t</span></code>’s listing the blocks that the stream directory
+resides on.  For large MSF files, the stream directory (which describes the
+block layout of each stream) may not fit entirely on a single block.  As a
+result, this extra layer of indirection is introduced, whereby this block
+contains the list of blocks that the stream directory occupies, and the stream
+directory itself can be stitched together accordingly.  The number of
+<code class="docutils literal"><span class="pre">ulittle32_t</span></code>’s in this array is given by <code class="docutils literal"><span class="pre">ceil(NumDirectoryBytes</span> <span class="pre">/</span> <span class="pre">BlockSize)</span></code>.</li>
+</ul>
+</div>
+<div class="section" id="the-stream-directory">
+<h2><a class="toc-backref" href="#id2">The Stream Directory</a><a class="headerlink" href="#the-stream-directory" title="Permalink to this headline">¶</a></h2>
+<p>The Stream Directory is the root of all access to the other streams in an MSF
+file.  Beginning at byte 0 of the stream directory is the following structure:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">StreamDirectory</span> <span class="p">{</span>
+  <span class="n">ulittle32_t</span> <span class="n">NumStreams</span><span class="p">;</span>
+  <span class="n">ulittle32_t</span> <span class="n">StreamSizes</span><span class="p">[</span><span class="n">NumStreams</span><span class="p">];</span>
+  <span class="n">ulittle32_t</span> <span class="n">StreamBlocks</span><span class="p">[</span><span class="n">NumStreams</span><span class="p">][];</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>And this structure occupies exactly <code class="docutils literal"><span class="pre">SuperBlock-&gt;NumDirectoryBytes</span></code> bytes.
+Note that each of the last two arrays is of variable length, and in particular
+that the second array is jagged.</p>
+<p><strong>Example:</strong> Suppose a hypothetical PDB file with a 4KiB block size, and 4
+streams of lengths {1000 bytes, 8000 bytes, 16000 bytes, 9000 bytes}.</p>
+<p>Stream 0: ceil(1000 / 4096) = 1 block</p>
+<p>Stream 1: ceil(8000 / 4096) = 2 blocks</p>
+<p>Stream 2: ceil(16000 / 4096) = 4 blocks</p>
+<p>Stream 3: ceil(9000 / 4096) = 3 blocks</p>
+<p>In total, 10 blocks are used.  Let’s see what the stream directory might look
+like:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">StreamDirectory</span> <span class="p">{</span>
+  <span class="n">ulittle32_t</span> <span class="n">NumStreams</span> <span class="o">=</span> <span class="mi">4</span><span class="p">;</span>
+  <span class="n">ulittle32_t</span> <span class="n">StreamSizes</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">8000</span><span class="p">,</span> <span class="mi">16000</span><span class="p">,</span> <span class="mi">9000</span><span class="p">};</span>
+  <span class="n">ulittle32_t</span> <span class="n">StreamBlocks</span><span class="p">[][]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="p">{</span><span class="mi">4</span><span class="p">},</span>
+    <span class="p">{</span><span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">},</span>
+    <span class="p">{</span><span class="mi">11</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">},</span>
+    <span class="p">{</span><span class="mi">10</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">12</span><span class="p">}</span>
+  <span class="p">};</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>In total, this occupies <code class="docutils literal"><span class="pre">15</span> <span class="pre">*</span> <span class="pre">4</span> <span class="pre">=</span> <span class="pre">60</span></code> bytes, so <code class="docutils literal"><span class="pre">SuperBlock-&gt;NumDirectoryBytes</span></code>
+would equal <code class="docutils literal"><span class="pre">60</span></code>, and <code class="docutils literal"><span class="pre">SuperBlock-&gt;BlockMapAddr</span></code> would be an array of one
+<code class="docutils literal"><span class="pre">ulittle32_t</span></code>, since <code class="docutils literal"><span class="pre">60</span> <span class="pre">&lt;=</span> <span class="pre">SuperBlock-&gt;BlockSize</span></code>.</p>
+<p>Note also that the streams are discontiguous, and that part of stream 3 is in the
+middle of part of stream 2.  You cannot assume anything about the layout of the
+blocks!</p>
+</div>
+<div class="section" id="alignment-and-block-boundaries">
+<h2><a class="toc-backref" href="#id3">Alignment and Block Boundaries</a><a class="headerlink" href="#alignment-and-block-boundaries" title="Permalink to this headline">¶</a></h2>
+<p>As may be clear by now, it is possible for a single field (whether it be a high
+level record, a long string field, or even a single <code class="docutils literal"><span class="pre">uint16</span></code>) to begin and
+end in separate blocks.  For example, if the block size is 4096 bytes, and a
+<code class="docutils literal"><span class="pre">uint16</span></code> field begins at the last byte of the current block, then it would
+need to end on the first byte of the next block.  Since blocks are not
+necessarily contiguously laid out in the file, this means that both the consumer
+and the producer of an MSF file must be prepared to split data apart
+accordingly.  In the aforementioned example, the high byte of the <code class="docutils literal"><span class="pre">uint16</span></code>
+would be written to the last byte of block N, and the low byte would be written
+to the first byte of block N+1, which could be tens of thousands of bytes later
+(or even earlier!) in the file, depending on what the stream directory says.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="PdbStream.html" title="The PDB Info Stream (aka the PDB Stream)"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="The PDB File Format"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >The PDB File Format</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

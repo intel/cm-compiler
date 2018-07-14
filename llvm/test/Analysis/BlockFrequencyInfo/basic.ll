@@ -1,4 +1,6 @@
 ; RUN: opt < %s -analyze -block-freq | FileCheck %s
+; RUN: opt < %s -analyze -lazy-block-freq | FileCheck %s
+; RUN: opt < %s -passes='print<block-freq>' -disable-output 2>&1 | FileCheck %s
 
 define i32 @test1(i32 %i, i32* %a) {
 ; CHECK-LABEL: Printing analysis {{.*}} for function 'test1':
@@ -12,8 +14,8 @@ entry:
 body:
   %iv = phi i32 [ 0, %entry ], [ %next, %body ]
   %base = phi i32 [ 0, %entry ], [ %sum, %body ]
-  %arrayidx = getelementptr inbounds i32* %a, i32 %iv
-  %0 = load i32* %arrayidx
+  %arrayidx = getelementptr inbounds i32, i32* %a, i32 %iv
+  %0 = load i32, i32* %arrayidx
   %sum = add nsw i32 %0, %base
   %next = add i32 %iv, 1
   %exitcond = icmp eq i32 %next, %i
@@ -47,7 +49,7 @@ exit:
   ret i32 %result
 }
 
-!0 = metadata !{metadata !"branch_weights", i32 64, i32 4}
+!0 = !{!"branch_weights", i32 64, i32 4}
 
 define i32 @test3(i32 %i, i32 %a, i32 %b, i32 %c, i32 %d, i32 %e) {
 ; CHECK-LABEL: Printing analysis {{.*}} for function 'test3':
@@ -90,7 +92,7 @@ exit:
   ret i32 %result
 }
 
-!1 = metadata !{metadata !"branch_weights", i32 4, i32 4, i32 64, i32 4, i32 4}
+!1 = !{!"branch_weights", i32 4, i32 4, i32 64, i32 4, i32 4}
 
 define void @nested_loops(i32 %a) {
 ; CHECK-LABEL: Printing analysis {{.*}} for function 'nested_loops':
@@ -104,13 +106,13 @@ for.cond1.preheader:
   %x.024 = phi i32 [ 0, %entry ], [ %inc12, %for.inc11 ]
   br label %for.cond4.preheader
 
-; CHECK-NEXT: for.cond4.preheader: float = 16008001.0,
+; CHECK-NEXT: for.cond4.preheader: float = 16007984.8,
 for.cond4.preheader:
   %y.023 = phi i32 [ 0, %for.cond1.preheader ], [ %inc9, %for.inc8 ]
   %add = add i32 %y.023, %x.024
   br label %for.body6
 
-; CHECK-NEXT: for.body6: float = 64048012001.0,
+; CHECK-NEXT: for.body6: float = 64047914563.9,
 for.body6:
   %z.022 = phi i32 [ 0, %for.cond4.preheader ], [ %inc, %for.body6 ]
   %add7 = add i32 %add, %z.022
@@ -119,7 +121,7 @@ for.body6:
   %cmp5 = icmp ugt i32 %inc, %a
   br i1 %cmp5, label %for.inc8, label %for.body6, !prof !2
 
-; CHECK-NEXT: for.inc8: float = 16008001.0,
+; CHECK-NEXT: for.inc8: float = 16007984.8,
 for.inc8:
   %inc9 = add i32 %y.023, 1
   %cmp2 = icmp ugt i32 %inc9, %a
@@ -138,4 +140,4 @@ for.end13:
 
 declare void @g(i32)
 
-!2 = metadata !{metadata !"branch_weights", i32 1, i32 4000}
+!2 = !{!"branch_weights", i32 1, i32 4000}

@@ -2,16 +2,11 @@
 ; RUN: llc -mtriple=thumbv7m-none-macho -O0 %s -o - -relocation-model=pic -disable-fp-elim | FileCheck %s
 ; RUN: llc -mtriple=thumbv7m-none-macho -filetype=obj %s -o /dev/null
 
-  ; Bare-metal should probably "declare" segments just like normal MachO
-; CHECK: __picsymbolstub4
-; CHECK: __StaticInit
-; CHECK: __text
-
 @var = external global i32
 
 define i32 @test_litpool() minsize {
 ; CHECK-LABEL: test_litpool:
-  %val = load i32* @var
+  %val = load i32, i32* @var
   ret i32 %val
 
   ; Lit-pool entries need to produce a "$non_lazy_ptr" version of the symbol.
@@ -21,7 +16,7 @@ define i32 @test_litpool() minsize {
 
 define i32 @test_movw_movt() {
 ; CHECK-LABEL: test_movw_movt:
-  %val = load i32* @var
+  %val = load i32, i32* @var
   ret i32 %val
 
   ; movw/movt should also address their symbols MachO-style
@@ -48,24 +43,26 @@ define i32 @test_frame_ptr() {
 ; CHECK-LABEL: test_frame_ptr:
   call void @test_trap()
 
-  ; Frame pointer is r11.
-; CHECK: mov r11, sp
+  ; Frame pointer is r7.
+; CHECK: mov r7, sp
   ret i32 42
 }
 
 %big_arr = type [8 x i32]
 define void @test_two_areas(%big_arr* %addr) {
 ; CHECK-LABEL: test_two_areas:
-  %val = load %big_arr* %addr
+  %val = load %big_arr, %big_arr* %addr
   call void @test_trap()
   store %big_arr %val, %big_arr* %addr
 
   ; This goes with the choice of r7 as FP (largely). FP and LR have to be stored
   ; consecutively on the stack for the frame record to be valid, which means we
   ; need the 2 register-save areas employed by iOS.
-; CHECK-NON-FAST: push.w {r4, r5, r6, r7, r8, r9, r10, r11, lr}
+; CHECK-NON-FAST: push {r4, r5, r6, r7, lr}
+; CHECK-NON-FAST: push.w {r8, r9, r10, r11}
 ; ...
-; CHECK-NON-FAST: pop.w {r4, r5, r6, r7, r8, r9, r10, r11, pc}
+; CHECK-NON-FAST: pop.w {r8, r9, r10, r11}
+; CHECK-NON-FAST: pop {r4, r5, r6, r7, pc}
   ret void
 }
 
@@ -84,7 +81,7 @@ define float @test_softfloat_calls(float %in) {
 
   ; Soft-float calls should be GNU-style rather than RTABI and should not be the
   ; *vfp variants used for ARMv6 iOS.
-; CHECK: blx ___addsf3{{$}}
+; CHECK: bl ___addsf3{{$}}
   ret float %sum
 }
 

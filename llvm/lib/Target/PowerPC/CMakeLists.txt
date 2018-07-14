@@ -2,9 +2,8 @@ set(LLVM_TARGET_DEFINITIONS PPC.td)
 
 tablegen(LLVM PPCGenAsmWriter.inc -gen-asm-writer)
 tablegen(LLVM PPCGenAsmMatcher.inc -gen-asm-matcher)
-tablegen(LLVM PPCGenCodeEmitter.inc -gen-emitter)
 tablegen(LLVM PPCGenDisassemblerTables.inc -gen-disassembler)
-tablegen(LLVM PPCGenMCCodeEmitter.inc -gen-emitter -mc-emitter)
+tablegen(LLVM PPCGenMCCodeEmitter.inc -gen-emitter)
 tablegen(LLVM PPCGenRegisterInfo.inc -gen-register-info)
 tablegen(LLVM PPCGenInstrInfo.inc -gen-instr-info)
 tablegen(LLVM PPCGenDAGISel.inc -gen-dag-isel)
@@ -14,25 +13,37 @@ tablegen(LLVM PPCGenSubtargetInfo.inc -gen-subtarget)
 add_public_tablegen_target(PowerPCCommonTableGen)
 
 add_llvm_target(PowerPCCodeGen
+  PPCBoolRetToInt.cpp
   PPCAsmPrinter.cpp
   PPCBranchSelector.cpp
-  PPCCodeEmitter.cpp
+  PPCBranchCoalescing.cpp
+  PPCCCState.cpp
   PPCCTRLoops.cpp
   PPCHazardRecognizers.cpp
   PPCInstrInfo.cpp
   PPCISelDAGToDAG.cpp
   PPCISelLowering.cpp
+  PPCEarlyReturn.cpp
   PPCFastISel.cpp
   PPCFrameLowering.cpp
-  PPCJITInfo.cpp
+  PPCLoopPreIncPrep.cpp
   PPCMCInstLower.cpp
   PPCMachineFunctionInfo.cpp
+  PPCMIPeephole.cpp
   PPCRegisterInfo.cpp
+  PPCQPXLoadSplat.cpp
   PPCSubtarget.cpp
   PPCTargetMachine.cpp
   PPCTargetObjectFile.cpp
   PPCTargetTransformInfo.cpp
-  PPCSelectionDAGInfo.cpp
+  PPCTOCRegDeps.cpp
+  PPCTLSDynamicCall.cpp
+  PPCVSXCopy.cpp
+  PPCReduceCRLogicals.cpp
+  PPCVSXFMAMutate.cpp
+  PPCVSXSwapRemoval.cpp
+  PPCExpandISEL.cpp
+  PPCPreEmitPeephole.cpp
   )
 
 add_subdirectory(AsmParser)

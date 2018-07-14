@@ -1,0 +1,608 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>1. Building a JIT: Starting out with KaleidoscopeJIT &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="2. Building a JIT: Adding Optimizations – An introduction to ORC Layers" href="BuildingAJIT2.html" />
+    <link rel="prev" title="8. Kaleidoscope: Conclusion and other useful LLVM tidbits" href="OCamlLangImpl8.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="BuildingAJIT2.html" title="2. Building a JIT: Adding Optimizations – An introduction to ORC Layers"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="OCamlLangImpl8.html" title="8. Kaleidoscope: Conclusion and other useful LLVM tidbits"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Tutorial: Table of Contents</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="building-a-jit-starting-out-with-kaleidoscopejit">
+<h1>1. Building a JIT: Starting out with KaleidoscopeJIT<a class="headerlink" href="#building-a-jit-starting-out-with-kaleidoscopejit" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#chapter-1-introduction" id="id11">Chapter 1 Introduction</a></li>
+<li><a class="reference internal" href="#jit-api-basics" id="id12">JIT API Basics</a></li>
+<li><a class="reference internal" href="#kaleidoscopejit" id="id13">KaleidoscopeJIT</a></li>
+<li><a class="reference internal" href="#full-code-listing" id="id14">Full Code Listing</a></li>
+</ul>
+</div>
+<div class="section" id="chapter-1-introduction">
+<h2><a class="toc-backref" href="#id11">1.1. Chapter 1 Introduction</a><a class="headerlink" href="#chapter-1-introduction" title="Permalink to this headline">¶</a></h2>
+<p>Welcome to Chapter 1 of the “Building an ORC-based JIT in LLVM” tutorial. This
+tutorial runs through the implementation of a JIT compiler using LLVM’s
+On-Request-Compilation (ORC) APIs. It begins with a simplified version of the
+KaleidoscopeJIT class used in the
+<a class="reference external" href="LangImpl01.html">Implementing a language with LLVM</a> tutorials and then
+introduces new features like optimization, lazy compilation and remote
+execution.</p>
+<p>The goal of this tutorial is to introduce you to LLVM’s ORC JIT APIs, show how
+these APIs interact with other parts of LLVM, and to teach you how to recombine
+them to build a custom JIT that is suited to your use-case.</p>
+<p>The structure of the tutorial is:</p>
+<ul class="simple">
+<li>Chapter #1: Investigate the simple KaleidoscopeJIT class. This will
+introduce some of the basic concepts of the ORC JIT APIs, including the
+idea of an ORC <em>Layer</em>.</li>
+<li><a class="reference external" href="BuildingAJIT2.html">Chapter #2</a>: Extend the basic KaleidoscopeJIT by adding
+a new layer that will optimize IR and generated code.</li>
+<li><a class="reference external" href="BuildingAJIT3.html">Chapter #3</a>: Further extend the JIT by adding a
+Compile-On-Demand layer to lazily compile IR.</li>
+<li><a class="reference external" href="BuildingAJIT4.html">Chapter #4</a>: Improve the laziness of our JIT by
+replacing the Compile-On-Demand layer with a custom layer that uses the ORC
+Compile Callbacks API directly to defer IR-generation until functions are
+called.</li>
+<li><a class="reference external" href="BuildingAJIT5.html">Chapter #5</a>: Add process isolation by JITing code into
+a remote process with reduced privileges using the JIT Remote APIs.</li>
+</ul>
+<p>To provide input for our JIT we will use the Kaleidoscope REPL from
+<a class="reference external" href="LangImpl07.html">Chapter 7</a> of the “Implementing a language in LLVM tutorial”,
+with one minor modification: We will remove the FunctionPassManager from the
+code for that chapter and replace it with optimization support in our JIT class
+in Chapter #2.</p>
+<p>Finally, a word on API generations: ORC is the 3rd generation of LLVM JIT API.
+It was preceded by MCJIT, and before that by the (now deleted) legacy JIT.
+These tutorials don’t assume any experience with these earlier APIs, but
+readers acquainted with them will see many familiar elements. Where appropriate
+we will make this connection with the earlier APIs explicit to help people who
+are transitioning from them to ORC.</p>
+</div>
+<div class="section" id="jit-api-basics">
+<h2><a class="toc-backref" href="#id12">1.2. JIT API Basics</a><a class="headerlink" href="#jit-api-basics" title="Permalink to this headline">¶</a></h2>
+<p>The purpose of a JIT compiler is to compile code “on-the-fly” as it is needed,
+rather than compiling whole programs to disk ahead of time as a traditional
+compiler does. To support that aim our initial, bare-bones JIT API will be:</p>
+<ol class="arabic simple">
+<li>Handle addModule(Module &amp;M) – Make the given IR module available for
+execution.</li>
+<li>JITSymbol findSymbol(const std::string &amp;Name) – Search for pointers to
+symbols (functions or variables) that have been added to the JIT.</li>
+<li>void removeModule(Handle H) – Remove a module from the JIT, releasing any
+memory that had been used for the compiled code.</li>
+</ol>
+<p>A basic use-case for this API, executing the ‘main’ function from a module,
+will look like:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">M</span> <span class="o">=</span> <span class="n">buildModule</span><span class="p">();</span>
+<span class="n">JIT</span> <span class="n">J</span><span class="p">;</span>
+<span class="n">Handle</span> <span class="n">H</span> <span class="o">=</span> <span class="n">J</span><span class="p">.</span><span class="n">addModule</span><span class="p">(</span><span class="o">*</span><span class="n">M</span><span class="p">);</span>
+<span class="kt">int</span> <span class="p">(</span><span class="o">*</span><span class="n">Main</span><span class="p">)(</span><span class="kt">int</span><span class="p">,</span> <span class="kt">char</span><span class="o">*</span><span class="p">[])</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int</span><span class="p">(</span><span class="o">*</span><span class="p">)(</span><span class="kt">int</span><span class="p">,</span> <span class="kt">char</span><span class="o">*</span><span class="p">[]))</span><span class="n">J</span><span class="p">.</span><span class="n">getSymbolAddress</span><span class="p">(</span><span class="s">&quot;main&quot;</span><span class="p">);</span>
+<span class="kt">int</span> <span class="n">Result</span> <span class="o">=</span> <span class="n">Main</span><span class="p">();</span>
+<span class="n">J</span><span class="p">.</span><span class="n">removeModule</span><span class="p">(</span><span class="n">H</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>The APIs that we build in these tutorials will all be variations on this simple
+theme. Behind the API we will refine the implementation of the JIT to add
+support for optimization and lazy compilation. Eventually we will extend the
+API itself to allow higher-level program representations (e.g. ASTs) to be
+added to the JIT.</p>
+</div>
+<div class="section" id="kaleidoscopejit">
+<h2><a class="toc-backref" href="#id13">1.3. KaleidoscopeJIT</a><a class="headerlink" href="#kaleidoscopejit" title="Permalink to this headline">¶</a></h2>
+<p>In the previous section we described our API, now we examine a simple
+implementation of it: The KaleidoscopeJIT class <a class="footnote-reference" href="#id7" id="id1">[1]</a> that was used in the
+<a class="reference external" href="LangImpl01.html">Implementing a language with LLVM</a> tutorials. We will use
+the REPL code from <a class="reference external" href="LangImpl07.html">Chapter 7</a> of that tutorial to supply the
+input for our JIT: Each time the user enters an expression the REPL will add a
+new IR module containing the code for that expression to the JIT. If the
+expression is a top-level expression like ‘1+1’ or ‘sin(x)’, the REPL will also
+use the findSymbol method of our JIT class find and execute the code for the
+expression, and then use the removeModule method to remove the code again
+(since there’s no way to re-invoke an anonymous expression). In later chapters
+of this tutorial we’ll modify the REPL to enable new interactions with our JIT
+class, but for now we will take this setup for granted and focus our attention on
+the implementation of our JIT itself.</p>
+<p>Our KaleidoscopeJIT class is defined in the KaleidoscopeJIT.h header. After the
+usual include guards and #includes <a class="footnote-reference" href="#id8" id="id4">[2]</a>, we get to the definition of our class:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#ifndef LLVM_EXECUTIONENGINE_ORC_KALEIDOSCOPEJIT_H</span>
+<span class="cp">#define LLVM_EXECUTIONENGINE_ORC_KALEIDOSCOPEJIT_H</span>
+
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ADT/STLExtras.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/ExecutionEngine.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/JITSymbol.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/RTDyldMemoryManager.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/SectionMemoryManager.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/CompileUtils.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/IRCompileLayer.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/LambdaResolver.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/DataLayout.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/Mangler.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/DynamicLibrary.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/raw_ostream.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Target/TargetMachine.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;algorithm&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;memory&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;string&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;vector&gt;</span><span class="cp"></span>
+
+<span class="k">namespace</span> <span class="n">llvm</span> <span class="p">{</span>
+<span class="k">namespace</span> <span class="n">orc</span> <span class="p">{</span>
+
+<span class="k">class</span> <span class="nc">KaleidoscopeJIT</span> <span class="p">{</span>
+<span class="k">private</span><span class="o">:</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">TargetMachine</span><span class="o">&gt;</span> <span class="n">TM</span><span class="p">;</span>
+  <span class="k">const</span> <span class="n">DataLayout</span> <span class="n">DL</span><span class="p">;</span>
+  <span class="n">RTDyldObjectLinkingLayer</span> <span class="n">ObjectLayer</span><span class="p">;</span>
+  <span class="n">IRCompileLayer</span><span class="o">&lt;</span><span class="k">decltype</span><span class="p">(</span><span class="n">ObjectLayer</span><span class="p">),</span> <span class="n">SimpleCompiler</span><span class="o">&gt;</span> <span class="n">CompileLayer</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+  <span class="k">using</span> <span class="n">ModuleHandle</span> <span class="o">=</span> <span class="k">decltype</span><span class="p">(</span><span class="n">CompileLayer</span><span class="p">)</span><span class="o">::</span><span class="n">ModuleHandleT</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Our class begins with four members: A TargetMachine, TM, which will be used to
+build our LLVM compiler instance; A DataLayout, DL, which will be used for
+symbol mangling (more on that later), and two ORC <em>layers</em>: an
+RTDyldObjectLinkingLayer and a CompileLayer. We’ll be talking more about layers
+in the next chapter, but for now you can think of them as analogous to LLVM
+Passes: they wrap up useful JIT utilities behind an easy to compose interface.
+The first layer, ObjectLayer, is the foundation of our JIT: it takes in-memory
+object files produced by a compiler and links them on the fly to make them
+executable. This JIT-on-top-of-a-linker design was introduced in MCJIT, however
+the linker was hidden inside the MCJIT class. In ORC we expose the linker so
+that clients can access and configure it directly if they need to. In this
+tutorial our ObjectLayer will just be used to support the next layer in our
+stack: the CompileLayer, which will be responsible for taking LLVM IR, compiling
+it, and passing the resulting in-memory object files down to the object linking
+layer below.</p>
+<p>That’s it for member variables, after that we have a single typedef:
+ModuleHandle. This is the handle type that will be returned from our JIT’s
+addModule method, and can be passed to the removeModule method to remove a
+module. The IRCompileLayer class already provides a convenient handle type
+(IRCompileLayer::ModuleHandleT), so we just alias our ModuleHandle to this.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">KaleidoscopeJIT</span><span class="p">()</span>
+    <span class="o">:</span> <span class="n">TM</span><span class="p">(</span><span class="n">EngineBuilder</span><span class="p">().</span><span class="n">selectTarget</span><span class="p">()),</span> <span class="n">DL</span><span class="p">(</span><span class="n">TM</span><span class="o">-&gt;</span><span class="n">createDataLayout</span><span class="p">()),</span>
+      <span class="n">ObjectLayer</span><span class="p">([]()</span> <span class="p">{</span> <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">SectionMemoryManager</span><span class="o">&gt;</span><span class="p">();</span> <span class="p">}),</span>
+      <span class="n">CompileLayer</span><span class="p">(</span><span class="n">ObjectLayer</span><span class="p">,</span> <span class="n">SimpleCompiler</span><span class="p">(</span><span class="o">*</span><span class="n">TM</span><span class="p">))</span> <span class="p">{</span>
+  <span class="n">llvm</span><span class="o">::</span><span class="n">sys</span><span class="o">::</span><span class="n">DynamicLibrary</span><span class="o">::</span><span class="n">LoadLibraryPermanently</span><span class="p">(</span><span class="k">nullptr</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="n">TargetMachine</span> <span class="o">&amp;</span><span class="n">getTargetMachine</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="o">*</span><span class="n">TM</span><span class="p">;</span> <span class="p">}</span>
+</pre></div>
+</div>
+<p>Next up we have our class constructor. We begin by initializing TM using the
+EngineBuilder::selectTarget helper method which constructs a TargetMachine for
+the current process. Then we use our newly created TargetMachine to initialize
+DL, our DataLayout. After that we need to initialize our ObjectLayer. The
+ObjectLayer requires a function object that will build a JIT memory manager for
+each module that is added (a JIT memory manager manages memory allocations,
+memory permissions, and registration of exception handlers for JIT’d code). For
+this we use a lambda that returns a SectionMemoryManager, an off-the-shelf
+utility that provides all the basic memory management functionality required for
+this chapter. Next we initialize our CompileLayer. The CompileLayer needs two
+things: (1) A reference to our object layer, and (2) a compiler instance to use
+to perform the actual compilation from IR to object files. We use the
+off-the-shelf SimpleCompiler instance for now. Finally, in the body of the
+constructor, we call the DynamicLibrary::LoadLibraryPermanently method with a
+nullptr argument. Normally the LoadLibraryPermanently method is called with the
+path of a dynamic library to load, but when passed a null pointer it will ‘load’
+the host process itself, making its exported symbols available for execution.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">ModuleHandle</span> <span class="nf">addModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">M</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Build our symbol resolver:</span>
+  <span class="c1">// Lambda 1: Look back into the JIT itself to find symbols that are part of</span>
+  <span class="c1">//           the same &quot;logical dylib&quot;.</span>
+  <span class="c1">// Lambda 2: Search for external symbols in the host process.</span>
+  <span class="k">auto</span> <span class="n">Resolver</span> <span class="o">=</span> <span class="n">createLambdaResolver</span><span class="p">(</span>
+      <span class="p">[</span><span class="o">&amp;</span><span class="p">](</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">Sym</span> <span class="o">=</span> <span class="n">CompileLayer</span><span class="p">.</span><span class="n">findSymbol</span><span class="p">(</span><span class="n">Name</span><span class="p">,</span> <span class="nb">false</span><span class="p">))</span>
+          <span class="k">return</span> <span class="n">Sym</span><span class="p">;</span>
+        <span class="k">return</span> <span class="n">JITSymbol</span><span class="p">(</span><span class="k">nullptr</span><span class="p">);</span>
+      <span class="p">},</span>
+      <span class="p">[](</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">SymAddr</span> <span class="o">=</span>
+              <span class="n">RTDyldMemoryManager</span><span class="o">::</span><span class="n">getSymbolAddressInProcess</span><span class="p">(</span><span class="n">Name</span><span class="p">))</span>
+          <span class="k">return</span> <span class="n">JITSymbol</span><span class="p">(</span><span class="n">SymAddr</span><span class="p">,</span> <span class="n">JITSymbolFlags</span><span class="o">::</span><span class="n">Exported</span><span class="p">);</span>
+        <span class="k">return</span> <span class="n">JITSymbol</span><span class="p">(</span><span class="k">nullptr</span><span class="p">);</span>
+      <span class="p">});</span>
+
+  <span class="c1">// Add the set to the JIT with the resolver we created above and a newly</span>
+  <span class="c1">// created SectionMemoryManager.</span>
+  <span class="k">return</span> <span class="n">cantFail</span><span class="p">(</span><span class="n">CompileLayer</span><span class="p">.</span><span class="n">addModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">M</span><span class="p">),</span>
+                                         <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Resolver</span><span class="p">)));</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Now we come to the first of our JIT API methods: addModule. This method is
+responsible for adding IR to the JIT and making it available for execution. In
+this initial implementation of our JIT we will make our modules “available for
+execution” by adding them straight to the CompileLayer, which will immediately
+compile them. In later chapters we will teach our JIT to defer compilation
+of individual functions until they’re actually called.</p>
+<p>To add our module to the CompileLayer we need to supply both the module and a
+symbol resolver. The symbol resolver is responsible for supplying the JIT with
+an address for each <em>external symbol</em> in the module we are adding. External
+symbols are any symbol not defined within the module itself, including calls to
+functions outside the JIT and calls to functions defined in other modules that
+have already been added to the JIT. (It may seem as though modules added to the
+JIT should know about one another by default, but since we would still have to
+supply a symbol resolver for references to code outside the JIT it turns out to
+be easier to re-use this one mechanism for all symbol resolution.) This has the
+added benefit that the user has full control over the symbol resolution
+process. Should we search for definitions within the JIT first, then fall back
+on external definitions? Or should we prefer external definitions where
+available and only JIT code if we don’t already have an available
+implementation? By using a single symbol resolution scheme we are free to choose
+whatever makes the most sense for any given use case.</p>
+<p>Building a symbol resolver is made especially easy by the <em>createLambdaResolver</em>
+function. This function takes two lambdas <a class="footnote-reference" href="#id9" id="id5">[3]</a> and returns a JITSymbolResolver
+instance. The first lambda is used as the implementation of the resolver’s
+findSymbolInLogicalDylib method, which searches for symbol definitions that
+should be thought of as being part of the same “logical” dynamic library as this
+Module. If you are familiar with static linking: this means that
+findSymbolInLogicalDylib should expose symbols with common linkage and hidden
+visibility. If all this sounds foreign you can ignore the details and just
+remember that this is the first method that the linker will use to try to find a
+symbol definition. If the findSymbolInLogicalDylib method returns a null result
+then the linker will call the second symbol resolver method, called findSymbol,
+which searches for symbols that should be thought of as external to (but
+visibile from) the module and its logical dylib. In this tutorial we will adopt
+the following simple scheme: All modules added to the JIT will behave as if they
+were linked into a single, ever-growing logical dylib. To implement this our
+first lambda (the one defining findSymbolInLogicalDylib) will just search for
+JIT’d code by calling the CompileLayer’s findSymbol method. If we don’t find a
+symbol in the JIT itself we’ll fall back to our second lambda, which implements
+findSymbol. This will use the RTDyldMemoryManager::getSymbolAddressInProcess
+method to search for the symbol within the program itself. If we can’t find a
+symbol definition via either of these paths, the JIT will refuse to accept our
+module, returning a “symbol not found” error.</p>
+<p>Now that we’ve built our symbol resolver, we’re ready to add our module to the
+JIT. We do this by calling the CompileLayer’s addModule method. The addModule
+method returns an <code class="docutils literal"><span class="pre">Expected&lt;CompileLayer::ModuleHandle&gt;</span></code>, since in more
+advanced JIT configurations it could fail. In our basic configuration we know
+that it will always succeed so we use the cantFail utility to assert that no
+error occurred, and extract the handle value. Since we have already typedef’d
+our ModuleHandle type to be the same as the CompileLayer’s handle type, we can
+return the unwrapped handle directly.</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">JITSymbol</span> <span class="nf">findSymbol</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">MangledName</span><span class="p">;</span>
+  <span class="n">raw_string_ostream</span> <span class="n">MangledNameStream</span><span class="p">(</span><span class="n">MangledName</span><span class="p">);</span>
+  <span class="n">Mangler</span><span class="o">::</span><span class="n">getNameWithPrefix</span><span class="p">(</span><span class="n">MangledNameStream</span><span class="p">,</span> <span class="n">Name</span><span class="p">,</span> <span class="n">DL</span><span class="p">);</span>
+  <span class="k">return</span> <span class="n">CompileLayer</span><span class="p">.</span><span class="n">findSymbol</span><span class="p">(</span><span class="n">MangledNameStream</span><span class="p">.</span><span class="n">str</span><span class="p">(),</span> <span class="nb">true</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="n">JITTargetAddress</span> <span class="nf">getSymbolAddress</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="n">cantFail</span><span class="p">(</span><span class="n">findSymbol</span><span class="p">(</span><span class="n">Name</span><span class="p">).</span><span class="n">getAddress</span><span class="p">());</span>
+<span class="p">}</span>
+
+<span class="kt">void</span> <span class="nf">removeModule</span><span class="p">(</span><span class="n">ModuleHandle</span> <span class="n">H</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">cantFail</span><span class="p">(</span><span class="n">CompileLayer</span><span class="p">.</span><span class="n">removeModule</span><span class="p">(</span><span class="n">H</span><span class="p">));</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Now that we can add code to our JIT, we need a way to find the symbols we’ve
+added to it. To do that we call the findSymbol method on our CompileLayer, but
+with a twist: We have to <em>mangle</em> the name of the symbol we’re searching for
+first. The ORC JIT components use mangled symbols internally the same way a
+static compiler and linker would, rather than using plain IR symbol names. This
+allows JIT’d code to interoperate easily with precompiled code in the
+application or shared libraries. The kind of mangling will depend on the
+DataLayout, which in turn depends on the target platform. To allow us to remain
+portable and search based on the un-mangled name, we just re-produce this
+mangling ourselves.</p>
+<p>Next we have a convenience function, getSymbolAddress, which returns the address
+of a given symbol. Like CompileLayer’s addModule function, JITSymbol’s getAddress
+function is allowed to fail <a class="footnote-reference" href="#id10" id="id6">[4]</a>, however we know that it will not in our simple
+example, so we wrap it in a call to cantFail.</p>
+<p>We now come to the last method in our JIT API: removeModule. This method is
+responsible for destructing the MemoryManager and SymbolResolver that were
+added with a given module, freeing any resources they were using in the
+process. In our Kaleidoscope demo we rely on this method to remove the module
+representing the most recent top-level expression, preventing it from being
+treated as a duplicate definition when the next top-level expression is
+entered. It is generally good to free any module that you know you won’t need
+to call further, just to free up the resources dedicated to it. However, you
+don’t strictly need to do this: All resources will be cleaned up when your
+JIT class is destructed, if they haven’t been freed before then. Like
+<code class="docutils literal"><span class="pre">CompileLayer::addModule</span></code> and <code class="docutils literal"><span class="pre">JITSymbol::getAddress</span></code>, removeModule may
+fail in general but will never fail in our example, so we wrap it in a call to
+cantFail.</p>
+<p>This brings us to the end of Chapter 1 of Building a JIT. You now have a basic
+but fully functioning JIT stack that you can use to take LLVM IR and make it
+executable within the context of your JIT process. In the next chapter we’ll
+look at how to extend this JIT to produce better quality code, and in the
+process take a deeper look at the ORC layer concept.</p>
+<p><a class="reference external" href="BuildingAJIT2.html">Next: Extending the KaleidoscopeJIT</a></p>
+</div>
+<div class="section" id="full-code-listing">
+<h2><a class="toc-backref" href="#id14">1.4. Full Code Listing</a><a class="headerlink" href="#full-code-listing" title="Permalink to this headline">¶</a></h2>
+<p>Here is the complete code listing for our running example. To build this
+example, use:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="c1"># Compile</span>
+clang++ -g toy.cpp <span class="sb">`</span>llvm-config --cxxflags --ldflags --system-libs --libs core orcjit native<span class="sb">`</span> -O3 -o toy
+<span class="c1"># Run</span>
+./toy
+</pre></div>
+</div>
+<p>Here is the code:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="c1">//===- KaleidoscopeJIT.h - A simple JIT for Kaleidoscope --------*- C++ -*-===//</span>
+<span class="c1">//</span>
+<span class="c1">//                     The LLVM Compiler Infrastructure</span>
+<span class="c1">//</span>
+<span class="c1">// This file is distributed under the University of Illinois Open Source</span>
+<span class="c1">// License. See LICENSE.TXT for details.</span>
+<span class="c1">//</span>
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+<span class="c1">//</span>
+<span class="c1">// Contains a simple JIT definition for use in the kaleidoscope tutorials.</span>
+<span class="c1">//</span>
+<span class="c1">//===----------------------------------------------------------------------===//</span>
+
+<span class="cp">#ifndef LLVM_EXECUTIONENGINE_ORC_KALEIDOSCOPEJIT_H</span>
+<span class="cp">#define LLVM_EXECUTIONENGINE_ORC_KALEIDOSCOPEJIT_H</span>
+
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ADT/STLExtras.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/ExecutionEngine.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/JITSymbol.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/RTDyldMemoryManager.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/SectionMemoryManager.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/CompileUtils.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/IRCompileLayer.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/LambdaResolver.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/DataLayout.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/IR/Mangler.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/DynamicLibrary.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Support/raw_ostream.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&quot;llvm/Target/TargetMachine.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;algorithm&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;memory&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;string&gt;</span><span class="cp"></span>
+<span class="cp">#include</span> <span class="cpf">&lt;vector&gt;</span><span class="cp"></span>
+
+<span class="k">namespace</span> <span class="n">llvm</span> <span class="p">{</span>
+<span class="k">namespace</span> <span class="n">orc</span> <span class="p">{</span>
+
+<span class="k">class</span> <span class="nc">KaleidoscopeJIT</span> <span class="p">{</span>
+<span class="k">private</span><span class="o">:</span>
+  <span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">TargetMachine</span><span class="o">&gt;</span> <span class="n">TM</span><span class="p">;</span>
+  <span class="k">const</span> <span class="n">DataLayout</span> <span class="n">DL</span><span class="p">;</span>
+  <span class="n">RTDyldObjectLinkingLayer</span> <span class="n">ObjectLayer</span><span class="p">;</span>
+  <span class="n">IRCompileLayer</span><span class="o">&lt;</span><span class="k">decltype</span><span class="p">(</span><span class="n">ObjectLayer</span><span class="p">),</span> <span class="n">SimpleCompiler</span><span class="o">&gt;</span> <span class="n">CompileLayer</span><span class="p">;</span>
+
+<span class="k">public</span><span class="o">:</span>
+  <span class="k">using</span> <span class="n">ModuleHandle</span> <span class="o">=</span> <span class="k">decltype</span><span class="p">(</span><span class="n">CompileLayer</span><span class="p">)</span><span class="o">::</span><span class="n">ModuleHandleT</span><span class="p">;</span>
+
+  <span class="n">KaleidoscopeJIT</span><span class="p">()</span>
+      <span class="o">:</span> <span class="n">TM</span><span class="p">(</span><span class="n">EngineBuilder</span><span class="p">().</span><span class="n">selectTarget</span><span class="p">()),</span> <span class="n">DL</span><span class="p">(</span><span class="n">TM</span><span class="o">-&gt;</span><span class="n">createDataLayout</span><span class="p">()),</span>
+        <span class="n">ObjectLayer</span><span class="p">([]()</span> <span class="p">{</span> <span class="k">return</span> <span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">SectionMemoryManager</span><span class="o">&gt;</span><span class="p">();</span> <span class="p">}),</span>
+        <span class="n">CompileLayer</span><span class="p">(</span><span class="n">ObjectLayer</span><span class="p">,</span> <span class="n">SimpleCompiler</span><span class="p">(</span><span class="o">*</span><span class="n">TM</span><span class="p">))</span> <span class="p">{</span>
+    <span class="n">llvm</span><span class="o">::</span><span class="n">sys</span><span class="o">::</span><span class="n">DynamicLibrary</span><span class="o">::</span><span class="n">LoadLibraryPermanently</span><span class="p">(</span><span class="k">nullptr</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="n">TargetMachine</span> <span class="o">&amp;</span><span class="n">getTargetMachine</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="o">*</span><span class="n">TM</span><span class="p">;</span> <span class="p">}</span>
+
+  <span class="n">ModuleHandle</span> <span class="n">addModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">Module</span><span class="o">&gt;</span> <span class="n">M</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// Build our symbol resolver:</span>
+    <span class="c1">// Lambda 1: Look back into the JIT itself to find symbols that are part of</span>
+    <span class="c1">//           the same &quot;logical dylib&quot;.</span>
+    <span class="c1">// Lambda 2: Search for external symbols in the host process.</span>
+    <span class="k">auto</span> <span class="n">Resolver</span> <span class="o">=</span> <span class="n">createLambdaResolver</span><span class="p">(</span>
+        <span class="p">[</span><span class="o">&amp;</span><span class="p">](</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+          <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">Sym</span> <span class="o">=</span> <span class="n">CompileLayer</span><span class="p">.</span><span class="n">findSymbol</span><span class="p">(</span><span class="n">Name</span><span class="p">,</span> <span class="nb">false</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">Sym</span><span class="p">;</span>
+          <span class="k">return</span> <span class="nf">JITSymbol</span><span class="p">(</span><span class="k">nullptr</span><span class="p">);</span>
+        <span class="p">},</span>
+        <span class="p">[](</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="o">&amp;</span><span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+          <span class="k">if</span> <span class="p">(</span><span class="k">auto</span> <span class="n">SymAddr</span> <span class="o">=</span>
+                <span class="n">RTDyldMemoryManager</span><span class="o">::</span><span class="n">getSymbolAddressInProcess</span><span class="p">(</span><span class="n">Name</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">JITSymbol</span><span class="p">(</span><span class="n">SymAddr</span><span class="p">,</span> <span class="n">JITSymbolFlags</span><span class="o">::</span><span class="n">Exported</span><span class="p">);</span>
+          <span class="k">return</span> <span class="nf">JITSymbol</span><span class="p">(</span><span class="k">nullptr</span><span class="p">);</span>
+        <span class="p">});</span>
+
+    <span class="c1">// Add the set to the JIT with the resolver we created above and a newly</span>
+    <span class="c1">// created SectionMemoryManager.</span>
+    <span class="k">return</span> <span class="nf">cantFail</span><span class="p">(</span><span class="n">CompileLayer</span><span class="p">.</span><span class="n">addModule</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">M</span><span class="p">),</span>
+                                           <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">Resolver</span><span class="p">)));</span>
+  <span class="p">}</span>
+
+  <span class="n">JITSymbol</span> <span class="n">findSymbol</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">MangledName</span><span class="p">;</span>
+    <span class="n">raw_string_ostream</span> <span class="nf">MangledNameStream</span><span class="p">(</span><span class="n">MangledName</span><span class="p">);</span>
+    <span class="n">Mangler</span><span class="o">::</span><span class="n">getNameWithPrefix</span><span class="p">(</span><span class="n">MangledNameStream</span><span class="p">,</span> <span class="n">Name</span><span class="p">,</span> <span class="n">DL</span><span class="p">);</span>
+    <span class="k">return</span> <span class="n">CompileLayer</span><span class="p">.</span><span class="n">findSymbol</span><span class="p">(</span><span class="n">MangledNameStream</span><span class="p">.</span><span class="n">str</span><span class="p">(),</span> <span class="nb">true</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="n">JITTargetAddress</span> <span class="n">getSymbolAddress</span><span class="p">(</span><span class="k">const</span> <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">Name</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="n">cantFail</span><span class="p">(</span><span class="n">findSymbol</span><span class="p">(</span><span class="n">Name</span><span class="p">).</span><span class="n">getAddress</span><span class="p">());</span>
+  <span class="p">}</span>
+
+  <span class="kt">void</span> <span class="n">removeModule</span><span class="p">(</span><span class="n">ModuleHandle</span> <span class="n">H</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">cantFail</span><span class="p">(</span><span class="n">CompileLayer</span><span class="p">.</span><span class="n">removeModule</span><span class="p">(</span><span class="n">H</span><span class="p">));</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="p">}</span> <span class="c1">// end namespace orc</span>
+<span class="p">}</span> <span class="c1">// end namespace llvm</span>
+
+<span class="cp">#endif </span><span class="c1">// LLVM_EXECUTIONENGINE_ORC_KALEIDOSCOPEJIT_H</span>
+</pre></div>
+</div>
+<table class="docutils footnote" frame="void" id="id7" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id1">[1]</a></td><td>Actually we use a cut-down version of KaleidoscopeJIT that makes a
+simplifying assumption: symbols cannot be re-defined. This will make it
+impossible to re-define symbols in the REPL, but will make our symbol
+lookup logic simpler. Re-introducing support for symbol redefinition is
+left as an exercise for the reader. (The KaleidoscopeJIT.h used in the
+original tutorials will be a helpful reference).</td></tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="id8" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id4">[2]</a></td><td><table border="1" class="first last docutils">
+<colgroup>
+<col width="38%" />
+<col width="62%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">File</th>
+<th class="head">Reason for inclusion</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>STLExtras.h</td>
+<td>LLVM utilities that are useful when working
+with the STL.</td>
+</tr>
+<tr class="row-odd"><td>ExecutionEngine.h</td>
+<td>Access to the EngineBuilder::selectTarget
+method.</td>
+</tr>
+<tr class="row-even"><td>RTDyldMemoryManager.h</td>
+<td>Access to the
+RTDyldMemoryManager::getSymbolAddressInProcess
+method.</td>
+</tr>
+<tr class="row-odd"><td>CompileUtils.h</td>
+<td>Provides the SimpleCompiler class.</td>
+</tr>
+<tr class="row-even"><td>IRCompileLayer.h</td>
+<td>Provides the IRCompileLayer class.</td>
+</tr>
+<tr class="row-odd"><td>LambdaResolver.h</td>
+<td>Access the createLambdaResolver function,
+which provides easy construction of symbol
+resolvers.</td>
+</tr>
+<tr class="row-even"><td>RTDyldObjectLinkingLayer.h</td>
+<td>Provides the RTDyldObjectLinkingLayer class.</td>
+</tr>
+<tr class="row-odd"><td>Mangler.h</td>
+<td>Provides the Mangler class for platform
+specific name-mangling.</td>
+</tr>
+<tr class="row-even"><td>DynamicLibrary.h</td>
+<td>Provides the DynamicLibrary class, which
+makes symbols in the host process searchable.</td>
+</tr>
+<tr class="row-odd"><td>raw_ostream.h</td>
+<td>A fast output stream class. We use the
+raw_string_ostream subclass for symbol
+mangling</td>
+</tr>
+<tr class="row-even"><td>TargetMachine.h</td>
+<td>LLVM target machine description class.</td>
+</tr>
+</tbody>
+</table>
+</td></tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="id9" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id5">[3]</a></td><td>Actually they don’t have to be lambdas, any object with a call operator
+will do, including plain old functions or std::functions.</td></tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="id10" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id6">[4]</a></td><td><code class="docutils literal"><span class="pre">JITSymbol::getAddress</span></code> will force the JIT to compile the definition of
+the symbol if it hasn’t already been compiled, and since the compilation
+process could fail getAddress must be able to return this failure.</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="BuildingAJIT2.html" title="2. Building a JIT: Adding Optimizations – An introduction to ORC Layers"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="OCamlLangImpl8.html" title="8. Kaleidoscope: Conclusion and other useful LLVM tidbits"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Tutorial: Table of Contents</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

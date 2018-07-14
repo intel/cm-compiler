@@ -78,7 +78,7 @@ struct Base {
 
 void Base::foo_outofline(int RRR) {}
 
-// CHECK: FullCommentAsXML=[<Function isInstanceMethod="1" file="{{[^"]+}}overriding-method-comments.mm" line="[[@LINE-2]]" column="12"><Name>foo_outofline</Name><USR>c:@S@Base@F@foo_outofline#I#</USR><Declaration>void foo_outofline(int RRR)</Declaration><Abstract><Para> Does something. </Para></Abstract><Parameters><Parameter><Name>RRR</Name><Index>0</Index><Direction isExplicit="0">in</Direction><Discussion><Para> argument to undefined virtual.</Para></Discussion></Parameter></Parameters></Function>]
+// CHECK: FullCommentAsXML=[<Function isInstanceMethod="1" file="{{[^"]+}}overriding-method-comments.mm" line="[[@LINE-2]]" column="12"><Name>foo_outofline</Name><USR>c:@S@Base@F@foo_outofline#I#</USR><Declaration>void Base::foo_outofline(int RRR)</Declaration><Abstract><Para> Does something. </Para></Abstract><Parameters><Parameter><Name>RRR</Name><Index>0</Index><Direction isExplicit="0">in</Direction><Discussion><Para> argument to undefined virtual.</Para></Discussion></Parameter></Parameters></Function>]
 
 struct Derived : public Base {
   virtual void foo_pure(int PPP);
@@ -116,10 +116,10 @@ void foo1(int TTT);
 template<typename AAA, typename BBB>
 void foo(AAA, BBB);
 
-// CHECK: FullCommentAsXML=[<Function templateKind="template" file="{{[^"]+}}overriding-method-comments.mm" line="[[@LINE-2]]" column="6"><Name>foo</Name><USR>c:@FT@&gt;2#T#Tfoo#t0.0#t0.1#</USR><Declaration>template &lt;typename AAA, typename BBB&gt; void foo(AAA, BBB)</Declaration><Abstract><Para> Documentation </Para></Abstract><TemplateParameters><Parameter><Name>AAA</Name><Index>0</Index><Discussion><Para> The type, silly as well.</Para></Discussion></Parameter><Parameter><Name>BBB</Name><Index>1</Index><Discussion><Para> The type, silly. </Para></Discussion></Parameter></TemplateParameters></Function>]
+// CHECK: FullCommentAsXML=[<Function templateKind="template" file="{{[^"]+}}overriding-method-comments.mm" line="[[@LINE-2]]" column="6"><Name>foo</Name><USR>c:@FT@&gt;2#T#Tfoo#t0.0#t0.1#v#</USR><Declaration>template &lt;typename AAA, typename BBB&gt; void foo(AAA, BBB)</Declaration><Abstract><Para> Documentation </Para></Abstract><TemplateParameters><Parameter><Name>AAA</Name><Index>0</Index><Discussion><Para> The type, silly as well.</Para></Discussion></Parameter><Parameter><Name>BBB</Name><Index>1</Index><Discussion><Para> The type, silly. </Para></Discussion></Parameter></TemplateParameters></Function>]
 
 template<typename PPP, typename QQQ>
 void foo(PPP, QQQ);
 
-// CHECK: FullCommentAsXML=[<Function templateKind="template" file="{{[^"]+}}overriding-method-comments.mm" line="[[@LINE-2]]" column="6"><Name>foo</Name><USR>c:@FT@&gt;2#T#Tfoo#t0.0#t0.1#</USR><Declaration>template &lt;typename PPP, typename QQQ&gt; void foo(PPP, QQQ)</Declaration><Abstract><Para> Documentation </Para></Abstract><TemplateParameters><Parameter><Name>PPP</Name><Index>0</Index><Discussion><Para> The type, silly as well.</Para></Discussion></Parameter><Parameter><Name>QQQ</Name><Index>1</Index><Discussion><Para> The type, silly. </Para></Discussion></Parameter></TemplateParameters></Function>]
+// CHECK: FullCommentAsXML=[<Function templateKind="template" file="{{[^"]+}}overriding-method-comments.mm" line="[[@LINE-2]]" column="6"><Name>foo</Name><USR>c:@FT@&gt;2#T#Tfoo#t0.0#t0.1#v#</USR><Declaration>template &lt;typename PPP, typename QQQ&gt; void foo(PPP, QQQ)</Declaration><Abstract><Para> Documentation </Para></Abstract><TemplateParameters><Parameter><Name>PPP</Name><Index>0</Index><Discussion><Para> The type, silly as well.</Para></Discussion></Parameter><Parameter><Name>QQQ</Name><Index>1</Index><Discussion><Para> The type, silly. </Para></Discussion></Parameter></TemplateParameters></Function>]
 

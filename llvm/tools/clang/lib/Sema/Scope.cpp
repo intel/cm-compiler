@@ -18,7 +18,7 @@
 
 using namespace clang;
 
-void Scope::Init(Scope *parent, unsigned flags) {
+void Scope::setFlags(Scope *parent, unsigned flags) {
   AnyParent = parent;
   Flags = flags;
 
@@ -38,10 +38,8 @@ void Scope::Init(Scope *parent, unsigned flags) {
     FnParent       = parent->FnParent;
     BlockParent    = parent->BlockParent;
     TemplateParamParent = parent->TemplateParamParent;
-    MSLocalManglingParent = parent->MSLocalManglingParent;
-    SEHTryParent = parent->SEHTryParent;
-    if (parent->Flags & SEHTryScope)
-      SEHTryParent = parent;
+    MSLastManglingParent = parent->MSLastManglingParent;
+    MSCurManglingNumber = getMSLastManglingNumber();
     if ((Flags & (FnScope | ClassScope | BlockScope | TemplateParamScope |
                   FunctionPrototypeScope | AtCatchScope | ObjCMethodScope)) ==
         0)
@@ -50,22 +48,20 @@ void Scope::Init(Scope *parent, unsigned flags) {
     Depth = 0;
     PrototypeDepth = 0;
     PrototypeIndex = 0;
-    SEHTryParent = MSLocalManglingParent = FnParent = BlockParent = nullptr;
+    MSLastManglingParent = FnParent = BlockParent = nullptr;
     TemplateParamParent = nullptr;
-    MSLocalManglingNumber = 1;
+    MSLastManglingNumber = 1;
+    MSCurManglingNumber = 1;
   }
 
   // If this scope is a function or contains breaks/continues, remember it.
   if (flags & FnScope)            FnParent = this;
-  SEHTryIndexPool = 0;
-  SEHTryIndex = -1;
-  if (flags & SEHTryScope)
-    SEHTryIndex = FnParent ? FnParent->SEHTryIndexPool++ : -1;
   // The MS mangler uses the number of scopes that can hold declarations as
   // part of an external name.
   if (Flags & (ClassScope | FnScope)) {
-    MSLocalManglingNumber = getMSLocalManglingNumber();
-    MSLocalManglingParent = this;
+    MSLastManglingNumber = getMSLastManglingNumber();
+    MSLastManglingParent = this;
+    MSCurManglingNumber = 1;
   }
   if (flags & BreakScope)         BreakParent = this;
   if (flags & ContinueScope)      ContinueParent = this;
@@ -85,8 +81,12 @@ void Scope::Init(Scope *parent, unsigned flags) {
     else if ((flags & EnumScope))
       ; // Don't increment for enum scopes.
     else
-      incrementMSLocalManglingNumber();
+      incrementMSManglingNumber();
   }
+}
+
+void Scope::Init(Scope *parent, unsigned flags) {
+  setFlags(parent, flags);
 
   DeclsInScope.clear();
   UsingDirectives.clear();
@@ -134,7 +134,7 @@ void Scope::mergeNRVOIntoParent() {
     getParent()->addNRVOCandidate(NRVO.getPointer());
 }
 
-void Scope::dump() const { dumpImpl(llvm::errs()); }
+LLVM_DUMP_METHOD void Scope::dump() const { dumpImpl(llvm::errs()); }
 
 void Scope::dumpImpl(raw_ostream &OS) const {
   unsigned Flags = getFlags();
@@ -143,69 +143,43 @@ void Scope::dumpImpl(raw_ostream &OS) const {
   if (HasFlags)
     OS << "Flags: ";
 
-  while (Flags) {
-    if (Flags & FnScope) {
-      OS << "FnScope";
-      Flags &= ~FnScope;
-    } else if (Flags & BreakScope) {
-      OS << "BreakScope";
-      Flags &= ~BreakScope;
-    } else if (Flags & ContinueScope) {
-      OS << "ContinueScope";
-      Flags &= ~ContinueScope;
-    } else if (Flags & DeclScope) {
-      OS << "DeclScope";
-      Flags &= ~DeclScope;
-    } else if (Flags & ControlScope) {
-      OS << "ControlScope";
-      Flags &= ~ControlScope;
-    } else if (Flags & ClassScope) {
-      OS << "ClassScope";
-      Flags &= ~ClassScope;
-    } else if (Flags & BlockScope) {
-      OS << "BlockScope";
-      Flags &= ~BlockScope;
-    } else if (Flags & TemplateParamScope) {
-      OS << "TemplateParamScope";
-      Flags &= ~TemplateParamScope;
-    } else if (Flags & FunctionPrototypeScope) {
-      OS << "FunctionPrototypeScope";
-      Flags &= ~FunctionPrototypeScope;
-    } else if (Flags & FunctionDeclarationScope) {
-      OS << "FunctionDeclarationScope";
-      Flags &= ~FunctionDeclarationScope;
-    } else if (Flags & AtCatchScope) {
-      OS << "AtCatchScope";
-      Flags &= ~AtCatchScope;
-    } else if (Flags & ObjCMethodScope) {
-      OS << "ObjCMethodScope";
-      Flags &= ~ObjCMethodScope;
-    } else if (Flags & SwitchScope) {
-      OS << "SwitchScope";
-      Flags &= ~SwitchScope;
-    } else if (Flags & TryScope) {
-      OS << "TryScope";
-      Flags &= ~TryScope;
-    } else if (Flags & FnTryCatchScope) {
-      OS << "FnTryCatchScope";
-      Flags &= ~FnTryCatchScope;
-    } else if (Flags & SEHTryScope) {
-      OS << "SEHTryScope";
-      Flags &= ~SEHTryScope;
-    } else if (Flags & OpenMPDirectiveScope) {
-      OS << "OpenMPDirectiveScope";
-      Flags &= ~OpenMPDirectiveScope;
-    } else if (Flags & OpenMPLoopDirectiveScope) {
-      OS << "OpenMPLoopDirectiveScope";
-      Flags &= ~OpenMPLoopDirectiveScope;
-    } else if (Flags & OpenMPSimdDirectiveScope) {
-      OS << "OpenMPSimdDirectiveScope";
-      Flags &= ~OpenMPSimdDirectiveScope;
-    }
+  std::pair<unsigned, const char *> FlagInfo[] = {
+      {FnScope, "FnScope"},
+      {BreakScope, "BreakScope"},
+      {ContinueScope, "ContinueScope"},
+      {DeclScope, "DeclScope"},
+      {ControlScope, "ControlScope"},
+      {ClassScope, "ClassScope"},
+      {BlockScope, "BlockScope"},
+      {TemplateParamScope, "TemplateParamScope"},
+      {FunctionPrototypeScope, "FunctionPrototypeScope"},
+      {FunctionDeclarationScope, "FunctionDeclarationScope"},
+      {AtCatchScope, "AtCatchScope"},
+      {ObjCMethodScope, "ObjCMethodScope"},
+      {SwitchScope, "SwitchScope"},
+      {TryScope, "TryScope"},
+      {FnTryCatchScope, "FnTryCatchScope"},
+      {OpenMPDirectiveScope, "OpenMPDirectiveScope"},
+      {OpenMPLoopDirectiveScope, "OpenMPLoopDirectiveScope"},
+      {OpenMPSimdDirectiveScope, "OpenMPSimdDirectiveScope"},
+      {EnumScope, "EnumScope"},
+      {SEHTryScope, "SEHTryScope"},
+      {SEHExceptScope, "SEHExceptScope"},
+      {SEHFilterScope, "SEHFilterScope"},
+      {CompoundStmtScope, "CompoundStmtScope"},
+      {ClassInheritanceScope, "ClassInheritanceScope"}};
 
-    if (Flags)
-      OS << " | ";
+  for (auto Info : FlagInfo) {
+    if (Flags & Info.first) {
+      OS << Info.second;
+      Flags &= ~Info.first;
+      if (Flags)
+        OS << " | ";
+    }
   }
+
+  assert(Flags == 0 && "Unknown scope flags");
+
   if (HasFlags)
     OS << '\n';
 
@@ -213,12 +187,13 @@ void Scope::dumpImpl(raw_ostream &OS) const {
     OS << "Parent: (clang::Scope*)" << Parent << '\n';
 
   OS << "Depth: " << Depth << '\n';
-  OS << "MSLocalManglingNumber: " << getMSLocalManglingNumber() << '\n';
+  OS << "MSLastManglingNumber: " << getMSLastManglingNumber() << '\n';
+  OS << "MSCurManglingNumber: " << getMSCurManglingNumber() << '\n';
   if (const DeclContext *DC = getEntity())
     OS << "Entity : (clang::DeclContext*)" << DC << '\n';
 
   if (NRVO.getInt())
-    OS << "NRVO not allowed";
+    OS << "NRVO not allowed\n";
   else if (NRVO.getPointer())
     OS << "NRVO candidate : (clang::VarDecl*)" << NRVO.getPointer() << '\n';
 }

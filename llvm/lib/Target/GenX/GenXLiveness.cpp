@@ -91,7 +91,7 @@ void GenXLiveness::clear()
   delete CG;
   CG = 0;
   for (auto i = UnifiedRets.begin(), e = UnifiedRets.end(); i != e; ++i)
-    delete i->second;
+    i->second->deleteValue();
   UnifiedRets.clear();
   UnifiedRetToFunc.clear();
   ArgAddressBaseMap.clear();
@@ -568,7 +568,7 @@ LiveRange *GenXLiveness::getOrCreateLiveRange(SimpleValue V)
       if (IID != Intrinsic::not_intrinsic) {
         // For an intrinsic call, use the intrinsic name after the
         // final period.
-        NameBuf = Intrinsic::getName(Intrinsic::ID(IID));
+        NameBuf = Intrinsic::getName(Intrinsic::ID(IID), None);
         Name = NameBuf;
         size_t Period = Name.rfind('.');
         if (Period != StringRef::npos)
@@ -665,8 +665,9 @@ Value *GenXLiveness::getUnifiedRet(Function *F)
   if (!i->second) {
     Type *Ty = F->getReturnType();
     assert(!Ty->isVoidTy());
-    i->second = CastInst::Create(Instruction::BitCast, UndefValue::get(Ty),
-        Ty, "unifiedret", (Instruction *)nullptr);
+    auto G = Intrinsic::getDeclaration(F->getParent(), Intrinsic::ssa_copy, Ty);
+    i->second = CallInst::Create(G, UndefValue::get(Ty), "unifiedret",
+                                 (Instruction *)nullptr);
     UnifiedRetToFunc[i->second] = F;
     // Find some return inst.
     ReturnInst *Ret = nullptr;
@@ -691,13 +692,13 @@ Value *GenXLiveness::getUnifiedRet(Function *F)
 /***********************************************************************
  * isUnifiedRet : test whether a value is a unified return value
  *
- * A unified ret value is a bitcast instruction that is
+ * A unified ret value is a call instruction that is
  * not attached to any BB, and is in the UnifiedRetFunc map.
  */
 Function *GenXLiveness::isUnifiedRet(Value *V)
 {
   // Quick checks first.
-  auto Inst = dyn_cast<CastInst>(V);
+  auto Inst = dyn_cast<CallInst>(V);
   if (!Inst)
     return nullptr;
   if (Inst->getParent())

@@ -7,8 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_DRIVER_OPTIONS_H
-#define CLANG_DRIVER_OPTIONS_H
+#ifndef LLVM_CLANG_DRIVER_OPTIONS_H
+#define LLVM_CLANG_DRIVER_OPTIONS_H
+
+#include <memory>
 
 namespace llvm {
 namespace opt {
@@ -32,20 +34,22 @@ enum ClangFlags {
   CC1Option = (1 << 10),
   CC1AsOption = (1 << 11),
   NoDriverOption = (1 << 12),
-  CMOption = (1 << 13)          // MDF CM options
+  CMOption = (1 << 13),          // MDF CM options
+  Ignored = (1 << 14)
 };
 
 enum ID {
     OPT_INVALID = 0, // This is not an option ID.
-#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM, \
-               HELPTEXT, METAVAR) OPT_##ID,
+#define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
+               HELPTEXT, METAVAR, VALUES)                                      \
+  OPT_##ID,
 #include "clang/Driver/Options.inc"
     LastOption
 #undef OPTION
   };
 }
 
-llvm::opt::OptTable *createDriverOptTable();
+std::unique_ptr<llvm::opt::OptTable> createDriverOptTable();
 }
 }
 

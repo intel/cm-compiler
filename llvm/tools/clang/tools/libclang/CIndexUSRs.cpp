@@ -15,9 +15,9 @@
 #include "CXCursor.h"
 #include "CXString.h"
 #include "CXTranslationUnit.h"
+#include "clang/Frontend/ASTUnit.h"
 #include "clang/Index/USRGeneration.h"
 #include "clang/Lex/PreprocessingRecord.h"
-#include "clang/Frontend/ASTUnit.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -35,8 +35,6 @@ static inline StringRef extractUSRSuffix(StringRef s) {
 bool cxcursor::getDeclCursorUSR(const Decl *D, SmallVectorImpl<char> &Buf) {
   return generateUSRForDecl(D, Buf);
 }
-
-extern "C" {
 
 CXString clang_getCursorUSR(CXCursor C) {
   const CXCursorKind &K = clang_getCursorKind(C);
@@ -137,8 +135,6 @@ CXString clang_constructUSR_ObjCProperty(const char *property,
   SmallString<128> Buf(getUSRSpacePrefix());
   llvm::raw_svector_ostream OS(Buf);
   OS << extractUSRSuffix(clang_getCString(classUSR));
-  generateUSRForObjCProperty(property, OS);
+  generateUSRForObjCProperty(property, /*isClassProp=*/false, OS);
   return cxstring::createDup(OS.str());
 }
-
-} // end extern "C"

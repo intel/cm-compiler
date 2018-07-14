@@ -1,5 +1,5 @@
 ; RUN: llc -mtriple=i386-unknown-unknown -mcpu=core2 %s -o %t -filetype=obj
-; RUN: llvm-dwarfdump -debug-dump=line %t | FileCheck %s
+; RUN: llvm-dwarfdump -debug-line %t | FileCheck %s
 ;
 ; Generated from:
 ;
@@ -11,17 +11,17 @@
 ; Manually generated debug nodes !14 and !15 to incorporate an
 ; arbitrary discriminator with value 42.
 
-define i32 @foo(i32 %i) #0 {
+define i32 @foo(i32 %i) #0 !dbg !4 {
 entry:
   %retval = alloca i32, align 4
   %i.addr = alloca i32, align 4
   store i32 %i, i32* %i.addr, align 4
-  %0 = load i32* %i.addr, align 4, !dbg !10
+  %0 = load i32, i32* %i.addr, align 4, !dbg !10
   %cmp = icmp slt i32 %0, 10, !dbg !10
   br i1 %cmp, label %if.then, label %if.end, !dbg !10
 
 if.then:                                          ; preds = %entry
-  %1 = load i32* %i.addr, align 4, !dbg !14
+  %1 = load i32, i32* %i.addr, align 4, !dbg !14
   %sub = sub nsw i32 %1, 1, !dbg !14
   store i32 %sub, i32* %retval, !dbg !14
   br label %return, !dbg !14
@@ -31,7 +31,7 @@ if.end:                                           ; preds = %entry
   br label %return, !dbg !12
 
 return:                                           ; preds = %if.end, %if.then
-  %2 = load i32* %retval, !dbg !13
+  %2 = load i32, i32* %retval, !dbg !13
   ret i32 %2, !dbg !13
 }
 
@@ -41,23 +41,22 @@ attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointe
 !llvm.module.flags = !{!7, !8}
 !llvm.ident = !{!9}
 
-!0 = metadata !{i32 786449, metadata !1, i32 12, metadata !"clang version 3.5 ", i1 false, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !""} ; [ DW_TAG_compile_unit ] [./discriminator.c] [DW_LANG_C99]
-!1 = metadata !{metadata !"discriminator.c", metadata !"."}
-!2 = metadata !{}
-!3 = metadata !{metadata !4}
-!4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"foo", metadata !"foo", metadata !"", i32 1, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, i32 (i32)* @foo, null, null, metadata !2, i32 1} ; [ DW_TAG_subprogram ] [line 1] [def] [foo]
-!5 = metadata !{i32 786473, metadata !1}          ; [ DW_TAG_file_type ] [./discriminator.c]
-!6 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !2, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!7 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!8 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
-!9 = metadata !{metadata !"clang version 3.5 "}
-!10 = metadata !{i32 2, i32 0, metadata !11, null}
-!11 = metadata !{i32 786443, metadata !1, metadata !4, i32 2, i32 0, i32 0, i32 0} ; [ DW_TAG_lexical_block ] [./discriminator.c]
-!12 = metadata !{i32 3, i32 0, metadata !4, null}
-!13 = metadata !{i32 4, i32 0, metadata !4, null}
-!14 = metadata !{i32 2, i32 0, metadata !15, null}
-!15 = metadata !{i32 786443, metadata !1, metadata !4, i32 2, i32 0, i32 42, i32 1} ; [ DW_TAG_lexical_block ] [./discriminator.c]
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5 ", isOptimized: false, emissionKind: FullDebug, file: !1, enums: !2, retainedTypes: !2, globals: !2, imports: !2)
+!1 = !DIFile(filename: "discriminator.c", directory: ".")
+!2 = !{}
+!4 = distinct !DISubprogram(name: "foo", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, unit: !0, scopeLine: 1, file: !1, scope: !5, type: !6, variables: !2)
+!5 = !DIFile(filename: "discriminator.c", directory: ".")
+!6 = !DISubroutineType(types: !2)
+!7 = !{i32 2, !"Dwarf Version", i32 4}
+!8 = !{i32 1, !"Debug Info Version", i32 3}
+!9 = !{!"clang version 3.5 "}
+!10 = !DILocation(line: 2, scope: !11)
+!11 = distinct !DILexicalBlock(line: 2, column: 0, file: !1, scope: !4)
+!12 = !DILocation(line: 3, scope: !4)
+!13 = !DILocation(line: 4, scope: !4)
+!14 = !DILocation(line: 2, scope: !15)
+!15 = !DILexicalBlockFile(discriminator: 42, file: !1, scope: !4)
 
 ; CHECK: Address            Line   Column File   ISA Discriminator Flags
 ; CHECK: ------------------ ------ ------ ------ --- ------------- -------------
-; CHECK: 0x0000000000000011      2      0      1   0            42  is_stmt
+; CHECK: 0x000000000000000a      2      0      1   0            42 {{$}}

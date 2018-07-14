@@ -2,6 +2,7 @@
 // XFAIL: vg_leak
 
 class IntrinsicProperty;
+class SDNodeProperty;
 
 class ValueType<int size, int value> {
   string Namespace = "MVT";
@@ -19,10 +20,11 @@ class Intrinsic<string name, list<LLVMType> param_types = []> {
   string TargetPrefix = "";
   list<LLVMType> RetTypes = [];
   list<LLVMType> ParamTypes = param_types;
-  list<IntrinsicProperty> Properties = [];
+  list<IntrinsicProperty> IntrProperties = [];
+  list<SDNodeProperty> Properties = [];
 }
 
-def iAny : ValueType<0, 254>;
+def iAny : ValueType<0, 253>;
 def llvm_anyint_ty : LLVMType<iAny>;
 
 // Make sure we generate the long name without crashing

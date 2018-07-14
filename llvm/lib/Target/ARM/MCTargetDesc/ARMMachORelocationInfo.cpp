@@ -1,4 +1,4 @@
-//===-- ARMMachORelocationInfo.cpp ----------------------------------------===//
+//===- ARMMachORelocationInfo.cpp -----------------------------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -7,17 +7,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/ARMMCTargetDesc.h"
 #include "ARMMCExpr.h"
+#include "MCTargetDesc/ARMMCTargetDesc.h"
 #include "llvm-c/Disassembler.h"
-#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCDisassembler/MCRelocationInfo.h"
 #include "llvm/MC/MCExpr.h"
-#include "llvm/MC/MCRelocationInfo.h"
 
 using namespace llvm;
-using namespace object;
 
 namespace {
+
 class ARMMachORelocationInfo : public MCRelocationInfo {
 public:
   ARMMachORelocationInfo(MCContext &Ctx) : MCRelocationInfo(Ctx) {}
@@ -26,16 +25,17 @@ public:
                                              unsigned VariantKind) override {
     switch(VariantKind) {
     case LLVMDisassembler_VariantKind_ARM_HI16:
-      return ARMMCExpr::CreateUpper16(SubExpr, Ctx);
+      return ARMMCExpr::createUpper16(SubExpr, Ctx);
     case LLVMDisassembler_VariantKind_ARM_LO16:
-      return ARMMCExpr::CreateLower16(SubExpr, Ctx);
+      return ARMMCExpr::createLower16(SubExpr, Ctx);
     default:
       return MCRelocationInfo::createExprForCAPIVariantKind(SubExpr,
                                                             VariantKind);
     }
   }
 };
-} // End unnamed namespace
+
+} // end anonymous namespace
 
 /// createARMMachORelocationInfo - Construct an ARM Mach-O RelocationInfo.
 MCRelocationInfo *llvm::createARMMachORelocationInfo(MCContext &Ctx) {

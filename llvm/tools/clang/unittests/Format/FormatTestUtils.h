@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FORMAT_TEST_UTILS_H
-#define LLVM_CLANG_FORMAT_TEST_UTILS_H
+#ifndef LLVM_CLANG_UNITTESTS_FORMAT_FORMATTESTUTILS_H
+#define LLVM_CLANG_UNITTESTS_FORMAT_FORMATTESTUTILS_H
 
 #include "llvm/ADT/StringRef.h"
 
@@ -30,7 +30,8 @@ inline std::string messUp(llvm::StringRef Code) {
       if (JustReplacedNewline)
         MessedUp[i - 1] = '\n';
       InComment = true;
-    } else if (MessedUp[i] == '#' && (JustReplacedNewline || i == 0)) {
+    } else if (MessedUp[i] == '#' &&
+               (JustReplacedNewline || i == 0 || MessedUp[i - 1] == '\n')) {
       if (i != 0)
         MessedUp[i - 1] = '\n';
       InPreprocessorDirective = true;
@@ -64,4 +65,4 @@ inline std::string messUp(llvm::StringRef Code) {
 } // end namespace format
 } // end namespace clang
 
-#endif // LLVM_CLANG_FORMAT_TEST_UTILS_H
+#endif

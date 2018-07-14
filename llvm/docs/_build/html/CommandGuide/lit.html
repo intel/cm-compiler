@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>lit - LLVM Integrated Tester &#8212; LLVM 3.4 documentation</title>
+    <title>lit - LLVM Integrated Tester &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -121,8 +121,8 @@ test suites, instead of <code class="file docutils literal"><span class="pre">li
 </dd></dl>
 
 <dl class="option">
-<dt id="cmdoption-param">
-<code class="descname">–param</code><code class="descclassname"> NAME=VALUE</code><a class="headerlink" href="#cmdoption-param" title="Permalink to this definition">¶</a></dt>
+<dt id="cmdoption-d">
+<code class="descname">-D</code><code class="descclassname"> NAME[=VALUE]</code><code class="descclassname">, </code><code class="descname">–param</code><code class="descclassname"> NAME[=VALUE]</code><a class="headerlink" href="#cmdoption-d" title="Permalink to this definition">¶</a></dt>
 <dd><p>Add a user defined parameter <code class="docutils literal"><span class="pre">NAME</span></code> with the given <code class="docutils literal"><span class="pre">VALUE</span></code> (or the empty
 string if not given).  The meaning and use of these parameters is test suite
 dependent.</p>
@@ -151,9 +151,37 @@ instead of just the test result.</p>
 </dd></dl>
 
 <dl class="option">
+<dt id="cmdoption-vv">
+<code class="descname">-vv</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–echo-all-commands</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-vv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Echo all commands to stdout, as they are being executed.
+This can be valuable for debugging test failures, as the last echoed command
+will be the one which has failed.
+This option implies <code class="docutils literal"><span class="pre">--verbose</span></code>.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-a">
+<code class="descname">-a</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">–show-all</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-a" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show more information about all tests, for example the entire test
+commandline and output.</p>
+</dd></dl>
+
+<dl class="option">
 <dt id="cmdoption-no-progress-bar">
 <code class="descname">–no-progress-bar</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-no-progress-bar" title="Permalink to this definition">¶</a></dt>
 <dd><p>Do not use curses based progress bar.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-show-unsupported">
+<code class="descname">–show-unsupported</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-show-unsupported" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show the names of unsupported tests.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-show-xfail">
+<code class="descname">–show-xfail</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-show-xfail" title="Permalink to this definition">¶</a></dt>
+<dd><p>Show the names of tests that were expected to fail.</p>
 </dd></dl>
 
 </div>
@@ -222,6 +250,36 @@ with <code class="docutils literal"><span class="pre">-j</span> <span class="pre
 <dd><p>Run the tests in a random order.</p>
 </dd></dl>
 
+<dl class="option">
+<dt id="cmdoption-num-shards">
+<code class="descname">–num-shards</code><code class="descclassname">=M</code><a class="headerlink" href="#cmdoption-num-shards" title="Permalink to this definition">¶</a></dt>
+<dd><p>Divide the set of selected tests into <code class="docutils literal"><span class="pre">M</span></code> equal-sized subsets or
+“shards”, and run only one of them.  Must be used with the
+<code class="docutils literal"><span class="pre">--run-shard=N</span></code> option, which selects the shard to run. The environment
+variable <code class="docutils literal"><span class="pre">LIT_NUM_SHARDS</span></code> can also be used in place of this
+option. These two options provide a coarse mechanism for paritioning large
+testsuites, for parallel execution on separate machines (say in a large
+testing farm).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-run-shard">
+<code class="descname">–run-shard</code><code class="descclassname">=N</code><a class="headerlink" href="#cmdoption-run-shard" title="Permalink to this definition">¶</a></dt>
+<dd><p>Select which shard to run, assuming the <code class="docutils literal"><span class="pre">--num-shards=M</span></code> option was
+provided. The two options must be used together, and the value of <code class="docutils literal"><span class="pre">N</span></code>
+must be in the range <code class="docutils literal"><span class="pre">1..M</span></code>. The environment variable
+<code class="docutils literal"><span class="pre">LIT_RUN_SHARD</span></code> can also be used in place of this option.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-filter">
+<code class="descname">–filter</code><code class="descclassname">=REGEXP</code><a class="headerlink" href="#cmdoption-filter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run only those tests whose name matches the regular expression specified in
+<code class="docutils literal"><span class="pre">REGEXP</span></code>. The environment variable <code class="docutils literal"><span class="pre">LIT_FILTER</span></code> can be also used in place
+of this option, which is especially useful in environments where the call
+to <code class="docutils literal"><span class="pre">lit</span></code> is issued indirectly.</p>
+</dd></dl>
+
 </div>
 <div class="section" id="additional-options">
 <h2>ADDITIONAL OPTIONS<a class="headerlink" href="#additional-options" title="Permalink to this headline">¶</a></h2>
@@ -241,7 +299,7 @@ with <code class="docutils literal"><span class="pre">-j</span> <span class="pre
 <dl class="option">
 <dt id="cmdoption-show-tests">
 <code class="descname">–show-tests</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-show-tests" title="Permalink to this definition">¶</a></dt>
-<dd><p>List all of the the discovered tests and exit.</p>
+<dd><p>List all of the discovered tests and exit.</p>
 </dd></dl>
 
 </div>
@@ -326,7 +384,7 @@ all the input files passed on the command line.  You can use
 <p>Once a test suite is discovered, its config file is loaded.  Config files
 themselves are Python modules which will be executed.  When the config file is
 executed, two important global variables are predefined:</p>
-<p><strong>lit</strong></p>
+<p><strong>lit_config</strong></p>
 <blockquote>
 <div>The global <strong>lit</strong> configuration object (a <em>LitConfig</em> instance), which defines
 the builtin test formats, global configuration parameters, and other helper
@@ -359,16 +417,11 @@ reported as unsupported.  Used by: <em>ShTest</em>.</p>
 containing the test suite, or None.</p>
 <p><strong>root</strong> The root configuration.  This is the top-most <strong class="program">lit</strong> configuration in
 the project.</p>
-<p><strong>on_clone</strong> The config is actually cloned for every subdirectory inside a test
-suite, to allow local configuration on a per-directory basis.  The <em>on_clone</em>
-variable can be set to a Python function which will be called whenever a
-configuration is cloned (for a subdirectory).  The function should takes three
-arguments: (1) the parent configuration, (2) the new configuration (which the
-<em>on_clone</em> function will generally modify), and (3) the test path to the new
-directory being scanned.</p>
 <p><strong>pipefail</strong> Normally a test using a shell pipe fails if any of the commands
 on the pipe fail. If this is not desired, setting this variable to false
 makes the test fail only if the last command in the pipe fails.</p>
+<p><strong>available_features</strong> A set of features that can be used in <cite>XFAIL</cite>,
+<cite>REQUIRES</cite>, and <cite>UNSUPPORTED</cite> directives.</p>
 </div></blockquote>
 </div>
 <div class="section" id="id7">
@@ -388,7 +441,7 @@ test file and a subpath to identify the virtual test.</p>
 <div class="section" id="local-configuration-files">
 <span id="id8"></span><h3>LOCAL CONFIGURATION FILES<a class="headerlink" href="#local-configuration-files" title="Permalink to this headline">¶</a></h3>
 <p>When <strong class="program">lit</strong> loads a subdirectory in a test suite, it instantiates a
-local test configuration by cloning the configuration for the parent direction
+local test configuration by cloning the configuration for the parent directory
 — the root of this configuration chain will always be a test suite.  Once the
 test configuration is cloned <strong class="program">lit</strong> checks for a <em>lit.local.cfg</em> file
 in the subdirectory.  If present, this file will be loaded and can be used to
@@ -396,6 +449,52 @@ specialize the configuration for each individual directory.  This facility can
 be used to define subdirectories of optional tests, or to change other
 configuration parameters — for example, to change the test format, or the
 suffixes which identify test files.</p>
+</div>
+<div class="section" id="pre-defined-substitutions">
+<h3>PRE-DEFINED SUBSTITUTIONS<a class="headerlink" href="#pre-defined-substitutions" title="Permalink to this headline">¶</a></h3>
+<p><strong class="program">lit</strong> provides various patterns that can be used with the RUN command.
+These are defined in TestRunner.py. The base set of substitutions are:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="16%" />
+<col width="84%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Macro</th>
+<th class="head">Substitution</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>%s</td>
+<td>source path (path to the file currently being run)</td>
+</tr>
+<tr class="row-odd"><td>%S</td>
+<td>source dir (directory of the file currently being run)</td>
+</tr>
+<tr class="row-even"><td>%p</td>
+<td>same as %S</td>
+</tr>
+<tr class="row-odd"><td>%{pathsep}</td>
+<td>path separator</td>
+</tr>
+<tr class="row-even"><td>%t</td>
+<td>temporary file name unique to the test</td>
+</tr>
+<tr class="row-odd"><td>%T</td>
+<td>temporary directory unique to the test</td>
+</tr>
+<tr class="row-even"><td>%%</td>
+<td>%</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Other substitutions are provided that are variations on this base set and
+further substitution patterns can be defined by each test module. See the
+modules <a class="reference internal" href="#local-configuration-files"><span class="std std-ref">LOCAL CONFIGURATION FILES</span></a>.</p>
+<p>More detailed information on substitutions can be found in the
+<a class="reference internal" href="../TestingGuide.html"><span class="doc">LLVM Testing Infrastructure Guide</span></a>.</p>
 </div>
 <div class="section" id="test-run-output-format">
 <h3>TEST RUN OUTPUT FORMAT<a class="headerlink" href="#test-run-output-format" title="Permalink to this headline">¶</a></h3>
@@ -474,8 +573,8 @@ test suites in the <em>ExampleTests</em> directory.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

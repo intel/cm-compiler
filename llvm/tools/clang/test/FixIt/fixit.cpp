@@ -1,8 +1,12 @@
-// RUN: %clang_cc1 -pedantic -Wall -Wno-comment -verify -fcxx-exceptions -x c++ %s
-// RUN: not %clang_cc1 -fsyntax-only -fdiagnostics-parseable-fixits -x c++ %s 2>&1 | FileCheck %s
-// RUN: cp %s %t
-// RUN: not %clang_cc1 -pedantic -Wall -Wno-comment -fcxx-exceptions -fixit -x c++ %t
-// RUN: %clang_cc1 -fsyntax-only -pedantic -Wall -Werror -Wno-comment -fcxx-exceptions -x c++ %t
+// RUN: %clang_cc1 -pedantic -Wall -Wno-comment -verify -fcxx-exceptions -x c++ -std=c++98 %s
+// RUN: cp %s %t-98
+// RUN: not %clang_cc1 -pedantic -Wall -Wno-comment -fcxx-exceptions -fixit -x c++ -std=c++98 %t-98
+// RUN: %clang_cc1 -fsyntax-only -pedantic -Wall -Werror -Wno-comment -fcxx-exceptions -x c++ -std=c++98 %t-98
+// RUN: not %clang_cc1 -fsyntax-only -fdiagnostics-parseable-fixits -x c++ -std=c++11 %s 2>&1 | FileCheck %s
+// RUN: %clang_cc1 -pedantic -Wall -Wno-comment -verify -fcxx-exceptions -x c++ -std=c++11 %s
+// RUN: cp %s %t-11
+// RUN: not %clang_cc1 -pedantic -Wall -Wno-comment -fcxx-exceptions -fixit -x c++ -std=c++11 %t-11
+// RUN: %clang_cc1 -fsyntax-only -pedantic -Wall -Werror -Wno-comment -fcxx-exceptions -x c++ -std=c++11 %t-11
 
 /* This is a test of the various code modification hints that are
    provided as part of warning or extension diagnostics. All of the
@@ -21,7 +25,11 @@ static void C1::g() { } // expected-error{{'static' can only be specified inside
 
 template<int Value> struct CT { template<typename> struct Inner; }; // expected-note{{previous use is here}}
 
+// FIXME: In C++11 this gets 'expected unqualified-id' which fixit can't fix.
+// Probably parses as `CT<10> > 2 > ct;` rather than `CT<(10 >> 2)> ct;`.
+#if __cplusplus < 201103L
 CT<10 >> 2> ct; // expected-warning{{require parentheses}}
+#endif
 
 class C3 {
 public:
@@ -41,11 +49,15 @@ protected:
 };
 
 class B : public A {
+#if __cplusplus >= 201103L
+  A::foo; // expected-error{{ISO C++11 does not allow access declarations}}
+#else
   A::foo; // expected-warning{{access declarations are deprecated}}
+#endif
 };
 
 void f() throw(); // expected-note{{previous}}
-void f(); // expected-warning{{missing exception specification}}
+void f(); // expected-error{{missing exception specification}}
 
 namespace rdar7853795 {
   struct A {
@@ -204,7 +216,7 @@ template<class T> typedef Mystery<T>::type getMysteriousThing() { // \
 }
 
 template<template<typename> Foo, // expected-error {{template template parameter requires 'class' after the parameter list}}
-         template<typename> typename Bar, // expected-warning {{template template parameter using 'typename' is a C++1z extension}}
+         template<typename> typename Bar, // expected-warning {{template template parameter using 'typename' is a C++17 extension}}
          template<typename> struct Baz> // expected-error {{template template parameter requires 'class' after the parameter list}}
 void func();
 
@@ -285,8 +297,10 @@ namespace greatergreater {
     void (*p)() = &t<int>;
     (void)(&t<int>==p); // expected-error {{use '> ='}}
     (void)(&t<int>>=p); // expected-error {{use '> >'}}
+#if __cplusplus < 201103L
     (void)(&t<S<int>>>=p); // expected-error {{use '> >'}}
     (Shr)&t<S<int>>>>=p; // expected-error {{use '> >'}}
+#endif
 
     // FIXME: We correct this to '&t<int> > >= p;' not '&t<int> >>= p;'
     //(Shr)&t<int>>>=p;
@@ -308,6 +322,13 @@ namespace dtor_fixit {
     ~bar() { }  // expected-error {{expected the class name after '~' to name a destructor}}
     // CHECK: fix-it:"{{.*}}":{[[@LINE-1]]:6-[[@LINE-1]]:9}:"foo"
   };
+
+  class bar {
+    ~bar();
+  };
+  ~bar::bar() {} // expected-error {{'~' in destructor name should be after nested name specifier}}
+  // CHECK: fix-it:"{{.*}}":{[[@LINE-1]]:3-[[@LINE-1]]:4}:""
+  // CHECK: fix-it:"{{.*}}":{[[@LINE-2]]:9-[[@LINE-2]]:9}:"~"
 }
 
 namespace PR5066 {
@@ -337,6 +358,65 @@ namespace PR15045 {
 
   int f() {
     Cl0 c;
-    return c->a;  // expected-error {{member reference type 'PR15045::Cl0' is not a pointer; maybe you meant to use '.'?}}
+    return c->a;  // expected-error {{member reference type 'PR15045::Cl0' is not a pointer; did you mean to use '.'?}}
   }
+}
+
+namespace curly_after_base_clause {
+struct A { void f(); };
+struct B : A // expected-error{{expected '{' after base class list}}
+  // CHECK: fix-it:"{{.*}}":{[[@LINE-1]]:13-[[@LINE-1]]:13}:" {"
+  int i;
+};
+struct C : A // expected-error{{expected '{' after base class list}}
+  // CHECK: fix-it:"{{.*}}":{[[@LINE-1]]:13-[[@LINE-1]]:13}:" {"
+  using A::f;
+};
+struct D : A // expected-error{{expected '{' after base class list}}
+  // CHECK: fix-it:"{{.*}}":{[[@LINE-1]]:13-[[@LINE-1]]:13}:" {"
+    protected:
+};
+struct E : A  // expected-error{{expected '{' after base class list}}
+  // CHECK: fix-it:"{{.*}}":{[[@LINE-1]]:13-[[@LINE-1]]:13}:" {"
+  template<typename T> struct inner { };
+};
+struct F : A  // expected-error{{expected '{' after base class list}}
+  // CHECK: fix-it:"{{.*}}":{[[@LINE-1]]:13-[[@LINE-1]]:13}:" {"
+  F() { }
+};
+#if __cplusplus >= 201103L
+struct G : A  // expected-error{{expected '{' after base class list}}
+  // CHECK: fix-it:"{{.*}}":{[[@LINE-1]]:13-[[@LINE-1]]:13}:" {"
+  constexpr G(int) { }
+};
+struct H : A  // expected-error{{expected '{' after base class list}}
+  // CHECK: fix-it:"{{.*}}":{[[@LINE-1]]:13-[[@LINE-1]]:13}:" {"
+  static_assert(true, "");
+};
+#endif
+}
+
+struct conversion_operator {
+  conversion_operator::* const operator int(); // expected-error {{put the complete type after 'operator'}}
+  // CHECK: fix-it:"{{.*}}":{[[@LINE-1]]:3-[[@LINE-1]]:32}:""
+  // CHECK: fix-it:"{{.*}}":{[[@LINE-2]]:44-[[@LINE-2]]:44}:" conversion_operator::* const"
+};
+
+struct const_zero_init {
+  int a;
+};
+const const_zero_init czi; // expected-error {{default initialization of an object of const type 'const const_zero_init'}}
+// CHECK: fix-it:"{{.*}}":{[[@LINE-1]]:26-[[@LINE-1]]:26}:"{}"
+int use_czi = czi.a;
+
+namespace dotPointerDestructor {
+
+struct Bar {
+  ~Bar();
+};
+
+void bar(Bar *o) {
+  o.~Bar(); // expected-error {{member reference type 'dotPointerDestructor::Bar *' is a pointer; did you mean to use '->'}}
+}  // CHECK: fix-it:"{{.*}}":{[[@LINE-1]]:4-[[@LINE-1]]:5}:"->"
+
 }

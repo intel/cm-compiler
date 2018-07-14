@@ -90,10 +90,10 @@ QualType Sema::BuildCMVectorType(bool IsReference, QualType T, Expr *SizeExpr,
       return QualType();
     }
 
-    // Vector size must be less than 4kb
+    // Vector size must be less than 8kb
     if (!T->isDependentType()) {
       int VectorSizeInBytes = (VS * Context.getTypeSize(T)) / 8;
-      if (VectorSizeInBytes >= 4096) {
+      if (VectorSizeInBytes >= 8192) {
         Diag(VLoc, diag::err_cm_max_data_size_exceeded)
           << 0 << VectorSizeInBytes << SourceRange(VLoc, GreaterLoc);
         return QualType();
@@ -151,10 +151,10 @@ QualType Sema::BuildCMMatrixType(bool IsReference, QualType T, Expr *NRowExpr,
       return QualType();
     }
 
-    // Matrix size must be less than 4kb
+    // Matrix size must be less than 8kb
     if (!T->isDependentType()) {
       int MatrixSizeInBytes = (NumRows * NumCols * Context.getTypeSize(T)) / 8;
-      if (MatrixSizeInBytes >= 4096) {
+      if (MatrixSizeInBytes >= 8192) {
         Diag(MLoc, diag::err_cm_max_data_size_exceeded)
           << 1 << MatrixSizeInBytes << SourceRange(MLoc, GreaterLoc);
         return QualType();

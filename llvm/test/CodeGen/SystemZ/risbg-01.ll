@@ -233,9 +233,11 @@ define i64 @f20(i64 %foo) {
 ; Now try an arithmetic right shift in which the sign bits aren't needed.
 ; Introduce a second use of %shr so that the ashr doesn't decompose to
 ; an lshr.
+; NOTE: the extra move to %r2 should not be needed (temporary FAIL)
 define i32 @f21(i32 %foo, i32 *%dest) {
 ; CHECK-LABEL: f21:
-; CHECK: risbg %r2, %r2, 60, 190, 36
+; CHECK: risbg %r0, %r2, 60, 190, 36
+; CHECK: lr %r2, %r0
 ; CHECK: br %r14
   %shr = ashr i32 %foo, 28
   store i32 %shr, i32 *%dest
@@ -472,11 +474,32 @@ define i64 @f41(i32 %a) {
 ; when testing whether the shifted-in bits of the shift right were significant.
 define i64 @f42(i1 %x) {
 ; CHECK-LABEL: f42:
-; CHECK: sll %r2, 31
-; CHECK: sra %r2, 31
-; CHECK: llgcr %r2, %r2
+; CHECK: nilf  %r2, 1
+; CHECK: lcr %r0, %r2
+; CHECK: llgcr %r2, %r0
 ; CHECK: br %r14
   %ext = sext i1 %x to i8
   %ext2 = zext i8 %ext to i64
   ret i64 %ext2
+}
+
+; Check that we get the case where a 64-bit shift is used by a 32-bit and.
+define signext i32 @f43(i64 %x) {
+; CHECK-LABEL: f43:
+; CHECK: risbg [[REG:%r[0-5]]], %r2, 32, 189, 52
+; CHECK: lgfr %r2, [[REG]]
+  %shr3 = lshr i64 %x, 12
+  %shr3.tr = trunc i64 %shr3 to i32
+  %conv = and i32 %shr3.tr, -4
+  ret i32 %conv
+}
+
+; Check that we don't get the case where the 32-bit and mask is not contiguous
+define signext i32 @f44(i64 %x) {
+; CHECK-LABEL: f44:
+; CHECK: srlg [[REG:%r[0-5]]], %r2, 12
+  %shr4 = lshr i64 %x, 12
+  %conv = trunc i64 %shr4 to i32
+  %and = and i32 %conv, 10
+  ret i32 %and
 }

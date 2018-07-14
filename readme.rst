@@ -147,3 +147,4 @@ You may create a new pull request on github for your code changes. We will revie
 For any new example using CM, as long as you have the entire application that can be built and run on either Linux or Windows, you can email it to the maintainer of this project. We can help you customize it, and publish it in our open-example folder.
 
 (*) Other names and brands maybe claimed as property of others.
+

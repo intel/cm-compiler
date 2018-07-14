@@ -38,9 +38,26 @@ OPTIONS
  prefixes to match. Multiple prefixes are useful for tests which might
  change for different run options, but most lines remain the same.
 
+.. option:: --check-prefixes prefix1,prefix2,...
+
+ An alias of :option:`--check-prefix` that allows multiple prefixes to be
+ specified as a comma separated list.
+
 .. option:: --input-file filename
 
   File to check (defaults to stdin).
+
+.. option:: --match-full-lines
+
+ By default, FileCheck allows matches of anywhere on a line. This
+ option will require all positive matches to cover an entire
+ line. Leading and trailing whitespace is ignored, unless
+ :option:`--strict-whitespace` is also specified. (Note: negative
+ matches from ``CHECK-NOT`` are not affected by this option!)
+
+ Passing this option is equivalent to inserting ``{{^ *}}`` or
+ ``{{^}}`` before, and ``{{ *$}}`` or ``{{$}}`` after every positive
+ check pattern.
 
 .. option:: --strict-whitespace
 
@@ -59,6 +76,20 @@ OPTIONS
   diagnostic messages from tools that don't have an option similar to ``clang
   -verify``. With this option FileCheck will verify that input does not contain
   warnings not covered by any ``CHECK:`` patterns.
+
+.. option:: --enable-var-scope
+
+  Enables scope for regex variables.
+
+  Variables with names that start with ``$`` are considered global and
+  remain set throughout the file.
+
+  All other variables get undefined after each encountered ``CHECK-LABEL``.
+
+.. option:: -D<VAR=VALUE>
+
+  Sets a filecheck variable ``VAR`` with value ``VALUE`` that can be used in
+  ``CHECK:`` lines.
 
 .. option:: -version
 
@@ -185,6 +216,31 @@ For example, something like this works as you'd expect:
 newline between it and the previous directive.  A "``CHECK-NEXT:``" cannot be
 the first directive in a file.
 
+The "CHECK-SAME:" directive
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sometimes you want to match lines and would like to verify that matches happen
+on the same line as the previous match.  In this case, you can use "``CHECK:``"
+and "``CHECK-SAME:``" directives to specify this.  If you specified a custom
+check prefix, just use "``<PREFIX>-SAME:``".
+
+"``CHECK-SAME:``" is particularly powerful in conjunction with "``CHECK-NOT:``"
+(described below).
+
+For example, the following works like you'd expect:
+
+.. code-block:: llvm
+
+   !0 = !DILocation(line: 5, scope: !1, inlinedAt: !2)
+
+   ; CHECK:       !DILocation(line: 5,
+   ; CHECK-NOT:               column:
+   ; CHECK-SAME:              scope: ![[SCOPE:[0-9]+]]
+
+"``CHECK-SAME:``" directives reject the input if there are any newlines between
+it and the previous directive.  A "``CHECK-SAME:``" cannot be the first
+directive in a file.
+
 The "CHECK-NOT:" directive
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -261,7 +317,7 @@ be aware that the definition rule can match `after` its use.
 
 So, for instance, the code below will pass:
 
-.. code-block:: none
+.. code-block:: text
 
   ; CHECK-DAG: vmov.32 [[REG2:d[0-9]+]][0]
   ; CHECK-DAG: vmov.32 [[REG2]][1]
@@ -270,7 +326,7 @@ So, for instance, the code below will pass:
 
 While this other code, will not:
 
-.. code-block:: none
+.. code-block:: text
 
   ; CHECK-DAG: vmov.32 [[REG2:d[0-9]+]][0]
   ; CHECK-DAG: vmov.32 [[REG2]][1]
@@ -302,6 +358,9 @@ matched by the directive cannot also be matched by any other check present in
 other unique identifiers. Conceptually, the presence of ``CHECK-LABEL`` divides
 the input stream into separate blocks, each of which is processed independently,
 preventing a ``CHECK:`` directive in one block matching a line in another block.
+If ``--enable-var-scope`` is in effect, all local variables are cleared at the
+beginning of the block.
+
 For example,
 
 .. code-block:: llvm
@@ -339,14 +398,15 @@ simply uniquely match a single line in the file being verified.
 FileCheck Pattern Matching Syntax
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The "``CHECK:``" and "``CHECK-NOT:``" directives both take a pattern to match.
+All FileCheck directives take a pattern to match.
 For most uses of FileCheck, fixed string matching is perfectly sufficient.  For
 some things, a more flexible form of matching is desired.  To support this,
 FileCheck allows you to specify regular expressions in matching strings,
-surrounded by double braces: ``{{yourregex}}``.  Because we want to use fixed
-string matching for a majority of what we do, FileCheck has been designed to
-support mixing and matching fixed string matching with regular expressions.
-This allows you to write things like this:
+surrounded by double braces: ``{{yourregex}}``. FileCheck implements a POSIX
+regular expression matcher; it supports Extended POSIX regular expressions
+(ERE). Because we want to use fixed string matching for a majority of what we
+do, FileCheck has been designed to support mixing and matching fixed string
+matching with regular expressions.  This allows you to write things like this:
 
 .. code-block:: llvm
 
@@ -380,7 +440,7 @@ The first check line matches a regex ``%[a-z]+`` and captures it into the
 variable ``REGISTER``.  The second line verifies that whatever is in
 ``REGISTER`` occurs later in the file after an "``andw``".  :program:`FileCheck`
 variable references are always contained in ``[[ ]]`` pairs, and their names can
-be formed with the regex ``[a-zA-Z][a-zA-Z0-9]*``.  If a colon follows the name,
+be formed with the regex ``[a-zA-Z_][a-zA-Z0-9_]*``.  If a colon follows the name,
 then it is a definition of the variable; otherwise, it is a use.
 
 :program:`FileCheck` variables can be defined multiple times, and uses always
@@ -393,6 +453,13 @@ were defined on. For example:
 
 Can be useful if you want the operands of ``op`` to be the same register,
 and don't care exactly which register it is.
+
+If ``--enable-var-scope`` is in effect, variables with names that
+start with ``$`` are considered to be global. All others variables are
+local.  All local variables get undefined at the beginning of each
+CHECK-LABEL block. Global variables are not affected by CHECK-LABEL.
+This makes it easier to ensure that individual tests are not affected
+by variables set in preceding tests.
 
 FileCheck Expressions
 ~~~~~~~~~~~~~~~~~~~~~
@@ -419,3 +486,22 @@ relative line number references, for example:
    // CHECK-NEXT: {{^     ;}}
    int a
 
+Matching Newline Characters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To match newline characters in regular expressions the character class
+``[[:space:]]`` can be used. For example, the following pattern:
+
+.. code-block:: c++
+
+   // CHECK: DW_AT_location [DW_FORM_sec_offset] ([[DLOC:0x[0-9a-f]+]]){{[[:space:]].*}}"intd"
+
+matches output of the form (from llvm-dwarfdump):
+
+.. code-block:: text
+
+       DW_AT_location [DW_FORM_sec_offset]   (0x00000233)
+       DW_AT_name [DW_FORM_strp]  ( .debug_str[0x000000c9] = "intd")
+
+letting us set the :program:`FileCheck` variable ``DLOC`` to the desired value 
+``0x00000233``, extracted from the line immediately preceding "``intd``".

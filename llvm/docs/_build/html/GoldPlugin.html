@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>The LLVM gold plugin &#8212; LLVM 3.4 documentation</title>
+    <title>The LLVM gold plugin &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -71,7 +71,7 @@
 <h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
 <p>Building with link time optimization requires cooperation from
 the system linker. LTO support on Linux systems requires that you use the
-<a class="reference external" href="http://sourceware.org/binutils">gold linker</a> which supports LTO via plugins. This is the same mechanism
+<a class="reference external" href="http://sourceware.org/binutils">gold linker</a> or ld.bfd from binutils &gt;= 2.21.51.0.2, as they support LTO via plugins. This is the same mechanism
 used by the <a class="reference external" href="http://gcc.gnu.org/wiki/LinkTimeOptimization">GCC LTO</a> project.</p>
 <p>The LLVM gold plugin implements the gold plugin interface on top of
 <a class="reference internal" href="LinkTimeOptimization.html#liblto"><span class="std std-ref">libLTO</span></a>.  The same plugin can also be used by other tools such as
@@ -79,28 +79,26 @@ used by the <a class="reference external" href="http://gcc.gnu.org/wiki/LinkTime
 </div>
 <div class="section" id="how-to-build-it">
 <span id="lto-how-to-build"></span><h2>How to build it<a class="headerlink" href="#how-to-build-it" title="Permalink to this headline">¶</a></h2>
-<p>You need to have gold with plugin support and build the LLVMgold plugin.
-Check whether you have gold running <code class="docutils literal"><span class="pre">/usr/bin/ld</span> <span class="pre">-v</span></code>. It will report “GNU
-gold” or else “GNU ld” if not. If you have gold, check for plugin support
-by running <code class="docutils literal"><span class="pre">/usr/bin/ld</span> <span class="pre">-plugin</span></code>. If it complains “missing argument” then
-you have plugin support. If not, such as an “unknown option” error then you
-will either need to build gold or install a version with plugin support.</p>
+<p>Check for plugin support by running <code class="docutils literal"><span class="pre">/usr/bin/ld</span> <span class="pre">-plugin</span></code>. If it complains
+“missing argument” then you have plugin support. If not, such as an “unknown option”
+error then you will either need to build gold or install a recent version
+of ld.bfd with plugin support and then build gold plugin.</p>
 <ul>
-<li><p class="first">Download, configure and build gold with plugin support:</p>
+<li><p class="first">Download, configure and build ld.bfd with plugin support:</p>
 <div class="highlight-bash"><div class="highlight"><pre><span></span>$ git clone --depth <span class="m">1</span> git://sourceware.org/git/binutils-gdb.git binutils
 $ mkdir build
 $ <span class="nb">cd</span> build
-$ ../binutils/configure --enable-gold --enable-plugins --disable-werror
-$ make all-gold
+$ ../binutils/configure --disable-werror <span class="c1"># ld.bfd includes plugin support by default</span>
+$ make all-ld
 </pre></div>
 </div>
-<p>That should leave you with <code class="docutils literal"><span class="pre">build/gold/ld-new</span></code> which supports
+<p>That should leave you with <code class="docutils literal"><span class="pre">build/ld/ld-new</span></code> which supports
 the <code class="docutils literal"><span class="pre">-plugin</span></code> option. Running <code class="docutils literal"><span class="pre">make</span></code> will additionally build
 <code class="docutils literal"><span class="pre">build/binutils/ar</span></code> and <code class="docutils literal"><span class="pre">nm-new</span></code> binaries supporting plugins.</p>
 </li>
-<li><p class="first">Build the LLVMgold plugin: Configure LLVM with
-<code class="docutils literal"><span class="pre">--with-binutils-include=/path/to/binutils/include</span></code> and run
-<code class="docutils literal"><span class="pre">make</span></code>.</p>
+<li><p class="first">Build the LLVMgold plugin. Run CMake with
+<code class="docutils literal"><span class="pre">-DLLVM_BINUTILS_INCDIR=/path/to/binutils/include</span></code>.  The correct include
+path will contain the file <code class="docutils literal"><span class="pre">plugin-api.h</span></code>.</p>
 </li>
 </ul>
 </div>
@@ -240,8 +238,8 @@ just as much as gold could without the plugin.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

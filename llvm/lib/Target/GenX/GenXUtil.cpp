@@ -77,12 +77,14 @@ KernelMetadata::KernelMetadata(Function *F) : IsKernel(false), SLMSize(0)
   NamedMDNode *Named = F->getParent()->getNamedMetadata("genx.kernels");
   if (!Named)
     return;
+
   MDNode *Node = nullptr;
   for (unsigned i = 0, e = Named->getNumOperands(); i != e; ++i) {
     if (i == e)
       return;
     Node = Named->getOperand(i);
-    if (Node->getNumOperands() >= 7 && Node->getOperand(0) == F)
+    if (Node->getNumOperands() >= 7 &&
+        getValueAsMetadata(Node->getOperand(0)) == F)
       break;
   }
   if (!Node)
@@ -93,7 +95,7 @@ KernelMetadata::KernelMetadata(Function *F) : IsKernel(false), SLMSize(0)
     Name = MDS->getString();
   if (MDString *MDS = dyn_cast<MDString>(Node->getOperand(2)))
     AsmName = MDS->getString();
-  if (ConstantInt *Sz = dyn_cast<ConstantInt>(Node->getOperand(4)))
+  if (ConstantInt *Sz = getValueAsMetadata<ConstantInt>(Node->getOperand(4)))
     SLMSize = Sz->getZExtValue();
   // Build the argument kinds and offsets arrays that should correspond to the
   // function arguments (both explicit and implicit)
@@ -104,13 +106,18 @@ KernelMetadata::KernelMetadata(Function *F) : IsKernel(false), SLMSize(0)
          KindsNode->getNumOperands() == OffsetsNode->getNumOperands());
 
   for (unsigned i = 0, e = KindsNode->getNumOperands(); i != e; ++i) {
-    ArgKinds.push_back(cast<ConstantInt>(KindsNode->getOperand(i))->getZExtValue());
-    ArgOffsets.push_back(cast<ConstantInt>(OffsetsNode->getOperand(i))->getZExtValue());
+    ArgKinds.push_back(getValueAsMetadata<ConstantInt>(KindsNode->getOperand(i))
+                           ->getZExtValue());
+    ArgOffsets.push_back(
+        getValueAsMetadata<ConstantInt>(OffsetsNode->getOperand(i))
+            ->getZExtValue());
   }
   assert(InputOutputKinds &&
          KindsNode->getNumOperands() >= InputOutputKinds->getNumOperands());
   for (unsigned i = 0, e = InputOutputKinds->getNumOperands(); i != e; ++i)
-    ArgIOKinds.push_back(cast<ConstantInt>(InputOutputKinds->getOperand(i))->getZExtValue());
+    ArgIOKinds.push_back(
+        getValueAsMetadata<ConstantInt>(InputOutputKinds->getOperand(i))
+            ->getZExtValue());
 }
 
 /***********************************************************************

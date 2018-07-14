@@ -1,43 +1,74 @@
 set(LLVM_TARGET_DEFINITIONS Hexagon.td)
 
-tablegen(LLVM HexagonGenRegisterInfo.inc -gen-register-info)
-tablegen(LLVM HexagonGenInstrInfo.inc -gen-instr-info)
+tablegen(LLVM HexagonGenAsmMatcher.inc -gen-asm-matcher)
 tablegen(LLVM HexagonGenAsmWriter.inc -gen-asm-writer)
 tablegen(LLVM HexagonGenDAGISel.inc -gen-dag-isel)
-tablegen(LLVM HexagonGenCallingConv.inc -gen-callingconv)
-tablegen(LLVM HexagonGenSubtargetInfo.inc -gen-subtarget)
 tablegen(LLVM HexagonGenDFAPacketizer.inc -gen-dfa-packetizer)
+tablegen(LLVM HexagonGenDisassemblerTables.inc -gen-disassembler)
+tablegen(LLVM HexagonGenInstrInfo.inc -gen-instr-info)
+tablegen(LLVM HexagonGenMCCodeEmitter.inc -gen-emitter)
+tablegen(LLVM HexagonGenRegisterInfo.inc -gen-register-info)
+tablegen(LLVM HexagonGenSubtargetInfo.inc -gen-subtarget)
 add_public_tablegen_target(HexagonCommonTableGen)
 
 add_llvm_target(HexagonCodeGen
+  BitTracker.cpp
   HexagonAsmPrinter.cpp
-  HexagonCallingConvLower.cpp
+  HexagonBitSimplify.cpp
+  HexagonBitTracker.cpp
+  HexagonBlockRanges.cpp
+  HexagonBranchRelaxation.cpp
   HexagonCFGOptimizer.cpp
-  HexagonExpandPredSpillCode.cpp
-  HexagonFrameLowering.cpp
-  HexagonHardwareLoops.cpp
+  HexagonCommonGEP.cpp
+  HexagonConstExtenders.cpp
+  HexagonConstPropagation.cpp
+  HexagonCopyToCombine.cpp
+  HexagonEarlyIfConv.cpp
+  HexagonExpandCondsets.cpp
   HexagonFixupHwLoops.cpp
+  HexagonFrameLowering.cpp
+  HexagonGatherPacketize.cpp
+  HexagonGenExtract.cpp
+  HexagonGenInsert.cpp
+  HexagonGenMux.cpp
+  HexagonGenPredicate.cpp
+  HexagonHardwareLoops.cpp
+  HexagonHazardRecognizer.cpp
+  HexagonInstrInfo.cpp
+  HexagonISelDAGToDAG.cpp
+  HexagonISelDAGToDAGHVX.cpp
+  HexagonISelLowering.cpp
+  HexagonISelLoweringHVX.cpp
+  HexagonLoopIdiomRecognition.cpp
   HexagonMachineFunctionInfo.cpp
   HexagonMachineScheduler.cpp
   HexagonMCInstLower.cpp
-  HexagonInstrInfo.cpp
-  HexagonISelDAGToDAG.cpp
-  HexagonISelLowering.cpp
+  HexagonNewValueJump.cpp
+  HexagonOptAddrMode.cpp
+  HexagonOptimizeSZextends.cpp
   HexagonPeephole.cpp
+  HexagonRDFOpt.cpp
   HexagonRegisterInfo.cpp
-  HexagonRemoveSZExtArgs.cpp
   HexagonSelectionDAGInfo.cpp
   HexagonSplitConst32AndConst64.cpp
-  HexagonSplitTFRCondSets.cpp
+  HexagonSplitDouble.cpp
+  HexagonStoreWidening.cpp
   HexagonSubtarget.cpp
   HexagonTargetMachine.cpp
   HexagonTargetObjectFile.cpp
+  HexagonTargetTransformInfo.cpp
+  HexagonVectorLoopCarriedReuse.cpp
+  HexagonVectorPrint.cpp
   HexagonVLIWPacketizer.cpp
-  HexagonNewValueJump.cpp
-  HexagonCopyToCombine.cpp
+  RDFCopy.cpp
+  RDFDeadCode.cpp
+  RDFGraph.cpp
+  RDFLiveness.cpp
+  RDFRegisters.cpp
 )
 
+add_subdirectory(AsmParser)
 add_subdirectory(TargetInfo)
-add_subdirectory(InstPrinter)
 add_subdirectory(MCTargetDesc)
+add_subdirectory(Disassembler)
 

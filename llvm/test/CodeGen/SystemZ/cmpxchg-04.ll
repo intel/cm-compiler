@@ -17,7 +17,7 @@ define i64 @f2(i64 %cmp, i64 %swap, i64 *%src) {
 ; CHECK-LABEL: f2:
 ; CHECK: csg %r2, %r3, 524280(%r4)
 ; CHECK: br %r14
-  %ptr = getelementptr i64 *%src, i64 65535
+  %ptr = getelementptr i64, i64 *%src, i64 65535
   %pairval = cmpxchg i64 *%ptr, i64 %cmp, i64 %swap seq_cst seq_cst
   %val = extractvalue { i64, i1 } %pairval, 0
   ret i64 %val
@@ -30,7 +30,7 @@ define i64 @f3(i64 %cmp, i64 %swap, i64 *%src) {
 ; CHECK: agfi %r4, 524288
 ; CHECK: csg %r2, %r3, 0(%r4)
 ; CHECK: br %r14
-  %ptr = getelementptr i64 *%src, i64 65536
+  %ptr = getelementptr i64, i64 *%src, i64 65536
   %pairval = cmpxchg i64 *%ptr, i64 %cmp, i64 %swap seq_cst seq_cst
   %val = extractvalue { i64, i1 } %pairval, 0
   ret i64 %val
@@ -41,7 +41,7 @@ define i64 @f4(i64 %cmp, i64 %swap, i64 *%src) {
 ; CHECK-LABEL: f4:
 ; CHECK: csg %r2, %r3, -8(%r4)
 ; CHECK: br %r14
-  %ptr = getelementptr i64 *%src, i64 -1
+  %ptr = getelementptr i64, i64 *%src, i64 -1
   %pairval = cmpxchg i64 *%ptr, i64 %cmp, i64 %swap seq_cst seq_cst
   %val = extractvalue { i64, i1 } %pairval, 0
   ret i64 %val
@@ -52,7 +52,7 @@ define i64 @f5(i64 %cmp, i64 %swap, i64 *%src) {
 ; CHECK-LABEL: f5:
 ; CHECK: csg %r2, %r3, -524288(%r4)
 ; CHECK: br %r14
-  %ptr = getelementptr i64 *%src, i64 -65536
+  %ptr = getelementptr i64, i64 *%src, i64 -65536
   %pairval = cmpxchg i64 *%ptr, i64 %cmp, i64 %swap seq_cst seq_cst
   %val = extractvalue { i64, i1 } %pairval, 0
   ret i64 %val
@@ -65,7 +65,7 @@ define i64 @f6(i64 %cmp, i64 %swap, i64 *%src) {
 ; CHECK: agfi %r4, -524296
 ; CHECK: csg %r2, %r3, 0(%r4)
 ; CHECK: br %r14
-  %ptr = getelementptr i64 *%src, i64 -65537
+  %ptr = getelementptr i64, i64 *%src, i64 -65537
   %pairval = cmpxchg i64 *%ptr, i64 %cmp, i64 %swap seq_cst seq_cst
   %val = extractvalue { i64, i1 } %pairval, 0
   ret i64 %val
@@ -105,3 +105,18 @@ define i64 @f9(i64 %cmp, i64 *%ptr) {
   %val = extractvalue { i64, i1 } %pairval, 0
   ret i64 %val
 }
+
+; Check generating the comparison result.
+; CHECK-LABEL: f10
+; CHECK: csg %r2, %r3, 0(%r4)
+; CHECK-NEXT: ipm %r2
+; CHECK-NEXT: afi %r2, -268435456
+; CHECK-NEXT: srl %r2, 31
+; CHECK: br %r14
+define i32 @f10(i64 %cmp, i64 %swap, i64 *%src) {
+  %pairval = cmpxchg i64 *%src, i64 %cmp, i64 %swap seq_cst seq_cst
+  %val = extractvalue { i64, i1 } %pairval, 1
+  %res = zext i1 %val to i32
+  ret i32 %res
+}
+

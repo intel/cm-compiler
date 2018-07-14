@@ -19,7 +19,7 @@
 power. Most of the projects listed here are infrastructure-related so this list 
 is an addition to the <a href="potential_checkers.html">potential checkers 
 list</a>. If you are interested in tackling one of these, please send an email 
-to the <a href=http://lists.cs.uiuc.edu/mailman/listinfo/cfe-dev>cfe-dev
+to the <a href=http://lists.llvm.org/mailman/listinfo/cfe-dev>cfe-dev
 mailing list</a> to notify other members of the community.</p>
 
 <ul>  
@@ -107,13 +107,6 @@ mailing list</a> to notify other members of the community.</p>
 
   <li>Bug Reporting 
   <ul>
-    <li>Add support for displaying cross-file diagnostic paths in HTML output
-    (used by <tt>scan-build</tt>).
-    <p>Currently <tt>scan-build</tt> output does not display reports that span 
-    multiple files. The main problem is that we do not have a good format to
-    display such paths in HTML output. <i>(Difficulty: Medium)</i> </p>
-    </li>
-    
     <li>Refactor path diagnostic generation in <a href="http://clang.llvm.org/doxygen/BugReporter_8cpp_source.html">BugReporter.cpp</a>.
     <p>It would be great to have more code reuse between "Minimal" and 
     "Extensive" PathDiagnostic generation algorithms. One idea is to create an 
@@ -181,7 +174,7 @@ mailing list</a> to notify other members of the community.</p>
     <p>Take a look at the
     <a href="http://pages.cs.wisc.edu/~shanlu/paper/TSE-CPMiner.pdf">CP-Miner</a>
     paper for inspiration. 
-    <i>(Difficulty: Medium-Hard; current contacts: Per Viberg and Daniel Fahlgren)</i></p>
+    <i>(Difficulty: Medium-Hard; current contacts: Daniel Marjam&auml;ki and Daniel Fahlgren)</i></p>
     </li>  
   </ul>
   </li>

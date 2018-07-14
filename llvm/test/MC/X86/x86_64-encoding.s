@@ -148,19 +148,19 @@ sha1msg2 %xmm1, %xmm2
 // CHECK:   encoding: [0x0f,0x38,0xca,0x10]
 sha1msg2 (%rax), %xmm2
 
-// CHECK: sha256rnds2 (%rax), %xmm2
+// CHECK: sha256rnds2 %xmm0, (%rax), %xmm2
 // CHECK:   encoding: [0x0f,0x38,0xcb,0x10]
 sha256rnds2 (%rax), %xmm2
 
-// CHECK: sha256rnds2 %xmm1, %xmm2
+// CHECK: sha256rnds2 %xmm0, %xmm1, %xmm2
 // CHECK:   encoding: [0x0f,0x38,0xcb,0xd1]
 sha256rnds2 %xmm1, %xmm2
 
-// CHECK: sha256rnds2 (%rax), %xmm2
+// CHECK: sha256rnds2 %xmm0, (%rax), %xmm2
 // CHECK:   encoding: [0x0f,0x38,0xcb,0x10]
 sha256rnds2 %xmm0, (%rax), %xmm2
 
-// CHECK: sha256rnds2 %xmm1, %xmm2
+// CHECK: sha256rnds2 %xmm0, %xmm1, %xmm2
 // CHECK:   encoding: [0x0f,0x38,0xcb,0xd1]
 sha256rnds2 %xmm0, %xmm1, %xmm2
 
@@ -200,13 +200,21 @@ sha256msg2 (%rax), %xmm2
 // CHECK: encoding: [0x48,0x8b,0x04,0xe1]
           movq  (%rcx,%riz,8), %rax
 
-// CHECK: fxsaveq (%rax)
+// CHECK: fxsave64 (%rax)
 // CHECK: encoding: [0x48,0x0f,0xae,0x00]
           fxsaveq (%rax)
 
-// CHECK: fxrstorq (%rax)
+// CHECK: fxsave64 (%rax)
+// CHECK: encoding: [0x48,0x0f,0xae,0x00]
+          fxsave64 (%rax)
+
+// CHECK: fxrstor64 (%rax)
 // CHECK: encoding: [0x48,0x0f,0xae,0x08]
           fxrstorq (%rax)
+
+// CHECK: fxrstor64 (%rax)
+// CHECK: encoding: [0x48,0x0f,0xae,0x08]
+          fxrstor64 (%rax)
 
 // CHECK: leave
 // CHECK:  encoding: [0xc9]
@@ -243,3 +251,15 @@ sha256msg2 (%rax), %xmm2
 // CHECK: pinsrw $3, %ecx, %xmm5
 // CHECK: encoding: [0x66,0x0f,0xc4,0xe9,0x03]
           pinsrw $3, %rcx, %xmm5
+
+//CHECK   movq	12(%rdi), %rsi
+//CHECK   encoding: [0x48,0x8b,0x77,0x0c]
+    movq 	16+0-4(%rdi),%rsi
+
+//CHECK   movq	12(%rdi), %rsi
+//CHECK   encoding: [0x48,0x8b,0x77,0x0c]
+    movq 	(16+(0-4))(%rdi),%rsi
+
+//CHECK   movq	12(%rdi), %rsi
+//CHECK   encoding: [0x48,0x8b,0x77,0x0c]
+    movq 	(16+0)-1+1-2+2-3+3-4+4-5+5-6+6-(4)(%rdi),%rsi

@@ -1,5 +1,5 @@
-; RUN: llc -mtriple=x86_64-linux -O0 -o - -filetype=obj < %s | llvm-dwarfdump -debug-dump=info -| FileCheck %s
-; RUN: llc -mtriple=x86_64-linux -dwarf-version=2 -O0 -o - -filetype=obj < %s | llvm-dwarfdump -debug-dump=info -| FileCheck -check-prefix=DWARF2 %s
+; RUN: llc -mtriple=x86_64-linux -O0 -o - -filetype=obj < %s | llvm-dwarfdump -v -debug-info -| FileCheck %s
+; RUN: llc -mtriple=x86_64-linux -dwarf-version=2 -O0 -o - -filetype=obj < %s | llvm-dwarfdump -v -debug-info -| FileCheck -check-prefix=DWARF2 %s
 
 ; Generated from Clang with the following source:
 ;
@@ -20,34 +20,36 @@
 
 ; DWARF2: DW_AT_name {{.*}} "c"
 ; DWARF2-NOT: DW_TAG
-; DWARF2: DW_AT_data_member_location {{.*}} (<0x02> 23 00 )
+; DWARF2: DW_AT_data_member_location {{.*}} (DW_OP_plus_uconst 0x0)
 
 ; DWARF2: DW_AT_name {{.*}} "i"
 ; DWARF2-NOT: DW_TAG
-; DWARF2: DW_AT_data_member_location {{.*}} (<0x02> 23 04 )
+; DWARF2: DW_AT_data_member_location {{.*}} (DW_OP_plus_uconst 0x4)
+
+source_filename = "test/DebugInfo/X86/data_member_location.ll"
 
 %struct.foo = type { i8, i32 }
 
-@f = global %struct.foo zeroinitializer, align 4
+@f = global %struct.foo zeroinitializer, align 4, !dbg !0
 
-!llvm.dbg.cu = !{!0}
-!llvm.module.flags = !{!13, !15}
-!llvm.ident = !{!14}
+!llvm.dbg.cu = !{!9}
+!llvm.module.flags = !{!13, !14}
+!llvm.ident = !{!15}
 
-!0 = metadata !{i32 786449, metadata !1, i32 4, metadata !"clang version 3.4 ", i1 false, metadata !"", i32 0, metadata !2, metadata !3, metadata !2, metadata !10, metadata !2, metadata !""} ; [ DW_TAG_compile_unit ] [/tmp/dbginfo/data_member_location.cpp] [DW_LANG_C_plus_plus]
-!1 = metadata !{metadata !"data_member_location.cpp", metadata !"/tmp/dbginfo"}
-!2 = metadata !{}
-!3 = metadata !{metadata !4}
-!4 = metadata !{i32 786451, metadata !1, null, metadata !"foo", i32 1, i64 64, i64 32, i32 0, i32 0, null, metadata !5, i32 0, null, null, metadata !"_ZTS3foo"} ; [ DW_TAG_structure_type ] [foo] [line 1, size 64, align 32, offset 0] [def] [from ]
-!5 = metadata !{metadata !6, metadata !8}
-!6 = metadata !{i32 786445, metadata !1, metadata !"_ZTS3foo", metadata !"c", i32 2, i64 8, i64 8, i64 0, i32 0, metadata !7} ; [ DW_TAG_member ] [c] [line 2, size 8, align 8, offset 0] [from char]
-!7 = metadata !{i32 786468, null, null, metadata !"char", i32 0, i64 8, i64 8, i64 0, i32 0, i32 6} ; [ DW_TAG_base_type ] [char] [line 0, size 8, align 8, offset 0, enc DW_ATE_signed_char]
-!8 = metadata !{i32 786445, metadata !1, metadata !"_ZTS3foo", metadata !"i", i32 3, i64 32, i64 32, i64 32, i32 0, metadata !9} ; [ DW_TAG_member ] [i] [line 3, size 32, align 32, offset 32] [from int]
-!9 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!10 = metadata !{metadata !11}
-!11 = metadata !{i32 786484, i32 0, null, metadata !"f", metadata !"f", metadata !"", metadata !12, i32 6, metadata !4, i32 0, i32 1, %struct.foo* @f, null} ; [ DW_TAG_variable ] [f] [line 6] [def]
-!12 = metadata !{i32 786473, metadata !1}         ; [ DW_TAG_file_type ] [/tmp/dbginfo/data_member_location.cpp]
-!13 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!14 = metadata !{metadata !"clang version 3.4 "}
+!0 = !DIGlobalVariableExpression(var: !1, expr: !DIExpression())
+!1 = !DIGlobalVariable(name: "f", scope: null, file: !2, line: 6, type: !3, isLocal: false, isDefinition: true)
+!2 = !DIFile(filename: "data_member_location.cpp", directory: "/tmp/dbginfo")
+!3 = !DICompositeType(tag: DW_TAG_structure_type, name: "foo", file: !2, line: 1, size: 64, align: 32, elements: !4, identifier: "_ZTS3foo")
+!4 = !{!5, !7}
+!5 = !DIDerivedType(tag: DW_TAG_member, name: "c", scope: !3, file: !2, line: 2, baseType: !6, size: 8, align: 8)
+!6 = !DIBasicType(name: "char", size: 8, align: 8, encoding: DW_ATE_signed_char)
+!7 = !DIDerivedType(tag: DW_TAG_member, name: "i", scope: !3, file: !2, line: 3, baseType: !8, size: 32, align: 32, offset: 32)
+!8 = !DIBasicType(name: "int", size: 32, align: 32, encoding: DW_ATE_signed)
+!9 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus, file: !2, producer: "clang version 3.4 ", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, enums: !10, retainedTypes: !11, globals: !12, imports: !10)
+!10 = !{}
+!11 = !{!3}
+!12 = !{!0}
+!13 = !{i32 2, !"Dwarf Version", i32 4}
+!14 = !{i32 1, !"Debug Info Version", i32 3}
+!15 = !{!"clang version 3.4 "}
 
-!15 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}

@@ -27,7 +27,7 @@ Supported Instructions
 ^^^^^^^^^^^^^^
 
 Metadata is only assigned to the conditional branches. There are two extra
-operarands for the true and the false branch.
+operands for the true and the false branch.
 
 .. code-block:: none
 
@@ -62,6 +62,20 @@ Branch weights are assigned to every destination.
     metadata !"branch_weights",
     i32 <LABEL_BRANCH_WEIGHT>
     [ , i32 <LABEL_BRANCH_WEIGHT> ... ]
+  }
+
+``CallInst``
+^^^^^^^^^^^^^^^^^^
+
+Calls may have branch weight metadata, containing the execution count of
+the call. It is currently used in SamplePGO mode only, to augment the
+block and entry counts which may not be accurate with sampling.
+
+.. code-block:: none
+
+  !0 = metadata !{
+    metadata !"branch_weights",
+    i32 <CALL_BRANCH_WEIGHT>
   }
 
 Other
@@ -114,4 +128,37 @@ CFG Modifications
 
 Branch Weight Metatada is not proof against CFG changes. If terminator operands'
 are changed some action should be taken. In other case some misoptimizations may
-occur due to incorrent branch prediction information.
+occur due to incorrect branch prediction information.
+
+Function Entry Counts
+=====================
+
+To allow comparing different functions during inter-procedural analysis and
+optimization, ``MD_prof`` nodes can also be assigned to a function definition.
+The first operand is a string indicating the name of the associated counter.
+
+Currently, one counter is supported: "function_entry_count". The second operand
+is a 64-bit counter that indicates the number of times that this function was
+invoked (in the case of instrumentation-based profiles). In the case of
+sampling-based profiles, this operand is an approximation of how many times
+the function was invoked.
+
+For example, in the code below, the instrumentation for function foo()
+indicates that it was called 2,590 times at runtime.
+
+.. code-block:: llvm
+
+  define i32 @foo() !prof !1 {
+    ret i32 0
+  }
+  !1 = !{!"function_entry_count", i64 2590}
+
+If "function_entry_count" has more than 2 operands, the later operands are
+the GUID of the functions that needs to be imported by ThinLTO. This is only
+set by sampling based profile. It is needed because the sampling based profile
+was collected on a binary that had already imported and inlined these functions,
+and we need to ensure the IR matches in the ThinLTO backends for profile
+annotation. The reason why we cannot annotate this on the callsite is that it
+can only goes down 1 level in the call chain. For the cases where
+foo_in_a_cc()->bar_in_b_cc()->baz_in_c_cc(), we will need to go down 2 levels
+in the call chain to import both bar_in_b_cc and baz_in_c_cc.

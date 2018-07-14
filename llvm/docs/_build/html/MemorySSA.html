@@ -1,0 +1,435 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>MemorySSA &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LLVM Bitcode File Format" href="BitCodeFormat.html" />
+    <link rel="prev" title="LLVM Alias Analysis Infrastructure" href="AliasAnalysis.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="BitCodeFormat.html" title="LLVM Bitcode File Format"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="AliasAnalysis.html" title="LLVM Alias Analysis Infrastructure"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="memoryssa">
+<h1>MemorySSA<a class="headerlink" href="#memoryssa" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
+<li><a class="reference internal" href="#memoryssa-structure" id="id2">MemorySSA Structure</a></li>
+<li><a class="reference internal" href="#design-of-memoryssa" id="id3">Design of MemorySSA</a><ul>
+<li><a class="reference internal" href="#the-walker" id="id4">The walker</a><ul>
+<li><a class="reference internal" href="#locating-clobbers-yourself" id="id5">Locating clobbers yourself</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#build-time-use-optimization" id="id6">Build-time use optimization</a></li>
+<li><a class="reference internal" href="#invalidation-and-updating" id="id7">Invalidation and updating</a><ul>
+<li><a class="reference internal" href="#phi-placement" id="id8">Phi placement</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#non-goals" id="id9">Non-Goals</a></li>
+<li><a class="reference internal" href="#design-tradeoffs" id="id10">Design tradeoffs</a><ul>
+<li><a class="reference internal" href="#precision" id="id11">Precision</a></li>
+<li><a class="reference internal" href="#use-optimization" id="id12">Use Optimization</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p><code class="docutils literal"><span class="pre">MemorySSA</span></code> is an analysis that allows us to cheaply reason about the
+interactions between various memory operations. Its goal is to replace
+<code class="docutils literal"><span class="pre">MemoryDependenceAnalysis</span></code> for most (if not all) use-cases. This is because,
+unless you’re very careful, use of <code class="docutils literal"><span class="pre">MemoryDependenceAnalysis</span></code> can easily
+result in quadratic-time algorithms in LLVM. Additionally, <code class="docutils literal"><span class="pre">MemorySSA</span></code> doesn’t
+have as many arbitrary limits as <code class="docutils literal"><span class="pre">MemoryDependenceAnalysis</span></code>, so you should get
+better results, too.</p>
+<p>At a high level, one of the goals of <code class="docutils literal"><span class="pre">MemorySSA</span></code> is to provide an SSA based
+form for memory, complete with def-use and use-def chains, which
+enables users to quickly find may-def and may-uses of memory operations.
+It can also be thought of as a way to cheaply give versions to the complete
+state of heap memory, and associate memory operations with those versions.</p>
+<p>This document goes over how <code class="docutils literal"><span class="pre">MemorySSA</span></code> is structured, and some basic
+intuition on how <code class="docutils literal"><span class="pre">MemorySSA</span></code> works.</p>
+<p>A paper on MemorySSA (with notes about how it’s implemented in GCC) <a class="reference external" href="http://www.airs.com/dnovillo/Papers/mem-ssa.pdf">can be
+found here</a>. Though, it’s
+relatively out-of-date; the paper references multiple heap partitions, but GCC
+eventually swapped to just using one, like we now have in LLVM.  Like
+GCC’s, LLVM’s MemorySSA is intraprocedural.</p>
+</div>
+<div class="section" id="memoryssa-structure">
+<h2><a class="toc-backref" href="#id2">MemorySSA Structure</a><a class="headerlink" href="#memoryssa-structure" title="Permalink to this headline">¶</a></h2>
+<p>MemorySSA is a virtual IR. After it’s built, <code class="docutils literal"><span class="pre">MemorySSA</span></code> will contain a
+structure that maps <code class="docutils literal"><span class="pre">Instruction</span></code>s to <code class="docutils literal"><span class="pre">MemoryAccess</span></code>es, which are
+<code class="docutils literal"><span class="pre">MemorySSA</span></code>’s parallel to LLVM <code class="docutils literal"><span class="pre">Instruction</span></code>s.</p>
+<p>Each <code class="docutils literal"><span class="pre">MemoryAccess</span></code> can be one of three types:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">MemoryPhi</span></code></li>
+<li><code class="docutils literal"><span class="pre">MemoryUse</span></code></li>
+<li><code class="docutils literal"><span class="pre">MemoryDef</span></code></li>
+</ul>
+<p><code class="docutils literal"><span class="pre">MemoryPhi</span></code>s are <code class="docutils literal"><span class="pre">PhiNode</span></code>s, but for memory operations. If at any
+point we have two (or more) <code class="docutils literal"><span class="pre">MemoryDef</span></code>s that could flow into a
+<code class="docutils literal"><span class="pre">BasicBlock</span></code>, the block’s top <code class="docutils literal"><span class="pre">MemoryAccess</span></code> will be a
+<code class="docutils literal"><span class="pre">MemoryPhi</span></code>. As in LLVM IR, <code class="docutils literal"><span class="pre">MemoryPhi</span></code>s don’t correspond to any
+concrete operation. As such, <code class="docutils literal"><span class="pre">BasicBlock</span></code>s are mapped to <code class="docutils literal"><span class="pre">MemoryPhi</span></code>s
+inside <code class="docutils literal"><span class="pre">MemorySSA</span></code>, whereas <code class="docutils literal"><span class="pre">Instruction</span></code>s are mapped to <code class="docutils literal"><span class="pre">MemoryUse</span></code>s
+and <code class="docutils literal"><span class="pre">MemoryDef</span></code>s.</p>
+<p>Note also that in SSA, Phi nodes merge must-reach definitions (that is,
+definitions that <em>must</em> be new versions of variables). In MemorySSA, PHI nodes
+merge may-reach definitions (that is, until disambiguated, the versions that
+reach a phi node may or may not clobber a given variable).</p>
+<p><code class="docutils literal"><span class="pre">MemoryUse</span></code>s are operations which use but don’t modify memory. An example of
+a <code class="docutils literal"><span class="pre">MemoryUse</span></code> is a <code class="docutils literal"><span class="pre">load</span></code>, or a <code class="docutils literal"><span class="pre">readonly</span></code> function call.</p>
+<p><code class="docutils literal"><span class="pre">MemoryDef</span></code>s are operations which may either modify memory, or which
+introduce some kind of ordering constraints. Examples of <code class="docutils literal"><span class="pre">MemoryDef</span></code>s
+include <code class="docutils literal"><span class="pre">store</span></code>s, function calls, <code class="docutils literal"><span class="pre">load</span></code>s with <code class="docutils literal"><span class="pre">acquire</span></code> (or higher)
+ordering, volatile operations, memory fences, etc.</p>
+<p>Every function that exists has a special <code class="docutils literal"><span class="pre">MemoryDef</span></code> called <code class="docutils literal"><span class="pre">liveOnEntry</span></code>.
+It dominates every <code class="docutils literal"><span class="pre">MemoryAccess</span></code> in the function that <code class="docutils literal"><span class="pre">MemorySSA</span></code> is being
+run on, and implies that we’ve hit the top of the function. It’s the only
+<code class="docutils literal"><span class="pre">MemoryDef</span></code> that maps to no <code class="docutils literal"><span class="pre">Instruction</span></code> in LLVM IR. Use of
+<code class="docutils literal"><span class="pre">liveOnEntry</span></code> implies that the memory being used is either undefined or
+defined before the function begins.</p>
+<p>An example of all of this overlaid on LLVM IR (obtained by running <code class="docutils literal"><span class="pre">opt</span>
+<span class="pre">-passes='print&lt;memoryssa&gt;'</span> <span class="pre">-disable-output</span></code> on an <code class="docutils literal"><span class="pre">.ll</span></code> file) is below. When
+viewing this example, it may be helpful to view it in terms of clobbers. The
+operands of a given <code class="docutils literal"><span class="pre">MemoryAccess</span></code> are all (potential) clobbers of said
+MemoryAccess, and the value produced by a <code class="docutils literal"><span class="pre">MemoryAccess</span></code> can act as a clobber
+for other <code class="docutils literal"><span class="pre">MemoryAccess</span></code>es. Another useful way of looking at it is in
+terms of heap versions.  In that view, operands of of a given
+<code class="docutils literal"><span class="pre">MemoryAccess</span></code> are the version of the heap before the operation, and
+if the access produces a value, the value is the new version of the heap
+after the operation.</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="kt">void</span> <span class="vg">@foo</span><span class="p">()</span> <span class="p">{</span>
+<span class="nl">entry:</span>
+  <span class="nv">%p1</span> <span class="p">=</span> <span class="k">alloca</span> <span class="k">i8</span>
+  <span class="nv">%p2</span> <span class="p">=</span> <span class="k">alloca</span> <span class="k">i8</span>
+  <span class="nv">%p3</span> <span class="p">=</span> <span class="k">alloca</span> <span class="k">i8</span>
+  <span class="c">; 1 = MemoryDef(liveOnEntry)</span>
+  <span class="k">store</span> <span class="k">i8</span> <span class="m">0</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%p3</span>
+  <span class="k">br</span> <span class="kt">label</span> <span class="nv">%while.cond</span>
+
+<span class="nl">while.cond:</span>
+  <span class="c">; 6 = MemoryPhi({%0,1},{if.end,4})</span>
+  <span class="k">br</span> <span class="k">i1</span> <span class="k">undef</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%if.then</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%if.else</span>
+
+<span class="nl">if.then:</span>
+  <span class="c">; 2 = MemoryDef(6)</span>
+  <span class="k">store</span> <span class="k">i8</span> <span class="m">0</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%p1</span>
+  <span class="k">br</span> <span class="kt">label</span> <span class="nv">%if.end</span>
+
+<span class="nl">if.else:</span>
+  <span class="c">; 3 = MemoryDef(6)</span>
+  <span class="k">store</span> <span class="k">i8</span> <span class="m">1</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%p2</span>
+  <span class="k">br</span> <span class="kt">label</span> <span class="nv">%if.end</span>
+
+<span class="nl">if.end:</span>
+  <span class="c">; 5 = MemoryPhi({if.then,2},{if.else,3})</span>
+  <span class="c">; MemoryUse(5)</span>
+  <span class="nv nv-Anonymous">%1</span> <span class="p">=</span> <span class="k">load</span> <span class="k">i8</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%p1</span>
+  <span class="c">; 4 = MemoryDef(5)</span>
+  <span class="k">store</span> <span class="k">i8</span> <span class="m">2</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%p2</span>
+  <span class="c">; MemoryUse(1)</span>
+  <span class="nv nv-Anonymous">%2</span> <span class="p">=</span> <span class="k">load</span> <span class="k">i8</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%p3</span>
+  <span class="k">br</span> <span class="kt">label</span> <span class="nv">%while.cond</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">MemorySSA</span></code> IR is shown in comments that precede the instructions they map
+to (if such an instruction exists). For example, <code class="docutils literal"><span class="pre">1</span> <span class="pre">=</span> <span class="pre">MemoryDef(liveOnEntry)</span></code>
+is a <code class="docutils literal"><span class="pre">MemoryAccess</span></code> (specifically, a <code class="docutils literal"><span class="pre">MemoryDef</span></code>), and it describes the LLVM
+instruction <code class="docutils literal"><span class="pre">store</span> <span class="pre">i8</span> <span class="pre">0,</span> <span class="pre">i8*</span> <span class="pre">%p3</span></code>. Other places in <code class="docutils literal"><span class="pre">MemorySSA</span></code> refer to this
+particular <code class="docutils literal"><span class="pre">MemoryDef</span></code> as <code class="docutils literal"><span class="pre">1</span></code> (much like how one can refer to <code class="docutils literal"><span class="pre">load</span> <span class="pre">i8,</span> <span class="pre">i8*</span>
+<span class="pre">%p1</span></code> in LLVM with <code class="docutils literal"><span class="pre">%1</span></code>). Again, <code class="docutils literal"><span class="pre">MemoryPhi</span></code>s don’t correspond to any LLVM
+Instruction, so the line directly below a <code class="docutils literal"><span class="pre">MemoryPhi</span></code> isn’t special.</p>
+<p>Going from the top down:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">6</span> <span class="pre">=</span> <span class="pre">MemoryPhi({entry,1},{if.end,4})</span></code> notes that, when entering
+<code class="docutils literal"><span class="pre">while.cond</span></code>, the reaching definition for it is either <code class="docutils literal"><span class="pre">1</span></code> or <code class="docutils literal"><span class="pre">4</span></code>. This
+<code class="docutils literal"><span class="pre">MemoryPhi</span></code> is referred to in the textual IR by the number <code class="docutils literal"><span class="pre">6</span></code>.</li>
+<li><code class="docutils literal"><span class="pre">2</span> <span class="pre">=</span> <span class="pre">MemoryDef(6)</span></code> notes that <code class="docutils literal"><span class="pre">store</span> <span class="pre">i8</span> <span class="pre">0,</span> <span class="pre">i8*</span> <span class="pre">%p1</span></code> is a definition,
+and its reaching definition before it is <code class="docutils literal"><span class="pre">6</span></code>, or the <code class="docutils literal"><span class="pre">MemoryPhi</span></code> after
+<code class="docutils literal"><span class="pre">while.cond</span></code>. (See the <a class="reference internal" href="#build-time-use-optimization">Build-time use optimization</a> and <a class="reference internal" href="#precision">Precision</a>
+sections below for why this <code class="docutils literal"><span class="pre">MemoryDef</span></code> isn’t linked to a separate,
+disambiguated <code class="docutils literal"><span class="pre">MemoryPhi</span></code>.)</li>
+<li><code class="docutils literal"><span class="pre">3</span> <span class="pre">=</span> <span class="pre">MemoryDef(6)</span></code> notes that <code class="docutils literal"><span class="pre">store</span> <span class="pre">i8</span> <span class="pre">0,</span> <span class="pre">i8*</span> <span class="pre">%p2</span></code> is a definition; its
+reaching definition is also <code class="docutils literal"><span class="pre">6</span></code>.</li>
+<li><code class="docutils literal"><span class="pre">5</span> <span class="pre">=</span> <span class="pre">MemoryPhi({if.then,2},{if.else,3})</span></code> notes that the clobber before
+this block could either be <code class="docutils literal"><span class="pre">2</span></code> or <code class="docutils literal"><span class="pre">3</span></code>.</li>
+<li><code class="docutils literal"><span class="pre">MemoryUse(5)</span></code> notes that <code class="docutils literal"><span class="pre">load</span> <span class="pre">i8,</span> <span class="pre">i8*</span> <span class="pre">%p1</span></code> is a use of memory, and that
+it’s clobbered by <code class="docutils literal"><span class="pre">5</span></code>.</li>
+<li><code class="docutils literal"><span class="pre">4</span> <span class="pre">=</span> <span class="pre">MemoryDef(5)</span></code> notes that <code class="docutils literal"><span class="pre">store</span> <span class="pre">i8</span> <span class="pre">2,</span> <span class="pre">i8*</span> <span class="pre">%p2</span></code> is a definition; it’s
+reaching definition is <code class="docutils literal"><span class="pre">5</span></code>.</li>
+<li><code class="docutils literal"><span class="pre">MemoryUse(1)</span></code> notes that <code class="docutils literal"><span class="pre">load</span> <span class="pre">i8,</span> <span class="pre">i8*</span> <span class="pre">%p3</span></code> is just a user of memory,
+and the last thing that could clobber this use is above <code class="docutils literal"><span class="pre">while.cond</span></code> (e.g.
+the store to <code class="docutils literal"><span class="pre">%p3</span></code>). In heap versioning parlance, it really only depends on
+the heap version 1, and is unaffected by the new heap versions generated since
+then.</li>
+</ul>
+<p>As an aside, <code class="docutils literal"><span class="pre">MemoryAccess</span></code> is a <code class="docutils literal"><span class="pre">Value</span></code> mostly for convenience; it’s not
+meant to interact with LLVM IR.</p>
+</div>
+<div class="section" id="design-of-memoryssa">
+<h2><a class="toc-backref" href="#id3">Design of MemorySSA</a><a class="headerlink" href="#design-of-memoryssa" title="Permalink to this headline">¶</a></h2>
+<p><code class="docutils literal"><span class="pre">MemorySSA</span></code> is an analysis that can be built for any arbitrary function. When
+it’s built, it does a pass over the function’s IR in order to build up its
+mapping of <code class="docutils literal"><span class="pre">MemoryAccess</span></code>es. You can then query <code class="docutils literal"><span class="pre">MemorySSA</span></code> for things
+like the dominance relation between <code class="docutils literal"><span class="pre">MemoryAccess</span></code>es, and get the
+<code class="docutils literal"><span class="pre">MemoryAccess</span></code> for any given <code class="docutils literal"><span class="pre">Instruction</span></code> .</p>
+<p>When <code class="docutils literal"><span class="pre">MemorySSA</span></code> is done building, it also hands you a <code class="docutils literal"><span class="pre">MemorySSAWalker</span></code>
+that you can use (see below).</p>
+<div class="section" id="the-walker">
+<h3><a class="toc-backref" href="#id4">The walker</a><a class="headerlink" href="#the-walker" title="Permalink to this headline">¶</a></h3>
+<p>A structure that helps <code class="docutils literal"><span class="pre">MemorySSA</span></code> do its job is the <code class="docutils literal"><span class="pre">MemorySSAWalker</span></code>, or
+the walker, for short. The goal of the walker is to provide answers to clobber
+queries beyond what’s represented directly by <code class="docutils literal"><span class="pre">MemoryAccess</span></code>es. For example,
+given:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="kt">void</span> <span class="vg">@foo</span><span class="p">()</span> <span class="p">{</span>
+  <span class="nv">%a</span> <span class="p">=</span> <span class="k">alloca</span> <span class="k">i8</span>
+  <span class="nv">%b</span> <span class="p">=</span> <span class="k">alloca</span> <span class="k">i8</span>
+
+  <span class="c">; 1 = MemoryDef(liveOnEntry)</span>
+  <span class="k">store</span> <span class="k">i8</span> <span class="m">0</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%a</span>
+  <span class="c">; 2 = MemoryDef(1)</span>
+  <span class="k">store</span> <span class="k">i8</span> <span class="m">0</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%b</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The store to <code class="docutils literal"><span class="pre">%a</span></code> is clearly not a clobber for the store to <code class="docutils literal"><span class="pre">%b</span></code>. It would
+be the walker’s goal to figure this out, and return <code class="docutils literal"><span class="pre">liveOnEntry</span></code> when queried
+for the clobber of <code class="docutils literal"><span class="pre">MemoryAccess</span></code> <code class="docutils literal"><span class="pre">2</span></code>.</p>
+<p>By default, <code class="docutils literal"><span class="pre">MemorySSA</span></code> provides a walker that can optimize <code class="docutils literal"><span class="pre">MemoryDef</span></code>s
+and <code class="docutils literal"><span class="pre">MemoryUse</span></code>s by consulting whatever alias analysis stack you happen to
+be using. Walkers were built to be flexible, though, so it’s entirely reasonable
+(and expected) to create more specialized walkers (e.g. one that specifically
+queries <code class="docutils literal"><span class="pre">GlobalsAA</span></code>, one that always stops at <code class="docutils literal"><span class="pre">MemoryPhi</span></code> nodes, etc).</p>
+<div class="section" id="locating-clobbers-yourself">
+<h4><a class="toc-backref" href="#id5">Locating clobbers yourself</a><a class="headerlink" href="#locating-clobbers-yourself" title="Permalink to this headline">¶</a></h4>
+<p>If you choose to make your own walker, you can find the clobber for a
+<code class="docutils literal"><span class="pre">MemoryAccess</span></code> by walking every <code class="docutils literal"><span class="pre">MemoryDef</span></code> that dominates said
+<code class="docutils literal"><span class="pre">MemoryAccess</span></code>. The structure of <code class="docutils literal"><span class="pre">MemoryDef</span></code>s makes this relatively simple;
+they ultimately form a linked list of every clobber that dominates the
+<code class="docutils literal"><span class="pre">MemoryAccess</span></code> that you’re trying to optimize. In other words, the
+<code class="docutils literal"><span class="pre">definingAccess</span></code> of a <code class="docutils literal"><span class="pre">MemoryDef</span></code> is always the nearest dominating
+<code class="docutils literal"><span class="pre">MemoryDef</span></code> or <code class="docutils literal"><span class="pre">MemoryPhi</span></code> of said <code class="docutils literal"><span class="pre">MemoryDef</span></code>.</p>
+</div>
+</div>
+<div class="section" id="build-time-use-optimization">
+<h3><a class="toc-backref" href="#id6">Build-time use optimization</a><a class="headerlink" href="#build-time-use-optimization" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">MemorySSA</span></code> will optimize some <code class="docutils literal"><span class="pre">MemoryAccess</span></code>es at build-time.
+Specifically, we optimize the operand of every <code class="docutils literal"><span class="pre">MemoryUse</span></code> to point to the
+actual clobber of said <code class="docutils literal"><span class="pre">MemoryUse</span></code>. This can be seen in the above example; the
+second <code class="docutils literal"><span class="pre">MemoryUse</span></code> in <code class="docutils literal"><span class="pre">if.end</span></code> has an operand of <code class="docutils literal"><span class="pre">1</span></code>, which is a
+<code class="docutils literal"><span class="pre">MemoryDef</span></code> from the entry block.  This is done to make walking,
+value numbering, etc, faster and easier.</p>
+<p>It is not possible to optimize <code class="docutils literal"><span class="pre">MemoryDef</span></code> in the same way, as we
+restrict <code class="docutils literal"><span class="pre">MemorySSA</span></code> to one heap variable and, thus, one Phi node
+per block.</p>
+</div>
+<div class="section" id="invalidation-and-updating">
+<h3><a class="toc-backref" href="#id7">Invalidation and updating</a><a class="headerlink" href="#invalidation-and-updating" title="Permalink to this headline">¶</a></h3>
+<p>Because <code class="docutils literal"><span class="pre">MemorySSA</span></code> keeps track of LLVM IR, it needs to be updated whenever
+the IR is updated. “Update”, in this case, includes the addition, deletion, and
+motion of <code class="docutils literal"><span class="pre">Instructions</span></code>. The update API is being made on an as-needed basis.
+If you’d like examples, <code class="docutils literal"><span class="pre">GVNHoist</span></code> is a user of <code class="docutils literal"><span class="pre">MemorySSA</span></code>s update API.</p>
+<div class="section" id="phi-placement">
+<h4><a class="toc-backref" href="#id8">Phi placement</a><a class="headerlink" href="#phi-placement" title="Permalink to this headline">¶</a></h4>
+<p><code class="docutils literal"><span class="pre">MemorySSA</span></code> only places <code class="docutils literal"><span class="pre">MemoryPhi</span></code>s where they’re actually
+needed. That is, it is a pruned SSA form, like LLVM’s SSA form.  For
+example, consider:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="kt">void</span> <span class="vg">@foo</span><span class="p">()</span> <span class="p">{</span>
+<span class="nl">entry:</span>
+  <span class="nv">%p1</span> <span class="p">=</span> <span class="k">alloca</span> <span class="k">i8</span>
+  <span class="nv">%p2</span> <span class="p">=</span> <span class="k">alloca</span> <span class="k">i8</span>
+  <span class="nv">%p3</span> <span class="p">=</span> <span class="k">alloca</span> <span class="k">i8</span>
+  <span class="c">; 1 = MemoryDef(liveOnEntry)</span>
+  <span class="k">store</span> <span class="k">i8</span> <span class="m">0</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%p3</span>
+  <span class="k">br</span> <span class="kt">label</span> <span class="nv">%while.cond</span>
+
+<span class="nl">while.cond:</span>
+  <span class="c">; 3 = MemoryPhi({%0,1},{if.end,2})</span>
+  <span class="k">br</span> <span class="k">i1</span> <span class="k">undef</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%if.then</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%if.else</span>
+
+<span class="nl">if.then:</span>
+  <span class="k">br</span> <span class="kt">label</span> <span class="nv">%if.end</span>
+
+<span class="nl">if.else:</span>
+  <span class="k">br</span> <span class="kt">label</span> <span class="nv">%if.end</span>
+
+<span class="nl">if.end:</span>
+  <span class="c">; MemoryUse(1)</span>
+  <span class="nv nv-Anonymous">%1</span> <span class="p">=</span> <span class="k">load</span> <span class="k">i8</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%p1</span>
+  <span class="c">; 2 = MemoryDef(3)</span>
+  <span class="k">store</span> <span class="k">i8</span> <span class="m">2</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%p2</span>
+  <span class="c">; MemoryUse(1)</span>
+  <span class="nv nv-Anonymous">%2</span> <span class="p">=</span> <span class="k">load</span> <span class="k">i8</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%p3</span>
+  <span class="k">br</span> <span class="kt">label</span> <span class="nv">%while.cond</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Because we removed the stores from <code class="docutils literal"><span class="pre">if.then</span></code> and <code class="docutils literal"><span class="pre">if.else</span></code>, a <code class="docutils literal"><span class="pre">MemoryPhi</span></code>
+for <code class="docutils literal"><span class="pre">if.end</span></code> would be pointless, so we don’t place one. So, if you need to
+place a <code class="docutils literal"><span class="pre">MemoryDef</span></code> in <code class="docutils literal"><span class="pre">if.then</span></code> or <code class="docutils literal"><span class="pre">if.else</span></code>, you’ll need to also create
+a <code class="docutils literal"><span class="pre">MemoryPhi</span></code> for <code class="docutils literal"><span class="pre">if.end</span></code>.</p>
+<p>If it turns out that this is a large burden, we can just place <code class="docutils literal"><span class="pre">MemoryPhi</span></code>s
+everywhere. Because we have Walkers that are capable of optimizing above said
+phis, doing so shouldn’t prohibit optimizations.</p>
+</div>
+</div>
+<div class="section" id="non-goals">
+<h3><a class="toc-backref" href="#id9">Non-Goals</a><a class="headerlink" href="#non-goals" title="Permalink to this headline">¶</a></h3>
+<p><code class="docutils literal"><span class="pre">MemorySSA</span></code> is meant to reason about the relation between memory
+operations, and enable quicker querying.
+It isn’t meant to be the single source of truth for all potential memory-related
+optimizations. Specifically, care must be taken when trying to use <code class="docutils literal"><span class="pre">MemorySSA</span></code>
+to reason about atomic or volatile operations, as in:</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">define</span> <span class="k">i8</span> <span class="vg">@foo</span><span class="p">(</span><span class="k">i8</span><span class="p">*</span> <span class="nv">%a</span><span class="p">)</span> <span class="p">{</span>
+<span class="nl">entry:</span>
+  <span class="k">br</span> <span class="k">i1</span> <span class="k">undef</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%if.then</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%if.end</span>
+
+<span class="nl">if.then:</span>
+  <span class="c">; 1 = MemoryDef(liveOnEntry)</span>
+  <span class="nv nv-Anonymous">%0</span> <span class="p">=</span> <span class="k">load</span> <span class="k">volatile</span> <span class="k">i8</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%a</span>
+  <span class="k">br</span> <span class="kt">label</span> <span class="nv">%if.end</span>
+
+<span class="nl">if.end:</span>
+  <span class="nv">%av</span> <span class="p">=</span> <span class="k">phi</span> <span class="k">i8</span> <span class="p">[</span><span class="m">0</span><span class="p">,</span> <span class="nv">%entry</span><span class="p">],</span> <span class="p">[</span><span class="nv nv-Anonymous">%0</span><span class="p">,</span> <span class="nv">%if.then</span><span class="p">]</span>
+  <span class="k">ret</span> <span class="k">i8</span> <span class="nv">%av</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Going solely by <code class="docutils literal"><span class="pre">MemorySSA</span></code>’s analysis, hoisting the <code class="docutils literal"><span class="pre">load</span></code> to <code class="docutils literal"><span class="pre">entry</span></code> may
+seem legal. Because it’s a volatile load, though, it’s not.</p>
+</div>
+<div class="section" id="design-tradeoffs">
+<h3><a class="toc-backref" href="#id10">Design tradeoffs</a><a class="headerlink" href="#design-tradeoffs" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="precision">
+<h4><a class="toc-backref" href="#id11">Precision</a><a class="headerlink" href="#precision" title="Permalink to this headline">¶</a></h4>
+<p><code class="docutils literal"><span class="pre">MemorySSA</span></code> in LLVM deliberately trades off precision for speed.
+Let us think about memory variables as if they were disjoint partitions of the
+heap (that is, if you have one variable, as above, it represents the entire
+heap, and if you have multiple variables, each one represents some
+disjoint portion of the heap)</p>
+<p>First, because alias analysis results conflict with each other, and
+each result may be what an analysis wants (IE
+TBAA may say no-alias, and something else may say must-alias), it is
+not possible to partition the heap the way every optimization wants.
+Second, some alias analysis results are not transitive (IE A noalias B,
+and B noalias C, does not mean A noalias C), so it is not possible to
+come up with a precise partitioning in all cases without variables to
+represent every pair of possible aliases.  Thus, partitioning
+precisely may require introducing at least N^2 new virtual variables,
+phi nodes, etc.</p>
+<p>Each of these variables may be clobbered at multiple def sites.</p>
+<p>To give an example, if you were to split up struct fields into
+individual variables, all aliasing operations that may-def multiple struct
+fields, will may-def more than one of them.  This is pretty common (calls,
+copies, field stores, etc).</p>
+<p>Experience with SSA forms for memory in other compilers has shown that
+it is simply not possible to do this precisely, and in fact, doing it
+precisely is not worth it, because now all the optimizations have to
+walk tons and tons of virtual variables and phi nodes.</p>
+<p>So we partition.  At the point at which you partition, again,
+experience has shown us there is no point in partitioning to more than
+one variable.  It simply generates more IR, and optimizations still
+have to query something to disambiguate further anyway.</p>
+<p>As a result, LLVM partitions to one variable.</p>
+</div>
+<div class="section" id="use-optimization">
+<h4><a class="toc-backref" href="#id12">Use Optimization</a><a class="headerlink" href="#use-optimization" title="Permalink to this headline">¶</a></h4>
+<p>Unlike other partitioned forms, LLVM’s <code class="docutils literal"><span class="pre">MemorySSA</span></code> does make one
+useful guarantee - all loads are optimized to point at the thing that
+actually clobbers them. This gives some nice properties.  For example,
+for a given store, you can find all loads actually clobbered by that
+store by walking the immediate uses of the store.</p>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="BitCodeFormat.html" title="LLVM Bitcode File Format"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="AliasAnalysis.html" title="LLVM Alias Analysis Infrastructure"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

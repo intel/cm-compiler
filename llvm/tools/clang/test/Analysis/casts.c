@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -analyze -analyzer-checker=core,alpha.core,debug.ExprInspection -analyzer-store=region -verify %s
-// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-checker=core,alpha.core,debug.ExprInspection -analyzer-store=region -verify %s
+// RUN: %clang_analyze_cc1 -triple x86_64-apple-darwin9 -analyzer-checker=core,alpha.core,debug.ExprInspection -analyzer-store=region -verify %s
+// RUN: %clang_analyze_cc1 -triple i386-apple-darwin9 -analyzer-checker=core,alpha.core,debug.ExprInspection -analyzer-store=region -verify %s
 
 extern void clang_analyzer_eval(_Bool);
 
@@ -18,7 +18,7 @@ void getsockname();
 
 void f(int sock) {
   struct sockaddr_storage storage;
-  struct sockaddr* sockaddr = (struct sockaddr*)&storage;
+  struct sockaddr* sockaddr = (struct sockaddr*)&storage; // expected-warning{{Casting data to a larger structure type and accessing a field can lead to memory access errors or data corruption}}
   socklen_t addrlen = sizeof(storage);
   getsockname(sock, sockaddr, &addrlen);
   switch (sockaddr->sa_family) { // no-warning
@@ -117,4 +117,35 @@ void castsToBool() {
 
   extern float globalFloat;
   clang_analyzer_eval(globalFloat); // expected-warning{{UNKNOWN}}
+}
+
+void locAsIntegerCasts(void *p) {
+  int x = (int) p;
+  clang_analyzer_eval(++x < 10); // no-crash // expected-warning{{UNKNOWN}}
+}
+
+void multiDimensionalArrayPointerCasts() {
+  static int x[10][10];
+  int *y1 = &(x[3][5]);
+  char *z = ((char *) y1) + 2;
+  int *y2 = (int *)(z - 2);
+  int *y3 = ((int *)x) + 35; // This is offset for [3][5].
+
+  clang_analyzer_eval(y1 == y2); // expected-warning{{TRUE}}
+
+  // FIXME: should be FALSE (i.e. equal pointers).
+  clang_analyzer_eval(y1 - y2); // expected-warning{{UNKNOWN}}
+  // FIXME: should be TRUE (i.e. same symbol).
+  clang_analyzer_eval(*y1 == *y2); // expected-warning{{UNKNOWN}}
+
+  clang_analyzer_eval(*((char *)y1) == *((char *) y2)); // expected-warning{{TRUE}}
+
+  clang_analyzer_eval(y1 == y3); // expected-warning{{TRUE}}
+
+  // FIXME: should be FALSE (i.e. equal pointers).
+  clang_analyzer_eval(y1 - y3); // expected-warning{{UNKNOWN}}
+  // FIXME: should be TRUE (i.e. same symbol).
+  clang_analyzer_eval(*y1 == *y3); // expected-warning{{UNKNOWN}}
+
+  clang_analyzer_eval(*((char *)y1) == *((char *) y3)); // expected-warning{{TRUE}}
 }

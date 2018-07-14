@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=x86_64-pc-linux-gnu -generate-gnu-dwarf-pub-sections -filetype=obj < %s | llvm-dwarfdump - | FileCheck %s
+; RUN: llc -mtriple=x86_64-pc-linux-gnu -filetype=obj < %s | llvm-dwarfdump -v - | FileCheck %s
 
 ; Generated from:
 
@@ -9,11 +9,18 @@
 ; CHECK: DW_AT_GNU_pubnames [DW_FORM_flag_present]   (true)
 ; CHECK-NOT: DW_AT_GNU_pubtypes [
 
+; CHECK: .debug_gnu_pubnames contents:
+; CHECK-NEXT: length = 0x0000000e
+; CHECK-NEXT: Offset
+; CHECK-NEXT: {{^$}}
+
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!3, !4}
 
-!0 = metadata !{i32 786449, metadata !1, i32 12, metadata !"clang version 3.4 (trunk 191846) (llvm/trunk 191866)", i1 false, metadata !"", i32 0, metadata !2, metadata !2, metadata !2, metadata !2, metadata !2, metadata !""} ; [ DW_TAG_compile_unit ] [/usr/local/google/home/echristo/tmp/foo.c] [DW_LANG_C99]
-!1 = metadata !{metadata !"foo.c", metadata !"/usr/local/google/home/echristo/tmp"}
-!2 = metadata !{}
-!3 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!4 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.4 (trunk 191846) (llvm/trunk 191866)", isOptimized: false, emissionKind: FullDebug, file: !1, enums: !2, retainedTypes: !5, globals: !2, imports: !2, gnuPubnames: true)
+!1 = !DIFile(filename: "foo.c", directory: "/usr/local/google/home/echristo/tmp")
+!2 = !{}
+!3 = !{i32 2, !"Dwarf Version", i32 4}
+!4 = !{i32 1, !"Debug Info Version", i32 3}
+!5 = !{!6}
+!6 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)

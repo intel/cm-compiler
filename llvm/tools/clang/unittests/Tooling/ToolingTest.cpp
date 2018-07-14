@@ -18,7 +18,11 @@
 #include "clang/Tooling/Tooling.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Config/llvm-config.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
 #include "gtest/gtest.h"
+#include <algorithm>
 #include <string>
 
 namespace clang {
@@ -28,27 +32,28 @@ namespace {
 /// Takes an ast consumer and returns it from CreateASTConsumer. This only
 /// works with single translation unit compilations.
 class TestAction : public clang::ASTFrontendAction {
- public:
+public:
   /// Takes ownership of TestConsumer.
-  explicit TestAction(clang::ASTConsumer *TestConsumer)
-      : TestConsumer(TestConsumer) {}
+  explicit TestAction(std::unique_ptr<clang::ASTConsumer> TestConsumer)
+      : TestConsumer(std::move(TestConsumer)) {}
 
- protected:
-  virtual clang::ASTConsumer* CreateASTConsumer(
-      clang::CompilerInstance& compiler, StringRef dummy) {
+protected:
+  std::unique_ptr<clang::ASTConsumer>
+  CreateASTConsumer(clang::CompilerInstance &compiler,
+                    StringRef dummy) override {
     /// TestConsumer will be deleted by the framework calling us.
-    return TestConsumer;
+    return std::move(TestConsumer);
   }
 
- private:
-  clang::ASTConsumer * const TestConsumer;
+private:
+  std::unique_ptr<clang::ASTConsumer> TestConsumer;
 };
 
 class FindTopLevelDeclConsumer : public clang::ASTConsumer {
  public:
   explicit FindTopLevelDeclConsumer(bool *FoundTopLevelDecl)
       : FoundTopLevelDecl(FoundTopLevelDecl) {}
-  virtual bool HandleTopLevelDecl(clang::DeclGroupRef DeclGroup) {
+  bool HandleTopLevelDecl(clang::DeclGroupRef DeclGroup) override {
     *FoundTopLevelDecl = true;
     return true;
   }
@@ -59,8 +64,10 @@ class FindTopLevelDeclConsumer : public clang::ASTConsumer {
 
 TEST(runToolOnCode, FindsNoTopLevelDeclOnEmptyCode) {
   bool FoundTopLevelDecl = false;
-  EXPECT_TRUE(runToolOnCode(
-      new TestAction(new FindTopLevelDeclConsumer(&FoundTopLevelDecl)), ""));
+  EXPECT_TRUE(
+      runToolOnCode(new TestAction(llvm::make_unique<FindTopLevelDeclConsumer>(
+                        &FoundTopLevelDecl)),
+                    ""));
   EXPECT_FALSE(FoundTopLevelDecl);
 }
 
@@ -69,7 +76,7 @@ class FindClassDeclXConsumer : public clang::ASTConsumer {
  public:
   FindClassDeclXConsumer(bool *FoundClassDeclX)
       : FoundClassDeclX(FoundClassDeclX) {}
-  virtual bool HandleTopLevelDecl(clang::DeclGroupRef GroupRef) {
+  bool HandleTopLevelDecl(clang::DeclGroupRef GroupRef) override {
     if (CXXRecordDecl* Record = dyn_cast<clang::CXXRecordDecl>(
             *GroupRef.begin())) {
       if (Record->getName() == "X") {
@@ -97,13 +104,17 @@ bool FindClassDeclX(ASTUnit *AST) {
 
 TEST(runToolOnCode, FindsClassDecl) {
   bool FoundClassDeclX = false;
-  EXPECT_TRUE(runToolOnCode(new TestAction(
-      new FindClassDeclXConsumer(&FoundClassDeclX)), "class X;"));
+  EXPECT_TRUE(
+      runToolOnCode(new TestAction(llvm::make_unique<FindClassDeclXConsumer>(
+                        &FoundClassDeclX)),
+                    "class X;"));
   EXPECT_TRUE(FoundClassDeclX);
 
   FoundClassDeclX = false;
-  EXPECT_TRUE(runToolOnCode(new TestAction(
-      new FindClassDeclXConsumer(&FoundClassDeclX)), "class Y;"));
+  EXPECT_TRUE(
+      runToolOnCode(new TestAction(llvm::make_unique<FindClassDeclXConsumer>(
+                        &FoundClassDeclX)),
+                    "class Y;"));
   EXPECT_FALSE(FoundClassDeclX);
 }
 
@@ -125,8 +136,8 @@ TEST(newFrontendActionFactory, CreatesFrontendActionFactoryFromType) {
 }
 
 struct IndependentFrontendActionCreator {
-  ASTConsumer *newASTConsumer() {
-    return new FindTopLevelDeclConsumer(nullptr);
+  std::unique_ptr<ASTConsumer> newASTConsumer() {
+    return llvm::make_unique<FindTopLevelDeclConsumer>(nullptr);
   }
 };
 
@@ -139,8 +150,13 @@ TEST(newFrontendActionFactory, CreatesFrontendActionFactoryFromFactoryType) {
 }
 
 TEST(ToolInvocation, TestMapVirtualFile) {
-  IntrusiveRefCntPtr<clang::FileManager> Files(
-      new clang::FileManager(clang::FileSystemOptions()));
+  llvm::IntrusiveRefCntPtr<vfs::OverlayFileSystem> OverlayFileSystem(
+      new vfs::OverlayFileSystem(vfs::getRealFileSystem()));
+  llvm::IntrusiveRefCntPtr<vfs::InMemoryFileSystem> InMemoryFileSystem(
+      new vfs::InMemoryFileSystem);
+  OverlayFileSystem->pushOverlay(InMemoryFileSystem);
+  llvm::IntrusiveRefCntPtr<FileManager> Files(
+      new FileManager(FileSystemOptions(), OverlayFileSystem));
   std::vector<std::string> Args;
   Args.push_back("tool-executable");
   Args.push_back("-Idef");
@@ -148,8 +164,10 @@ TEST(ToolInvocation, TestMapVirtualFile) {
   Args.push_back("test.cpp");
   clang::tooling::ToolInvocation Invocation(Args, new SyntaxOnlyAction,
                                             Files.get());
-  Invocation.mapVirtualFile("test.cpp", "#include <abc>\n");
-  Invocation.mapVirtualFile("def/abc", "\n");
+  InMemoryFileSystem->addFile(
+      "test.cpp", 0, llvm::MemoryBuffer::getMemBuffer("#include <abc>\n"));
+  InMemoryFileSystem->addFile("def/abc", 0,
+                              llvm::MemoryBuffer::getMemBuffer("\n"));
   EXPECT_TRUE(Invocation.run());
 }
 
@@ -158,8 +176,13 @@ TEST(ToolInvocation, TestVirtualModulesCompilation) {
   // mapped module.map is found on the include path. In the future, expand this
   // test to run a full modules enabled compilation, so we make sure we can
   // rerun modules compilations with a virtual file system.
-  IntrusiveRefCntPtr<clang::FileManager> Files(
-      new clang::FileManager(clang::FileSystemOptions()));
+  llvm::IntrusiveRefCntPtr<vfs::OverlayFileSystem> OverlayFileSystem(
+      new vfs::OverlayFileSystem(vfs::getRealFileSystem()));
+  llvm::IntrusiveRefCntPtr<vfs::InMemoryFileSystem> InMemoryFileSystem(
+      new vfs::InMemoryFileSystem);
+  OverlayFileSystem->pushOverlay(InMemoryFileSystem);
+  llvm::IntrusiveRefCntPtr<FileManager> Files(
+      new FileManager(FileSystemOptions(), OverlayFileSystem));
   std::vector<std::string> Args;
   Args.push_back("tool-executable");
   Args.push_back("-Idef");
@@ -167,26 +190,26 @@ TEST(ToolInvocation, TestVirtualModulesCompilation) {
   Args.push_back("test.cpp");
   clang::tooling::ToolInvocation Invocation(Args, new SyntaxOnlyAction,
                                             Files.get());
-  Invocation.mapVirtualFile("test.cpp", "#include <abc>\n");
-  Invocation.mapVirtualFile("def/abc", "\n");
+  InMemoryFileSystem->addFile(
+      "test.cpp", 0, llvm::MemoryBuffer::getMemBuffer("#include <abc>\n"));
+  InMemoryFileSystem->addFile("def/abc", 0,
+                              llvm::MemoryBuffer::getMemBuffer("\n"));
   // Add a module.map file in the include directory of our header, so we trigger
   // the module.map header search logic.
-  Invocation.mapVirtualFile("def/module.map", "\n");
+  InMemoryFileSystem->addFile("def/module.map", 0,
+                              llvm::MemoryBuffer::getMemBuffer("\n"));
   EXPECT_TRUE(Invocation.run());
 }
 
 struct VerifyEndCallback : public SourceFileCallbacks {
   VerifyEndCallback() : BeginCalled(0), EndCalled(0), Matched(false) {}
-  virtual bool handleBeginSource(CompilerInstance &CI,
-                                 StringRef Filename) override {
+  bool handleBeginSource(CompilerInstance &CI) override {
     ++BeginCalled;
     return true;
   }
-  virtual void handleEndSource() {
-    ++EndCalled;
-  }
-  ASTConsumer *newASTConsumer() {
-    return new FindTopLevelDeclConsumer(&Matched);
+  void handleEndSource() override { ++EndCalled; }
+  std::unique_ptr<ASTConsumer> newASTConsumer() {
+    return llvm::make_unique<FindTopLevelDeclConsumer>(&Matched);
   }
   unsigned BeginCalled;
   unsigned EndCalled;
@@ -218,25 +241,80 @@ TEST(newFrontendActionFactory, InjectsSourceFileCallbacks) {
 
 struct SkipBodyConsumer : public clang::ASTConsumer {
   /// Skip the 'skipMe' function.
-  virtual bool shouldSkipFunctionBody(Decl *D) {
-    FunctionDecl *F = dyn_cast<FunctionDecl>(D);
+  bool shouldSkipFunctionBody(Decl *D) override {
+    NamedDecl *F = dyn_cast<NamedDecl>(D);
     return F && F->getNameAsString() == "skipMe";
   }
 };
 
 struct SkipBodyAction : public clang::ASTFrontendAction {
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &Compiler,
-                                         StringRef) {
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &Compiler,
+                                                 StringRef) override {
     Compiler.getFrontendOpts().SkipFunctionBodies = true;
-    return new SkipBodyConsumer;
+    return llvm::make_unique<SkipBodyConsumer>();
   }
 };
 
 TEST(runToolOnCode, TestSkipFunctionBody) {
+  std::vector<std::string> Args = {"-std=c++11"};
+  std::vector<std::string> Args2 = {"-fno-delayed-template-parsing"};
+
   EXPECT_TRUE(runToolOnCode(new SkipBodyAction,
                             "int skipMe() { an_error_here }"));
   EXPECT_FALSE(runToolOnCode(new SkipBodyAction,
                              "int skipMeNot() { an_error_here }"));
+
+  // Test constructors with initializers
+  EXPECT_TRUE(runToolOnCodeWithArgs(
+      new SkipBodyAction,
+      "struct skipMe { skipMe() : an_error() { more error } };", Args));
+  EXPECT_TRUE(runToolOnCodeWithArgs(
+      new SkipBodyAction, "struct skipMe { skipMe(); };"
+                          "skipMe::skipMe() : an_error([](){;}) { more error }",
+      Args));
+  EXPECT_TRUE(runToolOnCodeWithArgs(
+      new SkipBodyAction, "struct skipMe { skipMe(); };"
+                          "skipMe::skipMe() : an_error{[](){;}} { more error }",
+      Args));
+  EXPECT_TRUE(runToolOnCodeWithArgs(
+      new SkipBodyAction,
+      "struct skipMe { skipMe(); };"
+      "skipMe::skipMe() : a<b<c>(e)>>(), f{}, g() { error }",
+      Args));
+  EXPECT_TRUE(runToolOnCodeWithArgs(
+      new SkipBodyAction, "struct skipMe { skipMe() : bases()... { error } };",
+      Args));
+
+  EXPECT_FALSE(runToolOnCodeWithArgs(
+      new SkipBodyAction, "struct skipMeNot { skipMeNot() : an_error() { } };",
+      Args));
+  EXPECT_FALSE(runToolOnCodeWithArgs(new SkipBodyAction,
+                                     "struct skipMeNot { skipMeNot(); };"
+                                     "skipMeNot::skipMeNot() : an_error() { }",
+                                     Args));
+
+  // Try/catch
+  EXPECT_TRUE(runToolOnCode(
+      new SkipBodyAction,
+      "void skipMe() try { an_error() } catch(error) { error };"));
+  EXPECT_TRUE(runToolOnCode(
+      new SkipBodyAction,
+      "struct S { void skipMe() try { an_error() } catch(error) { error } };"));
+  EXPECT_TRUE(
+      runToolOnCode(new SkipBodyAction,
+                    "void skipMe() try { an_error() } catch(error) { error; }"
+                    "catch(error) { error } catch (error) { }"));
+  EXPECT_FALSE(runToolOnCode(
+      new SkipBodyAction,
+      "void skipMe() try something;")); // don't crash while parsing
+
+  // Template
+  EXPECT_TRUE(runToolOnCode(
+      new SkipBodyAction, "template<typename T> int skipMe() { an_error_here }"
+                          "int x = skipMe<int>();"));
+  EXPECT_FALSE(runToolOnCodeWithArgs(
+      new SkipBodyAction,
+      "template<typename T> int skipMeNot() { an_error_here }", Args2));
 }
 
 TEST(runToolOnCodeWithArgs, TestNoDepFile) {
@@ -254,24 +332,43 @@ TEST(runToolOnCodeWithArgs, TestNoDepFile) {
   EXPECT_FALSE(llvm::sys::fs::remove(DepFilePath.str()));
 }
 
-struct CheckSyntaxOnlyAdjuster: public ArgumentsAdjuster {
-  bool &Found;
-  bool &Ran;
-
-  CheckSyntaxOnlyAdjuster(bool &Found, bool &Ran) : Found(Found), Ran(Ran) { }
-
-  virtual CommandLineArguments
-  Adjust(const CommandLineArguments &Args) override {
-    Ran = true;
-    for (unsigned I = 0, E = Args.size(); I != E; ++I) {
-      if (Args[I] == "-fsyntax-only") {
-        Found = true;
-        break;
-      }
-    }
-    return Args;
+struct CheckColoredDiagnosticsAction : public clang::ASTFrontendAction {
+  CheckColoredDiagnosticsAction(bool ShouldShowColor)
+      : ShouldShowColor(ShouldShowColor) {}
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &Compiler,
+                                                 StringRef) override {
+    if (Compiler.getDiagnosticOpts().ShowColors != ShouldShowColor)
+      Compiler.getDiagnostics().Report(
+          Compiler.getDiagnostics().getCustomDiagID(
+              DiagnosticsEngine::Fatal,
+              "getDiagnosticOpts().ShowColors != ShouldShowColor"));
+    return llvm::make_unique<ASTConsumer>();
   }
+
+private:
+  bool ShouldShowColor = true;
 };
+
+TEST(runToolOnCodeWithArgs, DiagnosticsColor) {
+
+  EXPECT_TRUE(runToolOnCodeWithArgs(new CheckColoredDiagnosticsAction(true), "",
+                                    {"-fcolor-diagnostics"}));
+  EXPECT_TRUE(runToolOnCodeWithArgs(new CheckColoredDiagnosticsAction(false),
+                                    "", {"-fno-color-diagnostics"}));
+  EXPECT_TRUE(
+      runToolOnCodeWithArgs(new CheckColoredDiagnosticsAction(true), "",
+                            {"-fno-color-diagnostics", "-fcolor-diagnostics"}));
+  EXPECT_TRUE(
+      runToolOnCodeWithArgs(new CheckColoredDiagnosticsAction(false), "",
+                            {"-fcolor-diagnostics", "-fno-color-diagnostics"}));
+  EXPECT_TRUE(runToolOnCodeWithArgs(
+      new CheckColoredDiagnosticsAction(true), "",
+      {"-fno-color-diagnostics", "-fdiagnostics-color=always"}));
+
+  // Check that this test would fail if ShowColors is not what it should.
+  EXPECT_FALSE(runToolOnCodeWithArgs(new CheckColoredDiagnosticsAction(false),
+                                     "", {"-fcolor-diagnostics"}));
+}
 
 TEST(ClangToolTest, ArgumentAdjusters) {
   FixedCompilationDatabase Compilations("/", std::vector<std::string>());
@@ -284,18 +381,136 @@ TEST(ClangToolTest, ArgumentAdjusters) {
 
   bool Found = false;
   bool Ran = false;
-  Tool.appendArgumentsAdjuster(new CheckSyntaxOnlyAdjuster(Found, Ran));
+  ArgumentsAdjuster CheckSyntaxOnlyAdjuster =
+      [&Found, &Ran](const CommandLineArguments &Args, StringRef /*unused*/) {
+    Ran = true;
+    if (std::find(Args.begin(), Args.end(), "-fsyntax-only") != Args.end())
+      Found = true;
+    return Args;
+  };
+  Tool.appendArgumentsAdjuster(CheckSyntaxOnlyAdjuster);
   Tool.run(Action.get());
   EXPECT_TRUE(Ran);
   EXPECT_TRUE(Found);
 
   Ran = Found = false;
   Tool.clearArgumentsAdjusters();
-  Tool.appendArgumentsAdjuster(new CheckSyntaxOnlyAdjuster(Found, Ran));
-  Tool.appendArgumentsAdjuster(new ClangSyntaxOnlyAdjuster());
+  Tool.appendArgumentsAdjuster(CheckSyntaxOnlyAdjuster);
+  Tool.appendArgumentsAdjuster(getClangSyntaxOnlyAdjuster());
   Tool.run(Action.get());
   EXPECT_TRUE(Ran);
   EXPECT_FALSE(Found);
+}
+
+// Check getClangStripDependencyFileAdjuster doesn't strip args after -MD/-MMD.
+TEST(ClangToolTest, StripDependencyFileAdjuster) {
+  FixedCompilationDatabase Compilations("/", {"-MD", "-c", "-MMD", "-w"});
+
+  ClangTool Tool(Compilations, std::vector<std::string>(1, "/a.cc"));
+  Tool.mapVirtualFile("/a.cc", "void a() {}");
+
+  std::unique_ptr<FrontendActionFactory> Action(
+      newFrontendActionFactory<SyntaxOnlyAction>());
+
+  CommandLineArguments FinalArgs;
+  ArgumentsAdjuster CheckFlagsAdjuster =
+    [&FinalArgs](const CommandLineArguments &Args, StringRef /*unused*/) {
+      FinalArgs = Args;
+      return Args;
+    };
+  Tool.clearArgumentsAdjusters();
+  Tool.appendArgumentsAdjuster(getClangStripDependencyFileAdjuster());
+  Tool.appendArgumentsAdjuster(CheckFlagsAdjuster);
+  Tool.run(Action.get());
+
+  auto HasFlag = [&FinalArgs](const std::string &Flag) {
+    return std::find(FinalArgs.begin(), FinalArgs.end(), Flag) !=
+           FinalArgs.end();
+  };
+  EXPECT_FALSE(HasFlag("-MD"));
+  EXPECT_FALSE(HasFlag("-MMD"));
+  EXPECT_TRUE(HasFlag("-c"));
+  EXPECT_TRUE(HasFlag("-w"));
+}
+
+namespace {
+/// Find a target name such that looking for it in TargetRegistry by that name
+/// returns the same target. We expect that there is at least one target
+/// configured with this property.
+std::string getAnyTarget() {
+  llvm::InitializeAllTargets();
+  for (const auto &Target : llvm::TargetRegistry::targets()) {
+    std::string Error;
+    StringRef TargetName(Target.getName());
+    if (TargetName == "x86-64")
+      TargetName = "x86_64";
+    if (llvm::TargetRegistry::lookupTarget(TargetName, Error) == &Target) {
+      return TargetName;
+    }
+  }
+  return "";
+}
+}
+
+TEST(addTargetAndModeForProgramName, AddsTargetAndMode) {
+  std::string Target = getAnyTarget();
+  ASSERT_FALSE(Target.empty());
+
+  std::vector<std::string> Args = {"clang", "-foo"};
+  addTargetAndModeForProgramName(Args, "");
+  EXPECT_EQ((std::vector<std::string>{"clang", "-foo"}), Args);
+  addTargetAndModeForProgramName(Args, Target + "-g++");
+  EXPECT_EQ((std::vector<std::string>{"clang", "-target", Target,
+                                      "--driver-mode=g++", "-foo"}),
+            Args);
+}
+
+TEST(addTargetAndModeForProgramName, PathIgnored) {
+  std::string Target = getAnyTarget();
+  ASSERT_FALSE(Target.empty());
+
+  SmallString<32> ToolPath;
+  llvm::sys::path::append(ToolPath, "foo", "bar", Target + "-g++");
+
+  std::vector<std::string> Args = {"clang", "-foo"};
+  addTargetAndModeForProgramName(Args, ToolPath);
+  EXPECT_EQ((std::vector<std::string>{"clang", "-target", Target,
+                                      "--driver-mode=g++", "-foo"}),
+            Args);
+}
+
+TEST(addTargetAndModeForProgramName, IgnoresExistingTarget) {
+  std::string Target = getAnyTarget();
+  ASSERT_FALSE(Target.empty());
+
+  std::vector<std::string> Args = {"clang", "-foo", "-target", "something"};
+  addTargetAndModeForProgramName(Args, Target + "-g++");
+  EXPECT_EQ((std::vector<std::string>{"clang", "--driver-mode=g++", "-foo",
+                                      "-target", "something"}),
+            Args);
+
+  std::vector<std::string> ArgsAlt = {"clang", "-foo", "-target=something"};
+  addTargetAndModeForProgramName(ArgsAlt, Target + "-g++");
+  EXPECT_EQ((std::vector<std::string>{"clang", "--driver-mode=g++", "-foo",
+                                      "-target=something"}),
+            ArgsAlt);
+}
+
+TEST(addTargetAndModeForProgramName, IgnoresExistingMode) {
+  std::string Target = getAnyTarget();
+  ASSERT_FALSE(Target.empty());
+
+  std::vector<std::string> Args = {"clang", "-foo", "--driver-mode=abc"};
+  addTargetAndModeForProgramName(Args, Target + "-g++");
+  EXPECT_EQ((std::vector<std::string>{"clang", "-target", Target, "-foo",
+                                      "--driver-mode=abc"}),
+            Args);
+
+  std::vector<std::string> ArgsAlt = {"clang", "-foo", "--driver-mode", "abc"};
+  addTargetAndModeForProgramName(ArgsAlt, Target + "-g++");
+  EXPECT_EQ((std::vector<std::string>{"clang", "-target", Target, "-foo",
+                                      "--driver-mode", "abc"}),
+            ArgsAlt);
 }
 
 #ifndef LLVM_ON_WIN32
@@ -317,8 +532,8 @@ TEST(ClangToolTest, BuildASTs) {
 
 struct TestDiagnosticConsumer : public DiagnosticConsumer {
   TestDiagnosticConsumer() : NumDiagnosticsSeen(0) {}
-  virtual void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
-                                const Diagnostic &Info) {
+  void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
+                        const Diagnostic &Info) override {
     ++NumDiagnosticsSeen;
   }
   unsigned NumDiagnosticsSeen;
@@ -348,6 +563,32 @@ TEST(ClangToolTest, InjectDiagnosticConsumerInBuildASTs) {
   EXPECT_EQ(1u, Consumer.NumDiagnosticsSeen);
 }
 #endif
+
+TEST(runToolOnCode, TestResetDiagnostics) {
+  // This is a tool that resets the diagnostic during the compilation.
+  struct ResetDiagnosticAction : public clang::ASTFrontendAction {
+    std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &Compiler,
+                                                   StringRef) override {
+      struct Consumer : public clang::ASTConsumer {
+        bool HandleTopLevelDecl(clang::DeclGroupRef D) override {
+          auto &Diags = (*D.begin())->getASTContext().getDiagnostics();
+          // Ignore any error
+          Diags.Reset();
+          // Disable warnings because computing the CFG might crash.
+          Diags.setIgnoreAllWarnings(true);
+          return true;
+        }
+      };
+      return llvm::make_unique<Consumer>();
+    }
+  };
+
+  // Should not crash
+  EXPECT_FALSE(
+      runToolOnCode(new ResetDiagnosticAction,
+                    "struct Foo { Foo(int); ~Foo(); struct Fwd _fwd; };"
+                    "void func() { long x; Foo f(x); }"));
+}
 
 } // end namespace tooling
 } // end namespace clang

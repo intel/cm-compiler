@@ -17,16 +17,15 @@
 
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/SourceLocation.h"
-#include "clang/Lex/DirectoryLookup.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Lex/ModuleLoader.h"
 #include "clang/Lex/Pragma.h"
 #include "llvm/ADT/StringRef.h"
-#include <string>
 
 namespace clang {
-  class SourceLocation;
   class Token;
   class IdentifierInfo;
+  class MacroDefinition;
   class MacroDirective;
   class MacroArgs;
 
@@ -54,11 +53,12 @@ public:
   /// \brief Callback invoked whenever a source file is skipped as the result
   /// of header guard optimization.
   ///
-  /// \param ParentFile The file that \#included the skipped file.
+  /// \param SkippedFile The file that is skipped instead of entering \#include
   ///
-  /// \param FilenameTok The token in ParentFile that indicates the
-  /// skipped file.
-  virtual void FileSkipped(const FileEntry &ParentFile,
+  /// \param FilenameTok The file name token in \#include "FileName" directive
+  /// or macro expanded file name token from \#include MACRO(PARAMS) directive.
+  /// Note that FilenameTok contains corresponding quotes/angles symbols.
+  virtual void FileSkipped(const FileEntry &SkippedFile,
                            const Token &FilenameTok,
                            SrcMgr::CharacteristicKind FileType) {
   }
@@ -153,7 +153,7 @@ public:
   /// \param Loc The location of the directive.
   /// \param str The text of the directive.
   ///
-  virtual void Ident(SourceLocation Loc, const std::string &str) {
+  virtual void Ident(SourceLocation Loc, StringRef str) {
   }
 
   /// \brief Callback invoked when start reading any pragma directive.
@@ -163,14 +163,13 @@ public:
 
   /// \brief Callback invoked when a \#pragma comment directive is read.
   virtual void PragmaComment(SourceLocation Loc, const IdentifierInfo *Kind,
-                             const std::string &Str) {
+                             StringRef Str) {
   }
 
   /// \brief Callback invoked when a \#pragma detect_mismatch directive is
   /// read.
-  virtual void PragmaDetectMismatch(SourceLocation Loc,
-                                    const std::string &Name,
-                                    const std::string &Value) {
+  virtual void PragmaDetectMismatch(SourceLocation Loc, StringRef Name,
+                                    StringRef Value) {
   }
 
   /// \brief Callback invoked when a \#pragma clang __debug directive is read.
@@ -200,19 +199,19 @@ public:
                              PragmaMessageKind Kind, StringRef Str) {
   }
 
-  /// \brief Callback invoked when a \#pragma gcc dianostic push directive
+  /// \brief Callback invoked when a \#pragma gcc diagnostic push directive
   /// is read.
   virtual void PragmaDiagnosticPush(SourceLocation Loc,
                                     StringRef Namespace) {
   }
 
-  /// \brief Callback invoked when a \#pragma gcc dianostic pop directive
+  /// \brief Callback invoked when a \#pragma gcc diagnostic pop directive
   /// is read.
   virtual void PragmaDiagnosticPop(SourceLocation Loc,
                                    StringRef Namespace) {
   }
 
-  /// \brief Callback invoked when a \#pragma gcc dianostic directive is read.
+  /// \brief Callback invoked when a \#pragma gcc diagnostic directive is read.
   virtual void PragmaDiagnostic(SourceLocation Loc, StringRef Namespace,
                                 diag::Severity mapping, StringRef Str) {}
 
@@ -236,11 +235,19 @@ public:
   virtual void PragmaWarningPop(SourceLocation Loc) {
   }
 
+  /// \brief Callback invoked when a \#pragma clang assume_nonnull begin directive
+  /// is read.
+  virtual void PragmaAssumeNonNullBegin(SourceLocation Loc) {}
+
+  /// \brief Callback invoked when a \#pragma clang assume_nonnull end directive
+  /// is read.
+  virtual void PragmaAssumeNonNullEnd(SourceLocation Loc) {}
+
   /// \brief Called by Preprocessor::HandleMacroExpandedIdentifier when a
   /// macro invocation is found.
-  virtual void MacroExpands(const Token &MacroNameTok, const MacroDirective *MD,
-                            SourceRange Range, const MacroArgs *Args) {
-  }
+  virtual void MacroExpands(const Token &MacroNameTok,
+                            const MacroDefinition &MD, SourceRange Range,
+                            const MacroArgs *Args) {}
 
   /// \brief Hook called whenever a macro definition is seen.
   virtual void MacroDefined(const Token &MacroNameTok,
@@ -248,22 +255,29 @@ public:
   }
 
   /// \brief Hook called whenever a macro \#undef is seen.
+  /// \param MacroNameTok The active Token
+  /// \param MD A MacroDefinition for the named macro.
+  /// \param Undef New MacroDirective if the macro was defined, null otherwise.
   ///
   /// MD is released immediately following this callback.
   virtual void MacroUndefined(const Token &MacroNameTok,
-                              const MacroDirective *MD) {
+                              const MacroDefinition &MD,
+                              const MacroDirective *Undef) {
   }
   
   /// \brief Hook called whenever the 'defined' operator is seen.
   /// \param MD The MacroDirective if the name was a macro, null otherwise.
-  virtual void Defined(const Token &MacroNameTok, const MacroDirective *MD,
+  virtual void Defined(const Token &MacroNameTok, const MacroDefinition &MD,
                        SourceRange Range) {
   }
   
   /// \brief Hook called when a source range is skipped.
   /// \param Range The SourceRange that was skipped. The range begins at the
   /// \#if/\#else directive and ends after the \#endif/\#else directive.
-  virtual void SourceRangeSkipped(SourceRange Range) {
+  /// \param EndifLoc The end location of the 'endif' token, which may precede
+  /// the range skipped by the directive (e.g excluding comments after an
+  /// 'endif').
+  virtual void SourceRangeSkipped(SourceRange Range, SourceLocation EndifLoc) {
   }
 
   enum ConditionValueKind {
@@ -293,17 +307,17 @@ public:
   /// \brief Hook called whenever an \#ifdef is seen.
   /// \param Loc the source location of the directive.
   /// \param MacroNameTok Information on the token being tested.
-  /// \param MD The MacroDirective if the name was a macro, null otherwise.
+  /// \param MD The MacroDefinition if the name was a macro, null otherwise.
   virtual void Ifdef(SourceLocation Loc, const Token &MacroNameTok,
-                     const MacroDirective *MD) {
+                     const MacroDefinition &MD) {
   }
 
   /// \brief Hook called whenever an \#ifndef is seen.
   /// \param Loc the source location of the directive.
   /// \param MacroNameTok Information on the token being tested.
-  /// \param MD The MacroDirective if the name was a macro, null otherwise.
+  /// \param MD The MacroDefiniton if the name was a macro, null otherwise.
   virtual void Ifndef(SourceLocation Loc, const Token &MacroNameTok,
-                      const MacroDirective *MD) {
+                      const MacroDefinition &MD) {
   }
 
   /// \brief Hook called whenever an \#else is seen.
@@ -322,15 +336,12 @@ public:
 /// \brief Simple wrapper class for chaining callbacks.
 class PPChainedCallbacks : public PPCallbacks {
   virtual void anchor();
-  PPCallbacks *First, *Second;
+  std::unique_ptr<PPCallbacks> First, Second;
 
 public:
-  PPChainedCallbacks(PPCallbacks *_First, PPCallbacks *_Second)
-    : First(_First), Second(_Second) {}
-  ~PPChainedCallbacks() {
-    delete Second;
-    delete First;
-  }
+  PPChainedCallbacks(std::unique_ptr<PPCallbacks> _First,
+                     std::unique_ptr<PPCallbacks> _Second)
+    : First(std::move(_First)), Second(std::move(_Second)) {}
 
   void FileChanged(SourceLocation Loc, FileChangeReason Reason,
                    SrcMgr::CharacteristicKind FileType,
@@ -339,11 +350,11 @@ public:
     Second->FileChanged(Loc, Reason, FileType, PrevFID);
   }
 
-  void FileSkipped(const FileEntry &ParentFile,
+  void FileSkipped(const FileEntry &SkippedFile,
                    const Token &FilenameTok,
                    SrcMgr::CharacteristicKind FileType) override {
-    First->FileSkipped(ParentFile, FilenameTok, FileType);
-    Second->FileSkipped(ParentFile, FilenameTok, FileType);
+    First->FileSkipped(SkippedFile, FilenameTok, FileType);
+    Second->FileSkipped(SkippedFile, FilenameTok, FileType);
   }
 
   bool FileNotFound(StringRef FileName,
@@ -376,21 +387,32 @@ public:
     Second->EndOfMainFile();
   }
 
-  void Ident(SourceLocation Loc, const std::string &str) override {
+  void Ident(SourceLocation Loc, StringRef str) override {
     First->Ident(Loc, str);
     Second->Ident(Loc, str);
   }
 
+  void PragmaDirective(SourceLocation Loc,
+                       PragmaIntroducerKind Introducer) override {
+    First->PragmaDirective(Loc, Introducer);
+    Second->PragmaDirective(Loc, Introducer);
+  }
+
   void PragmaComment(SourceLocation Loc, const IdentifierInfo *Kind,
-                     const std::string &Str) override {
+                     StringRef Str) override {
     First->PragmaComment(Loc, Kind, Str);
     Second->PragmaComment(Loc, Kind, Str);
   }
 
-  void PragmaDetectMismatch(SourceLocation Loc, const std::string &Name,
-                            const std::string &Value) override {
+  void PragmaDetectMismatch(SourceLocation Loc, StringRef Name,
+                            StringRef Value) override {
     First->PragmaDetectMismatch(Loc, Name, Value);
     Second->PragmaDetectMismatch(Loc, Name, Value);
+  }
+
+  void PragmaDebug(SourceLocation Loc, StringRef DebugType) override {
+    First->PragmaDebug(Loc, DebugType);
+    Second->PragmaDebug(Loc, DebugType);
   }
 
   void PragmaMessage(SourceLocation Loc, StringRef Namespace,
@@ -437,32 +459,44 @@ public:
     Second->PragmaWarningPop(Loc);
   }
 
-  void MacroExpands(const Token &MacroNameTok, const MacroDirective *MD,
+  void PragmaAssumeNonNullBegin(SourceLocation Loc) override {
+    First->PragmaAssumeNonNullBegin(Loc);
+    Second->PragmaAssumeNonNullBegin(Loc);
+  }
+
+  void PragmaAssumeNonNullEnd(SourceLocation Loc) override {
+    First->PragmaAssumeNonNullEnd(Loc);
+    Second->PragmaAssumeNonNullEnd(Loc);
+  }
+
+  void MacroExpands(const Token &MacroNameTok, const MacroDefinition &MD,
                     SourceRange Range, const MacroArgs *Args) override {
     First->MacroExpands(MacroNameTok, MD, Range, Args);
     Second->MacroExpands(MacroNameTok, MD, Range, Args);
   }
 
-  void MacroDefined(const Token &MacroNameTok, const MacroDirective *MD) override {
+  void MacroDefined(const Token &MacroNameTok,
+                    const MacroDirective *MD) override {
     First->MacroDefined(MacroNameTok, MD);
     Second->MacroDefined(MacroNameTok, MD);
   }
 
   void MacroUndefined(const Token &MacroNameTok,
-                      const MacroDirective *MD) override {
-    First->MacroUndefined(MacroNameTok, MD);
-    Second->MacroUndefined(MacroNameTok, MD);
+                      const MacroDefinition &MD,
+                      const MacroDirective *Undef) override {
+    First->MacroUndefined(MacroNameTok, MD, Undef);
+    Second->MacroUndefined(MacroNameTok, MD, Undef);
   }
 
-  void Defined(const Token &MacroNameTok, const MacroDirective *MD,
+  void Defined(const Token &MacroNameTok, const MacroDefinition &MD,
                SourceRange Range) override {
     First->Defined(MacroNameTok, MD, Range);
     Second->Defined(MacroNameTok, MD, Range);
   }
 
-  void SourceRangeSkipped(SourceRange Range) override {
-    First->SourceRangeSkipped(Range);
-    Second->SourceRangeSkipped(Range);
+  void SourceRangeSkipped(SourceRange Range, SourceLocation EndifLoc) override {
+    First->SourceRangeSkipped(Range, EndifLoc);
+    Second->SourceRangeSkipped(Range, EndifLoc);
   }
 
   /// \brief Hook called whenever an \#if is seen.
@@ -481,14 +515,14 @@ public:
 
   /// \brief Hook called whenever an \#ifdef is seen.
   void Ifdef(SourceLocation Loc, const Token &MacroNameTok,
-             const MacroDirective *MD) override {
+             const MacroDefinition &MD) override {
     First->Ifdef(Loc, MacroNameTok, MD);
     Second->Ifdef(Loc, MacroNameTok, MD);
   }
 
   /// \brief Hook called whenever an \#ifndef is seen.
   void Ifndef(SourceLocation Loc, const Token &MacroNameTok,
-              const MacroDirective *MD) override {
+              const MacroDefinition &MD) override {
     First->Ifndef(Loc, MacroNameTok, MD);
     Second->Ifndef(Loc, MacroNameTok, MD);
   }

@@ -15,14 +15,23 @@
 #include "MCTargetDesc/AArch64FixupKinds.h"
 #include "MCTargetDesc/AArch64MCExpr.h"
 #include "Utils/AArch64BaseInfo.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCFixup.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/Endian.h"
+#include "llvm/Support/EndianStream.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include <cassert>
+#include <cstdint>
+
 using namespace llvm;
 
 #define DEBUG_TYPE "mccodeemitter"
@@ -34,15 +43,14 @@ namespace {
 
 class AArch64MCCodeEmitter : public MCCodeEmitter {
   MCContext &Ctx;
+  const MCInstrInfo &MCII;
 
-  AArch64MCCodeEmitter(const AArch64MCCodeEmitter &); // DO NOT IMPLEMENT
-  void operator=(const AArch64MCCodeEmitter &);     // DO NOT IMPLEMENT
 public:
-  AArch64MCCodeEmitter(const MCInstrInfo &mcii, const MCSubtargetInfo &sti,
-                     MCContext &ctx)
-      : Ctx(ctx) {}
-
-  ~AArch64MCCodeEmitter() {}
+  AArch64MCCodeEmitter(const MCInstrInfo &mcii, MCContext &ctx)
+      : Ctx(ctx), MCII(mcii) {}
+  AArch64MCCodeEmitter(const AArch64MCCodeEmitter &) = delete;
+  void operator=(const AArch64MCCodeEmitter &) = delete;
+  ~AArch64MCCodeEmitter() override = default;
 
   // getBinaryCodeForInstr - TableGen'erated function for getting the
   // binary encoding for an instruction.
@@ -155,38 +163,10 @@ public:
                                 SmallVectorImpl<MCFixup> &Fixups,
                                 const MCSubtargetInfo &STI) const;
 
-  /// getSIMDShift64OpValue - Return the encoded value for the
-  // shift-by-immediate AdvSIMD instructions.
-  uint32_t getSIMDShift64OpValue(const MCInst &MI, unsigned OpIdx,
-                                 SmallVectorImpl<MCFixup> &Fixups,
-                                 const MCSubtargetInfo &STI) const;
-
-  uint32_t getSIMDShift64_32OpValue(const MCInst &MI, unsigned OpIdx,
-                                    SmallVectorImpl<MCFixup> &Fixups,
-                                    const MCSubtargetInfo &STI) const;
-
-  uint32_t getSIMDShift32OpValue(const MCInst &MI, unsigned OpIdx,
-                                 SmallVectorImpl<MCFixup> &Fixups,
-                                 const MCSubtargetInfo &STI) const;
-
-  uint32_t getSIMDShift16OpValue(const MCInst &MI, unsigned OpIdx,
-                                 SmallVectorImpl<MCFixup> &Fixups,
-                                 const MCSubtargetInfo &STI) const;
-
   unsigned fixMOVZ(const MCInst &MI, unsigned EncodedValue,
                    const MCSubtargetInfo &STI) const;
 
-  void EmitByte(unsigned char C, raw_ostream &OS) const { OS << (char)C; }
-
-  void EmitConstant(uint64_t Val, unsigned Size, raw_ostream &OS) const {
-    // Output the constant in little endian byte order.
-    for (unsigned i = 0; i != Size; ++i) {
-      EmitByte(Val & 255, OS);
-      Val >>= 8;
-    }
-  }
-
-  void EncodeInstruction(const MCInst &MI, raw_ostream &OS,
+  void encodeInstruction(const MCInst &MI, raw_ostream &OS,
                          SmallVectorImpl<MCFixup> &Fixups,
                          const MCSubtargetInfo &STI) const override;
 
@@ -199,16 +179,14 @@ public:
 
   unsigned fixOneOperandFPComparison(const MCInst &MI, unsigned EncodedValue,
                                      const MCSubtargetInfo &STI) const;
+
+private:
+  uint64_t computeAvailableFeatures(const FeatureBitset &FB) const;
+  void verifyInstructionPredicates(const MCInst &MI,
+                                   uint64_t AvailableFeatures) const;
 };
 
 } // end anonymous namespace
-
-MCCodeEmitter *llvm::createAArch64MCCodeEmitter(const MCInstrInfo &MCII,
-                                                const MCRegisterInfo &MRI,
-                                                const MCSubtargetInfo &STI,
-                                                MCContext &Ctx) {
-  return new AArch64MCCodeEmitter(MCII, STI, Ctx);
-}
 
 /// getMachineOpValue - Return binary encoding of operand. If the machine
 /// operand requires relocation, record the relocation and return zero.
@@ -235,7 +213,7 @@ AArch64MCCodeEmitter::getLdStUImm12OpValue(const MCInst &MI, unsigned OpIdx,
   else {
     assert(MO.isExpr() && "unable to encode load/store imm operand");
     MCFixupKind Kind = MCFixupKind(FixupKind);
-    Fixups.push_back(MCFixup::Create(0, MO.getExpr(), Kind, MI.getLoc()));
+    Fixups.push_back(MCFixup::create(0, MO.getExpr(), Kind, MI.getLoc()));
     ++MCNumFixups;
   }
 
@@ -259,7 +237,7 @@ AArch64MCCodeEmitter::getAdrLabelOpValue(const MCInst &MI, unsigned OpIdx,
   MCFixupKind Kind = MI.getOpcode() == AArch64::ADR
                          ? MCFixupKind(AArch64::fixup_aarch64_pcrel_adr_imm21)
                          : MCFixupKind(AArch64::fixup_aarch64_pcrel_adrp_imm21);
-  Fixups.push_back(MCFixup::Create(0, Expr, Kind, MI.getLoc()));
+  Fixups.push_back(MCFixup::create(0, Expr, Kind, MI.getLoc()));
 
   MCNumFixups += 1;
 
@@ -283,17 +261,25 @@ AArch64MCCodeEmitter::getAddSubImmOpValue(const MCInst &MI, unsigned OpIdx,
   assert((ShiftVal == 0 || ShiftVal == 12) &&
          "unexpected shift value for add/sub immediate");
   if (MO.isImm())
-    return MO.getImm() | (ShiftVal == 0 ? 0 : (1 << 12));
+    return MO.getImm() | (ShiftVal == 0 ? 0 : (1 << ShiftVal));
   assert(MO.isExpr() && "Unable to encode MCOperand!");
   const MCExpr *Expr = MO.getExpr();
 
   // Encode the 12 bits of the fixup.
   MCFixupKind Kind = MCFixupKind(AArch64::fixup_aarch64_add_imm12);
-  Fixups.push_back(MCFixup::Create(0, Expr, Kind, MI.getLoc()));
+  Fixups.push_back(MCFixup::create(0, Expr, Kind, MI.getLoc()));
 
   ++MCNumFixups;
 
-  return 0;
+  // Set the shift bit of the add instruction for relocation types
+  // R_AARCH64_TLSLE_ADD_TPREL_HI12 and R_AARCH64_TLSLD_ADD_DTPREL_HI12.
+  if (const AArch64MCExpr *A64E = dyn_cast<AArch64MCExpr>(Expr)) {
+    AArch64MCExpr::VariantKind RefKind = A64E->getKind();
+    if (RefKind == AArch64MCExpr::VK_TPREL_HI12 ||
+        RefKind == AArch64MCExpr::VK_DTPREL_HI12)
+      ShiftVal = 12;
+  }
+  return ShiftVal == 0 ? 0 : (1 << ShiftVal);
 }
 
 /// getCondBranchTargetOpValue - Return the encoded value for a conditional
@@ -309,7 +295,7 @@ uint32_t AArch64MCCodeEmitter::getCondBranchTargetOpValue(
   assert(MO.isExpr() && "Unexpected target type!");
 
   MCFixupKind Kind = MCFixupKind(AArch64::fixup_aarch64_pcrel_branch19);
-  Fixups.push_back(MCFixup::Create(0, MO.getExpr(), Kind, MI.getLoc()));
+  Fixups.push_back(MCFixup::create(0, MO.getExpr(), Kind, MI.getLoc()));
 
   ++MCNumFixups;
 
@@ -331,7 +317,7 @@ AArch64MCCodeEmitter::getLoadLiteralOpValue(const MCInst &MI, unsigned OpIdx,
   assert(MO.isExpr() && "Unexpected target type!");
 
   MCFixupKind Kind = MCFixupKind(AArch64::fixup_aarch64_ldr_pcrel_imm19);
-  Fixups.push_back(MCFixup::Create(0, MO.getExpr(), Kind, MI.getLoc()));
+  Fixups.push_back(MCFixup::create(0, MO.getExpr(), Kind, MI.getLoc()));
 
   ++MCNumFixups;
 
@@ -358,7 +344,7 @@ AArch64MCCodeEmitter::getMoveWideImmOpValue(const MCInst &MI, unsigned OpIdx,
     return MO.getImm();
   assert(MO.isExpr() && "Unexpected movz/movk immediate");
 
-  Fixups.push_back(MCFixup::Create(
+  Fixups.push_back(MCFixup::create(
       0, MO.getExpr(), MCFixupKind(AArch64::fixup_aarch64_movw), MI.getLoc()));
 
   ++MCNumFixups;
@@ -379,7 +365,7 @@ uint32_t AArch64MCCodeEmitter::getTestBranchTargetOpValue(
   assert(MO.isExpr() && "Unexpected ADR target type!");
 
   MCFixupKind Kind = MCFixupKind(AArch64::fixup_aarch64_pcrel_branch14);
-  Fixups.push_back(MCFixup::Create(0, MO.getExpr(), Kind, MI.getLoc()));
+  Fixups.push_back(MCFixup::create(0, MO.getExpr(), Kind, MI.getLoc()));
 
   ++MCNumFixups;
 
@@ -403,7 +389,7 @@ AArch64MCCodeEmitter::getBranchTargetOpValue(const MCInst &MI, unsigned OpIdx,
   MCFixupKind Kind = MI.getOpcode() == AArch64::BL
                          ? MCFixupKind(AArch64::fixup_aarch64_pcrel_call26)
                          : MCFixupKind(AArch64::fixup_aarch64_pcrel_branch26);
-  Fixups.push_back(MCFixup::Create(0, MO.getExpr(), Kind, MI.getLoc()));
+  Fixups.push_back(MCFixup::create(0, MO.getExpr(), Kind, MI.getLoc()));
 
   ++MCNumFixups;
 
@@ -437,43 +423,7 @@ AArch64MCCodeEmitter::getVecShifterOpValue(const MCInst &MI, unsigned OpIdx,
     return 3;
   }
 
-  assert(false && "Invalid value for vector shift amount!");
-  return 0;
-}
-
-uint32_t
-AArch64MCCodeEmitter::getSIMDShift64OpValue(const MCInst &MI, unsigned OpIdx,
-                                            SmallVectorImpl<MCFixup> &Fixups,
-                                            const MCSubtargetInfo &STI) const {
-  const MCOperand &MO = MI.getOperand(OpIdx);
-  assert(MO.isImm() && "Expected an immediate value for the shift amount!");
-  return 64 - (MO.getImm());
-}
-
-uint32_t AArch64MCCodeEmitter::getSIMDShift64_32OpValue(
-    const MCInst &MI, unsigned OpIdx, SmallVectorImpl<MCFixup> &Fixups,
-    const MCSubtargetInfo &STI) const {
-  const MCOperand &MO = MI.getOperand(OpIdx);
-  assert(MO.isImm() && "Expected an immediate value for the shift amount!");
-  return 64 - (MO.getImm() | 32);
-}
-
-uint32_t
-AArch64MCCodeEmitter::getSIMDShift32OpValue(const MCInst &MI, unsigned OpIdx,
-                                            SmallVectorImpl<MCFixup> &Fixups,
-                                            const MCSubtargetInfo &STI) const {
-  const MCOperand &MO = MI.getOperand(OpIdx);
-  assert(MO.isImm() && "Expected an immediate value for the shift amount!");
-  return 32 - (MO.getImm() | 16);
-}
-
-uint32_t
-AArch64MCCodeEmitter::getSIMDShift16OpValue(const MCInst &MI, unsigned OpIdx,
-                                            SmallVectorImpl<MCFixup> &Fixups,
-                                            const MCSubtargetInfo &STI) const {
-  const MCOperand &MO = MI.getOperand(OpIdx);
-  assert(MO.isImm() && "Expected an immediate value for the shift amount!");
-  return 16 - (MO.getImm() | 8);
+  llvm_unreachable("Invalid value for vector shift amount!");
 }
 
 /// getFixedPointScaleOpValue - Return the encoded value for the
@@ -602,20 +552,26 @@ unsigned AArch64MCCodeEmitter::fixMOVZ(const MCInst &MI, unsigned EncodedValue,
   return EncodedValue & ~(1u << 30);
 }
 
-void AArch64MCCodeEmitter::EncodeInstruction(const MCInst &MI, raw_ostream &OS,
+void AArch64MCCodeEmitter::encodeInstruction(const MCInst &MI, raw_ostream &OS,
                                              SmallVectorImpl<MCFixup> &Fixups,
                                              const MCSubtargetInfo &STI) const {
+  verifyInstructionPredicates(MI,
+                              computeAvailableFeatures(STI.getFeatureBits()));
+
   if (MI.getOpcode() == AArch64::TLSDESCCALL) {
     // This is a directive which applies an R_AARCH64_TLSDESC_CALL to the
     // following (BLR) instruction. It doesn't emit any code itself so it
     // doesn't go through the normal TableGenerated channels.
     MCFixupKind Fixup = MCFixupKind(AArch64::fixup_aarch64_tlsdesc_call);
-    Fixups.push_back(MCFixup::Create(0, MI.getOperand(0).getExpr(), Fixup));
+    Fixups.push_back(MCFixup::create(0, MI.getOperand(0).getExpr(), Fixup));
+    return;
+  } else if (MI.getOpcode() == AArch64::CompilerBarrier) {
+    // This just prevents the compiler from reordering accesses, no actual code.
     return;
   }
 
   uint64_t Binary = getBinaryCodeForInstr(MI, Fixups, STI);
-  EmitConstant(Binary, 4, OS);
+  support::endian::Writer<support::little>(OS).write<uint32_t>(Binary);
   ++MCNumEmitted; // Keep track of the # of mi's emitted.
 }
 
@@ -647,4 +603,11 @@ unsigned AArch64MCCodeEmitter::fixOneOperandFPComparison(
   return EncodedValue;
 }
 
+#define ENABLE_INSTR_PREDICATE_VERIFIER
 #include "AArch64GenMCCodeEmitter.inc"
+
+MCCodeEmitter *llvm::createAArch64MCCodeEmitter(const MCInstrInfo &MCII,
+                                                const MCRegisterInfo &MRI,
+                                                MCContext &Ctx) {
+  return new AArch64MCCodeEmitter(MCII, Ctx);
+}

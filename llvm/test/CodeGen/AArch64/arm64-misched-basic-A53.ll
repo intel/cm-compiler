@@ -1,5 +1,6 @@
 ; REQUIRES: asserts
-; RUN: llc < %s -mtriple=arm64-linux-gnu -mcpu=cortex-a53 -pre-RA-sched=source -enable-misched -verify-misched -debug-only=misched -o - 2>&1 > /dev/null | FileCheck %s
+; RUN: llc < %s -mtriple=arm64-linux-gnu -mcpu=cortex-a53 -pre-RA-sched=source -enable-misched -verify-misched -debug-only=machine-scheduler -disable-machine-dce -o - 2>&1 > /dev/null | FileCheck %s
+; RUN: llc < %s -mtriple=arm64-linux-gnu -mcpu=cortex-a53 -pre-RA-sched=source -enable-misched -verify-misched -debug-only=machine-scheduler -disable-machine-dce -o - -misched-limit=2 2>&1 > /dev/null | FileCheck %s
 ;
 ; The Cortex-A53 machine model will cause the MADD instruction to be scheduled
 ; much higher than the ADD instructions in order to hide latency. When not
@@ -7,7 +8,7 @@
 ;
 ; CHECK: ********** MI Scheduling **********
 ; CHECK: main
-; CHECK: *** Final schedule for BB#2 ***
+; CHECK: *** Final schedule for %bb.2 ***
 ; CHECK: MADDWrrr
 ; CHECK: ADDWri
 ; CHECK: ********** INTERVALS **********
@@ -34,44 +35,44 @@ entry:
   br label %for.cond
 
 for.cond:                                         ; preds = %for.inc, %entry
-  %2 = load i32* %i, align 4
+  %2 = load i32, i32* %i, align 4
   %cmp = icmp slt i32 %2, 8
   br i1 %cmp, label %for.body, label %for.end
 
 for.body:                                         ; preds = %for.cond
-  %3 = load i32* %i, align 4
+  %3 = load i32, i32* %i, align 4
   %idxprom = sext i32 %3 to i64
-  %arrayidx = getelementptr inbounds [8 x i32]* %x, i32 0, i64 %idxprom
-  %4 = load i32* %arrayidx, align 4
+  %arrayidx = getelementptr inbounds [8 x i32], [8 x i32]* %x, i32 0, i64 %idxprom
+  %4 = load i32, i32* %arrayidx, align 4
   %add = add nsw i32 %4, 1
   store i32 %add, i32* %xx, align 4
-  %5 = load i32* %xx, align 4
+  %5 = load i32, i32* %xx, align 4
   %add1 = add nsw i32 %5, 12
   store i32 %add1, i32* %xx, align 4
-  %6 = load i32* %xx, align 4
+  %6 = load i32, i32* %xx, align 4
   %add2 = add nsw i32 %6, 23
   store i32 %add2, i32* %xx, align 4
-  %7 = load i32* %xx, align 4
+  %7 = load i32, i32* %xx, align 4
   %add3 = add nsw i32 %7, 34
   store i32 %add3, i32* %xx, align 4
-  %8 = load i32* %i, align 4
+  %8 = load i32, i32* %i, align 4
   %idxprom4 = sext i32 %8 to i64
-  %arrayidx5 = getelementptr inbounds [8 x i32]* %y, i32 0, i64 %idxprom4
-  %9 = load i32* %arrayidx5, align 4
-  %10 = load i32* %yy, align 4
+  %arrayidx5 = getelementptr inbounds [8 x i32], [8 x i32]* %y, i32 0, i64 %idxprom4
+  %9 = load i32, i32* %arrayidx5, align 4
+  %10 = load i32, i32* %yy, align 4
   %mul = mul nsw i32 %10, %9
   store i32 %mul, i32* %yy, align 4
   br label %for.inc
 
 for.inc:                                          ; preds = %for.body
-  %11 = load i32* %i, align 4
+  %11 = load i32, i32* %i, align 4
   %inc = add nsw i32 %11, 1
   store i32 %inc, i32* %i, align 4
   br label %for.cond
 
 for.end:                                          ; preds = %for.cond
-  %12 = load i32* %xx, align 4
-  %13 = load i32* %yy, align 4
+  %12 = load i32, i32* %xx, align 4
+  %13 = load i32, i32* %yy, align 4
   %add6 = add nsw i32 %12, %13
   ret i32 %add6
 }
@@ -82,8 +83,8 @@ for.end:                                          ; preds = %for.cond
 ; after it, this test checks to make sure there are more than one.
 ;
 ; CHECK: ********** MI Scheduling **********
-; CHECK: neon4xfloat:BB#0
-; CHECK: *** Final schedule for BB#0 ***
+; CHECK: neon4xfloat:%bb.0
+; CHECK: *** Final schedule for %bb.0 ***
 ; CHECK: FDIVv4f32
 ; CHECK: FADDv4f32
 ; CHECK: FADDv4f32
@@ -116,7 +117,7 @@ attributes #1 = { nounwind }
 ; Nothing explicit to check other than llc not crashing.
 define { <16 x i8>, <16 x i8> } @test_v16i8_post_imm_ld2(i8* %A, i8** %ptr) {
   %ld2 = tail call { <16 x i8>, <16 x i8> } @llvm.aarch64.neon.ld2.v16i8.p0i8(i8* %A)
-  %tmp = getelementptr i8* %A, i32 32
+  %tmp = getelementptr i8, i8* %A, i32 32
   store i8* %tmp, i8** %ptr
   ret { <16 x i8>, <16 x i8> } %ld2
 }
@@ -129,7 +130,7 @@ declare { <16 x i8>, <16 x i8> } @llvm.aarch64.neon.ld2.v16i8.p0i8(i8*)
 ; are otherwise ready are jammed in the pending queue.
 ; CHECK: ********** MI Scheduling **********
 ; CHECK: testResourceConflict
-; CHECK: *** Final schedule for BB#0 ***
+; CHECK: *** Final schedule for %bb.0 ***
 ; CHECK: BRK
 ; CHECK: ********** INTERVALS **********
 define void @testResourceConflict(float* %ptr) {
@@ -177,26 +178,26 @@ declare void @llvm.trap()
 ; Resource contention on LDST.
 ; CHECK: ********** MI Scheduling **********
 ; CHECK: testLdStConflict
-; CHECK: *** Final schedule for BB#1 ***
+; CHECK: *** Final schedule for %bb.1 ***
 ; CHECK: LD4Fourv2d
 ; CHECK: STRQui
 ; CHECK: ********** INTERVALS **********
-define void @testLdStConflict() {
+define void @testLdStConflict(<2 x i64> %v) {
 entry:
   br label %loop
 
 loop:
   %0 = call { <2 x i64>, <2 x i64>, <2 x i64>, <2 x i64> } @llvm.aarch64.neon.ld4.v2i64.p0i8(i8* null)
   %ptr = bitcast i8* undef to <2 x i64>*
-  store <2 x i64> zeroinitializer, <2 x i64>* %ptr, align 4
+  store <2 x i64> %v, <2 x i64>* %ptr, align 4
   %ptr1 = bitcast i8* undef to <2 x i64>*
-  store <2 x i64> zeroinitializer, <2 x i64>* %ptr1, align 4
+  store <2 x i64> %v, <2 x i64>* %ptr1, align 4
   %ptr2 = bitcast i8* undef to <2 x i64>*
-  store <2 x i64> zeroinitializer, <2 x i64>* %ptr2, align 4
+  store <2 x i64> %v, <2 x i64>* %ptr2, align 4
   %ptr3 = bitcast i8* undef to <2 x i64>*
-  store <2 x i64> zeroinitializer, <2 x i64>* %ptr3, align 4
+  store <2 x i64> %v, <2 x i64>* %ptr3, align 4
   %ptr4 = bitcast i8* undef to <2 x i64>*
-  store <2 x i64> zeroinitializer, <2 x i64>* %ptr4, align 4
+  store <2 x i64> %v, <2 x i64>* %ptr4, align 4
   br label %loop
 }
 

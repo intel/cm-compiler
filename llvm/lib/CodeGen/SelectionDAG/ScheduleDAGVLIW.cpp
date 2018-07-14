@@ -18,19 +18,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/CodeGen/SchedulerRegistry.h"
 #include "ScheduleDAGSDNodes.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/LatencyPriorityQueue.h"
 #include "llvm/CodeGen/ResourcePriorityQueue.h"
 #include "llvm/CodeGen/ScheduleHazardRecognizer.h"
+#include "llvm/CodeGen/SchedulerRegistry.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
+#include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 #include <climits>
 using namespace llvm;
 
@@ -71,13 +72,11 @@ public:
                   AliasAnalysis *aa,
                   SchedulingPriorityQueue *availqueue)
     : ScheduleDAGSDNodes(mf), AvailableQueue(availqueue), AA(aa) {
-
-    const TargetMachine &tm = mf.getTarget();
-    HazardRec = tm.getInstrInfo()->CreateTargetHazardRecognizer(
-        tm.getSubtargetImpl(), this);
+    const TargetSubtargetInfo &STI = mf.getSubtarget();
+    HazardRec = STI.getInstrInfo()->CreateTargetHazardRecognizer(&STI, this);
   }
 
-  ~ScheduleDAGVLIW() {
+  ~ScheduleDAGVLIW() override {
     delete HazardRec;
     delete AvailableQueue;
   }
@@ -94,9 +93,8 @@ private:
 
 /// Schedule - Schedule the DAG using list scheduling.
 void ScheduleDAGVLIW::Schedule() {
-  DEBUG(dbgs()
-        << "********** List Scheduling BB#" << BB->getNumber()
-        << " '" << BB->getName() << "' **********\n");
+  DEBUG(dbgs() << "********** List Scheduling " << printMBBReference(*BB)
+               << " '" << BB->getName() << "' **********\n");
 
   // Build the scheduling graph.
   BuildSchedGraph(AA);

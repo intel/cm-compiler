@@ -201,3 +201,67 @@ namespace PR16904 {
   template <typename T, typename U, typename V>
   using derived2 = ::PR16904::base<T, U>::template derived<V>; // expected-error {{expected a type}} expected-error {{expected ';'}}
 }
+
+namespace PR14858 {
+  template<typename ...T> using X = int[sizeof...(T)];
+
+  template<typename ...U> struct Y {
+    using Z = X<U...>;
+  };
+  using A = Y<int, int, int, int>::Z;
+  using A = int[4];
+
+  // FIXME: These should be treated as being redeclarations.
+  template<typename ...T> void f(X<T...> &) {}
+  template<typename ...T> void f(int(&)[sizeof...(T)]) {}
+
+  template<typename ...T> void g(X<typename T::type...> &) {}
+  template<typename ...T> void g(int(&)[sizeof...(T)]) {} // ok, different
+
+  template<typename ...T, typename ...U> void h(X<T...> &) {}
+  template<typename ...T, typename ...U> void h(X<U...> &) {} // ok, different
+
+  template<typename ...T> void i(auto (T ...t) -> int(&)[sizeof...(t)]);
+  auto mk_arr(int, int) -> int(&)[2];
+  void test_i() { i<int, int>(mk_arr); }
+
+#if 0 // FIXME: This causes clang to assert.
+  template<typename ...T> using Z = auto (T ...p) -> int (&)[sizeof...(p)];
+  template<typename ...T, typename ...U> void j(Z<T..., U...> &) {}
+  void test_j() { j<int, int>(mk_arr); }
+#endif
+
+  template<typename ...T> struct Q {
+    template<typename ...U> using V = int[sizeof...(U)];
+    template<typename ...U> void f(V<typename U::type..., typename T::type...> *);
+  };
+  struct B { typedef int type; };
+  void test_q(int (&a)[5]) { Q<B, B, B>().f<B, B>(&a); }
+}
+
+namespace redecl {
+  template<typename> using A = int;
+  template<typename = void> using A = int;
+  A<> a; // ok
+}
+
+namespace PR31514 {
+  template<typename T, typename> using EnableTupleSize = T;
+
+  template<typename T> struct tuple_size { static const int value = 0; };
+  template<typename T> struct tuple_size<EnableTupleSize<const T, decltype(tuple_size<T>::value)>> {};
+  template<typename T> struct tuple_size<EnableTupleSize<volatile T, decltype(tuple_size<T>::value)>> {};
+
+  tuple_size<const int> t;
+}
+
+namespace an_alias_template_is_not_a_class_template {
+  template<typename T> using Foo = int; // expected-note 2{{here}}
+  Foo x; // expected-error {{use of alias template 'Foo' requires template arguments}}
+  Foo<> y; // expected-error {{too few template arguments for alias template 'Foo'}}
+
+  template<template<typename> class Bar> void f() { // expected-note 2{{here}}
+    Bar x; // expected-error {{use of template template parameter 'Bar' requires template arguments}}
+    Bar<> y; // expected-error {{too few template arguments for template template parameter 'Bar'}}
+  }
+}

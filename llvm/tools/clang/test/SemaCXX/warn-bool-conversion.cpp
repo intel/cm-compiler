@@ -1,19 +1,66 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -verify -std=c++98 %s
+// RUN: %clang_cc1 -fsyntax-only -verify -std=c++11 %s
 
 namespace BooleanFalse {
-int* j = false; // expected-warning{{initialization of pointer of type 'int *' to null from a constant boolean expression}}
+int* j = false;
+#if __cplusplus <= 199711L
+// expected-warning@-2 {{initialization of pointer of type 'int *' to null from a constant boolean expression}}
+#else
+// expected-error@-4 {{cannot initialize a variable of type 'int *' with an rvalue of type 'bool'}}
+#endif
 
-void foo(int* i, int *j=(false)) // expected-warning{{initialization of pointer of type 'int *' to null from a constant boolean expression}}
+#if __cplusplus <= 199711L
+// expected-warning@+6 {{initialization of pointer of type 'int *' to null from a constant boolean expression}}
+#else
+// expected-error@+4 {{cannot initialize a parameter of type 'int *' with an rvalue of type 'bool'}}
+// expected-note@+3 {{passing argument to parameter 'j' here}}
+// expected-note@+2 6 {{candidate function not viable: requires 2 arguments, but 1 was provided}}
+#endif
+void foo(int* i, int *j=(false))
 {
-  foo(false); // expected-warning{{initialization of pointer of type 'int *' to null from a constant boolean expression}}
-  foo((int*)false); // no-warning: explicit cast
-  foo(0); // no-warning: not a bool, even though its convertible to bool
+  foo(false);
+#if __cplusplus <= 199711L
+// expected-warning@-2 {{initialization of pointer of type 'int *' to null from a constant boolean expression}}
+#else
+// expected-error@-4 {{no matching function for call to 'foo'}}
+#endif
 
-  foo(false == true); // expected-warning{{initialization of pointer of type 'int *' to null from a constant boolean expression}}
-  foo((42 + 24) < 32); // expected-warning{{initialization of pointer of type 'int *' to null from a constant boolean expression}}
+  foo((int*)false);
+#if __cplusplus <= 199711L
+// no-warning: explicit cast
+#else
+// expected-error@-4 {{no matching function for call to 'foo'}}
+#endif
+
+  foo(0);
+#if __cplusplus <= 199711L
+// no-warning: not a bool, even though its convertible to bool
+#else
+// expected-error@-4 {{no matching function for call to 'foo'}}
+#endif
+
+  foo(false == true);
+#if __cplusplus <= 199711L
+// expected-warning@-2 {{initialization of pointer of type 'int *' to null from a constant boolean expression}}
+#else
+// expected-error@-4 {{no matching function for call to 'foo'}}
+#endif
+
+  foo((42 + 24) < 32);
+#if __cplusplus <= 199711L
+// expected-warning@-2 {{initialization of pointer of type 'int *' to null from a constant boolean expression}}
+#else
+// expected-error@-4 {{no matching function for call to 'foo'}}
+#endif
 
   const bool kFlag = false;
-  foo(kFlag); // expected-warning{{initialization of pointer of type 'int *' to null from a constant boolean expression}}
+  foo(kFlag);
+#if __cplusplus <= 199711L
+// expected-warning@-2 {{initialization of pointer of type 'int *' to null from a constant boolean expression}}
+#else
+// expected-error@-4 {{no matching function for call to 'foo'}}
+#endif
 }
 
 char f(struct Undefined*);
@@ -116,5 +163,32 @@ namespace Pointer {
     // expected-warning@-1{{address of 's.b' will always evaluate to 'true'}}
     if (&S::a) {}
     // expected-warning@-1{{address of 'S::a' will always evaluate to 'true'}}
+  }
+}
+
+namespace macros {
+  #define assert(x) if (x) {}
+  #define zero_on_null(x) ((x) ? *(x) : 0)
+
+  int array[5];
+  void fun();
+  int x;
+
+  void test() {
+    assert(array);
+    assert(array && "expecting null pointer");
+    // expected-warning@-1{{address of array 'array' will always evaluate to 'true'}}
+
+    assert(fun);
+    assert(fun && "expecting null pointer");
+    // expected-warning@-1{{address of function 'fun' will always evaluate to 'true'}}
+    // expected-note@-2 {{prefix with the address-of operator to silence this warning}}
+
+    // TODO: warn on assert(&x) while not warning on zero_on_null(&x)
+    zero_on_null(&x);
+    assert(zero_on_null(&x));
+    assert(&x);
+    assert(&x && "expecting null pointer");
+    // expected-warning@-1{{address of 'x' will always evaluate to 'true'}}
   }
 }

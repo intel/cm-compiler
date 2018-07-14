@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Exception Handling in LLVM &#8212; LLVM 3.4 documentation</title>
+    <title>Exception Handling in LLVM &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -69,40 +69,52 @@
 <h1>Exception Handling in LLVM<a class="headerlink" href="#exception-handling-in-llvm" title="Permalink to this headline">¶</a></h1>
 <div class="contents local topic" id="contents">
 <ul class="simple">
-<li><a class="reference internal" href="#introduction" id="id5">Introduction</a><ul>
-<li><a class="reference internal" href="#itanium-abi-zero-cost-exception-handling" id="id6">Itanium ABI Zero-cost Exception Handling</a></li>
-<li><a class="reference internal" href="#setjmp-longjmp-exception-handling" id="id7">Setjmp/Longjmp Exception Handling</a></li>
-<li><a class="reference internal" href="#overview" id="id8">Overview</a></li>
+<li><a class="reference internal" href="#introduction" id="id7">Introduction</a><ul>
+<li><a class="reference internal" href="#itanium-abi-zero-cost-exception-handling" id="id8">Itanium ABI Zero-cost Exception Handling</a></li>
+<li><a class="reference internal" href="#setjmp-longjmp-exception-handling" id="id9">Setjmp/Longjmp Exception Handling</a></li>
+<li><a class="reference internal" href="#windows-runtime-exception-handling" id="id10">Windows Runtime Exception Handling</a></li>
+<li><a class="reference internal" href="#overview" id="id11">Overview</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#llvm-code-generation" id="id9">LLVM Code Generation</a><ul>
-<li><a class="reference internal" href="#throw" id="id10">Throw</a></li>
-<li><a class="reference internal" href="#try-catch" id="id11">Try/Catch</a></li>
-<li><a class="reference internal" href="#cleanups" id="id12">Cleanups</a></li>
-<li><a class="reference internal" href="#throw-filters" id="id13">Throw Filters</a></li>
-<li><a class="reference internal" href="#restrictions" id="id14">Restrictions</a></li>
+<li><a class="reference internal" href="#llvm-code-generation" id="id12">LLVM Code Generation</a><ul>
+<li><a class="reference internal" href="#throw" id="id13">Throw</a></li>
+<li><a class="reference internal" href="#try-catch" id="id14">Try/Catch</a></li>
+<li><a class="reference internal" href="#cleanups" id="id15">Cleanups</a></li>
+<li><a class="reference internal" href="#throw-filters" id="id16">Throw Filters</a></li>
+<li><a class="reference internal" href="#restrictions" id="id17">Restrictions</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#exception-handling-intrinsics" id="id15">Exception Handling Intrinsics</a><ul>
-<li><a class="reference internal" href="#llvm-eh-typeid-for" id="id16"><code class="docutils literal"><span class="pre">llvm.eh.typeid.for</span></code></a></li>
-<li><a class="reference internal" href="#sjlj-intrinsics" id="id17">SJLJ Intrinsics</a><ul>
-<li><a class="reference internal" href="#llvm-eh-sjlj-setjmp" id="id18"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.setjmp</span></code></a></li>
-<li><a class="reference internal" href="#llvm-eh-sjlj-longjmp" id="id19"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.longjmp</span></code></a></li>
-<li><a class="reference internal" href="#llvm-eh-sjlj-lsda" id="id20"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.lsda</span></code></a></li>
-<li><a class="reference internal" href="#llvm-eh-sjlj-callsite" id="id21"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.callsite</span></code></a></li>
+<li><a class="reference internal" href="#exception-handling-intrinsics" id="id18">Exception Handling Intrinsics</a><ul>
+<li><a class="reference internal" href="#llvm-eh-typeid-for" id="id19"><code class="docutils literal"><span class="pre">llvm.eh.typeid.for</span></code></a></li>
+<li><a class="reference internal" href="#llvm-eh-begincatch" id="id20"><code class="docutils literal"><span class="pre">llvm.eh.begincatch</span></code></a></li>
+<li><a class="reference internal" href="#llvm-eh-endcatch" id="id21"><code class="docutils literal"><span class="pre">llvm.eh.endcatch</span></code></a></li>
+<li><a class="reference internal" href="#llvm-eh-exceptionpointer" id="id22"><code class="docutils literal"><span class="pre">llvm.eh.exceptionpointer</span></code></a></li>
+<li><a class="reference internal" href="#sjlj-intrinsics" id="id23">SJLJ Intrinsics</a><ul>
+<li><a class="reference internal" href="#llvm-eh-sjlj-setjmp" id="id24"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.setjmp</span></code></a></li>
+<li><a class="reference internal" href="#llvm-eh-sjlj-longjmp" id="id25"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.longjmp</span></code></a></li>
+<li><a class="reference internal" href="#llvm-eh-sjlj-lsda" id="id26"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.lsda</span></code></a></li>
+<li><a class="reference internal" href="#llvm-eh-sjlj-callsite" id="id27"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.callsite</span></code></a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a class="reference internal" href="#asm-table-formats" id="id22">Asm Table Formats</a><ul>
-<li><a class="reference internal" href="#exception-handling-frame" id="id23">Exception Handling Frame</a></li>
-<li><a class="reference internal" href="#exception-tables" id="id24">Exception Tables</a></li>
+<li><a class="reference internal" href="#asm-table-formats" id="id28">Asm Table Formats</a><ul>
+<li><a class="reference internal" href="#exception-handling-frame" id="id29">Exception Handling Frame</a></li>
+<li><a class="reference internal" href="#exception-tables" id="id30">Exception Tables</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#exception-handling-using-the-windows-runtime" id="id31">Exception Handling using the Windows Runtime</a><ul>
+<li><a class="reference internal" href="#background-on-windows-exceptions" id="id32">Background on Windows exceptions</a></li>
+<li><a class="reference internal" href="#seh-filter-expressions" id="id33">SEH filter expressions</a></li>
+<li><a class="reference internal" href="#new-exception-handling-instructions" id="id34">New exception handling instructions</a></li>
+<li><a class="reference internal" href="#funclet-parent-tokens" id="id35">Funclet parent tokens</a></li>
+<li><a class="reference internal" href="#funclet-transitions" id="id36">Funclet transitions</a></li>
 </ul>
 </li>
 </ul>
 </div>
 <div class="section" id="introduction">
-<h2><a class="toc-backref" href="#id5">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id7">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
 <p>This document is the central repository for all information pertaining to
 exception handling in LLVM.  It describes the format that LLVM exception
 handling information takes, which is useful for those interested in creating
@@ -110,7 +122,7 @@ front-ends or dealing directly with the information.  Further, this document
 provides specific examples of what exception handling information is used for in
 C and C++.</p>
 <div class="section" id="itanium-abi-zero-cost-exception-handling">
-<h3><a class="toc-backref" href="#id6">Itanium ABI Zero-cost Exception Handling</a><a class="headerlink" href="#itanium-abi-zero-cost-exception-handling" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id8">Itanium ABI Zero-cost Exception Handling</a><a class="headerlink" href="#itanium-abi-zero-cost-exception-handling" title="Permalink to this headline">¶</a></h3>
 <p>Exception handling for most programming languages is designed to recover from
 conditions that rarely occur during general use of an application.  To that end,
 exception handling should not interfere with the main flow of an application’s
@@ -122,13 +134,13 @@ speculative exception handling code in the flow of an application’s main
 algorithm.  Thus, the specification is said to add “zero-cost” to the normal
 execution of an application.</p>
 <p>A more complete description of the Itanium ABI exception handling runtime
-support of can be found at <a class="reference external" href="http://mentorembedded.github.com/cxx-abi/abi-eh.html">Itanium C++ ABI: Exception Handling</a>. A description of the
+support of can be found at <a class="reference external" href="http://itanium-cxx-abi.github.io/cxx-abi/abi-eh.html">Itanium C++ ABI: Exception Handling</a>. A description of the
 exception frame format can be found at <a class="reference external" href="http://refspecs.linuxfoundation.org/LSB_3.0.0/LSB-Core-generic/LSB-Core-generic/ehframechpt.html">Exception Frames</a>,
 with details of the DWARF 4 specification at <a class="reference external" href="http://dwarfstd.org/Dwarf4Std.php">DWARF 4 Standard</a>.  A description for the C++ exception
-table formats can be found at <a class="reference external" href="http://mentorembedded.github.com/cxx-abi/exceptions.pdf">Exception Handling Tables</a>.</p>
+table formats can be found at <a class="reference external" href="http://itanium-cxx-abi.github.io/cxx-abi/exceptions.pdf">Exception Handling Tables</a>.</p>
 </div>
 <div class="section" id="setjmp-longjmp-exception-handling">
-<h3><a class="toc-backref" href="#id7">Setjmp/Longjmp Exception Handling</a><a class="headerlink" href="#setjmp-longjmp-exception-handling" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id9">Setjmp/Longjmp Exception Handling</a><a class="headerlink" href="#setjmp-longjmp-exception-handling" title="Permalink to this headline">¶</a></h3>
 <p>Setjmp/Longjmp (SJLJ) based exception handling uses LLVM intrinsics
 <a class="reference internal" href="#llvm-eh-sjlj-setjmp">llvm.eh.sjlj.setjmp</a> and <a class="reference internal" href="#llvm-eh-sjlj-longjmp">llvm.eh.sjlj.longjmp</a> to handle control flow for
 exception handling.</p>
@@ -147,8 +159,15 @@ handling at the expense of slower execution when no exceptions are thrown. As
 exceptions are, by their nature, intended for uncommon code paths, DWARF
 exception handling is generally preferred to SJLJ.</p>
 </div>
+<div class="section" id="windows-runtime-exception-handling">
+<h3><a class="toc-backref" href="#id10">Windows Runtime Exception Handling</a><a class="headerlink" href="#windows-runtime-exception-handling" title="Permalink to this headline">¶</a></h3>
+<p>LLVM supports handling exceptions produced by the Windows runtime, but it
+requires a very different intermediate representation. It is not based on the
+“<a class="reference internal" href="LangRef.html#i-landingpad"><span class="std std-ref">landingpad</span></a>” instruction like the other two models, and is
+described later in this document under <a class="reference internal" href="#wineh"><span class="std std-ref">Exception Handling using the Windows Runtime</span></a>.</p>
+</div>
 <div class="section" id="overview">
-<h3><a class="toc-backref" href="#id8">Overview</a><a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id11">Overview</a><a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h3>
 <p>When an exception is thrown in LLVM code, the runtime does its best to find a
 handler suited to processing the circumstance.</p>
 <p>The runtime first attempts to find an <em>exception frame</em> corresponding to the
@@ -183,12 +202,12 @@ should actually process the exception.</p>
 </div>
 </div>
 <div class="section" id="llvm-code-generation">
-<h2><a class="toc-backref" href="#id9">LLVM Code Generation</a><a class="headerlink" href="#llvm-code-generation" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id12">LLVM Code Generation</a><a class="headerlink" href="#llvm-code-generation" title="Permalink to this headline">¶</a></h2>
 <p>From a C++ developer’s perspective, exceptions are defined in terms of the
 <code class="docutils literal"><span class="pre">throw</span></code> and <code class="docutils literal"><span class="pre">try</span></code>/<code class="docutils literal"><span class="pre">catch</span></code> statements. In this section we will describe the
 implementation of LLVM exception handling in terms of C++ examples.</p>
 <div class="section" id="throw">
-<h3><a class="toc-backref" href="#id10">Throw</a><a class="headerlink" href="#throw" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id13">Throw</a><a class="headerlink" href="#throw" title="Permalink to this headline">¶</a></h3>
 <p>Languages that support exception handling typically provide a <code class="docutils literal"><span class="pre">throw</span></code>
 operation to initiate the exception process. Internally, a <code class="docutils literal"><span class="pre">throw</span></code> operation
 breaks down into two steps.</p>
@@ -205,7 +224,7 @@ by <code class="docutils literal"><span class="pre">__cxa_throw</span></code>. T
 structure.</p>
 </div>
 <div class="section" id="try-catch">
-<h3><a class="toc-backref" href="#id11">Try/Catch</a><a class="headerlink" href="#try-catch" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id14">Try/Catch</a><a class="headerlink" href="#try-catch" title="Permalink to this headline">¶</a></h3>
 <p>A call within the scope of a <em>try</em> statement can potentially raise an
 exception. In those circumstances, the LLVM C++ front-end replaces the call with
 an <code class="docutils literal"><span class="pre">invoke</span></code> instruction. Unlike a call, the <code class="docutils literal"><span class="pre">invoke</span></code> has two potential
@@ -225,11 +244,11 @@ to the type info of the exception object.</p>
 pad to the back end. For C++, the <code class="docutils literal"><span class="pre">landingpad</span></code> instruction returns a pointer
 and integer pair corresponding to the pointer to the <em>exception structure</em> and
 the <em>selector value</em> respectively.</p>
-<p>The <code class="docutils literal"><span class="pre">landingpad</span></code> instruction takes a reference to the personality function to
-be used for this <code class="docutils literal"><span class="pre">try</span></code>/<code class="docutils literal"><span class="pre">catch</span></code> sequence. The remainder of the instruction is
-a list of <em>cleanup</em>, <em>catch</em>, and <em>filter</em> clauses. The exception is tested
-against the clauses sequentially from first to last. The clauses have the
-following meanings:</p>
+<p>The <code class="docutils literal"><span class="pre">landingpad</span></code> instruction looks for a reference to the personality
+function to be used for this <code class="docutils literal"><span class="pre">try</span></code>/<code class="docutils literal"><span class="pre">catch</span></code> sequence in the parent
+function’s attribute list. The instruction contains a list of <em>cleanup</em>,
+<em>catch</em>, and <em>filter</em> clauses. The exception is tested against the clauses
+sequentially from first to last. The clauses have the following meanings:</p>
 <ul>
 <li><p class="first"><code class="docutils literal"><span class="pre">catch</span> <span class="pre">&lt;type&gt;</span> <span class="pre">&#64;ExcType</span></code></p>
 <ul class="simple">
@@ -314,7 +333,7 @@ was not re-thrown by throw.</li>
 </ul>
 </div>
 <div class="section" id="cleanups">
-<h3><a class="toc-backref" href="#id12">Cleanups</a><a class="headerlink" href="#cleanups" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id15">Cleanups</a><a class="headerlink" href="#cleanups" title="Permalink to this headline">¶</a></h3>
 <p>A cleanup is extra code which needs to be run as part of unwinding a scope.  C++
 destructors are a typical example, but other languages and language extensions
 provide a variety of different kinds of cleanups. In general, a landing pad may
@@ -331,12 +350,12 @@ example, C++ requires that the process be terminated, whereas Ada cancels both
 exceptions and throws a third.</p>
 </div>
 <p>When all cleanups are finished, if the exception is not handled by the current
-function, resume unwinding by calling the <a class="reference external" href="LangRef.html#i_resume">resume
-instruction</a>, passing in the result of the
-<code class="docutils literal"><span class="pre">landingpad</span></code> instruction for the original landing pad.</p>
+function, resume unwinding by calling the <a class="reference internal" href="LangRef.html#i-resume"><span class="std std-ref">resume instruction</span></a>,
+passing in the result of the <code class="docutils literal"><span class="pre">landingpad</span></code> instruction for the original
+landing pad.</p>
 </div>
 <div class="section" id="throw-filters">
-<h3><a class="toc-backref" href="#id13">Throw Filters</a><a class="headerlink" href="#throw-filters" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id16">Throw Filters</a><a class="headerlink" href="#throw-filters" title="Permalink to this headline">¶</a></h3>
 <p>C++ allows the specification of which exception types may be thrown from a
 function. To represent this, a top level landing pad may exist to filter out
 invalid types. To express this in LLVM code the <a class="reference internal" href="LangRef.html#i-landingpad"><span class="std std-ref">‘landingpad’ Instruction</span></a> will have a
@@ -352,7 +371,7 @@ such <code class="docutils literal"><span class="pre">landingpad</span></code> i
 handling scopes.</p>
 </div>
 <div class="section" id="restrictions">
-<span id="undefined"></span><h3><a class="toc-backref" href="#id14">Restrictions</a><a class="headerlink" href="#restrictions" title="Permalink to this headline">¶</a></h3>
+<span id="undefined"></span><h3><a class="toc-backref" href="#id17">Restrictions</a><a class="headerlink" href="#restrictions" title="Permalink to this headline">¶</a></h3>
 <p>The unwinder delegates the decision of whether to stop in a call frame to that
 call frame’s language-specific personality function. Not all unwinders guarantee
 that they will stop to perform cleanups. For example, the GNU C++ unwinder
@@ -371,12 +390,12 @@ match.</p>
 </div>
 </div>
 <div class="section" id="exception-handling-intrinsics">
-<h2><a class="toc-backref" href="#id15">Exception Handling Intrinsics</a><a class="headerlink" href="#exception-handling-intrinsics" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id18">Exception Handling Intrinsics</a><a class="headerlink" href="#exception-handling-intrinsics" title="Permalink to this headline">¶</a></h2>
 <p>In addition to the <code class="docutils literal"><span class="pre">landingpad</span></code> and <code class="docutils literal"><span class="pre">resume</span></code> instructions, LLVM uses several
 intrinsic functions (name prefixed with <code class="docutils literal"><span class="pre">llvm.eh</span></code>) to provide exception
 handling information at various points in generated code.</p>
 <div class="section" id="llvm-eh-typeid-for">
-<span id="id2"></span><h3><a class="toc-backref" href="#id16"><code class="docutils literal"><span class="pre">llvm.eh.typeid.for</span></code></a><a class="headerlink" href="#llvm-eh-typeid-for" title="Permalink to this headline">¶</a></h3>
+<span id="id1"></span><h3><a class="toc-backref" href="#id19"><code class="docutils literal"><span class="pre">llvm.eh.typeid.for</span></code></a><a class="headerlink" href="#llvm-eh-typeid-for" title="Permalink to this headline">¶</a></h3>
 <div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">i32</span> <span class="vg">@llvm.eh.typeid.for</span><span class="p">(</span><span class="k">i8</span><span class="p">*</span> <span class="nv">%type_info</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -385,14 +404,68 @@ function.  This value can be used to compare against the result of
 <code class="docutils literal"><span class="pre">landingpad</span></code> instruction.  The single argument is a reference to a type info.</p>
 <p>Uses of this intrinsic are generated by the C++ front-end.</p>
 </div>
+<div class="section" id="llvm-eh-begincatch">
+<span id="id2"></span><h3><a class="toc-backref" href="#id20"><code class="docutils literal"><span class="pre">llvm.eh.begincatch</span></code></a><a class="headerlink" href="#llvm-eh-begincatch" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="vg">@llvm.eh.begincatch</span><span class="p">(</span><span class="k">i8</span><span class="p">*</span> <span class="nv">%ehptr</span><span class="p">,</span> <span class="k">i8</span><span class="p">*</span> <span class="nv">%ehobj</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This intrinsic marks the beginning of catch handling code within the blocks
+following a <code class="docutils literal"><span class="pre">landingpad</span></code> instruction.  The exact behavior of this function
+depends on the compilation target and the personality function associated
+with the <code class="docutils literal"><span class="pre">landingpad</span></code> instruction.</p>
+<p>The first argument to this intrinsic is a pointer that was previously extracted
+from the aggregate return value of the <code class="docutils literal"><span class="pre">landingpad</span></code> instruction.  The second
+argument to the intrinsic is a pointer to stack space where the exception object
+should be stored. The runtime handles the details of copying the exception
+object into the slot. If the second parameter is null, no copy occurs.</p>
+<p>Uses of this intrinsic are generated by the C++ front-end.  Many targets will
+use implementation-specific functions (such as <code class="docutils literal"><span class="pre">__cxa_begin_catch</span></code>) instead
+of this intrinsic.  The intrinsic is provided for targets that require a more
+abstract interface.</p>
+<p>When used in the native Windows C++ exception handling implementation, this
+intrinsic serves as a placeholder to delimit code before a catch handler is
+outlined.  When the handler is is outlined, this intrinsic will be replaced
+by instructions that retrieve the exception object pointer from the frame
+allocation block.</p>
+</div>
+<div class="section" id="llvm-eh-endcatch">
+<span id="id3"></span><h3><a class="toc-backref" href="#id21"><code class="docutils literal"><span class="pre">llvm.eh.endcatch</span></code></a><a class="headerlink" href="#llvm-eh-endcatch" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="vg">@llvm.eh.endcatch</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>This intrinsic marks the end of catch handling code within the current block,
+which will be a successor of a block which called <code class="docutils literal"><span class="pre">llvm.eh.begincatch''.</span>
+<span class="pre">The</span> <span class="pre">exact</span> <span class="pre">behavior</span> <span class="pre">of</span> <span class="pre">this</span> <span class="pre">function</span> <span class="pre">depends</span> <span class="pre">on</span> <span class="pre">the</span> <span class="pre">compilation</span> <span class="pre">target</span> <span class="pre">and</span> <span class="pre">the</span>
+<span class="pre">personality</span> <span class="pre">function</span> <span class="pre">associated</span> <span class="pre">with</span> <span class="pre">the</span> <span class="pre">corresponding</span> <span class="pre">``landingpad</span></code>
+instruction.</p>
+<p>There may be more than one call to <code class="docutils literal"><span class="pre">llvm.eh.endcatch</span></code> for any given call to
+<code class="docutils literal"><span class="pre">llvm.eh.begincatch</span></code> with each <code class="docutils literal"><span class="pre">llvm.eh.endcatch</span></code> call corresponding to the
+end of a different control path.  All control paths following a call to
+<code class="docutils literal"><span class="pre">llvm.eh.begincatch</span></code> must reach a call to <code class="docutils literal"><span class="pre">llvm.eh.endcatch</span></code>.</p>
+<p>Uses of this intrinsic are generated by the C++ front-end.  Many targets will
+use implementation-specific functions (such as <code class="docutils literal"><span class="pre">__cxa_begin_catch</span></code>) instead
+of this intrinsic.  The intrinsic is provided for targets that require a more
+abstract interface.</p>
+<p>When used in the native Windows C++ exception handling implementation, this
+intrinsic serves as a placeholder to delimit code before a catch handler is
+outlined.  After the handler is outlined, this intrinsic is simply removed.</p>
+</div>
+<div class="section" id="llvm-eh-exceptionpointer">
+<span id="id4"></span><h3><a class="toc-backref" href="#id22"><code class="docutils literal"><span class="pre">llvm.eh.exceptionpointer</span></code></a><a class="headerlink" href="#llvm-eh-exceptionpointer" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-text"><div class="highlight"><pre><span></span>i8 addrspace(N)* @llvm.eh.padparam.pNi8(token %catchpad)
+</pre></div>
+</div>
+<p>This intrinsic retrieves a pointer to the exception caught by the given
+<code class="docutils literal"><span class="pre">catchpad</span></code>.</p>
+</div>
 <div class="section" id="sjlj-intrinsics">
-<h3><a class="toc-backref" href="#id17">SJLJ Intrinsics</a><a class="headerlink" href="#sjlj-intrinsics" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id23">SJLJ Intrinsics</a><a class="headerlink" href="#sjlj-intrinsics" title="Permalink to this headline">¶</a></h3>
 <p>The <code class="docutils literal"><span class="pre">llvm.eh.sjlj</span></code> intrinsics are used internally within LLVM’s
 backend.  Uses of them are generated by the backend’s
 <code class="docutils literal"><span class="pre">SjLjEHPrepare</span></code> pass.</p>
 <div class="section" id="llvm-eh-sjlj-setjmp">
-<span id="id3"></span><h4><a class="toc-backref" href="#id18"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.setjmp</span></code></a><a class="headerlink" href="#llvm-eh-sjlj-setjmp" title="Permalink to this headline">¶</a></h4>
-<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">i32</span> <span class="vg">@llvm.eh.sjlj.setjmp</span><span class="p">(</span><span class="k">i8</span><span class="p">*</span> <span class="nv">%setjmp_buf</span><span class="p">)</span>
+<span id="id5"></span><h4><a class="toc-backref" href="#id24"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.setjmp</span></code></a><a class="headerlink" href="#llvm-eh-sjlj-setjmp" title="Permalink to this headline">¶</a></h4>
+<div class="highlight-text"><div class="highlight"><pre><span></span>i32 @llvm.eh.sjlj.setjmp(i8* %setjmp_buf)
 </pre></div>
 </div>
 <p>For SJLJ based exception handling, this intrinsic forces register saving for the
@@ -408,7 +481,7 @@ for a <a class="reference internal" href="#llvm-eh-sjlj-longjmp">llvm.eh.sjlj.lo
 available for use in a target-specific manner.</p>
 </div>
 <div class="section" id="llvm-eh-sjlj-longjmp">
-<span id="id4"></span><h4><a class="toc-backref" href="#id19"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.longjmp</span></code></a><a class="headerlink" href="#llvm-eh-sjlj-longjmp" title="Permalink to this headline">¶</a></h4>
+<span id="id6"></span><h4><a class="toc-backref" href="#id25"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.longjmp</span></code></a><a class="headerlink" href="#llvm-eh-sjlj-longjmp" title="Permalink to this headline">¶</a></h4>
 <div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="vg">@llvm.eh.sjlj.longjmp</span><span class="p">(</span><span class="k">i8</span><span class="p">*</span> <span class="nv">%setjmp_buf</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -419,7 +492,7 @@ pointer are restored from the buffer, then control is transferred to the
 destination address.</p>
 </div>
 <div class="section" id="llvm-eh-sjlj-lsda">
-<h4><a class="toc-backref" href="#id20"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.lsda</span></code></a><a class="headerlink" href="#llvm-eh-sjlj-lsda" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id26"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.lsda</span></code></a><a class="headerlink" href="#llvm-eh-sjlj-lsda" title="Permalink to this headline">¶</a></h4>
 <div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="k">i8</span><span class="p">*</span> <span class="vg">@llvm.eh.sjlj.lsda</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -429,7 +502,7 @@ function. The SJLJ front-end code stores this address in the exception handling
 function context for use by the runtime.</p>
 </div>
 <div class="section" id="llvm-eh-sjlj-callsite">
-<h4><a class="toc-backref" href="#id21"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.callsite</span></code></a><a class="headerlink" href="#llvm-eh-sjlj-callsite" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id27"><code class="docutils literal"><span class="pre">llvm.eh.sjlj.callsite</span></code></a><a class="headerlink" href="#llvm-eh-sjlj-callsite" title="Permalink to this headline">¶</a></h4>
 <div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="vg">@llvm.eh.sjlj.callsite</span><span class="p">(</span><span class="k">i32</span> <span class="nv">%call_site_num</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -441,24 +514,327 @@ generated in matching order.</p>
 </div>
 </div>
 <div class="section" id="asm-table-formats">
-<h2><a class="toc-backref" href="#id22">Asm Table Formats</a><a class="headerlink" href="#asm-table-formats" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id28">Asm Table Formats</a><a class="headerlink" href="#asm-table-formats" title="Permalink to this headline">¶</a></h2>
 <p>There are two tables that are used by the exception handling runtime to
 determine which actions should be taken when an exception is thrown.</p>
 <div class="section" id="exception-handling-frame">
-<h3><a class="toc-backref" href="#id23">Exception Handling Frame</a><a class="headerlink" href="#exception-handling-frame" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id29">Exception Handling Frame</a><a class="headerlink" href="#exception-handling-frame" title="Permalink to this headline">¶</a></h3>
 <p>An exception handling frame <code class="docutils literal"><span class="pre">eh_frame</span></code> is very similar to the unwind frame
 used by DWARF debug info. The frame contains all the information necessary to
 tear down the current frame and restore the state of the prior frame. There is
 an exception handling frame for each function in a compile unit, plus a common
 exception handling frame that defines information common to all functions in the
 unit.</p>
+<p>The format of this call frame information (CFI) is often platform-dependent,
+however. ARM, for example, defines their own format. Apple has their own compact
+unwind info format.  On Windows, another format is used for all architectures
+since 32-bit x86.  LLVM will emit whatever information is required by the
+target.</p>
 </div>
 <div class="section" id="exception-tables">
-<h3><a class="toc-backref" href="#id24">Exception Tables</a><a class="headerlink" href="#exception-tables" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id30">Exception Tables</a><a class="headerlink" href="#exception-tables" title="Permalink to this headline">¶</a></h3>
 <p>An exception table contains information about what actions to take when an
-exception is thrown in a particular part of a function’s code. There is one
-exception table per function, except leaf functions and functions that have
-calls only to non-throwing functions. They do not need an exception table.</p>
+exception is thrown in a particular part of a function’s code. This is typically
+referred to as the language-specific data area (LSDA). The format of the LSDA
+table is specific to the personality function, but the majority of personalities
+out there use a variation of the tables consumed by <code class="docutils literal"><span class="pre">__gxx_personality_v0</span></code>.
+There is one exception table per function, except leaf functions and functions
+that have calls only to non-throwing functions. They do not need an exception
+table.</p>
+</div>
+</div>
+<div class="section" id="exception-handling-using-the-windows-runtime">
+<span id="wineh"></span><h2><a class="toc-backref" href="#id31">Exception Handling using the Windows Runtime</a><a class="headerlink" href="#exception-handling-using-the-windows-runtime" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="background-on-windows-exceptions">
+<h3><a class="toc-backref" href="#id32">Background on Windows exceptions</a><a class="headerlink" href="#background-on-windows-exceptions" title="Permalink to this headline">¶</a></h3>
+<p>Interacting with exceptions on Windows is significantly more complicated than
+on Itanium C++ ABI platforms. The fundamental difference between the two models
+is that Itanium EH is designed around the idea of “successive unwinding,” while
+Windows EH is not.</p>
+<p>Under Itanium, throwing an exception typically involes allocating thread local
+memory to hold the exception, and calling into the EH runtime. The runtime
+identifies frames with appropriate exception handling actions, and successively
+resets the register context of the current thread to the most recently active
+frame with actions to run. In LLVM, execution resumes at a <code class="docutils literal"><span class="pre">landingpad</span></code>
+instruction, which produces register values provided by the runtime. If a
+function is only cleaning up allocated resources, the function is responsible
+for calling <code class="docutils literal"><span class="pre">_Unwind_Resume</span></code> to transition to the next most recently active
+frame after it is finished cleaning up. Eventually, the frame responsible for
+handling the exception calls <code class="docutils literal"><span class="pre">__cxa_end_catch</span></code> to destroy the exception,
+release its memory, and resume normal control flow.</p>
+<p>The Windows EH model does not use these successive register context resets.
+Instead, the active exception is typically described by a frame on the stack.
+In the case of C++ exceptions, the exception object is allocated in stack memory
+and its address is passed to <code class="docutils literal"><span class="pre">__CxxThrowException</span></code>. General purpose structured
+exceptions (SEH) are more analogous to Linux signals, and they are dispatched by
+userspace DLLs provided with Windows. Each frame on the stack has an assigned EH
+personality routine, which decides what actions to take to handle the exception.
+There are a few major personalities for C and C++ code: the C++ personality
+(<code class="docutils literal"><span class="pre">__CxxFrameHandler3</span></code>) and the SEH personalities (<code class="docutils literal"><span class="pre">_except_handler3</span></code>,
+<code class="docutils literal"><span class="pre">_except_handler4</span></code>, and <code class="docutils literal"><span class="pre">__C_specific_handler</span></code>). All of them implement
+cleanups by calling back into a “funclet” contained in the parent function.</p>
+<p>Funclets, in this context, are regions of the parent function that can be called
+as though they were a function pointer with a very special calling convention.
+The frame pointer of the parent frame is passed into the funclet either using
+the standard EBP register or as the first parameter register, depending on the
+architecture. The funclet implements the EH action by accessing local variables
+in memory through the frame pointer, and returning some appropriate value,
+continuing the EH process.  No variables live in to or out of the funclet can be
+allocated in registers.</p>
+<p>The C++ personality also uses funclets to contain the code for catch blocks
+(i.e. all user code between the braces in <code class="docutils literal"><span class="pre">catch</span> <span class="pre">(Type</span> <span class="pre">obj)</span> <span class="pre">{</span> <span class="pre">...</span> <span class="pre">}</span></code>). The
+runtime must use funclets for catch bodies because the C++ exception object is
+allocated in a child stack frame of the function handling the exception. If the
+runtime rewound the stack back to frame of the catch, the memory holding the
+exception would be overwritten quickly by subsequent function calls.  The use of
+funclets also allows <code class="docutils literal"><span class="pre">__CxxFrameHandler3</span></code> to implement rethrow without
+resorting to TLS. Instead, the runtime throws a special exception, and then uses
+SEH (<code class="docutils literal"><span class="pre">__try</span> <span class="pre">/</span> <span class="pre">__except</span></code>) to resume execution with new information in the child
+frame.</p>
+<p>In other words, the successive unwinding approach is incompatible with Visual
+C++ exceptions and general purpose Windows exception handling. Because the C++
+exception object lives in stack memory, LLVM cannot provide a custom personality
+function that uses landingpads.  Similarly, SEH does not provide any mechanism
+to rethrow an exception or continue unwinding.  Therefore, LLVM must use the IR
+constructs described later in this document to implement compatible exception
+handling.</p>
+</div>
+<div class="section" id="seh-filter-expressions">
+<h3><a class="toc-backref" href="#id33">SEH filter expressions</a><a class="headerlink" href="#seh-filter-expressions" title="Permalink to this headline">¶</a></h3>
+<p>The SEH personality functions also use funclets to implement filter expressions,
+which allow executing arbitrary user code to decide which exceptions to catch.
+Filter expressions should not be confused with the <code class="docutils literal"><span class="pre">filter</span></code> clause of the LLVM
+<code class="docutils literal"><span class="pre">landingpad</span></code> instruction.  Typically filter expressions are used to determine
+if the exception came from a particular DLL or code region, or if code faulted
+while accessing a particular memory address range. LLVM does not currently have
+IR to represent filter expressions because it is difficult to represent their
+control dependencies.  Filter expressions run during the first phase of EH,
+before cleanups run, making it very difficult to build a faithful control flow
+graph.  For now, the new EH instructions cannot represent SEH filter
+expressions, and frontends must outline them ahead of time. Local variables of
+the parent function can be escaped and accessed using the <code class="docutils literal"><span class="pre">llvm.localescape</span></code>
+and <code class="docutils literal"><span class="pre">llvm.localrecover</span></code> intrinsics.</p>
+</div>
+<div class="section" id="new-exception-handling-instructions">
+<h3><a class="toc-backref" href="#id34">New exception handling instructions</a><a class="headerlink" href="#new-exception-handling-instructions" title="Permalink to this headline">¶</a></h3>
+<p>The primary design goal of the new EH instructions is to support funclet
+generation while preserving information about the CFG so that SSA formation
+still works.  As a secondary goal, they are designed to be generic across MSVC
+and Itanium C++ exceptions. They make very few assumptions about the data
+required by the personality, so long as it uses the familiar core EH actions:
+catch, cleanup, and terminate.  However, the new instructions are hard to modify
+without knowing details of the EH personality. While they can be used to
+represent Itanium EH, the landingpad model is strictly better for optimization
+purposes.</p>
+<p>The following new instructions are considered “exception handling pads”, in that
+they must be the first non-phi instruction of a basic block that may be the
+unwind destination of an EH flow edge:
+<code class="docutils literal"><span class="pre">catchswitch</span></code>, <code class="docutils literal"><span class="pre">catchpad</span></code>, and <code class="docutils literal"><span class="pre">cleanuppad</span></code>.
+As with landingpads, when entering a try scope, if the
+frontend encounters a call site that may throw an exception, it should emit an
+invoke that unwinds to a <code class="docutils literal"><span class="pre">catchswitch</span></code> block. Similarly, inside the scope of a
+C++ object with a destructor, invokes should unwind to a <code class="docutils literal"><span class="pre">cleanuppad</span></code>.</p>
+<p>New instructions are also used to mark the points where control is transferred
+out of a catch/cleanup handler (which will correspond to exits from the
+generated funclet).  A catch handler which reaches its end by normal execution
+executes a <code class="docutils literal"><span class="pre">catchret</span></code> instruction, which is a terminator indicating where in
+the function control is returned to.  A cleanup handler which reaches its end
+by normal execution executes a <code class="docutils literal"><span class="pre">cleanupret</span></code> instruction, which is a terminator
+indicating where the active exception will unwind to next.</p>
+<p>Each of these new EH pad instructions has a way to identify which action should
+be considered after this action. The <code class="docutils literal"><span class="pre">catchswitch</span></code> instruction is a terminator
+and has an unwind destination operand analogous to the unwind destination of an
+invoke.  The <code class="docutils literal"><span class="pre">cleanuppad</span></code> instruction is not
+a terminator, so the unwind destination is stored on the <code class="docutils literal"><span class="pre">cleanupret</span></code>
+instruction instead. Successfully executing a catch handler should resume
+normal control flow, so neither <code class="docutils literal"><span class="pre">catchpad</span></code> nor <code class="docutils literal"><span class="pre">catchret</span></code> instructions can
+unwind. All of these “unwind edges” may refer to a basic block that contains an
+EH pad instruction, or they may unwind to the caller.  Unwinding to the caller
+has roughly the same semantics as the <code class="docutils literal"><span class="pre">resume</span></code> instruction in the landingpad
+model. When inlining through an invoke, instructions that unwind to the caller
+are hooked up to unwind to the unwind destination of the call site.</p>
+<p>Putting things together, here is a hypothetical lowering of some C++ that uses
+all of the new IR instructions:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">Cleanup</span> <span class="p">{</span>
+  <span class="n">Cleanup</span><span class="p">();</span>
+  <span class="o">~</span><span class="n">Cleanup</span><span class="p">();</span>
+  <span class="kt">int</span> <span class="n">m</span><span class="p">;</span>
+<span class="p">};</span>
+<span class="kt">void</span> <span class="nf">may_throw</span><span class="p">();</span>
+<span class="kt">int</span> <span class="nf">f</span><span class="p">()</span> <span class="n">noexcept</span> <span class="p">{</span>
+  <span class="n">try</span> <span class="p">{</span>
+    <span class="n">Cleanup</span> <span class="n">obj</span><span class="p">;</span>
+    <span class="n">may_throw</span><span class="p">();</span>
+  <span class="p">}</span> <span class="n">catch</span> <span class="p">(</span><span class="kt">int</span> <span class="n">e</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">may_throw</span><span class="p">();</span>
+    <span class="k">return</span> <span class="n">e</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="highlight-text"><div class="highlight"><pre><span></span>define i32 @f() nounwind personality i32 (...)* @__CxxFrameHandler3 {
+entry:
+  %obj = alloca %struct.Cleanup, align 4
+  %e = alloca i32, align 4
+  %call = invoke %struct.Cleanup* @&quot;\01??0Cleanup@@QEAA@XZ&quot;(%struct.Cleanup* nonnull %obj)
+          to label %invoke.cont unwind label %lpad.catch
+
+invoke.cont:                                      ; preds = %entry
+  invoke void @&quot;\01?may_throw@@YAXXZ&quot;()
+          to label %invoke.cont.2 unwind label %lpad.cleanup
+
+invoke.cont.2:                                    ; preds = %invoke.cont
+  call void @&quot;\01??_DCleanup@@QEAA@XZ&quot;(%struct.Cleanup* nonnull %obj) nounwind
+  br label %return
+
+return:                                           ; preds = %invoke.cont.3, %invoke.cont.2
+  %retval.0 = phi i32 [ 0, %invoke.cont.2 ], [ %3, %invoke.cont.3 ]
+  ret i32 %retval.0
+
+lpad.cleanup:                                     ; preds = %invoke.cont.2
+  %0 = cleanuppad within none []
+  call void @&quot;\01??1Cleanup@@QEAA@XZ&quot;(%struct.Cleanup* nonnull %obj) nounwind
+  cleanupret %0 unwind label %lpad.catch
+
+lpad.catch:                                       ; preds = %lpad.cleanup, %entry
+  %1 = catchswitch within none [label %catch.body] unwind label %lpad.terminate
+
+catch.body:                                       ; preds = %lpad.catch
+  %catch = catchpad within %1 [%rtti.TypeDescriptor2* @&quot;\01??_R0H@8&quot;, i32 0, i32* %e]
+  invoke void @&quot;\01?may_throw@@YAXXZ&quot;()
+          to label %invoke.cont.3 unwind label %lpad.terminate
+
+invoke.cont.3:                                    ; preds = %catch.body
+  %3 = load i32, i32* %e, align 4
+  catchret from %catch to label %return
+
+lpad.terminate:                                   ; preds = %catch.body, %lpad.catch
+  cleanuppad within none []
+  call void @&quot;\01?terminate@@YAXXZ&quot;
+  unreachable
+}
+</pre></div>
+</div>
+</div>
+<div class="section" id="funclet-parent-tokens">
+<h3><a class="toc-backref" href="#id35">Funclet parent tokens</a><a class="headerlink" href="#funclet-parent-tokens" title="Permalink to this headline">¶</a></h3>
+<p>In order to produce tables for EH personalities that use funclets, it is
+necessary to recover the nesting that was present in the source. This funclet
+parent relationship is encoded in the IR using tokens produced by the new “pad”
+instructions. The token operand of a “pad” or “ret” instruction indicates which
+funclet it is in, or “none” if it is not nested within another funclet.</p>
+<p>The <code class="docutils literal"><span class="pre">catchpad</span></code> and <code class="docutils literal"><span class="pre">cleanuppad</span></code> instructions establish new funclets, and
+their tokens are consumed by other “pad” instructions to establish membership.
+The <code class="docutils literal"><span class="pre">catchswitch</span></code> instruction does not create a funclet, but it produces a
+token that is always consumed by its immediate successor <code class="docutils literal"><span class="pre">catchpad</span></code>
+instructions. This ensures that every catch handler modelled by a <code class="docutils literal"><span class="pre">catchpad</span></code>
+belongs to exactly one <code class="docutils literal"><span class="pre">catchswitch</span></code>, which models the dispatch point after a
+C++ try.</p>
+<p>Here is an example of what this nesting looks like using some hypothetical
+C++ code:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">f</span><span class="p">()</span> <span class="p">{</span>
+  <span class="n">try</span> <span class="p">{</span>
+    <span class="n">throw</span><span class="p">;</span>
+  <span class="p">}</span> <span class="n">catch</span> <span class="p">(...)</span> <span class="p">{</span>
+    <span class="n">try</span> <span class="p">{</span>
+      <span class="n">throw</span><span class="p">;</span>
+    <span class="p">}</span> <span class="n">catch</span> <span class="p">(...)</span> <span class="p">{</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="highlight-text"><div class="highlight"><pre><span></span>define void @f() #0 personality i8* bitcast (i32 (...)* @__CxxFrameHandler3 to i8*) {
+entry:
+  invoke void @_CxxThrowException(i8* null, %eh.ThrowInfo* null) #1
+          to label %unreachable unwind label %catch.dispatch
+
+catch.dispatch:                                   ; preds = %entry
+  %0 = catchswitch within none [label %catch] unwind to caller
+
+catch:                                            ; preds = %catch.dispatch
+  %1 = catchpad within %0 [i8* null, i32 64, i8* null]
+  invoke void @_CxxThrowException(i8* null, %eh.ThrowInfo* null) #1
+          to label %unreachable unwind label %catch.dispatch2
+
+catch.dispatch2:                                  ; preds = %catch
+  %2 = catchswitch within %1 [label %catch3] unwind to caller
+
+catch3:                                           ; preds = %catch.dispatch2
+  %3 = catchpad within %2 [i8* null, i32 64, i8* null]
+  catchret from %3 to label %try.cont
+
+try.cont:                                         ; preds = %catch3
+  catchret from %1 to label %try.cont6
+
+try.cont6:                                        ; preds = %try.cont
+  ret void
+
+unreachable:                                      ; preds = %catch, %entry
+  unreachable
+}
+</pre></div>
+</div>
+<p>The “inner” <code class="docutils literal"><span class="pre">catchswitch</span></code> consumes <code class="docutils literal"><span class="pre">%1</span></code> which is produced by the outer
+catchswitch.</p>
+</div>
+<div class="section" id="funclet-transitions">
+<span id="wineh-constraints"></span><h3><a class="toc-backref" href="#id36">Funclet transitions</a><a class="headerlink" href="#funclet-transitions" title="Permalink to this headline">¶</a></h3>
+<p>The EH tables for personalities that use funclets make implicit use of the
+funclet nesting relationship to encode unwind destinations, and so are
+constrained in the set of funclet transitions they can represent.  The related
+LLVM IR instructions accordingly have constraints that ensure encodability of
+the EH edges in the flow graph.</p>
+<p>A <code class="docutils literal"><span class="pre">catchswitch</span></code>, <code class="docutils literal"><span class="pre">catchpad</span></code>, or <code class="docutils literal"><span class="pre">cleanuppad</span></code> is said to be “entered”
+when it executes.  It may subsequently be “exited” by any of the following
+means:</p>
+<ul class="simple">
+<li>A <code class="docutils literal"><span class="pre">catchswitch</span></code> is immediately exited when none of its constituent
+<code class="docutils literal"><span class="pre">catchpad</span></code>s are appropriate for the in-flight exception and it unwinds
+to its unwind destination or the caller.</li>
+<li>A <code class="docutils literal"><span class="pre">catchpad</span></code> and its parent <code class="docutils literal"><span class="pre">catchswitch</span></code> are both exited when a
+<code class="docutils literal"><span class="pre">catchret</span></code> from the <code class="docutils literal"><span class="pre">catchpad</span></code> is executed.</li>
+<li>A <code class="docutils literal"><span class="pre">cleanuppad</span></code> is exited when a <code class="docutils literal"><span class="pre">cleanupret</span></code> from it is executed.</li>
+<li>Any of these pads is exited when control unwinds to the function’s caller,
+either by a <code class="docutils literal"><span class="pre">call</span></code> which unwinds all the way to the function’s caller,
+a nested <code class="docutils literal"><span class="pre">catchswitch</span></code> marked “<code class="docutils literal"><span class="pre">unwinds</span> <span class="pre">to</span> <span class="pre">caller</span></code>”, or a nested
+<code class="docutils literal"><span class="pre">cleanuppad</span></code>’s <code class="docutils literal"><span class="pre">cleanupret</span></code> marked “<code class="docutils literal"><span class="pre">unwinds</span> <span class="pre">to</span> <span class="pre">caller&quot;</span></code>.</li>
+<li>Any of these pads is exited when an unwind edge (from an <code class="docutils literal"><span class="pre">invoke</span></code>,
+nested <code class="docutils literal"><span class="pre">catchswitch</span></code>, or nested <code class="docutils literal"><span class="pre">cleanuppad</span></code>’s <code class="docutils literal"><span class="pre">cleanupret</span></code>)
+unwinds to a destination pad that is not a descendant of the given pad.</li>
+</ul>
+<p>Note that the <code class="docutils literal"><span class="pre">ret</span></code> instruction is <em>not</em> a valid way to exit a funclet pad;
+it is undefined behavior to execute a <code class="docutils literal"><span class="pre">ret</span></code> when a pad has been entered but
+not exited.</p>
+<p>A single unwind edge may exit any number of pads (with the restrictions that
+the edge from a <code class="docutils literal"><span class="pre">catchswitch</span></code> must exit at least itself, and the edge from
+a <code class="docutils literal"><span class="pre">cleanupret</span></code> must exit at least its <code class="docutils literal"><span class="pre">cleanuppad</span></code>), and then must enter
+exactly one pad, which must be distinct from all the exited pads.  The parent
+of the pad that an unwind edge enters must be the most-recently-entered
+not-yet-exited pad (after exiting from any pads that the unwind edge exits),
+or “none” if there is no such pad.  This ensures that the stack of executing
+funclets at run-time always corresponds to some path in the funclet pad tree
+that the parent tokens encode.</p>
+<p>All unwind edges which exit any given funclet pad (including <code class="docutils literal"><span class="pre">cleanupret</span></code>
+edges exiting their <code class="docutils literal"><span class="pre">cleanuppad</span></code> and <code class="docutils literal"><span class="pre">catchswitch</span></code> edges exiting their
+<code class="docutils literal"><span class="pre">catchswitch</span></code>) must share the same unwind destination.  Similarly, any
+funclet pad which may be exited by unwind to caller must not be exited by
+any exception edges which unwind anywhere other than the caller.  This
+ensures that each funclet as a whole has only one unwind destination, which
+EH tables for funclet personalities may require.  Note that any unwind edge
+which exits a <code class="docutils literal"><span class="pre">catchpad</span></code> also exits its parent <code class="docutils literal"><span class="pre">catchswitch</span></code>, so this
+implies that for any given <code class="docutils literal"><span class="pre">catchswitch</span></code>, its unwind destination must also
+be the unwind destination of any unwind edge that exits any of its constituent
+<code class="docutils literal"><span class="pre">catchpad</span></code>s.  Because <code class="docutils literal"><span class="pre">catchswitch</span></code> has no <code class="docutils literal"><span class="pre">nounwind</span></code> variant, and
+because IR producers are not <em>required</em> to annotate calls which will not
+unwind as <code class="docutils literal"><span class="pre">nounwind</span></code>, it is legal to nest a <code class="docutils literal"><span class="pre">call</span></code> or an “<code class="docutils literal"><span class="pre">unwind</span> <span class="pre">to</span>
+<span class="pre">caller</span></code>” <code class="docutils literal"><span class="pre">catchswitch</span></code> within a funclet pad that has an unwind
+destination other than caller; it is undefined behavior for such a <code class="docutils literal"><span class="pre">call</span></code>
+or <code class="docutils literal"><span class="pre">catchswitch</span></code> to unwind.</p>
+<p>Finally, the funclet pads’ unwind destinations cannot form a cycle.  This
+ensures that EH lowering can construct “try regions” with a tree-like
+structure, which funclet-based personalities may require.</p>
 </div>
 </div>
 </div>
@@ -486,8 +862,8 @@ calls only to non-throwing functions. They do not need an exception table.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>LLVM Developer Policy &#8212; LLVM 3.4 documentation</title>
+    <title>LLVM Developer Policy &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -27,8 +27,8 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="LLVM Makefile Guide" href="MakefileGuide.html" />
-    <link rel="prev" title="LLVM IR for the GenX backend" href="GenXLangRef.html" />
+    <link rel="next" title="Creating an LLVM Project" href="Projects.html" />
+    <link rel="prev" title="Control Flow Verification Tool Design Document" href="CFIVerify.html" />
 <style type="text/css">
   table.right { float: right; margin-left: 20px; }
   table.right td { border: 1px solid #ccc; }
@@ -49,10 +49,10 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="MakefileGuide.html" title="LLVM Makefile Guide"
+          <a href="Projects.html" title="Creating an LLVM Project"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="GenXLangRef.html" title="LLVM IR for the GenX backend"
+          <a href="CFIVerify.html" title="Control Flow Verification Tool Design Document"
              accesskey="P">previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="index.html">Documentation</a>&raquo;</li>
@@ -69,30 +69,34 @@
 <h1>LLVM Developer Policy<a class="headerlink" href="#llvm-developer-policy" title="Permalink to this headline">¶</a></h1>
 <div class="contents local topic" id="contents">
 <ul class="simple">
-<li><a class="reference internal" href="#introduction" id="id6">Introduction</a></li>
-<li><a class="reference internal" href="#developer-policies" id="id7">Developer Policies</a><ul>
-<li><a class="reference internal" href="#stay-informed" id="id8">Stay Informed</a></li>
-<li><a class="reference internal" href="#making-and-submitting-a-patch" id="id9">Making and Submitting a Patch</a></li>
-<li><a class="reference internal" href="#code-reviews" id="id10">Code Reviews</a></li>
-<li><a class="reference internal" href="#code-owners" id="id11">Code Owners</a></li>
-<li><a class="reference internal" href="#test-cases" id="id12">Test Cases</a></li>
-<li><a class="reference internal" href="#quality" id="id13">Quality</a></li>
-<li><a class="reference internal" href="#obtaining-commit-access" id="id14">Obtaining Commit Access</a></li>
-<li><a class="reference internal" href="#making-a-major-change" id="id15">Making a Major Change</a></li>
-<li><a class="reference internal" href="#incremental-development" id="id16">Incremental Development</a></li>
-<li><a class="reference internal" href="#attribution-of-changes" id="id17">Attribution of Changes</a></li>
+<li><a class="reference internal" href="#introduction" id="id9">Introduction</a></li>
+<li><a class="reference internal" href="#developer-policies" id="id10">Developer Policies</a><ul>
+<li><a class="reference internal" href="#stay-informed" id="id11">Stay Informed</a></li>
+<li><a class="reference internal" href="#making-and-submitting-a-patch" id="id12">Making and Submitting a Patch</a></li>
+<li><a class="reference internal" href="#code-reviews" id="id13">Code Reviews</a></li>
+<li><a class="reference internal" href="#code-owners" id="id14">Code Owners</a></li>
+<li><a class="reference internal" href="#test-cases" id="id15">Test Cases</a></li>
+<li><a class="reference internal" href="#quality" id="id16">Quality</a></li>
+<li><a class="reference internal" href="#commit-messages" id="id17">Commit messages</a></li>
+<li><a class="reference internal" href="#obtaining-commit-access" id="id18">Obtaining Commit Access</a></li>
+<li><a class="reference internal" href="#making-a-major-change" id="id19">Making a Major Change</a></li>
+<li><a class="reference internal" href="#incremental-development" id="id20">Incremental Development</a></li>
+<li><a class="reference internal" href="#attribution-of-changes" id="id21">Attribution of Changes</a></li>
+<li><a class="reference internal" href="#ir-backwards-compatibility" id="id22">IR Backwards Compatibility</a></li>
+<li><a class="reference internal" href="#c-api-changes" id="id23">C API Changes</a></li>
+<li><a class="reference internal" href="#new-targets" id="id24">New Targets</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#copyright-license-and-patents" id="id18">Copyright, License, and Patents</a><ul>
-<li><a class="reference internal" href="#copyright" id="id19">Copyright</a></li>
-<li><a class="reference internal" href="#license" id="id20">License</a></li>
-<li><a class="reference internal" href="#patents" id="id21">Patents</a></li>
+<li><a class="reference internal" href="#copyright-license-and-patents" id="id25">Copyright, License, and Patents</a><ul>
+<li><a class="reference internal" href="#copyright" id="id26">Copyright</a></li>
+<li><a class="reference internal" href="#license" id="id27">License</a></li>
+<li><a class="reference internal" href="#patents" id="id28">Patents</a></li>
 </ul>
 </li>
 </ul>
 </div>
 <div class="section" id="introduction">
-<h2><a class="toc-backref" href="#id6">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id9">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
 <p>This document contains the LLVM Developer Policy which defines the project’s
 policy towards developers and their contributions. The intent of this policy is
 to eliminate miscommunication, rework, and confusion that might arise from the
@@ -110,11 +114,11 @@ policies</span></a> with contributors to the project.</li>
 </ol>
 <p>This policy is aimed at frequent contributors to LLVM. People interested in
 contributing one-off patches can do so in an informal way by sending them to the
-<a class="reference external" href="http://lists.cs.uiuc.edu/mailman/listinfo/llvm-commits">llvm-commits mailing list</a> and engaging another
+<a class="reference external" href="http://lists.llvm.org/mailman/listinfo/llvm-commits">llvm-commits mailing list</a> and engaging another
 developer to see it through the process.</p>
 </div>
 <div class="section" id="developer-policies">
-<h2><a class="toc-backref" href="#id7">Developer Policies</a><a class="headerlink" href="#developer-policies" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id10">Developer Policies</a><a class="headerlink" href="#developer-policies" title="Permalink to this headline">¶</a></h2>
 <p>This section contains policies that pertain to frequent LLVM developers.  We
 always welcome <a class="reference internal" href="#one-off-patches">one-off patches</a> from people who do not routinely contribute to
 LLVM, but we expect more from frequent contributors to keep the system as
@@ -122,17 +126,17 @@ efficient as possible for everyone.  Frequent LLVM contributors are expected to
 meet the following requirements in order for LLVM to maintain a high standard of
 quality.</p>
 <div class="section" id="stay-informed">
-<h3><a class="toc-backref" href="#id8">Stay Informed</a><a class="headerlink" href="#stay-informed" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id11">Stay Informed</a><a class="headerlink" href="#stay-informed" title="Permalink to this headline">¶</a></h3>
 <p>Developers should stay informed by reading at least the “dev” mailing list for
-the projects you are interested in, such as <a class="reference external" href="http://lists.cs.uiuc.edu/mailman/listinfo/llvmdev">llvmdev</a> for LLVM, <a class="reference external" href="http://lists.cs.uiuc.edu/mailman/listinfo/cfe-dev">cfe-dev</a> for Clang, or <a class="reference external" href="http://lists.cs.uiuc.edu/mailman/listinfo/lldb-dev">lldb-dev</a> for LLDB.  If you are
+the projects you are interested in, such as <a class="reference external" href="http://lists.llvm.org/mailman/listinfo/llvm-dev">llvm-dev</a> for LLVM, <a class="reference external" href="http://lists.llvm.org/mailman/listinfo/cfe-dev">cfe-dev</a> for Clang, or <a class="reference external" href="http://lists.llvm.org/mailman/listinfo/lldb-dev">lldb-dev</a> for LLDB.  If you are
 doing anything more than just casual work on LLVM, it is suggested that you also
 subscribe to the “commits” mailing list for the subproject you’re interested in,
-such as <a class="reference external" href="http://lists.cs.uiuc.edu/mailman/listinfo/llvm-commits">llvm-commits</a>, <a class="reference external" href="http://lists.cs.uiuc.edu/mailman/listinfo/cfe-commits">cfe-commits</a>, or <a class="reference external" href="http://lists.cs.uiuc.edu/mailman/listinfo/lldb-commits">lldb-commits</a>.  Reading the
+such as <a class="reference external" href="http://lists.llvm.org/mailman/listinfo/llvm-commits">llvm-commits</a>, <a class="reference external" href="http://lists.llvm.org/mailman/listinfo/cfe-commits">cfe-commits</a>, or <a class="reference external" href="http://lists.llvm.org/mailman/listinfo/lldb-commits">lldb-commits</a>.  Reading the
 “commits” list and paying attention to changes being made by others is a good
 way to see what other people are interested in and watching the flow of the
 project as a whole.</p>
-<p>We recommend that active developers register an email account with <a class="reference external" href="http://llvm.org/bugs/">LLVM
-Bugzilla</a> and preferably subscribe to the <a class="reference external" href="http://lists.cs.uiuc.edu/mailman/listinfo/llvmbugs">llvm-bugs</a> email list to keep track
+<p>We recommend that active developers register an email account with <a class="reference external" href="https://bugs.llvm.org/">LLVM
+Bugzilla</a> and preferably subscribe to the <a class="reference external" href="http://lists.llvm.org/mailman/listinfo/llvm-bugs">llvm-bugs</a> email list to keep track
 of bugs and enhancements occurring in LLVM.  We really appreciate people who are
 proactive at catching incoming bugs in their components and dealing with them
 promptly.</p>
@@ -140,7 +144,7 @@ promptly.</p>
 that notices of confidentiality or non-disclosure cannot be respected.</p>
 </div>
 <div class="section" id="making-and-submitting-a-patch">
-<span id="one-off-patches"></span><span id="patch"></span><h3><a class="toc-backref" href="#id9">Making and Submitting a Patch</a><a class="headerlink" href="#making-and-submitting-a-patch" title="Permalink to this headline">¶</a></h3>
+<span id="one-off-patches"></span><span id="patch"></span><h3><a class="toc-backref" href="#id12">Making and Submitting a Patch</a><a class="headerlink" href="#making-and-submitting-a-patch" title="Permalink to this headline">¶</a></h3>
 <p>When making a patch for review, the goal is to make it as easy for the reviewer
 to read it as possible.  As such, we recommend that you:</p>
 <ol class="arabic simple">
@@ -179,7 +183,7 @@ notices to the patches themselves.  These notices conflict with the <a class="re
 License</a> and may result in your contribution being excluded.</p>
 </div>
 <div class="section" id="code-reviews">
-<span id="code-review"></span><h3><a class="toc-backref" href="#id10">Code Reviews</a><a class="headerlink" href="#code-reviews" title="Permalink to this headline">¶</a></h3>
+<span id="code-review"></span><h3><a class="toc-backref" href="#id13">Code Reviews</a><a class="headerlink" href="#code-reviews" title="Permalink to this headline">¶</a></h3>
 <p>LLVM has a code review policy. Code review is one way to increase the quality of
 software. We generally follow these policies:</p>
 <ol class="arabic simple">
@@ -220,7 +224,7 @@ on a patch, but only people with Subversion write access can approve it.</p>
 for code reviews. See <a class="reference internal" href="Phabricator.html"><span class="doc">Code Reviews with Phabricator</span></a>.</p>
 </div>
 <div class="section" id="code-owners">
-<h3><a class="toc-backref" href="#id11">Code Owners</a><a class="headerlink" href="#code-owners" title="Permalink to this headline">¶</a></h3>
+<span id="id1"></span><h3><a class="toc-backref" href="#id14">Code Owners</a><a class="headerlink" href="#code-owners" title="Permalink to this headline">¶</a></h3>
 <p>The LLVM Project relies on two features of its process to maintain rapid
 development in addition to the high quality of its source base: the combination
 of code review plus post-commit review for trusted maintainers.  Having both is
@@ -234,7 +238,7 @@ problem, we have a notion of an ‘owner’ for a piece of the code.  The sole
 responsibility of a code owner is to ensure that a commit to their area of the
 code is appropriately reviewed, either by themself or by someone else.  The list
 of current code owners can be found in the file
-<a class="reference external" href="http://llvm.org/viewvc/llvm-project/llvm/trunk/CODE_OWNERS.TXT?view=markup">CODE_OWNERS.TXT</a>
+<a class="reference external" href="http://git.llvm.org/klaus/llvm/blob/master/CODE_OWNERS.TXT">CODE_OWNERS.TXT</a>
 in the root of the LLVM source tree.</p>
 <p>Note that code ownership is completely different than reviewers: anyone can
 review a piece of code, and we welcome code review from anyone who is
@@ -247,7 +251,7 @@ and anyone can choose to resign their “title” at any time. For now, we do no
 have an official policy on how one gets elected to be a code owner.</p>
 </div>
 <div class="section" id="test-cases">
-<span id="include-a-testcase"></span><h3><a class="toc-backref" href="#id12">Test Cases</a><a class="headerlink" href="#test-cases" title="Permalink to this headline">¶</a></h3>
+<span id="include-a-testcase"></span><h3><a class="toc-backref" href="#id15">Test Cases</a><a class="headerlink" href="#test-cases" title="Permalink to this headline">¶</a></h3>
 <p>Developers are required to create test cases for any bugs fixed and any new
 features added.  Some tips for getting your testcase approved:</p>
 <ul class="simple">
@@ -267,7 +271,7 @@ for coverage (correctness, performance, etc) testing, not feature or regression
 testing.</p>
 </div>
 <div class="section" id="quality">
-<h3><a class="toc-backref" href="#id13">Quality</a><a class="headerlink" href="#quality" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id16">Quality</a><a class="headerlink" href="#quality" title="Permalink to this headline">¶</a></h3>
 <p>The minimum quality standards that any change must satisfy before being
 committed to the main development branch are:</p>
 <ol class="arabic simple">
@@ -291,7 +295,7 @@ suite and must not cause any major performance regressions.</li>
 LLVM tools.</li>
 <li>The changes should not cause performance or correctness regressions in code
 compiled by LLVM on all applicable targets.</li>
-<li>You are expected to address any <a class="reference external" href="http://llvm.org/bugs/">Bugzilla bugs</a> that
+<li>You are expected to address any <a class="reference external" href="https://bugs.llvm.org/">Bugzilla bugs</a> that
 result from your change.</li>
 </ul>
 <p>We prefer for this to be handled before submission but understand that it isn’t
@@ -306,11 +310,56 @@ reverted. This is necessary when the change blocks other developers from making
 progress. The developer is welcome to re-commit the change after the problem has
 been fixed.</p>
 </div>
+<div class="section" id="commit-messages">
+<span id="id2"></span><h3><a class="toc-backref" href="#id17">Commit messages</a><a class="headerlink" href="#commit-messages" title="Permalink to this headline">¶</a></h3>
+<p>Although we don’t enforce the format of commit messages, we prefer that
+you follow these guidelines to help review, search in logs, email formatting
+and so on. These guidelines are very similar to rules used by other open source
+projects.</p>
+<p>Most importantly, the contents of the message should be carefully written to
+convey the rationale of the change (without delving too much in detail). It
+also should avoid being vague or overly specific. For example, “bits were not
+set right” will leave the reviewer wondering about which bits, and why they
+weren’t right, while “Correctly set overflow bits in TargetInfo” conveys almost
+all there is to the change.</p>
+<p>Below are some guidelines about the format of the message itself:</p>
+<ul class="simple">
+<li>Separate the commit message into title, body and, if you’re not the original
+author, a “Patch by” attribution line (see below).</li>
+<li>The title should be concise. Because all commits are emailed to the list with
+the first line as the subject, long titles are frowned upon.  Short titles
+also look better in <cite>git log</cite>.</li>
+<li>When the changes are restricted to a specific part of the code (e.g. a
+back-end or optimization pass), it is customary to add a tag to the
+beginning of the line in square brackets.  For example, “[SCEV] …”
+or “[OpenMP] …”. This helps email filters and searches for post-commit
+reviews.</li>
+<li>The body, if it exists, should be separated from the title by an empty line.</li>
+<li>The body should be concise, but explanatory, including a complete
+reasoning.  Unless it is required to understand the change, examples,
+code snippets and gory details should be left to bug comments, web
+review or the mailing list.</li>
+<li>If the patch fixes a bug in bugzilla, please include the PR# in the message.</li>
+<li><a class="reference internal" href="#attribution-of-changes">Attribution of Changes</a> should be in a separate line, after the end of
+the body, as simple as “Patch by John Doe.”. This is how we officially
+handle attribution, and there are automated processes that rely on this
+format.</li>
+<li>Text formatting and spelling should follow the same rules as documentation
+and in-code comments, ex. capitalization, full stop, etc.</li>
+<li>If the commit is a bug fix on top of another recently committed patch, or a
+revert or reapply of a patch, include the svn revision number of the prior
+related commit. This could be as simple as “Revert rNNNN because it caused
+PR#”.</li>
+</ul>
+<p>For minor violations of these recommendations, the community normally favors
+reminding the contributor of this policy over reverting. Minor corrections and
+omissions can be handled by sending a reply to the commits mailing list.</p>
+</div>
 <div class="section" id="obtaining-commit-access">
-<h3><a class="toc-backref" href="#id14">Obtaining Commit Access</a><a class="headerlink" href="#obtaining-commit-access" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id18">Obtaining Commit Access</a><a class="headerlink" href="#obtaining-commit-access" title="Permalink to this headline">¶</a></h3>
 <p>We grant commit access to contributors with a track record of submitting high
 quality patches.  If you would like commit access, please send an email to
-<a class="reference external" href="mailto:sabre&#37;&#52;&#48;nondot&#46;org">Chris</a> with the following information:</p>
+<a class="reference external" href="mailto:clattner&#37;&#52;&#48;llvm&#46;org">Chris</a> with the following information:</p>
 <ol class="arabic simple">
 <li>The user name you want to commit with, e.g. “hacker”.</li>
 <li>The full name and email address you want message to llvm-commits to come
@@ -318,8 +367,10 @@ from, e.g. “J. Random Hacker &lt;<a class="reference external" href="mailto:ha
 <li>A “password hash” of the password you want to use, e.g. “<code class="docutils literal"><span class="pre">2ACR96qjUqsyM</span></code>”.
 Note that you don’t ever tell us what your password is; you just give it to
 us in an encrypted form.  To get this, run “<code class="docutils literal"><span class="pre">htpasswd</span></code>” (a utility that
-comes with apache) in crypt mode (often enabled with “<code class="docutils literal"><span class="pre">-d</span></code>”), or find a web
-page that will do it for you.</li>
+comes with apache) in <em>crypt</em> mode (often enabled with “<code class="docutils literal"><span class="pre">-d</span></code>”), or find a web
+page that will do it for you.  Note that our system does not work with MD5
+hashes.  These are significantly longer than a crypt hash - e.g.
+“<code class="docutils literal"><span class="pre">$apr1$vea6bBV2$Z8IFx.AfeD8LhqlZFqJer0</span></code>”, we only accept the shorter crypt hash.</li>
 </ol>
 <p>Once you’ve been granted commit access, you should be able to check out an LLVM
 tree with an SVN URL of “<a class="reference external" href="https://username&#64;llvm.org/">https://username&#64;llvm.org/</a>…” instead of the normal
@@ -333,7 +384,7 @@ time.</p>
 <p>If you have recently been granted commit access, these policies apply:</p>
 <ol class="arabic simple">
 <li>You are granted <em>commit-after-approval</em> to all parts of LLVM.  To get
-approval, submit a <a class="reference internal" href="#patch">patch</a> to <a class="reference external" href="http://lists.cs.uiuc.edu/mailman/listinfo/llvm-commits">llvm-commits</a>. When approved,
+approval, submit a <a class="reference internal" href="#patch">patch</a> to <a class="reference external" href="http://lists.llvm.org/mailman/listinfo/llvm-commits">llvm-commits</a>. When approved,
 you may commit it yourself.</li>
 <li>You are allowed to commit patches without approval which you think are
 obvious. This is clearly a subjective decision — we simply expect you to
@@ -354,9 +405,9 @@ encouraged to review other peoples’ patches as well, but you aren’t required
 to do so.</p>
 </div>
 <div class="section" id="making-a-major-change">
-<span id="discuss-the-change-gather-consensus"></span><h3><a class="toc-backref" href="#id15">Making a Major Change</a><a class="headerlink" href="#making-a-major-change" title="Permalink to this headline">¶</a></h3>
+<span id="discuss-the-change-gather-consensus"></span><h3><a class="toc-backref" href="#id19">Making a Major Change</a><a class="headerlink" href="#making-a-major-change" title="Permalink to this headline">¶</a></h3>
 <p>When a developer begins a major new project with the aim of contributing it back
-to LLVM, they should inform the community with an email to the <a class="reference external" href="http://lists.cs.uiuc.edu/mailman/listinfo/llvmdev">llvmdev</a> email list, to the extent
+to LLVM, they should inform the community with an email to the <a class="reference external" href="http://lists.llvm.org/mailman/listinfo/llvm-dev">llvm-dev</a> email list, to the extent
 possible. The reason for this is to:</p>
 <ol class="arabic simple">
 <li>keep the community informed about future changes to LLVM,</li>
@@ -374,7 +425,7 @@ it.</p>
 as a series of <a class="reference internal" href="#incremental-changes">incremental changes</a>, not as a long-term development branch.</p>
 </div>
 <div class="section" id="incremental-development">
-<span id="incremental-changes"></span><h3><a class="toc-backref" href="#id16">Incremental Development</a><a class="headerlink" href="#incremental-development" title="Permalink to this headline">¶</a></h3>
+<span id="incremental-changes"></span><h3><a class="toc-backref" href="#id20">Incremental Development</a><a class="headerlink" href="#incremental-development" title="Permalink to this headline">¶</a></h3>
 <p>In the LLVM project, we do all significant changes as a series of incremental
 patches.  We have a strong dislike for huge changes or long-term development
 branches.  Long-term development branches have a number of drawbacks:</p>
@@ -420,7 +471,7 @@ sure to first <a class="reference internal" href="#discuss-the-change-gather-con
 to go about making the change.</p>
 </div>
 <div class="section" id="attribution-of-changes">
-<h3><a class="toc-backref" href="#id17">Attribution of Changes</a><a class="headerlink" href="#attribution-of-changes" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id21">Attribution of Changes</a><a class="headerlink" href="#attribution-of-changes" title="Permalink to this headline">¶</a></h3>
 <p>When contributors submit a patch to an LLVM project, other developers with
 commit access may commit it for the author once appropriate (based on the
 progression of code review, etc.). When doing so, it is important to retain
@@ -429,8 +480,9 @@ want the source code to be littered with random attributions “this code writte
 by J. Random Hacker” (this is noisy and distracting). In practice, the revision
 control system keeps a perfect history of who changed what, and the CREDITS.txt
 file describes higher-level contributions. If you commit a patch for someone
-else, please say “patch contributed by J. Random Hacker!” in the commit
-message. Overall, please do not add contributor names to the source code.</p>
+else, please follow the attribution of changes in the simple manner as outlined
+by the <a class="reference internal" href="#commit-messages">commit messages</a> section. Overall, please do not add contributor names
+to the source code.</p>
 <p>Also, don’t commit patches authored by others unless they have submitted the
 patch to the project or you have been authorized to submit them on their behalf
 (you work together and your company authorized you to contribute the patches,
@@ -438,9 +490,124 @@ etc.). The author should first submit them to the relevant project’s commit
 list, development list, or LLVM bug tracker component. If someone sends you
 a patch privately, encourage them to submit it to the appropriate list first.</p>
 </div>
+<div class="section" id="ir-backwards-compatibility">
+<span id="id5"></span><h3><a class="toc-backref" href="#id22">IR Backwards Compatibility</a><a class="headerlink" href="#ir-backwards-compatibility" title="Permalink to this headline">¶</a></h3>
+<p>When the IR format has to be changed, keep in mind that we try to maintain some
+backwards compatibility. The rules are intended as a balance between convenience
+for llvm users and not imposing a big burden on llvm developers:</p>
+<ul class="simple">
+<li>The textual format is not backwards compatible. We don’t change it too often,
+but there are no specific promises.</li>
+<li>Additions and changes to the IR should be reflected in
+<code class="docutils literal"><span class="pre">test/Bitcode/compatibility.ll</span></code>.</li>
+<li>The current LLVM version supports loading any bitcode since version 3.0.</li>
+<li>After each X.Y release, <code class="docutils literal"><span class="pre">compatibility.ll</span></code> must be copied to
+<code class="docutils literal"><span class="pre">compatibility-X.Y.ll</span></code>. The corresponding bitcode file should be assembled
+using the X.Y build and committed as <code class="docutils literal"><span class="pre">compatibility-X.Y.ll.bc</span></code>.</li>
+<li>Newer releases can ignore features from older releases, but they cannot
+miscompile them. For example, if nsw is ever replaced with something else,
+dropping it would be a valid way to upgrade the IR.</li>
+<li>Debug metadata is special in that it is currently dropped during upgrades.</li>
+<li>Non-debug metadata is defined to be safe to drop, so a valid way to upgrade
+it is to drop it. That is not very user friendly and a bit more effort is
+expected, but no promises are made.</li>
+</ul>
+</div>
+<div class="section" id="c-api-changes">
+<h3><a class="toc-backref" href="#id23">C API Changes</a><a class="headerlink" href="#c-api-changes" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li>Stability Guarantees: The C API is, in general, a “best effort” for stability.
+This means that we make every attempt to keep the C API stable, but that
+stability will be limited by the abstractness of the interface and the
+stability of the C++ API that it wraps. In practice, this means that things
+like “create debug info” or “create this type of instruction” are likely to be
+less stable than “take this IR file and JIT it for my current machine”.</li>
+<li>Release stability: We won’t break the C API on the release branch with patches
+that go on that branch, with the exception that we will fix an unintentional
+C API break that will keep the release consistent with both the previous and
+next release.</li>
+<li>Testing: Patches to the C API are expected to come with tests just like any
+other patch.</li>
+<li>Including new things into the API: If an LLVM subcomponent has a C API already
+included, then expanding that C API is acceptable. Adding C API for
+subcomponents that don’t currently have one needs to be discussed on the
+mailing list for design and maintainability feedback prior to implementation.</li>
+<li>Documentation: Any changes to the C API are required to be documented in the
+release notes so that it’s clear to external users who do not follow the
+project how the C API is changing and evolving.</li>
+</ul>
+</div>
+<div class="section" id="new-targets">
+<h3><a class="toc-backref" href="#id24">New Targets</a><a class="headerlink" href="#new-targets" title="Permalink to this headline">¶</a></h3>
+<p>LLVM is very receptive to new targets, even experimental ones, but a number of
+problems can appear when adding new large portions of code, and back-ends are
+normally added in bulk.  We have found that landing large pieces of new code
+and then trying to fix emergent problems in-tree is problematic for a variety
+of reasons.</p>
+<p>For these reasons, new targets are <em>always</em> added as <em>experimental</em> until
+they can be proven stable, and later moved to non-experimental. The difference
+between both classes is that experimental targets are not built by default
+(need to be added to -DLLVM_TARGETS_TO_BUILD at CMake time).</p>
+<p>The basic rules for a back-end to be upstreamed in <strong>experimental</strong> mode are:</p>
+<ul class="simple">
+<li>Every target must have a <a class="reference internal" href="#code-owners"><span class="std std-ref">code owner</span></a>. The <cite>CODE_OWNERS.TXT</cite>
+file has to be updated as part of the first merge. The code owner makes sure
+that changes to the target get reviewed and steers the overall effort.</li>
+<li>There must be an active community behind the target. This community
+will help maintain the target by providing buildbots, fixing
+bugs, answering the LLVM community’s questions and making sure the new
+target doesn’t break any of the other targets, or generic code. This
+behavior is expected to continue throughout the lifetime of the
+target’s code.</li>
+<li>The code must be free of contentious issues, for example, large
+changes in how the IR behaves or should be formed by the front-ends,
+unless agreed by the majority of the community via refactoring of the
+(<a class="reference internal" href="LangRef.html"><span class="doc">IR standard</span></a>) <strong>before</strong> the merge of the new target changes,
+following the <a class="reference internal" href="#ir-backwards-compatibility"><span class="std std-ref">IR Backwards Compatibility</span></a>.</li>
+<li>The code conforms to all of the policies laid out in this developer policy
+document, including license, patent, and coding standards.</li>
+<li>The target should have either reasonable documentation on how it
+works (ISA, ABI, etc.) or a publicly available simulator/hardware
+(either free or cheap enough) - preferably both.  This allows
+developers to validate assumptions, understand constraints and review code
+that can affect the target.</li>
+</ul>
+<p>In addition, the rules for a back-end to be promoted to <strong>official</strong> are:</p>
+<ul class="simple">
+<li>The target must have addressed every other minimum requirement and
+have been stable in tree for at least 3 months. This cool down
+period is to make sure that the back-end and the target community can
+endure continuous upstream development for the foreseeable future.</li>
+<li>The target’s code must have been completely adapted to this policy
+as well as the <a class="reference internal" href="CodingStandards.html"><span class="doc">coding standards</span></a>. Any exceptions that
+were made to move into experimental mode must have been fixed <strong>before</strong>
+becoming official.</li>
+<li>The test coverage needs to be broad and well written (small tests,
+well documented). The build target <code class="docutils literal"><span class="pre">check-all</span></code> must pass with the
+new target built, and where applicable, the <code class="docutils literal"><span class="pre">test-suite</span></code> must also
+pass without errors, in at least one configuration (publicly
+demonstrated, for example, via buildbots).</li>
+<li>Public buildbots need to be created and actively maintained, unless
+the target requires no additional buildbots (ex. <code class="docutils literal"><span class="pre">check-all</span></code> covers
+all tests). The more relevant and public the new target’s CI infrastructure
+is, the more the LLVM community will embrace it.</li>
+</ul>
+<p>To <strong>continue</strong> as a supported and official target:</p>
+<ul class="simple">
+<li>The maintainer(s) must continue following these rules throughout the lifetime
+of the target. Continuous violations of aforementioned rules and policies
+could lead to complete removal of the target from the code base.</li>
+<li>Degradation in support, documentation or test coverage will make the target as
+nuisance to other targets and be considered a candidate for deprecation and
+ultimately removed.</li>
+</ul>
+<p>In essences, these rules are necessary for targets to gain and retain their
+status, but also markers to define bit-rot, and will be used to clean up the
+tree from unmaintained targets.</p>
+</div>
 </div>
 <div class="section" id="copyright-license-and-patents">
-<span id="copyright-license-patents"></span><h2><a class="toc-backref" href="#id18">Copyright, License, and Patents</a><a class="headerlink" href="#copyright-license-and-patents" title="Permalink to this headline">¶</a></h2>
+<span id="copyright-license-patents"></span><h2><a class="toc-backref" href="#id25">Copyright, License, and Patents</a><a class="headerlink" href="#copyright-license-and-patents" title="Permalink to this headline">¶</a></h2>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">This section deals with legal matters but does not provide legal advice.  We
@@ -454,7 +621,7 @@ under the <a class="reference external" href="http://www.opensource.org/licenses
 see below).  As contributor to the LLVM project, you agree to allow any
 contributions to the project to licensed under these terms.</p>
 <div class="section" id="copyright">
-<h3><a class="toc-backref" href="#id19">Copyright</a><a class="headerlink" href="#copyright" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id26">Copyright</a><a class="headerlink" href="#copyright" title="Permalink to this headline">¶</a></h3>
 <p>The LLVM project does not require copyright assignments, which means that the
 copyright for the code in the project is held by its respective contributors who
 have each agreed to release their contributed code under the terms of the <a class="reference internal" href="#llvm-license">LLVM
@@ -470,7 +637,7 @@ license for your contributions won’t change without your approval in the
 future.</p>
 </div>
 <div class="section" id="license">
-<span id="llvm-license"></span><h3><a class="toc-backref" href="#id20">License</a><a class="headerlink" href="#license" title="Permalink to this headline">¶</a></h3>
+<span id="llvm-license"></span><h3><a class="toc-backref" href="#id27">License</a><a class="headerlink" href="#license" title="Permalink to this headline">¶</a></h3>
 <p>We intend to keep LLVM perpetually open source and to use a liberal open source
 license. <strong>As a contributor to the project, you agree that any contributions be
 licensed under the terms of the corresponding subproject.</strong> All of the code in
@@ -512,11 +679,11 @@ code already distributed under a more liberal license (like the UIUC license),
 and GPL-containing subprojects are kept in separate SVN repositories whose
 LICENSE.txt files specifically indicate that they contain GPL code.</p>
 <p>We have no plans to change the license of LLVM.  If you have questions or
-comments about the license, please contact the <a class="reference external" href="mailto:llvmdev&#37;&#52;&#48;cs&#46;uiuc&#46;edu">LLVM Developer’s Mailing
+comments about the license, please contact the <a class="reference external" href="mailto:llvm-dev&#37;&#52;&#48;lists&#46;llvm&#46;org">LLVM Developer’s Mailing
 List</a>.</p>
 </div>
 <div class="section" id="patents">
-<h3><a class="toc-backref" href="#id21">Patents</a><a class="headerlink" href="#patents" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id28">Patents</a><a class="headerlink" href="#patents" title="Permalink to this headline">¶</a></h3>
 <p>To the best of our knowledge, LLVM does not infringe on any patents (we have
 actually removed code from LLVM in the past that was found to infringe).  Having
 code in LLVM that infringes on patents would violate an important goal of the
@@ -527,7 +694,7 @@ patent-related trouble with their changes (including from third parties).  If
 you or your employer own the rights to a patent and would like to contribute
 code to LLVM that relies on it, we require that the copyright owner sign an
 agreement that allows any other user of LLVM to freely use your patent.  Please
-contact the <a class="reference external" href="mailto:llvm-oversight&#37;&#52;&#48;cs&#46;uiuc&#46;edu">oversight group</a> for more
+contact the <a class="reference external" href="mailto:board&#37;&#52;&#48;llvm&#46;org">LLVM Foundation Board of Directors</a> for more
 details.</p>
 </div>
 </div>
@@ -545,10 +712,10 @@ details.</p>
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="MakefileGuide.html" title="LLVM Makefile Guide"
+          <a href="Projects.html" title="Creating an LLVM Project"
              >next</a> |</li>
         <li class="right" >
-          <a href="GenXLangRef.html" title="LLVM IR for the GenX backend"
+          <a href="CFIVerify.html" title="Control Flow Verification Tool Design Document"
              >previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="index.html">Documentation</a>&raquo;</li>
@@ -556,8 +723,8 @@ details.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

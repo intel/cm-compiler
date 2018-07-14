@@ -5,7 +5,7 @@ tablegen(LLVM SystemZGenAsmWriter.inc -gen-asm-writer)
 tablegen(LLVM SystemZGenCallingConv.inc -gen-callingconv)
 tablegen(LLVM SystemZGenDAGISel.inc -gen-dag-isel)
 tablegen(LLVM SystemZGenDisassemblerTables.inc -gen-disassembler)
-tablegen(LLVM SystemZGenMCCodeEmitter.inc -gen-emitter -mc-emitter)
+tablegen(LLVM SystemZGenMCCodeEmitter.inc -gen-emitter)
 tablegen(LLVM SystemZGenInstrInfo.inc -gen-instr-info)
 tablegen(LLVM SystemZGenRegisterInfo.inc -gen-register-info)
 tablegen(LLVM SystemZGenSubtargetInfo.inc -gen-subtarget)
@@ -16,18 +16,24 @@ add_llvm_target(SystemZCodeGen
   SystemZCallingConv.cpp
   SystemZConstantPoolValue.cpp
   SystemZElimCompare.cpp
+  SystemZExpandPseudo.cpp
   SystemZFrameLowering.cpp
+  SystemZHazardRecognizer.cpp
   SystemZISelDAGToDAG.cpp
   SystemZISelLowering.cpp
   SystemZInstrInfo.cpp
+  SystemZLDCleanup.cpp
   SystemZLongBranch.cpp
   SystemZMachineFunctionInfo.cpp
+  SystemZMachineScheduler.cpp
   SystemZMCInstLower.cpp
   SystemZRegisterInfo.cpp
   SystemZSelectionDAGInfo.cpp
   SystemZShortenInst.cpp
   SystemZSubtarget.cpp
   SystemZTargetMachine.cpp
+  SystemZTargetTransformInfo.cpp
+  SystemZTDC.cpp
   )
 
 add_subdirectory(AsmParser)

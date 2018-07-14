@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,alpha.core.IdenticalExpr -verify %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,alpha.core.IdenticalExpr -w -verify %s
 
 /* Only one expected warning per function allowed at the very end. */
 
@@ -1510,4 +1510,55 @@ void test_nowarn_chained_if_stmts_3(int x) {
     ;
   else if (x++) // no-warning
     ;
+}
+
+void test_warn_wchar() {
+  const wchar_t * a = 0 ? L"Warning" : L"Warning"; // expected-warning {{identical expressions on both sides of ':' in conditional expression}}
+}
+void test_nowarn_wchar() {
+  const wchar_t * a = 0 ? L"No" : L"Warning";
+}
+
+void test_nowarn_long() {
+  int a = 0, b = 0;
+  long c;
+  if (0) {
+    b -= a;
+    c = 0;
+  } else { // no-warning
+    b -= a;
+    c = 0LL;
+  }
+}
+
+// Identical inner conditions
+
+void test_warn_inner_if_1(int x) {
+  if (x == 1) {
+    if (x == 1) // expected-warning {{conditions of the inner and outer statements are identical}}
+      ;
+  }
+
+  // FIXME: Should warn here. The warning is currently not emitted because there
+  // is code between the conditions.
+  if (x == 1) {
+    int y = x;
+    if (x == 1)
+      ;
+  }
+}
+
+void test_nowarn_inner_if_1(int x) {
+  // Don't warn when condition has side effects.
+  if (x++ == 1) {
+    if (x++ == 1)
+      ;
+  }
+
+  // Don't warn when x is changed before inner condition.
+  if (x < 10) {
+    x++;
+    if (x < 10)
+      ;
+  }
 }

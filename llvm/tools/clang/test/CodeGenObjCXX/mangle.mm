@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -triple=x86_64-apple-darwin10 -std=c++11 -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 %s -triple=x86_64-apple-darwin10 -std=c++11 -emit-llvm -fblocks -o - | FileCheck %s
 
 // CHECK: @"_ZZ11+[A shared]E1a" = internal global
 // CHECK: @"_ZZ11-[A(Foo) f]E1a" = internal global
@@ -98,3 +98,25 @@ template<> void X<A*>::f() {}
 // CHECK-LABEL: define void @_ZN1XIP1AE1fEv
 template<> void X<A<P>*>::f() {}
 // CHECK-LABEL: define void @_ZN1XIPU11objcproto1P1AE1fEv
+
+// CHECK-LABEL: define void @_Z12kindof_test2PU8__kindof5Test2
+void kindof_test2(__kindof Test2 *t2) { }
+
+@interface Parameterized<T, U> : A
+@end
+
+// CHECK-LABEL: define void @_Z19parameterized_test1P13ParameterizedIP1AP4TestE
+void parameterized_test1(Parameterized<A *, Test *> *p) {}
+
+// CHECK-LABEL: define void @_Z19parameterized_test2PU8__kindof13ParameterizedIP1AP4TestE
+void parameterized_test2(__kindof Parameterized<A *, Test *> *p) {}
+
+// CHECK-LABEL: define void @_Z19parameterized_test3P13Parameterized
+void parameterized_test3(Parameterized *p) {}
+
+// CHECK-LABEL: define {{.*}}void @_Z1fP11objc_object
+void f(__attribute__((ns_consumed)) id) {}
+// CHECK-LABEL: define {{.*}}void @_Z1fPFP11objc_objectS0_S0_E
+void f(id (*fn)(__attribute__((ns_consumed)) id, id)) {}
+// CHECK-LABEL: define {{.*}}void @_Z1fU13block_pointerFvP11objc_objectE
+void f(void (^)(__attribute__((ns_consumed)) id)) {}

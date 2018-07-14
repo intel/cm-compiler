@@ -33,6 +33,7 @@
 
 #include "GenX.h"
 #include "GenXModule.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Utils/Local.h"
@@ -51,7 +52,7 @@ public:
   static char ID;
   GenXPromotePredicate() : FunctionPass(ID) {}
   bool runOnFunction(Function &F) override;
-  const char *getPassName() const override { return "GenXPromotePredicate"; }
+  StringRef getPassName() const override { return "GenXPromotePredicate"; }
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addPreserved<GenXModule>();
     AU.setPreservesCFG();

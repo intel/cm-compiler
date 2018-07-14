@@ -63,7 +63,7 @@ class GenXLiveRanges : public FunctionGroupPass {
 public:
   static char ID;
   explicit GenXLiveRanges() : FunctionGroupPass(ID) { }
-  virtual const char *getPassName() const { return "GenX live ranges analysis"; }
+  virtual StringRef getPassName() const { return "GenX live ranges analysis"; }
   void getAnalysisUsage(AnalysisUsage &AU) const;
   bool runOnFunctionGroup(FunctionGroup &FG);
   // createPrinterPass : get a pass to print the IR, together with the GenX

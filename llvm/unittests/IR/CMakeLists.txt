@@ -2,25 +2,35 @@ set(LLVM_LINK_COMPONENTS
   Analysis
   AsmParser
   Core
-  IPA
   Support
+  Passes
   )
 
 set(IRSources
+  AsmWriterTest.cpp
   AttributesTest.cpp
+  BasicBlockTest.cpp
+  CFGBuilder.cpp
   ConstantRangeTest.cpp
   ConstantsTest.cpp
+  DebugInfoTest.cpp
+  DebugTypeODRUniquingTest.cpp
   DominatorTreeTest.cpp
+  DominatorTreeBatchUpdatesTest.cpp
+  FunctionTest.cpp
+  PassBuilderCallbacksTest.cpp
   IRBuilderTest.cpp
   InstructionsTest.cpp
-  LeakDetectorTest.cpp
+  IntrinsicsTest.cpp
   LegacyPassManagerTest.cpp
   MDBuilderTest.cpp
   MetadataTest.cpp
+  ModuleTest.cpp
   PassManagerTest.cpp
   PatternMatch.cpp
   TypeBuilderTest.cpp
   TypesTest.cpp
+  UseTest.cpp
   UserTest.cpp
   ValueHandleTest.cpp
   ValueMapTest.cpp

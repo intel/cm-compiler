@@ -1,10 +1,70 @@
-// RUN: llvm-mc -triple x86_64-unknown-unknown -x86-asm-syntax=intel %s | FileCheck %s
+// RUN: llvm-mc -triple x86_64-unknown-unknown -x86-asm-syntax=intel %s > %t 2> %t.err
+// RUN: FileCheck < %t %s
+// RUN: FileCheck --check-prefix=CHECK-STDERR < %t.err %s
 
 _test:
 	xor	EAX, EAX
 	ret
 
-_main:
+.set  number, 8
+.global _foo
+
+.text
+  .global main
+main:
+
+// CHECK: leaq    _foo(%rbx,%rax,8), %rdx
+  lea RDX, [8 * RAX + RBX      + _foo]
+// CHECK: leaq _foo(%rbx,%rax,8), %rdx
+  lea RDX, [_foo + 8 * RAX + RBX]
+// CHECK: leaq 8(%rcx,%rax,8), %rdx
+  lea RDX, [8 + RAX * 8 + RCX]
+// CHECK: leaq 8(%rcx,%rax,8), %rdx
+  lea RDX, [number + 8 * RAX + RCX]
+// CHECK: leaq _foo(,%rax,8), %rdx
+  lea RDX, [_foo + RAX * 8]
+// CHECK:  leaq _foo(%rbx,%rax,8), %rdx
+  lea RDX, [_foo + RAX * 8 + RBX]
+// CHECK: leaq -8(%rax), %rdx
+  lea RDX, [RAX - number]
+// CHECK: leaq -8(%rax), %rdx
+  lea RDX, [RAX - 8]
+// CHECK: leaq    _foo(%rax), %rdx
+  lea RDX, [RAX + _foo]
+// CHECK: leaq    8(%rax), %rdx
+  lea RDX, [RAX + number]
+// CHECK: leaq    8(%rax), %rdx
+  lea RDX, [RAX + 8]
+// CHECK: leaq    _foo(%rbx,%rax,8), %rdx
+  lea RDX, [RAX * number + RBX + _foo]
+// CHECK: leaq    _foo(%rbx,%rax,8), %rdx
+  lea RDX, [_foo + RAX * number + RBX]
+// CHECK: leaq    8(%rcx,%rax,8), %rdx
+  lea RDX, [number + RAX * number + RCX]
+// CHECK: leaq    _foo(,%rax,8), %rdx
+  lea RDX, [_foo + RAX * number]
+// CHECK: leaq    _foo(%rbx,%rax,8), %rdx
+  lea RDX, [number * RAX + RBX + _foo]
+// CHECK: leaq    _foo(%rbx,%rax,8), %rdx
+  lea RDX, [_foo + number * RAX + RBX]
+// CHECK: leaq    8(%rcx,%rax,8), %rdx
+  lea RDX, [8 + number * RAX + RCX]
+// CHECK: leaq    _foo(%rax), %rdx
+  lea RDX, [_foo + RAX]
+// CHECK: leaq    8(%rax), %rdx
+  lea RDX, [number + RAX]
+// CHECK: leaq    8(%rax), %rdx
+  lea RDX, [8 + RAX]
+
+// CHECK: lcalll *(%rax)
+  call FWORD ptr [rax]
+// CHECK: lcalll *(%rax)
+  lcall [rax]
+// CHECK: ljmpl *(%rax)
+  jmp FWORD ptr [rax]
+// CHECK: ljmpl *(%rax)
+  ljmp [rax]
+
 // CHECK:	movl	$257, -4(%rsp)
 	mov	DWORD PTR [RSP - 4], 257
 // CHECK:	movl	$258, 4(%rsp)
@@ -17,6 +77,8 @@ _main:
 	mov	EAX, DWORD PTR [RSP - 4]
 // CHECK:	movq    (%rsp), %rax
 	mov     RAX, QWORD PTR [RSP]
+// CHECK: movabsq $4294967289, %rax
+	mov     RAX, 4294967289
 // CHECK:	movl	$-4, -4(%rsp)
 	mov	DWORD PTR [RSP - 4], -4
 // CHECK:	movq	0, %rcx
@@ -72,9 +134,11 @@ _main:
 // CHECK: vshufpd $1, %xmm2, %xmm1, %xmm0
     vshufpd XMM0, XMM1, XMM2, 1
 // CHECK: vpgatherdd %xmm8, (%r15,%xmm9,2), %xmm1
-    vpgatherdd XMM10, DWORD PTR [R15 + 2*XMM9], XMM8
-// CHECK: movsd	-8, %xmm5
+    vpgatherdd XMM10, XMMWORD PTR [R15 + 2*XMM9], XMM8
+// CHECK: movsd -8, %xmm5
     movsd   XMM5, QWORD PTR [-8]
+// CHECK: movsl (%rsi), %es:(%rdi)
+    movsd
 // CHECK: movl %ecx, (%eax)
     mov [eax], ecx
 // CHECK: movl %ecx, (,%ebx,4)
@@ -468,14 +532,14 @@ xchg [ECX], EAX
 xchg AX, [ECX]
 xchg [ECX], AX
 
-// CHECK: testq (%ecx), %rax
-// CHECK: testq (%ecx), %rax
-// CHECK: testl (%ecx), %eax
-// CHECK: testl (%ecx), %eax
-// CHECK: testw (%ecx), %ax
-// CHECK: testw (%ecx), %ax
-// CHECK: testb (%ecx), %al
-// CHECK: testb (%ecx), %al
+// CHECK: testq %rax, (%ecx)
+// CHECK: testq %rax, (%ecx)
+// CHECK: testl %eax, (%ecx)
+// CHECK: testl %eax, (%ecx)
+// CHECK: testw %ax, (%ecx)
+// CHECK: testw %ax, (%ecx)
+// CHECK: testb %al, (%ecx)
+// CHECK: testb %al, (%ecx)
 test RAX, [ECX]
 test [ECX], RAX
 test EAX, [ECX]
@@ -489,10 +553,12 @@ test [ECX], AL
 // CHECK: fnstsw %ax
 // CHECK: fnstsw %ax
 // CHECK: fnstsw %ax
+// CHECK: fnstsw (%eax)
 fnstsw
 fnstsw AX
 fnstsw EAX
 fnstsw AL
+fnstsw WORD PTR [EAX]
 
 // CHECK: faddp %st(1)
 // CHECK: fmulp %st(1)
@@ -532,6 +598,20 @@ fsubp ST(1)
 fsubrp ST(1)
 fdivp ST(1)
 fdivrp ST(1)
+
+
+// CHECK: faddp %st(1)
+// CHECK: fmulp %st(1)
+// CHECK: fsubrp %st(1)
+// CHECK: fsubp %st(1)
+// CHECK: fdivrp %st(1)
+// CHECK: fdivp %st(1)
+fadd 
+fmul
+fsub
+fsubr
+fdiv
+fdivr
 
 // CHECK: faddp %st(1)
 // CHECK: fmulp %st(1)
@@ -586,8 +666,8 @@ fdiv ST(1)
 fdivr ST(1)
 
 
-// CHECK: fxsaveq (%rax)
-// CHECK: fxrstorq (%rax)
+// CHECK: fxsave64 (%rax)
+// CHECK: fxrstor64 (%rax)
 fxsave64 opaque ptr [rax]
 fxrstor64 opaque ptr [rax]
 
@@ -597,13 +677,201 @@ fxrstor64 opaque ptr [rax]
 
 // CHECK: movq _g0, %rbx
 // CHECK: movq _g0+8, %rcx
+// CHECK: movq _g0+18(%rbp), %rax
+// CHECK: movq _g0(,%rsi,4), %rax
 mov rbx, qword ptr [_g0]
 mov rcx, qword ptr [_g0 + 8]
+mov rax, QWORD PTR _g0[rbp + 1 + (2 * 5) - 3 + 1<<1]
+mov rax, QWORD PTR _g0[rsi*4]
 
 "?half@?0??bar@@YAXXZ@4NA":
 	.quad   4602678819172646912
 
-fadd   "?half@?0??bar@@YAXXZ@4NA"
-fadd   "?half@?0??bar@@YAXXZ@4NA"@IMGREL
+fadd   dword ptr "?half@?0??bar@@YAXXZ@4NA"
+fadd   dword ptr "?half@?0??bar@@YAXXZ@4NA"@IMGREL
 // CHECK: fadds   "?half@?0??bar@@YAXXZ@4NA"
-// CHECK: fadds   "?half@?0??bar@@YAXXZ@4NA"@IMGREL32
+// CHECK: fadds   "?half@?0??bar@@YAXXZ@4NA"@IMGREL
+
+inc qword ptr [rax]
+inc long ptr [rax]
+inc dword ptr [rax]
+inc word ptr [rax]
+inc byte ptr [rax]
+// CHECK: incq (%rax)
+// CHECK: incl (%rax)
+// CHECK: incl (%rax)
+// CHECK: incw (%rax)
+// CHECK: incb (%rax)
+
+dec qword ptr [rax]
+dec dword ptr [rax]
+dec word ptr [rax]
+dec byte ptr [rax]
+// CHECK: decq (%rax)
+// CHECK: decl (%rax)
+// CHECK: decw (%rax)
+// CHECK: decb (%rax)
+
+add qword ptr [rax], 1
+add dword ptr [rax], 1
+add word ptr [rax], 1
+add byte ptr [rax], 1
+// CHECK: addq $1, (%rax)
+// CHECK: addl $1, (%rax)
+// CHECK: addw $1, (%rax)
+// CHECK: addb $1, (%rax)
+
+fstp tbyte ptr [rax]
+fstp xword ptr [rax]
+fstp qword ptr [rax]
+fstp dword ptr [rax]
+// CHECK: fstpt (%rax)
+// CHECK: fstpt (%rax)
+// CHECK: fstpl (%rax)
+// CHECK: fstps (%rax)
+
+fxsave [eax]
+fsave [eax]
+fxrstor [eax]
+frstor [eax]
+// CHECK: fxsave (%eax)
+// CHECK: wait
+// CHECK: fnsave (%eax)
+// CHECK: fxrstor (%eax)
+// CHECK: frstor (%eax)
+
+// FIXME: Should we accept this?  Masm accepts it, but gas does not.
+fxsave dword ptr [eax]
+fsave dword ptr [eax]
+fxrstor dword ptr [eax]
+frstor dword ptr [eax]
+// CHECK: fxsave (%eax)
+// CHECK: wait
+// CHECK: fnsave (%eax)
+// CHECK: fxrstor (%eax)
+// CHECK: frstor (%eax)
+
+// CHECK: cmpnless %xmm1, %xmm0
+cmpnless xmm0, xmm1
+
+insb
+insw
+insd
+// CHECK: insb %dx, %es:(%rdi)
+// CHECK: insw %dx, %es:(%rdi)
+// CHECK: insl %dx, %es:(%rdi)
+
+outsb
+outsw
+outsd
+// CHECK: outsb (%rsi), %dx
+// CHECK: outsw (%rsi), %dx
+// CHECK: outsl (%rsi), %dx
+
+imul bx, 123
+imul ebx, 123
+imul rbx, 123
+// CHECK: imulw $123, %bx
+// CHECK: imull $123, %ebx
+// CHECK: imulq $123, %rbx
+
+repe cmpsb
+repz cmpsb
+repne cmpsb
+repnz cmpsb
+// CHECK: rep
+// CHECK: cmpsb	%es:(%rdi), (%rsi)
+// CHECK: rep
+// CHECK: cmpsb	%es:(%rdi), (%rsi)
+// CHECK: repne
+// CHECK: cmpsb	%es:(%rdi), (%rsi)
+// CHECK: repne
+// CHECK: cmpsb	%es:(%rdi), (%rsi)
+
+sal eax, 123
+// CHECK: shll	$123, %eax
+
+psignw    mm0, MMWORD PTR t2
+// CHECK: psignw t2, %mm0
+
+comisd xmm0, QWORD PTR [eax]
+comiss xmm0, DWORD PTR [eax]
+vcomisd xmm0, QWORD PTR [eax]
+vcomiss xmm0, DWORD PTR [eax]
+
+// CHECK: comisd (%eax), %xmm0
+// CHECK: comiss (%eax), %xmm0
+// CHECK: vcomisd (%eax), %xmm0
+// CHECK: vcomiss (%eax), %xmm0
+
+fbld tbyte ptr [eax]
+fbstp tbyte ptr [eax]
+// CHECK: fbld (%eax)
+// CHECK: fbstp (%eax)
+
+fld float ptr [rax]
+fld double ptr [rax]
+// CHECK: flds (%rax)
+// CHECK: fldl (%rax)
+
+fcomip st, st(2)
+fucomip st, st(2)
+// CHECK: fcompi  %st(2)
+// CHECK: fucompi  %st(2)
+
+loopz _foo
+loopnz _foo
+// CHECK: loope _foo
+// CHECK: loopne _foo
+
+sidt fword ptr [eax]
+// CHECK: sidtq (%eax)
+
+ins byte ptr [eax], dx
+// CHECK: insb %dx, %es:(%edi)
+// CHECK-STDERR: memory operand is only for determining the size, ES:(R|E)DI will be used for the location
+// CHECK-STDERR-NEXT: ins byte ptr [eax], dx
+outs dx, word ptr [eax]
+// CHECK: outsw (%esi), %dx
+// CHECK-STDERR: memory operand is only for determining the size, ES:(R|E)SI will be used for the location
+// CHECK-STDERR-NEXT: outs dx, word ptr [eax]
+lods dword ptr [eax]
+// CHECK: lodsl (%esi), %eax
+// CHECK-STDERR: memory operand is only for determining the size, ES:(R|E)SI will be used for the location
+// CHECK-STDERR-NEXT: lods dword ptr [eax]
+stos qword ptr [eax]
+// CHECK: stosq %rax, %es:(%edi)
+// CHECK-STDERR: memory operand is only for determining the size, ES:(R|E)DI will be used for the location
+// CHECK-STDERR-NEXT: stos qword ptr [eax]
+scas byte ptr [eax]
+// CHECK: scasb %es:(%edi), %al
+// CHECK-STDERR: memory operand is only for determining the size, ES:(R|E)DI will be used for the location
+// CHECK-STDERR-NEXT: scas byte ptr [eax]
+cmps word ptr [eax], word ptr [ebx]
+// CHECK: cmpsw %es:(%edi), (%esi)
+// CHECK-STDERR: memory operand is only for determining the size, ES:(R|E)SI will be used for the location
+// CHECK-STDERR-NEXT: cmps word ptr [eax], word ptr [ebx]
+// CHECK-STDERR: memory operand is only for determining the size, ES:(R|E)DI will be used for the location
+// CHECK-STDERR-NEXT: cmps word ptr [eax], word ptr [ebx]
+movs dword ptr [eax], dword ptr [ebx]
+// CHECK: movsl (%esi), %es:(%edi)
+// CHECK-STDERR: memory operand is only for determining the size, ES:(R|E)DI will be used for the location
+// CHECK-STDERR-NEXT: movs dword ptr [eax], dword ptr [ebx]
+// CHECK-STDERR: memory operand is only for determining the size, ES:(R|E)SI will be used for the location
+// CHECK-STDERR-NEXT: movs dword ptr [eax], dword ptr [ebx]
+
+movsd  qword ptr [rax], xmm0
+// CHECK: movsd %xmm0, (%rax)
+// CHECK-STDERR-NOT: movsd qword ptr [rax], xmm0
+
+xlat byte ptr [eax]
+// CHECK: xlatb
+// CHECK-STDERR: memory operand is only for determining the size, (R|E)BX will be used for the location
+
+// CHECK:   punpcklbw
+punpcklbw mm0, dword ptr [rsp]
+// CHECK:   punpcklwd
+punpcklwd mm0, dword ptr [rsp]
+// CHECK:   punpckldq
+punpckldq mm0, dword ptr [rsp]
+

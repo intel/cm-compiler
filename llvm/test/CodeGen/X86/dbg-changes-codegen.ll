@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=x86-64 -mtriple=x86_64-linux | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-linux | FileCheck %s
 
 ; The Peephole optimizer should fold the load into the cmp even with debug info.
 ; CHECK-LABEL: _ZN3Foo3batEv
@@ -43,8 +43,8 @@
 ; Function Attrs: nounwind readonly uwtable
 define zeroext i1 @_ZN3Foo3batEv(%struct.Foo* %this) #0 align 2 {
 entry:
-  %0 = load %struct.Foo** @pfoo, align 8
-  tail call void @llvm.dbg.value(metadata !{%struct.Foo* %0}, i64 0, metadata !62)
+  %0 = load %struct.Foo*, %struct.Foo** @pfoo, align 8
+  tail call void @llvm.dbg.value(metadata %struct.Foo* %0, i64 0, metadata !62, metadata !DIExpression()), !dbg !DILocation(scope: !1)
   %cmp.i = icmp eq %struct.Foo* %0, %this
   ret i1 %cmp.i
 }
@@ -52,9 +52,9 @@ entry:
 ; Function Attrs: nounwind uwtable
 define void @_Z3bazv() #1 {
 entry:
-  %0 = load %struct.Wibble** @wibble1, align 8
-  tail call void @llvm.dbg.value(metadata !64, i64 0, metadata !65)
-  %1 = load %struct.Wibble** @wibble2, align 8
+  %0 = load %struct.Wibble*, %struct.Wibble** @wibble1, align 8
+  tail call void @llvm.dbg.value(metadata %struct.Flibble* undef, i64 0, metadata !65, metadata !DIExpression()), !dbg !DILocation(scope: !1)
+  %1 = load %struct.Wibble*, %struct.Wibble** @wibble2, align 8
   %cmp.i = icmp ugt %struct.Wibble* %1, %0
   br i1 %cmp.i, label %if.then.i, label %_ZN7Flibble3barEP6Wibble.exit
 
@@ -63,21 +63,22 @@ if.then.i:                                        ; preds = %entry
   br label %_ZN7Flibble3barEP6Wibble.exit
 
 _ZN7Flibble3barEP6Wibble.exit:                    ; preds = %entry, %if.then.i
-  %x.i = getelementptr inbounds %struct.Wibble* %0, i64 0, i32 0
+  %x.i = getelementptr inbounds %struct.Wibble, %struct.Wibble* %0, i64 0, i32 0
   store i32 0, i32* %x.i, align 4
   ret void
 }
 
 ; Function Attrs: nounwind readnone
-declare void @llvm.dbg.value(metadata, i64, metadata) #2
+declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #2
 
 attributes #0 = { nounwind readonly uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-frame-pointer-elim-non-leaf"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-frame-pointer-elim-non-leaf"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #2 = { nounwind readnone }
 
+!1 = distinct !DISubprogram()
 
-!17 = metadata !{i32 786448, null, null, null, i32 0, i64 0, i64 0, i64 0, i32 0, null} ; [ DW_TAG_reference_type ] [line 0, size 0, align 0, offset 0] [from Foo]
-!45 = metadata !{i32 786447, null, null, metadata !"", i32 0, i64 64, i64 64, i64 0, i32 0, null} ; [ DW_TAG_pointer_type ] [line 0, size 64, align 64, offset 0] [from Flibble]
-!62 = metadata !{i32 786689, null, metadata !"arg", null, i32 33554436, metadata !17, i32 0, null} ; [ DW_TAG_arg_variable ] [arg] [line 4]
-!64 = metadata !{%struct.Flibble* undef}
-!65 = metadata !{i32 786689, null, metadata !"this", null, i32 16777229, metadata !45, i32 1088, null} ; [ DW_TAG_arg_variable ] [this] [line 13]
+!17 = !DIDerivedType(tag: DW_TAG_reference_type, baseType: null)
+!45 = !DIDerivedType(tag: DW_TAG_pointer_type, size: 64, align: 64, baseType: null)
+!62 = !DILocalVariable(name: "arg", line: 4, arg: 2, scope: !1, type: !17)
+!64 = !{%struct.Flibble* undef}
+!65 = !DILocalVariable(name: "this", line: 13, arg: 1, flags: DIFlagArtificial | DIFlagObjectPointer, scope: !1, type: !45)

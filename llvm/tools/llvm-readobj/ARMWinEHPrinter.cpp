@@ -64,8 +64,8 @@
 
 #include "ARMWinEHPrinter.h"
 #include "Error.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/ARMWinEH.h"
 #include "llvm/Support/Format.h"
 
@@ -186,13 +186,8 @@ void Decoder::printRegisters(const std::pair<uint16_t, uint32_t> &RegisterMask) 
 ErrorOr<object::SectionRef>
 Decoder::getSectionContaining(const COFFObjectFile &COFF, uint64_t VA) {
   for (const auto &Section : COFF.sections()) {
-    uint64_t Address;
-    uint64_t Size;
-
-    if (std::error_code EC = Section.getAddress(Address))
-      return EC;
-    if (std::error_code EC = Section.getSize(Size))
-      return EC;
+    uint64_t Address = Section.getAddress();
+    uint64_t Size = Section.getSize();
 
     if (VA >= Address && (VA - Address) <= Size)
       return Section;
@@ -203,18 +198,16 @@ Decoder::getSectionContaining(const COFFObjectFile &COFF, uint64_t VA) {
 ErrorOr<object::SymbolRef> Decoder::getSymbol(const COFFObjectFile &COFF,
                                               uint64_t VA, bool FunctionOnly) {
   for (const auto &Symbol : COFF.symbols()) {
-    if (FunctionOnly) {
-      SymbolRef::Type Type;
-      if (std::error_code EC = Symbol.getType(Type))
-        return EC;
-      if (Type != SymbolRef::ST_Function)
-        continue;
-    }
+    Expected<SymbolRef::Type> Type = Symbol.getType();
+    if (!Type)
+      return errorToErrorCode(Type.takeError());
+    if (FunctionOnly && *Type != SymbolRef::ST_Function)
+      continue;
 
-    uint64_t Address;
-    if (std::error_code EC = Symbol.getAddress(Address))
-      return EC;
-    if (Address == VA)
+    Expected<uint64_t> Address = Symbol.getAddress();
+    if (!Address)
+      return errorToErrorCode(Address.takeError());
+    if (*Address == VA)
       return Symbol;
   }
   return readobj_error::unknown_symbol;
@@ -224,16 +217,14 @@ ErrorOr<SymbolRef> Decoder::getRelocatedSymbol(const COFFObjectFile &,
                                                const SectionRef &Section,
                                                uint64_t Offset) {
   for (const auto &Relocation : Section.relocations()) {
-    uint64_t RelocationOffset;
-    if (auto Error = Relocation.getOffset(RelocationOffset))
-      return Error;
+    uint64_t RelocationOffset = Relocation.getOffset();
     if (RelocationOffset == Offset)
       return *Relocation.getSymbol();
   }
   return readobj_error::unknown_symbol;
 }
 
-bool Decoder::opcode_0xxxxxxx(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_0xxxxxxx(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   uint8_t Imm = OC[Offset] & 0x7f;
   SW.startLine() << format("0x%02x                ; %s sp, #(%u * 4)\n",
@@ -244,7 +235,7 @@ bool Decoder::opcode_0xxxxxxx(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_10Lxxxxx(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_10Lxxxxx(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   unsigned Link = (OC[Offset] & 0x20) >> 5;
   uint16_t RegisterMask = (Link << (Prologue ? 14 : 15))
@@ -259,11 +250,11 @@ bool Decoder::opcode_10Lxxxxx(const ulittle8_t *OC, unsigned &Offset,
   printRegisters(std::make_pair(RegisterMask, 0));
   OS << '\n';
 
-  ++Offset, ++Offset;
+  Offset += 2;
   return false;
 }
 
-bool Decoder::opcode_1100xxxx(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_1100xxxx(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   if (Prologue)
     SW.startLine() << format("0x%02x                ; mov r%u, sp\n",
@@ -275,7 +266,7 @@ bool Decoder::opcode_1100xxxx(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_11010Lxx(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11010Lxx(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   unsigned Link = (OC[Offset] & 0x4) >> 3;
   unsigned Count = (OC[Offset] & 0x3);
@@ -292,7 +283,7 @@ bool Decoder::opcode_11010Lxx(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_11011Lxx(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11011Lxx(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   unsigned Link = (OC[Offset] & 0x4) >> 2;
   unsigned Count = (OC[Offset] & 0x3) + 4;
@@ -309,7 +300,7 @@ bool Decoder::opcode_11011Lxx(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_11100xxx(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11100xxx(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   unsigned High = (OC[Offset] & 0x7);
   uint32_t VFPMask = (((1 << (High + 1)) - 1) << 8);
@@ -323,7 +314,7 @@ bool Decoder::opcode_11100xxx(const ulittle8_t *OC, unsigned &Offset,
   return false;
 }
 
-bool Decoder::opcode_111010xx(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_111010xx(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   uint16_t Imm = ((OC[Offset + 0] & 0x03) << 8) | ((OC[Offset + 1] & 0xff) << 0);
 
@@ -332,11 +323,11 @@ bool Decoder::opcode_111010xx(const ulittle8_t *OC, unsigned &Offset,
                            static_cast<const char *>(Prologue ? "sub" : "add"),
                            Imm);
 
-  ++Offset, ++Offset;
+  Offset += 2;
   return false;
 }
 
-bool Decoder::opcode_1110110L(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_1110110L(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   uint8_t GPRMask = ((OC[Offset + 0] & 0x01) << (Prologue ? 14 : 15))
                   | ((OC[Offset + 1] & 0xff) << 0);
@@ -346,11 +337,11 @@ bool Decoder::opcode_1110110L(const ulittle8_t *OC, unsigned &Offset,
   printRegisters(std::make_pair(GPRMask, 0));
   OS << '\n';
 
-  ++Offset, ++Offset;
+  Offset += 2;
   return false;
 }
 
-bool Decoder::opcode_11101110(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11101110(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   assert(!Prologue && "may not be used in prologue");
 
@@ -362,11 +353,11 @@ bool Decoder::opcode_11101110(const ulittle8_t *OC, unsigned &Offset,
       << format("0x%02x 0x%02x           ; microsoft-specific (type: %u)\n",
                 OC[Offset + 0], OC[Offset + 1], OC[Offset + 1] & 0x0f);
 
-  ++Offset, ++Offset;
+  Offset += 2;
   return false;
 }
 
-bool Decoder::opcode_11101111(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11101111(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   assert(!Prologue && "may not be used in prologue");
 
@@ -378,11 +369,11 @@ bool Decoder::opcode_11101111(const ulittle8_t *OC, unsigned &Offset,
       << format("0x%02x 0x%02x           ; ldr.w lr, [sp], #%u\n",
                 OC[Offset + 0], OC[Offset + 1], OC[Offset + 1] << 2);
 
-  ++Offset, ++Offset;
+  Offset += 2;
   return false;
 }
 
-bool Decoder::opcode_11110101(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11110101(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   unsigned Start = (OC[Offset + 1] & 0xf0) >> 4;
   unsigned End = (OC[Offset + 1] & 0x0f) >> 0;
@@ -393,11 +384,11 @@ bool Decoder::opcode_11110101(const ulittle8_t *OC, unsigned &Offset,
   printRegisters(std::make_pair(0, VFPMask));
   OS << '\n';
 
-  ++Offset, ++Offset;
+  Offset += 2;
   return false;
 }
 
-bool Decoder::opcode_11110110(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11110110(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   unsigned Start = (OC[Offset + 1] & 0xf0) >> 4;
   unsigned End = (OC[Offset + 1] & 0x0f) >> 0;
@@ -408,11 +399,11 @@ bool Decoder::opcode_11110110(const ulittle8_t *OC, unsigned &Offset,
   printRegisters(std::make_pair(0, VFPMask));
   OS << '\n';
 
-  ++Offset, ++Offset;
+  Offset += 2;
   return false;
 }
 
-bool Decoder::opcode_11110111(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11110111(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   uint32_t Imm = (OC[Offset + 1] << 8) | (OC[Offset + 2] << 0);
 
@@ -421,11 +412,11 @@ bool Decoder::opcode_11110111(const ulittle8_t *OC, unsigned &Offset,
                            static_cast<const char *>(Prologue ? "sub" : "add"),
                            Imm);
 
-  ++Offset, ++Offset, ++Offset;
+  Offset += 3;
   return false;
 }
 
-bool Decoder::opcode_11111000(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111000(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   uint32_t Imm = (OC[Offset + 1] << 16)
                | (OC[Offset + 2] << 8)
@@ -436,11 +427,11 @@ bool Decoder::opcode_11111000(const ulittle8_t *OC, unsigned &Offset,
               OC[Offset + 0], OC[Offset + 1], OC[Offset + 2], OC[Offset + 3],
               static_cast<const char *>(Prologue ? "sub" : "add"), Imm);
 
-  ++Offset, ++Offset, ++Offset, ++Offset;
+  Offset += 4;
   return false;
 }
 
-bool Decoder::opcode_11111001(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111001(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   uint32_t Imm = (OC[Offset + 1] << 8) | (OC[Offset + 2] << 0);
 
@@ -449,11 +440,11 @@ bool Decoder::opcode_11111001(const ulittle8_t *OC, unsigned &Offset,
               OC[Offset + 0], OC[Offset + 1], OC[Offset + 2],
               static_cast<const char *>(Prologue ? "sub" : "add"), Imm);
 
-  ++Offset, ++Offset, ++Offset;
+  Offset += 3;
   return false;
 }
 
-bool Decoder::opcode_11111010(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111010(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   uint32_t Imm = (OC[Offset + 1] << 16)
                | (OC[Offset + 2] << 8)
@@ -464,45 +455,45 @@ bool Decoder::opcode_11111010(const ulittle8_t *OC, unsigned &Offset,
               OC[Offset + 0], OC[Offset + 1], OC[Offset + 2], OC[Offset + 3],
               static_cast<const char *>(Prologue ? "sub" : "add"), Imm);
 
-  ++Offset, ++Offset, ++Offset, ++Offset;
+  Offset += 4;
   return false;
 }
 
-bool Decoder::opcode_11111011(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111011(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   SW.startLine() << format("0x%02x                ; nop\n", OC[Offset]);
   ++Offset;
   return false;
 }
 
-bool Decoder::opcode_11111100(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111100(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   SW.startLine() << format("0x%02x                ; nop.w\n", OC[Offset]);
   ++Offset;
   return false;
 }
 
-bool Decoder::opcode_11111101(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111101(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   SW.startLine() << format("0x%02x                ; b\n", OC[Offset]);
   ++Offset;
   return true;
 }
 
-bool Decoder::opcode_11111110(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111110(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   SW.startLine() << format("0x%02x                ; b.w\n", OC[Offset]);
   ++Offset;
   return true;
 }
 
-bool Decoder::opcode_11111111(const ulittle8_t *OC, unsigned &Offset,
+bool Decoder::opcode_11111111(const uint8_t *OC, unsigned &Offset,
                               unsigned Length, bool Prologue) {
   ++Offset;
   return true;
 }
 
-void Decoder::decodeOpcodes(ArrayRef<ulittle8_t> Opcodes, unsigned Offset,
+void Decoder::decodeOpcodes(ArrayRef<uint8_t> Opcodes, unsigned Offset,
                             bool Prologue) {
   assert((!Prologue || Offset == 0) && "prologue should always use offset 0");
 
@@ -525,10 +516,7 @@ bool Decoder::dumpXDataRecord(const COFFObjectFile &COFF,
   if (COFF.getSectionContents(COFF.getCOFFSection(Section), Contents))
     return false;
 
-  uint64_t SectionVA;
-  if (Section.getAddress(SectionVA))
-    return false;
-
+  uint64_t SectionVA = Section.getAddress();
   uint64_t Offset = VA - SectionVA;
   const ulittle32_t *Data =
     reinterpret_cast<const ulittle32_t *>(Contents.data() + Offset);
@@ -546,7 +534,7 @@ bool Decoder::dumpXDataRecord(const COFFObjectFile &COFF,
                  static_cast<uint64_t>(XData.CodeWords() * sizeof(uint32_t)));
 
   if (XData.E()) {
-    ArrayRef<ulittle8_t> UC = XData.UnwindByteCode();
+    ArrayRef<uint8_t> UC = XData.UnwindByteCode();
     if (!XData.F()) {
       ListScope PS(SW, "Prologue");
       decodeOpcodes(UC, 0, /*Prologue=*/true);
@@ -582,12 +570,17 @@ bool Decoder::dumpXDataRecord(const COFFObjectFile &COFF,
     if (!Symbol)
       Symbol = getSymbol(COFF, Address, /*FunctionOnly=*/true);
 
-    StringRef Name;
-    if (Symbol)
-      Symbol->getName(Name);
+    Expected<StringRef> Name = Symbol->getName();
+    if (!Name) {
+      std::string Buf;
+      llvm::raw_string_ostream OS(Buf);
+      logAllUnhandledErrors(Name.takeError(), OS, "");
+      OS.flush();
+      report_fatal_error(Buf);
+    }
 
     ListScope EHS(SW, "ExceptionHandler");
-    SW.printString("Routine", formatSymbol(Name, Address));
+    SW.printString("Routine", formatSymbol(*Name, Address));
     SW.printHex("Parameter", Parameter);
   }
 
@@ -616,8 +609,24 @@ bool Decoder::dumpUnpackedEntry(const COFFObjectFile &COFF,
   StringRef FunctionName;
   uint64_t FunctionAddress;
   if (Function) {
-    Function->getName(FunctionName);
-    Function->getAddress(FunctionAddress);
+    Expected<StringRef> FunctionNameOrErr = Function->getName();
+    if (!FunctionNameOrErr) {
+      std::string Buf;
+      llvm::raw_string_ostream OS(Buf);
+      logAllUnhandledErrors(FunctionNameOrErr.takeError(), OS, "");
+      OS.flush();
+      report_fatal_error(Buf);
+    }
+    FunctionName = *FunctionNameOrErr;
+    Expected<uint64_t> FunctionAddressOrErr = Function->getAddress();
+    if (!FunctionAddressOrErr) {
+      std::string Buf;
+      llvm::raw_string_ostream OS(Buf);
+      logAllUnhandledErrors(FunctionAddressOrErr.takeError(), OS, "");
+      OS.flush();
+      report_fatal_error(Buf);
+    }
+    FunctionAddress = *FunctionAddressOrErr;
   } else {
     const pe32_header *PEHeader;
     if (COFF.getPE32Header(PEHeader))
@@ -628,17 +637,34 @@ bool Decoder::dumpUnpackedEntry(const COFFObjectFile &COFF,
   SW.printString("Function", formatSymbol(FunctionName, FunctionAddress));
 
   if (XDataRecord) {
-    StringRef Name;
-    uint64_t Address;
+    Expected<StringRef> Name = XDataRecord->getName();
+    if (!Name) {
+      std::string Buf;
+      llvm::raw_string_ostream OS(Buf);
+      logAllUnhandledErrors(Name.takeError(), OS, "");
+      OS.flush();
+      report_fatal_error(Buf);
+    }
 
-    XDataRecord->getName(Name);
-    XDataRecord->getAddress(Address);
+    Expected<uint64_t> AddressOrErr = XDataRecord->getAddress();
+    if (!AddressOrErr) {
+      std::string Buf;
+      llvm::raw_string_ostream OS(Buf);
+      logAllUnhandledErrors(AddressOrErr.takeError(), OS, "");
+      OS.flush();
+      report_fatal_error(Buf);
+    }
+    uint64_t Address = *AddressOrErr;
 
-    SW.printString("ExceptionRecord", formatSymbol(Name, Address));
+    SW.printString("ExceptionRecord", formatSymbol(*Name, Address));
 
-    section_iterator SI = COFF.section_end();
-    if (XDataRecord->getSection(SI))
+    Expected<section_iterator> SIOrErr = XDataRecord->getSection();
+    if (!SIOrErr) {
+      // TODO: Actually report errors helpfully.
+      consumeError(SIOrErr.takeError());
       return false;
+    }
+    section_iterator SI = *SIOrErr;
 
     return dumpXDataRecord(COFF, *SI, FunctionAddress, Address);
   } else {
@@ -673,8 +699,24 @@ bool Decoder::dumpPackedEntry(const object::COFFObjectFile &COFF,
   StringRef FunctionName;
   uint64_t FunctionAddress;
   if (Function) {
-    Function->getName(FunctionName);
-    Function->getAddress(FunctionAddress);
+    Expected<StringRef> FunctionNameOrErr = Function->getName();
+    if (!FunctionNameOrErr) {
+      std::string Buf;
+      llvm::raw_string_ostream OS(Buf);
+      logAllUnhandledErrors(FunctionNameOrErr.takeError(), OS, "");
+      OS.flush();
+      report_fatal_error(Buf);
+    }
+    FunctionName = *FunctionNameOrErr;
+    Expected<uint64_t> FunctionAddressOrErr = Function->getAddress();
+    if (!FunctionAddressOrErr) {
+      std::string Buf;
+      llvm::raw_string_ostream OS(Buf);
+      logAllUnhandledErrors(FunctionAddressOrErr.takeError(), OS, "");
+      OS.flush();
+      report_fatal_error(Buf);
+    }
+    FunctionAddress = *FunctionAddressOrErr;
   } else {
     const pe32_header *PEHeader;
     if (COFF.getPE32Header(PEHeader))
@@ -741,4 +783,3 @@ std::error_code Decoder::dumpProcedureData(const COFFObjectFile &COFF) {
 }
 }
 }
-

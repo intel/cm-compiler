@@ -253,14 +253,6 @@ This pass decodes the debug info metadata in a module and prints in a
 For example, run this pass from ``opt`` along with the ``-analyze`` option, and
 it'll print to standard output.
 
-``-no-aa``: No Alias Analysis (always returns 'may' alias)
-----------------------------------------------------------
-
-This is the default implementation of the Alias Analysis interface.  It always
-returns "I don't know" for alias queries.  NoAA is unlike other alias analysis
-implementations, in that it does not chain to a previous analysis.  As such it
-doesn't follow many of the rules that other alias analyses must.
-
 ``-postdomfrontier``: Post-Dominance Frontier Construction
 ----------------------------------------------------------
 
@@ -891,17 +883,24 @@ calls, or transforming sets of stores into ``memset``\ s.
 
 This pass looks for equivalent functions that are mergable and folds them.
 
-A hash is computed from the function, based on its type and number of basic
-blocks.
+Total-ordering is introduced among the functions set: we define comparison
+that answers for every two functions which of them is greater. It allows to
+arrange functions into the binary tree.
 
-Once all hashes are computed, we perform an expensive equality comparison on
-each function pair.  This takes n^2/2 comparisons per bucket, so it's important
-that the hash function be high quality.  The equality comparison iterates
-through each instruction in each basic block.
+For every new function we check for equivalent in tree.
 
-When a match is found the functions are folded.  If both functions are
-overridable, we move the functionality into a new internal function and leave
-two overridable thunks to it.
+If equivalent exists we fold such functions. If both functions are overridable,
+we move the functionality into a new internal function and leave two
+overridable thunks to it.
+
+If there is no equivalent, then we add this function to tree.
+
+Lookup routine has O(log(n)) complexity, while whole merging process has
+complexity of O(n*log(n)).
+
+Read
+:doc:`this <MergeFunctions>`
+article for more details.
 
 ``-mergereturn``: Unify function exit nodes
 -------------------------------------------
@@ -948,7 +947,7 @@ that this should make CFG hacking much easier.  To make later hacking easier,
 the entry block is split into two, such that all introduced ``alloca``
 instructions (and nothing else) are in the entry block.
 
-``-scalarrepl``: Scalar Replacement of Aggregates (DT)
+``-sroa``: Scalar Replacement of Aggregates
 ------------------------------------------------------
 
 The well-known scalar replacement of aggregates transformation.  This transform
@@ -956,12 +955,6 @@ breaks up ``alloca`` instructions of aggregate type (structure or array) into
 individual ``alloca`` instructions for each member if possible.  Then, if
 possible, it transforms the individual ``alloca`` instructions into nice clean
 scalar SSA form.
-
-This combines a simple scalar replacement of aggregates algorithm with the
-:ref:`mem2reg <passes-mem2reg>` algorithm because they often interact,
-especially for C++ programs.  As such, iterating between ``scalarrepl``, then
-:ref:`mem2reg <passes-mem2reg>` until we run out of things to promote works
-well.
 
 .. _passes-sccp:
 
@@ -1111,13 +1104,6 @@ This is a little utility pass that gives instructions names, this is mostly
 useful when diffing the effect of an optimization because deleting an unnamed
 instruction can change all other instruction numbering, making the diff very
 noisy.
-
-``-preverify``: Preliminary module verification
------------------------------------------------
-
-Ensures that the module is in the form required by the :ref:`Module Verifier
-<passes-verify>` pass.  Running the verifier runs this pass automatically, so
-there should be no need to use it directly.
 
 .. _passes-verify:
 

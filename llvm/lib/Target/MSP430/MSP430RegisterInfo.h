@@ -11,10 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_MSP430REGISTERINFO_H
-#define LLVM_TARGET_MSP430REGISTERINFO_H
+#ifndef LLVM_LIB_TARGET_MSP430_MSP430REGISTERINFO_H
+#define LLVM_LIB_TARGET_MSP430_MSP430REGISTERINFO_H
 
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/CodeGen/TargetRegisterInfo.h"
 
 #define GET_REGINFO_HEADER
 #include "MSP430GenRegisterInfo.inc"
@@ -26,8 +26,7 @@ public:
   MSP430RegisterInfo();
 
   /// Code Generation virtual methods...
-  const MCPhysReg *
-  getCalleeSavedRegs(const MachineFunction *MF = nullptr) const override;
+  const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
 
   BitVector getReservedRegs(const MachineFunction &MF) const override;
   const TargetRegisterClass*
@@ -44,4 +43,4 @@ public:
 
 } // end namespace llvm
 
-#endif // LLVM_TARGET_MSP430REGISTERINFO_H
+#endif

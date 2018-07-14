@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-pc-linux -std=c++11 -ast-dump -ast-dump-filter Test %s | FileCheck --strict-whitespace %s
+// RUN: %clang_cc1 -triple x86_64-pc-linux -std=c++11 -Wno-deprecated-declarations -ast-dump -ast-dump-filter Test %s | FileCheck --strict-whitespace %s
 
 int TestLocation
 __attribute__((unused));
@@ -79,7 +79,7 @@ void TestInt(void) __attribute__((constructor(123)));
 // CHECK:      FunctionDecl{{.*}}TestInt
 // CHECK-NEXT:   ConstructorAttr{{.*}} 123
 
-int TestString __attribute__((alias("alias1")));
+static int TestString __attribute__((alias("alias1")));
 // CHECK:      VarDecl{{.*}}TestString
 // CHECK-NEXT:   AliasAttr{{.*}} "alias1"
 
@@ -123,7 +123,7 @@ int __attribute__((cdecl)) TestOne(void), TestTwo(void);
 
 void func() {
   auto Test = []() __attribute__((no_thread_safety_analysis)) {};
-  // CHECK: CXXMethodDecl{{.*}}operator() 'void (void) const'
+  // CHECK: CXXMethodDecl{{.*}}operator() 'void () const'
   // CHECK: NoThreadSafetyAnalysisAttr
 
   // Because GNU's noreturn applies to the function type, and this lambda does
@@ -131,7 +131,81 @@ void func() {
   // conversion should both be noreturn, but the method should not contain a
   // NoReturnAttr because the attribute applied to the type.
   auto Test2 = []() __attribute__((noreturn)) { while(1); };
-  // CHECK: CXXMethodDecl{{.*}}operator() 'void (void) __attribute__((noreturn)) const'
+  // CHECK: CXXMethodDecl{{.*}}operator() 'void () __attribute__((noreturn)) const'
   // CHECK-NOT: NoReturnAttr
   // CHECK: CXXConversionDecl{{.*}}operator void (*)() __attribute__((noreturn))
+}
+
+namespace PR20930 {
+struct S {
+  struct { int Test __attribute__((deprecated)); };
+  // CHECK: FieldDecl{{.*}}Test 'int'
+  // CHECK-NEXT: DeprecatedAttr
+};
+
+void f() {
+  S s;
+  s.Test = 1;
+  // CHECK: IndirectFieldDecl{{.*}}Test 'int'
+  // CHECK: DeprecatedAttr
+}
+}
+
+struct __attribute__((objc_bridge_related(NSParagraphStyle,,))) TestBridgedRef;
+// CHECK: CXXRecordDecl{{.*}} struct TestBridgedRef
+// CHECK-NEXT: ObjCBridgeRelatedAttr{{.*}} NSParagraphStyle
+
+void TestExternalSourceSymbolAttr1()
+__attribute__((external_source_symbol(language="Swift", defined_in="module", generated_declaration)));
+// CHECK: FunctionDecl{{.*}} TestExternalSourceSymbolAttr1
+// CHECK-NEXT: ExternalSourceSymbolAttr{{.*}} "Swift" "module" GeneratedDeclaration
+
+void TestExternalSourceSymbolAttr2()
+__attribute__((external_source_symbol(defined_in="module", language="Swift")));
+// CHECK: FunctionDecl{{.*}} TestExternalSourceSymbolAttr2
+// CHECK-NEXT: ExternalSourceSymbolAttr{{.*}} "Swift" "module"{{$}}
+
+void TestExternalSourceSymbolAttr3()
+__attribute__((external_source_symbol(generated_declaration, language="Objective-C++", defined_in="module")));
+// CHECK: FunctionDecl{{.*}} TestExternalSourceSymbolAttr3
+// CHECK-NEXT: ExternalSourceSymbolAttr{{.*}} "Objective-C++" "module" GeneratedDeclaration
+
+void TestExternalSourceSymbolAttr4()
+__attribute__((external_source_symbol(defined_in="Some external file.cs", generated_declaration, language="C Sharp")));
+// CHECK: FunctionDecl{{.*}} TestExternalSourceSymbolAttr4
+// CHECK-NEXT: ExternalSourceSymbolAttr{{.*}} "C Sharp" "Some external file.cs" GeneratedDeclaration
+
+void TestExternalSourceSymbolAttr5()
+__attribute__((external_source_symbol(generated_declaration, defined_in="module", language="Swift")));
+// CHECK: FunctionDecl{{.*}} TestExternalSourceSymbolAttr5
+// CHECK-NEXT: ExternalSourceSymbolAttr{{.*}} "Swift" "module" GeneratedDeclaration
+
+namespace TestNoEscape {
+  void noescapeFunc(int *p0, __attribute__((noescape)) int *p1) {}
+  // CHECK: `-FunctionDecl{{.*}} noescapeFunc 'void (int *, __attribute__((noescape)) int *)'
+  // CHECK-NEXT: ParmVarDecl
+  // CHECK-NEXT: ParmVarDecl
+  // CHECK-NEXT: NoEscapeAttr
+}
+
+namespace TestSuppress {
+  [[gsl::suppress("at-namespace")]];
+  // CHECK: NamespaceDecl{{.*}} TestSuppress
+  // CHECK-NEXT: EmptyDecl{{.*}}
+  // CHECK-NEXT: SuppressAttr{{.*}} at-namespace
+  [[gsl::suppress("on-decl")]]
+  void TestSuppressFunction();
+  // CHECK: FunctionDecl{{.*}} TestSuppressFunction
+  // CHECK-NEXT SuppressAttr{{.*}} on-decl
+
+  void f() {
+      int *i;
+
+      [[gsl::suppress("on-stmt")]] {
+      // CHECK: AttributedStmt
+      // CHECK-NEXT: SuppressAttr{{.*}} on-stmt
+      // CHECK-NEXT: CompoundStmt
+        i = reinterpret_cast<int*>(7);
+      }
+    }
 }

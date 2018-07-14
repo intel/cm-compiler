@@ -9,9 +9,13 @@
 
 ; The module ctor has no debug info.  All we have to do is don't crash.
 ; X86: _asan.module_ctor:
-; X86-NEXT: # BB
+; X86-NEXT: L{{.*}}:
+; X86:      # %bb.
 ; X86-NEXT: calll   ___asan_init_v3
 ; X86-NEXT: retl
+
+; Make sure we don't put any DWARF debug info for ASan-instrumented modules.
+; X86-NOT: DWARF
 
 ; ModuleID = 'asan.c'
 target datalayout = "e-m:w-p:32:32-i64:64-f80:32-n8:16:32-S32"
@@ -20,7 +24,7 @@ target triple = "i686-pc-win32"
 @llvm.global_ctors = appending global [1 x { i32, void ()* }] [{ i32, void ()* } { i32 1, void ()* @asan.module_ctor }]
 
 ; Function Attrs: nounwind sanitize_address
-define i32 @foo() #0 {
+define i32 @foo() #0 !dbg !4 {
 entry:
   ret i32 0, !dbg !10
 }
@@ -78,14 +82,13 @@ attributes #0 = { nounwind sanitize_address "less-precise-fpmad"="false" "no-fra
 !llvm.module.flags = !{!7, !8}
 !llvm.ident = !{!9}
 
-!0 = metadata !{i32 786449, metadata !1, i32 12, metadata !"clang version 3.5.0 ", i1 false, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !"", i32 2} ; [ DW_TAG_compile_unit ] [D:\/asan.c] [DW_LANG_C99]
-!1 = metadata !{metadata !"asan.c", metadata !"D:\5C"}
-!2 = metadata !{}
-!3 = metadata !{metadata !4}
-!4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"foo", metadata !"foo", metadata !"", i32 1, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, i32 ()* @foo, null, null, metadata !2, i32 1} ; [ DW_TAG_subprogram ] [line 1] [def] [foo]
-!5 = metadata !{i32 786473, metadata !1}          ; [ DW_TAG_file_type ] [D:\/asan.c]
-!6 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !2, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!7 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!8 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
-!9 = metadata !{metadata !"clang version 3.5.0 "}
-!10 = metadata !{i32 2, i32 0, metadata !4, null}
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "clang version 3.5.0 ", isOptimized: false, emissionKind: LineTablesOnly, file: !1, enums: !2, retainedTypes: !2, globals: !2, imports: !2)
+!1 = !DIFile(filename: "asan.c", directory: "D:\5C")
+!2 = !{}
+!4 = distinct !DISubprogram(name: "foo", line: 1, isLocal: false, isDefinition: true, virtualIndex: 6, flags: DIFlagPrototyped, isOptimized: false, unit: !0, scopeLine: 1, file: !1, scope: !5, type: !6, variables: !2)
+!5 = !DIFile(filename: "asan.c", directory: "D:C")
+!6 = !DISubroutineType(types: !2)
+!7 = !{i32 2, !"CodeView", i32 1}
+!8 = !{i32 1, !"Debug Info Version", i32 3}
+!9 = !{!"clang version 3.5.0 "}
+!10 = !DILocation(line: 2, scope: !4)

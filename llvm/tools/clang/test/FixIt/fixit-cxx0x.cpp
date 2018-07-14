@@ -54,7 +54,6 @@ struct S2 {
 
 void S2::f(int i) {
   (void)[&, &i, &i]{}; // expected-error 2{{'&' cannot precede a capture when the capture default is '&'}}
-  (void)[=, this]{ this->g(5); }; // expected-error{{'this' cannot be explicitly captured}}
   (void)[i, i]{ }; // expected-error{{'i' can appear only once in a capture list}}
   (void)[&, i, i]{ }; // expected-error{{'i' can appear only once in a capture list}}
   (void)[] mutable { }; // expected-error{{lambda requires '()' before 'mutable'}}
@@ -157,4 +156,23 @@ namespace MisplacedParameterPack {
 
   template <int... N...> // expected-error {{'...' must immediately precede declared identifier}}
   void redundantEllipsisInNonTypeTemplateParameter();
+}
+
+namespace MisplacedDeclAndRefSpecAfterVirtSpec {
+  struct B {
+    virtual void f();
+    virtual void f() volatile const;
+  };
+  struct D : B {
+    virtual void f() override;
+    virtual void f() override final const volatile; // expected-error {{'const' qualifier may not appear after the virtual specifier 'final'}} expected-error {{'volatile' qualifier may not appear after the virtual specifier 'final'}}
+  };
+  struct B2 {
+    virtual void f() &;
+    virtual void f() volatile const &&;
+  };
+  struct D2 : B2 {
+    virtual void f() override &; // expected-error {{'&' qualifier may not appear after the virtual specifier 'override'}}
+    virtual void f() override final const volatile &&; //  expected-error {{'const' qualifier may not appear after the virtual specifier 'final'}} expected-error {{'volatile' qualifier may not appear after the virtual specifier 'final'}} expected-error {{'&&' qualifier may not appear after the virtual specifier 'final'}}
+  };
 }

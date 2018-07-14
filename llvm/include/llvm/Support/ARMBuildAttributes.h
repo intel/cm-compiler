@@ -16,8 +16,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_ARM_BUILD_ATTRIBUTES_H
-#define LLVM_SUPPORT_ARM_BUILD_ATTRIBUTES_H
+#ifndef LLVM_SUPPORT_ARMBUILDATTRIBUTES_H
+#define LLVM_SUPPORT_ARMBUILDATTRIBUTES_H
 
 namespace llvm {
 class StringRef;
@@ -67,6 +67,7 @@ enum AttrType {
   ABI_FP_16bit_format       = 38,
   MPextension_use           = 42, // recoded from 70 (ABI r2.08)
   DIV_use                   = 44,
+  DSP_extension             = 46,
   also_compatible_with      = 65,
   conformance               = 67,
   Virtualization_use        = 68,
@@ -100,13 +101,16 @@ enum CPUArch {
   v5TEJ    = 5,   // e.g. ARM926EJ_S
   v6       = 6,   // e.g. ARM1136J_S
   v6KZ     = 7,   // e.g. ARM1176JZ_S
-  v6T2     = 8,   // e.g. ARM1156T2F_S
-  v6K      = 9,   // e.g. ARM1136J_S
+  v6T2     = 8,   // e.g. ARM1156T2_S
+  v6K      = 9,   // e.g. ARM1176JZ_S
   v7       = 10,  // e.g. Cortex A8, Cortex M3
   v6_M     = 11,  // e.g. Cortex M1
   v6S_M    = 12,  // v6_M with the System extensions
   v7E_M    = 13,  // v7_M with DSP extensions
-  v8       = 14   // v8, AArch32
+  v8_A     = 14,  // v8_A AArch32
+  v8_R     = 15,  // e.g. Cortex R52
+  v8_M_Base= 16,  // v8_M_Base AArch32
+  v8_M_Main= 17,  // v8_M_Main AArch32
 };
 
 enum CPUArchProfile {               // (=7), uleb128
@@ -126,6 +130,7 @@ enum {
 
   // Tag_THUMB_ISA_use, (=9), uleb128
   AllowThumb32 = 2, // 32-bit Thumb (implies 16-bit instructions)
+  AllowThumbDerived = 3, // Thumb allowed, derived from arch/profile
 
   // Tag_FP_arch (=10), uleb128 (formerly Tag_VFP_arch = 10)
   AllowFPv2  = 2,     // v2 FP ISA permitted (implies use of the v1 FP ISA)
@@ -145,6 +150,13 @@ enum {
   AllowNeon = 1,      // SIMDv1 was permitted
   AllowNeon2 = 2,     // SIMDv2 was permitted (Half-precision FP, MAC operations)
   AllowNeonARMv8 = 3, // ARM v8-A SIMD was permitted
+  AllowNeonARMv8_1a = 4,// ARM v8.1-A SIMD was permitted (RDMA)
+
+  // Tag_ABI_PCS_R9_use, (=14), uleb128
+  R9IsGPR = 0,        // R9 used as v6 (just another callee-saved register)
+  R9IsSB = 1,         // R9 used as a global static base rgister
+  R9IsTLSPointer = 2, // R9 used as a thread local storage pointer
+  R9Reserved = 3,     // R9 not used by code associated with attributed entity
 
   // Tag_ABI_PCS_RW_data, (=15), uleb128
   AddressRWPCRel = 1, // Address RW static data PC-relative
@@ -164,12 +176,25 @@ enum {
   WCharWidth2Bytes = 2, // sizeof(wchar_t) == 2
   WCharWidth4Bytes = 4, // sizeof(wchar_t) == 4
 
+  // Tag_ABI_align_needed, (=24), uleb128
+  Align8Byte = 1,
+  Align4Byte = 2,
+  AlignReserved = 3,
+
+  // Tag_ABI_align_needed, (=25), uleb128
+  AlignNotPreserved = 0,
+  AlignPreserve8Byte = 1,
+  AlignPreserveAll = 2,
+
   // Tag_ABI_FP_denormal, (=20), uleb128
+  PositiveZero = 0,
+  IEEEDenormals = 1,
   PreserveFPSign = 2, // sign when flushed-to-zero is preserved
 
   // Tag_ABI_FP_number_model, (=23), uleb128
+  AllowIEEENormal = 1,
   AllowRTABI = 2,  // numbers, infinities, and one quiet NaN (see [RTABI])
-  AllowIEE754 = 3, // this code to use all the IEEE 754-defined FP encodings
+  AllowIEEE754 = 3, // this code to use all the IEEE 754-defined FP encodings
 
   // Tag_ABI_enum_size, (=26), uleb128
   EnumProhibited = 0, // The user prohibited the use of enums when building
@@ -191,6 +216,10 @@ enum {
 
   // Tag_FP_HP_extension, (=36), uleb128
   AllowHPFP = 1, // Allow use of Half Precision FP
+
+  // Tag_FP_16bit_format, (=38), uleb128
+  FP16FormatIEEE = 1,
+  FP16VFP3 = 2,
 
   // Tag_MPextension_use, (=42), uleb128
   AllowMP = 1, // Allow use of MP extensions
@@ -214,4 +243,4 @@ enum {
 } // namespace ARMBuildAttrs
 } // namespace llvm
 
-#endif // LLVM_SUPPORT_ARM_BUILD_ATTRIBUTES_H
+#endif

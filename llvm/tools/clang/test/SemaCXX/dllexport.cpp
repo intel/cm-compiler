@@ -1,7 +1,7 @@
-// RUN: %clang_cc1 -triple i686-win32     -fsyntax-only -verify -std=c++11 -DMS %s
-// RUN: %clang_cc1 -triple x86_64-win32   -fsyntax-only -verify -std=c++1y -DMS %s
-// RUN: %clang_cc1 -triple i686-mingw32   -fsyntax-only -verify -std=c++1y %s
-// RUN: %clang_cc1 -triple x86_64-mingw32 -fsyntax-only -verify -std=c++11 %s
+// RUN: %clang_cc1 -triple i686-win32     -fsyntax-only -fms-extensions -verify -std=c++11 -Wunsupported-dll-base-class-template -DMS %s
+// RUN: %clang_cc1 -triple x86_64-win32   -fsyntax-only -fms-extensions -verify -std=c++1y -Wunsupported-dll-base-class-template -DMS %s
+// RUN: %clang_cc1 -triple i686-mingw32   -fsyntax-only -fms-extensions -verify -std=c++1y -Wunsupported-dll-base-class-template %s
+// RUN: %clang_cc1 -triple x86_64-mingw32 -fsyntax-only -fms-extensions -verify -std=c++11 -Wunsupported-dll-base-class-template %s
 
 // Helper structs to make templates more expressive.
 struct ImplicitInst_Exported {};
@@ -16,13 +16,19 @@ struct External { int v; };
 
 
 // Invalid usage.
-__declspec(dllexport) typedef int typedef1; // expected-warning{{'dllexport' attribute only applies to variables, functions and classes}}
-typedef __declspec(dllexport) int typedef2; // expected-warning{{'dllexport' attribute only applies to variables, functions and classes}}
-typedef int __declspec(dllexport) typedef3; // expected-warning{{'dllexport' attribute only applies to variables, functions and classes}}
-typedef __declspec(dllexport) void (*FunTy)(); // expected-warning{{'dllexport' attribute only applies to variables, functions and classes}}
-enum __declspec(dllexport) Enum {}; // expected-warning{{'dllexport' attribute only applies to variables, functions and classes}}
+__declspec(dllexport) typedef int typedef1;
+// expected-warning@-1{{'dllexport' attribute only applies to functions, variables, classes, and Objective-C interfaces}}
+typedef __declspec(dllexport) int typedef2;
+// expected-warning@-1{{'dllexport' attribute only applies to}}
+typedef int __declspec(dllexport) typedef3;
+// expected-warning@-1{{'dllexport' attribute only applies to}}
+typedef __declspec(dllexport) void (*FunTy)();
+// expected-warning@-1{{'dllexport' attribute only applies to}}
+enum __declspec(dllexport) Enum {};
+// expected-warning@-1{{'dllexport' attribute only applies to}}
 #if __has_feature(cxx_strong_enums)
-  enum class __declspec(dllexport) EnumClass {}; // expected-warning{{'dllexport' attribute only applies to variables, functions and classes}}
+enum class __declspec(dllexport) EnumClass {};
+// expected-warning@-1{{'dllexport' attribute only applies to}}
 #endif
 
 
@@ -53,7 +59,12 @@ __declspec(dllexport) extern int GlobalRedecl2;
                              int GlobalRedecl2;
 
                       extern int GlobalRedecl3; // expected-note{{previous declaration is here}}
-__declspec(dllexport) extern int GlobalRedecl3; // expected-error{{redeclaration of 'GlobalRedecl3' cannot add 'dllexport' attribute}}
+__declspec(dllexport) extern int GlobalRedecl3; // expected-warning{{redeclaration of 'GlobalRedecl3' should not add 'dllexport' attribute}}
+
+extern "C" {
+                      extern int GlobalRedecl4; // expected-note{{previous declaration is here}}
+__declspec(dllexport) extern int GlobalRedecl4; // expected-warning{{redeclaration of 'GlobalRedecl4' should not add 'dllexport' attribute}}
+}
 
 // External linkage is required.
 __declspec(dllexport) static int StaticGlobal; // expected-error{{'StaticGlobal' must have external linkage when declared 'dllexport'}}
@@ -63,6 +74,13 @@ namespace ns { __declspec(dllexport) int ExternalGlobal; }
 
 __declspec(dllexport) auto InternalAutoTypeGlobal = Internal(); // expected-error{{'InternalAutoTypeGlobal' must have external linkage when declared 'dllexport'}}
 __declspec(dllexport) auto ExternalAutoTypeGlobal = External();
+
+// Thread local variables are invalid.
+__declspec(dllexport) __thread int ThreadLocalGlobal; // expected-error{{'ThreadLocalGlobal' cannot be thread local when declared 'dllexport'}}
+// But a static local TLS var in an export function is OK.
+inline void __declspec(dllexport) ExportedInlineWithThreadLocal() {
+  static __thread int OK; // no-error
+}
 
 // Export in local scope.
 void functionScope() {
@@ -186,10 +204,15 @@ __declspec(dllexport) void redecl2();
                       void redecl2() {}
 
                       void redecl3(); // expected-note{{previous declaration is here}}
-__declspec(dllexport) void redecl3(); // expected-error{{redeclaration of 'redecl3' cannot add 'dllexport' attribute}}
+__declspec(dllexport) void redecl3(); // expected-warning{{redeclaration of 'redecl3' should not add 'dllexport' attribute}}
 
+extern "C" {
                       void redecl4(); // expected-note{{previous declaration is here}}
-__declspec(dllexport) inline void redecl4() {} // expected-error{{redeclaration of 'redecl4' cannot add 'dllexport' attribute}}
+__declspec(dllexport) void redecl4(); // expected-warning{{redeclaration of 'redecl4' should not add 'dllexport' attribute}}
+}
+
+                      void redecl5(); // expected-note{{previous declaration is here}}
+__declspec(dllexport) inline void redecl5() {} // expected-warning{{redeclaration of 'redecl5' should not add 'dllexport' attribute}}
 
 // Friend functions
 struct FuncFriend {
@@ -200,8 +223,8 @@ struct FuncFriend {
 };
 __declspec(dllexport) void friend1() {}
                       void friend2() {}
-__declspec(dllexport) void friend3() {} // expected-error{{redeclaration of 'friend3' cannot add 'dllexport' attribute}}
-__declspec(dllexport) inline void friend4() {} // expected-error{{redeclaration of 'friend4' cannot add 'dllexport' attribute}}
+__declspec(dllexport) void friend3() {} // expected-warning{{redeclaration of 'friend3' should not add 'dllexport' attribute}}
+__declspec(dllexport) inline void friend4() {} // expected-warning{{redeclaration of 'friend4' should not add 'dllexport' attribute}}
 
 // Implicit declarations can be redeclared with dllexport.
 __declspec(dllexport) void* operator new(__SIZE_TYPE__ n);
@@ -314,6 +337,10 @@ template<> __declspec(dllexport) inline void funcTmpl<ExplicitSpec_InlineDef_Exp
 // Classes
 //===----------------------------------------------------------------------===//
 
+namespace {
+  struct __declspec(dllexport) AnonymousClass {}; // expected-error{{(anonymous namespace)::AnonymousClass' must have external linkage when declared 'dllexport'}}
+}
+
 class __declspec(dllexport) ClassDecl;
 
 class __declspec(dllexport) ClassDef {};
@@ -327,6 +354,60 @@ template <typename T> struct __declspec(dllexport) PartiallySpecializedClassTemp
 template <typename T> struct ExpliciallySpecializedClassTemplate {};
 template <> struct __declspec(dllexport) ExpliciallySpecializedClassTemplate<int> { void f() {} };
 
+// Don't instantiate class members of implicitly instantiated templates, even if they are exported.
+struct IncompleteType;
+template <typename T> struct __declspec(dllexport) ImplicitlyInstantiatedExportedTemplate {
+  int f() { return sizeof(T); } // no-error
+};
+ImplicitlyInstantiatedExportedTemplate<IncompleteType> implicitlyInstantiatedExportedTemplate;
+
+// Don't instantiate class members of templates with explicit instantiation declarations, even if they are exported.
+struct IncompleteType2;
+template <typename T> struct __declspec(dllexport) ExportedTemplateWithExplicitInstantiationDecl { // expected-note{{attribute is here}}
+  int f() { return sizeof(T); } // no-error
+};
+extern template struct ExportedTemplateWithExplicitInstantiationDecl<IncompleteType2>; // expected-warning{{explicit instantiation declaration should not be 'dllexport'}}
+
+// Instantiate class members for explicitly instantiated exported templates.
+struct IncompleteType3; // expected-note{{forward declaration of 'IncompleteType3'}}
+template <typename T> struct __declspec(dllexport) ExplicitlyInstantiatedExportedTemplate {
+  int f() { return sizeof(T); } // expected-error{{invalid application of 'sizeof' to an incomplete type 'IncompleteType3'}}
+};
+template struct ExplicitlyInstantiatedExportedTemplate<IncompleteType3>; // expected-note{{in instantiation of member function 'ExplicitlyInstantiatedExportedTemplate<IncompleteType3>::f' requested here}}
+
+// In MS mode, instantiate members of class templates that are base classes of exported classes.
+#ifdef MS
+  // expected-note@+3{{forward declaration of 'IncompleteType4'}}
+  // expected-note@+3{{in instantiation of member function 'BaseClassTemplateOfExportedClass<IncompleteType4>::f' requested here}}
+#endif
+struct IncompleteType4;
+template <typename T> struct BaseClassTemplateOfExportedClass {
+#ifdef MS
+  // expected-error@+2{{invalid application of 'sizeof' to an incomplete type 'IncompleteType4'}}
+#endif
+  int f() { return sizeof(T); };
+};
+struct __declspec(dllexport) ExportedBaseClass : public BaseClassTemplateOfExportedClass<IncompleteType4> {};
+
+// Don't instantiate members of explicitly exported class templates that are base classes of exported classes.
+struct IncompleteType5;
+template <typename T> struct __declspec(dllexport) ExportedBaseClassTemplateOfExportedClass {
+  int f() { return sizeof(T); }; // no-error
+};
+struct __declspec(dllexport) ExportedBaseClass2 : public ExportedBaseClassTemplateOfExportedClass<IncompleteType5> {};
+
+// Warn about explicit instantiation declarations of dllexport classes.
+template <typename T> struct ExplicitInstantiationDeclTemplate {};
+extern template struct __declspec(dllexport) ExplicitInstantiationDeclTemplate<int>; // expected-warning{{explicit instantiation declaration should not be 'dllexport'}} expected-note{{attribute is here}}
+
+template <typename T> struct __declspec(dllexport) ExplicitInstantiationDeclExportedTemplate {}; // expected-note{{attribute is here}}
+extern template struct ExplicitInstantiationDeclExportedTemplate<int>; // expected-warning{{explicit instantiation declaration should not be 'dllexport'}}
+
+namespace { struct InternalLinkageType {}; }
+struct __declspec(dllexport) PR23308 {
+  void f(InternalLinkageType*);
+};
+void PR23308::f(InternalLinkageType*) {} // No error; we don't try to export f because it has internal linkage.
 
 //===----------------------------------------------------------------------===//
 // Classes with template base classes
@@ -368,21 +449,17 @@ class __declspec(dllexport) DerivedFromExportedTemplate : public ExportedClassTe
 // ImportedTemplate is explicitly imported.
 class __declspec(dllexport) DerivedFromImportedTemplate : public ImportedClassTemplate<int> {};
 
-#ifdef MS
-// expected-note@+4{{class template 'ClassTemplate<double>' was instantiated here}}
-// expected-warning@+4{{propagating dll attribute to already instantiated base class template without dll attribute is not supported}}
-// expected-note@+3{{attribute is here}}
-#endif
 class DerivedFromTemplateD : public ClassTemplate<double> {};
+// Base class previously implicitly instantiated without attribute; it will get propagated.
 class __declspec(dllexport) DerivedFromTemplateD2 : public ClassTemplate<double> {};
 
-#ifdef MS
-// expected-note@+4{{class template 'ClassTemplate<bool>' was instantiated here}}
-// expected-warning@+4{{propagating dll attribute to already instantiated base class template with different dll attribute is not supported}}
-// expected-note@+3{{attribute is here}}
-#endif
-class __declspec(dllimport) DerivedFromTemplateB : public ClassTemplate<bool> {};
-class __declspec(dllexport) DerivedFromTemplateB2 : public ClassTemplate<bool> {};
+// Base class has explicit instantiation declaration; the attribute will get propagated.
+extern template class ClassTemplate<float>;
+class __declspec(dllexport) DerivedFromTemplateF : public ClassTemplate<float> {};
+
+class __declspec(dllexport) DerivedFromTemplateB : public ClassTemplate<bool> {};
+// The second derived class doesn't change anything, the attribute that was propagated first wins.
+class __declspec(dllimport) DerivedFromTemplateB2 : public ClassTemplate<bool> {};
 
 #ifdef MS
 // expected-warning@+3{{propagating dll attribute to explicitly specialized base class template without dll attribute is not supported}}
@@ -407,6 +484,10 @@ struct __declspec(dllexport) DerivedFromExplicitlyExportInstantiatedTemplate : p
 
 // Base class already instantiated with import attribute.
 struct __declspec(dllexport) DerivedFromExplicitlyImportInstantiatedTemplate : public ExplicitlyImportInstantiatedTemplate<int> {};
+
+template <typename T> struct ExplicitInstantiationDeclTemplateBase { void func() {} };
+extern template struct ExplicitInstantiationDeclTemplateBase<int>;
+struct __declspec(dllexport) DerivedFromExplicitInstantiationDeclTemplateBase : public ExplicitInstantiationDeclTemplateBase<int> {};
 
 
 //===----------------------------------------------------------------------===//
@@ -484,7 +565,7 @@ private:
   __declspec(dllexport)                void privateDef();
 public:
 
-  __declspec(dllexport)                int  Field; // expected-warning{{'dllexport' attribute only applies to variables, functions and classes}}
+  __declspec(dllexport)                int  Field; // expected-warning{{'dllexport' attribute only applies to}}
   __declspec(dllexport) static         int  StaticField;
   __declspec(dllexport) static         int  StaticFieldDef;
   __declspec(dllexport) static  const  int  StaticConstField;
@@ -655,7 +736,33 @@ __declspec(dllexport)        int  MemberRedecl::StaticField = 1;       // expect
 __declspec(dllexport) const  int  MemberRedecl::StaticConstField = 1;  // expected-error{{redeclaration of 'MemberRedecl::StaticConstField' cannot add 'dllexport' attribute}}
 __declspec(dllexport) constexpr int MemberRedecl::ConstexprField;      // expected-error{{redeclaration of 'MemberRedecl::ConstexprField' cannot add 'dllexport' attribute}}
 
+#ifdef MS
+struct __declspec(dllexport) ClassWithMultipleDefaultCtors {
+  ClassWithMultipleDefaultCtors(int = 40) {} // expected-error{{'__declspec(dllexport)' cannot be applied to more than one default constructor}}
+  ClassWithMultipleDefaultCtors(int = 30, ...) {} // expected-note{{declared here}}
+};
+template <typename T>
+struct ClassTemplateWithMultipleDefaultCtors {
+  __declspec(dllexport) ClassTemplateWithMultipleDefaultCtors(int = 40) {}      // expected-error{{'__declspec(dllexport)' cannot be applied to more than one default constructor}}
+  __declspec(dllexport) ClassTemplateWithMultipleDefaultCtors(int = 30, ...) {} // expected-note{{declared here}}
+};
 
+template <typename T> struct HasDefaults {
+  HasDefaults(int x = sizeof(T)) {} // expected-error {{invalid application of 'sizeof'}}
+};
+template struct __declspec(dllexport) HasDefaults<char>;
+
+template struct
+__declspec(dllexport) // expected-note {{in instantiation of default function argument expression for 'HasDefaults<void>' required here}}
+HasDefaults<void>; // expected-note {{in instantiation of member function 'HasDefaults<void>::HasDefaults' requested here}}
+
+template <typename T> struct HasDefaults2 {
+  __declspec(dllexport) // expected-note {{in instantiation of default function argument expression for 'HasDefaults2<void>' required here}}
+  HasDefaults2(int x = sizeof(T)) {} // expected-error {{invalid application of 'sizeof'}}
+};
+template struct HasDefaults2<void>; // expected-note {{in instantiation of member function 'HasDefaults2<void>::HasDefaults2' requested here}}
+
+#endif
 
 //===----------------------------------------------------------------------===//
 // Class member templates
@@ -870,7 +977,7 @@ private:
   __declspec(dllexport)                void privateDef();
 public:
 
-  __declspec(dllexport)                int  Field; // expected-warning{{'dllexport' attribute only applies to variables, functions and classes}}
+  __declspec(dllexport)                int  Field; // expected-warning{{'dllexport' attribute only applies to}}
   __declspec(dllexport) static         int  StaticField;
   __declspec(dllexport) static         int  StaticFieldDef;
   __declspec(dllexport) static  const  int  StaticConstField;
@@ -1008,3 +1115,12 @@ template<typename T> template<typename U> __declspec(dllexport) constexpr int CT
 #endif // __has_feature(cxx_variable_templates)
 
 // FIXME: Precedence rules seem to be different for classes.
+
+//===----------------------------------------------------------------------===//
+// Lambdas
+//===----------------------------------------------------------------------===//
+// The MS ABI doesn't provide a stable mangling for lambdas, so they can't be imported or exported.
+#ifdef MS
+// expected-error@+2{{lambda cannot be declared 'dllexport'}}
+#endif
+auto Lambda = []() __declspec(dllexport) -> bool { return true; };

@@ -124,11 +124,33 @@ files:</p>
 
 <h3 id="scanbuild_forwindowsusers">For Windows Users</h3>
 
-<p>Windows users must have Perl installed to use scan-build. Currently scan-build 
-is known to work with the msys perl port.</p>
+<p>Windows users must have Perl installed to use scan-build.</p>
 
-<p>scan-build.bat script allows you to launch scan-build in the same way as it described in the Basic Usage section above.
-All you need to be able to invoke scan-build from an arbitrary location is to add the path to scan-build to your PATH environment variable.</p>
+<p><tt>scan-build.bat</tt> script allows you to launch scan-build in the same
+way as it described in the Basic Usage section above. To invoke scan-build from
+an arbitrary location, add the path to the folder containing scan-build.bat to
+your PATH environment variable.</p>
+
+<p>If you have unexpected compilation/make problems when running scan-build
+with MinGW/MSYS the following information may be helpful:</p>
+
+<ul>
+ <li> If getting unexpected <tt>"fatal error: no input files"</tt> while 
+building with MSYS make from the Windows cmd, try one of these solutions:</li>
+ <ul>
+ <li> Use MinGW <tt>mingw32-make</tt> instead of MSYS <tt>make</tt> and
+exclude the path to MSYS from PATH to prevent <tt>mingw32-make</tt> from using
+MSYS utils. MSYS utils are dependent on the MSYS runtime and they are not
+intended for being run from the Windows cmd. Specifically, makefile commands
+with backslashed quotes may be heavily corrupted when passed for execution.</li>
+ <li> Run <tt>make</tt> from the sh shell:
+<pre class="code_example">
+$ <span class="code_highlight">scan-build</span> <i>[scan-build options]</i> sh -c "make <i>[make options]</i>"
+</pre></li>
+ </ul>
+ <li> If getting <tt>"Error : *** target pattern contains no `%'"</tt> while 
+using GNU Make 3.81, try to use another version of make.</li>
+</ul>
 
 <h3 id="scanbuild_otheroptions">Other Options</h3>
 
@@ -203,6 +225,9 @@ completes, pass <b>-V</b> to <tt>scan-build</tt>.
 Assertions are picked up by the static analyzer to prune infeasible paths, which
 in some cases can greatly reduce the number of false positives (bogus error
 reports) emitted by the tool.</p>
+
+<p>Another option is to use <tt>--force-analyze-debug-code</tt> flag of
+<b>scan-build</b> tool which would enable assertions automatically.</p>
 
 <h3 id="recommend_verbose">Use verbose output when debugging scan-build</h3>
 
@@ -287,11 +312,11 @@ steps they need to take (e.g., setup code signing).</p>
 
 <h3>Recommendation: use &quot;Build and Analyze&quot;</h3>
 
-<p>The absolute easiest way to analyze iPhone projects is to use the <a
-href="http://developer.apple.com/mac/library/featuredarticles/StaticAnalysis/index.html"><i>Build
-and Analyze</i> feature in Xcode 3.2</a> (which is based on the Clang Static
-Analyzer). There a user can analyze their project with the click of a button
-without most of the setup described later.</p>
+<p>The absolute easiest way to analyze iPhone projects is to use the
+<a href="https://developer.apple.com/library/ios/recipes/xcode_help-source_editor/chapters/Analyze.html#//apple_ref/doc/uid/TP40009975-CH4-SW1"><i>Analyze</i>
+feature in Xcode</a> (which is based on the Clang Static Analyzer). There a
+user can analyze their project right from a menu without most of the setup
+described later.</p>
 
 <p><a href="/xcode.html">Instructions are available</a> on this
 website on how to use open source builds of the analyzer as a replacement for

@@ -16,9 +16,6 @@ namespace ast_matchers {
 namespace dynamic {
 namespace {
 
-using ast_matchers::internal::DynTypedMatcher;
-using ast_matchers::internal::Matcher;
-
 TEST(VariantValueTest, Unsigned) {
   const unsigned kUnsigned = 17;
   VariantValue Value = kUnsigned;
@@ -32,7 +29,7 @@ TEST(VariantValueTest, Unsigned) {
 }
 
 TEST(VariantValueTest, String) {
-  const ::std::string kString = "string";
+  const StringRef kString = "string";
   VariantValue Value = kString;
 
   EXPECT_TRUE(Value.isString());
@@ -74,16 +71,20 @@ TEST(VariantValueTest, DynTypedMatcher) {
 }
 
 TEST(VariantValueTest, Assignment) {
-  VariantValue Value = std::string("A");
+  VariantValue Value = StringRef("A");
   EXPECT_TRUE(Value.isString());
   EXPECT_EQ("A", Value.getString());
   EXPECT_TRUE(Value.hasValue());
+  EXPECT_FALSE(Value.isBoolean());
+  EXPECT_FALSE(Value.isDouble());
   EXPECT_FALSE(Value.isUnsigned());
   EXPECT_FALSE(Value.isMatcher());
   EXPECT_EQ("String", Value.getTypeAsString());
 
   Value = VariantMatcher::SingleMatcher(recordDecl());
   EXPECT_TRUE(Value.hasValue());
+  EXPECT_FALSE(Value.isBoolean());
+  EXPECT_FALSE(Value.isDouble());
   EXPECT_FALSE(Value.isUnsigned());
   EXPECT_FALSE(Value.isString());
   EXPECT_TRUE(Value.isMatcher());
@@ -91,15 +92,36 @@ TEST(VariantValueTest, Assignment) {
   EXPECT_FALSE(Value.getMatcher().hasTypedMatcher<UnaryOperator>());
   EXPECT_EQ("Matcher<Decl>", Value.getTypeAsString());
 
+  Value = true;
+  EXPECT_TRUE(Value.isBoolean());
+  EXPECT_EQ(true, Value.getBoolean());
+  EXPECT_TRUE(Value.hasValue());
+  EXPECT_FALSE(Value.isUnsigned());
+  EXPECT_FALSE(Value.isMatcher());
+  EXPECT_FALSE(Value.isString());
+
+  Value = 3.14;
+  EXPECT_TRUE(Value.isDouble());
+  EXPECT_EQ(3.14, Value.getDouble());
+  EXPECT_TRUE(Value.hasValue());
+  EXPECT_FALSE(Value.isBoolean());
+  EXPECT_FALSE(Value.isUnsigned());
+  EXPECT_FALSE(Value.isMatcher());
+  EXPECT_FALSE(Value.isString());
+
   Value = 17;
   EXPECT_TRUE(Value.isUnsigned());
   EXPECT_EQ(17U, Value.getUnsigned());
+  EXPECT_FALSE(Value.isBoolean());
+  EXPECT_FALSE(Value.isDouble());
   EXPECT_TRUE(Value.hasValue());
   EXPECT_FALSE(Value.isMatcher());
   EXPECT_FALSE(Value.isString());
 
   Value = VariantValue();
   EXPECT_FALSE(Value.hasValue());
+  EXPECT_FALSE(Value.isBoolean());
+  EXPECT_FALSE(Value.isDouble());
   EXPECT_FALSE(Value.isUnsigned());
   EXPECT_FALSE(Value.isString());
   EXPECT_FALSE(Value.isMatcher());
@@ -115,7 +137,7 @@ TEST(VariantValueTest, ImplicitBool) {
   EXPECT_FALSE(IfTrue);
   EXPECT_TRUE(!Value);
 
-  Value = std::string();
+  Value = StringRef();
   IfTrue = false;
   if (Value) {
     IfTrue = true;

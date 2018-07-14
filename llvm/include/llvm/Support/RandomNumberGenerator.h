@@ -7,51 +7,64 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines an abstraction for random number generation (RNG).
-// Note that the current implementation is not cryptographically secure
-// as it uses the C++11 <random> facilities.
+// This file defines an abstraction for deterministic random number
+// generation (RNG).  Note that the current implementation is not
+// cryptographically secure as it uses the C++11 <random> facilities.
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_SUPPORT_RANDOMNUMBERGENERATOR_H_
 #define LLVM_SUPPORT_RANDOMNUMBERGENERATOR_H_
 
-#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h" // Needed for uint64_t on Windows.
 #include <random>
+#include <system_error>
 
 namespace llvm {
+class StringRef;
 
 /// A random number generator.
-/// Instances of this class should not be shared across threads.
+///
+/// Instances of this class should not be shared across threads. The
+/// seed should be set by passing the -rng-seed=<uint64> option. Use
+/// Module::createRNG to create a new RNG instance for use with that
+/// module.
 class RandomNumberGenerator {
-public:
-  /// Seeds and salts the underlying RNG engine. The salt of type StringRef
-  /// is passed into the constructor. The seed can be set on the command
-  /// line via -rng-seed=<uint64>.
-  /// The reason for the salt is to ensure different random streams even if
-  /// the same seed is used for multiple invocations of the compiler.
-  /// A good salt value should add additional entropy and be constant across
-  /// different machines (i.e., no paths) to allow for reproducible builds.
-  /// An instance of this class can be retrieved from the current Module.
-  /// \see Module::getRNG
-  RandomNumberGenerator(StringRef Salt);
 
-  /// Returns a random number in the range [0, Max).
-  uint64_t next(uint64_t Max);
-
-private:
   // 64-bit Mersenne Twister by Matsumoto and Nishimura, 2000
   // http://en.cppreference.com/w/cpp/numeric/random/mersenne_twister_engine
-  std::mt19937_64 Generator;
+  // This RNG is deterministically portable across C++11
+  // implementations.
+  using generator_type = std::mt19937_64;
+
+public:
+  using result_type = generator_type::result_type;
+
+  /// Returns a random number in the range [0, Max).
+  result_type operator()();
+
+  static constexpr result_type min() { return generator_type::min(); }
+  static constexpr result_type max() { return generator_type::max(); }
+
+private:
+  /// Seeds and salts the underlying RNG engine.
+  ///
+  /// This constructor should not be used directly. Instead use
+  /// Module::createRNG to create a new RNG salted with the Module ID.
+  RandomNumberGenerator(StringRef Salt);
+
+  generator_type Generator;
 
   // Noncopyable.
-  RandomNumberGenerator(const RandomNumberGenerator &other)
-      LLVM_DELETED_FUNCTION;
-  RandomNumberGenerator &
-  operator=(const RandomNumberGenerator &other) LLVM_DELETED_FUNCTION;
+  RandomNumberGenerator(const RandomNumberGenerator &other) = delete;
+  RandomNumberGenerator &operator=(const RandomNumberGenerator &other) = delete;
+
+  friend class Module;
 };
+
+// Get random vector of specified size
+std::error_code getRandomBytes(void *Buffer, size_t Size);
 }
 
 #endif

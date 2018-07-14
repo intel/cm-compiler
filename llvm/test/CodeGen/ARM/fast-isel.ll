@@ -1,6 +1,6 @@
-; RUN: llc < %s -O0 -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=armv7-apple-ios -verify-machineinstrs | FileCheck %s --check-prefix=ARM
-; RUN: llc < %s -O0 -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=armv7-linux-gnueabi -verify-machineinstrs | FileCheck %s --check-prefix=ARM
-; RUN: llc < %s -O0 -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=thumbv7-apple-ios -verify-machineinstrs | FileCheck %s --check-prefix=THUMB
+; RUN: llc < %s -O0 -fast-isel-abort=1 -relocation-model=dynamic-no-pic -mtriple=armv7-apple-ios -verify-machineinstrs | FileCheck %s --check-prefix=ARM --check-prefix=ARM-MACHO
+; RUN: llc < %s -O0 -fast-isel-abort=1 -relocation-model=dynamic-no-pic -mtriple=armv7-linux-gnueabi -verify-machineinstrs | FileCheck %s --check-prefix=ARM --check-prefix=ARM-ELF
+; RUN: llc < %s -O0 -fast-isel-abort=1 -relocation-model=dynamic-no-pic -mtriple=thumbv7-apple-ios -verify-machineinstrs | FileCheck %s --check-prefix=THUMB
 
 ; Very basic fast-isel functionality.
 define i32 @test0(i32 %a, i32 %b) nounwind {
@@ -9,8 +9,8 @@ entry:
   %b.addr = alloca i32, align 4
   store i32 %a, i32* %a.addr
   store i32 %b, i32* %b.addr
-  %tmp = load i32* %a.addr
-  %tmp1 = load i32* %b.addr
+  %tmp = load i32, i32* %a.addr
+  %tmp1 = load i32, i32* %b.addr
   %add = add nsw i32 %tmp, %tmp1
   ret i32 %add
 }
@@ -110,9 +110,9 @@ bb2:
 ; ARM: sxth
 
 bb3:
-  %c1 = load i8* %ptr3
-  %c2 = load i16* %ptr2
-  %c3 = load i32* %ptr1
+  %c1 = load i8, i8* %ptr3
+  %c2 = load i16, i16* %ptr2
+  %c3 = load i32, i32* %ptr1
   %c4 = zext i8 %c1 to i32
   %c5 = sext i16 %c2 to i32
   %c6 = add i32 %c4, %c5
@@ -138,7 +138,7 @@ bb3:
 @test4g = external global i32
 
 define void @test4() {
-  %a = load i32* @test4g
+  %a = load i32, i32* @test4g
   %b = add i32 %a, 1
   store i32 %b, i32* @test4g
   ret void
@@ -154,9 +154,13 @@ define void @test4() {
 ; THUMB: adds r1, #1
 ; THUMB: str r1, [r0]
 
-; ARM: {{(movw r0, :lower16:L_test4g\$non_lazy_ptr)|(ldr r0, .LCPI)}}
-; ARM: {{(movt r0, :upper16:L_test4g\$non_lazy_ptr)?}}
-; ARM: ldr r0, [r0]
+; ARM-MACHO: {{(movw r0, :lower16:L_test4g\$non_lazy_ptr)|(ldr r0, .LCPI)}}
+; ARM-MACHO: {{(movt r0, :upper16:L_test4g\$non_lazy_ptr)?}}
+; ARM-MACHO: ldr r0, [r0]
+
+; ARM-ELF: movw r0, :lower16:test4g
+; ARM-ELF: movt r0, :upper16:test4g
+
 ; ARM: ldr r1, [r0]
 ; ARM: add r1, r1, #1
 ; ARM: str r1, [r0]

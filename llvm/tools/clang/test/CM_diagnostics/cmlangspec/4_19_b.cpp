@@ -18,5 +18,3 @@ _GENX_ void test()
 // RUN: %cmc %w 2>&1 | FileCheck --implicit-check-not error %w
 // RUN: rm %W.isa
 // CHECK: warning: cm_nonstrict is deprecated
-// CHECK: No CM kernel definitions found
-// CHECK: 2 warnings generated

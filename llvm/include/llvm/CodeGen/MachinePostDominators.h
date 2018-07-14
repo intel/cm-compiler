@@ -22,22 +22,22 @@ namespace llvm {
 
 ///
 /// PostDominatorTree Class - Concrete subclass of DominatorTree that is used
-/// to compute the a post-dominator tree.
+/// to compute the post-dominator tree.
 ///
 struct MachinePostDominatorTree : public MachineFunctionPass {
 private:
-  DominatorTreeBase<MachineBasicBlock> *DT;
+ PostDomTreeBase<MachineBasicBlock> *DT;
 
 public:
   static char ID;
 
   MachinePostDominatorTree();
 
-  ~MachinePostDominatorTree();
+  ~MachinePostDominatorTree() override;
 
   FunctionPass *createMachinePostDominatorTreePass();
 
-  const std::vector<MachineBasicBlock *> &getRoots() const {
+  const SmallVectorImpl<MachineBasicBlock *> &getRoots() const {
     return DT->getRoots();
   }
 

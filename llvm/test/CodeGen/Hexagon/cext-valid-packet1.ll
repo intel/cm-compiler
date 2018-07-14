@@ -1,10 +1,10 @@
-; RUN: llc -march=hexagon -mcpu=hexagonv4 < %s | FileCheck %s
+; RUN: llc -march=hexagon < %s | FileCheck %s
 
 ; Check that the packetizer generates valid packets with constant
 ; extended instructions.
 ; CHECK: {
-; CHECK-NEXT: r{{[0-9]+}}{{ *}}={{ *}}add(r{{[0-9]+}}, ##{{[0-9]+}})
-; CHECK-NEXT: r{{[0-9]+}}{{ *}}={{ *}}add(r{{[0-9]+}}, ##{{[0-9]+}})
+; CHECK-NEXT: r{{[0-9]+}} = add(r{{[0-9]+}},##{{[0-9]+}})
+; CHECK-NEXT: r{{[0-9]+}} = add(r{{[0-9]+}},##{{[0-9]+}})
 ; CHECK-NEXT: }
 
 define i32 @check-packet1(i32 %a, i32 %b, i32 %c) nounwind readnone {

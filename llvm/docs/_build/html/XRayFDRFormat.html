@@ -1,0 +1,667 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>XRay Flight Data Recorder Trace Format &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="The PDB File Format" href="PDB/index.html" />
+    <link rel="prev" title="Debugging with XRay" href="XRayExample.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="PDB/index.html" title="The PDB File Format"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="XRayExample.html" title="Debugging with XRay"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="xray-flight-data-recorder-trace-format">
+<h1>XRay Flight Data Recorder Trace Format<a class="headerlink" href="#xray-flight-data-recorder-trace-format" title="Permalink to this headline">¶</a></h1>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Version:</th><td class="field-body">1 as of 2017-07-20</td>
+</tr>
+</tbody>
+</table>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
+<li><a class="reference internal" href="#general" id="id2">General</a></li>
+<li><a class="reference internal" href="#header-section" id="id3">Header Section</a></li>
+<li><a class="reference internal" href="#data-section" id="id4">Data Section</a><ul>
+<li><a class="reference internal" href="#function-records" id="id5">Function Records</a></li>
+<li><a class="reference internal" href="#metadata-records" id="id6">Metadata Records</a></li>
+<li><a class="reference internal" href="#newbuffer-records" id="id7">NewBuffer Records</a></li>
+<li><a class="reference internal" href="#wallclocktime-records" id="id8">WallClockTime Records</a></li>
+<li><a class="reference internal" href="#newcpuid-records" id="id9">NewCpuId Records</a></li>
+<li><a class="reference internal" href="#tscwrap-records" id="id10">TSCWrap Records</a></li>
+<li><a class="reference internal" href="#callargument-records" id="id11">CallArgument Records</a></li>
+<li><a class="reference internal" href="#customeventmarker-records" id="id12">CustomEventMarker Records</a></li>
+<li><a class="reference internal" href="#endofbuffer-records" id="id13">EndOfBuffer Records</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#format-grammar-and-invariants" id="id14">Format Grammar and Invariants</a><ul>
+<li><a class="reference internal" href="#function-record-order" id="id15">Function Record Order</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>When gathering XRay traces in Flight Data Recorder mode, each thread of an
+application will claim buffers to fill with trace data, which at some point
+is finalized and flushed.</p>
+<p>A goal of the profiler is to minimize overhead, so the flushed data directly
+corresponds to the buffer.</p>
+<p>This document describes the format of a trace file.</p>
+</div>
+<div class="section" id="general">
+<h2><a class="toc-backref" href="#id2">General</a><a class="headerlink" href="#general" title="Permalink to this headline">¶</a></h2>
+<p>Each trace file corresponds to a sequence of events in a particular thread.</p>
+<p>The file has a header followed by a sequence of discriminated record types.</p>
+<p>The endianness of byte fields matches the endianess of the platform which
+produced the trace file.</p>
+</div>
+<div class="section" id="header-section">
+<h2><a class="toc-backref" href="#id3">Header Section</a><a class="headerlink" href="#header-section" title="Permalink to this headline">¶</a></h2>
+<p>A trace file begins with a 32 byte header.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="25%" />
+<col width="22%" />
+<col width="53%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Field</th>
+<th class="head">Size (bytes)</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>version</td>
+<td><code class="docutils literal"><span class="pre">2</span></code></td>
+<td>Anticipates versioned  readers. This
+document describes the format when
+version == 1</td>
+</tr>
+<tr class="row-odd"><td>type</td>
+<td><code class="docutils literal"><span class="pre">2</span></code></td>
+<td>An enumeration encoding the type of
+trace. Flight Data Recorder mode
+traces have type == 1</td>
+</tr>
+<tr class="row-even"><td>bitfield</td>
+<td><code class="docutils literal"><span class="pre">4</span></code></td>
+<td>Holds parameters that are not aligned
+to bytes. Further described below.</td>
+</tr>
+<tr class="row-odd"><td>cycle_frequency</td>
+<td><code class="docutils literal"><span class="pre">8</span></code></td>
+<td>The frequency in hertz of the CPU
+oscillator used to measure duration of
+events in ticks.</td>
+</tr>
+<tr class="row-even"><td>buffer_size</td>
+<td><code class="docutils literal"><span class="pre">8</span></code></td>
+<td>The size in bytes of the data portion
+of the trace following the header.</td>
+</tr>
+<tr class="row-odd"><td>reserved</td>
+<td><code class="docutils literal"><span class="pre">8</span></code></td>
+<td>Reserved for future use.</td>
+</tr>
+</tbody>
+</table>
+<p>The bitfield parameter of the file header is composed of the following fields.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="25%" />
+<col width="21%" />
+<col width="54%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Field</th>
+<th class="head">Size (bits)</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>constant_tsc</td>
+<td><code class="docutils literal"><span class="pre">1</span></code></td>
+<td>Whether the platform’s timestamp
+counter used to record ticks between
+events ticks at a constant frequency
+despite CPU frequency changes.
+0 == non-constant. 1 == constant.</td>
+</tr>
+<tr class="row-odd"><td>nonstop_tsc</td>
+<td><code class="docutils literal"><span class="pre">1</span></code></td>
+<td>Whether the tsc continues to count
+despite whether the CPU is in a low
+power state. 0 == stop. 1 == non-stop.</td>
+</tr>
+<tr class="row-even"><td>reserved</td>
+<td><code class="docutils literal"><span class="pre">30</span></code></td>
+<td>Not meaningful.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="data-section">
+<h2><a class="toc-backref" href="#id4">Data Section</a><a class="headerlink" href="#data-section" title="Permalink to this headline">¶</a></h2>
+<p>Following the header in a trace is a data section with size matching the
+buffer_size field in the header.</p>
+<p>The data section is a stream of elements of different types.</p>
+<p>There are a few categories of data in the sequence.</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">Function</span> <span class="pre">Records</span></code>: Function Records contain the timing of entry into and
+exit from function execution. Function Records have 8 bytes each.</li>
+<li><code class="docutils literal"><span class="pre">Metadata</span> <span class="pre">Records</span></code>: Metadata records serve many purposes. Mostly, they
+capture information that may be too costly to record for each function, but
+that is required to contextualize the fine-grained timings. They also are used
+as markers for user-defined Event Data payloads. Metadata records have 16
+bytes each.</li>
+<li><code class="docutils literal"><span class="pre">Event</span> <span class="pre">Data</span></code>: Free form data may be associated with events that are traced
+by the binary and encode data defined by a handler function. Event data is
+always preceded with a marker record which indicates how large it is.</li>
+<li><code class="docutils literal"><span class="pre">Function</span> <span class="pre">Arguments</span></code>: The arguments to some functions are included in the
+trace. These are either pointer addresses or primitives that are read and
+logged independently of their types in a high level language. To the tracer,
+they are all simply numbers. Function Records that have attached arguments
+will indicate their presence on the function entry record. We only support
+logging contiguous function argument sequences starting with argument zero,
+which will be the “this” pointer for member function invocations. For example,
+we don’t support logging the first and third argument.</li>
+</ul>
+<p>A reader of the memory format must maintain a state machine. The format makes no
+attempt to pad for alignment, and it is not seekable.</p>
+<div class="section" id="function-records">
+<h3><a class="toc-backref" href="#id5">Function Records</a><a class="headerlink" href="#function-records" title="Permalink to this headline">¶</a></h3>
+<p>Function Records have an 8 byte layout. This layout encodes information to
+reconstruct a call stack of instrumented function and their durations.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="18%" />
+<col width="62%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Field</th>
+<th class="head">Size (bits)</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>discriminant</td>
+<td><code class="docutils literal"><span class="pre">1</span></code></td>
+<td>Indicates whether a reader should read a
+Function or Metadata record. Set to <code class="docutils literal"><span class="pre">0</span></code> for
+Function records.</td>
+</tr>
+<tr class="row-odd"><td>action</td>
+<td><code class="docutils literal"><span class="pre">3</span></code></td>
+<td>Specifies whether the function is being
+entered, exited, or is a non-standard entry
+or exit produced by optimizations.</td>
+</tr>
+<tr class="row-even"><td>function_id</td>
+<td><code class="docutils literal"><span class="pre">28</span></code></td>
+<td>A numeric ID for the function. Resolved to a
+name via the xray instrumentation map. The
+instrumentation map is built by xray at
+compile time into an object file and pairs
+the function ids to addresses. It is used for
+patching and as a lookup into the binary’s
+symbols to obtain names.</td>
+</tr>
+<tr class="row-odd"><td>tsc_delta</td>
+<td><code class="docutils literal"><span class="pre">32</span></code></td>
+<td>The number of ticks of the timestamp counter
+since a previous record recorded a delta or
+other TSC resetting event.</td>
+</tr>
+</tbody>
+</table>
+<p>On little-endian machines, the bitfields are ordered from least significant bit
+bit to most significant bit. A reader can read an 8 bit value and apply the mask
+<code class="docutils literal"><span class="pre">0x01</span></code> for the discriminant. Similarly, they can read 32 bits and unsigned
+shift right by <code class="docutils literal"><span class="pre">0x04</span></code> to obtain the function_id field.</p>
+<p>On big-endian machine, the bitfields are written in order from most significant
+bit to least significant bit. A reader would read an 8 bit value and unsigned
+shift right by 7 bits for the discriminant. The function_id field could be
+obtained by reading a 32 bit value and applying the mask <code class="docutils literal"><span class="pre">0x0FFFFFFF</span></code>.</p>
+<p>Function action types are as follows.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="18%" />
+<col width="62%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Type</th>
+<th class="head">Number</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>Entry</td>
+<td><code class="docutils literal"><span class="pre">0</span></code></td>
+<td>Typical function entry.</td>
+</tr>
+<tr class="row-odd"><td>Exit</td>
+<td><code class="docutils literal"><span class="pre">1</span></code></td>
+<td>Typical function exit.</td>
+</tr>
+<tr class="row-even"><td>Tail_Exit</td>
+<td><code class="docutils literal"><span class="pre">2</span></code></td>
+<td>An exit from a function due to tail call
+optimization.</td>
+</tr>
+<tr class="row-odd"><td>Entry_Args</td>
+<td><code class="docutils literal"><span class="pre">3</span></code></td>
+<td>A function entry that records arguments.</td>
+</tr>
+</tbody>
+</table>
+<p>Entry_Args records do not contain the arguments themselves. Instead, metadata
+records for each of the logged args follow the function record in the stream.</p>
+</div>
+<div class="section" id="metadata-records">
+<h3><a class="toc-backref" href="#id6">Metadata Records</a><a class="headerlink" href="#metadata-records" title="Permalink to this headline">¶</a></h3>
+<p>Interspersed throughout the buffer are 16 byte Metadata records. For typically
+instrumented binaries, they will be sparser than Function records, and they
+provide a fuller picture of the binary execution state.</p>
+<p>Metadata record layout is partially record dependent, but they share a common
+structure.</p>
+<p>The same bit field rules described for function records apply to the first byte
+of MetadataRecords. Within this byte, little endian machines use lsb to msb
+ordering and big endian machines use msb to lsb ordering.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="18%" />
+<col width="62%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Field</th>
+<th class="head">Size</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>discriminant</td>
+<td><code class="docutils literal"><span class="pre">1</span> <span class="pre">bit</span></code></td>
+<td>Indicates whether a reader should read a
+Function or Metadata record. Set to <code class="docutils literal"><span class="pre">1</span></code> for
+Metadata records.</td>
+</tr>
+<tr class="row-odd"><td>record_kind</td>
+<td><code class="docutils literal"><span class="pre">7</span> <span class="pre">bits</span></code></td>
+<td>The type of Metadata record.</td>
+</tr>
+<tr class="row-even"><td>data</td>
+<td><code class="docutils literal"><span class="pre">15</span> <span class="pre">bytes</span></code></td>
+<td>A data field used differently for each record
+type.</td>
+</tr>
+</tbody>
+</table>
+<p>Here is a table of the enumerated record kinds.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="23%" />
+<col width="77%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Number</th>
+<th class="head">Type</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>0</td>
+<td>NewBuffer</td>
+</tr>
+<tr class="row-odd"><td>1</td>
+<td>EndOfBuffer</td>
+</tr>
+<tr class="row-even"><td>2</td>
+<td>NewCPUId</td>
+</tr>
+<tr class="row-odd"><td>3</td>
+<td>TSCWrap</td>
+</tr>
+<tr class="row-even"><td>4</td>
+<td>WallTimeMarker</td>
+</tr>
+<tr class="row-odd"><td>5</td>
+<td>CustomEventMarker</td>
+</tr>
+<tr class="row-even"><td>6</td>
+<td>CallArgument</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="newbuffer-records">
+<h3><a class="toc-backref" href="#id7">NewBuffer Records</a><a class="headerlink" href="#newbuffer-records" title="Permalink to this headline">¶</a></h3>
+<p>Each buffer begins with a NewBuffer record immediately after the header.
+It records the thread ID of the thread that the trace belongs to.</p>
+<p>Its data segment is as follows.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="18%" />
+<col width="62%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Field</th>
+<th class="head">Size (bytes)</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>thread_Id</td>
+<td><code class="docutils literal"><span class="pre">2</span></code></td>
+<td>Thread ID for buffer.</td>
+</tr>
+<tr class="row-odd"><td>reserved</td>
+<td><code class="docutils literal"><span class="pre">13</span></code></td>
+<td>Unused.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="wallclocktime-records">
+<h3><a class="toc-backref" href="#id8">WallClockTime Records</a><a class="headerlink" href="#wallclocktime-records" title="Permalink to this headline">¶</a></h3>
+<p>Following the NewBuffer record, each buffer records an absolute time as a frame
+of reference for the durations recorded by timestamp counter deltas.</p>
+<p>Its data segment is as follows.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="18%" />
+<col width="62%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Field</th>
+<th class="head">Size (bytes)</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>seconds</td>
+<td><code class="docutils literal"><span class="pre">8</span></code></td>
+<td>Seconds on absolute timescale. The starting
+point is unspecified and depends on the
+implementation and platform configured by the
+tracer.</td>
+</tr>
+<tr class="row-odd"><td>microseconds</td>
+<td><code class="docutils literal"><span class="pre">4</span></code></td>
+<td>The microsecond component of the time.</td>
+</tr>
+<tr class="row-even"><td>reserved</td>
+<td><code class="docutils literal"><span class="pre">3</span></code></td>
+<td>Unused.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="newcpuid-records">
+<h3><a class="toc-backref" href="#id9">NewCpuId Records</a><a class="headerlink" href="#newcpuid-records" title="Permalink to this headline">¶</a></h3>
+<p>Each function entry invokes a routine to determine what CPU is executing.
+Typically, this is done with readtscp, which reads the timestamp counter at the
+same time.</p>
+<p>If the tracing detects that the execution has switched CPUs or if this is the
+first instrumented entry point, the tracer will output a NewCpuId record.</p>
+<p>Its data segment is as follows.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="18%" />
+<col width="62%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Field</th>
+<th class="head">Size (bytes)</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>cpu_id</td>
+<td><code class="docutils literal"><span class="pre">2</span></code></td>
+<td>CPU Id.</td>
+</tr>
+<tr class="row-odd"><td>absolute_tsc</td>
+<td><code class="docutils literal"><span class="pre">8</span></code></td>
+<td>The absolute value of the timestamp counter.</td>
+</tr>
+<tr class="row-even"><td>reserved</td>
+<td><code class="docutils literal"><span class="pre">5</span></code></td>
+<td>Unused.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="tscwrap-records">
+<h3><a class="toc-backref" href="#id10">TSCWrap Records</a><a class="headerlink" href="#tscwrap-records" title="Permalink to this headline">¶</a></h3>
+<p>Since each function record uses a 32 bit value to represent the number of ticks
+of the timestamp counter since the last reference, it is possible for this value
+to overflow, particularly for sparsely instrumented binaries.</p>
+<p>When this delta would not fit into a 32 bit representation, a reference absolute
+timestamp counter record is written in the form of a TSCWrap record.</p>
+<p>Its data segment is as follows.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="18%" />
+<col width="62%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Field</th>
+<th class="head">Size (bytes)</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>absolute_tsc</td>
+<td><code class="docutils literal"><span class="pre">8</span></code></td>
+<td>Timestamp counter value.</td>
+</tr>
+<tr class="row-odd"><td>reserved</td>
+<td><code class="docutils literal"><span class="pre">7</span></code></td>
+<td>Unused.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="callargument-records">
+<h3><a class="toc-backref" href="#id11">CallArgument Records</a><a class="headerlink" href="#callargument-records" title="Permalink to this headline">¶</a></h3>
+<p>Immediately following an Entry_Args type function record, there may be one or
+more CallArgument records that contain the traced function’s parameter values.</p>
+<p>The order of the CallArgument Record sequency corresponds one to one with the
+order of the function parameters.</p>
+<p>CallArgument data segment:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="18%" />
+<col width="62%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Field</th>
+<th class="head">Size (bytes)</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>argument</td>
+<td><code class="docutils literal"><span class="pre">8</span></code></td>
+<td>Numeric argument (may be pointer address).</td>
+</tr>
+<tr class="row-odd"><td>reserved</td>
+<td><code class="docutils literal"><span class="pre">7</span></code></td>
+<td>Unused.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="customeventmarker-records">
+<h3><a class="toc-backref" href="#id12">CustomEventMarker Records</a><a class="headerlink" href="#customeventmarker-records" title="Permalink to this headline">¶</a></h3>
+<p>XRay provides the feature of logging custom events. This may be leveraged to
+record tracing info for RPCs or similarly trace data that is application
+specific.</p>
+<p>Custom Events themselves are an unstructured (application defined) segment of
+memory with arbitrary size within the buffer. They are preceded by
+CustomEventMarkers to indicate their presence and size.</p>
+<p>CustomEventMarker data segment:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="18%" />
+<col width="62%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Field</th>
+<th class="head">Size (bytes)</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>event_size</td>
+<td><code class="docutils literal"><span class="pre">4</span></code></td>
+<td>Size of preceded event.</td>
+</tr>
+<tr class="row-odd"><td>absolute_tsc</td>
+<td><code class="docutils literal"><span class="pre">8</span></code></td>
+<td>A timestamp counter of the event.</td>
+</tr>
+<tr class="row-even"><td>reserved</td>
+<td><code class="docutils literal"><span class="pre">3</span></code></td>
+<td>Unused.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="endofbuffer-records">
+<h3><a class="toc-backref" href="#id13">EndOfBuffer Records</a><a class="headerlink" href="#endofbuffer-records" title="Permalink to this headline">¶</a></h3>
+<p>An EndOfBuffer record type indicates that there is no more trace data in this
+buffer. The reader is expected to seek past the remaining buffer_size expressed
+before the start of buffer and look for either another header or EOF.</p>
+</div>
+</div>
+<div class="section" id="format-grammar-and-invariants">
+<h2><a class="toc-backref" href="#id14">Format Grammar and Invariants</a><a class="headerlink" href="#format-grammar-and-invariants" title="Permalink to this headline">¶</a></h2>
+<p>Not all sequences of Metadata records and Function records are valid data. A
+sequence should be parsed as a state machine. The expectations for a valid
+format can be expressed as a context free grammar.</p>
+<p>This is an attempt to explain the format with statements in EBNF format.</p>
+<ul class="simple">
+<li>Format := Header ThreadBuffer* EOF</li>
+<li>ThreadBuffer := NewBuffer WallClockTime NewCPUId BodySequence* End</li>
+<li>BodySequence := NewCPUId | TSCWrap | Function | CustomEvent</li>
+<li>Function := (Function_Entry_Args CallArgument*) | Function_Other_Type</li>
+<li>CustomEvent := CustomEventMarker CustomEventUnstructuredMemory</li>
+<li>End := EndOfBuffer RemainingBufferSizeToSkip</li>
+</ul>
+<div class="section" id="function-record-order">
+<h3><a class="toc-backref" href="#id15">Function Record Order</a><a class="headerlink" href="#function-record-order" title="Permalink to this headline">¶</a></h3>
+<p>There are a few clarifications that may help understand what is expected of
+Function records.</p>
+<ul class="simple">
+<li>Functions with an Exit are expected to have a corresponding Entry or
+Entry_Args function record precede them in the trace.</li>
+<li>Tail_Exit Function records record the Function ID of the function whose return
+address the program counter will take. In other words, the final function that
+would be popped off of the call stack if tail call optimization was not used.</li>
+<li>Not all functions marked for instrumentation are necessarily in the trace. The
+tracer uses heuristics to preserve the trace for non-trivial functions.</li>
+<li>Not every entry must have a traced Exit or Tail Exit. The buffer may run out
+of space or the program may request for the tracer to finalize toreturn the
+buffer before an instrumented function exits.</li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="PDB/index.html" title="The PDB File Format"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="XRayExample.html" title="Debugging with XRay"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

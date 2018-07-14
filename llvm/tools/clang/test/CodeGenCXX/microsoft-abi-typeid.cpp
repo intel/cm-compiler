@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -emit-llvm -O1 -o - -triple=i386-pc-win32 %s | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm -O1 -o - -triple=i386-pc-win32 %s -fexceptions -fcxx-exceptions | FileCheck %s
 
 struct type_info;
 namespace std { using ::type_info; }
@@ -31,12 +31,11 @@ const std::type_info* test3_typeid() { return &typeid(*fn()); }
 // CHECK:        tail call i8* @__RTtypeid(i8* null)
 // CHECK-NEXT:   unreachable
 // CHECK:        [[THIS:%.*]] = bitcast %struct.A* [[CALL]] to i8*
-// CHECK-NEXT:   [[VBTBLP:%.*]] = bitcast %struct.A* [[CALL]] to i8**
-// CHECK-NEXT:   [[VBTBL:%.*]] = load i8** [[VBTBLP]], align 4
-// CHECK-NEXT:   [[VBSLOT:%.*]] = getelementptr inbounds i8* [[VBTBL]], i32 4
-// CHECK-NEXT:   [[VBITCST:%.*]] = bitcast i8* [[VBSLOT]] to i32*
-// CHECK-NEXT:   [[VBASE_OFFS:%.*]] = load i32* [[VBITCST]], align 4
-// CHECK-NEXT:   [[ADJ:%.*]] = getelementptr inbounds i8* [[THIS]], i32 [[VBASE_OFFS]]
+// CHECK-NEXT:   [[VBTBLP:%.*]] = getelementptr inbounds %struct.A, %struct.A* [[CALL]], i32 0, i32 0
+// CHECK-NEXT:   [[VBTBL:%.*]] = load i32*, i32** [[VBTBLP]], align 4
+// CHECK-NEXT:   [[VBSLOT:%.*]] = getelementptr inbounds i32, i32* [[VBTBL]], i32 1
+// CHECK-NEXT:   [[VBASE_OFFS:%.*]] = load i32, i32* [[VBSLOT]], align 4
+// CHECK-NEXT:   [[ADJ:%.*]] = getelementptr inbounds i8, i8* [[THIS]], i32 [[VBASE_OFFS]]
 // CHECK-NEXT:   [[RT:%.*]] = tail call i8* @__RTtypeid(i8* [[ADJ]])
 // CHECK-NEXT:   [[RET:%.*]] = bitcast i8* [[RT]] to %struct.type_info*
 // CHECK-NEXT:   ret %struct.type_info* [[RET]]
@@ -50,3 +49,22 @@ const std::type_info* test5_typeid() { return &typeid(v); }
 // CHECK:        [[RT:%.*]] = tail call i8* @__RTtypeid(i8* bitcast (%struct.V* @"\01?v@@3UV@@A" to i8*))
 // CHECK-NEXT:   [[RET:%.*]] = bitcast i8* [[RT]] to %struct.type_info*
 // CHECK-NEXT:   ret %struct.type_info* [[RET]]
+
+namespace PR26329 {
+struct Polymorphic {
+  virtual ~Polymorphic();
+};
+
+void f(const Polymorphic &poly) {
+  try {
+    throw;
+  } catch (...) {
+    Polymorphic cleanup;
+    typeid(poly);
+  }
+}
+// CHECK-LABEL: define void @"\01?f@PR26329@@YAXABUPolymorphic@1@@Z"(
+// CHECK: %[[cs:.*]] = catchswitch within none [label %{{.*}}] unwind to caller
+// CHECK: %[[cp:.*]] = catchpad within %[[cs]] [i8* null, i32 64, i8* null]
+// CHECK: invoke i8* @__RTtypeid(i8* {{.*}}) [ "funclet"(token %[[cp]]) ]
+}

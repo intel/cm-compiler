@@ -50,7 +50,7 @@ define i32 @test2b() {
 @G = internal global i32 undef
 
 define void @test3a() {
-	%X = load i32* @G
+	%X = load i32, i32* @G
 	store i32 %X, i32* @G
 	ret void
 }
@@ -59,7 +59,7 @@ define void @test3a() {
 
 
 define i32 @test3b() {
-	%V = load i32* @G
+	%V = load i32, i32* @G
 	%C = icmp eq i32 %V, 17
 	br i1 %C, label %T, label %F
 T:
@@ -82,7 +82,11 @@ define internal {i64,i64} @test4a() {
   ret {i64,i64} %b
 }
 
-define i64 @test4b() {
+; CHECK-LABEL: define internal { i64, i64 } @test4a(
+; CHECK-NEXT:   ret { i64, i64 } undef
+; CHECK-NEXT: }
+
+define i64 @test4b() personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
   %a = invoke {i64,i64} @test4a()
           to label %A unwind label %B
 A:
@@ -90,7 +94,7 @@ A:
   %c = call i64 @test4c(i64 %b)
   ret i64 %c
 B:
-  %val = landingpad { i8*, i32 } personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*)
+  %val = landingpad { i8*, i32 }
            catch i8* null
   ret i64 0
 }
@@ -116,21 +120,21 @@ define internal {i64,i64} @test5a() {
   ret {i64,i64} %b
 }
 
-define i64 @test5b() {
+define i64 @test5b() personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
   %a = invoke {i64,i64} @test5a()
           to label %A unwind label %B
 A:
   %c = call i64 @test5c({i64,i64} %a)
   ret i64 %c
 B:
-  %val = landingpad { i8*, i32 } personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*)
+  %val = landingpad { i8*, i32 }
            catch i8* null
   ret i64 0
 }
 
 ; CHECK: define i64 @test5b()
 ; CHECK:     A:
-; CHECK-NEXT:  %c = call i64 @test5c({ i64, i64 } %a)
+; CHECK-NEXT:  %c = call i64 @test5c({ i64, i64 } { i64 5, i64 4 })
 ; CHECK-NEXT:  ret i64 5
 
 define internal i64 @test5c({i64,i64} %a) {
@@ -163,8 +167,7 @@ define internal %T @test7a(i32 %A) {
   %mrv1 = insertvalue %T %mrv0, i32 %A, 1
   ret %T %mrv1
 ; CHECK-LABEL: @test7a(
-; CHECK-NEXT: %mrv0 = insertvalue %T undef, i32 18, 0
-; CHECK-NEXT: %mrv1 = insertvalue %T %mrv0, i32 17, 1
+; CHECK-NEXT: ret %T undef
 }
 
 define i32 @test7b() {
@@ -203,10 +206,16 @@ define void @test8b(i32* %P) {
 define void @test9() {
 entry:
         %local_foo = alloca {  }
-        load {  }* @test9g
+        load {  }, {  }* @test9g
         store {  } %0, {  }* %local_foo
         ret void
 }
+
+; CHECK-LABEL: define void @test9(
+; CHECK-NEXT: entry:
+; CHECK-NEXT: %local_foo = alloca {}
+; CHECK-NEXT:  store {} zeroinitializer, {}* %local_foo
+; CHECK-NEXT: ret void
 
 declare i32 @__gxx_personality_v0(...)
 
@@ -227,3 +236,23 @@ entry:
 ; CHECK-LABEL: define internal i32 @test10b(
 ; CHECK: ret i32 undef
 }
+
+;;======================== test11
+
+define i64 @test11a() {
+  %xor = xor i64 undef, undef
+  ret i64 %xor
+; CHECK-LABEL: define i64 @test11a
+; CHECK: ret i64 0
+}
+
+define void @test11b() {
+  %call1 = call i64 @test11a()
+  %call2 = call i64 @llvm.ctpop.i64(i64 %call1)
+  ret void
+; CHECK-LABEL: define void @test11b
+; CHECK: %[[call1:.*]] = call i64 @test11a()
+; CHECK: %[[call2:.*]] = call i64 @llvm.ctpop.i64(i64 0)
+}
+
+declare i64 @llvm.ctpop.i64(i64)

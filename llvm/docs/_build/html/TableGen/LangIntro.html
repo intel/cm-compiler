@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>TableGen Language Introduction &#8212; LLVM 3.4 documentation</title>
+    <title>TableGen Language Introduction &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -99,7 +99,7 @@
 <div class="admonition warning">
 <p class="first admonition-title">Warning</p>
 <p class="last">This document is extremely rough. If you find something lacking, please
-fix it, file a documentation bug, or ask about it on llvmdev.</p>
+fix it, file a documentation bug, or ask about it on llvm-dev.</p>
 </div>
 <div class="section" id="introduction">
 <h2><a class="toc-backref" href="#id4">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
@@ -138,6 +138,9 @@ types are:</p>
 <dt><code class="docutils literal"><span class="pre">string</span></code></dt>
 <dd>The ‘string’ type represents an ordered sequence of characters of arbitrary
 length.</dd>
+<dt><code class="docutils literal"><span class="pre">code</span></code></dt>
+<dd>The <cite>code</cite> type represents a code fragment, which can be single/multi-line
+string literal.</dd>
 <dt><code class="docutils literal"><span class="pre">bits&lt;n&gt;</span></code></dt>
 <dd>A ‘bits’ type is an arbitrary, but fixed, size integer that is broken up
 into individual bits.  This type is useful because it can handle some bits
@@ -167,29 +170,31 @@ supported include:</p>
 <dt><code class="docutils literal"><span class="pre">?</span></code></dt>
 <dd>uninitialized field</dd>
 <dt><code class="docutils literal"><span class="pre">0b1001011</span></code></dt>
-<dd>binary integer value</dd>
-<dt><code class="docutils literal"><span class="pre">07654321</span></code></dt>
-<dd>octal integer value (indicated by a leading 0)</dd>
+<dd>binary integer value.
+Note that this is sized by the number of bits given and will not be
+silently extended/truncated.</dd>
 <dt><code class="docutils literal"><span class="pre">7</span></code></dt>
 <dd>decimal integer value</dd>
 <dt><code class="docutils literal"><span class="pre">0x7F</span></code></dt>
 <dd>hexadecimal integer value</dd>
 <dt><code class="docutils literal"><span class="pre">&quot;foo&quot;</span></code></dt>
-<dd>string value</dd>
+<dd>a single-line string value, can be assigned to <code class="docutils literal"><span class="pre">string</span></code> or <code class="docutils literal"><span class="pre">code</span></code> variable.</dd>
 <dt><code class="docutils literal"><span class="pre">[{</span> <span class="pre">...</span> <span class="pre">}]</span></code></dt>
 <dd>usually called a “code fragment”, but is just a multiline string literal</dd>
 <dt><code class="docutils literal"><span class="pre">[</span> <span class="pre">X,</span> <span class="pre">Y,</span> <span class="pre">Z</span> <span class="pre">]&lt;type&gt;</span></code></dt>
 <dd>list value.  &lt;type&gt; is the type of the list element and is usually optional.
 In rare cases, TableGen is unable to deduce the element type in which case
 the user must specify it explicitly.</dd>
-<dt><code class="docutils literal"><span class="pre">{</span> <span class="pre">a,</span> <span class="pre">b,</span> <span class="pre">c</span> <span class="pre">}</span></code></dt>
-<dd>initializer for a “bits&lt;3&gt;” value</dd>
+<dt><code class="docutils literal"><span class="pre">{</span> <span class="pre">a,</span> <span class="pre">b,</span> <span class="pre">0b10</span> <span class="pre">}</span></code></dt>
+<dd>initializer for a “bits&lt;4&gt;” value.
+1-bit from “a”, 1-bit from “b”, 2-bits from 0b10.</dd>
 <dt><code class="docutils literal"><span class="pre">value</span></code></dt>
 <dd>value reference</dd>
 <dt><code class="docutils literal"><span class="pre">value{17}</span></code></dt>
 <dd>access to one bit of a value</dd>
 <dt><code class="docutils literal"><span class="pre">value{15-17}</span></code></dt>
-<dd>access to multiple bits of a value</dd>
+<dd>access to an ordered sequence of bits of a value, in particular <code class="docutils literal"><span class="pre">value{15-17}</span></code>
+produces an order that is the reverse of <code class="docutils literal"><span class="pre">value{17-15}</span></code>.</dd>
 <dt><code class="docutils literal"><span class="pre">DEF</span></code></dt>
 <dd>reference to a record definition</dd>
 <dt><code class="docutils literal"><span class="pre">CLASS&lt;val</span> <span class="pre">list&gt;</span></code></dt>
@@ -239,7 +244,7 @@ object defined by a ‘def’ construct.</dd>
 <dd>If ‘a’ and ‘b’ are of string type or are symbol references, substitute ‘b’
 for ‘a’ in ‘c.’  This operation is analogous to $(subst) in GNU make.</dd>
 <dt><code class="docutils literal"><span class="pre">!foreach(a,</span> <span class="pre">b,</span> <span class="pre">c)</span></code></dt>
-<dd>For each member ‘b’ of dag or list ‘a’ apply operator ‘c.’  ‘b’ is a dummy
+<dd>For each member of dag or list ‘b’ apply operator ‘c.’  ‘a’ is a dummy
 variable that should be declared as a member variable of an instantiated
 class.  This operation is analogous to $(foreach) in GNU make.</dd>
 <dt><code class="docutils literal"><span class="pre">!head(a)</span></code></dt>
@@ -254,8 +259,8 @@ class.  This operation is analogous to $(foreach) in GNU make.</dd>
 <dd>‘bit 1’ if string a is equal to string b, 0 otherwise.  This only operates
 on string, int and bit objects.  Use !cast&lt;string&gt; to compare other types of
 objects.</dd>
-<dt><code class="docutils literal"><span class="pre">!shl(a,b)</span></code> <code class="docutils literal"><span class="pre">!srl(a,b)</span></code> <code class="docutils literal"><span class="pre">!sra(a,b)</span></code> <code class="docutils literal"><span class="pre">!add(a,b)</span></code></dt>
-<dd>The usual logical and arithmetic operators.</dd>
+<dt><code class="docutils literal"><span class="pre">!shl(a,b)</span></code> <code class="docutils literal"><span class="pre">!srl(a,b)</span></code> <code class="docutils literal"><span class="pre">!sra(a,b)</span></code> <code class="docutils literal"><span class="pre">!add(a,b)</span></code> <code class="docutils literal"><span class="pre">!and(a,b)</span></code></dt>
+<dd>The usual binary and arithmetic operators.</dd>
 </dl>
 <p>Note that all of the values have rules specifying how they convert to values
 for different types.  These rules allow you to assign a value like “<code class="docutils literal"><span class="pre">7</span></code>”
@@ -637,8 +642,8 @@ physical register definitions.</dd>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

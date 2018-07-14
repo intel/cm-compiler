@@ -78,6 +78,11 @@ The contracts for each field in the command object are:
    Parameters use shell quoting and shell escaping of quotes, with '``"``'
    and '``\``' being the only special characters. Shell expansion is not
    supported.
+-  **arguments:** The compile command executed as list of strings.
+   Either **arguments** or **command** is required.
+-  **output:** The name of the output created by this compilation step.
+   This field is optional. It can be used to distinguish different processing
+   modes of the same input file.
 
 Build System Integration
 ========================
@@ -86,3 +91,9 @@ The convention is to name the file compile\_commands.json and put it at
 the top of the build directory. Clang tools are pointed to the top of
 the build directory to detect the file and use the compilation database
 to parse C++ code in the source tree.
+
+Alternatives
+============
+For simple projects, Clang tools also recognize a compile_flags.txt file.
+This should contain one flag per line. The same flags will be used to compile
+any file.

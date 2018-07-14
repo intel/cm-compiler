@@ -1,0 +1,169 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>The Module Information Stream &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="The PDB Public Symbol Stream" href="PublicStream.html" />
+    <link rel="prev" title="The PDB DBI (Debug Info) Stream" href="DbiStream.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="PublicStream.html" title="The PDB Public Symbol Stream"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="DbiStream.html" title="The PDB DBI (Debug Info) Stream"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">The PDB File Format</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="the-module-information-stream">
+<h1>The Module Information Stream<a class="headerlink" href="#the-module-information-stream" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id1">Introduction</a></li>
+<li><a class="reference internal" href="#stream-layout" id="id2">Stream Layout</a></li>
+<li><a class="reference internal" href="#the-codeview-symbol-substream" id="id3">The CodeView Symbol Substream</a></li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<span id="modi-stream-intro"></span><h2><a class="toc-backref" href="#id1">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>The Module Info Stream (henceforth referred to as the Modi stream) contains
+information about a single module (object file, import library, etc that
+contributes to the binary this PDB contains debug information about.  There
+is one modi stream for each module, and the mapping between modi stream index
+and module is contained in the <a class="reference internal" href="DbiStream.html"><span class="doc">DBI Stream</span></a>.  The modi stream
+for a single module contains line information for the compiland, as well as
+all CodeView information for the symbols defined in the compiland.  Finally,
+there is a “global refs” substream which is not well understood.</p>
+</div>
+<div class="section" id="stream-layout">
+<span id="modi-stream-layout"></span><h2><a class="toc-backref" href="#id2">Stream Layout</a><a class="headerlink" href="#stream-layout" title="Permalink to this headline">¶</a></h2>
+<p>A modi stream is laid out as follows:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">struct</span> <span class="n">ModiStream</span> <span class="p">{</span>
+  <span class="kt">uint32_t</span> <span class="n">Signature</span><span class="p">;</span>
+  <span class="kt">uint8_t</span> <span class="n">Symbols</span><span class="p">[</span><span class="n">SymbolSize</span><span class="o">-</span><span class="mi">4</span><span class="p">];</span>
+  <span class="kt">uint8_t</span> <span class="n">C11LineInfo</span><span class="p">[</span><span class="n">C11Size</span><span class="p">];</span>
+  <span class="kt">uint8_t</span> <span class="n">C13LineInfo</span><span class="p">[</span><span class="n">C13Size</span><span class="p">];</span>
+
+  <span class="kt">uint32_t</span> <span class="n">GlobalRefsSize</span><span class="p">;</span>
+  <span class="kt">uint8_t</span> <span class="n">GlobalRefs</span><span class="p">[</span><span class="n">GlobalRefsSize</span><span class="p">];</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><strong>Signature</strong> - Unknown.  In practice only the value of <code class="docutils literal"><span class="pre">4</span></code> has been
+observed.  It is hypothesized that this value corresponds to the set of
+<code class="docutils literal"><span class="pre">CV_SIGNATURE_xx</span></code> defines in <code class="docutils literal"><span class="pre">cvinfo.h</span></code>, with the value of <code class="docutils literal"><span class="pre">4</span></code>
+meaning that this module has C13 line information (as opposed to C11 line
+information).  A corollary of this is that we expect to only ever see
+C13 line info, and that we do not understand the format of C11 line info.</li>
+<li><strong>Symbols</strong> - The <a class="reference internal" href="#modi-symbol-substream"><span class="std std-ref">CodeView Symbol Substream</span></a>.
+<code class="docutils literal"><span class="pre">SymbolSize</span></code> is equal to the value of <code class="docutils literal"><span class="pre">SymByteSize</span></code> for the
+corresponding module’s entry in the <a class="reference internal" href="DbiStream.html#dbi-mod-info-substream"><span class="std std-ref">Module Info Substream</span></a>
+of the <a class="reference internal" href="DbiStream.html"><span class="doc">DBI Stream</span></a>.</li>
+<li><strong>C11LineInfo</strong> - A block containing CodeView line information in C11
+format.  <code class="docutils literal"><span class="pre">C11Size</span></code> is equal to the value of <code class="docutils literal"><span class="pre">C11ByteSize</span></code> from the
+<a class="reference internal" href="DbiStream.html#dbi-mod-info-substream"><span class="std std-ref">Module Info Substream</span></a> of the
+<a class="reference internal" href="DbiStream.html"><span class="doc">DBI Stream</span></a>.  If this value is <code class="docutils literal"><span class="pre">0</span></code>, then C11 line
+information is not present.  As mentioned previously, the format of
+C11 line info is not understood and we assume all line in modern PDBs
+to be in C13 format.</li>
+<li><strong>C13LineInfo</strong> - A block containing CodeView line information in C13
+format.  <code class="docutils literal"><span class="pre">C13Size</span></code> is equal to the value of <code class="docutils literal"><span class="pre">C13ByteSize</span></code> from the
+<a class="reference internal" href="DbiStream.html#dbi-mod-info-substream"><span class="std std-ref">Module Info Substream</span></a> of the
+<a class="reference internal" href="DbiStream.html"><span class="doc">DBI Stream</span></a>.  If this value is <code class="docutils literal"><span class="pre">0</span></code>, then C13 line
+information is not present.</li>
+<li><strong>GlobalRefs</strong> - The meaning of this substream is not understood.</li>
+</ul>
+</div>
+<div class="section" id="the-codeview-symbol-substream">
+<span id="modi-symbol-substream"></span><h2><a class="toc-backref" href="#id3">The CodeView Symbol Substream</a><a class="headerlink" href="#the-codeview-symbol-substream" title="Permalink to this headline">¶</a></h2>
+<p>The CodeView Symbol Substream.  This is an array of variable length
+records describing the functions, variables, inlining information,
+and other symbols defined in the compiland.  The entire array consumes
+<code class="docutils literal"><span class="pre">SymbolSize-4</span></code> bytes.  The format of a CodeView Symbol Record (and
+thusly, an array of CodeView Symbol Records) is described in
+<a class="reference internal" href="CodeViewSymbols.html"><span class="doc">CodeView Symbol Records</span></a>.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="PublicStream.html" title="The PDB Public Symbol Stream"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="DbiStream.html" title="The PDB DBI (Debug Info) Stream"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >The PDB File Format</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

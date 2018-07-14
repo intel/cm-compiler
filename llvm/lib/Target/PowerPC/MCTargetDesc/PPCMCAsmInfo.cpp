@@ -20,10 +20,11 @@ void PPCMCAsmInfoDarwin::anchor() { }
 
 PPCMCAsmInfoDarwin::PPCMCAsmInfoDarwin(bool is64Bit, const Triple& T) {
   if (is64Bit) {
-    PointerSize = CalleeSaveStackSlotSize = 8;
+    CodePointerSize = CalleeSaveStackSlotSize = 8;
   }
   IsLittleEndian = false;
 
+  SeparatorString = "@";
   CommentString = ";";
   ExceptionsType = ExceptionHandling::DwarfCFI;
 
@@ -42,11 +43,15 @@ PPCMCAsmInfoDarwin::PPCMCAsmInfoDarwin(bool is64Bit, const Triple& T) {
   UseIntegratedAssembler = true;
 }
 
-void PPCLinuxMCAsmInfo::anchor() { }
+void PPCELFMCAsmInfo::anchor() { }
 
-PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit, const Triple& T) {
+PPCELFMCAsmInfo::PPCELFMCAsmInfo(bool is64Bit, const Triple& T) {
+  // FIXME: This is not always needed. For example, it is not needed in the
+  // v2 abi.
+  NeedsLocalForSize = true;
+
   if (is64Bit) {
-    PointerSize = CalleeSaveStackSlotSize = 8;
+    CodePointerSize = CalleeSaveStackSlotSize = 8;
   }
   IsLittleEndian = T.getArch() == Triple::ppc64le;
 
@@ -64,7 +69,6 @@ PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit, const Triple& T) {
   DollarIsPC = true;
 
   // Set up DWARF directives
-  HasLEB128 = true;  // Target asm supports leb128 directives (little-endian)
   MinInstAlignment = 4;
 
   // Exceptions handling
@@ -73,10 +77,8 @@ PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit, const Triple& T) {
   ZeroDirective = "\t.space\t";
   Data64bitsDirective = is64Bit ? "\t.quad\t" : nullptr;
   AssemblerDialect = 1;           // New-Style mnemonics.
+  LCOMMDirectiveAlignmentType = LCOMM::ByteAlignment;
 
-  if (T.getOS() == llvm::Triple::FreeBSD ||
-      (T.getOS() == llvm::Triple::NetBSD && !is64Bit) ||
-      (T.getOS() == llvm::Triple::OpenBSD && !is64Bit))
-    UseIntegratedAssembler = true;
+  UseIntegratedAssembler = true;
 }
 

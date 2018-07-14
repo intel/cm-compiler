@@ -1,6 +1,7 @@
 // RUN: %clang_cc1 -std=c++98 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 // RUN: %clang_cc1 -std=c++11 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
-// RUN: %clang_cc1 -std=c++1y %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
+// RUN: %clang_cc1 -std=c++14 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
+// RUN: %clang_cc1 -std=c++1z %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 
 #if __cplusplus < 201103L
 // expected-no-diagnostics
@@ -41,5 +42,34 @@ namespace dr990 { // dr990: 3.5
     D(std::initializer_list<double>);
   };
   D d{};
+#endif
+}
+
+namespace dr948 { // dr948: 3.7
+#if __cplusplus >= 201103L
+  class A {
+  public:
+     constexpr A(int v) : v(v) { }
+     constexpr operator int() const { return v; }
+  private:
+     int v;
+  };
+
+  constexpr int id(int x)
+  {
+    return x;
+  }
+
+  void f() {
+     if (constexpr int i = id(101)) { }
+     switch (constexpr int i = id(2)) { default: break; case 2: break; }
+     for (; constexpr int i = id(0); ) { }
+     while (constexpr int i = id(0)) { }
+
+     if (constexpr A i = 101) { }
+     switch (constexpr A i = 2) { default: break; case 2: break; }
+     for (; constexpr A i = 0; ) { }
+     while (constexpr A i = 0) { }
+  }
 #endif
 }

@@ -16,7 +16,11 @@
 #define LLVM_C_DISASSEMBLER_H
 
 #include "llvm/Support/DataTypes.h"
+#ifdef __cplusplus
+#include <cstddef>
+#else
 #include <stddef.h>
+#endif
 
 /**
  * @defgroup LLVMCDisassembler Disassembler
@@ -174,8 +178,8 @@ extern "C" {
  * by passing a block of information in the DisInfo parameter and specifying the
  * TagType and callback functions as described above.  These can all be passed
  * as NULL.  If successful, this returns a disassembler context.  If not, it
- * returns NULL. This function is equivalent to calling LLVMCreateDisasmCPU()
- * with an empty CPU name.
+ * returns NULL. This function is equivalent to calling
+ * LLVMCreateDisasmCPUFeatures() with an empty CPU name and feature set.
  */
 LLVMDisasmContextRef LLVMCreateDisasm(const char *TripleName, void *DisInfo,
                                       int TagType, LLVMOpInfoCallback GetOpInfo,
@@ -186,12 +190,26 @@ LLVMDisasmContextRef LLVMCreateDisasm(const char *TripleName, void *DisInfo,
  * disassembly is supported by passing a block of information in the DisInfo
  * parameter and specifying the TagType and callback functions as described
  * above.  These can all be passed * as NULL.  If successful, this returns a
- * disassembler context.  If not, it returns NULL.
+ * disassembler context.  If not, it returns NULL. This function is equivalent
+ * to calling LLVMCreateDisasmCPUFeatures() with an empty feature set.
  */
 LLVMDisasmContextRef LLVMCreateDisasmCPU(const char *Triple, const char *CPU,
                                          void *DisInfo, int TagType,
                                          LLVMOpInfoCallback GetOpInfo,
                                          LLVMSymbolLookupCallback SymbolLookUp);
+
+/**
+ * Create a disassembler for the TripleName, a specific CPU and specific feature
+ * string.  Symbolic disassembly is supported by passing a block of information
+ * in the DisInfo parameter and specifying the TagType and callback functions as
+ * described above.  These can all be passed * as NULL.  If successful, this
+ * returns a disassembler context.  If not, it returns NULL.
+ */
+LLVMDisasmContextRef
+LLVMCreateDisasmCPUFeatures(const char *Triple, const char *CPU,
+                            const char *Features, void *DisInfo, int TagType,
+                            LLVMOpInfoCallback GetOpInfo,
+                            LLVMSymbolLookupCallback SymbolLookUp);
 
 /**
  * Set the disassembler's options.  Returns 1 if it can set the Options and 0
@@ -237,4 +255,4 @@ size_t LLVMDisasmInstruction(LLVMDisasmContextRef DC, uint8_t *Bytes,
 }
 #endif /* !defined(__cplusplus) */
 
-#endif /* !defined(LLVM_C_DISASSEMBLER_H) */
+#endif /* LLVM_C_DISASSEMBLER_H */

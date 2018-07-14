@@ -2,7 +2,7 @@
 // truncated.
 
 // RUN: llvm-profdata merge %S/Inputs/c-counter-overflows.proftext -o %t.profdata
-// RUN: %clang_cc1 -triple x86_64-apple-macosx10.9 -main-file-name c-counter-overflows.c %s -o - -emit-llvm -fprofile-instr-use=%t.profdata | FileCheck %s
+// RUN: %clang_cc1 -triple x86_64-apple-macosx10.9 -main-file-name c-counter-overflows.c %s -o - -emit-llvm -fprofile-instrument-use-path=%t.profdata | FileCheck %s
 
 typedef unsigned long long uint64_t;
 
@@ -44,6 +44,6 @@ int main(int argc, const char *argv[]) {
   return 0;
 }
 
-// CHECK-DAG: ![[FOR]] = metadata !{metadata !"branch_weights", i32 -252645135, i32 1}
-// CHECK-DAG: ![[IF]]  = metadata !{metadata !"branch_weights", i32 -268435456, i32 268435456}
-// CHECK-DAG: ![[SWITCH]] = metadata !{metadata !"branch_weights", i32 715827883, i32 -715827883, i32 -715827883, i32 -715827883}
+// CHECK-DAG: ![[FOR]] = !{!"branch_weights", i32 -252645135, i32 1}
+// CHECK-DAG: ![[IF]]  = !{!"branch_weights", i32 -268435456, i32 268435456}
+// CHECK-DAG: ![[SWITCH]] = !{!"branch_weights", i32 715827883, i32 -715827883, i32 -715827883, i32 -715827883}

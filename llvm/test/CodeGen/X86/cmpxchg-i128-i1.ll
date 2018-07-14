@@ -44,10 +44,10 @@ define i1 @cmpxchg_arithcmp(i128* %addr, i128 %desired, i128 %new) {
 
 define i128 @cmpxchg_zext(i128* %addr, i128 %desired, i128 %new) {
 ; CHECK-LABEL: cmpxchg_zext:
+; CHECK: xorl
 ; CHECK: cmpxchg16b
 ; CHECK-NOT: cmpq
-; CHECK: sete [[BYTE:%[a-z0-9]+]]
-; CHECK: movzbl [[BYTE]], %eax
+; CHECK: sete
   %pair = cmpxchg i128* %addr, i128 %desired, i128 %new seq_cst seq_cst
   %success = extractvalue { i128, i1 } %pair, 1
   %mask = zext i1 %success to i128
@@ -62,7 +62,7 @@ define i128 @cmpxchg_use_eflags_and_val(i128* %addr, i128 %offset) {
 ; CHECK-NOT: cmpq
 ; CHECK: jne
 entry:
-  %init = load atomic i128* %addr seq_cst, align 16
+  %init = load atomic i128, i128* %addr seq_cst, align 16
   br label %loop
 
 loop:

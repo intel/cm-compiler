@@ -45,6 +45,6 @@ void test() {
 // RUN: %cmc -Qxcm_jit_target %w 2>&1 | FileCheck %w 
 // RUN: rm %W.isa
 
-// CHECK: cm_jit_target.cpp(13,2) :  warning: CM_GENX not defined [-W#warnings]
+// CHECK: cm_jit_target.cpp(13,2):  warning: CM_GENX not defined [-W#warnings]
 // CHECK: 1 warning generated.
 // CHECK-NOT: -platform

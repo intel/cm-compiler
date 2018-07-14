@@ -38,8 +38,18 @@ int defineListDoubleRight() {
   return ld.size;
 }
 
+inline void defineListLongRight() {
+  List<long> ll;
+}
+
 template<typename T> struct MergePatternDecl;
 
 void outOfLineInlineUseRightF(void (OutOfLineInline<int>::*)() = &OutOfLineInline<int>::f);
 void outOfLineInlineUseRightG(void (OutOfLineInline<int>::*)() = &OutOfLineInline<int>::g);
 void outOfLineInlineUseRightH(void (OutOfLineInline<int>::*)() = &OutOfLineInline<int>::h);
+
+inline int *getStaticDataMemberRight() {
+  return WithUndefinedStaticDataMember<int[]>::undefined;
+}
+
+inline WithAttributes<int> make_with_attributes_right() { return WithAttributes<int>(); }

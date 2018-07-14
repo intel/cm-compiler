@@ -1,6 +1,6 @@
 // RUN: rm -f %t.objc.plist %t.objcpp.plist
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core,osx.coreFoundation.CFRetainRelease,osx.cocoa.ClassRelease,osx.cocoa.RetainCount -analyzer-store=region -fblocks -verify -Wno-objc-root-class %s -analyzer-output=plist -o %t.objc.plist
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core,osx.coreFoundation.CFRetainRelease,osx.cocoa.ClassRelease,osx.cocoa.RetainCount -analyzer-store=region -fblocks -verify -x objective-c++ -std=gnu++98 -Wno-objc-root-class %s -analyzer-output=plist -o %t.objcpp.plist
+// RUN: %clang_analyze_cc1 -triple x86_64-apple-darwin10 -analyzer-checker=core,osx.coreFoundation.CFRetainRelease,osx.cocoa.ClassRelease,osx.cocoa.RetainCount -analyzer-store=region -fblocks -verify -Wno-objc-root-class %s -analyzer-output=plist -o %t.objc.plist
+// RUN: %clang_analyze_cc1 -triple x86_64-apple-darwin10 -analyzer-checker=core,osx.coreFoundation.CFRetainRelease,osx.cocoa.ClassRelease,osx.cocoa.RetainCount -analyzer-store=region -fblocks -verify -x objective-c++ -std=gnu++98 -Wno-objc-root-class %s -analyzer-output=plist -o %t.objcpp.plist
 // FIXLATER: cat %t.objc.plist ; FileCheck --input-file=%t.objc.plist %s
 // FIXLATER: cat %t.objcpp.plist ; FileCheck --input-file=%t.objcpp.plist %s
 
@@ -325,6 +325,9 @@ typedef const struct __CFUUID * CFUUIDRef;
 
 extern
 void *CFPlugInInstanceCreate(CFAllocatorRef allocator, CFUUIDRef factoryUUID, CFUUIDRef typeUUID);
+typedef struct {
+  int ref;
+} isl_basic_map;
 
 //===----------------------------------------------------------------------===//
 // Test cases.
@@ -445,6 +448,51 @@ void f10(io_service_t media, DADiskRef d, CFStringRef s) {
   
   DASessionRef session = DASessionCreate(kCFAllocatorDefault);  // expected-warning{{leak}}
   if (session) NSLog(@"ok");
+}
+
+
+// Handle CoreMedia API
+
+struct CMFoo;
+typedef struct CMFoo *CMFooRef;
+
+CMFooRef CMCreateFooRef();
+CMFooRef CMGetFooRef();
+
+typedef signed long SInt32;
+typedef SInt32  OSStatus;
+OSStatus CMCreateFooAndReturnViaOutParameter(CMFooRef * CF_RETURNS_RETAINED fooOut);
+
+void testLeakCoreMediaReferenceType() {
+  CMFooRef f = CMCreateFooRef(); // expected-warning{{leak}}
+}
+
+void testOverReleaseMediaReferenceType() {
+  CMFooRef f = CMGetFooRef();
+  CFRelease(f); // expected-warning{{Incorrect decrement of the reference count}}
+}
+
+void testOkToReleaseReturnsRetainedOutParameter() {
+  CMFooRef foo = 0;
+  OSStatus status = CMCreateFooAndReturnViaOutParameter(&foo);
+
+  if (status != 0)
+    return;
+
+  CFRelease(foo); // no-warning
+}
+
+void testLeakWithReturnsRetainedOutParameter() {
+  CMFooRef foo = 0;
+  OSStatus status = CMCreateFooAndReturnViaOutParameter(&foo);
+
+  if (status != 0)
+    return;
+
+  // FIXME: Ideally we would report a leak here since it is the caller's
+  // responsibility to release 'foo'. However, we don't currently have
+  // a mechanism in this checker to only require a release when a successful
+  // status is returned.
 }
 
 // Test retain/release checker with CFString and CFMutableArray.
@@ -572,6 +620,14 @@ void f17(int x, CFTypeRef p) {
   default:
     break;
   }
+}
+
+__attribute__((annotate("rc_ownership_returns_retained"))) isl_basic_map *isl_basic_map_cow(__attribute__((annotate("rc_ownership_consumed"))) isl_basic_map *bmap);
+
+// Test custom diagnostics for generalized objects.
+void f18(__attribute__((annotate("rc_ownership_consumed"))) isl_basic_map *bmap) {
+  // After this call, 'bmap' has a +1 reference count.
+  bmap = isl_basic_map_cow(bmap); // expected-warning {{Potential leak of an object}}
 }
 
 // Test basic tracking of ivars associated with 'self'.  For the retain/release
@@ -1247,6 +1303,108 @@ CVReturn rdar_7283567_2(CFAllocatorRef allocator, size_t width, size_t height,
               pixelBufferAttributes, pixelBufferOut) ;
 }
 
+#pragma clang arc_cf_code_audited begin
+typedef struct SomeOpaqueStruct *CMSampleBufferRef;
+CVImageBufferRef _Nonnull CMSampleBufferGetImageBuffer(CMSampleBufferRef _Nonnull sbuf);
+#pragma clang arc_cf_code_audited end
+
+CVBufferRef _Nullable CVBufferRetain(CVBufferRef _Nullable buffer);
+void CVBufferRelease(CF_CONSUMED CVBufferRef _Nullable buffer);
+
+void testCVPrefixRetain(CMSampleBufferRef sbuf) {
+  // Make sure RetainCountChecker treats CVFooRetain() as a CF-style retain.
+  CVPixelBufferRef pixelBuf = CMSampleBufferGetImageBuffer(sbuf);
+  CVBufferRetain(pixelBuf);
+  CVBufferRelease(pixelBuf); // no-warning
+
+
+  // Make sure result of CVFooRetain() is the same as its argument.
+  CVPixelBufferRef pixelBufAlias = CVBufferRetain(pixelBuf);
+  CVBufferRelease(pixelBufAlias); // no-warning
+}
+
+typedef signed long SInt32;
+typedef SInt32  OSStatus;
+typedef FourCharCode CMVideoCodecType;
+
+
+typedef UInt32 VTEncodeInfoFlags; enum {
+ kVTEncodeInfo_Asynchronous = 1UL << 0,
+ kVTEncodeInfo_FrameDropped = 1UL << 1,
+};
+typedef struct
+{
+  int ignore;
+} CMTime;
+
+
+typedef void (*VTCompressionOutputCallback)(
+    void * _Nullable outputCallbackRefCon,
+    void * _Nullable sourceFrameRefCon,
+    OSStatus status,
+    VTEncodeInfoFlags infoFlags,
+    _Nullable CMSampleBufferRef sampleBuffer );
+
+typedef struct OpaqueVTCompressionSession*  VTCompressionSessionRef;
+
+extern OSStatus
+VTCompressionSessionCreate(_Nullable CFAllocatorRef allocator,
+    int32_t width,
+    int32_t height,
+    CMVideoCodecType codecType,
+    _Nullable CFDictionaryRef encoderSpecification,
+    _Nullable CFDictionaryRef sourceImageBufferAttributes,
+    _Nullable CFAllocatorRef compressedDataAllocator,
+    _Nullable VTCompressionOutputCallback outputCallback,
+    void * _Nullable outputCallbackRefCon,
+    CF_RETURNS_RETAINED _Nullable VTCompressionSessionRef * _Nonnull compressionSessionOut);
+
+extern OSStatus
+VTCompressionSessionEncodeFrame(
+    _Nonnull VTCompressionSessionRef session,
+    _Nonnull CVImageBufferRef imageBuffer,
+    CMTime presentationTimeStamp,
+    CMTime duration,
+    _Nullable CFDictionaryRef frameProperties,
+    void * _Nullable sourceFrameRefCon,
+    VTEncodeInfoFlags * _Nullable infoFlagsOut);
+
+OSStatus test_VTCompressionSessionCreateAndEncode_CallbackReleases(
+    _Nullable CFAllocatorRef allocator,
+    int32_t width,
+    int32_t height,
+    CMVideoCodecType codecType,
+    _Nullable CFDictionaryRef encoderSpecification,
+    _Nullable CFDictionaryRef sourceImageBufferAttributes,
+    _Nullable CFAllocatorRef compressedDataAllocator,
+    _Nullable VTCompressionOutputCallback outputCallback,
+
+    _Nonnull CVImageBufferRef imageBuffer,
+    CMTime presentationTimeStamp,
+    CMTime duration,
+    _Nullable CFDictionaryRef frameProperties
+) {
+
+  // The outputCallback is passed both contexts and so can release either.
+  NSNumber *contextForCreate = [[NSNumber alloc] initWithInt:5]; // no-warning
+  NSNumber *contextForEncode = [[NSNumber alloc] initWithInt:6]; // no-warning
+
+  VTCompressionSessionRef session = 0;
+  OSStatus status = VTCompressionSessionCreate(allocator,
+      width, height, codecType, encoderSpecification,
+      sourceImageBufferAttributes,
+      compressedDataAllocator, outputCallback, contextForCreate,
+      &session);
+
+  VTEncodeInfoFlags encodeInfoFlags;
+
+  status = VTCompressionSessionEncodeFrame(session, imageBuffer,
+      presentationTimeStamp, duration, frameProperties, contextForEncode,
+      &encodeInfoFlags);
+
+  return status;
+}
+
 //===----------------------------------------------------------------------===//
 // <rdar://problem/7358899> False leak associated with 
 //  CGBitmapContextCreateWithData
@@ -1345,7 +1503,7 @@ typedef NSString* MyStringTy;
 + (void) consume2:(id) CF_CONSUMED x;
 @end
 
-static int ownership_attribute_doesnt_go_here NS_RETURNS_RETAINED; // expected-warning{{'ns_returns_retained' attribute only applies to functions and methods}}
+static int ownership_attribute_doesnt_go_here NS_RETURNS_RETAINED; // expected-warning{{'ns_returns_retained' only applies to function types; type here is 'int'}}
 
 void test_attr_1(TestOwnershipAttr *X) {
   NSString *str = [X returnsAnOwnedString]; // expected-warning{{leak}}
@@ -1674,15 +1832,15 @@ CFArrayRef camel_copymachine() {
 
 // rdar://problem/8024350
 @protocol F18P
-- (id) clone;
+- (id) clone; // expected-note 2 {{method declared here}}
 @end
 @interface F18 : NSObject<F18P> @end
 @interface F18(Cat)
-- (id) clone NS_RETURNS_RETAINED;
+- (id) clone NS_RETURNS_RETAINED; // expected-warning {{overriding method has mismatched ns_returns_retained attributes}}
 @end
 
 @implementation F18
-- (id) clone {
+- (id) clone { // expected-warning {{overriding method has mismatched ns_returns_retained attributes}}
   return [F18 alloc];
 }
 @end
@@ -2151,6 +2309,40 @@ void foo() {
 __attribute__((ns_returns_retained))
 id returnNSNull() {
   return [NSNull null]; // no-warning
+}
+
+//===----------------------------------------------------------------------===//
+// cf_returns_[not_]retained on parameters
+//===----------------------------------------------------------------------===//
+
+void testCFReturnsNotRetained() {
+  extern void getViaParam(CFTypeRef * CF_RETURNS_NOT_RETAINED outObj);
+  CFTypeRef obj;
+  getViaParam(&obj);
+  CFRelease(obj); // // expected-warning {{Incorrect decrement of the reference count of an object that is not owned at this point by the caller}}
+}
+
+void testCFReturnsNotRetainedAnnotated() {
+  extern void getViaParam2(CFTypeRef * _Nonnull CF_RETURNS_NOT_RETAINED outObj);
+  CFTypeRef obj;
+  getViaParam2(&obj);
+  CFRelease(obj); // // expected-warning {{Incorrect decrement of the reference count of an object that is not owned at this point by the caller}}
+}
+
+void testCFReturnsRetained() {
+  extern int copyViaParam(CFTypeRef * CF_RETURNS_RETAINED outObj);
+  CFTypeRef obj;
+  copyViaParam(&obj);
+  CFRelease(obj);
+  CFRelease(obj); // // FIXME-warning {{Incorrect decrement of the reference count of an object that is not owned at this point by the caller}}
+}
+
+void testCFReturnsRetainedError() {
+  extern int copyViaParam(CFTypeRef * CF_RETURNS_RETAINED outObj);
+  CFTypeRef obj;
+  if (copyViaParam(&obj) == -42)
+    return; // no-warning
+  CFRelease(obj);
 }
 
 // CHECK:  <key>diagnostics</key>

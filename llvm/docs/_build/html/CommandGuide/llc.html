@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>llc - LLVM static compiler &#8212; LLVM 3.4 documentation</title>
+    <title>llc - LLVM static compiler &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -78,7 +78,7 @@
 for a specified architecture.  The assembly language output can then be passed
 through a native assembler and linker to generate a native executable.</p>
 <p>The choice of architecture for the output assembly code is automatically
-determined from the input file, unless the <a class="reference internal" href="#cmdoption-march"><code class="xref std std-option docutils literal"><span class="pre">-march</span></code></a> option is used to
+determined from the input file, unless the <a class="reference internal" href="lli.html#cmdoption-march"><code class="xref std std-option docutils literal"><span class="pre">-march</span></code></a> option is used to
 override the default.</p>
 </div>
 <div class="section" id="options">
@@ -209,7 +209,24 @@ error.</p>
 <code class="descname">–load</code><code class="descclassname">=&lt;dso_path&gt;</code><a class="headerlink" href="#cmdoption-load" title="Permalink to this definition">¶</a></dt>
 <dd><p>Dynamically load <code class="docutils literal"><span class="pre">dso_path</span></code> (a path to a dynamically shared object) that
 implements an LLVM target.  This will permit the target name to be used with
-the <a class="reference internal" href="#cmdoption-march"><code class="xref std std-option docutils literal"><span class="pre">-march</span></code></a> option so that code can be generated for that target.</p>
+the <a class="reference internal" href="lli.html#cmdoption-march"><code class="xref std std-option docutils literal"><span class="pre">-march</span></code></a> option so that code can be generated for that target.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-meabi">
+<code class="descname">-meabi</code><code class="descclassname">=[default|gnu|4|5]</code><a class="headerlink" href="#cmdoption-meabi" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify which EABI version should conform to.  Valid EABI versions are <em>gnu</em>,
+<em>4</em> and <em>5</em>.  Default value (<em>default</em>) depends on the triple.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-stack-size-section">
+<code class="descname">-stack-size-section</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-stack-size-section" title="Permalink to this definition">¶</a></dt>
+<dd><p>Emit the .stack_sizes section which contains stack size metadata. The section
+contains an array of pairs of function symbol references (8 byte) and stack
+sizes (unsigned LEB128). The stack size values only include the space allocated
+in the function prologue. Functions with dynamic stack allocations are not
+included.</p>
 </dd></dl>
 
 </div>
@@ -301,8 +318,8 @@ occurs, it will exit with a non-zero value.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

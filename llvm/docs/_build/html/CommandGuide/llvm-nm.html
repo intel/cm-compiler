@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>llvm-nm - list LLVM bitcode and object file’s symbol table &#8212; LLVM 3.4 documentation</title>
+    <title>llvm-nm - list LLVM bitcode and object file’s symbol table &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -28,7 +28,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="llvm-config - Print LLVM compilation options" href="llvm-config.html" />
-    <link rel="prev" title="llvm-ar - LLVM archiver" href="llvm-ar.html" />
+    <link rel="prev" title="llvm-lib - LLVM lib.exe compatible library tool" href="llvm-lib.html" />
 <style type="text/css">
   table.right { float: right; margin-left: 20px; }
   table.right td { border: 1px solid #ccc; }
@@ -52,7 +52,7 @@
           <a href="llvm-config.html" title="llvm-config - Print LLVM compilation options"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="llvm-ar.html" title="llvm-ar - LLVM archiver"
+          <a href="llvm-lib.html" title="llvm-lib - LLVM lib.exe compatible library tool"
              accesskey="P">previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="../index.html">Documentation</a>&raquo;</li>
@@ -205,13 +205,18 @@ is <em>bsd</em>.</p>
 <dd><p>Print only symbols referenced but not defined in this file.</p>
 </dd></dl>
 
+<dl class="option">
+<dt id="cmdoption-llvm-nm-radix">
+<code class="descname">–radix</code><code class="descclassname">=RADIX</code><code class="descclassname">, </code><code class="descname">-t</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-nm-radix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the radix of the symbol address(es). Values accepted d(decimal),
+x(hexadecomal) and o(octal).</p>
+</dd></dl>
+
 </div>
 <div class="section" id="bugs">
 <h2>BUGS<a class="headerlink" href="#bugs" title="Permalink to this headline">¶</a></h2>
 <blockquote>
 <div><ul class="simple">
-<li><strong class="program">llvm-nm</strong> cannot demangle C++ mangled names, like GNU <strong class="program">nm</strong>
-can.</li>
 <li><strong class="program">llvm-nm</strong> does not support the full set of arguments that GNU
 <strong class="program">nm</strong> does.</li>
 </ul>
@@ -242,7 +247,7 @@ can.</li>
           <a href="llvm-config.html" title="llvm-config - Print LLVM compilation options"
              >next</a> |</li>
         <li class="right" >
-          <a href="llvm-ar.html" title="llvm-ar - LLVM archiver"
+          <a href="llvm-lib.html" title="llvm-lib - LLVM lib.exe compatible library tool"
              >previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="../index.html">Documentation</a>&raquo;</li>
@@ -251,8 +256,8 @@ can.</li>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

@@ -13,14 +13,14 @@ for.cond2:                                        ; preds = %for.inc, %for.cond
   %i.1 = phi i32 [ %inc19, %for.inc ], [ 0, %for.cond ]
   %bit.0 = phi i32 [ %shl, %for.inc ], [ 1, %for.cond ]
   %tobool = icmp eq i32 %bit.0, 0
-  %v3 = load i32* @max_regno, align 4
+  %v3 = load i32, i32* @max_regno, align 4
   %cmp4 = icmp eq i32 %i.1, %v3
   %or.cond = or i1 %tobool, %cmp4
   br i1 %or.cond, label %for.inc20, label %for.inc, !prof !0
-; CHECK: BB#1: derived from LLVM BB %for.cond2
-; CHECK: Successors according to CFG: BB#3(56008718) BB#4(2203492365)
-; CHECK: BB#4: derived from LLVM BB %for.cond2
-; CHECK: Successors according to CFG: BB#3(112017436) BB#2(4294967294)
+; CHECK: %bb.1: derived from LLVM BB %for.cond2
+; CHECK: Successors according to CFG: %bb.3({{[0-9a-fx/= ]+}}1.53%) %bb.4({{[0-9a-fx/= ]+}}98.47%)
+; CHECK: %bb.4: derived from LLVM BB %for.cond2
+; CHECK: Successors according to CFG: %bb.3({{[0-9a-fx/= ]+}}1.55%) %bb.2({{[0-9a-fx/= ]+}}98.45%)
 
 for.inc:                                          ; preds = %for.cond2
   %shl = shl i32 %bit.0, 1
@@ -31,4 +31,4 @@ for.inc20:                                        ; preds = %for.cond2
   ret void
 }
 
-!0 = metadata !{metadata !"branch_weights", i32 112017436, i32 -735157296}
+!0 = !{!"branch_weights", i32 112017436, i32 -735157296}

@@ -34,7 +34,7 @@ define i64 @cmpxchg_sext(i32* %addr, i32 %desired, i32 %new) {
 ; CHECK-LABEL: cmpxchg_sext:
 ; CHECK-DAG: cmpxchgl
 ; CHECK-NOT: cmpl
-; CHECK: sete %al
+; CHECK: sete %cl
 ; CHECK: retq
   %pair = cmpxchg i32* %addr, i32 %desired, i32 %new seq_cst seq_cst
   %success = extractvalue { i32, i1 } %pair, 1
@@ -44,10 +44,10 @@ define i64 @cmpxchg_sext(i32* %addr, i32 %desired, i32 %new) {
 
 define i32 @cmpxchg_zext(i32* %addr, i32 %desired, i32 %new) {
 ; CHECK-LABEL: cmpxchg_zext:
+; CHECK: xorl %e[[R:[a-z]]]x
 ; CHECK: cmpxchgl
 ; CHECK-NOT: cmp
-; CHECK: sete [[BYTE:%[a-z0-9]+]]
-; CHECK: movzbl [[BYTE]], %eax
+; CHECK: sete %[[R]]l
   %pair = cmpxchg i32* %addr, i32 %desired, i32 %new seq_cst seq_cst
   %success = extractvalue { i32, i1 } %pair, 1
   %mask = zext i1 %success to i32
@@ -68,7 +68,7 @@ define i32 @cmpxchg_use_eflags_and_val(i32* %addr, i32 %offset) {
   ; Result already in %eax
 ; CHECK: retq
 entry:
-  %init = load atomic i32* %addr seq_cst, align 4
+  %init = load atomic i32, i32* %addr seq_cst, align 4
   br label %loop
 
 loop:

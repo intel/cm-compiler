@@ -378,7 +378,7 @@ private:
 public:
   static char ID;
   explicit GenXArgIndirection() : FunctionGroupPass(ID) { }
-  virtual const char *getPassName() const { return "GenX arg indirection"; }
+  virtual StringRef getPassName() const { return "GenX arg indirection"; }
   void getAnalysisUsage(AnalysisUsage &AU) const {
     FunctionGroupPass::getAnalysisUsage(AU);
     AU.addRequired<FunctionGroupAnalysis>();
@@ -608,8 +608,9 @@ bool GenXArgIndirection::processArgLR(LiveRange *ArgLR)
     Instruction *Inst = *bi;
     Bale B;
     Baling->buildBale(Inst, &B);
-    Argument *AddressArg = &Inst->getParent()->getParent()
-        ->getArgumentList().back();
+    auto argIter = Inst->getParent()->getParent()->arg_begin();
+    std::advance(argIter, Inst->getParent()->getParent()->arg_size() - 1);
+    Argument *AddressArg = &*argIter;
     indirectBale(&B, ArgLR, AddressArg);
   }
   // Recalculate live ranges as required. Rebuild the call graph first, as it
@@ -1141,7 +1142,7 @@ void SubroutineArg::addAddressArg()
   // Create the new function.
   NewFunc = Function::Create(FTy, F->getLinkage(), "");
   NewFunc->takeName(F);
-  F->getParent()->getFunctionList().insert(F, NewFunc);
+  F->getParent()->getFunctionList().insert(F->getIterator(), NewFunc);
   // Set the new function's number to the same as the old function.
   Pass->Numbering->setNumber(NewFunc, Pass->Numbering->getNumber(F));
   // Move the original function's unified return value across to the new
@@ -1762,8 +1763,8 @@ DiagnosticInfoArgIndirection::DiagnosticInfoArgIndirection(Instruction *Inst,
     : DiagnosticInfo(getKindID(), Severity), Line(0), Col(0)
 {
   auto DL = Inst->getDebugLoc();
-  if (!DL.isUnknown()) {
-    Filename = DIScope(DL.getScope(Inst->getContext())).getFilename();
+  if (DL) {
+    Filename = DL->getFilename();
     Line = DL.getLine();
     Col = DL.getCol();
   }

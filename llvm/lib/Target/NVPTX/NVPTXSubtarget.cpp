@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "NVPTXSubtarget.h"
+#include "NVPTXTargetMachine.h"
 
 using namespace llvm;
 
@@ -22,25 +23,17 @@ using namespace llvm;
 #define GET_SUBTARGETINFO_CTOR
 #include "NVPTXGenSubtargetInfo.inc"
 
+static cl::opt<bool>
+    NoF16Math("nvptx-no-f16-math", cl::ZeroOrMore, cl::Hidden,
+              cl::desc("NVPTX Specific: Disable generation of f16 math ops."),
+              cl::init(false));
+
 // Pin the vtable to this file.
 void NVPTXSubtarget::anchor() {}
-
-static std::string computeDataLayout(bool is64Bit) {
-  std::string Ret = "e";
-
-  if (!is64Bit)
-    Ret += "-p:32:32";
-
-  Ret += "-i64:64-v16:16-v32:32-n16:32:64";
-
-  return Ret;
-}
 
 NVPTXSubtarget &NVPTXSubtarget::initializeSubtargetDependencies(StringRef CPU,
                                                                 StringRef FS) {
     // Provide the default CPU if we don't have one.
-  if (CPU.empty() && FS.size())
-    llvm_unreachable("we are not using FeatureStr");
   TargetName = CPU.empty() ? "sm_20" : CPU;
 
   ParseSubtargetFeatures(TargetName, FS);
@@ -53,18 +46,23 @@ NVPTXSubtarget &NVPTXSubtarget::initializeSubtargetDependencies(StringRef CPU,
   return *this;
 }
 
-NVPTXSubtarget::NVPTXSubtarget(const std::string &TT, const std::string &CPU,
-                               const std::string &FS, const TargetMachine &TM,
-                               bool is64Bit)
-    : NVPTXGenSubtargetInfo(TT, CPU, FS), Is64Bit(is64Bit), PTXVersion(0),
-      SmVersion(20), DL(computeDataLayout(is64Bit)),
-      InstrInfo(initializeSubtargetDependencies(CPU, FS)),
-      TLInfo((NVPTXTargetMachine &)TM), TSInfo(&DL), FrameLowering(*this) {
+NVPTXSubtarget::NVPTXSubtarget(const Triple &TT, const std::string &CPU,
+                               const std::string &FS,
+                               const NVPTXTargetMachine &TM)
+    : NVPTXGenSubtargetInfo(TT, CPU, FS), PTXVersion(0), SmVersion(20), TM(TM),
+      InstrInfo(), TLInfo(TM, initializeSubtargetDependencies(CPU, FS)),
+      FrameLowering() {}
 
-  Triple T(TT);
+bool NVPTXSubtarget::hasImageHandles() const {
+  // Enable handles for Kepler+, where CUDA supports indirect surfaces and
+  // textures
+  if (TM.getDrvInterface() == NVPTX::CUDA)
+    return (SmVersion >= 30);
 
-  if (T.getOS() == Triple::NVCL)
-    drvInterface = NVPTX::NVCL;
-  else
-    drvInterface = NVPTX::CUDA;
+  // Disabled, otherwise
+  return false;
+}
+
+bool NVPTXSubtarget::allowFP16Math() const {
+  return hasFP16Math() && NoF16Math == false;
 }

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple x86_64-apple-darwin10 -analyze -analyzer-checker=core,osx.coreFoundation.CFRetainRelease,osx.cocoa.ClassRelease,osx.cocoa.RetainCount -analyzer-store=region -fblocks -verify %s
+// RUN: %clang_analyze_cc1 -triple x86_64-apple-darwin10 -analyzer-checker=core,osx.coreFoundation.CFRetainRelease,osx.cocoa.ClassRelease,osx.cocoa.RetainCount -analyzer-store=region -fblocks -verify %s
 
 #if __has_feature(attribute_ns_returns_retained)
 #define NS_RETURNS_RETAINED __attribute__((ns_returns_retained))
@@ -461,3 +461,12 @@ void	radar13722286::PrepareBitmap() {
 	}
 }
 
+// rdar://34210609
+void _() { _(); }; // no-warning
+
+// Do not assume that IOBSDNameMatching increments a reference counter,
+// unless return type is CFMutableDictionaryRef.
+void* IOBSDNameMatching();
+void rdar33832412() {
+  void* x = IOBSDNameMatching(); // no-warning
+}

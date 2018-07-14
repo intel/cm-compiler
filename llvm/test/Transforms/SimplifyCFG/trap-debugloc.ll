@@ -1,7 +1,7 @@
 ; RUN: opt -S -simplifycfg < %s | FileCheck %s
 ; Radar 9342286
 ; Assign DebugLoc to trap instruction.
-define void @foo() nounwind ssp {
+define void @foo() nounwind ssp !dbg !0 {
 ; CHECK: call void @llvm.trap(), !dbg
   store i32 42, i32* null, !dbg !5
   ret void, !dbg !7
@@ -9,16 +9,14 @@ define void @foo() nounwind ssp {
 
 !llvm.dbg.cu = !{!2}
 !llvm.module.flags = !{!10}
-!llvm.dbg.sp = !{!0}
 
-!0 = metadata !{i32 589870, metadata !8, metadata !1, metadata !"foo", metadata !"foo", metadata !"", i32 3, metadata !3, i1 false, i1 true, i32 0, i32 0, null, i32 0, i1 false, void ()* @foo, null, null, null, i32 0} ; [ DW_TAG_subprogram ] [line 3] [def] [scope 0] [foo]
-!1 = metadata !{i32 589865, metadata !8} ; [ DW_TAG_file_type ]
-!2 = metadata !{i32 589841, metadata !8, i32 12, metadata !"Apple clang version 3.0 (tags/Apple/clang-206.1) (based on LLVM 3.0svn)", i1 true, metadata !"", i32 0, metadata !4, metadata !4, metadata !9, null, null, metadata !""} ; [ DW_TAG_compile_unit ]
-!3 = metadata !{i32 589845, metadata !8, metadata !1, metadata !"", i32 0, i64 0, i64 0, i32 0, i32 0, null, metadata !4, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!4 = metadata !{null}
-!5 = metadata !{i32 4, i32 2, metadata !6, null}
-!6 = metadata !{i32 589835, metadata !8, metadata !0, i32 3, i32 12, i32 0} ; [ DW_TAG_lexical_block ]
-!7 = metadata !{i32 5, i32 1, metadata !6, null}
-!8 = metadata !{metadata !"foo.c", metadata !"/private/tmp"}
-!9 = metadata !{metadata !0}
-!10 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
+!0 = distinct !DISubprogram(name: "foo", line: 3, isLocal: false, isDefinition: true, virtualIndex: 6, isOptimized: false, unit: !2, file: !8, scope: !1, type: !3)
+!1 = !DIFile(filename: "foo.c", directory: "/private/tmp")
+!2 = distinct !DICompileUnit(language: DW_LANG_C99, producer: "Apple clang version 3.0 (tags/Apple/clang-206.1) (based on LLVM 3.0svn)", isOptimized: true, emissionKind: FullDebug, file: !8, enums: !{}, retainedTypes: !{})
+!3 = !DISubroutineType(types: !4)
+!4 = !{null}
+!5 = !DILocation(line: 4, column: 2, scope: !6)
+!6 = distinct !DILexicalBlock(line: 3, column: 12, file: !8, scope: !0)
+!7 = !DILocation(line: 5, column: 1, scope: !6)
+!8 = !DIFile(filename: "foo.c", directory: "/private/tmp")
+!10 = !{i32 1, !"Debug Info Version", i32 3}

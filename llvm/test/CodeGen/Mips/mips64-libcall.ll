@@ -1,6 +1,6 @@
 ; RUN: llc -march=mips64el -mcpu=mips64r2 -O3 < %s |\
 ; RUN: FileCheck %s -check-prefix=HARD
-; RUN: llc -march=mips64el -mcpu=mips64r2 -soft-float < %s |\
+; RUN: llc -march=mips64el -mcpu=mips64r2 -mattr=+soft-float < %s |\
 ; RUN: FileCheck %s -check-prefix=SOFT
 
 ; Check that %add is not passed in an integer register.
@@ -20,7 +20,7 @@ declare double @floor(double) nounwind readnone
 ; Check call16.
 ;
 ; SOFT-LABEL: f64add:
-; SOFT: ld $25, %call16(__adddf3)
+; SOFT: jal __adddf3
 
 define double @f64add(double %a, double %b) {
 entry:

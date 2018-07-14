@@ -30,8 +30,6 @@ template<unsigned N> struct S {
   // expected-error {{no member named 'recurse'}} \
   // expected-note 9{{instantiation of exception spec}}
 };
-decltype(S<0>::recurse()) *pVoid1 = 0; // ok, exception spec not needed
-decltype(&S<0>::recurse) pFn = 0; // ok, exception spec not needed
 
 template<> struct S<10> {};
 void (*pFn2)() noexcept = &S<0>::recurse; // expected-note {{instantiation of exception spec}} expected-error {{not superset}}
@@ -39,7 +37,7 @@ void (*pFn2)() noexcept = &S<0>::recurse; // expected-note {{instantiation of ex
 
 namespace dr1330_example {
   template <class T> struct A {
-    void f(...) throw (typename T::X); // expected-error {{'int'}}
+    void f(...) throw (typename T::X);
     void f(int);
   };
 
@@ -48,16 +46,21 @@ namespace dr1330_example {
   }
 
   struct S {
-    template<typename T>
-    static int f() noexcept(noexcept(A<T>().f("boo!"))) { return 0; } // \
-    // expected-note {{instantiation of exception spec}}
-    typedef decltype(f<S>()) X;
+    template<typename T> static void f() throw(typename T::X);
+    typedef decltype(f<S>()) X; // expected-error {{exception specification is not available}}
   };
 
-  int test2() {
-    S().f<S>(); // ok
-    S().f<int>(); // expected-note {{instantiation of exception spec}}
-  }
+  struct T {
+    template<typename T> static void f() throw(T**);
+    typedef decltype(f<S>()) X; // expected-error {{exception specification is not available}}
+  };
+
+  template<typename T>
+  struct U {
+    void f() noexcept(T::error);
+    void (g)() noexcept(T::error);
+  };
+  U<int> uint; // ok
 }
 
 namespace core_19754_example {
@@ -137,3 +140,45 @@ namespace PR12763 {
   };
   void X::g() {} // expected-note {{in instantiation of}}
 }
+
+namespace Variadic {
+  template<bool B> void check() { static_assert(B, ""); }
+  template<bool B, bool B2, bool ...Bs> void check() { static_assert(B, ""); check<B2, Bs...>(); }
+
+  template<typename ...T> void consume(T...);
+
+  template<typename ...T> void f(void (*...p)() throw (T)) {
+    void (*q[])() = { p... };
+    consume((p(),0)...);
+  }
+  template<bool ...B> void g(void (*...p)() noexcept (B)) {
+    consume((p(),0)...);
+    check<noexcept(p()) == B ...>();
+  }
+  template<typename ...T> void i() {
+    consume([]() throw(T) {} ...);
+    consume([]() noexcept(sizeof(T) == 4) {} ...);
+  }
+  template<bool ...B> void j() {
+    consume([](void (*p)() noexcept(B)) {
+      void (*q)() noexcept = p; // expected-error {{not superset of source}}
+    } ...);
+  }
+
+  void z() {
+    f<int, char, double>(nullptr, nullptr, nullptr);
+    g<true, false, true>(nullptr, nullptr, nullptr);
+    i<int, long, short>();
+    j<true, true>();
+    j<true, false>(); // expected-note {{in instantiation of}}
+  }
+
+}
+
+namespace NondefDecls {
+  template<typename T> void f1() {
+    int g1(int) noexcept(T::error); // expected-error{{type 'int' cannot be used prior to '::' because it has no members}}
+  }
+  template void f1<int>(); // expected-note{{in instantiation of function template specialization 'NondefDecls::f1<int>' requested here}}
+}
+

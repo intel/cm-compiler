@@ -9,16 +9,16 @@
 define void @floating_lits() {
 ; CHECK-LABEL: floating_lits:
 
-  %floatval = load float* @varfloat
+  %floatval = load float, float* @varfloat
   %newfloat = fadd float %floatval, 128.0
 ; CHECK: adrp x[[LITBASE:[0-9]+]], [[CURLIT:.LCPI[0-9]+_[0-9]+]]
 ; CHECK: ldr [[LIT128:s[0-9]+]], [x[[LITBASE]], {{#?}}:lo12:[[CURLIT]]]
 ; CHECK-NOFP-NOT: ldr {{s[0-9]+}},
 
-; CHECK-LARGE: movz x[[LITADDR:[0-9]+]], #:abs_g3:[[CURLIT:.LCPI[0-9]+_[0-9]+]]
-; CHECK-LARGE: movk x[[LITADDR]], #:abs_g2_nc:[[CURLIT]]
+; CHECK-LARGE: movz x[[LITADDR:[0-9]+]], #:abs_g0_nc:[[CURLIT:.LCPI[0-9]+_[0-9]+]]
 ; CHECK-LARGE: movk x[[LITADDR]], #:abs_g1_nc:[[CURLIT]]
-; CHECK-LARGE: movk x[[LITADDR]], #:abs_g0_nc:[[CURLIT]]
+; CHECK-LARGE: movk x[[LITADDR]], #:abs_g2_nc:[[CURLIT]]
+; CHECK-LARGE: movk x[[LITADDR]], #:abs_g3:[[CURLIT]]
 ; CHECK-LARGE: ldr {{s[0-9]+}}, [x[[LITADDR]]]
 ; CHECK-LARGE: fadd
 ; CHECK-NOFP-LARGE-NOT: ldr {{s[0-9]+}},
@@ -26,17 +26,17 @@ define void @floating_lits() {
 
   store float %newfloat, float* @varfloat
 
-  %doubleval = load double* @vardouble
+  %doubleval = load double, double* @vardouble
   %newdouble = fadd double %doubleval, 129.0
 ; CHECK: adrp x[[LITBASE:[0-9]+]], [[CURLIT:.LCPI[0-9]+_[0-9]+]]
 ; CHECK: ldr [[LIT129:d[0-9]+]], [x[[LITBASE]], {{#?}}:lo12:[[CURLIT]]]
 ; CHECK-NOFP-NOT: ldr {{d[0-9]+}},
 ; CHECK-NOFP-NOT: fadd
 
-; CHECK-LARGE: movz x[[LITADDR:[0-9]+]], #:abs_g3:[[CURLIT:.LCPI[0-9]+_[0-9]+]]
-; CHECK-LARGE: movk x[[LITADDR]], #:abs_g2_nc:[[CURLIT]]
+; CHECK-LARGE: movz x[[LITADDR:[0-9]+]], #:abs_g0_nc:[[CURLIT:.LCPI[0-9]+_[0-9]+]]
 ; CHECK-LARGE: movk x[[LITADDR]], #:abs_g1_nc:[[CURLIT]]
-; CHECK-LARGE: movk x[[LITADDR]], #:abs_g0_nc:[[CURLIT]]
+; CHECK-LARGE: movk x[[LITADDR]], #:abs_g2_nc:[[CURLIT]]
+; CHECK-LARGE: movk x[[LITADDR]], #:abs_g3:[[CURLIT]]
 ; CHECK-LARGE: ldr {{d[0-9]+}}, [x[[LITADDR]]]
 ; CHECK-NOFP-LARGE-NOT: ldr {{d[0-9]+}},
 

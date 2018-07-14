@@ -1,4 +1,4 @@
-//===-- HexagonAsmPrinter.h - Print machine code to an Hexagon .s file ----===//
+//===- HexagonAsmPrinter.h - Print machine code to an Hexagon .s file -----===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,26 +11,35 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef HEXAGONASMPRINTER_H
-#define HEXAGONASMPRINTER_H
+#ifndef LLVM_LIB_TARGET_HEXAGON_HEXAGONASMPRINTER_H
+#define LLVM_LIB_TARGET_HEXAGON_HEXAGONASMPRINTER_H
 
 #include "Hexagon.h"
-#include "HexagonTargetMachine.h"
+#include "HexagonSubtarget.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/Support/Compiler.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include <memory>
 
 namespace llvm {
+
+class MachineInstr;
+class MCInst;
+class raw_ostream;
+class TargetMachine;
+
   class HexagonAsmPrinter : public AsmPrinter {
-    const HexagonSubtarget *Subtarget;
+    const HexagonSubtarget *Subtarget = nullptr;
 
   public:
-    explicit HexagonAsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
-      : AsmPrinter(TM, Streamer) {
-      Subtarget = &TM.getSubtarget<HexagonSubtarget>();
+    explicit HexagonAsmPrinter(TargetMachine &TM,
+                               std::unique_ptr<MCStreamer> Streamer);
+
+    bool runOnMachineFunction(MachineFunction &Fn) override {
+      Subtarget = &Fn.getSubtarget<HexagonSubtarget>();
+      return AsmPrinter::runOnMachineFunction(Fn);
     }
 
-    const char *getPassName() const override {
+    StringRef getPassName() const override {
       return "Hexagon Assembly Printer";
     }
 
@@ -38,6 +47,9 @@ namespace llvm {
                                    const MachineBasicBlock *MBB) const override;
 
     void EmitInstruction(const MachineInstr *MI) override;
+
+    void HexagonProcessInstruction(MCInst &Inst,
+                                   const MachineInstr &MBB);
 
     void printOperand(const MachineInstr *MI, unsigned OpNo, raw_ostream &O);
     bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
@@ -50,6 +62,6 @@ namespace llvm {
     static const char *getRegisterName(unsigned RegNo);
   };
 
-} // end of llvm namespace
+} // end namespace llvm
 
-#endif
+#endif // LLVM_LIB_TARGET_HEXAGON_HEXAGONASMPRINTER_H

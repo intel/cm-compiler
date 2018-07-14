@@ -61,13 +61,13 @@ types ``IMAGE_REL_I386_SECREL`` (32-bit) or ``IMAGE_REL_AMD64_SECREL`` (64-bit).
 the target.  It corresponds to the COFF relocation types
 ``IMAGE_REL_I386_SECTION`` (32-bit) or ``IMAGE_REL_AMD64_SECTION`` (64-bit).
 
-.. code-block:: gas
+.. code-block:: none
 
   .section .debug$S,"rn"
     .long 4
     .long 242
     .long 40
-    .secrel32 _function_name
+    .secrel32 _function_name + 0
     .secidx   _function_name
     ...
 
@@ -165,8 +165,87 @@ and ``.bar`` is associated to ``.foo``.
 	.section	.foo,"bw",discard, "sym"
 	.section	.bar,"rd",associative, "sym"
 
+MC supports these flags in the COFF ``.section`` directive:
+
+  - ``b``: BSS section (``IMAGE_SCN_CNT_INITIALIZED_DATA``)
+  - ``d``: Data section (``IMAGE_SCN_CNT_UNINITIALIZED_DATA``)
+  - ``n``: Section is not loaded (``IMAGE_SCN_LNK_REMOVE``)
+  - ``r``: Read-only
+  - ``s``: Shared section
+  - ``w``: Writable
+  - ``x``: Executable section
+  - ``y``: Not readable
+  - ``D``: Discardable (``IMAGE_SCN_MEM_DISCARDABLE``)
+
+These flags are all compatible with gas, with the exception of the ``D`` flag,
+which gnu as does not support. For gas compatibility, sections with a name
+starting with ".debug" are implicitly discardable.
+
+
+ELF-Dependent
+-------------
+
+``.section`` Directive
+^^^^^^^^^^^^^^^^^^^^^^
+
+In order to support creating multiple sections with the same name and comdat,
+it is possible to add an unique number at the end of the ``.seciton`` directive.
+For example, the following code creates two sections named ``.text``.
+
+.. code-block:: gas
+
+	.section	.text,"ax",@progbits,unique,1
+        nop
+
+	.section	.text,"ax",@progbits,unique,2
+        nop
+
+
+The unique number is not present in the resulting object at all. It is just used
+in the assembler to differentiate the sections.
+
+The 'o' flag is mapped to SHF_LINK_ORDER. If it is present, a symbol
+must be given that identifies the section to be placed is the
+.sh_link.
+
+.. code-block:: gas
+
+        .section .foo,"a",@progbits
+        .Ltmp:
+        .section .bar,"ao",@progbits,.Ltmp
+
+which is equivalent to just
+
+.. code-block:: gas
+
+        .section .foo,"a",@progbits
+        .section .bar,"ao",@progbits,.foo
+
+
 Target Specific Behaviour
 =========================
+
+X86
+---
+
+Relocations
+^^^^^^^^^^^
+
+``@ABS8`` can be applied to symbols which appear as immediate operands to
+instructions that have an 8-bit immediate form for that operand. It causes
+the assembler to use the 8-bit form and an 8-bit relocation (e.g. ``R_386_8``
+or ``R_X86_64_8``) for the symbol.
+
+For example:
+
+.. code-block:: gas
+
+  cmpq $foo@ABS8, %rdi
+
+This causes the assembler to select the form of the 64-bit ``cmpq`` instruction
+that takes an 8-bit immediate operand that is sign extended to 64 bits, as
+opposed to ``cmpq $foo, %rdi`` which takes a 32-bit immediate operand. This
+is also not the same as ``cmpb $foo, %dil``, which is an 8-bit comparison.
 
 Windows on ARM
 --------------
@@ -208,4 +287,32 @@ properly.  The emission of this stack probe emission is handled similar to the
 standard stack probe emission.
 
 The MSVC environment does not emit code for VLAs currently.
+
+Windows on ARM64
+----------------
+
+Stack Probe Emission
+^^^^^^^^^^^^^^^^^^^^
+
+The reference implementation (Microsoft Visual Studio 2017) emits stack probes
+in the following fashion:
+
+.. code-block:: gas
+
+  mov x15, #constant
+  bl __chkstk
+  sub sp, sp, x15, lsl #4
+
+However, this has the limitation of 256 MiB (±128MiB).  In order to accommodate
+larger binaries, LLVM supports the use of ``-mcode-model=large`` to allow a 8GiB
+(±4GiB) range via a slight deviation.  It will generate an indirect jump as
+follows:
+
+.. code-block:: gas
+
+  mov x15, #constant
+  adrp x16, __chkstk
+  add x16, x16, :lo12:__chkstk
+  blr x16
+  sub sp, sp, x15, lsl #4
 

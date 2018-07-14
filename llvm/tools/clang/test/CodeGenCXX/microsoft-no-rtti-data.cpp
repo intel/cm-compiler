@@ -1,7 +1,8 @@
 // RUN: %clang_cc1 %s -fno-rtti-data -triple=i386-pc-win32 -o - -emit-llvm | FileCheck %s
 
 // vftable shouldn't have RTTI data in it.
-// CHECK: @"\01??_7S@@6B@" = linkonce_odr unnamed_addr constant [1 x i8*] [i8* bitcast ({{.*}} @"\01??_GS@@UAEPAXI@Z" to i8*)]
+// CHECK-NOT: @"\01??_R4S@@6B@"
+// CHECK: @"\01??_7S@@6B@" = linkonce_odr unnamed_addr constant { [1 x i8*] } { [1 x i8*] [i8* bitcast ({{.*}} @"\01??_GS@@UAEPAXI@Z" to i8*)] }, comdat
 
 struct type_info;
 namespace std { using ::type_info; }

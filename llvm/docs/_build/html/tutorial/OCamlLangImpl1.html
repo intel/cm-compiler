@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>1. Kaleidoscope: Tutorial Introduction and the Lexer &#8212; LLVM 3.4 documentation</title>
+    <title>1. Kaleidoscope: Tutorial Introduction and the Lexer &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -28,7 +28,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="2. Kaleidoscope: Implementing a Parser and AST" href="OCamlLangImpl2.html" />
-    <link rel="prev" title="8. Kaleidoscope: Conclusion and other useful LLVM tidbits" href="LangImpl8.html" />
+    <link rel="prev" title="10. Kaleidoscope: Conclusion and other useful LLVM tidbits" href="LangImpl10.html" />
 <style type="text/css">
   table.right { float: right; margin-left: 20px; }
   table.right td { border: 1px solid #ccc; }
@@ -52,7 +52,7 @@
           <a href="OCamlLangImpl2.html" title="2. Kaleidoscope: Implementing a Parser and AST"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="LangImpl8.html" title="8. Kaleidoscope: Conclusion and other useful LLVM tidbits"
+          <a href="LangImpl10.html" title="10. Kaleidoscope: Conclusion and other useful LLVM tidbits"
              accesskey="P">previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="../index.html">Documentation</a>&raquo;</li>
@@ -169,7 +169,7 @@ etc. Over the course of the tutorial, we’ll extend Kaleidoscope to
 support the if/then/else construct, a for loop, user defined operators,
 JIT compilation with a simple command line interface, etc.</p>
 <p>Because we want to keep things simple, the only datatype in Kaleidoscope
-is a 64-bit floating point type (aka ‘float’ in O’Caml parlance). As
+is a 64-bit floating point type (aka ‘float’ in OCaml parlance). As
 such, all values are implicitly double precision and the language
 doesn’t require type declarations. This gives the language a very nice
 and simple syntax. For example, the following simple example computes
@@ -197,7 +197,7 @@ useful for mutually recursive functions). For example:</p>
 </pre></div>
 </div>
 <p>A more interesting example is included in Chapter 6 where we write a
-little Kaleidoscope application that <a class="reference external" href="OCamlLangImpl6.html#example">displays a Mandelbrot
+little Kaleidoscope application that <a class="reference external" href="OCamlLangImpl6.html#kicking-the-tires">displays a Mandelbrot
 Set</a> at various levels of magnification.</p>
 <p>Lets dive into the implementation of this language!</p>
 </div>
@@ -318,7 +318,7 @@ file. These are handled with this code:</p>
 </pre></div>
 </div>
 <p>With this, we have the complete lexer for the basic Kaleidoscope
-language (the <a class="reference external" href="OCamlLangImpl2.html#code">full code listing</a> for the
+language (the <a class="reference external" href="OCamlLangImpl2.html#full-code-listing">full code listing</a> for the
 Lexer is available in the <a class="reference external" href="OCamlLangImpl2.html">next chapter</a> of the
 tutorial). Next we’ll <a class="reference external" href="OCamlLangImpl2.html">build a simple parser that uses this to build an
 Abstract Syntax Tree</a>. When we have that, we’ll
@@ -342,7 +342,7 @@ include a driver so that you can use the lexer and parser together.</p>
           <a href="OCamlLangImpl2.html" title="2. Kaleidoscope: Implementing a Parser and AST"
              >next</a> |</li>
         <li class="right" >
-          <a href="LangImpl8.html" title="8. Kaleidoscope: Conclusion and other useful LLVM tidbits"
+          <a href="LangImpl10.html" title="10. Kaleidoscope: Conclusion and other useful LLVM tidbits"
              >previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="../index.html">Documentation</a>&raquo;</li>
@@ -351,8 +351,8 @@ include a driver so that you can use the lexer and parser together.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

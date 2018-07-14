@@ -370,23 +370,29 @@ _func:
         add w11, w13, w15, lsl #0
         add w9, w3, wzr, lsl #10
         add w17, w29, w20, lsl #31
+        add w17, w29, w20, lsl #(31-2)
 // CHECK: add      w11, w13, w15              // encoding: [0xab,0x01,0x0f,0x0b]
 // CHECK: add      w9, w3, wzr, lsl #10       // encoding: [0x69,0x28,0x1f,0x0b]
 // CHECK: add      w17, w29, w20, lsl #31     // encoding: [0xb1,0x7f,0x14,0x0b]
+// CHECK: add      w17, w29, w20, lsl #29     // encoding: [0xb1,0x77,0x14,0x0b]
 
         add w21, w22, w23, lsr #0
         add w24, w25, w26, lsr #18
         add w27, w28, w29, lsr #31
+        add w27, w28, w29, lsr #(31-2)
 // CHECK: add      w21, w22, w23, lsr #0      // encoding: [0xd5,0x02,0x57,0x0b]
 // CHECK: add      w24, w25, w26, lsr #18     // encoding: [0x38,0x4b,0x5a,0x0b]
 // CHECK: add      w27, w28, w29, lsr #31     // encoding: [0x9b,0x7f,0x5d,0x0b]
+// CHECK: add      w27, w28, w29, lsr #29     // encoding: [0x9b,0x77,0x5d,0x0b]
 
         add w2, w3, w4, asr #0
         add w5, w6, w7, asr #21
         add w8, w9, w10, asr #31
+        add w8, w9, w10, asr #(31-2)
 // CHECK: add      w2, w3, w4, asr #0         // encoding: [0x62,0x00,0x84,0x0b]
 // CHECK: add      w5, w6, w7, asr #21        // encoding: [0xc5,0x54,0x87,0x0b]
 // CHECK: add      w8, w9, w10, asr #31       // encoding: [0x28,0x7d,0x8a,0x0b]
+// CHECK: add      w8, w9, w10, asr #29       // encoding: [0x28,0x75,0x8a,0x0b]
 
         add x3, x5, x7
         add xzr, x3, x5
@@ -400,23 +406,29 @@ _func:
         add x11, x13, x15, lsl #0
         add x9, x3, xzr, lsl #10
         add x17, x29, x20, lsl #63
+        add x17, x29, x20, lsl #(63-5)
 // CHECK: add      x11, x13, x15              // encoding: [0xab,0x01,0x0f,0x8b]
 // CHECK: add      x9, x3, xzr, lsl #10       // encoding: [0x69,0x28,0x1f,0x8b]
 // CHECK: add      x17, x29, x20, lsl #63     // encoding: [0xb1,0xff,0x14,0x8b]
+// CHECK: add	   x17, x29, x20, lsl #58     // encoding: [0xb1,0xeb,0x14,0x8b]
 
         add x21, x22, x23, lsr #0
         add x24, x25, x26, lsr #18
         add x27, x28, x29, lsr #63
+        add x17, x29, x20, lsr #(63-5)
 // CHECK: add      x21, x22, x23, lsr #0      // encoding: [0xd5,0x02,0x57,0x8b]
 // CHECK: add      x24, x25, x26, lsr #18     // encoding: [0x38,0x4b,0x5a,0x8b]
 // CHECK: add      x27, x28, x29, lsr #63     // encoding: [0x9b,0xff,0x5d,0x8b]
+// CHECK: add	   x17, x29, x20, lsr #58     // encoding: [0xb1,0xeb,0x54,0x8b]
 
         add x2, x3, x4, asr #0
         add x5, x6, x7, asr #21
         add x8, x9, x10, asr #63
+        add x17, x29, x20, asr #(63-5)
 // CHECK: add      x2, x3, x4, asr #0         // encoding: [0x62,0x00,0x84,0x8b]
 // CHECK: add      x5, x6, x7, asr #21        // encoding: [0xc5,0x54,0x87,0x8b]
 // CHECK: add      x8, x9, x10, asr #63       // encoding: [0x28,0xfd,0x8a,0x8b]
+// CHECK: add	   x17, x29, x20, asr #58     // encoding: [0xb1,0xeb,0x94,0x8b]
 
         adds w3, w5, w7
         adds wzr, w3, w5
@@ -966,7 +978,7 @@ _func:
         bfm x5, x6, #12, #63
 // CHECK: bfi      x4, x5, #52, #11           // encoding: [0xa4,0x28,0x4c,0xb3]
 // CHECK: bfxil    xzr, x4, #0, #1            // encoding: [0x9f,0x00,0x40,0xb3]
-// CHECK: bfi      x4, xzr, #1, #6            // encoding: [0xe4,0x17,0x7f,0xb3]
+// CHECK: bfc      x4, #1, #6                 // encoding: [0xe4,0x17,0x7f,0xb3]
 // CHECK: bfxil    x5, x6, #12, #52           // encoding: [0xc5,0xfc,0x4c,0xb3]
 
         sxtb w1, w2
@@ -1066,7 +1078,7 @@ _func:
 // CHECK: bfxil    w9, w10, #0, #32           // encoding: [0x49,0x7d,0x00,0x33]
 // CHECK: bfi      w11, w12, #31, #1          // encoding: [0x8b,0x01,0x01,0x33]
 // CHECK: bfi      w13, w14, #29, #3          // encoding: [0xcd,0x09,0x03,0x33]
-// CHECK: bfi      xzr, xzr, #10, #11         // encoding: [0xff,0x2b,0x76,0xb3]
+// CHECK: bfc      xzr, #10, #11              // encoding: [0xff,0x2b,0x76,0xb3]
 
         bfxil w9, w10, #0, #1
         bfxil x2, x3, #63, #1
@@ -1120,6 +1132,16 @@ _func:
 // CHECK: lsr     w11, w12, #31           // encoding: [0x8b,0x7d,0x1f,0x53]
 // CHECK: lsr     w13, w14, #29           // encoding: [0xcd,0x7d,0x1d,0x53]
 // CHECK: ubfx    xzr, xzr, #10, #11      // encoding: [0xff,0x53,0x4a,0xd3]
+
+        bfc w3, #0, #32
+        bfc wzr, #31, #1
+        bfc x0, #5, #9
+        bfc xzr, #63, #1
+// CHECK: bfc w3, #0, #32             // encoding: [0xe3,0x7f,0x00,0x33]
+// CHECK: bfc wzr, #31, #1            // encoding: [0xff,0x03,0x01,0x33]
+// CHECK: bfc x0, #5, #9              // encoding: [0xe0,0x23,0x7b,0xb3]
+// CHECK: bfc xzr, #63, #1            // encoding: [0xff,0x03,0x41,0xb3]
+
 //------------------------------------------------------------------------------
 // Compare & branch (immediate)
 //------------------------------------------------------------------------------
@@ -1467,26 +1489,12 @@ _func:
 // CHECK: clz	w24, wzr                     // encoding: [0xf8,0x13,0xc0,0x5a]
 // CHECK: rev	x22, xzr                     // encoding: [0xf6,0x0f,0xc0,0xda]
 
+	rev64	x13, x12
+// CHECK: rev	x13, x12                     // encoding: [0x8d,0x0d,0xc0,0xda]
+
 //------------------------------------------------------------------------------
 // Data-processing (2 source)
 //------------------------------------------------------------------------------
-
-        crc32b  w5, w7, w20
-        crc32h  w28, wzr, w30
-        crc32w  w0, w1, w2
-        crc32x  w7, w9, x20
-        crc32cb w9, w5, w4
-        crc32ch w13, w17, w25
-        crc32cw wzr, w3, w5
-        crc32cx w18, w16, xzr
-// CHECK: crc32b   w5, w7, w20             // encoding: [0xe5,0x40,0xd4,0x1a]
-// CHECK: crc32h   w28, wzr, w30           // encoding: [0xfc,0x47,0xde,0x1a]
-// CHECK: crc32w   w0, w1, w2              // encoding: [0x20,0x48,0xc2,0x1a]
-// CHECK: crc32x   w7, w9, x20             // encoding: [0x27,0x4d,0xd4,0x9a]
-// CHECK: crc32cb  w9, w5, w4              // encoding: [0xa9,0x50,0xc4,0x1a]
-// CHECK: crc32ch  w13, w17, w25           // encoding: [0x2d,0x56,0xd9,0x1a]
-// CHECK: crc32cw  wzr, w3, w5             // encoding: [0x7f,0x58,0xc5,0x1a]
-// CHECK: crc32cx  w18, w16, xzr           // encoding: [0x12,0x5e,0xdf,0x9a]
 
         udiv	w0, w7, w10
         udiv	x9, x22, x4
@@ -3242,8 +3250,8 @@ _func:
 
         mov w3, #0xf000f
         mov x10, #0xaaaaaaaaaaaaaaaa
-// CHECK: orr      w3, wzr, #0xf000f          // encoding: [0xe3,0x8f,0x00,0x32]
-// CHECK: orr x10, xzr, #0xaaaaaaaaaaaaaaaa // encoding: [0xea,0xf3,0x01,0xb2]
+// CHECK: mov w3, #983055                // encoding: [0xe3,0x8f,0x00,0x32]
+// CHECK: mov x10, #-6148914691236517206 // encoding: [0xea,0xf3,0x01,0xb2]
 
         // The Imm field of logicalImm operations has to be truncated to the
         // register width, i.e. 32 bits
@@ -3330,13 +3338,13 @@ _func:
         movz w1, #65535, lsl #0
         movz w2, #0, lsl #16
         movn w2, #1234, lsl #0
-// CHECK: movz     w1, #{{65535|0xffff}}      // encoding: [0xe1,0xff,0x9f,0x52]
+// CHECK: mov     w1, #65535                  // encoding: [0xe1,0xff,0x9f,0x52]
 // CHECK: movz     w2, #0, lsl #16            // encoding: [0x02,0x00,0xa0,0x52]
-// CHECK: movn     w2, #{{1234|0x4d2}}        // encoding: [0x42,0x9a,0x80,0x12]
+// CHECK: mov     w2, #-1235                  // encoding: [0x42,0x9a,0x80,0x12]
 
         movz x2, #1234, lsl #32
         movk xzr, #4321, lsl #48
-// CHECK: movz     x2, #{{1234|0x4d2}}, lsl #32   // encoding: [0x42,0x9a,0xc0,0xd2]
+// CHECK: mov      x2, #5299989643264             // encoding: [0x42,0x9a,0xc0,0xd2]
 // CHECK: movk     xzr, #{{4321|0x10e1}}, lsl #48 // encoding: [0x3f,0x1c,0xe2,0xf2]
 
         movz x2, #:abs_g0:sym
@@ -3546,9 +3554,9 @@ _func:
         msr spsel, #0
         msr daifset, #15
         msr daifclr, #12
-// CHECK: msr     {{spsel|SPSEL}}, #0               // encoding: [0xbf,0x40,0x00,0xd5]
-// CHECK: msr     {{daifset|DAIFSET}}, #15            // encoding: [0xdf,0x4f,0x03,0xd5]
-// CHECK: msr     {{daifclr|DAIFCLR}}, #12            // encoding: [0xff,0x4c,0x03,0xd5]
+// CHECK: msr     {{SPSel|SPSEL}}, #0               // encoding: [0xbf,0x40,0x00,0xd5]
+// CHECK: msr     {{DAIFSet|DAIFSET}}, #15            // encoding: [0xdf,0x4f,0x03,0xd5]
+// CHECK: msr     {{DAIFClr|DAIFCLR}}, #12            // encoding: [0xff,0x4c,0x03,0xd5]
 
         sys #7, c5, c9, #7, x5
         sys #0, c15, c15, #2
@@ -4045,14 +4053,14 @@ _func:
 // CHECK: msr      {{sp_el0|SP_EL0}}, x12                // encoding: [0x0c,0x41,0x18,0xd5]
 // CHECK: msr      {{sp_el1|SP_EL1}}, x12                // encoding: [0x0c,0x41,0x1c,0xd5]
 // CHECK: msr      {{sp_el2|SP_EL2}}, x12                // encoding: [0x0c,0x41,0x1e,0xd5]
-// CHECK: msr      {{spsel|SPSEL}}, x12                 // encoding: [0x0c,0x42,0x18,0xd5]
+// CHECK: msr      {{SPSel|SPSEL}}, x12                 // encoding: [0x0c,0x42,0x18,0xd5]
 // CHECK: msr      {{nzcv|NZCV}}, x12                  // encoding: [0x0c,0x42,0x1b,0xd5]
 // CHECK: msr      {{daif|DAIF}}, x12                  // encoding: [0x2c,0x42,0x1b,0xd5]
-// CHECK: msr      {{currentel|CURRENTEL}}, x12             // encoding: [0x4c,0x42,0x18,0xd5]
-// CHECK: msr      {{spsr_irq|SPSR_IRQ}}, x12              // encoding: [0x0c,0x43,0x1c,0xd5]
-// CHECK: msr      {{spsr_abt|SPSR_ABT}}, x12              // encoding: [0x2c,0x43,0x1c,0xd5]
-// CHECK: msr      {{spsr_und|SPSR_UND}}, x12              // encoding: [0x4c,0x43,0x1c,0xd5]
-// CHECK: msr      {{spsr_fiq|SPSR_FIQ}}, x12              // encoding: [0x6c,0x43,0x1c,0xd5]
+// CHECK: msr      {{CurrentEL|CURRENTEL}}, x12             // encoding: [0x4c,0x42,0x18,0xd5]
+// CHECK: msr      {{SPSR_irq|SPSR_IRQ}}, x12              // encoding: [0x0c,0x43,0x1c,0xd5]
+// CHECK: msr      {{SPSR_abt|SPSR_ABT}}, x12              // encoding: [0x2c,0x43,0x1c,0xd5]
+// CHECK: msr      {{SPSR_und|SPSR_UND}}, x12              // encoding: [0x4c,0x43,0x1c,0xd5]
+// CHECK: msr      {{SPSR_fiq|SPSR_FIQ}}, x12              // encoding: [0x6c,0x43,0x1c,0xd5]
 // CHECK: msr      {{fpcr|FPCR}}, x12                  // encoding: [0x0c,0x44,0x1b,0xd5]
 // CHECK: msr      {{fpsr|FPSR}}, x12                  // encoding: [0x2c,0x44,0x1b,0xd5]
 // CHECK: msr      {{dspsr_el0|DSPSR_EL0}}, x12             // encoding: [0x0c,0x45,0x1b,0xd5]
@@ -4284,6 +4292,7 @@ _func:
 	mrs x9, ID_MMFR1_EL1
 	mrs x9, ID_MMFR2_EL1
 	mrs x9, ID_MMFR3_EL1
+	mrs x9, ID_MMFR4_EL1
 	mrs x9, ID_ISAR0_EL1
 	mrs x9, ID_ISAR1_EL1
 	mrs x9, ID_ISAR2_EL1
@@ -4584,6 +4593,7 @@ _func:
 // CHECK: mrs      x9, {{id_mmfr1_el1|ID_MMFR1_EL1}}           // encoding: [0xa9,0x01,0x38,0xd5]
 // CHECK: mrs      x9, {{id_mmfr2_el1|ID_MMFR2_EL1}}           // encoding: [0xc9,0x01,0x38,0xd5]
 // CHECK: mrs      x9, {{id_mmfr3_el1|ID_MMFR3_EL1}}           // encoding: [0xe9,0x01,0x38,0xd5]
+// CHECK: mrs      x9, {{id_mmfr4_el1|ID_MMFR4_EL1}}           // encoding: [0xc9,0x02,0x38,0xd5]
 // CHECK: mrs      x9, {{id_isar0_el1|ID_ISAR0_EL1}}           // encoding: [0x09,0x02,0x38,0xd5]
 // CHECK: mrs      x9, {{id_isar1_el1|ID_ISAR1_EL1}}           // encoding: [0x29,0x02,0x38,0xd5]
 // CHECK: mrs      x9, {{id_isar2_el1|ID_ISAR2_EL1}}           // encoding: [0x49,0x02,0x38,0xd5]
@@ -4638,14 +4648,14 @@ _func:
 // CHECK: mrs      x9, {{sp_el0|SP_EL0}}                 // encoding: [0x09,0x41,0x38,0xd5]
 // CHECK: mrs      x9, {{sp_el1|SP_EL1}}                 // encoding: [0x09,0x41,0x3c,0xd5]
 // CHECK: mrs      x9, {{sp_el2|SP_EL2}}                 // encoding: [0x09,0x41,0x3e,0xd5]
-// CHECK: mrs      x9, {{spsel|SPSEL}}                  // encoding: [0x09,0x42,0x38,0xd5]
+// CHECK: mrs      x9, {{SPSel|SPSEL}}                  // encoding: [0x09,0x42,0x38,0xd5]
 // CHECK: mrs      x9, {{nzcv|NZCV}}                   // encoding: [0x09,0x42,0x3b,0xd5]
 // CHECK: mrs      x9, {{daif|DAIF}}                   // encoding: [0x29,0x42,0x3b,0xd5]
-// CHECK: mrs      x9, {{currentel|CURRENTEL}}              // encoding: [0x49,0x42,0x38,0xd5]
-// CHECK: mrs      x9, {{spsr_irq|SPSR_IRQ}}               // encoding: [0x09,0x43,0x3c,0xd5]
-// CHECK: mrs      x9, {{spsr_abt|SPSR_ABT}}               // encoding: [0x29,0x43,0x3c,0xd5]
-// CHECK: mrs      x9, {{spsr_und|SPSR_UND}}               // encoding: [0x49,0x43,0x3c,0xd5]
-// CHECK: mrs      x9, {{spsr_fiq|SPSR_FIQ}}               // encoding: [0x69,0x43,0x3c,0xd5]
+// CHECK: mrs      x9, {{CurrentEL|CURRENTEL}}              // encoding: [0x49,0x42,0x38,0xd5]
+// CHECK: mrs      x9, {{SPSR_irq|SPSR_IRQ}}               // encoding: [0x09,0x43,0x3c,0xd5]
+// CHECK: mrs      x9, {{SPSR_abt|SPSR_ABT}}               // encoding: [0x29,0x43,0x3c,0xd5]
+// CHECK: mrs      x9, {{SPSR_und|SPSR_UND}}               // encoding: [0x49,0x43,0x3c,0xd5]
+// CHECK: mrs      x9, {{SPSR_fiq|SPSR_FIQ}}               // encoding: [0x69,0x43,0x3c,0xd5]
 // CHECK: mrs      x9, {{fpcr|FPCR}}                   // encoding: [0x09,0x44,0x3b,0xd5]
 // CHECK: mrs      x9, {{fpsr|FPSR}}                   // encoding: [0x29,0x44,0x3b,0xd5]
 // CHECK: mrs      x9, {{dspsr_el0|DSPSR_EL0}}              // encoding: [0x09,0x45,0x3b,0xd5]
@@ -4786,12 +4796,16 @@ _func:
 
         mrs x12, s3_7_c15_c1_5
         mrs x13, s3_2_c11_c15_7
+        mrs x14, s1_3_c9_c2_1
         msr s3_0_c15_c0_0, x12
         msr s3_7_c11_c13_7, x5
+        msr s1_3_c9_c2_1, x4
 // CHECK: mrs     x12, {{s3_7_c15_c1_5|S3_7_C15_C1_5}}      // encoding: [0xac,0xf1,0x3f,0xd5]
-// CHECK: mrs     x13, {{s3_2_c11_c15_7|S3_2_C11_C15_7}}     // encoding: [0xed,0xbf,0x3a,0xd5]
+// CHECK: mrs     x13, {{s3_2_c11_c15_7|S3_2_C11_C15_7}}    // encoding: [0xed,0xbf,0x3a,0xd5]
+// CHECK: mrs     x14, {{s1_3_c9_c2_1|S1_3_C9_C2_1}}        // encoding: [0x2e,0x92,0x2b,0xd5]
 // CHECK: msr     {{s3_0_c15_c0_0|S3_0_C15_C0_0}}, x12      // encoding: [0x0c,0xf0,0x18,0xd5]
-// CHECK: msr     {{s3_7_c11_c13_7|S3_7_C11_C13_7}}, x5      // encoding: [0xe5,0xbd,0x1f,0xd5]
+// CHECK: msr     {{s3_7_c11_c13_7|S3_7_C11_C13_7}}, x5     // encoding: [0xe5,0xbd,0x1f,0xd5]
+// CHECK: msr     {{s1_3_c9_c2_1|S1_3_C9_C2_1}}, x4         // encoding: [0x24,0x92,0x0b,0xd5]
 
 //------------------------------------------------------------------------------
 // Unconditional branch (immediate)

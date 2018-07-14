@@ -1,4 +1,4 @@
-//===----------- ReductionRules.h - Reduction Rules -------------*- C++ -*-===//
+//===- ReductionRules.h - Reduction Rules -----------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,13 +11,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_REDUCTIONRULES_H
-#define LLVM_REDUCTIONRULES_H
+#ifndef LLVM_CODEGEN_PBQP_REDUCTIONRULES_H
+#define LLVM_CODEGEN_PBQP_REDUCTIONRULES_H
 
 #include "Graph.h"
 #include "Math.h"
 #include "Solution.h"
+#include <cassert>
+#include <limits>
 
+namespace llvm {
 namespace PBQP {
 
   /// \brief Reduce a node of degree one.
@@ -26,11 +29,11 @@ namespace PBQP {
   /// neighbor. Notify the problem domain.
   template <typename GraphT>
   void applyR1(GraphT &G, typename GraphT::NodeId NId) {
-    typedef typename GraphT::NodeId NodeId;
-    typedef typename GraphT::EdgeId EdgeId;
-    typedef typename GraphT::Vector Vector;
-    typedef typename GraphT::Matrix Matrix;
-    typedef typename GraphT::RawVector RawVector;
+    using NodeId = typename GraphT::NodeId;
+    using EdgeId = typename GraphT::EdgeId;
+    using Vector = typename GraphT::Vector;
+    using Matrix = typename GraphT::Matrix;
+    using RawVector = typename GraphT::RawVector;
 
     assert(G.getNodeDegree(NId) == 1 &&
            "R1 applied to node with degree != 1.");
@@ -70,11 +73,11 @@ namespace PBQP {
 
   template <typename GraphT>
   void applyR2(GraphT &G, typename GraphT::NodeId NId) {
-    typedef typename GraphT::NodeId NodeId;
-    typedef typename GraphT::EdgeId EdgeId;
-    typedef typename GraphT::Vector Vector;
-    typedef typename GraphT::Matrix Matrix;
-    typedef typename GraphT::RawMatrix RawMatrix;
+    using NodeId = typename GraphT::NodeId;
+    using EdgeId = typename GraphT::EdgeId;
+    using Vector = typename GraphT::Vector;
+    using Matrix = typename GraphT::Matrix;
+    using RawMatrix = typename GraphT::RawMatrix;
 
     assert(G.getNodeDegree(NId) == 2 &&
            "R2 applied to node with degree != 2.");
@@ -131,9 +134,9 @@ namespace PBQP {
     } else {
       const Matrix &YZECosts = G.getEdgeCosts(YZEId);
       if (YNId == G.getEdgeNode1Id(YZEId)) {
-        G.setEdgeCosts(YZEId, Delta + YZECosts);
+        G.updateEdgeCosts(YZEId, Delta + YZECosts);
       } else {
-        G.setEdgeCosts(YZEId, Delta.transpose() + YZECosts);
+        G.updateEdgeCosts(YZEId, Delta.transpose() + YZECosts);
       }
     }
 
@@ -143,6 +146,25 @@ namespace PBQP {
     // TODO: Try to normalize newly added/modified edge.
   }
 
+#ifndef NDEBUG
+  // Does this Cost vector have any register options ?
+  template <typename VectorT>
+  bool hasRegisterOptions(const VectorT &V) {
+    unsigned VL = V.getLength();
+
+    // An empty or spill only cost vector does not provide any register option.
+    if (VL <= 1)
+      return false;
+
+    // If there are registers in the cost vector, but all of them have infinite
+    // costs, then ... there is no available register.
+    for (unsigned i = 1; i < VL; ++i)
+      if (V[i] != std::numeric_limits<PBQP::PBQPNum>::infinity())
+        return true;
+
+    return false;
+  }
+#endif
 
   // \brief Find a solution to a fully reduced graph by backpropagation.
   //
@@ -157,9 +179,9 @@ namespace PBQP {
   //        state.
   template <typename GraphT, typename StackT>
   Solution backpropagate(GraphT& G, StackT stack) {
-    typedef GraphBase::NodeId NodeId;
-    typedef typename GraphT::Matrix Matrix;
-    typedef typename GraphT::RawVector RawVector;
+    using NodeId = GraphBase::NodeId;
+    using Matrix = typename GraphT::Matrix;
+    using RawVector = typename GraphT::RawVector;
 
     Solution s;
 
@@ -168,6 +190,15 @@ namespace PBQP {
       stack.pop_back();
 
       RawVector v = G.getNodeCosts(NId);
+
+#ifndef NDEBUG
+      // Although a conservatively allocatable node can be allocated to a register,
+      // spilling it may provide a lower cost solution. Assert here that spilling
+      // is done by choice, not because there were no register available.
+      if (G.getNodeMetadata(NId).wasConservativelyAllocatable())
+        assert(hasRegisterOptions(v) && "A conservatively allocatable node "
+                                        "must have available register options");
+#endif
 
       for (auto EId : G.adjEdgeIds(NId)) {
         const Matrix& edgeCosts = G.getEdgeCosts(EId);
@@ -186,6 +217,7 @@ namespace PBQP {
     return s;
   }
 
-}
+} // end namespace PBQP
+} // end namespace llvm
 
-#endif // LLVM_REDUCTIONRULES_H
+#endif // LLVM_CODEGEN_PBQP_REDUCTIONRULES_H

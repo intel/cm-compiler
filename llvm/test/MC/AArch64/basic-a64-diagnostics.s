@@ -75,19 +75,19 @@
 // Add/sub (immediate)
 //------------------------------------------------------------------------------
 
-// Out of range immediates: < 0 or more than 12 bits
-        add w4, w5, #-1
+// Out of range immediates: more than 12 bits
+        add w4, w5, #-4096
         add w5, w6, #0x1000
-        add w4, w5, #-1, lsl #12
+        add w4, w5, #-4096, lsl #12
         add w5, w6, #0x1000, lsl #12
 // CHECK-ERROR: error: expected compatible register, symbol or integer in range [0, 4095]
-// CHECK-ERROR-NEXT:         add w4, w5, #-1
+// CHECK-ERROR-NEXT:         add w4, w5, #-4096
 // CHECK-ERROR-NEXT:                     ^
 // CHECK-ERROR-AARCH64-NEXT: error: expected compatible register, symbol or integer in range [0, 4095]
 // CHECK-ERROR-AARCH64-NEXT:         add w5, w6, #0x1000
 // CHECK-ERROR-AARCH64-NEXT:                     ^
 // CHECK-ERROR-NEXT: error: expected compatible register, symbol or integer in range [0, 4095]
-// CHECK-ERROR-NEXT:         add w4, w5, #-1, lsl #12
+// CHECK-ERROR-NEXT:         add w4, w5, #-4096, lsl #12
 // CHECK-ERROR-NEXT:                     ^
 // CHECK-ERROR-NEXT: error: expected compatible register, symbol or integer in range [0, 4095]
 // CHECK-ERROR-NEXT:         add w5, w6, #0x1000, lsl #12
@@ -172,9 +172,14 @@
 
         // A relocation should be provided for symbols
         add x3, x9, #variable
+        add x3, x9, #variable-16
 // CHECK-ERROR: error: expected compatible register, symbol or integer in range [0, 4095]
 // CHECK-ERROR-NEXT:         add x3, x9, #variable
 // CHECK-ERROR-NEXT:                      ^
+// CHECK-ERROR-NEXT: error: expected compatible register, symbol or integer in range [0, 4095]
+// CHECK-ERROR-NEXT:         add x3, x9, #variable-16
+// CHECK-ERROR-NEXT:                 ^
+
 
 
 //------------------------------------------------------------------------------
@@ -1088,6 +1093,23 @@
 // CHECK-ERROR-NEXT:         ubfx w3, wsp, #10, #8
 // CHECK-ERROR-NEXT:                  ^
 
+        bfc wsp, #3, #6
+        bfc w4, #2, #31
+        bfc sp, #0, #1
+        bfc x6, #0, #0
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR-NEXT:        bfc wsp, #3, #6
+// CHECK-ERROR-NEXT:            ^
+// CHECK-ERROR-NEXT: error: requested insert overflows register
+// CHECK-ERROR-NEXT:         bfc w4, #2, #31
+// CHECK-ERROR-NEXT:                     ^
+// CHECK-ERROR-NEXT: error: invalid operand for instruction
+// CHECK-ERROR-NEXT:         bfc sp, #0, #1
+// CHECK-ERROR-NEXT:             ^
+// CHECK-ERROR-NEXT: error: expected integer in range [1, 32]
+// CHECK-ERROR-NEXT:         bfc x6, #0, #0
+// CHECK-ERROR-NEXT:                     ^
+
 //------------------------------------------------------------------------------
 // Compare & branch (immediate)
 //------------------------------------------------------------------------------
@@ -1586,7 +1608,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR-NEXT:         fcsel q3, q20, q9, pl
 // CHECK-ERROR-NEXT:               ^
-// CHECK-ERROR-NEXT: error: invalid operand for instruction
+// CHECK-ERROR-NEXT: error: instruction requires: fullfp16
 // CHECK-ERROR-NEXT:         fcsel h9, h10, h11, mi
 // CHECK-ERROR-NEXT:               ^
 // CHECK-ERROR-NEXT: error: invalid operand for instruction
@@ -1635,7 +1657,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR-NEXT:         fmadd b3, b4, b5, b6
 // CHECK-ERROR-NEXT:               ^
-// CHECK-ERROR-NEXT: error: invalid operand for instruction
+// CHECK-ERROR-NEXT: error: instruction requires: fullfp16
 // CHECK-ERROR-NEXT:         fmsub h1, h2, h3, h4
 // CHECK-ERROR-NEXT:               ^
 // CHECK-ERROR-NEXT: error: invalid operand for instruction
@@ -1759,12 +1781,20 @@
         ;; Exponent too large
         fmov d3, #0.0625
         fmov s2, #32.0
+        fmov s2, #32
+        fmov v0.4s, #-32
 // CHECK-ERROR: error: expected compatible register or floating-point constant
 // CHECK-ERROR-NEXT:           fmov d3, #0.0625
 // CHECK-ERROR-NEXT:                    ^
 // CHECK-ERROR-NEXT: error: expected compatible register or floating-point constant
 // CHECK-ERROR-NEXT:           fmov s2, #32.0
 // CHECK-ERROR-NEXT:                    ^
+// CHECK-ERROR-NEXT: error: expected compatible register or floating-point constant
+// CHECK-ERROR-NEXT:           fmov s2, #32
+// CHECK-ERROR-NEXT:                    ^
+// CHECK-ERROR-NEXT: error: expected compatible register or floating-point constant
+// CHECK-ERROR-NEXT:           fmov v0.4s, #-32
+// CHECK-ERROR-NEXT:                       ^
 
         ;; Fraction too precise
         fmov s9, #1.03125
@@ -1776,11 +1806,17 @@
 // CHECK-ERROR-NEXT:           fmov s28, #1.96875
 // CHECK-ERROR-NEXT:                     ^
 
-        ;; No particular reason, but a striking omission
-        fmov d0, #0.0
-// CHECK-ERROR-AARCH64: error: expected compatible register or floating-point constant
-// CHECK-ERROR-AARCH64-NEXT:           fmov d0, #0.0
-// CHECK-ERROR-AARCH64-NEXT:                    ^
+        ;; Explicitly encoded value too large
+        fmov s15, #0x100
+// CHECK-ERROR: error: encoded floating point value out of range
+// CHECK-ERROR-NEXT:           fmov s15, #0x100
+// CHECK-ERROR-NEXT:                     ^
+
+        ;; Not possible to fmov ZR to a whole vector
+        fmov v0.4s, #0.0
+// CHECK-ERROR: error: expected compatible register or floating-point constant
+// CHECK-ERROR-NEXT:           fmov v0.4s, #0.0
+// CHECK-ERROR-NEXT:                       ^
 
 //------------------------------------------------------------------------------
 // Floating-point <-> integer conversion
@@ -1926,11 +1962,11 @@
 //------------------------------------------------------------------------------
         ldr x3, [x4, #25], #0
         ldr x4, [x9, #0], #4
-// CHECK-ERROR-AARCH64: error: {{expected symbolic reference or integer|index must be a multiple of 8}} in range [0, 32760]
+// CHECK-ERROR-AARCH64: error: invalid operand for instruction
 // CHECK-ERROR-ARM64: error: invalid operand for instruction
 // CHECK-ERROR-NEXT:         ldr x3, [x4, #25], #0
 // CHECK-ERROR-NEXT:                 ^
-// CHECK-ERROR-AARCH64-NEXT: error: invalid operand for instruction
+// CHECK-ERROR-AARCH64-NEXT: error: expected label or encodable integer pc offset
 // CHECK-ERROR-AARCH64-NEXT:         ldr x4, [x9, #0], #4
 // CHECK-ERROR-AARCH64-NEXT:                           ^
 
@@ -3070,10 +3106,10 @@
         movk w3, #:abs_g0:sym
         movz x3, #:abs_g0_nc:sym
         movn x4, #:abs_g0_nc:sym
-// CHECK-ERROR: error: {{expected relocated symbol or|immediate must be an}} integer in range [0, 65535]
+// CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR-NEXT:         movz x12, #:abs_g0:sym, lsl #16
 // CHECK-ERROR-NEXT:                                 ^
-// CHECK-ERROR-NEXT: error: {{expected relocated symbol or|immediate must be an}} integer in range [0, 65535]
+// CHECK-ERROR:  error: invalid operand for instruction
 // CHECK-ERROR-NEXT:         movz x12, #:abs_g0:sym, lsl #0
 // CHECK-ERROR-NEXT:                                 ^
 // CHECK-ERROR-AARCH64-NEXT: error: {{expected relocated symbol or|immediate must be an}} integer in range [0, 65535]
@@ -3237,13 +3273,18 @@
 
         dsb #-1
         dsb #16
+        dsb foo
         dmb #-1
         dmb #16
+        dmb foo
 // CHECK-ERROR-NEXT: error: {{Invalid immediate for instruction|barrier operand out of range}}
 // CHECK-ERROR-NEXT:         dsb #-1
 // CHECK-ERROR-NEXT:             ^
 // CHECK-ERROR-NEXT: error: {{Invalid immediate for instruction|barrier operand out of range}}
 // CHECK-ERROR-NEXT:         dsb #16
+// CHECK-ERROR-NEXT:             ^
+// CHECK-ERROR-NEXT: error: invalid barrier option name
+// CHECK-ERROR-NEXT:         dsb foo
 // CHECK-ERROR-NEXT:             ^
 // CHECK-ERROR-NEXT: error: {{Invalid immediate for instruction|barrier operand out of range}}
 // CHECK-ERROR-NEXT:         dmb #-1
@@ -3251,32 +3292,31 @@
 // CHECK-ERROR-NEXT: error: {{Invalid immediate for instruction|barrier operand out of range}}
 // CHECK-ERROR-NEXT:         dmb #16
 // CHECK-ERROR-NEXT:             ^
+// CHECK-ERROR-NEXT: error: invalid barrier option name
+// CHECK-ERROR-NEXT:         dmb foo
+// CHECK-ERROR-NEXT:             ^
 
         isb #-1
         isb #16
+        isb foo
 // CHECK-ERROR-NEXT: error: {{Invalid immediate for instruction|barrier operand out of range}}
 // CHECK-ERROR-NEXT:         isb #-1
 // CHECK-ERROR-NEXT:             ^
 // CHECK-ERROR-NEXT: error: {{Invalid immediate for instruction|barrier operand out of range}}
 // CHECK-ERROR-NEXT:         isb #16
 // CHECK-ERROR-NEXT:             ^
+// CHECK-ERROR-NEXT: error: 'sy' or #imm operand expected
+// CHECK-ERROR-NEXT:        isb foo
+// CHECK-ERROR-NEXT:            ^
 
         msr daifset, x4
         msr spsel, #-1
         msr spsel #-1
         msr daifclr, #16
-// CHECK-ERROR-NEXT: error: {{expected|immediate must be an}} integer in range [0, 15]
-// CHECK-ERROR-NEXT:         msr daifset, x4
-// CHECK-ERROR-NEXT:                      ^
-// CHECK-ERROR-NEXT: error: {{expected|immediate must be an}} integer in range [0, 15]
-// CHECK-ERROR-NEXT:         msr spsel, #-1
-// CHECK-ERROR-NEXT:                    ^
-// CHECK-ERROR-NEXT: error: {{expected comma before next operand|unexpected token in argument list}}
-// CHECK-ERROR-NEXT:         msr spsel #-1
-// CHECK-ERROR-NEXT:                   ^
-// CHECK-ERROR-NEXT: error: {{expected|immediate must be an}} integer in range [0, 15]
-// CHECK-ERROR-NEXT:         msr daifclr, #16
-// CHECK-ERROR-NEXT:                      ^
+// CHECK-ERROR: [[@LINE-4]]:22: error: {{expected|immediate must be an}} integer in range [0, 15]
+// CHECK-ERROR: [[@LINE-4]]:20: error: {{expected|immediate must be an}} integer in range [0, 15]
+// CHECK-ERROR: [[@LINE-4]]:{{9|19}}: error: {{too few operands for instruction|expected comma before next operand|unexpected token in argument list}}
+// CHECK-ERROR: [[@LINE-4]]:22: error: {{expected|immediate must be an}} integer in range [0, 15]
 
         sys #8, c1, c2, #7, x9
         sys #3, c16, c2, #3, x10
@@ -3286,7 +3326,7 @@
         sysl x13, #3, c16, c2, #3
         sysl x9, #2, c11, c16, #5
         sysl x4, #4, c9, c8, #8
-// CHECK-ERROR-NEXT: error:  {{expected|immediate must be an}} integer in range [0, 7]
+// CHECK-ERROR: error:  {{expected|immediate must be an}} integer in range [0, 7]
 // CHECK-ERROR-NEXT:         sys #8, c1, c2, #7, x9
 // CHECK-ERROR-NEXT:             ^
 // CHECK-ERROR-NEXT: error: Expected cN operand where 0 <= N <= 15
@@ -3464,6 +3504,7 @@
         msr MIDR_EL1, x12
         msr CCSIDR_EL1, x12
         msr CLIDR_EL1, x12
+        msr CCSIDR2_EL1, x12
         msr CTR_EL0, x12
         msr MPIDR_EL1, x12
         msr REVIDR_EL1, x12
@@ -3477,6 +3518,7 @@
         msr ID_MMFR1_EL1, x12
         msr ID_MMFR2_EL1, x12
         msr ID_MMFR3_EL1, x12
+        msr ID_MMFR4_EL1, x12
         msr ID_ISAR0_EL1, x12
         msr ID_ISAR1_EL1, x12
         msr ID_ISAR2_EL1, x12
@@ -3531,6 +3573,9 @@
 // CHECK-ERROR-NEXT:         msr CLIDR_EL1, x12
 // CHECK-ERROR-NEXT:             ^
 // CHECK-ERROR-NEXT: error: expected writable system register or pstate
+// CHECK-ERROR-NEXT:         msr CCSIDR2_EL1, x12
+// CHECK-ERROR-NEXT:             ^
+// CHECK-ERROR-NEXT: error: expected writable system register or pstate
 // CHECK-ERROR-NEXT:         msr CTR_EL0, x12
 // CHECK-ERROR-NEXT:             ^
 // CHECK-ERROR-NEXT: error: expected writable system register or pstate
@@ -3568,6 +3613,9 @@
 // CHECK-ERROR-NEXT:             ^
 // CHECK-ERROR-NEXT: error: expected writable system register or pstate
 // CHECK-ERROR-NEXT:         msr ID_MMFR3_EL1, x12
+// CHECK-ERROR-NEXT:             ^
+// CHECK-ERROR-NEXT: error: expected writable system register or pstate
+// CHECK-ERROR-NEXT:         msr ID_MMFR4_EL1, x12
 // CHECK-ERROR-NEXT:             ^
 // CHECK-ERROR-NEXT: error: expected writable system register or pstate
 // CHECK-ERROR-NEXT:         msr ID_ISAR0_EL1, x12
@@ -3679,25 +3727,25 @@
 // CHECK-ERROR-NEXT:                 ^
 
 // Now check some invalid generic names
-        mrs xzr, s2_5_c11_c13_2
         mrs x12, s3_8_c11_c13_2
-        mrs x13, s3_3_c12_c13_2
         mrs x19, s3_2_c15_c16_2
         mrs x30, s3_2_c15_c1_8
-// CHECK-ERROR-NEXT: error: expected readable system register
-// CHECK-ERROR-NEXT:         mrs xzr, s2_5_c11_c13_2
-// CHECK-ERROR-NEXT:                  ^
+        mrs x4, s4_7_c15_c15_7
+        mrs x14, s3_7_c16_c15_7
 // CHECK-ERROR-NEXT: error: expected readable system register
 // CHECK-ERROR-NEXT:         mrs x12, s3_8_c11_c13_2
-// CHECK-ERROR-NEXT:                  ^
-// CHECK-ERROR-NEXT: error: expected readable system register
-// CHECK-ERROR-NEXT:         mrs x13, s3_3_c12_c13_2
 // CHECK-ERROR-NEXT:                  ^
 // CHECK-ERROR-NEXT: error: expected readable system register
 // CHECK-ERROR-NEXT:         mrs x19, s3_2_c15_c16_2
 // CHECK-ERROR-NEXT:                  ^
 // CHECK-ERROR-NEXT: error: expected readable system register
 // CHECK-ERROR-NEXT:         mrs x30, s3_2_c15_c1_8
+// CHECK-ERROR-NEXT:                  ^
+// CHECK-ERROR-NEXT: error: expected readable system register
+// CHECK-ERROR-NEXT:         mrs x4, s4_7_c15_c15_7
+// CHECK-ERROR-NEXT:                 ^
+// CHECK-ERROR-NEXT: error: expected readable system register
+// CHECK-ERROR-NEXT:         mrs x14, s3_7_c16_c15_7
 // CHECK-ERROR-NEXT:                  ^
 
 //------------------------------------------------------------------------------

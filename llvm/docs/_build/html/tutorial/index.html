@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>LLVM Tutorial: Table of Contents &#8212; LLVM 3.4 documentation</title>
+    <title>LLVM Tutorial: Table of Contents &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -27,8 +27,8 @@
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="1. Kaleidoscope: Tutorial Introduction and the Lexer" href="LangImpl1.html" />
-    <link rel="prev" title="LLVM test-suite Makefile Guide" href="../TestSuiteMakefileGuide.html" />
+    <link rel="next" title="1. Kaleidoscope: Tutorial Introduction and the Lexer" href="LangImpl01.html" />
+    <link rel="prev" title="LLVM test-suite Guide" href="../TestSuiteMakefileGuide.html" />
 <style type="text/css">
   table.right { float: right; margin-left: 20px; }
   table.right td { border: 1px solid #ccc; }
@@ -49,10 +49,10 @@
           <a href="../genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="LangImpl1.html" title="1. Kaleidoscope: Tutorial Introduction and the Lexer"
+          <a href="LangImpl01.html" title="1. Kaleidoscope: Tutorial Introduction and the Lexer"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="../TestSuiteMakefileGuide.html" title="LLVM test-suite Makefile Guide"
+          <a href="../TestSuiteMakefileGuide.html" title="LLVM test-suite Guide"
              accesskey="P">previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="../index.html">Documentation</a>&raquo;</li>
@@ -71,14 +71,16 @@
 <h2>Kaleidoscope: Implementing a Language with LLVM<a class="headerlink" href="#kaleidoscope-implementing-a-language-with-llvm" title="Permalink to this headline">¶</a></h2>
 <div class="toctree-wrapper compound">
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="LangImpl1.html">1. Kaleidoscope: Tutorial Introduction and the Lexer</a></li>
-<li class="toctree-l1"><a class="reference internal" href="LangImpl2.html">2. Kaleidoscope: Implementing a Parser and AST</a></li>
-<li class="toctree-l1"><a class="reference internal" href="LangImpl3.html">3. Kaleidoscope: Code generation to LLVM IR</a></li>
-<li class="toctree-l1"><a class="reference internal" href="LangImpl4.html">4. Kaleidoscope: Adding JIT and Optimizer Support</a></li>
-<li class="toctree-l1"><a class="reference internal" href="LangImpl5.html">5. Kaleidoscope: Extending the Language: Control Flow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="LangImpl6.html">6. Kaleidoscope: Extending the Language: User-defined Operators</a></li>
-<li class="toctree-l1"><a class="reference internal" href="LangImpl7.html">7. Kaleidoscope: Extending the Language: Mutable Variables</a></li>
-<li class="toctree-l1"><a class="reference internal" href="LangImpl8.html">8. Kaleidoscope: Conclusion and other useful LLVM tidbits</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LangImpl01.html">1. Kaleidoscope: Tutorial Introduction and the Lexer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LangImpl02.html">2. Kaleidoscope: Implementing a Parser and AST</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LangImpl03.html">3. Kaleidoscope: Code generation to LLVM IR</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LangImpl04.html">4. Kaleidoscope: Adding JIT and Optimizer Support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LangImpl05.html">5. Kaleidoscope: Extending the Language: Control Flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LangImpl06.html">6. Kaleidoscope: Extending the Language: User-defined Operators</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LangImpl07.html">7. Kaleidoscope: Extending the Language: Mutable Variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LangImpl08.html">8. Kaleidoscope: Compiling to Object Code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LangImpl09.html">9. Kaleidoscope: Adding Debug Information</a></li>
+<li class="toctree-l1"><a class="reference internal" href="LangImpl10.html">10. Kaleidoscope: Conclusion and other useful LLVM tidbits</a></li>
 </ul>
 </div>
 </div>
@@ -94,6 +96,18 @@
 <li class="toctree-l1"><a class="reference internal" href="OCamlLangImpl6.html">6. Kaleidoscope: Extending the Language: User-defined Operators</a></li>
 <li class="toctree-l1"><a class="reference internal" href="OCamlLangImpl7.html">7. Kaleidoscope: Extending the Language: Mutable Variables</a></li>
 <li class="toctree-l1"><a class="reference internal" href="OCamlLangImpl8.html">8. Kaleidoscope: Conclusion and other useful LLVM tidbits</a></li>
+</ul>
+</div>
+</div>
+<div class="section" id="building-a-jit-in-llvm">
+<h2>Building a JIT in LLVM<a class="headerlink" href="#building-a-jit-in-llvm" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="BuildingAJIT1.html">1. Building a JIT: Starting out with KaleidoscopeJIT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BuildingAJIT2.html">2. Building a JIT: Adding Optimizations – An introduction to ORC Layers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BuildingAJIT3.html">3. Building a JIT: Per-function Lazy Compilation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BuildingAJIT4.html">4. Building a JIT: Extreme Laziness - Using Compile Callbacks to JIT from ASTs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="BuildingAJIT5.html">5. Building a JIT: Remote-JITing – Process Isolation and Laziness at a Distance</a></li>
 </ul>
 </div>
 </div>
@@ -129,10 +143,10 @@ architecture.</dd>
           <a href="../genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="LangImpl1.html" title="1. Kaleidoscope: Tutorial Introduction and the Lexer"
+          <a href="LangImpl01.html" title="1. Kaleidoscope: Tutorial Introduction and the Lexer"
              >next</a> |</li>
         <li class="right" >
-          <a href="../TestSuiteMakefileGuide.html" title="LLVM test-suite Makefile Guide"
+          <a href="../TestSuiteMakefileGuide.html" title="LLVM test-suite Guide"
              >previous</a> |</li>
   <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
   <li><a href="../index.html">Documentation</a>&raquo;</li>
@@ -140,8 +154,8 @@ architecture.</dd>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

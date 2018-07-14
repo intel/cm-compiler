@@ -1,0 +1,186 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Control Flow Verification Tool Design Document &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LLVM Developer Policy" href="DeveloperPolicy.html" />
+    <link rel="prev" title="CodeView Type Records" href="PDB/CodeViewTypes.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="DeveloperPolicy.html" title="LLVM Developer Policy"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="PDB/CodeViewTypes.html" title="CodeView Type Records"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="control-flow-verification-tool-design-document">
+<h1>Control Flow Verification Tool Design Document<a class="headerlink" href="#control-flow-verification-tool-design-document" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#objective" id="id1">Objective</a></li>
+<li><a class="reference internal" href="#location" id="id2">Location</a></li>
+<li><a class="reference internal" href="#background" id="id3">Background</a></li>
+<li><a class="reference internal" href="#design-ideas" id="id4">Design Ideas</a><ul>
+<li><a class="reference internal" href="#other-design-notes" id="id5">Other Design Notes</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="objective">
+<h2><a class="toc-backref" href="#id1">Objective</a><a class="headerlink" href="#objective" title="Permalink to this headline">¶</a></h2>
+<p>This document provides an overview of an external tool to verify the protection
+mechanisms implemented by Clang’s <em>Control Flow Integrity</em> (CFI) schemes
+(<code class="docutils literal"><span class="pre">-fsanitize=cfi</span></code>). This tool, provided a binary or DSO, should infer whether
+indirect control flow operations are protected by CFI, and should output these
+results in a human-readable form.</p>
+<p>This tool should also be added as part of Clang’s continuous integration testing
+framework, where modifications to the compiler ensure that CFI protection
+schemes are still present in the final binary.</p>
+</div>
+<div class="section" id="location">
+<h2><a class="toc-backref" href="#id2">Location</a><a class="headerlink" href="#location" title="Permalink to this headline">¶</a></h2>
+<p>This tool will be present as a part of the LLVM toolchain, and will reside in
+the “/llvm/tools/llvm-cfi-verify” directory, relative to the LLVM trunk. It will
+be tested in two methods:</p>
+<ul class="simple">
+<li>Unit tests to validate code sections, present in “/llvm/unittests/llvm-cfi-
+verify”.</li>
+<li>Integration tests, present in “/llvm/tools/clang/test/LLVMCFIVerify”. These
+integration tests are part of clang as part of a continuous integration
+framework, ensuring updates to the compiler that reduce CFI coverage on
+indirect control flow instructions are identified.</li>
+</ul>
+</div>
+<div class="section" id="background">
+<h2><a class="toc-backref" href="#id3">Background</a><a class="headerlink" href="#background" title="Permalink to this headline">¶</a></h2>
+<p>This tool will continuously validate that CFI directives are properly
+implemented around all indirect control flows by analysing the output machine
+code. The analysis of machine code is important as it ensures that any bugs
+present in linker or compiler do not subvert CFI protections in the final
+shipped binary.</p>
+<p>Unprotected indirect control flow instructions will be flagged for manual
+review. These unexpected control flows may simply have not been accounted for in
+the compiler implementation of CFI (e.g. indirect jumps to facilitate switch
+statements may not be fully protected).</p>
+<p>It may be possible in the future to extend this tool to flag unnecessary CFI
+directives (e.g. CFI directives around a static call to a non-polymorphic base
+type). This type of directive has no security implications, but may present
+performance impacts.</p>
+</div>
+<div class="section" id="design-ideas">
+<h2><a class="toc-backref" href="#id4">Design Ideas</a><a class="headerlink" href="#design-ideas" title="Permalink to this headline">¶</a></h2>
+<p>This tool will disassemble binaries and DSO’s from their machine code format and
+analyse the disassembled machine code. The tool will inspect virtual calls and
+indirect function calls. This tool will also inspect indirect jumps, as inlined
+functions and jump tables should also be subject to CFI protections. Non-virtual
+calls (<code class="docutils literal"><span class="pre">-fsanitize=cfi-nvcall</span></code>) and cast checks (<code class="docutils literal"><span class="pre">-fsanitize=cfi-*cast*</span></code>)
+are not implemented due to a lack of information provided by the bytecode.</p>
+<p>The tool would operate by searching for indirect control flow instructions in
+the disassembly. A control flow graph would be generated from a small buffer of
+the instructions surrounding the ‘target’ control flow instruction. If the
+target instruction is branched-to, the fallthrough of the branch should be the
+CFI trap (on x86, this is a <code class="docutils literal"><span class="pre">ud2</span></code> instruction). If the target instruction is
+the fallthrough (i.e. immediately succeeds) of a conditional jump, the
+conditional jump target should be the CFI trap. If an indirect control flow
+instruction does not conform to one of these formats, the target will be noted
+as being CFI-unprotected.</p>
+<p>Note that in the second case outlined above (where the target instruction is the
+fallthrough of a conditional jump), if the target represents a vcall that takes
+arguments, these arguments may be pushed to the stack after the branch but
+before the target instruction. In these cases, a secondary ‘spill graph’ in
+constructed, to ensure the register argument used by the indirect jump/call is
+not spilled from the stack at any point in the interim period. If there are no
+spills that affect the target register, the target is marked as CFI-protected.</p>
+<div class="section" id="other-design-notes">
+<h3><a class="toc-backref" href="#id5">Other Design Notes</a><a class="headerlink" href="#other-design-notes" title="Permalink to this headline">¶</a></h3>
+<p>Only machine code sections that are marked as executable will be subject to this
+analysis. Non-executable sections do not require analysis as any execution
+present in these sections has already violated the control flow integrity.</p>
+<p>Suitable extensions may be made at a later date to include anaylsis for indirect
+control flow operations across DSO boundaries. Currently, these CFI features are
+only experimental with an unstable ABI, making them unsuitable for analysis.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="DeveloperPolicy.html" title="LLVM Developer Policy"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="PDB/CodeViewTypes.html" title="CodeView Type Records"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

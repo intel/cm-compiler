@@ -1,4 +1,4 @@
-; RUN: llc < %s -print-after=prologepilog >%t 2>&1 && FileCheck <%t %s
+; RUN: llc -verify-machineinstrs < %s -print-after=prologepilog >%t 2>&1 && FileCheck <%t %s
 target datalayout = "E-m:e-i64:64-n32:64"
 target triple = "powerpc64-unknown-linux-gnu"
 
@@ -13,5 +13,5 @@ entry:
 
 ; Make sure that the MMO on the store has no offset from the byval
 ; variable itself (we used to have mem:ST8[%v+64]).
-; CHECK: STD %X5<kill>, 176, %X1; mem:ST8[%v](align=16)
+; CHECK: STD killed renamable %x5, 176, %x1; mem:ST8[%v](align=16)
 

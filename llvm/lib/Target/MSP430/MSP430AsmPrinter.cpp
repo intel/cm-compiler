@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MSP430.h"
 #include "InstPrinter/MSP430InstPrinter.h"
+#include "MSP430.h"
 #include "MSP430InstrInfo.h"
 #include "MSP430MCInstLower.h"
 #include "MSP430TargetMachine.h"
@@ -39,12 +39,10 @@ using namespace llvm;
 namespace {
   class MSP430AsmPrinter : public AsmPrinter {
   public:
-    MSP430AsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
-      : AsmPrinter(TM, Streamer) {}
+    MSP430AsmPrinter(TargetMachine &TM, std::unique_ptr<MCStreamer> Streamer)
+        : AsmPrinter(TM, std::move(Streamer)) {}
 
-    const char *getPassName() const override {
-      return "MSP430 Assembly Printer";
-    }
+    StringRef getPassName() const override { return "MSP430 Assembly Printer"; }
 
     void printOperand(const MachineInstr *MI, int OpNum,
                       raw_ostream &O, const char* Modifier = nullptr);
@@ -75,7 +73,7 @@ void MSP430AsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
     O << MO.getImm();
     return;
   case MachineOperand::MO_MachineBasicBlock:
-    O << *MO.getMBB()->getSymbol();
+    MO.getMBB()->getSymbol()->print(O, MAI);
     return;
   case MachineOperand::MO_GlobalAddress: {
     bool isMemOp  = Modifier && !strcmp(Modifier, "mem");
@@ -92,7 +90,7 @@ void MSP430AsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
     if (Offset)
       O << '(' << Offset << '+';
 
-    O << *getSymbol(MO.getGlobal());
+    getSymbol(MO.getGlobal())->print(O, MAI);
 
     if (Offset)
       O << ')';
@@ -152,10 +150,10 @@ void MSP430AsmPrinter::EmitInstruction(const MachineInstr *MI) {
 
   MCInst TmpInst;
   MCInstLowering.Lower(MI, TmpInst);
-  EmitToStreamer(OutStreamer, TmpInst);
+  EmitToStreamer(*OutStreamer, TmpInst);
 }
 
 // Force static initialization.
 extern "C" void LLVMInitializeMSP430AsmPrinter() {
-  RegisterAsmPrinter<MSP430AsmPrinter> X(TheMSP430Target);
+  RegisterAsmPrinter<MSP430AsmPrinter> X(getTheMSP430Target());
 }

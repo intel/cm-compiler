@@ -59,7 +59,7 @@ class GenXCFSimplification : public FunctionPass {
 public:
   static char ID;
   explicit GenXCFSimplification() : FunctionPass(ID) { }
-  virtual const char *getPassName() const { return "GenX SIMD CF simplification"; }
+  virtual StringRef getPassName() const { return "GenX SIMD CF simplification"; }
   void getAnalysisUsage(AnalysisUsage &AU) const;
   bool runOnFunction(Function &F);
 private:

@@ -1,0 +1,861 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-pdbutil - PDB File forensics and diagnostics &#8212; LLVM 6 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llvm-readobj - LLVM Object Reader" href="llvm-readobj.html" />
+    <link rel="prev" title="llvm-build - LLVM Project Build Utility" href="llvm-build.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llvm-readobj.html" title="llvm-readobj - LLVM Object Reader"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llvm-build.html" title="llvm-build - LLVM Project Build Utility"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-pdbutil-pdb-file-forensics-and-diagnostics">
+<h1>llvm-pdbutil - PDB File forensics and diagnostics<a class="headerlink" href="#llvm-pdbutil-pdb-file-forensics-and-diagnostics" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#synopsis" id="id12">Synopsis</a></li>
+<li><a class="reference internal" href="#description" id="id13">Description</a></li>
+<li><a class="reference internal" href="#subcommands" id="id14">Subcommands</a><ul>
+<li><a class="reference internal" href="#pretty" id="id15">pretty</a><ul>
+<li><a class="reference internal" href="#summary" id="id16">Summary</a></li>
+<li><a class="reference internal" href="#options" id="id17">Options</a><ul>
+<li><a class="reference internal" href="#filtering-and-sorting-options" id="id18">Filtering and Sorting Options</a></li>
+<li><a class="reference internal" href="#symbol-type-options" id="id19">Symbol Type Options</a></li>
+<li><a class="reference internal" href="#other-options" id="id20">Other Options</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#dump" id="id21">dump</a><ul>
+<li><a class="reference internal" href="#id1" id="id22">Summary</a></li>
+<li><a class="reference internal" href="#id2" id="id23">Options</a><ul>
+<li><a class="reference internal" href="#msf-container-options" id="id24">MSF Container Options</a></li>
+<li><a class="reference internal" href="#module-file-options" id="id25">Module &amp; File Options</a></li>
+<li><a class="reference internal" href="#symbol-options" id="id26">Symbol Options</a></li>
+<li><a class="reference internal" href="#type-record-options" id="id27">Type Record Options</a></li>
+<li><a class="reference internal" href="#miscellaneous-options" id="id28">Miscellaneous Options</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#bytes" id="id29">bytes</a><ul>
+<li><a class="reference internal" href="#id3" id="id30">Summary</a></li>
+<li><a class="reference internal" href="#id4" id="id31">Options</a><ul>
+<li><a class="reference internal" href="#msf-file-options" id="id32">MSF File Options</a></li>
+<li><a class="reference internal" href="#pdb-stream-options" id="id33">PDB Stream Options</a></li>
+<li><a class="reference internal" href="#dbi-stream-options" id="id34">DBI Stream Options</a></li>
+<li><a class="reference internal" href="#module-options" id="id35">Module Options</a></li>
+<li><a class="reference internal" href="#id5" id="id36">Type Record Options</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pdb2yaml" id="id37">pdb2yaml</a><ul>
+<li><a class="reference internal" href="#id6" id="id38">Summary</a></li>
+<li><a class="reference internal" href="#id7" id="id39">Options</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#yaml2pdb" id="id40">yaml2pdb</a><ul>
+<li><a class="reference internal" href="#id8" id="id41">Summary</a></li>
+<li><a class="reference internal" href="#id9" id="id42">Options</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#merge" id="id43">merge</a><ul>
+<li><a class="reference internal" href="#id10" id="id44">Summary</a></li>
+<li><a class="reference internal" href="#id11" id="id45">Options</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="synopsis">
+<h2><a class="toc-backref" href="#id12">Synopsis</a><a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-pdbutil</strong> [<em>subcommand</em>] [<em>options</em>]</p>
+</div>
+<div class="section" id="description">
+<h2><a class="toc-backref" href="#id13">Description</a><a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>Display types, symbols, CodeView records, and other information from a
+PDB file, as well as manipulate and create PDB files.  <strong class="program">llvm-pdbutil</strong>
+is normally used by FileCheck-based tests to test LLVM’s PDB reading and
+writing functionality, but can also be used for general PDB file investigation
+and forensics, or as a replacement for cvdump.</p>
+</div>
+<div class="section" id="subcommands">
+<h2><a class="toc-backref" href="#id14">Subcommands</a><a class="headerlink" href="#subcommands" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-pdbutil</strong> is separated into several subcommands each tailored to
+a different purpose.  A brief summary of each command follows, with more detail
+in the sections that follow.</p>
+<blockquote>
+<div><ul class="simple">
+<li><a class="reference internal" href="#pretty-subcommand"><span class="std std-ref">pretty</span></a> - Dump symbol and type information in a format that
+tries to look as much like the original source code as possible.</li>
+<li><a class="reference internal" href="#dump-subcommand"><span class="std std-ref">dump</span></a> - Dump low level types and structures from the PDB
+file, including CodeView records, hash tables, PDB streams, etc.</li>
+<li><a class="reference internal" href="#bytes-subcommand"><span class="std std-ref">bytes</span></a> - Dump data from the PDB file’s streams, records,
+types, symbols, etc as raw bytes.</li>
+<li><a class="reference internal" href="#yaml2pdb-subcommand"><span class="std std-ref">yaml2pdb</span></a> - Given a yaml description of a PDB file, produce
+a valid PDB file that matches that description.</li>
+<li><a class="reference internal" href="#pdb2yaml-subcommand"><span class="std std-ref">pdb2yaml</span></a> - For a given PDB file, produce a YAML
+description of some or all of the file in a way that the PDB can be
+reconstructed.</li>
+<li><a class="reference internal" href="#merge-subcommand"><span class="std std-ref">merge</span></a> - Given two PDBs, produce a third PDB that is the
+result of merging the two input PDBs.</li>
+</ul>
+</div></blockquote>
+<div class="section" id="pretty">
+<span id="pretty-subcommand"></span><h3><a class="toc-backref" href="#id15">pretty</a><a class="headerlink" href="#pretty" title="Permalink to this headline">¶</a></h3>
+<div class="admonition important">
+<p class="first admonition-title">Important</p>
+<p class="last">The <strong>pretty</strong> subcommand is built on the Windows DIA SDK, and as such is not
+supported on non-Windows platforms.</p>
+</div>
+<p>USAGE: <strong class="program">llvm-pdbutil</strong> pretty [<em>options</em>] &lt;input PDB file&gt;</p>
+<div class="section" id="summary">
+<h4><a class="toc-backref" href="#id16">Summary</a><a class="headerlink" href="#summary" title="Permalink to this headline">¶</a></h4>
+<p>The <em>pretty</em> subcommand displays a very high level representation of your
+program’s debug info.  Since it is built on the Windows DIA SDK which is the
+standard API that Windows tools and debuggers query debug information, it
+presents a more authoritative view of how a debugger is going to interpret your
+debug information than a mode which displays low-level CodeView records.</p>
+</div>
+<div class="section" id="options">
+<h4><a class="toc-backref" href="#id17">Options</a><a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="filtering-and-sorting-options">
+<h5><a class="toc-backref" href="#id18">Filtering and Sorting Options</a><a class="headerlink" href="#filtering-and-sorting-options" title="Permalink to this headline">¶</a></h5>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last"><em>exclude</em> filters take priority over <em>include</em> filters.  So if a filter
+matches both an include and an exclude rule, then it is excluded.</p>
+</div>
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-exclude-compilands">
+<code class="descname">-exclude-compilands</code><code class="descclassname">=&lt;string&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-exclude-compilands" title="Permalink to this definition">¶</a></dt>
+<dd><p>When dumping compilands, compiland source-file contributions, or per-compiland
+symbols, this option instructs <strong>llvm-pdbutil</strong> to omit any compilands that
+match the specified regular expression.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-exclude-symbols">
+<code class="descname">-exclude-symbols</code><code class="descclassname">=&lt;string&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-exclude-symbols" title="Permalink to this definition">¶</a></dt>
+<dd><p>When dumping global, public, or per-compiland symbols, this option instructs
+<strong>llvm-pdbutil</strong> to omit any symbols that match the specified regular
+expression.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-exclude-types">
+<code class="descname">-exclude-types</code><code class="descclassname">=&lt;string&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-exclude-types" title="Permalink to this definition">¶</a></dt>
+<dd><p>When dumping types, this option instructs <strong>llvm-pdbutil</strong> to omit any types
+that match the specified regular expression.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-include-compilands">
+<code class="descname">-include-compilands</code><code class="descclassname">=&lt;string&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-include-compilands" title="Permalink to this definition">¶</a></dt>
+<dd><p>When dumping compilands, compiland source-file contributions, or per-compiland
+symbols, limit the initial search to only those compilands that match the
+specified regular expression.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-include-symbols">
+<code class="descname">-include-symbols</code><code class="descclassname">=&lt;string&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-include-symbols" title="Permalink to this definition">¶</a></dt>
+<dd><p>When dumping global, public, or per-compiland symbols, limit the initial
+search to only those symbols that match the specified regular expression.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-include-types">
+<code class="descname">-include-types</code><code class="descclassname">=&lt;string&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-include-types" title="Permalink to this definition">¶</a></dt>
+<dd><p>When dumping types, limit the initial search to only those types that match
+the specified regular expression.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-min-class-padding">
+<code class="descname">-min-class-padding</code><code class="descclassname">=&lt;uint&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-min-class-padding" title="Permalink to this definition">¶</a></dt>
+<dd><p>Only display types that have at least the specified amount of alignment
+padding, accounting for padding in base classes and aggregate field members.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-min-class-padding-imm">
+<code class="descname">-min-class-padding-imm</code><code class="descclassname">=&lt;uint&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-min-class-padding-imm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Only display types that have at least the specified amount of alignment
+padding, ignoring padding in base classes and aggregate field members.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-min-type-size">
+<code class="descname">-min-type-size</code><code class="descclassname">=&lt;uint&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-min-type-size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Only display types T where sizeof(T) is greater than or equal to the specified
+amount.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-no-compiler-generated">
+<code class="descname">-no-compiler-generated</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-no-compiler-generated" title="Permalink to this definition">¶</a></dt>
+<dd><p>Don’t show compiler generated types and symbols</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-no-enum-definitions">
+<code class="descname">-no-enum-definitions</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-no-enum-definitions" title="Permalink to this definition">¶</a></dt>
+<dd><p>When dumping an enum, don’t show the full enum (e.g. the individual enumerator
+values).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-no-system-libs">
+<code class="descname">-no-system-libs</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-no-system-libs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Don’t show symbols from system libraries</p>
+</dd></dl>
+
+</div>
+<div class="section" id="symbol-type-options">
+<h5><a class="toc-backref" href="#id19">Symbol Type Options</a><a class="headerlink" href="#symbol-type-options" title="Permalink to this headline">¶</a></h5>
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-all">
+<code class="descname">-all</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-all" title="Permalink to this definition">¶</a></dt>
+<dd><p>Implies all other options in this category.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-class-definitions">
+<code class="descname">-class-definitions</code><code class="descclassname">=&lt;format&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-class-definitions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Displays class definitions in the specified format.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>=all      - Display all class members including data, constants, typedefs, functions, etc (default)
+=layout   - Only display members that contribute to class size.
+=none     - Don&#39;t display class definitions (e.g. only display the name and base list)
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-class-order">
+<code class="descname">-class-order</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-class-order" title="Permalink to this definition">¶</a></dt>
+<dd><p>Displays classes in the specified order.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>=none            - Undefined / no particular sort order (default)
+=name            - Sort classes by name
+=size            - Sort classes by size
+=padding         - Sort classes by amount of padding
+=padding-pct     - Sort classes by percentage of space consumed by padding
+=padding-imm     - Sort classes by amount of immediate padding
+=padding-pct-imm - Sort classes by percentage of space consumed by immediate padding
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-class-recurse-depth">
+<code class="descname">-class-recurse-depth</code><code class="descclassname">=&lt;uint&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-class-recurse-depth" title="Permalink to this definition">¶</a></dt>
+<dd><p>When dumping class definitions, stop after recursing the specified number of times.  The
+default is 0, which is no limit.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-classes">
+<code class="descname">-classes</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-classes" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display classes</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-compilands">
+<code class="descname">-compilands</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-compilands" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display compilands (e.g. object files)</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-enums">
+<code class="descname">-enums</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-enums" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display enums</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-externals">
+<code class="descname">-externals</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-externals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump external (e.g. exported) symbols</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-globals">
+<code class="descname">-globals</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-globals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump global symbols</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-lines">
+<code class="descname">-lines</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-lines" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump the mappings between source lines and code addresses.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-module-syms">
+<code class="descname">-module-syms</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-module-syms" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display symbols (variables, functions, etc) for each compiland</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-sym-types">
+<code class="descname">-sym-types</code><code class="descclassname">=&lt;types&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-sym-types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Type of symbols to dump when -globals, -externals, or -module-syms is
+specified. (default all)</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>=thunks - Display thunk symbols
+=data   - Display data symbols
+=funcs  - Display function symbols
+=all    - Display all symbols (default)
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-symbol-order">
+<code class="descname">-symbol-order</code><code class="descclassname">=&lt;order&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-symbol-order" title="Permalink to this definition">¶</a></dt>
+<dd><p>For symbols dumped via the -module-syms, -globals, or -externals options, sort
+the results in specified order.</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>=none - Undefined / no particular sort order
+=name - Sort symbols by name
+=size - Sort symbols by size
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-typedefs">
+<code class="descname">-typedefs</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-typedefs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display typedef types</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-types">
+<code class="descname">-types</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display all types (implies -classes, -enums, -typedefs)</p>
+</dd></dl>
+
+</div>
+<div class="section" id="other-options">
+<h5><a class="toc-backref" href="#id20">Other Options</a><a class="headerlink" href="#other-options" title="Permalink to this headline">¶</a></h5>
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-color-output">
+<code class="descname">-color-output</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-color-output" title="Permalink to this definition">¶</a></dt>
+<dd><p>Force color output on or off.  By default, color if used if outputting to a
+terminal.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-pretty-load-address">
+<code class="descname">-load-address</code><code class="descclassname">=&lt;uint&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-pretty-load-address" title="Permalink to this definition">¶</a></dt>
+<dd><p>When displaying relative virtual addresses, assume the process is loaded at the
+given address and display what would be the absolute address.</p>
+</dd></dl>
+
+</div>
+</div>
+</div>
+<div class="section" id="dump">
+<span id="dump-subcommand"></span><h3><a class="toc-backref" href="#id21">dump</a><a class="headerlink" href="#dump" title="Permalink to this headline">¶</a></h3>
+<p>USAGE: <strong class="program">llvm-pdbutil</strong> dump [<em>options</em>] &lt;input PDB file&gt;</p>
+<div class="section" id="id1">
+<h4><a class="toc-backref" href="#id22">Summary</a><a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h4>
+<p>The <strong>dump</strong> subcommand displays low level information about the structure of a
+PDB file.  It is used heavily by LLVM’s testing infrastructure, but can also be
+used for PDB forensics.  It serves a role similar to that of Microsoft’s
+<cite>cvdump</cite> tool.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The <strong>dump</strong> subcommand exposes internal details of the file format.  As
+such, the reader should be familiar with <a class="reference internal" href="../PDB/index.html"><span class="doc">The PDB File Format</span></a> before using this
+command.</p>
+</div>
+</div>
+<div class="section" id="id2">
+<h4><a class="toc-backref" href="#id23">Options</a><a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="msf-container-options">
+<h5><a class="toc-backref" href="#id24">MSF Container Options</a><a class="headerlink" href="#msf-container-options" title="Permalink to this headline">¶</a></h5>
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-streams">
+<code class="descname">-streams</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-streams" title="Permalink to this definition">¶</a></dt>
+<dd><p>dump a summary of all of the streams in the PDB file.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-stream-blocks">
+<code class="descname">-stream-blocks</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-stream-blocks" title="Permalink to this definition">¶</a></dt>
+<dd><p>In conjunction with <a class="reference internal" href="#cmdoption-llvm-pdbutil-dump-streams"><code class="xref std std-option docutils literal"><span class="pre">-streams</span></code></a>, add information to the output about
+what blocks the specified stream occupies.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-summary">
+<code class="descname">-summary</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-summary" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump MSF and PDB header information.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-file-options">
+<h5><a class="toc-backref" href="#id25">Module &amp; File Options</a><a class="headerlink" href="#module-file-options" title="Permalink to this headline">¶</a></h5>
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-modi">
+<code class="descname">-modi</code><code class="descclassname">=&lt;uint&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-modi" title="Permalink to this definition">¶</a></dt>
+<dd><p>For all options that dump information from each module/compiland, limit to
+the specified module.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-files">
+<code class="descname">-files</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-files" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump the source files that contribute to each displayed module.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-il">
+<code class="descname">-il</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-il" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump inlinee line information (DEBUG_S_INLINEELINES CodeView subsection)</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-l">
+<code class="descname">-l</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-l" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump line information (DEBUG_S_LINES CodeView subsection)</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-modules">
+<code class="descname">-modules</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-modules" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump compiland information</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-xme">
+<code class="descname">-xme</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-xme" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump cross module exports (DEBUG_S_CROSSSCOPEEXPORTS CodeView subsection)</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-xmi">
+<code class="descname">-xmi</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-xmi" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump cross module imports (DEBUG_S_CROSSSCOPEIMPORTS CodeView subsection)</p>
+</dd></dl>
+
+</div>
+<div class="section" id="symbol-options">
+<h5><a class="toc-backref" href="#id26">Symbol Options</a><a class="headerlink" href="#symbol-options" title="Permalink to this headline">¶</a></h5>
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-globals">
+<code class="descname">-globals</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-globals" title="Permalink to this definition">¶</a></dt>
+<dd><p>dump global symbol records</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-global-extras">
+<code class="descname">-global-extras</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-global-extras" title="Permalink to this definition">¶</a></dt>
+<dd><p>dump additional information about the globals, such as hash buckets and hash
+values.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-publics">
+<code class="descname">-publics</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-publics" title="Permalink to this definition">¶</a></dt>
+<dd><p>dump public symbol records</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-public-extras">
+<code class="descname">-public-extras</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-public-extras" title="Permalink to this definition">¶</a></dt>
+<dd><p>dump additional information about the publics, such as hash buckets and hash
+values.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-symbols">
+<code class="descname">-symbols</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-symbols" title="Permalink to this definition">¶</a></dt>
+<dd><p>dump symbols (functions, variables, etc) for each module dumped.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-sym-data">
+<code class="descname">-sym-data</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-sym-data" title="Permalink to this definition">¶</a></dt>
+<dd><p>For each symbol record dumped as a result of the <a class="reference internal" href="#cmdoption-llvm-pdbutil-dump-symbols"><code class="xref std std-option docutils literal"><span class="pre">-symbols</span></code></a> option,
+display the full bytes of the record in binary as well.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="type-record-options">
+<h5><a class="toc-backref" href="#id27">Type Record Options</a><a class="headerlink" href="#type-record-options" title="Permalink to this headline">¶</a></h5>
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-types">
+<code class="descname">-types</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-types" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump CodeView type records from TPI stream</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-type-extras">
+<code class="descname">-type-extras</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-type-extras" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump additional information from the TPI stream, such as hashes and the type
+index offsets array.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-type-data">
+<code class="descname">-type-data</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-type-data" title="Permalink to this definition">¶</a></dt>
+<dd><p>For each type record dumped, display the full bytes of the record in binary as
+well.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-type-index">
+<code class="descname">-type-index</code><code class="descclassname">=&lt;uint&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-type-index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Only dump types with the specified type index.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-ids">
+<code class="descname">-ids</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-ids" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump CodeView type records from IPI stream.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-id-extras">
+<code class="descname">-id-extras</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-id-extras" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump additional information from the IPI stream, such as hashes and the type
+index offsets array.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-id-data">
+<code class="descname">-id-data</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-id-data" title="Permalink to this definition">¶</a></dt>
+<dd><p>For each ID record dumped, display the full bytes of the record in binary as
+well.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-id-index">
+<code class="descname">-id-index</code><code class="descclassname">=&lt;uint&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-id-index" title="Permalink to this definition">¶</a></dt>
+<dd><p>only dump ID records with the specified hexadecimal type index.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-dependents">
+<code class="descname">-dependents</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-dependents" title="Permalink to this definition">¶</a></dt>
+<dd><p>When used in conjunction with <a class="reference internal" href="#cmdoption-llvm-pdbutil-dump-type-index"><code class="xref std std-option docutils literal"><span class="pre">-type-index</span></code></a> or <a class="reference internal" href="#cmdoption-llvm-pdbutil-dump-id-index"><code class="xref std std-option docutils literal"><span class="pre">-id-index</span></code></a>,
+dumps the entire dependency graph for the specified index instead of just the
+single record with the specified index.  For example, if type index 0x4000 is
+a function whose return type has index 0x3000, and you specify
+<cite>-dependents=0x4000</cite>, then this would dump both records (as well as any other
+dependents in the tree).</p>
+</dd></dl>
+
+</div>
+<div class="section" id="miscellaneous-options">
+<h5><a class="toc-backref" href="#id28">Miscellaneous Options</a><a class="headerlink" href="#miscellaneous-options" title="Permalink to this headline">¶</a></h5>
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-all">
+<code class="descname">-all</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-all" title="Permalink to this definition">¶</a></dt>
+<dd><p>Implies most other options.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-section-contribs">
+<code class="descname">-section-contribs</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-section-contribs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump section contributions.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-section-headers">
+<code class="descname">-section-headers</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-section-headers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump image section headers.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-section-map">
+<code class="descname">-section-map</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-section-map" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump section map.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-dump-string-table">
+<code class="descname">-string-table</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-dump-string-table" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump PDB string table.</p>
+</dd></dl>
+
+</div>
+</div>
+</div>
+<div class="section" id="bytes">
+<span id="bytes-subcommand"></span><h3><a class="toc-backref" href="#id29">bytes</a><a class="headerlink" href="#bytes" title="Permalink to this headline">¶</a></h3>
+<p>USAGE: <strong class="program">llvm-pdbutil</strong> bytes [<em>options</em>] &lt;input PDB file&gt;</p>
+<div class="section" id="id3">
+<h4><a class="toc-backref" href="#id30">Summary</a><a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h4>
+<p>Like the <strong>dump</strong> subcommand, the <strong>bytes</strong> subcommand displays low level
+information about the structure of a PDB file, but it is used for even deeper
+forensics.  The <strong>bytes</strong> subcommand finds various structures in a PDB file
+based on the command line options specified, and dumps them in hex.  Someone
+working on support for emitting PDBs would use this heavily, for example, to
+compare one PDB against another PDB to ensure byte-for-byte compatibility.  It
+is not enough to simply compare the bytes of an entire file, or an entire stream
+because it’s perfectly fine for the same structure to exist at different
+locations in two different PDBs, and “finding” the structure is half the battle.</p>
+</div>
+<div class="section" id="id4">
+<h4><a class="toc-backref" href="#id31">Options</a><a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="msf-file-options">
+<h5><a class="toc-backref" href="#id32">MSF File Options</a><a class="headerlink" href="#msf-file-options" title="Permalink to this headline">¶</a></h5>
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-block-range">
+<code class="descname">-block-range</code><code class="descclassname">=&lt;start[-end]&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-block-range" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump binary data from specified range of MSF file blocks.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-byte-range">
+<code class="descname">-byte-range</code><code class="descclassname">=&lt;start[-end]&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-byte-range" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump binary data from specified range of bytes in the file.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-fpm">
+<code class="descname">-fpm</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-fpm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump the MSF free page map.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-stream-data">
+<code class="descname">-stream-data</code><code class="descclassname">=&lt;string&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-stream-data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump binary data from the specified streams.  Format is SN[:Start][&#64;Size].
+For example, <cite>-stream-data=7:3&#64;12</cite> dumps 12 bytes from stream 7, starting
+at offset 3 in the stream.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="pdb-stream-options">
+<h5><a class="toc-backref" href="#id33">PDB Stream Options</a><a class="headerlink" href="#pdb-stream-options" title="Permalink to this headline">¶</a></h5>
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-name-map">
+<code class="descname">-name-map</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-name-map" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump bytes of PDB Name Map</p>
+</dd></dl>
+
+</div>
+<div class="section" id="dbi-stream-options">
+<h5><a class="toc-backref" href="#id34">DBI Stream Options</a><a class="headerlink" href="#dbi-stream-options" title="Permalink to this headline">¶</a></h5>
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-ec">
+<code class="descname">-ec</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-ec" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump the edit and continue map substream of the DBI stream.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-files">
+<code class="descname">-files</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-files" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump the file info substream of the DBI stream.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-modi">
+<code class="descname">-modi</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-modi" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump the modi substream of the DBI stream.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-sc">
+<code class="descname">-sc</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-sc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump section contributions substream of the DBI stream.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-sm">
+<code class="descname">-sm</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-sm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump the section map from the DBI stream.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-type-server">
+<code class="descname">-type-server</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-type-server" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump the type server map from the DBI stream.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-options">
+<h5><a class="toc-backref" href="#id35">Module Options</a><a class="headerlink" href="#module-options" title="Permalink to this headline">¶</a></h5>
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-mod">
+<code class="descname">-mod</code><code class="descclassname">=&lt;uint&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-mod" title="Permalink to this definition">¶</a></dt>
+<dd><p>Limit all options in this category to the specified module index.  By default,
+options in this category will dump bytes from all modules.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-chunks">
+<code class="descname">-chunks</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-chunks" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump the bytes of each module’s C13 debug subsection.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-split-chunks">
+<code class="descname">-split-chunks</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-split-chunks" title="Permalink to this definition">¶</a></dt>
+<dd><p>When specified with <a class="reference internal" href="#cmdoption-llvm-pdbutil-bytes-chunks"><code class="xref std std-option docutils literal"><span class="pre">-chunks</span></code></a>, split the C13 debug subsection into a
+separate chunk for each subsection type, and dump them separately.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-syms">
+<code class="descname">-syms</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-syms" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump the symbol record substream from each module.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="id5">
+<h5><a class="toc-backref" href="#id36">Type Record Options</a><a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h5>
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-id">
+<code class="descname">-id</code><code class="descclassname">=&lt;uint&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump the record from the IPI stream with the given type index.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-bytes-type">
+<code class="descname">-type</code><code class="descclassname">=&lt;uint&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-bytes-type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dump the record from the TPI stream with the given type index.</p>
+</dd></dl>
+
+</div>
+</div>
+</div>
+<div class="section" id="pdb2yaml">
+<span id="pdb2yaml-subcommand"></span><h3><a class="toc-backref" href="#id37">pdb2yaml</a><a class="headerlink" href="#pdb2yaml" title="Permalink to this headline">¶</a></h3>
+<p>USAGE: <strong class="program">llvm-pdbutil</strong> pdb2yaml [<em>options</em>] &lt;input PDB file&gt;</p>
+<div class="section" id="id6">
+<h4><a class="toc-backref" href="#id38">Summary</a><a class="headerlink" href="#id6" title="Permalink to this headline">¶</a></h4>
+</div>
+<div class="section" id="id7">
+<h4><a class="toc-backref" href="#id39">Options</a><a class="headerlink" href="#id7" title="Permalink to this headline">¶</a></h4>
+</div>
+</div>
+<div class="section" id="yaml2pdb">
+<span id="yaml2pdb-subcommand"></span><h3><a class="toc-backref" href="#id40">yaml2pdb</a><a class="headerlink" href="#yaml2pdb" title="Permalink to this headline">¶</a></h3>
+<p>USAGE: <strong class="program">llvm-pdbutil</strong> yaml2pdb [<em>options</em>] &lt;input YAML file&gt;</p>
+<div class="section" id="id8">
+<h4><a class="toc-backref" href="#id41">Summary</a><a class="headerlink" href="#id8" title="Permalink to this headline">¶</a></h4>
+<p>Generate a PDB file from a YAML description.  The YAML syntax is not described
+here.  Instead, use <a class="reference internal" href="#pdb2yaml-subcommand"><span class="std std-ref">llvm-pdbutil pdb2yaml</span></a> and
+examine the output for an example starting point.</p>
+</div>
+<div class="section" id="id9">
+<h4><a class="toc-backref" href="#id42">Options</a><a class="headerlink" href="#id9" title="Permalink to this headline">¶</a></h4>
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-yaml2pdb-pdb">
+<code class="descname">-pdb</code><code class="descclassname">=&lt;file-name&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-yaml2pdb-pdb" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>Write the resulting PDB to the specified file.</p>
+</div>
+</div>
+<div class="section" id="merge">
+<span id="merge-subcommand"></span><h3><a class="toc-backref" href="#id43">merge</a><a class="headerlink" href="#merge" title="Permalink to this headline">¶</a></h3>
+<p>USAGE: <strong class="program">llvm-pdbutil</strong> merge [<em>options</em>] &lt;input PDB file 1&gt; &lt;input PDB file 2&gt;</p>
+<div class="section" id="id10">
+<h4><a class="toc-backref" href="#id44">Summary</a><a class="headerlink" href="#id10" title="Permalink to this headline">¶</a></h4>
+<p>Merge two PDB files into a single file.</p>
+</div>
+<div class="section" id="id11">
+<h4><a class="toc-backref" href="#id45">Options</a><a class="headerlink" href="#id11" title="Permalink to this headline">¶</a></h4>
+<dl class="option">
+<dt id="cmdoption-llvm-pdbutil-merge-pdb">
+<code class="descname">-pdb</code><code class="descclassname">=&lt;file-name&gt;</code><a class="headerlink" href="#cmdoption-llvm-pdbutil-merge-pdb" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p>Write the resulting PDB to the specified file.</p>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llvm-readobj.html" title="llvm-readobj - LLVM Object Reader"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llvm-build.html" title="llvm-build - LLVM Project Build Utility"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

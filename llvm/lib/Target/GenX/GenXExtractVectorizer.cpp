@@ -83,7 +83,7 @@ class GenXExtractVectorizer : public FunctionPass {
 public:
   static char ID;
   explicit GenXExtractVectorizer() : FunctionPass(ID) { }
-  virtual const char *getPassName() const { return "GenX Extract Vectorizer"; }
+  virtual StringRef getPassName() const { return "GenX Extract Vectorizer"; }
   void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.addRequired<DominatorTreeWrapperPass>();
     AU.setPreservesCFG();

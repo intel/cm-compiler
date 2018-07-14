@@ -10,7 +10,5 @@ _GENX_ void test1()
   v1[m2[0][3]] += 1;
 }
 
-// RUN: %cmc %w 2>&1 | FileCheck --implicit-check-not error %w
+// RUN: %cmc %w 2>&1 | FileCheck -allow-empty --implicit-check-not error %w
 // RUN: rm %W.isa
-// CHECK: warning: No CM kernel definitions found
-// CHECK: 1 warning generated

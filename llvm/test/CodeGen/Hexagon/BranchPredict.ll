@@ -1,4 +1,4 @@
-; RUN: llc -march=hexagon -mcpu=hexagonv4 < %s | FileCheck %s
+; RUN: llc -march=hexagon -ifcvt-limit=0 < %s | FileCheck %s
 
 ; Check if the branch probabilities are reflected in the instructions:
 ; The basic block placement pass should place the more probable successor
@@ -9,7 +9,7 @@
 @j = external global i32
 
 define i32 @foo(i32 %a) nounwind {
-; CHECK: if{{ *}}(!p{{[0-3]}}.new) jump:nt
+; CHECK: if (!p{{[0-3]}}.new) jump:nt
 entry:
   %tobool = icmp eq i32 %a, 0
   br i1 %tobool, label %if.else, label %if.then, !prof !0
@@ -31,7 +31,7 @@ return:                                           ; preds = %if.else, %if.then
 declare i32 @foobar(...)
 
 define i32 @bar(i32 %a) nounwind {
-; CHECK: if{{ *}}(p{{[0-3]}}.new) jump:nt
+; CHECK: if (p{{[0-3]}}.new) jump:nt
 entry:
   %tobool = icmp eq i32 %a, 0
   br i1 %tobool, label %if.else, label %if.then, !prof !1
@@ -51,9 +51,9 @@ return:                                           ; preds = %if.else, %if.then
 }
 
 define i32 @foo_bar(i32 %a, i16 signext %b) nounwind {
-; CHECK: if{{ *}}(!cmp.eq(r{{[0-9]*}}.new, #0)) jump:nt
+; CHECK: if (!cmp.eq(r{{[0-9]*}}.new,#0)) jump:nt
 entry:
-  %0 = load i32* @j, align 4
+  %0 = load i32, i32* @j, align 4
   %tobool = icmp eq i32 %0, 0
   br i1 %tobool, label %if.else, label %if.then, !prof !0
 
@@ -72,5 +72,5 @@ return:                                           ; preds = %if.else, %if.then
   ret i32 %retval.0
 }
 
-!0 = metadata !{metadata !"branch_weights", i32 64, i32 4}
-!1 = metadata !{metadata !"branch_weights", i32 4, i32 64}
+!0 = !{!"branch_weights", i32 64, i32 4}
+!1 = !{!"branch_weights", i32 4, i32 64}

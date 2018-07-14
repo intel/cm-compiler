@@ -1,4 +1,5 @@
 ; RUN: not llvm-mc -triple arm64-apple-darwin -show-encoding < %s 2> %t | FileCheck %s
+; RUN: not llvm-mc -triple arm64-apple-darwin -mattr=+v8.3a -show-encoding < %s 2> %t | FileCheck %s --check-prefix=CHECK-V83
 ; RUN: FileCheck --check-prefix=CHECK-ERRORS < %t %s
 
 foo:
@@ -135,6 +136,8 @@ foo:
   msr VTTBR_EL2, x3
   msr SPSel, x3
   msr S3_2_C11_C6_4, x1
+  msr  S0_0_C0_C0_0, x0
+  msr  S1_2_C3_C4_5, x2
 ; CHECK: msr ACTLR_EL1, x3              ; encoding: [0x23,0x10,0x18,0xd5]
 ; CHECK: msr ACTLR_EL2, x3              ; encoding: [0x23,0x10,0x1c,0xd5]
 ; CHECK: msr ACTLR_EL3, x3              ; encoding: [0x23,0x10,0x1e,0xd5]
@@ -165,7 +168,7 @@ foo:
 ; CHECK: msr CPTR_EL2, x3               ; encoding: [0x43,0x11,0x1c,0xd5]
 ; CHECK: msr CPTR_EL3, x3               ; encoding: [0x43,0x11,0x1e,0xd5]
 ; CHECK: msr CSSELR_EL1, x3             ; encoding: [0x03,0x00,0x1a,0xd5]
-; CHECK: msr CURRENTEL, x3              ; encoding: [0x43,0x42,0x18,0xd5]
+; CHECK: msr CurrentEL, x3              ; encoding: [0x43,0x42,0x18,0xd5]
 ; CHECK: msr DACR32_EL2, x3             ; encoding: [0x03,0x30,0x1c,0xd5]
 ; CHECK: msr ESR_EL1, x3                ; encoding: [0x03,0x52,0x18,0xd5]
 ; CHECK: msr ESR_EL2, x3                ; encoding: [0x03,0x52,0x1c,0xd5]
@@ -211,8 +214,10 @@ foo:
 ; CHECK: msr VPIDR_EL2, x3              ; encoding: [0x03,0x00,0x1c,0xd5]
 ; CHECK: msr VTCR_EL2, x3               ; encoding: [0x43,0x21,0x1c,0xd5]
 ; CHECK: msr VTTBR_EL2, x3              ; encoding: [0x03,0x21,0x1c,0xd5]
-; CHECK: msr  SPSEL, x3                 ; encoding: [0x03,0x42,0x18,0xd5]
+; CHECK: msr  SPSel, x3                 ; encoding: [0x03,0x42,0x18,0xd5]
 ; CHECK: msr  S3_2_C11_C6_4, x1         ; encoding: [0x81,0xb6,0x1a,0xd5]
+; CHECK: msr  S0_0_C0_C0_0, x0          ; encoding: [0x00,0x00,0x00,0xd5]
+; CHECK: msr  S1_2_C3_C4_5, x2          ; encoding: [0xa2,0x34,0x0a,0xd5]
 
   mrs x3, ACTLR_EL1
   mrs x3, ACTLR_EL2
@@ -229,6 +234,7 @@ foo:
   mrs x3, AMAIR_EL3
   mrs x3, CCSIDR_EL1
   mrs x3, CLIDR_EL1
+  mrs x3, CCSIDR2_EL1
   mrs x3, CNTFRQ_EL0
   mrs x3, CNTHCTL_EL2
   mrs x3, CNTHP_CTL_EL2
@@ -414,6 +420,7 @@ foo:
 ; CHECK: mrs x3, AMAIR_EL3              ; encoding: [0x03,0xa3,0x3e,0xd5]
 ; CHECK: mrs x3, CCSIDR_EL1             ; encoding: [0x03,0x00,0x39,0xd5]
 ; CHECK: mrs x3, CLIDR_EL1              ; encoding: [0x23,0x00,0x39,0xd5]
+; CHECK-V83: mrs x3, CCSIDR2_EL1        ; encoding: [0x43,0x00,0x39,0xd5]
 ; CHECK: mrs x3, CNTFRQ_EL0             ; encoding: [0x03,0xe0,0x3b,0xd5]
 ; CHECK: mrs x3, CNTHCTL_EL2            ; encoding: [0x03,0xe1,0x3c,0xd5]
 ; CHECK: mrs x3, CNTHP_CTL_EL2          ; encoding: [0x23,0xe2,0x3c,0xd5]
@@ -435,7 +442,7 @@ foo:
 ; CHECK: mrs x3, CPTR_EL3               ; encoding: [0x43,0x11,0x3e,0xd5]
 ; CHECK: mrs x3, CSSELR_EL1             ; encoding: [0x03,0x00,0x3a,0xd5]
 ; CHECK: mrs x3, CTR_EL0                ; encoding: [0x23,0x00,0x3b,0xd5]
-; CHECK: mrs x3, CURRENTEL              ; encoding: [0x43,0x42,0x38,0xd5]
+; CHECK: mrs x3, CurrentEL              ; encoding: [0x43,0x42,0x38,0xd5]
 ; CHECK: mrs x3, DACR32_EL2             ; encoding: [0x03,0x30,0x3c,0xd5]
 ; CHECK: mrs x3, DCZID_EL0              ; encoding: [0xe3,0x00,0x3b,0xd5]
 ; CHECK: mrs x3, REVIDR_EL1             ; encoding: [0xc3,0x00,0x38,0xd5]

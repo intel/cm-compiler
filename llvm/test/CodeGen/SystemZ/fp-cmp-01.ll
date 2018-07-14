@@ -1,7 +1,10 @@
 ; Test 32-bit floating-point comparison.  The tests assume a z10 implementation
 ; of select, using conditional branches rather than LOCGR.
 ;
-; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z10 | FileCheck %s
+; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z10 \
+; RUN:   | FileCheck -check-prefix=CHECK -check-prefix=CHECK-SCALAR %s
+; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z14 \
+; RUN:   | FileCheck -check-prefix=CHECK -check-prefix=CHECK-VECTOR %s
 
 declare float @foo()
 
@@ -9,8 +12,9 @@ declare float @foo()
 define i64 @f1(i64 %a, i64 %b, float %f1, float %f2) {
 ; CHECK-LABEL: f1:
 ; CHECK: cebr %f0, %f2
-; CHECK-NEXT: je
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: ber %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrne %r2, %r3
 ; CHECK: br %r14
   %cond = fcmp oeq float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
@@ -21,10 +25,11 @@ define i64 @f1(i64 %a, i64 %b, float %f1, float %f2) {
 define i64 @f2(i64 %a, i64 %b, float %f1, float *%ptr) {
 ; CHECK-LABEL: f2:
 ; CHECK: ceb %f0, 0(%r4)
-; CHECK-NEXT: je
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: ber %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrne %r2, %r3
 ; CHECK: br %r14
-  %f2 = load float *%ptr
+  %f2 = load float , float *%ptr
   %cond = fcmp oeq float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -34,11 +39,12 @@ define i64 @f2(i64 %a, i64 %b, float %f1, float *%ptr) {
 define i64 @f3(i64 %a, i64 %b, float %f1, float *%base) {
 ; CHECK-LABEL: f3:
 ; CHECK: ceb %f0, 4092(%r4)
-; CHECK-NEXT: je
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: ber %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrne %r2, %r3
 ; CHECK: br %r14
-  %ptr = getelementptr float *%base, i64 1023
-  %f2 = load float *%ptr
+  %ptr = getelementptr float, float *%base, i64 1023
+  %f2 = load float , float *%ptr
   %cond = fcmp oeq float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -50,11 +56,12 @@ define i64 @f4(i64 %a, i64 %b, float %f1, float *%base) {
 ; CHECK-LABEL: f4:
 ; CHECK: aghi %r4, 4096
 ; CHECK: ceb %f0, 0(%r4)
-; CHECK-NEXT: je
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: ber %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrne %r2, %r3
 ; CHECK: br %r14
-  %ptr = getelementptr float *%base, i64 1024
-  %f2 = load float *%ptr
+  %ptr = getelementptr float, float *%base, i64 1024
+  %f2 = load float , float *%ptr
   %cond = fcmp oeq float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -65,11 +72,12 @@ define i64 @f5(i64 %a, i64 %b, float %f1, float *%base) {
 ; CHECK-LABEL: f5:
 ; CHECK: aghi %r4, -4
 ; CHECK: ceb %f0, 0(%r4)
-; CHECK-NEXT: je
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: ber %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrne %r2, %r3
 ; CHECK: br %r14
-  %ptr = getelementptr float *%base, i64 -1
-  %f2 = load float *%ptr
+  %ptr = getelementptr float, float *%base, i64 -1
+  %f2 = load float , float *%ptr
   %cond = fcmp oeq float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -80,12 +88,13 @@ define i64 @f6(i64 %a, i64 %b, float %f1, float *%base, i64 %index) {
 ; CHECK-LABEL: f6:
 ; CHECK: sllg %r1, %r5, 2
 ; CHECK: ceb %f0, 400(%r1,%r4)
-; CHECK-NEXT: je
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: ber %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrne %r2, %r3
 ; CHECK: br %r14
-  %ptr1 = getelementptr float *%base, i64 %index
-  %ptr2 = getelementptr float *%ptr1, i64 100
-  %f2 = load float *%ptr2
+  %ptr1 = getelementptr float, float *%base, i64 %index
+  %ptr2 = getelementptr float, float *%ptr1, i64 100
+  %f2 = load float , float *%ptr2
   %cond = fcmp oeq float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -95,30 +104,30 @@ define i64 @f6(i64 %a, i64 %b, float %f1, float *%base, i64 %index) {
 define float @f7(float *%ptr0) {
 ; CHECK-LABEL: f7:
 ; CHECK: brasl %r14, foo@PLT
-; CHECK: ceb {{%f[0-9]+}}, 16{{[04]}}(%r15)
+; CHECK-SCALAR: ceb {{%f[0-9]+}}, 16{{[04]}}(%r15)
 ; CHECK: br %r14
-  %ptr1 = getelementptr float *%ptr0, i64 2
-  %ptr2 = getelementptr float *%ptr0, i64 4
-  %ptr3 = getelementptr float *%ptr0, i64 6
-  %ptr4 = getelementptr float *%ptr0, i64 8
-  %ptr5 = getelementptr float *%ptr0, i64 10
-  %ptr6 = getelementptr float *%ptr0, i64 12
-  %ptr7 = getelementptr float *%ptr0, i64 14
-  %ptr8 = getelementptr float *%ptr0, i64 16
-  %ptr9 = getelementptr float *%ptr0, i64 18
-  %ptr10 = getelementptr float *%ptr0, i64 20
+  %ptr1 = getelementptr float, float *%ptr0, i64 2
+  %ptr2 = getelementptr float, float *%ptr0, i64 4
+  %ptr3 = getelementptr float, float *%ptr0, i64 6
+  %ptr4 = getelementptr float, float *%ptr0, i64 8
+  %ptr5 = getelementptr float, float *%ptr0, i64 10
+  %ptr6 = getelementptr float, float *%ptr0, i64 12
+  %ptr7 = getelementptr float, float *%ptr0, i64 14
+  %ptr8 = getelementptr float, float *%ptr0, i64 16
+  %ptr9 = getelementptr float, float *%ptr0, i64 18
+  %ptr10 = getelementptr float, float *%ptr0, i64 20
 
-  %val0 = load float *%ptr0
-  %val1 = load float *%ptr1
-  %val2 = load float *%ptr2
-  %val3 = load float *%ptr3
-  %val4 = load float *%ptr4
-  %val5 = load float *%ptr5
-  %val6 = load float *%ptr6
-  %val7 = load float *%ptr7
-  %val8 = load float *%ptr8
-  %val9 = load float *%ptr9
-  %val10 = load float *%ptr10
+  %val0 = load float , float *%ptr0
+  %val1 = load float , float *%ptr1
+  %val2 = load float , float *%ptr2
+  %val3 = load float , float *%ptr3
+  %val4 = load float , float *%ptr4
+  %val5 = load float , float *%ptr5
+  %val6 = load float , float *%ptr6
+  %val7 = load float , float *%ptr7
+  %val8 = load float , float *%ptr8
+  %val9 = load float , float *%ptr9
+  %val10 = load float , float *%ptr10
 
   %ret = call float @foo()
 
@@ -153,8 +162,9 @@ define float @f7(float *%ptr0) {
 define i64 @f8(i64 %a, i64 %b, float %f) {
 ; CHECK-LABEL: f8:
 ; CHECK: ltebr %f0, %f0
-; CHECK-NEXT: je
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: ber %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrne %r2, %r3
 ; CHECK: br %r14
   %cond = fcmp oeq float %f, 0.0
   %res = select i1 %cond, i64 %a, i64 %b
@@ -166,10 +176,11 @@ define i64 @f8(i64 %a, i64 %b, float %f) {
 define i64 @f9(i64 %a, i64 %b, float %f2, float *%ptr) {
 ; CHECK-LABEL: f9:
 ; CHECK: ceb %f0, 0(%r4)
-; CHECK-NEXT: je {{\.L.*}}
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: ber %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrne %r2, %r3
 ; CHECK: br %r14
-  %f1 = load float *%ptr
+  %f1 = load float , float *%ptr
   %cond = fcmp oeq float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -179,10 +190,11 @@ define i64 @f9(i64 %a, i64 %b, float %f2, float *%ptr) {
 define i64 @f10(i64 %a, i64 %b, float %f2, float *%ptr) {
 ; CHECK-LABEL: f10:
 ; CHECK: ceb %f0, 0(%r4)
-; CHECK-NEXT: jlh {{\.L.*}}
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: blhr %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrnlh %r2, %r3
 ; CHECK: br %r14
-  %f1 = load float *%ptr
+  %f1 = load float , float *%ptr
   %cond = fcmp one float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -192,10 +204,11 @@ define i64 @f10(i64 %a, i64 %b, float %f2, float *%ptr) {
 define i64 @f11(i64 %a, i64 %b, float %f2, float *%ptr) {
 ; CHECK-LABEL: f11:
 ; CHECK: ceb %f0, 0(%r4)
-; CHECK-NEXT: jh {{\.L.*}}
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: bhr %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrnh %r2, %r3
 ; CHECK: br %r14
-  %f1 = load float *%ptr
+  %f1 = load float , float *%ptr
   %cond = fcmp olt float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -205,10 +218,11 @@ define i64 @f11(i64 %a, i64 %b, float %f2, float *%ptr) {
 define i64 @f12(i64 %a, i64 %b, float %f2, float *%ptr) {
 ; CHECK-LABEL: f12:
 ; CHECK: ceb %f0, 0(%r4)
-; CHECK-NEXT: jhe {{\.L.*}}
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: bher %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrnhe %r2, %r3
 ; CHECK: br %r14
-  %f1 = load float *%ptr
+  %f1 = load float , float *%ptr
   %cond = fcmp ole float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -218,10 +232,11 @@ define i64 @f12(i64 %a, i64 %b, float %f2, float *%ptr) {
 define i64 @f13(i64 %a, i64 %b, float %f2, float *%ptr) {
 ; CHECK-LABEL: f13:
 ; CHECK: ceb %f0, 0(%r4)
-; CHECK-NEXT: jle {{\.L.*}}
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: bler %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrnle %r2, %r3
 ; CHECK: br %r14
-  %f1 = load float *%ptr
+  %f1 = load float , float *%ptr
   %cond = fcmp oge float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -231,10 +246,11 @@ define i64 @f13(i64 %a, i64 %b, float %f2, float *%ptr) {
 define i64 @f14(i64 %a, i64 %b, float %f2, float *%ptr) {
 ; CHECK-LABEL: f14:
 ; CHECK: ceb %f0, 0(%r4)
-; CHECK-NEXT: jl {{\.L.*}}
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: blr %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrnl %r2, %r3
 ; CHECK: br %r14
-  %f1 = load float *%ptr
+  %f1 = load float , float *%ptr
   %cond = fcmp ogt float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -244,10 +260,11 @@ define i64 @f14(i64 %a, i64 %b, float %f2, float *%ptr) {
 define i64 @f15(i64 %a, i64 %b, float %f2, float *%ptr) {
 ; CHECK-LABEL: f15:
 ; CHECK: ceb %f0, 0(%r4)
-; CHECK-NEXT: jnlh {{\.L.*}}
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: bnlhr %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrlh %r2, %r3
 ; CHECK: br %r14
-  %f1 = load float *%ptr
+  %f1 = load float , float *%ptr
   %cond = fcmp ueq float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -257,10 +274,11 @@ define i64 @f15(i64 %a, i64 %b, float %f2, float *%ptr) {
 define i64 @f16(i64 %a, i64 %b, float %f2, float *%ptr) {
 ; CHECK-LABEL: f16:
 ; CHECK: ceb %f0, 0(%r4)
-; CHECK-NEXT: jne {{\.L.*}}
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: bner %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgre %r2, %r3
 ; CHECK: br %r14
-  %f1 = load float *%ptr
+  %f1 = load float , float *%ptr
   %cond = fcmp une float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -270,10 +288,11 @@ define i64 @f16(i64 %a, i64 %b, float %f2, float *%ptr) {
 define i64 @f17(i64 %a, i64 %b, float %f2, float *%ptr) {
 ; CHECK-LABEL: f17:
 ; CHECK: ceb %f0, 0(%r4)
-; CHECK-NEXT: jnle {{\.L.*}}
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: bnler %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrle %r2, %r3
 ; CHECK: br %r14
-  %f1 = load float *%ptr
+  %f1 = load float , float *%ptr
   %cond = fcmp ult float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -283,10 +302,11 @@ define i64 @f17(i64 %a, i64 %b, float %f2, float *%ptr) {
 define i64 @f18(i64 %a, i64 %b, float %f2, float *%ptr) {
 ; CHECK-LABEL: f18:
 ; CHECK: ceb %f0, 0(%r4)
-; CHECK-NEXT: jnl {{\.L.*}}
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: bnlr %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrl %r2, %r3
 ; CHECK: br %r14
-  %f1 = load float *%ptr
+  %f1 = load float , float *%ptr
   %cond = fcmp ule float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -296,10 +316,11 @@ define i64 @f18(i64 %a, i64 %b, float %f2, float *%ptr) {
 define i64 @f19(i64 %a, i64 %b, float %f2, float *%ptr) {
 ; CHECK-LABEL: f19:
 ; CHECK: ceb %f0, 0(%r4)
-; CHECK-NEXT: jnh {{\.L.*}}
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: bnhr %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrh %r2, %r3
 ; CHECK: br %r14
-  %f1 = load float *%ptr
+  %f1 = load float , float *%ptr
   %cond = fcmp uge float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res
@@ -309,10 +330,11 @@ define i64 @f19(i64 %a, i64 %b, float %f2, float *%ptr) {
 define i64 @f20(i64 %a, i64 %b, float %f2, float *%ptr) {
 ; CHECK-LABEL: f20:
 ; CHECK: ceb %f0, 0(%r4)
-; CHECK-NEXT: jnhe {{\.L.*}}
-; CHECK: lgr %r2, %r3
+; CHECK-SCALAR-NEXT: bnher %r14
+; CHECK-SCALAR: lgr %r2, %r3
+; CHECK-VECTOR-NEXT: locgrhe %r2, %r3
 ; CHECK: br %r14
-  %f1 = load float *%ptr
+  %f1 = load float , float *%ptr
   %cond = fcmp ugt float %f1, %f2
   %res = select i1 %cond, i64 %a, i64 %b
   ret i64 %res

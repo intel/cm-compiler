@@ -14,6 +14,7 @@
 #ifndef LLVM_TARGET_TARGETINTRINSICINFO_H
 #define LLVM_TARGET_TARGETINTRINSICINFO_H
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Compiler.h"
 #include <string>
 
@@ -28,8 +29,8 @@ class Type;
 /// TargetIntrinsicInfo - Interface to description of machine instruction set
 ///
 class TargetIntrinsicInfo {
-  TargetIntrinsicInfo(const TargetIntrinsicInfo &) LLVM_DELETED_FUNCTION;
-  void operator=(const TargetIntrinsicInfo &) LLVM_DELETED_FUNCTION;
+  TargetIntrinsicInfo(const TargetIntrinsicInfo &) = delete;
+  void operator=(const TargetIntrinsicInfo &) = delete;
 public:
   TargetIntrinsicInfo();
   virtual ~TargetIntrinsicInfo();
@@ -47,12 +48,16 @@ public:
   /// names.
   virtual unsigned lookupName(const char *Name, unsigned Len) const =0;
 
+  unsigned lookupName(StringRef Name) const {
+    return lookupName(Name.data(), Name.size());
+  }
+
   /// Return the target intrinsic ID of a function, or 0.
-  virtual unsigned getIntrinsicID(Function *F) const;
+  virtual unsigned getIntrinsicID(const Function *F) const;
 
   /// Returns true if the intrinsic can be overloaded.
   virtual bool isOverloaded(unsigned IID) const = 0;
-  
+
   /// Create or insert an LLVM Function declaration for an intrinsic,
   /// and return it. The Tys and numTys are for intrinsics with overloaded
   /// types. See above for more information.

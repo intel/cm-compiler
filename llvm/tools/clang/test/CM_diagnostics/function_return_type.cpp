@@ -139,9 +139,9 @@ _GENX_MAIN_ void foo(SurfaceIndex idx)
 // helpful front-end error in order to avoid a more obscure error from the finalizer.
 // RUN: %cmc -ferror-limit=999 %w 2>&1 | FileCheck %w
 
-// CHECK: function_return_type.cpp(58,21) :  error: unsupported function return type 'SamplerIndex'
-// CHECK: function_return_type.cpp(60,21) :  error: unsupported function return type 'SurfaceIndex'
-// CHECK: function_return_type.cpp(62,17) :  error: unsupported function return type 'VmeIndex'
-// CHECK: function_return_type.cpp(66,28) :  error: unsupported function return type 'matrix_ref<int,4,4>'
-// CHECK: function_return_type.cpp(70,26) :  error: unsupported function return type 'vector_ref<int,4>'
+// CHECK: function_return_type.cpp(58,21):  error: unsupported function return type 'SamplerIndex'
+// CHECK: function_return_type.cpp(60,21):  error: unsupported function return type 'SurfaceIndex'
+// CHECK: function_return_type.cpp(62,17):  error: unsupported function return type 'VmeIndex'
+// CHECK: function_return_type.cpp(66,28):  error: unsupported function return type 'matrix_ref<int,4,4>'
+// CHECK: function_return_type.cpp(70,26):  error: unsupported function return type 'vector_ref<int,4>'
 // CHECK: 5 errors generated.

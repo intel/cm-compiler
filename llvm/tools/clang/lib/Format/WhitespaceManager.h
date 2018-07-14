@@ -13,8 +13,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FORMAT_WHITESPACEMANAGER_H
-#define LLVM_CLANG_FORMAT_WHITESPACEMANAGER_H
+#ifndef LLVM_CLANG_LIB_FORMAT_WHITESPACEMANAGER_H
+#define LLVM_CLANG_LIB_FORMAT_WHITESPACEMANAGER_H
 
 #include "TokenAnnotator.h"
 #include "clang/Basic/SourceManager.h"
@@ -37,17 +37,17 @@ namespace format {
 /// There may be multiple calls to \c breakToken for a given token.
 class WhitespaceManager {
 public:
-  WhitespaceManager(SourceManager &SourceMgr, const FormatStyle &Style,
+  WhitespaceManager(const SourceManager &SourceMgr, const FormatStyle &Style,
                     bool UseCRLF)
       : SourceMgr(SourceMgr), Style(Style), UseCRLF(UseCRLF) {}
 
-  /// \brief Prepares the \c WhitespaceManager for another run.
-  void reset();
-
   /// \brief Replaces the whitespace in front of \p Tok. Only call once for
   /// each \c AnnotatedToken.
-  void replaceWhitespace(FormatToken &Tok, unsigned Newlines,
-                         unsigned IndentLevel, unsigned Spaces,
+  ///
+  /// \p StartOfTokenColumn is the column at which the token will start after
+  /// this replacement. It is needed for determining how \p Spaces is turned
+  /// into tabs and spaces for some format styles.
+  void replaceWhitespace(FormatToken &Tok, unsigned Newlines, unsigned Spaces,
                          unsigned StartOfTokenColumn,
                          bool InPPDirective = false);
 
@@ -56,6 +56,8 @@ public:
   /// Needs to be called for every token for which \c replaceWhitespace
   /// was not called.
   void addUntouchableToken(const FormatToken &Tok, bool InPPDirective);
+
+  llvm::Error addReplacement(const tooling::Replacement &Replacement);
 
   /// \brief Inserts or replaces whitespace in the middle of a token.
   ///
@@ -75,13 +77,11 @@ public:
                                 unsigned ReplaceChars,
                                 StringRef PreviousPostfix,
                                 StringRef CurrentPrefix, bool InPPDirective,
-                                unsigned Newlines, unsigned IndentLevel,
-                                int Spaces);
+                                unsigned Newlines, int Spaces);
 
   /// \brief Returns all the \c Replacements created during formatting.
   const tooling::Replacements &generateReplacements();
 
-private:
   /// \brief Represents a change before a token, a break inside a token,
   /// or the layout of an unchanged token (or whitespace within).
   struct Change {
@@ -95,8 +95,6 @@ private:
       const SourceManager &SourceMgr;
     };
 
-    Change() {}
-
     /// \brief Creates a \c Change.
     ///
     /// The generated \c Change will replace the characters at
@@ -106,11 +104,17 @@ private:
     ///
     /// \p StartOfTokenColumn and \p InPPDirective will be used to lay out
     /// trailing comments and escaped newlines.
-    Change(bool CreateReplacement, const SourceRange &OriginalWhitespaceRange,
-           unsigned IndentLevel, int Spaces, unsigned StartOfTokenColumn,
-           unsigned NewlinesBefore, StringRef PreviousLinePostfix,
-           StringRef CurrentLinePrefix, tok::TokenKind Kind,
-           bool ContinuesPPDirective);
+    Change(const FormatToken &Tok, bool CreateReplacement,
+           SourceRange OriginalWhitespaceRange, int Spaces,
+           unsigned StartOfTokenColumn, unsigned NewlinesBefore,
+           StringRef PreviousLinePostfix, StringRef CurrentLinePrefix,
+           bool ContinuesPPDirective, bool IsInsideToken);
+
+    // The kind of the token whose whitespace this change replaces, or in which
+    // this change inserts whitespace.
+    // FIXME: Currently this is not set correctly for breaks inside comments, as
+    // the \c BreakableToken is still doing its own alignment.
+    const FormatToken *Tok;
 
     bool CreateReplacement;
     // Changes might be in the middle of a token, so we cannot just keep the
@@ -120,17 +124,7 @@ private:
     unsigned NewlinesBefore;
     std::string PreviousLinePostfix;
     std::string CurrentLinePrefix;
-    // The kind of the token whose whitespace this change replaces, or in which
-    // this change inserts whitespace.
-    // FIXME: Currently this is not set correctly for breaks inside comments, as
-    // the \c BreakableToken is still doing its own alignment.
-    tok::TokenKind Kind;
     bool ContinuesPPDirective;
-
-    // The number of nested blocks the token is in. This is used to add tabs
-    // only for the indentation, and not for alignment, when
-    // UseTab = US_ForIndentation.
-    unsigned IndentLevel;
 
     // The number of spaces in front of the token or broken part of the token.
     // This will be adapted when aligning tokens.
@@ -138,6 +132,10 @@ private:
     // of the lines in a block comment. This is used when aligning trailing
     // comments. Uncompensated negative offset is truncated to 0.
     int Spaces;
+
+    // If this change is inside of a token but not at the start of the token or
+    // directly after a newline.
+    bool IsInsideToken;
 
     // \c IsTrailingComment, \c TokenLength, \c PreviousEndOfTokenColumn and
     // \c EscapedNewlineColumn will be calculated in
@@ -157,12 +155,26 @@ private:
     // the alignment process.
     const Change *StartOfBlockComment;
     int IndentationOffset;
+
+    // A combination of indent level and nesting level, which are used in
+    // tandem to compute lexical scope, for the purposes of deciding
+    // when to stop consecutive alignment runs.
+    std::pair<unsigned, unsigned> indentAndNestingLevel() const {
+      return std::make_pair(Tok->IndentLevel, Tok->NestingLevel);
+    }
   };
 
+private:
   /// \brief Calculate \c IsTrailingComment, \c TokenLength for the last tokens
   /// or token parts in a line and \c PreviousEndOfTokenColumn and
   /// \c EscapedNewlineColumn for the first tokens or token parts in a line.
   void calculateLineBreakInformation();
+
+  /// \brief Align consecutive assignments over all \c Changes.
+  void alignConsecutiveAssignments();
+
+  /// \brief Align consecutive declarations over all \c Changes.
+  void alignConsecutiveDeclarations();
 
   /// \brief Align trailing comments over all \c Changes.
   void alignTrailingComments();
@@ -182,16 +194,16 @@ private:
   void generateChanges();
 
   /// \brief Stores \p Text as the replacement for the whitespace in \p Range.
-  void storeReplacement(const SourceRange &Range, StringRef Text);
+  void storeReplacement(SourceRange Range, StringRef Text);
   void appendNewlineText(std::string &Text, unsigned Newlines);
-  void appendNewlineText(std::string &Text, unsigned Newlines,
-                         unsigned PreviousEndOfTokenColumn,
-                         unsigned EscapedNewlineColumn);
+  void appendEscapedNewlineText(std::string &Text, unsigned Newlines,
+                                unsigned PreviousEndOfTokenColumn,
+                                unsigned EscapedNewlineColumn);
   void appendIndentText(std::string &Text, unsigned IndentLevel,
                         unsigned Spaces, unsigned WhitespaceStartColumn);
 
   SmallVector<Change, 16> Changes;
-  SourceManager &SourceMgr;
+  const SourceManager &SourceMgr;
   tooling::Replacements Replaces;
   const FormatStyle &Style;
   bool UseCRLF;
@@ -200,4 +212,4 @@ private:
 } // namespace format
 } // namespace clang
 
-#endif // LLVM_CLANG_FORMAT_WHITESPACEMANAGER_H
+#endif

@@ -1,4 +1,4 @@
-; RUN: llc -march=arm64 -o - %s | FileCheck %s
+; RUN: llc < %s -mtriple=arm64-eabi | FileCheck %s
 
 ; This is mostly a "don't assert" test. The type of the RHS of a shift depended
 ; on the phase of legalization, which led to the creation of an unexpected and
@@ -11,7 +11,7 @@
 define void @foo(i64* nocapture %d) {
 ; CHECK-LABEL: foo:
 ; CHECK: rorv
-  %tmp = load i64* undef, align 8
+  %tmp = load i64, i64* undef, align 8
   %sub397 = sub i64 0, %tmp
   %and398 = and i64 %sub397, 4294967295
   %shr404 = lshr i64 %and398, 0

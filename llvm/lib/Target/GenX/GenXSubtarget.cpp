@@ -71,7 +71,7 @@ void GenXSubtarget::resetSubtargetFeatures(StringRef CPU, StringRef FS) {
   ParseSubtargetFeatures(CPUName, FS);
 }
 
-GenXSubtarget::GenXSubtarget(const std::string &TT, const std::string &CPU,
+GenXSubtarget::GenXSubtarget(const Triple &TT, const std::string &CPU,
                              const std::string &FS)
     : GenXGenSubtargetInfo(TT, CPU, FS), TargetTriple(TT) {
 

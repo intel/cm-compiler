@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>How to set up LLVM-style RTTI for your class hierarchy &#8212; LLVM 3.4 documentation</title>
+    <title>How to set up LLVM-style RTTI for your class hierarchy &#8212; LLVM 6 documentation</title>
     
     <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -15,7 +15,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.4',
+        VERSION:     '6',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true,
@@ -110,14 +110,14 @@ RTTI for this class hierarchy:</p>
   <span class="kt">double</span> <span class="n">SideLength</span><span class="p">;</span>
 <span class="k">public</span><span class="o">:</span>
   <span class="n">Square</span><span class="p">(</span><span class="kt">double</span> <span class="n">S</span><span class="p">)</span> <span class="o">:</span> <span class="n">SideLength</span><span class="p">(</span><span class="n">S</span><span class="p">)</span> <span class="p">{}</span>
-  <span class="kt">double</span> <span class="n">computeArea</span><span class="p">()</span> <span class="cm">/* override */</span><span class="p">;</span>
+  <span class="kt">double</span> <span class="n">computeArea</span><span class="p">()</span> <span class="k">override</span><span class="p">;</span>
 <span class="p">};</span>
 
 <span class="k">class</span> <span class="nc">Circle</span> <span class="o">:</span> <span class="k">public</span> <span class="n">Shape</span> <span class="p">{</span>
   <span class="kt">double</span> <span class="n">Radius</span><span class="p">;</span>
 <span class="k">public</span><span class="o">:</span>
   <span class="n">Circle</span><span class="p">(</span><span class="kt">double</span> <span class="n">R</span><span class="p">)</span> <span class="o">:</span> <span class="n">Radius</span><span class="p">(</span><span class="n">R</span><span class="p">)</span> <span class="p">{}</span>
-  <span class="kt">double</span> <span class="n">computeArea</span><span class="p">()</span> <span class="cm">/* override */</span><span class="p">;</span>
+  <span class="kt">double</span> <span class="n">computeArea</span><span class="p">()</span> <span class="k">override</span><span class="p">;</span>
 <span class="p">};</span>
 </pre></div>
 </div>
@@ -196,7 +196,7 @@ then pass in the respective <code class="docutils literal"><span class="pre">XXX
  <span class="k">public</span><span class="o">:</span>
 <span class="o">-</span>  <span class="n">Square</span><span class="p">(</span><span class="kt">double</span> <span class="n">S</span><span class="p">)</span> <span class="o">:</span> <span class="n">SideLength</span><span class="p">(</span><span class="n">S</span><span class="p">)</span> <span class="p">{}</span>
 <span class="o">+</span>  <span class="n">Square</span><span class="p">(</span><span class="kt">double</span> <span class="n">S</span><span class="p">)</span> <span class="o">:</span> <span class="n">Shape</span><span class="p">(</span><span class="n">SK_Square</span><span class="p">),</span> <span class="n">SideLength</span><span class="p">(</span><span class="n">S</span><span class="p">)</span> <span class="p">{}</span>
-   <span class="kt">double</span> <span class="n">computeArea</span><span class="p">()</span> <span class="cm">/* override */</span><span class="p">;</span>
+   <span class="kt">double</span> <span class="n">computeArea</span><span class="p">()</span> <span class="k">override</span><span class="p">;</span>
  <span class="p">};</span>
 
  <span class="k">class</span> <span class="nc">Circle</span> <span class="o">:</span> <span class="k">public</span> <span class="n">Shape</span> <span class="p">{</span>
@@ -204,7 +204,7 @@ then pass in the respective <code class="docutils literal"><span class="pre">XXX
  <span class="k">public</span><span class="o">:</span>
 <span class="o">-</span>  <span class="n">Circle</span><span class="p">(</span><span class="kt">double</span> <span class="n">R</span><span class="p">)</span> <span class="o">:</span> <span class="n">Radius</span><span class="p">(</span><span class="n">R</span><span class="p">)</span> <span class="p">{}</span>
 <span class="o">+</span>  <span class="n">Circle</span><span class="p">(</span><span class="kt">double</span> <span class="n">R</span><span class="p">)</span> <span class="o">:</span> <span class="n">Shape</span><span class="p">(</span><span class="n">SK_Circle</span><span class="p">),</span> <span class="n">Radius</span><span class="p">(</span><span class="n">R</span><span class="p">)</span> <span class="p">{}</span>
-   <span class="kt">double</span> <span class="n">computeArea</span><span class="p">()</span> <span class="cm">/* override */</span><span class="p">;</span>
+   <span class="kt">double</span> <span class="n">computeArea</span><span class="p">()</span> <span class="k">override</span><span class="p">;</span>
  <span class="p">};</span>
 </pre></div>
 </div>
@@ -235,7 +235,7 @@ then below describe each part:</p>
    <span class="kt">double</span> <span class="n">SideLength</span><span class="p">;</span>
  <span class="k">public</span><span class="o">:</span>
    <span class="n">Square</span><span class="p">(</span><span class="kt">double</span> <span class="n">S</span><span class="p">)</span> <span class="o">:</span> <span class="n">Shape</span><span class="p">(</span><span class="n">SK_Square</span><span class="p">),</span> <span class="n">SideLength</span><span class="p">(</span><span class="n">S</span><span class="p">)</span> <span class="p">{}</span>
-   <span class="kt">double</span> <span class="n">computeArea</span><span class="p">()</span> <span class="cm">/* override */</span><span class="p">;</span>
+   <span class="kt">double</span> <span class="n">computeArea</span><span class="p">()</span> <span class="k">override</span><span class="p">;</span>
 <span class="o">+</span>
 <span class="o">+</span>  <span class="k">static</span> <span class="kt">bool</span> <span class="n">classof</span><span class="p">(</span><span class="k">const</span> <span class="n">Shape</span> <span class="o">*</span><span class="n">S</span><span class="p">)</span> <span class="p">{</span>
 <span class="o">+</span>    <span class="k">return</span> <span class="n">S</span><span class="o">-&gt;</span><span class="n">getKind</span><span class="p">()</span> <span class="o">==</span> <span class="n">SK_Square</span><span class="p">;</span>
@@ -246,7 +246,7 @@ then below describe each part:</p>
    <span class="kt">double</span> <span class="n">Radius</span><span class="p">;</span>
  <span class="k">public</span><span class="o">:</span>
    <span class="n">Circle</span><span class="p">(</span><span class="kt">double</span> <span class="n">R</span><span class="p">)</span> <span class="o">:</span> <span class="n">Shape</span><span class="p">(</span><span class="n">SK_Circle</span><span class="p">),</span> <span class="n">Radius</span><span class="p">(</span><span class="n">R</span><span class="p">)</span> <span class="p">{}</span>
-   <span class="kt">double</span> <span class="n">computeArea</span><span class="p">()</span> <span class="cm">/* override */</span><span class="p">;</span>
+   <span class="kt">double</span> <span class="n">computeArea</span><span class="p">()</span> <span class="k">override</span><span class="p">;</span>
 <span class="o">+</span>
 <span class="o">+</span>  <span class="k">static</span> <span class="kt">bool</span> <span class="n">classof</span><span class="p">(</span><span class="k">const</span> <span class="n">Shape</span> <span class="o">*</span><span class="n">S</span><span class="p">)</span> <span class="p">{</span>
 <span class="o">+</span>    <span class="k">return</span> <span class="n">S</span><span class="o">-&gt;</span><span class="n">getKind</span><span class="p">()</span> <span class="o">==</span> <span class="n">SK_Circle</span><span class="p">;</span>
@@ -412,6 +412,19 @@ Hierarchies</a> as:</p>
 contract for <code class="docutils literal"><span class="pre">classof</span></code> is “return <code class="docutils literal"><span class="pre">true</span></code> if the dynamic type of the
 argument is-a <code class="docutils literal"><span class="pre">C</span></code>”.  As long as your implementation fulfills this
 contract, you can tweak and optimize it as much as you want.</p>
+<p>For example, LLVM-style RTTI can work fine in the presence of
+multiple-inheritance by defining an appropriate <code class="docutils literal"><span class="pre">classof</span></code>.
+An example of this in practice is
+<a class="reference external" href="http://clang.llvm.org/doxygen/classclang_1_1Decl.html">Decl</a> vs.
+<a class="reference external" href="http://clang.llvm.org/doxygen/classclang_1_1DeclContext.html">DeclContext</a>
+inside Clang.
+The <code class="docutils literal"><span class="pre">Decl</span></code> hierarchy is done very similarly to the example setup
+demonstrated in this tutorial.
+The key part is how to then incorporate <code class="docutils literal"><span class="pre">DeclContext</span></code>: all that is needed
+is in <code class="docutils literal"><span class="pre">bool</span> <span class="pre">DeclContext::classof(const</span> <span class="pre">Decl</span> <span class="pre">*)</span></code>, which asks the question
+“Given a <code class="docutils literal"><span class="pre">Decl</span></code>, how can I determine if it is-a <code class="docutils literal"><span class="pre">DeclContext</span></code>?”.
+It answers this with a simple switch over the set of <code class="docutils literal"><span class="pre">Decl</span></code> “kinds”, and
+returning true for ones that are known to be <code class="docutils literal"><span class="pre">DeclContext</span></code>’s.</p>
 </div>
 </div>
 <div class="section" id="rules-of-thumb">
@@ -455,8 +468,8 @@ last child’s <code class="docutils literal"><span class="pre">Kind</span></cod
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2014, LLVM Project.
-      Last updated on Wed Jan 31 13:26:17 2018 -0800.
+        &#169; Copyright 2003-2018, LLVM Project.
+      Last updated on Sat Jul 7 07:51:59 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>
