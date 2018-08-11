@@ -1563,7 +1563,7 @@ static InputKind ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
                   .Cases("ast", "pcm",
                          InputKind(InputKind::Unknown, InputKind::Precompiled))
                   .Case("ir", InputKind::LLVM_IR)
-                  .Case("spirv", InputKind::SPIRV)
+                  .Case("spv", InputKind::SPIRV)
                   .Default(InputKind::Unknown);
 
     if (DashX.isUnknown())

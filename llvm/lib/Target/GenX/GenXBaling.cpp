@@ -112,8 +112,9 @@ bool GenXGroupBaling::runOnFunctionGroup(FunctionGroup &FG)
 bool GenXBaling::processFunctionGroup(FunctionGroup *FG)
 {
   bool Modified = false;
-  for (auto i = FG->begin(), e = FG->end(); i != e; ++i)
+  for (auto i = FG->begin(), e = FG->end(); i != e; ++i) {
     Modified |= processFunction(*i);
+  }
   return Modified;
 }
 
@@ -166,7 +167,7 @@ void GenXBaling::processInst(Instruction *Inst)
 {
   unsigned IntrinID = getIntrinsicID(Inst);
   if (isWrRegion(IntrinID))
-    processWrRegion(Inst, IntrinID);
+    processWrRegion(Inst);
   else if (IntrinID == Intrinsic::genx_wrpredregion)
     processWrPredRegion(Inst);
   else if (IntrinID == Intrinsic::genx_wrpredpredregion)
@@ -174,7 +175,7 @@ void GenXBaling::processInst(Instruction *Inst)
   else if (IntrinID == Intrinsic::genx_sat || isIntegerSat(IntrinID))
     processSat(Inst);
   else if (isRdRegion(IntrinID))
-    processRdRegion(Inst, IntrinID);
+    processRdRegion(Inst);
   else if (BranchInst *Branch = dyn_cast<BranchInst>(Inst))
     processBranch(Branch);
   else {
@@ -196,33 +197,53 @@ void GenXBaling::processInst(Instruction *Inst)
  * This checks that the arg is general (rather than raw) and does not have
  * any stride restrictions that are incompatible with the region.
  *
- * In the legalization pass of baling, we always return true. Otherwise, a
- * region that would be OK after being split by legalization might here appear
- * not OK, and that would stop legalization considering splitting it.
+ * In the legalization pass of baling, we always return true when the main 
+ * instruction can be splitted. Otherwise, a region that would be OK after
+ * being split by legalization might here appear not OK, and that would stop
+ * legalization considering splitting it. However, if the main instruction
+ * cannot be splitted, then we need to check the full restriction
+ * otherwise, if the region is considered baled and skip legalization, 
+ * we may have illegal standalone read-region.
  */
 static bool isRegionOKForIntrinsic(GenXIntrinsicInfo::ArgInfo AI,
-    Instruction *RegionInst, BalingKind Kind)
+  Instruction *RegionInst, BalingKind Kind, AlignmentInfo *AlignInfo, bool CanSplitBale)
 {
   if (!AI.isGeneral())
     return false;
-  if (Kind == BalingKind::BK_Legalization)
-    return true;
+  if (Kind == BalingKind::BK_Legalization) {
+    if (CanSplitBale)
+      return true;
+  }
   unsigned Restriction = AI.getRestriction();
   if (!Restriction)
     return true;
   Region R(RegionInst, BaleInfo());
   unsigned ElementsPerGrf = 1U << (5 - Log2_32(R.ElementBytes));
   if (AI.Info & GenXIntrinsicInfo::GRFALIGNED) {
-    if (R.Indirect)
-      return false;
-    if (R.Offset & 31)
+    if (R.Indirect) {
+      // hack-begion
+      if (R.NumElements * R.ElementBytes > 64)
+        return false;
+      // hack-end
+      Alignment AL = AlignInfo->get(R.Indirect);
+      if (AL.getLogAlign() < 5 || AL.getExtraBits() != 0)
+        return false;
+    }
+    else if (R.Offset & 31)
       return false;
     if (R.is2D() && (R.VStride & (ElementsPerGrf - 1)))
       return false;
   }
   if (AI.Info & GenXIntrinsicInfo::OWALIGNED) {
-    if (R.Indirect)
-      return false;
+    if (R.Indirect) {
+      // hack-begion
+      if (R.NumElements * R.ElementBytes > 64)
+        return false;
+      // hack-end
+      Alignment AL = AlignInfo->get(R.Indirect);
+      if (AL.getLogAlign() < 4 || AL.getExtraBits() != 0)
+        return false;
+    }
     if (R.Offset & 15)
       return false;
     if (R.is2D() && (R.VStride & ((ElementsPerGrf >> 1) - 1)))
@@ -261,7 +282,7 @@ static bool isRegionOKForIntrinsic(GenXIntrinsicInfo::ArgInfo AI,
  * The region must be constant indexed, contiguous, and start on a GRF
  * boundary.
  */
-static bool isRegionOKForRaw(Value *V, bool IsWrite)
+static bool isRegionOKForRaw(Value *V, bool IsWrite, AlignmentInfo *AlignInfo)
 {
   switch (getIntrinsicID(V)) {
     case Intrinsic::genx_rdregioni:
@@ -282,7 +303,7 @@ static bool isRegionOKForRaw(Value *V, bool IsWrite)
     return false;
   if (R.Indirect)
     return false;
-  if (R.Offset & 31) // GRF boundary check
+  else if (R.Offset & 31) // GRF boundary check
     return false;
   if (R.Width != R.NumElements)
     return false;
@@ -352,7 +373,7 @@ static int checkModifier(Instruction *Inst)
  */
 static bool
 operandIsBaled(Instruction *Inst, unsigned OperandNum, BalingKind Kind,
-               int ModType,
+               AlignmentInfo *AlignInfo, int ModType,
                GenXIntrinsicInfo::ArgInfo AI = GenXIntrinsicInfo::ArgInfo()) {
   Instruction *Opnd = dyn_cast<Instruction>(Inst->getOperand(OperandNum));
   if (!Opnd)
@@ -388,7 +409,8 @@ operandIsBaled(Instruction *Inst, unsigned OperandNum, BalingKind Kind,
     // (Note we call isRegionOKForIntrinsic even when Inst is not an
     // intrinsic, since in that case AI is initialized to a state
     // where there are no region restrictions.)
-    if (!isRegionOKForIntrinsic(AI, Opnd, Kind))
+    bool CanSplitBale = true;
+    if (!isRegionOKForIntrinsic(AI, Opnd, Kind, AlignInfo, CanSplitBale))
       return false;
 
     // Do not bale in a region read with multiple uses if
@@ -455,7 +477,7 @@ void GenXBaling::processWrPredPredRegion(Instruction *Inst)
 /***********************************************************************
  * processWrRegion : set up baling info for wrregion
  */
-void GenXBaling::processWrRegion(Instruction *Inst, int IntrinID)
+void GenXBaling::processWrRegion(Instruction *Inst)
 {
   BaleInfo BI(BaleInfo::WRREGION);
   // Get the instruction (if any) that creates the element/subregion to write.
@@ -521,16 +543,18 @@ void GenXBaling::processWrRegion(Instruction *Inst, int IntrinID)
         // Check that its return value is suitable for baling.
         GenXIntrinsicInfo::ArgInfo AI = II.getRetInfo();
         switch (AI.getCategory()) {
-          case GenXIntrinsicInfo::GENERAL:
-            if (isRegionOKForIntrinsic(AI, Inst, Kind))
+          case GenXIntrinsicInfo::GENERAL: {
+            bool CanSplitBale = true;
+            if (isRegionOKForIntrinsic(AI, Inst, Kind, &AlignInfo, CanSplitBale))
               setOperandBaled(Inst, OperandNum, &BI);
+            }
             break;
           case GenXIntrinsicInfo::RAW:
             // Intrinsic with raw result can be baled in to wrregion as long as
             // it is unstrided and starts on a GRF boundary, and there is no
             // non-undef TWOADDR operand.  Ensure the wrregion's result has an
             // alignment of 32.
-            if (isRegionOKForRaw(Inst, /*IsWrite=*/true)) {
+            if (isRegionOKForRaw(Inst, /*IsWrite=*/true, &AlignInfo)) {
               if (Liveness)
                 Liveness->getOrCreateLiveRange(Inst)->LogAlignment = 5;
               unsigned FinalCallArgIdx = V->getNumOperands() - 2;
@@ -712,7 +736,7 @@ void GenXBaling::processSat(Instruction *Inst)
 /***********************************************************************
  * processRdRegion : set up baling info for rdregion
  */
-void GenXBaling::processRdRegion(Instruction *Inst, int IntrinID)
+void GenXBaling::processRdRegion(Instruction *Inst)
 {
   // See if there is a variable index with an add/sub with an in range
   // offset that we can bale in, such that the add/sub does not already
@@ -978,16 +1002,16 @@ void GenXBaling::processMainInst(Instruction *Inst, int IntrinID)
     }
     // See which operands we can bale in.
     for (unsigned e = Inst->getNumOperands(); i != e; ++i)
-      if (operandIsBaled(Inst, i, Kind, ModType))
+      if (operandIsBaled(Inst, i, Kind, &AlignInfo, ModType))
         setOperandBaled(Inst, i, &BI);
   } else if (IntrinID == Intrinsic::genx_convert
       || IntrinID == Intrinsic::genx_convert_addr) {
     // llvm.genx.convert can bale, and has exactly one arg
-    if (operandIsBaled(Inst, 0, Kind, GenXIntrinsicInfo::MODIFIER_ARITH))
+    if (operandIsBaled(Inst, 0, Kind, &AlignInfo, GenXIntrinsicInfo::MODIFIER_ARITH))
       setOperandBaled(Inst, 0, &BI);
   } else if (isAbs(IntrinID)) {
     BI.Type = BaleInfo::ABSMOD;
-    if (operandIsBaled(Inst, 0, Kind, GenXIntrinsicInfo::MODIFIER_ARITH))
+    if (operandIsBaled(Inst, 0, Kind, &AlignInfo, GenXIntrinsicInfo::MODIFIER_ARITH))
       setOperandBaled(Inst, 0, &BI);
   } else {
     // For an intrinsic, check the arg info of each arg to see if we can
@@ -1000,14 +1024,14 @@ void GenXBaling::processMainInst(Instruction *Inst, int IntrinID)
         switch (AI.getCategory()) {
           case GenXIntrinsicInfo::GENERAL:
             // This source operand of the intrinsic is general.
-            if (operandIsBaled(Inst, ArgIdx, Kind, AI.getModifier(), AI))
+            if (operandIsBaled(Inst, ArgIdx, Kind, &AlignInfo, AI.getModifier(), AI))
               setOperandBaled(Inst, ArgIdx, &BI);
             break;
           case GenXIntrinsicInfo::RAW:
             // Rdregion can be baled in to a raw operand as long as it is
             // unstrided and starts on a GRF boundary. Ensure that the input to
             // the rdregion is 32 aligned.
-            if (isRegionOKForRaw(Inst->getOperand(ArgIdx), /*IsWrite=*/false)) {
+            if (isRegionOKForRaw(Inst->getOperand(ArgIdx), /*IsWrite=*/false, &AlignInfo)) {
               setOperandBaled(Inst, ArgIdx, &BI);
               if (Liveness) {
                 Value *Opnd = Inst->getOperand(ArgIdx);
@@ -1134,7 +1158,7 @@ void GenXBaling::processTwoAddrSend(CallInst *CI)
     Region WrR(Wr, BaleInfo());
     if (RdR != WrR || RdR.Indirect || WrR.Mask)
       return;
-    if (!isRegionOKForRaw(Wr, /*IsWrite=*/true))
+    if (!isRegionOKForRaw(Wr, /*IsWrite=*/true, &AlignInfo))
       return;
     // Everything else is in place for a rd-send-wr baling. We just need to check
     // that the input to the read sequence is the same as the old value input to

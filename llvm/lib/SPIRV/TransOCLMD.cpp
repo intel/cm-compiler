@@ -274,7 +274,7 @@ void TransOCLMD::transCMMD(Module *M) {
           auto SLMSize = V->getZExtValue();
           EM.addOp()
             .add(Kernel)
-            .add(spv::ExecutionModeSharedLocalMemorySize)
+            .add(spv::ExecutionModeCMKernelSharedLocalMemorySizeINTEL)
             .add(SLMSize)
             .done();
         }

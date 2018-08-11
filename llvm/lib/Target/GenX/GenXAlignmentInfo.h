@@ -28,18 +28,20 @@
 /// AlignmentInfo is a cache of information on the alignment of instruction
 /// values in a function. It does not persist between passes.
 ///
-/// A pass that needs alignment information constructs an AlignmentInfo at the start of the pass, and then
-/// calls the ``get`` method each time it wants alignment information for a particular
-/// instruction value. AlignmentInfo calculates it if it is not already in its cache,
-/// which probably involves also calculating the alignment of other instructions that
-/// the given one depends on.
+/// A pass that needs alignment information constructs an AlignmentInfo at 
+/// the start of the pass, and then calls the ``get`` method each time it wants
+/// alignment information for a particular instruction value. AlignmentInfo 
+/// calculates it if it is not already in its cache, which probably involves 
+/// also calculating the alignment of other instructions that the given one 
+/// depends on.
 ///
 /// This cacheing and lazy calculation is done instead of having a separate analysis
 /// pass because alignment is needed for only a small subset of values in a function.
 ///
-/// The alignment is returned as an *Alignment* object with two fields, *LogAlign*
-/// and *ExtraBits* (where 0 <= ExtraBits < (1 << LogAlign)), stating that the value is known to be
-/// A << LogAlign | ExtraBits for some A.
+/// The alignment is returned as an *Alignment* object with three fields:
+/// *ConstBits*, if ConstBits is not 0x7fffffff, alignment is a known bit-pattern,
+/// otherwise *LogAlign* and *ExtraBits* (where 0 <= ExtraBits < (1 << LogAlign)),
+/// stating that the value is known to be A << LogAlign | ExtraBits for some A.
 ///
 /// For a vector value, the alignment information is for element 0.
 ///
@@ -65,38 +67,62 @@ namespace genx {
 class Alignment {
   unsigned LogAlign;
   unsigned ExtraBits;
+  unsigned ConstBits;
 public:
   // No-arg constructor sets to uncomputed state.
   Alignment() { setUncomputed(); }
   // Constructor given LogAlign and ExtraBits fields.
   Alignment(unsigned LogAlign, unsigned ExtraBits)
-      : LogAlign(LogAlign), ExtraBits(ExtraBits) {}
+  : LogAlign(LogAlign), ExtraBits(ExtraBits), ConstBits(0x7fffffff) {}
   // Constructor given literal value.
   Alignment(unsigned C);
   // Constructor given Constant.
   Alignment(Constant *C);
+  // Copy-constructor
+  Alignment(const Alignment& Rhs) {
+    LogAlign = Rhs.LogAlign;
+    ExtraBits = Rhs.ExtraBits;
+    ConstBits = Rhs.ConstBits;
+  }
+  // Copy-operator
+  Alignment& operator=(const Alignment &Rhs) {
+    LogAlign = Rhs.LogAlign;
+    ExtraBits = Rhs.ExtraBits;
+    ConstBits = Rhs.ConstBits;
+    return *this;
+  }
+
   // Get an unknown alignment
   static Alignment getUnknown() { return Alignment(0, 0); }
   // Merge two Alignments
   Alignment merge(Alignment Other) const;
-  // adjust alignment info for an add constant
-  Alignment add(unsigned Val) const {
-    return Alignment(LogAlign, (ExtraBits + Val) & ((1 << LogAlign) - 1));
-  }
+  // Add one Alignment with another Alignment
+  Alignment add(Alignment Other) const;
+  // Mul one Alignment with another Alignment
+  Alignment mul(Alignment Other) const;
+
   // accessors
   bool isUncomputed() const { return LogAlign == 0xffffffff; }
-  bool isUnknown() const { return LogAlign == 0; }
+  bool isUnknown() const { return LogAlign == 0 && ConstBits == 0x7fffffff; }
+  bool isConstant() const { return !isUncomputed() && ConstBits != 0x7fffffff; }
   unsigned getLogAlign() const { assert(!isUncomputed()); return LogAlign; }
   unsigned getExtraBits() const { assert(!isUncomputed()); return ExtraBits; }
+  int64_t getConstBits() const { assert(isConstant()); return ConstBits; }
   // comparison
   bool operator==(const Alignment &Rhs) const {
-    return LogAlign == Rhs.LogAlign && ExtraBits == Rhs.ExtraBits;
+    return (LogAlign == Rhs.LogAlign &&
+            ExtraBits == Rhs.ExtraBits &&
+            ConstBits == Rhs.ConstBits);
   }
   // Debug dump/print
   void dump() const;
   void print(raw_ostream &OS) const;
 private:
-  void setUncomputed() { LogAlign = 0xffffffff; ExtraBits = 0; }
+  void setUncomputed() {
+    LogAlign = 0xffffffff;
+    ExtraBits = 0;
+    ConstBits = 0x7fffffff;
+  }
 };
 
 // AlignmentInfo : cache of alignment of instructions in a function

@@ -76,6 +76,8 @@ def : Proc<"BXT",             [FeatureLongLong]>;
 def : Proc<"KBL",             [FeatureLongLong]>;
 def : Proc<"GLK",             [FeatureLongLong]>;
 def : Proc<"CNL",             [FeatureLongLong]>;
+def : Proc<"ICL",             [FeatureLongLong]>;
+def : Proc<"ICLLP",           []>;
 
 def GenX : Target {
   // Nothing here (yet?)

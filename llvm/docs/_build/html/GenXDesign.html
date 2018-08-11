@@ -247,16 +247,18 @@ in themselves passes, but are used by the passes.</p>
 <h3>genx::AlignmentInfo : alignment information<a class="headerlink" href="#genx-alignmentinfo-alignment-information" title="Permalink to this headline">¶</a></h3>
 <p>AlignmentInfo is a cache of information on the alignment of instruction
 values in a function. It does not persist between passes.</p>
-<p>A pass that needs alignment information constructs an AlignmentInfo at the start of the pass, and then
-calls the <code class="docutils literal"><span class="pre">get</span></code> method each time it wants alignment information for a particular
-instruction value. AlignmentInfo calculates it if it is not already in its cache,
-which probably involves also calculating the alignment of other instructions that
-the given one depends on.</p>
+<p>A pass that needs alignment information constructs an AlignmentInfo at
+the start of the pass, and then calls the <code class="docutils literal"><span class="pre">get</span></code> method each time it wants
+alignment information for a particular instruction value. AlignmentInfo
+calculates it if it is not already in its cache, which probably involves
+also calculating the alignment of other instructions that the given one
+depends on.</p>
 <p>This cacheing and lazy calculation is done instead of having a separate analysis
 pass because alignment is needed for only a small subset of values in a function.</p>
-<p>The alignment is returned as an <em>Alignment</em> object with two fields, <em>LogAlign</em>
-and <em>ExtraBits</em> (where 0 &lt;= ExtraBits &lt; (1 &lt;&lt; LogAlign)), stating that the value is known to be
-A &lt;&lt; LogAlign | ExtraBits for some A.</p>
+<p>The alignment is returned as an <em>Alignment</em> object with three fields:
+<em>ConstBits</em>, if ConstBits is not 0x7fffffff, alignment is a known bit-pattern,
+otherwise <em>LogAlign</em> and <em>ExtraBits</em> (where 0 &lt;= ExtraBits &lt; (1 &lt;&lt; LogAlign)),
+stating that the value is known to be A &lt;&lt; LogAlign | ExtraBits for some A.</p>
 <p>For a vector value, the alignment information is for element 0.</p>
 <p>The calculation uses a worklist algorithm that can cope with phi nodes and
 loops. So, for example, a variable (used as an indirect region index) that
@@ -347,6 +349,8 @@ these are currently not used.</p>
 <li>isGLK - true if target is GLK</li>
 <li>isCNL - true if target is CNL</li>
 <li>isCNLplus - true if target is CNL or later</li>
+<li>isICL - true if target is ICL</li>
+<li>isICLLP - true if target is ICL LP</li>
 <li>dumpRegAlloc - true if we should dump Reg Alloc info</li>
 <li>svmptrIs32Bit - true if svmptr_t is 32 bit</li>
 <li>svmptrIs64Bit - true if svmptr_t is 64 bit</li>
@@ -2227,7 +2231,7 @@ overall vISA file.</p>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2003-2018, LLVM Project.
-      Last updated on Sat Jul 7 07:51:59 2018 -0700.
+      Last updated on Wed Aug 8 21:01:11 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

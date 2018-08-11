@@ -229,6 +229,7 @@
 
 #include "FunctionGroup.h"
 #include "GenX.h"
+#include "GenXAlignmentInfo.h"
 #include "IgnoreRAUWValueMap.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/Pass.h"
@@ -376,6 +377,8 @@ class GenXBaling {
 protected:
   GenXLiveness *Liveness; // only in group baling
 public:
+  genx::AlignmentInfo AlignInfo;
+public:
   explicit GenXBaling(BalingKind Kind) : Kind(Kind), Liveness(nullptr) {}
   // clear : clear out the analysis
   void clear() { InstMap.clear(); }
@@ -422,11 +425,11 @@ private:
   static bool isMainInst(Instruction *Inst, unsigned IntrinID);
   void processWrPredRegion(Instruction *Inst);
   void processWrPredPredRegion(Instruction *Inst);
-  void processWrRegion(Instruction *Inst, int IntrinID);
+  void processWrRegion(Instruction *Inst);
   bool processSelect(Instruction *Inst);
   bool processPredicate(Instruction *Inst, unsigned OperandNum);
   void processSat(Instruction *Inst);
-  void processRdRegion(Instruction *Inst, int IntrinID);
+  void processRdRegion(Instruction *Inst);
   void processMainInst(Instruction *Inst, int IntrinID);
   // helper func for buildBale
   void buildBaleSub(Instruction *Inst, genx::Bale *B, bool IncludeAddr);

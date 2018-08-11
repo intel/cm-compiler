@@ -690,6 +690,9 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
   case Builtin::BIcm_scoreboard_deltas:
     IID = llvm::Intrinsic::genx_get_scoreboard_deltas;
     break;
+  case Builtin::BIcm_scoreboard_depcnt:
+    IID = llvm::Intrinsic::genx_get_scoreboard_depcnt;
+    break;
   case Builtin::BIcm_pause:
     {
       // cm_pause has a single argument - generate the call here

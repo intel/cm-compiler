@@ -843,7 +843,7 @@ GetOutputStream(CompilerInstance &CI, StringRef InFile, BackendAction Action) {
   case Backend_EmitObj:
     return CI.createDefaultOutputFile(true, InFile, "o");
   case Backend_EmitSPIRV:
-    return CI.createDefaultOutputFile(true, InFile, "spirv");
+    return CI.createDefaultOutputFile(true, InFile, "spv");
   }
 
   llvm_unreachable("Invalid action!");

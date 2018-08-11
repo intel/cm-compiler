@@ -965,9 +965,10 @@ unsigned Region::getLegalSize(unsigned Idx, bool Allow2D,
           // Use the alignment+offset of the single indirect index, with alignment
           // limited to 32 bytes (one GRF).
           if (!Align.isUnknown()) {
-            Align = Align.add(Offset + RealIdx * ElementBytes);
             unsigned LogAlign = Align.getLogAlign();
             unsigned ExtraBits = Align.getExtraBits();
+            ExtraBits += (Offset + RealIdx * ElementBytes);
+            ExtraBits &= ((1 << LogAlign) - 1);
             if (LogAlign >= 5 && !ExtraBits) {
               // Start is GRF aligned, so legal width is 1 GRF for <=BDW or
               // 2 GRFs for >=SKL.

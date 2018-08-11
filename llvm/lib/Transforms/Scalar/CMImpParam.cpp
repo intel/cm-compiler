@@ -191,7 +191,8 @@ private:
                   IMP_GROUP_COUNT = 0x2 << 3,
                   IMP_LOCAL_ID    = 0x3 << 3,
                   IMP_SB_DELTAS   = 0x4 << 3,
-                  IMP_SB_BTI      = 0x5 << 3};
+                  IMP_SB_BTI      = 0x5 << 3,
+                  IMP_SB_DEPCNT   = 0x6 << 3};
   
   uint32_t MapToKind(Intrinsic::ID IID) {
     switch (IID) {
@@ -207,6 +208,8 @@ private:
         return IMP_GENERAL | IMP_SB_DELTAS;
       case llvm::Intrinsic::genx_get_scoreboard_bti:
         return IMP_SURFACE | IMP_SB_BTI;
+      case llvm::Intrinsic::genx_get_scoreboard_depcnt:
+        return IMP_SURFACE | IMP_SB_DEPCNT;
     }
     
     return IMP_NONE;
@@ -394,8 +397,9 @@ bool CMImpParam::AnalyzeImplicitUse(Module &M) {
               case Intrinsic::genx_group_count:
               case Intrinsic::genx_get_scoreboard_deltas:
               case Intrinsic::genx_get_scoreboard_bti:
+              case Intrinsic::genx_get_scoreboard_depcnt:
                 DEBUG(dbgs() << "AnalyzeImplicitUse found "
-                            << Intrinsic::getName(IID, None));
+                             << Intrinsic::getName(IID, None));
                 addImplicit(Fn, IID);
                 implicitUse = true;
 

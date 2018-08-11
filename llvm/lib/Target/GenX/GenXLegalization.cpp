@@ -217,7 +217,6 @@ class GenXLegalization : public FunctionPass {
   Use *TwiceWidth;
   // Map from the original instruction to the split one for the current index.
   std::map<Instruction *, Value *> SplitMap;
-  AlignmentInfo AI;
 
   // Consider reading from and writing to the same region in this bale,
   // bale {
@@ -441,14 +440,14 @@ unsigned GenXLegalization::getExecSizeAllowedBits(Instruction *Inst)
     // While we have the intrinsic info, we also spot whether we have a FIXED4
     // operand and/or a TWICEWIDTH operand.
     for (auto i = II.begin(), e = II.end(); i != e; ++i) {
-      auto AI = *i;
-      if (AI.isArgOrRet()) {
-        switch (AI.getRestriction()) {
+      auto ArgInfo = *i;
+      if (ArgInfo.isArgOrRet()) {
+        switch (ArgInfo.getRestriction()) {
           case GenXIntrinsicInfo::FIXED4:
-            Fixed4 = &CI->getOperandUse(AI.getArgIdx());
+            Fixed4 = &CI->getOperandUse(ArgInfo.getArgIdx());
             break;
           case GenXIntrinsicInfo::TWICEWIDTH:
-            TwiceWidth = &CI->getOperandUse(AI.getArgIdx());
+            TwiceWidth = &CI->getOperandUse(ArgInfo.getArgIdx());
             break;
         }
       }
@@ -918,7 +917,7 @@ unsigned GenXLegalization::determineWidth(unsigned WholeWidth,
         }
         // Get the max legal size for the wrregion.
         ThisWidth = std::min(ThisWidth, R.getLegalSize(StartIdx, false/*Allow2D*/,
-            i->Inst->getOperand(0)->getType()->getVectorNumElements(), ST, &AI));
+            i->Inst->getOperand(0)->getType()->getVectorNumElements(), ST, &(Baling->AlignInfo)));
         if (!Unbale && R.Mask && PredMinWidth > ThisWidth) {
           // The min predicate size (from this wrregion) is bigger than the
           // legal size for this wrregion. We have to rewrite the wrregion as:
@@ -978,7 +977,7 @@ unsigned GenXLegalization::determineWidth(unsigned WholeWidth,
         if (Fixed4 && i->Inst == *Fixed4)
           ModifiedStartIdx = 0;
         ThisWidth = R.getLegalSize(ModifiedStartIdx, true/*Allow2D*/,
-            i->Inst->getOperand(0)->getType()->getVectorNumElements(), ST, &AI);
+            i->Inst->getOperand(0)->getType()->getVectorNumElements(), ST, &(Baling->AlignInfo));
         if (ThisWidth == 1 && R.Indirect && !isa<VectorType>(R.Indirect->getType())) {
           // This is a single indirect rdregion where we failed to make the
           // valid size any more than one. If possible, increase the valid size
@@ -1156,7 +1155,7 @@ unsigned GenXLegalization::determineWidth(unsigned WholeWidth,
           Region R(VT);
           auto ThisWidth = R.getLegalSize(StartIdx,
             false /*no 2d for dst*/,
-            VecSize, ST, &AI);
+            VecSize, ST, &(Baling->AlignInfo));
           if (ThisWidth < Width) {
             Width = ThisWidth;
           }
@@ -1425,7 +1424,7 @@ Value *GenXLegalization::splitInst(Value *Last, BaleInst BInst,
         bool ConvertToMulti = R.Indirect && Width != 1
             && R.getLegalSize(StartIdx, true/*Allow2D*/,
               BInst.Inst->getOperand(0)->getType()->getVectorNumElements(),
-              ST, &AI) == 1;
+              ST, &(Baling->AlignInfo)) == 1;
         R.getSubregion(StartIdx, Width);
         // The region to read from. This is normally from the input region baled
         // in. If this is reading from and writing to the same region and

@@ -195,7 +195,7 @@ types::ID types::lookupTypeForExtension(llvm::StringRef Ext) {
            .Case("S", TY_Asm)
            .Case("s", TY_PP_Asm)
            .Case("bc", TY_LLVM_BC)
-           .Case("spirv", TY_SPIRV)
+           .Case("spv", TY_SPIRV)
            .Case("cc", TY_CXX)
            .Case("CC", TY_CXX)
            .Case("cl", TY_CL)

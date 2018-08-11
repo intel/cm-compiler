@@ -103,6 +103,7 @@
 #include "GenXIntrinsics.h"
 #include "GenXModule.h"
 #include "GenXRegion.h"
+#include "GenXSubtarget.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -140,6 +141,7 @@ public:
   static bool splitStructPhi(PHINode *Phi);
 private:
   bool lowerGatherScatter4Typed(CallInst *CI, unsigned IID);
+  bool lowerMediaWalkerAPIs(CallInst *CI, unsigned IID);
   bool processInst(Instruction *Inst);
   bool lowerRdRegion(Instruction *Inst);
   bool lowerWrRegion(Instruction *Inst);
@@ -367,6 +369,13 @@ bool GenXLowering::lowerGatherScatter4Typed(CallInst *CI, unsigned IID)
 }
 
 /***********************************************************************
+ * lowerMediaIntrinsic : lower media walker intrinsic calls
+ */
+bool GenXLowering::lowerMediaWalkerAPIs(CallInst *CI, unsigned IID) {
+  return false;
+}
+
+/***********************************************************************
  * processInst : process one instruction in GenXLowering
  *
  * Return:  whether any change was made, and thus the current instruction
@@ -437,6 +446,10 @@ bool GenXLowering::processInst(Instruction *Inst)
         // Special optimization, turn v = 0, r = 0 to undef, if possible.
         // Also split 16 wide -> 2x 8 wide if necessary.
         return lowerGatherScatter4Typed(CI, IntrinsicID);
+      case Intrinsic::genx_thread_x:
+      case Intrinsic::genx_thread_y:
+      case Intrinsic::genx_get_color:
+        return lowerMediaWalkerAPIs(CI, IntrinsicID);
       default:
       case Intrinsic::genx_constantpred:
       case Intrinsic::genx_constanti:

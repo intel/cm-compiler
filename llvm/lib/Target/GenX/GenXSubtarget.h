@@ -73,6 +73,8 @@ protected:
     GENX_KBL,
     GENX_GLK,
     GENX_CNL,
+    GENX_ICL,
+    GENX_ICLLP,
   };
 
   // GenXVariant - GenX Tag identifying the variant to compile for
@@ -151,6 +153,11 @@ public:
   /// * isCNLplus - true if target is CNL or later
   bool isCNLplus() const { return GenXVariant >= GENX_CNL; }
 
+  /// * isICL - true if target is ICL
+  bool isICL() const { return GenXVariant == GENX_ICL; }
+
+  /// * isICLLP - true if target is ICL LP
+  bool isICLLP() const { return GenXVariant == GENX_ICLLP; }
 
   /// * dumpRegAlloc - true if we should dump Reg Alloc info
   bool dumpRegAlloc() const { return DumpRegAlloc; }

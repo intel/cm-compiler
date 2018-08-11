@@ -62,6 +62,8 @@ void GenXSubtarget::resetSubtargetFeatures(StringRef CPU, StringRef FS) {
     .Case("KBL", GENX_KBL)
     .Case("GLK", GENX_GLK)
     .Case("CNL", GENX_CNL)
+    .Case("ICL", GENX_ICL)
+    .Case("ICLLP", GENX_ICLLP)
     .Default(GENX_SKL);
 
   std::string CPUName = CPU;

@@ -818,6 +818,7 @@ BUILTIN(__cm_builtin_dummy_mov, "vUs", "ni")
 BUILTIN(__cm_builtin_cm_printf, "Ui.", "Ui, nt")
 BUILTIN(cm_scoreboard_bti, "Ui","ni")
 BUILTIN(cm_scoreboard_deltas, "Q16c", "ni")
+BUILTIN(cm_scoreboard_depcnt, "UiUi", "ni")
 
 // C99 library functions
 // C99 stdlib.h

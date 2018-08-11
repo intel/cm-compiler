@@ -1593,7 +1593,7 @@ bool LLVMToSPIRV::transExecutionMode() {
         BF->addExecutionMode(
             new SPIRVExecutionMode(BF, static_cast<ExecutionMode>(EMode), X));
       } break;
-      case spv::ExecutionModeSharedLocalMemorySize: {
+      case spv::ExecutionModeCMKernelSharedLocalMemorySizeINTEL: {
         unsigned SLMSize;
         N.get(SLMSize);
         BF->addExecutionMode(new SPIRVExecutionMode(
@@ -1684,7 +1684,7 @@ bool LLVMToSPIRV::transCMKernelMetadata() {
               SPIRVFunctionParameter *BA = BF->getArgument(i);
               if (BA) {
                 BA->addDecorate(
-                  new SPIRVDecorate(DecorationCMKernelArgKind, BA, ArgKind));
+                  new SPIRVDecorate(DecorationCMKernelArgumentTypeINTEL, BA, ArgKind));
               }
             }
         }

@@ -36,7 +36,20 @@ const char *getFinalizerPlatform(const char *CPU) {
 }
 
 static bool mayDisableIGA(std::string CPU) {
-  return false;
+  // IGA may be disabled for targets before ICL.
+  // CPU is expected to be a canonical Genx target name.
+  bool mayDisable = llvm::StringSwitch<bool>(CPU)
+                        .Case("HSW", true)
+                        .Case("BDW", true)
+                        .Case("CHV", true)
+                        .Case("SKL", true)
+                        .Case("BXT", true)
+                        .Case("KBL", true)
+                        .Case("GLK", true)
+                        .Case("CNL", true)
+                        .Default(false);
+
+  return mayDisable;
 }
 
 
@@ -110,6 +123,23 @@ void tools::GenX::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
     FinalizerArgs.push_back("-platform");
     FinalizerArgs.push_back(getFinalizerPlatform(Platform));
 
+    // For GenX variants below Gen11 we disable IGA by default, by passing the
+    // -disableIGASyntax option to the finalizer.
+    // IGA syntax may be enabled (or more accurately not disabled) either by
+    // the -cm_enableiga option, or by the ENABLE_IGA environment variable
+    // having a non-zero value. If IGA is enabled by the environment variable
+    // we issue a warning to advise the user of this.
+    if (!Args.hasArg(options::OPT_menableiga) &&
+        !Args.hasArg(options::OPT_mCM_enableiga)) {
+      const char *enableIGA = getenv("ENABLE_IGA");
+      if (enableIGA && (atol(enableIGA)) > 0) {
+        if (mayDisableIGA(Platform)) {
+          const Driver &D = getToolChain().getDriver();
+          D.Diag(diag::warn_cm_iga_enabled);
+        }
+      } else if (mayDisableIGA(Platform))
+        FinalizerArgs.push_back("-disableIGASyntax");
+    }
 
     // Scalar jmp instructions will be translated into goto's
     if (Args.hasArg(options::OPT_mCM_disable_jmpi)) {

@@ -84,7 +84,7 @@ TYPE("ir",                       LLVM_IR,      INVALID,         "ll",    "u")
 TYPE("ir",                       LLVM_BC,      INVALID,         "bc",    "u")
 TYPE("lto-ir",                   LTO_IR,       INVALID,         "s",     "")
 TYPE("lto-bc",                   LTO_BC,       INVALID,         "o",     "")
-TYPE("spirv",                    SPIRV,        INVALID,         "spirv", "u")
+TYPE("spv",                      SPIRV,        INVALID,         "spv",   "u")
 
 // Misc.
 TYPE("ast",                      AST,          INVALID,         "ast",   "u")

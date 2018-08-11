@@ -60,5 +60,7 @@ SetupTest_from_cm(BitonicSortK "BitonicSortK" "" "BitonicSortK.cpp" "BitonicSort
 
 SetupTest_from_cm(radix "radix" "" "radix.cpp" "radix_genx.cpp" "" "HW" "DX9" "" "" "" "" "" "" "" "" "" ${TAGS})
 
+SetupTest_from_cm(radixsort "radixsort" "" "radixsort.cpp" "radixsort_genx.cpp" "" "HW" "DX9" "/DCM_PTRSIZE=32" "" "" "" "" "" "" "" "" ${TAGS})
+
 SetupTest_from_cm(HoughCircle "HoughCircle" "" "HoughCircle.cpp" "HoughCircle_genx.cpp" "pen_circle_edges.bmp;hough_circle_res.dat" "HW" "DX9" "" "" "" "TRUE" "" "" "" "" "" ${TAGS})
 

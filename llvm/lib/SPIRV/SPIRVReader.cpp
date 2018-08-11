@@ -2434,6 +2434,8 @@ Instruction *SPIRVToLLVM::transSPIRVBuiltinFromInst(SPIRVInstruction *BI,
     case AccessQualifierReadWrite:
       Suffix = "_read_write";
       break;
+    default:
+      break;
     }
   }
 
@@ -2567,7 +2569,7 @@ bool SPIRVToLLVM::transKernelMetadata() {
       for (size_t I = 0, E = BF->getNumArguments(); I != E; ++I) {
         auto BA = BF->getArgument(I);
         SPIRVWord Kind = 0;
-        BA->hasDecorate(DecorationCMKernelArgKind, 0, &Kind);
+        BA->hasDecorate(DecorationCMKernelArgumentTypeINTEL, 0, &Kind);
         ArgKinds.push_back(llvm::ValueAsMetadata::get(llvm::ConstantInt::get(I32Ty, Kind)));
         ArgInOutKinds.push_back(llvm::ValueAsMetadata::get(llvm::ConstantInt::get(I32Ty, 0)));
         ArgOffsets.push_back(llvm::ValueAsMetadata::get(llvm::ConstantInt::get(I32Ty, 0)));
@@ -2575,7 +2577,7 @@ bool SPIRVToLLVM::transKernelMetadata() {
       KernelMD.push_back(llvm::MDNode::get(*Context, ArgKinds));
       // Generate metadata for slm-size
       unsigned int SLMSize = 0;
-      if (auto EM = BF->getExecutionMode(ExecutionModeSharedLocalMemorySize))
+      if (auto EM = BF->getExecutionMode(ExecutionModeCMKernelSharedLocalMemorySizeINTEL))
         SLMSize = EM->getLiterals()[0];
       KernelMD.push_back(ConstantAsMetadata::get(ConstantInt::get(I32Ty, SLMSize)));
       // placeholder for IOKInd and ArgOffset

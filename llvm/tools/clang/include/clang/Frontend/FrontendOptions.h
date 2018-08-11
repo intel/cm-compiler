@@ -40,7 +40,7 @@ namespace frontend {
     EmitLLVMOnly,           ///< Generate LLVM IR, but do not emit anything.
     EmitCodeGenOnly,        ///< Generate machine code, but don't emit anything.
     EmitObj,                ///< Emit a .o file.
-    EmitSPIRV,              ///< Emit a .spirv file.
+    EmitSPIRV,              ///< Emit a .spv file.
     FixIt,                  ///< Parse and apply any fixits to the source.
     GenerateModule,         ///< Generate pre-compiled module from a module map.
     GenerateModuleInterface,///< Generate pre-compiled module from a C++ module

@@ -92,6 +92,11 @@ Alignment AlignmentInfo::get(Value *V)
           if (InstMap.find(IncomingInst) == InstMap.end()
               && InstWebSet.insert(IncomingInst).second)
             InstWeb.push_back(IncomingInst);
+    } else if (CastInst *CI = dyn_cast<CastInst>(WorkInst)) {
+      if (auto IncomingInst = dyn_cast<Instruction>(WorkInst->getOperand(0)))
+        if (InstMap.find(IncomingInst) == InstMap.end()
+          && InstWebSet.insert(IncomingInst).second)
+          InstWeb.push_back(IncomingInst);
     } else switch (getIntrinsicID(WorkInst)) {
       case Intrinsic::genx_rdregioni:
       case Intrinsic::genx_rdregionf:
@@ -101,6 +106,15 @@ Alignment AlignmentInfo::get(Value *V)
           if (InstMap.find(IncomingInst) == InstMap.end()
               && InstWebSet.insert(IncomingInst).second)
             InstWeb.push_back(IncomingInst);
+        break;
+      case Intrinsic::genx_ssmad:
+      case Intrinsic::genx_uumad:
+      case Intrinsic::genx_add_addr:
+        for (unsigned oi = 0, oe = WorkInst->getNumOperands(); oi != oe; ++oi)
+          if (auto IncomingInst = dyn_cast<Instruction>(WorkInst->getOperand(oi)))
+            if (InstMap.find(IncomingInst) == InstMap.end()
+              && InstWebSet.insert(IncomingInst).second)
+              InstWeb.push_back(IncomingInst);
         break;
     }
   }
@@ -121,34 +135,33 @@ Alignment AlignmentInfo::get(Value *V)
 
     Alignment A(0, 0); // assume unknown
     if (BinaryOperator *BO = dyn_cast<BinaryOperator>(WorkInst)) {
-      if (ConstantInt *CI = dyn_cast<ConstantInt>(BO->getOperand(1))) {
-        A = Alignment(); // assume uncomputed
-        Alignment A0 = getFromInstMap(BO->getOperand(0));
-        if (!A0.isUncomputed()) {
-          switch (BO->getOpcode()) {
-            case Instruction::Add:
-              A = A0.add(CI->getSExtValue());
-              break;
-            case Instruction::Sub:
-              A = A0.add(-CI->getSExtValue());
-              break;
-            case Instruction::Mul: {
-              unsigned Shift = countTrailingZeros(
-                  (unsigned)CI->getSExtValue(), ZB_Width);
-              A = Alignment(std::min(31U, A0.getLogAlign() + Shift),
-                  Shift >= 31 ? 0 : A0.getExtraBits() << Shift);
-              break;
-            }
-            case Instruction::Shl: {
-              unsigned Shift = CI->getSExtValue();
-              A = Alignment(std::min(31U, A0.getLogAlign() + Shift),
-                  Shift >= 31 ? 0 : A0.getExtraBits() << Shift);
-              break;
-            }
-            default:
-              A = Alignment(0, 0); // assume unknown
-              break;
-          }
+      A = Alignment(); // assume uncomputed
+      Alignment A0 = getFromInstMap(BO->getOperand(0));
+      Alignment A1 = getFromInstMap(BO->getOperand(1));
+      if (!A0.isUncomputed() && !A1.isUncomputed()) {
+        switch (BO->getOpcode()) {
+          case Instruction::Add:
+            A = A0.add(A1);
+            break;
+          case Instruction::Sub:
+            if (A1.isConstant())
+              A = A0.add(-(A1.getConstBits()));
+            else
+              A = Alignment::getUnknown();
+            break;
+          case Instruction::Mul:
+            A = A0.mul(A1);
+            break;
+          case Instruction::Shl:
+            if (A1.isConstant()) {
+              A1 = Alignment(A1.getConstBits(), 0);
+              A = A0.mul(A1);
+            } else
+              A = Alignment::getUnknown();
+            break;
+        default:
+          A = Alignment::getUnknown();
+          break;
         }
       }
     } else if (CastInst *CI = dyn_cast<CastInst>(WorkInst)) {
@@ -188,10 +201,36 @@ Alignment AlignmentInfo::get(Value *V)
             A = Alignment(0, 0);
           break;
         }
+        case Intrinsic::genx_constanti:
+          A = Alignment(cast<Constant>(WorkInst->getOperand(0)));
+          break;
         case Intrinsic::genx_convert:
         case Intrinsic::genx_convert_addr:
           A = getFromInstMap(WorkInst->getOperand(0));
           break;
+        case Intrinsic::genx_add_addr: {
+          Alignment AA[2];
+          for (unsigned oi = 0, oe = WorkInst->getNumOperands(); oi != oe && oi < 2; ++oi)
+            AA[oi] = getFromInstMap(WorkInst->getOperand(oi));
+          if (!AA[0].isUncomputed() && !AA[1].isUncomputed())
+            A = AA[0].add(AA[1]);
+          else
+            A = Alignment(0, 0);
+          break;
+        }
+        case Intrinsic::genx_ssmad:
+        case Intrinsic::genx_uumad: {
+          A = Alignment(); // assume uncomputed
+          // every source operand should be computed or constant
+          Alignment SA[3];
+          for (unsigned oi = 0, oe = WorkInst->getNumOperands(); oi != oe && oi < 3; ++oi)
+            SA[oi] = getFromInstMap(WorkInst->getOperand(oi));
+          if (!SA[0].isUncomputed() && !SA[1].isUncomputed() && !SA[2].isUncomputed())
+            A = SA[0].mul(SA[1]).add(SA[2]);
+          else
+            A = Alignment(0, 0);
+          break;
+        }
         default:
           A = Alignment(0, 0); // no alignment info
           break;
@@ -224,8 +263,9 @@ Alignment AlignmentInfo::get(Value *V)
  */
 Alignment::Alignment(unsigned C)
 {
-  LogAlign = 31;
-  ExtraBits = C & ((1 << LogAlign) - 1);
+  LogAlign = countTrailingZeros(C);
+  ExtraBits = 0;
+  ConstBits = (C < 0x7fffffff)? C : 0x7fffffff;
 }
 
 /***********************************************************************
@@ -239,9 +279,13 @@ Alignment::Alignment(Constant *C)
   if (isa<UndefValue>(C)) {
     LogAlign = 31;
     ExtraBits = 0;
+    ConstBits = 0x7fffffff;
   } else if (auto CI = dyn_cast<ConstantInt>(C)) {
-    LogAlign = 31;
-    ExtraBits = CI->getSExtValue() & ((1 << LogAlign) - 1);
+    LogAlign = countTrailingZeros((unsigned)(CI->getSExtValue()));
+    ExtraBits = 0;
+    ConstBits = 0x7fffffff;
+    if (CI->getSExtValue() < 0x7fffffff && CI->getSExtValue() >= 0)
+      ConstBits = (unsigned)(CI->getSExtValue());
   }
 }
 
@@ -260,27 +304,69 @@ Alignment Alignment::merge(Alignment Other) const
   unsigned MinLogAlign = std::min(LogAlign, Other.LogAlign);
   if (MinLogAlign) {
     unsigned DisagreeExtraBits = (ExtraBits ^ Other.ExtraBits)
-        & ((1 << MinLogAlign) - 1);
+      & ((1 << MinLogAlign) - 1);
     MinLogAlign = std::min(MinLogAlign,
-        (unsigned)countTrailingZeros(DisagreeExtraBits, ZB_Width));
+      (unsigned)countTrailingZeros(DisagreeExtraBits, ZB_Width));
   }
   return Alignment(MinLogAlign, ExtraBits & ((1 << MinLogAlign) - 1));
 }
 
 /***********************************************************************
+ * merge : add two alignments
+ */
+Alignment Alignment::add(Alignment Other) const
+{
+  assert(!isUncomputed() && !Other.isUncomputed());
+  // Take the minimum of the two logaligns, then chop off some more for
+  // disagreeing extrabits.
+  unsigned MinLogAlign = std::min(LogAlign, Other.LogAlign);
+  unsigned ExtraBits2 = 0;
+  if (MinLogAlign) {
+    ExtraBits2 = (ExtraBits + Other.ExtraBits)
+      & ((1 << MinLogAlign) - 1);
+    MinLogAlign = std::min(MinLogAlign,
+      (unsigned)countTrailingZeros(ExtraBits2, ZB_Width));
+  }
+  return Alignment(MinLogAlign, ExtraBits2 & ((1 << MinLogAlign) - 1));
+}
+
+/***********************************************************************
+* merge : mul two alignments
+*/
+Alignment Alignment::mul(Alignment Other) const
+{
+  assert(!isUncomputed() && !Other.isUncomputed());
+  // Take the minimum of the two logaligns, then chop off some more for
+  // disagreeing extrabits.
+  unsigned MinLogAlign = std::min(LogAlign, Other.LogAlign);
+  if (ExtraBits == 0 && Other.ExtraBits == 0)
+    MinLogAlign = LogAlign + Other.LogAlign;
+  else if (ExtraBits == 0)
+    MinLogAlign = LogAlign;
+  else if (Other.ExtraBits == 0)
+    MinLogAlign = Other.LogAlign;
+  unsigned ExtraBits2 = 0;
+  if (MinLogAlign) {
+    ExtraBits2 = (ExtraBits * Other.ExtraBits)
+      & ((1 << MinLogAlign) - 1);
+    MinLogAlign = std::min(MinLogAlign,
+      (unsigned)countTrailingZeros(ExtraBits2, ZB_Width));
+  }
+  return Alignment(MinLogAlign, ExtraBits2 & ((1 << MinLogAlign) - 1));
+}
+
+/***********************************************************************
  * getFromInstMap : get the alignment of a value, direct from InstMap if
- *      the value is an instruction
- *
- * If V is an instruction for which alignment has not yet been computed,
- * this returns uncomputed.
+ * found else return Unknown, Alignment(0, 0)
  */
 Alignment AlignmentInfo::getFromInstMap(Value *V)
 {
   if (auto C = dyn_cast<Constant>(V))
     return Alignment(C);
-  if (auto Inst = dyn_cast<Instruction>(V))
-    return InstMap[Inst];
-  return Alignment(0, 0);
+  if (auto Inst = dyn_cast<Instruction>(V)) {
+    return InstMap[V];
+  }
+  return Alignment::getUnknown();
 }
 
 /***********************************************************************
@@ -297,9 +383,10 @@ void Alignment::print(raw_ostream &OS) const
 {
   if (isUncomputed())
     OS << "uncomputed";
-  else if (!LogAlign)
+  else if (isUnknown())
     OS << "unknown";
+  else if (isConstant())
+    OS << "const=" << ConstBits;
   else
     OS << "n<<" << LogAlign << "+" << ExtraBits;
 }
-

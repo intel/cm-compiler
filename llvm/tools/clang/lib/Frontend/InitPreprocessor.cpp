@@ -625,6 +625,8 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
       .Case("KBL", "CM_GEN9_5")
       .Case("GLK", "CM_GEN9_5")
       .Case("CNL", "CM_GEN10")
+      .Case("ICL", "CM_GEN11")
+      .Case("ICLLP", "CM_GEN11")
       .Default("");
       Builder.defineMacro(CmTarget);
       const char *GenXValue = llvm::StringSwitch<const char*>(TOpts.CPU)
@@ -636,6 +638,8 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
       .Case("KBL", "950")
       .Case("GLK", "970")
       .Case("CNL", "1000")
+      .Case("ICL", "1100")
+      .Case("ICLLP", "1150")
       .Default("");
       Builder.defineMacro("CM_GENX", GenXValue);
     }

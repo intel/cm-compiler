@@ -57,6 +57,8 @@ public:
                         .Case("GLK", true)
                         .Case("KBL", true)
                         .Case("CNL", true)
+                        .Case("ICL", true)
+                        .Case("ICLLP", true)
                         .Default(false);
 
     if (CPUKnown)
@@ -90,7 +92,11 @@ public:
                                     DiagnosticsEngine &Diags);
 
   virtual bool hasFeature(StringRef Feature) const {
-    return true;
+    bool has = llvm::StringSwitch<bool>(Feature)
+      .Case("longlong", (CPU != "ICLLP"))
+      .Case("double", (CPU != "ICLLP"))
+      .Default(true);
+    return has;
   }
 
   virtual const char *getClobbers() const { return ""; }

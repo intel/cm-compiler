@@ -556,7 +556,7 @@ def emit_codegen_only : Flag<["-"], "emit-codegen-only">,
 def emit_obj : Flag<["-"], "emit-obj">,
   HelpText<"Emit native object files">;
 def emit_spirv_bc : Flag<["-"], "emit-spirv-bc">,
-  HelpText<"Build ASTs then convert to LLVM, emit .spirv file">;
+  HelpText<"Build ASTs then convert to LLVM, emit .spv file">;
 def rewrite_test : Flag<["-"], "rewrite-test">,
   HelpText<"Rewriter playground">;
 def rewrite_macros : Flag<["-"], "rewrite-macros">,
