@@ -37,7 +37,8 @@ static_assert(0, "CM:w:cm_vme.h should not be included explicitly - only "
 #include "gen9_vme.h"
 #elif defined(CM_GEN10)
 #include "gen10_vme.h"
-
+#elif defined(CM_GEN11)
+#include "gen11_vme.h"
 #else
 
 
