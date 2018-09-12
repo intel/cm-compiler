@@ -1,0 +1,884 @@
+Detected MDF on this system
+
+Input parameters:
+Node weight file: LT3_node.10240x1440.F32
+Horizontal weight file: LT3_hor_edge.10240x1440.F32
+Vertical weight file: LT3_ver_edge.10240x1440.F32
+Frame width: 2560
+Frame height: 1440
+Local to global relabel ratio: 32
+ActivePix count for switching to AVX2: 0
+
+--------------------------------------------------------------------------------------------------------------
+
+C model:
+  1, nPush =  19408, sPush =  17000, wPush =  14624, ePush =  14464, Active pixels = 712696
+  2, nPush =  25536, sPush =  14464, wPush =  11608, ePush =  10848, Active pixels = 717112
+  3, nPush =  32972, sPush =  10384, wPush =  13416, ePush =  11276, Active pixels = 719556
+  4, nPush =  40136, sPush =  11044, wPush =  13784, ePush =  12060, Active pixels = 721340
+  5, nPush =  44876, sPush =  11324, wPush =  14948, ePush =  12104, Active pixels = 719564
+  6, nPush =  51092, sPush =  12372, wPush =  14572, ePush =  10568, Active pixels = 716668
+  7, nPush =  55700, sPush =  12428, wPush =  14816, ePush =  10984, Active pixels = 714308
+  8, nPush =  59456, sPush =  13008, wPush =  14648, ePush =  10672, Active pixels = 712128
+  9, nPush =  62292, sPush =  13488, wPush =  14472, ePush =  10840, Active pixels = 709128
+ 10, nPush =  63032, sPush =  13832, wPush =  14008, ePush =  12244, Active pixels = 706668
+ 11, nPush =  63720, sPush =  14668, wPush =  14000, ePush =  13040, Active pixels = 703712
+ 12, nPush =  63492, sPush =  15712, wPush =  14920, ePush =  12736, Active pixels = 700108
+ 13, nPush =  62304, sPush =  15340, wPush =  15716, ePush =  13460, Active pixels = 696752
+ 14, nPush =  60356, sPush =  16228, wPush =  16608, ePush =  14008, Active pixels = 693012
+ 15, nPush =  57404, sPush =  16048, wPush =  17652, ePush =  13544, Active pixels = 689260
+ 16, nPush =  53444, sPush =  16544, wPush =  19108, ePush =  15892, Active pixels = 684492
+ 17, nPush =  49008, sPush =  17628, wPush =  20116, ePush =  17100, Active pixels = 681128
+ 18, nPush =  43988, sPush =  19460, wPush =  20856, ePush =  18020, Active pixels = 676860
+ 19, nPush =  39800, sPush =  19404, wPush =  20620, ePush =  18596, Active pixels = 671956
+ 20, nPush =  35708, sPush =  21120, wPush =  21352, ePush =  17760, Active pixels = 667316
+ 21, nPush =  34180, sPush =  21624, wPush =  20872, ePush =  16724, Active pixels = 663304
+ 22, nPush =  32456, sPush =  21736, wPush =  20632, ePush =  16200, Active pixels = 659260
+ 23, nPush =  30468, sPush =  21568, wPush =  20040, ePush =  15528, Active pixels = 655856
+ 24, nPush =  30180, sPush =  22160, wPush =  19676, ePush =  15420, Active pixels = 653412
+ 25, nPush =  28708, sPush =  21756, wPush =  19548, ePush =  15252, Active pixels = 649412
+ 26, nPush =  27932, sPush =  20972, wPush =  19240, ePush =  15148, Active pixels = 646684
+ 27, nPush =  26936, sPush =  21728, wPush =  18416, ePush =  16180, Active pixels = 644132
+ 28, nPush =  26760, sPush =  22072, wPush =  17836, ePush =  15512, Active pixels = 641056
+ 29, nPush =  25576, sPush =  21228, wPush =  17324, ePush =  15796, Active pixels = 638932
+ 30, nPush =  25460, sPush =  21520, wPush =  17864, ePush =  14960, Active pixels = 636488
+ 31, nPush =  25080, sPush =  20604, wPush =  17772, ePush =  16124, Active pixels = 634244
+ 32,    Global Relabel new height blocks: 3480
+        Global Relabel new height blocks: 2376
+        Global Relabel new height blocks: 1868
+        Global Relabel new height blocks: 1780
+        Global Relabel new height blocks: 1660
+        Global Relabel new height blocks: 1416
+        Global Relabel new height blocks: 1280
+        Global Relabel new height blocks: 1088
+        Global Relabel new height blocks: 928
+        Global Relabel new height blocks: 724
+        Global Relabel new height blocks: 680
+        Global Relabel new height blocks: 652
+        Global Relabel new height blocks: 584
+        Global Relabel new height blocks: 600
+        Global Relabel new height blocks: 532
+        Global Relabel new height blocks: 580
+        Global Relabel new height blocks: 496
+        Global Relabel new height blocks: 464
+        Global Relabel new height blocks: 368
+        Global Relabel new height blocks: 296
+        Global Relabel new height blocks: 320
+        Global Relabel new height blocks: 280
+        Global Relabel new height blocks: 256
+        Global Relabel new height blocks: 232
+        Global Relabel new height blocks: 240
+        Global Relabel new height blocks: 216
+        Global Relabel new height blocks: 216
+        Global Relabel new height blocks: 216
+        Global Relabel new height blocks: 216
+        Global Relabel new height blocks: 208
+        Global Relabel new height blocks: 208
+        Global Relabel new height blocks: 216
+nPush =   7432, sPush =  14820, wPush =   6484, ePush =  32456, Active pixels =  22432
+ 33, nPush =  10140, sPush =   6780, wPush =   7812, ePush =  13404, Active pixels =  20936
+ 34, nPush =   9072, sPush =   5096, wPush =   8132, ePush =   8412, Active pixels =  20212
+ 35, nPush =   8812, sPush =   4912, wPush =   7924, ePush =   6688, Active pixels =  19136
+ 36, nPush =   8232, sPush =   5228, wPush =   8092, ePush =   5492, Active pixels =  18548
+ 37, nPush =   8848, sPush =   5048, wPush =   7652, ePush =   5312, Active pixels =  17880
+ 38, nPush =   8108, sPush =   5668, wPush =   7028, ePush =   5960, Active pixels =  17220
+ 39, nPush =   7876, sPush =   5792, wPush =   6360, ePush =   5560, Active pixels =  16724
+ 40, nPush =   8308, sPush =   5244, wPush =   6796, ePush =   5348, Active pixels =  16176
+ 41, nPush =   8012, sPush =   5572, wPush =   6256, ePush =   4880, Active pixels =  15952
+ 42, nPush =   7560, sPush =   5576, wPush =   5688, ePush =   5212, Active pixels =  15384
+ 43, nPush =   7576, sPush =   5620, wPush =   5784, ePush =   5216, Active pixels =  15140
+ 44, nPush =   7280, sPush =   5664, wPush =   5316, ePush =   5948, Active pixels =  14776
+ 45, nPush =   7240, sPush =   5936, wPush =   5464, ePush =   4832, Active pixels =  14896
+ 46, nPush =   7384, sPush =   5388, wPush =   5460, ePush =   5628, Active pixels =  14508
+ 47, nPush =   6732, sPush =   5452, wPush =   5592, ePush =   5036, Active pixels =  14136
+ 48, nPush =   6660, sPush =   6300, wPush =   5464, ePush =   4756, Active pixels =  13612
+ 49, nPush =   6156, sPush =   5600, wPush =   5120, ePush =   5668, Active pixels =  13412
+ 50, nPush =   6524, sPush =   5616, wPush =   4812, ePush =   6140, Active pixels =  13660
+ 51, nPush =   6672, sPush =   6024, wPush =   5296, ePush =   5524, Active pixels =  13300
+ 52, nPush =   6192, sPush =   6032, wPush =   5276, ePush =   5380, Active pixels =  13020
+ 53, nPush =   6192, sPush =   6364, wPush =   4764, ePush =   4852, Active pixels =  13128
+ 54, nPush =   6560, sPush =   5320, wPush =   5036, ePush =   5540, Active pixels =  12936
+ 55, nPush =   6296, sPush =   6196, wPush =   4800, ePush =   5120, Active pixels =  13152
+ 56, nPush =   5916, sPush =   5968, wPush =   5048, ePush =   5184, Active pixels =  13036
+ 57, nPush =   6172, sPush =   6184, wPush =   5344, ePush =   4432, Active pixels =  13048
+ 58, nPush =   6016, sPush =   6116, wPush =   4912, ePush =   6120, Active pixels =  12980
+ 59, nPush =   6424, sPush =   5376, wPush =   5016, ePush =   5092, Active pixels =  12960
+ 60, nPush =   6056, sPush =   5368, wPush =   4952, ePush =   4556, Active pixels =  12440
+ 61, nPush =   5760, sPush =   6144, wPush =   5020, ePush =   4608, Active pixels =  12560
+ 62, nPush =   5772, sPush =   5304, wPush =   4824, ePush =   5388, Active pixels =  12432
+ 63, nPush =   6004, sPush =   5784, wPush =   4404, ePush =   4496, Active pixels =  11980
+ 64,    Global Relabel new height blocks: 3688
+        Global Relabel new height blocks: 2408
+        Global Relabel new height blocks: 1944
+        Global Relabel new height blocks: 1680
+        Global Relabel new height blocks: 1608
+        Global Relabel new height blocks: 1452
+        Global Relabel new height blocks: 1304
+        Global Relabel new height blocks: 1132
+        Global Relabel new height blocks: 944
+        Global Relabel new height blocks: 752
+        Global Relabel new height blocks: 648
+        Global Relabel new height blocks: 552
+        Global Relabel new height blocks: 432
+        Global Relabel new height blocks: 356
+        Global Relabel new height blocks: 308
+        Global Relabel new height blocks: 256
+        Global Relabel new height blocks: 236
+        Global Relabel new height blocks: 220
+        Global Relabel new height blocks: 164
+        Global Relabel new height blocks: 84
+        Global Relabel new height blocks: 68
+        Global Relabel new height blocks: 60
+        Global Relabel new height blocks: 40
+        Global Relabel new height blocks: 32
+        Global Relabel new height blocks: 32
+        Global Relabel new height blocks: 0
+nPush =    408, sPush =   1032, wPush =    424, ePush =   3980, Active pixels =   1344
+ 65, nPush =    624, sPush =    620, wPush =    324, ePush =   1808, Active pixels =   1060
+ 66, nPush =    472, sPush =    356, wPush =    356, ePush =    996, Active pixels =   1044
+ 67, nPush =    432, sPush =    448, wPush =    288, ePush =    720, Active pixels =    792
+ 68, nPush =    384, sPush =    256, wPush =    240, ePush =    496, Active pixels =    816
+ 69, nPush =    480, sPush =    276, wPush =    164, ePush =    600, Active pixels =    652
+ 70, nPush =    388, sPush =    132, wPush =    132, ePush =    472, Active pixels =    536
+ 71, nPush =    244, sPush =    220, wPush =    116, ePush =    368, Active pixels =    504
+ 72, nPush =    264, sPush =    180, wPush =    104, ePush =    204, Active pixels =    424
+ 73, nPush =    264, sPush =    136, wPush =     44, ePush =    212, Active pixels =    432
+ 74, nPush =    264, sPush =    304, wPush =     44, ePush =     80, Active pixels =    408
+ 75, nPush =    208, sPush =    428, wPush =     64, ePush =    212, Active pixels =    424
+ 76, nPush =    172, sPush =    452, wPush =     64, ePush =    588, Active pixels =    440
+ 77, nPush =    284, sPush =    304, wPush =     84, ePush =    432, Active pixels =    444
+ 78, nPush =    288, sPush =    256, wPush =     28, ePush =    212, Active pixels =    432
+ 79, nPush =    292, sPush =    212, wPush =     72, ePush =    320, Active pixels =    480
+ 80, nPush =    216, sPush =    656, wPush =     76, ePush =    584, Active pixels =    432
+ 81, nPush =    272, sPush =    400, wPush =     72, ePush =    112, Active pixels =    344
+ 82, nPush =    220, sPush =    156, wPush =     28, ePush =    144, Active pixels =    340
+ 83, nPush =    224, sPush =    228, wPush =     20, ePush =    144, Active pixels =    292
+ 84, nPush =    248, sPush =    108, wPush =     28, ePush =     80, Active pixels =    232
+ 85, nPush =    184, sPush =      4, wPush =     60, ePush =    140, Active pixels =    248
+ 86, nPush =    152, sPush =    212, wPush =     64, ePush =     84, Active pixels =    200
+ 87, nPush =    136, sPush =     56, wPush =     48, ePush =     96, Active pixels =    240
+ 88, nPush =    100, sPush =    284, wPush =     56, ePush =    248, Active pixels =    256
+ 89, nPush =    192, sPush =    176, wPush =     56, ePush =    168, Active pixels =    204
+ 90, nPush =     92, sPush =    140, wPush =     84, ePush =    120, Active pixels =    224
+ 91, nPush =    200, sPush =     32, wPush =     76, ePush =     28, Active pixels =    176
+ 92, nPush =    116, sPush =     64, wPush =     72, ePush =     36, Active pixels =    192
+ 93, nPush =    144, sPush =    140, wPush =    104, ePush =     36, Active pixels =    224
+ 94, nPush =    152, sPush =    164, wPush =     68, ePush =     24, Active pixels =    228
+ 95, nPush =    156, sPush =    288, wPush =    120, ePush =      4, Active pixels =    228
+ 96,    Global Relabel new height blocks: 3688
+        Global Relabel new height blocks: 2408
+        Global Relabel new height blocks: 1956
+        Global Relabel new height blocks: 1692
+        Global Relabel new height blocks: 1616
+        Global Relabel new height blocks: 1460
+        Global Relabel new height blocks: 1328
+        Global Relabel new height blocks: 1156
+        Global Relabel new height blocks: 952
+        Global Relabel new height blocks: 764
+        Global Relabel new height blocks: 668
+        Global Relabel new height blocks: 572
+        Global Relabel new height blocks: 464
+        Global Relabel new height blocks: 408
+        Global Relabel new height blocks: 308
+        Global Relabel new height blocks: 240
+        Global Relabel new height blocks: 228
+        Global Relabel new height blocks: 228
+        Global Relabel new height blocks: 180
+        Global Relabel new height blocks: 132
+        Global Relabel new height blocks: 84
+        Global Relabel new height blocks: 76
+        Global Relabel new height blocks: 72
+        Global Relabel new height blocks: 64
+        Global Relabel new height blocks: 48
+        Global Relabel new height blocks: 16
+        Global Relabel new height blocks: 16
+        Global Relabel new height blocks: 0
+nPush =     16, sPush =    128, wPush =     24, ePush =    204, Active pixels =     68
+ 97, nPush =      8, sPush =    116, wPush =     44, ePush =      0, Active pixels =     72
+ 98, nPush =     32, sPush =    124, wPush =     68, ePush =      0, Active pixels =     92
+ 99, nPush =     32, sPush =     64, wPush =     40, ePush =      0, Active pixels =     60
+100, nPush =     20, sPush =     44, wPush =     16, ePush =      0, Active pixels =     48
+101, nPush =     12, sPush =     60, wPush =     36, ePush =      0, Active pixels =     36
+102, nPush =     24, sPush =      0, wPush =     16, ePush =      0, Active pixels =     36
+103, nPush =     28, sPush =      4, wPush =     16, ePush =      0, Active pixels =     40
+104, nPush =     28, sPush =     16, wPush =     20, ePush =      0, Active pixels =     40
+105, nPush =     32, sPush =      8, wPush =     20, ePush =      0, Active pixels =     40
+106, nPush =      8, sPush =     72, wPush =     36, ePush =      0, Active pixels =     48
+107, nPush =     28, sPush =      8, wPush =     28, ePush =      0, Active pixels =     56
+108, nPush =     28, sPush =      8, wPush =     32, ePush =      0, Active pixels =     60
+109, nPush =     24, sPush =     20, wPush =     36, ePush =     12, Active pixels =     60
+110, nPush =     24, sPush =     16, wPush =     32, ePush =     20, Active pixels =     64
+111, nPush =     36, sPush =      4, wPush =     36, ePush =      0, Active pixels =     60
+112, nPush =     36, sPush =     16, wPush =     32, ePush =     12, Active pixels =     60
+113, nPush =     28, sPush =    120, wPush =     40, ePush =      8, Active pixels =     52
+114, nPush =     48, sPush =      0, wPush =     20, ePush =      4, Active pixels =     48
+115, nPush =     28, sPush =      8, wPush =     16, ePush =      0, Active pixels =     44
+116, nPush =     36, sPush =     32, wPush =     12, ePush =      0, Active pixels =     36
+117, nPush =     32, sPush =      0, wPush =      8, ePush =      8, Active pixels =     36
+118, nPush =     36, sPush =      0, wPush =     12, ePush =     12, Active pixels =     40
+119, nPush =     40, sPush =      8, wPush =      8, ePush =      0, Active pixels =     44
+120, nPush =     20, sPush =    112, wPush =     24, ePush =      0, Active pixels =     44
+121, nPush =     40, sPush =      0, wPush =     20, ePush =      0, Active pixels =     44
+122, nPush =     32, sPush =     12, wPush =     12, ePush =     12, Active pixels =     48
+123, nPush =     44, sPush =      8, wPush =      8, ePush =      0, Active pixels =     48
+124, nPush =     44, sPush =      0, wPush =     20, ePush =      4, Active pixels =     52
+125, nPush =     40, sPush =     36, wPush =     20, ePush =      0, Active pixels =     52
+126, nPush =     48, sPush =      0, wPush =     28, ePush =      0, Active pixels =     52
+127, nPush =     44, sPush =      0, wPush =     20, ePush =      0, Active pixels =     56
+128,    Global Relabel new height blocks: 3688
+        Global Relabel new height blocks: 2404
+        Global Relabel new height blocks: 1952
+        Global Relabel new height blocks: 1688
+        Global Relabel new height blocks: 1620
+        Global Relabel new height blocks: 1464
+        Global Relabel new height blocks: 1332
+        Global Relabel new height blocks: 1160
+        Global Relabel new height blocks: 952
+        Global Relabel new height blocks: 764
+        Global Relabel new height blocks: 668
+        Global Relabel new height blocks: 572
+        Global Relabel new height blocks: 468
+        Global Relabel new height blocks: 416
+        Global Relabel new height blocks: 308
+        Global Relabel new height blocks: 240
+        Global Relabel new height blocks: 228
+        Global Relabel new height blocks: 228
+        Global Relabel new height blocks: 180
+        Global Relabel new height blocks: 132
+        Global Relabel new height blocks: 84
+        Global Relabel new height blocks: 76
+        Global Relabel new height blocks: 72
+        Global Relabel new height blocks: 64
+        Global Relabel new height blocks: 48
+        Global Relabel new height blocks: 16
+        Global Relabel new height blocks: 16
+        Global Relabel new height blocks: 0
+nPush =     24, sPush =    152, wPush =     16, ePush =    128, Active pixels =     60
+129, nPush =     32, sPush =     52, wPush =     36, ePush =     24, Active pixels =     56
+130, nPush =     24, sPush =     24, wPush =     40, ePush =      0, Active pixels =     52
+131, nPush =     24, sPush =     12, wPush =     36, ePush =      0, Active pixels =     52
+132, nPush =     28, sPush =      0, wPush =     36, ePush =      0, Active pixels =     52
+133, nPush =     28, sPush =      0, wPush =     40, ePush =      0, Active pixels =     56
+134, nPush =     24, sPush =      0, wPush =     44, ePush =      0, Active pixels =     56
+135, nPush =     24, sPush =     36, wPush =     40, ePush =      0, Active pixels =     52
+136, nPush =     28, sPush =      0, wPush =     44, ePush =      0, Active pixels =     52
+137, nPush =     28, sPush =      0, wPush =     40, ePush =      0, Active pixels =     52
+138, nPush =     28, sPush =      4, wPush =     40, ePush =      0, Active pixels =     52
+139, nPush =     24, sPush =      0, wPush =     40, ePush =      0, Active pixels =     48
+140, nPush =     20, sPush =      0, wPush =     36, ePush =      0, Active pixels =     48
+141, nPush =     28, sPush =      0, wPush =     40, ePush =      0, Active pixels =     44
+142, nPush =      8, sPush =     48, wPush =     32, ePush =      0, Active pixels =     44
+143, nPush =     16, sPush =      0, wPush =     40, ePush =      0, Active pixels =     40
+144, nPush =     16, sPush =      0, wPush =     36, ePush =      0, Active pixels =     28
+145, nPush =     16, sPush =      0, wPush =     20, ePush =      0, Active pixels =     28
+146, nPush =     20, sPush =      0, wPush =     16, ePush =      0, Active pixels =     28
+147, nPush =     16, sPush =      0, wPush =     16, ePush =      0, Active pixels =     24
+148, nPush =     12, sPush =      0, wPush =     16, ePush =      0, Active pixels =     16
+149, nPush =     12, sPush =      0, wPush =      8, ePush =      0, Active pixels =     16
+150, nPush =      4, sPush =     56, wPush =      8, ePush =      0, Active pixels =     16
+151, nPush =     12, sPush =      0, wPush =      8, ePush =      0, Active pixels =     12
+152, nPush =      8, sPush =      0, wPush =      8, ePush =      0, Active pixels =     12
+153, nPush =      8, sPush =      0, wPush =      4, ePush =      0, Active pixels =     12
+154, nPush =     12, sPush =      0, wPush =      4, ePush =      0, Active pixels =      8
+155, nPush =      8, sPush =      0, wPush =      0, ePush =      0, Active pixels =      8
+156, nPush =      8, sPush =      0, wPush =      0, ePush =      0, Active pixels =      8
+157, nPush =      8, sPush =      0, wPush =      0, ePush =      0, Active pixels =      8
+158, nPush =      8, sPush =      0, wPush =      0, ePush =      0, Active pixels =      8
+159, nPush =      0, sPush =     56, wPush =      4, ePush =      0, Active pixels =      8
+160,    Global Relabel new height blocks: 3688
+        Global Relabel new height blocks: 2404
+        Global Relabel new height blocks: 1952
+        Global Relabel new height blocks: 1684
+        Global Relabel new height blocks: 1616
+        Global Relabel new height blocks: 1460
+        Global Relabel new height blocks: 1332
+        Global Relabel new height blocks: 1160
+        Global Relabel new height blocks: 956
+        Global Relabel new height blocks: 768
+        Global Relabel new height blocks: 668
+        Global Relabel new height blocks: 572
+        Global Relabel new height blocks: 468
+        Global Relabel new height blocks: 416
+        Global Relabel new height blocks: 312
+        Global Relabel new height blocks: 240
+        Global Relabel new height blocks: 228
+        Global Relabel new height blocks: 228
+        Global Relabel new height blocks: 180
+        Global Relabel new height blocks: 132
+        Global Relabel new height blocks: 84
+        Global Relabel new height blocks: 76
+        Global Relabel new height blocks: 72
+        Global Relabel new height blocks: 64
+        Global Relabel new height blocks: 48
+        Global Relabel new height blocks: 16
+        Global Relabel new height blocks: 16
+        Global Relabel new height blocks: 0
+nPush =      0, sPush =      0, wPush =      0, ePush =     36, Active pixels =     12
+161, nPush =      0, sPush =     12, wPush =      0, ePush =      8, Active pixels =      8
+162, nPush =      8, sPush =      0, wPush =      0, ePush =      0, Active pixels =      8
+163, nPush =      8, sPush =      0, wPush =      4, ePush =      0, Active pixels =      8
+164, nPush =      8, sPush =      0, wPush =      0, ePush =      0, Active pixels =      8
+165, nPush =      8, sPush =      0, wPush =      0, ePush =      0, Active pixels =      8
+166, nPush =      4, sPush =     20, wPush =      0, ePush =      8, Active pixels =      8
+167, nPush =      8, sPush =      0, wPush =      0, ePush =      0, Active pixels =      8
+168, nPush =      8, sPush =      0, wPush =      0, ePush =      0, Active pixels =      8
+169, nPush =      8, sPush =      0, wPush =      4, ePush =      0, Active pixels =      8
+170, nPush =      8, sPush =      0, wPush =      4, ePush =      0, Active pixels =     16
+171, nPush =      4, sPush =      4, wPush =      4, ePush =      4, Active pixels =     16
+172, nPush =     16, sPush =      0, wPush =     12, ePush =      0, Active pixels =     16
+173, nPush =     12, sPush =      4, wPush =      4, ePush =      0, Active pixels =     20
+174, nPush =     20, sPush =      0, wPush =      4, ePush =     12, Active pixels =     20
+175, nPush =     20, sPush =      0, wPush =     12, ePush =      0, Active pixels =     20
+176, nPush =     16, sPush =      4, wPush =     16, ePush =      8, Active pixels =     28
+177, nPush =     24, sPush =      0, wPush =     12, ePush =     20, Active pixels =     28
+178, nPush =     28, sPush =      0, wPush =      8, ePush =      0, Active pixels =     28
+179, nPush =     28, sPush =      0, wPush =     20, ePush =      0, Active pixels =     28
+180, nPush =     24, sPush =      0, wPush =     24, ePush =      0, Active pixels =     32
+181, nPush =     20, sPush =      0, wPush =     24, ePush =      0, Active pixels =     32
+182, nPush =     24, sPush =      0, wPush =     28, ePush =      0, Active pixels =     32
+183, nPush =     20, sPush =      0, wPush =     28, ePush =      0, Active pixels =     36
+184, nPush =     24, sPush =      0, wPush =     32, ePush =      0, Active pixels =     36
+185, nPush =     24, sPush =      0, wPush =     32, ePush =      0, Active pixels =     36
+186, nPush =     28, sPush =      0, wPush =     32, ePush =      0, Active pixels =     36
+187, nPush =     24, sPush =      0, wPush =     32, ePush =      0, Active pixels =     32
+188, nPush =     20, sPush =      0, wPush =     32, ePush =      0, Active pixels =     32
+189, nPush =     16, sPush =      0, wPush =     32, ePush =      0, Active pixels =     32
+190, nPush =     20, sPush =      0, wPush =     24, ePush =      0, Active pixels =     28
+191, nPush =     20, sPush =      0, wPush =     20, ePush =      0, Active pixels =     28
+192,    Global Relabel new height blocks: 3688
+        Global Relabel new height blocks: 2404
+        Global Relabel new height blocks: 1952
+        Global Relabel new height blocks: 1684
+        Global Relabel new height blocks: 1616
+        Global Relabel new height blocks: 1460
+        Global Relabel new height blocks: 1332
+        Global Relabel new height blocks: 1160
+        Global Relabel new height blocks: 956
+        Global Relabel new height blocks: 768
+        Global Relabel new height blocks: 672
+        Global Relabel new height blocks: 572
+        Global Relabel new height blocks: 468
+        Global Relabel new height blocks: 416
+        Global Relabel new height blocks: 308
+        Global Relabel new height blocks: 240
+        Global Relabel new height blocks: 228
+        Global Relabel new height blocks: 228
+        Global Relabel new height blocks: 180
+        Global Relabel new height blocks: 132
+        Global Relabel new height blocks: 84
+        Global Relabel new height blocks: 76
+        Global Relabel new height blocks: 72
+        Global Relabel new height blocks: 64
+        Global Relabel new height blocks: 48
+        Global Relabel new height blocks: 16
+        Global Relabel new height blocks: 16
+        Global Relabel new height blocks: 0
+nPush =     12, sPush =      0, wPush =     24, ePush =      0, Active pixels =     24
+193, nPush =     12, sPush =      0, wPush =     16, ePush =      0, Active pixels =     24
+194, nPush =     12, sPush =      0, wPush =     24, ePush =      0, Active pixels =     20
+195, nPush =      4, sPush =      0, wPush =     20, ePush =      0, Active pixels =     20
+196, nPush =      0, sPush =      0, wPush =     20, ePush =      0, Active pixels =     20
+197, nPush =      0, sPush =      0, wPush =     20, ePush =      0, Active pixels =     20
+198, nPush =      0, sPush =      0, wPush =     20, ePush =      0, Active pixels =     20
+199, nPush =      8, sPush =      0, wPush =     16, ePush =      0, Active pixels =     16
+200, nPush =     12, sPush =      0, wPush =     16, ePush =      0, Active pixels =     16
+201, nPush =      4, sPush =      0, wPush =     12, ePush =      0, Active pixels =     12
+202, nPush =     12, sPush =      0, wPush =     12, ePush =      0, Active pixels =      8
+203, nPush =      0, sPush =      0, wPush =      8, ePush =      0, Active pixels =      4
+204, nPush =      0, sPush =      0, wPush =      4, ePush =      0, Active pixels =      0
+CPU Graph-Cut loops = 204
+C model time = 64919.1 ms
+--------------------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------------------
+
+TF C model:
+  1, nPush =  19408, sPush =  17000, wPush =  14624, ePush =  14464, Active pixels = 712584
+  2, nPush =  25408, sPush =  16052, wPush =  11608, ePush =  10664, Active pixels = 716672
+  3, nPush =  32780, sPush =  10908, wPush =  13564, ePush =  11336, Active pixels = 718864
+  4, nPush =  40152, sPush =  11228, wPush =  13784, ePush =  11872, Active pixels = 720312
+  5, nPush =  44980, sPush =  11452, wPush =  15240, ePush =  12504, Active pixels = 718912
+  6, nPush =  51624, sPush =  12304, wPush =  14632, ePush =  11160, Active pixels = 716320
+  7, nPush =  55748, sPush =  12724, wPush =  15304, ePush =  11424, Active pixels = 714396
+  8, nPush =  59476, sPush =  13488, wPush =  14884, ePush =  11300, Active pixels = 711784
+  9, nPush =  62160, sPush =  13172, wPush =  14372, ePush =  11976, Active pixels = 709204
+ 10, nPush =  63692, sPush =  13404, wPush =  14040, ePush =  12284, Active pixels = 706088
+ 11, nPush =  63780, sPush =  14720, wPush =  14116, ePush =  13244, Active pixels = 703164
+ 12, nPush =  64128, sPush =  13856, wPush =  14868, ePush =  14332, Active pixels = 699112
+ 13, nPush =  62264, sPush =  14884, wPush =  16260, ePush =  14656, Active pixels = 696124
+ 14, nPush =  60392, sPush =  16032, wPush =  17004, ePush =  15768, Active pixels = 692124
+ 15, nPush =  57368, sPush =  16152, wPush =  17936, ePush =  15180, Active pixels = 688304
+ 16, nPush =  53832, sPush =  16388, wPush =  19644, ePush =  16676, Active pixels = 684080
+ 17, nPush =  48800, sPush =  17928, wPush =  20264, ePush =  18856, Active pixels = 680288
+ 18, nPush =  44168, sPush =  18688, wPush =  20424, ePush =  18280, Active pixels = 674912
+ 19, nPush =  39780, sPush =  18772, wPush =  20904, ePush =  19180, Active pixels = 671032
+ 20, nPush =  36836, sPush =  20196, wPush =  22024, ePush =  18864, Active pixels = 665552
+ 21, nPush =  34320, sPush =  20676, wPush =  21588, ePush =  17312, Active pixels = 662016
+ 22, nPush =  32712, sPush =  22312, wPush =  21040, ePush =  17168, Active pixels = 658572
+ 23, nPush =  31448, sPush =  21476, wPush =  19964, ePush =  17040, Active pixels = 654044
+ 24, nPush =  30744, sPush =  21916, wPush =  19756, ePush =  15616, Active pixels = 650920
+ 25, nPush =  28496, sPush =  21260, wPush =  19644, ePush =  15828, Active pixels = 647936
+ 26, nPush =  28592, sPush =  21768, wPush =  19708, ePush =  15828, Active pixels = 645260
+ 27, nPush =  26808, sPush =  21764, wPush =  18832, ePush =  17304, Active pixels = 642444
+ 28, nPush =  27572, sPush =  20880, wPush =  18636, ePush =  15636, Active pixels = 639392
+ 29, nPush =  26872, sPush =  20728, wPush =  18272, ePush =  16304, Active pixels = 637300
+ 30, nPush =  26108, sPush =  20752, wPush =  18844, ePush =  16220, Active pixels = 634160
+ 31, nPush =  26192, sPush =  21140, wPush =  17824, ePush =  15192, Active pixels = 631280
+ 32,    Global Relabel new height nodes: 24124
+        Global Relabel new height nodes: 43680
+        Global Relabel new height nodes: 32192
+        Global Relabel new height nodes: 25460
+        Global Relabel new height nodes: 22968
+        Global Relabel new height nodes: 17820
+        Global Relabel new height nodes: 14724
+        Global Relabel new height nodes: 12116
+        Global Relabel new height nodes: 9672
+        Global Relabel new height nodes: 11028
+        Global Relabel new height nodes: 7216
+        Global Relabel new height nodes: 6120
+        Global Relabel new height nodes: 5520
+        Global Relabel new height nodes: 5904
+        Global Relabel new height nodes: 5028
+        Global Relabel new height nodes: 3608
+        Global Relabel new height nodes: 2928
+        Global Relabel new height nodes: 2172
+        Global Relabel new height nodes: 2448
+        Global Relabel new height nodes: 1808
+        Global Relabel new height nodes: 1568
+        Global Relabel new height nodes: 1600
+        Global Relabel new height nodes: 1728
+        Global Relabel new height nodes: 1088
+        Global Relabel new height nodes: 1056
+        Global Relabel new height nodes: 848
+        Global Relabel new height nodes: 1184
+        Global Relabel new height nodes: 896
+        Global Relabel new height nodes: 880
+        Global Relabel new height nodes: 2288
+        Global Relabel new height nodes: 1120
+        Global Relabel new height nodes: 1008
+nPush =   7800, sPush =  10956, wPush =   6968, ePush =  33340, Active pixels =  20832
+ 33, nPush =  10524, sPush =   6504, wPush =   7208, ePush =  11720, Active pixels =  18536
+ 34, nPush =   9128, sPush =   4380, wPush =   6980, ePush =   7100, Active pixels =  18164
+ 35, nPush =   8588, sPush =   4888, wPush =   6736, ePush =   5268, Active pixels =  17064
+ 36, nPush =   8604, sPush =   4128, wPush =   6376, ePush =   5760, Active pixels =  16156
+ 37, nPush =   7804, sPush =   5484, wPush =   6200, ePush =   5776, Active pixels =  15368
+ 38, nPush =   7888, sPush =   4064, wPush =   5708, ePush =   4608, Active pixels =  15000
+ 39, nPush =   7916, sPush =   4560, wPush =   5260, ePush =   4164, Active pixels =  14804
+ 40, nPush =   7816, sPush =   4168, wPush =   5632, ePush =   4336, Active pixels =  14044
+ 41, nPush =   7612, sPush =   4332, wPush =   5084, ePush =   3816, Active pixels =  13504
+ 42, nPush =   7364, sPush =   4516, wPush =   5200, ePush =   3984, Active pixels =  13344
+ 43, nPush =   6580, sPush =   4780, wPush =   4948, ePush =   4756, Active pixels =  13096
+ 44, nPush =   6820, sPush =   4560, wPush =   4636, ePush =   4264, Active pixels =  12856
+ 45, nPush =   6740, sPush =   4504, wPush =   4604, ePush =   4180, Active pixels =  12728
+ 46, nPush =   6720, sPush =   5376, wPush =   3964, ePush =   3776, Active pixels =  12100
+ 47, nPush =   6396, sPush =   5280, wPush =   4664, ePush =   4508, Active pixels =  12336
+ 48, nPush =   6316, sPush =   5156, wPush =   4180, ePush =   5376, Active pixels =  11796
+ 49, nPush =   6224, sPush =   4400, wPush =   4484, ePush =   4372, Active pixels =  11824
+ 50, nPush =   6440, sPush =   4980, wPush =   4300, ePush =   5032, Active pixels =  11820
+ 51, nPush =   6088, sPush =   4816, wPush =   4484, ePush =   4744, Active pixels =  11564
+ 52, nPush =   5604, sPush =   5164, wPush =   4084, ePush =   4664, Active pixels =  11260
+ 53, nPush =   5524, sPush =   4588, wPush =   4308, ePush =   3992, Active pixels =  10832
+ 54, nPush =   5288, sPush =   4864, wPush =   4068, ePush =   4140, Active pixels =  10688
+ 55, nPush =   5116, sPush =   5672, wPush =   4036, ePush =   4708, Active pixels =  10952
+ 56, nPush =   5544, sPush =   5752, wPush =   3980, ePush =   4976, Active pixels =  10744
+ 57, nPush =   5564, sPush =   5392, wPush =   3816, ePush =   4908, Active pixels =  10412
+ 58, nPush =   5276, sPush =   5292, wPush =   4060, ePush =   4196, Active pixels =  10384
+ 59, nPush =   5260, sPush =   5436, wPush =   4144, ePush =   5508, Active pixels =  10928
+ 60, nPush =   5132, sPush =   5708, wPush =   4208, ePush =   5104, Active pixels =  11188
+ 61, nPush =   5340, sPush =   5880, wPush =   4116, ePush =   5160, Active pixels =  10928
+ 62, nPush =   5204, sPush =   5372, wPush =   3620, ePush =   5636, Active pixels =  10648
+ 63, nPush =   5288, sPush =   5648, wPush =   3360, ePush =   5104, Active pixels =  10548
+ 64,    Global Relabel new height nodes: 29792
+        Global Relabel new height nodes: 47372
+        Global Relabel new height nodes: 35992
+        Global Relabel new height nodes: 27460
+        Global Relabel new height nodes: 23524
+        Global Relabel new height nodes: 22784
+        Global Relabel new height nodes: 18132
+        Global Relabel new height nodes: 15384
+        Global Relabel new height nodes: 13064
+        Global Relabel new height nodes: 11460
+        Global Relabel new height nodes: 9700
+        Global Relabel new height nodes: 8412
+        Global Relabel new height nodes: 7472
+        Global Relabel new height nodes: 6644
+        Global Relabel new height nodes: 5828
+        Global Relabel new height nodes: 4344
+        Global Relabel new height nodes: 3252
+        Global Relabel new height nodes: 2624
+        Global Relabel new height nodes: 2392
+        Global Relabel new height nodes: 2300
+        Global Relabel new height nodes: 2024
+        Global Relabel new height nodes: 1572
+        Global Relabel new height nodes: 1316
+        Global Relabel new height nodes: 1180
+        Global Relabel new height nodes: 992
+        Global Relabel new height nodes: 852
+        Global Relabel new height nodes: 852
+        Global Relabel new height nodes: 632
+        Global Relabel new height nodes: 428
+        Global Relabel new height nodes: 280
+        Global Relabel new height nodes: 160
+        Global Relabel new height nodes: 64
+nPush =    428, sPush =   1948, wPush =    452, ePush =   6708, Active pixels =   1968
+ 65, nPush =    948, sPush =   1160, wPush =    456, ePush =   2688, Active pixels =   1628
+ 66, nPush =    800, sPush =    880, wPush =    344, ePush =   1584, Active pixels =   1404
+ 67, nPush =    924, sPush =    296, wPush =    308, ePush =   1268, Active pixels =   1008
+ 68, nPush =    672, sPush =    352, wPush =    328, ePush =    692, Active pixels =    916
+ 69, nPush =    576, sPush =    180, wPush =    252, ePush =    468, Active pixels =    704
+ 70, nPush =    564, sPush =     80, wPush =    172, ePush =    224, Active pixels =    648
+ 71, nPush =    520, sPush =    104, wPush =    156, ePush =    240, Active pixels =    612
+ 72, nPush =    436, sPush =    372, wPush =    112, ePush =    240, Active pixels =    668
+ 73, nPush =    508, sPush =     64, wPush =    128, ePush =    472, Active pixels =    532
+ 74, nPush =    404, sPush =    196, wPush =     88, ePush =    144, Active pixels =    520
+ 75, nPush =    388, sPush =    132, wPush =     92, ePush =     96, Active pixels =    500
+ 76, nPush =    440, sPush =    172, wPush =     88, ePush =     36, Active pixels =    508
+ 77, nPush =    352, sPush =     88, wPush =     96, ePush =    764, Active pixels =    408
+ 78, nPush =    280, sPush =    300, wPush =     44, ePush =    288, Active pixels =    420
+ 79, nPush =    260, sPush =    220, wPush =     64, ePush =    140, Active pixels =    332
+ 80, nPush =    176, sPush =    320, wPush =     64, ePush =    144, Active pixels =    320
+ 81, nPush =    196, sPush =    232, wPush =     76, ePush =    192, Active pixels =    300
+ 82, nPush =    168, sPush =    268, wPush =     60, ePush =    196, Active pixels =    228
+ 83, nPush =    168, sPush =     84, wPush =     44, ePush =     40, Active pixels =    244
+ 84, nPush =    176, sPush =     92, wPush =     68, ePush =      8, Active pixels =    228
+ 85, nPush =    196, sPush =      0, wPush =     60, ePush =     24, Active pixels =    232
+ 86, nPush =    180, sPush =    128, wPush =     68, ePush =     48, Active pixels =    248
+ 87, nPush =    212, sPush =    124, wPush =     48, ePush =    176, Active pixels =    288
+ 88, nPush =    176, sPush =    180, wPush =    104, ePush =    108, Active pixels =    268
+ 89, nPush =    216, sPush =     28, wPush =     52, ePush =     40, Active pixels =    244
+ 90, nPush =    216, sPush =     60, wPush =     48, ePush =    156, Active pixels =    232
+ 91, nPush =    160, sPush =    128, wPush =     80, ePush =    168, Active pixels =    248
+ 92, nPush =    184, sPush =    116, wPush =     84, ePush =     72, Active pixels =    248
+ 93, nPush =    172, sPush =    136, wPush =     96, ePush =    116, Active pixels =    252
+ 94, nPush =    204, sPush =     48, wPush =    100, ePush =     44, Active pixels =    236
+ 95, nPush =    180, sPush =     36, wPush =     64, ePush =     96, Active pixels =    252
+ 96,    Global Relabel new height nodes: 30972
+        Global Relabel new height nodes: 49108
+        Global Relabel new height nodes: 36536
+        Global Relabel new height nodes: 28892
+        Global Relabel new height nodes: 25160
+        Global Relabel new height nodes: 24276
+        Global Relabel new height nodes: 18860
+        Global Relabel new height nodes: 16032
+        Global Relabel new height nodes: 13612
+        Global Relabel new height nodes: 11972
+        Global Relabel new height nodes: 10272
+        Global Relabel new height nodes: 8992
+        Global Relabel new height nodes: 8020
+        Global Relabel new height nodes: 7124
+        Global Relabel new height nodes: 5992
+        Global Relabel new height nodes: 4796
+        Global Relabel new height nodes: 3928
+        Global Relabel new height nodes: 3216
+        Global Relabel new height nodes: 2648
+        Global Relabel new height nodes: 2212
+        Global Relabel new height nodes: 1876
+        Global Relabel new height nodes: 1576
+        Global Relabel new height nodes: 1304
+        Global Relabel new height nodes: 1164
+        Global Relabel new height nodes: 944
+        Global Relabel new height nodes: 652
+        Global Relabel new height nodes: 640
+        Global Relabel new height nodes: 540
+        Global Relabel new height nodes: 388
+        Global Relabel new height nodes: 304
+        Global Relabel new height nodes: 164
+        Global Relabel new height nodes: 136
+nPush =     48, sPush =    388, wPush =     44, ePush =    216, Active pixels =    168
+ 97, nPush =    116, sPush =     48, wPush =     52, ePush =    228, Active pixels =    168
+ 98, nPush =    112, sPush =     28, wPush =     56, ePush =     48, Active pixels =    184
+ 99, nPush =    144, sPush =     60, wPush =     56, ePush =    168, Active pixels =    164
+100, nPush =    128, sPush =     60, wPush =     48, ePush =     80, Active pixels =    160
+101, nPush =    124, sPush =     48, wPush =     32, ePush =    160, Active pixels =    148
+102, nPush =    120, sPush =      0, wPush =     40, ePush =    148, Active pixels =    112
+103, nPush =     88, sPush =      0, wPush =     40, ePush =      0, Active pixels =     92
+104, nPush =     60, sPush =      0, wPush =     40, ePush =      0, Active pixels =     92
+105, nPush =     76, sPush =      0, wPush =     32, ePush =      0, Active pixels =     96
+106, nPush =     68, sPush =      0, wPush =     32, ePush =     20, Active pixels =     92
+107, nPush =     64, sPush =      0, wPush =     32, ePush =    160, Active pixels =     72
+108, nPush =     48, sPush =      0, wPush =     28, ePush =     16, Active pixels =     68
+109, nPush =     48, sPush =      0, wPush =     20, ePush =    160, Active pixels =     84
+110, nPush =     52, sPush =     16, wPush =     24, ePush =    148, Active pixels =     68
+111, nPush =     56, sPush =      4, wPush =     24, ePush =      0, Active pixels =     72
+112, nPush =     48, sPush =      0, wPush =     36, ePush =      0, Active pixels =     68
+113, nPush =     52, sPush =      4, wPush =     24, ePush =      0, Active pixels =     72
+114, nPush =     40, sPush =    320, wPush =     28, ePush =    272, Active pixels =     72
+115, nPush =     44, sPush =     20, wPush =     28, ePush =      0, Active pixels =     48
+116, nPush =     36, sPush =      4, wPush =     28, ePush =    144, Active pixels =     28
+117, nPush =      8, sPush =      4, wPush =     20, ePush =      0, Active pixels =     28
+118, nPush =     12, sPush =      0, wPush =     24, ePush =      0, Active pixels =     32
+119, nPush =     20, sPush =      0, wPush =     28, ePush =      0, Active pixels =     28
+120, nPush =     12, sPush =      0, wPush =     24, ePush =      0, Active pixels =     28
+121, nPush =     12, sPush =      0, wPush =     28, ePush =      0, Active pixels =     28
+122, nPush =     12, sPush =      0, wPush =     24, ePush =      0, Active pixels =     28
+123, nPush =     12, sPush =      0, wPush =     24, ePush =      0, Active pixels =     28
+124, nPush =      8, sPush =      0, wPush =     28, ePush =      0, Active pixels =     28
+125, nPush =      8, sPush =      0, wPush =     28, ePush =      0, Active pixels =     24
+126, nPush =      8, sPush =      0, wPush =     24, ePush =      0, Active pixels =     24
+127, nPush =     16, sPush =      0, wPush =     24, ePush =      0, Active pixels =     24
+128,    Global Relabel new height nodes: 31096
+        Global Relabel new height nodes: 49396
+        Global Relabel new height nodes: 37000
+        Global Relabel new height nodes: 29012
+        Global Relabel new height nodes: 25192
+        Global Relabel new height nodes: 24316
+        Global Relabel new height nodes: 18896
+        Global Relabel new height nodes: 16068
+        Global Relabel new height nodes: 13592
+        Global Relabel new height nodes: 11916
+        Global Relabel new height nodes: 10292
+        Global Relabel new height nodes: 9172
+        Global Relabel new height nodes: 8176
+        Global Relabel new height nodes: 7264
+        Global Relabel new height nodes: 6028
+        Global Relabel new height nodes: 4800
+        Global Relabel new height nodes: 3952
+        Global Relabel new height nodes: 3248
+        Global Relabel new height nodes: 2700
+        Global Relabel new height nodes: 2232
+        Global Relabel new height nodes: 1928
+        Global Relabel new height nodes: 1612
+        Global Relabel new height nodes: 1360
+        Global Relabel new height nodes: 1160
+        Global Relabel new height nodes: 1012
+        Global Relabel new height nodes: 696
+        Global Relabel new height nodes: 688
+        Global Relabel new height nodes: 564
+        Global Relabel new height nodes: 496
+        Global Relabel new height nodes: 360
+        Global Relabel new height nodes: 240
+        Global Relabel new height nodes: 208
+nPush =     16, sPush =      0, wPush =     24, ePush =      0, Active pixels =     24
+129, nPush =     12, sPush =      0, wPush =     20, ePush =      0, Active pixels =     20
+130, nPush =      0, sPush =      0, wPush =     20, ePush =      0, Active pixels =     16
+131, nPush =      0, sPush =      0, wPush =     16, ePush =      0, Active pixels =     16
+132, nPush =      0, sPush =      0, wPush =     16, ePush =      0, Active pixels =     16
+133, nPush =      0, sPush =      0, wPush =     16, ePush =      0, Active pixels =     16
+134, nPush =      8, sPush =      0, wPush =     12, ePush =      0, Active pixels =      8
+135, nPush =      0, sPush =      0, wPush =      8, ePush =      0, Active pixels =      8
+136, nPush =      0, sPush =      0, wPush =      8, ePush =      0, Active pixels =      4
+137, nPush =      0, sPush =      0, wPush =      4, ePush =      0, Active pixels =      4
+138, nPush =      0, sPush =      0, wPush =      4, ePush =      0, Active pixels =      0
+CPU Graph-Cut loops = 138
+C model time = 212865 ms
+.\Output\LT3_Output_CPU.2560x1440.Y8 .\Output\LT3_Output_TF_CPU.2560x1440.Y8 byte difference = 0.224%
+--------------------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------------------
+
+TF AVX2 model:
+  1, Active pixels =      1
+  2, Active pixels =      1
+  3, Active pixels =      1
+  4, Active pixels =      1
+  5, Active pixels =      1
+  6, Active pixels =      1
+  7, Active pixels =      1
+  8, Active pixels =      1
+  9, Active pixels =      1
+ 10, Active pixels =      1
+ 11, Active pixels =      1
+ 12, Active pixels =      1
+ 13, Active pixels =      1
+ 14, Active pixels =      1
+ 15, Active pixels =      1
+ 16, Active pixels =      1
+ 17, Active pixels =      1
+ 18, Active pixels =      1
+ 19, Active pixels =      1
+ 20, Active pixels =      1
+ 21, Active pixels =      1
+ 22, Active pixels =      1
+ 23, Active pixels =      1
+ 24, Active pixels =      1
+ 25, Active pixels =      1
+ 26, Active pixels =      1
+ 27, Active pixels =      1
+ 28, Active pixels =      1
+ 29, Active pixels =      1
+ 30, Active pixels =      1
+ 31, Active pixels =      1
+ 32, Active pixels =      1
+ 33, Active pixels =      1
+ 34, Active pixels =      1
+ 35, Active pixels =      1
+ 36, Active pixels =      1
+ 37, Active pixels =      1
+ 38, Active pixels =      1
+ 39, Active pixels =      1
+ 40, Active pixels =      1
+ 41, Active pixels =      1
+ 42, Active pixels =      1
+ 43, Active pixels =      1
+ 44, Active pixels =      1
+ 45, Active pixels =      1
+ 46, Active pixels =      1
+ 47, Active pixels =      1
+ 48, Active pixels =      1
+ 49, Active pixels =      1
+ 50, Active pixels =      1
+ 51, Active pixels =      1
+ 52, Active pixels =      1
+ 53, Active pixels =      1
+ 54, Active pixels =      1
+ 55, Active pixels =      1
+ 56, Active pixels =      1
+ 57, Active pixels =      1
+ 58, Active pixels =      1
+ 59, Active pixels =      1
+ 60, Active pixels =      1
+ 61, Active pixels =      1
+ 62, Active pixels =      1
+ 63, Active pixels =      1
+ 64, Active pixels =      1
+ 65, Active pixels =      1
+ 66, Active pixels =      1
+ 67, Active pixels =      1
+ 68, Active pixels =      1
+ 69, Active pixels =      1
+ 70, Active pixels =      1
+ 71, Active pixels =      1
+ 72, Active pixels =      1
+ 73, Active pixels =      1
+ 74, Active pixels =      1
+ 75, Active pixels =      1
+ 76, Active pixels =      1
+ 77, Active pixels =      1
+ 78, Active pixels =      1
+ 79, Active pixels =      1
+ 80, Active pixels =      1
+ 81, Active pixels =      1
+ 82, Active pixels =      1
+ 83, Active pixels =      1
+ 84, Active pixels =      1
+ 85, Active pixels =      1
+ 86, Active pixels =      1
+ 87, Active pixels =      1
+ 88, Active pixels =      1
+ 89, Active pixels =      1
+ 90, Active pixels =      1
+ 91, Active pixels =      1
+ 92, Active pixels =      1
+ 93, Active pixels =      1
+ 94, Active pixels =      1
+ 95, Active pixels =      1
+ 96, Active pixels =      1
+ 97, Active pixels =      1
+ 98, Active pixels =      1
+ 99, Active pixels =      1
+100, Active pixels =      1
+101, Active pixels =      1
+102, Active pixels =      1
+103, Active pixels =      1
+104, Active pixels =      1
+105, Active pixels =      1
+106, Active pixels =      1
+107, Active pixels =      1
+108, Active pixels =      1
+109, Active pixels =      1
+110, Active pixels =      1
+111, Active pixels =      1
+112, Active pixels =      1
+113, Active pixels =      1
+114, Active pixels =      1
+115, Active pixels =      1
+116, Active pixels =      1
+117, Active pixels =      1
+118, Active pixels =      1
+119, Active pixels =      1
+120, Active pixels =      1
+121, Active pixels =      0
+AVX2 Graph-Cut loops = 121
+AVX2 model time = 16684.9 ms
+.\Output\LT3_Output_CPU.2560x1440.Y8 .\Output\LT3_Output_TF_AVX2.2560x1440.Y8 byte difference = 0.244%
+--------------------------------------------------------------------------------------------------------------
+
+GPU execution:
+
+MDF Runtime version: 5.00
+Platform: SKL GT4
+GPU min frequency: 350 MHz
+GPU max frequency: 950 MHz
+GPU current frequency: 0 MHz
+
+Height type is short
+Horizontal Banks = 5
+Vertical Banks = 5
+Multiple kernels per enqueue
+
+32
+        Global relabel new blocks: 4920
+        Global relabel new blocks: 2632
+        Global relabel new blocks: 1528
+33: 28241, 5225,  32.3534 ms
+38: 19934, 3890,  10.3675 ms
+43: 18048, 3476,  10.1528 ms
+        Global relabel new blocks: 1464
+        Global relabel new blocks: 112
+        Global relabel new blocks: 96
+44: 5613, 2060,  30.7058 ms
+49: 3409, 1356,  11.8085 ms
+54: 2434, 993,  11.0270 ms
+        Global relabel new blocks: 856
+        Global relabel new blocks: 56
+        Global relabel new blocks: 0
+55: 1022, 596,  29.6430 ms
+60: 487, 338,   9.4967 ms
+65: 339, 159,   8.9437 ms
+        Global relabel new blocks: 568
+        Global relabel new blocks: 8
+        Global relabel new blocks: 0
+66: 224, 161,  28.1948 ms
+71: 73, 53,   9.3050 ms
+76: 49, 37,  10.8200 ms
+        Global relabel new blocks: 656
+        Global relabel new blocks: 0
+77: 45, 29,  23.8207 ms
+82: 30, 10,   9.3142 ms
+87: 22, 14,  10.3049 ms
+        Global relabel new blocks: 656
+        Global relabel new blocks: 0
+88: 18, 14,  22.3602 ms
+93: 20, 12,   9.9901 ms
+98: 22, 12,  11.3058 ms
+        Global relabel new blocks: 656
+        Global relabel new blocks: 0
+99: 30, 16,  22.3133 ms
+104: 20, 12,   9.1943 ms
+109: 22, 16,   9.4548 ms
+        Global relabel new blocks: 656
+        Global relabel new blocks: 0
+110: 30, 16,  22.9216 ms
+115: 26, 14,   9.9896 ms
+120: 22, 10,   9.0484 ms
+        Global relabel new blocks: 656
+        Global relabel new blocks: 0
+121: 28, 12,  18.2992 ms
+126: 22, 14,   8.8665 ms
+131: 10, 10,   9.4676 ms
+        Global relabel new blocks: 656
+        Global relabel new blocks: 0
+132: 18, 12,  20.3736 ms
+137: 18, 12,   8.9731 ms
+142: 14, 10,   8.6679 ms
+        Global relabel new blocks: 656
+        Global relabel new blocks: 0
+143: 18, 8,  20.7395 ms
+148: 8, 6,   9.9776 ms
+153: 6, 4,   9.0395 ms
+        Global relabel new blocks: 656
+        Global relabel new blocks: 0
+154: 4, 4,  21.8297 ms
+159: 0, 0,   9.1538 ms
+GPU Graph-Cut loops = 159
+AVX2 Graph-Cut loops = 0
+Copy time = 2.260662 ms
+AVX2 time = 0.000000 ms
+Total Time: 633.211854 ms
+
+.\Output\LT3_Output_CPU.2560x1440.Y8 .\Output\LT3_Output_GPU.2560x1440.Y8 byte difference = 0.000%
+==============================================================================================================
+
+Press any key to continue . . .

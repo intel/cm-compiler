@@ -1,0 +1,1997 @@
+{\rtf1\ansi\ansicpg1252\deff0\nouicompat{\fonttbl{\f0\fnil\fcharset0 Calibri;}}
+{\*\generator Riched20 10.0.14393}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\f0\fs22\lang9\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Run>cd C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T2_node.F32 -j:T2_hor_edge.F32 -k:T2_ver_edge.F32 -w:320 -h:240 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T2_node.F32\par
+Horizontal weight file: T2_hor_edge.F32\par
+Vertical weight file: T2_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 240\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 50\par
+C model time = 29.4285 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 41\par
+C model time = 104.374 ms\par
+.\\Output\\T2_Output_CPU.320x240.Y8 .\\Output\\T2_Output_TF_CPU.320x240.Y8 byte difference = 0.112%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 125\par
+a_list size 125\par
+AVX2 Graph-Cut loops = 45\par
+AVX2 model time = 9.49712 ms\par
+.\\Output\\T2_Output_CPU.320x240.Y8 .\\Output\\T2_Output_TF_AVX2.320x240.Y8 byte difference = 0.112%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 49\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.562290 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 12.474816 ms\par
+\par
+.\\Output\\T2_Output_CPU.320x240.Y8 .\\Output\\T2_Output_GPU.320x240.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T3_node.F32 -j:T3_hor_edge.F32 -k:T3_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T3_node.F32\par
+Horizontal weight file: T3_hor_edge.F32\par
+Vertical weight file: T3_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 91\par
+C model time = 35.3711 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 82\par
+C model time = 185.108 ms\par
+.\\Output\\T3_Output_CPU.320x176.Y8 .\\Output\\T3_Output_TF_CPU.320x176.Y8 byte difference = 0.206%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 87\par
+a_list size 87\par
+AVX2 Graph-Cut loops = 84\par
+AVX2 model time = 13.3291 ms\par
+.\\Output\\T3_Output_CPU.320x176.Y8 .\\Output\\T3_Output_TF_AVX2.320x176.Y8 byte difference = 0.206%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 65\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.579137 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 17.227984 ms\par
+\par
+.\\Output\\T3_Output_CPU.320x176.Y8 .\\Output\\T3_Output_GPU.320x176.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T4_node.F32 -j:T4_hor_edge.F32 -k:T4_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T4_node.F32\par
+Horizontal weight file: T4_hor_edge.F32\par
+Vertical weight file: T4_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 127\par
+C model time = 60.2668 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 127\par
+C model time = 286.098 ms\par
+.\\Output\\T4_Output_CPU.320x176.Y8 .\\Output\\T4_Output_TF_CPU.320x176.Y8 byte difference = 0.153%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 124\par
+a_list size 124\par
+AVX2 Graph-Cut loops = 128\par
+AVX2 model time = 19.8743 ms\par
+.\\Output\\T4_Output_CPU.320x176.Y8 .\\Output\\T4_Output_TF_AVX2.320x176.Y8 byte difference = 0.153%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 93\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.469556 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 26.512134 ms\par
+\par
+.\\Output\\T4_Output_CPU.320x176.Y8 .\\Output\\T4_Output_GPU.320x176.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T5_node.F32 -j:T5_hor_edge.F32 -k:T5_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T5_node.F32\par
+Horizontal weight file: T5_hor_edge.F32\par
+Vertical weight file: T5_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 89\par
+C model time = 42.2073 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 100\par
+C model time = 242.391 ms\par
+.\\Output\\T5_Output_CPU.320x176.Y8 .\\Output\\T5_Output_TF_CPU.320x176.Y8 byte difference = 0.208%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 117\par
+a_list size 117\par
+AVX2 Graph-Cut loops = 99\par
+AVX2 model time = 16.5519 ms\par
+.\\Output\\T5_Output_CPU.320x176.Y8 .\\Output\\T5_Output_TF_AVX2.320x176.Y8 byte difference = 0.208%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 77\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.424157 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 23.921897 ms\par
+\par
+.\\Output\\T5_Output_CPU.320x176.Y8 .\\Output\\T5_Output_GPU.320x176.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T6_node.F32 -j:T6_hor_edge.F32 -k:T6_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T6_node.F32\par
+Horizontal weight file: T6_hor_edge.F32\par
+Vertical weight file: T6_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 51\par
+C model time = 16.6243 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 78\par
+C model time = 148.586 ms\par
+.\\Output\\T6_Output_CPU.320x176.Y8 .\\Output\\T6_Output_TF_CPU.320x176.Y8 byte difference = 0.103%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 75\par
+a_list size 75\par
+AVX2 Graph-Cut loops = 57\par
+AVX2 model time = 10.1904 ms\par
+.\\Output\\T6_Output_CPU.320x176.Y8 .\\Output\\T6_Output_TF_AVX2.320x176.Y8 byte difference = 0.103%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 49\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.370935 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 10.623548 ms\par
+\par
+.\\Output\\T6_Output_CPU.320x176.Y8 .\\Output\\T6_Output_GPU.320x176.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T10_node.F32 -j:T10_hor_edge.F32 -k:T10_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T10_node.F32\par
+Horizontal weight file: T10_hor_edge.F32\par
+Vertical weight file: T10_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 32\par
+C model time = 11.3242 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 33\par
+C model time = 62.9481 ms\par
+.\\Output\\T10_Output_CPU.320x176.Y8 .\\Output\\T10_Output_TF_CPU.320x176.Y8 byte difference = 0.087%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 59\par
+a_list size 59\par
+AVX2 Graph-Cut loops = 32\par
+AVX2 model time = 6.12926 ms\par
+.\\Output\\T10_Output_CPU.320x176.Y8 .\\Output\\T10_Output_TF_AVX2.320x176.Y8 byte difference = 0.087%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 33\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.751237 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 8.517392 ms\par
+\par
+.\\Output\\T10_Output_CPU.320x176.Y8 .\\Output\\T10_Output_GPU.320x176.Y8 byte difference = 0.009%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T11_node.F32 -j:T11_hor_edge.F32 -k:T11_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T11_node.F32\par
+Horizontal weight file: T11_hor_edge.F32\par
+Vertical weight file: T11_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 33\par
+C model time = 11.6648 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 32\par
+C model time = 61.5299 ms\par
+.\\Output\\T11_Output_CPU.320x176.Y8 .\\Output\\T11_Output_TF_CPU.320x176.Y8 byte difference = 0.096%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 58\par
+a_list size 58\par
+AVX2 Graph-Cut loops = 32\par
+AVX2 model time = 5.50514 ms\par
+.\\Output\\T11_Output_CPU.320x176.Y8 .\\Output\\T11_Output_TF_AVX2.320x176.Y8 byte difference = 0.096%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 33\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.709384 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 7.978296 ms\par
+\par
+.\\Output\\T11_Output_CPU.320x176.Y8 .\\Output\\T11_Output_GPU.320x176.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T12_node.F32 -j:T12_hor_edge.F32 -k:T12_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T12_node.F32\par
+Horizontal weight file: T12_hor_edge.F32\par
+Vertical weight file: T12_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 32\par
+C model time = 11.4495 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 122.529 ms\par
+.\\Output\\T12_Output_CPU.320x176.Y8 .\\Output\\T12_Output_TF_CPU.320x176.Y8 byte difference = 0.160%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 59\par
+a_list size 59\par
+AVX2 Graph-Cut loops = 64\par
+AVX2 model time = 10.9533 ms\par
+.\\Output\\T12_Output_CPU.320x176.Y8 .\\Output\\T12_Output_TF_AVX2.320x176.Y8 byte difference = 0.160%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 33\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.500777 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 7.835682 ms\par
+\par
+.\\Output\\T12_Output_CPU.320x176.Y8 .\\Output\\T12_Output_GPU.320x176.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T13_node.F32 -j:T13_hor_edge.F32 -k:T13_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T13_node.F32\par
+Horizontal weight file: T13_hor_edge.F32\par
+Vertical weight file: T13_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 38\par
+C model time = 13.224 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 38\par
+C model time = 71.241 ms\par
+.\\Output\\T13_Output_CPU.320x176.Y8 .\\Output\\T13_Output_TF_CPU.320x176.Y8 byte difference = 0.082%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 59\par
+a_list size 59\par
+AVX2 Graph-Cut loops = 36\par
+AVX2 model time = 6.46734 ms\par
+.\\Output\\T13_Output_CPU.320x176.Y8 .\\Output\\T13_Output_TF_AVX2.320x176.Y8 byte difference = 0.082%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 49\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.483533 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 10.680361 ms\par
+\par
+.\\Output\\T13_Output_CPU.320x176.Y8 .\\Output\\T13_Output_GPU.320x176.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T14_node.F32 -j:T14_hor_edge.F32 -k:T14_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T14_node.F32\par
+Horizontal weight file: T14_hor_edge.F32\par
+Vertical weight file: T14_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 24.1043 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 121.217 ms\par
+.\\Output\\T14_Output_CPU.320x176.Y8 .\\Output\\T14_Output_TF_CPU.320x176.Y8 byte difference = 0.128%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 84\par
+a_list size 84\par
+AVX2 Graph-Cut loops = 42\par
+AVX2 model time = 7.38139 ms\par
+.\\Output\\T14_Output_CPU.320x176.Y8 .\\Output\\T14_Output_TF_AVX2.320x176.Y8 byte difference = 0.128%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 49\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.548283 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 10.921288 ms\par
+\par
+.\\Output\\T14_Output_CPU.320x176.Y8 .\\Output\\T14_Output_GPU.320x176.Y8 byte difference = 0.016%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T15_node.F32 -j:T15_hor_edge.F32 -k:T15_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T15_node.F32\par
+Horizontal weight file: T15_hor_edge.F32\par
+Vertical weight file: T15_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 32\par
+C model time = 17.5525 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 35\par
+C model time = 72.3224 ms\par
+.\\Output\\T15_Output_CPU.320x176.Y8 .\\Output\\T15_Output_TF_CPU.320x176.Y8 byte difference = 0.153%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 100\par
+a_list size 100\par
+AVX2 Graph-Cut loops = 34\par
+AVX2 model time = 9.43631 ms\par
+.\\Output\\T15_Output_CPU.320x176.Y8 .\\Output\\T15_Output_TF_AVX2.320x176.Y8 byte difference = 0.153%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 38\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.386935 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 8.147767 ms\par
+\par
+.\\Output\\T15_Output_CPU.320x176.Y8 .\\Output\\T15_Output_GPU.320x176.Y8 byte difference = 0.004%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T16_node.F32 -j:T16_hor_edge.F32 -k:T16_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T16_node.F32\par
+Horizontal weight file: T16_hor_edge.F32\par
+Vertical weight file: T16_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 28.1426 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 141.889 ms\par
+.\\Output\\T16_Output_CPU.320x176.Y8 .\\Output\\T16_Output_TF_CPU.320x176.Y8 byte difference = 0.138%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 99\par
+a_list size 99\par
+AVX2 Graph-Cut loops = 64\par
+AVX2 model time = 13.2085 ms\par
+.\\Output\\T16_Output_CPU.320x176.Y8 .\\Output\\T16_Output_TF_AVX2.320x176.Y8 byte difference = 0.138%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 44\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.431808 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 10.154404 ms\par
+\par
+.\\Output\\T16_Output_CPU.320x176.Y8 .\\Output\\T16_Output_GPU.320x176.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T17_node.F32 -j:T17_hor_edge.F32 -k:T17_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T17_node.F32\par
+Horizontal weight file: T17_hor_edge.F32\par
+Vertical weight file: T17_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 32\par
+C model time = 11.7586 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 118.267 ms\par
+.\\Output\\T17_Output_CPU.320x176.Y8 .\\Output\\T17_Output_TF_CPU.320x176.Y8 byte difference = 0.131%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 56\par
+a_list size 56\par
+AVX2 Graph-Cut loops = 32\par
+AVX2 model time = 5.46405 ms\par
+.\\Output\\T17_Output_CPU.320x176.Y8 .\\Output\\T17_Output_TF_AVX2.320x176.Y8 byte difference = 0.131%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 33\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.342966 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 7.447418 ms\par
+\par
+.\\Output\\T17_Output_CPU.320x176.Y8 .\\Output\\T17_Output_GPU.320x176.Y8 byte difference = 0.007%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T18_node.F32 -j:T18_hor_edge.F32 -k:T18_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T18_node.F32\par
+Horizontal weight file: T18_hor_edge.F32\par
+Vertical weight file: T18_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 23.9477 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 126.244 ms\par
+.\\Output\\T18_Output_CPU.320x176.Y8 .\\Output\\T18_Output_TF_CPU.320x176.Y8 byte difference = 0.130%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 83\par
+a_list size 83\par
+AVX2 Graph-Cut loops = 42\par
+AVX2 model time = 8.15366 ms\par
+.\\Output\\T18_Output_CPU.320x176.Y8 .\\Output\\T18_Output_TF_AVX2.320x176.Y8 byte difference = 0.130%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 49\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 1.094993 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 11.078197 ms\par
+\par
+.\\Output\\T18_Output_CPU.320x176.Y8 .\\Output\\T18_Output_GPU.320x176.Y8 byte difference = 0.016%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T19_node.F32 -j:T19_hor_edge.F32 -k:T19_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T19_node.F32\par
+Horizontal weight file: T19_hor_edge.F32\par
+Vertical weight file: T19_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 27.0505 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 129.892 ms\par
+.\\Output\\T19_Output_CPU.320x176.Y8 .\\Output\\T19_Output_TF_CPU.320x176.Y8 byte difference = 0.151%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 99\par
+a_list size 99\par
+AVX2 Graph-Cut loops = 64\par
+AVX2 model time = 14.1661 ms\par
+.\\Output\\T19_Output_CPU.320x176.Y8 .\\Output\\T19_Output_TF_AVX2.320x176.Y8 byte difference = 0.151%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 44\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.475901 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 10.464995 ms\par
+\par
+.\\Output\\T19_Output_CPU.320x176.Y8 .\\Output\\T19_Output_GPU.320x176.Y8 byte difference = 0.002%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T20_node.F32 -j:T20_hor_edge.F32 -k:T20_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T20_node.F32\par
+Horizontal weight file: T20_hor_edge.F32\par
+Vertical weight file: T20_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 27.6832 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 132.329 ms\par
+.\\Output\\T20_Output_CPU.320x176.Y8 .\\Output\\T20_Output_TF_CPU.320x176.Y8 byte difference = 0.140%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 99\par
+a_list size 99\par
+AVX2 Graph-Cut loops = 64\par
+AVX2 model time = 14.9711 ms\par
+.\\Output\\T20_Output_CPU.320x176.Y8 .\\Output\\T20_Output_TF_AVX2.320x176.Y8 byte difference = 0.140%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 38\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.729079 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 8.731389 ms\par
+\par
+.\\Output\\T20_Output_CPU.320x176.Y8 .\\Output\\T20_Output_GPU.320x176.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T21_node.F32 -j:T21_hor_edge.F32 -k:T21_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T21_node.F32\par
+Horizontal weight file: T21_hor_edge.F32\par
+Vertical weight file: T21_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 99\par
+C model time = 36.7962 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 107\par
+C model time = 251.805 ms\par
+.\\Output\\T21_Output_CPU.320x176.Y8 .\\Output\\T21_Output_TF_CPU.320x176.Y8 byte difference = 0.137%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 88\par
+a_list size 88\par
+AVX2 Graph-Cut loops = 113\par
+AVX2 model time = 14.2635 ms\par
+.\\Output\\T21_Output_CPU.320x176.Y8 .\\Output\\T21_Output_TF_AVX2.320x176.Y8 byte difference = 0.137%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 88\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.425323 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 20.694247 ms\par
+\par
+.\\Output\\T21_Output_CPU.320x176.Y8 .\\Output\\T21_Output_GPU.320x176.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T22_node.F32 -j:T22_hor_edge.F32 -k:T22_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T22_node.F32\par
+Horizontal weight file: T22_hor_edge.F32\par
+Vertical weight file: T22_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 22.8012 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 129.671 ms\par
+.\\Output\\T22_Output_CPU.320x176.Y8 .\\Output\\T22_Output_TF_CPU.320x176.Y8 byte difference = 0.128%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 83\par
+a_list size 83\par
+AVX2 Graph-Cut loops = 64\par
+AVX2 model time = 11.7185 ms\par
+.\\Output\\T22_Output_CPU.320x176.Y8 .\\Output\\T22_Output_TF_AVX2.320x176.Y8 byte difference = 0.128%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 44\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.356105 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 9.956629 ms\par
+\par
+.\\Output\\T22_Output_CPU.320x176.Y8 .\\Output\\T22_Output_GPU.320x176.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T23_node.F32 -j:T23_hor_edge.F32 -k:T23_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T23_node.F32\par
+Horizontal weight file: T23_hor_edge.F32\par
+Vertical weight file: T23_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 41\par
+C model time = 13.4743 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 119.282 ms\par
+.\\Output\\T23_Output_CPU.320x176.Y8 .\\Output\\T23_Output_TF_CPU.320x176.Y8 byte difference = 0.089%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 64\par
+a_list size 64\par
+AVX2 Graph-Cut loops = 64\par
+AVX2 model time = 12.9442 ms\par
+.\\Output\\T23_Output_CPU.320x176.Y8 .\\Output\\T23_Output_TF_AVX2.320x176.Y8 byte difference = 0.089%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 44\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.418541 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 9.670714 ms\par
+\par
+.\\Output\\T23_Output_CPU.320x176.Y8 .\\Output\\T23_Output_GPU.320x176.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T24_node.F32 -j:T24_hor_edge.F32 -k:T24_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T24_node.F32\par
+Horizontal weight file: T24_hor_edge.F32\par
+Vertical weight file: T24_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 18.0829 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 117.911 ms\par
+.\\Output\\T24_Output_CPU.320x176.Y8 .\\Output\\T24_Output_TF_CPU.320x176.Y8 byte difference = 0.073%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 59\par
+a_list size 59\par
+AVX2 Graph-Cut loops = 64\par
+AVX2 model time = 11.2076 ms\par
+.\\Output\\T24_Output_CPU.320x176.Y8 .\\Output\\T24_Output_TF_AVX2.320x176.Y8 byte difference = 0.073%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 44\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.390875 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 9.934279 ms\par
+\par
+.\\Output\\T24_Output_CPU.320x176.Y8 .\\Output\\T24_Output_GPU.320x176.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T25_node.F32 -j:T25_hor_edge.F32 -k:T25_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T25_node.F32\par
+Horizontal weight file: T25_hor_edge.F32\par
+Vertical weight file: T25_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 19.4625 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 120.479 ms\par
+.\\Output\\T25_Output_CPU.320x176.Y8 .\\Output\\T25_Output_TF_CPU.320x176.Y8 byte difference = 0.108%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 56\par
+a_list size 56\par
+AVX2 Graph-Cut loops = 64\par
+AVX2 model time = 12.6726 ms\par
+.\\Output\\T25_Output_CPU.320x176.Y8 .\\Output\\T25_Output_TF_AVX2.320x176.Y8 byte difference = 0.108%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 44\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.399955 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 9.548775 ms\par
+\par
+.\\Output\\T25_Output_CPU.320x176.Y8 .\\Output\\T25_Output_GPU.320x176.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T26_node.F32 -j:T26_hor_edge.F32 -k:T26_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T26_node.F32\par
+Horizontal weight file: T26_hor_edge.F32\par
+Vertical weight file: T26_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 41\par
+C model time = 13.2878 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 129.142 ms\par
+.\\Output\\T26_Output_CPU.320x176.Y8 .\\Output\\T26_Output_TF_CPU.320x176.Y8 byte difference = 0.194%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 58\par
+a_list size 58\par
+AVX2 Graph-Cut loops = 64\par
+AVX2 model time = 13.1834 ms\par
+.\\Output\\T26_Output_CPU.320x176.Y8 .\\Output\\T26_Output_TF_AVX2.320x176.Y8 byte difference = 0.194%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 43\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.378420 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 8.883532 ms\par
+\par
+.\\Output\\T26_Output_CPU.320x176.Y8 .\\Output\\T26_Output_GPU.320x176.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>Graph_Cut.exe -i:T27_node.F32 -j:T27_hor_edge.F32 -k:T27_ver_edge.F32 -w:320 -h:176 -r:32\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: T27_node.F32\par
+Horizontal weight file: T27_hor_edge.F32\par
+Vertical weight file: T27_ver_edge.F32\par
+Frame width: 320\par
+Frame height: 176\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 20.6813 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 64\par
+C model time = 122.351 ms\par
+.\\Output\\T27_Output_CPU.320x176.Y8 .\\Output\\T27_Output_TF_CPU.320x176.Y8 byte difference = 0.091%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 56\par
+a_list size 56\par
+AVX2 Graph-Cut loops = 64\par
+AVX2 model time = 11.2007 ms\par
+.\\Output\\T27_Output_CPU.320x176.Y8 .\\Output\\T27_Output_TF_AVX2.320x176.Y8 byte difference = 0.091%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 44\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 0.417120 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 10.384957 ms\par
+\par
+.\\Output\\T27_Output_CPU.320x176.Y8 .\\Output\\T27_Output_GPU.320x176.Y8 byte difference = 0.002%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>pause\par
+Press any key to continue . . .\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Run>cd C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>for /L %x in (1 1 1) do (Graph_Cut.exe -i:LT1_node.F32 -j:LT1_hor_edge.F32 -k:LT1_ver_edge.F32 -w:640 -h:360 -r:32 )\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>(Graph_Cut.exe -i:LT1_node.F32 -j:LT1_hor_edge.F32 -k:LT1_ver_edge.F32 -w:640 -h:360 -r:32 )\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: LT1_node.F32\par
+Horizontal weight file: LT1_hor_edge.F32\par
+Vertical weight file: LT1_ver_edge.F32\par
+Frame width: 640\par
+Frame height: 360\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 204\par
+C model time = 347.799 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 138\par
+C model time = 1334 ms\par
+.\\Output\\LT1_Output_CPU.640x360.Y8 .\\Output\\LT1_Output_TF_CPU.640x360.Y8 byte difference = 0.226%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 432\par
+a_list size 432\par
+AVX2 Graph-Cut loops = 233\par
+AVX2 model time = 99.0388 ms\par
+.\\Output\\LT1_Output_CPU.640x360.Y8 .\\Output\\LT1_Output_TF_AVX2.640x360.Y8 byte difference = 0.225%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 4\par
+Vertical Banks = 3\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 159\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 2.619977 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 84.783132 ms\par
+\par
+.\\Output\\LT1_Output_CPU.640x360.Y8 .\\Output\\LT1_Output_GPU.640x360.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>pause\par
+Press any key to continue . . .\par
+\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Run>cd C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>for /L %x in (1 1 1) do (Graph_Cut.exe -i:LT2_node.F32 -j:LT2_hor_edge.F32 -k:LT2_ver_edge.F32 -w:1280 -h:720 -r:32 )\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>(Graph_Cut.exe -i:LT2_node.F32 -j:LT2_hor_edge.F32 -k:LT2_ver_edge.F32 -w:1280 -h:720 -r:32 )\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: LT2_node.F32\par
+Horizontal weight file: LT2_hor_edge.F32\par
+Vertical weight file: LT2_ver_edge.F32\par
+Frame width: 1280\par
+Frame height: 720\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 204\par
+C model time = 1441.56 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 138\par
+C model time = 5448.78 ms\par
+.\\Output\\LT2_Output_CPU.1280x720.Y8 .\\Output\\LT2_Output_TF_CPU.1280x720.Y8 byte difference = 0.224%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 1804\par
+a_list size 1804\par
+AVX2 Graph-Cut loops = 153\par
+AVX2 model time = 350.435 ms\par
+.\\Output\\LT2_Output_CPU.1280x720.Y8 .\\Output\\LT2_Output_TF_AVX2.1280x720.Y8 byte difference = 0.245%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 5\par
+Vertical Banks = 5\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 159\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 1.009383 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 247.152554 ms\par
+\par
+.\\Output\\LT2_Output_CPU.1280x720.Y8 .\\Output\\LT2_Output_GPU.1280x720.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: LT3_node.10240x1440.F32\par
+Horizontal weight file: LT3_hor_edge.10240x1440.F32\par
+Vertical weight file: LT3_ver_edge.10240x1440.F32\par
+Frame width: 2560\par
+Frame height: 1440\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 204\par
+C model time = 5764.68 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 138\par
+C model time = 21372.3 ms\par
+.\\Output\\LT3_Output_CPU.2560x1440.Y8 .\\Output\\LT3_Output_TF_CPU.2560x1440.Y8 byte difference = 0.224%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 7216\par
+a_list size 7216\par
+AVX2 Graph-Cut loops = 153\par
+AVX2 model time = 1565.83 ms\par
+.\\Output\\LT3_Output_CPU.2560x1440.Y8 .\\Output\\LT3_Output_TF_AVX2.2560x1440.Y8 byte difference = 0.243%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 5\par
+Vertical Banks = 5\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 159\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 3.476592 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 948.261679 ms\par
+\par
+.\\Output\\LT3_Output_CPU.2560x1440.Y8 .\\Output\\LT3_Output_GPU.2560x1440.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Run>cd C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>for /L %x in (1 1 1) do (Graph_Cut.exe -i:LT4_node.20480x2880.F32 -j:LT4_hor_edge.20480x2880.F32 -k:LT4_ver_edge.20480x2880.F32 -w:5120 -h:2880 -r:32 )\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>(Graph_Cut.exe -i:LT4_node.20480x2880.F32 -j:LT4_hor_edge.20480x2880.F32 -k:LT4_ver_edge.20480x2880.F32 -w:5120 -h:2880 -r:32 )\par
+Detected MDF on this system\par
+\par
+Input parameters:\par
+Node weight file: LT4_node.20480x2880.F32\par
+Horizontal weight file: LT4_hor_edge.20480x2880.F32\par
+Vertical weight file: LT4_ver_edge.20480x2880.F32\par
+Frame width: 5120\par
+Frame height: 2880\par
+Local to global relabel ratio: 32\par
+ActivePix count for switching to AVX2: 0\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+C model:\par
+CPU Graph-Cut loops = 204\par
+C model time = 22493.1 ms\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF C model:\par
+CPU Graph-Cut loops = 138\par
+C model time = 84444.9 ms\par
+.\\Output\\LT4_Output_CPU.5120x2880.Y8 .\\Output\\LT4_Output_TF_CPU.5120x2880.Y8 byte difference = 0.223%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+TF AVX2 model:\par
+Number of active blocks 28864\par
+a_list size 28864\par
+AVX2 Graph-Cut loops = 153\par
+AVX2 model time = 5895.48 ms\par
+.\\Output\\LT4_Output_CPU.5120x2880.Y8 .\\Output\\LT4_Output_TF_AVX2.5120x2880.Y8 byte difference = 0.244%\par
+--------------------------------------------------------------------------------------------------------------\par
+\par
+GPU execution:\par
+\par
+MDF Runtime version: 6.00\par
+Runtime DLL version: 6.0.0.1189\par
+JIT DLL version: 6.0.0.1189\par
+Platform: KBL GT2\par
+GPU min frequency: 300 MHz\par
+GPU max frequency: 1000 MHz\par
+GPU current frequency: 0 MHz\par
+\par
+Max HW thread count: 161\par
+Kernel count per task: 16\par
+Max Surface2D count: 256\par
+Max surface count per kernel: 255\par
+Sampler count: 64\par
+Sampler count per kernel: 16\par
+Arg count per kernel: 255\par
+Arg size per kernel: 2016\par
+\par
+Height type is short\par
+Horizontal Banks = 5\par
+Vertical Banks = 5\par
+Multiple kernels per enqueue\par
+\par
+GPU Graph-Cut loops = 159\par
+AVX2 Graph-Cut loops = 0\par
+Copy time = 10.395143 ms\par
+AVX2 time = 0.000000 ms\par
+Total Time: 3910.801066 ms\par
+\par
+.\\Output\\LT4_Output_CPU.5120x2880.Y8 .\\Output\\LT4_Output_GPU.5120x2880.Y8 byte difference = 0.000%\par
+==============================================================================================================\par
+\par
+\par
+C:\\Users\\ae\\Documents\\Graph-Cut\\Graph_Cut\\Samples\\Graph_Cut\\x64\\Release>pause\par
+Press any key to continue . . .\par
+}
+ 
