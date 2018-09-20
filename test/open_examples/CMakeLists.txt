@@ -64,3 +64,4 @@ SetupTest_from_cm(radixsort "radixsort" "" "radixsort.cpp" "radixsort_genx.cpp" 
 
 SetupTest_from_cm(HoughCircle "HoughCircle" "" "HoughCircle.cpp" "HoughCircle_genx.cpp" "pen_circle_edges.bmp;hough_circle_res.dat" "HW" "DX9" "" "" "" "TRUE" "" "" "" "" "" ${TAGS})
 
+SetupTest_from_cm(Graph-Cut "Graph-Cut" "" "Graph_Cut.cpp;Graph_Cut_C_model.cpp;Graph_Cut_host.cpp;MDF_Base.cpp;common_C_model.cpp" "Graph_Cut_genx.cpp" "*.F32" "HW" "DX9" "" "" "" "TRUE" "" "" "" "" "" ${TAGS} "-i:LT1_node.F32" "-j:LT1_hor_edge.F32" "-k:LT1_ver_edge.F32" "-w:640" "-h:360" "-r:32")
