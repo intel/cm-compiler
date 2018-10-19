@@ -1,0 +1,82 @@
+------------------------------------------------------------------------------
+                       C for Media Color Copy Pipeline Sample
+                                    README
+------------------------------------------------------------------------------
+This README provides sample description and build/execution instructions.
+
+CONTENTS:
+1   Sample Description
+2   System Requirements for Building and Running the Sample
+3   Sample Directory
+4   Basic Command-line Options
+
+
+1 Sample Description
+------------------------------------------------------------------------------
+Color copy pipeline sample demonstrates scanned image-enhancement pipeline for
+printing.  The original version was developed and released through OpenVino's
+OpenVX samples graph, which focus on heterogeneous execution. The copy pipeline
+kernels execution are distributed to CPU, GPU and IPU.
+
+Now, re-written using C for Media language and all kernels execution are done in 
+GPU only. To improve pipeline performance, several kernels are combined into one to
+improve efficiency by reducing memory access and utilize internal GPU caches as
+well as HW registers.
+
+Follow this link for more information regarding the color copy pipeline.
+https://software.intel.com/en-us/sample-color-copy-color-copy-pipeline-as-an-openvx-graph
+
+The sample takes in 32bit bitmap file and produces raw 1bpp CMYK in planar format.
+
+Out of the original version which implemented 3 copy-paths, this sample only
+focus on the highest complexity option, High6.
+
+Here are the copy pipeline graph implemented in the High6 version.
+                                                                                    
+"RGB-to-Lab" -> "7x7 Filter" -> "Background Suppression" -> "Lightness/Darkness" 
+
+-> "Basic Edge Detection"   -----------------\
+                                               --> "Lab-to-CMYK" -> "Halftone" -> "Pack8to1
+-> "Advanced Enhancement of neutral edges" --/
+
+Refer to link above to get the detail of each kernel.
+
+
+2 System Requirements for Building and Running the Sample
+------------------------------------------------------------------------------
+After all required drivers installation, use the Makefile.linux include in this
+directory.
+
+make -f Makefile.linux
+
+3 Sample Directory
+------------------------------------------------------------------------------
+The sample directory has the following structure:
+
++-- CopyPipelineHigh6 (a separated directory per sample)
+    |-- Cpipeline.cpp (Color copy pipeline class implementation)
+    |-- include (All the kernels header file)
+    |-- main.cpp (Main sample file with code)
+    |-- README (This readme file)
+    |-- Box_NeutralEdge (Box3x3 + Neutral Pixel Detection CM kernel) 
+    |-- Rgb2Lab (Rgb2Lab CM kernel) 
+    |-- Symm7x7_BgSuppress_LightContrast (Symm7x7 + Background Suppress +
+                                          Lightness Contrast CM kernel)
+    |-- Box_NeutralEdge (Box3x3 + Neutral Pixel Detection CM kernel)
+    |-- Sobel_CalcGradient_Dilate_AndOr (Sobel3x3 + Calculate Gradient +
+                                         Dilate3x3 + And + Or CM kernel)
+    |-- Dilate_And (Dilate3x3 + And CM kernel)
+    |-- Lab2CMYK_RemoveFringe (Lab2CMYK + Remove Fringe CM kernel)
+    |-- Halftone_Pack8to1 (Halftone + Pack8to1 CM kernel)
+    `-- Threshold_ProduceEdgeK (Simple threshold + ProduceEdgeK + Dilate3x3
+                                + Pack8to1 CM kernel)
+
+4 Basic Command-line Options
+------------------------------------------------------------------------------
+NOTE: command line parameters (keys and values) are case-sensitive.
+Running Pipeline:
+
+./hw_x64.CopyPipelineHigh6 <32bit bitmap input file>
+
+Use at least 1920x1080 pixels for input file.
+

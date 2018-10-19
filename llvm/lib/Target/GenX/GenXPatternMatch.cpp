@@ -66,6 +66,7 @@
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/ConstantFolding.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
@@ -101,21 +102,22 @@ namespace {
 
 class GenXPatternMatch : public FunctionPass,
                          public InstVisitor<GenXPatternMatch> {
-  DominatorTree *DT;
-  const DataLayout *DL;
+  DominatorTree *DT = nullptr;
+  LoopInfo *LI = nullptr;
+  const DataLayout *DL = nullptr;
   const TargetOptions *Options;
   // Indicates whether there is any change.
-  bool Changed;
+  bool Changed = false;
 public:
   static char ID;
   GenXPatternMatch(const TargetOptions *Options = nullptr)
-      : FunctionPass(ID), DT(nullptr), DL(nullptr), Options(Options),
-        Changed(false) {}
+      : FunctionPass(ID), Options(Options) {}
 
   StringRef getPassName() const override { return "GenX pattern match"; }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<DominatorTreeWrapperPass>();
+    AU.addRequired<LoopInfoWrapperPass>();
     AU.addPreserved<GenXModule>();
     AU.setPreservesCFG();
   }
@@ -152,8 +154,10 @@ private:
   bool propagateFoldableRegion(Function *F);
   bool reassociateIntegerMad(Function *F);
   bool vectorizeConstants(Function *F);
+  bool placeConstants(Function *F);
   bool simplifyCmp(CmpInst *Cmp);
   CmpInst *reduceCmpWidth(CmpInst *Cmp);
+  bool simplifyNullDst(CallInst *Inst);
 };
 
 } // namespace
@@ -174,6 +178,7 @@ FunctionPass *llvm::createGenXPatternMatchPass(const TargetOptions *Options) {
 
 bool GenXPatternMatch::runOnFunction(Function &F) {
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+  LI = &getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
   DL = &F.getParent()->getDataLayout();
 
   // Before we get the simd-control-flow representation right,
@@ -182,6 +187,7 @@ bool GenXPatternMatch::runOnFunction(Function &F) {
   Changed |= distributeIntegerMul(&F);
   Changed |= propagateFoldableRegion(&F);
   Changed |= reassociateIntegerMad(&F);
+  Changed |= placeConstants(&F);
   Changed |= vectorizeConstants(&F);
 
   visit(F);
@@ -367,6 +373,23 @@ void GenXPatternMatch::visitCallInst(CallInst &I) {
   case Intrinsic::genx_ustrunc_sat:
   case Intrinsic::genx_uutrunc_sat:
     Changed |= simplifyTruncSat(&I);
+    break;
+  case Intrinsic::genx_dword_atomic_add:
+  case Intrinsic::genx_dword_atomic_and:
+  case Intrinsic::genx_dword_atomic_cmpxchg:
+  case Intrinsic::genx_dword_atomic_dec:
+  case Intrinsic::genx_dword_atomic_fcmpwr:
+  case Intrinsic::genx_dword_atomic_fmax:
+  case Intrinsic::genx_dword_atomic_fmin:
+  case Intrinsic::genx_dword_atomic_imax:
+  case Intrinsic::genx_dword_atomic_imin:
+  case Intrinsic::genx_dword_atomic_max:
+  case Intrinsic::genx_dword_atomic_min:
+  case Intrinsic::genx_dword_atomic_or:
+  case Intrinsic::genx_dword_atomic_sub:
+  case Intrinsic::genx_dword_atomic_xchg:
+  case Intrinsic::genx_dword_atomic_xor:
+    Changed |= simplifyNullDst(&I);
     break;
   }
 }
@@ -2213,7 +2236,11 @@ bool GenXPatternMatch::vectorizeConstants(Function *F) {
       Instruction *Inst = &*I++;
       if (isa<PHINode>(Inst))
         continue;
-      for (unsigned i = 0, e = Inst->getNumOperands(); i != e; ++i) {
+      unsigned NumOpnds = Inst->getNumOperands();
+      auto CI = dyn_cast<CallInst>(Inst);
+      if (CI)
+        NumOpnds = CI->getNumArgOperands();
+      for (unsigned i = 0, e = NumOpnds; i != e; ++i) {
         auto C = dyn_cast<Constant>(Inst->getOperand(i));
         if (!C || isa<UndefValue>(C))
           continue;
@@ -2259,7 +2286,14 @@ bool GenXPatternMatch::vectorizeConstants(Function *F) {
           }
 
           // Update this operand with newly vectorized constant.
-          Inst->setOperand(i, Val);
+          auto ID = getIntrinsicID(Inst);
+          if (ID == Intrinsic::genx_constantf ||
+              ID == Intrinsic::genx_constanti) {
+            Inst->replaceAllUsesWith(Val);
+            Inst->eraseFromParent();
+          } else
+            Inst->setOperand(i, Val);
+
           Changed = true;
         }
       }
@@ -2267,4 +2301,147 @@ bool GenXPatternMatch::vectorizeConstants(Function *F) {
   }
 
   return Changed;
+}
+
+static Instruction *insertConstantLoad(Constant *C, Instruction *InsertBefore) {
+  assert(!C->getType()->getScalarType()->isIntegerTy(1));
+  Value *Args[] = {C};
+  Type *Ty[] = {C->getType()};
+  Intrinsic::ID IntrinsicID = Intrinsic::genx_constanti;
+  if (C->getType()->isFPOrFPVectorTy())
+    IntrinsicID = Intrinsic::genx_constantf;
+  Module *M = InsertBefore->getParent()->getParent()->getParent();
+  Function *F = Intrinsic::getDeclaration(M, IntrinsicID, Ty);
+  Instruction *Inst = CallInst::Create(F, Args, "constant", InsertBefore);
+  Inst->setDebugLoc(InsertBefore->getDebugLoc());
+  return Inst;
+}
+
+bool GenXPatternMatch::placeConstants(Function *F) {
+  bool Changed = false;
+  for (auto &BB : F->getBasicBlockList()) {
+    for (auto I = BB.begin(); I != BB.end();) {
+      Instruction *Inst = &*I++;
+      auto ID = getIntrinsicID(Inst);
+      if (ID == Intrinsic::genx_constantf || ID == Intrinsic::genx_constanti)
+        continue;
+
+      for (unsigned i = 0, e = Inst->getNumOperands(); i != e; ++i) {
+        auto C = dyn_cast<Constant>(Inst->getOperand(i));
+        if (!C || isa<UndefValue>(C))
+          continue;
+        auto Ty = C->getType();
+        if (!Ty->isVectorTy() || C->getSplatValue())
+          continue;
+        if (Ty->getScalarSizeInBits() == 1)
+          continue;
+
+        // Counting the bit size of non-undef values.
+        unsigned NBits = 0;
+        for (unsigned i = 0, e = Ty->getVectorNumElements(); i != e; ++i) {
+          Constant *Elt = C->getAggregateElement(i);
+          if (!isa<UndefValue>(Elt))
+            NBits += Ty->getScalarSizeInBits();
+        }
+        if (NBits <= 256)
+          continue;
+
+        // Collect uses inside this function.
+        SmallVector<Use *, 8> ConstantUses;
+        std::set<Instruction *> ConstantUsers;
+
+        for (auto &U : C->uses()) {
+          auto I = dyn_cast<Instruction>(U.getUser());
+          if (!I || I->getParent()->getParent() != F)
+            continue;
+          ConstantUses.push_back(&U);
+          ConstantUsers.insert(I);
+        }
+        if (ConstantUsers.empty())
+          continue;
+
+        // Single use in a loop.
+        if (ConstantUsers.size() == 1) {
+          // Do not lift this constant, for now, to avoid spills.
+#if 0
+          Use *U = ConstantUses.back();
+          Instruction *UseInst = cast<Instruction>(U->getUser());
+          BasicBlock *UseBB = UseInst->getParent();
+          if (Loop *L = LI->getLoopFor(UseBB)) {
+            if (BasicBlock *Preheader = L->getLoopPreheader()) {
+              if (Preheader != UseBB) {
+                // Insert constant initialization in loop preheader.
+                Instruction *InsertBefore = Preheader->getTerminator();
+                Value *Val = insertConstantLoad(C, InsertBefore);
+                U->set(Val);
+                Changed = true;
+              }
+            }
+          }
+#endif
+          continue; // skip to the next constant
+        }
+
+        // It is profitable to use a common constant pool in register.
+        assert(ConstantUses.size() >= 2);
+        BasicBlock *InsertBB = nullptr;
+        for (auto U : ConstantUses) {
+          auto UseInst = cast<Instruction>(U->getUser());
+          auto UseBB = UseInst->getParent();
+          if (InsertBB == nullptr)
+            InsertBB = UseBB;
+          else if (InsertBB != UseBB) {
+            InsertBB = DT->findNearestCommonDominator(InsertBB, UseBB);
+          }
+        }
+
+        // InsertBlock is in a loop.
+        if (Loop *L = LI->getLoopFor(InsertBB))
+          if (BasicBlock *Preheader = L->getLoopPreheader())
+            if (Preheader != InsertBB)
+              InsertBB = Preheader;
+
+        // If the insert block is the same as some use block, find the first
+        // use instruction as the insert point. Otherwise, use the terminator of
+        // the insert block.
+        Instruction *InsertBefore = InsertBB->getTerminator();
+        for (auto UseInst : ConstantUsers) {
+          if (InsertBB == UseInst->getParent()) {
+            for (auto &I : InsertBB->getInstList()) {
+              if (ConstantUsers.find(&I) != ConstantUsers.end()) {
+                InsertBefore = &I;
+                goto Found;
+              }
+            }
+          }
+        }
+      Found:
+        assert(!isa<PHINode>(InsertBefore));
+        Value *Val = insertConstantLoad(C, InsertBefore);
+        for (auto U : ConstantUses)
+          U->set(Val);
+        Changed = true;
+      }
+    }
+  }
+
+  return Changed;
+}
+
+bool GenXPatternMatch::simplifyNullDst(CallInst *Inst)
+{
+  if (Inst->getNumUses() != 1)
+    return false;
+
+  PHINode *Phi = dyn_cast<PHINode>(Inst->use_begin()->getUser());
+  if (Phi == nullptr)
+    return false;
+
+  if (Phi->getNumUses() == 1 && Phi->use_begin()->getUser() == Inst) {
+    Phi->replaceAllUsesWith(UndefValue::get(Phi->getType()));
+    Phi->eraseFromParent();
+    return true;
+  }
+
+  return false;
 }

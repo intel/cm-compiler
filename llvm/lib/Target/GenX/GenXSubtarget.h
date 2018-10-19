@@ -174,6 +174,10 @@ public:
   /// * disableJmpi - true if jmpi is disabled.
   bool disableJmpi() const { return DisableJmpi; }
 
+  /// * WaNoA32ByteScatteredStatelessMessages - true if there is no A32 byte
+  ///   scatter stateless message.
+  bool WaNoA32ByteScatteredStatelessMessages() const { return !isCNLplus(); }
+
   /// * disableVectorDecomposition - true if vector decomposition is disabled.
   bool disableVectorDecomposition() const { return DisableVectorDecomposition; }
 

@@ -21,6 +21,7 @@ add_llvm_target(GenXCodeGen
   GenXDepressurizer.cpp
   GenXExtractVectorizer.cpp
   GenXGotoJoin.cpp
+  GenXGEPLowering.cpp
   GenXIMadPostLegalization.cpp
   GenXIntrinsics.cpp
   GenXLegalization.cpp

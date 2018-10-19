@@ -2192,30 +2192,6 @@ bool GVN::performScalarPRE(Instruction *CurInst) {
   if (isa<CmpInst>(CurInst))
     return false;
 
-  // CMC_BEGIN
-  // Do not do PRE on hardwired vISA predefined variables.
-  if (CallInst *CI = dyn_cast<CallInst>(CurInst))
-    if (Function *Callee = CI->getCalledFunction()) {
-      unsigned ID = Callee->getIntrinsicID();
-      switch (ID) {
-      case Intrinsic::genx_thread_x:
-      case Intrinsic::genx_thread_y:
-      case Intrinsic::genx_group_id_x:
-      case Intrinsic::genx_group_id_y:
-      case Intrinsic::genx_group_id_z:
-      case Intrinsic::genx_timestamp:
-      case Intrinsic::genx_r0:
-      case Intrinsic::genx_sr0:
-      case Intrinsic::genx_get_color:
-      case Intrinsic::genx_get_hwid:
-      case Intrinsic::genx_predefined_surface:
-        return false;
-      default:
-        break;
-      }
-    }
-  // CMC_END
-
   // We don't currently value number ANY inline asm calls.
   if (CallInst *CallI = dyn_cast<CallInst>(CurInst))
     if (CallI->isInlineAsm())
@@ -2367,24 +2343,6 @@ bool GVN::performScalarPRE(Instruction *CurInst) {
   return true;
 }
 
-static bool hasSimdJoin(BasicBlock *B) {
-  Module *Mod = B->getParent()->getParent();
-  auto EMTy = VectorType::get(Type::getInt1Ty(Mod->getContext()), 32);
-  for (auto width = 2; width <= 16; width = (width << 1)) {
-    auto RMTy = VectorType::get(Type::getInt1Ty(Mod->getContext()), width);
-    Type *Tys[] = {EMTy, RMTy};
-    if (auto SimdJoin = Intrinsic::getDeclaration(Mod, Intrinsic::genx_simdcf_join, Tys)) {
-      for (auto U : SimdJoin->users()) {
-        auto Inst = dyn_cast<Instruction>(U);
-        if (Inst && Inst->getParent() == B) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
-}
-
 /// Perform a purely local form of PRE that looks for diamond
 /// control flow patterns and attempts to perform simple PRE at the join point.
 bool GVN::performPRE(Function &F) {
@@ -2399,18 +2357,17 @@ bool GVN::performPRE(Function &F) {
       continue;
 
     // CMC_BEGIN
-    // Don't perform PRE on CM simd-cf
-    if (CurrentBlock->getSinglePredecessor() == nullptr &&
-        hasSimdJoin(CurrentBlock))
-      continue;
-    // CMC_END
-
+    // we had several cases to disable ScalarPRE due to correctness issue
+    // and register pressure issue. So we should simply turn it off.
+#if 0
     for (BasicBlock::iterator BI = CurrentBlock->begin(),
                               BE = CurrentBlock->end();
          BI != BE;) {
       Instruction *CurInst = &*BI++;
       Changed |= performScalarPRE(CurInst);
     }
+#endif
+    // CMC_END
   }
 
   if (splitCriticalEdges())

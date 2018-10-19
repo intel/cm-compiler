@@ -327,6 +327,7 @@ its default of 16.</li>
 single precision float.</li>
 <li>Added half-precision floating-point (half) as one of basic scalar data types.</li>
 <li>Added new predicate arguments to write_atomic and typed_write_atomic.</li>
+<li>Added read_scaled and write_scaled.</li>
 </ul>
 </div>
 </div>
@@ -2806,6 +2807,84 @@ This offset is in units of the size of the elements.</td>
 <tr class="row-odd"><td>v</td>
 <td>data location that contains the data to be written.
 N must be equal to the length of element_offset or else a scalar.
+T can be either char, uchar, short, ushort, int, uint or float.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="section" id="scaled-scattered-read-write">
+<h4>Scaled Scattered Read/Write<a class="headerlink" href="#scaled-scattered-read-write" title="Permalink to this headline">¶</a></h4>
+<p>Scaled scattered read/write are similar to scattered read/write.
+The only difference is that the scaled version takes byte offsets and
+there is no alignment restrictions on either offsets.</p>
+<div class="section" id="read-scaled">
+<h5>read_scaled<a class="headerlink" href="#read-scaled" title="Permalink to this headline">¶</a></h5>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">read_scaled</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">IND</span><span class="p">,</span> <span class="n">uint</span> <span class="n">global_offset</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">element_offset</span><span class="p">,</span> <span class="n">vector_ref</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">v</span><span class="p">);</span>
+</pre></div>
+</div>
+<table border="1" class="docutils">
+<colgroup>
+<col width="19%" />
+<col width="81%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Parameters</th>
+<th class="head">&#160;</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>IND</td>
+<td>surface index, which must correspond to a buffer</td>
+</tr>
+<tr class="row-odd"><td>global_offset</td>
+<td>zero based global offset of a set of sattered elements
+to be read from the surface. This offset is in bytes.</td>
+</tr>
+<tr class="row-even"><td>element_offset</td>
+<td>zero based offset of each element (relative to the global
+offset) to be read; N must be a power of 2 and no more than 16.
+This offset is in bytes.</td>
+</tr>
+<tr class="row-odd"><td>v</td>
+<td>the data location to store the return result.
+N must be equal to the length of element_offset.
+T can be either char, uchar, short, ushort, int, uint or float.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="write-scaled">
+<h5>write_scaled<a class="headerlink" href="#write-scaled" title="Permalink to this headline">¶</a></h5>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">write_scaled</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">IND</span><span class="p">,</span> <span class="n">uint</span> <span class="n">global_offset</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">element_offset</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">v</span><span class="p">);</span>
+</pre></div>
+</div>
+<table border="1" class="docutils">
+<colgroup>
+<col width="16%" />
+<col width="84%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Parameters</th>
+<th class="head">&#160;</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>IND</td>
+<td>surface index, which must correspond to a buffer.</td>
+</tr>
+<tr class="row-odd"><td>global_offset</td>
+<td>zero based global offset of a set of scattered elements
+to be written to the surface. This offset is in bytes.</td>
+</tr>
+<tr class="row-even"><td>element_offset</td>
+<td>zero based offset of each element (relative to the global
+offset) to be written; N must be a power of 2 and no more than 16, or a scalar.
+This offset is in bytes.</td>
+</tr>
+<tr class="row-odd"><td>v</td>
+<td>data location that contains the data to be written.
+N must be equal to the length of element_offset.
 T can be either char, uchar, short, ushort, int, uint or float.</td>
 </tr>
 </tbody>
@@ -13073,7 +13152,7 @@ input/output data variables are specified in Section 4.12.4.</p>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
-      Last updated on Wed Jul 11 09:49:35 2018 -0700.
+      Last updated on Wed Oct 17 14:57:53 2018 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

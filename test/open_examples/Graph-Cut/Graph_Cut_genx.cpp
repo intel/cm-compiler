@@ -922,7 +922,7 @@ GC_Global_Relabel_u16(SurfaceIndex pBlockMaskIndex, SurfaceIndex pHeightIndex,
 /*
 if active(x) do
     foreach y=neighbor(x)
-        if height(y) == height(x)¨C1 do // check height
+        if height(y) == height(x) do // check height
             flow = min( capacity(x,y), excess_flow(x)); // pushed flow
             excess_flow(x) -= flow; // update excess flow
             excess_flow(y) += flow;

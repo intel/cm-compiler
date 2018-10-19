@@ -221,10 +221,9 @@ static bool isRegionOKForIntrinsic(GenXIntrinsicInfo::ArgInfo AI,
   unsigned ElementsPerGrf = 1U << (5 - Log2_32(R.ElementBytes));
   if (AI.Info & GenXIntrinsicInfo::GRFALIGNED) {
     if (R.Indirect) {
-      // hack-begion
-      if (R.NumElements * R.ElementBytes > 64)
+      // Instructions that cannot be splitted also cannot allow indirect 
+      if (!CanSplitBale)
         return false;
-      // hack-end
       Alignment AL = AlignInfo->get(R.Indirect);
       if (AL.getLogAlign() < 5 || AL.getExtraBits() != 0)
         return false;
@@ -235,11 +234,10 @@ static bool isRegionOKForIntrinsic(GenXIntrinsicInfo::ArgInfo AI,
       return false;
   }
   if (AI.Info & GenXIntrinsicInfo::OWALIGNED) {
+    // Instructions that cannot be splitted also cannot allow indirect 
     if (R.Indirect) {
-      // hack-begion
-      if (R.NumElements * R.ElementBytes > 64)
+      if (!CanSplitBale)
         return false;
-      // hack-end
       Alignment AL = AlignInfo->get(R.Indirect);
       if (AL.getLogAlign() < 4 || AL.getExtraBits() != 0)
         return false;

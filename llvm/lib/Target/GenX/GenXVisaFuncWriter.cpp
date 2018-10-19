@@ -541,7 +541,12 @@ void VisaFuncWriter::buildInputs(Function *F, GenXVisaRegAlloc *RA, bool NeedRet
     if (!PatchImpArgOff) {
       Body.push_back((int16_t)KM.getArgOffset(Idx));
     }
-    Body.push_back((uint16_t)(Arg->getType()->getPrimitiveSizeInBits() / 8U));
+    // Argument size in bytes.
+    auto &DL = F->getParent()->getDataLayout();
+    Type *Ty = Arg->getType();
+    uint16_t NumBytes = Ty->isPointerTy() ? DL.getPointerTypeSize(Ty)
+                                          : Ty->getPrimitiveSizeInBits() / 8U;
+    Body.push_back(NumBytes);
   }
   // Add the special RetIP argument.
   if (NeedRetIP) {
@@ -1586,6 +1591,9 @@ void VisaFuncWriter::buildCastInst(CastInst *CI, BaleInfo BI,
     case Instruction::FPTrunc:
     case Instruction::FPExt:
       break;
+    case Instruction::PtrToInt:
+    case Instruction::IntToPtr:
+      break;
     default:
       assert(0 && "buildCastInst: unimplemented cast");
       break;
@@ -2163,6 +2171,9 @@ void VisaFuncWriter::buildIntrinsic(CallInst *CI, unsigned IntrinID, BaleInfo BI
           unsigned ElBytes = V->getType()->getScalarType()
               ->getPrimitiveSizeInBits() / 8;
           switch (ElBytes) {
+            // For N = 2 byte data type, use block size 1 and block count 2.
+            // Otherwise, use block size N and block count 1.
+            case 2:
             case 1: ElBytes = 0; break;
             case 4: ElBytes = 1; break;
             case 8: ElBytes = 2; break;
@@ -2716,6 +2727,18 @@ void VisaFuncWriter::writeRawSourceOperand(Instruction *Inst,
 genx::Signedness VisaFuncWriter::writeDestination(Value *Dest,
     Signedness Signed, unsigned Mod, Instruction *WrRegion, BaleInfo WrRegionBI)
 {
+  Type *OverrideType = nullptr;
+  if (BitCastInst *BCI = dyn_cast<BitCastInst>(Dest)) {
+    if (!(isa<Constant>(BCI->getOperand(0))) &&
+      !(BCI->getType()->getScalarType()->isIntegerTy(1)) &&
+      (BCI->getOperand(0)->getType()->getScalarType()->isIntegerTy(1))) {
+      if (VectorType *VT = dyn_cast<VectorType>(Dest->getType())) {
+        unsigned int NumBits = VT->getNumElements() * VT->getElementType()->getPrimitiveSizeInBits();
+        OverrideType = IntegerType::get(BCI->getContext(), NumBits);
+      }
+    }
+  }
+
   if (!WrRegion) {
     if (Mod) {
       // There is a sat modifier. Either it is an fp saturate, which is
@@ -2734,7 +2757,7 @@ genx::Signedness VisaFuncWriter::writeDestination(Value *Dest,
           !isIntegerSat(Dest) && isIntegerSat(Dest->user_back()))
         Dest = cast<Instruction>(Dest->user_back());
     }
-    GenXVisaRegAlloc::RegNum Reg = RegAlloc->getRegNumForValue(Dest, Signed);
+    GenXVisaRegAlloc::RegNum Reg = RegAlloc->getRegNumForValue(Dest, Signed, OverrideType);
     // Write the vISA general operand:
     if (Reg.Category == RegCategory::GENERAL) {
       Region DestR(Dest);
@@ -2755,7 +2778,7 @@ genx::Signedness VisaFuncWriter::writeDestination(Value *Dest,
   // an indirected arg, and that is OK because the region is indirect so the
   // vISA does not contain the base register.
   GenXVisaRegAlloc::RegNum Reg = RegAlloc->getRegNumForValueOrNull(WrRegion,
-        Signed);
+        Signed, OverrideType);
   assert(Reg.Category == RegCategory::GENERAL
       || Reg.Category == RegCategory::NONE);
   // Write the vISA general operand with region:
@@ -3043,7 +3066,7 @@ void VisaFuncWriter::writeRegion(Region *R, unsigned RegNum,
         }
       }
     }
-    TypeDetails TD(R->ElementTy, Signed);
+    TypeDetails TD(Func->getParent()->getDataLayout(), R->ElementTy, Signed);
     writeByte(TD.VisaType | NotCrossGrf << 4); // bit_properties
     unsigned VStride = llvm::log2(R->VStride) + 2;
     if (isa<VectorType>(R->Indirect->getType()))
@@ -3170,7 +3193,7 @@ void VisaFuncWriter::writeImmediateOperand(Constant *V, Signedness Signed)
     // I think we need to use the appropriate one of getZExtValue or
     // getSExtValue to avoid an assert on very large 64 bit values...
     int64_t Val = Signed == UNSIGNED ? CI->getZExtValue() : CI->getSExtValue();
-    TypeDetails TD(IT, Signed);
+    TypeDetails TD(Func->getParent()->getDataLayout(), IT, Signed);
     Code.push_back((uint8_t)TD.VisaType);
     Code.push_back((uint32_t)Val);
     if (IT->getPrimitiveSizeInBits() == 64)

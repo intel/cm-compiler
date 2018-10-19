@@ -1412,6 +1412,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   RAW | RAW_NULLALLOWED | 0, // dst
   END,
 
+
   Intrinsic::genx_typed_atomic_add,
   LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
   LITERAL | visa::ATOMIC_ADD, // sub-opcode
@@ -1651,6 +1652,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   URAW | 4, // src1
   URAW | RAW_NULLALLOWED | 0, // dst
   END,
+
 
   Intrinsic::genx_gather_orig,
   LITERAL | visa::ISA_GATHER, // opcode

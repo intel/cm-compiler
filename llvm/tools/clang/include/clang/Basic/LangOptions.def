@@ -206,6 +206,7 @@ LANGOPT(CUDADeviceFlushDenormalsToZero, 1, 0, "flushing denormals to zero")
 LANGOPT(CUDADeviceApproxTranscendentals, 1, 0, "using approximate transcendental functions")
 
 LANGOPT(MdfCM             , 1, 0, "MDF CM support")
+LANGOPT(CMPointer         , 1, 0, "MDF CM pointer support")
 
 LANGOPT(SizedDeallocation , 1, 0, "sized deallocation")
 LANGOPT(AlignedAllocation , 1, 0, "aligned allocation")

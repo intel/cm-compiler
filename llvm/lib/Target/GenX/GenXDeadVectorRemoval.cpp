@@ -186,7 +186,7 @@ private:
   void processRdRegion(Instruction *Inst, LiveBits LB);
   void processWrRegion(Instruction *Inst, LiveBits LB);
   void processBitCast(Instruction *Inst, LiveBits LB);
-  void processElementwise(Instruction *Inst, LiveBits LB, bool IsPhi);
+  void processElementwise(Instruction *Inst, LiveBits LB);
   void markWhollyLive(Value *V);
   void addToWorkList(Instruction *Inst);
   LiveBits getLiveBits(Instruction *Inst, bool Create = false);
@@ -238,7 +238,8 @@ bool GenXDeadVectorRemoval::runOnFunction(Function &F)
       if (isRootInst(Inst))
         processInst(Inst);
       else if (WorkListSet.count(Inst)) {
-        WorkListSet.erase(Inst);
+        if (!isa<PHINode>(Inst))
+          WorkListSet.erase(Inst);
         processInst(Inst);
       }
       Inst = (Inst == &BB->front()) ? nullptr : Inst->getPrevNode();
@@ -363,7 +364,7 @@ void GenXDeadVectorRemoval::processInst(Instruction *Inst)
     return;
   // Handle phi node.
   if (auto Phi = dyn_cast<PHINode>(Inst)) {
-    processElementwise(Phi, LB, /*IsPhi=*/true);
+    processElementwise(Phi, LB);
     return;
   }
   // Special case for bitcast.
@@ -374,7 +375,7 @@ void GenXDeadVectorRemoval::processInst(Instruction *Inst)
   // Check for element-wise instructions.
   if (isa<BinaryOperator>(Inst) || isa<CastInst>(Inst)
       || isa<SelectInst>(Inst) || isa<CmpInst>(Inst)) {
-    processElementwise(Inst, LB, /*IsPhi=*/false);
+    processElementwise(Inst, LB);
     return;
   }
   // Check for rdregion and wrregion.
@@ -520,22 +521,24 @@ void GenXDeadVectorRemoval::processBitCast(Instruction *Inst, LiveBits LB)
   if (!InInst)
     return;
   LiveBits InLB = getLiveBits(InInst, /*Create=*/true);
-  int LogScale = llvm::log2(InLB.getNumElements())
-      - llvm::log2(LB.getNumElements());
   bool Modified = false;
-  if (!LogScale)
-    Modified = InLB.copy(LB);
-  else if (LogScale > 0) {
+  if (InLB.getNumElements() == LB.getNumElements())
+    Modified = InLB.orBits(LB);
+  else if (InLB.getNumElements() > LB.getNumElements()) {
+    assert((InLB.getNumElements() % LB.getNumElements()) == 0);
+    int Scale = InLB.getNumElements() / LB.getNumElements();
     // Input element is smaller than result element.
     for (unsigned Idx = 0, End = LB.getNumElements(); Idx != End; ++Idx)
       if (LB.get(Idx))
-        Modified |= InLB.setRange(Idx << LogScale, 1 << LogScale);
+        Modified |= InLB.setRange(Idx * Scale, Scale);
   } else {
+    assert((LB.getNumElements() % InLB.getNumElements()) == 0);
+    int Scale = LB.getNumElements() / InLB.getNumElements();
     // Input element is bigger than result element.
     for (unsigned Idx = 0, End = InLB.getNumElements(); Idx != End; ++Idx) {
       bool IsSet = false;
-      for (unsigned Idx2 = 0; Idx2 != 1U << -LogScale; ++Idx2)
-        IsSet |= LB.get(Idx << -LogScale | Idx2);
+      for (unsigned Idx2 = 0; Idx2 != Scale; ++Idx2)
+        IsSet |= LB.get(Idx*Scale | Idx2);
       if (IsSet)
         Modified |= InLB.set(Idx);
     }
@@ -548,8 +551,7 @@ void GenXDeadVectorRemoval::processBitCast(Instruction *Inst, LiveBits LB)
  * processElementwise : process an element-wise instruction such as add or
  *      a phi node
  */
-void GenXDeadVectorRemoval::processElementwise(Instruction *Inst, LiveBits LB,
-    bool IsPhi)
+void GenXDeadVectorRemoval::processElementwise(Instruction *Inst, LiveBits LB)
 {
   for (unsigned oi = 0, oe = Inst->getNumOperands(); oi != oe; ++oi) {
     auto OpndInst = dyn_cast<Instruction>(Inst->getOperand(oi));
@@ -578,10 +580,9 @@ void GenXDeadVectorRemoval::markWhollyLive(Value *V)
  * addToWorkList : add instruction to work list if not already there
  *
  * Enter:   Inst = the instruction
- *          IsPhiInput = whether it is a phi input
  *
  * This does not actually add to the work list in the initial scan through
- * the whole code, unless it is a phi input.
+ * the whole code.
  */
 void GenXDeadVectorRemoval::addToWorkList(Instruction *Inst)
 {

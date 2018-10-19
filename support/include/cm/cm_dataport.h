@@ -525,6 +525,40 @@ CM_NODEBUG CM_INLINE void write(SurfaceIndex index, CmBufferAttrib attr,
   write(index, attr, plane, X, Y, _Src);
 }
 
+/// \brief Scaled scattered read.
+///
+/// \param index surface index, which must correspond to a buffer.
+///
+/// \param globalByteOffest zero based global offset of a set of scattered
+/// elements to be read from the surface. This offset is in bytes.
+///
+/// \param elementByteOffset zero based offset of each element (relative to the
+/// global offset) to be read; ::N must be a power of 2 and at most 16. This
+/// offset is in bytes.
+///
+/// \param ret the data location to store the return result.
+///
+/// ::T T can be either char, uchar, short, ushort, int, uint or float.
+///
+template <typename T, int N>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(sizeof(T) <= 4) && details::isPowerOf2(N, 16),
+                        void>::type
+read_scaled(SurfaceIndex index, uint globalByteOffest,
+            vector<uint, N> elementByteOffset, vector_ref<T, N> ret) {
+  if (sizeof(T) == 4)
+    ret = details::__cm_intrinsic_impl_scatter_read(
+        index, globalByteOffest, elementByteOffset, ret, T());
+  else {
+    typedef typename details::dword_type<T>::type T1;
+    vector<T1, N> _Ret;
+    // Data to read is a vector of dword type. The last dummy argument is
+    // to specify the element size.
+    ret = details::__cm_intrinsic_impl_scatter_read(
+        index, globalByteOffest, elementByteOffset, _Ret, T());
+  }
+}
+
 /// \brief DWord scattered read.
 ///
 /// \param index surface index, which must correspond to a buffer.
@@ -532,9 +566,9 @@ CM_NODEBUG CM_INLINE void write(SurfaceIndex index, CmBufferAttrib attr,
 /// \param globalOffset zero based global offset of a set of scattered elements
 /// to be read from the surface. This offset is in units of elements.
 ///
-/// \param zero based offset of each element (relative to the global offset) to
-/// be read; ::N must be a power of 2 and at most 16. This offset is in units of
-/// elements.
+/// \param elementOffset zero based offset of each element (relative to the
+/// global offset) to be read; ::N must be a power of 2 and at most 16. This
+/// offset is in units of elements.
 ///
 /// \param ret the data location to store the return result.
 ///
@@ -548,17 +582,7 @@ read(SurfaceIndex index, uint globalOffset, vector<uint, N> elementOffset,
      vector_ref<T, N> ret) {
   globalOffset *= sizeof(T);
   elementOffset *= sizeof(T);
-  if (sizeof(T) == 4)
-    ret = details::__cm_intrinsic_impl_scatter_read(index, globalOffset,
-                                                    elementOffset, ret, T());
-  else {
-    typedef typename details::dword_type<T>::type T1;
-    vector<T1, N> _Ret;
-    // Data to read is a vector of dword type. The last dummy argument is
-    // to specify the element size.
-    ret = details::__cm_intrinsic_impl_scatter_read(index, globalOffset,
-                                                    elementOffset, _Ret, T());
-  }
+  read_scaled(index, globalOffset, elementOffset, ret);
 }
 
 // scattered read supports the CONSTANT and MODIFIED for surface attribute
@@ -573,6 +597,43 @@ read(SurfaceIndex index, CmBufferAttrib attr, uint globalOffset,
   }
 }
 
+/// \brief Scaled scattered write.
+///
+/// \param index surface index, which must correspond to a buffer.
+///
+/// \param globalByteOffset zero based global offset of a set of scattered
+/// elements to be written to the surface. This offset is in units of bytes.
+///
+/// \param elementByteOffset zero based offset of each element (relative to the
+/// global offset) to be written; ::N must be a power of 2 and at most 16. This
+/// offset is in units of bytes.
+///
+/// \param data the data to be written.
+///
+/// ::T T can be either char, uchar, short, ushort, int, uint or float.
+///
+/// Note: for any src < 4 bytes there is a cost to mov the value into a 4 byte
+/// type (of which upper bytes are ignored)
+///
+template <typename T, int N>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(sizeof(T) <= 4) && details::isPowerOf2(N, 16),
+                        void>::type
+write_scaled(SurfaceIndex index, uint globalByteOffset,
+             vector<uint, N> elementByteOffset, vector<T, N> data) {
+  if (sizeof(T) == 4)
+    details::__cm_intrinsic_impl_scatter_write(index, globalByteOffset,
+                                               elementByteOffset, data, T());
+  else {
+    typedef typename details::dword_type<T>::type T1;
+    vector<T1, N> _Data = data;
+    // Data to write is a vector of dword type. The last dummy argument is
+    // to specify the element size.
+    details::__cm_intrinsic_impl_scatter_write(index, globalByteOffset,
+                                               elementByteOffset, _Data, T());
+  }
+}
+
 /// \brief DWord scattered write.
 ///
 /// \param index surface index, which must correspond to a buffer.
@@ -580,9 +641,9 @@ read(SurfaceIndex index, CmBufferAttrib attr, uint globalOffset,
 /// \param globalOffset zero based global offset of a set of scattered
 /// elements to be written to the surface. This offset is in units of elements.
 ///
-/// \param zero based offset of each element (relative to the global offset) to
-/// be written; ::N must be a power of 2 and at most 16. This offset is in units
-/// of elements.
+/// \param elementOffset zero based offset of each element (relative to the
+/// global offset) to be written; ::N must be a power of 2 and at most 16. This
+/// offset is in units of elements.
 ///
 /// \param data the data to be written.
 ///
@@ -599,35 +660,25 @@ write(SurfaceIndex index, uint globalOffset, vector<uint, N> elementOffset,
       vector<T, N> data) {
   globalOffset *= sizeof(T);
   elementOffset *= sizeof(T);
-  if (sizeof(T) == 4)
-    details::__cm_intrinsic_impl_scatter_write(index, globalOffset,
-                                               elementOffset, data, T());
-  else {
-    typedef typename details::dword_type<T>::type T1;
-    vector<T1, N> _Data = data;
-    // Data to write is a vector of dword type. The last dummy argument is
-    // to specify the element size.
-    details::__cm_intrinsic_impl_scatter_write(index, globalOffset,
-                                               elementOffset, _Data, T());
-  }
+  write_scaled(index, globalOffset, elementOffset, data);
 }
 
 /// \brief Scalar dword scattered write.
 ///
 /// \param index surface index, which must correspond to a buffer.
 ///
-/// \param globaOffset zero based global offset of single element to be written to
-/// the surface. This offset is in units of elements.
+/// \param globaOffset zero based global offset of single element to be written
+/// to the surface. This offset is in units of elements.
 ///
-/// \param zero based offset of the element (relative to the global offset) to be
-/// written. This offset is in units of elements.
+/// \param elementOffset zero based offset of the element (relative to the
+/// global offset) to be written. This offset is in units of elements.
 ///
 /// \param data the data to be written (in this case a scalar)
 ///
 /// ::T T can be any type <= 4 bytes
 ///
-/// Note: for any src < 4 bytes there is a cost to mov the value into a 4 byte type
-/// (of which upper bytes are ignored)
+/// Note: for any src < 4 bytes there is a cost to mov the value into a 4 byte
+/// type (of which upper bytes are ignored)
 ///
 template <typename T>
 CM_NODEBUG CM_INLINE

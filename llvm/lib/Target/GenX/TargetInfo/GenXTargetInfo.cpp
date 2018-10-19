@@ -27,15 +27,21 @@
 #include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
 
-Target llvm::TheGenXTarget;
+Target &llvm::getTheGenXTarget32() {
+  static Target TheGenXTarget32;
+  return TheGenXTarget32;
+}
 
-static bool GenX_TripleMatchQuality(Triple::ArchType Arch) {
-  return Arch == Triple::ArchType::genx32;
+Target &llvm::getTheGenXTarget64() {
+  static Target TheGenXTarget64;
+  return TheGenXTarget64;
 }
 
 extern "C" void LLVMInitializeGenXTargetInfo() {
-  RegisterTarget<Triple::genx32, /*HasJIT=*/false> X(
-      TheGenXTarget, "genx32", "GenX vISA (32 bit host)", "genx32");
+  RegisterTarget<Triple::genx32> X(getTheGenXTarget32(), "genx32",
+                                   "Intel GenX 32-bit", "genx32");
+  RegisterTarget<Triple::genx64> Y(getTheGenXTarget64(), "genx64",
+                                   "Intel GenX 64-bit", "genx64");
 }
 
 extern "C" void LLVMInitializeGenXTargetMC() {}

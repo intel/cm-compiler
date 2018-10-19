@@ -85,8 +85,7 @@
 #include "llvm/PassRegistry.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/CommandLine.h"
-#include <llvm/Analysis/LoopInfo.h>
-//#include <llvm/Analysis/PostDominators.h>
+#include "llvm/Analysis/LoopInfo.h"
 
 using namespace llvm;
 using namespace genx;
@@ -122,8 +121,6 @@ namespace {
     void reorderBlocks(Function *F);
     void fixGotoOverBranch(Function *F);
     void fixReturns(Function *F);
-    void LayoutBlocks(Function &func, LoopInfo &LI);
-    void LayoutBlocks(Function &func);
   };
 } // end anonymous namespace.
 
@@ -195,22 +192,6 @@ void GenXTidyControlFlow::removeEmptyBlocks(Function *F)
  * reorderBlocks : reorder blocks to increase fallthrough, and specifically
  *    to satisfy the requirements of SIMD control flow
  */
-#define SUCCSZANY     (true)
-#define SUCCHASINST   (succ->size() > 1)
-#define SUCCNOINST    (succ->size() <= 1)
-#define SUCCANYLOOP   (true)
-
-#define PUSHSUCC(BLK, C1, C2) \
-        for(succ_iterator succIter = succ_begin(BLK), succEnd = succ_end(BLK); \
-          succIter!=succEnd; ++succIter) {                                   \
-          llvm::BasicBlock *succ = *succIter;                                \
-          if (!visitSet.count(succ) && C1 && C2) {                           \
-            visitVec.push_back(succ);                                        \
-            visitSet.insert(succ);                                           \
-            break;                                                           \
-          }                                                                  \
-        }
-
 void GenXTidyControlFlow::reorderBlocks(Function *F)
 {
   LoopInfo& LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
@@ -219,109 +200,6 @@ void GenXTidyControlFlow::reorderBlocks(Function *F)
   else
     LayoutBlocks(*F, LI);
   Modified = true;
-}
-
-void GenXTidyControlFlow::LayoutBlocks(Function &func, LoopInfo &LI)
-{
-  std::vector<llvm::BasicBlock*> visitVec;
-  std::set<llvm::BasicBlock*> visitSet;
-  // Insertion Position per loop header
-  std::map<llvm::BasicBlock*, llvm::BasicBlock*> InsPos;
-
-  llvm::BasicBlock* entry = &(func.getEntryBlock());
-  visitVec.push_back(entry);
-  visitSet.insert(entry);
-  InsPos[entry] = entry;
-
-  while (!visitVec.empty()) {
-    llvm::BasicBlock* blk = visitVec.back();
-    llvm::Loop *curLoop = LI.getLoopFor(blk);
-    if (curLoop) {
-      auto hd = curLoop->getHeader();
-      if (blk == hd && InsPos.find(hd) == InsPos.end()) {
-        InsPos[blk] = blk;
-      }
-    }
-    // push: time for DFS visit
-    PUSHSUCC(blk, SUCCANYLOOP, SUCCNOINST);
-    if (blk != visitVec.back())
-      continue;
-    // push: time for DFS visit
-    PUSHSUCC(blk, SUCCANYLOOP, SUCCHASINST);
-    // pop: time to move the block to the right location
-    if (blk == visitVec.back()) {
-      visitVec.pop_back();
-      if (curLoop) {
-        auto hd = curLoop->getHeader();
-        if (blk != hd) {
-          // move the block to the beginning of the loop 
-          auto insp = InsPos[hd];
-          assert(insp);
-          if (blk != insp) {
-            blk->moveBefore(insp);
-            InsPos[hd] = blk;
-          }
-        }
-        else {
-          // move the entire loop to the beginning of
-          // the parent loop
-          auto LoopStart = InsPos[hd];
-          assert(LoopStart);
-          auto PaLoop = curLoop->getParentLoop();
-          auto PaHd = PaLoop ? PaLoop->getHeader() : entry;
-          auto insp = InsPos[PaHd];
-          if (LoopStart == hd) {
-            // single block loop
-            hd->moveBefore(insp);
-          }
-          else {
-            // loop-header is not moved yet, so should be at the end
-            // use splice
-            llvm::Function::BasicBlockListType& BBList = func.getBasicBlockList();
-            BBList.splice(insp->getIterator(), BBList, LoopStart->getIterator(),
-                          hd->getIterator());
-            hd->moveBefore(LoopStart);
-          }
-          InsPos[PaHd] = hd;
-        }
-      }
-      else {
-        auto insp = InsPos[entry];
-        if (blk != insp) {
-          blk->moveBefore(insp);
-          InsPos[entry] = blk;
-        }
-      }
-    }
-  }
-}
-
-void GenXTidyControlFlow::LayoutBlocks(Function &func)
-{
-  std::vector<llvm::BasicBlock*> visitVec;
-  std::set<llvm::BasicBlock*> visitSet;
-  // Reorder basic block to allow more fall-through 
-  llvm::BasicBlock* entry = &(func.getEntryBlock());
-  visitVec.push_back(entry);
-  visitSet.insert(entry);
-
-  while (!visitVec.empty()) {
-    llvm::BasicBlock* blk = visitVec.back();
-    // push in the empty successor 
-    PUSHSUCC(blk, SUCCANYLOOP, SUCCNOINST);
-    if (blk != visitVec.back())
-      continue;
-    // push in the other successor 
-    PUSHSUCC(blk, SUCCANYLOOP, SUCCHASINST);
-    // pop
-    if (blk == visitVec.back()) {
-      visitVec.pop_back();
-      if (blk != entry) {
-        blk->moveBefore(entry);
-        entry = blk;
-      }
-    }
-  }
 }
 
 /***********************************************************************

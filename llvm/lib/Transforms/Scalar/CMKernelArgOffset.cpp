@@ -196,6 +196,14 @@ void CMKernelArgOffset::processKernel(MDNode *Node)
   Function *F = dyn_cast_or_null<Function>(getValue(Node->getOperand(0)));
   if (!F)
     return;
+
+  auto getTypeSizeInBytes = [=](Type *Ty) {
+    const DataLayout &DL = F->getParent()->getDataLayout();
+    if (auto PT = dyn_cast<PointerType>(Ty))
+      return DL.getPointerTypeSize(Ty);
+    return Ty->getPrimitiveSizeInBits() / 8;
+  };
+
   // Get the arg kinds.
   MDNode *TypeNode = dyn_cast<MDNode>(Node->getOperand(3));
   assert(TypeNode);
@@ -262,12 +270,12 @@ void CMKernelArgOffset::processKernel(MDNode *Node)
           continue;
 
         Type *Ty = Arg->getType();
-        unsigned Bytes = Ty->getPrimitiveSizeInBits() / 8;
+        unsigned Bytes = getTypeSizeInBytes(Ty);
 
         if (BestArg == NULL || BestSize < Bytes) {
           BestArg = Arg;
           BestSize = Bytes;
-          BestElemSize = Ty->getScalarSizeInBits() / 8;
+          BestElemSize = getTypeSizeInBytes(Ty->getScalarType());
         }
       }
 

@@ -486,8 +486,8 @@ void GenXVisaRegAlloc::addRetIPArgument() {
  * Enter:   Ty = LLVM type
  *          Signedness = whether signed type required
  */
-TypeDetails::TypeDetails(Type *Ty, Signedness Signed)
-{
+TypeDetails::TypeDetails(const DataLayout &DL, Type *Ty, Signedness Signed)
+    : DL(DL) {
   Type *ElementTy = Ty;
   NumElements = 1;
   if (VectorType *VT = dyn_cast<VectorType>(ElementTy)) {
@@ -517,6 +517,14 @@ TypeDetails::TypeDetails(Type *Ty, Signedness Signed)
   } else if (ElementTy->isFloatTy()) {
     VisaType = TYPE_F;
     BytesPerElement = 4;
+  } else if (auto PT = dyn_cast<PointerType>(ElementTy)) {
+    BytesPerElement = DL.getPointerTypeSize(PT);
+    if (BytesPerElement == 4)
+      VisaType = TYPE_UD;
+    else if (BytesPerElement == 8)
+      VisaType = TYPE_UQ;
+    else
+      report_fatal_error("unsupported pointer type size");
   } else {
     assert(ElementTy->isDoubleTy());
     VisaType = TYPE_DF;
@@ -543,6 +551,8 @@ TypeDetails::TypeDetails(Type *Ty, Signedness Signed)
  */
 void GenXVisaRegAlloc::buildHeader1(Stream *S)
 {
+  auto &DL = FG->getModule()->getDataLayout();
+
   // Variables.
   S->push_back((uint32_t)(Regs[RegCategory::GENERAL].size() - VISA_NUM_RESERVED_REGS));
   for (unsigned Regnum = VISA_NUM_RESERVED_REGS, e = Regs[RegCategory::GENERAL].size();
@@ -553,13 +563,17 @@ void GenXVisaRegAlloc::buildHeader1(Stream *S)
       // determine the biggest alignment required. If the register is at least
       // as big as a GRF, make the alignment GRF.
       unsigned Alignment = 5; // GRF alignment
-      if (Regs[RegCategory::GENERAL][Regnum].Ty
-          ->getPrimitiveSizeInBits() < 256 /* bits in GRF */) {
+      Type *Ty = Regs[RegCategory::GENERAL][Regnum].Ty;
+      unsigned NBits = Ty->isPointerTy() ? DL.getPointerSizeInBits()
+                                         : Ty->getPrimitiveSizeInBits();
+      if (NBits < 256 /* bits in GRF */) {
         Alignment = 0;
         for (unsigned AliasRegnum = Regnum; AliasRegnum; ) {
           Reg *R = &Regs[RegCategory::GENERAL][AliasRegnum];
-          unsigned ThisElementBytes
-              = R->Ty->getScalarType()->getPrimitiveSizeInBits() / 8;
+          Type *AliasTy = R->Ty->getScalarType();
+          unsigned ThisElementBytes =
+              AliasTy->isPointerTy() ? DL.getPointerTypeSize(AliasTy)
+                                     : AliasTy->getPrimitiveSizeInBits() / 8;
           unsigned LogThisElementBytes = llvm::log2(ThisElementBytes);
           if (LogThisElementBytes > Alignment)
             Alignment = LogThisElementBytes;
@@ -576,8 +590,8 @@ void GenXVisaRegAlloc::buildHeader1(Stream *S)
       }
     }
 
-    TypeDetails TD(Regs[RegCategory::GENERAL][Regnum].Ty,
-        Regs[RegCategory::GENERAL][Regnum].Signed);
+    TypeDetails TD(DL, Regs[RegCategory::GENERAL][Regnum].Ty,
+                   Regs[RegCategory::GENERAL][Regnum].Signed);
     unsigned Alignment = Regs[RegCategory::GENERAL][Regnum].Alignment;
     // Write a var_info for the variable.
     const Reg &R = Regs[RegCategory::GENERAL][Regnum];
@@ -641,7 +655,8 @@ void GenXVisaRegAlloc::buildHeader2(Stream *S)
         R != e; ++R) {
       assert(Regs[Cat][R].Ty->isIntegerTy(32) || "Wrong type for surface variable");
       // Write the state_var_info.
-      TypeDetails TD(Regs[Cat][R].Ty, Regs[Cat][R].Signed);
+      TypeDetails TD(FG->getModule()->getDataLayout(), Regs[Cat][R].Ty,
+                     Regs[Cat][R].Signed);
       S->push_back((uint32_t)Regs[Cat][R].Name); // name_index
       S->push_back((uint16_t)TD.NumElements); // num_elements (eg. Surface Array)
       S->push_back((uint8_t)0); // attribute_count

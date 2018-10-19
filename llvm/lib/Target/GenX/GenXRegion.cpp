@@ -75,10 +75,19 @@ Region Region::getWithOffset(Instruction *Inst, bool WantParentWidth)
   return Region(Inst, BI, WantParentWidth);
 }
 
+// Find the datalayout if possible.
+const DataLayout *getDL(Value *V) {
+  if (auto Inst = dyn_cast_or_null<Instruction>(V))
+    return &Inst->getParent()->getParent()->getParent()->getDataLayout();
+  if (auto Arg = dyn_cast_or_null<Argument>(V))
+      return &Arg->getParent()->getParent()->getDataLayout();
+  return nullptr;
+}
+
 /***********************************************************************
  * Region constructor from a type
  */
-Region::Region(Type *Ty)
+Region::Region(Type *Ty, const DataLayout *DL)
     : ElementBytes(0), NumElements(1), VStride(0), Width(1),
       Stride(1), Offset(0), Indirect(0), IndirectIdx(0), Mask(0),
       ParentWidth(0)
@@ -89,29 +98,20 @@ Region::Region(Type *Ty)
     NumElements = VT->getNumElements();
     Width = NumElements;
   }
-  ElementBytes = ElementTy->getPrimitiveSizeInBits() / 8;
+  if (Ty->isPointerTy()) {
+    if (DL)
+      ElementBytes = DL->getPointerTypeSize(Ty);
+    else
+      llvm_unreachable("out of sync");
+  } else
+    ElementBytes = ElementTy->getPrimitiveSizeInBits() / 8;
 }
 
 /***********************************************************************
  * Region constructor from a value
- *
- * I think C++11 is supposed to let me have a delegated constructor. But
- * VS2012 objects to it. So we have to have a copy of the constructor from
- * Type above.
  */
-Region::Region(Value *V)
-    : ElementBytes(0), NumElements(1), VStride(0), Width(1),
-      Stride(1), Offset(0), Indirect(0), IndirectIdx(0), Mask(0),
-      ParentWidth(0)
-{
-  ElementTy = V->getType();
-  if (VectorType *VT = dyn_cast<VectorType>(ElementTy)) {
-    ElementTy = VT->getElementType();
-    NumElements = VT->getNumElements();
-    Width = NumElements;
-  }
-  ElementBytes = ElementTy->getPrimitiveSizeInBits() / 8;
-}
+Region::Region(Value *V, const DataLayout *DL)
+    : Region(V->getType(), DL ? DL : getDL(V)) {}
 
 /***********************************************************************
  * Region constructor from a rd/wr region and its BaleInfo

@@ -1,0 +1,556 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Tutorial 15. Kernel Example - Graph-Cut &#8212; CM 6.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '6.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Tutorial 14. Kernel Example - PrefixSum" href="cmtutorial14.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="Intel Logo"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="cmtutorial14.html" title="Tutorial 14. Kernel Example - PrefixSum"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="tutorial-15-kernel-example-graph-cut">
+<h1>Tutorial 15. Kernel Example - Graph-Cut<a class="headerlink" href="#tutorial-15-kernel-example-graph-cut" title="Permalink to this headline">¶</a></h1>
+<p>The graph-cut algorithm solves the max-flow min-cut problem, which can be found in many global optimization problems, such as background segmentation, image stitching and Network analysis, etc. One such graph-cut algorithm is Push and Relabel, which was designed by Andrew V. Goldberg and Robert Tarjan. This algorithm uses a breadth first approach that makes it possible to run on GPU efficiently with some challenges. The main challenge is how to resolve inter-node dependencies while revealing parallel operations.</p>
+<p>There are multiple nodes in a system. Each node has a set of variables such as excess flow and capacities in north, south, east and west directions. The high-level idea of Push and Relabel algorithm is to call Relabel and Push in turn until no active nodes can be further pushed. For background segmentation, the final segmentation result is in height matrix.</p>
+<p>Below is Relabel pseudo code.</p>
+<div class="highlight-php"><div class="highlight"><pre><span></span><span class="x">if active(x) do</span>
+<span class="x">    my_height = HEIGHT_MAX;</span>
+<span class="x">    for each y = neighbor(x)</span>
+<span class="x">        if capacity(x,y) &gt; 0 do</span>
+<span class="x">            my_height = min(my_height, height(y)+1);</span>
+<span class="x">        done</span>
+<span class="x">    end</span>
+<span class="x">    height(x) = my_height;// update height</span>
+<span class="x">done</span>
+</pre></div>
+</div>
+<p>The parallel operations of Relabel are applied to reference north, south and east neighbors, and leave west neighbor reference to SIMD1 for algorithm convergence.</p>
+<p>Below is Push pseudo code.</p>
+<div class="highlight-php"><div class="highlight"><pre><span></span><span class="x">if active(x) do</span>
+<span class="x">    foreach y = neighbor(x)</span>
+<span class="x">        if height(y) == height(x) – 1 do</span>
+<span class="x">            flow = min( capacity(x,y), excess_flow(x));</span>
+<span class="x">            excess_flow(x) -= flow;</span>
+<span class="x">            excess_flow(y) += flow;</span>
+<span class="x">            capacity(x,y) -= flow;</span>
+<span class="x">            capacity(y,x) += flow;</span>
+<span class="x">        done</span>
+<span class="x">    end</span>
+<span class="x">done</span>
+</pre></div>
+</div>
+<p>The parallel operations of Push are applied with separate row and column push, and preserve thread dependencies horizontally and vertically during push operations.</p>
+<p>The following are the representative CM kernel code.</p>
+<p>GC_Relabel_u32</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="n">_GENX_MAIN_</span> <span class="kt">void</span>
+<span class="n">GC_Relabel_u32</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">pBlockMaskIndex</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">pExcessFlowIndex</span><span class="p">,</span>
+               <span class="n">SurfaceIndex</span> <span class="n">pHeightIndex</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">pWestCapIndex</span><span class="p">,</span>
+               <span class="n">SurfaceIndex</span> <span class="n">pNorthCapIndex</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">pEastCapIndex</span><span class="p">,</span>
+               <span class="n">SurfaceIndex</span> <span class="n">pSouthCapIndex</span><span class="p">,</span> <span class="n">uint</span> <span class="n">HEIGHT_MAX</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span> <span class="n">BlockMask</span><span class="p">;</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">Height10x8</span><span class="p">;</span> <span class="c1">// 10 GRFs</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span> <span class="n">LBorder</span><span class="p">;</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span> <span class="n">RBorder</span><span class="p">;</span>
+
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">ExcessFlow</span><span class="p">;</span> <span class="c1">// 4 GRFs</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">WestCap</span><span class="p">;</span>    <span class="c1">// 4 GRFs</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">NorthCap</span><span class="p">;</span>   <span class="c1">// 4 GRFs</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">EastCap</span><span class="p">;</span>    <span class="c1">// 4 GRFs</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">SouthCap</span><span class="p">;</span>   <span class="c1">// 4 GRFs</span>
+
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">mask</span><span class="p">;</span>  <span class="c1">// 4 GRFs</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">mask2</span><span class="p">;</span>  <span class="c1">// 8 GRFs</span>
+  <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">NewHeight</span><span class="p">;</span> <span class="c1">// 1 GRF</span>
+  <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">Neighbor</span><span class="p">;</span>  <span class="c1">// 1 GRF</span>
+  <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span> <span class="n">temps</span><span class="p">;</span>
+
+  <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">Test</span><span class="p">;</span>
+  <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">Test2</span><span class="p">;</span>
+
+  <span class="n">uint</span> <span class="n">h_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_x</span><span class="p">();</span>
+  <span class="n">uint</span> <span class="n">v_pos</span> <span class="o">=</span> <span class="n">get_thread_origin_y</span><span class="p">();</span>
+
+  <span class="c1">// Skip inactive block</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pBlockMaskIndex</span><span class="p">,</span> <span class="n">h_pos</span><span class="p">,</span> <span class="n">v_pos</span><span class="p">,</span> <span class="n">BlockMask</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">BlockMask</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span><span class="p">;</span>
+
+  <span class="kt">short</span> <span class="n">baseX</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="c1">// block base</span>
+  <span class="kt">short</span> <span class="n">baseY</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="c1">// Offset for extra row</span>
+
+  <span class="c1">// Height block origin without border</span>
+  <span class="kt">int</span> <span class="n">dX0</span> <span class="o">=</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">h_pos</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">uint</span><span class="p">);</span> <span class="c1">// in bytes</span>
+  <span class="kt">int</span> <span class="n">dY0</span> <span class="o">=</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">v_pos</span><span class="p">;</span>                <span class="c1">// in rows</span>
+
+  <span class="c1">// Height block origin with border</span>
+  <span class="kt">int</span> <span class="n">dX</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span> <span class="o">*</span> <span class="n">h_pos</span> <span class="o">-</span> <span class="n">baseX</span><span class="p">)</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">uint</span><span class="p">);</span> <span class="c1">// in bytes</span>
+  <span class="kt">int</span> <span class="n">dY</span> <span class="o">=</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">v_pos</span> <span class="o">-</span> <span class="n">baseY</span><span class="p">;</span>                  <span class="c1">// in rows</span>
+
+  <span class="c1">// ExcessFlow, WestCap, NorthCap, EastCap, SouthCap origin without border</span>
+  <span class="kt">int</span> <span class="n">sX</span> <span class="o">=</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">h_pos</span> <span class="o">*</span> <span class="mi">2</span><span class="p">;</span> <span class="c1">// in bytes</span>
+  <span class="kt">int</span> <span class="n">sY</span> <span class="o">=</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">v_pos</span><span class="p">;</span>     <span class="c1">// in rows</span>
+
+  <span class="n">read</span><span class="p">(</span><span class="n">pExcessFlowIndex</span><span class="p">,</span> <span class="n">sX</span><span class="p">,</span> <span class="n">sY</span><span class="p">,</span> <span class="n">ExcessFlow</span><span class="p">);</span>
+  <span class="n">mask</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ExcessFlow</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">);</span>
+  <span class="c1">//    if (!mask.any())</span>
+  <span class="c1">//        return;</span>
+
+  <span class="c1">// Read Height</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pHeightIndex</span><span class="p">,</span> <span class="n">dX0</span><span class="p">,</span> <span class="n">dY</span><span class="p">,</span> <span class="n">Height10x8</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pHeightIndex</span><span class="p">,</span> <span class="n">dX0</span><span class="p">,</span> <span class="n">dY</span> <span class="o">+</span> <span class="mi">8</span><span class="p">,</span> <span class="n">Height10x8</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+  <span class="c1">// Read left and right Height borders</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pHeightIndex</span><span class="p">,</span> <span class="n">dX</span><span class="p">,</span> <span class="n">dY0</span><span class="p">,</span> <span class="n">LBorder</span><span class="p">);</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pHeightIndex</span><span class="p">,</span> <span class="n">dX</span> <span class="o">+</span> <span class="mi">9</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">uint</span><span class="p">),</span> <span class="n">dY0</span><span class="p">,</span> <span class="n">RBorder</span><span class="p">);</span>
+
+  <span class="n">mask</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ExcessFlow</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">);</span>
+
+  <span class="c1">//    mask2.merge(1, 0, Height10x8.select&lt;8,1,8,1&gt;(baseY,0) == HEIGHT_MAX);</span>
+  <span class="c1">//    if (mask2.all())</span>
+  <span class="c1">//        return;</span>
+
+  <span class="n">read</span><span class="p">(</span><span class="n">pWestCapIndex</span><span class="p">,</span> <span class="n">sX</span><span class="p">,</span> <span class="n">sY</span><span class="p">,</span> <span class="n">WestCap</span><span class="p">);</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pNorthCapIndex</span><span class="p">,</span> <span class="n">sX</span><span class="p">,</span> <span class="n">sY</span><span class="p">,</span> <span class="n">NorthCap</span><span class="p">);</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pEastCapIndex</span><span class="p">,</span> <span class="n">sX</span><span class="p">,</span> <span class="n">sY</span><span class="p">,</span> <span class="n">EastCap</span><span class="p">);</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pSouthCapIndex</span><span class="p">,</span> <span class="n">sX</span><span class="p">,</span> <span class="n">sY</span><span class="p">,</span> <span class="n">SouthCap</span><span class="p">);</span>
+
+<span class="cp">#pragma unroll</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">mask</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">j</span><span class="p">).</span><span class="n">any</span><span class="p">())</span> <span class="p">{</span>
+      <span class="n">NewHeight</span> <span class="o">=</span> <span class="n">HEIGHT_MAX</span><span class="p">;</span>
+
+      <span class="c1">// North neighbour: x, y-1</span>
+      <span class="n">Neighbor</span> <span class="o">=</span> <span class="n">Height10x8</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+      <span class="n">NewHeight</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="n">Neighbor</span><span class="p">,</span> <span class="n">mask</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">NorthCap</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span>
+                                    <span class="p">(</span><span class="n">Neighbor</span> <span class="o">&lt;</span> <span class="n">NewHeight</span><span class="p">));</span>
+
+      <span class="c1">// South neighbour: x, y+1</span>
+      <span class="n">Neighbor</span> <span class="o">=</span> <span class="n">Height10x8</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+      <span class="n">NewHeight</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="n">Neighbor</span><span class="p">,</span> <span class="n">mask</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">SouthCap</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span>
+                                    <span class="p">(</span><span class="n">Neighbor</span> <span class="o">&lt;</span> <span class="n">NewHeight</span><span class="p">));</span>
+
+      <span class="c1">// East neighbour: x+1, y</span>
+      <span class="n">Neighbor</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="o">=</span> <span class="n">Height10x8</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">,</span> <span class="mi">1</span><span class="p">);</span>
+      <span class="n">Neighbor</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">=</span> <span class="n">Height10x8</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">,</span> <span class="mi">4</span><span class="p">);</span>
+      <span class="n">Neighbor</span><span class="p">[</span><span class="mi">7</span><span class="p">]</span> <span class="o">=</span> <span class="n">RBorder</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="mi">0</span><span class="p">];</span>
+      <span class="n">Neighbor</span> <span class="o">+=</span> <span class="mi">1</span><span class="p">;</span>
+      <span class="n">NewHeight</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="n">Neighbor</span><span class="p">,</span> <span class="n">mask</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">EastCap</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span>
+                                    <span class="p">(</span><span class="n">Neighbor</span> <span class="o">&lt;</span> <span class="n">NewHeight</span><span class="p">));</span>
+
+      <span class="c1">// West pix[0]</span>
+      <span class="k">if</span> <span class="p">(</span><span class="n">mask</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="p">{</span>
+        <span class="c1">// West neighbour</span>
+        <span class="n">temps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">LBorder</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+        <span class="k">if</span> <span class="p">((</span><span class="n">WestCap</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">temps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">NewHeight</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+          <span class="n">NewHeight</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">temps</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+        <span class="c1">// Update Height so the next pixel to the right will use this new value</span>
+        <span class="n">Height10x8</span><span class="p">[</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">NewHeight</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+      <span class="p">}</span>
+
+      <span class="c1">// West pix[1:7]</span>
+<span class="cp">#pragma unroll</span>
+      <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">mask</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">i</span><span class="p">])</span> <span class="p">{</span>
+          <span class="c1">//                    temps = Height10x8.select&lt;1,1,2,2&gt;(baseY+j,</span>
+          <span class="c1">//                    -1+i) + 1;</span>
+          <span class="n">temps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">Height10x8</span><span class="p">[</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span> <span class="o">+</span> <span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">;</span>
+          <span class="c1">// West neighbour</span>
+          <span class="k">if</span> <span class="p">((</span><span class="n">WestCap</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">temps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">NewHeight</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+            <span class="n">NewHeight</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">temps</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+          <span class="n">Height10x8</span><span class="p">[</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">NewHeight</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+        <span class="p">}</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Output the updated height block 8x8</span>
+  <span class="n">write</span><span class="p">(</span><span class="n">pHeightIndex</span><span class="p">,</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">h_pos</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">uint</span><span class="p">),</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">v_pos</span><span class="p">,</span>
+        <span class="n">Height10x8</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+  <span class="c1">//    cm_fence();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>GC_V_Push_VWF_u32</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="n">_GENX_MAIN_</span> <span class="kt">void</span>
+<span class="n">GC_V_Push_VWF_u32</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">pExcessFlowIndex</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">pHeightIndex</span><span class="p">,</span>
+                  <span class="n">SurfaceIndex</span> <span class="n">pNorthCapIndex</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">pSouthCapIndex</span><span class="p">,</span>
+                  <span class="n">SurfaceIndex</span> <span class="n">pStatusIndex</span><span class="p">,</span> <span class="n">uint</span> <span class="n">HEIGHT_MAX</span><span class="p">,</span>
+                  <span class="kt">int</span> <span class="n">PhysicalThreadsWidth</span><span class="p">,</span> <span class="kt">int</span> <span class="n">BankHeight</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">// Output block size = 8x16</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span>
+      <span class="n">Height</span><span class="p">;</span> <span class="c1">// Input. Block size = 8x16, plus extra 2 rows 10x16</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">ExcessFlow</span><span class="p">;</span> <span class="c1">// Input and output. 9x16</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">NorthCap</span><span class="p">;</span>   <span class="c1">// Input and output. 8x16</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">SouthCap</span><span class="p">;</span>   <span class="c1">// Input and output. 8x16</span>
+
+  <span class="n">vector</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">mask</span><span class="p">;</span>    <span class="c1">// 1 GRF</span>
+  <span class="n">vector</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">mask2</span><span class="p">;</span>   <span class="c1">// 1 GRF</span>
+  <span class="n">vector</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">flow</span><span class="p">;</span>    <span class="c1">// 1 GRF</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">temp</span><span class="p">;</span> <span class="c1">// 8 GRFs</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">mask8x16</span><span class="p">;</span>
+
+  <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">element_offset</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span> <span class="c1">// 1 GRF</span>
+  <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">count</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>          <span class="c1">// 1 GRF</span>
+  <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">tmp</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>            <span class="c1">// 1 GRF</span>
+
+  <span class="c1">// Virtual coordinate</span>
+  <span class="n">uint</span> <span class="n">h_pos0</span> <span class="o">=</span> <span class="n">get_thread_origin_x</span><span class="p">();</span>
+  <span class="n">uint</span> <span class="n">v_pos0</span> <span class="o">=</span> <span class="n">get_thread_origin_y</span><span class="p">();</span>
+
+  <span class="c1">// Actual coordinate</span>
+  <span class="c1">// x = x&#39; % width</span>
+  <span class="c1">// y = x&#39; / width * height_b + y&#39;</span>
+  <span class="c1">// x and y is coordinate in physical thread space.  x&#39; and y&#39; is coordinate in</span>
+  <span class="c1">// logical thread space. width is physical thread space. width_b is the bank</span>
+  <span class="c1">// height.</span>
+  <span class="n">uint</span> <span class="n">h_pos</span> <span class="o">=</span> <span class="n">h_pos0</span> <span class="o">%</span> <span class="n">PhysicalThreadsWidth</span><span class="p">;</span>
+  <span class="n">uint</span> <span class="n">v_pos</span> <span class="o">=</span> <span class="n">h_pos0</span> <span class="o">/</span> <span class="n">PhysicalThreadsWidth</span> <span class="o">*</span> <span class="n">BankHeight</span> <span class="o">+</span>
+               <span class="n">v_pos0</span><span class="p">;</span> <span class="c1">// BankHeight is the bank height in blocks</span>
+
+  <span class="kt">short</span> <span class="n">baseX</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c1">// block base</span>
+  <span class="kt">short</span> <span class="n">baseY</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="c1">// Offset for extra row</span>
+
+  <span class="n">uint</span> <span class="n">dX</span> <span class="o">=</span> <span class="p">(</span><span class="mi">16</span> <span class="o">*</span> <span class="n">h_pos</span> <span class="o">-</span> <span class="n">baseX</span><span class="p">)</span> <span class="o">*</span>
+            <span class="k">sizeof</span><span class="p">(</span><span class="n">uint</span><span class="p">);</span>      <span class="c1">// in bytes, -2 pixels for DWORD aligned write</span>
+  <span class="n">uint</span> <span class="n">dY</span> <span class="o">=</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">v_pos</span> <span class="o">-</span> <span class="n">baseY</span><span class="p">;</span> <span class="c1">// in rows</span>
+
+  <span class="n">uint</span> <span class="n">nX</span> <span class="o">=</span> <span class="p">(</span><span class="mi">16</span> <span class="o">*</span> <span class="n">h_pos</span> <span class="o">-</span> <span class="n">baseX</span><span class="p">)</span> <span class="o">*</span>
+            <span class="k">sizeof</span><span class="p">(</span><span class="kt">short</span><span class="p">);</span>     <span class="c1">// in bytes, -2 pixels for DWORD aligned write</span>
+  <span class="n">uint</span> <span class="n">nY</span> <span class="o">=</span> <span class="mi">8</span> <span class="o">*</span> <span class="n">v_pos</span> <span class="o">-</span> <span class="n">baseY</span><span class="p">;</span> <span class="c1">// in rows</span>
+
+  <span class="kt">short</span> <span class="n">update</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+  <span class="n">cm_wait</span><span class="p">();</span>
+
+  <span class="c1">// Read 10 rows x 16 columns</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pHeightIndex</span><span class="p">,</span> <span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">,</span> <span class="n">Height</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pHeightIndex</span><span class="p">,</span> <span class="n">dX</span> <span class="o">+</span> <span class="mi">8</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">uint</span><span class="p">),</span> <span class="n">dY</span><span class="p">,</span>
+       <span class="n">Height</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">8</span><span class="p">));</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pHeightIndex</span><span class="p">,</span> <span class="n">dX</span><span class="p">,</span> <span class="n">dY</span> <span class="o">+</span> <span class="mi">8</span><span class="p">,</span> <span class="n">Height</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pHeightIndex</span><span class="p">,</span> <span class="n">dX</span> <span class="o">+</span> <span class="mi">8</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">uint</span><span class="p">),</span> <span class="n">dY</span> <span class="o">+</span> <span class="mi">8</span><span class="p">,</span>
+       <span class="n">Height</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">));</span>
+
+  <span class="n">mask8x16</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">Height</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="n">HEIGHT_MAX</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">mask8x16</span><span class="p">.</span><span class="n">all</span><span class="p">())</span>
+    <span class="k">return</span><span class="p">;</span>
+
+  <span class="n">read</span><span class="p">(</span><span class="n">pExcessFlowIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span><span class="p">,</span> <span class="n">ExcessFlow</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pExcessFlowIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span> <span class="o">+</span> <span class="mi">8</span><span class="p">,</span> <span class="n">ExcessFlow</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+
+  <span class="c1">// mask8x16 for active nodes</span>
+  <span class="n">mask8x16</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ExcessFlow</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">mask8x16</span><span class="p">.</span><span class="n">all</span><span class="p">())</span>
+    <span class="k">return</span><span class="p">;</span>
+
+  <span class="n">read</span><span class="p">(</span><span class="n">pNorthCapIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span><span class="p">,</span> <span class="n">NorthCap</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pNorthCapIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span> <span class="o">+</span> <span class="mi">8</span><span class="p">,</span> <span class="n">NorthCap</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+
+  <span class="n">read</span><span class="p">(</span><span class="n">pSouthCapIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span><span class="p">,</span> <span class="n">SouthCap</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pSouthCapIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span> <span class="o">+</span> <span class="mi">8</span><span class="p">,</span> <span class="n">SouthCap</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+
+<span class="cp">#pragma unroll</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// mask for checking Height &lt; HEIGHT_MAX</span>
+    <span class="n">mask</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+               <span class="n">ExcessFlow</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="o">&amp;</span>
+                   <span class="n">Height</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">HEIGHT_MAX</span><span class="p">);</span>
+
+    <span class="n">SIMD_IF_BEGIN</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c1">// North neighbour (x, y-1)</span>
+      <span class="n">mask2</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                  <span class="p">(</span><span class="n">Height</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">Height</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">));</span>
+      <span class="n">SIMD_IF_BEGIN</span><span class="p">(</span><span class="n">mask2</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">flow</span> <span class="o">=</span>
+            <span class="n">cm_min</span><span class="o">&lt;</span><span class="kt">short</span><span class="o">&gt;</span><span class="p">(</span><span class="n">NorthCap</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">),</span> <span class="n">ExcessFlow</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">));</span>
+        <span class="n">SIMD_IF_BEGIN</span><span class="p">(</span><span class="n">flow</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+          <span class="n">ExcessFlow</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">-=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">ExcessFlow</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">NorthCap</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">-=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">SouthCap</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">update</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="n">SIMD_IF_END</span><span class="p">;</span>
+      <span class="p">}</span>
+      <span class="n">SIMD_IF_END</span><span class="p">;</span>
+
+      <span class="c1">// South neighbour (x, y+1)</span>
+      <span class="n">mask2</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                  <span class="p">(</span><span class="n">Height</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">Height</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">));</span>
+      <span class="n">SIMD_IF_BEGIN</span><span class="p">(</span><span class="n">mask2</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">flow</span> <span class="o">=</span>
+            <span class="n">cm_min</span><span class="o">&lt;</span><span class="kt">short</span><span class="o">&gt;</span><span class="p">(</span><span class="n">SouthCap</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">),</span> <span class="n">ExcessFlow</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">));</span>
+        <span class="n">SIMD_IF_BEGIN</span><span class="p">(</span><span class="n">flow</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+          <span class="n">ExcessFlow</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">-=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">ExcessFlow</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">SouthCap</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">-=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">NorthCap</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">update</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="n">SIMD_IF_END</span><span class="p">;</span>
+      <span class="p">}</span>
+      <span class="n">SIMD_IF_END</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="n">SIMD_IF_END</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">update</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// Output ExcessFlow and capacity blocks [9 rows x 16 cols]</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">pExcessFlowIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span><span class="p">,</span> <span class="n">ExcessFlow</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">pExcessFlowIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span> <span class="o">+</span> <span class="mi">8</span><span class="p">,</span> <span class="n">ExcessFlow</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+
+    <span class="n">write</span><span class="p">(</span><span class="n">pNorthCapIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span><span class="p">,</span> <span class="n">NorthCap</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">pNorthCapIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span> <span class="o">+</span> <span class="mi">8</span><span class="p">,</span> <span class="n">NorthCap</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+
+    <span class="n">write</span><span class="p">(</span><span class="n">pSouthCapIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span><span class="p">,</span> <span class="n">SouthCap</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">pSouthCapIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span> <span class="o">+</span> <span class="mi">8</span><span class="p">,</span> <span class="n">SouthCap</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Return true if any active node</span>
+  <span class="n">temp</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+             <span class="p">(</span><span class="n">ExcessFlow</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">baseY</span><span class="p">,</span> <span class="n">baseX</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span>
+                 <span class="p">(</span><span class="n">Height</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">baseY</span><span class="p">,</span> <span class="n">baseX</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">HEIGHT_MAX</span><span class="p">));</span>
+
+  <span class="n">tmp</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">cm_sum</span><span class="o">&lt;</span><span class="kt">short</span><span class="o">&gt;</span><span class="p">(</span><span class="n">temp</span><span class="p">);</span>
+
+  <span class="c1">// Update status to indicate at least one new height is found in the block</span>
+  <span class="c1">//    if (temp.any()) {</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">tmp</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="p">{</span>
+    <span class="c1">// write(pStatusIndex, ATOMIC_INC, 0, element_offset, tmp, count);</span>
+    <span class="n">tmp</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">pStatusIndex</span><span class="p">,</span> <span class="n">ATOMIC_ADD</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">element_offset</span><span class="p">,</span> <span class="n">tmp</span><span class="p">,</span> <span class="n">count</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="n">cm_fence</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>GC_H_Push_NR_VWF_u32</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="n">_GENX_MAIN_</span> <span class="kt">void</span>
+<span class="n">GC_H_Push_NR_VWF_u32</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">pExcessFlowIndex</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">pHeightIndex</span><span class="p">,</span>
+                     <span class="n">SurfaceIndex</span> <span class="n">pWestCapIndex</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">pEastCapIndex</span><span class="p">,</span>
+                     <span class="n">uint</span> <span class="n">HEIGHT_MAX</span><span class="p">,</span> <span class="kt">int</span> <span class="n">PhysicalThreadsHeight</span><span class="p">,</span>
+                     <span class="kt">int</span> <span class="n">BankWidth</span><span class="p">)</span> <span class="p">{</span>
+<span class="c1">// Block size is 8x8</span>
+<span class="cp">#define ROWS 8</span>
+
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="n">ROWS</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span>
+      <span class="n">Height</span><span class="p">;</span> <span class="c1">// Input. Block size = 8x8, plus extra column 8x12. 8GRFs</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="n">ROWS</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">ExcessFlow</span><span class="p">;</span> <span class="c1">// Input and output 8x12. 8GRFs</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="n">ROWS</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">WestCap</span><span class="p">;</span>    <span class="c1">// Input and output 8x12. 8GRFs</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="n">ROWS</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">EastCap</span><span class="p">;</span>    <span class="c1">// Input and output 8x12. 8GRFs</span>
+
+  <span class="c1">// Transposed matrix</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="n">ROWS</span><span class="o">&gt;</span> <span class="n">ExcessFlow_t</span><span class="p">;</span> <span class="c1">// 8 GRFs</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="n">ROWS</span><span class="o">&gt;</span> <span class="n">WestCap_t</span><span class="p">;</span>    <span class="c1">// 8 GRFs</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="n">ROWS</span><span class="o">&gt;</span> <span class="n">EastCap_t</span><span class="p">;</span>    <span class="c1">// 8 GRFs</span>
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="n">ROWS</span><span class="o">&gt;</span> <span class="n">Height_t</span><span class="p">;</span>      <span class="c1">// 16 GRFs</span>
+
+  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="n">ROWS</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">mask8x8</span><span class="p">;</span>
+  <span class="n">vector</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">mask</span><span class="p">;</span>
+  <span class="n">vector</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">mask2</span><span class="p">;</span>
+  <span class="n">vector</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">flow</span><span class="p">;</span>
+
+  <span class="c1">// Virtual coordinate</span>
+  <span class="n">uint</span> <span class="n">h_pos0</span> <span class="o">=</span> <span class="n">get_thread_origin_x</span><span class="p">();</span>
+  <span class="n">uint</span> <span class="n">v_pos0</span> <span class="o">=</span> <span class="n">get_thread_origin_y</span><span class="p">();</span>
+
+  <span class="c1">// Actual coordinate</span>
+  <span class="c1">// y = y&#39; % Height</span>
+  <span class="c1">// x = y&#39; / Height * Width_b + x&#39;</span>
+  <span class="c1">// x and y is coordinate in physical thread space.  x&#39; and y&#39; is coordinate in</span>
+  <span class="c1">// logical thread space. Height is physical thread height. Width_b is the bank</span>
+  <span class="c1">// width.</span>
+  <span class="n">uint</span> <span class="n">v_pos</span> <span class="o">=</span> <span class="n">v_pos0</span> <span class="o">%</span> <span class="n">PhysicalThreadsHeight</span><span class="p">;</span>
+  <span class="n">uint</span> <span class="n">h_pos</span> <span class="o">=</span> <span class="n">v_pos0</span> <span class="o">/</span> <span class="n">PhysicalThreadsHeight</span> <span class="o">*</span> <span class="n">BankWidth</span> <span class="o">+</span>
+               <span class="n">h_pos0</span><span class="p">;</span> <span class="c1">// BankWidth is the bank width in blocks</span>
+
+  <span class="kt">short</span> <span class="n">baseX</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span> <span class="c1">// block base</span>
+  <span class="kt">short</span> <span class="n">baseY</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+  <span class="n">uint</span> <span class="n">dX</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span> <span class="o">*</span> <span class="n">h_pos</span> <span class="o">-</span> <span class="n">baseX</span><span class="p">)</span> <span class="o">*</span>
+            <span class="k">sizeof</span><span class="p">(</span><span class="n">uint</span><span class="p">);</span> <span class="c1">// in bytes, 2 extra pixels for DWORD aligned write</span>
+  <span class="n">uint</span> <span class="n">dY</span> <span class="o">=</span> <span class="n">ROWS</span> <span class="o">*</span> <span class="n">v_pos</span> <span class="o">-</span> <span class="n">baseY</span><span class="p">;</span> <span class="c1">// in rows</span>
+
+  <span class="n">uint</span> <span class="n">nX</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span> <span class="o">*</span> <span class="n">h_pos</span> <span class="o">-</span> <span class="n">baseX</span><span class="p">)</span> <span class="o">*</span>
+            <span class="k">sizeof</span><span class="p">(</span><span class="kt">short</span><span class="p">);</span> <span class="c1">// in bytes, 2 extra pixels for DWORD aligned write</span>
+  <span class="n">uint</span> <span class="n">nY</span> <span class="o">=</span> <span class="n">ROWS</span> <span class="o">*</span> <span class="n">v_pos</span> <span class="o">-</span> <span class="n">baseY</span><span class="p">;</span> <span class="c1">// in rows</span>
+
+  <span class="kt">short</span> <span class="n">update</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+  <span class="n">cm_wait</span><span class="p">();</span>
+
+  <span class="n">read</span><span class="p">(</span><span class="n">pExcessFlowIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span><span class="p">,</span> <span class="n">ExcessFlow</span><span class="p">);</span>
+
+  <span class="c1">// mask for active nodes</span>
+  <span class="n">mask8x8</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ExcessFlow</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">baseY</span><span class="p">,</span> <span class="n">baseX</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">mask8x8</span><span class="p">.</span><span class="n">any</span><span class="p">())</span>
+    <span class="k">return</span><span class="p">;</span>
+
+  <span class="n">Transpose_8x16_To_16x8_Short</span><span class="p">(</span><span class="n">ExcessFlow</span><span class="p">,</span> <span class="n">ExcessFlow_t</span><span class="p">);</span>
+
+  <span class="c1">// Read 8 rows x 8 columns, increase to 8x12 for DWORD aligned write</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pHeightIndex</span><span class="p">,</span> <span class="n">dX</span><span class="p">,</span> <span class="n">dY</span><span class="p">,</span> <span class="n">Height</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="n">ROWS</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pHeightIndex</span><span class="p">,</span> <span class="n">dX</span> <span class="o">+</span> <span class="mi">8</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">uint</span><span class="p">),</span> <span class="n">dY</span><span class="p">,</span>
+       <span class="n">Height</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="n">ROWS</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">8</span><span class="p">));</span>
+
+  <span class="c1">// mask for active nodes</span>
+  <span class="n">mask8x8</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">Height</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="n">ROWS</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">baseY</span><span class="p">,</span> <span class="n">baseX</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">HEIGHT_MAX</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">mask8x8</span><span class="p">.</span><span class="n">any</span><span class="p">())</span>
+    <span class="k">return</span><span class="p">;</span>
+
+  <span class="n">Transpose_8x16_To_16x8_Uint</span><span class="p">(</span><span class="n">Height</span><span class="p">,</span> <span class="n">Height_t</span><span class="p">);</span>
+
+  <span class="n">read</span><span class="p">(</span><span class="n">pWestCapIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span><span class="p">,</span> <span class="n">WestCap</span><span class="p">);</span>
+  <span class="n">read</span><span class="p">(</span><span class="n">pEastCapIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span><span class="p">,</span> <span class="n">EastCap</span><span class="p">);</span>
+
+  <span class="n">Transpose_8x16_To_16x8_Short</span><span class="p">(</span><span class="n">WestCap</span><span class="p">,</span> <span class="n">WestCap_t</span><span class="p">);</span>
+  <span class="n">Transpose_8x16_To_16x8_Short</span><span class="p">(</span><span class="n">EastCap</span><span class="p">,</span> <span class="n">EastCap_t</span><span class="p">);</span>
+
+  <span class="n">baseX</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="c1">// Transposed block base</span>
+  <span class="n">baseY</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span>
+
+<span class="cp">#pragma unroll</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+
+    <span class="c1">// mask for checking Height &lt; HEIGHT_MAX</span>
+    <span class="n">mask</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+               <span class="n">ExcessFlow_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="o">&amp;</span>
+                   <span class="n">Height_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">HEIGHT_MAX</span><span class="p">);</span>
+
+    <span class="n">SIMD_IF_BEGIN</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c1">// West neighbour (x, y-1)</span>
+      <span class="n">mask2</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                  <span class="p">(</span><span class="n">Height_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">Height_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">));</span>
+      <span class="n">SIMD_IF_BEGIN</span><span class="p">(</span><span class="n">mask2</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">flow</span> <span class="o">=</span> <span class="n">cm_min</span><span class="o">&lt;</span><span class="kt">short</span><span class="o">&gt;</span><span class="p">(</span><span class="n">WestCap_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">),</span>
+                             <span class="n">ExcessFlow_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">));</span>
+        <span class="n">SIMD_IF_BEGIN</span><span class="p">(</span><span class="n">flow</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+          <span class="n">ExcessFlow_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">-=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">ExcessFlow_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">WestCap_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">-=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">EastCap_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">update</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="n">SIMD_IF_END</span><span class="p">;</span>
+      <span class="p">}</span>
+      <span class="n">SIMD_IF_END</span><span class="p">;</span>
+
+      <span class="c1">// East neighbour (x, y+1)</span>
+      <span class="n">mask2</span><span class="p">.</span><span class="n">merge</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                  <span class="p">(</span><span class="n">Height_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="n">Height_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">));</span>
+      <span class="n">SIMD_IF_BEGIN</span><span class="p">(</span><span class="n">mask2</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">flow</span> <span class="o">=</span> <span class="n">cm_min</span><span class="o">&lt;</span><span class="kt">short</span><span class="o">&gt;</span><span class="p">(</span><span class="n">EastCap_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">),</span>
+                             <span class="n">ExcessFlow_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">));</span>
+        <span class="n">SIMD_IF_BEGIN</span><span class="p">(</span><span class="n">flow</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+          <span class="n">ExcessFlow_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">-=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">ExcessFlow_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">EastCap_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span><span class="p">)</span> <span class="o">-=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">WestCap_t</span><span class="p">.</span><span class="n">row</span><span class="p">(</span><span class="n">baseY</span> <span class="o">+</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+=</span> <span class="n">flow</span><span class="p">;</span>
+          <span class="n">update</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="n">SIMD_IF_END</span><span class="p">;</span>
+      <span class="p">}</span>
+      <span class="n">SIMD_IF_END</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="n">SIMD_IF_END</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="c1">// Reverse transpose</span>
+  <span class="n">Transpose_16x8_To_8x16_Short</span><span class="p">(</span><span class="n">ExcessFlow_t</span><span class="p">,</span> <span class="n">ExcessFlow</span><span class="p">);</span>
+  <span class="n">Transpose_16x8_To_8x16_Short</span><span class="p">(</span><span class="n">WestCap_t</span><span class="p">,</span> <span class="n">WestCap</span><span class="p">);</span>
+  <span class="n">Transpose_16x8_To_8x16_Short</span><span class="p">(</span><span class="n">EastCap_t</span><span class="p">,</span> <span class="n">EastCap</span><span class="p">);</span>
+
+  <span class="c1">//    baseX = 2;   // Restore block base</span>
+  <span class="c1">//    baseY = 0;</span>
+
+  <span class="k">if</span> <span class="p">(</span><span class="n">update</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// Output ExcessFlow and capacity blocks [8 rows x 10 cols], 12 to be DWORD</span>
+    <span class="c1">// aligned</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">pExcessFlowIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span><span class="p">,</span> <span class="n">ExcessFlow</span><span class="p">);</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">pWestCapIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span><span class="p">,</span> <span class="n">WestCap</span><span class="p">);</span>
+    <span class="n">write</span><span class="p">(</span><span class="n">pEastCapIndex</span><span class="p">,</span> <span class="n">nX</span><span class="p">,</span> <span class="n">nY</span><span class="p">,</span> <span class="n">EastCap</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="n">cm_fence</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The source code also includes more variations of these kernels for higher performance. They are beyond of tutorial scope.</p>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="cmtutorial14.html" title="Tutorial 14. Kernel Example - PrefixSum"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="cmtut.html" >CM (C for Media) Tutorial</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
+      Last updated on Wed Oct 17 14:57:53 2018 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

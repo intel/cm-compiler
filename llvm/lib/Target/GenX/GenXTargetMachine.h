@@ -42,13 +42,16 @@ class raw_pwrite_stream;
 class MachineModuleInfo;
 
 class GenXTargetMachine : public TargetMachine {
+  bool Is64Bit;
   GenXSubtarget Subtarget;
 
 public:
   GenXTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                     StringRef FS, const TargetOptions &Options,
                     Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
-                    CodeGenOpt::Level OL, bool JIT);
+                    CodeGenOpt::Level OL, bool Is64Bit);
+
+  ~GenXTargetMachine() override;
 
   virtual bool addPassesToEmitFile(PassManagerBase &PM, raw_pwrite_stream &o,
                                    CodeGenFileType FileType,
@@ -58,7 +61,28 @@ public:
   virtual const DataLayout *getDataLayout() const { return &DL; }
 };
 
-extern Target TheGenXTarget;
+class GenXTargetMachine32 : public GenXTargetMachine {
+  virtual void anchor();
+
+public:
+  GenXTargetMachine32(const Target &T, const Triple &TT, StringRef CPU,
+                      StringRef FS, const TargetOptions &Options,
+                      Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
+                      CodeGenOpt::Level OL, bool Is64Bit);
+};
+
+class GenXTargetMachine64 : public GenXTargetMachine {
+  virtual void anchor();
+
+public:
+  GenXTargetMachine64(const Target &T, const Triple &TT, StringRef CPU,
+                      StringRef FS, const TargetOptions &Options,
+                      Optional<Reloc::Model> RM, Optional<CodeModel::Model> CM,
+                      CodeGenOpt::Level OL, bool Is64Bit);
+};
+
+Target &getTheGenXTarget32();
+Target &getTheGenXTarget64();
 
 } // End llvm namespace
 

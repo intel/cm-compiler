@@ -1140,9 +1140,20 @@ Instruction *GenXLiveness::insertCopy(Value *InputVal, LiveRange *LR,
       setLiveRange(SimpleValue(NewInst), LR);
     return NewInst;
   }
+  Instruction *NewInst = nullptr;
+  if (InputTy->isPointerTy()) {
+    // BitCast used to represent a normal copy.
+    NewInst = CastInst::Create(Instruction::BitCast, InputVal,
+                               InputVal->getType(), Name, InsertBefore);
+    if (Number)
+      Numbering->setNumber(NewInst, Number);
+    if (AdjustLRs)
+      setLiveRange(SimpleValue(NewInst), LR);
+    return NewInst;
+  }
+
   Region R(InputVal);
   unsigned MaxNum = R.ElementBytes == 1 ? 32 : 64 / R.ElementBytes;
-  Instruction *NewInst = nullptr;
   if (exactLog2(R.NumElements) >= 0 && R.NumElements <= MaxNum) {
     // Can be done with a single copy.
     if (SourceLR && (SourceLR->Category != RegCategory::GENERAL

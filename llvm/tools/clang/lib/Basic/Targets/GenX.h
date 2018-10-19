@@ -34,12 +34,7 @@ class LLVM_LIBRARY_VISIBILITY GenXTargetInfo : public TargetInfo {
   std::string CPU;
 
 public:
-  GenXTargetInfo(const llvm::Triple &Triple) : TargetInfo(Triple) {
-    // There's another copy of this in llvm/lib/Target/GenX/GenXTargetMachine.h
-    resetDataLayout("e-p:32:32-i64:64-n8:16:32");
-    // GenX target always uses Itanium C++ ABI.
-    TheCXXABI.set(TargetCXXABI::GenericItanium);
-  }
+  GenXTargetInfo(const llvm::Triple &Triple, unsigned PointerWidth);
 
   /// \brief Flags for architecture specific defines.
   typedef enum {

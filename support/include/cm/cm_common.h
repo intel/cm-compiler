@@ -337,6 +337,7 @@ enum class CM_FORMAT_SIZE {
 #define CM_HDC_FORMAT_16S CM_FORMAT_SIZE::_CM_HDC_FORMAT_16S
 #define CM_HDC_FORMAT_8U CM_FORMAT_SIZE::_CM_HDC_FORMAT_8U
 
+
 enum class CmAtomicOpType {
   _ATOMIC_ADD = 0x0,
   _ATOMIC_SUB = 0x1,
@@ -353,7 +354,7 @@ enum class CmAtomicOpType {
   _ATOMIC_MAXSINT = 0xc,
   _ATOMIC_FMAX = 0x10,
   _ATOMIC_FMIN = 0x11,
-  _ATOMIC_FCMPWR = 0x12
+  _ATOMIC_FCMPWR = 0x12,
 };
 
 #define ATOMIC_ADD CmAtomicOpType::_ATOMIC_ADD
@@ -468,7 +469,6 @@ enum CmFloatControl {
 
 #define CM_FLOAT_MODE_IEEE  CmFloatControl::_CM_FLOAT_MODE_IEEE
 #define CM_FLOAT_MODE_ALT   CmFloatControl::_CM_FLOAT_MODE_ALT
-
 
 
 // Macros

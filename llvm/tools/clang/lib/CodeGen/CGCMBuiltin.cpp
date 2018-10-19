@@ -287,6 +287,7 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(const FunctionDecl *FD) const {
               .StartsWith("__cm_intrinsic_impl_load16", CMBK_load16_impl)
               .StartsWith("__cm_intrinsic_impl_atomic_write_typed", CMBK_write_atomic_typed_impl)
               .StartsWith("__cm_intrinsic_impl_atomic_write", CMBK_write_atomic_impl)
+              .StartsWith("__cm_intrinsic_impl_simdfork_any", CMBK_simdfork_any_impl)
               .StartsWith("__cm_intrinsic_impl_simdcf_any", CMBK_simdcf_any_impl)
               .StartsWith("__cm_intrinsic_impl_simdcf_predgen", CMBK_simdcf_predgen_impl)
               .StartsWith("__cm_intrinsic_impl_simdcf_predmin", CMBK_simdcf_predmin_impl)
@@ -683,6 +684,9 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
     break;
   case Builtin::BIcm_get_hwid:
     IID = llvm::Intrinsic::genx_get_hwid;
+    break;
+  case Builtin::BIcm_lane_id:
+    IID = llvm::Intrinsic::genx_lane_id;
     break;
   case Builtin::BIcm_scoreboard_bti:
     IID = llvm::Intrinsic::genx_get_scoreboard_bti;
@@ -1224,6 +1228,8 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(0);
   case CMBK_cm_rdtsc:
     return RValue::get(HandleBuiltinRDTSC(getCurCMCallInfo()));
+  case CMBK_simdfork_any_impl:
+    return RValue::get(HandleBuiltinSimdforkAnyImpl(getCurCMCallInfo()));
   case CMBK_simdcf_any_impl:
     return RValue::get(HandleBuiltinSimdcfAnyImpl(getCurCMCallInfo()));
   case CMBK_simdcf_predgen_impl:
@@ -3624,7 +3630,7 @@ typedef enum _CmAtomicOpType_ {
   ATOMIC_MAXSINT = 0xc,
   ATOMIC_FMAX = 0x10,
   ATOMIC_FMIN = 0x11,
-  ATOMIC_FCMPWR = 0x12
+  ATOMIC_FCMPWR = 0x12,
 } CmAtomicOpType;
 
 unsigned getAtomicIntrinsicID(CmAtomicOpType Op) {
@@ -4896,8 +4902,14 @@ llvm::Value *CGCMRuntime::HandleBuiltinSVMScatterReadImpl(CMCallInfo &Info) {
 
   // Predicate
   Args.push_back(llvm::Constant::getAllOnesValue(PredTy));
-  // Number of blocks. Constant zero.
-  Args.push_back(llvm::Constant::getNullValue(GenxFnTy->getParamType(1)));
+  // Number of blocks.
+  // For   1,4,8 => block size 1,4,8; block count 1
+  //       2     => block size 1;     block count 2
+  // FIXME: encode the block count and size explicitly.
+  if (Info.CI->getArgOperand(1)->getType()->getScalarSizeInBits() == 16)
+    Args.push_back(llvm::ConstantInt::get(GenxFnTy->getParamType(1), 0x01));
+  else
+    Args.push_back(llvm::ConstantInt::get(GenxFnTy->getParamType(1), 0x00));
   // Address vector
   Args.push_back(Info.CI->getArgOperand(0));
   // old value of the data read
@@ -4931,8 +4943,14 @@ void CGCMRuntime::HandleBuiltinSVMScatterWriteImpl(CMCallInfo &Info) {
 
   // Predicate
   Args.push_back(llvm::Constant::getAllOnesValue(PredTy));
-  // Number of blocks. Constant zero.
-  Args.push_back(llvm::Constant::getNullValue(GenxFnTy->getParamType(1)));
+  // Number of blocks.
+  // For   1,4,8 => block size 1,4,8; block count 1
+  //       2     => block size 1;     block count 2
+  // FIXME: encode the block count and size explicitly.
+  if (Info.CI->getArgOperand(1)->getType()->getScalarSizeInBits() == 16)
+    Args.push_back(llvm::ConstantInt::get(GenxFnTy->getParamType(1), 0x01));
+  else
+    Args.push_back(llvm::ConstantInt::get(GenxFnTy->getParamType(1), 0x00));
   // Address vector
   Args.push_back(Info.CI->getArgOperand(0));
   // values to write
@@ -6188,6 +6206,35 @@ void CGCMRuntime::HandleBuiltinVAFloodFill(CMCallInfo &Info) {
   CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   Info.CI->eraseFromParent();
+}
+
+llvm::Value *CGCMRuntime::HandleBuiltinSimdforkAnyImpl(CMCallInfo &CallInfo) {
+  llvm::CallInst *CI = CallInfo.CI;
+  llvm::Value *Arg0 = CI->getArgOperand(0);
+
+  if (!Arg0->getType()->getScalarType()->isIntegerTy(1)) {
+    if (Arg0->getType()->getScalarType()->isFloatingPointTy())
+      Arg0 = CallInfo.CGF->Builder.CreateFCmpONE(Arg0,
+        llvm::Constant::getNullValue(Arg0->getType()));
+    else
+      Arg0 = CallInfo.CGF->Builder.CreateICmpNE(Arg0,
+        llvm::Constant::getNullValue(Arg0->getType()));
+  }
+
+  if (!Arg0->getType()->isVectorTy()) {
+    CI->eraseFromParent();
+    return Arg0;
+  }
+
+  unsigned ID = llvm::Intrinsic::genx_simdfork_any;
+  llvm::Function *Fn = getIntrinsic(ID, Arg0->getType());
+  llvm::CallInst *NewCI = CallInfo.CGF->Builder.CreateCall(Fn, Arg0);
+
+  NewCI->takeName(CI);
+  NewCI->setDebugLoc(CI->getDebugLoc());
+  CI->eraseFromParent();
+
+  return NewCI;
 }
 
 llvm::Value *CGCMRuntime::HandleBuiltinSimdcfAnyImpl(CMCallInfo &CallInfo) {

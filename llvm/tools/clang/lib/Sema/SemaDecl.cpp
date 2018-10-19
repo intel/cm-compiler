@@ -9094,6 +9094,12 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
           !ParamTy->isCMVmeIndexType() && !ParamTy->isCMSurfaceIndexType() &&
           !ParamTy->isCMSamplerIndexType() && !ParamTy->isEnumeralType() &&
           !ParamTy->isBooleanType()) {
+
+        // Allow pointer arguments.
+        // TODO, only allow certain pointers?
+        if (getLangOpts().CMPointer && ParamTy->isPointerType())
+          continue;
+
         Diag(Param->getLocation(), diag::err_cm_invalid_param_type)
             << Param->getType();
         D.setInvalidType();

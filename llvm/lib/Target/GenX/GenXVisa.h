@@ -223,6 +223,8 @@ namespace llvm {
       VISA_RESERVED_SURFACE_T1,
       VISA_RESERVED_SURFACE_T2,
       VISA_RESERVED_SURFACE_T3,
+      VISA_RESERVED_SURFACE_T4,
+      VISA_RESERVED_SURFACE_T5
     };
 
     /// For a fixed surface index, return its vISA equivalent, or -1 if none.
@@ -231,10 +233,14 @@ namespace llvm {
         switch ((uint32_t)CI->getZExtValue()) {
           case 254: // 254 is SLM, which is T0 in vISA
             return VISA_RESERVED_SURFACE_T0;
+          case 255: // 255 is stateless, which is T5 in vISA
+            return VISA_RESERVED_SURFACE_T5;
         }
       }
       return -1;
     }
+
+    inline int getT5() { return 255; }
 
     enum { VISA_MAX_GENERAL_REGS = 65536 * 256 - 1,
            VISA_MAX_ADDRESS_REGS = 4096,
@@ -252,7 +258,8 @@ namespace llvm {
     enum {
       ATOMIC_ADD, ATOMIC_SUB, ATOMIC_INC, ATOMIC_DEC, ATOMIC_MIN, ATOMIC_MAX,
       ATOMIC_XCHG, ATOMIC_CMPXCHG, ATOMIC_AND, ATOMIC_OR, ATOMIC_XOR,
-      ATOMIC_IMIN, ATOMIC_IMAX, ATOMIC_FMAX = 16, ATOMIC_FMIN, ATOMIC_FCMPWR };
+      ATOMIC_IMIN, ATOMIC_IMAX, ATOMIC_FMAX = 16, ATOMIC_FMIN, ATOMIC_FCMPWR,
+    };
 
     // vISA SVM sub-opcodes
     enum {

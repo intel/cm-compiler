@@ -67,15 +67,50 @@ using namespace llvm;
 static cl::opt<bool> DumpRegAlloc("genx-dump-regalloc", cl::init(false), cl::Hidden,
                   cl::desc("Enable dumping of GenX liveness and register allocation to a file."));
 
+// There's another copy of DL string in clang/lib/Basic/Targets.cpp
+static std::string getDL(bool Is64Bit) {
+  return Is64Bit ? "e-p:64:64-i64:64-n8:16:32" : "e-p:32:32-i64:64-n8:16:32";
+}
+
 GenXTargetMachine::GenXTargetMachine(const Target &T, const Triple &TT,
                                      StringRef CPU, StringRef FS,
                                      const TargetOptions &Options,
                                      Optional<Reloc::Model> RM,
                                      Optional<CodeModel::Model> CM,
-                                     CodeGenOpt::Level OL, bool JIT)
-    // There's another copy of DL string in clang/lib/Basic/Targets.cpp
-    : TargetMachine(T, "e-p:32:32-i64:64-n8:16:32", TT, CPU, FS, Options),
+                                     CodeGenOpt::Level OL, bool Is64Bit)
+    : TargetMachine(T, getDL(Is64Bit), TT, CPU, FS, Options), Is64Bit(Is64Bit),
       Subtarget(TT, CPU, FS) {}
+
+GenXTargetMachine::~GenXTargetMachine() = default;
+
+void GenXTargetMachine32::anchor() {}
+
+GenXTargetMachine32::GenXTargetMachine32(const Target &T, const Triple &TT,
+                                         StringRef CPU, StringRef FS,
+                                         const TargetOptions &Options,
+                                         Optional<Reloc::Model> RM,
+                                         Optional<CodeModel::Model> CM,
+                                         CodeGenOpt::Level OL, bool JIT)
+    : GenXTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, false) {}
+
+void GenXTargetMachine64::anchor() {}
+
+GenXTargetMachine64::GenXTargetMachine64(const Target &T, const Triple &TT,
+                                         StringRef CPU, StringRef FS,
+                                         const TargetOptions &Options,
+                                         Optional<Reloc::Model> RM,
+                                         Optional<CodeModel::Model> CM,
+                                         CodeGenOpt::Level OL, bool JIT)
+    : GenXTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, true) {}
+
+//===----------------------------------------------------------------------===//
+//                       External Interface declaration
+//===----------------------------------------------------------------------===//
+extern "C" void LLVMInitializeGenXTarget() {
+  // Register the target.
+  RegisterTargetMachine<GenXTargetMachine32> X(getTheGenXTarget32());
+  RegisterTargetMachine<GenXTargetMachine64> Y(getTheGenXTarget64());
+}
 
 //===----------------------------------------------------------------------===//
 // Pass Pipeline Configuration
@@ -133,6 +168,8 @@ bool GenXTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   /// This is a standard LLVM pass, used at this point in the GenX backend.
   ///
   PM.add(createCFGSimplificationPass());
+  /// .. include:: GenXGEPLowering.cpp
+  PM.add(createGenXGEPLoweringPass());
   /// .. include:: GenXReduceIntSize.cpp
   PM.add(createGenXReduceIntSizePass());
   /// InstructionCombining
@@ -147,6 +184,8 @@ bool GenXTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   PM.add(createGenXEarlySimdCFConformancePass());
   /// .. include:: GenXPromotePredicate.cpp
   PM.add(createGenXPromotePredicatePass());
+  // Run GEP lowering again to remove possible GEPs after instcombine.
+  PM.add(createGenXGEPLoweringPass());
   /// .. include:: GenXLowering.cpp
   PM.add(createGenXLoweringPass());
   if (!DisableVerify) PM.add(createVerifierPass());
@@ -278,13 +317,4 @@ bool GenXTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   /// .. include:: GenXVisaWriter.cpp
   PM.add(createGenXVisaWriterPass(o));
   return false;
-}
-
-//===----------------------------------------------------------------------===//
-//                       External Interface declaration
-//===----------------------------------------------------------------------===//
-
-extern "C" void LLVMInitializeGenXTarget() {
-  // Register the target.
-  RegisterTargetMachine<GenXTargetMachine> X(TheGenXTarget);
 }

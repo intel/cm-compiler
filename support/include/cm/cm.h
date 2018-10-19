@@ -1950,6 +1950,12 @@ cm_f32tof16(const matrix<T, N1, N2> src) {
 #ifndef _SIMD_CF_
 #define _SIMD_CF_
 
+// Fork Statement
+#define SIMD_FORK_BEGIN(...)                                                     \
+  if (details::__cm_intrinsic_impl_simdfork_any((__VA_ARGS__), __FILE__,         \
+                                              __LINE__)) {
+#define SIMD_FORK_END }
+
 // If-Else Statement
 #define SIMD_IF_BEGIN(...)                                                     \
   if (details::__cm_intrinsic_impl_simdcf_any((__VA_ARGS__), __FILE__,         \

@@ -575,6 +575,9 @@ private:
   /// \brief Postprocess builtin cm_get_value.
   llvm::Value *HandleBuiltinGetValueImpl(CMCallInfo &CallInfo);
 
+  /// \brief Postprocess simdfork_any implementation builtin.
+  llvm::Value *HandleBuiltinSimdforkAnyImpl(CMCallInfo &CallInfo);
+
   /// \brief Postprocess simdcf_any implementation builtin.
   llvm::Value *HandleBuiltinSimdcfAnyImpl(CMCallInfo &CallInfo);
 

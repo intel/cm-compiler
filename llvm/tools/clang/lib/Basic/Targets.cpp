@@ -246,8 +246,10 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
     return new LinuxTargetInfo<Nios2TargetInfo>(Triple, Opts);
 
   case llvm::Triple::genx32:
+    return new GenXTargetInfo(Triple, 32);
+
   case llvm::Triple::genx64:
-    return new GenXTargetInfo(Triple);
+    return new GenXTargetInfo(Triple, 64);
 
   case llvm::Triple::mips:
     switch (os) {

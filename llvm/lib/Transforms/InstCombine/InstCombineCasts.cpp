@@ -2397,11 +2397,13 @@ Instruction *InstCombiner::visitBitCast(BitCastInst &CI) {
       }
     }
   }
-
+  /*** CMC_BEGIN ***
+  // bad choice to create redundant phi, hard for coalescing
   // Handle the A->B->A cast, and there is an intervening PHI node.
   if (PHINode *PN = dyn_cast<PHINode>(Src))
     if (Instruction *I = optimizeBitCastFromPhi(CI, PN))
       return I;
+  *** CMC_END ****/ 
 
   if (Instruction *I = canonicalizeBitCastExtElt(CI, *this))
     return I;

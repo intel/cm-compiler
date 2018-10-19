@@ -38,6 +38,7 @@ enum CMBuiltinKind {
   // This is a standalone implementation builtin used by other
   // CM builtin's implementation.
   CMBK_cm_sat_impl,
+  CMBK_simdfork_any_impl,
   CMBK_simdcf_any_impl,
   CMBK_simdcf_predgen_impl,
   CMBK_simdcf_predmin_impl,

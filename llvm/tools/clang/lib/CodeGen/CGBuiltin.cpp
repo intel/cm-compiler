@@ -1691,6 +1691,7 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
   case Builtin::BIget_thread_origin_y:
   case Builtin::BIget_color:
   case Builtin::BIcm_get_hwid:
+  case Builtin::BIcm_lane_id:
   case Builtin::BIcm_local_id:
   case Builtin::BIcm_local_size:
   case Builtin::BIcm_group_id:

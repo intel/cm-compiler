@@ -510,13 +510,13 @@ Value *GenXReduceIntSize::truncValue(Value *V, unsigned NumBits,
     if (auto CV = dyn_cast<ConstantVector>(C)) {
       for (unsigned i = 0, e = CV->getNumOperands(); i != e; ++i)
         Vals.push_back(CV->getOperand(i));
-    } else {
-      auto CDV = cast<ConstantDataVector>(C);
+      return ConstantVector::get(Vals);
+    } else if (auto CDV = dyn_cast<ConstantDataVector>(C)) {
       for (unsigned i = 0, e = CDV->getNumElements(); i != e; ++i)
         Vals.push_back(Constant::getIntegerValue(ElTy,
               APInt(NumBits, CDV->getElementAsInteger(i))));
+      return ConstantVector::get(Vals);
     }
-    return ConstantVector::get(Vals);
   }
   // Not a constant.
   if (auto Inst = dyn_cast<Instruction>(V)) {

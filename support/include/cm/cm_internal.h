@@ -306,6 +306,16 @@ void __cm_intrinsic_impl_svm_scatter_write(vector<uint64_t, N> vAddr,
                                            vector<T, N> src);
 
 template <typename T, int N>
+bool __cm_intrinsic_impl_simdfork_any(vector<T, N> t, const char *filename,
+                                    unsigned line);
+template <typename T, int R, int C>
+bool __cm_intrinsic_impl_simdfork_any(matrix<T, R, C> t, const char *filename,
+                                    unsigned line);
+
+template <typename T = void>
+bool __cm_intrinsic_impl_simdfork_any(int t, const char *filename, unsigned line);
+
+template <typename T, int N>
 bool __cm_intrinsic_impl_simdcf_any(vector<T, N> t, const char *filename,
                                     unsigned line);
 template <typename T, int R, int C>

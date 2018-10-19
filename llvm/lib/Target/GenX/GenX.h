@@ -32,6 +32,7 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include <string>
 
 namespace llvm {
@@ -71,6 +72,7 @@ FunctionPass *createGenXCFSimplificationPass();
 ModulePass *createGenXEarlySimdCFConformancePass();
 FunctionPass *createGenXReduceIntSizePass();
 FunctionPass *createGenXLoweringPass();
+FunctionPass *createGenXGEPLoweringPass();
 FunctionPass *createGenXRegionCollapsingPass();
 FunctionPass *createGenXExtractVectorizerPass();
 FunctionPass *createGenXRawSendRipperPass();
@@ -414,6 +416,9 @@ Ty *getValueAsMetadata(Metadata *M) {
       return V;
   return nullptr;
 }
+
+void LayoutBlocks(Function &func, LoopInfo &LI);
+void LayoutBlocks(Function &func);
 
 } // End genx namespace
 } // End llvm namespace

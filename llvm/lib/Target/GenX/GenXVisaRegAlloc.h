@@ -208,10 +208,11 @@ namespace llvm {
     // Details of a type required for a vISA general register declaration
     // or an indirect operand.
     struct TypeDetails {
+      const DataLayout &DL;
       unsigned NumElements;
       unsigned BytesPerElement;
       unsigned VisaType;
-      TypeDetails(Type *Ty, genx::Signedness Signed);
+      TypeDetails(const DataLayout &DL, Type *Ty, genx::Signedness Signed);
     };
   } // end namespace visa
 

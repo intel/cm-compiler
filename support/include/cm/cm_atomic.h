@@ -57,6 +57,7 @@ template <typename T, CmAtomicOpType Op> struct is_valid_atomic_op;
     }                                                                          \
   }
 
+
 _ATOMIC_CHECK_TYPES(ATOMIC_ADD, uint, int);
 _ATOMIC_CHECK_TYPES(ATOMIC_SUB, uint, int);
 _ATOMIC_CHECK_TYPES(ATOMIC_INC, uint, int);

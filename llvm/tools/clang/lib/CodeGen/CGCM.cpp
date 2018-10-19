@@ -916,14 +916,14 @@ RValue CGCMRuntime::EmitCMReadRegion(CodeGenFunction &CGF, LValue LV) {
   unsigned BaseWidth = RI.getBaseWidth();
 
   // read region in rows.
-  if (RI.getBaseHeight() != RI.getVSize())
+  if ((RI.getBaseHeight() != RI.getVSize()) || (RI.getVOffset() != 0))
     Region = EmitReadRegionInRows(CGF.Builder, Region, BaseWidth, RI.getVSize(),
                                   RI.getVStride(), RI.getVOffset());
 
   unsigned Height = RI.getVSize();
 
   // read region in columns.
-  if (BaseWidth != RI.getHSize())
+  if ((BaseWidth != RI.getHSize()) || (RI.getHOffset() != 0))
     Region = EmitReadRegionInCols(CGF.Builder, Region, Height, RI.getHSize(),
                                   RI.getHStride(), RI.getHOffset());
 

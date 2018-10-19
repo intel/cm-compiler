@@ -161,6 +161,10 @@ def mCM_reverse_kernels : Flag<["-", "/"], "mCM_reverse_kernels">, Group<cm_Grou
 // Passed to cc1 to specify the GenX assembly file base name
 def cm_asm_name : CMCC1<"cm-asm-name">;
 
+def fcm_pointer : Flag<["-", "/"], "fcm-pointer">, Group<cm_Group>,
+  HelpText<"enable experimental pointer support in CM">,
+  Flags<[CMOption, CC1Option]>;
+
 def fvldst : Flag<["-", "/"], "fvldst">, Group<cm_Group>,
   HelpText<"enable experimental pass by reference codegen and optimization">,
   Flags<[CMOption, CC1Option, CC1AsOption]>;

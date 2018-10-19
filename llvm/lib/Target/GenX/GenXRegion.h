@@ -101,6 +101,7 @@
 
 namespace llvm {
     class Constant;
+    class DataLayout;
     class Value;
     class Function;
     class GenXBaling;
@@ -137,9 +138,9 @@ public:
         Width(1), Stride(1), Offset(0), Indirect(0), IndirectIdx(0), Mask(0),
         ParentWidth(0) {}
   // Construct from a type.
-  Region(Type *Ty);
+  Region(Type *Ty, const DataLayout *DL = nullptr);
   // Construct from a value.
-  Region(Value *V);
+  Region(Value *V, const DataLayout *DL = nullptr);
   // Construct from a rd/wr region/element and its BaleInfo
   Region(Instruction *Inst, const BaleInfo &BI, bool WantParentWidth = false);
   // Construct from a bitmap of which elements to set (legal 1D region)
