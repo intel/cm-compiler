@@ -30,6 +30,8 @@
 ##                   generated e.g. build.gcc or build.32.vs2015)
 ##   -d              build Debug
 ##   -r              build Release (default)
+##   -i path         absolute path to copy cmc and support/include files.
+##                   this option is added for creating a linux release package
 ##   --32            32 bit build - (default for 32 bit OS and all windows systems)
 ##   --64            64 bit build - (default for 64 bit OS)
 ##   --nocolor       Don't use color in the output (useful for automated runs and
@@ -214,6 +216,7 @@ CMAKE_PATH=
 USE_MSBUILD=
 MSBUILD_PATH=
 ADD_VERSION=
+INSTALL_PATH=
 
 if [ "$IN_LINUX" != "" -o "$IN_CYGWIN" != "" -o "$IN_DARWIN" != "" ]; then
     # Set up build size for non-windows
@@ -233,7 +236,7 @@ fi
 # Default to colours on
 define_colours_on
 
-while getopts ":hvlxcdrs:mM::p:b:V-:" opt; do
+while getopts ":hvlxcdrs:mM::p:b:i:V-:" opt; do
     case $opt in
         h)
             help
@@ -265,6 +268,9 @@ while getopts ":hvlxcdrs:mM::p:b:V-:" opt; do
             ;;
         r)
             BUILD_RELEASE=1
+            ;;
+        i)
+            INSTALL_PATH=$OPTARG
             ;;
         m)
 
@@ -370,6 +376,13 @@ if [ "$BUILD_32" != ""  -a "$BUILD_64" != "" ]; then
     echo "Can't specify 32 *and* 64 bit at the same time"
     usage
     exit 1
+fi
+
+if [ "$INSTALL_PATH" != "" ]; then
+   if [[ "$INSTALL_PATH" != /* ]]; then
+       echo "install-path must be an absolute path"
+       exit 1
+   fi
 fi
 
 case $BUILD_SIZE in
@@ -532,7 +545,6 @@ if [ ! -d "$BUILD_PATH" ]; then
     RUN_CMAKE=1
 fi
 
-# Create SVNVersion.inc if -V was specified. If SVNVersion.inc already exists,
 # because an earlier use of build.bash used -V, act as if -V is on anyway.
 # Otherwise we could get misleading version information.
 if [ "$IN_DARWIN" != "" ]; then
@@ -686,4 +698,20 @@ if [ "$BUILD" != "0" ]; then
     build_item llc || exit 1
     build_item clang tools/clang/tools/driver || exit 1
     build_item FileCheck utils/Filecheck || exit 1
+
+    if [ "$INSTALL_PATH" != "" ]; then
+        if [ ! -d "$INSTALL_PATH" ]; then
+            mkdir $INSTALL_PATH
+            mkdir $INSTALL_PATH/include
+            mkdir $INSTALL_PATH/bin
+        fi
+        if [ ! -d "$INSTALL_PATH/include" ]; then
+            mkdir $INSTALL_PATH/include
+        fi
+        if [ ! -d "$INSTALL_PATH/bin" ]; then
+            mkdir $INSTALL_PATH/bin
+        fi
+        cp -Lf bin/cmc $INSTALL_PATH/bin/cmc
+        cp -rf ../support/include/cm $INSTALL_PATH/include/
+    fi
 fi
