@@ -201,4 +201,8 @@ void GenX::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
   SmallString<128> CmIncludeDir(getDriver().InstalledDir);
   llvm::sys::path::append(CmIncludeDir, "../include_llvm");
   addSystemInclude(DriverArgs, CC1Args, CmIncludeDir.str());
+
+  SmallString<128> CmIncludeDir2(getDriver().InstalledDir);
+  llvm::sys::path::append(CmIncludeDir2, "../include");
+  addSystemInclude(DriverArgs, CC1Args, CmIncludeDir2.str());
 }
