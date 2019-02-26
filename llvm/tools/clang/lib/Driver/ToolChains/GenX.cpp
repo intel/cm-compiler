@@ -147,6 +147,25 @@ void tools::GenX::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
       FinalizerArgs.push_back("-disableStructurizer");
     }
 
+    // preRA scheduler options.
+    if (Args.hasArg(options::OPT_Qxcm_preschedule)) {
+      FinalizerArgs.push_back("-presched");
+      if (Arg *A = Args.getLastArg(options::OPT_Qxcm_preschedule_ctrl)) {
+        const char *Value = A->getValue();
+        if ((Value[0] == '=') || (Value[0] == ':'))
+          Value = &Value[1];
+        FinalizerArgs.push_back("-presched-ctrl");
+        FinalizerArgs.push_back(Value);
+      }
+      if (Arg *A = Args.getLastArg(options::OPT_Qxcm_preschedule_rp)) {
+        const char *Value = A->getValue();
+        if ((Value[0] == '=') || (Value[0] == ':'))
+          Value = &Value[1];
+        FinalizerArgs.push_back("-presched-rp");
+        FinalizerArgs.push_back(Value);
+      }
+    }
+
     // Determine the CM Finalizer executable - by default it is assumed to be
     // in the same directory as the cmc executable.
     StringRef P = C.getDriver().Dir;

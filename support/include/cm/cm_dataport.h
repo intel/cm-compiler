@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,13 +31,16 @@ static_assert(0, "CM:w:cm_dataport.h should not be included explicitly - only "
 #include "cm_util.h"
 #include "cm_internal.h"
 
-typedef enum _CmFlushMask_ {
-  CM_GLOBAL_COHERENT_FENCE = 1,
-  CM_L3_FLUSH_INSTRUCTIONS = 2,
-  CM_L3_FLUSH_TEXTURE_DATA = 4,
-  CM_L3_FLUSH_CONSTANT_DATA = 8,
-  CM_L3_FLUSH_RW_DATA = 16
-} CmFlushMask;
+typedef enum _CmFenceMask_ {
+  CM_GLOBAL_COHERENT_FENCE = 0x1,
+  CM_L3_FLUSH_INSTRUCTIONS = 0x2,
+  CM_L3_FLUSH_TEXTURE_DATA = 0x4,
+  CM_L3_FLUSH_CONSTANT_DATA = 0x8,
+  CM_L3_FLUSH_RW_DATA = 0x10,
+  CM_LOCAL_BARRIER = 0x20,
+  CM_L1_FLUASH_RO_DATA = 0x40,
+  CM_SW_BARRIER = 0x80
+} CmFenceMask;
 
 #define MODIFIED(A) A, GENX_MODIFIED
 #define TOP_FIELD(A) A, GENX_TOP_FIELD
@@ -66,7 +69,7 @@ CM_NODEBUG CM_INLINE void read(SurfaceIndex idx, CmBufferAttrib attr,
                                int offset, vector_ref<T, N> output) {
   constexpr unsigned _Sz = sizeof(T) * N;
 
-  if (_Sz < details::OWORD) {
+  if constexpr(_Sz < details::OWORD) {
     constexpr unsigned _N = details::OWORD / sizeof(T);
 
     // Choose implementation based on the buffer attribute. Since this attribute
@@ -90,7 +93,7 @@ CM_NODEBUG CM_INLINE void read(SurfaceIndex idx, CmBufferAttrib attr,
   CM_STATIC_ERROR(details::getNextPowerOf2(_Sz) <= 8 * details::OWORD,
                   "OWord block size must be at most 8");
 
-  if (!details::isPowerOf2(_Sz)) {
+  if constexpr(!details::isPowerOf2(_Sz)) {
     constexpr unsigned _N = details::getNextPowerOf2(_Sz) / sizeof(T);
 
     if (attr == GENX_DWALIGNED || attr == GENX_MODIFIED_DWALIGNED
@@ -546,7 +549,7 @@ typename std::enable_if<(sizeof(T) <= 4) && details::isPowerOf2(N, 16),
                         void>::type
 read_scaled(SurfaceIndex index, uint globalByteOffest,
             vector<uint, N> elementByteOffset, vector_ref<T, N> ret) {
-  if (sizeof(T) == 4)
+  if constexpr(sizeof(T) == 4)
     ret = details::__cm_intrinsic_impl_scatter_read(
         index, globalByteOffest, elementByteOffset, ret, T());
   else {
@@ -597,6 +600,37 @@ read(SurfaceIndex index, CmBufferAttrib attr, uint globalOffset,
   }
 }
 
+/// \brief Scalar read.
+///
+/// \param index surface index, which must correspond to a buffer.
+///
+/// \param elementIndex zero based offset of the element.
+///        This offset is in units of elements.
+///
+/// ::T T can be any type <= 4 bytes
+///
+template<typename T>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(sizeof(T) <= 4), T>::type
+read(SurfaceIndex index, uint elementIndex) {
+  vector<T, 1> ret;
+  vector<uint, 1> offset = elementIndex * sizeof(T);
+
+  if constexpr(sizeof(T) == 4)
+    ret = details::__cm_intrinsic_impl_scatter_read(
+        index, 0, offset, ret, T());
+  else {
+    typedef typename details::dword_type<T>::type T1;
+    vector<T1, 1> _Ret;
+    // Data to read is a vector of dword type. The last dummy argument is
+    // to specify the element size.
+    ret = details::__cm_intrinsic_impl_scatter_read(
+        index, 0, offset, _Ret, T());
+  }
+
+  return ret(0);
+}
+
 /// \brief Scaled scattered write.
 ///
 /// \param index surface index, which must correspond to a buffer.
@@ -621,7 +655,7 @@ typename std::enable_if<(sizeof(T) <= 4) && details::isPowerOf2(N, 16),
                         void>::type
 write_scaled(SurfaceIndex index, uint globalByteOffset,
              vector<uint, N> elementByteOffset, vector<T, N> data) {
-  if (sizeof(T) == 4)
+  if constexpr(sizeof(T) == 4)
     details::__cm_intrinsic_impl_scatter_write(index, globalByteOffset,
                                                elementByteOffset, data, T());
   else {
@@ -663,7 +697,7 @@ write(SurfaceIndex index, uint globalOffset, vector<uint, N> elementOffset,
   write_scaled(index, globalOffset, elementOffset, data);
 }
 
-/// \brief Scalar dword scattered write.
+/// \brief Scalar dword write.
 ///
 /// \param index surface index, which must correspond to a buffer.
 ///
@@ -687,7 +721,7 @@ typename std::enable_if<(sizeof(T) <= 4) && details::is_cm_scalar<T>::value,
 write(SurfaceIndex index, uint globalOffset, uint elementOffset, T data) {
   globalOffset *= sizeof(T);
   elementOffset *= sizeof(T);
-  if (sizeof(T) == 4) {
+  if constexpr(sizeof(T) == 4) {
     vector<uint, 1> elementOffset_vec = elementOffset;
     vector<T, 1> data_vec = data;
     details::__cm_intrinsic_impl_scatter_write(index, globalOffset,
@@ -829,6 +863,41 @@ write_untyped(SurfaceIndex surfIndex, ChannelMaskType channelMask,
 /// ::slmBuffer at the element-offsets specified in ::vAddr, and write back into
 /// the vector ::vDst.
 ///
+
+template <typename T, int N>
+CM_NODEBUG
+CM_INLINE typename std::enable_if<(N == 8 || N == 16) && (sizeof(T) == 4)>::type
+cm_slm_read_scaled(uint slmBuffer, vector<uint, N> vAddr, vector_ref<T, N> vDst) {
+  vDst = details::__cm_intrinsic_impl_slm_read<T, N, sizeof(T)>(slmBuffer,
+    vAddr, vDst);
+}
+
+template <typename T, int N>
+CM_NODEBUG CM_INLINE typename std::enable_if<
+(N == 8 || N == 16) && (sizeof(T) == 1 || sizeof(T) == 2)>::type
+cm_slm_read_scaled(uint slmBuffer, vector<uint, N> vAddr, vector_ref<T, N> vDst) {
+  typedef typename details::dword_type<T>::type T1;
+  vector<T1, N> _VDst = vDst;
+  vDst = details::__cm_intrinsic_impl_slm_read<T1, N, sizeof(T)>(slmBuffer,
+    vAddr, _VDst);
+}
+
+template <typename T, int N>
+CM_NODEBUG
+CM_INLINE typename std::enable_if<(N == 8 || N == 16) && (sizeof(T) == 4)>::type
+cm_slm_read_scaled(uint slmBuffer, vector<ushort, N> vAddr, vector_ref<T, N> vDst) {
+  vector<uint, N> _VAddr = vAddr;
+  cm_slm_read_scaled(slmBuffer, _VAddr, vDst);
+}
+
+template <typename T, int N>
+CM_NODEBUG CM_INLINE typename std::enable_if<
+(N == 8 || N == 16) && (sizeof(T) == 1 || sizeof(T) == 2)>::type
+cm_slm_read_scaled(uint slmBuffer, vector<ushort, N> vAddr, vector_ref<T, N> vDst) {
+  vector<uint, N> _VAddr = vAddr;
+  cm_slm_read_scaled(slmBuffer, _VAddr, vDst);
+}
+
 template <typename T, int N>
 CM_NODEBUG
 CM_INLINE typename std::enable_if<(N == 8 || N == 16) && (sizeof(T) == 4)>::type
@@ -873,6 +942,41 @@ cm_slm_read(uint slmBuffer, vector<ushort, N> vAddr, vector_ref<T, N> vDst) {
 /// overlapping addresses will have undefined write ordering. N = 8 or 16, and
 /// ::T could be of size byte, word or dword.
 ///
+
+template <typename T, int N>
+CM_NODEBUG CM_INLINE typename std::enable_if<
+(N == 8 || N == 16) && (sizeof(T) == 1 || sizeof(T) == 2)>::type
+cm_slm_write_scaled(uint slmBuffer, vector<uint, N> vAddr, vector<T, N> vSrc) {
+  typedef typename details::dword_type<T>::type T1;
+  vector<T1, N> _VSrc = vSrc;
+  details::__cm_intrinsic_impl_slm_write<T1, N, sizeof(T)>(slmBuffer, vAddr,
+    _VSrc);
+}
+
+template <typename T, int N>
+CM_NODEBUG
+CM_INLINE typename std::enable_if<(N == 8 || N == 16) && (sizeof(T) == 4)>::type
+cm_slm_write_scaled(uint slmBuffer, vector<uint, N> vAddr, vector<T, N> vSrc) {
+  details::__cm_intrinsic_impl_slm_write<T, N, sizeof(T)>(slmBuffer, vAddr,
+    vSrc);
+}
+
+template <typename T, int N>
+CM_NODEBUG CM_INLINE typename std::enable_if<
+(N == 8 || N == 16) && (sizeof(T) == 1 || sizeof(T) == 2)>::type
+cm_slm_write_scaled(uint slmBuffer, vector<ushort, N> vAddr, vector<T, N> vSrc) {
+  vector<uint, N> _VAddr = vAddr;
+  cm_slm_write_scaled(slmBuffer, _VAddr, vSrc);
+}
+
+template <typename T, int N>
+CM_NODEBUG
+CM_INLINE typename std::enable_if<(N == 8 || N == 16) && (sizeof(T) == 4)>::type
+cm_slm_write_scaled(uint slmBuffer, vector<ushort, N> vAddr, vector<T, N> vSrc) {
+  vector<uint, N> _VAddr = vAddr;
+  cm_slm_write_scaled(slmBuffer, _VAddr, vSrc);
+}
+
 template <typename T, int N>
 CM_NODEBUG CM_INLINE typename std::enable_if<
     (N == 8 || N == 16) && (sizeof(T) == 1 || sizeof(T) == 2)>::type
@@ -953,6 +1057,39 @@ CM_DEPRECATED(
                                              vector<ushort, N> vAddr,
                                              vector_ref<T, M> vDst, int mask);
 
+template <typename T, int N, int M>
+typename std::enable_if<(N == 8 || N == 16) && (sizeof(T) == 4)>::type
+cm_slm_read4_scaled(uint slmBuffer, vector<uint, N> vAddr, vector_ref<T, M> vDst,
+  SLM_ChannelMaskType mask);
+
+template <typename T, int N, int M>
+CM_DEPRECATED(
+  "please use 'cm_slm_read4_scaled' with 'uint' as the element offset type!")
+  CM_NODEBUG typename std::enable_if<
+  (N == 8 || N == 16) &&
+  (sizeof(T) == 4)>::type cm_slm_read4_scaled(uint slmBuffer,
+    vector<ushort, N> vAddr,
+    vector_ref<T, M> vDst,
+    SLM_ChannelMaskType mask);
+
+template <typename T, int N, int M>
+CM_DEPRECATED(
+  "please use 'cm_slm_read4_scaled' with 'SLM_ChannelMaskType' as the mask type!")
+  CM_NODEBUG typename std::enable_if<
+  (N == 8 || N == 16) &&
+  (sizeof(T) == 4)>::type cm_slm_read4_scaled(uint slmBuffer,
+    vector<ushort, N> vAddr,
+    vector_ref<T, M> vDst, int mask);
+
+template <typename T, int N, int M>
+CM_DEPRECATED(
+  "please use 'cm_slm_read4_scaled' with 'SLM_ChannelMaskType' as the mask type!")
+  CM_NODEBUG typename std::enable_if<
+  (N == 8 || N == 16) &&
+  (sizeof(T) == 4)>::type cm_slm_read4_scaled(uint slmBuffer,
+    vector<uint, N> vAddr,
+    vector_ref<T, M> vDst, int mask);
+
 /// \brief Share local memory write.
 ///
 /// Write 8 or 16 4-element vectors, say {R,G,B,A}, where each element is of
@@ -998,6 +1135,39 @@ CM_DEPRECATED(
         (sizeof(T) == 4)>::type cm_slm_write4(uint slmBuffer,
                                               vector<ushort, N> vAddr,
                                               vector<T, M> vSrc, int mask);
+
+template <typename T, int N, int M>
+typename std::enable_if<(N == 8 || N == 16) && (sizeof(T) == 4)>::type
+cm_slm_write4_scaled(uint slmBuffer, vector<uint, N> vAddr, vector<T, M> vSrc,
+  SLM_ChannelMaskType mask);
+
+template <typename T, int N, int M>
+CM_DEPRECATED(
+  "please use 'cm_slm_write4_scaled' with 'uint' as the element offset type!")
+  CM_NODEBUG typename std::enable_if<
+  (N == 8 || N == 16) &&
+  (sizeof(T) == 4)>::type cm_slm_write4_scaled(uint slmBuffer,
+    vector<ushort, N> vAddr,
+    vector<T, M> vSrc,
+    SLM_ChannelMaskType mask);
+
+template <typename T, int N, int M>
+CM_DEPRECATED(
+  "please use 'cm_slm_write4_scaled' with 'SLM_ChannelMaskType' as the mask type!")
+  CM_NODEBUG typename std::enable_if<
+  (N == 8 || N == 16) &&
+  (sizeof(T) == 4)>::type cm_slm_write4_scaled(uint slmBuffer,
+    vector<ushort, N> vAddr,
+    vector<T, M> vSrc, int mask);
+
+template <typename T, int N, int M>
+CM_DEPRECATED(
+  "please use 'cm_slm_write4_scaled' with 'SLM_ChannelMaskType' as the mask type!")
+  CM_NODEBUG typename std::enable_if<
+  (N == 8 || N == 16) &&
+  (sizeof(T) == 4)>::type cm_slm_write4_scaled(uint slmBuffer,
+    vector<uint, N> vAddr,
+    vector<T, M> vSrc, int mask);
 
 static const uint __cm_init_seq[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 
@@ -1049,6 +1219,9 @@ CM_INLINE void cm_slm_load(uint slmBuffer, SurfaceIndex index, uint offset,
     vOffsets += numGroups * 64;
   }
 
+#if CM_GENX > 900
+  cm_slm_fence(CM_GLOBAL_COHERENT_FENCE);
+#endif
   cm_barrier();
 }
 
@@ -1096,5 +1269,97 @@ template <typename T, int N>
 typename std::enable_if<(N == 8 || N == 16) && sizeof(T) == 4, void>::type
 cm_slm_atomic(uint slmBuffer, CmAtomicOpType op, vector<ushort, N> vAddr,
               int dummy, vector<T, N> vSrc0);
+
+/// \brief SLM OWord block read.
+///
+/// @param slmBuffer, which must correspond to the slm buffer.
+///
+/// @param attr indicates the offset alignment and properties, one of ::GENX_NONE
+/// ::GENX_DWALIGNED ::GENX_MODIFIED_DWALIGNED ::GENX_CONSTANT_DWALIGNED.
+///
+/// @param offset zero based offset of the input buffer in bytes. Must be oword
+/// (i.e. 16 bytes) aligned unless one of the DWALIGNED attributes is present.
+///
+/// @param output the data location to be read.
+///
+template <typename T, int N>
+CM_NODEBUG CM_INLINE void cm_slm_block_read(uint slmBuffer, CmBufferAttrib attr,
+                                            int offset,
+                                            vector_ref<T, N> output) {
+  constexpr unsigned _Sz = sizeof(T) * N;
+
+  if constexpr(_Sz < details::OWORD) {
+    constexpr unsigned _N = details::OWORD / sizeof(T);
+
+    // Choose implementation based on the buffer attribute. Since this attribute
+    // is not a compilation time constant, we cannot statically verify the
+    // requirement that attribute is either GENX_NONE or GENX_DWALIGNED. Leave
+    // this check to the emulation mode.
+    if (attr == GENX_DWALIGNED || attr == GENX_MODIFIED_DWALIGNED ||
+        attr == GENX_CONSTANT_DWALIGNED) {
+      vector<T, _N> _Output =
+          details::__cm_intrinsic_impl_slm_oword_read_dwaligned<T, _N>(
+              slmBuffer, offset);
+      return details::if_assign(output, _Output);
+    }
+
+    // By default, no attribute.
+    vector<T, _N> _Output =
+        details::__cm_intrinsic_impl_slm_oword_read<T, _N>(slmBuffer, offset);
+    return details::if_assign(output, _Output);
+  }
+
+  // Check the data size.
+  CM_STATIC_ERROR(details::getNextPowerOf2(_Sz) <=
+                      details::getMaxNumOfOWordSLM() * details::OWORD,
+                  "read must not exceed the maximal number of owords");
+
+  if constexpr(!details::isPowerOf2(_Sz)) {
+    constexpr unsigned _N = details::getNextPowerOf2(_Sz) / sizeof(T);
+
+    if (attr == GENX_DWALIGNED || attr == GENX_MODIFIED_DWALIGNED
+        || attr == GENX_CONSTANT_DWALIGNED) {
+      vector<T, _N> _Output =
+          details::__cm_intrinsic_impl_slm_oword_read_dwaligned<T, _N>(slmBuffer, offset);
+      return details::if_assign(output, _Output);
+    }
+
+    // By default, no attribute.
+    vector<T, _N> _Output =
+        details::__cm_intrinsic_impl_slm_oword_read<T, _N>(slmBuffer, offset);
+    return details::if_assign(output, _Output);
+  }
+
+  // No padding case.
+  if (attr == GENX_DWALIGNED || attr == GENX_MODIFIED_DWALIGNED
+      || attr == GENX_CONSTANT_DWALIGNED)
+    output =
+        details::__cm_intrinsic_impl_slm_oword_read_dwaligned<T, N>(slmBuffer, offset);
+  else
+    output = details::__cm_intrinsic_impl_slm_oword_read<T, N>(slmBuffer, offset);
+}
+
+template <typename T, int N>
+CM_NODEBUG CM_INLINE void cm_slm_block_read(uint slmBuffer, int X,
+                                            vector_ref<T, N> src) {
+  cm_slm_block_read(slmBuffer, GENX_NONE, X, src);
+}
+
+/// \brief OWord block write.
+/// @param slmBuffer, index corresponds to the SLM buffer.
+///
+/// @param offset zero based offset of the input buffer in bytes.
+///
+/// @param src the data to be written. The size of vector can be only 1, 2, 4 or
+/// 8 owords.
+template <typename T, int N>
+CM_NODEBUG CM_INLINE void cm_slm_block_write(uint slmBuffer, int offset,
+                                vector<T, N> src) {
+  constexpr unsigned Sz = N * sizeof(T);
+  CM_STATIC_ERROR(details::isPowerOf2(Sz) && Sz >= details::OWORD &&
+                      Sz <= details::getMaxNumOfOWordSLM() * details::OWORD,
+                  "vector must not exceed the maximal number of owords");
+  details::__cm_intrinsic_impl_slm_oword_write(slmBuffer, offset, src);
+}
 
 #endif /* _CLANG_CM_DATAPORT_H_ */

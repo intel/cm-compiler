@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -176,6 +176,14 @@ class VisaFuncWriter : public FuncWriter {
   // normally 0, set to 0x80 if there is any SIMD CF in the func or this is
   // (indirectly) called inside any SIMD CF.
   unsigned NoMask;
+
+  // The default float control from kernel attribute. Each subroutine may
+  // overrride this control mask, but it should revert back to the default float
+  // control mask before exiting from the subroutine.
+  uint32_t DefaultFloatControl = 0;
+
+  // The effective bits in CR register.
+  static const uint32_t CR_Mask = 0x1 << 10 | 0x3 << 6 | 0x3 << 4 | 0x1;
 
   // getStringIdx : add/find string in string table and return index
   unsigned getStringIdx(std::string Str, bool Limit64 = true);
@@ -600,17 +608,20 @@ void VisaFuncWriter::buildCode(FunctionGroup *FG)
     // or IEEE)
     // Relevant bits are already set as defined for VISA control reg in header definition on enums
     if (Func->hasFnAttribute("CMFloatControl")) {
-      int32_t FloatControl = 0;
+      uint32_t FloatControl = 0;
       Func->getFnAttribute("CMFloatControl").getValueAsString()
           .getAsInteger(0, FloatControl);
 
       // Clear current float control bits to known zero state
-      const int CR_Mask = 0x1 << 10 | 0x3 << 6 | 0x3 << 4 | 0x1;
       buildControlRegUpdate(CR_Mask, true);
-      FloatControl &= CR_Mask;
+
       // Set rounding mode to required state if that isn't zero
-      if (FloatControl)
-        buildControlRegUpdate((uint32_t) FloatControl, false);
+      FloatControl &= CR_Mask;
+      if (FloatControl) {
+        if (FG->getHead() == Func)
+          DefaultFloatControl = FloatControl;
+        buildControlRegUpdate(FloatControl, false);
+      }
     }
 
     LastLabel = -1;
@@ -1122,6 +1133,18 @@ void VisaFuncWriter::buildPhiNode(PHINode *Phi)
  */
 void VisaFuncWriter::buildRet(ReturnInst *RI)
 {
+  uint32_t FloatControl = 0;
+  auto F = RI->getFunction();
+  F->getFnAttribute("CMFloatControl")
+      .getValueAsString()
+      .getAsInteger(0, FloatControl);
+  FloatControl &= CR_Mask;
+  if (FloatControl != DefaultFloatControl) {
+    buildControlRegUpdate(CR_Mask, true);
+    if (DefaultFloatControl)
+      buildControlRegUpdate(DefaultFloatControl, false);
+  }
+
   // Ignore non-void return that clang has allowed through.
   writeOpcode(ISA_RET);
   writeByte(0); // execution width
@@ -1973,7 +1996,7 @@ void VisaFuncWriter::buildIntrinsic(CallInst *CI, unsigned IntrinID, BaleInfo BI
           int DataSize = VT->getNumElements()
             * VT->getElementType()->getPrimitiveSizeInBits() / 8;
           DataSize = llvm::exactLog2(DataSize) - 4;
-          if (DataSize < 0 || DataSize > 3)
+          if (DataSize < 0 || DataSize > 4)
             report_fatal_error("Invalid number of words");
           Code.push_back((uint8_t)DataSize);
         }
@@ -1988,7 +2011,7 @@ void VisaFuncWriter::buildIntrinsic(CallInst *CI, unsigned IntrinID, BaleInfo BI
           int DataSize = VT->getNumElements()
             * VT->getElementType()->getPrimitiveSizeInBits() / 8;
           DataSize = llvm::exactLog2(DataSize) - 4;
-          if (DataSize < 0 || DataSize > 3)
+          if (DataSize < 0 || DataSize > 4)
             report_fatal_error("Invalid number of words");
           Code.push_back((uint8_t)(DataSize + 8));
         }
@@ -2219,11 +2242,11 @@ void VisaFuncWriter::buildIntrinsic(CallInst *CI, unsigned IntrinID, BaleInfo BI
 
 /***********************************************************************
  * buildControlRegUpdate : generate an instruction to apply a mask to
- *                         the control register (V19).
+ *                         the control register (V14).
  *
  * Enter:   Mask = the mask to apply
- *          Clear = false if bits set in Mask should be set in V19,
- *                  true if bits set in Mask should be cleared in V19.
+ *          Clear = false if bits set in Mask should be set in V14,
+ *                  true if bits set in Mask should be cleared in V14.
  */
 void VisaFuncWriter::buildControlRegUpdate(unsigned Mask, bool Clear)
 {

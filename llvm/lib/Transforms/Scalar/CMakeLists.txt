@@ -1,8 +1,16 @@
 add_llvm_library(LLVMScalarOpts
-  CMABI.cpp
-  CMImpParam.cpp
-  CMKernelArgOffset.cpp
-  CMSimdCFLowering.cpp
+  CMTrans/CMABI.cpp
+  CMTrans/CMImpParam.cpp
+  CMTrans/CMKernelArgOffset.cpp
+  CMTrans/CMSimdCFLowering.cpp
+  CMTrans/CMRegion.cpp
+  CMTrans/InstructionSimplifyGenX.cpp
+  CMPacketize/GenXPacketize.cpp
+  CMPacketize/PacketBuilder.cpp
+  CMPacketize/PacketBuilder_math.cpp
+  CMPacketize/PacketBuilder_mem.cpp
+  CMPacketize/PacketBuilder_misc.cpp
+  CMPacketize/WIAnalysis.cpp
   ADCE.cpp
   AlignmentFromAssumptions.cpp
   BDCE.cpp

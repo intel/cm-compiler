@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -181,6 +181,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/LowerCMSimdCF.h"
 #include <algorithm>
 #include <set>
 
@@ -254,32 +255,10 @@ struct CGNode {
 
 // The CM SIMD CF lowering pass (a function pass)
 class CMSimdCFLowering : public FunctionPass {
-  static const unsigned MAX_SIMD_CF_WIDTH = 32;
-  Function *F;
-  // A map giving the basic blocks ending with a simd branch, and the simd
-  // width of each one.
-  MapVector<BasicBlock *, unsigned> SimdBranches;
-  // A map giving the basic blocks to be predicated, and the simd width of
-  // each one.
-  MapVector<BasicBlock *, unsigned> PredicatedBlocks;
-  // The join points, together with the simd width of each one.
-  MapVector<BasicBlock *, unsigned> JoinPoints;
-  // The JIP for each simd branch and join point.
-  std::map<BasicBlock *, BasicBlock *> JIPs;
-  // Subroutines that are predicated, mapping to the simd width.
-  std::map<Function *, unsigned> PredicatedSubroutines;
-  // Execution mask variable.
-  GlobalVariable *EMVar;
-  // Resume mask for each join point.
-  std::map<BasicBlock *, AllocaInst *> RMAddrs;
-  // Set of intrinsic calls (other than wrregion) that have been predicated.
-  std::set<AssertingVH<Value>> AlreadyPredicated;
-  // Mask for shufflevector to extract part of EM.
-  SmallVector<Constant *, 32> ShuffleMask;
 public:
   static char ID;
 
-  CMSimdCFLowering() : FunctionPass(ID), EMVar(nullptr) {
+  CMSimdCFLowering() : FunctionPass(ID) {
     initializeCMSimdCFLoweringPass(*PassRegistry::getPassRegistry());
   }
   void getAnalysisUsage(AnalysisUsage &AU) const {
@@ -288,35 +267,10 @@ public:
 
   virtual bool doInitialization(Module &M);
   virtual bool runOnFunction(Function &F) { return false; }
-  static CallInst *isSimdCFAny(Value *V);
-  static Use *getSimdConditionUse(Value *Cond);
 private:
   void calculateVisitOrder(Module *M, std::vector<Function *> *VisitOrder);
-  void processFunction(Function *F);
-  void findSimdBranches(unsigned CMWidth);
-  void determinePredicatedBlocks();
-  void markPredicatedBranches();
-  void fixSimdBranches();
-  void findAndSplitJoinPoints();
-  void determineJIPs();
-  void determineJIP(BasicBlock *BB, std::map<BasicBlock *, unsigned> *Numbers, bool IsJoin);
-
-  // Methods to add predication to the code
-  void predicateCode(unsigned CMWidth);
-  void predicateBlock(BasicBlock *BB, unsigned SimdWidth);
-  void predicateInst(Instruction *Inst, unsigned SimdWidth);
-  void rewritePredication(CallInst *CI, unsigned SimdWidth);
-  void predicateStore(Instruction *SI, unsigned SimdWidth);
-  CallInst *convertScatterGather(CallInst *CI, unsigned IID);
-  void predicateSend(CallInst *CI, unsigned IntrinsicID, unsigned SimdWidth);
-  void predicateScatterGather(CallInst *CI, unsigned SimdWidth, unsigned PredOperandNum);
-  CallInst *predicateWrRegion(CallInst *WrR, unsigned SimdWidth);
-  void predicateCall(CallInst *CI, unsigned SimdWidth);
-
-  void lowerSimdCF();
-  Instruction *loadExecutionMask(Instruction *InsertBefore, unsigned SimdWidth);
-  Value *getRMAddr(BasicBlock *JP, unsigned SimdWidth);
 };
+
 } // namespace
 
 char CMSimdCFLowering::ID = 0;
@@ -335,10 +289,22 @@ Pass *llvm::createCMSimdCFLoweringPass() { return new CMSimdCFLowering(); }
  */
 bool CMSimdCFLowering::doInitialization(Module &M)
 {
+#if 0
+  for (auto &F : M.getFunctionList()) {
+    if (F.hasFnAttribute("CMGenxSIMT")) {
+      if (F.hasFnAttribute(Attribute::AlwaysInline)) {
+        F.removeFnAttr(Attribute::AlwaysInline);
+        F.removeFnAttr(Attribute::InlineHint);
+        F.addFnAttr("CMGenxInline");
+        F.addFnAttr(Attribute::NoInline);
+      }
+    }
+  }
+#endif
   // See if simd CF is used anywhere in this module.
   // We have to try each overload of llvm.genx.simdcf.any separately.
   bool HasSimdCF = false;
-  for (unsigned Width = 2; Width <= MAX_SIMD_CF_WIDTH; Width <<= 1) {
+  for (unsigned Width = 2; Width <= CMSimdCFLower::MAX_SIMD_CF_WIDTH; Width <<= 1) {
     auto VT = VectorType::get(Type::getInt1Ty(M.getContext()), Width);
     Function *SimdCFAny = Intrinsic::getDeclaration(
         &M, Intrinsic::genx_simdcf_any, VT);
@@ -351,16 +317,17 @@ bool CMSimdCFLowering::doInitialization(Module &M)
   if (HasSimdCF) {
     // Create the global variable for the execution mask.
     auto EMTy = VectorType::get(Type::getInt1Ty(M.getContext()),
-        MAX_SIMD_CF_WIDTH);
-    EMVar = new GlobalVariable(M, EMTy, false/*isConstant*/,
+      CMSimdCFLower::MAX_SIMD_CF_WIDTH);
+    auto EMVar = new GlobalVariable(M, EMTy, false/*isConstant*/,
         GlobalValue::InternalLinkage, Constant::getAllOnesValue(EMTy), "EM");
     // Derive an order to process functions such that a function is visited
     // after anything that calls it.
     std::vector<Function *> VisitOrder;
     calculateVisitOrder(&M, &VisitOrder);
     // Process functions in that order.
+    CMSimdCFLower CFL(EMVar);
     for (auto i = VisitOrder.begin(), e = VisitOrder.end(); i != e; ++i)
-      processFunction(*i);
+      CFL.processFunction(*i);
   }
 
   // Any predication calls which remain are not in SIMD CF regions,
@@ -437,32 +404,33 @@ void CMSimdCFLowering::calculateVisitOrder(Module *M,
 /***********************************************************************
  * processFunction : process CM SIMD CF in a function
  */
-void CMSimdCFLowering::processFunction(Function *ArgF)
+void CMSimdCFLower::processFunction(Function *ArgF)
 {
   F = ArgF;
   DEBUG(dbgs() << "CMSimdCFLowering::processFunction:\n" << *F << "\n");
   DEBUG(F->print(dbgs()));
   unsigned CMWidth = PredicatedSubroutines[F];
   // Find the simd branches.
-  findSimdBranches(CMWidth);
-  // Determine which basic blocks need to be predicated.
-  determinePredicatedBlocks();
-  // Mark the branch at the end of any to-be-predicated block as a simd branch.
-  markPredicatedBranches();
-  // Fix simd branches:
-  //  - remove backward simd branches
-  //  - ensure that the false leg is fallthrough
-  fixSimdBranches();
-  // Find the join points, and split out any join point into its own basic
-  // block.
-  findAndSplitJoinPoints();
-  // Determine the JIPs for the gotos and joins.
-  determineJIPs();
-  // Predicate the code.
-  predicateCode(CMWidth);
-  // Lower the control flow.
-  lowerSimdCF();
-
+  bool FoundSIMD = findSimdBranches(CMWidth);
+  if (CMWidth > 0 || FoundSIMD) {
+    // Determine which basic blocks need to be predicated.
+    determinePredicatedBlocks();
+    // Mark the branch at the end of any to-be-predicated block as a simd branch.
+    markPredicatedBranches();
+    // Fix simd branches:
+    //  - remove backward simd branches
+    //  - ensure that the false leg is fallthrough
+    fixSimdBranches();
+    // Find the join points, and split out any join point into its own basic
+    // block.
+    findAndSplitJoinPoints();
+    // Determine the JIPs for the gotos and joins.
+    determineJIPs();
+    // Predicate the code.
+    predicateCode(CMWidth);
+    // Lower the control flow.
+    lowerSimdCF();
+  }
   SimdBranches.clear();
   PredicatedBlocks.clear();
   JoinPoints.clear();
@@ -477,8 +445,9 @@ void CMSimdCFLowering::processFunction(Function *ArgF)
  *
  * This adds blocks to SimdBranches.
  */
-void CMSimdCFLowering::findSimdBranches(unsigned CMWidth)
+bool CMSimdCFLower::findSimdBranches(unsigned CMWidth)
 {
+  bool found = false;
   for (auto fi = F->begin(), fe = F->end(); fi != fe; ++fi) {
     BasicBlock *BB = &*fi;
     auto Br = dyn_cast<BranchInst>(BB->getTerminator());
@@ -489,8 +458,10 @@ void CMSimdCFLowering::findSimdBranches(unsigned CMWidth)
       if (CMWidth && SimdWidth != CMWidth)
         DiagnosticInfoSimdCF::emit(Br, "mismatching SIMD CF width inside SIMD call");
       SimdBranches[BB] = SimdWidth;
+      found = true;
     }
   }
+  return found;
 }
 
 /***********************************************************************
@@ -507,7 +478,7 @@ void CMSimdCFLowering::findSimdBranches(unsigned CMWidth)
  * in the post-dominance tree from l to n except l itself are control dependent
  * on m.
  */
-void CMSimdCFLowering::determinePredicatedBlocks()
+void CMSimdCFLower::determinePredicatedBlocks()
 {
   PostDominatorTree PDT;
   PDT.recalculate(*F);
@@ -549,7 +520,7 @@ void CMSimdCFLowering::determinePredicatedBlocks()
  * This errors if it finds anything other than a BranchInst. Using switch or
  * return inside simd control flow is not allowed.
  */
-void CMSimdCFLowering::markPredicatedBranches()
+void CMSimdCFLower::markPredicatedBranches()
 {
   for (auto pbi = PredicatedBlocks.begin(), pbe = PredicatedBlocks.end();
       pbi != pbe; ++pbi) {
@@ -564,13 +535,25 @@ void CMSimdCFLowering::markPredicatedBranches()
   }
 }
 
+static void fixPHIInput(BasicBlock *Succ, BasicBlock *OldPred, BasicBlock *NewPred)
+{
+  for (BasicBlock::iterator SBI = Succ->begin(), SBE = Succ->end();
+    SBI != SBE; ++SBI) {
+    PHINode *phi = dyn_cast<PHINode>(SBI);
+    if (!phi)
+      break;
+    Value *SrcV = phi->getIncomingValueForBlock(OldPred);
+    phi->removeIncomingValue(OldPred);
+    phi->addIncoming(SrcV, NewPred);
+  }
+}
 /***********************************************************************
  * fixSimdBranches : fix simd branches ready for JIP determination
  *
  * - remove backward simd branches
  * - ensure that the false leg is fallthrough
  */
-void CMSimdCFLowering::fixSimdBranches()
+void CMSimdCFLower::fixSimdBranches()
 {
   // Scan through all basic blocks, remembering which ones we have seen.
   std::set<BasicBlock *> Seen;
@@ -581,6 +564,7 @@ void CMSimdCFLowering::fixSimdBranches()
       continue;
     // This is a simd branch.
     auto Br = cast<BranchInst>(BB->getTerminator());
+    bool IsBackward = false;
     // Check for backward branch in either leg.
     for (unsigned si = 0, se = Br->getNumSuccessors(); si != se; ++si) {
       BasicBlock *Succ = Br->getSuccessor(si);
@@ -591,11 +575,25 @@ void CMSimdCFLowering::fixSimdBranches()
           DEBUG(dbgs() << " unconditional, so unsimding\n");
           SimdBranches.erase(SimdBranches.find(BB));
         } else {
-          // Conditional simd branch where a leg is backward. Insert an extra
-          // block.
+          // Conditional simd branch where a leg is backward. Insert an extra block.
+          IsBackward = true;
           auto NextBB = BB->getNextNode();
           auto NewBB = BasicBlock::Create(BB->getContext(),
                 BB->getName() + ".backward", BB->getParent(), NextBB);
+          BranchInst::Create(Succ, NewBB)->setDebugLoc(Br->getDebugLoc());
+          Br->setSuccessor(si, NewBB);
+          fixPHIInput(Succ, BB, NewBB);
+        }
+      }
+    }
+    // fix loop-end critical edge
+    if (IsBackward) {
+      for (unsigned si = 0, se = Br->getNumSuccessors(); si != se; ++si) {
+        BasicBlock *Succ = Br->getSuccessor(si);
+        if (Seen.find(Succ) == Seen.end() &&
+            Succ->getUniquePredecessor() == nullptr) {
+          auto NewBB = BasicBlock::Create(BB->getContext(),
+            BB->getName() + ".loopend", BB->getParent(), Succ);
           BranchInst::Create(Succ, NewBB)->setDebugLoc(Br->getDebugLoc());
           Br->setSuccessor(si, NewBB);
         }
@@ -609,12 +607,13 @@ void CMSimdCFLowering::fixSimdBranches()
           // Neither leg is fallthrough. Add an extra basic block to make the
           // false one fallthrough.
           DEBUG(dbgs() << "simd branch at " << BB->getName() << ": inserted fallthrough\n");
+          auto Succ = Br->getSuccessor(1);
           auto NewBB = BasicBlock::Create(BB->getContext(),
                 BB->getName() + ".fallthrough", BB->getParent(), NextBB);
           PredicatedBlocks[NewBB] = PredicatedBlocks[Br->getSuccessor(0)];
-          BranchInst::Create(Br->getSuccessor(1), NewBB)
-              ->setDebugLoc(Br->getDebugLoc());
+          BranchInst::Create(Succ, NewBB)->setDebugLoc(Br->getDebugLoc());
           Br->setSuccessor(1, NewBB);
+          fixPHIInput(Succ, BB, NewBB);
         } else {
           // The true leg is fallthrough. Invert the branch.
           DEBUG(dbgs() << "simd branch at " << BB->getName() << ": inverting\n");
@@ -639,28 +638,36 @@ void CMSimdCFLowering::fixSimdBranches()
  * findAndSplitJoinPoints : find the join points, and split out any join point
  *      into its own basic block
  */
-void CMSimdCFLowering::findAndSplitJoinPoints()
+void CMSimdCFLower::findAndSplitJoinPoints()
 {
+  // cannot iterate the simd-branch blocks directly because some blocks may
+  // be splitted in the loop, and the owner-block of a simd-branch may be
+  // changed. So we collect the simd-branches first.
+  SmallVector<TerminatorInst*, 4> Jumps;
   for (auto sbi = SimdBranches.begin(), sbe = SimdBranches.end();
       sbi != sbe; ++sbi) {
     auto Br = sbi->first->getTerminator();
-    unsigned SimdWidth = sbi->second;
+    Jumps.push_back(Br);
+  }
+  for (auto sji = Jumps.begin(), sje = Jumps.end(); sji != sje; ++sji) {
+    auto Br = *sji;
+    unsigned SimdWidth = SimdBranches[Br->getParent()];
     DEBUG(dbgs() << *Br << "\n");
     auto JP = Br->getSuccessor(0);
     if (JoinPoints.count(JP))
       continue;
     // This is a new join point.
     DEBUG(dbgs() << "new join point " << JP->getName() << "\n");
+    auto SplitBB = JP->splitBasicBlock(JP->getFirstNonPHI(), ".afterjoin");
     // We need to split it into its own basic block, so later we can modify
     // the join to do a branch to its JIP.
-    auto SplitBB = BasicBlock::Create(JP->getContext(),
-        JP->getName() + ".joinpoint", JP->getParent(), JP);
     if (PredicatedBlocks.find(JP) != PredicatedBlocks.end())
-      PredicatedBlocks[SplitBB] = PredicatedBlocks[JP];
-    JP->replaceAllUsesWith(SplitBB);
-    BranchInst::Create(JP, SplitBB)->setDebugLoc(JP->front().getDebugLoc());
+      PredicatedBlocks.insert(std::make_pair(SplitBB, PredicatedBlocks[JP]));
+    if (SimdBranches.find(JP) != SimdBranches.end()) {
+      SimdBranches[SplitBB] = SimdBranches[JP];
+      SimdBranches.erase(JP);
+    }
     DEBUG(dbgs() << "split join point " << JP->getName() << " out to " << SplitBB->getName() << "\n");
-    JP = SplitBB;
     JoinPoints[JP] = SimdWidth;
   }
 }
@@ -668,7 +675,7 @@ void CMSimdCFLowering::findAndSplitJoinPoints()
 /***********************************************************************
  * determineJIPs : determine the JIPs for the gotos and joins
  */
-void CMSimdCFLowering::determineJIPs()
+void CMSimdCFLower::determineJIPs()
 {
   DEBUG(dbgs() << "determineJIPs: " << F->getName() << "\n");
   // Number the basic blocks.
@@ -768,7 +775,7 @@ void CMSimdCFLowering::determineJIPs()
 /***********************************************************************
  * determineJIP : determine the JIP for a goto or join
  */
-void CMSimdCFLowering::determineJIP(BasicBlock *BB,
+void CMSimdCFLower::determineJIP(BasicBlock *BB,
       std::map<BasicBlock *, unsigned> *Numbers, bool IsJoin)
 {
   BasicBlock *UIP = nullptr;
@@ -820,7 +827,7 @@ void CMSimdCFLowering::determineJIP(BasicBlock *BB,
 /***********************************************************************
  * predicateCode : predicate the instructions in the code
  */
-void CMSimdCFLowering::predicateCode(unsigned CMWidth)
+void CMSimdCFLower::predicateCode(unsigned CMWidth)
 {
   if (CMWidth) {
     // Inside a predicated call, also predicate all other blocks. We do this
@@ -848,7 +855,7 @@ void CMSimdCFLowering::predicateCode(unsigned CMWidth)
  * Enter:   BB = basic block
  *          SimdWidth = simd width of controlling simd branch or call mask
  */
-void CMSimdCFLowering::predicateBlock(BasicBlock *BB, unsigned SimdWidth)
+void CMSimdCFLower::predicateBlock(BasicBlock *BB, unsigned SimdWidth)
 {
   for (auto bi = BB->begin(), be = BB->end(); bi != be; ) {
     Instruction *Inst = &*bi;
@@ -892,7 +899,7 @@ static unsigned getIntrinsicID(const Value *V) {
  * Enter:   Inst = the instruction
  *          SimdWidth = simd cf width in force
  */
-void CMSimdCFLowering::predicateInst(Instruction *Inst, unsigned SimdWidth) {
+void CMSimdCFLower::predicateInst(Instruction *Inst, unsigned SimdWidth) {
   if (isa<StoreInst>(Inst) || getIntrinsicID(Inst) == Intrinsic::genx_vstore) {
     predicateStore(Inst, SimdWidth);
     return;
@@ -932,7 +939,10 @@ void CMSimdCFLowering::predicateInst(Instruction *Inst, unsigned SimdWidth) {
         return;
       case Intrinsic::not_intrinsic:
         // Call to real subroutine.
-        predicateCall(CI, SimdWidth);
+        // ignore those SIMT entry function.
+        if (!Callee->hasFnAttribute("CMGenxSIMT")) {
+          predicateCall(CI, SimdWidth);
+        }
         return;
     }
     // An IntrNoMem intrinsic is an ALU intrinsic and can be ignored.
@@ -966,7 +976,7 @@ void CMSimdCFLowering::predicateInst(Instruction *Inst, unsigned SimdWidth) {
  * Enter:   Inst = the predication intrinsic call instruction
  *          SimdWidth = simd cf width in force
  */
-void CMSimdCFLowering::rewritePredication(CallInst *CI, unsigned SimdWidth)
+void CMSimdCFLower::rewritePredication(CallInst *CI, unsigned SimdWidth)
 {
   auto EnabledValues = CI->getArgOperand(0);
   auto DisabledDefaults = CI->getArgOperand(1);
@@ -1033,7 +1043,7 @@ static bool isSingleBlockLocalStore(const Instruction *SI)
  * intrinsic that are in the GenX backend because this pass is not part of the
  * GenX backend.
  */
-void CMSimdCFLowering::predicateStore(Instruction *SI, unsigned SimdWidth)
+void CMSimdCFLower::predicateStore(Instruction *SI, unsigned SimdWidth)
 {
   auto V = SI->getOperand(0);
   auto StoreVT = dyn_cast<VectorType>(V->getType());
@@ -1154,7 +1164,7 @@ void CMSimdCFLowering::predicateStore(Instruction *SI, unsigned SimdWidth)
  * new-style gather_scaled, gather4_scaled, scatter_scaled, scatter4_scaled
  * so it can be predicated.
  */
-CallInst *CMSimdCFLowering::convertScatterGather(CallInst *CI, unsigned IID)
+CallInst *CMSimdCFLower::convertScatterGather(CallInst *CI, unsigned IID)
 {
   bool IsScatter = IID == Intrinsic::genx_scatter_orig
                 || IID == Intrinsic::genx_scatter4_orig;
@@ -1238,7 +1248,7 @@ CallInst *CMSimdCFLowering::convertScatterGather(CallInst *CI, unsigned IID)
  * 1. We first convert the predicate to whatever width matches current simd
  * control flow.
  */
-void CMSimdCFLowering::predicateSend(CallInst *CI, unsigned IntrinsicID,
+void CMSimdCFLower::predicateSend(CallInst *CI, unsigned IntrinsicID,
       unsigned SimdWidth)
 {
   unsigned PredOperandNum = 1;
@@ -1305,7 +1315,7 @@ void CMSimdCFLowering::predicateSend(CallInst *CI, unsigned IntrinsicID,
  *
  * This works on the scatter/gather intrinsics with a predicate operand.
  */
-void CMSimdCFLowering::predicateScatterGather(CallInst *CI, unsigned SimdWidth,
+void CMSimdCFLower::predicateScatterGather(CallInst *CI, unsigned SimdWidth,
       unsigned PredOperandNum)
 {
   Value *OldPred = CI->getArgOperand(PredOperandNum);
@@ -1340,7 +1350,7 @@ void CMSimdCFLowering::predicateScatterGather(CallInst *CI, unsigned SimdWidth,
  * If the wrregion is already predicated, the new one has a predicated that
  * is an "and" of the original predicate and our EM.
  */
-CallInst *CMSimdCFLowering::predicateWrRegion(CallInst *WrR, unsigned SimdWidth)
+CallInst *CMSimdCFLower::predicateWrRegion(CallInst *WrR, unsigned SimdWidth)
 {
   // First gather the args of the original wrregion.
   SmallVector<Value *, 8> Args;
@@ -1367,7 +1377,7 @@ CallInst *CMSimdCFLowering::predicateWrRegion(CallInst *WrR, unsigned SimdWidth)
 /***********************************************************************
  * predicateCall : predicate a real call to a subroutine
  */
-void CMSimdCFLowering::predicateCall(CallInst *CI, unsigned SimdWidth)
+void CMSimdCFLower::predicateCall(CallInst *CI, unsigned SimdWidth)
 {
   Function *F = CI->getCalledFunction();
   assert(F);
@@ -1381,7 +1391,7 @@ void CMSimdCFLowering::predicateCall(CallInst *CI, unsigned SimdWidth)
 /***********************************************************************
  * lowerSimdCF : lower the simd control flow
  */
-void CMSimdCFLowering::lowerSimdCF()
+void CMSimdCFLower::lowerSimdCF()
 {
   // First lower the simd branches.
   for (auto sbi = SimdBranches.begin(), sbe = SimdBranches.end();
@@ -1441,6 +1451,7 @@ void CMSimdCFLowering::lowerSimdCF()
     Value *Args[] = { OldEM, OldRM, NotCond };
     auto Goto = CallInst::Create(GotoFunc, Args, "goto", Br);
     Goto->setDebugLoc(DL);
+    Goto->setConvergent();
     Instruction *NewEM = ExtractValueInst::Create(Goto, 0, "goto.extractem", Br);
     (new StoreInst(NewEM, EMVar, Br))->setDebugLoc(DL);
     auto NewRM = ExtractValueInst::Create(Goto, 1, "goto.extractrm", Br);
@@ -1475,6 +1486,7 @@ void CMSimdCFLowering::lowerSimdCF()
     Value *Args[] = { OldEM, RM };
     auto Join = CallInst::Create(JoinFunc, Args, "join", InsertBefore);
     Join->setDebugLoc(DL);
+    Join->setConvergent();
     auto NewEM = ExtractValueInst::Create(Join, 0, "join.extractem", InsertBefore);
     (new StoreInst(NewEM, EMVar, InsertBefore))->setDebugLoc(DL);
     auto BranchCond = ExtractValueInst::Create(Join, 1, "join.extractcond", InsertBefore);
@@ -1502,7 +1514,7 @@ void CMSimdCFLowering::lowerSimdCF()
  * getSimdConditionUse : given a branch condition, if it is
  *    llvm.genx.simdcf.any, get the vector condition
  */
-Use *CMSimdCFLowering::getSimdConditionUse(Value *Cond)
+Use *CMSimdCFLower::getSimdConditionUse(Value *Cond)
 {
   if (auto CI = isSimdCFAny(Cond))
     return &CI->getOperandUse(0);
@@ -1516,7 +1528,7 @@ Use *CMSimdCFLowering::getSimdConditionUse(Value *Cond)
  * Return:  the instruction (cast to CallInst) if it is such a call
  *          else nullptr
  */
-CallInst *CMSimdCFLowering::isSimdCFAny(Value *V)
+CallInst *CMSimdCFLower::isSimdCFAny(Value *V)
 {
   if (auto CI = dyn_cast_or_null<CallInst>(V))
     if (Function *Callee = CI->getCalledFunction())
@@ -1528,7 +1540,7 @@ CallInst *CMSimdCFLowering::isSimdCFAny(Value *V)
 /***********************************************************************
  * loadExecutionMask : create instruction to load EM
  */
-Instruction *CMSimdCFLowering::loadExecutionMask(Instruction *InsertBefore,
+Instruction *CMSimdCFLower::loadExecutionMask(Instruction *InsertBefore,
     unsigned SimdWidth)
 {
   Instruction *EM = new LoadInst(EMVar, EMVar->getName(), InsertBefore);
@@ -1557,7 +1569,7 @@ Instruction *CMSimdCFLowering::loadExecutionMask(Instruction *InsertBefore,
  *              the RM variable. Can be 0 as long as the RM variable already
  *              exists.
  */
-Value *CMSimdCFLowering::getRMAddr(BasicBlock *JP, unsigned SimdWidth)
+Value *CMSimdCFLower::getRMAddr(BasicBlock *JP, unsigned SimdWidth)
 {
   DEBUG(dbgs() << "getRMAddr(" << JP->getName() << ", " << SimdWidth << ")\n");
   auto RMAddr = &RMAddrs[JP];

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -2528,6 +2528,11 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   Intrinsic::genx_barrier,
   LITERAL | visa::ISA_BARRIER, // opcode
   ISBARRIER,                   // suppress the nobarrier attribute
+  END,
+
+  Intrinsic::genx_sbarrier,
+  LITERAL | visa::ISA_SBARRIER, // opcode
+  BYTE | 1, // signal flag
   END,
 
   Intrinsic::genx_cache_flush,

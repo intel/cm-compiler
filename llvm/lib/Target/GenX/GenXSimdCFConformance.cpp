@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -208,6 +208,7 @@
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/Analysis/CFG.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
@@ -217,6 +218,7 @@
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Transforms/Utils/Local.h"
 
 using namespace llvm;
 using namespace genx;
@@ -273,6 +275,7 @@ protected:
   void moveCodeInGotoBlocks();
   void moveCodeInJoinBlocks();
   void ensureConformance();
+  void canonicalizeEM();
   void clear() {
     DTs.clear();
     EMVals.clear();
@@ -378,6 +381,7 @@ bool GenXEarlySimdCFConformance::runOnModule(Module &ArgM)
   FG = nullptr;
   FGA = nullptr;
   DTWrapper = nullptr;
+  canonicalizeEM();
   // Gather the EM values, both from goto/join and phi nodes.
   gatherEMVals();
   // Gather the RM values from gotos and phi nodes.
@@ -1665,6 +1669,58 @@ bool GenXSimdCFConformance::getConnectedVals(SimpleValue Val, int Cat,
     return false; // invalid use
   }
   return true;
+}
+
+// check if this is an EM value or part of an EM value.
+static bool isEM(Value *V) {
+  if (auto SI = dyn_cast<ShuffleVectorInst>(V))
+    return isEM(SI->getOperand(0)) || isEM(SI->getOperand(1));
+  return GotoJoin::isEMValue(V);
+}
+
+// canonicalizeEM : canonicalize EM uses so that EM uses will not
+// stop SIMD-CF conformance.
+void GenXSimdCFConformance::canonicalizeEM() {
+  using namespace PatternMatch;
+  std::vector<Instruction *> DeadInstructions;
+
+  for (auto &F : M->getFunctionList())
+    for (auto &BB : F.getBasicBlockList()) {
+      for (Instruction *Inst = BB.getTerminator(); Inst;) {
+        // select(C0&C1, a, b) -> select(C0, select(C1, a, b), b)
+        // select(C0|C1, a, b) -> select(C0, a, select(C1, a, b))
+        Value *C0, *C1, *A, *B;
+        if (match(Inst, m_Select(m_BinOp(m_Value(C0), m_Value(C1)), m_Value(A),
+                                 m_Value(B)))) {
+          bool C1IsEM = isEM(C1);
+          if (C1IsEM || isEM(C0)) {
+            Value *Cond = Inst->getOperand(0);
+            if (Cond->getType()->isVectorTy()) {
+              BinaryOperator *BO = cast<BinaryOperator>(Cond);
+              IRBuilder<> Builder(BO);
+              if (C1IsEM)
+                std::swap(C0, C1);
+              if (BO->getOpcode() == BinaryOperator::And) {
+                Value *V = Builder.CreateSelect(C1, A, B);
+                V = Builder.CreateSelect(C0, V, B);
+                Inst->replaceAllUsesWith(V);
+                DeadInstructions.push_back(Inst);
+              } else if (BO->getOpcode() == BinaryOperator::Or) {
+                Value *V = Builder.CreateSelect(C1, A, B);
+                V = Builder.CreateSelect(C0, A, V);
+                Inst->replaceAllUsesWith(V);
+                DeadInstructions.push_back(Inst);
+              }
+            }
+          }
+        }
+
+        Inst = (Inst == &BB.front()) ? nullptr : Inst->getPrevNode();
+      }
+    }
+
+  for (Instruction *I : DeadInstructions)
+    RecursivelyDeleteTriviallyDeadInstructions(I);
 }
 
 /***********************************************************************

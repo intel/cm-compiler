@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -28,6 +28,7 @@
 #include "cm_linear.h"
 #include "cm_atomic.h"
 #include "cm_dataport.h"
+#include "cm_emu.h"
 #include "cm_internal.h"
 #include "cm_send.h"
 #include "cm_sampler.h"
@@ -1445,7 +1446,7 @@ template <typename T0, typename T1, typename T2, typename T3>
 CM_NODEBUG CM_INLINE typename std::enable_if<
     details::is_cm_scalar<T0>::value &&details::is_cm_scalar<T3>::value,
     typename std::remove_const<T0>::type>::type
-cm_bf_insert(T1 src0, T2 src1, T3 src2) {
+cm_bf_extract(T1 src0, T2 src1, T3 src2) {
   vector<T3, 1> _Src2 = src2;
   vector<T0, 1> _Result = cm_bf_extract<T0>(src0, src1, _Src2);
   return _Result(0);
@@ -1949,12 +1950,6 @@ cm_f32tof16(const matrix<T, N1, N2> src) {
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef _SIMD_CF_
 #define _SIMD_CF_
-
-// Fork Statement
-#define SIMD_FORK_BEGIN(...)                                                     \
-  if (details::__cm_intrinsic_impl_simdfork_any((__VA_ARGS__), __FILE__,         \
-                                              __LINE__)) {
-#define SIMD_FORK_END }
 
 // If-Else Statement
 #define SIMD_IF_BEGIN(...)                                                     \

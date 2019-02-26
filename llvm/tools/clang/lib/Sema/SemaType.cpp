@@ -1353,9 +1353,11 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
 
         // The 'long long' type is not supported by all Gen targets.
         if (!S.Context.getTargetInfo().hasFeature("longlong")) {
-          S.Diag(DS.getTypeSpecWidthLoc(),
-                 diag::warn_cm_target_doesnt_support_type)
-            << "long long" << S.Context.getTargetInfo().getCPU();
+          const SourceManager &SM = S.getSourceManager();
+          if (!SM.isInSystemHeader(DeclLoc))
+            S.Diag(DS.getTypeSpecWidthLoc(),
+                   diag::warn_cm_target_doesnt_support_type)
+                << "long long" << S.Context.getTargetInfo().getCPU();
         }
 
         // 'long long' is a C99 or C++11 feature.
@@ -1379,9 +1381,11 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
 
         // The 'long long' type is not supported by all Gen targets.
         if (!S.Context.getTargetInfo().hasFeature("longlong")) {
-          S.Diag(DS.getTypeSpecWidthLoc(),
-                 diag::warn_cm_target_doesnt_support_type)
-            << "long long" << S.Context.getTargetInfo().getCPU();
+          const SourceManager &SM = S.getSourceManager();
+          if (!SM.isInSystemHeader(DeclLoc))
+            S.Diag(DS.getTypeSpecWidthLoc(),
+                   diag::warn_cm_target_doesnt_support_type)
+                << "long long" << S.Context.getTargetInfo().getCPU();
         }
 
         // 'long long' is a C99 or C++11 feature.
@@ -1418,8 +1422,10 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
 
     // The 'double' type is not supported by all Gen targets.
     if (!S.Context.getTargetInfo().hasFeature("double")) {
-      S.Diag(DS.getTypeSpecTypeLoc(),
-                 diag::warn_cm_target_doesnt_support_type)
+      const SourceManager &SM = S.getSourceManager();
+      if (!SM.isInSystemHeader(DeclLoc))
+        S.Diag(DS.getTypeSpecTypeLoc(),
+               diag::warn_cm_target_doesnt_support_type)
             << "double" << S.Context.getTargetInfo().getCPU();
     }
 

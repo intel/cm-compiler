@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -432,12 +432,32 @@ void GenXRegionCollapsing::processRdRegion(Instruction *InnerRd)
     Modified = true;
     return;
   }
+
   // We use Region::getWithOffset to get a Region object for a rdregion/wrregion
   // throughout this pass, in order to ensure that, with an index that is
   // V+const, we get the V and const separately (in Region::Indirect and
   // Region::Offset). Then our index calculations can ensure that the constant
   // add remains the last thing that happens in the calculation.
   Region InnerR = Region::getWithOffset(InnerRd, /*WantParentWidth=*/true);
+
+  // Prevent region collapsing for specific src replication pattern,
+  // in order to enable swizzle optimization for Align16 instruction
+  if (InnerRd->hasOneUse()) {
+    if (auto UseInst = dyn_cast<Instruction>(InnerRd->use_begin()->getUser())) {
+      if (UseInst->getOpcode() == Instruction::FMul) {
+        auto NextInst = dyn_cast<Instruction>(UseInst->use_begin()->getUser());
+        if (NextInst &&
+            (NextInst->getOpcode() == Instruction::FAdd ||
+             NextInst->getOpcode() == Instruction::FSub) &&
+          InnerR.ElementTy->getPrimitiveSizeInBits() == 64U &&
+          InnerR.Width == 2 &&
+          InnerR.Stride == 0 &&
+          InnerR.VStride == 2)
+          return;
+      }
+    }
+  }
+
   for (;;) {
     Instruction *OuterRd = dyn_cast<Instruction>(InnerRd->getOperand(0));
     // Go through any bitcasts and up to one sext/zext if necessary to find the

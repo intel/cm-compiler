@@ -398,6 +398,9 @@ public:
   bool isCMFloatControlAttribute() const {
     return (getKind() == AT_CMFloatControl);
   }
+  bool isCMGenxSIMTAttribute() const {
+    return (getKind() == AT_CMGenxSIMT);
+  }
 
   bool isInvalid() const { return Invalid; }
   void setInvalid(bool b = true) const { Invalid = b; }

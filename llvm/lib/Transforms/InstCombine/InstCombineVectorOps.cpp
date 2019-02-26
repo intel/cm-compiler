@@ -486,11 +486,9 @@ static ShuffleOps collectShuffleElements(Value *V,
           assert(LR.second == nullptr || LR.second == RHS);
 
           if (LR.first->getType() != RHS->getType()) {
-#if 0    // GENX_BEGIN
             // Although we are giving up for now, see if we can create extracts
             // that match the inserts for another round of combining.
             replaceExtractElements(IEI, EI, IC);
-#endif   // GENX_END
             // We tried our best, but we can't find anything compatible with RHS
             // further up the chain. Return a trivial shuffle.
             for (unsigned i = 0; i < NumElts; ++i)

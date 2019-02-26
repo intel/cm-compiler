@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -306,7 +306,6 @@ LValue CGCMRuntime::EmitCMSelectExprLValue(CodeGenFunction &CGF,
   //
   LValue BaseAddr;
   if (Base->isRValue()) {
-    assert(Base->getType()->isCMBaseType() && "Cm base type expected");
     llvm::Value *Val = CGF.EmitAnyExpr(Base).getScalarVal();
     llvm::Value *Addr = CGF.CreateTempAlloca(Val->getType(), "rvalue.addr");
     CGF.Builder.CreateDefaultAlignedStore(Val, Addr);

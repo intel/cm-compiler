@@ -119,6 +119,10 @@ DEBUG_COUNTER(VisitCounter, "instcombine-visit",
               "Controls which instructions are visited");
 
 static cl::opt<bool>
+EnableCodeSinking("instcombine-code-sinking", cl::desc("Enable code sinking"),
+                                              cl::init(true));
+
+static cl::opt<bool>
 EnableExpensiveCombines("expensive-combines",
                         cl::desc("Enable expensive instruction combines"));
 
@@ -2371,18 +2375,12 @@ Instruction *InstCombiner::visitSwitchInst(SwitchInst &SI) {
 
   unsigned NewWidth = Known.getBitWidth() - std::max(LeadingKnownZeros, LeadingKnownOnes);
 
-// GENX_BEGIN
-  if (DL.isIllegalInteger(NewWidth)) {
-    NewWidth = (unsigned)NextPowerOf2(NewWidth);
-    if (DL.isIllegalInteger(NewWidth))
-      return nullptr;
-  }
-// GENX_END
-
   // Shrink the condition operand if the new type is smaller than the old type.
-  // This may produce a non-standard type for the switch, but that's ok because
-  // the backend should extend back to a legal type for the target.
-  if (NewWidth > 0 && NewWidth < Known.getBitWidth()) {
+  // But do not shrink to a non-standard type, because backend can't generate 
+  // good code for that yet.
+  // TODO: We can make it agressive again after fixing PR39569.
+  if (NewWidth > 0 && NewWidth < Known.getBitWidth() &&
+      shouldChangeType(Known.getBitWidth(), NewWidth)) {
     IntegerType *Ty = IntegerType::get(SI.getContext(), NewWidth);
     Builder.SetInsertPoint(&SI);
     Value *NewCond = Builder.CreateTrunc(Cond, Ty, "trunc");
@@ -2988,7 +2986,7 @@ bool InstCombiner::run() {
     }
 
     // See if we can trivially sink this instruction to a successor basic block.
-    if (I->hasOneUse()) {
+    if (EnableCodeSinking && I->hasOneUse()) {
       BasicBlock *BB = I->getParent();
       Instruction *UserInst = cast<Instruction>(*I->user_begin());
       BasicBlock *UserParent;
@@ -3014,7 +3012,6 @@ bool InstCombiner::run() {
         if (UserIsSuccessor && UserParent->getUniquePredecessor()) {
           // Okay, the CFG is simple enough, try to sink this instruction.
 
-#if 0   // GENX_BEGIN
           if (TryToSinkInstruction(I, UserParent)) {
             DEBUG(dbgs() << "IC: Sink: " << *I << '\n');
             MadeIRChange = true;
@@ -3025,8 +3022,6 @@ bool InstCombiner::run() {
               if (Instruction *OpI = dyn_cast<Instruction>(U.get()))
                 Worklist.Add(OpI);
           }
-#endif  // GENX_END
-
         }
       }
     }

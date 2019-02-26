@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -54,6 +54,7 @@
 
 namespace llvm {
 class GlobalValue;
+class Instruction;
 class StringRef;
 class TargetMachine;
 
@@ -73,8 +74,8 @@ protected:
     GENX_KBL,
     GENX_GLK,
     GENX_CNL,
-    GENX_ICL,
     GENX_ICLLP,
+    GENX_ICL,
   };
 
   // GenXVariant - GenX Tag identifying the variant to compile for
@@ -98,7 +99,6 @@ private:
 
   // Only generate warning when callable is used in the middle of the kernel
   bool WarnCallable;
-
 
 public:
   // This constructor initializes the data members to match that
@@ -189,6 +189,10 @@ public:
   ///   crossing one GRF boundary
   bool hasIndirectGRFCrossing() const { return isSKLplus(); }
 
+  /// * getEmulateFunction - return the corresponding emulation function name,
+  ///   empty string if no emulation is needed.
+  StringRef getEmulateFunction(const Instruction *Inst) const;
+
   // Generic helper functions...
   const Triple &getTargetTriple() const { return TargetTriple; }
 
@@ -214,7 +218,6 @@ public:
   bool isTargetCygMing() const { return TargetTriple.isOSCygMing(); }
 
   bool isOSWindows() const { return TargetTriple.isOSWindows(); }
-
 };
 
 class GenXSubtargetPass : public ImmutablePass {

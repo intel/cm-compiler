@@ -226,6 +226,12 @@ static void addCMLowerLoadStorePass(const PassManagerBuilder &Builder,
   PM.add(createCMLowerLoadStorePass());
 }
 
+static void addCMPacketizePass(const PassManagerBuilder &Builder,
+  PassManagerBase &PM) {
+  PM.add(createGenXPacketizePass());
+  PM.add(createPromoteMemoryToRegisterPass());
+}
+
 static void addSanitizerCoveragePass(const PassManagerBuilder &Builder,
                                      legacy::PassManagerBase &PM) {
   const PassManagerBuilderWrapper &BuilderWrapper =
@@ -660,6 +666,10 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
   if (LangOpts.MdfCM) {
     PMBuilder.addExtension(PassManagerBuilder::EP_EarlyAsPossible,
                            addCMSimdCFLoweringPass);
+    PMBuilder.addExtension(PassManagerBuilder::EP_ModuleOptimizerEarly,
+      addCMPacketizePass);
+    PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
+      addCMPacketizePass);
     if (CodeGenOpts.EmitVLoadStore) {
       PMBuilder.addExtension(PassManagerBuilder::EP_ModuleOptimizerEarly,
                              addCMLowerLoadStorePass);
@@ -744,9 +754,11 @@ static void setCommandLineOpts(const CodeGenOptions &CodeGenOpts,
   }
 
   if (CodeGenOpts.NoUnrollPragmalessLoops)
-    BackendArgs.push_back("-unroll-threshold=0");
+    BackendArgs.push_back("-unroll-threshold=1");
   if (LangOpts.MdfCM) {
     BackendArgs.push_back("-pragma-unroll-threshold=0xffffffff");
+    BackendArgs.push_back("-enable-pre=false");
+    BackendArgs.push_back("-instcombine-code-sinking=false");
   }
 
   for (const std::string &BackendOption : CodeGenOpts.BackendOptions)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -215,6 +215,17 @@ template <typename T, int SZ>
 void __cm_intrinsic_impl_oword_write(SurfaceIndex index, int offset,
                                      vector<T, SZ> src);
 
+template <typename T, int SZ>
+vector<T, SZ> __cm_intrinsic_impl_slm_oword_read(uint slmBuffer, int offset);
+
+template <typename T, int SZ>
+vector<T, SZ> __cm_intrinsic_impl_slm_oword_read_dwaligned(uint slmBuffer,
+                                                       int offset);
+
+template <typename T, int SZ>
+void __cm_intrinsic_impl_slm_oword_write(uint slmBuffer, int offset,
+                                     vector<T, SZ> src);
+
 template <typename T, int N, int M, int _M, CmBufferAttrib attr>
 matrix<T, N, _M> __cm_intrinsic_impl_media_read(SurfaceIndex index, int X,
                                                 int Y);
@@ -305,12 +316,26 @@ template <typename T, int N>
 void __cm_intrinsic_impl_svm_scatter_write(vector<uint64_t, N> vAddr,
                                            vector<T, N> src);
 
+template <CmAtomicOpType Op, typename T, int N>
+vector<T, N> __cm_intrinsic_impl_svm_atomic(vector<uint64_t, N> vAddr,
+                                            vector<T, N> oldVal);
+
+template <CmAtomicOpType Op, typename T, int N>
+vector<T, N> __cm_intrinsic_impl_svm_atomic(vector<uint64_t, N> vAddr,
+                                            vector<T, N> src0,
+                                            vector<T, N> oldVal);
+
+template <CmAtomicOpType Op, typename T, int N>
+vector<T, N>
+__cm_intrinsic_impl_svm_atomic(vector<uint64_t, N> vAddr, vector<T, N> src0,
+                               vector<T, N> src1, vector<T, N> oldVal);
+
 template <typename T, int N>
 bool __cm_intrinsic_impl_simdfork_any(vector<T, N> t, const char *filename,
-                                    unsigned line);
+                                      unsigned line);
 template <typename T, int R, int C>
 bool __cm_intrinsic_impl_simdfork_any(matrix<T, R, C> t, const char *filename,
-                                    unsigned line);
+                                      unsigned line);
 
 template <typename T = void>
 bool __cm_intrinsic_impl_simdfork_any(int t, const char *filename, unsigned line);

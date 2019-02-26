@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -264,16 +264,18 @@ bool GenXCategory::runOnFunctionGroup(FunctionGroup &FG)
   // and/or subroutine args.
   while (NoCategory.size()) {
     SmallVector<Value *, 8> NoCategory2;
-    for (unsigned i = 0, e = NoCategory.size(); i != e; ++i)
+    for (unsigned i = 0, e = NoCategory.size(); i != e; ++i) {
       if (!processValue(NoCategory[i]))
         NoCategory2.push_back(NoCategory[i]);
+    }
     assert(NoCategory2.size() < NoCategory.size() && "not making any progess");
     NoCategory.clear();
     if (!NoCategory2.size())
       break;
-    for (unsigned i = 0, e = NoCategory2.size(); i != e; ++i)
+    for (unsigned i = 0, e = NoCategory2.size(); i != e; ++i) {
       if (!processValue(NoCategory2[i]))
         NoCategory.push_back(NoCategory2[i]);
+    }
     Modified |= true;
   }
   return Modified;
@@ -850,14 +852,21 @@ unsigned GenXCategory::getCategoryForCallArg(Function *Callee, unsigned ArgNo)
       return Cat;
   }
   // Then try the arg at each call site.
+  bool UseUndef = true;
   for (auto ui = Callee->use_begin(), ue = Callee->use_end(); ui != ue; ++ui) {
     auto CI = cast<CallInst>(ui->getUser());
-    if (auto LR = Liveness->getLiveRangeOrNull(CI->getArgOperand(ArgNo))) {
-      unsigned Cat = LR->getCategory();
-      if (Cat != RegCategory::NONE)
-        return Cat;
+    auto ArgV = CI->getArgOperand(ArgNo);
+    if (!isa<UndefValue>(ArgV)) {
+      UseUndef = false;
+      if (auto LR = Liveness->getLiveRangeOrNull(ArgV)) {
+        unsigned Cat = LR->getCategory();
+        if (Cat != RegCategory::NONE)
+          return Cat;
+      }
     }
   }
-  return RegCategory::NONE;
+  // special case handling to break deadlock when all uses are undef,
+  // force the argument to be GENERAL
+  return(UseUndef ? RegCategory::GENERAL : RegCategory::NONE);
 }
 

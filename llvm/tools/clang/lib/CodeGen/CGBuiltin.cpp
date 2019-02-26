@@ -1709,6 +1709,8 @@ RValue CodeGenFunction::EmitBuiltinExpr(const FunctionDecl *FD,
   case Builtin::BIcm_scoreboard_bti:
   case Builtin::BIcm_scoreboard_deltas:
   case Builtin::BIcm_scoreboard_depcnt:
+  case Builtin::BIcm_sbarrier:
+  case Builtin::BIcm_yield :
     return CGM.getCMRuntime().EmitCMBuiltin(*this, BuiltinID, E);
 
   case Builtin::BI__builtin___memmove_chk: {

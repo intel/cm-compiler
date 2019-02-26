@@ -2449,6 +2449,11 @@ def CMGenx : Attr {
   let Documentation = [Undocumented];
 }
 
+def CMBuiltin : Attr {
+  let Spellings = [Declspec<"cm_builtin">];
+  let Documentation = [Undocumented];
+}
+
 def CMGenxMain : Attr {
   let Spellings = [Declspec<"genx_main">];
   let Documentation = [Undocumented];
@@ -2456,6 +2461,12 @@ def CMGenxMain : Attr {
 
 def CMGenxStackcall : Attr {
   let Spellings = [Declspec<"genx_stackcall">];
+  let Documentation = [Undocumented];
+}
+
+def CMGenxSIMT : Attr {
+  let Spellings = [Declspec<"genx_SIMT">];
+  let Args = [IntArgument<"Mode">];
   let Documentation = [Undocumented];
 }
 

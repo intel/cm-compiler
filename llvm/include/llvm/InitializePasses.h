@@ -97,6 +97,7 @@ void initializeCMImpParamPass(PassRegistry&);
 void initializeCMKernelArgOffsetPass(PassRegistry&);
 void initializeCMABIPass(PassRegistry&);
 void initializeCMLowerLoadStorePass(PassRegistry&);
+void initializeGenXSimplifyPass(PassRegistry&);
 void initializeCodeGenPreparePass(PassRegistry&);
 void initializeConstantHoistingLegacyPassPass(PassRegistry&);
 void initializeCalledValuePropagationLegacyPassPass(PassRegistry &);

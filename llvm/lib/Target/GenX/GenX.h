@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -78,6 +78,7 @@ FunctionPass *createGenXExtractVectorizerPass();
 FunctionPass *createGenXRawSendRipperPass();
 FunctionPass *createGenXFuncBalingPass(BalingKind Kind);
 FunctionPass *createGenXLegalizationPass();
+ModulePass *createGenXEmulatePass();
 FunctionPass *createGenXDeadVectorRemovalPass();
 FunctionPass *createGenXPatternMatchPass(const TargetOptions *Options);
 FunctionPass *createGenXPostLegalizationPass();
@@ -369,6 +370,12 @@ public:
     SplatInfo(Value *Input, unsigned Index) : Input(Input), Index(Index) {}
   };
   SplatInfo getAsSplat();
+
+  // Serialize this shuffulevector instruction.
+  Value *serialize();
+
+  // Compute the cost in terms of number of insertelement instructions needed.
+  unsigned getSerializeCost(unsigned i);
 };
 
 // adjustPhiNodesForBlockRemoval : adjust phi nodes when removing a block

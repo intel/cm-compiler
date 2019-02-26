@@ -1315,10 +1315,8 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
                                     SQ.getWithInstruction(&SI)))
     return replaceInstUsesWith(SI, V);
 
-#if 0   // GENX_BEGIN
   if (Instruction *I = canonicalizeSelectToShuffle(SI))
     return I;
-#endif  // GENX_END
 
   // Canonicalize a one-use integer compare with a non-canonical predicate by
   // inverting the predicate and swapping the select operands. This matches a
@@ -1615,12 +1613,6 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
         SI.setOperand(1, TrueSI->getTrueValue());
         return &SI;
       }
-#if 1   // GENX_BEGIN
-      if (auto SI = dyn_cast<ShuffleVectorInst>(CondVal)) {
-        if (SI->getType()->getScalarType()->isIntegerTy(1))
-          return nullptr;
-      }
-#endif  // GENX_END
       // select(C0, select(C1, a, b), b) -> select(C0&C1, a, b)
       // We choose this as normal form to enable folding on the And and shortening
       // paths for the values (this helps GetUnderlyingObjects() for example).
@@ -1641,12 +1633,6 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
         SI.setOperand(2, FalseSI->getFalseValue());
         return &SI;
       }
-#if 1   // GENX_BEGIN
-      if (auto SI = dyn_cast<ShuffleVectorInst>(CondVal)) {
-        if (SI->getType()->getScalarType()->isIntegerTy(1))
-          return nullptr;
-    }
-#endif  // GENX_END
       // select(C0, a, select(C1, a, b)) -> select(C0|C1, a, b)
       if (FalseSI->getTrueValue() == TrueVal && FalseSI->hasOneUse()) {
         Value *Or = Builder.CreateOr(CondVal, FalseSI->getCondition());

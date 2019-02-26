@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -78,6 +78,11 @@ GenXSubtarget::GenXSubtarget(const Triple &TT, const std::string &CPU,
     : GenXGenSubtargetInfo(TT, CPU, FS), TargetTriple(TT) {
 
   resetSubtargetFeatures(CPU, FS);
+}
+
+StringRef GenXSubtarget::getEmulateFunction(const Instruction *Inst) const {
+  StringRef EmuFnName;
+  return EmuFnName;
 }
 
 GenXSubtargetPass::GenXSubtargetPass() : ImmutablePass(ID), ST(nullptr) {}

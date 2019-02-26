@@ -2803,21 +2803,6 @@ Instruction *InstCombiner::foldICmpInstWithConstantNotInt(ICmpInst &I) {
     }
     break;
   }
-// _GENX_BEGIN_
-  case Instruction::ZExt:
-  case Instruction::SExt:
-    // icmp eq zext/sext v*i1 X, 0 -> not X
-    if (RHSC->isNullValue()) {
-      Value *Input = LHSI->getOperand(0);
-      if (cast<IntegerType>(Input->getType()->getScalarType())->getBitWidth() == 1) {
-        if (I.getPredicate() == ICmpInst::ICMP_EQ)
-          return BinaryOperator::Create(
-              Instruction::Xor, Input,
-              Constant::getAllOnesValue(Input->getType()));
-      }
-    }
-    break;
-// _GENX_END_
   case Instruction::IntToPtr:
     // icmp pred inttoptr(X), null -> icmp pred X, 0
     if (RHSC->isNullValue() &&

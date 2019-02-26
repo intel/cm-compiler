@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -38,7 +38,6 @@ enum CMBuiltinKind {
   // This is a standalone implementation builtin used by other
   // CM builtin's implementation.
   CMBK_cm_sat_impl,
-  CMBK_simdfork_any_impl,
   CMBK_simdcf_any_impl,
   CMBK_simdcf_predgen_impl,
   CMBK_simdcf_predmin_impl,
@@ -116,10 +115,15 @@ enum CMBuiltinKind {
   CMBK_write_atomic_typed,
   CMBK_write_atomic_typed_impl,
   // Shared local memory and groups interface.
+  CMBK_slm_oword_read_impl,
+  CMBK_slm_oword_read_dwaligned_impl,
+  CMBK_slm_oword_write_impl,
   CMBK_cm_slm_write, CMBK_cm_slm_write_impl,
   CMBK_cm_slm_write4,
+  CMBK_cm_slm_write4_scaled,
   CMBK_cm_slm_read, CMBK_cm_slm_read_impl,
   CMBK_cm_slm_read4,
+  CMBK_cm_slm_read4_scaled,
   CMBK_cm_slm_atomic,
   // Sampler interface.
   CMBK_sample16, CMBK_sample16_impl,
@@ -134,6 +138,7 @@ enum CMBuiltinKind {
   CMBK_svm_scatter_read_impl,
   CMBK_svm_scatter_write_impl,
   CMBK_cm_svm_atomic,
+  CMBK_cm_svm_atomic_impl,
   // Adaptie video scaling.
   CMBK_cm_avs_sampler,
   CMBK_cm_va_2d_convolve,

@@ -36,7 +36,6 @@ add_llvm_library(LLVMAnalysis
   InlineCost.cpp
   InstCount.cpp
   InstructionSimplify.cpp
-  InstructionSimplifyGenX.cpp
   Interval.cpp
   IntervalPartition.cpp
   IteratedDominanceFrontier.cpp

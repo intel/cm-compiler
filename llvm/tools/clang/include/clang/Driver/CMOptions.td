@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -111,6 +111,15 @@ def Qxcm_nonstrict : CMIgnoredFlag<"Qxcm_nonstrict">;
 
 def Qxcm_noschedule : CMIgnoredFlag<"Qxcm_noschedule">,
   HelpText<"pass the -noschedule flag to the GenX Finalizer">;
+
+def Qxcm_preschedule : CMIgnoredFlag<"Qxcm_preschedule">,
+  HelpText<"pass the -presched flag to the GenX Finalizer">;
+
+def Qxcm_preschedule_ctrl : CMJoined<"Qxcm_preschedule_ctrl">,
+  HelpText<"pass the -presched-ctrl <ctrl> to the GenX Finalizer">;
+
+def Qxcm_preschedule_rp : CMJoined<"Qxcm_preschedule_rp">,
+  HelpText<"pass the -presched-rp <rp> to the GenX Finalizer">;
 
 def Qxcm_opt_report : CMCompileFlag<"Qxcm_opt_report">,
   HelpText<"prints GenX Finalizer optimization report (only available if -Qxcm_jit_target=... is also specified)">;

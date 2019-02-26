@@ -972,13 +972,9 @@ static LoopUnrollResult tryToUnrollLoop(
       L, SE, TTI, OptLevel, ProvidedThreshold, ProvidedCount,
       ProvidedAllowPartial, ProvidedRuntime, ProvidedUpperBound,
       ProvidedAllowPeeling);
-#if 0 // GENX_BEGIN
-// DO not exit early as CMC asks to unroll loops with "pragma unroll" and not
-// to unroll other loops.
   // Exit early if unrolling is disabled.
   if (UP.Threshold == 0 && (!UP.Partial || UP.PartialThreshold == 0))
     return LoopUnrollResult::Unmodified;
-#endif // GENX_END
   unsigned LoopSize = ApproximateLoopSize(
       L, NumInlineCandidates, NotDuplicatable, Convergent, TTI, &AC, UP.BEInsns);
   DEBUG(dbgs() << "  Loop Size = " << LoopSize << "\n");

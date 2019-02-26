@@ -2356,18 +2356,12 @@ bool GVN::performPRE(Function &F) {
     if (CurrentBlock->isEHPad())
       continue;
 
-    // CMC_BEGIN
-    // we had several cases to disable ScalarPRE due to correctness issue
-    // and register pressure issue. So we should simply turn it off.
-#if 0
     for (BasicBlock::iterator BI = CurrentBlock->begin(),
                               BE = CurrentBlock->end();
          BI != BE;) {
       Instruction *CurInst = &*BI++;
       Changed |= performScalarPRE(CurInst);
     }
-#endif
-    // CMC_END
   }
 
   if (splitCriticalEdges())

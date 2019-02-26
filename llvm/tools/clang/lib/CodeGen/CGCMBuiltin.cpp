@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -148,7 +148,9 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(const FunctionDecl *FD) const {
                            .StartsWith("_Z11write_typed", CMBK_write_typed)
                            .StartsWith("_Z11cm_slm_read", CMBK_cm_slm_read)
                            .StartsWith("_Z12cm_slm_write", CMBK_cm_slm_write)
+                           .StartsWith("_Z19cm_slm_read4_scaled", CMBK_cm_slm_read4_scaled)
                            .StartsWith("_Z12cm_slm_read4", CMBK_cm_slm_read4)
+                           .StartsWith("_Z20cm_slm_write4_scaled", CMBK_cm_slm_write4_scaled)
                            .StartsWith("_Z13cm_slm_write4", CMBK_cm_slm_write4)
                            .StartsWith("_Z13cm_slm_atomic", CMBK_cm_slm_atomic)
                            .StartsWith("_Z6cm_abs", CMBK_cm_abs)
@@ -239,6 +241,9 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(const FunctionDecl *FD) const {
               .StartsWith("__cm_intrinsic_impl_scatter_write", CMBK_scatter_write_impl)
               .StartsWith("__cm_intrinsic_impl_slm_read", CMBK_cm_slm_read_impl)
               .StartsWith("__cm_intrinsic_impl_slm_write", CMBK_cm_slm_write_impl)
+              .StartsWith("__cm_intrinsic_impl_slm_oword_read_dwaligned", CMBK_slm_oword_read_dwaligned_impl)
+              .StartsWith("__cm_intrinsic_impl_slm_oword_read", CMBK_slm_oword_read_impl)
+              .StartsWith("__cm_intrinsic_impl_slm_oword_write", CMBK_slm_oword_write_impl)
               .StartsWith("__cm_intrinsic_impl_svm_block_read_unaligned", CMBK_svm_block_read_unaligned_impl)
               .StartsWith("__cm_intrinsic_impl_svm_block_read", CMBK_svm_block_read_impl)
               .StartsWith("__cm_intrinsic_impl_svm_block_write", CMBK_svm_block_write_impl)
@@ -287,7 +292,6 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(const FunctionDecl *FD) const {
               .StartsWith("__cm_intrinsic_impl_load16", CMBK_load16_impl)
               .StartsWith("__cm_intrinsic_impl_atomic_write_typed", CMBK_write_atomic_typed_impl)
               .StartsWith("__cm_intrinsic_impl_atomic_write", CMBK_write_atomic_impl)
-              .StartsWith("__cm_intrinsic_impl_simdfork_any", CMBK_simdfork_any_impl)
               .StartsWith("__cm_intrinsic_impl_simdcf_any", CMBK_simdcf_any_impl)
               .StartsWith("__cm_intrinsic_impl_simdcf_predgen", CMBK_simdcf_predgen_impl)
               .StartsWith("__cm_intrinsic_impl_simdcf_predmin", CMBK_simdcf_predmin_impl)
@@ -304,6 +308,7 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(const FunctionDecl *FD) const {
               .StartsWith("__cm_intrinsic_impl_pack_mask", CMBK_cm_pack_mask)
               .StartsWith("__cm_intrinsic_impl_unpack_mask", CMBK_cm_unpack_mask)
               .StartsWith("__cm_intrinsic_impl_predefined_surface", CMBK_predefined_surface)
+              .StartsWith("__cm_intrinsic_impl_svm_atomic", CMBK_cm_svm_atomic_impl)
               .Default(CMBK_none);
   }
 
@@ -760,7 +765,7 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
       }
       unsigned char MaskVal = static_cast<unsigned char>(Mask.getZExtValue());
       // Clear reserved bits and only use first 5 bits
-      MaskVal &= 0x1F;
+      MaskVal &= 0xFF;
       if (ID == Builtin::BIcm_slm_fence)
         MaskVal |= 0x20; // Enable SLM mode
 
@@ -801,6 +806,27 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
       Error(E->getExprLoc(), "One or zero mask argument expected");
       return RValue::get(0);
     }
+  case Builtin::BIcm_sbarrier:
+    Fn = CGF.CGM.getIntrinsic(llvm::Intrinsic::genx_sbarrier);
+    if (E->getNumArgs() == 1) {
+      const Expr *Arg = E->getArg(0);
+      llvm::APSInt Mask(32);
+      if (!Arg->EvaluateAsInt(Mask, CGF.getContext())) {
+        Error(Arg->getExprLoc(), "integeral constant expected for masks");
+        return RValue::get(0);
+      }
+      unsigned char MaskVal = static_cast<unsigned char>(Mask.getZExtValue());
+      // Clear reserved bits and only use first 1 bit
+      MaskVal &= 0x1;
+
+      return RValue::get(CGF.Builder.CreateCall(
+        Fn, llvm::ConstantInt::get(Fn->getFunctionType()->getParamType(0), MaskVal),
+        ""));
+    }
+    else {
+      Error(E->getExprLoc(), "One signal flag argument expected");
+      return RValue::get(0);
+    }
   case Builtin::BIcm_slm_init:
     EmitBuiltinSLMInit(CGF, E);
     return RValue::get(0);
@@ -810,6 +836,10 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
     return RValue::get(EmitBuiltinSLMFree(CGF, E));
   case Builtin::BIcm_barrier:
     Fn = CGF.CGM.getIntrinsic(llvm::Intrinsic::genx_barrier);
+    CGF.Builder.CreateCall(Fn);
+    return RValue::get(0);
+  case Builtin::BIcm_yield:
+    Fn = CGF.CGM.getIntrinsic(llvm::Intrinsic::genx_yield);
     CGF.Builder.CreateCall(Fn);
     return RValue::get(0);
   case Builtin::BI__cm_builtin_cm_printf:
@@ -1021,9 +1051,12 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RV;
   case CMBK_oword_read_impl:
   case CMBK_oword_read_dwaligned_impl:
+  case CMBK_slm_oword_read_impl:
+  case CMBK_slm_oword_read_dwaligned_impl:
     return RValue::get(HandleBuiltinOWordReadImpl(getCurCMCallInfo(), Kind));
   case CMBK_oword_write_impl:
-    HandleBuiltinOWordWriteImpl(getCurCMCallInfo());
+  case CMBK_slm_oword_write_impl:
+    HandleBuiltinOWordWriteImpl(getCurCMCallInfo(), Kind);
     return RValue::get(0);
   case CMBK_media_read_impl:
     return RValue::get(HandleBuiltinMediaReadImpl(getCurCMCallInfo()));
@@ -1166,10 +1199,16 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     HandleBuiltinSLMWriteImpl(getCurCMCallInfo());
     return RValue::get(0);
   case CMBK_cm_slm_read4:
-    HandleBuiltinSLMRead4(getCurCMCallInfo());
+    HandleBuiltinSLMRead4(getCurCMCallInfo(), true);
+    return RValue::get(0);
+  case CMBK_cm_slm_read4_scaled:
+    HandleBuiltinSLMRead4(getCurCMCallInfo(), false);
     return RValue::get(0);
   case CMBK_cm_slm_write4:
-    HandleBuiltinSLMWrite4(getCurCMCallInfo());
+    HandleBuiltinSLMWrite4(getCurCMCallInfo(), true);
+    return RValue::get(0);
+  case CMBK_cm_slm_write4_scaled:
+    HandleBuiltinSLMWrite4(getCurCMCallInfo(), false);
     return RValue::get(0);
   case CMBK_cm_slm_atomic:
     HandleBuiltinSLMAtomic(getCurCMCallInfo());
@@ -1228,8 +1267,6 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(0);
   case CMBK_cm_rdtsc:
     return RValue::get(HandleBuiltinRDTSC(getCurCMCallInfo()));
-  case CMBK_simdfork_any_impl:
-    return RValue::get(HandleBuiltinSimdforkAnyImpl(getCurCMCallInfo()));
   case CMBK_simdcf_any_impl:
     return RValue::get(HandleBuiltinSimdcfAnyImpl(getCurCMCallInfo()));
   case CMBK_simdcf_predgen_impl:
@@ -1239,6 +1276,8 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(HandleBuiltinSimdcfMinMaxPredicationImpl(getCurCMCallInfo(), Kind));
   case CMBK_predefined_surface:
     return RValue::get(HandlePredefinedSurface(getCurCMCallInfo()));
+  case CMBK_cm_svm_atomic_impl:
+    return RValue::get(HandleBuiltinSVMAtomicImpl(getCurCMCallInfo()));
   }
 
   // Returns the normal call rvalue.
@@ -2993,6 +3032,11 @@ llvm::Value *CGCMRuntime::HandleBuiltinReductionImpl(CMCallInfo &CallInfo,
 ///
 ////////////////////////////////////////////////////////////////////////////////
 
+/// Return SLM surfaceindex 254
+llvm::Value *getSLMSurfaceIndex(CodeGenFunction &CGF) {
+  return llvm::ConstantInt::get(CGF.Int32Ty, 254);
+}
+
 /// \brief Postprocess oword read implementations.
 ///
 /// template <typename T, int SZ>
@@ -3002,16 +3046,15 @@ llvm::Value *CGCMRuntime::HandleBuiltinReductionImpl(CMCallInfo &CallInfo,
 ///
 llvm::Value *CGCMRuntime::HandleBuiltinOWordReadImpl(CMCallInfo &Info,
                                                      CMBuiltinKind Kind) {
-  unsigned ID = (Kind == CMBK_oword_read_impl)
+  unsigned ID = (Kind == CMBK_oword_read_impl ||
+                 Kind == CMBK_slm_oword_read_impl)
                     ? llvm::Intrinsic::genx_oword_ld
                     : llvm::Intrinsic::genx_oword_ld_unaligned;
-
+  bool SLM = (Kind == CMBK_slm_oword_read_impl ||
+              Kind == CMBK_slm_oword_read_dwaligned_impl);
   llvm::Type *RetTy = Info.CI->getType();
-
-  // The data size in OWords is in {1, 2, 4, 8}.
   assert(isa<llvm::VectorType>(RetTy));
   assert(llvm::isPowerOf2_32(RetTy->getVectorNumElements()));
-  assert(RetTy->getPrimitiveSizeInBits() / 8 <= 8 * OWORD);
 
   llvm::Function *LoadFn = getIntrinsic(ID, RetTy);
   llvm::FunctionType *LoadFnTy = LoadFn->getFunctionType();
@@ -3022,7 +3065,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinOWordReadImpl(CMCallInfo &Info,
   // Modifiers, always null value.
   Args.push_back(llvm::Constant::getNullValue(LoadFnTy->getParamType(0)));
   // SurfaceIndex.
-  Args.push_back(Info.CI->getArgOperand(0));
+  Args.push_back(SLM ? getSLMSurfaceIndex(*Info.CGF)
+                     : Info.CI->getArgOperand(0));
   // Offset in owords for oword_ld but in bytes for oword_ld_unaligned.
   llvm::Value *Offset = Info.CI->getArgOperand(1);
   if (ID == llvm::Intrinsic::genx_oword_ld) {
@@ -3042,12 +3086,14 @@ llvm::Value *CGCMRuntime::HandleBuiltinOWordReadImpl(CMCallInfo &Info,
 /// \brief Postprocess the oword write implementation.
 /// template <typename T, int N>
 /// void __cm_intrinsic_impl_oword_write(SurfaceIndex, int, vector<T, N>);
-void CGCMRuntime::HandleBuiltinOWordWriteImpl(CMCallInfo &Info) {
+void CGCMRuntime::HandleBuiltinOWordWriteImpl(CMCallInfo &Info,
+                                              CMBuiltinKind Kind) {
   // Overload this intrinsic with its input vector type which is the last
   // argument type.
   assert(Info.CI->getNumArgOperands() == 3);
   llvm::Type *VecTy = Info.CI->getArgOperand(2)->getType();
   unsigned ID = llvm::Intrinsic::genx_oword_st;
+  bool SLM = (Kind == CMBK_slm_oword_write_impl);
   llvm::Function *StoreFn = getIntrinsic(ID, VecTy);
 
   // The data size in OWords is in {1, 2, 4, 8}.
@@ -3060,7 +3106,7 @@ void CGCMRuntime::HandleBuiltinOWordWriteImpl(CMCallInfo &Info) {
   SmallVector<llvm::Value *, 4> Args;
 
   // SurfaceIndex.
-  Args.push_back(Info.CI->getArgOperand(0));
+  Args.push_back(SLM ? getSLMSurfaceIndex(*Info.CGF) : Info.CI->getArgOperand(0));
   // Offset in owords.
   llvm::Constant *V16 =
       llvm::ConstantInt::get(Info.CI->getArgOperand(1)->getType(), OWORD);
@@ -4345,11 +4391,6 @@ void CGCMRuntime::HandleBuiltinWriteTypedImpl(CMCallInfo &CallInfo) {
   CallInfo.CI->eraseFromParent();
 }
 
-/// Return SLM surfaceindex 254
-llvm::Value *getSLMSurfaceIndex(CodeGenFunction &CGF) {
-  return llvm::ConstantInt::get(CGF.Int32Ty, 254);
-}
-
 /// template <typename T, int N, int NBlocks>
 /// vector<T, N>
 /// __cm_intrinsic_impl_slm_read(uint globalOffsetInBytes,
@@ -4458,7 +4499,7 @@ inline bool isValidSLMChannelMask(int64_t Val) {
 /// cm_slm_read4(uint slmBuffer, vector<ushort, N> vAddr, vector_ref<T, M> vDst,
 ///              SLM_ChannelMaskType mask);
 ///
-void CGCMRuntime::HandleBuiltinSLMRead4(CMCallInfo &CallInfo) {
+void CGCMRuntime::HandleBuiltinSLMRead4(CMCallInfo &CallInfo, bool IsDwordAddr) {
   CodeGenFunction &CGF = *CallInfo.CGF;
 
   const Expr *Arg3 = CallInfo.CE->getArg(3);
@@ -4494,10 +4535,12 @@ void CGCMRuntime::HandleBuiltinSLMRead4(CMCallInfo &CallInfo) {
     Offset = CGF.Builder.CreateZExt(Offset, Ty);
   }
 
-  // Convert element offset from by elements to by bytes.
-  unsigned TySizeInBytes = OldValue->getType()->getScalarSizeInBits() / 8;
-  Offset = CGF.Builder.CreateMul(
+  if (IsDwordAddr) {
+    // Convert element offset from by elements to by bytes.
+    unsigned TySizeInBytes = OldValue->getType()->getScalarSizeInBits() / 8;
+    Offset = CGF.Builder.CreateMul(
       Offset, llvm::ConstantInt::get(Offset->getType(), TySizeInBytes));
+  }
 
   // Use scaled message for any platform since scale is 0.
   auto NewCI = EmitGatherScatterScaled(CGF,
@@ -4523,7 +4566,7 @@ void CGCMRuntime::HandleBuiltinSLMRead4(CMCallInfo &CallInfo) {
 /// cm_slm_write4(uint slmBuffer, vector<ushort, N> vAddr, vector<T, M> vSrc,
 ///               SLM_ChannelMaskType mask);
 ///
-void CGCMRuntime::HandleBuiltinSLMWrite4(CMCallInfo &CallInfo) {
+void CGCMRuntime::HandleBuiltinSLMWrite4(CMCallInfo &CallInfo, bool IsDwordAddr) {
   CodeGenFunction &CGF = *CallInfo.CGF;
 
   const Expr *Arg3 = CallInfo.CE->getArg(3);
@@ -4557,10 +4600,12 @@ void CGCMRuntime::HandleBuiltinSLMWrite4(CMCallInfo &CallInfo) {
     Offset = CGF.Builder.CreateZExt(Offset, Ty);
   }
 
-  // Convert element offset from by elements to by bytes.
-  unsigned TySizeInBytes = Src->getType()->getScalarSizeInBits() / 8;
-  Offset = CGF.Builder.CreateMul(
+  if (IsDwordAddr) {
+    // Convert element offset from by elements to by bytes.
+    unsigned TySizeInBytes = Src->getType()->getScalarSizeInBits() / 8;
+    Offset = CGF.Builder.CreateMul(
       Offset, llvm::ConstantInt::get(Offset->getType(), TySizeInBytes));
+  }
 
   // Use scaled message for any platform since scale is 0.
   auto NewCI = EmitGatherScatterScaled(CGF,
@@ -4994,9 +5039,11 @@ unsigned getAtomicSVMIntrinsicID(CmAtomicOpType Op) {
   case ATOMIC_MAXSINT:
     return llvm::Intrinsic::genx_svm_atomic_imax;
   case ATOMIC_FMAX:
+    return llvm::Intrinsic::genx_svm_atomic_fmax;
   case ATOMIC_FMIN:
+    return llvm::Intrinsic::genx_svm_atomic_fmin;
   case ATOMIC_FCMPWR:
-    return llvm::Intrinsic::not_intrinsic;
+    return llvm::Intrinsic::genx_svm_atomic_fcmpwr;
   }
 
   llvm_unreachable("invalid atomic operation");
@@ -5055,7 +5102,6 @@ QualType checkSVMAtomicOperands(CmAtomicOpType Op, ASTContext &CTX, QualType Ori
   case ATOMIC_FMAX:
   case ATOMIC_FMIN:
   case ATOMIC_FCMPWR:
-    assert(false && "floating point operands not support for SVM atomic operation.");
     return OrigElType;
   }
 
@@ -6208,35 +6254,6 @@ void CGCMRuntime::HandleBuiltinVAFloodFill(CMCallInfo &Info) {
   Info.CI->eraseFromParent();
 }
 
-llvm::Value *CGCMRuntime::HandleBuiltinSimdforkAnyImpl(CMCallInfo &CallInfo) {
-  llvm::CallInst *CI = CallInfo.CI;
-  llvm::Value *Arg0 = CI->getArgOperand(0);
-
-  if (!Arg0->getType()->getScalarType()->isIntegerTy(1)) {
-    if (Arg0->getType()->getScalarType()->isFloatingPointTy())
-      Arg0 = CallInfo.CGF->Builder.CreateFCmpONE(Arg0,
-        llvm::Constant::getNullValue(Arg0->getType()));
-    else
-      Arg0 = CallInfo.CGF->Builder.CreateICmpNE(Arg0,
-        llvm::Constant::getNullValue(Arg0->getType()));
-  }
-
-  if (!Arg0->getType()->isVectorTy()) {
-    CI->eraseFromParent();
-    return Arg0;
-  }
-
-  unsigned ID = llvm::Intrinsic::genx_simdfork_any;
-  llvm::Function *Fn = getIntrinsic(ID, Arg0->getType());
-  llvm::CallInst *NewCI = CallInfo.CGF->Builder.CreateCall(Fn, Arg0);
-
-  NewCI->takeName(CI);
-  NewCI->setDebugLoc(CI->getDebugLoc());
-  CI->eraseFromParent();
-
-  return NewCI;
-}
-
 llvm::Value *CGCMRuntime::HandleBuiltinSimdcfAnyImpl(CMCallInfo &CallInfo) {
   llvm::CallInst *CI = CallInfo.CI;
   llvm::Value *Arg0 = CI->getArgOperand(0);
@@ -6390,6 +6407,57 @@ llvm::Value *CGCMRuntime::HandlePredefinedSurface(CMCallInfo &CallInfo) {
   assert(NewCI->getType() == CallInfo.CI->getType());
 
   CallInfo.CI->eraseFromParent();
+  return NewCI;
+}
+
+// template <CmAtomicOpType Op, typename T, int N>
+// vector<T, N> void __cm_intrinsic_impl_svm_atomic(vector<uint64_t, N> vAddr,
+//                                                  vector<T, N> oldVal);
+//
+// template <CmAtomicOpType Op, typename T, int N>
+// vector<T, N> void __cm_intrinsic_impl_svm_atomic(vector<uint64_t, N> vAddr,
+//                                                  vector<T, N> src0,
+//                                                  vector<T, N> oldVal);
+//
+// template <CmAtomicOpType Op, typename T, int N>
+// vector<T, N> void __cm_intrinsic_impl_svm_atomic(vector<uint64_t, N> vAddr,
+//                                                  vector<T, N> src0,
+//                                                  vector<T, N> src1,
+//                                                  vector<T, N> oldVal);
+//
+llvm::Value *CGCMRuntime::HandleBuiltinSVMAtomicImpl(CMCallInfo &CallInfo) {
+  llvm::LLVMContext &C = CallInfo.CGF->getLLVMContext();
+  const FunctionDecl *FD = CallInfo.CE->getDirectCallee();
+  auto Op = static_cast<CmAtomicOpType>(getIntegralValue(FD, 0));
+  unsigned ID = getAtomicSVMIntrinsicID(Op);
+
+  llvm::Type *CITy = CallInfo.CI->getType();;
+  unsigned N = CITy->getVectorNumElements();
+
+  // Types for overloading
+  llvm::Type *Tys[] = {
+      CITy,                                    // result
+      getMaskType(C, N),                       // predicate
+      CallInfo.CI->getArgOperand(0)->getType() // address
+  };
+
+  llvm::Function *Fn = getIntrinsic(ID, Tys);
+  llvm::FunctionType *FnTy = Fn->getFunctionType();
+
+  SmallVector<llvm::Value *, 8> Args;
+  // Predicate
+  Args.push_back(llvm::Constant::getAllOnesValue(FnTy->getParamType(0)));
+  // Address vector
+  Args.push_back(CallInfo.CI->getArgOperand(0));
+  // Remaining operands.
+  for (unsigned i = 1, e = CallInfo.CI->getNumArgOperands(); i < e; ++i)
+    Args.push_back(CallInfo.CI->getArgOperand(i));
+
+  llvm::CallInst *NewCI = CallInfo.CGF->Builder.CreateCall(Fn, Args);
+  NewCI->takeName(CallInfo.CI);
+  NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
+  CallInfo.CI->eraseFromParent();
+
   return NewCI;
 }
 

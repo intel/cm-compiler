@@ -1827,24 +1827,6 @@ static Value *SimplifyOrInst(Value *Op0, Value *Op1, const SimplifyQuery &Q,
                                          MaxRecurse))
       return V;
 
-// GENX_BEGIN
-  // (A & C)|(B & D)
-  Value *C = nullptr, *D = nullptr;
-  if (match(Op0, m_And(m_Value(A), m_Value(C))) &&
-      match(Op1, m_And(m_Value(B), m_Value(D)))) {
-    // (A & B) | (A & ~B) = A
-    Value *E = nullptr;
-    if (A == B && match(C, m_Not(m_Value(E))) && E == D)
-      return A;
-    if (A == D && match(C, m_Not(m_Value(E))) && E == B)
-      return A;
-    if (C == B && match(A, m_Not(m_Value(E))) && E == D)
-      return C;
-    if (C == D && match(A, m_Not(m_Value(E))) && E == B)
-      return C;
-  }
-// GENX_END
-
   // (A & C1)|(B & C2)
   const APInt *C1, *C2;
   if (match(Op0, m_And(m_Value(A), m_APInt(C1))) &&
@@ -3223,22 +3205,6 @@ static Value *SimplifyICmpInst(unsigned Predicate, Value *LHS, Value *RHS,
     }
   }
 
-// GENX_BEGIN
-  // icmp ne zext/sext v*i1 X, 0 -> X
-  if (isa<ZExtInst>(LHS) || isa<SExtInst>(LHS)) {
-    if (auto RHSC = dyn_cast<Constant>(RHS)) {
-      if (RHSC->isNullValue()) {
-        Value *Input = cast<Instruction>(LHS)->getOperand(0);
-        if (cast<IntegerType>(Input->getType()->getScalarType())
-                ->getBitWidth() == 1) {
-          if (Pred == ICmpInst::ICMP_NE)
-            return Input;
-        }
-      }
-    }
-  }
-// GENX_END
-
   // icmp eq|ne X, Y -> false|true if X != Y
   if (ICmpInst::isEquality(Pred) &&
       isKnownNonEqual(LHS, RHS, Q.DL, Q.AC, Q.CxtI, Q.DT)) {
@@ -3668,55 +3634,27 @@ static Value *simplifySelectWithICmpCond(Value *CondVal, Value *TrueVal,
 static Value *SimplifySelectInst(Value *CondVal, Value *TrueVal,
                                  Value *FalseVal, const SimplifyQuery &Q,
                                  unsigned MaxRecurse) {
+  // select true, X, Y  -> X
+  // select false, X, Y -> Y
   if (Constant *CB = dyn_cast<Constant>(CondVal)) {
-// GENX_BEGIN
-    if (isa<UndefValue>(CB)) {  // select undef, X, Y -> X or Y
-      if (isa<Constant>(TrueVal))
-        return TrueVal;
-      return FalseVal;
-    }
-
-    if (auto VT = dyn_cast<VectorType>(CB->getType())) {
-      // For a vector constant CondVal, allow some elements to be undef when
-      // detecting all true or all false.
-      Constant *Splat = nullptr;
-      for (unsigned i = 0, e = VT->getNumElements(); i != e; ++i) {
-        auto El = CB->getAggregateElement(i);
-        if (isa<UndefValue>(El))
-          continue;
-        if (!Splat)
-          Splat = El;
-        else if (Splat != El) {
-          Splat = nullptr;
-          break;
-        }
-      }
-      if (Splat)
-        CB = Splat;
-    }
-    // select true, X, Y  -> X
-    // select false, X, Y -> Y
-// GENX_END
+    if (Constant *CT = dyn_cast<Constant>(TrueVal))
+      if (Constant *CF = dyn_cast<Constant>(FalseVal))
+        return ConstantFoldSelectInstruction(CB, CT, CF);
     if (CB->isAllOnesValue())
       return TrueVal;
     if (CB->isNullValue())
       return FalseVal;
-    if (Constant *CT = dyn_cast<Constant>(TrueVal))
-      if (Constant *CF = dyn_cast<Constant>(FalseVal))
-        return ConstantFoldSelectInstruction(CB, CT, CF);
   }
 
   // select C, X, X -> X
   if (TrueVal == FalseVal)
     return TrueVal;
 
-#if 0
   if (isa<UndefValue>(CondVal)) {  // select undef, X, Y -> X or Y
     if (isa<Constant>(FalseVal))
       return FalseVal;
     return TrueVal;
   }
-#endif
   if (isa<UndefValue>(TrueVal))   // select C, undef, X -> X
     return FalseVal;
   if (isa<UndefValue>(FalseVal))   // select C, X, undef -> X
@@ -4043,22 +3981,6 @@ static Value *SimplifyCastInst(unsigned CastOpc, Value *Op,
   if (CastOpc == Instruction::BitCast)
     if (Op->getType() == Ty)
       return Op;
-
-// GENX_BEGIN
-  if (auto BC = dyn_cast<BitCastInst>(Op)) {
-    Value *Src = BC->getOperand(0);
-    if (Constant *C = dyn_cast<Constant>(Src))
-      return ConstantFoldInstOperands(BC, C, Q.DL, Q.TLI);
-
-    // A bitcast of a bitcast returns the input of the first bitcast if it is
-    // of the right type.
-    if (auto BCI = dyn_cast<BitCastInst>(Src)) {
-      Value *FirstOp = BCI->getOperand(0);
-      if (FirstOp->getType() == Ty)
-        return FirstOp;
-    }
-  }
-// GENX_END
 
   return nullptr;
 }

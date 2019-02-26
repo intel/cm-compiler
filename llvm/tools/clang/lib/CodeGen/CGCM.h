@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -339,10 +339,10 @@ private:
   void HandleBuiltinSLMWriteImpl(CMCallInfo &Info);
 
   /// \brief Postprocess cm_slm_read4.
-  void HandleBuiltinSLMRead4(CMCallInfo &Info);
+  void HandleBuiltinSLMRead4(CMCallInfo &Info, bool IsDwordAddr);
 
   /// \brief Postprocess cm_slm_write4.
-  void HandleBuiltinSLMWrite4(CMCallInfo &Info);
+  void HandleBuiltinSLMWrite4(CMCallInfo &Info, bool IsDwordAddr);
 
   /// \brief Postprocess cm_slm_atomic variants.
   void HandleBuiltinSLMAtomic(CMCallInfo &Info);
@@ -396,7 +396,7 @@ private:
   llvm::Value *HandleBuiltinOWordReadImpl(CMCallInfo &Info, CMBuiltinKind Kind);
 
   /// \brief Postprocess the oword write implementation.
-  void HandleBuiltinOWordWriteImpl(CMCallInfo &Info);
+  void HandleBuiltinOWordWriteImpl(CMCallInfo &Info, CMBuiltinKind Kind);
 
   /// \brief Postprocess media read implementations.
   llvm::Value *HandleBuiltinMediaReadImpl(CMCallInfo &Info);
@@ -575,9 +575,6 @@ private:
   /// \brief Postprocess builtin cm_get_value.
   llvm::Value *HandleBuiltinGetValueImpl(CMCallInfo &CallInfo);
 
-  /// \brief Postprocess simdfork_any implementation builtin.
-  llvm::Value *HandleBuiltinSimdforkAnyImpl(CMCallInfo &CallInfo);
-
   /// \brief Postprocess simdcf_any implementation builtin.
   llvm::Value *HandleBuiltinSimdcfAnyImpl(CMCallInfo &CallInfo);
 
@@ -590,6 +587,9 @@ private:
 
   /// \brief Postprocess predefined_surface implementation builtin.
   llvm::Value *HandlePredefinedSurface(CMCallInfo &CallInfo);
+
+  /// \brief Postprocess cm_svm_atomic implementation builtins.
+  llvm::Value *HandleBuiltinSVMAtomicImpl(CMCallInfo &CallInfo);
 
 
   /// \brief Emit 1D/2D select expression.

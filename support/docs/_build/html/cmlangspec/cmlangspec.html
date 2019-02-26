@@ -350,7 +350,6 @@ allowed, except division.</li>
 <li>Double operands can be used with the following CM intrinsic functions:
 cm_abs/cm_min/cm_max/cm_add/cm_mul/cm_sum (all operands must be of double type).</li>
 <li>Double operands cannot be used in DWord scattered read/write and DWord atomic write.</li>
-<li>Replicate is not supported for double type matrix and vector.</li>
 </ul>
 </li>
 <li>unsigned long long, long long: unsigned and signed long long data types are 64-bit integers that are
@@ -360,8 +359,6 @@ long operands are allowed, except multiplication and division.</li>
 <li>No CM intrinsic functions are allowed for unsigned long long and long long types.</li>
 <li>Unsigned long long and long long operands cannot be used in DWord scattered read/write
 and DWord atomic write.</li>
-<li>Replicate is not supported for unsigned and signed long long matrix and
-vector.</li>
 </ul>
 </li>
 <li>svmptr_t: represents an integer of pointer size for SVM (shared virtual memory, Gen8+). When
@@ -2895,27 +2892,27 @@ T can be either char, uchar, short, ushort, int, uint or float.</td>
 <h4>DWord Atomic Write<a class="headerlink" href="#dword-atomic-write" title="Permalink to this headline">¶</a></h4>
 <p>Performs atomic read-modify-write operations on the N element offsets
 specified, where N can be 1, 2, 4, 8 or 16.</p>
-<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">template</span> <span class="o">&lt;</span><span class="n">CmAtomicOpType</span> <span class="n">Op</span><span class="p">,</span> <span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">template</span> <span class="o">&lt;</span><span class="n">CmAtomicOpType</span> <span class="n">Op</span><span class="p">,</span> <span class="k">typename</span> <span class="n">T</span><span class="p">,</span> <span class="kt">int</span> <span class="n">N</span><span class="o">&gt;</span>
 <span class="n">write_atomic</span><span class="p">(</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ushort</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">mask</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">index</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">element_offset</span><span class="p">,</span>
              <span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">src0</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">src1</span><span class="p">,</span> <span class="n">vector_ref</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">v</span><span class="p">);</span>
 
-<span class="k">template</span> <span class="o">&lt;</span><span class="n">CmAtomicOpType</span> <span class="n">Op</span><span class="p">,</span> <span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">template</span> <span class="o">&lt;</span><span class="n">CmAtomicOpType</span> <span class="n">Op</span><span class="p">,</span> <span class="k">typename</span> <span class="n">T</span><span class="p">,</span> <span class="kt">int</span> <span class="n">N</span><span class="o">&gt;</span>
 <span class="n">write_atomic</span><span class="p">(</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ushort</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">mask</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">index</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">element_offset</span><span class="p">,</span>
              <span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">src0</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">src1</span><span class="p">);</span>
 
-<span class="k">template</span> <span class="o">&lt;</span><span class="n">CmAtomicOpType</span> <span class="n">Op</span><span class="p">,</span> <span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">template</span> <span class="o">&lt;</span><span class="n">CmAtomicOpType</span> <span class="n">Op</span><span class="p">,</span> <span class="k">typename</span> <span class="n">T</span><span class="p">,</span> <span class="kt">int</span> <span class="n">N</span><span class="o">&gt;</span>
 <span class="n">write_atomic</span><span class="p">(</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ushort</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">mask</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">index</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">element_offset</span><span class="p">,</span>
-             <span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">src0</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">v</span><span class="p">);</span>
+             <span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">src0</span><span class="p">,</span> <span class="n">vector_ref</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">v</span><span class="p">);</span>
 
-<span class="k">template</span> <span class="o">&lt;</span><span class="n">CmAtomicOpType</span> <span class="n">Op</span><span class="p">,</span> <span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">template</span> <span class="o">&lt;</span><span class="n">CmAtomicOpType</span> <span class="n">Op</span><span class="p">,</span> <span class="k">typename</span> <span class="n">T</span><span class="p">,</span> <span class="kt">int</span> <span class="n">N</span><span class="o">&gt;</span>
 <span class="n">write_atomic</span><span class="p">(</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ushort</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">mask</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">index</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">element_offset</span><span class="p">,</span>
              <span class="n">vector</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">src0</span><span class="p">);</span>
 
-<span class="k">template</span> <span class="o">&lt;</span><span class="n">CmAtomicOpType</span> <span class="n">Op</span><span class="p">,</span> <span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">template</span> <span class="o">&lt;</span><span class="n">CmAtomicOpType</span> <span class="n">Op</span><span class="p">,</span> <span class="k">typename</span> <span class="n">T</span><span class="p">,</span> <span class="kt">int</span> <span class="n">N</span><span class="o">&gt;</span>
 <span class="n">write_atomic</span><span class="p">(</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ushort</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">mask</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">index</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">element_offset</span><span class="p">,</span>
              <span class="n">vector_ref</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">v</span><span class="p">);</span>
 
-<span class="k">template</span> <span class="o">&lt;</span><span class="n">CmAtomicOpType</span> <span class="n">Op</span><span class="p">,</span> <span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+<span class="k">template</span> <span class="o">&lt;</span><span class="n">CmAtomicOpType</span> <span class="n">Op</span><span class="p">,</span> <span class="k">typename</span> <span class="n">T</span><span class="p">,</span> <span class="kt">int</span> <span class="n">N</span><span class="o">&gt;</span>
 <span class="n">write_atomic</span><span class="p">(</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ushort</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">mask</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">index</span><span class="p">,</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">element_offset</span><span class="p">);</span>
 </pre></div>
 </div>
@@ -3681,6 +3678,8 @@ later.</p>
 vector ‘v_Src’ into the SLM buffer ‘slmBuffer’ at the element-
 offsets specified in ‘v_Addr’. Note that the addresses are in
 units of element size.</p>
+<p>A variant of this API ‘cm_slm_write_scaled” is provided with
+the same parameters, except the addresses are in units of bytes.</p>
 <p>Note: Writes to overlapping addresses will have undefined
 write ordering.</p>
 </div>
@@ -3741,6 +3740,8 @@ possible, cm_slm_write4() should be used instead of
 cm_slm_write() to achieve higher performance.</p>
 <p>Note: Writes to overlapping addresses will have undefined
 write ordering.</p>
+<p>A variant of this API ‘cm_slm_write4_scaled” is provided with
+the same parameters, except the addresses are in units of bytes.</p>
 </div>
 <div class="section" id="cm-slm-read">
 <h5>cm_slm_read<a class="headerlink" href="#cm-slm-read" title="Permalink to this headline">¶</a></h5>
@@ -3758,11 +3759,13 @@ write ordering.</p>
 SLM buffer ‘slmBuffer’ at the element-offsets specified in
 ‘v_Addr’, and write back into the vector ‘v_Dst’. Note that the
 addresses are in units of element size.</p>
+<p>A variant of this API ‘cm_slm_read_scaled” is provided with
+the same parameters, except the addresses are in units of bytes.</p>
 </div>
 <div class="section" id="cm-slm-read4">
 <h5>cm_slm_read4<a class="headerlink" href="#cm-slm-read4" title="Permalink to this headline">¶</a></h5>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">cm_slm_read4</span><span class="p">(</span><span class="n">uint</span> <span class="n">slmBuffer</span><span class="p">,</span>
-                  <span class="n">vector_ref</span><span class="o">&lt;</span><span class="n">ushort</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">v_Addr</span><span class="p">,</span>
+                  <span class="n">vector_ref</span><span class="o">&lt;</span><span class="n">uint</span><span class="p">,</span> <span class="n">N</span><span class="o">&gt;</span> <span class="n">v_Addr</span><span class="p">,</span>
                   <span class="n">vector_ref</span><span class="o">&lt;</span><span class="n">TYPE</span><span class="p">,</span> <span class="n">M</span><span class="o">&gt;</span> <span class="n">v_Dst</span><span class="p">,</span>
                   <span class="n">SLM_ChannelMaskType</span> <span class="n">mask</span><span class="p">);</span>
 </pre></div>
@@ -3813,6 +3816,16 @@ means the value is not read.</p>
 bandwidth than cm_slm_read() on Gen7 hardware. Whenever
 possible, cm_slm_read4() should be used instead of
 cm_slm_read() to achieve higher performance.</p>
+<p>A variant of this API ‘cm_slm_read4_scaled” is provided with
+the same parameters, except the addresses are in units of bytes.</p>
+</div>
+<div class="section" id="cm-slm-fence">
+<h5>cm_slm_fence<a class="headerlink" href="#cm-slm-fence" title="Permalink to this headline">¶</a></h5>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">cm_slm_fence</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="kt">char</span> <span class="n">mask</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>For Gen10+, cm_slm_fence(CM_GLOBAL_COHERENT_FENCE) must be
+added before a barrier to enforce read/write ordering.</p>
 </div>
 <div class="section" id="cm-barrier">
 <h5>cm_barrier<a class="headerlink" href="#cm-barrier" title="Permalink to this headline">¶</a></h5>
@@ -3822,6 +3835,14 @@ cm_slm_read() to achieve higher performance.</p>
 <p>Inserts a barrier to ensure all writes to SLM before this point
 would be henceforth visible to other threads in the same
 group.</p>
+</div>
+<div class="section" id="cm-sbarrier">
+<h5>cm_sbarrier<a class="headerlink" href="#cm-sbarrier" title="Permalink to this headline">¶</a></h5>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">cm_sbarrier</span> <span class="p">(</span><span class="n">uint</span> <span class="n">flag</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Split a barrier into two separate events: 1) signal: cm_sbarrier(1);
+2) wait: cm_sbarrier(0). The input parameter flag must be a compile-time constant.</p>
 </div>
 <div class="section" id="cm-slm-load">
 <h5>cm_slm_load<a class="headerlink" href="#cm-slm-load" title="Permalink to this headline">¶</a></h5>
@@ -3872,6 +3893,102 @@ atomic operation is specified as ‘aop’. The value returned in
 ‘v_Dst’ depends on the atomic operation. Whether the two
 optional sources, ‘v_Src0’ and ‘v_Src1’, are needed also
 depends on the atomic operation.</p>
+</div>
+</div>
+<div class="section" id="slm-block-read-write">
+<h4>SLM Block Read/Write<a class="headerlink" href="#slm-block-read-write" title="Permalink to this headline">¶</a></h4>
+<p>CM provides the following qualifiers for specifying the input usage options:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="23%" />
+<col width="77%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Qualifier</th>
+<th class="head">&#160;</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>DWALIGNED</td>
+<td>indicates that the offset is DWord aligned.</td>
+</tr>
+<tr class="row-odd"><td>MODIFIED_DWALIGNED</td>
+<td>deprecated: same as DWALIGNED, as there is no modified bit in
+current hardware.</td>
+</tr>
+</tbody>
+</table>
+<p>Out-of-bound reads return zero, while out-of-bound writes are dropped.</p>
+<p>Note: CM currently only supports read/write operations of SLM Block data with
+size &lt;= 128 bytes.</p>
+<div class="section" id="cm-slm-block-read">
+<h5>cm_slm_block_read<a class="headerlink" href="#cm-slm-block-read" title="Permalink to this headline">¶</a></h5>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">cm_slm_block_read</span><span class="p">(</span><span class="n">uint</span> <span class="n">slmBuffer</span><span class="p">,</span> <span class="kt">int</span> <span class="n">offset</span><span class="p">,</span> <span class="n">vector_ref</span> <span class="n">v</span><span class="p">);</span>
+</pre></div>
+</div>
+<table border="1" class="docutils">
+<colgroup>
+<col width="19%" />
+<col width="81%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Parameters</th>
+<th class="head">&#160;</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>slmBuffer</td>
+<td>must correspond to a SLM-buffer
+(optionally qualified as specified above)</td>
+</tr>
+<tr class="row-odd"><td>offset</td>
+<td>zero based offset of the input buffer in <em>bytes</em>.  Must be
+OWord (i.e. 16 bytes) aligned, but need be only DWord (i.e. 4
+bytes) aligned if the DWALIGNED or MODIFIED_DWALIGNED modifier
+is present.</td>
+</tr>
+<tr class="row-even"><td>v</td>
+<td>the data location to be read / written:
+the width of vector v must be OWord (i.e. 16 bytes) aligned.</td>
+</tr>
+</tbody>
+</table>
+<p>Usage example:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">read</span> <span class="p">(</span><span class="n">DWALIGNED</span><span class="p">(</span><span class="n">slmBuffer</span><span class="p">),</span> <span class="p">...)</span>  <span class="c1">// the offset ind is DWord aligned</span>
+<span class="n">read</span><span class="p">(</span><span class="n">ind</span><span class="p">,</span> <span class="p">...)</span>                    <span class="c1">// the offset ind is OWord aligned</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="cm-slm-block-write">
+<h5>cm_slm_block_write<a class="headerlink" href="#cm-slm-block-write" title="Permalink to this headline">¶</a></h5>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">cm_slm_block_write</span><span class="p">(</span><span class="n">uint</span> <span class="n">slmBuffer</span><span class="p">,</span> <span class="kt">int</span> <span class="n">offset</span><span class="p">,</span> <span class="k">const</span> <span class="n">vector</span> <span class="n">v</span><span class="p">);</span>
+</pre></div>
+</div>
+<table border="1" class="docutils">
+<colgroup>
+<col width="19%" />
+<col width="81%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Parameters</th>
+<th class="head">&#160;</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>slmBuffer</td>
+<td>must correspond to a SLM-buffer
+(optionally qualified as specified above)</td>
+</tr>
+<tr class="row-odd"><td>offset</td>
+<td>zero based offset of the input buffer in <em>bytes</em>;
+must be OWord (i.e. 16 bytes) aligned.</td>
+</tr>
+<tr class="row-even"><td>v</td>
+<td>the data location to be read / written:
+the width of vector v can be only 1, 2, 4 or 8 OWords.</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 </div>
@@ -7856,11 +7973,17 @@ have been globally observed.</p>
 </thead>
 <tbody valign="top">
 <tr class="row-even"><td>mask</td>
-<td><p class="first">{Gen8+} a bit mask that controls which cache should be
-flushed.  Valid masks are:</p>
+<td><p class="first">{Gen8+} a bit mask that controls additional cache flush or
+fence behavior. Valid masks are:</p>
 <ul class="simple">
+<li>CM_GLOBAL_COHERENT_FENCE: enables commit enable setting</li>
+<li>CM_L3_FLUSH_INSTRUCTIONS: flushes the instruction cache</li>
 <li>CM_L3_FLUSH_TEXTURE_DATA: flushes the sampler cache</li>
+<li>CM_L3_FLUSH_CONSTANT_DATA: flushes the constant cache</li>
 <li>CM_L3_FLUSH_RW_DATA: flushes the read-write cache</li>
+<li>CM_LOCAL_BARRIER: enables local memory barrier</li>
+<li>CM_L1_FLUASH_RO_DATA: flushes L1 read-only cache</li>
+<li>CM_SW_BARRIER: enables software scheduling barrier</li>
 </ul>
 <p>The masks may be combined if more than one cache is to be
 flushed.</p>
@@ -13152,7 +13275,7 @@ input/output data variables are specified in Section 4.12.4.</p>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
-      Last updated on Wed Oct 17 14:57:53 2018 -0700.
+      Last updated on Fri Feb 22 15:24:15 2019 -0800.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

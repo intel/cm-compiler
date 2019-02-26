@@ -964,6 +964,9 @@ void CodeGenFunction::StartFunction(GlobalDecl GD,
       if (auto FloatControlAttr = FD->getAttr<CMFloatControlAttr>())
         Fn->addFnAttr("CMFloatControl",
                       std::to_string(FloatControlAttr->getMode()));
+      if (auto GenxSIMTAttr = FD->getAttr<CMGenxSIMTAttr>())
+        Fn->addFnAttr("CMGenxSIMT", std::to_string(GenxSIMTAttr->getMode()));
+
       if (FD->hasAttr<CMGenxMainAttr>())
       {
         if (FD->hasAttr<CMCallableAttr>())

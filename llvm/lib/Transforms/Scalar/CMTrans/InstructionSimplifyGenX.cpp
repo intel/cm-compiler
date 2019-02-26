@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -30,10 +30,14 @@
 
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/IntrinsicsGenX.h"
+#include "llvm/Pass.h"
+#include "llvm/PassSupport.h"
+#include "llvm/Transforms/Scalar.h"
 
 using namespace llvm;
 
@@ -172,9 +176,74 @@ Value *llvm::SimplifyGenXIntrinsic(unsigned IID, Type *RetTy,
 {
   return SimplifyGenXIntrinsic2(IID, RetTy, ArgBegin, ArgEnd);
 }
+
 Value *llvm::SimplifyGenXIntrinsic(unsigned IID, Type *RetTy,
     Value *const *ArgBegin, Value *const *ArgEnd)
 {
   return SimplifyGenXIntrinsic2(IID, RetTy, ArgBegin, ArgEnd);
 }
 
+namespace {
+class GenXSimplify : public FunctionPass {
+public:
+  static char ID;
+
+  GenXSimplify() : FunctionPass(ID) {
+    initializeGenXSimplifyPass(*PassRegistry::getPassRegistry());
+  }
+
+  bool runOnFunction(Function &F) override;
+
+private:
+  template <typename IterTy>
+  Value *simplifyCall(Value *V, IterTy ArgBegin, IterTy ArgEnd);
+};
+} // namespace
+
+bool GenXSimplify::runOnFunction(Function &F) {
+  bool Changed = false;
+  for (BasicBlock &BB : F) {
+    for (auto I = BB.begin(); I != BB.end();) {
+      Instruction *Inst = &(*I++);
+      if (auto CI = dyn_cast<CallInst>(Inst)) {
+        CallSite CS(CI);
+        if (Value *V = simplifyCall(CS.getCalledValue(), CS.arg_begin(),
+                                    CS.arg_end())) {
+          Inst->replaceAllUsesWith(V);
+          Inst->eraseFromParent();
+          Changed = true;
+        }
+      }
+    }
+  }
+  return Changed;
+}
+
+template <typename IterTy>
+Value *GenXSimplify::simplifyCall(Value *V, IterTy ArgBegin, IterTy ArgEnd) {
+  Type *Ty = V->getType();
+  if (PointerType *PTy = dyn_cast<PointerType>(Ty))
+    Ty = PTy->getElementType();
+  FunctionType *FTy = cast<FunctionType>(Ty);
+  Function *F = dyn_cast<Function>(V);
+  if (!F)
+    return nullptr;
+
+  if (unsigned IID = F->getIntrinsicID()) {
+    // Handle GenX intrinsics. This comparison uses the start and end markers of
+    // the genx intrinsic enum values, relying on tablegen outputting the
+    // intrinsics in sorted by name order.
+    if ((unsigned)(IID - Intrinsic::genx_aaaabegin) <=
+        (Intrinsic::genx_zzzzend - Intrinsic::genx_aaaabegin))
+      if (Value *Ret = SimplifyGenXIntrinsic(IID, FTy->getReturnType(),
+                                             ArgBegin, ArgEnd))
+        return Ret;
+  }
+  return nullptr;
+}
+
+char GenXSimplify::ID = 0;
+INITIALIZE_PASS(GenXSimplify, "genxsimplify",
+                "simplify genx specific instructions", false, false)
+
+FunctionPass *llvm::createGenXSimplifyPass() { return new GenXSimplify; }

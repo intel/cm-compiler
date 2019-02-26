@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -69,16 +69,16 @@ template <> struct is_integral_impl<unsigned long> : true_type {};
 template <> struct is_integral_impl<long long> : true_type {};
 template <> struct is_integral_impl<unsigned long long> : true_type {};
 
-template <typename T> struct is_integral : is_integral_impl<T> {};
+template <typename T>
+struct is_integral : is_integral_impl<typename std::remove_const<T>::type> {};
 
-template <typename T> struct is_unsigned_impl : false_type {};
-template <> struct is_unsigned_impl<unsigned char> : true_type {};
-template <> struct is_unsigned_impl<unsigned short> : true_type {};
-template <> struct is_unsigned_impl<unsigned int> : true_type {};
-template <> struct is_unsigned_impl<unsigned long> : true_type {};
-template <> struct is_unsigned_impl<unsigned long long> : true_type {};
+template <typename T>
+struct is_signed
+    : integral_constant<bool, is_integral<T>::value && (T(-1) < T(0))> {};
 
-template <typename T> struct is_unsigned : is_unsigned_impl<T> {};
+template <typename T>
+struct is_unsigned
+    : integral_constant<bool, is_integral<T>::value && (T(-1) > T(0))> {};
 
 template <typename T> struct is_long_long_impl : false_type {};
 template <> struct is_long_long_impl<unsigned long long> : true_type {};
@@ -90,9 +90,8 @@ template <typename T>
 struct is_floating_point
     : integral_constant<
           bool,
-          std::is_same<float, typename std::remove_const<T>::type>::value ||
-              std::is_same<double,
-                           typename std::remove_const<T>::type>::value> {};
+          std::is_same<float,  typename std::remove_const<T>::type>::value ||
+          std::is_same<double, typename std::remove_const<T>::type>::value> {};
 
 // Extends to cm vector/matrix types.
 template <typename T, int N> struct is_floating_point<vector<T, N> > {
@@ -231,6 +230,31 @@ struct is_word_type<matrix_ref<T, N1, N2> > {
 };
 
 template <typename T>
+struct is_byte_type
+    : std::integral_constant<
+          bool,
+          std::is_same<char, typename std::remove_const<T>::type>::value ||
+              std::is_same<unsigned char,
+                           typename std::remove_const<T>::type>::value> {};
+
+template <typename T, int N> struct is_byte_type<vector<T, N> > {
+  static const bool value = is_byte_type<T>::value;
+};
+
+template <typename T, int N> struct is_byte_type<vector_ref<T, N> > {
+  static const bool value = is_byte_type<T>::value;
+};
+
+template <typename T, int N1, int N2> struct is_byte_type<matrix<T, N1, N2> > {
+  static const bool value = is_byte_type<T>::value;
+};
+
+template <typename T, int N1, int N2>
+struct is_byte_type<matrix_ref<T, N1, N2> > {
+  static const bool value = is_byte_type<T>::value;
+};
+
+template <typename T>
 struct is_fp_type
     : std::integral_constant<
           bool,
@@ -250,6 +274,29 @@ struct is_fp_or_dword_type
               std::is_same<int, typename std::remove_const<T>::type>::value ||
               std::is_same<unsigned int,
                            typename std::remove_const<T>::type>::value> {};
+
+template <typename T>
+struct is_qword_type
+    : std::integral_constant<
+          bool, std::is_same<long long, typename std::remove_const<T>::type>::value ||
+          std::is_same<unsigned long long, typename std::remove_const<T>::type>::value> {};
+
+template <typename T, int N> struct is_qword_type<vector<T, N> > {
+  static const bool value = is_qword_type<T>::value;
+};
+
+template <typename T, int N> struct is_qword_type<vector_ref<T, N> > {
+  static const bool value = is_qword_type<T>::value;
+};
+
+template <typename T, int N1, int N2> struct is_qword_type<matrix<T, N1, N2> > {
+  static const bool value = is_qword_type<T>::value;
+};
+
+template <typename T, int N1, int N2>
+struct is_qword_type<matrix_ref<T, N1, N2> > {
+  static const bool value = is_qword_type<T>::value;
+};
 
 // Extends to cm vector/matrix types.
 template <typename T, int N> struct is_fp_or_dword_type<vector<T, N> > {
@@ -414,6 +461,15 @@ template <typename T1, typename T2> struct computation_type {
 template <typename T1, typename T2> struct common_type {
   typedef decltype(true ? T1() : T2()) type;
 };
+
+// Base case for checking if a type U is one of the types.
+template <typename U> constexpr bool is_type() { return false; }
+
+template <typename U, typename T, typename... Ts> constexpr bool is_type() {
+  using _U = typename std::remove_const<U>::type;
+  using _T = typename std::remove_const<T>::type;
+  return std::is_same<_U, _T>::value || is_type<_U, Ts...>();
+}
 
 } // details
 

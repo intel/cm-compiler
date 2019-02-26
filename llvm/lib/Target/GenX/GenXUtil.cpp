@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,6 +32,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 
@@ -527,6 +528,84 @@ ShuffleVectorAnalyzer::SplatInfo ShuffleVectorAnalyzer::getAsSplat()
         return SplatInfo(IE->getOperand(1), 0);
   }
   return SplatInfo(InVec1, ShuffleIdx);
+}
+
+Value *ShuffleVectorAnalyzer::serialize() {
+  unsigned Cost0 = getSerializeCost(0);
+  unsigned Cost1 = getSerializeCost(1);
+
+  Value *Op0 = SI->getOperand(0);
+  Value *Op1 = SI->getOperand(1);
+  Value *V = Op0;
+  bool UseOp0AsBase = Cost0 <= Cost1;
+  if (!UseOp0AsBase)
+    V = Op1;
+
+  // Expand or shink the initial value if sizes mismatch.
+  unsigned NElts = SI->getType()->getVectorNumElements();
+  unsigned M = V->getType()->getVectorNumElements();
+  bool SkipBase = true;
+  if (M != NElts) {
+    if (auto C = dyn_cast<Constant>(V)) {
+      SmallVector<Constant *, 16> Vals;
+      for (unsigned i = 0; i < NElts; ++i) {
+        Type *Ty = C->getType()->getVectorElementType();
+        Constant *Elt =
+            (i < M) ? C->getAggregateElement(i) : UndefValue::get(Ty);
+        Vals.push_back(Elt);
+      }
+      V = ConstantVector::get(Vals);
+    } else {
+      // Need to insert individual elements.
+      V = UndefValue::get(SI->getType());
+      SkipBase = false;
+    }
+  }
+
+  IRBuilder<> Builder(SI);
+  for (unsigned i = 0; i < NElts; ++i) {
+    // Undef index returns -1.
+    int idx = SI->getMaskValue(i);
+    if (idx < 0)
+      continue;
+    if (SkipBase) {
+      if (UseOp0AsBase && idx == i)
+        continue;
+      if (!UseOp0AsBase && idx == i + M)
+        continue;
+    }
+
+    Value *Vi = nullptr;
+    if (idx < M)
+      Vi = Builder.CreateExtractElement(Op0, idx, "");
+    else
+      Vi = Builder.CreateExtractElement(Op1, idx - M, "");
+    if (!isa<UndefValue>(Vi))
+      V = Builder.CreateInsertElement(V, Vi, i, "");
+  }
+
+  return V;
+}
+
+unsigned ShuffleVectorAnalyzer::getSerializeCost(unsigned i) {
+  unsigned Cost = 0;
+  Value *Op = SI->getOperand(i);
+  if (!isa<Constant>(Op) && Op->getType() != SI->getType())
+    Cost += Op->getType()->getVectorNumElements();
+
+  unsigned NElts = SI->getType()->getVectorNumElements();
+  for (unsigned j = 0; j < NElts; ++j) {
+    // Undef index returns -1.
+    int idx = SI->getMaskValue(j);
+    if (idx < 0)
+      continue;
+    // Count the number of elements out of place.
+    unsigned M = Op->getType()->getVectorNumElements();
+    if ((i == 0 && idx != j) || (i == 1 && idx != j + M))
+      Cost++;
+  }
+
+  return Cost;
 }
 
 /***********************************************************************

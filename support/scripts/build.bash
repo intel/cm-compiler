@@ -702,8 +702,6 @@ if [ "$BUILD" != "0" ]; then
     if [ "$INSTALL_PATH" != "" ]; then
         if [ ! -d "$INSTALL_PATH" ]; then
             mkdir $INSTALL_PATH
-            mkdir $INSTALL_PATH/include
-            mkdir $INSTALL_PATH/bin
         fi
         if [ ! -d "$INSTALL_PATH/include" ]; then
             mkdir $INSTALL_PATH/include

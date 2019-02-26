@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -165,6 +165,7 @@ namespace llvm {
       ISA_SCATTER_SCALED     = 0x79,
       ISA_RAW_SENDS          = 0x7A,
       ISA_LIFETIME           = 0x7B,
+      ISA_SBARRIER           = 0x7C,
       ISA_DWORD_ATOMIC       = 0x7D,
       ISA_SQRTM              = 0x7E,
       ISA_DIVM               = 0x7F,

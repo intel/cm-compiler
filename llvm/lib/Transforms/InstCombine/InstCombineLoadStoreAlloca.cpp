@@ -983,13 +983,9 @@ static bool canSimplifyNullLoadOrGEP(LoadInst &LI, Value *Op) {
 Instruction *InstCombiner::visitLoadInst(LoadInst &LI) {
   Value *Op = LI.getOperand(0);
                 
-// For GenX, there is no benfit to change load type which in fact creates
-// constant expressions on addresses.
-#if 0 // GENX_BEGIN
   // Try to canonicalize the loaded type.
   if (Instruction *Res = combineLoadToOperationType(*this, LI))
     return Res;
-#endif // GENX_END
 
   // Attempt to improve the alignment.
   unsigned KnownAlign = getOrEnforceKnownAlignment(
@@ -1383,13 +1379,9 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
   Value *Val = SI.getOperand(0);
   Value *Ptr = SI.getOperand(1);
 
-// For GenX, there is no benfit to change store type which in fact creates
-// constant expressions on addresses.
-#if 0 // GENX_BEGIN
   // Try to canonicalize the stored type.
   if (combineStoreToValueType(*this, SI))
     return eraseInstFromFunction(SI);
-#endif // GENX_END
 
   // Attempt to improve the alignment.
   unsigned KnownAlign = getOrEnforceKnownAlignment(

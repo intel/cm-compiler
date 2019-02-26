@@ -435,6 +435,9 @@ Pass *createCMLowerLoadStorePass();
 
 FunctionPass *createGenXReduceIntSizePass();
 FunctionPass *createGenXRegionCollapsingPass();
+FunctionPass *createGenXSimplifyPass();
+
+ModulePass *createGenXPacketizePass();
 
 //===----------------------------------------------------------------------===//
 //

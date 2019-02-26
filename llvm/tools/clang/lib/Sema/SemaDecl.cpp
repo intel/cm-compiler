@@ -9116,7 +9116,7 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
   }
 
   if (NewFD->hasAttr<CMFloatControlAttr>()) {
-    if (!NewFD->hasAttr<CMGenxMainAttr>())
+    if (!NewFD->hasAttr<CMGenxMainAttr>() && !NewFD->hasAttr<NoInlineAttr>())
       Diag(NewFD->getLocation(), diag::err_cm_invalid_float_control_use);
   }
 

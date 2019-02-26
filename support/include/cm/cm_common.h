@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -123,8 +123,10 @@ typedef __uint64 uint64_t;
 
 #if __SIZEOF_POINTER__ == 8
 typedef uint64_t uintptr_t;
+typedef int64_t ptrdiff_t;
 #elif __SIZEOF_POINTER__ == 4
 typedef uint32_t uintptr_t;
+typedef int32_t ptrdiff_t;
 #else
 #error improbably-sized pointers on this target
 #endif
@@ -355,6 +357,7 @@ enum class CmAtomicOpType {
   _ATOMIC_FMAX = 0x10,
   _ATOMIC_FMIN = 0x11,
   _ATOMIC_FCMPWR = 0x12,
+  _ATOMIC_PREDEC = 0xff
 };
 
 #define ATOMIC_ADD CmAtomicOpType::_ATOMIC_ADD
@@ -373,6 +376,7 @@ enum class CmAtomicOpType {
 #define ATOMIC_FMAX CmAtomicOpType::_ATOMIC_FMAX
 #define ATOMIC_FMIN CmAtomicOpType::_ATOMIC_FMIN
 #define ATOMIC_FCMPWR CmAtomicOpType::_ATOMIC_FCMPWR
+#define ATOMIC_PREDEC CmAtomicOpType::_ATOMIC_PREDEC
 
 enum class CM3DSampleOp : int {
   _CM_3D_SAMPLE = 0,
@@ -473,8 +477,9 @@ enum CmFloatControl {
 
 // Macros
 #define NULL 0
-#define _GENX_MAIN_ __declspec(genx_main)
-#define _GENX_ __declspec(genx)
+#define _GENX_MAIN_   __declspec(genx_main)
+#define _GENX_        __declspec(genx)
+#define _CM_BUILTIN_  __declspec(cm_builtin)
 #define SAT _GENX_SAT
 
 // Fast-composition kernel attribute

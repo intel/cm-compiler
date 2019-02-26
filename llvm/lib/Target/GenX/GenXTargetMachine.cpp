@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -62,6 +62,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Transforms/Scalar.h"
+
 using namespace llvm;
 
 static cl::opt<bool> DumpRegAlloc("genx-dump-regalloc", cl::init(false), cl::Hidden,
@@ -131,6 +132,7 @@ bool GenXTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   // This adds it explicitly to allow passes access the subtarget object using
   // method getAnalysisIfAvailable.
   PM.add(createGenXSubtargetPass(Subtarget));
+
   // All passes which modify the LLVM IR are now complete; run the verifier
   // to ensure that the IR is valid.
   if (!DisableVerify)
@@ -215,6 +217,8 @@ bool GenXTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   PM.add(createGenXFuncBalingPass(BalingKind::BK_Legalization));
   /// .. include:: GenXLegalization.cpp
   PM.add(createGenXLegalizationPass());
+  /// .. include:: GenXEmulate.cpp
+  PM.add(createGenXEmulatePass());
   /// .. include:: GenXDeadVectorRemoval.cpp
   PM.add(createGenXDeadVectorRemovalPass());
   /// DeadCodeElimination

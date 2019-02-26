@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -74,6 +74,7 @@ _ATOMIC_CHECK_TYPES(ATOMIC_MAXSINT, uint, int);
 _ATOMIC_CHECK(ATOMIC_FMAX, float);
 _ATOMIC_CHECK(ATOMIC_FMIN, float);
 _ATOMIC_CHECK(ATOMIC_FCMPWR, float);
+_ATOMIC_CHECK_TYPES(ATOMIC_PREDEC, uint, int);
 
 #undef _ATOMIC_CHECK
 
@@ -200,6 +201,10 @@ write(SurfaceIndex index, CmAtomicOpType op, uint globalOffset,
     ret = details::__cm_intrinsic_impl_atomic_write<ATOMIC_DEC, 8, uint>(
         mask, index, _Offset, _Src0, _Src1, ret);
     break;
+  case ATOMIC_PREDEC:
+    ret = details::__cm_intrinsic_impl_atomic_write<ATOMIC_DEC, 8, uint>(
+      mask, index, _Offset, _Src0, _Src1, ret) - 1;
+    break;
   case ATOMIC_MIN:
     _ATOMIC_WRITE(ATOMIC_MIN, 8, uint);
     break;
@@ -257,81 +262,72 @@ write(SurfaceIndex index, CmAtomicOpType op, uint globalOffset,
 /// \param ret the data location to store the returned result, which corresponds
 /// to the old surface data value.
 ///
+
+// has return value, one source
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC) &&
+    (Op != ATOMIC_CMPXCHG && Op!= ATOMIC_FCMPWR &&
+     Op != ATOMIC_INC && Op != ATOMIC_DEC && Op != ATOMIC_PREDEC) &&
                               details::isPowerOf2(N, 16), void>::type
 write_atomic(SurfaceIndex index, vector<uint, N> elementOffset,
-             vector<T, N> src0, vector<T, N> src1, vector_ref<T, N> ret) {
+             vector<T, N> src0, vector_ref<T, N> ret) {
   // Perform remaining element type checking
   details::is_valid_atomic_op<T, Op>::check();
   vector<ushort, N> mask = 1;
-  ret = details::__cm_intrinsic_impl_atomic_write<Op, N, T>(
-      mask, index, elementOffset, src0, src1, ret);
+  vector<T, N> dummy;
+  vector_ref<uint, N> _Ret = ret.format<uint>();
+  _Ret = details::__cm_intrinsic_impl_atomic_write<Op, N, T>(
+      mask, index, elementOffset, src0, dummy, ret);
 }
 
+// mask, has return value, one source
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC) &&
+    (Op != ATOMIC_CMPXCHG && Op!= ATOMIC_FCMPWR &&
+     Op != ATOMIC_INC && Op != ATOMIC_DEC && Op != ATOMIC_PREDEC) &&
                               details::isPowerOf2(N, 16), void>::type
 write_atomic(vector<ushort, N> mask, SurfaceIndex index,
              vector<uint, N> elementOffset, vector<T, N> src0,
-             vector<T, N> src1, vector_ref<T, N> ret) {
+             vector_ref<T, N> ret) {
   // Perform remaining element type checking
   details::is_valid_atomic_op<T, Op>::check();
-  ret = details::__cm_intrinsic_impl_atomic_write<Op, N, T>(
-      mask, index, elementOffset, src0, src1, ret);
-}
-
-// no return value
-template <CmAtomicOpType Op, typename T, int N>
-CM_NODEBUG CM_INLINE
-typename std::enable_if<
-    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC) &&
-                              details::isPowerOf2(N, 16), void>::type
-write_atomic(SurfaceIndex index, vector<uint, N> elementOffset,
-             vector<T, N> src0, vector<T, N> src1) {
   vector<T, N> dummy;
-  write_atomic<Op, T>(index, elementOffset, src0, src1, dummy);
-}
-
-// mask and no return value
-template <CmAtomicOpType Op, typename T, int N>
-CM_NODEBUG CM_INLINE
-typename std::enable_if<
-    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC) &&
-                              details::isPowerOf2(N, 16), void>::type
-write_atomic(vector<ushort, N> mask, SurfaceIndex index,
-             vector<uint, N> elementOffset, vector<T, N> src0,
-             vector<T, N> src1) {
-  vector<T, N> dummy;
-  write_atomic<Op, T>(mask, index, elementOffset, src0, src1, dummy);
+  vector_ref<uint, N> _Ret = ret.format<uint>();
+  _Ret = details::__cm_intrinsic_impl_atomic_write<Op, N, T>(
+      mask, index, elementOffset, src0, dummy, ret);
 }
 
 // no return value, one source
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC) &&
+    (Op != ATOMIC_CMPXCHG && Op!= ATOMIC_FCMPWR &&
+     Op != ATOMIC_INC && Op != ATOMIC_DEC && Op != ATOMIC_PREDEC) &&
                               details::isPowerOf2(N, 16), void>::type
 write_atomic(SurfaceIndex index, vector<uint, N> elementOffset,
              vector<T, N> src0) {
   vector<T, N> dummy;
-  write_atomic<Op, T>(index, elementOffset, src0, dummy, dummy);
+  details::is_valid_atomic_op<T, Op>::check();
+  vector<ushort, N> mask = 1;
+  details::__cm_intrinsic_impl_atomic_write<Op, N, T>(
+      mask, index, elementOffset, src0, dummy, dummy);
 }
 
 // mask, no return value, one source
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC) &&
+    (Op != ATOMIC_CMPXCHG && Op!= ATOMIC_FCMPWR &&
+     Op != ATOMIC_INC && Op != ATOMIC_DEC && Op != ATOMIC_PREDEC) &&
                               details::isPowerOf2(N, 16), void>::type
 write_atomic(vector<ushort, N> mask, SurfaceIndex index,
              vector<uint, N> elementOffset, vector<T, N> src0) {
   vector<T, N> dummy;
-  write_atomic<Op, T>(mask, index, elementOffset, src0, dummy, dummy);
+  details::is_valid_atomic_op<T, Op>::check();
+  details::__cm_intrinsic_impl_atomic_write<Op, N, T>(
+      mask, index, elementOffset, src0, dummy, dummy);
 }
 
 // INC/DEC: return value
@@ -349,6 +345,21 @@ write_atomic(SurfaceIndex index, vector<uint, N> elementOffset,
       mask, index, elementOffset, dummy, dummy, _Ret);
 }
 
+// PREDEC: return value
+template <CmAtomicOpType Op, typename T, int N>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(Op == ATOMIC_PREDEC) &&
+(details::is_dword_type<T>::value) &&
+details::isPowerOf2(N, 16), void>::type
+write_atomic(SurfaceIndex index, vector<uint, N> elementOffset,
+  vector_ref<T, N> ret) {
+  vector<uint, N> dummy;
+  vector_ref<uint, N> _Ret = ret.format<uint>();
+  vector<ushort, N> mask = 1;
+  _Ret = details::__cm_intrinsic_impl_atomic_write<ATOMIC_DEC, N, uint>(
+    mask, index, elementOffset, dummy, dummy, _Ret) - 1;
+}
+
 // INC/DEC: mask and return value
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
@@ -363,6 +374,20 @@ write_atomic(vector<ushort, N> mask, SurfaceIndex index,
       mask, index, elementOffset, dummy, dummy, _Ret);
 }
 
+// PREDEC: mask and return value
+template <CmAtomicOpType Op, typename T, int N>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(Op == ATOMIC_PREDEC) &&
+(details::is_dword_type<T>::value) &&
+details::isPowerOf2(N, 16), void>::type
+write_atomic(vector<ushort, N> mask, SurfaceIndex index,
+  vector<uint, N> elementOffset, vector_ref<T, N> ret) {
+  vector<uint, N> dummy;
+  vector_ref<uint, N> _Ret = ret.format<uint>();
+  _Ret = details::__cm_intrinsic_impl_atomic_write<ATOMIC_DEC, N, uint>(
+    mask, index, elementOffset, dummy, dummy, _Ret) - 1;
+}
+
 // INC/DEC: no return value
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
@@ -371,7 +396,24 @@ typename std::enable_if<(Op == ATOMIC_INC || Op == ATOMIC_DEC) &&
                             details::isPowerOf2(N, 16), void>::type
 write_atomic(SurfaceIndex index, vector<uint, N> elementOffset) {
   vector<T, N> dummy;
-  write_atomic<Op, T>(index, elementOffset, dummy);
+  details::is_valid_atomic_op<T, Op>::check();
+  vector<ushort, N> mask = 1;
+  details::__cm_intrinsic_impl_atomic_write<Op, N, T>(
+      mask, index, elementOffset, dummy, dummy, dummy);
+}
+
+// PREDEC: no return value
+template <CmAtomicOpType Op, typename T, int N>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(Op == ATOMIC_PREDEC) &&
+(details::is_dword_type<T>::value) &&
+details::isPowerOf2(N, 16), void>::type
+write_atomic(SurfaceIndex index, vector<uint, N> elementOffset) {
+  vector<T, N> dummy;
+  details::is_valid_atomic_op<T, Op>::check();
+  vector<ushort, N> mask = 1;
+  details::__cm_intrinsic_impl_atomic_write<ATOMIC_DEC, N, T>(
+    mask, index, elementOffset, dummy, dummy, dummy);
 }
 
 // INC/DEC: mask and no return value
@@ -384,20 +426,38 @@ typename std::enable_if<(Op == ATOMIC_INC || Op == ATOMIC_DEC) &&
 write_atomic(vector<ushort, N> mask, SurfaceIndex index,
              vector<uint, N> elementOffset) {
   vector<T, N> dummy;
-  write_atomic<Op, T>(mask, index, elementOffset, dummy);
+  details::is_valid_atomic_op<T, Op>::check();
+  details::__cm_intrinsic_impl_atomic_write<Op, N, T>(
+      mask, index, elementOffset, dummy, dummy, dummy);
+}
+
+// PREDEC: mask and no return value
+template <CmAtomicOpType Op, typename T, int N>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(Op == ATOMIC_PREDEC) &&
+(details::is_dword_type<T>::value) &&
+details::isPowerOf2(N, 16),
+void>::type
+write_atomic(vector<ushort, N> mask, SurfaceIndex index,
+  vector<uint, N> elementOffset) {
+  vector<T, N> dummy;
+  details::is_valid_atomic_op<T, Op>::check();
+  details::__cm_intrinsic_impl_atomic_write<ATOMIC_DEC, N, T>(
+    mask, index, elementOffset, dummy, dummy, dummy);
 }
 
 // CMPXCHG: return value
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op == ATOMIC_CMPXCHG) && (details::is_dword_type<T>::value) &&
-    details::isPowerOf2(N, 16), void>::type
+    (Op == ATOMIC_CMPXCHG || Op == ATOMIC_FCMPWR) &&
+               (details::is_fp_or_dword_type<T>::value) &&
+                details::isPowerOf2(N, 16), void>::type
 write_atomic(SurfaceIndex index, vector<uint, N> elementOffset,
-             vector<T, N> src0, vector<T, N> src1, vector_ref<uint, N> ret) {
-  vector_ref<uint, N> _Ret = ret.format<uint>();
+             vector<T, N> src0, vector<T, N> src1, vector_ref<T, N> ret) {
+  vector_ref<T, N> _Ret = ret.format<T>();
   vector<ushort, N> mask = 1;
-  _Ret = details::__cm_intrinsic_impl_atomic_write<Op, N, uint>(
+  _Ret = details::__cm_intrinsic_impl_atomic_write<Op, N, T>(
       mask, index, elementOffset, src0, src1, _Ret);
 }
 
@@ -405,13 +465,14 @@ write_atomic(SurfaceIndex index, vector<uint, N> elementOffset,
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op == ATOMIC_CMPXCHG) && (details::is_dword_type<T>::value) &&
-    details::isPowerOf2(N, 16), void>::type
+    (Op == ATOMIC_CMPXCHG || Op == ATOMIC_FCMPWR) &&
+               (details::is_fp_or_dword_type<T>::value) &&
+                details::isPowerOf2(N, 16), void>::type
 write_atomic(vector<ushort, N> mask, SurfaceIndex index,
              vector<uint, N> elementOffset, vector<T, N> src0,
-             vector<T, N> src1, vector_ref<uint, N> ret) {
-  vector_ref<uint, N> _Ret = ret.format<uint>();
-  _Ret = details::__cm_intrinsic_impl_atomic_write<Op, N, uint>(
+             vector<T, N> src1, vector_ref<T, N> ret) {
+  vector_ref<T, N> _Ret = ret.format<uint>();
+  _Ret = details::__cm_intrinsic_impl_atomic_write<Op, N, T>(
       mask, index, elementOffset, src0, src1, _Ret);
 }
 
@@ -419,11 +480,12 @@ write_atomic(vector<ushort, N> mask, SurfaceIndex index,
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op == ATOMIC_CMPXCHG) && (details::is_dword_type<T>::value) &&
-    details::isPowerOf2(N, 16), void>::type
+    (Op == ATOMIC_CMPXCHG || Op == ATOMIC_FCMPWR) &&
+               (details::is_fp_or_dword_type<T>::value) &&
+                details::isPowerOf2(N, 16), void>::type
 write_atomic(SurfaceIndex index, vector<uint, N> elementOffset,
              vector<T, N> src0, vector<T, N> src1) {
-  vector<uint, N> dummy;
+  vector<T, N> dummy;
   write_atomic<Op, T>(index, elementOffset, src0, src1, dummy);
 }
 
@@ -431,12 +493,13 @@ write_atomic(SurfaceIndex index, vector<uint, N> elementOffset,
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op == ATOMIC_CMPXCHG) && (details::is_dword_type<T>::value) &&
-    details::isPowerOf2(N, 16), void>::type
+    (Op == ATOMIC_CMPXCHG || Op == ATOMIC_FCMPWR) &&
+               (details::is_fp_or_dword_type<T>::value) &&
+                details::isPowerOf2(N, 16), void>::type
 write_atomic(vector<ushort, N> mask, SurfaceIndex index,
              vector<uint, N> elementOffset, vector<T, N> src0,
              vector<T, N> src1) {
-  vector<uint, N> dummy;
+  vector<T, N> dummy;
   write_atomic<Op, T>(mask, index, elementOffset, src0, src1, dummy);
 }
 
@@ -493,6 +556,21 @@ write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
       mask, surfIndex, dummy.select_all(), dummy.select_all(), u);
 }
 
+template <CmAtomicOpType Op, typename T, int N>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(Op == ATOMIC_PREDEC) &&
+  details::isPowerOf2(N, 8) &&
+  details::is_dword_type<T>::value,
+  void>::type
+  write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
+    vector<uint, N> u) {
+  vector<T, N> dummy;
+  vector<ushort, N> mask = 1;
+  ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
+    mask, surfIndex, dummy.select_all(), dummy.select_all(), u) - 1;
+}
+
+
 // Predicated typed atomic {u}.
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
@@ -505,6 +583,19 @@ write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
   vector<T, N> dummy;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
       mask, surfIndex, dummy.select_all(), dummy.select_all(), u);
+}
+
+template <CmAtomicOpType Op, typename T, int N>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(Op == ATOMIC_PREDEC) &&
+  details::isPowerOf2(N, 8) &&
+  details::is_dword_type<T>::value,
+  void>::type
+  write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
+    vector_ref<T, N> ret, vector<uint, N> u) {
+  vector<T, N> dummy;
+  ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
+    mask, surfIndex, dummy.select_all(), dummy.select_all(), u) - 1;
 }
 
 // Typed atomic {u, v}.
@@ -522,6 +613,20 @@ write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
       mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v);
 }
 
+template <CmAtomicOpType Op, typename T, int N>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(Op == ATOMIC_PREDEC) &&
+  details::isPowerOf2(N, 8) &&
+  details::is_dword_type<T>::value,
+  void>::type
+  write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
+    vector<uint, N> u, vector<uint, N> v) {
+  vector<T, N> dummy;
+  vector<ushort, N> mask = 1;
+  ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
+    mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v) - 1;
+}
+
 // Predicated typed atomic {u, v}.
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
@@ -534,6 +639,19 @@ write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
   vector<T, N> dummy;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
       mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v);
+}
+
+template <CmAtomicOpType Op, typename T, int N>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(Op == ATOMIC_PREDEC) &&
+  details::isPowerOf2(N, 8) &&
+  details::is_dword_type<T>::value,
+  void>::type
+  write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
+    vector_ref<T, N> ret, vector<uint, N> u, vector<uint, N> v) {
+  vector<T, N> dummy;
+  ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
+    mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v) - 1;
 }
 
 // Typed atomic {u, v, r}.
@@ -551,6 +669,20 @@ write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
       mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v, r);
 }
 
+template <CmAtomicOpType Op, typename T, int N>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(Op == ATOMIC_PREDEC) &&
+  details::isPowerOf2(N, 8) &&
+  details::is_dword_type<T>::value,
+  void>::type
+  write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
+    vector<uint, N> u, vector<uint, N> v, vector<uint, N> r) {
+  vector<T, N> dummy;
+  vector<ushort, N> mask = 1;
+  ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
+    mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v, r) - 1;
+}
+
 // Predicated typed atomic {u, v, r}.
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
@@ -564,6 +696,20 @@ write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
   vector<T, N> dummy;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
       mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v, r);
+}
+
+template <CmAtomicOpType Op, typename T, int N>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(Op == ATOMIC_PREDEC) &&
+  details::isPowerOf2(N, 8) &&
+  details::is_dword_type<T>::value,
+  void>::type
+  write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
+    vector_ref<T, N> ret, vector<uint, N> u, vector<uint, N> v,
+    vector<uint, N> r) {
+  vector<T, N> dummy;
+  ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
+    mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v, r) - 1;
 }
 
 // Typed atomic {u, v, r, lod}.
@@ -582,6 +728,21 @@ write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
       mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v, r, lod);
 }
 
+template <CmAtomicOpType Op, typename T, int N>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(Op == ATOMIC_PREDEC) &&
+  details::isPowerOf2(N, 8) &&
+  details::is_dword_type<T>::value,
+  void>::type
+  write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
+    vector<uint, N> u, vector<uint, N> v, vector<uint, N> r,
+    vector<uint, N> lod) {
+  vector<T, N> dummy;
+  vector<ushort, N> mask = 1;
+  ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
+    mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v, r, lod) - 1;
+}
+
 // Predicated typed atomic {u, v, r, lod}.
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
@@ -597,11 +758,25 @@ write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
       mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v, r, lod);
 }
 
+template <CmAtomicOpType Op, typename T, int N>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(Op == ATOMIC_PREDEC) &&
+  details::isPowerOf2(N, 8) &&
+  details::is_dword_type<T>::value,
+  void>::type
+  write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
+    vector_ref<T, N> ret, vector<uint, N> u, vector<uint, N> v,
+    vector<uint, N> r, vector<uint, N> lod) {
+  vector<T, N> dummy;
+  ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
+    mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v, r, lod) - 1;
+}
+
 // Typed atomic {u}.
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC) &&
+    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC && Op != ATOMIC_PREDEC) &&
         details::isPowerOf2(N, 8) && details::is_dword_type<T>::value,
     void>::type
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
@@ -616,7 +791,7 @@ write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC) &&
+    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC && Op != ATOMIC_PREDEC) &&
         details::isPowerOf2(N, 8) && details::is_dword_type<T>::value,
     void>::type
 write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
@@ -630,7 +805,7 @@ write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC) &&
+    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC && Op != ATOMIC_PREDEC) &&
         details::isPowerOf2(N, 8) && details::is_dword_type<T>::value,
     void>::type
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
@@ -645,7 +820,7 @@ write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC) &&
+    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC && Op != ATOMIC_PREDEC) &&
         details::isPowerOf2(N, 8) && details::is_dword_type<T>::value,
     void>::type
 write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
@@ -660,7 +835,7 @@ write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC) &&
+    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC && Op != ATOMIC_PREDEC) &&
         details::isPowerOf2(N, 8) && details::is_dword_type<T>::value,
     void>::type
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
@@ -676,7 +851,7 @@ write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC) &&
+    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC && Op != ATOMIC_PREDEC) &&
         details::isPowerOf2(N, 8) && details::is_dword_type<T>::value,
     void>::type
 write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
@@ -691,7 +866,7 @@ write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC) &&
+    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC && Op != ATOMIC_PREDEC) &&
         details::isPowerOf2(N, 8) && details::is_dword_type<T>::value,
     void>::type
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
@@ -707,7 +882,7 @@ write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<
-    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC) &&
+    (Op != ATOMIC_CMPXCHG && Op != ATOMIC_INC && Op != ATOMIC_DEC && Op != ATOMIC_PREDEC) &&
         details::isPowerOf2(N, 8) && details::is_dword_type<T>::value,
     void>::type
 write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,

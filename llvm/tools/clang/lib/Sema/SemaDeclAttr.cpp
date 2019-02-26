@@ -4276,6 +4276,12 @@ static void handleCMGenxAttr(Sema &S, Decl *D, const AttributeList &Attr){
                                 Attr.getAttributeSpellingListIndex()));
 }
 
+static void handleCMBuiltinAttr(Sema &S, Decl *D, const AttributeList &Attr) {
+  assert(!Attr.isInvalid());
+  D->addAttr(::new (S.Context) CMBuiltinAttr(
+      Attr.getRange(), S.Context, Attr.getAttributeSpellingListIndex()));
+}
+
 static void handleCMGenxMainAttr(Sema &S, Decl *D, const AttributeList &Attr){
   assert(!Attr.isInvalid());
   D->addAttr(::new (S.Context) CMGenxMainAttr(Attr.getRange(), S.Context,
@@ -4341,6 +4347,36 @@ static void handleCMFloatControlAttr(Sema &S, Decl *D, const AttributeList &Attr
 
   D->addAttr(::new (S.Context) CMFloatControlAttr(Attr.getRange(), S.Context,
                                 ModeNum, Attr.getAttributeSpellingListIndex()));
+}
+
+static void handleCMGenxSIMTAttr(Sema &S, Decl *D, const AttributeList &Attr) {
+  assert(!Attr.isInvalid());
+
+  if (!isa<FunctionDecl>(D)) {
+    S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
+      << Attr.getName() << 0;
+    return;
+  }
+
+  if (Attr.getNumArgs() != 1) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments)
+      << Attr.getName() << 1;
+    return;
+  }
+
+  Expr *ModeExpr = Attr.getArgAsExpr(0);
+  llvm::APSInt ModeVal(32);
+
+  if (!ModeExpr->isIntegerConstantExpr(ModeVal, S.Context)) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_argument_type)
+      << Attr.getName() << AANT_ArgumentIntegerConstant
+      << ModeExpr->getSourceRange();
+  }
+
+  uint32_t ModeNum = (uint32_t)ModeVal.getZExtValue();
+
+  D->addAttr(::new (S.Context) CMGenxSIMTAttr(Attr.getRange(), S.Context,
+    ModeNum, Attr.getAttributeSpellingListIndex()));
 }
 
 static void handleCMEntryAttr(Sema &S, Decl *D, const AttributeList &Attr) {
@@ -6512,6 +6548,9 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
   case AttributeList::AT_CMGenx:
     handleCMGenxAttr(S, D, Attr);
     break;
+  case AttributeList::AT_CMBuiltin:
+    handleCMBuiltinAttr(S, D, Attr);
+    break;
   case AttributeList::AT_CMGenxMain:
     handleCMGenxMainAttr(S, D, Attr);
     break;
@@ -6532,6 +6571,9 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
     break;
   case AttributeList::AT_CMFloatControl:
     handleCMFloatControlAttr(S, D, Attr);
+    break;
+  case AttributeList::AT_CMGenxSIMT:
+    handleCMGenxSIMTAttr(S, D, Attr);
     break;
   case AttributeList::AT_CMEntry:
     handleCMEntryAttr(S, D, Attr);

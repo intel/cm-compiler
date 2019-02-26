@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,69 +25,40 @@
 /// GenXRegion : region information
 /// -------------------------------
 /// 
-/// An object of class GenXRegion describes the region parameters of a Gen region.
-/// It is a transient object, in that a pass constructs it as needed and then
-/// forgets it. It does not persist between passes, as the region parameters are
-/// fully described by the arguments to the rdregion and wrregion intrinsics.
+/// Refer to the comments in the base class CMRegion defined in
+/// llvm/Transform/Scalar.
 ///
-/// The region parameters in a GenXRegion are:
+/// Function added for the GenXRegion
 ///
-/// * ElementBytes : number of bytes per element
-/// * ElementTy : Type of element
-/// * NumElements : total number of elements in the region (number of rows is
-///   thus NumElements/Width)
-/// * VStride : vertical stride in elements
-/// * Width : row width in elements
-/// * Stride : horizontal stride in elements
-/// * Offset : constant part of offset
-/// * Indirect : variable index (nullptr for direct region, scalar value for
-///   single indirect, vector value for multi indirect)
-/// * IndirectIdx : start index in vector indirect. This is always 0 when
-///   constructing a GenXRegion, but can be set to a non-zero value before
-///   calling a method to create a new rdregion/wrregion intrinsic
-/// * Mask : mask (predicate) for wrregion, nullptr if none
-/// * ParentWidth : the parent width value (a statement that no row crosses a
-///   boundary of a multiple of this number of elements)
-///
-/// There are the following constructors:
-///
-/// * Construct from a Type or Value, setting the GenXRegion to a region that
-///   covers the whole value.
-/// * Construct from a rdregion/wrregion intrinsic, setting the GenXRegion to the
-///   region described by the intrinsic. This constructor also takes the
+/// * Construct from a rdregion/wrregion intrinsic, setting the GenXRegion
+///   to the region described by the intrinsic. This constructor also takes the
 ///   BaleInfo as an argument, allowing a variable index that is a baled in
 ///   constant add to be considered as a separate variable index and constant
 ///   offset.
-/// * Construct from a bitmap of which elements need to be in the region. This
-///   is used from GenXConstants when constructing a splat region when loading
-///   a constant in multiple stages.
 /// 
-/// GenXLegalization uses GenXRegion to determine whether a region is legal, and
-/// split it up if necessary. First it constructs a GenXRegion, then it has a loop
-/// to split it into legal regions. Each loop iteration calls:
+/// GenXLegalization uses GenXRegion to determine whether a region is legal, 
+/// and split it up if necessary. First it constructs a GenXRegion, then it
+/// has a loop to split it into legal regions. Each loop iteration calls:
 ///
 /// * the getLegalSize method (see below) to determine the split size; then
 /// * getSubregion to modify the GenXRegion for the split size; then
 /// * one of the methods to create a new rdregion or wrregion intrinsic.
 ///
-/// GenXRegion is not used to represent the region parameters in predicate regions,
-/// since they are much simpler. But GenXRegion does contain static methods to create
-/// rdpredregion etc intrinsics given the predicate region parameters.
-/// 
 /// GenXRegion::getLegalSize
 /// ^^^^^^^^^^^^^^^^^^^^^^^^
 /// 
-/// The ``getLegalSize`` method is used by GenXLegalization and some other passes
-/// to determine whether a region is legal, and if not how small a split is
-/// required to make it legal.
+/// The ``getLegalSize`` method is used by GenXLegalization and some other
+/// passes to determine whether a region is legal, and if not how small
+/// a split is required to make it legal.
 /// 
 /// It takes the GenXSubtarget as an argument, because it needs to know
-/// architecture-specific details, currently just whether a single GRF crossing is
-/// allowed in an indirect region.
+/// architecture-specific details, currently just whether a single GRF 
+/// crossing is allowed in an indirect region.
 /// 
-/// It also takes either an AlignmentInfo object, or the actual alignment of the
-/// indirect index (if any). Knowing the alignment of the indirect index can help
-/// allow a larger legal region, and avoid needing to split into simd1.
+/// It also takes either an AlignmentInfo object, or the actual alignment
+/// of the indirect index (if any). Knowing the alignment of the indirect
+/// index can help allow a larger legal region, and avoid needing to split
+/// into simd1.
 /// 
 //===----------------------------------------------------------------------===//
 
@@ -95,6 +66,7 @@
 #define GENXREGION_H
 
 #include "GenXAlignmentInfo.h"
+#include "llvm/Transforms/Scalar/CMRegion.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/IR/IntrinsicsGenX.h"
@@ -118,133 +90,26 @@ namespace genx {
     struct BaleInfo;
 
 // Region : description of an operand's region
-class Region {
+class Region : public CMRegion {
 public:
-  unsigned ElementBytes;
-  Type *ElementTy;
-  unsigned NumElements;
-  int VStride;
-  unsigned Width;
-  int Stride;
-  int Offset;
-  Value *Indirect;
-  unsigned IndirectIdx; // start index in vector Indirect
-  Value *Mask; // 0 else mask for wrregion
-  unsigned ParentWidth; // 0 else parent width
-  // Get a Region given a rdregion/wrregion, baling in constant add of offset
   static Region getWithOffset(Instruction *Inst, bool WantParentWith = false);
   // Default constructor: assume single element
-  Region() : ElementBytes(0), ElementTy(0), NumElements(1), VStride(1),
-        Width(1), Stride(1), Offset(0), Indirect(0), IndirectIdx(0), Mask(0),
-        ParentWidth(0) {}
+  Region() : CMRegion() {}
   // Construct from a type.
-  Region(Type *Ty, const DataLayout *DL = nullptr);
+  Region(Type *Ty, const DataLayout *DL = nullptr) : CMRegion(Ty, DL) {};
   // Construct from a value.
-  Region(Value *V, const DataLayout *DL = nullptr);
+  Region(Value *V, const DataLayout *DL = nullptr) : CMRegion(V, DL) {};
   // Construct from a rd/wr region/element and its BaleInfo
   Region(Instruction *Inst, const BaleInfo &BI, bool WantParentWidth = false);
   // Construct from a bitmap of which elements to set (legal 1D region)
-  Region(unsigned Bits, unsigned ElementBytes);
-  // Create rdregion intrinsic from this Region
-  // Returns a scalar if the Region has one element and AllowScalar is true.
-  // Otherwise returns a vector.
-  Instruction *createRdRegion(Value *Input, const Twine &Name,
-                              Instruction *InsertBefore, const DebugLoc &DL,
-                              bool AllowScalar = false);
-  // Modify Region object for a subregion
-  void getSubregion(unsigned StartIdx, unsigned Size);
-  // Create wrregion intrinsic from this Region
-  Value *createWrRegion(Value *OldVal, Value *Input, const Twine &Name,
-                        Instruction *InsertBefore, const DebugLoc &DL);
-  // Create wrconstregion intrinsic from this Region
-  Value *createWrConstRegion(Value *OldVal, Value *Input, const Twine &Name,
-                             Instruction *InsertBefore, const DebugLoc &DL);
-  // Create rdpredregion from given start index and size
-  static Instruction *createRdPredRegion(Value *Input, unsigned Index,
-                                         unsigned Size, const Twine &Name,
-                                         Instruction *InsertBefore,
-                                         const DebugLoc &DL);
-  static Value *createRdPredRegionOrConst(Value *Input, unsigned Index,
-                                          unsigned Size, const Twine &Name,
-                                          Instruction *InsertBefore,
-                                          const DebugLoc &DL);
-  // Create wrpredregion from given start index
-  static Instruction *createWrPredRegion(Value *OldVal, Value *Input,
-                                         unsigned Index, const Twine &Name,
-                                         Instruction *InsertBefore,
-                                         const DebugLoc &DL);
-  // Create wrpredpredregion from given start index
-  static Instruction *createWrPredPredRegion(Value *OldVal, Value *Input,
-                                             unsigned Index, Value *Pred,
-                                             const Twine &Name,
-                                             Instruction *InsertBefore,
-                                             const DebugLoc &DL);
-  // Set the called function in an intrinsic call
-  static void setRegionCalledFunc(Instruction *Inst);
-  // Compare two regions to see if they have the same region parameters other
-  // than start offset (not allowing element type to be different).
-  bool isStrictlySimilar(const Region &R2) const {
-    return VStride == R2.VStride && Width == R2.Width && Stride == R2.Stride &&
-           Mask == R2.Mask;
-  }
-  // Compare two regions to see if they have the same region parameters other
-  // than start offset (also allowing element type to be different).
-  bool isSimilar(const Region &R2) const;
-  // Compare two regions to see if they have the same region parameters (also
-  // allowing element type to be different).
-  bool operator==(const Region &R2) const {
-    return isSimilar(R2) && Offset == R2.Offset && Indirect == R2.Indirect
-        && IndirectIdx == R2.IndirectIdx;
-  }
-  bool operator!=(const Region &R2) const { return !(*this == R2); }
-  // Compare two regions to see if they overlaps each other.
-  bool overlap(const Region &R2) const;
-  // Test whether a region is scalar
-  bool isScalar() const {
-    return !Stride && (Width == NumElements || !VStride);
-  }
-  // Test whether a region is 2D
-  bool is2D() const { return !isScalar() && Width != NumElements; }
-  // Test whether a region is contiguous.
-  bool isContiguous() const;
-  // Test whether a region covers exactly the whole of the given type, allowing
-  // for the element type being different.
-  bool isWhole(Type *Ty) const;
-  // Test whether the region has a whole number of rows. (append() can result
-  // in a region with an incomplete final row, which is normally not allowed.)
-  bool isWholeNumRows() const { return !(NumElements % Width); }
-  // Evaluate rdregion with constant input.
-  Constant *evaluateConstantRdRegion(Constant *Input, bool AllowScalar);
-  // evaluateConstantWrRegion : evaluate wrregion with constant inputs
-  Constant *evaluateConstantWrRegion(Constant *OldVal, Constant *NewVal);
+  Region(unsigned Bits, unsigned ElementBytes)
+    : CMRegion(Bits, ElementBytes) {};
   // getLegalSize : get the max legal size of a region
   unsigned getLegalSize(unsigned Idx, bool Allow2D, unsigned InputNumElements,
                         const GenXSubtarget *ST, AlignmentInfo *AI = nullptr);
   unsigned getLegalSize(unsigned Idx, bool Allow2D, unsigned InputNumElements,
                         const GenXSubtarget *ST, Alignment Align);
-  // append : append region AR to this region
-  bool append(Region AR);
-  // changeElementType : change the element type of the region
-  bool changeElementType(Type *NewElementType);
-  // Debug dump/print
-  void dump() const;
-  void print(raw_ostream &OS) const;
-private:
-  // Create wrregion or wrconstregion intrinsic from this Region
-  Value *createWrCommonRegion(unsigned IID, Value *OldVal, Value *Input,
-                              const Twine &Name, Instruction *InsertBefore,
-                              const DebugLoc &DL);
-  // Get the function declaration for a region intrinsic
-  static Function *getRegionDeclaration(Module *M, unsigned IID, Type *RetTy,
-                                        ArrayRef<Value *> Args);
-  // Get (or create instruction for) the start index of a region.
-  Value *getStartIdx(const Twine &Name, Instruction *InsertBefore, const DebugLoc &DL);
 };
-
-inline raw_ostream &operator<<(raw_ostream &OS, const Region &R) {
-  R.print(OS);
-  return OS;
-}
 
 // RdWrRegionSequence : a sequence of rdregion-wrregion pairs probably
 // created by legalization or coalescing, conforming to the following

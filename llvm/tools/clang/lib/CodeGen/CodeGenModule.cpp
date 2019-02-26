@@ -1143,6 +1143,11 @@ static void setLinkageForGV(llvm::GlobalValue *GV,
       GV->setDLLStorageClass(llvm::GlobalValue::DLLImportStorageClass);
     } else if (ND->hasAttr<DLLExportAttr>() || ND->hasAttr<CMGenxMainAttr>()) {
       GV->setLinkage(llvm::GlobalValue::ExternalLinkage);
+    } else if (ND->hasAttr<CMBuiltinAttr>()) {
+      GV->setLinkage(llvm::GlobalValue::ExternalLinkage);
+      auto Fn = llvm::dyn_cast<llvm::Function>(GV);
+      if (Fn && !Fn->hasFnAttribute("CMBuiltin"))
+        Fn->addFnAttr("CMBuiltin");
     } else if (ND->hasAttr<WeakAttr>() || ND->isWeakImported()) {
       // "extern_weak" is overloaded in LLVM; we probably should have
       // separate linkage types for this.
@@ -3066,7 +3071,8 @@ llvm::GlobalValue::LinkageTypes CodeGenModule::getLLVMLinkageForDeclarator(
 
   // CM kernels have external linkage, but all other CM functons have internal
   // linkage (whether or not they have the CMGenxAttr attribute).
-  if (D->hasAttr<CMGenxMainAttr>())
+  // CM Builtins have external linkage to stop being deleted by optimizer.
+  if (D->hasAttr<CMGenxMainAttr>() || D->hasAttr<CMBuiltinAttr>())
     return llvm::Function::ExternalLinkage;
   else if (LangOpts.MdfCM)
     return llvm::Function::InternalLinkage;

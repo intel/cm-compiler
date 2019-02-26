@@ -1312,34 +1312,6 @@ Instruction *InstCombiner::visitSDiv(BinaryOperator &I) {
     }
   }
 
-// _GENX_BEGIN_
-  Constant *RHS = dyn_cast<Constant>(Op1);
-  if (RHS && isa<VectorType>(Op1->getType()))
-    RHS = RHS->getSplatValue();
-  if (ConstantInt *IRHS = dyn_cast_or_null<ConstantInt>(RHS)) {
-    // sdiv X, C  -->  ashr exact X, log2(C)
-    // as long as the division is exact
-    if (I.isExact() && IRHS->getValue().isNonNegative() &&
-        IRHS->getValue().isPowerOf2()) {
-      Constant *ShAmt = llvm::ConstantInt::get(
-          IRHS->getType(), IRHS->getValue().exactLogBase2());
-      if (auto VT = dyn_cast<VectorType>(Op1->getType()))
-        ShAmt = ConstantVector::getSplat(VT->getNumElements(), ShAmt);
-      return BinaryOperator::CreateExactAShr(Op0, ShAmt, I.getName());
-    }
-    // sdiv X, C  -->  ashr X, log2(C)
-    // as long as LHS is known to be non-negative
-    if (isa<ZExtInst>(Op0) && IRHS->getValue().isNonNegative() &&
-        IRHS->getValue().isPowerOf2()) {
-      Constant *ShAmt = llvm::ConstantInt::get(
-          IRHS->getType(), IRHS->getValue().exactLogBase2());
-      if (auto VT = dyn_cast<VectorType>(Op1->getType()))
-        ShAmt = ConstantVector::getSplat(VT->getNumElements(), ShAmt);
-      return BinaryOperator::CreateAShr(Op0, ShAmt, I.getName());
-    }
-  }
-// _GENX_END_
-
   return nullptr;
 }
 

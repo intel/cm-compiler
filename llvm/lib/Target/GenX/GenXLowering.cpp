@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Intel Corporation
+ * Copyright (c) 2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -1153,9 +1153,22 @@ bool GenXLowering::lowerBoolShuffle(ShuffleVectorInst *SI)
 bool GenXLowering::lowerBoolSplat(ShuffleVectorInst *SI, Value *In, unsigned Idx)
 {
   unsigned Width = SI->getType()->getVectorNumElements();
-  if (isa<VectorType>(In->getType()))
-    SI->getContext().emitError(
-      SI, "not expecting to splat predicate from within a vector");
+  if (isa<VectorType>(In->getType())) {
+    IRBuilder<> B(SI);
+    Constant *C1 = ConstantVector::getSplat(Width, B.getInt16(1));
+    Constant *C0 = ConstantVector::getSplat(Width, B.getInt16(0));
+    Value *V = B.CreateSelect(In, C1, C0);
+    Region R(V);
+    R.NumElements = Width;
+    R.Stride = 0;
+    R.VStride = 0;
+    R.Offset = (int)Idx;
+    V = R.createRdRegion(V, "splat", SI, SI->getDebugLoc());
+    V = B.CreateICmpNE(V, C0);
+    SI->replaceAllUsesWith(V);
+    ToErase.push_back(SI);
+    return true;
+  }
   // This is a splat. See if the input is a cmp, possibly via a bitcast.
   if (auto BC = dyn_cast<BitCastInst>(In))
     In = BC->getOperand(0);
@@ -1270,42 +1283,52 @@ bool GenXLowering::lowerShuffle(ShuffleVectorInst *SI)
     ToErase.push_back(SI);
     return true;
   }
-  if (lowerShuffleToSelect(SI)) {
+  if (lowerShuffleToSelect(SI))
+    return true;
+
+  Value *Seralize = ShuffleVectorAnalyzer(SI).serialize();
+  if (Seralize != nullptr) {
+    SI->replaceAllUsesWith(Seralize);
+    ToErase.push_back(SI);
     return true;
   }
-  assert(0 && "generic shuffle-vector is not supported yet in GenX backend");
+
+  SI->getContext().emitError(
+      SI, "generic shuffle-vector is not supported yet in GenX backend");
   return false;
 }
 
-// lower those shuffle-vector that can be implemented efficiently as select on GenX
-bool GenXLowering::lowerShuffleToSelect(ShuffleVectorInst *SI)
-{
+// Lower those shufflevector that can be implemented efficiently as select.
+bool GenXLowering::lowerShuffleToSelect(ShuffleVectorInst *SI) {
   int NumElements = SI->getType()->getVectorNumElements();
-  if (NumElements >= 16)
-    return false;
   int NumOpnd = SI->getNumOperands();
   for (int i = 0; i < NumOpnd; ++i) {
     if (SI->getOperand(i)->getType()->getVectorNumElements() != NumElements)
       return false;
   }
   for (int i = 0; i < NumElements; ++i) {
-    auto idx = SI->getMaskValue(i);
+    int idx = SI->getMaskValue(i);
+    // undef index returns -1.
+    if (idx < 0)
+      continue;
     if (idx != i && idx != i + NumElements)
       return false;
   }
   IRBuilder<> Builder(SI);
   Type *Int1Ty = Builder.getInt1Ty();
-  SmallVector<Constant*, 16> MaskVec;
+  SmallVector<Constant *, 16> MaskVec;
   MaskVec.reserve(NumElements);
   for (int i = 0; i < NumElements; ++i) {
-    auto idx = SI->getMaskValue(i);
-    if (idx == i)
+    int idx = SI->getMaskValue(i);
+    // undef index returns -1.
+    if (idx == i || idx < 0)
       MaskVec.push_back(ConstantInt::get(Int1Ty, 1));
     else
       MaskVec.push_back(ConstantInt::get(Int1Ty, 0));
   }
   Value *Mask = ConstantVector::get(MaskVec);
-  auto NewSel = SelectInst::Create(Mask, SI->getOperand(0), SI->getOperand(1), "", SI);
+  auto NewSel = SelectInst::Create(Mask, SI->getOperand(0),
+                                   SI->getOperand(1), "", SI);
   NewSel->takeName(SI);
   NewSel->setDebugLoc(SI->getDebugLoc());
   SI->replaceAllUsesWith(NewSel);

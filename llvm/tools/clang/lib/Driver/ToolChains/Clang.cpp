@@ -2917,7 +2917,7 @@ static void RenderDebugOptions(const ToolChain &TC, const Driver &D,
       DebugInfoKind = codegenoptions::LimitedDebugInfo;
     }
   } else if (D.CCCIsCM()) {
-    if (!Args.hasArg(options::OPT_mCM_no_debug)) {
+    if (!Args.hasArg(options::OPT_mCM_no_debug) && !Args.hasArg(options::OPT_Qxcm_release)) {
       // for CM we implicitly specify -gline-tables-only if no "-g" group
       // options were specified unless it's requested explicitly in the other
       // direction.
