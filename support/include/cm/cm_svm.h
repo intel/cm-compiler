@@ -415,7 +415,6 @@ svm_atomic(T *const p, matrix<U, N, M> offset, matrix_ref<T, N, M> dst,
   vector<U, N * M> _Offset = offset;
   vector_ref<T, N * M> _Dst = dst.format<T>();
   vector<T, N * M> _Src0 = src0;
-  vector<T, N * M> _Src1 = src1;
   cm_svm_atomic<Op>(p, _Offset, _Dst, _Src0);
 }
 
