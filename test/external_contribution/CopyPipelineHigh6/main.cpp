@@ -21,31 +21,34 @@
  */
 
 #include "CPipeline.h"
+#include "CmdParser.h"
 
 using namespace std;
 
 int main(int argc, char* argv[])
 {
-   char filename[256] = "nest.bmp";
+   CmTask *copyTask = NULL;
 
-   if (argc > 1) {
-      strncpy(filename, argv[1], 256);
-   }
+   if (!ParseCommandLine(argc, argv))
+      return 0;
 
    CopyPipeline *cpipeline = new CopyPipeline();
 
    cpipeline->Init();
 
-   if (cpipeline->GetInputImage(filename) < 0)
+   if (cpipeline->GetInputImage(FLAGS_i.c_str()) < 0)
    {
       throw std::runtime_error(std::string("Error in GetInputImage - input file not found"));
    }
 
-   cpipeline->AssemblerHigh6Graph();
+   cpipeline->SetLightnessContrast(FLAGS_lightness, FLAGS_contrast);
+   cpipeline->AssemblerHigh6Graph(copyTask);
+   cpipeline->ExecuteGraph(copyTask, FLAGS_maxframes);
 
-   cpipeline->ExecuteGraph();
-
-   cpipeline->SaveOutputImage();
+   if (!FLAGS_o.empty())
+   {
+      cpipeline->SaveOutputImage(FLAGS_o.c_str());
+   }
 
 	return 0;
 }

@@ -1,0 +1,16 @@
+External dependence
+===================
+This example also requires jansson development package besides CM. 
+
+sudo apt-get install libjansson-dev
+
+To build
+========
+
+make -f Makefile.linux
+
+To run
+======
+
+./hw_x64.kmean
+

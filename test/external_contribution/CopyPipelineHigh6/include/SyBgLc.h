@@ -26,7 +26,7 @@ using namespace std;
 class SyBgLc : public CopyPipeline
 {
 public:
-   SyBgLc(CmDevice *device, int threadCount);
+   SyBgLc(CmDevice *device, int threadCount, int lightness, int contrast);
    ~SyBgLc(void);
 
    int PreRun(

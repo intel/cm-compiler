@@ -61,13 +61,14 @@ public:
 
    //////////////////////////////////////////////////////////////////////////////
    int Init();
-   int ExecuteGraph();
-   int GetInputImage(char *filename);
-   int SaveOutputImage();
-   int AssemblerHigh6Graph();
+   int ExecuteGraph(CmTask *pTask, int iterations);
+   int GetInputImage(const char *filename);
+   int SaveOutputImage(const char *filename);
+   int SetLightnessContrast(const int lightness, const int contrast);
+   int AssemblerHigh6Graph(CmTask *& pTask);
 
 protected:
-   int AddKernel(CmKernel *pKernel);
+   int AddKernel(CmTask *pTask, CmKernel *pKernel);
    int GetSurface2DInfo(int width, int height, CM_SURFACE_FORMAT format,
          unsigned int * pitch, unsigned int * surface_size);
    int CreateKernel(char *isaFile, char *kernelName, CmKernel *& pKernel);
@@ -76,7 +77,6 @@ protected:
 private:
    CmDevice*    m_pCmDev;
    CmQueue      *m_pCmQueue;
-   CmTask       *m_pKernelArray_Pipeline;
    CmEvent      *e_Pipeline;
 
    int          m_Max_Thread_Count;
@@ -89,6 +89,9 @@ private:
    uchar        *m_pDstM;
    uchar        *m_pDstY;
    uchar        *m_pDstK;
+   uchar        *m_pDstCMYK;
+   int          m_lightness;
+   int          m_contrast;
 
 };
 #endif //__CPIPELINE_H__

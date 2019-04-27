@@ -47,6 +47,10 @@ Refer to link above to get the detail of each kernel.
 After all required drivers installation, use the Makefile.linux include in this
 directory.
 
+latest example requires libglags
+
+sudo apt-get install libgflags-dev
+
 make -f Makefile.linux
 
 3 Sample Directory
@@ -74,9 +78,22 @@ The sample directory has the following structure:
 4 Basic Command-line Options
 ------------------------------------------------------------------------------
 NOTE: command line parameters (keys and values) are case-sensitive.
+
+hw_x64.CopyPipelineHigh6 [OPTION]
+Options:
+
+   -h                          Print a usage message.
+   -i <filename>               Path to an 24bit .bmp RGB image.  Default value: nest.bmp
+   -o <filename>               Path to save 1bpp CMYK output image. Default: no output file
+   --lightness <integer>       Lightness control where ranges -3 to 3. Default value: 0
+   --contrast <integer>        Contrast control where ranges -2 to 2. Default value: 0.
+   --maxframes <integer>       Maximum number of frames to run.
+   --halftonepath              Halftone path. Default=yes
+   --edpath                    Unsupported. Coming soon
+
 Running Pipeline:
 
-./hw_x64.CopyPipelineHigh6 <32bit bitmap input file>
+./hw_x64.CopyPipelineHigh6 -i <24bit bitmap input file> -o <output filename>
 
 Use at least 1920x1080 pixels for input file.
 

@@ -52,11 +52,8 @@
 #define SUM_I	7
 #define SUM_J	8
 
-#define LUTSIZE 256
-static const ushort init_seq[8] = {248, 249, 250, 251, 252, 253, 254, 255};
-
 inline _GENX_ void BgSupress_GENX(
-      uint slmIndex,
+      SurfaceIndex LUTSI,
       matrix_ref<uchar, 16, 16>  inputL,
       matrix_ref<uchar, 16, 16>  inputA,
       matrix_ref<uchar, 16, 16>  inputB,
@@ -66,7 +63,7 @@ inline _GENX_ void BgSupress_GENX(
       )
 {
    // Initialize the required parameters
-   uchar L_thresh    = 230;
+   int L_thresh      = 230;
 
    int a_low         = 116;
    int a_high        = 140;
@@ -125,14 +122,14 @@ inline _GENX_ void BgSupress_GENX(
 
    outL.merge(whitepointL, inputL, block0);
 
-   vector<ushort, 16*16> inputIndex;
+   vector<uint, 16*16> inputIndex = vector<uint, 16*16>(outL);
    vector<uchar, 16*16> lightsourceout;
 
    //lightness contrast
-   inputIndex = matrix<ushort, 16, 16>(outL);
+   inputIndex = matrix<uint, 16, 16>(outL);
 #pragma unroll
-   for (int j=0; j<16; j++)
-      cm_slm_read(slmIndex,inputIndex.select<16,1>(j*16), lightsourceout.select<16,1>(j*16));
+   for (int i=0; i<16; i++)
+      read(LUTSI, 0 ,inputIndex.select<16,1>(i*16), lightsourceout.select<16,1>(i*16));
 
    outL = lightsourceout;
 
@@ -178,16 +175,6 @@ SyBgLc_GENX(
    vector<int, 16>         Temp_Filter;// Temp buffer for sum of coefficients multiplication
    matrix<uchar, 16, 16> DstData;      // Output data buffer
    short sRightShift;
-   uint slmBodies;
-
-
-   cm_slm_init(LUTSIZE);
-
-   slmBodies = cm_slm_alloc(LUTSIZE);
-   vector<ushort, 8> init_loc(init_seq);
-   vector<uchar, 8> init_data;
-
-   cm_slm_load(slmBodies, LUTSI, 0, LUTSIZE);
 
    sRightShift = nRightShift;
 
@@ -261,7 +248,7 @@ SyBgLc_GENX(
    read(SrcASI, SrcXY(X), SrcXY(Y), inA);
    read(SrcBSI, SrcXY(X), SrcXY(Y), inB);
 
-   BgSupress_GENX(slmBodies, DstData, inA, inB, outL, outA, outB);
+   BgSupress_GENX(LUTSI, DstData, inA, inB, outL, outA, outB);
 
    // Output final filtered pixel block
    write(DstLSI, SrcXY(X), SrcXY(Y), outL);

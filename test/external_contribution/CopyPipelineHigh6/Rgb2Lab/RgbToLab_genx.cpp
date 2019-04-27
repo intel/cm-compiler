@@ -21,7 +21,7 @@
  */
 #include <cm/cm.h>
 
-#define BLKW 16
+#define BLKW 8
 #define BLKH 8
 
 #define X 0
@@ -47,8 +47,8 @@ RgbToLab_GENX(
    vector<short, 2> pos;
    pos(X) = cm_local_id(X) + cm_group_id(X) * cm_local_size(X);
    pos(Y) = cm_local_id(Y) + cm_group_id(Y) * cm_local_size(Y);
-   pos(X) = pos(X) * 16;
-   pos(Y) = pos(Y) * 8;
+   pos(X) = pos(X) * BLKW;
+   pos(Y) = pos(Y) * BLKH;
 
    matrix<uchar, BLKH, BLKW> InR, InG, InB;
    read(SrcRSI, pos(X), pos(Y), InR);

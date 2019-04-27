@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <cm/cm.h>
+#include <cm/cmtl.h>
 
 #define BLOCK_WIDTH 32
 #define BLOCK_HEIGHT 16
@@ -80,23 +81,22 @@ inline _GENX_ void Pack8to1
       matrix_ref<uchar, 16, 2> out
    )
 {
-   matrix<uchar, 16, 8> tmp;
-   matrix<uchar, 16, 2> bitout;
-#pragma unroll
-   for (int j = 0; j<2; j++)
-   {
-      tmp =  in.select<16,1,8,1>(0,j*8);
+   matrix<uchar, 16, 16> transposed_in;
+   cmtl::Transpose_16x16(in.select_all(), transposed_in.select_all());
 
+#pragma unroll
+   for (int j=0; j<2; j++)
+   {
       out.select<16,1,1,1>(0,j) =
-                (tmp.select<16,1,1,1>(0,0) & 0x80) >> 0 |
-                (tmp.select<16,1,1,1>(0,1) & 0x80) >> 1 |
-                (tmp.select<16,1,1,1>(0,2) & 0x80) >> 2 |
-                (tmp.select<16,1,1,1>(0,3) & 0x80) >> 3 |
-                (tmp.select<16,1,1,1>(0,4) & 0x80) >> 4 |
-                (tmp.select<16,1,1,1>(0,5) & 0x80) >> 5 |
-                (tmp.select<16,1,1,1>(0,6) & 0x80) >> 6 |
-                (tmp.select<16,1,1,1>(0,7) & 0x80) >> 7;
-   }
+         (transposed_in.row(0+j*8) & 0x80) >> 0 |
+         (transposed_in.row(1+j*8) & 0x80) >> 1 |
+         (transposed_in.row(2+j*8) & 0x80) >> 2 |
+         (transposed_in.row(3+j*8) & 0x80) >> 3 |
+         (transposed_in.row(4+j*8) & 0x80) >> 4 |
+         (transposed_in.row(5+j*8) & 0x80) >> 5 |
+         (transposed_in.row(6+j*8) & 0x80) >> 6 |
+         (transposed_in.row(7+j*8) & 0x80) >> 7;
+    }
 
 }
 

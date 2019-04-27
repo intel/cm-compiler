@@ -3,7 +3,7 @@
 ###########################################################################
 
 #macro CM_ROOT and APP_NAME are passed as Make parameters
-CM_ROOT := /home/gangche1/Downloads/linuxcformediadevelopmentpackage20180202
+CM_ROOT := /home/gangche1/Linux_C_for_Media_Development_Package_20181022
 #CMC := ../../../build.64.linux/bin/cmc
 #CM_ROOT := ../..
 CMC := $(CM_ROOT)/compiler/bin/cmc
@@ -30,7 +30,7 @@ all: hw_x64
 
 ######## HW Mode with JITTER ##################
 HW_CXXFLAGS     := $(CXXFLAGS) 
-HW_LDFLAGS      :=  -lva  -ldl -fPIC
+HW_LDFLAGS      :=  -lva  -ldl -fPIC -lgflags
 HW_APP_SOURCES  := $(HOST_FILE)
 HW_KERN_SOURCES := $(KERNEL_FILE)
 HW_CMCFLAGS     := -march=$(GEN_MODE) -isystem $(CM_ROOT)/compiler/include_llvm

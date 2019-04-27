@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <cm/cm.h>
+#include <cm/cmtl.h>
 
 #define BLKW 16
 #define BLKH 16
@@ -33,23 +34,22 @@ inline _GENX_ void Pack8to1
       matrix_ref<uchar, 16, 2> out
    )
 {
-   matrix<uchar, 16, 8> tmp;
-   matrix<uchar, 16, 2> bitout;
-#pragma unroll
-   for (int j = 0; j<2; j++)
-   {
-      tmp =  in.select<16,1,8,1>(0,j*8);
+   matrix<uchar, 16, 16> transposed_in;
+   cmtl::Transpose_16x16(in.select_all(), transposed_in.select_all());
 
+#pragma unroll
+   for (int j = 0; j < 2; j++)
+   {
       out.select<16,1,1,1>(0,j) =
-                (tmp.select<16,1,1,1>(0,0) & 0x80) >> 0 |
-                (tmp.select<16,1,1,1>(0,1) & 0x80) >> 1 |
-                (tmp.select<16,1,1,1>(0,2) & 0x80) >> 2 |
-                (tmp.select<16,1,1,1>(0,3) & 0x80) >> 3 |
-                (tmp.select<16,1,1,1>(0,4) & 0x80) >> 4 |
-                (tmp.select<16,1,1,1>(0,5) & 0x80) >> 5 |
-                (tmp.select<16,1,1,1>(0,6) & 0x80) >> 6 |
-                (tmp.select<16,1,1,1>(0,7) & 0x80) >> 7;
-   }
+         (transposed_in.row(0+j*8) & 0x80) >> 0 |
+         (transposed_in.row(1+j*8) & 0x80) >> 1 |
+         (transposed_in.row(2+j*8) & 0x80) >> 2 |
+         (transposed_in.row(3+j*8) & 0x80) >> 3 |
+         (transposed_in.row(4+j*8) & 0x80) >> 4 |
+         (transposed_in.row(5+j*8) & 0x80) >> 5 |
+         (transposed_in.row(6+j*8) & 0x80) >> 6 |
+         (transposed_in.row(7+j*8) & 0x80) >> 7;
+    }
 
 }
 
@@ -86,13 +86,13 @@ HalftonePack8to1_GENX(
    pos(X) = cm_local_id(X) + cm_group_id(X) * cm_local_size(X);
    pos(Y) = cm_local_id(Y) + cm_group_id(Y) * cm_local_size(Y);
 
-   posXout = pos(X) *4;
+   posXout = pos(X) * 4;
    pos4(X) = pos(X) * 32 * 4;
    pos4(Y) = pos(Y) * BLKH;
    pos(X) = pos(X) * 32;
-   pos(Y) = pos(Y) * 16;
+   pos(Y) = pos(Y) * BLKH;
 
-   // CM doesn't support 16x2 output, need to process 32x16 to generate 16x4 output
+   // CM doesn't support 16x2 output, need to process 16x32 to generate 16x4 output
    matrix<uchar, BLKH, 4> outC1bit;
    matrix<uchar, BLKH, 4> outM1bit;
    matrix<uchar, BLKH, 4> outY1bit;

@@ -48,9 +48,6 @@
 #define  I 8
 #define  J 9
 
-#define LIGHTNESS -3
-#define CONTRAST -2
-
 //using namespace cm:util;
 
 void InitializeLightnessDarknessContrastLUT(int lightness, int contrast, uchar * pLUT)
@@ -74,7 +71,8 @@ void InitializeLightnessDarknessContrastLUT(int lightness, int contrast, uchar *
    }
 }
 
-SyBgLc::SyBgLc(CmDevice *pdevice, int max_Thread_Count)
+SyBgLc::SyBgLc(CmDevice *pdevice, int max_Thread_Count, int lightness_, int
+      contrast_)
 {
    m_pCmDev = pdevice;
    m_pKernel   = NULL;
@@ -86,9 +84,8 @@ SyBgLc::SyBgLc(CmDevice *pdevice, int max_Thread_Count)
 
    m_shift = 10;
 
-   //TODO: Can be alter by user input
-   int lightness = LIGHTNESS;
-   int contrast = CONTRAST;
+   int lightness = lightness_;
+   int contrast = contrast_;
 
    m_pLUT = (uchar *)CM_ALIGNED_MALLOC(256, 0x1000);
    InitializeLightnessDarknessContrastLUT(lightness, contrast, m_pLUT);

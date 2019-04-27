@@ -27,13 +27,8 @@
 #define X 0
 #define Y 1
 
-#define LAB2CMYK_LUTSIZE 256 * 4    // Float 
-#define REMOVE_FRINGE_LUTSIZE 256
-
-static const ushort init_seq[8] = {0, 1, 2, 3, 4, 5, 6, 7};
-
 inline _GENX_ void RemoveFringe_GENX(
-      uint slmIn,
+      SurfaceIndex LtoKSI,
       matrix_ref<uchar, BLKH, BLKW> inputL,
       matrix_ref<uchar, BLKH, BLKW> inputNE,
       matrix_ref<uchar, BLKH, BLKW*4> inputCMYK,
@@ -41,12 +36,12 @@ inline _GENX_ void RemoveFringe_GENX(
       matrix_ref<uchar, BLKH, BLKW> outputK
       )
 {
-   vector<ushort, BLKH*BLKW> lightInS(inputL);
+   vector<uint, BLKH*BLKW> lightInS(inputL);
    vector<uchar, BLKH*BLKW> koutPixel;
 
    #pragma unroll
    for (int i = 0; i < 8; i++)
-      cm_slm_read(slmIn, lightInS.select<16,1>(i*16), koutPixel.select<16,1>(i*16));
+      read(LtoKSI, 0, lightInS.select<16,1>(i*16), koutPixel.select<16,1>(i*16));
 
    matrix<uchar, BLKH, BLKW*4> edgeResult = 0;
    vector<uchar, BLKH*BLKW*4> neMask = 0;
@@ -84,21 +79,6 @@ CmykRF_GENX(
       SurfaceIndex LatticePointSI  // Destination picture surface index
      )
 {
-   uint slmX, slmY, slmZ, slmFringe;
-
-   cm_slm_init(LAB2CMYK_LUTSIZE*4 + REMOVE_FRINGE_LUTSIZE);
-   slmX = cm_slm_alloc(LAB2CMYK_LUTSIZE);
-   slmY = cm_slm_alloc(LAB2CMYK_LUTSIZE);
-   slmZ = cm_slm_alloc(LAB2CMYK_LUTSIZE);
-   slmFringe = cm_slm_alloc(REMOVE_FRINGE_LUTSIZE);
-
-   vector<ushort, 8> init_loc(init_seq);
-   vector<float, 8> init_data;
-
-   cm_slm_load(slmX, XMapSI, 0, LAB2CMYK_LUTSIZE);
-   cm_slm_load(slmY, YMapSI, 0, LAB2CMYK_LUTSIZE);
-   cm_slm_load(slmZ, ZMapSI, 0, LAB2CMYK_LUTSIZE);
-   cm_slm_load(slmFringe, LtoKSI, 0, REMOVE_FRINGE_LUTSIZE);
 
    vector<short, 2> pos, pos4;
 
@@ -120,19 +100,18 @@ CmykRF_GENX(
    read(SrcSIA, pos(X), pos(Y), inputA);
    read(SrcSIB, pos(X), pos(Y), inputB);
 
-   vector<ushort, BLKH*BLKW> inL(inputL);
-   vector<ushort, BLKH*BLKW> inA(inputA);
-   vector<ushort, BLKH*BLKW> inB(inputB);
+   vector<uint, BLKH*BLKW> inL(inputL);
+   vector<uint, BLKH*BLKW> inA(inputA);
+   vector<uint, BLKH*BLKW> inB(inputB);
 
    vector<float, BLKW*BLKH> coordX, coordY, coordZ;
 
-   //Map the RGB into XYZ
-   #pragma unroll
+#pragma unroll
    for (int i=0; i < 8; i++)
    {
-      cm_slm_read(slmX, inL.select<16,1>(i*16), coordX.select<16,1>(i*16));
-      cm_slm_read(slmY, inA.select<16,1>(i*16), coordY.select<16,1>(i*16));
-      cm_slm_read(slmZ, inB.select<16,1>(i*16), coordZ.select<16,1>(i*16));
+      read(XMapSI, 0, inL.select<16,1>(i*16), coordX.select<16,1>(i*16));
+      read(YMapSI, 0, inA.select<16,1>(i*16), coordY.select<16,1>(i*16));
+      read(ZMapSI, 0, inB.select<16,1>(i*16), coordZ.select<16,1>(i*16));
    }
 
    coordX += 0.5f;
@@ -193,7 +172,7 @@ CmykRF_GENX(
 
    read(SrcSINE, pos(X), pos(Y), inputNE);
 
-   RemoveFringe_GENX(slmFringe, inputL, inputNE, lab2cmykout, fringecmykout,
+   RemoveFringe_GENX(LtoKSI, inputL, inputNE, lab2cmykout, fringecmykout,
          fringekout);
 
    write(DstSICMYK, pos4(X), pos4(Y), fringecmykout.select<8,1,32,1>(0,0));

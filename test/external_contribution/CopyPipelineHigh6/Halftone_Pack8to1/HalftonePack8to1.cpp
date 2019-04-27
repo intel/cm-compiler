@@ -49,7 +49,7 @@ HalftonePack8to1::HalftonePack8to1(CmDevice *pdevice, int max_Thread_Count)
    {
       for (int x = 0; x < m_mapWidthC; x++)
       {
-         pTmp[x] = C_SCREEN_DATA[y*m_mapHeightC + x];
+         pTmp[x] = C_SCREEN_DATA[y*m_mapWidthC + x];
       }
       pTmp += m_mapWidthC;
    }
@@ -62,7 +62,7 @@ HalftonePack8to1::HalftonePack8to1(CmDevice *pdevice, int max_Thread_Count)
    {
       for (int x = 0; x < m_mapWidthM; x++)
       {
-         pTmp[x] = M_SCREEN_DATA[y*m_mapHeightM+ x];
+         pTmp[x] = M_SCREEN_DATA[y*m_mapWidthM+ x];
       }
       pTmp += m_mapWidthM;
    }
@@ -75,7 +75,7 @@ HalftonePack8to1::HalftonePack8to1(CmDevice *pdevice, int max_Thread_Count)
    {
       for (int x = 0; x < m_mapWidthY; x++)
       {
-         pTmp[x] = Y_SCREEN_DATA[y*m_mapHeightY+ x];
+         pTmp[x] = Y_SCREEN_DATA[y*m_mapWidthY+ x];
       }
       pTmp += m_mapWidthY;
    }
@@ -88,7 +88,7 @@ HalftonePack8to1::HalftonePack8to1(CmDevice *pdevice, int max_Thread_Count)
    {
       for (int x = 0; x < m_mapWidthK; x++)
       {
-         pTmp[x] = K_SCREEN_DATA[y*m_mapHeightK+ x];
+         pTmp[x] = K_SCREEN_DATA[y*m_mapWidthK+ x];
       }
       pTmp += m_mapWidthK;
    }

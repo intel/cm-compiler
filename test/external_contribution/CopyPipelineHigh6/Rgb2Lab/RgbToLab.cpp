@@ -22,7 +22,7 @@
 #include "cm_rt.h"
 #include "RgbToLab.h"
 
-#define BLOCK_WIDTH     16
+#define BLOCK_WIDTH     8
 #define BLOCK_HEIGHT    8
 
 RgbToLab::RgbToLab(CmDevice *pdevice, int max_Thread_Count)
