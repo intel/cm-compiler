@@ -1,0 +1,123 @@
+**************************************************************************************************
+               				C For Media (CM) Scan Pre-Process Sample
+				                       	README
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+This README provides sample description and build/execution instructions.
+
+CONTENTS:
+1  Sample Description
+2  System Requirements for Building and Running the Sample
+3  Sample Directory
+4  Basic Command-line Options
+
+1  Sample Description
+**************************************************************************************************
+Scan Pre-Process sample demonstrates the process of scanning an "uncalibrated" and skewed image 
+alter the image to produce an "calibrated" and skew-corrected image.  
+
+The input sample for the Scan Pre-Process is packed 10-bit or 12-bit "uncalibrated" and skewed RGB 
+images. Since the input image provided by the user (using command line option -i) is an 8bpp RGB 
+image, the "uncalibrated" and skewed 10-bit or 12-bit images, which are used as input to the graph, 
+are synthetically generated using the following process:
+
+   1. The input image, which you provide, is skewed using the angle specified by 
+      -skewangle <degrees>. For example, -skewangle 30 will rotate the original image 
+      counter-clockwise by 30 degrees to generate a skewed image. The rotation operation is done 
+      using WarpAffine CM kernel with BiCubic interpolation.
+
+   2. The skewed image created in step 1 above is converted to a packed 10-bit or 12-bit image. 
+      If you specify -sppbits 10, a packed 10-bit image is created. If you specify -sppbits 12, 
+      a packed 12-bit image is created. 
+
+During the conversion, a random gain and offset arrays are generated for the correction process.
+The sizes of the gain and offset arrays are equal to the width of the skewed image. When the 
+Scan Pre-Process graph is executed, the Gain / Offset will first unpack the 10-bit or 12-bit 
+packed input data to a floating point temporary result, and apply the following formula to produce 
+the 8-bit “calibrated” result:
+
+   output_8[x] = (input[x] * gain[x] + offset[x]) * agc
+
+   where:
+      - input[x] is an unpacked pixel at position X for the current line
+      - gain[x] is the corresponding gain value for position X
+      - offset[x] id the corresponding offset value for position X
+      - agc (Automatic Gain Correction) is a page constant value
+
+In order to have the GainOffset CM kernel generate (close to) the original image, the inverse of 
+the above formula is applied to the image during the 8-bit to 10-bit / 12-bit package image 
+conversion process. The formula applies a random gain and offset to column of the image for each R, 
+G, and B plane, synthetically producing an “uncalibrated” image.
+
+This synthetically generated “uncalibrated” and skewed 10-bit/12-bit image is used as an input to 
+the Scan Pre-Process graph. The Scan Pre-Process Graph, reverses the steps taken to produce the 
+“uncalibrated” input image.
+
+   1. The “uncalibrated” and skewed 10-bit / 12-bit packed input R, G, and B planes are passed as
+      input to the GainOffset CM kernel, producing a calibrated (but still skewed) RGB image.
+
+   2. The skewed image is passed to the WarpAffine CM kernel to correct the given skew using 
+      BiCubic interpolation.
+
+After the process has been completed, two output files will be produce as a result of the 
+"calibrated" and skew corrected image. The output filename is derived from the input filename with 
+the addition of "_output", for example:
+
+   Input - fruit.bmp
+   Output - fruit_output.bmp
+
+Lastly, the second file will be the output of the skewed input image but in RAW format which will look like
+
+   Skewed Output - fruit_output_skewed_[skewangle]degree.raw
+
+2  System Requirements for Building and Running the Sample
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+After all required drivers installation, use the Makefile.linux include in this
+directory to build
+
+make -f Makefile.linux
+
+3  Sample Directory
+**************************************************************************************************
+The sample directory has the following structure:
+
++--ScanPreProcess (a separated directory per sample)
+   |-- ScanPreProcess.cpp
+   |-- include(Headers file for all kernels involved)
+       |-- ScanPreProcess.h (Scan Pre-Process header file)
+       |-- ScanPreProcess_Defs.h (Definition file)
+       |-- CmdParser.h (Parse arguments input by the user)
+       |-- GainOffset.h (Header for GainOffset class)
+       |-- WarpAffine.h (Header for WarpAffine class)
+   |-- main.cpp (Main sample file with code)
+   |-- README (This README)
+   |-- GainOffset (Calibrate between 8-bit and 10 or 12-bit packed input image CM kernel)
+       |-- GainOffset.cpp (GainOffset kernel setup)
+       |-- GainOffset_genx.cpp (GPU execution code for GainOffset kernel)
+   |-- WarpAffine (Skew input image CM kernel)
+       |-- WarpAffine.cpp (WarpAffine kernel setup)
+       |-- WarpAffine_genx.cpp (GPU execution code for WarpAffine kernel)
+
+4  Basic Command-line Options
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+NOTE: command line parameters (keys and values) are case-sensitive.
+
+hw_x64.ScanPreProcess [OPTION]
+Options:
+
+   -h                      Print a usage message.
+   -i <filename>           Path to an 24bit .bmp RGB image.  Default value: fruit.bmp
+   -o <filename>           Path to save skewed RGB .raw output image and deskew bitmap file. Default: no output file
+   -maxframes <integer>    Maximum number of frames to run.
+   -skewangle <integer>    Specify angle to generate the skewed image
+   -sppbits <integer>      Packed the input image data into 10 or 12-bit
+
+Running sample
+
+./hw_x64.ScanPreProcess -i fruit.bmp -skewangle 30 -sppbits 12
+
+Viewing Image
+NOTE: ImageMagick is required for this purpose
+
+Bitmap Format -> display -flip fruit.bmp
+
+RAW Format -> display -flip -depth 8 -size <skewed width>x<skewed height> bgr:fruit_output_skewed.raw

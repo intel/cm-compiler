@@ -1,0 +1,70 @@
+------------------------------------------------------------------------------
+                       C for Media (CM) Scan To Jpeg Sample
+                                    README
+------------------------------------------------------------------------------
+This README provides sample description and build/execution instructions.
+
+CONTENTS:
+1   Sample Description
+2   System Requirements for Building and Running the Sample
+3   Sample Directory
+4   Basic Command-line Options
+
+
+1 Sample Description
+------------------------------------------------------------------------------
+Scan to Jpeg sample demonstrates how to combine C for Media (CM) kernel with hardware
+GPU fixed pipeline.  In this example, it uses HW jpeg decoder and HW jpeg encoder.  
+
+The sample takes in a 24bit RGB bitmap file, using a RGB2YCbCr kernel to convert
+to YCbCr (YUV444P) and submit the buffer to HW jpeg encoder and compress to
+JPEG. Subsequently, the JPEG output will feed into HW jpeg decoder to decompress
+into a YUV444P buffer, and it utilizes another CM kernel YCbCr2RGB to convert
+back to RGB format.
+
+The samples provides option to output JPEG file as well as un-compress RGB
+bitmap file.  Besides, it also provides option to alter the JPEG quality.  With that,
+users can inspect actually image quality before and after compression by
+comparing the input 24bit bitmap with output 24bit bitmap file.
+ 
+
+2 System Requirements for Building and Running the Sample
+------------------------------------------------------------------------------
+After all required drivers installation, use the Makefile.linux include in this
+directory to build
+
+make -f Makefile.linux
+
+3 Sample Directory
+------------------------------------------------------------------------------
+The sample directory has the following structure:
+
++-- ScanToJpeg (a separated directory per sample)
+    |-- Scan2FilePipeline.cpp (Scan2FilePipline class implementation)
+    |-- include (All the kernels header file)
+    |-- main.cpp (Main sample file with code)
+    |-- README (This readme file)
+    |-- Rgb2YCbCr (Convert RGB to YCbCr CM kernel) 
+    |-- YCbCr2Rgb (Convert YCbCr to RGB CM kernel) 
+    |-- JpegDecoder (Program GPU HW decoder through LIBVA)
+    |-- JpegEncoder (Program GPU HW encoder through LIBVA)
+
+4 Basic Command-line Options
+------------------------------------------------------------------------------
+NOTE: command line parameters (keys and values) are case-sensitive.
+
+hw_x64.ScanToJpeg [OPTION]
+Options:
+
+   -h                          Print a usage message.
+   -i <filename>               Path to an 24bit .bmp RGB image.  Default value: nest.bmp
+   -jpegout <filename>         Path to save JPEG output image. Default: no output file
+   -rgbout <filename>          Path to save RGB bitmap output image. Default: no output file
+   --maxframes <integer>       Maximum number of frames to run.
+   --jpegquality <integer>     JPEG compression quality, range(1, 100). Default value: 90
+
+Running sample
+
+./hw_x64.ScanToJpeg -i nest.bmp --jpegout nest.jpg --rgbout output.bmp --jpegquality 90
+
+
