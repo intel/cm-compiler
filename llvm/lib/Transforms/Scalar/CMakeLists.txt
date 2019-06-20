@@ -4,7 +4,6 @@ add_llvm_library(LLVMScalarOpts
   CMTrans/CMKernelArgOffset.cpp
   CMTrans/CMSimdCFLowering.cpp
   CMTrans/CMRegion.cpp
-  CMTrans/InstructionSimplifyGenX.cpp
   CMPacketize/GenXPacketize.cpp
   CMPacketize/PacketBuilder.cpp
   CMPacketize/PacketBuilder_math.cpp

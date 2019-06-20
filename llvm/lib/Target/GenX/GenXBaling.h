@@ -230,6 +230,7 @@
 #include "FunctionGroup.h"
 #include "GenX.h"
 #include "GenXAlignmentInfo.h"
+#include "GenXSubtarget.h"
 #include "IgnoreRAUWValueMap.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/Pass.h"
@@ -261,7 +262,7 @@ struct BaleInfo {
   // rdregion, wrregion, modifier, or main instruction.
   enum { MAININST, WRREGION, SATURATE, NOTMOD, NEGMOD, ABSMOD,
       RDREGION, ADDRADD, RDPREDREGION, ALLANY, NOTP, ZEXT, SEXT,
-      WRPREDREGION, WRPREDPREDREGION, CMPDST };
+      WRPREDREGION, WRPREDPREDREGION, CMPDST, GSTORE };
   uint16_t Type;
   uint16_t Bits; // bitmap of which operands are baled in
   BaleInfo(int Type = MAININST, unsigned Bits = 0) : Type(Type), Bits(Bits) {}
@@ -327,6 +328,16 @@ public:
   // getHead : get head instruction of the bale
   BaleInst *getHead() { return &*rbegin(); }
   const BaleInst *getHead() const { return &*rbegin(); }
+  // If a bale ends with a g_store bale, return the baled instruction prior to
+  // this g_store instruction.
+  BaleInst *getHeadIgnoreGStore() {
+    if (endsWithGStore())
+      return &*std::next(rbegin());
+    return getHead();
+  }
+  bool endsWithGStore() const {
+    return !empty() && rbegin()->Info.Type == BaleInfo::GSTORE;
+  }
   // getMainInst : get 0 else the main inst from the bale
   BaleInst *getMainInst();
   // hash : set hash code for bale. Must be called before using comparison
@@ -361,6 +372,7 @@ class GenXBaling {
   BalingKind Kind;
   typedef llvm::ValueMap<const Value *, genx::BaleInfo,
           IgnoreRAUWValueMapConfig<const Value *>> InstMap_t;
+  GenXSubtarget *ST;
   InstMap_t InstMap;
   struct NeedClone {
     Instruction *Inst;
@@ -379,7 +391,8 @@ protected:
 public:
   genx::AlignmentInfo AlignInfo;
 public:
-  explicit GenXBaling(BalingKind Kind) : Kind(Kind), Liveness(nullptr) {}
+  explicit GenXBaling(BalingKind _Kind, GenXSubtarget *_ST) : 
+    Kind(_Kind), ST(_ST), Liveness(nullptr) {}
   // clear : clear out the analysis
   void clear() { InstMap.clear(); }
   // processFunctionGroup : process all the Functions in a FunctionGroup
@@ -422,11 +435,11 @@ public:
   void print(raw_ostream &OS);
 private:
   // methods to build the info when running the analysis
-  static bool isMainInst(Instruction *Inst, unsigned IntrinID);
   void processWrPredRegion(Instruction *Inst);
   void processWrPredPredRegion(Instruction *Inst);
   void processWrRegion(Instruction *Inst);
   bool processSelect(Instruction *Inst);
+  void processStore(StoreInst *Inst);
   bool processPredicate(Instruction *Inst, unsigned OperandNum);
   void processSat(Instruction *Inst);
   void processRdRegion(Instruction *Inst);
@@ -440,6 +453,15 @@ private:
   Instruction *getOrUnbaleExtend(Instruction *Inst, genx::BaleInfo *BI,
                                  unsigned OperandNum, bool Unbale);
   int getAddrOperandNum(unsigned IID);
+
+  bool operandIsBaled(Instruction *Inst,
+             unsigned OperandNum, int ModType,
+             unsigned ArgInfoBits);
+
+  bool isRegionOKForRaw(Value *V, bool IsWrite);
+  bool isRegionOKForIntrinsic(unsigned ArgInfoBits,
+             Instruction *RegionInst, bool CanSplitBale);
+
   // Cleanup and optimization before do baling on a function.
   bool prologue(llvm::Function *F);
 };
@@ -450,8 +472,8 @@ private:
 class GenXFuncBaling : public FunctionPass, public GenXBaling {
 public:
   static char ID;
-  explicit GenXFuncBaling(BalingKind Kind = BalingKind::BK_Legalization)
-      : FunctionPass(ID), GenXBaling(Kind) {}
+  explicit GenXFuncBaling(BalingKind Kind = BalingKind::BK_Legalization, GenXSubtarget *ST = nullptr)
+      : FunctionPass(ID), GenXBaling(Kind, ST) {}
   virtual StringRef getPassName() const {
     return "GenX instruction baling analysis for a function";
   }
@@ -475,8 +497,8 @@ void initializeGenXFuncBalingPass(PassRegistry &);
 class GenXGroupBaling : public FunctionGroupPass, public GenXBaling {
 public:
   static char ID;
-  explicit GenXGroupBaling(BalingKind Kind = BalingKind::BK_Legalization)
-      : FunctionGroupPass(ID), GenXBaling(Kind) {}
+  explicit GenXGroupBaling(BalingKind Kind = BalingKind::BK_Legalization, GenXSubtarget *ST = nullptr)
+      : FunctionGroupPass(ID), GenXBaling(Kind, ST) {}
   virtual StringRef getPassName() const {
     return "GenX instruction baling analysis for a function group";
   }

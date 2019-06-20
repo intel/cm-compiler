@@ -318,7 +318,7 @@ relation is transitive over the synchonizes-with relation independent of scope,
 and synchonizes-with allows the memory scope instances to be inclusive (see
 table :ref:`amdgpu-amdhsa-llvm-sync-scopes-table`).
 
-This is different to the OpenCL memory model which does not have scope
+This is different to the OpenCL [OpenCL]_ memory model which does not have scope
 inclusion and requires the memory scopes to exactly match. However, this
 is conservatively correct for OpenCL.
 
@@ -797,7 +797,7 @@ The following relocation types are supported:
 DWARF
 -----
 
-Standard DWARF Version 2 sections can be generated. These contain
+Standard DWARF [DWARF]_ Version 2 sections can be generated. These contain
 information that maps the code object executable code and data to the source
 language constructs. It can be used by tools such as debuggers and profilers.
 
@@ -2351,7 +2351,7 @@ The AMDGPU backend supports the following memory models:
   HSA Memory Model [HSA]_
     The HSA memory model uses a single happens-before relation for all address
     spaces (see :ref:`amdgpu-address-spaces`).
-  OpenCL Memory Model
+  OpenCL Memory Model [OpenCL]_
     The OpenCL memory model which has separate happens-before relations for the
     global and local address spaces. Only a fence specifying both global and
     local address space, and seq_cst instructions join the relationships. Since
@@ -4142,9 +4142,14 @@ Additional Documentation
 .. [AMD-GCN-GFX7] `AMD Sea Islands Series ISA <http://developer.amd.com/wordpress/media/2013/07/AMD_Sea_Islands_Instruction_Set_Architecture.pdf>`_
 .. [AMD-GCN-GFX8] `AMD GCN3 Instruction Set Architecture <http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2013/12/AMD_GCN3_Instruction_Set_Architecture_rev1.1.pdf>`__
 .. [AMD-GCN-GFX9] `AMD "Vega" Instruction Set Architecture <http://developer.amd.com/wordpress/media/2013/12/Vega_Shader_ISA_28July2017.pdf>`__
+.. [AMD-OpenCL_Programming-Guide]  `AMD Accelerated Parallel Processing OpenCL Programming Guide <http://developer.amd.com/download/AMD_Accelerated_Parallel_Processing_OpenCL_Programming_Guide.pdf>`_
+.. [AMD-APP-SDK] `AMD Accelerated Parallel Processing APP SDK Documentation <http://developer.amd.com/tools/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/documentation/>`__
 .. [AMD-ROCm] `ROCm: Open Platform for Development, Discovery and Education Around GPU Computing <http://gpuopen.com/compute-product/rocm/>`__
 .. [AMD-ROCm-github] `ROCm github <http://github.com/RadeonOpenCompute>`__
 .. [HSA] `Heterogeneous System Architecture (HSA) Foundation <http://www.hsafoundation.com/>`__
 .. [ELF] `Executable and Linkable Format (ELF) <http://www.sco.com/developers/gabi/>`__
+.. [DWARF] `DWARF Debugging Information Format <http://dwarfstd.org/>`__
 .. [YAML] `YAML Ain't Markup Language (YAML™) Version 1.2 <http://www.yaml.org/spec/1.2/spec.html>`__
+.. [OpenCL] `The OpenCL Specification Version 2.0 <http://www.khronos.org/registry/cl/specs/opencl-2.0.pdf>`__
 .. [HRF] `Heterogeneous-race-free Memory Models <http://benedictgaster.org/wp-content/uploads/2014/01/asplos269-FINAL.pdf>`__
+.. [AMD-AMDGPU-Compute-Application-Binary-Interface] `AMDGPU Compute Application Binary Interface <https://github.com/RadeonOpenCompute/ROCm-ComputeABI-Doc/blob/master/AMDGPU-ABI.md>`__

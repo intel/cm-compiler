@@ -86,6 +86,9 @@ void GenXRematerialization::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool GenXRematerialization::runOnFunctionGroup(FunctionGroup &FG) {
+  if (skipOptWithLargeBlock(FG))
+    return false;
+
   Modified = false;
   Baling = &getAnalysis<GenXGroupBaling>();
   Liveness = &getAnalysis<GenXLiveness>();

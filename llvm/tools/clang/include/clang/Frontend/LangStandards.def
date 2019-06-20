@@ -140,9 +140,9 @@ LANGSTANDARD(gnucxx2a, "gnu++2a",
              LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17 |
              CPlusPlus2a | Digraphs | HexFloat | GNUMode)
 
-// Intel MDF C for Media
+// Intel MDF C for Metal
 LANGSTANDARD(mdf_cm, "cm",
-             CXX, "Intel MDF C for Media",
+             CXX, "Intel MDF C for Metal",
              LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus14 | CPlusPlus17)
 
 // OpenCL

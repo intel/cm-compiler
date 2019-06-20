@@ -1,18 +1,23 @@
 #include <cm/cm.h>
 
-_GENX_ matrix<float, 2, 2> M;      // global variable declaration
+                matrix<float, 2, 2> M;      // global variable declaration
+_GENX_VOLATILE_ matrix<float, 4, 8> G;      // volatile global variable declaration
 
-_GENX_ float foo(matrix<float, 4, 4> m)
+inline float foo(matrix<float, 4, 4> m)
 {
   return cm_sum<float>(m);
 }
 
-_GENX_ void bar(vector<float, 16> v, float f)
+inline void bar(vector<float, 16> v, float f)
 {
   matrix<float, 4, 4> m1;
   m1 = v + f;
   float s = foo(m1);
   M = m1.select<2, 2, 2, 2>(0, 0) * s;
+}
+
+inline void baz(int i) {
+  G += i;
 }
 
 _GENX_MAIN_ void kernel(SurfaceIndex inbuf, SurfaceIndex outbuf,
@@ -25,6 +30,10 @@ _GENX_MAIN_ void kernel(SurfaceIndex inbuf, SurfaceIndex outbuf,
   v = m;
   bar(v, 0.5f);
   write(outbuf, x_pos, y_pos, M);
+
+  G = 0;
+  baz(x_pos);
+  write(outbuf, x_pos, y_pos, G);
 }
 
 // output a warning just to have some output from the compiler to check

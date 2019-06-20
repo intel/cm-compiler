@@ -398,6 +398,7 @@ enum Decoration {
     DecorationSecondaryViewportRelativeNV = 5256,
     DecorationNonUniformEXT = 5300,
     DecorationCMKernelArgumentTypeINTEL = 5581,
+    DecorationCMKernelArgumentDescINTEL = 5582,
     DecorationHlslCounterBufferGOOGLE = 5634,
     DecorationHlslSemanticGOOGLE = 5635,
     DecorationMax = 0x7fffffff,

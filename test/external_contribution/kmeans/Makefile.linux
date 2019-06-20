@@ -3,7 +3,7 @@
 ###########################################################################
 
 #macro CM_ROOT and APP_NAME are passed as Make parameters
-CM_ROOT := /home/gangche1/CentOS_CM_Dev_Package_20190410
+CM_ROOT := /home/gangche1/Linux_C_for_Media_Development_Package_20181022
 #CMC := ../../../build.64.linux/bin/cmc
 #CM_ROOT := ../..
 CMC := $(CM_ROOT)/compiler/bin/cmc
@@ -42,7 +42,7 @@ HW_X64_APP_OBJS := $(HW_APP_SOURCES:.cpp=.o)
 
 hw_x64: $(HW_X64_APP) $(HW_X64_ISA)
 $(HW_X64_APP): $(HW_X64_APP_OBJS)
-	$(CXX) $^ $(HW_LDFLAGS) -rdynamic $(CM_ROOT)/runtime/lib/x64/libigfxcmrt.so -ljansson -o $@
+	$(CXX) $^ $(HW_LDFLAGS) -rdynamic $(CM_ROOT)/runtime/lib/x64/igfxcmrt64.so -ljansson -o $@
 $(HW_X64_APP_OBJS): %.o: %.cpp 
 	$(CXX) $< $(HW_CXXFLAGS) -o $@
 

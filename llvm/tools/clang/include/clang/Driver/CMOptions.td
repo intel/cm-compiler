@@ -151,6 +151,10 @@ def mCM_enableiga : CMCompileFlag<"mCM_enableiga">;
 
 def mCM_no_input_reorder : CMCompileFlag<"mCM_no_input_reorder">, HelpText<"Stop the compiler from reordering kernel arguments">;
 
+def fcmocl : Flag<["-", "/"], "fcmocl">, Group<cm_Group>,
+  HelpText<"enable experimental feature to compile kernels to execute on top of OpenCL runtime">,
+  Flags<[CMOption, CC1Option]>;
+
 def mCM_no_vector_decomposition : CMCompileFlag<"mCM_no_vector_decomposition">, HelpText<"Disable vector decomposition optimization">;
 
 def mCM_disable_jmpi : CMCompileFlag<"mCM_disable_jmpi">, HelpText<"disable jmpi (only available if -Qxcm_jit_target=... is also specified)">;
@@ -158,6 +162,13 @@ def mCM_disable_jmpi : CMCompileFlag<"mCM_disable_jmpi">, HelpText<"disable jmpi
 def mCM_no_debug : CMCompileFlag<"mCM_no_debug">, HelpText<"Disable debug info (line tables) when -g is not specified.">;
 
 def mCM_warn_callable : CMCompileFlag<"mCM_warn_callable">, HelpText<"Generate warning instead of error if callable is called in the middle.">;
+
+// Passed to cc1 to specify the file name for importing builtin-function module
+def mCM_import_bif : CMCC1<"mCM_import_bif">;
+
+def fvolatile_global : Flag<["-", "/"], "fvolatile-global">, Group<cm_Group>,
+  HelpText<"treat global variables as volatile, not to promote them to register early">,
+  Flags<[CMOption, CC1Option, CC1AsOption]>;
 
 def mCM_init_global : Flag<["-", "/"], "mCM_init_global">, Group<cm_Group>,
   HelpText<"Always initialize CM global variables">,

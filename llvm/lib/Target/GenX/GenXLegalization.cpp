@@ -210,6 +210,7 @@ class GenXLegalization : public FunctionPass {
   GenXBaling *Baling;
   const GenXSubtarget *ST;
   ScalarEvolution *SE;
+  bool EnableTransformByteMove = true;
   // Work variables when in the process of splitting a bale.
   // The Bale being split. (Also info on whether it has FIXED4 and TWICEWIDTH operands.)
   Bale B;
@@ -261,9 +262,43 @@ class GenXLegalization : public FunctionPass {
   //  (2) 2D direct regions with VStride >= Width, or indirect regions with
   //      single offset.
   //
+  // While legalizing a bale ends with a g_store instruction, we produce the
+  // following code sequences.
+  // bale {
+  //   V1 = rdr(V0, 0, 32)
+  //   V2 = fadd V1, 1
+  //   store V2, p
+  // }
+  // ===>
+  // bale {
+  //  V1.0 = rdr(V0, 0, 16)
+  //  V2.0 = fadd V1.0, 1
+  //  V3.0 = wrr(load(p), V2.0, 0, 16)
+  //  store V3.0, p
+  // }
+  // bale {
+  //  V1.1 = rdr(V0, 16, 32)
+  //  V2.1 = fadd V1.1, 1
+  //  V3.1 = wrr(load(p), V2.1, 16, 32)
+  //  store V3.1, p
+  // }
+  // The instruction stream looks like:
+  //
+  //  V1.0 = rdr(V0, 0, 16)
+  //  V1.1 = rdr(V0, 16, 32)
+  //  V2.0 = fadd V1.0, 1
+  //  V2.1 = fadd V1.1, 1
+  //  V3.0 = wrr(load(p), V2.0, 0, 16)
+  //  store V3.0, p
+  //  V3.1 = wrr(load(p), V2.1, 16, 32)
+  //  store V3.1, p
+  //
+  // That is, this process does not produce region joins.
+  //
   enum SplitKind {
-    SplitKind_Normal,     // split bales without propagation.
-    SplitKind_Propagation // split bales with propagation
+    SplitKind_Normal,      // split bales without propagation.
+    SplitKind_Propagation, // split bales with propagation.
+    SplitKind_GStore       // split bales end with g_store.
   };
   SplitKind CurSplitKind;
   // Current instruction in loop in runOnFunction, which gets adjusted if that
@@ -358,8 +393,20 @@ bool GenXLegalization::runOnFunction(Function &F)
     Argument *Arg = &*fi;
     if (auto VT = dyn_cast<VectorType>(Arg->getType()))
       if (VT->getElementType()->isIntegerTy(1))
-        assert(getPredPart(Arg, 0).Size == VT->getNumElements() && "function arg not allowed to be illegally sized predicate");
+        assert(getPredPart(Arg, 0).Size == VT->getNumElements() &&
+               "function arg not allowed to be illegally sized predicate");
   }
+
+  // TODO. remove this restriction.
+  for (auto &GV : F.getParent()->getGlobalList()) {
+    if (std::any_of(GV.user_begin(), GV.user_end(), [](Value *U) {
+          return isa<LoadInst>(U) || isa<StoreInst>(U);
+        })) {
+      EnableTransformByteMove = false;
+      break;
+    }
+  }
+
   // Legalize instructions. This does a postordered depth first traversal of the
   // CFG, and scans backwards in each basic block, to ensure that, if we unbale
   // anything, it then gets processed subsequently.
@@ -382,6 +429,7 @@ bool GenXLegalization::runOnFunction(Function &F)
   fixIntrinsicCalls(&F);
   fixIllegalPredicates(&F);
   IllegalPredicates.clear();
+
   return true;
 }
 
@@ -490,7 +538,8 @@ bool GenXLegalization::processInst(Instruction *Inst)
       default:
         break;
     }
-    return false; // no splitting needed for other scalar op.
+    if (!isa<StoreInst>(Inst))
+      return false; // no splitting needed for other scalar op.
   }
   if (isa<ExtractValueInst>(Inst))
     return false;
@@ -544,11 +593,15 @@ bool GenXLegalization::processInst(Instruction *Inst)
       // is always coalesced in GenXCoalescing, so never generates actual
       // code. Thus it does not matter if it has an illegal size.
       return false;
+    } else if (auto LI = dyn_cast<LoadInst>(MainInst->Inst)) {
+      (void)LI;
+      // Do not split a (global) load as it does not produce code.
+      return false;
     }
     // Any other instruction: split.
   }
   // Check if it is a byte move that we want to transform into a short/int move.
-  if (transformByteMove(&B)) {
+  if (EnableTransformByteMove && transformByteMove(&B)) {
     // Successfully transformed. Run legalization on the new instruction (which
     // got inserted before the existing one, so will be processed next).
     DEBUG(dbgs() << "done transformByteMove\n");
@@ -559,6 +612,15 @@ bool GenXLegalization::processInst(Instruction *Inst)
     dbgs() << "processBale: ";
     B.print(dbgs())
   );
+
+  if (!isLegalBale(B)) {
+#ifdef _DEBUG
+    dbgs() << "processBale: ";
+    B.print(dbgs());
+#endif
+    report_fatal_error("this g_store bale is not supported yet!");
+  }
+
   return processBale(InsertBefore);
 }
 
@@ -573,14 +635,19 @@ bool GenXLegalization::processBale(Instruction *InsertBefore)
   unsigned WholeWidth = getExecutionWidth();
   if (WholeWidth == 1)
     return false; // No splitting of scalar or 1-vector
-  Value *Joined = nullptr;
+
+  // Check the bale split kind if do splitting.
+  CurSplitKind = checkBaleSplittingKind();
+
   // We will be generating a chain of joining wrregions. The initial "old
   // value" input is undef. If the bale is headed by a wrregion or
   // wrpredpredregion that is being split, code inside splitInst uses the
   // original operand 0 for split 0 instead.
-  Joined = UndefValue::get(B.getHead()->Inst->getType());
-  // Check the bale split kind if do splitting.
-  CurSplitKind = checkBaleSplittingKind();
+  Value *Joined = nullptr;
+  // For bales ending with g_store, joining is not through wrr, but through
+  // g_load and g_store.
+  if (CurSplitKind != SplitKind::SplitKind_GStore)
+    Joined = UndefValue::get(B.getHeadIgnoreGStore()->Inst->getType());
 
   // Do the splits.
   for (unsigned StartIdx = 0; StartIdx != WholeWidth;) {
@@ -607,7 +674,8 @@ bool GenXLegalization::processBale(Instruction *InsertBefore)
     Joined = splitBale(Joined, StartIdx, Width, InsertBefore);
     StartIdx += Width;
   }
-  B.getHead()->Inst->replaceAllUsesWith(Joined);
+  if (!B.endsWithGStore())
+    B.getHead()->Inst->replaceAllUsesWith(Joined);
   // Erase the original bale.  We erase in reverse order so erasing each one
   // removes the uses of earlier ones. However we do not erase an instruction
   // that still has uses; that happens for a FIXED4 operand.
@@ -636,7 +704,7 @@ bool GenXLegalization::processBale(Instruction *InsertBefore)
  */
 bool GenXLegalization::noSplitProcessing()
 {
-  if (auto SI = dyn_cast<SelectInst>(B.getHead()->Inst)) {
+  if (auto SI = dyn_cast<SelectInst>(B.getHeadIgnoreGStore()->Inst)) {
     // Handle the case that a vector select has a scalar condition.
     SI->setOperand(0, splatPredicateIfNecessary(SI->getCondition(),
           SI->getType(), SI, SI->getDebugLoc()));
@@ -847,11 +915,11 @@ bool GenXLegalization::processBitCastToPredicate(Instruction *Inst,
  */
 unsigned GenXLegalization::getExecutionWidth()
 {
-  BaleInst *Head = B.getHead();
+  BaleInst *Head = B.getHeadIgnoreGStore();
   Value *Dest = Head->Inst;
   if (Head->Info.Type == BaleInfo::WRREGION
-      || Head->Info.Type == BaleInfo::WRPREDREGION
-      || Head->Info.Type == BaleInfo::WRPREDPREDREGION)
+    || Head->Info.Type == BaleInfo::WRPREDREGION
+    || Head->Info.Type == BaleInfo::WRPREDPREDREGION)
     Dest = Head->Inst->getOperand(1);
   VectorType *VT = dyn_cast<VectorType>(Dest->getType());
   if (!VT)
@@ -888,7 +956,7 @@ unsigned GenXLegalization::determineWidth(unsigned WholeWidth,
   unsigned Width = WholeWidth - StartIdx;
   unsigned PredMinWidth = 1;
   Value *WrRegionInput = nullptr;
-  auto Head = B.getHead();
+  auto Head = B.getHeadIgnoreGStore();
   if (Head->Info.Type == BaleInfo::WRREGION)
     WrRegionInput = Head->Inst->getOperand(
         Intrinsic::GenXRegion::OldValueOperandNum);
@@ -1013,7 +1081,7 @@ unsigned GenXLegalization::determineWidth(unsigned WholeWidth,
           // Get the min and max legal predicate size. First get the element type from the
           // wrregion or select that the notp is baled into.
           Type *ElementTy = nullptr;
-          auto Head = B.getHead()->Inst;
+          auto Head = B.getHeadIgnoreGStore()->Inst;
           if (Head != i->Inst)
             ElementTy = Head->getOperand(1)->getType()->getScalarType();
           auto PredWidths = getLegalPredSize(i->Inst->getOperand(0),
@@ -1050,6 +1118,7 @@ unsigned GenXLegalization::determineWidth(unsigned WholeWidth,
         break;
       }
       case BaleInfo::ADDRADD:
+      case BaleInfo::GSTORE:
         break;
       default: {
         ThisWidth = determineNonRegionWidth(i->Inst, StartIdx);
@@ -1128,7 +1197,7 @@ unsigned GenXLegalization::determineWidth(unsigned WholeWidth,
     // GenXBaling::unbaleBadOverlaps does not actually stop the bad live range
     // overlap. (This might change if we had a pass to schedule to reduce
     // register pressure.)
-    auto Head = B.getHead();
+    auto Head = B.getHeadIgnoreGStore();
     Head->Info.clearOperandBaled(Intrinsic::GenXRegion::NewValueOperandNum);
     Baling->setBaleInfo(Head->Inst, Head->Info);
     DEBUG(dbgs() << "GenXLegalization unbaling when rdr and wrr use same vector\n");
@@ -1145,7 +1214,7 @@ unsigned GenXLegalization::determineWidth(unsigned WholeWidth,
 
   // If join is generated after splitting, need to check destination region rule
   {
-    auto Head = B.getHead();
+    auto Head = B.getHeadIgnoreGStore();
     if (Head->Info.Type != BaleInfo::WRREGION
       && Head->Info.Type != BaleInfo::WRPREDPREDREGION) {
       auto VT = cast<VectorType>(Head->Inst->getType());
@@ -1199,10 +1268,11 @@ unsigned GenXLegalization::determineNonRegionWidth(Instruction *Inst, unsigned S
         BytesPerElement = InBytesPerElement;
     }
   }
+  unsigned int TwoGRFWidth = ST ? (2 * ST->getGRFWidth()) : 64;
   if (BytesPerElement) {
     // Non-predicate result.
-    if (Width * BytesPerElement > 64)
-      Width = 64 / BytesPerElement;
+    if (Width * BytesPerElement > TwoGRFWidth)
+      Width = TwoGRFWidth / BytesPerElement;
     Width = 1 << llvm::log2(Width);
   } else {
     // Predicate result. This is to handle and/or/xor/not of predicates; cmp's
@@ -1333,7 +1403,7 @@ Value *GenXLegalization::splitBale(Value *Last, unsigned StartIdx,
     SplitMap[BI.Inst] = NewLast = splitInst(Last, BI, StartIdx, Width,
         InsertBefore, BI.Inst->getDebugLoc());
   }
-  auto Head = B.getHead();
+  auto Head = B.getHeadIgnoreGStore();
   if (Head->Info.Type != BaleInfo::WRREGION
       && Head->Info.Type != BaleInfo::WRPREDPREDREGION) {
     // Need to join this result into the overall result with a wrregion or
@@ -1347,7 +1417,7 @@ Value *GenXLegalization::splitBale(Value *Last, unsigned StartIdx,
         Region R(VT);
         R.Width = R.NumElements = Width;
         R.Offset = StartIdx * R.ElementBytes;
-		assert(NewLast);
+        assert(NewLast);
         NewLast = R.createWrRegion(Last, NewLast,
             NewLast->getName() + ".join" + Twine(StartIdx), InsertBefore,
             Head->Inst->getDebugLoc());
@@ -1392,6 +1462,13 @@ Value *GenXLegalization::splitInst(Value *Last, BaleInst BInst,
     const DebugLoc &DL)
 {
   switch (BInst.Info.Type) {
+    case BaleInfo::GSTORE:
+      {
+         Value *Op =
+          getSplitOperand(BInst.Inst, 0, StartIdx, Width, InsertBefore, DL);
+         return new StoreInst(Op, BInst.Inst->getOperand(1), /*volatile*/ true,
+                              InsertBefore);
+      }
     case BaleInfo::WRREGION:
       {
         Region R(BInst.Inst, BInst.Info);
@@ -1404,6 +1481,12 @@ Value *GenXLegalization::splitInst(Value *Last, BaleInst BInst,
         // wrregion. Otherwise it comes from the split wrregion created
         // last time round.
         Value *In = !StartIdx ? BInst.Inst->getOperand(0) : Last;
+        if (CurSplitKind == SplitKind::SplitKind_GStore && StartIdx != 0) {
+          Instruction *ST = B.getHead()->Inst;
+          assert(isa<StoreInst>(ST));
+          Value *GV = ST->getOperand(1);
+          In = new LoadInst(GV, ".gload", /*volatile*/ true, InsertBefore);
+        }
         Value *MaybeNewWrRegion = R.createWrRegion(In,
             getSplitOperand(BInst.Inst, 1, StartIdx, Width, InsertBefore, DL),
             BInst.Inst->getName() + ".join" + Twine(StartIdx), InsertBefore, DL);
@@ -1432,8 +1515,8 @@ Value *GenXLegalization::splitInst(Value *Last, BaleInst BInst,
         // (but not the initial undef).
         //
         Value *OldVal = BInst.Inst->getOperand(0);
-        if (!isa<UndefValue>(Last) && CurSplitKind == SplitKind_Propagation) {
-          auto Head = B.getHead();
+        if (Last && !isa<UndefValue>(Last) && CurSplitKind == SplitKind_Propagation) {
+          auto Head = B.getHeadIgnoreGStore();
           if (Head->Info.Type == BaleInfo::WRREGION) {
             Value *WrRegionInput = Head->Inst->getOperand(0);
             if (OldVal == WrRegionInput)
@@ -2150,7 +2233,10 @@ void GenXLegalization::fixIllegalPredicates(Function *F)
 }
 
 GenXLegalization::SplitKind GenXLegalization::checkBaleSplittingKind() {
-  auto Head = B.getHead();
+  if (B.endsWithGStore())
+    return SplitKind::SplitKind_GStore;
+
+  auto Head = B.getHeadIgnoreGStore();
   SplitKind Kind = SplitKind::SplitKind_Normal;
 
   if (Head->Info.Type == BaleInfo::WRREGION) {

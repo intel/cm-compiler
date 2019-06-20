@@ -516,6 +516,8 @@ if (MSVC)
 
       # Promoted warnings to errors.
       -we4238 # Promote 'nonstandard extension used : class rvalue used as lvalue' to error.
+
+      -wd4201 # Suppress nameless struct/union for VISA
       )
   endif(NOT CLANG_CL)
 

@@ -1435,3 +1435,44 @@ void ConstantLoader::analyzeForPackedFloat(unsigned NumElements) {
   }
   PackedFloat = true;
 }
+
+// Legalize store instructions that value is a constant.
+bool genx::loadGlobalStoreConstant(StoreInst *Inst) {
+  Constant *C = dyn_cast<Constant>(Inst->getValueOperand());
+  Value *Ptr = Inst->getPointerOperand();
+  if (!C || getUnderlyingGlobalVariable(Ptr) == nullptr)
+    return false;
+  auto VT = dyn_cast<VectorType>(C->getType());
+  if (!VT)
+    return false;
+
+  unsigned NumElements = VT->getNumElements();
+  unsigned LogElementBits =
+      llvm::log2(VT->getElementType()->getPrimitiveSizeInBits());
+  unsigned MaxSize = 1 << (9 /*log 2xGRFsize*/ - LogElementBits);
+  MaxSize = std::min(MaxSize, 32U);
+
+  for (unsigned Idx = 0; Idx != NumElements;) {
+    unsigned Size = std::min(1U << llvm::log2(NumElements - Idx), MaxSize);
+    Constant *SubC = getConstantSubvector(C, Idx, Size);
+
+    Value *OldVal = nullptr;
+    if (Idx == 0)
+      OldVal = UndefValue::get(C->getType());
+    else
+      OldVal = new LoadInst(Ptr, "load", /*volatile*/ true, Inst);
+
+    Region R(C->getType());
+    R.getSubregion(Idx, Size);
+    Value *NewVal = R.createWrConstRegion(
+        OldVal, SubC, "constant.split" + Twine(Idx), Inst, Inst->getDebugLoc());
+
+    Idx += Size;
+    if (Idx < NumElements) {
+      auto ST = new StoreInst(NewVal, Ptr, /*Volatile*/ true, Inst);
+      ST->setDebugLoc(Inst->getDebugLoc());
+    } else
+      Inst->setOperand(0, NewVal);
+  }
+  return true;
+}

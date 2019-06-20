@@ -37,6 +37,7 @@
 #include "GenX.h"
 #include "GenXModule.h"
 #include "GenXVisa.h"
+#include "llvm/IR/IntrinsicsGenX.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
@@ -106,14 +107,10 @@ void GenXVisaWriter::writeModule(Module *M)
   }
 
   // Now write the vISA file.
-  enum {
-    VISA_MAJOR_VERSION = 3,
-    VISA_MINOR_VERSION = 6
-  };
   // Write the start of the header.
   Out << "CISA";
-  Out << (char)VISA_MAJOR_VERSION;
-  Out << (char)VISA_MINOR_VERSION;
+  Out << (char)genx::VISA_MAJOR_VERSION;
+  Out << (char)genx::VISA_MINOR_VERSION;
   // Write the header's kernel array.
   Out.write((const char *)&NumKernels, sizeof(NumKernels));
   for (GenXModule::iterator i = GM->begin(), e = GM->end(); i != e; i++)

@@ -4276,6 +4276,32 @@ static void handleCMGenxAttr(Sema &S, Decl *D, const AttributeList &Attr){
                                 Attr.getAttributeSpellingListIndex()));
 }
 
+static void handleCMGenxVolatileAttr(Sema &S, Decl *D,
+                                     const AttributeList &Attr) {
+  assert(!Attr.isInvalid());
+
+  if (Attr.getNumArgs() > 1) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments)
+        << Attr.getName() << 1;
+    return;
+  }
+
+  llvm::APSInt OffsetVal(32);
+  if (Attr.getNumArgs() == 1) {
+    Expr *OffsetExpr = Attr.getArgAsExpr(0);
+    if (!OffsetExpr->isIntegerConstantExpr(OffsetVal, S.Context)) {
+      S.Diag(Attr.getLoc(), diag::err_attribute_argument_type)
+        << Attr.getName() << AANT_ArgumentIntegerConstant
+        << OffsetExpr->getSourceRange();
+    }
+  }
+
+  uint32_t OffsetNum = (uint32_t)OffsetVal.getZExtValue();
+  D->addAttr(::new (S.Context)
+                 CMGenxVolatileAttr(Attr.getRange(), S.Context, OffsetNum,
+                                    Attr.getAttributeSpellingListIndex()));
+}
+
 static void handleCMBuiltinAttr(Sema &S, Decl *D, const AttributeList &Attr) {
   assert(!Attr.isInvalid());
   D->addAttr(::new (S.Context) CMBuiltinAttr(
@@ -4383,6 +4409,31 @@ static void handleCMEntryAttr(Sema &S, Decl *D, const AttributeList &Attr) {
   assert(!Attr.isInvalid());
   D->addAttr(::new (S.Context) CMEntryAttr(Attr.getRange(), S.Context,
     Attr.getAttributeSpellingListIndex()));
+}
+
+static void handleCMOpenCLTypeAttr(Sema &S, Decl *D,
+                                   const AttributeList &Attr) {
+  assert(!Attr.isInvalid());
+
+  if (!isa<ParmVarDecl>(D)) {
+    S.Diag(Attr.getLoc(), diag::warn_attribute_wrong_decl_type)
+        << Attr.getName() << 0;
+    return;
+  }
+
+  if (Attr.getNumArgs() != 1) {
+    S.Diag(Attr.getLoc(), diag::err_attribute_wrong_number_arguments)
+        << Attr.getName() << 1;
+    return;
+  }
+
+  StringRef TypeDesc;
+  if (!S.checkStringLiteralArgumentAttr(Attr, 0, TypeDesc, nullptr))
+    return;
+
+  D->addAttr(::new (S.Context)
+                 CMOpenCLTypeAttr(Attr.getRange(), S.Context, TypeDesc,
+                                  Attr.getAttributeSpellingListIndex()));
 }
 
 static void handleSuppressAttr(Sema &S, Decl *D, const AttributeList &Attr) {
@@ -6548,6 +6599,9 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
   case AttributeList::AT_CMGenx:
     handleCMGenxAttr(S, D, Attr);
     break;
+  case AttributeList::AT_CMGenxVolatile:
+    handleCMGenxVolatileAttr(S, D, Attr);
+    break;
   case AttributeList::AT_CMBuiltin:
     handleCMBuiltinAttr(S, D, Attr);
     break;
@@ -6577,6 +6631,9 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
     break;
   case AttributeList::AT_CMEntry:
     handleCMEntryAttr(S, D, Attr);
+    break;
+  case AttributeList::AT_CMOpenCLType:
+    handleCMOpenCLTypeAttr(S, D, Attr);
     break;
 
   // Microsoft attributes:
@@ -6786,6 +6843,25 @@ void Sema::ProcessDeclAttributeList(Scope *S, Decl *D,
       Diag(D->getLocation(), diag::err_opencl_kernel_attr) << A;
       D->setInvalidDecl();
     }
+  }
+
+  if (D->hasAttr<CMGenxVolatileAttr>()) {
+    VarDecl *VD = dyn_cast<VarDecl>(D);
+    if (!VD || !VD->isFileVarDecl()) {
+      Diag(D->getLocation(), diag::err_cm_volatile_attr) << D->getSourceRange();
+      D->dropAttr<CMGenxVolatileAttr>();
+    }
+    QualType Ty = VD->getType();
+    if (!Ty->isCMVectorMatrixType()) {
+      Diag(D->getLocation(), diag::err_cm_volatile_attr) << D->getSourceRange();
+      D->dropAttr<CMGenxVolatileAttr>();
+    }
+    if (VD->getInit()) {
+      Diag(D->getLocation(), diag::err_cm_volatile_init)
+          << VD->getInit() << D->getSourceRange();
+      D->dropAttr<CMGenxVolatileAttr>();
+    }
+    return;
   }
 
   // Check CM kernel argument attributes.

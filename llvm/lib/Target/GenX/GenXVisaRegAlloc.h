@@ -58,6 +58,7 @@
 #include "GenXLiveness.h"
 #include "GenXModule.h"
 #include "llvm/Pass.h"
+#include "llvm/IR/IntrinsicsGenX.h"
 #include <map>
 #include <string>
 #include <vector>

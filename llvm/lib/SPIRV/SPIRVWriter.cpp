@@ -1690,6 +1690,21 @@ bool LLVMToSPIRV::transCMKernelMetadata() {
         }
       }
     }
+    // get the ArgTypeDescs
+    if (KernelMD->getNumOperands() >= 8) {
+      if (auto Node = dyn_cast<MDNode>(KernelMD->getOperand(7))) {
+        for (unsigned i = 0, e = Node->getNumOperands(); i != e; ++i) {
+          if (auto MS = dyn_cast<MDString>(Node->getOperand(i))) {
+            SPIRVFunctionParameter *BA = BF->getArgument(i);
+            if (BA) {
+              SPIRVString *SS = BM->getString(MS->getString().str());
+              BA->addDecorate(new SPIRVDecorate(
+                  DecorationCMKernelArgumentDescINTEL, BA, SS->getId()));
+            }
+          }
+        }
+      }
+    }
   }
   return true;
 }

@@ -477,10 +477,17 @@ enum CmFloatControl {
 
 // Macros
 #define NULL 0
-#define _GENX_MAIN_   __declspec(genx_main)
-#define _GENX_        __declspec(genx)
-#define _CM_BUILTIN_  __declspec(cm_builtin)
+#define _GENX_MAIN_                     __declspec(genx_main)
+#define _GENX_                          __declspec(genx)
+#define _GENX_VOLATILE_                 __declspec(genx_volatile)
+#define _GENX_VOLATILE_BINDING_(Offset) __declspec(genx_volatile(Offset))
+#define _CM_BUILTIN_                    __declspec(cm_builtin)
 #define SAT _GENX_SAT
+
+// SIMT entry function attribute
+#define _SIMT8_       __declspec(genx_SIMT(8))
+#define _SIMT16_      __declspec(genx_SIMT(16))
+#define _SIMT32_      __declspec(genx_SIMT(32))
 
 // Fast-composition kernel attribute
 #define _CM_CALLABLE_     __declspec(cm_callable)

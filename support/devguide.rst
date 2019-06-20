@@ -1,5 +1,5 @@
 ======================================
-C-for-Media Compiler developers' guide
+C for Metal Compiler developers' guide
 ======================================
 
 This document provides more guidance for a developer of the compiler.

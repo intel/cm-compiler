@@ -250,11 +250,6 @@ void GenXTidyControlFlow::fixGotoOverBranch(Function *F)
  * of a function.
  */
 void GenXTidyControlFlow::fixReturns(Function *F) {
-  // This fixup is only when jmpi is disabled.
-  // TODO: Cmc should properly layout blocks.
-  if (!ST->disableJmpi())
-    return;
-
   // Loop over all of the blocks in a function, tracking all of the blocks
   // that return.
   SmallVector<BasicBlock *, 16> ReturningBlocks;

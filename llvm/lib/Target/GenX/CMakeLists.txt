@@ -24,6 +24,7 @@ add_llvm_target(GenXCodeGen
   GenXGEPLowering.cpp
   GenXIMadPostLegalization.cpp
   GenXIntrinsics.cpp
+  GenXLayoutBlocks.cpp
   GenXLegalization.cpp
   GenXLiveRanges.cpp
   GenXLiveness.cpp
@@ -35,6 +36,7 @@ add_llvm_target(GenXCodeGen
   GenXPostLegalization.cpp
   GenXPrinter.cpp
   GenXPressureTracker.cpp
+  GenXPromoteArray.cpp
   GenXPromotePredicate.cpp
   GenXRawSendRipper.cpp
   GenXReduceIntSize.cpp

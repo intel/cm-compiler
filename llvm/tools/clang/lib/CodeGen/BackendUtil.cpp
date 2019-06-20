@@ -134,17 +134,20 @@ class PassManagerBuilderWrapper : public PassManagerBuilder {
 public:
   PassManagerBuilderWrapper(const Triple &TargetTriple,
                             const CodeGenOptions &CGOpts,
-                            const LangOptions &LangOpts)
+                            const LangOptions &LangOpts,
+                            const clang::TargetOptions &TargetOpts)
       : PassManagerBuilder(), TargetTriple(TargetTriple), CGOpts(CGOpts),
-        LangOpts(LangOpts) {}
+        LangOpts(LangOpts), TargetOpts(TargetOpts) {}
   const Triple &getTargetTriple() const { return TargetTriple; }
   const CodeGenOptions &getCGOpts() const { return CGOpts; }
   const LangOptions &getLangOpts() const { return LangOpts; }
+  const clang::TargetOptions &getTargetOpts() const { return TargetOpts; }
 
 private:
   const Triple &TargetTriple;
   const CodeGenOptions &CGOpts;
   const LangOptions &LangOpts;
+  const clang::TargetOptions &TargetOpts;
 };
 }
 
@@ -190,7 +193,11 @@ static void addCMImpParamPass(const PassManagerBuilder &Builder,
 
 static void addCMKernelArgOffsetPass(const PassManagerBuilder &Builder,
                                      PassManagerBase &PM) {
-  PM.add(createCMKernelArgOffsetPass());
+  const PassManagerBuilderWrapper &BuilderWrapper =
+    static_cast<const PassManagerBuilderWrapper&>(Builder);
+  const clang::TargetOptions &TargetOpts = BuilderWrapper.getTargetOpts();
+  unsigned Width = 32;
+  PM.add(createCMKernelArgOffsetPass(Width));
 }
 
 static void addCMLowerLoadStorePass(const PassManagerBuilder &Builder,
@@ -546,7 +553,7 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
       createTLII(TargetTriple, CodeGenOpts));
 
-  PassManagerBuilderWrapper PMBuilder(TargetTriple, CodeGenOpts, LangOpts);
+  PassManagerBuilderWrapper PMBuilder(TargetTriple, CodeGenOpts, LangOpts, TargetOpts);
 
   // At O0 and O1 we only run the always inliner which is more efficient. At
   // higher optimization levels we run the normal inliner.
@@ -740,7 +747,8 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
   PMBuilder.populateModulePassManager(MPM);
 }
 
-static void setCommandLineOpts(const CodeGenOptions &CodeGenOpts,
+static void setCommandLineOpts(BackendAction Action,
+                               const CodeGenOptions &CodeGenOpts,
                                const LangOptions &LangOpts) {
   SmallVector<const char *, 16> BackendArgs;
   BackendArgs.push_back("clang"); // Fake program name.
@@ -759,6 +767,10 @@ static void setCommandLineOpts(const CodeGenOptions &CodeGenOpts,
     BackendArgs.push_back("-pragma-unroll-threshold=0xffffffff");
     BackendArgs.push_back("-enable-pre=false");
     BackendArgs.push_back("-instcombine-code-sinking=false");
+    // Do not emit OpenCL runtime specific code if this is to emit an immediate
+    // spirv IR.
+    if (Action == BackendAction::Backend_EmitSPIRV)
+      BackendArgs.push_back("-enable-opencl-codegen=false");
   }
 
   for (const std::string &BackendOption : CodeGenOpts.BackendOptions)
@@ -824,7 +836,7 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
                                       std::unique_ptr<raw_pwrite_stream> OS) {
   TimeRegion Region(llvm::TimePassesIsEnabled ? &CodeGenerationTime : nullptr);
 
-  setCommandLineOpts(CodeGenOpts, LangOpts);
+  setCommandLineOpts(Action, CodeGenOpts, LangOpts);
 
   bool UsesCodeGen = (Action != Backend_EmitNothing &&
                       Action != Backend_EmitBC &&
@@ -959,7 +971,7 @@ static PassBuilder::OptimizationLevel mapToLevel(const CodeGenOptions &Opts) {
 void EmitAssemblyHelper::EmitAssemblyWithNewPassManager(
     BackendAction Action, std::unique_ptr<raw_pwrite_stream> OS) {
   TimeRegion Region(llvm::TimePassesIsEnabled ? &CodeGenerationTime : nullptr);
-  setCommandLineOpts(CodeGenOpts, LangOpts);
+  setCommandLineOpts(Action, CodeGenOpts, LangOpts);
 
   // The new pass manager always makes a target machine available to passes
   // during construction.
@@ -1156,7 +1168,7 @@ static void runThinLTOBackend(ModuleSummaryIndex *CombinedIndex, Module *M,
       ModuleToDefinedGVSummaries;
   CombinedIndex->collectDefinedGVSummariesPerModule(ModuleToDefinedGVSummaries);
 
-  setCommandLineOpts(CGOpts, LOpts);
+  setCommandLineOpts(Action, CGOpts, LOpts);
 
   // We can simply import the values mentioned in the combined index, since
   // we should only invoke this using the individual indexes written out

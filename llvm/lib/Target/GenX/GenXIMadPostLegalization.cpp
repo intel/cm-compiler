@@ -160,6 +160,10 @@ bool GenXIMadPostLegalization::runOnFunction(Function &F) {
   // After this point, we should not do constant folding.
   Changed |= breakConstantExprs(&F);
 
+  // The following alorithm runs very slowly on large blocks.
+  if (skipOptWithLargeBlock(F))
+    return Changed;
+
   SmallVector<Instruction *, 16> Deads;
   for (auto &BB : F) {
     for (auto BI = BB.begin(), BE = BB.end(); BI != BE; /* EMPTY */) {

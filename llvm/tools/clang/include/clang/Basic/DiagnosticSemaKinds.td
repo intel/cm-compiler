@@ -9361,6 +9361,10 @@ def err_cm_kernel_arg_attr_type: Error<
   "attribute %0 can not be applied to an argument of type %1">;
 def err_cm_kernel_func_attr: Error<
   "attribute %0 can only be applied to a kernel function">;
+def err_cm_volatile_attr: Error<
+  "volatile attribute can only be applied to a file scope vector or matrix variable">;
+def err_cm_volatile_init: Error<
+  "volatile variable does not take an initializer">;
 
 } // end of MDF CM issue category
 

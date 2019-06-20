@@ -2566,6 +2566,7 @@ bool SPIRVToLLVM::transKernelMetadata() {
       llvm::SmallVector<llvm::Metadata *, 8> ArgKinds;
       llvm::SmallVector<llvm::Metadata *, 8> ArgInOutKinds;
       llvm::SmallVector<llvm::Metadata *, 8> ArgOffsets;
+      llvm::SmallVector<llvm::Metadata *, 8> ArgDescs;
       for (size_t I = 0, E = BF->getNumArguments(); I != E; ++I) {
         auto BA = BF->getArgument(I);
         SPIRVWord Kind = 0;
@@ -2573,6 +2574,12 @@ bool SPIRVToLLVM::transKernelMetadata() {
         ArgKinds.push_back(llvm::ValueAsMetadata::get(llvm::ConstantInt::get(I32Ty, Kind)));
         ArgInOutKinds.push_back(llvm::ValueAsMetadata::get(llvm::ConstantInt::get(I32Ty, 0)));
         ArgOffsets.push_back(llvm::ValueAsMetadata::get(llvm::ConstantInt::get(I32Ty, 0)));
+
+        string ArgDesc;
+        SPIRVWord ID = 0;
+        if (BA->hasDecorate(DecorationCMKernelArgumentDescINTEL, 0, &ID))
+          ArgDesc = static_cast<SPIRVString *>(BM->getEntry(ID))->getStr();
+        ArgDescs.push_back(llvm::MDString::get(F->getContext(), ArgDesc));
       }
       KernelMD.push_back(llvm::MDNode::get(*Context, ArgKinds));
       // Generate metadata for slm-size
@@ -2580,9 +2587,10 @@ bool SPIRVToLLVM::transKernelMetadata() {
       if (auto EM = BF->getExecutionMode(ExecutionModeCMKernelSharedLocalMemorySizeINTEL))
         SLMSize = EM->getLiterals()[0];
       KernelMD.push_back(ConstantAsMetadata::get(ConstantInt::get(I32Ty, SLMSize)));
-      // placeholder for IOKInd and ArgOffset
+      // placeholder for IOKInd, ArgOffset and ArgDescs.
       KernelMD.push_back(llvm::MDNode::get(*Context, ArgOffsets));
       KernelMD.push_back(llvm::MDNode::get(*Context, ArgInOutKinds));
+      KernelMD.push_back(llvm::MDNode::get(*Context, ArgDescs));
 
       llvm::MDNode *Node = MDNode::get(F->getContext(), KernelMD);
       KernelMDs->addOperand(Node);

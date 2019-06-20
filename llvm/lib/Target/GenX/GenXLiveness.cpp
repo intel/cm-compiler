@@ -119,6 +119,8 @@ void LiveRange::setAlignmentFromValue(SimpleValue V)
 {
   Type *Ty = IndexFlattener::getElementType(
         V.getValue()->getType(), V.getIndex());
+  if (Ty->isPointerTy())
+    Ty = Ty->getPointerElementType();
   unsigned LogAlign = Log2_32(Ty->getScalarType()->getPrimitiveSizeInBits()) - 3;
   if (auto VT = dyn_cast<VectorType>(Ty))
     if (VT->getVectorNumElements() << LogAlign >= 32)
@@ -243,8 +245,15 @@ void GenXLiveness::rebuildLiveRange(LiveRange *LR)
 void GenXLiveness::rebuildLiveRangeForValue(LiveRange *LR, SimpleValue SV)
 {
   Value *V = SV.getValue();
-  std::map<BasicBlock *, Segment> BBRanges;
 
+  // This value is a global variable. Its live range is the entire kernel.
+  if (auto GV = getUnderlyingGlobalVariable(V)) {
+    (void)GV;
+    LR->push_back(0, UINT_MAX);
+    return;
+  }
+
+  std::map<BasicBlock *, Segment> BBRanges;
   if (auto Func = isUnifiedRet(V)) {
     // This value is the unified return value of the function Func. Its live
     // range is from the call to where its post-copy would go just afterwards
@@ -1338,8 +1347,16 @@ Value *GenXLiveness::getAddressBase(Value *Addr)
   }
   if (isRdRegion(getIntrinsicID(user)))
     return user->getOperand(0);
-  if (isWrRegion(getIntrinsicID(user)))
+  if (isWrRegion(getIntrinsicID(user))) {
+    auto Head = Baling->getBaleHead(user);
+    if (Head && isa<StoreInst>(Head)) {
+      Value *V = Head->getOperand(1);
+      V = getUnderlyingGlobalVariable(V);
+      assert(V && "null base not expected");
+      return V;
+    }
     return user;
+  }
   // The above scheme does not work for an address conversion added by
   // GenXArgIndirection. Instead we have AddressBaseMap to provide the mapping.
   auto i = ArgAddressBaseMap.find(Addr);

@@ -279,7 +279,11 @@ while getopts ":hvlxcdrs:mM::p:b:i:V-:" opt; do
                     usage
                     exit 1
                 fi
-                MSBUILD_PATH="/cygdrive/c/Windows/Microsoft.NET/Framework/v4.0.30319/MSBuild.exe"
+                if [ "$VS_VERSION" == "vs2017" ]; then
+		    MSBUILD_PATH="/cygdrive/c/Program Files (x86)/Microsoft Visual Studio/2017/Professional/MSBuild/15.0/bin/MSBuild.exe"
+	        else
+		    MSBUILD_PATH="/cygdrive/c/Program Files (x86)/MSBuild/14.0/bin/MSBuild.exe"
+                fi
                 if [ ! -f $MSBUILD_PATH ]; then
                     echo "Couldn't find MSBuild.exe in default location - please run again with -M and provide path"
                     exit 1
@@ -613,6 +617,19 @@ if [ "$RUN_CMAKE" != "" ]; then
         echo "Nothing to see here"
     fi
     EXTRA_CXX_FLAGS+=" $ADD_VERSION"
+    # statically link the CRT just like VISA
+    CMAKE_EXTRA_OPTIONS+=" -DLLVM_USE_CRT_DEBUG=MTd"
+    CMAKE_EXTRA_OPTIONS+=" -DLLVM_USE_CRT_MINSIZEREL=MT"
+    CMAKE_EXTRA_OPTIONS+=" -DLLVM_USE_CRT_RELEASE=MT"
+    CMAKE_EXTRA_OPTIONS+=" -DLLVM_USE_CRT_RELWITHDEBINFO=MT"
+    # When add_llvm_library() is invoked from AddLLVM.cmake, each of the
+    # libraries is added to an export list for install.  We don't use this.
+    # since GenX_IR is included by LLVMGenXCodeGen, all of the VISA libs
+    # would need to be marked install() as well which isn't desirable
+    # since we want don't want to add that to those CMakeLists.txt files.
+    # It is not required by IGC because it doesn't go through the
+    # add_llvm_library() mechanism when adding projects like igc_dll.
+    CMAKE_EXTRA_OPTIONS+=" -DLLVM_INSTALL_TOOLCHAIN_ONLY=1"
 
     (
         if [ "$CROSS_BUILD" != "" ]; then

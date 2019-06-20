@@ -419,7 +419,8 @@ Pass *createCMImpParamPass();
 //
 // CMKernelArgOffset - Determine offset of each CM kernel argument
 //
-Pass *createCMKernelArgOffsetPass();
+Pass *createCMKernelArgOffsetPass(unsigned GrfByteSize,
+                                  bool OCLCodeGen = false);
 
 //===----------------------------------------------------------------------===//
 //
@@ -436,6 +437,7 @@ Pass *createCMLowerLoadStorePass();
 FunctionPass *createGenXReduceIntSizePass();
 FunctionPass *createGenXRegionCollapsingPass();
 FunctionPass *createGenXSimplifyPass();
+FunctionPass *createGenXLayoutBlocksPass();
 
 ModulePass *createGenXPacketizePass();
 

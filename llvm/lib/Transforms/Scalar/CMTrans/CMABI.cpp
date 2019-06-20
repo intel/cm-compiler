@@ -1001,6 +1001,9 @@ void CMABI::AnalyzeGlobals(CallGraph &CG) {
     for (Module::global_iterator GI = M.global_begin(), GE = M.global_end();
          GI != GE; ++GI) {
       GlobalVariable &GV = *GI;
+      // Defer promotion for volatile globals.
+      if (GV.hasAttribute("genx_volatile"))
+        continue;
       for (Value::use_iterator UI = GV.use_begin(), UE = GV.use_end(); UI != UE;
            ++UI) {
         Instruction *Inst = dyn_cast<Instruction>(UI->getUser());
@@ -1424,8 +1427,14 @@ bool CMLowerLoadStore::lowerLoadStore(Function &F) {
   std::vector<CallInst *> LoadStores;
   for (auto &BB : F.getBasicBlockList()) {
     for (auto &Inst : BB.getInstList()) {
-      if (isVLoadStore(&Inst))
-        LoadStores.push_back(cast<CallInst>(&Inst));
+      if (isVLoadStore(&Inst)) {
+        Value *Ptr = Inst.getOperand(0);
+        if (getIntrinsicID(&Inst) == Intrinsic::genx_vstore)
+          Ptr = Inst.getOperand(1);
+        auto GV = dyn_cast<GlobalVariable>(Ptr);
+        if (!GV || !GV->hasAttribute("genx_volatile"))
+          LoadStores.push_back(cast<CallInst>(&Inst));
+      }
     }
   }
 

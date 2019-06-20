@@ -28,6 +28,7 @@
 //===----------------------------------------------------------------------===//
 #define DEBUG_TYPE "GENX_REGALLOC"
 
+#include "visa_igc_common_header.h"
 #include "GenXVisaRegAlloc.h"
 #include "GenX.h"
 #include "GenXIntrinsics.h"
@@ -131,6 +132,9 @@ bool GenXVisaRegAlloc::runOnFunctionGroup(FunctionGroup &FGArg)
  */
 void GenXVisaRegAlloc::getLiveRanges(std::vector<LiveRange *> *LRs) const
 {
+  // create LRs for global variables.
+  for (auto &GV : FG->getModule()->globals())
+    getLiveRangesForValue(&GV, LRs);
   for (auto fgi = FG->begin(), fge = FG->end(); fgi != fge; ++fgi) {
     Function *F = *fgi;
     for (auto ai = F->arg_begin(), ae = F->arg_end(); ai != ae; ++ai)
@@ -311,6 +315,9 @@ void GenXVisaRegAlloc::allocReg(LiveRange *LR)
   );
   SimpleValue V = *LR->value_begin();
   Type *Ty = V.getType();
+  if (auto GV = dyn_cast<GlobalVariable>(V.getValue()))
+    if (GV->hasAttribute("genx_volatile"))
+      Ty = Ty->getPointerElementType();
   assert(!Ty->isVoidTy());
   if (LR->Category == RegCategory::PREDICATE) {
     VectorType *VT = dyn_cast<VectorType>(Ty);
@@ -379,6 +386,11 @@ GenXVisaRegAlloc::RegNum GenXVisaRegAlloc::getRegNumForValueOrNull(
 {
   if (!OverrideType)
     OverrideType = V.getType();
+  if (OverrideType->isPointerTy()) {
+    auto GV = dyn_cast<GlobalVariable>(V.getValue());
+    if (GV && GV->hasAttribute("genx_volatile"))
+      OverrideType = OverrideType->getPointerElementType();
+  }
   RegNum RN = getRegNumForValueUntyped(V);
   if (RN == RegNum())
     return RN; // no register allocated
@@ -498,39 +510,39 @@ TypeDetails::TypeDetails(const DataLayout &DL, Type *Ty, Signedness Signed)
     BytesPerElement = IT->getBitWidth() / 8;
     if (Signed == UNSIGNED) {
       switch (BytesPerElement) {
-        case 1: VisaType = TYPE_UB; break;
-        case 2: VisaType = TYPE_UW; break;
-        case 4: VisaType = TYPE_UD; break;
-        default: VisaType = TYPE_UQ; break;
+        case 1: VisaType = ISA_TYPE_UB; break;
+        case 2: VisaType = ISA_TYPE_UW; break;
+        case 4: VisaType = ISA_TYPE_UD; break;
+        default: VisaType = ISA_TYPE_UQ; break;
       }
     } else {
       switch (BytesPerElement) {
-        case 1: VisaType = TYPE_B; break;
-        case 2: VisaType = TYPE_W; break;
-        case 4: VisaType = TYPE_D; break;
-        default: VisaType = TYPE_Q; break;
+        case 1: VisaType = ISA_TYPE_B; break;
+        case 2: VisaType = ISA_TYPE_W; break;
+        case 4: VisaType = ISA_TYPE_D; break;
+        default: VisaType = ISA_TYPE_Q; break;
       }
     }
   } else if (ElementTy->isHalfTy()) {
-    VisaType = TYPE_HF;
+    VisaType = ISA_TYPE_HF;
     BytesPerElement = 2;
   } else if (ElementTy->isFloatTy()) {
-    VisaType = TYPE_F;
+    VisaType = ISA_TYPE_F;
     BytesPerElement = 4;
   } else if (auto PT = dyn_cast<PointerType>(ElementTy)) {
     BytesPerElement = DL.getPointerTypeSize(PT);
     if (BytesPerElement == 4)
-      VisaType = TYPE_UD;
+      VisaType = ISA_TYPE_UD;
     else if (BytesPerElement == 8)
-      VisaType = TYPE_UQ;
+      VisaType = ISA_TYPE_UQ;
     else
       report_fatal_error("unsupported pointer type size");
   } else {
     assert(ElementTy->isDoubleTy());
-    VisaType = TYPE_DF;
+    VisaType = ISA_TYPE_DF;
     BytesPerElement = 8;
   }
-  if (NumElements > 4096 || NumElements * BytesPerElement > 4096 * 8)
+  if (NumElements > 8192 || NumElements * BytesPerElement > 8192 * 8)
     report_fatal_error("Variable too big");
 }
 

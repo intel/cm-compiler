@@ -30,6 +30,7 @@
 
 #include "FunctionGroup.h"
 #include "GenX.h"
+#include "llvm/IR/IntrinsicsGenX.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"

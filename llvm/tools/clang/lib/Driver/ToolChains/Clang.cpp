@@ -1802,6 +1802,10 @@ void Clang::AddGenXTargetArgs(const ArgList &Args,
     CmdArgs.push_back("-mllvm");
     CmdArgs.push_back("-enable-kernel-arg-reordering=false");
   }
+  if (Args.hasArg(options::OPT_fcmocl)) {
+    CmdArgs.push_back("-mllvm");
+    CmdArgs.push_back("-enable-kernel-arg-reordering=false");
+  }
 }
 
 void Clang::DumpCompilationDatabase(Compilation &C, StringRef Filename,
@@ -3581,12 +3585,25 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-fdeclspec");
     if (Args.hasFlag(options::OPT_fvldst, options::OPT_fno_vldst, true))
       CmdArgs.push_back("-fvldst");
+    if (Arg *A = Args.getLastArg(options::OPT_mCM_import_bif)) {
+      const char *BiFName = A->getValue();
+      if ((BiFName[0] == '=') || (BiFName[0] == ':'))
+        BiFName = &BiFName[1];
+      if (strlen(BiFName)) {
+        CmdArgs.push_back("-mCM_import_bif");
+        CmdArgs.push_back(BiFName);
+      }
+    }
     if (Args.getLastArg(options::OPT_mCM_init_global))
       CmdArgs.push_back("-mCM_init_global");
+    if (Args.getLastArg(options::OPT_fvolatile_global))
+      CmdArgs.push_back("-fvolatile-global");
     if (Args.getLastArg(options::OPT_mCM_reverse_kernels))
       CmdArgs.push_back("-mCM_reverse_kernels");
     if (Args.getLastArg(options::OPT_fcm_pointer))
       CmdArgs.push_back("-fcm-pointer");
+    if (Args.getLastArg(options::OPT_fcmocl))
+      CmdArgs.push_back("-fcmocl");
   }
 
   if (Args.getLastArg(options::OPT_fno_force_noinline))

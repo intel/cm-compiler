@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------------
-                       C for Media (CM) Scan To Jpeg Sample
+                       C for Metal (CM) Scan To Jpeg Sample
                                     README
 ------------------------------------------------------------------------------
 This README provides sample description and build/execution instructions.
@@ -13,7 +13,7 @@ CONTENTS:
 
 1 Sample Description
 ------------------------------------------------------------------------------
-Scan to Jpeg sample demonstrates how to combine C for Media (CM) kernel with hardware
+Scan to Jpeg sample demonstrates how to combine C for Metal (CM) kernel with hardware
 GPU fixed pipeline.  In this example, it uses HW jpeg decoder and HW jpeg encoder.  
 
 The sample takes in a 24bit RGB bitmap file, using a RGB2YCbCr kernel to convert

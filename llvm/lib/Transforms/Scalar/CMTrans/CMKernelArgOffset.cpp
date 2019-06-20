@@ -68,6 +68,8 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
+#include "llvm/IR/IntrinsicsGenX.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
@@ -82,14 +84,11 @@ using namespace llvm;
 static cl::opt<bool> EnableKernelArgReordering("enable-kernel-arg-reordering", cl::init(true), cl::Hidden,
                                                cl::desc("Enable kernel argument reordering"));
 
-namespace {
+static cl::opt<bool>
+    EnableOCLCodeGen("enable-opencl-codegen", cl::init(false), cl::Hidden,
+                     cl::desc("Enable codegen for OpenCL runtime"));
 
-enum {
-  GENX_MAX_INPUT = 256,
-  GENX_WIDTH_GENERAL_REG = 32,
-  STARTOFFSET = 1 * GENX_WIDTH_GENERAL_REG,
-  ENDOFFSET = 128 * GENX_WIDTH_GENERAL_REG
-};
+namespace {
 
 struct GrfParamZone {
   unsigned Start;
@@ -125,16 +124,107 @@ int DiagnosticInfoCMKernelArgOffset::KindID = 0;
 // CMKernelArgOffset pass
 class CMKernelArgOffset : public ModulePass {
   SmallVector<unsigned, 8> ArgKinds;
+
+  // Emit code for OCL runtime.
+  bool OCLCodeGen;
+
 public:
   static char ID;
-  CMKernelArgOffset() : ModulePass(ID) {
+  CMKernelArgOffset(unsigned GrfByteSize = 32, bool OCLCodeGen = false)
+      : ModulePass(ID), GrfByteSize(GrfByteSize), OCLCodeGen(OCLCodeGen) {
     initializeCMKernelArgOffsetPass(*PassRegistry::getPassRegistry());
+    GrfMaxCount = 256;
+    GrfStartOffset = GrfByteSize;
+    GrfEndOffset = 128 * GrfByteSize;
   }
   virtual void getAnalysisUsage(AnalysisUsage &AU) const { }
   virtual StringRef getPassName() const { return "CM kernel arg offset"; }
   virtual bool runOnModule(Module &M);
 private:
   void processKernel(MDNode *Node);
+  void processKernelOnOCLRT(MDNode *Node, Function *F);
+
+  static Value *getValue(Metadata *M) {
+    if (auto VM = dyn_cast<ValueAsMetadata>(M))
+      return VM->getValue();
+    return nullptr;
+  }
+
+  // Get the arg kinds and check whether there is an input/output argument
+  // attribute.
+  void checkArgKinds(MDNode *KernelMD) {
+    MDNode *TypeNode = dyn_cast<MDNode>(KernelMD->getOperand(3));
+    assert(TypeNode);
+    for (unsigned i = 0, e = TypeNode->getNumOperands(); i != e; ++i) {
+      ConstantInt *AK = cast<ConstantInt>(getValue(TypeNode->getOperand(i)));
+      ArgKinds.push_back((uint32_t)AK->getZExtValue());
+    }
+
+    MDNode *IOKinds = dyn_cast<MDNode>(KernelMD->getOperand(6));
+    assert(IOKinds);
+    for (unsigned i = 0, e = IOKinds->getNumOperands(); i != e; ++i) {
+      ConstantInt *K = cast<ConstantInt>(getValue(IOKinds->getOperand(i)));
+      // Value 0 means there is no input/output attribute; and compiler could
+      // freely reorder arguments.
+      if (K->getZExtValue() != 0) {
+        EnableKernelArgReordering = false;
+        break;
+      }
+    }
+  }
+
+  // Relayout thread paylod for OpenCL runtime.
+  bool enableOCLCodeGen() const { return OCLCodeGen || EnableOCLCodeGen; }
+
+  // Update ArgKind metadata so that it aligns with OpenCL style.
+  // This is a cosmetic cleanup.
+  void clearArgKinds(MDNode *KernelMD) {
+    MDNode *TypeNode = dyn_cast<MDNode>(KernelMD->getOperand(3));
+    assert(TypeNode);
+
+    LLVMContext &C = KernelMD->getContext();
+    SmallVector<Metadata *, 8> Kinds;
+    for (unsigned i = 0; i < TypeNode->getNumOperands(); ++i) {
+      ConstantInt *AK = cast<ConstantInt>(getValue(TypeNode->getOperand(i)));
+      // Mask out the implicit kind for OpenCL runtime.
+      uint32_t Val = (uint32_t)AK->getZExtValue() & 0x7;
+      Kinds.push_back(ValueAsMetadata::getConstant(
+          ConstantInt::get(Type::getInt32Ty(C), Val)));
+    }
+    KernelMD->replaceOperandWith(3, MDNode::get(C, Kinds));
+  }
+
+  // Update offset MD node
+  void updateOffsetMD(MDNode *KernelMD,
+                      SmallDenseMap<Argument *, unsigned> &PlacedArgs) {
+    Function *F = dyn_cast_or_null<Function>(getValue(KernelMD->getOperand(0)));
+    assert(F && "null kernel");
+
+    // All arguments now have offsets. Update the metadata node containing the
+    // offsets.
+    assert(F->arg_size() == ArgKinds.size() &&
+           "Mismatch between metadata for kernel and number of args");
+    SmallVector<Metadata *, 8> ArgOffsets;
+    auto I32Ty = Type::getInt32Ty(F->getContext());
+    for (auto ai = F->arg_begin(), ae = F->arg_end(); ai != ae; ++ai) {
+      Argument *Arg = &*ai;
+      ArgOffsets.push_back(ValueAsMetadata::getConstant(
+          ConstantInt::get(I32Ty, PlacedArgs[Arg])));
+    }
+    MDNode *OffsetsNode = MDNode::get(F->getContext(), ArgOffsets);
+    KernelMD->replaceOperandWith(5, OffsetsNode);
+    ArgKinds.clear();
+
+    // Give an error on too many arguments.
+    if (ArgOffsets.size() >= GrfMaxCount)
+      DiagnosticInfoCMKernelArgOffset::emit(&F->front().front(),
+                                            "Too many kernel arguments");
+  }
+
+  unsigned GrfByteSize;
+  unsigned GrfMaxCount;
+  unsigned GrfStartOffset;
+  unsigned GrfEndOffset;
 };
 
 } // namespace
@@ -148,7 +238,9 @@ INITIALIZE_PASS_END(CMKernelArgOffset, "cmkernelargoffset",
                     "CM kernel arg offset determination",
                     false, false)
 
-Pass *llvm::createCMKernelArgOffsetPass() { return new CMKernelArgOffset(); }
+Pass *llvm::createCMKernelArgOffsetPass(unsigned GrfByteSize, bool OCLCodeGen) {
+  return new CMKernelArgOffset(GrfByteSize, OCLCodeGen);
+}
 
 /***********************************************************************
  * runOnModule : run the CM kernel arg offset pass
@@ -181,21 +273,22 @@ bool CMKernelArgOffset::runOnModule(Module &M)
  *  4: slm size in bytes
  *  5: kernel argument offsets: initially placeholder; set to array in this pass
  *  6: kernel input/output kinds
+ *  7: kernel argument type descriptors (optional).
  */
 void CMKernelArgOffset::processKernel(MDNode *Node)
 {
-  if (Node->getNumOperands() < 7)
-    return;
-
-  auto getValue = [](Metadata *M) -> Value * {
-    if (auto VM = dyn_cast<ValueAsMetadata>(M))
-      return VM->getValue();
-    return nullptr;
-  };
-
   Function *F = dyn_cast_or_null<Function>(getValue(Node->getOperand(0)));
   if (!F)
     return;
+
+  checkArgKinds(Node);
+
+  // Layout kernel arguments differently if to run on OpenCL runtime.
+  if (enableOCLCodeGen() && F->hasFnAttribute("oclrt")) {
+    auto Attr = F->getFnAttribute("oclrt");
+    if (Attr.getValueAsString() == "true")
+      return processKernelOnOCLRT(Node, F);
+  }
 
   auto getTypeSizeInBytes = [=](Type *Ty) {
     const DataLayout &DL = F->getParent()->getDataLayout();
@@ -203,27 +296,6 @@ void CMKernelArgOffset::processKernel(MDNode *Node)
       return DL.getPointerTypeSize(Ty);
     return Ty->getPrimitiveSizeInBits() / 8;
   };
-
-  // Get the arg kinds.
-  MDNode *TypeNode = dyn_cast<MDNode>(Node->getOperand(3));
-  assert(TypeNode);
-  for (unsigned i = 0, e = TypeNode->getNumOperands(); i != e; ++i) {
-    ConstantInt *AK = cast<ConstantInt>(getValue(TypeNode->getOperand(i)));
-    ArgKinds.push_back((uint32_t)AK->getZExtValue());
-  }
-
-  // Check whether there is an input/output argument attribute.
-  MDNode *IOKinds = dyn_cast<MDNode>(Node->getOperand(6));
-  assert(IOKinds);
-  for (unsigned i = 0, e = IOKinds->getNumOperands(); i != e; ++i) {
-    ConstantInt *K = cast<ConstantInt>(getValue(IOKinds->getOperand(i)));
-    // Value 0 means there is no input/output attribute; and compiler could
-    // freely reorder arguments.
-    if (K->getZExtValue() != 0) {
-      EnableKernelArgReordering = false;
-      break;
-    }
-  }
 
   // setup kernel inputs, optionally reordering the assigned offsets for
   // improved packing where appropriate. The reordering algorithm replicates
@@ -247,7 +319,7 @@ void CMKernelArgOffset::processKernel(MDNode *Node)
     // Initially it consists of a single pair that describes the whole space
 
     SmallVector<GrfParamZone, 16> FreeZones;
-    FreeZones.push_back(GrfParamZone(STARTOFFSET, ENDOFFSET));
+    FreeZones.push_back(GrfParamZone(GrfStartOffset, GrfEndOffset));
 
     // Repeatedly iterate over the arguments list, each time looking for the
     // largest one that hasn't been processed yet.
@@ -288,8 +360,8 @@ void CMKernelArgOffset::processKernel(MDNode *Node)
 
       unsigned Align;
 
-      if (BestSize > GENX_WIDTH_GENERAL_REG)
-        Align = GENX_WIDTH_GENERAL_REG;
+      if (BestSize > GrfByteSize)
+        Align = GrfByteSize;
       else
         Align = BestElemSize;
 
@@ -304,9 +376,9 @@ void CMKernelArgOffset::processKernel(MDNode *Node)
         Start = alignTo(Zone.Start, Align);
         End = Start + BestSize;
 
-        if ((Start % GENX_WIDTH_GENERAL_REG) != 0 &&
-            (Start / GENX_WIDTH_GENERAL_REG) != (End - 1) / GENX_WIDTH_GENERAL_REG) {
-          Start = alignTo(Zone.Start, GENX_WIDTH_GENERAL_REG);
+        if ((Start % GrfByteSize) != 0 &&
+            (Start / GrfByteSize) != (End - 1) / GrfByteSize) {
+          Start = alignTo(Zone.Start, GrfByteSize);
           End = Start + BestSize;
         }
 
@@ -356,13 +428,12 @@ void CMKernelArgOffset::processKernel(MDNode *Node)
         unsigned Align = Ty->getScalarSizeInBits() / 8U;
         // If this is the first thread implicit arg, put it in a new GRF.
         if (FirstThreadImplicit)
-          Align = GENX_WIDTH_GENERAL_REG;
+          Align = GrfByteSize;
         FirstThreadImplicit = false;
         Offset = alignTo(Offset, Align);
-        if ((Offset & (GENX_WIDTH_GENERAL_REG - 1)) + Bytes
-            > GENX_WIDTH_GENERAL_REG) {
+        if ((Offset & (GrfByteSize - 1)) + Bytes > GrfByteSize) {
           // GRF align if arg would cross GRF boundary
-          Offset = alignTo(Offset, GENX_WIDTH_GENERAL_REG);
+          Offset = alignTo(Offset, GrfByteSize);
         }
         PlacedArgs[Arg] = Offset;
         Offset += Bytes;
@@ -377,49 +448,27 @@ void CMKernelArgOffset::processKernel(MDNode *Node)
     // boundary.
 
     // kernel input start offset
-    Offset = STARTOFFSET;
+    Offset = GrfStartOffset;
 
-    for (Function::arg_iterator i = F->arg_begin(), e = F->arg_end();
-        i != e; ++i) {
-      Argument *Arg = &*i;
-
-      Type *Ty = Arg->getType();
+    for (auto &Arg : F->args()) {
+      Type *Ty = Arg.getType();
       unsigned Bytes = Ty->getScalarSizeInBits() / 8;
-
       Offset = alignTo(Offset, Bytes);
 
       if (isa<VectorType>(Ty)) {
         Bytes = Ty->getPrimitiveSizeInBits() / 8;
-
-        if ((Offset & (GENX_WIDTH_GENERAL_REG - 1)) + Bytes > GENX_WIDTH_GENERAL_REG)
+        if ((Offset & (GrfByteSize - 1)) + Bytes > GrfByteSize)
           // GRF align if arg would cross GRF boundary
-          Offset = alignTo(Offset, GENX_WIDTH_GENERAL_REG);
+          Offset = alignTo(Offset, GrfByteSize);
       }
 
-      PlacedArgs[Arg] = Offset;
-
+      PlacedArgs[&Arg] = Offset;
       Offset += Bytes;
     }
   }
 
-  // All arguments now have offsets. Update the metadata node containing the
-  // offsets.
-  assert(F->arg_size() == ArgKinds.size() && "Mismatch between metadata for kernel and number of args");
-  SmallVector<Metadata *, 8> ArgOffsets;
-  auto I32Ty = Type::getInt32Ty(F->getContext());
-  for (auto ai = F->arg_begin(), ae = F->arg_end(); ai != ae; ++ai) {
-    Argument *Arg = &*ai;
-    ArgOffsets.push_back(ValueAsMetadata::getConstant(ConstantInt::get(I32Ty, PlacedArgs[Arg])));
-  }
-  MDNode *OffsetsNode = MDNode::get(F->getContext(), ArgOffsets);
-  Node->replaceOperandWith(5, OffsetsNode);
-  // Clear state.
-  ArgKinds.clear();
-
-  // Give an error on too many arguments.
-  if (ArgOffsets.size() >= GENX_MAX_INPUT)
-    DiagnosticInfoCMKernelArgOffset::emit(&F->front().front(),
-                                          "Too many kernel arguments");
+  // Update the offset MD node.
+  updateOffsetMD(Node, PlacedArgs);
 }
 
 /***********************************************************************
@@ -432,3 +481,138 @@ void DiagnosticInfoCMKernelArgOffset::emit(Instruction *Inst, StringRef Msg,
   Inst->getContext().diagnose(Err);
 }
 
+namespace {
+
+struct KernelArgInfo {
+  uint32_t Kind;
+  explicit KernelArgInfo(uint32_t Kind) : Kind(Kind) {}
+  bool isNormalCategory() const {
+    return (Kind & 0x7) == genx::KernelMetadata::AK_NORMAL;
+  }
+  bool isLocalIDX() const {
+    uint32_t Val = Kind & 0xFFF8;
+    return Val == genx::KernelMetadata::IMP_OCL_LOCAL_ID_X;
+  }
+  bool isLocalIDY() const {
+    uint32_t Val = Kind & 0xFFF8;
+    return Val == genx::KernelMetadata::IMP_OCL_LOCAL_ID_Y;
+  }
+  bool isLocalIDZ() const {
+    uint32_t Val = Kind & 0xFFF8;
+    return Val == genx::KernelMetadata::IMP_OCL_LOCAL_ID_Z;
+  }
+  bool isGroupOrLocalSize() const {
+    uint32_t Val = Kind & 0xFFF8;
+    return Val == genx::KernelMetadata::IMP_OCL_GROUP_OR_LOCAL_SIZE;
+  }
+};
+
+} // namespace
+
+void CMKernelArgOffset::processKernelOnOCLRT(MDNode *Node, Function *F) {
+  BasicBlock &Entry = F->getEntryBlock();
+
+  // Update sr0 to enable all channels.
+  // mov(1) sr0.2<1>:ud 0xffffffff:ud
+  {
+    Instruction *InsertPt = &*Entry.getFirstInsertionPt();
+    IRBuilder<> Builder(InsertPt);
+    auto ID = Intrinsic::genx_set_sr0_2;
+    Function *Fn = Intrinsic::getDeclaration(F->getParent(), ID);
+    FunctionType *Ty = Fn->getFunctionType();
+    Value *Arg = ConstantInt::get(Ty->getFunctionParamType(0), 0xFFFFFFFF);
+    Builder.CreateCall(Fn, Arg);
+  }
+
+  // Assign BTI values.
+  {
+    unsigned SurfaceID = 0;
+    unsigned SamplerID = 0;
+    unsigned VMEID = 0;
+    auto Kind = ArgKinds.begin();
+    for (auto &Arg : F->args()) {
+      if (*Kind == genx::KernelMetadata::AK_SAMPLER)
+        Arg.replaceAllUsesWith(ConstantInt::get(Arg.getType(), SamplerID++));
+      if (*Kind == genx::KernelMetadata::AK_SURFACE)
+        Arg.replaceAllUsesWith(ConstantInt::get(Arg.getType(), SurfaceID++));
+      if (*Kind == genx::KernelMetadata::AK_VME)
+        Arg.replaceAllUsesWith(ConstantInt::get(Arg.getType(), VMEID++));
+      ++Kind;
+    }
+  }
+
+  SmallDenseMap<Argument *, unsigned> PlacedArgs;
+  {
+    // OpenCL SIMD8 thread payloads are organized as follows:
+    //
+    //     0        1        2        3        4        5        6        7
+    // R0:          GX                                           GY       GZ
+    // R1: LX0,LX1  LX2,LX3  LX4,LX5  LX6,LX7
+    // R2: LY0,LY1  LY2,LY3  LY4,LY5  LY6,LY7
+    // R3: LZ0,LZ1  LZ2,LZ3  LZ4,LZ5  LZ6,LZ7
+    // R4: GO_X     GO_Y     GO_Z     LWS_X    LWS_Y    LWS_Z
+    // R5: other cross-thread constant data (1-3 GRFs)
+    //
+    unsigned Offset = GrfStartOffset;
+
+    // Always place R1, R2, R3, and R4
+    unsigned ThreadPayloads[] = {
+        Offset,                   // R1, local_id_x
+        Offset + GrfByteSize,     // R2, local_id_y
+        Offset + 2 * GrfByteSize, // R3, local_id_z
+        Offset + 3 * GrfByteSize  // R4, group or local size
+    };
+    auto getImpOffset = [&](KernelArgInfo AI) -> int {
+      if (AI.isLocalIDX())
+        return ThreadPayloads[0];
+      if (AI.isLocalIDY())
+        return ThreadPayloads[1];
+      if (AI.isLocalIDZ())
+        return ThreadPayloads[2];
+      if (AI.isGroupOrLocalSize())
+        return ThreadPayloads[3];
+      return -1;
+    };
+
+    // Starting offsets for non-implicit arguments.
+    Offset += 4 * GrfByteSize;
+
+    auto Kind = ArgKinds.begin();
+    for (auto &Arg : F->args()) {
+      // Skip arguments that are processed already.
+      KernelArgInfo AI(*Kind++);
+      if (!AI.isNormalCategory()) {
+        PlacedArgs[&Arg] = genx::KernelMetadata::SKIP_OFFSET_VAL;
+        continue;
+      }
+
+      // Implicit argument offsets.
+      int ImpOffset = getImpOffset(AI);
+      if (ImpOffset > 0) {
+        PlacedArgs[&Arg] = ImpOffset;
+        continue;
+      }
+
+      // Normal arguments.
+      //
+      // Arguments larger than a GRF must be at least GRF-aligned. Arguments
+      // smaller than a GRF may not cross GRF boundaries. This means that
+      // arguments cross a GRF boundary must be GRF aligned.
+      //
+      Type *Ty = Arg.getType();
+      unsigned Alignment = Ty->getScalarSizeInBits() / 8;
+      Offset = alignTo(Offset, Alignment);
+      unsigned Bytes = Ty->getPrimitiveSizeInBits() / 8;
+      unsigned StartGRF = Offset / GrfByteSize;
+      unsigned EndGRF = (Offset + Bytes - 1) / GrfByteSize;
+      if (StartGRF != EndGRF)
+        Offset = alignTo(Offset, GrfByteSize);
+
+      PlacedArgs[&Arg] = Offset;
+      Offset += Bytes;
+    }
+  }
+
+  clearArgKinds(Node);
+  updateOffsetMD(Node, PlacedArgs);
+}

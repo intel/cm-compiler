@@ -3163,9 +3163,9 @@ void Driver::BuildJobs(Compilation &C) const {
     // DiagnosticsEngine, so that extra values, position, and so on could be
     // printed.
     if (!A->isClaimed()) {
-      // Warn uses of deprecated flags.
+      // Warn uses of ignored flags.
       if (A->getOption().getGroup().getID() == options::OPT_cm_ignored_Group) {
-        Diag(clang::diag::warn_cm_deprecated_flag)
+        Diag(clang::diag::warn_cm_ignored_flag)
             << A->getAsString(C.getArgs());
         continue;
       }

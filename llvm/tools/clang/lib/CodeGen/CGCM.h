@@ -713,4 +713,8 @@ static inline llvm::Metadata *getMD(llvm::Value *V) {
 } // namespace CodeGen
 } // namespace clang
 
+/// This function imports built-in functions from source module to 
+/// destination module
+bool CMImportBiF(llvm::Module *MainModule, std::unique_ptr<llvm::Module> BiFModule);
+
 #endif

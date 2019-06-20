@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------------
-                       C for Media Color Copy Pipeline Sample
+                       C for Metal Color Copy Pipeline Sample
                                     README
 ------------------------------------------------------------------------------
 This README provides sample description and build/execution instructions.
@@ -18,7 +18,7 @@ printing.  The original version was developed and released through OpenVino's
 OpenVX samples graph, which focus on heterogeneous execution. The copy pipeline
 kernels execution are distributed to CPU, GPU and IPU.
 
-Now, re-written using C for Media language and all kernels execution are done in 
+Now, re-written using C for Metal language and all kernels execution are done in 
 GPU only. To improve pipeline performance, several kernels are combined into one to
 improve efficiency by reducing memory access and utilize internal GPU caches as
 well as HW registers.

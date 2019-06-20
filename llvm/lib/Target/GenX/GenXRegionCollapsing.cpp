@@ -754,8 +754,85 @@ void GenXRegionCollapsing::processWrRegionBitCast2(Instruction *WrRegion)
   WrRegion->replaceAllUsesWith(Res);
 }
 
+static bool hasMemoryDeps(CallInst *L1, CallInst *L2, Value *Addr,
+                          DominatorTree *DT) {
+
+  auto isKill = [=](Instruction &I) {
+    Instruction *Inst = &I;
+    if (getIntrinsicID(Inst) == Intrinsic::genx_vstore &&
+        (Addr == Inst->getOperand(1) ||
+         Addr == getUnderlyingGlobalVariable(Inst->getOperand(1))))
+      return true;
+    // OK.
+    return false;
+  };
+
+  // vloads from the same block.
+  if (L1->getParent() == L2->getParent()) {
+    BasicBlock::iterator I = L1->getParent()->begin();
+    for (; &*I != L1 && &*I != L2; ++I)
+      /*empty*/;
+    assert(&*I == L1 || &*I == L2);
+    auto IEnd = (&*I == L1) ? L2->getIterator() : L1->getIterator();
+    return std::any_of(I->getIterator(), IEnd, isKill);
+  }
+
+  // vloads are from different blocks.
+  //
+  //       BB1 (L1)
+  //      /   \
+  //   BB3    BB2 (L2)
+  //     \     /
+  //       BB4
+  //
+  auto BB1 = L1->getParent();
+  auto BB2 = L2->getParent();
+  if (!DT->properlyDominates(BB1, BB2)) {
+    std::swap(BB1, BB2);
+    std::swap(L1, L2);
+  }
+  if (DT->properlyDominates(BB1, BB2)) {
+    // As BB1 dominates BB2, we can recursively check BB2's predecessors, until
+    // reaching BB1.
+    //
+    // check BB1 && BB2
+    if (std::any_of(BB2->begin(), L2->getIterator(), isKill))
+      return true;
+    if (std::any_of(L1->getIterator(), BB1->end(), isKill))
+      return true;
+    std::set<BasicBlock *> Visited{BB1, BB2};
+    std::vector<BasicBlock *> BBs;
+    for (auto I = pred_begin(BB2), E = pred_end(BB2); I != E; ++I) {
+      BasicBlock *BB = *I;
+      if (!Visited.count(BB))
+        BBs.push_back(BB);
+    }
+
+    // This visits the subgraph dominated by BB1, originated from BB2.
+    while (!BBs.empty()) {
+      BasicBlock *BB = BBs.back();
+      BBs.pop_back();
+      Visited.insert(BB);
+
+      // check if there is any store kill in this block.
+      if (std::any_of(BB->begin(), BB->end(), isKill))
+        return true;
+
+      // Populate not visited predecessors.
+      for (auto I = pred_begin(BB), E = pred_end(BB); I != E; ++I)
+        if (!Visited.count(*I))
+          BBs.push_back(*I);
+    }
+
+    // no mem deps.
+    return false;
+  }
+
+  return true;
+}
+
 // Check whether two values are bitwise identical.
-static bool isBitwiseIdentical(Value *V1, Value *V2) {
+static bool isBitwiseIdentical(Value *V1, Value *V2, DominatorTree *DT) {
   assert(V1 && V2 && "null value");
   if (V1 == V2)
     return true;
@@ -769,46 +846,23 @@ static bool isBitwiseIdentical(Value *V1, Value *V2) {
       getIntrinsicID(V2) == Intrinsic::genx_vload) {
     auto L1 = cast<CallInst>(V1);
     auto L2 = cast<CallInst>(V2);
-    // Check if loading from the same location.
-    if (L1->getOperand(0) != L2->getOperand(0))
-      return false;
 
-    // Check if this pointer is local and only used in vload/vstore.
+    // Loads from global variables.
+    auto GV1 = getUnderlyingGlobalVariable(L1->getOperand(0));
+    auto GV2 = getUnderlyingGlobalVariable(L2->getOperand(0));
     Value *Addr = L1->getOperand(0);
-    if (!isa<AllocaInst>(Addr))
+    if (GV1 && GV1 == GV2)
+      // OK.
+      Addr = GV1;
+    else if (L1->getOperand(0) != L2->getOperand(0))
+      // Check if loading from the same location.
       return false;
-    for (auto UI : Addr->users()) {
-      if (isa<BitCastInst>(UI)) {
-        for (auto U : UI->users()) {
-          unsigned IntrinsicID = getIntrinsicID(U);
-          if (IntrinsicID != Intrinsic::lifetime_start &&
-              IntrinsicID != Intrinsic::lifetime_end)
-            return false;
-        }
-      } else {
-        unsigned ID = getIntrinsicID(UI);
-        if (ID != Intrinsic::genx_vstore && ID != Intrinsic::genx_vload)
-          return false;
-      }
-    }
+    else if (!isa<AllocaInst>(Addr))
+      // Check if this pointer is local and only used in vload/vstore.
+      return false;
 
     // Check if there is no store to the same location in between.
-    if (L1->getParent() != L2->getParent())
-      return false;
-    BasicBlock::iterator I = L1->getParent()->begin();
-    for (; &*I != L1 && &*I != L2; ++I)
-      /*empty*/;
-    assert(&*I == L1 || &*I == L2);
-    auto IEnd = (&*I == L1) ? L2->getIterator() : L1->getIterator();
-    for (; I->getIterator() != IEnd; ++I) {
-      Instruction *Inst = &*I;
-      if (getIntrinsicID(Inst) == Intrinsic::genx_vstore &&
-          Inst->getOperand(1) == Addr)
-        return false;
-    }
-
-    // OK.
-    return true;
+    return !hasMemoryDeps(L1, L2, Addr, DT);
   }
 
   // Cannot prove.
@@ -858,7 +912,7 @@ Instruction *GenXRegionCollapsing::processWrRegion(Instruction *OuterWr)
     OuterRd = dyn_cast<Instruction>(OuterRd->getOperand(0));
   if (!isRdRegion(getIntrinsicID(OuterRd)))
     return OuterWr;
-  if (!isBitwiseIdentical(OuterRd->getOperand(0), OuterWr->getOperand(0)))
+  if (!isBitwiseIdentical(OuterRd->getOperand(0), OuterWr->getOperand(0), DT))
     return OuterWr;
   Region InnerR = Region::getWithOffset(InnerWr, /*WantParentWidth=*/true);
   Region OuterR = Region::getWithOffset(OuterWr);

@@ -294,8 +294,8 @@ def err_cm_svmptr_value_invalid : Error<
   "-cm_svmptr value '%0' is invalid - value must be 32 or 64">;
 def warn_cm_iga_enabled : Warning<
   "IGA has been enabled by the ENABLE_IGA environment variable">;
-def warn_cm_deprecated_flag : Warning<
-  "'%0' is deprecated and ignored">, InGroup<Deprecated>;
+def warn_cm_ignored_flag : Warning<
+  "'%0' is ignored">, InGroup<OptionIgnored>;
 
 def warn_slash_u_filename : Warning<"'/U%0' treated as the '/U' option">,
   InGroup<DiagGroup<"slash-u-filename">>;

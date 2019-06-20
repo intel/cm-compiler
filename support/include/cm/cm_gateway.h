@@ -152,11 +152,11 @@ CM_INLINE void monitor_no_event(void) {
 
 /// \brief Hardware Thread Monitor wait event
 ///
-/// \param timer_value 9 bit value for the event id (should be compile time
+/// \param timer_value 10-bit value for the event id (should be compile time
 /// constant). A value of 0 causes an indefinite wait (i.e. no timeout)
 ///
 /// Code is generated to perform the gateway operation "wait" using the
-/// timer_value passed in as the timeout. Only the bottom 9 bits are valid.
+/// timer_value passed in as the timeout. Only the bottom 10 bits are valid.
 /// Only one event may be monitored/waited on at a time
 ///
 CM_INLINE unsigned int wait_event(unsigned short timer_value) {

@@ -805,8 +805,7 @@ WIAnalysis::WIDependancy WIAnalysis::calculate_dep(const VAArgInst *inst) {
 
 BranchInfo::BranchInfo(const TerminatorInst *inst, const BasicBlock *ipd)
     : cbr(inst), full_join(ipd) {
-  const BasicBlock *fork_blk = inst->getParent();
-  assert(cbr == fork_blk->getTerminator() && "block terminator mismatch");
+  assert(cbr == inst->getParent()->getTerminator() && "block terminator mismatch");
   assert(cbr->getNumSuccessors() == 2 && "only for cbr with two successors");
 
   std::set<BasicBlock *> f_set, t_set;

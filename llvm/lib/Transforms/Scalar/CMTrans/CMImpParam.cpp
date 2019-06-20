@@ -85,9 +85,9 @@
 #include "llvm/Analysis/CallGraphSCCPass.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Function.h"
-
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsGenX.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
@@ -179,42 +179,54 @@ private:
                           ImplicitUseInfo &implicits);
   CallGraphNode *ProcessKernel(Function *F);
 
-  // All the Kinds defined
-  // These correspond to the values used in vISA
-  // Bits 0-1 represent category (see enum)
-  // Bits 7..3 represent the value needed for the runtime to determine what
-  //           the implicit argument should be
-  //
-  enum ImpCategory { IMP_GENERAL, IMP_SAMPLER, IMP_SURFACE, IMP_VME };
-  enum ImpValue { IMP_NONE = 0x0,
-                  IMP_LOCAL_SIZE  = 0x1 << 3,
-                  IMP_GROUP_COUNT = 0x2 << 3,
-                  IMP_LOCAL_ID    = 0x3 << 3,
-                  IMP_SB_DELTAS   = 0x4 << 3,
-                  IMP_SB_BTI      = 0x5 << 3,
-                  IMP_SB_DEPCNT   = 0x6 << 3};
-  
+  static Value *getValue(Metadata *M) {
+    if (auto VM = dyn_cast<ValueAsMetadata>(M))
+      return VM->getValue();
+    return nullptr;
+  }
+
+  // Check if this kernel is compiled for OpenCL runtime.
+  static bool enablesOCLRT(const Function *F) {
+    if (F->hasFnAttribute("oclrt")) {
+      auto Attr = F->getFnAttribute("oclrt");
+      return Attr.getValueAsString() == "true";
+    }
+    return false;
+  }
+
+  // Convert to implicit thread payload related intrinsics.
+  bool ConvertToOCLPayload(Module &M);
+
   uint32_t MapToKind(Intrinsic::ID IID) {
+    using namespace genx;
     switch (IID) {
       default:
-        return IMP_NONE;
+        return KernelMetadata::AK_NORMAL;
       case llvm::Intrinsic::genx_local_size:
-        return IMP_GENERAL | IMP_LOCAL_SIZE;
+        return KernelMetadata::AK_NORMAL | KernelMetadata::IMP_LOCAL_SIZE;
       case llvm::Intrinsic::genx_local_id:
-        return IMP_GENERAL | IMP_LOCAL_ID;
+        return KernelMetadata::AK_NORMAL | KernelMetadata::IMP_LOCAL_ID;
       case llvm::Intrinsic::genx_group_count:
-        return IMP_GENERAL | IMP_GROUP_COUNT;
+        return KernelMetadata::AK_NORMAL | KernelMetadata::IMP_GROUP_COUNT;
       case llvm::Intrinsic::genx_get_scoreboard_deltas:
-        return IMP_GENERAL | IMP_SB_DELTAS;
+        return KernelMetadata::AK_NORMAL | KernelMetadata::IMP_SB_DELTAS;
       case llvm::Intrinsic::genx_get_scoreboard_bti:
-        return IMP_SURFACE | IMP_SB_BTI;
+        return KernelMetadata::AK_NORMAL | KernelMetadata::IMP_SB_BTI;
       case llvm::Intrinsic::genx_get_scoreboard_depcnt:
-        return IMP_SURFACE | IMP_SB_DEPCNT;
+        return KernelMetadata::AK_NORMAL | KernelMetadata::IMP_SB_DEPCNT;
+      case llvm::Intrinsic::genx_local_id_x:
+        return KernelMetadata::AK_NORMAL | KernelMetadata::IMP_OCL_LOCAL_ID_X;
+      case llvm::Intrinsic::genx_local_id_y:
+        return KernelMetadata::AK_NORMAL | KernelMetadata::IMP_OCL_LOCAL_ID_Y;
+      case llvm::Intrinsic::genx_local_id_z:
+        return KernelMetadata::AK_NORMAL | KernelMetadata::IMP_OCL_LOCAL_ID_Z;
+      case llvm::Intrinsic::genx_group_or_local_size:
+        return KernelMetadata::AK_NORMAL |
+               KernelMetadata::IMP_OCL_GROUP_OR_LOCAL_SIZE;
     }
-    
-    return IMP_NONE;
+    return KernelMetadata::AK_NORMAL;
   }
-  
+
   // \brief Returns the implicit use info associated with a function
   ImplicitUseInfo &getImplicitUseInfo(Function *F) {
     if (!ImplicitsInfo.count(F)) {
@@ -227,10 +239,8 @@ private:
   }
 
   // \brief Returns the implict use info associated with a function (kernel)
-  // and also creates
-  // a new one that represents the total implicits for the kernel as a whole
-  // (stored in a
-  // different object)
+  // and also creates a new one that represents the total implicits for the
+  // kernel as a whole (stored in a different object)
   ImplicitUseInfo &getImplicitUseInfoKernel(Function *F) {
     assert(Kernels.count(F));
 
@@ -325,24 +335,18 @@ private:
 bool CMImpParam::runOnModule(Module &M) {
   bool changed = false;
 
+  // Apply necessary changes if kernels are compiled for OpenCL runtime.
+  changed |= ConvertToOCLPayload(M);
+
   // Analyze functions for implicit use intrinsic invocation
-  changed = AnalyzeImplicitUse(M);
+  changed |= AnalyzeImplicitUse(M);
 
-  auto getValue = [](Metadata *M) -> Value * {
-    if (auto VM = dyn_cast<ValueAsMetadata>(M))
-      return VM->getValue();
-    return nullptr;
-  };
-
-  // Collect all CM kernels from named metadata
-  // and also traverse the call graph to determine what the total implicit uses
-  // are for the top
-  // level kernels
+  // Collect all CM kernels from named metadata and also traverse the call graph
+  // to determine what the total implicit uses are for the top level kernels
   if (NamedMDNode *Named = M.getNamedMetadata("genx.kernels")) {
     for (unsigned I = 0, E = Named->getNumOperands(); I != E; ++I) {
       MDNode *Node = Named->getOperand(I);
-      if (Function *F =
-              dyn_cast_or_null<Function>(getValue(Node->getOperand(0)))) {
+      if (auto F = dyn_cast_or_null<Function>(getValue(Node->getOperand(0)))) {
         Kernels.insert(F);
         AlreadyVisited.clear();
         ImplicitUseInfo &implicits = getImplicitUseInfoKernel(F);
@@ -398,6 +402,10 @@ bool CMImpParam::AnalyzeImplicitUse(Module &M) {
               case Intrinsic::genx_get_scoreboard_deltas:
               case Intrinsic::genx_get_scoreboard_bti:
               case Intrinsic::genx_get_scoreboard_depcnt:
+              case Intrinsic::genx_local_id_x:
+              case Intrinsic::genx_local_id_y:
+              case Intrinsic::genx_local_id_z:
+              case Intrinsic::genx_group_or_local_size:
                 DEBUG(dbgs() << "AnalyzeImplicitUse found "
                              << Intrinsic::getName(IID, None));
                 addImplicit(Fn, IID);
@@ -427,6 +435,109 @@ bool CMImpParam::AnalyzeImplicitUse(Module &M) {
   }
 
   return changed;
+}
+
+// Convert to implicit thread payload related intrinsics.
+bool CMImpParam::ConvertToOCLPayload(Module &M) {
+  // FIXME: right now if any kernel in the module needs to do conversion, all
+  // kernels will be converted.
+  bool DoConversion = false;
+  if (NamedMDNode *Named = M.getNamedMetadata("genx.kernels")) {
+    for (unsigned I = 0, E = Named->getNumOperands(); I != E; ++I) {
+      MDNode *Node = Named->getOperand(I);
+      auto F = dyn_cast_or_null<Function>(getValue(Node->getOperand(0)));
+      if (F && enablesOCLRT(F)) {
+        DoConversion = true;
+        break;
+      }
+    }
+  }
+  if (!DoConversion)
+    return false;
+
+  bool Changed = false;
+
+  // As SIMD8 OpenCL payload is used we need to do following conversions:
+  // - cm thread id = OpenCL local ID x / 8
+  // - cm local size = OpenCL local size x / 8
+  //
+  // This also requires that ND range of the host code:
+  // - OpenCL local size x shall be a multiple of 8
+  //
+  Type *Ty = VectorType::get(Type::getInt32Ty(M.getContext()), 3);
+  const uint64_t SIMD_LOG2 = 3;
+  auto getFn = [=, &M](Intrinsic::ID ID) {
+    return M.getFunction(Intrinsic::getName(ID, Ty));
+  };
+
+  if (auto LIDFn = getFn(Intrinsic::genx_local_id)) {
+    Function *IDs[] = {
+        Intrinsic::getDeclaration(&M, Intrinsic::genx_local_id_x),
+        Intrinsic::getDeclaration(&M, Intrinsic::genx_local_id_y),
+        Intrinsic::getDeclaration(&M, Intrinsic::genx_local_id_z)};
+
+    for (auto UI = LIDFn->user_begin(); UI != LIDFn->user_end();) {
+      auto UInst = dyn_cast<Instruction>(*UI++);
+      if (UInst) {
+        IRBuilder<> Builder(UInst);
+        Value *Val = UndefValue::get(LIDFn->getReturnType());
+        for (int i : {0, 1, 2}) {
+          Value *V = Builder.CreateCall(IDs[i]);
+          V = Builder.CreateExtractElement(V, uint64_t(0), ".ext0");
+          // Divide local_id_x by dispatch SIMD size.
+          if (i == 0)
+            V = Builder.CreateLShr(V, SIMD_LOG2, "", /*exact*/ true);
+          V = Builder.CreateZExt(V, Val->getType()->getVectorElementType());
+          Val = Builder.CreateInsertElement(Val, V, uint64_t(i));
+        }
+
+        UInst->replaceAllUsesWith(Val);
+        UInst->eraseFromParent();
+        Changed = true;
+      }
+    }
+  }
+
+  if (auto LSZFn = getFn(Intrinsic::genx_local_size)) {
+    SmallVector<User *, 8> Users(LSZFn->user_begin(), LSZFn->user_end());
+    for (auto U : Users) {
+      Instruction *UInst = dyn_cast<Instruction>(U);
+      auto ID = Intrinsic::genx_group_or_local_size;
+      auto GLSZFn = Intrinsic::getDeclaration(&M, ID);
+      if (UInst && !UInst->use_empty()) {
+        IRBuilder<> Builder(UInst);
+        Value *Base = Builder.CreateCall(GLSZFn);
+        Value *Val = Builder.CreateExtractElement(Base, uint64_t(3), ".ext0");
+        Val = Builder.CreateLShr(Val, SIMD_LOG2, "", /*exact*/ true);
+        Val = Builder.CreateInsertElement(Base, Val, uint64_t(3));
+        Val = Builder.CreateShuffleVector(Val, UndefValue::get(Val->getType()),
+                                          {3, 4, 5});
+        UInst->replaceAllUsesWith(Val);
+        UInst->eraseFromParent();
+        Changed = true;
+      }
+    }
+  }
+
+  if (auto GSZFn = getFn(Intrinsic::genx_group_count)) {
+    SmallVector<User *, 8> Users(GSZFn->user_begin(), GSZFn->user_end());
+    for (auto U : Users) {
+      Instruction *UInst = dyn_cast<Instruction>(U);
+      auto ID = Intrinsic::genx_group_or_local_size;
+      auto GLSZFn = Intrinsic::getDeclaration(&M, ID);
+      if (UInst && !UInst->use_empty()) {
+        IRBuilder<> Builder(UInst);
+        Value *Val = Builder.CreateCall(GLSZFn);
+        Val = Builder.CreateShuffleVector(Val, UndefValue::get(Val->getType()),
+                                          {0, 1, 2});
+        UInst->replaceAllUsesWith(Val);
+        UInst->eraseFromParent();
+        Changed = true;
+      }
+    }
+  }
+
+  return Changed;
 }
 
 // Merge implicit uses from the supplied function with implicit set passed in

@@ -92,11 +92,42 @@ linear(SurfaceIndex ibuf, SurfaceIndex obuf)
     write(obuf, h_pos * 24, v_pos * 6, out);
 }
 
-// change the algorithm from 2-d convolution to 2 1-d convolution.
+// Change the algorithm from 2-d convolution to 2 1-d convolution.
 // This change saves computation yet requires more registers.
 // So it is a trade-off between time and space. On GEN, every EU-thread
 // gets 128x32 bytes of regiser space. As long as kernels can stay within
 // this limit, we should strive for computation efficiency.
+extern "C" _GENX_MAIN_ void
+linear1d(SurfaceIndex ibuf, SurfaceIndex obuf)
+{
+  matrix<uchar, 8, 32> in;
+  matrix<uchar, 6, 24> out;
+  matrix<short, 6, 32> m;
+  matrix<short, 6, 24> m_out;
+
+  // when we use media-walker, we can get thread-ids
+  // using the following intrinsic instead of using
+  // per-thread arguments
+  uint h_pos = get_thread_origin_x();
+  uint v_pos = get_thread_origin_y();
+
+  read(ibuf, h_pos * 24, v_pos * 6, in);
+
+  // sum up the input pixel values by rows
+  m = in.select<6, 1, 32, 1>(0, 0) + in.select<6, 1, 32, 1>(1, 0);
+  m += in.select<6, 1, 32, 1>(2, 0);
+
+  // sum up the m values by columns
+  m_out = m.select<6, 1, 24, 1>(0, 0) + m.select<6, 1, 24, 1>(0, 3);
+  m_out += m.select<6, 1, 24, 1>(0, 6);
+
+  out = m_out * 0.111f;
+
+  write(obuf, h_pos * 24, v_pos * 6, out);
+}
+
+// This is similar to above version, except performing
+// 1-d convolution on the vertical direction first.
 extern "C" _GENX_MAIN_ void
 linear1d2(SurfaceIndex ibuf, SurfaceIndex obuf)
 {
@@ -126,7 +157,7 @@ linear1d2(SurfaceIndex ibuf, SurfaceIndex obuf)
     write(obuf, h_pos*24, v_pos*6, out);
 }
 
-// this version also use 2 1-d convolution to save computation.
+// This version also use 2 1-d convolution to save computation.
 // Unlike linear1d2, it uses a sliding window scheme to minimize
 // the storage: 3 rows for both input and intermediate result,
 // and one row for output. However, in this way, it loads input one

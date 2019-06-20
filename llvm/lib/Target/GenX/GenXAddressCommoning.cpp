@@ -272,7 +272,18 @@ bool GenXAddressCommoning::processFunction(Function *F)
           if (isa<Constant>(Inst->getOperand(
                   Intrinsic::GenXRegion::WrIndexOperandNum)))
             continue;
-          LR = Liveness->getLiveRange(Inst);
+          // A write region may be baled into a g_store.
+          LR = Liveness->getLiveRangeOrNull(Inst);
+          if (!LR) {
+            assert(Inst->hasOneUse());
+            auto SI = dyn_cast<StoreInst>(Inst->user_back());
+            if (!SI)
+              continue;
+            Value *GV = getUnderlyingGlobalVariable(SI->getPointerOperand());
+            if (!GV)
+              continue;
+            LR = Liveness->getLiveRange(GV);
+          }
           break;
       }
       // Inst is rdregion or wrregion with non-constant index.
@@ -331,6 +342,33 @@ bool GenXAddressCommoning::processBaseReg(LiveRange *LR)
       if (ui->getOperandNo() != Intrinsic::GenXRegion::OldValueOperandNum)
         continue;
       auto user = cast<Instruction>(ui->getUser());
+
+      auto isBaledWrr = [=]() {
+        if (!isa<LoadInst>(V) || !isWrRegion(user) || !user->hasOneUse())
+          return false;
+        StoreInst *SI = dyn_cast<StoreInst>(user->user_back());
+        GlobalVariable *GV =
+            SI ? getUnderlyingGlobalVariable(SI->getPointerOperand()) : nullptr;
+        if (!GV)
+          return false;
+        // make sure the base is the right global variable.
+        return Liveness->getLiveRangeOrNull(GV) == LR;
+      };
+
+      // wrr may have been baled with a g_store.
+      if (isBaledWrr()) {
+        Value *Index = cast<Instruction>(user)->getOperand(
+            Intrinsic::GenXRegion::WrIndexOperandNum);
+        while (getIntrinsicID(Index) == Intrinsic::genx_add_addr)
+          Index = cast<Instruction>(Index)->getOperand(0);
+        if (getIntrinsicID(Index) == Intrinsic::genx_convert_addr) {
+          Bale B;
+          Baling->buildBale(cast<Instruction>(Index), &B);
+          B.hash();
+          Buckets[B].add(cast<Instruction>(Index));
+        }
+      }
+
       if (!isRdRegion(getIntrinsicID(user)))
         continue;
       Value *Index = user->getOperand(Intrinsic::GenXRegion::RdIndexOperandNum);
@@ -922,6 +960,8 @@ bool GenXAddressCommoning::isValueInCurrentFunc(Value *V)
       return false;; // unified return value
     return BB->getParent() == F;
   }
+  if (isa<GlobalVariable>(V))
+    return false;
   return cast<Argument>(V)->getParent() == F;
 }
 

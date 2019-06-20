@@ -69,99 +69,99 @@
 <h1>User Guide for AMDGPU Backend<a class="headerlink" href="#user-guide-for-amdgpu-backend" title="Permalink to this headline">¶</a></h1>
 <div class="contents local topic" id="contents">
 <ul class="simple">
-<li><a class="reference internal" href="#introduction" id="id33">Introduction</a></li>
-<li><a class="reference internal" href="#llvm" id="id34">LLVM</a><ul>
-<li><a class="reference internal" href="#target-triples" id="id35">Target Triples</a></li>
-<li><a class="reference internal" href="#processors" id="id36">Processors</a></li>
-<li><a class="reference internal" href="#target-features" id="id37">Target Features</a></li>
-<li><a class="reference internal" href="#address-spaces" id="id38">Address Spaces</a></li>
-<li><a class="reference internal" href="#memory-scopes" id="id39">Memory Scopes</a></li>
-<li><a class="reference internal" href="#amdgpu-intrinsics" id="id40">AMDGPU Intrinsics</a></li>
+<li><a class="reference internal" href="#introduction" id="id38">Introduction</a></li>
+<li><a class="reference internal" href="#llvm" id="id39">LLVM</a><ul>
+<li><a class="reference internal" href="#target-triples" id="id40">Target Triples</a></li>
+<li><a class="reference internal" href="#processors" id="id41">Processors</a></li>
+<li><a class="reference internal" href="#target-features" id="id42">Target Features</a></li>
+<li><a class="reference internal" href="#address-spaces" id="id43">Address Spaces</a></li>
+<li><a class="reference internal" href="#memory-scopes" id="id44">Memory Scopes</a></li>
+<li><a class="reference internal" href="#amdgpu-intrinsics" id="id45">AMDGPU Intrinsics</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#code-object" id="id41">Code Object</a><ul>
-<li><a class="reference internal" href="#header" id="id42">Header</a></li>
-<li><a class="reference internal" href="#sections" id="id43">Sections</a></li>
-<li><a class="reference internal" href="#note-records" id="id44">Note Records</a></li>
-<li><a class="reference internal" href="#symbols" id="id45">Symbols</a></li>
-<li><a class="reference internal" href="#relocation-records" id="id46">Relocation Records</a></li>
-<li><a class="reference internal" href="#dwarf" id="id47">DWARF</a><ul>
-<li><a class="reference internal" href="#address-space-mapping" id="id48">Address Space Mapping</a></li>
-<li><a class="reference internal" href="#register-mapping" id="id49">Register Mapping</a></li>
-<li><a class="reference internal" href="#source-text" id="id50">Source Text</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li><a class="reference internal" href="#code-conventions" id="id51">Code Conventions</a><ul>
-<li><a class="reference internal" href="#amdhsa" id="id52">AMDHSA</a><ul>
-<li><a class="reference internal" href="#code-object-metadata" id="id53">Code Object Metadata</a></li>
-<li><a class="reference internal" href="#kernel-dispatch" id="id54">Kernel Dispatch</a></li>
-<li><a class="reference internal" href="#memory-spaces" id="id55">Memory Spaces</a></li>
-<li><a class="reference internal" href="#image-and-samplers" id="id56">Image and Samplers</a></li>
-<li><a class="reference internal" href="#hsa-signals" id="id57">HSA Signals</a></li>
-<li><a class="reference internal" href="#hsa-aql-queue" id="id58">HSA AQL Queue</a></li>
-<li><a class="reference internal" href="#kernel-descriptor" id="id59">Kernel Descriptor</a><ul>
-<li><a class="reference internal" href="#kernel-descriptor-for-gfx6-gfx9" id="id60">Kernel Descriptor for GFX6-GFX9</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#initial-kernel-execution-state" id="id61">Initial Kernel Execution State</a></li>
-<li><a class="reference internal" href="#kernel-prolog" id="id62">Kernel Prolog</a><ul>
-<li><a class="reference internal" href="#m0" id="id63">M0</a></li>
-<li><a class="reference internal" href="#flat-scratch" id="id64">Flat Scratch</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#memory-model" id="id65">Memory Model</a></li>
-<li><a class="reference internal" href="#trap-handler-abi" id="id66">Trap Handler ABI</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#unspecified-os" id="id67">Unspecified OS</a><ul>
-<li><a class="reference internal" href="#id28" id="id68">Trap Handler ABI</a></li>
+<li><a class="reference internal" href="#code-object" id="id46">Code Object</a><ul>
+<li><a class="reference internal" href="#header" id="id47">Header</a></li>
+<li><a class="reference internal" href="#sections" id="id48">Sections</a></li>
+<li><a class="reference internal" href="#note-records" id="id49">Note Records</a></li>
+<li><a class="reference internal" href="#symbols" id="id50">Symbols</a></li>
+<li><a class="reference internal" href="#relocation-records" id="id51">Relocation Records</a></li>
+<li><a class="reference internal" href="#dwarf" id="id52">DWARF</a><ul>
+<li><a class="reference internal" href="#address-space-mapping" id="id53">Address Space Mapping</a></li>
+<li><a class="reference internal" href="#register-mapping" id="id54">Register Mapping</a></li>
+<li><a class="reference internal" href="#source-text" id="id55">Source Text</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a class="reference internal" href="#source-languages" id="id69">Source Languages</a><ul>
-<li><a class="reference internal" href="#opencl" id="id70">OpenCL</a></li>
-<li><a class="reference internal" href="#hcc" id="id71">HCC</a></li>
-<li><a class="reference internal" href="#assembler" id="id72">Assembler</a><ul>
-<li><a class="reference internal" href="#operands" id="id73">Operands</a></li>
-<li><a class="reference internal" href="#instruction-examples" id="id74">Instruction Examples</a></li>
-<li><a class="reference internal" href="#ds" id="id75">DS</a><ul>
-<li><a class="reference internal" href="#flat" id="id76">FLAT</a></li>
-<li><a class="reference internal" href="#mubuf" id="id77">MUBUF</a></li>
-<li><a class="reference internal" href="#smrd-smem" id="id78">SMRD/SMEM</a></li>
-<li><a class="reference internal" href="#sop1" id="id79">SOP1</a></li>
-<li><a class="reference internal" href="#sop2" id="id80">SOP2</a></li>
-<li><a class="reference internal" href="#sopc" id="id81">SOPC</a></li>
-<li><a class="reference internal" href="#sopp" id="id82">SOPP</a></li>
-<li><a class="reference internal" href="#valu" id="id83">VALU</a></li>
+<li><a class="reference internal" href="#code-conventions" id="id56">Code Conventions</a><ul>
+<li><a class="reference internal" href="#amdhsa" id="id57">AMDHSA</a><ul>
+<li><a class="reference internal" href="#code-object-metadata" id="id58">Code Object Metadata</a></li>
+<li><a class="reference internal" href="#kernel-dispatch" id="id59">Kernel Dispatch</a></li>
+<li><a class="reference internal" href="#memory-spaces" id="id60">Memory Spaces</a></li>
+<li><a class="reference internal" href="#image-and-samplers" id="id61">Image and Samplers</a></li>
+<li><a class="reference internal" href="#hsa-signals" id="id62">HSA Signals</a></li>
+<li><a class="reference internal" href="#hsa-aql-queue" id="id63">HSA AQL Queue</a></li>
+<li><a class="reference internal" href="#kernel-descriptor" id="id64">Kernel Descriptor</a><ul>
+<li><a class="reference internal" href="#kernel-descriptor-for-gfx6-gfx9" id="id65">Kernel Descriptor for GFX6-GFX9</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#hsa-code-object-directives" id="id84">HSA Code Object Directives</a><ul>
-<li><a class="reference internal" href="#hsa-code-object-version-major-minor" id="id85">.hsa_code_object_version major, minor</a></li>
-<li><a class="reference internal" href="#hsa-code-object-isa-major-minor-stepping-vendor-arch" id="id86">.hsa_code_object_isa [major, minor, stepping, vendor, arch]</a></li>
-<li><a class="reference internal" href="#amdgpu-hsa-kernel-name" id="id87">.amdgpu_hsa_kernel (name)</a></li>
-<li><a class="reference internal" href="#amd-kernel-code-t" id="id88">.amd_kernel_code_t</a></li>
+<li><a class="reference internal" href="#initial-kernel-execution-state" id="id66">Initial Kernel Execution State</a></li>
+<li><a class="reference internal" href="#kernel-prolog" id="id67">Kernel Prolog</a><ul>
+<li><a class="reference internal" href="#m0" id="id68">M0</a></li>
+<li><a class="reference internal" href="#flat-scratch" id="id69">Flat Scratch</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#memory-model" id="id70">Memory Model</a></li>
+<li><a class="reference internal" href="#trap-handler-abi" id="id71">Trap Handler ABI</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#unspecified-os" id="id72">Unspecified OS</a><ul>
+<li><a class="reference internal" href="#id31" id="id73">Trap Handler ABI</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#source-languages" id="id74">Source Languages</a><ul>
+<li><a class="reference internal" href="#opencl" id="id75">OpenCL</a></li>
+<li><a class="reference internal" href="#hcc" id="id76">HCC</a></li>
+<li><a class="reference internal" href="#assembler" id="id77">Assembler</a><ul>
+<li><a class="reference internal" href="#operands" id="id78">Operands</a></li>
+<li><a class="reference internal" href="#instruction-examples" id="id79">Instruction Examples</a></li>
+<li><a class="reference internal" href="#ds" id="id80">DS</a><ul>
+<li><a class="reference internal" href="#flat" id="id81">FLAT</a></li>
+<li><a class="reference internal" href="#mubuf" id="id82">MUBUF</a></li>
+<li><a class="reference internal" href="#smrd-smem" id="id83">SMRD/SMEM</a></li>
+<li><a class="reference internal" href="#sop1" id="id84">SOP1</a></li>
+<li><a class="reference internal" href="#sop2" id="id85">SOP2</a></li>
+<li><a class="reference internal" href="#sopc" id="id86">SOPC</a></li>
+<li><a class="reference internal" href="#sopp" id="id87">SOPP</a></li>
+<li><a class="reference internal" href="#valu" id="id88">VALU</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#hsa-code-object-directives" id="id89">HSA Code Object Directives</a><ul>
+<li><a class="reference internal" href="#hsa-code-object-version-major-minor" id="id90">.hsa_code_object_version major, minor</a></li>
+<li><a class="reference internal" href="#hsa-code-object-isa-major-minor-stepping-vendor-arch" id="id91">.hsa_code_object_isa [major, minor, stepping, vendor, arch]</a></li>
+<li><a class="reference internal" href="#amdgpu-hsa-kernel-name" id="id92">.amdgpu_hsa_kernel (name)</a></li>
+<li><a class="reference internal" href="#amd-kernel-code-t" id="id93">.amd_kernel_code_t</a></li>
 </ul>
 </li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a class="reference internal" href="#additional-documentation" id="id89">Additional Documentation</a></li>
+<li><a class="reference internal" href="#additional-documentation" id="id94">Additional Documentation</a></li>
 </ul>
 </div>
 <div class="section" id="introduction">
-<h2><a class="toc-backref" href="#id33">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id38">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
 <p>The AMDGPU backend provides ISA code generation for AMD GPUs, starting with the
 R600 family up until the current GCN families. It lives in the
 <code class="docutils literal"><span class="pre">lib/Target/AMDGPU</span></code> directory.</p>
 </div>
 <div class="section" id="llvm">
-<h2><a class="toc-backref" href="#id34">LLVM</a><a class="headerlink" href="#llvm" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id39">LLVM</a><a class="headerlink" href="#llvm" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="target-triples">
-<span id="amdgpu-target-triples"></span><h3><a class="toc-backref" href="#id35">Target Triples</a><a class="headerlink" href="#target-triples" title="Permalink to this headline">¶</a></h3>
+<span id="amdgpu-target-triples"></span><h3><a class="toc-backref" href="#id40">Target Triples</a><a class="headerlink" href="#target-triples" title="Permalink to this headline">¶</a></h3>
 <p>Use the <code class="docutils literal"><span class="pre">clang</span> <span class="pre">-target</span> <span class="pre">&lt;Architecture&gt;-&lt;Vendor&gt;-&lt;OS&gt;-&lt;Environment&gt;</span></code> option to
 specify the target triple:</p>
 <blockquote>
@@ -268,7 +268,7 @@ used (see <a class="reference internal" href="#amdgpu-address-spaces"><span clas
 </div></blockquote>
 </div>
 <div class="section" id="processors">
-<span id="amdgpu-processors"></span><h3><a class="toc-backref" href="#id36">Processors</a><a class="headerlink" href="#processors" title="Permalink to this headline">¶</a></h3>
+<span id="amdgpu-processors"></span><h3><a class="toc-backref" href="#id41">Processors</a><a class="headerlink" href="#processors" title="Permalink to this headline">¶</a></h3>
 <p>Use the <code class="docutils literal"><span class="pre">clang</span> <span class="pre">-mcpu</span> <span class="pre">&lt;Processor&gt;</span></code> option to specify the AMD GPU processor. The
 names from both the <em>Processor</em> and <em>Alternative Processor</em> can be used.</p>
 <blockquote>
@@ -783,7 +783,7 @@ Liquid</li>
 </div></blockquote>
 </div>
 <div class="section" id="target-features">
-<span id="amdgpu-target-features"></span><h3><a class="toc-backref" href="#id37">Target Features</a><a class="headerlink" href="#target-features" title="Permalink to this headline">¶</a></h3>
+<span id="amdgpu-target-features"></span><h3><a class="toc-backref" href="#id42">Target Features</a><a class="headerlink" href="#target-features" title="Permalink to this headline">¶</a></h3>
 <p>Target features control how code is generated to support certain
 processor specific features. Not all target features are supported by
 all processors. The runtime must ensure that the features supported by
@@ -835,7 +835,7 @@ feature disabled.</p>
 </dl>
 </div>
 <div class="section" id="address-spaces">
-<span id="amdgpu-address-spaces"></span><h3><a class="toc-backref" href="#id38">Address Spaces</a><a class="headerlink" href="#address-spaces" title="Permalink to this headline">¶</a></h3>
+<span id="amdgpu-address-spaces"></span><h3><a class="toc-backref" href="#id43">Address Spaces</a><a class="headerlink" href="#address-spaces" title="Permalink to this headline">¶</a></h3>
 <p>The AMDGPU backend uses the following address space mappings.</p>
 <p>The memory space names used in the table, aside from the region memory space, is
 from the OpenCL standard.</p>
@@ -917,7 +917,7 @@ AMDGPU backend.</dd>
 </dl>
 </div>
 <div class="section" id="memory-scopes">
-<span id="amdgpu-memory-scopes"></span><h3><a class="toc-backref" href="#id39">Memory Scopes</a><a class="headerlink" href="#memory-scopes" title="Permalink to this headline">¶</a></h3>
+<span id="amdgpu-memory-scopes"></span><h3><a class="toc-backref" href="#id44">Memory Scopes</a><a class="headerlink" href="#memory-scopes" title="Permalink to this headline">¶</a></h3>
 <p>This section provides LLVM memory synchronization scopes supported by the AMDGPU
 backend memory model when the target triple OS is <code class="docutils literal"><span class="pre">amdhsa</span></code> (see
 <a class="reference internal" href="#amdgpu-amdhsa-memory-model"><span class="std std-ref">Memory Model</span></a> and <a class="reference internal" href="#amdgpu-target-triples"><span class="std std-ref">Target Triples</span></a>).</p>
@@ -926,7 +926,7 @@ based in turn on HRF-indirect with scope inclusion <a class="reference internal"
 relation is transitive over the synchonizes-with relation independent of scope,
 and synchonizes-with allows the memory scope instances to be inclusive (see
 table <a class="reference internal" href="#amdgpu-amdhsa-llvm-sync-scopes-table"><span class="std std-ref">AMDHSA LLVM Sync Scopes</span></a>).</p>
-<p>This is different to the OpenCL memory model which does not have scope
+<p>This is different to the OpenCL <a class="reference internal" href="#id37" id="id13">[OpenCL]</a> memory model which does not have scope
 inclusion and requires the memory scopes to exactly match. However, this
 is conservatively correct for OpenCL.</p>
 <blockquote>
@@ -1012,18 +1012,18 @@ address spaces (for example, in signal handlers).</td>
 </div></blockquote>
 </div>
 <div class="section" id="amdgpu-intrinsics">
-<h3><a class="toc-backref" href="#id40">AMDGPU Intrinsics</a><a class="headerlink" href="#amdgpu-intrinsics" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id45">AMDGPU Intrinsics</a><a class="headerlink" href="#amdgpu-intrinsics" title="Permalink to this headline">¶</a></h3>
 <p>The AMDGPU backend implements the following intrinsics.</p>
 <p><em>This section is WIP.</em></p>
 </div>
 </div>
 <div class="section" id="code-object">
-<h2><a class="toc-backref" href="#id41">Code Object</a><a class="headerlink" href="#code-object" title="Permalink to this headline">¶</a></h2>
-<p>The AMDGPU backend generates a standard ELF <a class="reference internal" href="#elf" id="id13">[ELF]</a> relocatable code object that
+<h2><a class="toc-backref" href="#id46">Code Object</a><a class="headerlink" href="#code-object" title="Permalink to this headline">¶</a></h2>
+<p>The AMDGPU backend generates a standard ELF <a class="reference internal" href="#elf" id="id14">[ELF]</a> relocatable code object that
 can be linked by <code class="docutils literal"><span class="pre">lld</span></code> to produce a standard ELF shared code object which can
 be loaded and executed on an AMDGPU target.</p>
 <div class="section" id="header">
-<h3><a class="toc-backref" href="#id42">Header</a><a class="headerlink" href="#header" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id47">Header</a><a class="headerlink" href="#header" title="Permalink to this headline">¶</a></h3>
 <p>The AMDGPU backend uses the following ELF header:</p>
 <blockquote>
 <div><table border="1" class="docutils" id="amdgpu-elf-header-table">
@@ -1357,7 +1357,7 @@ architecture processors.</td>
 </dl>
 </div>
 <div class="section" id="sections">
-<h3><a class="toc-backref" href="#id43">Sections</a><a class="headerlink" href="#sections" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id48">Sections</a><a class="headerlink" href="#sections" title="Permalink to this headline">¶</a></h3>
 <p>An AMDGPU target ELF code object has the standard ELF sections which include:</p>
 <blockquote>
 <div><table border="1" class="docutils" id="amdgpu-elf-sections-table">
@@ -1441,7 +1441,7 @@ architecture processors.</td>
 </tbody>
 </table>
 </div></blockquote>
-<p>These sections have their standard meanings (see <a class="reference internal" href="#elf" id="id14">[ELF]</a>) and are only generated
+<p>These sections have their standard meanings (see <a class="reference internal" href="#elf" id="id15">[ELF]</a>) and are only generated
 if needed.</p>
 <dl class="docutils">
 <dt><code class="docutils literal"><span class="pre">.debug</span></code><em>*</em></dt>
@@ -1468,7 +1468,7 @@ information on conventions used in the isa generation.</dd>
 </dl>
 </div>
 <div class="section" id="note-records">
-<span id="amdgpu-note-records"></span><h3><a class="toc-backref" href="#id44">Note Records</a><a class="headerlink" href="#note-records" title="Permalink to this headline">¶</a></h3>
+<span id="amdgpu-note-records"></span><h3><a class="toc-backref" href="#id49">Note Records</a><a class="headerlink" href="#note-records" title="Permalink to this headline">¶</a></h3>
 <p>As required by <code class="docutils literal"><span class="pre">ELFCLASS32</span></code> and <code class="docutils literal"><span class="pre">ELFCLASS64</span></code>, minimal zero byte padding must
 be generated after the <code class="docutils literal"><span class="pre">name</span></code> field to ensure the <code class="docutils literal"><span class="pre">desc</span></code> field is 4 byte
 aligned. In addition, minimal zero byte padding must be generated to ensure the
@@ -1531,14 +1531,14 @@ string(s) come immediately after the preceding fields.</p>
 <dl class="docutils">
 <dt><code class="docutils literal"><span class="pre">NT_AMD_AMDGPU_HSA_METADATA</span></code></dt>
 <dd>Specifies extensible metadata associated with the code objects executed on HSA
-<a class="reference internal" href="#hsa" id="id15">[HSA]</a> compatible runtimes such as AMD’s ROCm <a class="reference internal" href="#amd-rocm" id="id16">[AMD-ROCm]</a>. It is required when
+<a class="reference internal" href="#hsa" id="id16">[HSA]</a> compatible runtimes such as AMD’s ROCm <a class="reference internal" href="#amd-rocm" id="id17">[AMD-ROCm]</a>. It is required when
 the target triple OS is <code class="docutils literal"><span class="pre">amdhsa</span></code> (see <a class="reference internal" href="#amdgpu-target-triples"><span class="std std-ref">Target Triples</span></a>). See
 <a class="reference internal" href="#amdgpu-amdhsa-hsa-code-object-metadata"><span class="std std-ref">Code Object Metadata</span></a> for the syntax of the code
 object metadata string.</dd>
 </dl>
 </div>
 <div class="section" id="symbols">
-<span id="amdgpu-symbols"></span><h3><a class="toc-backref" href="#id45">Symbols</a><a class="headerlink" href="#symbols" title="Permalink to this headline">¶</a></h3>
+<span id="amdgpu-symbols"></span><h3><a class="toc-backref" href="#id50">Symbols</a><a class="headerlink" href="#symbols" title="Permalink to this headline">¶</a></h3>
 <p>Symbols include the following:</p>
 <blockquote>
 <div><table border="1" class="docutils" id="amdgpu-elf-symbols-table">
@@ -1609,7 +1609,7 @@ defined in <a class="reference internal" href="#amdgpu-amdhsa-kernel-descriptor"
 </dl>
 </div>
 <div class="section" id="relocation-records">
-<span id="amdgpu-relocation-records"></span><h3><a class="toc-backref" href="#id46">Relocation Records</a><a class="headerlink" href="#relocation-records" title="Permalink to this headline">¶</a></h3>
+<span id="amdgpu-relocation-records"></span><h3><a class="toc-backref" href="#id51">Relocation Records</a><a class="headerlink" href="#relocation-records" title="Permalink to this headline">¶</a></h3>
 <p>AMDGPU backend generates <code class="docutils literal"><span class="pre">Elf64_Rela</span></code> relocation records. Supported
 relocatable fields are:</p>
 <dl class="docutils">
@@ -1735,12 +1735,12 @@ using this are only valid in executable or shared objects.</dd>
 </div></blockquote>
 </div>
 <div class="section" id="dwarf">
-<span id="amdgpu-dwarf"></span><h3><a class="toc-backref" href="#id47">DWARF</a><a class="headerlink" href="#dwarf" title="Permalink to this headline">¶</a></h3>
-<p>Standard DWARF Version 2 sections can be generated. These contain
+<span id="amdgpu-dwarf"></span><h3><a class="toc-backref" href="#id52">DWARF</a><a class="headerlink" href="#dwarf" title="Permalink to this headline">¶</a></h3>
+<p>Standard DWARF <a class="reference internal" href="#id36" id="id18">[DWARF]</a> Version 2 sections can be generated. These contain
 information that maps the code object executable code and data to the source
 language constructs. It can be used by tools such as debuggers and profilers.</p>
 <div class="section" id="address-space-mapping">
-<h4><a class="toc-backref" href="#id48">Address Space Mapping</a><a class="headerlink" href="#address-space-mapping" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id53">Address Space Mapping</a><a class="headerlink" href="#address-space-mapping" title="Permalink to this headline">¶</a></h4>
 <p>The following address space mapping is used:</p>
 <blockquote>
 <div><table border="1" class="docutils" id="amdgpu-dwarf-address-space-mapping-table">
@@ -1786,35 +1786,35 @@ that are allocated in the <em>private</em> and <em>local</em> address space. Oth
 <code class="docutils literal"><span class="pre">XDREF</span></code> is omitted.</p>
 </div>
 <div class="section" id="register-mapping">
-<h4><a class="toc-backref" href="#id49">Register Mapping</a><a class="headerlink" href="#register-mapping" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id54">Register Mapping</a><a class="headerlink" href="#register-mapping" title="Permalink to this headline">¶</a></h4>
 <p><em>This section is WIP.</em></p>
 </div>
 <div class="section" id="source-text">
-<h4><a class="toc-backref" href="#id50">Source Text</a><a class="headerlink" href="#source-text" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id55">Source Text</a><a class="headerlink" href="#source-text" title="Permalink to this headline">¶</a></h4>
 <p><em>This section is WIP.</em></p>
 </div>
 </div>
 </div>
 <div class="section" id="code-conventions">
-<span id="amdgpu-code-conventions"></span><h2><a class="toc-backref" href="#id51">Code Conventions</a><a class="headerlink" href="#code-conventions" title="Permalink to this headline">¶</a></h2>
+<span id="amdgpu-code-conventions"></span><h2><a class="toc-backref" href="#id56">Code Conventions</a><a class="headerlink" href="#code-conventions" title="Permalink to this headline">¶</a></h2>
 <p>This section provides code conventions used for each supported target triple OS
 (see <a class="reference internal" href="#amdgpu-target-triples"><span class="std std-ref">Target Triples</span></a>).</p>
 <div class="section" id="amdhsa">
-<h3><a class="toc-backref" href="#id52">AMDHSA</a><a class="headerlink" href="#amdhsa" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id57">AMDHSA</a><a class="headerlink" href="#amdhsa" title="Permalink to this headline">¶</a></h3>
 <p>This section provides code conventions used when the target triple OS is
 <code class="docutils literal"><span class="pre">amdhsa</span></code> (see <a class="reference internal" href="#amdgpu-target-triples"><span class="std std-ref">Target Triples</span></a>).</p>
 <div class="section" id="code-object-metadata">
-<span id="amdgpu-amdhsa-hsa-code-object-metadata"></span><h4><a class="toc-backref" href="#id53">Code Object Metadata</a><a class="headerlink" href="#code-object-metadata" title="Permalink to this headline">¶</a></h4>
+<span id="amdgpu-amdhsa-hsa-code-object-metadata"></span><h4><a class="toc-backref" href="#id58">Code Object Metadata</a><a class="headerlink" href="#code-object-metadata" title="Permalink to this headline">¶</a></h4>
 <p>The code object metadata specifies extensible metadata associated with the code
-objects executed on HSA <a class="reference internal" href="#hsa" id="id17">[HSA]</a> compatible runtimes such as AMD’s ROCm
-<a class="reference internal" href="#amd-rocm" id="id18">[AMD-ROCm]</a>. It is specified by the <code class="docutils literal"><span class="pre">NT_AMD_AMDGPU_HSA_METADATA</span></code> note record
+objects executed on HSA <a class="reference internal" href="#hsa" id="id19">[HSA]</a> compatible runtimes such as AMD’s ROCm
+<a class="reference internal" href="#amd-rocm" id="id20">[AMD-ROCm]</a>. It is specified by the <code class="docutils literal"><span class="pre">NT_AMD_AMDGPU_HSA_METADATA</span></code> note record
 (see <a class="reference internal" href="#amdgpu-note-records"><span class="std std-ref">Note Records</span></a>) and is required when the target triple OS is
 <code class="docutils literal"><span class="pre">amdhsa</span></code> (see <a class="reference internal" href="#amdgpu-target-triples"><span class="std std-ref">Target Triples</span></a>). It must contain the minimum
 information necessary to support the ROCM kernel queries. For example, the
 segment sizes needed in a dispatch packet. In addition, a high level language
 runtime may require other information to be included. For example, the AMD
 OpenCL runtime records kernel argument information.</p>
-<p>The metadata is specified as a YAML formatted string (see <a class="reference internal" href="#yaml" id="id19">[YAML]</a> and
+<p>The metadata is specified as a YAML formatted string (see <a class="reference internal" href="#yaml" id="id21">[YAML]</a> and
 <a class="reference internal" href="YamlIO.html"><span class="doc">YAML I/O</span></a>).</p>
 <p>The metadata is represented as a single YAML document comprised of the mapping
 defined in table <a class="reference internal" href="#amdgpu-amdhsa-code-object-metadata-mapping-table"><span class="std std-ref">AMDHSA Code Object Metadata Mapping</span></a> and
@@ -2422,12 +2422,12 @@ location.</td>
 </div></blockquote>
 </div>
 <div class="section" id="kernel-dispatch">
-<h4><a class="toc-backref" href="#id54">Kernel Dispatch</a><a class="headerlink" href="#kernel-dispatch" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id59">Kernel Dispatch</a><a class="headerlink" href="#kernel-dispatch" title="Permalink to this headline">¶</a></h4>
 <p>The HSA architected queuing language (AQL) defines a user space memory interface
 that can be used to control the dispatch of kernels, in an agent independent
 way. An agent can have zero or more AQL queues created for it using the ROCm
 runtime, in which AQL packets (all of which are 64 bytes) can be placed. See the
-<em>HSA Platform System Architecture Specification</em> <a class="reference internal" href="#hsa" id="id20">[HSA]</a> for the AQL queue
+<em>HSA Platform System Architecture Specification</em> <a class="reference internal" href="#hsa" id="id22">[HSA]</a> for the AQL queue
 mechanics and packet layouts.</p>
 <p>The packet processor of a kernel agent is responsible for detecting and
 dispatching HSA kernels from the AQL queues associated with it. For AMD GPUs the
@@ -2451,7 +2451,7 @@ for a memory region with the kernarg property for the kernel agent that will
 execute the kernel. It must be at least 16 byte aligned.</li>
 <li>Kernel argument values are assigned to the kernel argument memory
 allocation. The layout is defined in the <em>HSA Programmer’s Language Reference</em>
-<a class="reference internal" href="#hsa" id="id21">[HSA]</a>. For AMDGPU the kernel execution directly accesses the kernel argument
+<a class="reference internal" href="#hsa" id="id23">[HSA]</a>. For AMDGPU the kernel execution directly accesses the kernel argument
 memory in the same way constant memory is accessed. (Note that the HSA
 specification allows an implementation to copy the kernel argument contents to
 another location that is accessed by the kernel.)</li>
@@ -2462,7 +2462,7 @@ store release to set the packet kind to ensure the packet contents are
 visible to the kernel agent. AQL defines a doorbell signal mechanism to
 notify the kernel agent that the AQL queue has been updated. These rules, and
 the layout of the AQL queue and kernel dispatch packet is defined in the <em>HSA
-System Architecture Specification</em> <a class="reference internal" href="#hsa" id="id22">[HSA]</a>.</li>
+System Architecture Specification</em> <a class="reference internal" href="#hsa" id="id24">[HSA]</a>.</li>
 <li>A kernel dispatch packet includes information about the actual dispatch,
 such as grid and work-group size, together with information from the code
 object about the kernel, such as segment sizes. The ROCm runtime queries on
@@ -2484,7 +2484,7 @@ signal specified in the kernel dispatch packet if not 0.</li>
 </ol>
 </div>
 <div class="section" id="memory-spaces">
-<span id="amdgpu-amdhsa-memory-spaces"></span><h4><a class="toc-backref" href="#id55">Memory Spaces</a><a class="headerlink" href="#memory-spaces" title="Permalink to this headline">¶</a></h4>
+<span id="amdgpu-amdhsa-memory-spaces"></span><h4><a class="toc-backref" href="#id60">Memory Spaces</a><a class="headerlink" href="#memory-spaces" title="Permalink to this headline">¶</a></h4>
 <p>The memory space properties are:</p>
 <blockquote>
 <div><table border="1" class="docutils" id="amdgpu-amdhsa-memory-spaces-table">
@@ -2598,7 +2598,7 @@ address mode the apperture sizes are 2^32 bytes and the base is aligned to 2^32
 which makes it easier to convert from flat to segment or segment to flat.</p>
 </div>
 <div class="section" id="image-and-samplers">
-<h4><a class="toc-backref" href="#id56">Image and Samplers</a><a class="headerlink" href="#image-and-samplers" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id61">Image and Samplers</a><a class="headerlink" href="#image-and-samplers" title="Permalink to this headline">¶</a></h4>
 <p>Image and sample handles created by the ROCm runtime are 64 bit addresses of a
 hardware 32 byte V# and 48 byte S# object respectively. In order to support the
 HSA <code class="docutils literal"><span class="pre">query_sampler</span></code> operations two extra dwords are used to store the HSA BRIG
@@ -2606,27 +2606,27 @@ enumeration values for the queries that are not trivially deducible from the S#
 representation.</p>
 </div>
 <div class="section" id="hsa-signals">
-<h4><a class="toc-backref" href="#id57">HSA Signals</a><a class="headerlink" href="#hsa-signals" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id62">HSA Signals</a><a class="headerlink" href="#hsa-signals" title="Permalink to this headline">¶</a></h4>
 <p>HSA signal handles created by the ROCm runtime are 64 bit addresses of a
 structure allocated in memory accessible from both the CPU and GPU. The
 structure is defined by the ROCm runtime and subject to change between releases
-(see <a class="reference internal" href="#amd-rocm-github" id="id23">[AMD-ROCm-github]</a>).</p>
+(see <a class="reference internal" href="#amd-rocm-github" id="id25">[AMD-ROCm-github]</a>).</p>
 </div>
 <div class="section" id="hsa-aql-queue">
-<span id="amdgpu-amdhsa-hsa-aql-queue"></span><h4><a class="toc-backref" href="#id58">HSA AQL Queue</a><a class="headerlink" href="#hsa-aql-queue" title="Permalink to this headline">¶</a></h4>
+<span id="amdgpu-amdhsa-hsa-aql-queue"></span><h4><a class="toc-backref" href="#id63">HSA AQL Queue</a><a class="headerlink" href="#hsa-aql-queue" title="Permalink to this headline">¶</a></h4>
 <p>The HSA AQL queue structure is defined by the ROCm runtime and subject to change
-between releases (see <a class="reference internal" href="#amd-rocm-github" id="id24">[AMD-ROCm-github]</a>). For some processors it contains
+between releases (see <a class="reference internal" href="#amd-rocm-github" id="id26">[AMD-ROCm-github]</a>). For some processors it contains
 fields needed to implement certain language features such as the flat address
 aperture bases. It also contains fields used by CP such as managing the
 allocation of scratch memory.</p>
 </div>
 <div class="section" id="kernel-descriptor">
-<span id="amdgpu-amdhsa-kernel-descriptor"></span><h4><a class="toc-backref" href="#id59">Kernel Descriptor</a><a class="headerlink" href="#kernel-descriptor" title="Permalink to this headline">¶</a></h4>
+<span id="amdgpu-amdhsa-kernel-descriptor"></span><h4><a class="toc-backref" href="#id64">Kernel Descriptor</a><a class="headerlink" href="#kernel-descriptor" title="Permalink to this headline">¶</a></h4>
 <p>A kernel descriptor consists of the information needed by CP to initiate the
 execution of a kernel, including the entry point address of the machine code
 that implements the kernel.</p>
 <div class="section" id="kernel-descriptor-for-gfx6-gfx9">
-<h5><a class="toc-backref" href="#id60">Kernel Descriptor for GFX6-GFX9</a><a class="headerlink" href="#kernel-descriptor-for-gfx6-gfx9" title="Permalink to this headline">¶</a></h5>
+<h5><a class="toc-backref" href="#id65">Kernel Descriptor for GFX6-GFX9</a><a class="headerlink" href="#kernel-descriptor-for-gfx6-gfx9" title="Permalink to this headline">¶</a></h5>
 <p>CP microcode requires the Kernel descritor to be allocated on 64 byte alignment.</p>
 <blockquote>
 <div><table border="1" class="docutils" id="amdgpu-amdhsa-kernel-descriptor-gfx6-gfx9-table">
@@ -3452,7 +3452,7 @@ dimensions ID.</td>
 </div>
 </div>
 <div class="section" id="initial-kernel-execution-state">
-<span id="amdgpu-amdhsa-initial-kernel-execution-state"></span><h4><a class="toc-backref" href="#id61">Initial Kernel Execution State</a><a class="headerlink" href="#initial-kernel-execution-state" title="Permalink to this headline">¶</a></h4>
+<span id="amdgpu-amdhsa-initial-kernel-execution-state"></span><h4><a class="toc-backref" href="#id66">Initial Kernel Execution State</a><a class="headerlink" href="#initial-kernel-execution-state" title="Permalink to this headline">¶</a></h4>
 <p>This section defines the register state that will be set up by the packet
 processor prior to the start of execution of every wavefront. This is limited by
 the constraints of the hardware controllers of CP/ADC/SPI.</p>
@@ -3853,9 +3853,9 @@ APU and NC for dGPU).</li>
 </ul>
 </div>
 <div class="section" id="kernel-prolog">
-<span id="amdgpu-amdhsa-kernel-prolog"></span><h4><a class="toc-backref" href="#id62">Kernel Prolog</a><a class="headerlink" href="#kernel-prolog" title="Permalink to this headline">¶</a></h4>
+<span id="amdgpu-amdhsa-kernel-prolog"></span><h4><a class="toc-backref" href="#id67">Kernel Prolog</a><a class="headerlink" href="#kernel-prolog" title="Permalink to this headline">¶</a></h4>
 <div class="section" id="m0">
-<span id="amdgpu-amdhsa-m0"></span><h5><a class="toc-backref" href="#id63">M0</a><a class="headerlink" href="#m0" title="Permalink to this headline">¶</a></h5>
+<span id="amdgpu-amdhsa-m0"></span><h5><a class="toc-backref" href="#id68">M0</a><a class="headerlink" href="#m0" title="Permalink to this headline">¶</a></h5>
 <dl class="docutils">
 <dt>GFX6-GFX8</dt>
 <dd>The M0 register must be initialized with a value at least the total LDS size
@@ -3869,7 +3869,7 @@ need to be initialized in the prolog.</dd>
 </dl>
 </div>
 <div class="section" id="flat-scratch">
-<span id="amdgpu-amdhsa-flat-scratch"></span><h5><a class="toc-backref" href="#id64">Flat Scratch</a><a class="headerlink" href="#flat-scratch" title="Permalink to this headline">¶</a></h5>
+<span id="amdgpu-amdhsa-flat-scratch"></span><h5><a class="toc-backref" href="#id69">Flat Scratch</a><a class="headerlink" href="#flat-scratch" title="Permalink to this headline">¶</a></h5>
 <p>If the kernel may use flat operations to access scratch memory, the prolog code
 must set up FLAT_SCRATCH register pair (FLAT_SCRATCH_LO/FLAT_SCRATCH_HI which
 are in SGPRn-4/SGPRn-3). Initialization uses Flat Scratch Init and Scratch Wave
@@ -3904,7 +3904,7 @@ pair for use as the flat scratch base in flat memory instructions.</dd>
 </div>
 </div>
 <div class="section" id="memory-model">
-<span id="amdgpu-amdhsa-memory-model"></span><h4><a class="toc-backref" href="#id65">Memory Model</a><a class="headerlink" href="#memory-model" title="Permalink to this headline">¶</a></h4>
+<span id="amdgpu-amdhsa-memory-model"></span><h4><a class="toc-backref" href="#id70">Memory Model</a><a class="headerlink" href="#memory-model" title="Permalink to this headline">¶</a></h4>
 <p>This section describes the mapping of LLVM memory model onto AMDGPU machine code
 (see <a class="reference internal" href="LangRef.html#memmodel"><span class="std std-ref">Memory Model for Concurrent Operations</span></a>). <em>The implementation is WIP.</em></p>
 <p>The AMDGPU backend supports the memory synchronization scopes specified in
@@ -3923,10 +3923,10 @@ model <code class="docutils literal"><span class="pre">s_waitcnt</span></code> i
 <p>The AMDGPU backend supports the following memory models:</p>
 <blockquote>
 <div><dl class="docutils">
-<dt>HSA Memory Model <a class="reference internal" href="#hsa" id="id25">[HSA]</a></dt>
+<dt>HSA Memory Model <a class="reference internal" href="#hsa" id="id27">[HSA]</a></dt>
 <dd>The HSA memory model uses a single happens-before relation for all address
 spaces (see <a class="reference internal" href="#amdgpu-address-spaces"><span class="std std-ref">Address Spaces</span></a>).</dd>
-<dt>OpenCL Memory Model</dt>
+<dt>OpenCL Memory Model <a class="reference internal" href="#id37" id="id28">[OpenCL]</a></dt>
 <dd>The OpenCL memory model which has separate happens-before relations for the
 global and local address spaces. Only a fence specifying both global and
 local address space, and seq_cst instructions join the relationships. Since
@@ -6236,9 +6236,9 @@ seq_cst.</li>
 </div></blockquote>
 </div>
 <div class="section" id="trap-handler-abi">
-<h4><a class="toc-backref" href="#id66">Trap Handler ABI</a><a class="headerlink" href="#trap-handler-abi" title="Permalink to this headline">¶</a></h4>
-<p>For code objects generated by AMDGPU backend for HSA <a class="reference internal" href="#hsa" id="id26">[HSA]</a> compatible runtimes
-(such as ROCm <a class="reference internal" href="#amd-rocm" id="id27">[AMD-ROCm]</a>), the runtime installs a trap handler that supports
+<h4><a class="toc-backref" href="#id71">Trap Handler ABI</a><a class="headerlink" href="#trap-handler-abi" title="Permalink to this headline">¶</a></h4>
+<p>For code objects generated by AMDGPU backend for HSA <a class="reference internal" href="#hsa" id="id29">[HSA]</a> compatible runtimes
+(such as ROCm <a class="reference internal" href="#amd-rocm" id="id30">[AMD-ROCm]</a>), the runtime installs a trap handler that supports
 the <code class="docutils literal"><span class="pre">s_trap</span></code> instruction with the following usage:</p>
 <blockquote>
 <div><table border="1" class="docutils" id="amdgpu-trap-handler-for-amdhsa-os-table">
@@ -6327,11 +6327,11 @@ breakpoints.</td>
 </div>
 </div>
 <div class="section" id="unspecified-os">
-<h3><a class="toc-backref" href="#id67">Unspecified OS</a><a class="headerlink" href="#unspecified-os" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id72">Unspecified OS</a><a class="headerlink" href="#unspecified-os" title="Permalink to this headline">¶</a></h3>
 <p>This section provides code conventions used when the target triple OS is
 empty (see <a class="reference internal" href="#amdgpu-target-triples"><span class="std std-ref">Target Triples</span></a>).</p>
-<div class="section" id="id28">
-<h4><a class="toc-backref" href="#id68">Trap Handler ABI</a><a class="headerlink" href="#id28" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="id31">
+<h4><a class="toc-backref" href="#id73">Trap Handler ABI</a><a class="headerlink" href="#id31" title="Permalink to this headline">¶</a></h4>
 <p>For code objects generated by AMDGPU backend for non-amdhsa OS, the runtime does
 not install a trap handler. The <code class="docutils literal"><span class="pre">llvm.trap</span></code> and <code class="docutils literal"><span class="pre">llvm.debugtrap</span></code>
 instructions are handled as follows:</p>
@@ -6366,9 +6366,9 @@ trap handler installed.</td>
 </div>
 </div>
 <div class="section" id="source-languages">
-<h2><a class="toc-backref" href="#id69">Source Languages</a><a class="headerlink" href="#source-languages" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id74">Source Languages</a><a class="headerlink" href="#source-languages" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="opencl">
-<span id="amdgpu-opencl"></span><h3><a class="toc-backref" href="#id70">OpenCL</a><a class="headerlink" href="#opencl" title="Permalink to this headline">¶</a></h3>
+<span id="amdgpu-opencl"></span><h3><a class="toc-backref" href="#id75">OpenCL</a><a class="headerlink" href="#opencl" title="Permalink to this headline">¶</a></h3>
 <p>When generating code for the OpenCL language the target triple environment
 should be <code class="docutils literal"><span class="pre">opencl</span></code> or <code class="docutils literal"><span class="pre">amdgizcl</span></code> (see <a class="reference internal" href="#amdgpu-target-triples"><span class="std std-ref">Target Triples</span></a>).</p>
 <p>When the language is OpenCL the following differences occur:</p>
@@ -6380,7 +6380,7 @@ should be <code class="docutils literal"><span class="pre">opencl</span></code> 
 </ol>
 </div>
 <div class="section" id="hcc">
-<span id="amdgpu-hcc"></span><h3><a class="toc-backref" href="#id71">HCC</a><a class="headerlink" href="#hcc" title="Permalink to this headline">¶</a></h3>
+<span id="amdgpu-hcc"></span><h3><a class="toc-backref" href="#id76">HCC</a><a class="headerlink" href="#hcc" title="Permalink to this headline">¶</a></h3>
 <p>When generating code for the OpenCL language the target triple environment
 should be <code class="docutils literal"><span class="pre">hcc</span></code> (see <a class="reference internal" href="#amdgpu-target-triples"><span class="std std-ref">Target Triples</span></a>).</p>
 <p>When the language is OpenCL the following differences occur:</p>
@@ -6389,18 +6389,18 @@ should be <code class="docutils literal"><span class="pre">hcc</span></code> (se
 </ol>
 </div>
 <div class="section" id="assembler">
-<h3><a class="toc-backref" href="#id72">Assembler</a><a class="headerlink" href="#assembler" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id77">Assembler</a><a class="headerlink" href="#assembler" title="Permalink to this headline">¶</a></h3>
 <p>AMDGPU backend has LLVM-MC based assembler which is currently in development.
 It supports AMDGCN GFX6-GFX9.</p>
 <p>This section describes general syntax for instructions and operands. For more
 information about instructions, their semantics and supported combinations of
 operands, refer to one of instruction set architecture manuals
-<a class="reference internal" href="#amd-gcn-gfx6" id="id29">[AMD-GCN-GFX6]</a>, <a class="reference internal" href="#amd-gcn-gfx7" id="id30">[AMD-GCN-GFX7]</a>, <a class="reference internal" href="#amd-gcn-gfx8" id="id31">[AMD-GCN-GFX8]</a> and <a class="reference internal" href="#amd-gcn-gfx9" id="id32">[AMD-GCN-GFX9]</a>.</p>
+<a class="reference internal" href="#amd-gcn-gfx6" id="id32">[AMD-GCN-GFX6]</a>, <a class="reference internal" href="#amd-gcn-gfx7" id="id33">[AMD-GCN-GFX7]</a>, <a class="reference internal" href="#amd-gcn-gfx8" id="id34">[AMD-GCN-GFX8]</a> and <a class="reference internal" href="#amd-gcn-gfx9" id="id35">[AMD-GCN-GFX9]</a>.</p>
 <p>An instruction has the following syntax (register operands are normally
 comma-separated while extra operands are space-separated):</p>
 <p><em>&lt;opcode&gt; &lt;register_operand0&gt;, … &lt;extra_operand0&gt; …</em></p>
 <div class="section" id="operands">
-<h4><a class="toc-backref" href="#id73">Operands</a><a class="headerlink" href="#operands" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id78">Operands</a><a class="headerlink" href="#operands" title="Permalink to this headline">¶</a></h4>
 <p>The following syntax for register operands is supported:</p>
 <ul class="simple">
 <li>SGPR registers: s0, … or s[0], …</li>
@@ -6439,10 +6439,10 @@ comma-separated while extra operands are space-separated):</p>
 </ul>
 </div>
 <div class="section" id="instruction-examples">
-<h4><a class="toc-backref" href="#id74">Instruction Examples</a><a class="headerlink" href="#instruction-examples" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id79">Instruction Examples</a><a class="headerlink" href="#instruction-examples" title="Permalink to this headline">¶</a></h4>
 </div>
 <div class="section" id="ds">
-<h4><a class="toc-backref" href="#id75">DS</a><a class="headerlink" href="#ds" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id80">DS</a><a class="headerlink" href="#ds" title="Permalink to this headline">¶</a></h4>
 <div class="highlight-nasm"><div class="highlight"><pre><span></span><span class="nf">ds_add_u32</span> <span class="nv">v2</span><span class="p">,</span> <span class="nv">v4</span> <span class="nv">offset</span><span class="p">:</span><span class="mi">16</span>
 <span class="nf">ds_write_src2_b64</span> <span class="nv">v2</span> <span class="nv">offset0</span><span class="p">:</span><span class="mi">4</span> <span class="nv">offset1</span><span class="p">:</span><span class="mi">8</span>
 <span class="nf">ds_cmpst_f32</span> <span class="nv">v2</span><span class="p">,</span> <span class="nv">v4</span><span class="p">,</span> <span class="nv">v6</span>
@@ -6451,7 +6451,7 @@ comma-separated while extra operands are space-separated):</p>
 </div>
 <p>For full list of supported instructions, refer to “LDS/GDS instructions” in ISA Manual.</p>
 <div class="section" id="flat">
-<h5><a class="toc-backref" href="#id76">FLAT</a><a class="headerlink" href="#flat" title="Permalink to this headline">¶</a></h5>
+<h5><a class="toc-backref" href="#id81">FLAT</a><a class="headerlink" href="#flat" title="Permalink to this headline">¶</a></h5>
 <div class="highlight-nasm"><div class="highlight"><pre><span></span><span class="nf">flat_load_dword</span> <span class="nv">v1</span><span class="p">,</span> <span class="nv">v</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">4</span><span class="p">]</span>
 <span class="nf">flat_store_dwordx3</span> <span class="nv">v</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">4</span><span class="p">],</span> <span class="nv">v</span><span class="p">[</span><span class="mi">5</span><span class="p">:</span><span class="mi">7</span><span class="p">]</span>
 <span class="nf">flat_atomic_swap</span> <span class="nv">v1</span><span class="p">,</span> <span class="nv">v</span><span class="p">[</span><span class="mi">3</span><span class="p">:</span><span class="mi">4</span><span class="p">],</span> <span class="nv">v5</span> <span class="nv">glc</span>
@@ -6462,7 +6462,7 @@ comma-separated while extra operands are space-separated):</p>
 <p>For full list of supported instructions, refer to “FLAT instructions” in ISA Manual.</p>
 </div>
 <div class="section" id="mubuf">
-<h5><a class="toc-backref" href="#id77">MUBUF</a><a class="headerlink" href="#mubuf" title="Permalink to this headline">¶</a></h5>
+<h5><a class="toc-backref" href="#id82">MUBUF</a><a class="headerlink" href="#mubuf" title="Permalink to this headline">¶</a></h5>
 <div class="highlight-nasm"><div class="highlight"><pre><span></span><span class="nf">buffer_load_dword</span> <span class="nv">v1</span><span class="p">,</span> <span class="nv">off</span><span class="p">,</span> <span class="nv">s</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="mi">7</span><span class="p">],</span> <span class="nv">s1</span>
 <span class="nf">buffer_store_dwordx4</span> <span class="nv">v</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">4</span><span class="p">],</span> <span class="nv">v2</span><span class="p">,</span> <span class="nv">ttmp</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="mi">7</span><span class="p">],</span> <span class="nv">s1</span> <span class="nv">offen</span> <span class="nv">offset</span><span class="p">:</span><span class="mi">4</span> <span class="nv">glc</span> <span class="nv">tfe</span>
 <span class="nf">buffer_store_format_xy</span> <span class="nv">v</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="mi">2</span><span class="p">],</span> <span class="nv">off</span><span class="p">,</span> <span class="nv">s</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="mi">7</span><span class="p">],</span> <span class="nv">s1</span>
@@ -6473,7 +6473,7 @@ comma-separated while extra operands are space-separated):</p>
 <p>For full list of supported instructions, refer to “MUBUF Instructions” in ISA Manual.</p>
 </div>
 <div class="section" id="smrd-smem">
-<h5><a class="toc-backref" href="#id78">SMRD/SMEM</a><a class="headerlink" href="#smrd-smem" title="Permalink to this headline">¶</a></h5>
+<h5><a class="toc-backref" href="#id83">SMRD/SMEM</a><a class="headerlink" href="#smrd-smem" title="Permalink to this headline">¶</a></h5>
 <div class="highlight-nasm"><div class="highlight"><pre><span></span><span class="nf">s_load_dword</span> <span class="nv">s1</span><span class="p">,</span> <span class="nv">s</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">3</span><span class="p">],</span> <span class="mh">0xfc</span>
 <span class="nf">s_load_dwordx8</span> <span class="nv">s</span><span class="p">[</span><span class="mi">8</span><span class="p">:</span><span class="mi">15</span><span class="p">],</span> <span class="nv">s</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">3</span><span class="p">],</span> <span class="nv">s4</span>
 <span class="nf">s_load_dwordx16</span> <span class="nv">s</span><span class="p">[</span><span class="mi">88</span><span class="p">:</span><span class="mi">103</span><span class="p">],</span> <span class="nv">s</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">3</span><span class="p">],</span> <span class="nv">s4</span>
@@ -6484,7 +6484,7 @@ comma-separated while extra operands are space-separated):</p>
 <p>For full list of supported instructions, refer to “Scalar Memory Operations” in ISA Manual.</p>
 </div>
 <div class="section" id="sop1">
-<h5><a class="toc-backref" href="#id79">SOP1</a><a class="headerlink" href="#sop1" title="Permalink to this headline">¶</a></h5>
+<h5><a class="toc-backref" href="#id84">SOP1</a><a class="headerlink" href="#sop1" title="Permalink to this headline">¶</a></h5>
 <div class="highlight-nasm"><div class="highlight"><pre><span></span><span class="nf">s_mov_b32</span> <span class="nv">s1</span><span class="p">,</span> <span class="nv">s2</span>
 <span class="nf">s_mov_b64</span> <span class="nv">s</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="mh">0x80000000</span>
 <span class="nf">s_cmov_b32</span> <span class="nv">s1</span><span class="p">,</span> <span class="mi">200</span>
@@ -6497,7 +6497,7 @@ comma-separated while extra operands are space-separated):</p>
 <p>For full list of supported instructions, refer to “SOP1 Instructions” in ISA Manual.</p>
 </div>
 <div class="section" id="sop2">
-<h5><a class="toc-backref" href="#id80">SOP2</a><a class="headerlink" href="#sop2" title="Permalink to this headline">¶</a></h5>
+<h5><a class="toc-backref" href="#id85">SOP2</a><a class="headerlink" href="#sop2" title="Permalink to this headline">¶</a></h5>
 <div class="highlight-nasm"><div class="highlight"><pre><span></span><span class="nf">s_add_u32</span> <span class="nv">s1</span><span class="p">,</span> <span class="nv">s2</span><span class="p">,</span> <span class="nv">s3</span>
 <span class="nf">s_and_b64</span> <span class="nv">s</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">3</span><span class="p">],</span> <span class="nv">s</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="mi">5</span><span class="p">],</span> <span class="nv">s</span><span class="p">[</span><span class="mi">6</span><span class="p">:</span><span class="mi">7</span><span class="p">]</span>
 <span class="nf">s_cselect_b32</span> <span class="nv">s1</span><span class="p">,</span> <span class="nv">s2</span><span class="p">,</span> <span class="nv">s3</span>
@@ -6512,7 +6512,7 @@ comma-separated while extra operands are space-separated):</p>
 <p>For full list of supported instructions, refer to “SOP2 Instructions” in ISA Manual.</p>
 </div>
 <div class="section" id="sopc">
-<h5><a class="toc-backref" href="#id81">SOPC</a><a class="headerlink" href="#sopc" title="Permalink to this headline">¶</a></h5>
+<h5><a class="toc-backref" href="#id86">SOPC</a><a class="headerlink" href="#sopc" title="Permalink to this headline">¶</a></h5>
 <div class="highlight-nasm"><div class="highlight"><pre><span></span><span class="nf">s_cmp_eq_i32</span> <span class="nv">s1</span><span class="p">,</span> <span class="nv">s2</span>
 <span class="nf">s_bitcmp1_b32</span> <span class="nv">s1</span><span class="p">,</span> <span class="nv">s2</span>
 <span class="nf">s_bitcmp0_b64</span> <span class="nv">s</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">3</span><span class="p">],</span> <span class="nv">s4</span>
@@ -6522,7 +6522,7 @@ comma-separated while extra operands are space-separated):</p>
 <p>For full list of supported instructions, refer to “SOPC Instructions” in ISA Manual.</p>
 </div>
 <div class="section" id="sopp">
-<h5><a class="toc-backref" href="#id82">SOPP</a><a class="headerlink" href="#sopp" title="Permalink to this headline">¶</a></h5>
+<h5><a class="toc-backref" href="#id87">SOPP</a><a class="headerlink" href="#sopp" title="Permalink to this headline">¶</a></h5>
 <div class="highlight-nasm"><div class="highlight"><pre><span></span><span class="nf">s_barrier</span>
 <span class="nf">s_nop</span> <span class="mi">2</span>
 <span class="nf">s_endpgm</span>
@@ -6542,7 +6542,7 @@ of SOPP Instructions, so it is up to the programmer to be familiar with the
 range or acceptable values.</p>
 </div>
 <div class="section" id="valu">
-<h5><a class="toc-backref" href="#id83">VALU</a><a class="headerlink" href="#valu" title="Permalink to this headline">¶</a></h5>
+<h5><a class="toc-backref" href="#id88">VALU</a><a class="headerlink" href="#valu" title="Permalink to this headline">¶</a></h5>
 <p>For vector ALU instruction opcodes (VOP1, VOP2, VOP3, VOPC, VOP_DPP, VOP_SDWA),
 the assembler will automatically use optimal encoding based on its operands.
 To force specific encoding, one can add a suffix to the opcode of the instruction:</p>
@@ -6590,16 +6590,16 @@ To force specific encoding, one can add a suffix to the opcode of the instructio
 </div>
 </div>
 <div class="section" id="hsa-code-object-directives">
-<h4><a class="toc-backref" href="#id84">HSA Code Object Directives</a><a class="headerlink" href="#hsa-code-object-directives" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id89">HSA Code Object Directives</a><a class="headerlink" href="#hsa-code-object-directives" title="Permalink to this headline">¶</a></h4>
 <p>AMDGPU ABI defines auxiliary data in output code object. In assembly source,
 one can specify them with assembler directives.</p>
 <div class="section" id="hsa-code-object-version-major-minor">
-<h5><a class="toc-backref" href="#id85">.hsa_code_object_version major, minor</a><a class="headerlink" href="#hsa-code-object-version-major-minor" title="Permalink to this headline">¶</a></h5>
+<h5><a class="toc-backref" href="#id90">.hsa_code_object_version major, minor</a><a class="headerlink" href="#hsa-code-object-version-major-minor" title="Permalink to this headline">¶</a></h5>
 <p><em>major</em> and <em>minor</em> are integers that specify the version of the HSA code
 object that will be generated by the assembler.</p>
 </div>
 <div class="section" id="hsa-code-object-isa-major-minor-stepping-vendor-arch">
-<h5><a class="toc-backref" href="#id86">.hsa_code_object_isa [major, minor, stepping, vendor, arch]</a><a class="headerlink" href="#hsa-code-object-isa-major-minor-stepping-vendor-arch" title="Permalink to this headline">¶</a></h5>
+<h5><a class="toc-backref" href="#id91">.hsa_code_object_isa [major, minor, stepping, vendor, arch]</a><a class="headerlink" href="#hsa-code-object-isa-major-minor-stepping-vendor-arch" title="Permalink to this headline">¶</a></h5>
 <p><em>major</em>, <em>minor</em>, and <em>stepping</em> are all integers that describe the instruction
 set architecture (ISA) version of the assembly program.</p>
 <p><em>vendor</em> and <em>arch</em> are quoted strings.  <em>vendor</em> should always be equal to
@@ -6608,12 +6608,12 @@ set architecture (ISA) version of the assembly program.</p>
 from the value of the -mcpu option that is passed to the assembler.</p>
 </div>
 <div class="section" id="amdgpu-hsa-kernel-name">
-<h5><a class="toc-backref" href="#id87">.amdgpu_hsa_kernel (name)</a><a class="headerlink" href="#amdgpu-hsa-kernel-name" title="Permalink to this headline">¶</a></h5>
+<h5><a class="toc-backref" href="#id92">.amdgpu_hsa_kernel (name)</a><a class="headerlink" href="#amdgpu-hsa-kernel-name" title="Permalink to this headline">¶</a></h5>
 <p>This directives specifies that the symbol with given name is a kernel entry point
 (label) and the object should contain corresponding symbol of type STT_AMDGPU_HSA_KERNEL.</p>
 </div>
 <div class="section" id="amd-kernel-code-t">
-<h5><a class="toc-backref" href="#id88">.amd_kernel_code_t</a><a class="headerlink" href="#amd-kernel-code-t" title="Permalink to this headline">¶</a></h5>
+<h5><a class="toc-backref" href="#id93">.amd_kernel_code_t</a><a class="headerlink" href="#amd-kernel-code-t" title="Permalink to this headline">¶</a></h5>
 <p>This directive marks the beginning of a list of key / value pairs that are used
 to specify the amd_kernel_code_t object that will be emitted by the assembler.
 The list must be terminated by the <em>.end_amd_kernel_code_t</em> directive.  For
@@ -6673,7 +6673,7 @@ hello_world:
 </div>
 </div>
 <div class="section" id="additional-documentation">
-<h2><a class="toc-backref" href="#id89">Additional Documentation</a><a class="headerlink" href="#additional-documentation" title="Permalink to this headline">¶</a></h2>
+<h2><a class="toc-backref" href="#id94">Additional Documentation</a><a class="headerlink" href="#additional-documentation" title="Permalink to this headline">¶</a></h2>
 <table class="docutils citation" frame="void" id="amd-radeon-hd-2000-3000" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
@@ -6701,61 +6701,91 @@ hello_world:
 <table class="docutils citation" frame="void" id="amd-gcn-gfx6" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[AMD-GCN-GFX6]</td><td><em>(<a class="fn-backref" href="#id7">1</a>, <a class="fn-backref" href="#id29">2</a>)</em> <a class="reference external" href="http://developer.amd.com/wordpress/media/2012/12/AMD_Southern_Islands_Instruction_Set_Architecture.pdf">AMD Southern Islands Series ISA</a></td></tr>
+<tr><td class="label">[AMD-GCN-GFX6]</td><td><em>(<a class="fn-backref" href="#id7">1</a>, <a class="fn-backref" href="#id32">2</a>)</em> <a class="reference external" href="http://developer.amd.com/wordpress/media/2012/12/AMD_Southern_Islands_Instruction_Set_Architecture.pdf">AMD Southern Islands Series ISA</a></td></tr>
 </tbody>
 </table>
 <table class="docutils citation" frame="void" id="amd-gcn-gfx7" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[AMD-GCN-GFX7]</td><td><em>(<a class="fn-backref" href="#id8">1</a>, <a class="fn-backref" href="#id30">2</a>)</em> <a class="reference external" href="http://developer.amd.com/wordpress/media/2013/07/AMD_Sea_Islands_Instruction_Set_Architecture.pdf">AMD Sea Islands Series ISA</a></td></tr>
+<tr><td class="label">[AMD-GCN-GFX7]</td><td><em>(<a class="fn-backref" href="#id8">1</a>, <a class="fn-backref" href="#id33">2</a>)</em> <a class="reference external" href="http://developer.amd.com/wordpress/media/2013/07/AMD_Sea_Islands_Instruction_Set_Architecture.pdf">AMD Sea Islands Series ISA</a></td></tr>
 </tbody>
 </table>
 <table class="docutils citation" frame="void" id="amd-gcn-gfx8" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[AMD-GCN-GFX8]</td><td><em>(<a class="fn-backref" href="#id9">1</a>, <a class="fn-backref" href="#id31">2</a>)</em> <a class="reference external" href="http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2013/12/AMD_GCN3_Instruction_Set_Architecture_rev1.1.pdf">AMD GCN3 Instruction Set Architecture</a></td></tr>
+<tr><td class="label">[AMD-GCN-GFX8]</td><td><em>(<a class="fn-backref" href="#id9">1</a>, <a class="fn-backref" href="#id34">2</a>)</em> <a class="reference external" href="http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2013/12/AMD_GCN3_Instruction_Set_Architecture_rev1.1.pdf">AMD GCN3 Instruction Set Architecture</a></td></tr>
 </tbody>
 </table>
 <table class="docutils citation" frame="void" id="amd-gcn-gfx9" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[AMD-GCN-GFX9]</td><td><em>(<a class="fn-backref" href="#id10">1</a>, <a class="fn-backref" href="#id32">2</a>)</em> <a class="reference external" href="http://developer.amd.com/wordpress/media/2013/12/Vega_Shader_ISA_28July2017.pdf">AMD “Vega” Instruction Set Architecture</a></td></tr>
+<tr><td class="label">[AMD-GCN-GFX9]</td><td><em>(<a class="fn-backref" href="#id10">1</a>, <a class="fn-backref" href="#id35">2</a>)</em> <a class="reference external" href="http://developer.amd.com/wordpress/media/2013/12/Vega_Shader_ISA_28July2017.pdf">AMD “Vega” Instruction Set Architecture</a></td></tr>
+</tbody>
+</table>
+<table class="docutils citation" frame="void" id="amd-opencl-programming-guide" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label">[AMD-OpenCL_Programming-Guide]</td><td><a class="reference external" href="http://developer.amd.com/download/AMD_Accelerated_Parallel_Processing_OpenCL_Programming_Guide.pdf">AMD Accelerated Parallel Processing OpenCL Programming Guide</a></td></tr>
+</tbody>
+</table>
+<table class="docutils citation" frame="void" id="amd-app-sdk" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label">[AMD-APP-SDK]</td><td><a class="reference external" href="http://developer.amd.com/tools/heterogeneous-computing/amd-accelerated-parallel-processing-app-sdk/documentation/">AMD Accelerated Parallel Processing APP SDK Documentation</a></td></tr>
 </tbody>
 </table>
 <table class="docutils citation" frame="void" id="amd-rocm" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[AMD-ROCm]</td><td><em>(<a class="fn-backref" href="#id2">1</a>, <a class="fn-backref" href="#id16">2</a>, <a class="fn-backref" href="#id18">3</a>, <a class="fn-backref" href="#id27">4</a>)</em> <a class="reference external" href="http://gpuopen.com/compute-product/rocm/">ROCm: Open Platform for Development, Discovery and Education Around GPU Computing</a></td></tr>
+<tr><td class="label">[AMD-ROCm]</td><td><em>(<a class="fn-backref" href="#id2">1</a>, <a class="fn-backref" href="#id17">2</a>, <a class="fn-backref" href="#id20">3</a>, <a class="fn-backref" href="#id30">4</a>)</em> <a class="reference external" href="http://gpuopen.com/compute-product/rocm/">ROCm: Open Platform for Development, Discovery and Education Around GPU Computing</a></td></tr>
 </tbody>
 </table>
 <table class="docutils citation" frame="void" id="amd-rocm-github" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[AMD-ROCm-github]</td><td><em>(<a class="fn-backref" href="#id23">1</a>, <a class="fn-backref" href="#id24">2</a>)</em> <a class="reference external" href="http://github.com/RadeonOpenCompute">ROCm github</a></td></tr>
+<tr><td class="label">[AMD-ROCm-github]</td><td><em>(<a class="fn-backref" href="#id25">1</a>, <a class="fn-backref" href="#id26">2</a>)</em> <a class="reference external" href="http://github.com/RadeonOpenCompute">ROCm github</a></td></tr>
 </tbody>
 </table>
 <table class="docutils citation" frame="void" id="hsa" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[HSA]</td><td><em>(<a class="fn-backref" href="#id1">1</a>, <a class="fn-backref" href="#id11">2</a>, <a class="fn-backref" href="#id15">3</a>, <a class="fn-backref" href="#id17">4</a>, <a class="fn-backref" href="#id20">5</a>, <a class="fn-backref" href="#id21">6</a>, <a class="fn-backref" href="#id22">7</a>, <a class="fn-backref" href="#id25">8</a>, <a class="fn-backref" href="#id26">9</a>)</em> <a class="reference external" href="http://www.hsafoundation.com/">Heterogeneous System Architecture (HSA) Foundation</a></td></tr>
+<tr><td class="label">[HSA]</td><td><em>(<a class="fn-backref" href="#id1">1</a>, <a class="fn-backref" href="#id11">2</a>, <a class="fn-backref" href="#id16">3</a>, <a class="fn-backref" href="#id19">4</a>, <a class="fn-backref" href="#id22">5</a>, <a class="fn-backref" href="#id23">6</a>, <a class="fn-backref" href="#id24">7</a>, <a class="fn-backref" href="#id27">8</a>, <a class="fn-backref" href="#id29">9</a>)</em> <a class="reference external" href="http://www.hsafoundation.com/">Heterogeneous System Architecture (HSA) Foundation</a></td></tr>
 </tbody>
 </table>
 <table class="docutils citation" frame="void" id="elf" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label">[ELF]</td><td><em>(<a class="fn-backref" href="#id13">1</a>, <a class="fn-backref" href="#id14">2</a>)</em> <a class="reference external" href="http://www.sco.com/developers/gabi/">Executable and Linkable Format (ELF)</a></td></tr>
+<tr><td class="label">[ELF]</td><td><em>(<a class="fn-backref" href="#id14">1</a>, <a class="fn-backref" href="#id15">2</a>)</em> <a class="reference external" href="http://www.sco.com/developers/gabi/">Executable and Linkable Format (ELF)</a></td></tr>
+</tbody>
+</table>
+<table class="docutils citation" frame="void" id="id36" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id18">[DWARF]</a></td><td><a class="reference external" href="http://dwarfstd.org/">DWARF Debugging Information Format</a></td></tr>
 </tbody>
 </table>
 <table class="docutils citation" frame="void" id="yaml" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id19">[YAML]</a></td><td><a class="reference external" href="http://www.yaml.org/spec/1.2/spec.html">YAML Ain’t Markup Language (YAML™) Version 1.2</a></td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id21">[YAML]</a></td><td><a class="reference external" href="http://www.yaml.org/spec/1.2/spec.html">YAML Ain’t Markup Language (YAML™) Version 1.2</a></td></tr>
+</tbody>
+</table>
+<table class="docutils citation" frame="void" id="id37" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label">[OpenCL]</td><td><em>(<a class="fn-backref" href="#id13">1</a>, <a class="fn-backref" href="#id28">2</a>)</em> <a class="reference external" href="http://www.khronos.org/registry/cl/specs/opencl-2.0.pdf">The OpenCL Specification Version 2.0</a></td></tr>
 </tbody>
 </table>
 <table class="docutils citation" frame="void" id="hrf" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
 <tr><td class="label"><a class="fn-backref" href="#id12">[HRF]</a></td><td><a class="reference external" href="http://benedictgaster.org/wp-content/uploads/2014/01/asplos269-FINAL.pdf">Heterogeneous-race-free Memory Models</a></td></tr>
+</tbody>
+</table>
+<table class="docutils citation" frame="void" id="amd-amdgpu-compute-application-binary-interface" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label">[AMD-AMDGPU-Compute-Application-Binary-Interface]</td><td><a class="reference external" href="https://github.com/RadeonOpenCompute/ROCm-ComputeABI-Doc/blob/master/AMDGPU-ABI.md">AMDGPU Compute Application Binary Interface</a></td></tr>
 </tbody>
 </table>
 </div>
@@ -6785,7 +6815,7 @@ hello_world:
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2003-2019, LLVM Project.
-      Last updated on Wed Feb 13 10:08:12 2019 -0800.
+      Last updated on Fri Jun 14 15:52:05 2019 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

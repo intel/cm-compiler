@@ -215,9 +215,9 @@ void GenXDeadVectorRemoval::getAnalysisUsage(AnalysisUsage &AU) const
  * isRootInst : check if this is a "root" instruction, one that we want to
  *    keep even if unused
  */
-static bool isRootInst(Instruction *Inst)
-{
-  if (isa<ReturnInst>(Inst) || isa<BranchInst>(Inst) || isa<TerminatorInst>(Inst))
+static bool isRootInst(Instruction *Inst) {
+  if (isa<ReturnInst>(Inst) || isa<BranchInst>(Inst) ||
+      isa<TerminatorInst>(Inst) || Inst->mayHaveSideEffects())
     return true;
   if (auto CI = dyn_cast<CallInst>(Inst))
     return !CI->onlyReadsMemory();

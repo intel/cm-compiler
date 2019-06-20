@@ -27,8 +27,8 @@
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="CM (C for Media) Tutorial" href="../cmtutorial/cmtut.html" />
-    <link rel="prev" title="CM (C for Media) Language Specification" href="../cmlangspec/cmlangspec.html" />
+    <link rel="next" title="CM (C for Metal) Tutorial" href="../cmtutorial/cmtut.html" />
+    <link rel="prev" title="CM (C for Metal) Language Specification" href="../cmlangspec/cmlangspec.html" />
 <style type="text/css">
   table.right { float: right; margin-left: 20px; }
   table.right td { border: 1px solid #ccc; }
@@ -49,10 +49,10 @@
           <a href="../genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="../cmtutorial/cmtut.html" title="CM (C for Media) Tutorial"
+          <a href="../cmtutorial/cmtut.html" title="CM (C for Metal) Tutorial"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="../cmlangspec/cmlangspec.html" title="CM (C for Media) Language Specification"
+          <a href="../cmlangspec/cmlangspec.html" title="CM (C for Metal) Language Specification"
              accesskey="P">previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li> 
       </ul>
@@ -87,7 +87,7 @@ extensions for the CM language and a new Gen back-end. The old compiler (cm-icl)
 available and is included in the package but will no longer be developed. New features will
 only be available in cmc.</p>
 <p>This document describes the use of the cmc compiler.</p>
-<p>For information about the CM language see the <cite>CM (C for Media) Language Specification</cite>.</p>
+<p>For information about the CM language see the <cite>CM (C for Metal) Language Specification</cite>.</p>
 <p>For information about porting applications to use the cmc compiler from the old compiler (cm-icl) see the <cite>CM LLVM Porting Guide</cite>.</p>
 </div>
 <div class="section" id="supported-gen-targets">
@@ -152,6 +152,16 @@ Some CM language features are by their nature Gen specific, and are only availab
 <td>CNL</td>
 <td>CM_GEN10</td>
 <td>1000</td>
+</tr>
+<tr class="row-even"><td>GEN11</td>
+<td>ICL</td>
+<td>CM_GEN11</td>
+<td>1100</td>
+</tr>
+<tr class="row-odd"><td></td>
+<td>ICLLP</td>
+<td>CM_GEN11</td>
+<td>1150</td>
 </tr>
 </tbody>
 </table>
@@ -288,6 +298,9 @@ This option only has effect if -Qxcm_jit_target is also specified.</td>
 <tr class="row-odd"><td>-mCM_no_input_reorder</td>
 <td>This option causes the cmc compiler to <em>not</em> reorder the kernel arguments. Arguments will still satisfy alignment constraints so may be padded. This option is likely to degrade performance.</td>
 </tr>
+<tr class="row-even"><td>-mCM_no_vector_decomposition</td>
+<td>This option turns off a compiler optimization to split a large variable into independent ones if profitable.</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -374,17 +387,17 @@ These are described in the following table.</p>
           <a href="../genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="../cmtutorial/cmtut.html" title="CM (C for Media) Tutorial"
+          <a href="../cmtutorial/cmtut.html" title="CM (C for Metal) Tutorial"
              >next</a> |</li>
         <li class="right" >
-          <a href="../cmlangspec/cmlangspec.html" title="CM (C for Media) Language Specification"
+          <a href="../cmlangspec/cmlangspec.html" title="CM (C for Metal) Language Specification"
              >previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
-      Last updated on Fri Feb 22 15:24:15 2019 -0800.
+      Last updated on Wed Jun 19 12:06:58 2019 -0400.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

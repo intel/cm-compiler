@@ -1252,6 +1252,8 @@ void CGCMRuntime::EmitCMConstantInitializer(
 //      1 = input
 //      2 = output
 //      3 = input and output
+//  * <argtype_desc> is a metadata node describing N strings where N is the
+//    number of kernel arguments, each string describing argument type in OpenCL.
 //
 void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
                                        llvm::Function *Fn) {
@@ -1287,8 +1289,8 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
         // Follow the old compiler's mangling, although it is buggy here.
         if (NTT->getType()->isEnumeralType()) {
           // the old compiler mangles this to the enum text name.
-	  // But this name has been replaced by its integeral value and
-	  // we cannot retrieve it from AST. Just give up.
+          // But this name has been replaced by its integeral value and
+          // we cannot retrieve it from AST. Just give up.
           Error(ND->getLocation(), "cannot mangle enum!");
           return;
         }
@@ -1338,11 +1340,19 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
   llvm::Type *I32Ty = llvm::Type::getInt32Ty(Context);
   llvm::SmallVector<llvm::Metadata *, 8> ArgKinds;
   llvm::SmallVector<llvm::Metadata *, 8> ArgInOutKinds;
+  llvm::SmallVector<llvm::Metadata *, 8> ArgTypeDescs;
   enum { AK_NORMAL, AK_SAMPLER, AK_SURFACE, AK_VME };
   enum { IK_NORMAL, IK_INPUT, IK_OUTPUT, IK_INPUT_OUTPUT };
   for (FunctionDecl::param_const_iterator i = FD->param_begin(), e = FD->param_end();
       i != e; ++i) {
     const ParmVarDecl *PVD = *i;
+
+    // Generate argument type descriptor if any.
+    StringRef ArgDesc = "";
+    if (auto AT = PVD->getAttr<CMOpenCLTypeAttr>())
+      ArgDesc = AT->getType_desc();
+    ArgTypeDescs.push_back(llvm::MDString::get(Context, ArgDesc));
+
     const Type *T = PVD->getTypeSourceInfo()->getType().getTypePtr();
     int Kind = AK_NORMAL;
     if (T->isCMSamplerIndexType())
@@ -1378,6 +1388,7 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
 
   llvm::MDNode *Kinds = llvm::MDNode::get(Context, ArgKinds);
   llvm::MDNode *IOKinds = llvm::MDNode::get(Context, ArgInOutKinds);
+  llvm::MDNode *ArgDescs = llvm::MDNode::get(Context, ArgTypeDescs);
   llvm::Metadata *MDArgs[] = {
       getMD(Fn),
       llvm::MDString::get(Context, KernelName.str()),
@@ -1385,7 +1396,8 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
       Kinds,
       getMD(llvm::ConstantInt::getNullValue(I32Ty)),
       getMD(llvm::ConstantInt::getNullValue(I32Ty)), // placeholder for arg offsets
-      IOKinds
+      IOKinds,
+      ArgDescs
   };
 
   // Add this kernel to the root.
@@ -1393,10 +1405,28 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
 }
 
 void CGCMRuntime::finalize() {
+  auto Kernels = CGM.getModule().getOrInsertNamedMetadata("genx.kernels");
+
+  // Mark this kernel to emit code compatible with OpenCL runtime.
+  StringRef Attr = CGM.getCodeGenOpts().EmitCmOCL ? "true" : "false";
+  for (auto K : Kernels->operands()) {
+    llvm::Metadata *M = K->getOperand(0).get();
+    if (auto F = dyn_cast_or_null<llvm::Function>(getVal(M)))
+      F->addFnAttr("oclrt", Attr);
+  }
+
+  if (CGM.getCodeGenOpts().EmitCMGlobalsAsVolatile)
+    for (auto &GV : CGM.getModule().getGlobalList()) {
+      llvm::Type *EltTy = GV.getType()->getElementType();
+      // At least 64 floats, or 8 GRFs
+      const unsigned THRESHOLD = sizeof(float) * 8 * 64;
+      if (EltTy->isVectorTy() && EltTy->getPrimitiveSizeInBits() >= THRESHOLD)
+        GV.addAttribute("genx_volatile");
+    }
+
   // Reverse kernel ASM names during codegen.
   // This provides an option to match the old compiler's output.
   if (CGM.getCodeGenOpts().ReverseCMKernelList) {
-    auto Kernels = CGM.getModule().getOrInsertNamedMetadata("genx.kernels");
     auto I = Kernels->op_begin();
     auto E = Kernels->op_end();
     // Reverse the ASM name nodes.

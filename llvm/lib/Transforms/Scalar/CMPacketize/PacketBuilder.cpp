@@ -198,13 +198,6 @@ namespace pktz
             return pVecType;
         }
 
-        // [N x float]* should packetize to [N x <8 x float>]*
-        if (pType->isPointerTy() && pType->getPointerElementType()->isArrayTy())
-        {
-            return PointerType::get(GetVectorType(pType->getPointerElementType()),
-                                    pType->getPointerAddressSpace());
-        }
-
         // <ty> should packetize to <8 x <ty>>
         Type* vecType = VectorType::get(pType, mVWidth);
         return vecType;

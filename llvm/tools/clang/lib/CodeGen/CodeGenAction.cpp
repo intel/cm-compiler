@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/CodeGen/CodeGenAction.h"
+#include "CGCM.h"
 #include "CodeGenModule.h"
 #include "CoverageMappingGen.h"
 #include "MacroPPCallbacks.h"
@@ -245,7 +246,7 @@ namespace clang {
             LLVMIRGeneration.stopTimer();
         }
 
-	IRGenFinished = true;
+        IRGenFinished = true;
       }
 
       // Silently ignore if we weren't initialized for some reason.
@@ -290,6 +291,37 @@ namespace clang {
       // Link each LinkModule into our module.
       if (LinkInModules())
         return;
+
+      if (!CodeGenOpts.GenXBiFName.empty()) {
+        std::unique_ptr<llvm::Module> m_GenericModule;
+        if (llvm::sys::fs::exists(CodeGenOpts.GenXBiFName))
+        {
+          llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> FileOrErr =
+            llvm::MemoryBuffer::getFileOrSTDIN(CodeGenOpts.GenXBiFName);
+          if (!FileOrErr) {
+            Diags.Report(diag::err_cannot_open_file) << CodeGenOpts.GenXBiFName << "cannot open";
+            return;
+          }
+          llvm::Expected<std::unique_ptr<llvm::Module>> pMod =
+            llvm::getOwningLazyBitcodeModule(std::move(*FileOrErr), Ctx);
+          if (llvm::Error EC = pMod.takeError()) {
+            Diags.Report(diag::err_cannot_open_file) << CodeGenOpts.GenXBiFName << "cannot load";
+            return;
+          }
+          else
+            m_GenericModule = std::move(*pMod);
+          auto MainModule = getModule();
+          if (m_GenericModule) {
+            m_GenericModule->setDataLayout(MainModule->getDataLayout());
+            m_GenericModule->setTargetTriple(MainModule->getTargetTriple());
+            CMImportBiF(MainModule, std::move(m_GenericModule));
+          }
+        }
+        else {
+          Diags.Report(diag::err_cannot_open_file) << CodeGenOpts.GenXBiFName << "does not exist";
+          return;
+        }
+      }
 
       EmbedBitcode(getModule(), CodeGenOpts, llvm::MemoryBufferRef());
 

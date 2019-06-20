@@ -29,6 +29,7 @@ static_assert(0, "CM:w:cm_internal.h should not be included explicitly - only "
 #define _CLANG_CM_INTERNAL_H_
 
 #include "cm_common.h"
+#include "cm_util.h"
 
 namespace details {
 

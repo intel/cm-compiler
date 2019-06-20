@@ -47,6 +47,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include <stdint.h>
+#include "visa_igc_common_header.h"
 #include "FunctionGroup.h"
 #include "GenX.h"
 #include "GenXAlignmentInfo.h"
@@ -185,6 +187,9 @@ class VisaFuncWriter : public FuncWriter {
   // The effective bits in CR register.
   static const uint32_t CR_Mask = 0x1 << 10 | 0x3 << 6 | 0x3 << 4 | 0x1;
 
+  // GRF width in unit of byte
+  unsigned GrfByteSize;
+
   // getStringIdx : add/find string in string table and return index
   unsigned getStringIdx(std::string Str, bool Limit64 = true);
   // getBBRef : get reference to BB's label, adding to list of forward
@@ -238,46 +243,93 @@ private:
   void writeLabel(Value *BB);
   bool buildBasicBlock(BasicBlock *BB);
   bool buildInstruction(Instruction *I);
+
+  // A utility class to capture the destination operand.
+  // If a bale ends with a g_store baling, then the destination is actually
+  // provided by two parts:
+  // * write region instruction for region
+  // * g_store instuction for the actual variable and overrided type.
+  //
+  struct DstOpndDesc {
+    Instruction *WrRegion = nullptr;
+    BaleInfo WrRegionBI;
+    Instruction *GStore = nullptr;
+
+    DstOpndDesc() {}
+    DstOpndDesc(Instruction *WrRegion, BaleInfo BI,
+                Instruction *GStore = nullptr)
+        : WrRegion(WrRegion), WrRegionBI(BI), GStore(GStore) {
+      assert(!GStore || isa<StoreInst>(GStore));
+    }
+
+    GlobalVariable *getGlobalVariable() const {
+      return GStore ? getUnderlyingGlobalVariable(GStore->getOperand(1))
+                    : nullptr;
+    }
+  };
+
   // Builders for individual instructions
-  void buildLoneWrRegion(Instruction *Inst, genx::BaleInfo BI);
+  void buildLoneWrRegion(const DstOpndDesc &Desc);
   void buildLoneWrPredRegion(Instruction *Inst, genx::BaleInfo BI);
-  void buildLoneOperand(Instruction *Inst, genx::BaleInfo BI, unsigned Mod, Instruction *WrRegion, genx::BaleInfo WrRegionBI);
-  bool buildMainInst(Instruction *Inst, genx::BaleInfo BI, unsigned Mod, Instruction *WrRegion, genx::BaleInfo WrRegionBI);
+  void buildLoneOperand(Instruction *Inst, genx::BaleInfo BI, unsigned Mod,
+                        const DstOpndDesc &DstDesc);
+  bool buildMainInst(Instruction *Inst, genx::BaleInfo BI, unsigned Mod,
+                     const DstOpndDesc &DstDesc);
   void buildPhiNode(PHINode *Phi);
   void buildRet(ReturnInst *RI);
   void buildCall(CallInst *CI);
   bool buildBranch(BranchInst *BI);
   void buildGoto(CallInst *Goto, BranchInst *Branch);
   void buildJoin(CallInst *Join, BranchInst *Branch);
-  void buildCmp(CmpInst *Cmp, genx::BaleInfo BI, Instruction *WrPredRegion, BaleInfo WrRegionBI);
-  void buildBinaryOperator(BinaryOperator *BO, genx::BaleInfo BI, unsigned Mod, Instruction *WrRegion, genx::BaleInfo WrRegionBI);
-  void buildSelectInst(SelectInst *SI, BaleInfo BI, unsigned Mod, Instruction *WrRegion, BaleInfo WrRegionBI);
+  void buildCmp(CmpInst *Cmp, genx::BaleInfo BI, const DstOpndDesc &DstDesc);
+  void buildBinaryOperator(BinaryOperator *BO, genx::BaleInfo BI, unsigned Mod,
+                           const DstOpndDesc &DstDesc);
+  void buildSelectInst(SelectInst *SI, BaleInfo BI, unsigned Mod,
+                       const DstOpndDesc &DstDesc);
   void buildBoolBinaryOperator(BinaryOperator *BO);
-  void buildCastInst(CastInst *CI, genx::BaleInfo BI, unsigned Mod, Instruction *WrRegion, genx::BaleInfo WrRegionBI);
-  void buildBitCast(CastInst *CI, genx::BaleInfo BI, unsigned Mod, Instruction *WrRegion, genx::BaleInfo WrRegionBI);
-  void buildConvert(CallInst *CI, BaleInfo BI, unsigned Mod, Instruction *WrRegion, BaleInfo WrRegionBI);
-  void buildConvertAddr(CallInst *CI, BaleInfo BI, unsigned Mod, Instruction *WrRegion, BaleInfo WrRegionBI);
-  void buildIntrinsic(CallInst *CI, unsigned IntrinID, genx::BaleInfo BI, unsigned Mod, Instruction *WrRegion, genx::BaleInfo WrRegionBI);
+  void buildCastInst(CastInst *CI, genx::BaleInfo BI, unsigned Mod,
+                     const DstOpndDesc &DstDesc);
+  void buildBitCast(CastInst *CI, genx::BaleInfo BI, unsigned Mod,
+                    const DstOpndDesc &DstDesc);
+  void buildConvert(CallInst *CI, BaleInfo BI, unsigned Mod,
+                    const DstOpndDesc &DstDesc);
+  void buildConvertAddr(CallInst *CI, BaleInfo BI, unsigned Mod,
+                        const DstOpndDesc &DstDesc);
+  void buildIntrinsic(CallInst *CI, unsigned IntrinID, genx::BaleInfo BI,
+                      unsigned Mod, const DstOpndDesc &DstDesc);
   void buildControlRegUpdate(unsigned Mask, bool Clear);
   // Methods to write instruction operands etc.
   void writeWrLifetimeStart(Instruction *WrRegion);
   void writeSendLifetimeStart(Instruction *Inst);
   bool isInLoop(BasicBlock *BB);
   void writeLifetimeStart(Instruction *Inst);
-  void writeExecSizeFromWrPredRegion(unsigned ExecSize, Instruction *WrPredRegion, bool IsNoMask);
-  void writeExecSizeFromWrRegion(unsigned ExecSize, Instruction *WrRegion, BaleInfo WrRegionBI);
+  void writeExecSizeFromWrPredRegion(unsigned ExecSize,
+                                     Instruction *WrPredRegion, bool IsNoMask);
+  void writeExecSizeFromWrRegion(unsigned ExecSize, const DstOpndDesc &DstDesc,
+                                 bool IsNoMask = false);
   void writeExecSizeFromSelect(unsigned ExecSize, Instruction *SI, BaleInfo BI);
-  void writePredFromWrRegion(Instruction *WrRegion, BaleInfo WrRegionBI);
+  void writePredFromWrRegion(const DstOpndDesc &DstDesc);
   void writePredFromSelect(Instruction *SI, BaleInfo BI);
-  Value *getPredicateOperand(Instruction *Inst, unsigned OperandNum, BaleInfo BI, unsigned *PredField, unsigned *MaskCtrl);
+  Value *getPredicateOperand(Instruction *Inst, unsigned OperandNum,
+                             BaleInfo BI, unsigned *PredField,
+                             unsigned *MaskCtrl);
   void writePred(Instruction *Inst, BaleInfo BI, unsigned OperandNum);
-  void writeRawDestination(Value *V, Instruction *WrRegion, genx::Signedness Signed = DONTCARESIGNED);
-  void writeRawSourceOperand(Instruction *Inst, unsigned OperandNum, genx::BaleInfo BI, genx::Signedness Signed = DONTCARESIGNED);
-  genx::Signedness writeDestination(Value *Dest, genx::Signedness Signed, unsigned Mod, Instruction *WrRegion, genx::BaleInfo WrRegionBI);
-  genx::Signedness writeSourceOperand(Instruction *Inst, genx::Signedness Signed, unsigned OperandNum, genx::BaleInfo BI, unsigned Mod = 0, unsigned MaxWidth = 16);
-  genx::Signedness writeSource(Value *V, genx::Signedness Signed, bool Baled, unsigned Mod, unsigned MaxWidth = 16);
+  void writeRawDestination(Value *V, const DstOpndDesc &DstDesc,
+                           genx::Signedness Signed = DONTCARESIGNED);
+  void writeRawSourceOperand(Instruction *Inst, unsigned OperandNum,
+                             genx::BaleInfo BI,
+                             genx::Signedness Signed = DONTCARESIGNED);
+  genx::Signedness writeDestination(Value *Dest, genx::Signedness Signed,
+                                    unsigned Mod, const DstOpndDesc &DstDesc);
+  genx::Signedness writeSourceOperand(Instruction *Inst,
+                                      genx::Signedness Signed,
+                                      unsigned OperandNum, genx::BaleInfo BI,
+                                      unsigned Mod = 0, unsigned MaxWidth = 16);
+  genx::Signedness writeSource(Value *V, genx::Signedness Signed, bool Baled,
+                               unsigned Mod, unsigned MaxWidth = 16);
   void writeState(Region *R, unsigned RegNum, unsigned Kind);
-  void writeRegion(Region *R, unsigned RegNum, Signedness Signed, unsigned Mod, bool IsDest, unsigned MaxWidth = 16);
+  void writeRegion(Region *R, unsigned RegNum, Signedness Signed, unsigned Mod,
+                   bool IsDest, unsigned MaxWidth = 16);
   void writeImmediateOperand(Constant *V, genx::Signedness Signed);
   void writeAddressOperand(Value *V);
   void writePredicateOperand(Value *V);
@@ -358,6 +410,7 @@ VisaFuncWriter::VisaFuncWriter(FunctionGroup *FG, GenXVisaRegAlloc *RA,
       Liveness(Liveness), ST(ST), LabelSeq(0), LastLine(0), PendingLine(0),
       KM(FG->getHead()), HasBarrier(false), HasCallable(false)
 {
+  GrfByteSize = ST ? ST->getGRFWidth() : 32;
   // The string table always starts with an empty string.
   getStringIdx("");
   // Extract kernel name, asm name and slm size from genx.kernels metadata.
@@ -532,14 +585,30 @@ void VisaFuncWriter::buildInputs(Function *F, GenXVisaRegAlloc *RA, bool NeedRet
 {
   // All arguments now have offsets, generate the vISA parameter block
   assert(F->arg_size() == KM.getNumArgs() && "Mismatch between metadata for kernel and number of args");
-  // Num of arguments.
-  auto Size = F->arg_size();
+  // Num of non-skipping inputs.
+  auto Size = KM.getNumNonSKippingInputs();
   if (NeedRetIP) ++Size;
+
+  // Number of globals to be binded statically.
+  std::vector<std::pair<GlobalVariable *, int32_t>> Bindings;
+  Module *M = F->getParent();
+  for (auto &GV : M->getGlobalList()) {
+    int32_t Offset = 0;
+    GV.getAttribute("genx_byte_offset")
+        .getValueAsString()
+        .getAsInteger(0, Offset);
+    if (Offset > 0)
+      Bindings.emplace_back(&GV, Offset);
+  }
+  Size += Bindings.size();
+
   Body.push_back(uint32_t(Size));
   // Each argument.
   unsigned Idx = 0;
   bool PatchImpArgOff = false;
   for (auto i = F->arg_begin(), e = F->arg_end(); i != e; ++i, ++Idx) {
+    if (KM.shouldSkipArg(Idx))
+      continue;
     Argument *Arg = &*i;
     GenXVisaRegAlloc::RegNum Reg = RA->getRegNumForValueUntyped(Arg);
     assert(Reg.Category != RegCategory::NONE);
@@ -561,8 +630,21 @@ void VisaFuncWriter::buildInputs(Function *F, GenXVisaRegAlloc *RA, bool NeedRet
     GenXVisaRegAlloc::RegNum Reg = RA->getRetIPArgument();
     Body.push_back(uint8_t(0));
     Body.push_back(uint32_t(Reg.Num)); // id
-    Body.push_back(uint16_t(127 * 32 + 6 * 4)); // r127.6
+    Body.push_back(uint16_t(127 * GrfByteSize + 6 * 4)); // r127.6
     Body.push_back(uint16_t(64/8));
+  }
+  // Add pseudo-input for global variables with offset attribute.
+  for (auto &Item : Bindings) {
+    // TODO: sanity check. No overlap with other inputs.
+    GlobalVariable *GV = Item.first;
+    int32_t Offset = Item.second;
+    assert(Offset > 0);
+    GenXVisaRegAlloc::RegNum Reg = RA->getRegNumForValueUntyped(GV);
+    unsigned ByteSize = GV->getValueType()->getPrimitiveSizeInBits() / 8U;
+    Body.push_back(uint8_t(KernelMetadata::IMP_PSEUDO_INPUT)); // kind
+    Body.push_back(uint32_t(Reg.Num));  // id
+    Body.push_back(uint16_t(Offset));   // offset
+    Body.push_back(uint16_t(ByteSize)); // size
   }
 }
 
@@ -856,33 +938,46 @@ bool VisaFuncWriter::buildInstruction(Instruction *Inst)
   }
   // Process the bale that this is the head instruction of.
   BaleInfo BI = Baling->getBaleInfo(Inst);
-  Instruction *WrRegion = 0;
-  BaleInfo WrRegionBI;
+
+  DstOpndDesc DstDesc;
+  if (BI.Type == BaleInfo::GSTORE) {
+    // Inst is a global variable store. It should be baled into a wrr
+    // instruction.
+    Bale B;
+    Baling->buildBale(Inst, &B);
+    // This is an identity bale; no code will be emitted.
+    if (isIdentityBale(B))
+      return false;
+
+    assert(BI.isOperandBaled(0));
+    DstDesc.GStore = Inst;
+    Inst = cast<Instruction>(Inst->getOperand(0));
+    BI = Baling->getBaleInfo(Inst);
+  }
+
   if (BI.Type == BaleInfo::WRREGION || BI.Type == BaleInfo::WRPREDREGION
       || BI.Type == BaleInfo::WRPREDPREDREGION) {
     // Inst is a wrregion or wrpredregion or wrpredpredregion.
-    WrRegion = Inst;
-    WrRegionBI = BI;
-    if (isa<UndefValue>(Inst->getOperand(0))) {
+    DstDesc.WrRegion = Inst;
+    DstDesc.WrRegionBI = BI;
+    if (isa<UndefValue>(Inst->getOperand(0)) && !DstDesc.GStore) {
       // This is a wrregion, probably a partial write, to an undef value.
       // Write a lifetime start if appropriate to help the jitter's register
       // allocator.
-      writeWrLifetimeStart(WrRegion);
+      writeWrLifetimeStart(DstDesc.WrRegion);
     }
     // See if it bales in the instruction
     // that generates the subregion/element.  That is always operand 1.
     enum { OperandNum = 1 };
     if (!BI.isOperandBaled(OperandNum)) {
-      if (BI.Type == BaleInfo::WRPREDREGION) {
-        buildLoneWrPredRegion(WrRegion, WrRegionBI);
-      }
-      else {
-        buildLoneWrRegion(WrRegion, WrRegionBI);
-      }
+      if (BI.Type == BaleInfo::WRPREDREGION)
+        buildLoneWrPredRegion(DstDesc.WrRegion, DstDesc.WrRegionBI);
+      else
+        buildLoneWrRegion(DstDesc);
       return false;
     }
     // Yes, source of wrregion is baled in.
-    Inst = cast<Instruction>(WrRegion->getOperand(OperandNum));
+    Inst = cast<Instruction>(DstDesc.WrRegion->getOperand(OperandNum));
     BI = Baling->getBaleInfo(Inst);
   }
   unsigned Mod = 0;
@@ -910,31 +1005,30 @@ bool VisaFuncWriter::buildInstruction(Instruction *Inst)
     case BaleInfo::NOTMOD:
       // This is a rdregion or modifier not baled in to a main instruction
       // (but possibly baled in to a wrregion or sat modifier).
-      buildLoneOperand(Inst, BI, Mod, WrRegion, WrRegionBI);
+      buildLoneOperand(Inst, BI, Mod, DstDesc);
       return false;
   }
   assert(BI.Type == BaleInfo::MAININST || BI.Type == BaleInfo::NOTP
       || BI.Type == BaleInfo::ZEXT || BI.Type == BaleInfo::SEXT);
-  return buildMainInst(Inst, BI, Mod, WrRegion, WrRegionBI);
+  return buildMainInst(Inst, BI, Mod, DstDesc);
 }
 
 /***********************************************************************
  * buildLoneWrRegion : build a lone wrregion
  */
-void VisaFuncWriter::buildLoneWrRegion(Instruction *Inst, BaleInfo BI)
-{
+void VisaFuncWriter::buildLoneWrRegion(const DstOpndDesc &DstDesc) {
   enum { OperandNum = 1 };
-  Value *Input = Inst->getOperand(OperandNum);
+  Value *Input = DstDesc.WrRegion->getOperand(OperandNum);
   if (isa<UndefValue>(Input))
     return; // No code if input is undef
   int ExecSize = 1;
   if (VectorType *VT = dyn_cast<VectorType>(Input->getType()))
     ExecSize = VT->getNumElements();
   writeOpcode(ISA_MOV); // opcode
-  writeExecSizeFromWrRegion(ExecSize, Inst, BI); // execution size
-  writePredFromWrRegion(Inst, BI); // predication
+  writeExecSizeFromWrRegion(ExecSize, DstDesc); // execution size
+  writePredFromWrRegion(DstDesc); // predication
   // Give dest and source the same signedness for byte mov.
-  auto Signed = writeDestination(Input, DONTCARESIGNED, 0, Inst, BI); // destination
+  auto Signed = writeDestination(Input, DONTCARESIGNED, 0, DstDesc); // destination
   writeSource(Input, Signed, false, 0); // source 0
 }
 
@@ -967,9 +1061,11 @@ void VisaFuncWriter::buildLoneWrPredRegion(Instruction *Inst, BaleInfo BI)
  *          WrRegionBI = BaleInfo for WrRegion (possibly baling in
  *              variable index add)
  */
-void VisaFuncWriter::buildLoneOperand(Instruction *Inst, BaleInfo BI, unsigned Mod,
-    Instruction *WrRegion, BaleInfo WrRegionBI)
-{
+void VisaFuncWriter::buildLoneOperand(Instruction *Inst, BaleInfo BI,
+                                      unsigned Mod, const DstOpndDesc &DstDesc) {
+  Instruction *WrRegion = DstDesc.WrRegion;
+  BaleInfo WrRegionBI = DstDesc.WrRegionBI;
+
   int ExecSize = 1;
   if (VectorType *VT = dyn_cast<VectorType>(Inst->getType()))
     ExecSize = VT->getNumElements();
@@ -994,17 +1090,14 @@ void VisaFuncWriter::buildLoneOperand(Instruction *Inst, BaleInfo BI, unsigned M
     }
   }
   writeOpcode(Opcode); // opcode
-  writeExecSizeFromWrRegion(ExecSize, WrRegion, WrRegionBI); // execution size
+  writeExecSizeFromWrRegion(ExecSize, DstDesc); // execution size
   if (Opcode != ISA_MOVS) {
-    writePredFromWrRegion(WrRegion, WrRegionBI); // predication
+    writePredFromWrRegion(DstDesc); // predication
   }
   // Give dest and source the same signedness for byte mov.
   auto Signed = DONTCARESIGNED;
   // destination
-  if ((Mod & MOD_SAT) != 0 && Inst->getType()->getScalarType()->isIntegerTy()
-      && isIntegerSat(Inst->user_back()))
-    Signed = getISatDstSign(Inst->user_back());
-  Signed = writeDestination(Inst, Signed, Mod, WrRegion, WrRegionBI);
+  Signed = writeDestination(Inst, Signed, Mod, DstDesc);
 
   // source
   if ((Mod & MOD_SAT) != 0 && Inst->getType()->getScalarType()->isIntegerTy()
@@ -1026,8 +1119,7 @@ void VisaFuncWriter::buildLoneOperand(Instruction *Inst, BaleInfo BI, unsigned M
  * Return:  true if terminator inst that falls through to following block
  */
 bool VisaFuncWriter::buildMainInst(Instruction *Inst, BaleInfo BI, unsigned Mod,
-    Instruction *WrRegion, BaleInfo WrRegionBI)
-{
+                                   const DstOpndDesc &DstDesc) {
   if (PHINode *Phi = dyn_cast<PHINode>(Inst))
     buildPhiNode(Phi);
   else if (ReturnInst *RI = dyn_cast<ReturnInst>(Inst))
@@ -1035,12 +1127,13 @@ bool VisaFuncWriter::buildMainInst(Instruction *Inst, BaleInfo BI, unsigned Mod,
   else if (BranchInst *BR = dyn_cast<BranchInst>(Inst))
     return buildBranch(BR);
   else if (CmpInst *Cmp = dyn_cast<CmpInst>(Inst))
-    buildCmp(Cmp, BI, WrRegion, WrRegionBI);
+    buildCmp(Cmp, BI, DstDesc);
   else if (BinaryOperator *BO = dyn_cast<BinaryOperator>(Inst)) {
     if (!BO->getType()->getScalarType()->isIntegerTy(1))
-      buildBinaryOperator(BO, BI, Mod, WrRegion, WrRegionBI);
+      buildBinaryOperator(BO, BI, Mod, DstDesc);
     else {
-      assert(!Mod && !WrRegion && !BI.isOperandBaled(0) && !BI.isOperandBaled(1));
+      assert(!Mod && !DstDesc.WrRegion && !BI.isOperandBaled(0) &&
+             !BI.isOperandBaled(1));
       buildBoolBinaryOperator(BO);
     }
   } else if (isa<ExtractValueInst>(Inst))
@@ -1048,12 +1141,14 @@ bool VisaFuncWriter::buildMainInst(Instruction *Inst, BaleInfo BI, unsigned Mod,
   else if (isa<InsertValueInst>(Inst))
     ; // no code generated
   else if (BitCastInst *BCI = dyn_cast<BitCastInst>(Inst))
-    buildBitCast(BCI, BI, Mod, WrRegion, WrRegionBI);
+    buildBitCast(BCI, BI, Mod, DstDesc);
   else if (CastInst *CI = dyn_cast<CastInst>(Inst))
-    buildCastInst(CI, BI, Mod, WrRegion, WrRegionBI);
+    buildCastInst(CI, BI, Mod, DstDesc);
   else if (auto SI = dyn_cast<SelectInst>(Inst))
-    buildSelectInst(SI, BI, Mod, WrRegion, WrRegionBI);
-  else if (CallInst *CI = dyn_cast<CallInst>(Inst)) {
+    buildSelectInst(SI, BI, Mod, DstDesc);
+  else if (auto LI = dyn_cast<LoadInst>(Inst)) {
+    (void)LI; // no code generated
+  } else if (CallInst *CI = dyn_cast<CallInst>(Inst)) {
     Function *Callee = CI->getCalledFunction();
     if (!Callee)
       report_fatal_error("Indirect call not supported");
@@ -1074,26 +1169,27 @@ bool VisaFuncWriter::buildMainInst(Instruction *Inst, BaleInfo BI, unsigned Mod,
         buildJoin(CI, nullptr);
         break;
       case Intrinsic::genx_convert:
-        buildConvert(CI, BI, Mod, WrRegion, WrRegionBI);
+        buildConvert(CI, BI, Mod, DstDesc);
         break;
       case Intrinsic::genx_convert_addr:
-        buildConvertAddr(CI, BI, Mod, WrRegion, WrRegionBI);
+        buildConvertAddr(CI, BI, Mod, DstDesc);
         break;
       case Intrinsic::genx_constanti:
       case Intrinsic::genx_constantf:
       case Intrinsic::genx_constantpred:
         if (isa<UndefValue>(CI->getOperand(0)))
           return false; // Omit llvm.genx.constant with undef operand.
-        if (!WrRegion && RegAlloc->getRegNumForValueOrNull(CI).Category
-              == RegCategory::NONE)
+        if (!DstDesc.WrRegion &&
+            RegAlloc->getRegNumForValueOrNull(CI).Category == RegCategory::NONE)
           return false; // Omit llvm.genx.constantpred that is EM or RM and so
                         // does not have a register allocated.
         // fall through...
       default:
-        buildIntrinsic(CI, IntrinID, BI, Mod, WrRegion, WrRegionBI);
+        buildIntrinsic(CI, IntrinID, BI, Mod, DstDesc);
         break;
       case Intrinsic::not_intrinsic:
-        assert(!Mod && !WrRegion && "cannot bale subroutine call into anything");
+        assert(!Mod && !DstDesc.WrRegion &&
+               "cannot bale subroutine call into anything");
         buildCall(CI);
         break;
     }
@@ -1163,8 +1259,9 @@ void VisaFuncWriter::buildCall(CallInst *CI)
     HasCallable = true;
   }
   else
-    assert(FG == FG->getParent()->getGroup(Callee) && "unexpected call to outside FunctionGroup");
-  
+    assert(FG == FG->getParent()->getGroup(Callee) &&
+           "unexpected call to outside FunctionGroup");
+
   // Check whether the called function has a predicate arg that is EM.
   int EMOperandNum = -1;
   for (auto ai = Callee->arg_begin(), ae = Callee->arg_end(); ai != ae; ++ai) {
@@ -1342,9 +1439,9 @@ void VisaFuncWriter::buildJoin(CallInst *Join, BranchInst *Branch)
  *          WrRegion = 0 else wrpredregion, wrpredpredregion, or wrregion for
  *          destination
  */
-void VisaFuncWriter::buildCmp(CmpInst *Cmp, BaleInfo BI, Instruction *WrRegion,
-                              BaleInfo WrRegionBI) {
-  assert((!WrRegion || Cmp->getType()->getPrimitiveSizeInBits() != 4 ||
+void VisaFuncWriter::buildCmp(CmpInst *Cmp, BaleInfo BI,
+                              const DstOpndDesc &DstDesc) {
+  assert((!DstDesc.WrRegion || Cmp->getType()->getPrimitiveSizeInBits() != 4 ||
           Cmp->getOperand(0)
                   ->getType()
                   ->getScalarType()
@@ -1431,19 +1528,19 @@ void VisaFuncWriter::buildCmp(CmpInst *Cmp, BaleInfo BI, Instruction *WrRegion,
     ExecSize = VT->getNumElements();
   writeOpcode(ISA_CMP); // opcode
   if (WriteToPred)
-    writeExecSizeFromWrPredRegion(ExecSize, WrRegion, false); // execution size
+    writeExecSizeFromWrPredRegion(ExecSize, DstDesc.WrRegion, false); // execution size
   else
-    writeExecSizeFromWrRegion(ExecSize, WrRegion, WrRegionBI);
+    writeExecSizeFromWrRegion(ExecSize, DstDesc);
   writeByte(RelOp); // rel_op
 
   // Write to destionation.
   if (WriteToPred) {
     // destination is a predicate opnd.
-    writePredicateOperand(WrRegion ? WrRegion : Cmp);
+    writePredicateOperand(DstDesc.WrRegion ? DstDesc.WrRegion : Cmp);
   } else {
     // destination is a general opnd.
-    Value *Val = WrRegion ? WrRegion : Cmp->user_back();
-    writeDestination(Val, Signed, 0, WrRegion, WrRegionBI);
+    Value *Val = DstDesc.WrRegion ? DstDesc.WrRegion : Cmp->user_back();
+    writeDestination(Val, Signed, 0, DstDesc);
   }
   Signedness Src0Signed = writeSourceOperand(Cmp, Signed, 0, BI); // source 0
   writeSourceOperand(Cmp, Src0Signed, 1, BI);                     // source 1
@@ -1458,9 +1555,9 @@ void VisaFuncWriter::buildCmp(CmpInst *Cmp, BaleInfo BI, Instruction *WrRegion,
  *          WrRegion = 0 else wrregion for destination
  *          WrRegionBI = BaleInfo for WrRegion
  */
-void VisaFuncWriter::buildBinaryOperator(BinaryOperator *BO, BaleInfo BI, unsigned Mod,
-    Instruction *WrRegion, BaleInfo WrRegionBI)
-{
+void VisaFuncWriter::buildBinaryOperator(BinaryOperator *BO, BaleInfo BI,
+                                         unsigned Mod,
+                                         const DstOpndDesc &DstDesc) {
   int Opcode = 0;
   Signedness DstSigned = SIGNED;
   Signedness SrcSigned = SIGNED;
@@ -1504,15 +1601,11 @@ void VisaFuncWriter::buildBinaryOperator(BinaryOperator *BO, BaleInfo BI, unsign
       assert(0 && "buildBinaryOperator: unimplemented binary operator");
       break;
   }
-  if ((Mod & MOD_SAT) != 0 && BO->getType()->getScalarType()->isIntegerTy() &&
-      isIntegerSat(BO->user_back())) {
-    DstSigned = getISatDstSign(BO->user_back());
-    SrcSigned = getISatSrcSign(BO->user_back());
-  }
+
   writeOpcode(Opcode); // opcode
-  writeExecSizeFromWrRegion(ExecSize, WrRegion, WrRegionBI); // execution size
-  writePredFromWrRegion(WrRegion, WrRegionBI); // predication
-  writeDestination(BO, DstSigned, Mod, WrRegion, WrRegionBI); // destination
+  writeExecSizeFromWrRegion(ExecSize, DstDesc); // execution size
+  writePredFromWrRegion(DstDesc); // predication
+  writeDestination(BO, DstSigned, Mod, DstDesc); // destination
 
   if (Opcode == ISA_INV)
     writeSourceOperand(BO, SrcSigned, 1, BI, Mod1); // source 0
@@ -1532,15 +1625,14 @@ void VisaFuncWriter::buildBinaryOperator(BinaryOperator *BO, BaleInfo BI, unsign
  *          WrRegionBI = BaleInfo for WrRegion
  */
 void VisaFuncWriter::buildSelectInst(SelectInst *SI, BaleInfo BI, unsigned Mod,
-    Instruction *WrRegion, BaleInfo WrRegionBI)
-{
+                                     const DstOpndDesc &DstDesc) {
   int ExecSize = 1;
   if (VectorType *VT = dyn_cast<VectorType>(SI->getType()))
     ExecSize = VT->getNumElements();
   writeOpcode(ISA_SEL); // opcode
   writeExecSizeFromSelect(ExecSize, SI, BI); // execution size
   writePredFromSelect(SI, BI); // predication
-  writeDestination(SI, DONTCARESIGNED, Mod, WrRegion, WrRegionBI); // destination
+  writeDestination(SI, DONTCARESIGNED, Mod, DstDesc); // destination
   writeSourceOperand(SI, DONTCARESIGNED, 1, BI); // source 0
   writeSourceOperand(SI, DONTCARESIGNED, 2, BI); // source 1
 }
@@ -1587,9 +1679,8 @@ void VisaFuncWriter::buildBoolBinaryOperator(BinaryOperator *BO)
  *          WrRegion = 0 else wrregion for destination
  *          WrRegionBI = BaleInfo for WrRegion
  */
-void VisaFuncWriter::buildCastInst(CastInst *CI, BaleInfo BI,
-    unsigned Mod, Instruction *WrRegion, BaleInfo WrRegionBI)
-{
+void VisaFuncWriter::buildCastInst(CastInst *CI, BaleInfo BI, unsigned Mod,
+                                   const DstOpndDesc &DstDesc) {
   Signedness InSigned = DONTCARESIGNED;
   Signedness OutSigned = DONTCARESIGNED;
   switch (CI->getOpcode()) {
@@ -1622,20 +1713,14 @@ void VisaFuncWriter::buildCastInst(CastInst *CI, BaleInfo BI,
       break;
   }
 
-  if ((Mod & MOD_SAT) != 0) {
-    if (CI->getType()->getScalarType()->isIntegerTy() &&
-        isIntegerSat(CI->user_back()))
-      OutSigned = getISatDstSign(CI->user_back());
-  }
-
   int ExecSize = 1;
   if (VectorType *VT = dyn_cast<VectorType>(CI->getType()))
     ExecSize = VT->getNumElements();
   writeOpcode(ISA_MOV); // opcode
-  writeExecSizeFromWrRegion(ExecSize, WrRegion, WrRegionBI); // execution size
-  writePredFromWrRegion(WrRegion, WrRegionBI); // predication
+  writeExecSizeFromWrRegion(ExecSize, DstDesc); // execution size
+  writePredFromWrRegion(DstDesc); // predication
   // Give dest and source the same signedness for byte mov.
-  auto Signed = writeDestination(CI, OutSigned, Mod, WrRegion, WrRegionBI); // destination
+  auto Signed = writeDestination(CI, OutSigned, Mod, DstDesc); // destination
   if (InSigned == DONTCARESIGNED)
     InSigned = Signed;
   writeSourceOperand(CI, InSigned, 0, BI); // source 0
@@ -1656,10 +1741,9 @@ void VisaFuncWriter::buildCastInst(CastInst *CI, BaleInfo BI,
  * through rdregion.)
  */
 void VisaFuncWriter::buildBitCast(CastInst *CI, BaleInfo BI, unsigned Mod,
-    Instruction *WrRegion, BaleInfo WrRegionBI)
-{
+                                  const DstOpndDesc &DstDesc) {
   if (!isMaskPacking(CI))
-    assert(!BI.Bits && !Mod && !WrRegion &&
+    assert(!BI.Bits && !Mod && !DstDesc.WrRegion &&
            "non predicate bitcast should not be baled with anything");
 
   if (CI->getType()->getScalarType()->isIntegerTy(1)) {
@@ -1705,11 +1789,11 @@ void VisaFuncWriter::buildBitCast(CastInst *CI, BaleInfo BI, unsigned Mod,
     if (VectorType *VT = dyn_cast<VectorType>(CI->getType()))
       ExecSize = VT->getNumElements();
     writeOpcode(ISA_MOV); // opcode
-    writeExecSizeFromWrRegion(ExecSize, WrRegion, WrRegionBI); // execution size
-    writePredFromWrRegion(WrRegion, WrRegionBI); // predication
+    writeExecSizeFromWrRegion(ExecSize, DstDesc); // execution size
+    writePredFromWrRegion(DstDesc); // predication
     // Give dest and source the same signedness for byte mov.
     auto Signed = writeDestination(CI, DONTCARESIGNED, Mod,
-          WrRegion, WrRegionBI); // destination
+                                   DstDesc); // destination
     writeSourceOperand(CI, Signed, 0, BI); // source 0
     return;
   }
@@ -1718,7 +1802,7 @@ void VisaFuncWriter::buildBitCast(CastInst *CI, BaleInfo BI, unsigned Mod,
     writeOpcode(ISA_MOV); // opcode
     writeByte(0); // exec size 1
     writeShort(0); // no predication
-    writeDestination(CI, UNSIGNED, 0, WrRegion, WrRegionBI); // destination
+    writeDestination(CI, UNSIGNED, 0, DstDesc); // destination
     writePredicateOperand(CI->getOperand(0)); // source
     return;
   }
@@ -1741,7 +1825,8 @@ void VisaFuncWriter::buildBitCast(CastInst *CI, BaleInfo BI, unsigned Mod,
   int ExecSize = 1;
   if (VectorType *VT = dyn_cast<VectorType>(Ty))
     ExecSize = VT->getNumElements();
-  assert(llvm::exactLog2(ExecSize) >= 0 && ExecSize <= 32 && "illegal exec size in bitcast: should have been coalesced away");
+  assert(llvm::exactLog2(ExecSize) >= 0 && ExecSize <= 32 &&
+         "illegal exec size in bitcast: should have been coalesced away");
   writeOpcode(ISA_MOV); // opcode
   writeByte(llvm::log2(ExecSize) | NoMask); // execution size
   writeShort(0); // predication
@@ -1779,9 +1864,8 @@ Instruction *VisaFuncWriter::getOriginalInstructionForSource(Instruction *Inst, 
  *          WrRegion = 0 else wrregion for destination
  *          WrRegionBI = BaleInfo for WrRegion
  */
-void VisaFuncWriter::buildConvert(CallInst *CI, BaleInfo BI,
-    unsigned Mod, Instruction *WrRegion, BaleInfo WrRegionBI)
-{
+void VisaFuncWriter::buildConvert(CallInst *CI, BaleInfo BI, unsigned Mod,
+                                  const DstOpndDesc &DstDesc) {
   GenXVisaRegAlloc::RegNum DstReg = RegAlloc->getRegNumForValue(
       CI, UNSIGNED);
   if (!isa<Constant>(CI->getOperand(0))) {
@@ -1801,9 +1885,8 @@ void VisaFuncWriter::buildConvert(CallInst *CI, BaleInfo BI,
     }
     writeOpcode(ISA_MOVS); // opcode
     writeByte(llvm::log2(ExecSize) | NoMask); // execution size
-    writeDestination(CI, UNSIGNED, 0, WrRegion, WrRegionBI);
+    writeDestination(CI, UNSIGNED, 0, DstDesc);
     writeSourceOperand(CI, UNSIGNED, 0, BI);
-
     return;
   }
 
@@ -1835,10 +1918,9 @@ void VisaFuncWriter::buildConvert(CallInst *CI, BaleInfo BI,
  *          WrRegion = 0 else wrregion for destination
  *          WrRegionBI = BaleInfo for WrRegion
  */
-void VisaFuncWriter::buildConvertAddr(CallInst *CI, BaleInfo BI,
-    unsigned Mod, Instruction *WrRegion, BaleInfo WrRegionBI)
-{
-  assert(!WrRegion);
+void VisaFuncWriter::buildConvertAddr(CallInst *CI, BaleInfo BI, unsigned Mod,
+                                      const DstOpndDesc &DstDesc) {
+  assert(!DstDesc.WrRegion);
   Value *Base = Liveness->getAddressBase(CI);
   int ExecSize = 1;
   if (VectorType *VT = dyn_cast<VectorType>(CI->getType()))
@@ -1846,12 +1928,15 @@ void VisaFuncWriter::buildConvertAddr(CallInst *CI, BaleInfo BI,
   // If the offset is less aligned than the base register element type, then we
   // need a different type.
   Type *OverrideTy = nullptr;
-  unsigned ElementBytes = Base->getType()->getScalarType()
-        ->getPrimitiveSizeInBits() >> 3;
+  Type *BaseTy = Base->getType();
+  if (BaseTy->isPointerTy())
+    BaseTy = BaseTy->getPointerElementType();
+  unsigned ElementBytes =
+      BaseTy->getScalarType()->getPrimitiveSizeInBits() >> 3;
   int Offset = cast<ConstantInt>(CI->getArgOperand(1))->getSExtValue();
   if ((ElementBytes - 1) & Offset) {
     OverrideTy = VectorType::get(Type::getInt8Ty(CI->getContext()),
-        Base->getType()->getVectorNumElements() * ElementBytes);
+                                 BaseTy->getVectorNumElements() * ElementBytes);
     ElementBytes = 1;
   }
   GenXVisaRegAlloc::RegNum BaseReg = RegAlloc->getRegNumForValue(Base,
@@ -1872,8 +1957,8 @@ void VisaFuncWriter::buildConvertAddr(CallInst *CI, BaleInfo BI,
   } else {
     writeByte(CLASS_GENERAL); // tag+modifiers
     writeInt(BaseReg.Num); // id (register number)
-    writeByte(Offset >> 5); // row offset
-    writeByte((Offset & 31) >> Log2_32(ElementBytes)); // col offset (in elements)
+    writeByte(Offset >> llvm::log2(GrfByteSize)); // row offset
+    writeByte((Offset & (GrfByteSize - 1)) >> Log2_32(ElementBytes)); // col offset (in elements)
     writeByte(0x21); // region (vstride and width)
     writeByte(0x01); // region (stride)
   }
@@ -1891,9 +1976,9 @@ void VisaFuncWriter::buildConvertAddr(CallInst *CI, BaleInfo BI,
  *          WrRegion = 0 else wrregion for destination
  *          WrRegionBI = BaleInfo for WrRegion
  */
-void VisaFuncWriter::buildIntrinsic(CallInst *CI, unsigned IntrinID, BaleInfo BI,
-    unsigned Mod, Instruction *WrRegion, BaleInfo WrRegionBI)
-{
+void VisaFuncWriter::buildIntrinsic(CallInst *CI, unsigned IntrinID,
+                                    BaleInfo BI, unsigned Mod,
+                                    const DstOpndDesc &DstDesc) {
   GenXIntrinsicInfo Info(IntrinID);
   assert(Info.isNotNull() && "intrinsic not found");
   unsigned MaxRawOperands = Info.getTrailingNullZoneStart(CI);
@@ -2025,7 +2110,7 @@ void VisaFuncWriter::buildIntrinsic(CallInst *CI, unsigned IntrinID, BaleInfo BI
           if (!VT) report_fatal_error("Invalid number of GRFs");
           int DataSize = VT->getNumElements()
             * VT->getElementType()->getPrimitiveSizeInBits() / 8;
-          DataSize = (DataSize + 31) / 32;
+          DataSize = (DataSize + (GrfByteSize - 1)) / GrfByteSize;
           Code.push_back((uint8_t)DataSize);
         }
         break;
@@ -2037,7 +2122,7 @@ void VisaFuncWriter::buildIntrinsic(CallInst *CI, unsigned IntrinID, BaleInfo BI
           Signed = UNSIGNED;
         if (AI.isRet()) {
           assert(!Mod);
-          writeRawDestination(CI, WrRegion, Signed);
+          writeRawDestination(CI, DstDesc, Signed);
         } else if ((unsigned)AI.getArgIdx() < MaxRawOperands)
           writeRawSourceOperand(CI, AI.getArgIdx(), BI, Signed);
         break;
@@ -2054,7 +2139,7 @@ void VisaFuncWriter::buildIntrinsic(CallInst *CI, unsigned IntrinID, BaleInfo BI
           if (AI.isRet()) {
             if (AI.getSaturation() == GenXIntrinsicInfo::SATURATION_SATURATE)
               Mod |= MOD_SAT;
-            writeDestination(CI, Signed, Mod, WrRegion, WrRegionBI);
+            writeDestination(CI, Signed, Mod, DstDesc);
           } else {
             unsigned MaxWidth = 16;
             if (AI.getRestriction() == GenXIntrinsicInfo::TWICEWIDTH) {
@@ -2101,19 +2186,18 @@ void VisaFuncWriter::buildIntrinsic(CallInst *CI, unsigned IntrinID, BaleInfo BI
       case GenXIntrinsicInfo::EXECSIZE_GE4:
       case GenXIntrinsicInfo::EXECSIZE_GE8:
       case GenXIntrinsicInfo::EXECSIZE_NOT2:
+      case GenXIntrinsicInfo::EXECSIZE_NOMASK:
         {
           // Execution size
-          {
+          ExecSize = GenXIntrinsicInfo::getOverridedExecSize(CI, ST);
+          if (ExecSize == 0) {
             if (VectorType *VT = dyn_cast<VectorType>(CI->getType()))
-            {
               ExecSize = VT->getNumElements();
-            }
             else
-            {
               ExecSize = 1;
-            }
           }
-          writeExecSizeFromWrRegion(ExecSize, WrRegion, WrRegionBI);
+          bool IsNoMask = Cat == GenXIntrinsicInfo::EXECSIZE_NOMASK;
+          writeExecSizeFromWrRegion(ExecSize, DstDesc, IsNoMask);
         }
         break;
       case GenXIntrinsicInfo::EXECSIZE_FROM_ARG: {
@@ -2132,11 +2216,11 @@ void VisaFuncWriter::buildIntrinsic(CallInst *CI, unsigned IntrinID, BaleInfo BI
               || RegAlloc->getRegNumForValueOrNull(Mask).Category != RegCategory::NONE)
             MaskCtrl |= NoMask;
           if (auto VT = dyn_cast<VectorType>(
-                CI->getOperand(AI.getArgIdx())->getType()))
+                  CI->getOperand(AI.getArgIdx())->getType()))
             ExecSize = VT->getNumElements();
           else
-            ExecSize = 16; // default for raw send with scalar predicate
-          assert(ExecSize <= 32);
+            ExecSize = GenXIntrinsicInfo::getOverridedExecSize(CI, ST);
+          assert(ExecSize <= 32 && ExecSize >= 1);
           ExecSize = llvm::log2(ExecSize) | MaskCtrl;
           writeByte(ExecSize);
         }
@@ -2160,7 +2244,7 @@ void VisaFuncWriter::buildIntrinsic(CallInst *CI, unsigned IntrinID, BaleInfo BI
         }
         break;
       case GenXIntrinsicInfo::IMPLICITPRED:
-        writePredFromWrRegion(WrRegion, WrRegionBI); // predication
+        writePredFromWrRegion(DstDesc); // predication
         break;
       case GenXIntrinsicInfo::PREDICATION:
         // Predication from an explicit arg.
@@ -2222,7 +2306,7 @@ void VisaFuncWriter::buildIntrinsic(CallInst *CI, unsigned IntrinID, BaleInfo BI
           unsigned IntVal = getPredicateConstantAsInt(C);
           // unsigned i32 constant source operand
           Code.push_back((uint8_t)CLASS_IMMEDIATE);
-          Code.push_back((uint8_t)TYPE_UD);
+          Code.push_back((uint8_t)ISA_TYPE_UD);
           Code.push_back((uint32_t)IntVal);
         }
         break;
@@ -2264,13 +2348,13 @@ void VisaFuncWriter::buildControlRegUpdate(unsigned Mask, bool Clear)
   Region Single = Region(1, 4);
 
   // write CR0 as dest
-  writeRegion(&Single, PREDEF_CR0, DONTCARESIGNED, 0, true);
+  writeRegion(&Single, PREDEFINED_CR0, DONTCARESIGNED, 0, true);
   // write CR0 as first source
-  writeRegion(&Single, PREDEF_CR0, DONTCARESIGNED, 0, false);
+  writeRegion(&Single, PREDEFINED_CR0, DONTCARESIGNED, 0, false);
 
   // write Mask as an immediate operand.
   Code.push_back((uint8_t)CLASS_IMMEDIATE);
-  Code.push_back((uint8_t)TYPE_UD);
+  Code.push_back((uint8_t)ISA_TYPE_UD);
   Code.push_back((uint32_t)Mask);
 }
 
@@ -2469,16 +2553,20 @@ void VisaFuncWriter::writeExecSizeFromWrPredRegion(unsigned ExecSize,
  * instruction to be masked. Otherwise we set nomask.
  */
 void VisaFuncWriter::writeExecSizeFromWrRegion(unsigned ExecSize,
-    Instruction *WrRegion, BaleInfo WrRegionBI)
-{
+                                               const DstOpndDesc &DstDesc,
+                                               bool IsNoMask) {
   unsigned MaskCtrl = NoMask;
-  if (WrRegion) {
+  // Override mask control if requested.
+  if (IsNoMask)
+    MaskCtrl = 0x80;
+  if (DstDesc.WrRegion) {
     // Get the predicate (mask) operand, scanning through baled in
     // all/any/not/rdpredregion and setting PredField and MaskCtrl
     // appropriately.
     unsigned PredField;
-    Value *Mask = getPredicateOperand(WrRegion, 7/*mask operand in wrregion*/,
-        WrRegionBI, &PredField, &MaskCtrl);
+    Value *Mask =
+        getPredicateOperand(DstDesc.WrRegion, 7 /*mask operand in wrregion*/,
+                            DstDesc.WrRegionBI, &PredField, &MaskCtrl);
     if (isa<Constant>(Mask)
         || RegAlloc->getRegNumForValueOrNull(Mask).Category != RegCategory::NONE)
       MaskCtrl |= NoMask;
@@ -2526,16 +2614,18 @@ void VisaFuncWriter::writeExecSizeFromSelect(unsigned ExecSize,
  * If WrRegion != 0, and it has a mask that is not constant 1, then the
  * mask must be a predicate register (or a baled in rdpredregion or all/any).
  */
-void VisaFuncWriter::writePredFromWrRegion(Instruction *WrRegion, BaleInfo WrRegionBI)
+void VisaFuncWriter::writePredFromWrRegion(const DstOpndDesc &DstDesc)
 {
   unsigned PredField = 0;
+  Instruction *WrRegion = DstDesc.WrRegion;
   if (WrRegion) {
     // Get the predicate (mask) operand, scanning through baled in
     // all/any/not/rdpredregion and setting PredField and MaskCtrl
     // appropriately.
     unsigned MaskCtrl;
-    Value *Mask = getPredicateOperand(WrRegion, 7/*mask operand in wrregion*/,
-        WrRegionBI, &PredField, &MaskCtrl);
+    Value *Mask =
+        getPredicateOperand(WrRegion, 7 /*mask operand in wrregion*/,
+                            DstDesc.WrRegionBI, &PredField, &MaskCtrl);
     if (auto C = dyn_cast<Constant>(Mask)) {
       (void)C;
       assert(C->isAllOnesValue() && "wrregion mask or predication operand must "
@@ -2681,16 +2771,22 @@ void VisaFuncWriter::writePred(Instruction *Inst, BaleInfo BI, unsigned OperandN
  * A raw destination can be baled into a wrregion, but only if the region
  * is direct and its start index is GRF aligned.
  */
-void VisaFuncWriter::writeRawDestination(Value *V, Instruction *WrRegion,
-    Signedness Signed)
-{
+void VisaFuncWriter::writeRawDestination(Value *V, const DstOpndDesc &DstDesc,
+                                         Signedness Signed) {
   unsigned ByteOffset = 0;
-  if (WrRegion) {
-    V = WrRegion;
-    Region R(WrRegion, BaleInfo());
+  if (DstDesc.WrRegion) {
+    V = DstDesc.WrRegion;
+    Region R(DstDesc.WrRegion, BaleInfo());
     ByteOffset = R.Offset;
   }
-  GenXVisaRegAlloc::RegNum Reg = RegAlloc->getRegNumForValueOrNull(V, Signed);
+  Type *OverrideType = nullptr;
+  if (DstDesc.GStore) {
+    V = getUnderlyingGlobalVariable(DstDesc.GStore->getOperand(1));
+    assert(V && "out of sync");
+    OverrideType = DstDesc.GStore->getOperand(0)->getType();
+  }
+  GenXVisaRegAlloc::RegNum Reg =
+      RegAlloc->getRegNumForValueOrNull(V, Signed, OverrideType);
   if (!Reg.Category) {
     // No register assigned. This happens to an unused raw result where the
     // result is marked as RAW_NULLALLOWED in GenXIntrinsics.
@@ -2748,8 +2844,9 @@ void VisaFuncWriter::writeRawSourceOperand(Instruction *Inst,
  *          the same signedness if it wants)
  */
 genx::Signedness VisaFuncWriter::writeDestination(Value *Dest,
-    Signedness Signed, unsigned Mod, Instruction *WrRegion, BaleInfo WrRegionBI)
-{
+                                                  Signedness Signed,
+                                                  unsigned Mod,
+                                                  const DstOpndDesc &DstDesc) {
   Type *OverrideType = nullptr;
   if (BitCastInst *BCI = dyn_cast<BitCastInst>(Dest)) {
     if (!(isa<Constant>(BCI->getOperand(0))) &&
@@ -2762,7 +2859,12 @@ genx::Signedness VisaFuncWriter::writeDestination(Value *Dest,
     }
   }
 
-  if (!WrRegion) {
+  // Saturation can also change signedness.
+  if (!Dest->user_empty() && isIntegerSat(Dest->user_back())) {
+    Signed = getISatDstSign(Dest->user_back());
+  }
+
+  if (!DstDesc.WrRegion) {
     if (Mod) {
       // There is a sat modifier. Either it is an fp saturate, which is
       // represented by its own intrinsic which this instruction is baled
@@ -2800,13 +2902,23 @@ genx::Signedness VisaFuncWriter::writeDestination(Value *Dest,
   // We need to allow for the case that there is no register allocated if it is
   // an indirected arg, and that is OK because the region is indirect so the
   // vISA does not contain the base register.
-  GenXVisaRegAlloc::RegNum Reg = RegAlloc->getRegNumForValueOrNull(WrRegion,
-        Signed, OverrideType);
-  assert(Reg.Category == RegCategory::GENERAL
-      || Reg.Category == RegCategory::NONE);
+  GenXVisaRegAlloc::RegNum Reg;
+
+  if (DstDesc.GStore) {
+    auto GV = getUnderlyingGlobalVariable(DstDesc.GStore->getOperand(1));
+    assert(GV && "out of sync");
+    if (OverrideType == nullptr)
+      OverrideType = DstDesc.GStore->getOperand(0)->getType();
+    Reg = RegAlloc->getRegNumForValue(GV, Signed, OverrideType);
+  } else
+    Reg = RegAlloc->getRegNumForValueOrNull(DstDesc.WrRegion, Signed, OverrideType);
+
+  assert(Reg.Category == RegCategory::GENERAL ||
+         Reg.Category == RegCategory::NONE);
+
   // Write the vISA general operand with region:
-  Region R(WrRegion, WrRegionBI);
-  writeRegion(&R, Reg.Num, Signed, Mod, true/*IsDest*/);
+  Region R(DstDesc.WrRegion, DstDesc.WrRegionBI);
+  writeRegion(&R, Reg.Num, Signed, Mod, true /*IsDest*/);
   return RegAlloc->getSigned(Reg);
 }
 
@@ -3001,26 +3113,23 @@ void VisaFuncWriter::writeRegion(Region *R, unsigned RegNum,
     R->Width = 1;
     R->Stride = 0;
   }
-  // A Width of more than 16 (or whatever MaxWidth is) is not allowed. If it is
-  // more than 16, then legalization has ensured that either there is one row
-  // or the rows are contiguous (VStride == Width * Stride) and we can increase
-  // the number of rows.  (Note that Width and VStride are ignored in a
-  // destination operand; legalization ensures that there is only one row.)
-  if (R->Width > MaxWidth) {
+  // another case of converting to <N;1,0> region format
+  if (!IsDest && 
+    (R->VStride == (int)R->Width * R->Stride || R->Width == R->NumElements)) {
+    R->Width = 1;
+    R->VStride = R->Stride;
+    R->Stride = 0;
+  }
+  else if (R->Width > MaxWidth) {
+    // A Width of more than 16 (or whatever MaxWidth is) is not allowed. If it is
+    // more than 16, then legalization has ensured that either there is one row
+    // or the rows are contiguous (VStride == Width * Stride) and we can increase
+    // the number of rows.  (Note that Width and VStride are ignored in a
+    // destination operand; legalization ensures that there is only one row.)
     R->Width = MaxWidth;
     R->VStride = R->Width * R->Stride;
   }
-  // A Stride of more than 4 is not allowed. If it is more than 4, then
-  // legalization has ensured that (a) it is a source operand and (b) either
-  // there is one row or the rows are contiguous (VStride == Width * Stride)
-  // and we can increase the number of rows.
-  if (R->Stride > 4) {
-    assert(R->VStride == (int)R->Width * R->Stride || R->Width == R->NumElements);
-    assert(!IsDest);
-    R->VStride = R->Stride;
-    R->Stride = 0;
-    R->Width = 1;
-  }
+
   if (R->Width == R->NumElements) {
     // Use VStride 0 on a 1D region. This is necessary for src0 in line or
     // pln, so we may as well do it for everything.
@@ -3032,8 +3141,8 @@ void VisaFuncWriter::writeRegion(Region *R, unsigned RegNum,
     assert(RegNum && "no register allocated for this value");
     writeByte(CLASS_GENERAL | Mod); // tag+modifiers
     writeInt(RegNum); // id (register number)
-    writeByte(R->Offset >> 5); // row offset
-    writeByte((R->Offset & 31) / R->ElementBytes); // col offset
+    writeByte(R->Offset >> llvm::log2(GrfByteSize)); // row offset
+    writeByte((R->Offset & (GrfByteSize-1)) / R->ElementBytes); // col offset
     if (!IsDest) {
       if (R->NumElements == 1)
         writeShort(0x0121); // <0;1,0>
@@ -3068,7 +3177,7 @@ void VisaFuncWriter::writeRegion(Region *R, unsigned RegNum,
     writeShort(IdxReg.Num); // id (register number)
     writeByte(AddrOffset); // addr_offset
     writeShort(R->Offset); // indirect_offset
-    bool NotCrossGrf = !(R->Offset & 31);
+    bool NotCrossGrf = !(R->Offset & (GrfByteSize - 1));
     if (!NotCrossGrf) {
       // Determine the NotCrossGrf bit setting (whether we can guarantee
       // that adding an indirect region's constant offset does not cause
@@ -3081,7 +3190,7 @@ void VisaFuncWriter::writeRegion(Region *R, unsigned RegNum,
         unsigned Mask = (1U << std::min(5U, A.getLogAlign())) - 1;
         if (Mask) {
           if ((A.getExtraBits() & Mask) + (R->Offset & Mask) <= Mask
-              && (unsigned)(R->Offset & 31) <= Mask) {
+              && (unsigned)(R->Offset & (GrfByteSize - 1)) <= Mask) {
             // The alignment and extrabits are such that adding R->Offset
             // cannot cause a carry from bit 4 to bit 5.
             NotCrossGrf = true;
@@ -3182,7 +3291,7 @@ void VisaFuncWriter::writeImmediateOperand(Constant *V, Signedness Signed)
             Packed = Packed * 0x00010001;
             break;
         }
-        Code.push_back((uint8_t)(Signed == UNSIGNED ? TYPE_UV : TYPE_V));
+        Code.push_back((uint8_t)(Signed == UNSIGNED ? ISA_TYPE_UV : ISA_TYPE_V));
         Code.push_back((uint32_t)Packed);
         return;
       }
@@ -3198,7 +3307,7 @@ void VisaFuncWriter::writeImmediateOperand(Constant *V, Signedness Signed)
         const APFloat &FP = CFP->getValueAPF();
         Packed |= get8bitPackedFloat(FP.convertToFloat()) << (i * 8);
       }
-      Code.push_back((uint8_t)TYPE_VF);
+      Code.push_back((uint8_t)ISA_TYPE_VF);
       Code.push_back((uint32_t)Packed);
       return;
     }
@@ -3226,17 +3335,17 @@ void VisaFuncWriter::writeImmediateOperand(Constant *V, Signedness Signed)
     if (T->isFloatTy()) {
       union { float f; uint32_t i; } Val;
       Val.f = CF->getValueAPF().convertToFloat();
-      Code.push_back((uint8_t)TYPE_F);
+      Code.push_back((uint8_t)ISA_TYPE_F);
       Code.push_back(Val.i);
     } else if (T->isHalfTy()) {
       uint16_t Val((uint16_t)(CF->getValueAPF().bitcastToAPInt().getZExtValue()));
-      Code.push_back((uint8_t)TYPE_HF);
+      Code.push_back((uint8_t)ISA_TYPE_HF);
       Code.push_back((uint32_t)Val);
     } else {
       assert(T->isDoubleTy());
       union { double f; uint64_t i; } Val;
       Val.f = CF->getValueAPF().convertToDouble();
-      Code.push_back((uint8_t)TYPE_DF);
+      Code.push_back((uint8_t)ISA_TYPE_DF);
       Code.push_back((uint32_t)Val.i);
       Code.push_back((uint32_t)(Val.i >> 32));
     }
@@ -3318,6 +3427,9 @@ void VisaFuncWriter::writeOpcode(int Val)
 }
 
 void VisaFuncWriter::emitOptimizationHints() {
+  if (skipOptWithLargeBlock(*FG))
+    return;
+
   // Track rp considering byte variable widening.
   PressureTracker RP(*FG, Liveness, /*ByteWidening*/ true);
   const std::vector<LiveRange *> &WidenLRs = RP.getWidenVariables();

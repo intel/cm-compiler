@@ -86,7 +86,6 @@ private:
   void predicateInst(Instruction *Inst, unsigned SimdWidth);
   void rewritePredication(CallInst *CI, unsigned SimdWidth);
   void predicateStore(Instruction *SI, unsigned SimdWidth);
-  CallInst *convertScatterGather(CallInst *CI, unsigned IID);
   void predicateSend(CallInst *CI, unsigned IntrinsicID, unsigned SimdWidth);
   void predicateScatterGather(CallInst *CI, unsigned SimdWidth, unsigned PredOperandNum);
   CallInst *predicateWrRegion(CallInst *WrR, unsigned SimdWidth);

@@ -241,6 +241,10 @@ public:
   /// .isa file.
   std::string GenXAsmName;
 
+  /// for MDF CM compilations, the name of the bitcode for importing
+  /// OpenCL builtin functions
+  std::string GenXBiFName;
+
   /// Set of files defining the rules for the symbol rewriting.
   std::vector<std::string> RewriteMapFiles;
 

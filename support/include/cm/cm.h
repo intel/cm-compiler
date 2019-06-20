@@ -28,6 +28,7 @@
 #include "cm_linear.h"
 #include "cm_atomic.h"
 #include "cm_dataport.h"
+#include "cm_lsc.h"
 #include "cm_emu.h"
 #include "cm_internal.h"
 #include "cm_send.h"

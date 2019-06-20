@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>CM (C for Media) Language Specification &#8212; CM 6.0 documentation</title>
+    <title>CM (C for Metal) Language Specification &#8212; CM 6.0 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -63,8 +63,8 @@
       <div class="documentwrapper">
           <div class="body" role="main">
             
-  <div class="section" id="cm-c-for-media-language-specification">
-<h1><a class="toc-backref" href="#id29">CM (C for Media) Language Specification</a><a class="headerlink" href="#cm-c-for-media-language-specification" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="cm-c-for-metal-language-specification">
+<h1><a class="toc-backref" href="#id29">CM (C for Metal) Language Specification</a><a class="headerlink" href="#cm-c-for-metal-language-specification" title="Permalink to this headline">¶</a></h1>
 <p>Revision 6.0</p>
 <p>Primary Author(s): Kai Yu Chen, Guei-Yuan Lueh</p>
 <p>Contributor(s): Chu-cheow Lim, Somnath Ghosh, Chunling Hu, Biju
@@ -111,7 +111,7 @@ Inside, VTune, Xeon, and Xeon Inside are trademarks of Intel Corporation in the 
 <div class="contents topic" id="table-of-contents">
 <p class="topic-title first">Table of Contents</p>
 <ul class="simple">
-<li><a class="reference internal" href="#cm-c-for-media-language-specification" id="id29">CM (C for Media) Language Specification</a><ul>
+<li><a class="reference internal" href="#cm-c-for-metal-language-specification" id="id29">CM (C for Metal) Language Specification</a><ul>
 <li><a class="reference internal" href="#legal-notices-and-disclaimers" id="id30">Legal Notices and Disclaimers</a></li>
 <li><a class="reference internal" href="#introduction" id="id31">1 Introduction</a><ul>
 <li><a class="reference internal" href="#purpose-scope" id="id32">1.1 Purpose / Scope</a></li>
@@ -190,7 +190,7 @@ Inside, VTune, Xeon, and Xeon Inside are trademarks of Intel Corporation in the 
 <h2><a class="toc-backref" href="#id31">1 Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="purpose-scope">
 <h3><a class="toc-backref" href="#id32">1.1 Purpose / Scope</a><a class="headerlink" href="#purpose-scope" title="Permalink to this headline">¶</a></h3>
-<p>This document provides a specification for the CM (C for Media) language. CM is intended to support
+<p>This document provides a specification for the CM (C for Metal) language. CM is intended to support
 high-level programming of media kernels for the Intel® Graphics Media Accelerators [1]. The language is
 based on standard C++ language with some restrictions, plus additional features that are designed for
 easy expression of the inherent data parallelism in media applications and simplified interface with the
@@ -225,7 +225,7 @@ further information.</p>
 </thead>
 <tbody valign="top">
 <tr class="row-even"><td>CM</td>
-<td>C for Media Language</td>
+<td>C for Metal Language</td>
 </tr>
 <tr class="row-odd"><td>C++  FE</td>
 <td>Standard Intel® C++ Compiler Front-End</td>
@@ -328,6 +328,7 @@ single precision float.</li>
 <li>Added half-precision floating-point (half) as one of basic scalar data types.</li>
 <li>Added new predicate arguments to write_atomic and typed_write_atomic.</li>
 <li>Added read_scaled and write_scaled.</li>
+<li>Updated global variable wording and added __declspec(genx_volatile) qualifier.</li>
 </ul>
 </div>
 </div>
@@ -462,14 +463,15 @@ operation of SurfaceIndex vector (only basic member select operation vector(i) i
 <p>Global variable example:</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;cm/cm.h&gt;</span><span class="cp"></span>
 
-<span class="n">_GENX_</span> <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span> <span class="n">M</span><span class="p">;</span>      <span class="c1">// global variable declaration</span>
+                <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span> <span class="n">M</span><span class="p">;</span>      <span class="c1">// global variable declaration</span>
+<span class="n">_GENX_VOLATILE_</span> <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="o">&gt;</span> <span class="n">G</span><span class="p">;</span>      <span class="c1">// volatile global variable declaration</span>
 
-<span class="n">_GENX_</span> <span class="kt">float</span> <span class="nf">foo</span><span class="p">(</span><span class="n">matrix</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span> <span class="n">m</span><span class="p">)</span>
+<span class="kr">inline</span> <span class="kt">float</span> <span class="nf">foo</span><span class="p">(</span><span class="n">matrix</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span> <span class="n">m</span><span class="p">)</span>
 <span class="p">{</span>
   <span class="k">return</span> <span class="n">cm_sum</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">m</span><span class="p">);</span>
 <span class="p">}</span>
 
-<span class="n">_GENX_</span> <span class="kt">void</span> <span class="nf">bar</span><span class="p">(</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">v</span><span class="p">,</span> <span class="kt">float</span> <span class="n">f</span><span class="p">)</span>
+<span class="kr">inline</span> <span class="kt">void</span> <span class="nf">bar</span><span class="p">(</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">v</span><span class="p">,</span> <span class="kt">float</span> <span class="n">f</span><span class="p">)</span>
 <span class="p">{</span>
   <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span> <span class="n">m1</span><span class="p">;</span>
   <span class="n">m1</span> <span class="o">=</span> <span class="n">v</span> <span class="o">+</span> <span class="n">f</span><span class="p">;</span>
@@ -477,29 +479,31 @@ operation of SurfaceIndex vector (only basic member select operation vector(i) i
   <span class="n">M</span> <span class="o">=</span> <span class="n">m1</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">*</span> <span class="n">s</span><span class="p">;</span>
 <span class="p">}</span>
 
+<span class="kr">inline</span> <span class="kt">void</span> <span class="nf">baz</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">G</span> <span class="o">+=</span> <span class="n">i</span><span class="p">;</span>
+<span class="p">}</span>
+
 <span class="n">_GENX_MAIN_</span> <span class="kt">void</span> <span class="nf">kernel</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">inbuf</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">outbuf</span><span class="p">,</span>
                         <span class="kt">int</span> <span class="n">x_pos</span><span class="p">,</span> <span class="kt">int</span> <span class="n">y_pos</span><span class="p">)</span>
 <span class="p">{</span>
   <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span> <span class="n">m</span><span class="p">;</span>
   <span class="n">vector</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span>   <span class="n">v</span><span class="p">;</span>
-
-  <span class="n">read</span><span class="p">(</span><span class="n">inbuf</span><span class="p">,</span> <span class="n">x_pos</span><span class="p">,</span> <span class="n">y_pos</span><span class="p">,</span> <span class="n">m</span><span class="p">);</span>
-  <span class="n">v</span> <span class="o">=</span> <span class="n">m</span><span class="p">;</span>
-  <span class="n">bar</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="mf">0.5f</span><span class="p">);</span>
-  <span class="n">write</span><span class="p">(</span><span class="n">outbuf</span><span class="p">,</span> <span class="n">x_pos</span><span class="p">,</span> <span class="n">y_pos</span><span class="p">,</span> <span class="n">M</span><span class="p">);</span>
-<span class="p">}</span>
 </pre></div>
 </div>
-<p>CM supports the “__declspec(genx)” (#define’d to _GENX_) qualifier for global variables, which can be
-vector/matrix objects described above.  Such variables are treated as normal local C++ variables declared
-in kernel functions. Functions marked with “__declspec(genx)”/”__declspec(genx_main)” can lexically
-reference variables marked with “__declspec(genx)”. This allows using them like global variables in
-addition to function parameters, which helps decreases GRF registers pressure and increases
-performance.  Note that these global variables are thread private (i.e., a global variable is shared among
-the GenX kernel function marked with “__declspec(genx_main)” and all its callee GenX user functions
-marked with “__declspec(genx)” within the same GenX hardware thread). An example is given above
-(please refer to Section 3 and Section 4 for description on the operations and functions). CM does not
-support the initialization of global variables.</p>
+<p>CM supports global variables, which can be vector/matrix objects described above.
+Such variables are treated as normal local C++ variables declared in kernel functions.
+Functions can lexically reference global variables. This allows using them
+like global variables in addition to function parameters. Note that these global variables
+are thread private (i.e., a global variable is shared among the GenX kernel function marked
+with “__declspec(genx_main)” and all its callee functions within the same GenX hardware thread).</p>
+<p>CM also supports the “__declspec(genx_volatile)” (#define’d to _GENX_VOLATILE_) qualifier
+for global variables to indicate that optimizations on these variables shall be limited,
+which often helps to decrease register pressure and increases performance.</p>
+<p>Optionally, this declspec takes an offset argument to bind a global variable to a specific byte offset,
+__declspec(genx_volatile(Offset)), #define’d to _GENX_VOLATILE_BINDING_(Offset).
+It is user’s responsibility to ensure there is no overlap to other binding globals or thread payloads.</p>
+<p>An example is given above (please refer to Section 3 and Section 4 for description
+on the operations and functions). CM does not support the initialization of global variables.</p>
 </div>
 <div class="section" id="type-conversions-and-casting">
 <h3><a class="toc-backref" href="#id41">2.5 Type Conversions and Casting</a><a class="headerlink" href="#type-conversions-and-casting" title="Permalink to this headline">¶</a></h3>
@@ -2663,7 +2667,7 @@ bytes) aligned if the DWALIGNED or MODIFIED_DWALIGNED modifier
 is present.</td>
 </tr>
 <tr class="row-even"><td>v</td>
-<td>the data location to be read / written:
+<td>the data location to be read.
 the width of vector v must be OWord (i.e. 16 bytes) aligned.</td>
 </tr>
 </tbody>
@@ -2695,11 +2699,11 @@ the width of vector v must be OWord (i.e. 16 bytes) aligned.</td>
 (optionally qualified as specified above)</td>
 </tr>
 <tr class="row-odd"><td>offset</td>
-<td>zero based offset of the input buffer in <em>bytes</em>;
+<td>zero based offset of the output buffer in <em>bytes</em>;
 must be OWord (i.e. 16 bytes) aligned.</td>
 </tr>
 <tr class="row-even"><td>v</td>
-<td>the data location to be read / written:
+<td>the data location to be written.
 the width of vector v can be only 1, 2, 4 or 8 OWords.</td>
 </tr>
 </tbody>
@@ -8304,81 +8308,6 @@ for n times. The CM compiler may still not unroll the loop due to lack of resour
 <p>This pragma may be specified immediately before a loop to instruct the CM compiler to completely
 unroll a loop. The CM compiler may not unroll the loop due to lack of resources.</p>
 </div>
-<div class="section" id="pragma-cm-nonstrict">
-<h4>#pragma cm_nonstrict<a class="headerlink" href="#pragma-cm-nonstrict" title="Permalink to this headline">¶</a></h4>
-<p>Note that the <code class="docutils literal"><span class="pre">cm_nonstrict</span></code> pragma is deprecated by the cmc compiler, as when it is appropriate
-cmc will implicitly use a narrower integer type whenever that is guaranteed not to change the result
-of a computation.
-For situations where a narrower integer type is not guaranteed to produce the correct answer but the
-data values are known to be such that incorrect results won’t be generated, or where incorrect results
-are acceptable, explicit casts can be added to force the desired integer width.</p>
-<p>The following description therefore applies to cm-icl only.</p>
-<p>This pragma may be applied to either an instruction or a block.  For the immediately following
-statement or block, CM compiler behaves differently from the standard C/C++ language rules.  Instead of
-following the rules of usual arithmetic conversions to find a common real type for the integer operands,
-the intermediate results will take the type of the destination variable in the original CM statement.
-Floating-point types are not affected by the pragma, and the standard rules of usual arithmetic
-conversions will be followed if any of the operands have floating-point type.  Here is an example:</p>
-<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#define PAARM_LEVEL2 255</span>
-
-  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">16</span><span class="o">&gt;</span> <span class="n">tempBuffer</span><span class="p">;</span>
-  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">16</span><span class="o">&gt;</span> <span class="n">left</span><span class="p">;</span>
-  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">16</span><span class="o">&gt;</span> <span class="n">right</span><span class="p">;</span>
-  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">16</span><span class="o">&gt;</span> <span class="n">top</span><span class="p">;</span>
-  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">16</span><span class="o">&gt;</span> <span class="n">bot</span><span class="p">;</span>
-  <span class="c1">// ...</span>
-
-  <span class="cp">#pragma cm_nonstrict</span>
-  <span class="n">tempBuffer</span> <span class="o">=</span> <span class="p">(</span><span class="n">PAARM_LEVEL2</span> <span class="o">*</span> <span class="n">left</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">PAARM_LEVEL2</span> <span class="o">*</span> <span class="n">right</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">PAARM_LEVEL2</span> <span class="o">*</span> <span class="n">top</span><span class="p">)</span> <span class="o">+</span>
-  <span class="p">(</span><span class="n">PAARM_LEVEL2</span> <span class="o">*</span> <span class="n">bot</span> <span class="p">);</span>
-</pre></div>
-</div>
-<p>Without the <code class="docutils literal"><span class="pre">cm_nonstrict</span></code> pragma, the intermediate results (e.g., (PAARM_LEVEL2 * left)) will have “int” type
-due to integer promotion; with the pragma, they will have “short” type, which is the type of the
-tempBuffer variable.</p>
-<p>The <code class="docutils literal"><span class="pre">cm_nonstrict</span></code> pragma typically produces better code as it allows the compiler to eliminate type conversion
-moves and use a narrower integer type for computation.  It is the user’s responsibility, however, to
-ensure that program is still correct when the pragma is applied.  For example:</p>
-<ul>
-<li><p class="first">Data size assumption:</p>
-<div class="line-block">
-<div class="line">matrix&lt;uchar, 4, 16&gt; fbitmap1;</div>
-<div class="line">matrix&lt;uchar, 4, 16&gt; Lval;</div>
-<div class="line">matrix&lt;short, 4, 16&gt; Hval;</div>
-<div class="line">fbitmap1 = (Lval * (128 - opacity) +  Hval * opacity) &gt;&gt; 7;</div>
-</div>
-<p>There is an assumption that the intermediate result of (Lval * (128 - opacity) +  Hval * opacity) is
-at least a short, such that we can get a char after the shift operation. In this case the user should add an
-explicit intermediate result to preserve this short intermediate data type when applying the <code class="docutils literal"><span class="pre">cm_nonstrict</span></code>
-pragma:</p>
-</li>
-</ul>
-<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#pragma cm_nonstrict</span>
-<span class="p">{</span>
-  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">short</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">temp_matrix</span> <span class="o">=</span> <span class="p">(</span><span class="n">Lval</span> <span class="o">*</span> <span class="p">(</span><span class="mi">128</span> <span class="o">-</span> <span class="n">opacity</span><span class="p">)</span> <span class="o">+</span>  <span class="n">Hval</span> <span class="o">*</span> <span class="n">opacity</span><span class="p">)</span> <span class="o">&gt;&gt;</span> <span class="mi">7</span><span class="p">;</span>
-  <span class="n">fbitmap1</span> <span class="o">=</span> <span class="n">temp_matrix</span><span class="p">;</span>
-<span class="p">}</span>
-</pre></div>
-</div>
-<ul>
-<li><p class="first">Sign assumption:</p>
-<div class="line-block">
-<div class="line">char r;</div>
-<div class="line">matrix&lt;unsigned char, 4, 8&gt; m1;</div>
-<div class="line">r = cm_sum&lt;unsigned char&gt;(m1.select&lt;1, 1, 2, 1&gt;(2, 0)) &gt;&gt; 1;</div>
-</div>
-<p>Although the CM compiler can preserve the result data type of cm_sum to be
-“unsigned char”, the first source operand used in the shift operation is
-lowered to the data type of r, which is “char”. User should use a temporary
-variable to preserve the data type of the first source of shift.</p>
-</li>
-</ul>
-<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#pragma cm_nonstrict</span>
-  <span class="kt">unsigned</span> <span class="kt">char</span> <span class="n">t</span> <span class="o">=</span> <span class="n">cm_sum</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">char</span><span class="o">&gt;</span><span class="p">(</span><span class="n">m1</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">));</span>
-  <span class="n">r</span> <span class="o">=</span> <span class="n">t</span> <span class="o">&gt;&gt;</span> <span class="mi">1</span> <span class="p">;</span>
-</pre></div>
-</div>
-</div>
 </div>
 <div class="section" id="rounding-mode-and-float-control-support">
 <h3><a class="toc-backref" href="#id68">4.20 Rounding mode and float control support</a><a class="headerlink" href="#rounding-mode-and-float-control-support" title="Permalink to this headline">¶</a></h3>
@@ -13275,7 +13204,7 @@ input/output data variables are specified in Section 4.12.4.</p>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
-      Last updated on Fri Feb 22 15:24:15 2019 -0800.
+      Last updated on Wed Jun 19 12:06:58 2019 -0400.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

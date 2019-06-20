@@ -20,6 +20,19 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+//===----------------------------------------------------------------------===//
+//
+/// GenXPacketize 
+/// -------------
+///
+///   - Vectorize the SIMT functions
+///
+///   - Vectorize the generic function called by the SIMT functions 
+///
+///   - Replace generic control-flow with SIMD control-flow
+///
+//===----------------------------------------------------------------------===//
+
 #include "PacketBuilder.h"
 #include "llvm/Pass.h"
 #include "llvm/IR/Dominators.h"
@@ -36,17 +49,51 @@ using namespace pktz;
 
 namespace llvm {
 
-////////////////////////////////////////////////////////////////////////////
-/// GenXPacketize - brutal-force-vectorization Pass for CM SIMT functions
-/// @brief Packetize the function, which includes:
-///   - Replace all genx scalar intrinsics with vector versions
-///   - Replace all scalar function calls with their vector equivalent
-///   - Replace generic control-flow with SIMD control-flow
+/// Packetizing SIMT functions
+/// ^^^^^^^^^^^^^^^^^^^^^^^^^^
+///
+/// a) Look for functions with attributes CMGenXSIMT
+///    If no such function, end the pass
+///
+/// b) sort functions in call-graph topological order
+///    find those generic functions called by the SIMT functions
+///    find all the possible widthes those functions should be vectorized to
+/// 
+/// c) find those uniform function arguments
+///    arguments for non-SIMT functions are uniform
+///    arguments for SIMT-entry are uniform
+///    arguments for SIMT-functions are uniform if it is only defined by 
+///       callers' uniform argument.
+///
+/// d) Run reg2mem pass to remove phi-nodes
+///    This is because we need to generate simd-control-flow
+///    after packetization. simd-control-flow lowering cannot handle phi-node.
+///
+/// e) for uniform arguments
+///    Mark the allocas for those arguments as uniform
+///    Mark the load/store for those allocas as uniform
+///
+/// f) vectorize generic functions to its SIMT width, callee first  
+///    - create the vector prototype
+///    - clone the function-body into the vector prototype 
+///    - vectorize the function-body
+///    - note: original function is kept because it may be used outside SIMT
+///
+/// g) vectorize SIMT-entry functions
+///    - no change of function arguments
+///    - no cloning, direct-vectorization on the function-body
+///
+/// h) SIMD-control-flow lowering
+///
+/// i) run mem2reg pass to create SSA
+///
+/// j) CMABI pass to remove global Execution-Mask
+///
 class GenXPacketize : public ModulePass {
 public:
   static char ID;
   explicit GenXPacketize() : ModulePass(ID) {}
-  ~GenXPacketize() { releaseMemory();  }
+  ~GenXPacketize() { releaseMemory();  } 
   virtual StringRef getPassName() const { return "GenX Packetize"; }
   void getAnalysisUsage(AnalysisUsage &AU) const {
     AU.addRequiredID(BreakCriticalEdgesID);
@@ -54,7 +101,8 @@ public:
   bool runOnModule(Module &M);
   void releaseMemory() override {
     ReplaceMap.clear();
-    UniformSet.clear();
+    UniformArgs.clear();
+    UniformInsts.clear();
     FuncOrder.clear();
     FuncVectors.clear();
     FuncMap.clear();
@@ -62,7 +110,8 @@ public:
 private:
   void findFunctionVectorizationOrder(Module *M);
 
-  Value *getPacketizeValue(Value *ScalarValue);
+  Value *getPacketizeValue(Value *OrigValue);
+  Value *getUniformValue(Value *OrigValue);
   Function *getVectorIntrinsic(Module *M, Intrinsic::ID id, std::vector<Type *> &ArgTy);
   Value *packetizeConstant(Constant *pConstant);
   Value *packetizeGenXIntrinsic(Instruction *pInst);
@@ -77,7 +126,9 @@ private:
   Function *vectorizeSIMTFunction(Function *F, unsigned Width);
   bool      vectorizeSIMTEntry(Function &F);
 
-  void findUniforms(Function &F);
+  bool isUniformIntrinsic(Intrinsic::ID id);
+  void findUniformArgs(Function &F);
+  void findUniformInsts(Function &F);
 
   void lowerControlFlowAfter(std::vector<Function *> &SIMTFuncs);
   GlobalVariable *findGlobalExecMask();
@@ -89,8 +140,10 @@ private:
   // track already packetized values
   ValueToValueMapTy ReplaceMap;
 
+  /// uniform set for arguments
+  std::set<const Argument*> UniformArgs;
   /// uniform set for alloca, load, store, and GEP
-  std::set<const Instruction*> UniformSet;
+  std::set<const Instruction*> UniformInsts;
   /// sort function in caller-first order
   std::vector<Function *> FuncOrder;
   /// map: function ==> a set of vectorization width 
@@ -104,10 +157,7 @@ private:
 bool GenXPacketize::runOnModule(Module &Module)
 {
   M = &Module;
-
   // find all the SIMT enntry-functions
-  // also find the set of uniform allocas, loads, and stores
-  UniformSet.clear();
   std::vector<Function*> ForkFuncs;
   for (auto &F : M->getFunctionList()) {
     if (F.hasFnAttribute("CMGenxSIMT")) {
@@ -118,37 +168,41 @@ bool GenXPacketize::runOnModule(Module &Module)
         assert(Width == 8 || Width == 16 || Width == 32);
         ForkFuncs.push_back(&F);
       }
-#if 0
-      if (F.hasFnAttribute("CMGenxInline")) {
-        F.removeFnAttr("CMGenxInline");
-        F.removeFnAttr(Attribute::NoInline);
-        F.addFnAttr(Attribute::AlwaysInline);
-      }
-#endif
     }
   }
   if (ForkFuncs.empty())
     return false;
+
+  // sort functions in order, also find those functions that are used in 
+  // the SIMT mode, therefore need whole-function vectorization.
+  findFunctionVectorizationOrder(M);
+
+  unsigned NumFunc = FuncOrder.size();
+  // find uniform arguments
+  UniformArgs.clear();
+  for (unsigned i = 0; i < NumFunc; ++i) {
+    auto F = FuncOrder[i];
+    findUniformArgs(*F);
+  }
+
+  // perform reg-to-mem to remove phi before packetization
+  // because we need to generate simd-control-flow after packetization
+  // we then perform mem-to-reg after generating simd-control-flow.
   auto DemotePass = createDemoteRegisterToMemoryPass();
   for (auto &F : M->getFunctionList()) {
     DemotePass->runOnFunction(F);
   }
-  for (auto F : ForkFuncs)
-    findUniforms(*F);
-  // sort functions in order, also find those functions that are used in 
-  // the SIMT mode, therefore need whole-function vectorization.
-  findFunctionVectorizationOrder(M);
+
+  UniformInsts.clear();
 
   DL = &(M->getDataLayout());
   B = new PacketBuilder(M);
   std::vector<Function*> SIMTFuncs;
   // Process those functions called in the SIMT mode
-  unsigned NumFunc = FuncOrder.size();
   for (int i = NumFunc - 1;  i >= 0; --i) {
     auto F = FuncOrder[i];
     auto iter = FuncVectors.find(F);
     if (iter != FuncVectors.end()) {
-      fixupLLVMIntrinsics(*F);
       auto WV = iter->second;
       for (auto W : WV) {
         auto VF = vectorizeSIMTFunction(F, W);
@@ -184,8 +238,21 @@ Function *GenXPacketize::vectorizeSIMTFunction(Function *F, unsigned Width)
 
   // vectorize the argument and return types
   std::vector<Type*> ArgTypes;
-  for (const Argument &I : F->args())
+  for (const Argument &I : F->args()) {
+    if (UniformArgs.count(&I))
+      ArgTypes.push_back(I.getType());
+    else if (I.getType()->isPointerTy()) {
+      // FIXME: check the pointer defined by an argument or an alloca
+      // [N x float]* should packetize to [N x <8 x float>]*
+      auto VTy = PointerType::get(
+        B->GetVectorType(I.getType()->getPointerElementType()),
+        I.getType()->getPointerAddressSpace());
+      ArgTypes.push_back(VTy);
+    }
+    else {
       ArgTypes.push_back(B->GetVectorType(I.getType()));
+    }
+  }
   Type* RetTy = B->GetVectorType(F->getReturnType());
   // Create a new function type...
   assert(!F->isVarArg());
@@ -195,7 +262,7 @@ Function *GenXPacketize::vectorizeSIMTFunction(Function *F, unsigned Width)
   StringRef VecFName = F->getName();
   const char* Suffix[] = {".vec00", ".vec08", ".vec16", ".vec24", ".vec32" };
   Function *ClonedFunc =
-    Function::Create(FTy, F->getLinkage(), VecFName + Suffix[Width/8], F->getParent());
+    Function::Create(FTy, GlobalValue::InternalLinkage, VecFName + Suffix[Width/8], F->getParent());
   ClonedFunc->setCallingConv(F->getCallingConv());
   ClonedFunc->setAttributes(F->getAttributes());
   ClonedFunc->setAlignment(F->getAlignment());
@@ -206,19 +273,37 @@ Function *GenXPacketize::vectorizeSIMTFunction(Function *F, unsigned Width)
   for (Function::const_arg_iterator I = F->arg_begin(),
        E = F->arg_end(); I != E; ++I) {
     ArgI->setName(I->getName()); // Copy the name over...
-    ArgMap[I] = ArgI++;        // Add mapping to ValueMap
+    ArgMap[I] = ArgI;          // Add mapping to ValueMap
+    if (UniformArgs.count(I)) {  // bookkeep the uniform set
+      UniformArgs.insert(ArgI);
+    }
+    ArgI++;
   }
   SmallVector<ReturnInst*, 10> returns;
   ClonedCodeInfo CloneInfo;
   CloneFunctionInto(ClonedFunc, F, ArgMap, false, returns, Suffix[Width/8], &CloneInfo);
 
   ReplaceMap.clear();
+  // find uniform instructions related to uniform arguments
+  findUniformInsts(*ClonedFunc);
+
   // vectorize instructions in the fork-regions
   for (auto I = ClonedFunc->begin(), E = ClonedFunc->end(); I != E; ++I) {
     BasicBlock *BB = &*I;
     for (auto &I : BB->getInstList()) {
-      Value *pPacketizedInst = packetizeInstruction(&I);
-      ReplaceMap[&I] = pPacketizedInst;
+      if (!UniformInsts.count(&I)) {
+        Value *pPacketizedInst = packetizeInstruction(&I);
+        ReplaceMap[&I] = pPacketizedInst;
+      }
+      else {
+        for (int i = 0, n = I.getNumOperands(); i < n; ++i) {
+          Value *OrigValue = I.getOperand(i);
+          auto iter = ReplaceMap.find(OrigValue);
+          if (iter != ReplaceMap.end() && iter->second != OrigValue) {
+            I.setOperand(i, iter->second);
+          }
+        }
+      }
     }
   }
 
@@ -233,6 +318,10 @@ Function *GenXPacketize::vectorizeSIMTFunction(Function *F, unsigned Width)
 bool GenXPacketize::vectorizeSIMTEntry(Function &F)
 {
   assert(F.hasFnAttribute("CMGenxSIMT"));
+
+  // find uniform instructions related to uniform arguments
+  findUniformInsts(F);
+
   uint32_t Width = 0;
   F.getFnAttribute("CMGenxSIMT").getValueAsString()
     .getAsInteger(0, Width);
@@ -243,13 +332,11 @@ bool GenXPacketize::vectorizeSIMTEntry(Function &F)
 
   B->IRB()->SetInsertPoint(&F.getEntryBlock(), F.getEntryBlock().begin());
 
-  fixupLLVMIntrinsics(F);
-
   // vectorize instructions in the fork-regions
   for (auto I = F.begin(), E = F.end(); I != E; ++I) {
     BasicBlock *BB = &*I;
     for (auto &I : BB->getInstList()) {
-      if (!UniformSet.count(&I)) {
+      if (!UniformInsts.count(&I)) {
         Value *pPacketizedInst = packetizeInstruction(&I);
         ReplaceMap[&I] = pPacketizedInst;
       }
@@ -295,6 +382,9 @@ void GenXPacketize::findFunctionVectorizationOrder(Module *M)
     Function *F = &*mi;
     if (F->empty())
       continue;
+
+    fixupLLVMIntrinsics(*F);
+    
     // For each defined function: for each use (a call), add it to our
     // UnvisitedCallers set, and add us to its Callees set.
     // We are ignoring an illegal non-call use of a function; someone
@@ -367,29 +457,122 @@ void GenXPacketize::findFunctionVectorizationOrder(Module *M)
   }
 }
 
-void GenXPacketize::findUniforms(Function &F)
+void GenXPacketize::findUniformArgs(Function &F)
 {
-  // first find out all the uniform alloca
+  auto iter = FuncVectors.find(&F);
+  if (iter == FuncVectors.end()) {
+    // non-simt function or simt-entry function
+    for (const Argument &I : F.args())
+      UniformArgs.insert(&I);
+  }
+  else {
+    // simt functions that needs whole-function vectorization
+    for (const Argument &I : F.args()) {
+      bool IsUniform = true;
+      // check every call-site
+      for (User *U : F.users()) {
+        if (CallInst *CI = dyn_cast<CallInst>(U)) {
+          auto Def = CI->getArgOperand(I.getArgNo());
+          if (Argument *DA = dyn_cast<Argument>(Def)) {
+            if (!UniformArgs.count(DA)) {
+              IsUniform = false;
+              break;
+            }
+          }
+          else {
+            IsUniform = false;
+            break;
+          }
+        }
+        else {
+          IsUniform = false;
+          break;
+        }
+      }
+      if (IsUniform)
+        UniformArgs.insert(&I);
+    }
+  }
+}
+
+bool GenXPacketize::isUniformIntrinsic(Intrinsic::ID id)
+{
+  switch (id) {
+  case Intrinsic::genx_get_color:
+  case Intrinsic::genx_get_hwid:
+  case Intrinsic::genx_get_scoreboard_bti:
+  case Intrinsic::genx_get_scoreboard_deltas:
+  case Intrinsic::genx_get_scoreboard_depcnt:
+  case Intrinsic::genx_local_id:
+  case Intrinsic::genx_local_size:
+  case Intrinsic::genx_group_count:
+  case Intrinsic::genx_group_id_x:
+  case Intrinsic::genx_group_id_y:
+  case Intrinsic::genx_group_id_z:
+  case Intrinsic::genx_predefined_surface:
+  case Intrinsic::genx_barrier:
+  case Intrinsic::genx_sbarrier:
+  case Intrinsic::genx_cache_flush:
+  case Intrinsic::genx_fence:
+  case Intrinsic::genx_wait:
+  case Intrinsic::genx_yield:
+  case Intrinsic::genx_r0:
+  case Intrinsic::genx_sr0:
+  case Intrinsic::genx_timestamp:
+  case Intrinsic::genx_thread_x:
+  case Intrinsic::genx_thread_y:
+      return true;
+  default:
+    break;
+  }
+  return false;
+}
+
+void GenXPacketize::findUniformInsts(Function &F)
+{
+  // global variable load is uniform
+  for (auto &Global : M->getGlobalList()) {
+    for (auto UI = Global.use_begin(), UE = Global.use_end(); UI != UE; ++UI) {
+      if (auto LD = dyn_cast<LoadInst>(UI->getUser())) {
+        UniformInsts.insert(LD);
+      }
+    }
+  }
+  // some intrinsics are always uniform
+  for (auto &FD : M->getFunctionList()) {
+    if (FD.isDeclaration()) {
+      if (isUniformIntrinsic(FD.getIntrinsicID())) {
+        for (auto UI = FD.use_begin(), UE = FD.use_end(); UI != UE; ++UI) {
+          if (auto Inst = dyn_cast<Instruction>(UI->getUser())) {
+            UniformInsts.insert(Inst);
+          }
+        }
+      }
+    }
+  }
+  // first find out all the uniform alloca to store those uniform arguments
   std::stack<Value*> uvset;
   for (const Argument &I : F.args()) {
+    if (!UniformArgs.count(&I))
+      continue;
     for (auto UI = I.user_begin(), E = I.user_end(); UI != E; ++UI) {
       const Value *use = (*UI);
       if (auto LI = dyn_cast<LoadInst>(use)) {
-        UniformSet.insert(LI);
+        UniformInsts.insert(LI);
       }
       else if (auto GEP = dyn_cast<GetElementPtrInst>(use)) {
         if (GEP->getPointerOperand() == &I) {
-          UniformSet.insert(GEP);
+          UniformInsts.insert(GEP);
           uvset.push((Value *)GEP);
         }
       }
       else if (auto SI = dyn_cast<StoreInst>(use)) {
         if (SI->getPointerOperand() == &I)
-          UniformSet.insert(SI);
+          UniformInsts.insert(SI);
         else {
           auto PI = SI->getPointerOperand();
           if (auto AI = dyn_cast<AllocaInst>(PI)) {
-            UniformSet.insert(AI);
+            UniformInsts.insert(AI);
             uvset.push((Value *)AI);
           }
         }
@@ -399,7 +582,7 @@ void GenXPacketize::findUniforms(Function &F)
           Intrinsic::ID IID = (Intrinsic::ID)Callee->getIntrinsicID();
           if (IID == Intrinsic::genx_vload ||
               IID == Intrinsic::genx_vstore) {
-            UniformSet.insert(CI);
+            UniformInsts.insert(CI);
           }
         }
       }
@@ -414,11 +597,11 @@ void GenXPacketize::findUniforms(Function &F)
       Value *use = (*UI);
       if (auto UseI = dyn_cast<Instruction>(use)) {
         if (isa<LoadInst>(UseI) || isa<StoreInst>(UseI)) {
-          UniformSet.insert(UseI);
+          UniformInsts.insert(UseI);
         }
         else if (isa<GetElementPtrInst>(UseI)) {
           uvset.push(UseI);
-          UniformSet.insert(UseI);
+          UniformInsts.insert(UseI);
         }
       }
     }
@@ -426,37 +609,39 @@ void GenXPacketize::findUniforms(Function &F)
   return;
 }
 
-Value *GenXPacketize::getPacketizeValue(Value *ScalarValue)
+Value *GenXPacketize::getPacketizeValue(Value *OrigValue)
 {
-  auto iter = ReplaceMap.find(ScalarValue);
+  auto iter = ReplaceMap.find(OrigValue);
   if (iter != ReplaceMap.end()) {
     return iter->second;
   }
-  else if (auto C = dyn_cast<Constant>(ScalarValue)) {
+  else if (auto C = dyn_cast<Constant>(OrigValue)) {
     return packetizeConstant(C);
   }
-  else if (auto A = dyn_cast<Argument>(ScalarValue)) {
-    auto V = B->VBROADCAST(ScalarValue, ScalarValue->getName());
-    ReplaceMap[ScalarValue] = V;
-    return V;
+  else if (auto A = dyn_cast<Argument>(OrigValue)) {
+    if (UniformArgs.count(A))
+      return B->VBROADCAST(OrigValue, OrigValue->getName());
+    // otherwise the argument should have been in the right vector form
+    ReplaceMap[OrigValue] = OrigValue;
+    return OrigValue;
   }
-  else if (auto Inst = dyn_cast<Instruction>(ScalarValue)) {
+  else if (auto Inst = dyn_cast<Instruction>(OrigValue)) {
     // need special handling for alloca
-    if (auto AI = dyn_cast<AllocaInst>(ScalarValue)) {
+    if (auto AI = dyn_cast<AllocaInst>(OrigValue)) {
       // this is not a uniform alloca
-      if (!UniformSet.count(Inst)) {
+      if (!UniformInsts.count(Inst)) {
         Type *VecType = B->GetVectorType(AI->getAllocatedType());
         auto V = B->ALLOCA(VecType, nullptr, AI->getName());
         V->removeFromParent();
         V->insertBefore(Inst);
-        ReplaceMap[ScalarValue] = V;
+        ReplaceMap[OrigValue] = V;
         return V;
       }
-      ReplaceMap[ScalarValue] = ScalarValue;
-      return ScalarValue;
+      ReplaceMap[OrigValue] = OrigValue;
+      return OrigValue;
     }
-    else if (UniformSet.count(Inst)) {
-      auto V = B->VBROADCAST(ScalarValue);
+    else if (UniformInsts.count(Inst)) {
+      auto V = B->VBROADCAST(OrigValue);
       return V;
     }
   }
@@ -464,6 +649,27 @@ Value *GenXPacketize::getPacketizeValue(Value *ScalarValue)
   report_fatal_error("Could not find packetized value!");
 
   return nullptr;
+}
+
+// this is used on operands that are expected to be uniform
+Value *GenXPacketize::getUniformValue(Value *OrigValue)
+{
+  if (auto G = dyn_cast<GlobalValue>(OrigValue))
+    return G;
+  if (auto C = dyn_cast<Constant>(OrigValue))
+    return C;
+  if (auto A = dyn_cast<Argument>(OrigValue)) {
+    if (UniformArgs.count(A)) {
+      return A;
+    }
+  }
+  if (auto A = dyn_cast<Instruction>(OrigValue)) {
+    if (UniformInsts.count(A)) {
+      return A;
+    }
+  }
+  auto VV = getPacketizeValue(OrigValue);
+  return B->VEXTRACT(VV, (uint64_t)0, OrigValue->getName());
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -527,8 +733,9 @@ Value *GenXPacketize::packetizeLLVMIntrinsic(Instruction *pInst)
   std::vector<Type *> vectorArgTys;
   std::vector<Value *> packetizedArgs;
   for (auto &operand : pCall->arg_operands()) {
-    vectorArgTys.push_back(B->GetVectorType(operand.get()->getType()));
-    packetizedArgs.push_back(getPacketizeValue(operand.get()));
+    auto VV = getPacketizeValue(operand.get());
+    packetizedArgs.push_back(VV);
+    vectorArgTys.push_back(VV->getType());
   }
 
   // override certain intrinsics
@@ -558,10 +765,15 @@ Value *GenXPacketize::packetizeLLVMInstruction(Instruction *pInst)
     auto FMI = FuncMap.find(std::pair<Function*, unsigned>(F, B->mVWidth));
     if (FMI != FuncMap.end()) {
       std::vector<Value*> ArgOps;
-      for (unsigned i = 0, e = CI->getNumArgOperands(); i < e; ++i) {
-        ArgOps.push_back(getPacketizeValue(CI->getArgOperand(i)));
+      auto VF = FMI->second;
+      for (Argument &Arg : VF->args()) {
+        auto i = Arg.getArgNo();
+        if (UniformArgs.count(&Arg))
+          ArgOps.push_back(getUniformValue(CI->getArgOperand(i)));
+        else
+          ArgOps.push_back(getPacketizeValue(CI->getArgOperand(i)));
       }
-      pReplacedInst = CallInst::Create(FMI->second, ArgOps, CI->getName(), CI);
+      pReplacedInst = CallInst::Create(VF, ArgOps, CI->getName(), CI);
       return pReplacedInst;
     }
     else
@@ -834,20 +1046,276 @@ Value* GenXPacketize::packetizeGenXIntrinsic(Instruction* inst)
     if (Function *Callee = CI->getCalledFunction()) {
       Intrinsic::ID IID = (Intrinsic::ID)Callee->getIntrinsicID();
       Value*    replacement = nullptr;
+      // some intrinsics are uniform therefore should not get here
+      assert(!isUniformIntrinsic(IID));
       switch (IID) {
-        case Intrinsic::genx_gather_scaled: {
+        case Intrinsic::genx_line:
+        case Intrinsic::genx_pln:
+        case Intrinsic::genx_dp2:
+        case Intrinsic::genx_dp3:
+        case Intrinsic::genx_dp4:
+        case Intrinsic::genx_dph:
+        case Intrinsic::genx_transpose_ld:
+        case Intrinsic::genx_oword_ld:
+        case Intrinsic::genx_oword_ld_unaligned:
+        case Intrinsic::genx_oword_st:
+        case Intrinsic::genx_svm_block_ld:
+        case Intrinsic::genx_svm_block_ld_unaligned:
+        case Intrinsic::genx_svm_block_st:
+        case Intrinsic::genx_load:
+        case Intrinsic::genx_3d_load:
+        case Intrinsic::genx_3d_sample:
+        case Intrinsic::genx_avs:
+        case Intrinsic::genx_sample:
+        case Intrinsic::genx_sample_unorm:
+        case Intrinsic::genx_simdcf_any:
+        case Intrinsic::genx_simdcf_goto:
+        case Intrinsic::genx_simdcf_join:
+        case Intrinsic::genx_simdcf_predicate:
+        case Intrinsic::genx_rdpredregion:
+        case Intrinsic::genx_wrconstregion:
+        case Intrinsic::genx_wrpredregion:
+        case Intrinsic::genx_wrpredpredregion:
+        case Intrinsic::genx_output:
+        case Intrinsic::genx_va_1d_convolve_horizontal:
+        case Intrinsic::genx_va_1d_convolve_vertical:
+        case Intrinsic::genx_va_1pixel_convolve:
+        case Intrinsic::genx_va_1pixel_convolve_1x1mode:
+        case Intrinsic::genx_va_bool_centroid:
+        case Intrinsic::genx_va_centroid:
+        case Intrinsic::genx_va_convolve2d:
+        case Intrinsic::genx_va_correlation_search:
+        case Intrinsic::genx_va_dilate:
+        case Intrinsic::genx_va_erode:
+        case Intrinsic::genx_va_flood_fill:
+        case Intrinsic::genx_va_hdc_1d_convolve_horizontal:
+        case Intrinsic::genx_va_hdc_1d_convolve_vertical:
+        case Intrinsic::genx_va_hdc_1pixel_convolve:
+        case Intrinsic::genx_va_hdc_convolve2d:
+        case Intrinsic::genx_va_hdc_dilate:
+        case Intrinsic::genx_va_hdc_erode:
+        case Intrinsic::genx_va_hdc_lbp_correlation:
+        case Intrinsic::genx_va_hdc_lbp_creation:
+        case Intrinsic::genx_va_hdc_minmax_filter:
+        case Intrinsic::genx_va_lbp_correlation:
+        case Intrinsic::genx_va_lbp_creation:
+        case Intrinsic::genx_va_minmax:
+        case Intrinsic::genx_va_minmax_filter:
+        case Intrinsic::genx_media_ld:
+        case Intrinsic::genx_media_st:
+        case Intrinsic::genx_raw_send:
+        case Intrinsic::genx_raw_send_noresult:
+        case Intrinsic::genx_raw_sends:
+        case Intrinsic::genx_raw_sends_noresult:
+          report_fatal_error("Unsupported genx intrinsic in SIMT mode.");
+          return nullptr;
+        case Intrinsic::genx_dword_atomic_add:
+        case Intrinsic::genx_dword_atomic_sub:
+        case Intrinsic::genx_dword_atomic_min:
+        case Intrinsic::genx_dword_atomic_max:
+        case Intrinsic::genx_dword_atomic_xchg:
+        case Intrinsic::genx_dword_atomic_and:
+        case Intrinsic::genx_dword_atomic_or:
+        case Intrinsic::genx_dword_atomic_xor:
+        case Intrinsic::genx_dword_atomic_imin:
+        case Intrinsic::genx_dword_atomic_imax:
+        case Intrinsic::genx_dword_atomic_fmin:
+        case Intrinsic::genx_dword_atomic_fmax:
+        {
+          Value *Src0 = getPacketizeValue(CI->getOperand(0));
+          Value *BTI = getUniformValue(CI->getOperand(1));
+          Value *Src2 = getPacketizeValue(CI->getOperand(2));
+          Value *Src3 = getPacketizeValue(CI->getOperand(3));
+          Value *Src4 = getPacketizeValue(CI->getOperand(4));
+          Value *Args[] = { Src0, BTI, Src2, Src3, Src4 };
+          auto RetTy = B->GetVectorType(CI->getType());
+          Type *Tys[] = { RetTy, Src0->getType(), Src2->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_dword_atomic_inc:
+        case Intrinsic::genx_dword_atomic_dec: {
+          Value *Src0 = getPacketizeValue(CI->getOperand(0));
+          Value *BTI = getUniformValue(CI->getOperand(1));
+          Value *Src2 = getPacketizeValue(CI->getOperand(2));
+          Value *Src3 = getPacketizeValue(CI->getOperand(3));
+          Value *Args[] = { Src0, BTI, Src2, Src3 };
+          auto RetTy = B->GetVectorType(CI->getType());
+          Type *Tys[] = { RetTy, Src0->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_dword_atomic_fcmpwr: {
+          Value *Src0 = getPacketizeValue(CI->getOperand(0));
+          Value *BTI = getUniformValue(CI->getOperand(1));
+          Value *Src2 = getPacketizeValue(CI->getOperand(2));
+          Value *Src3 = getPacketizeValue(CI->getOperand(3));
+          Value *Src4 = getPacketizeValue(CI->getOperand(4));
+          Value *Src5 = getPacketizeValue(CI->getOperand(5));
+          Value *Args[] = { Src0, BTI, Src2, Src3, Src4, Src5 };
+          auto RetTy = B->GetVectorType(CI->getType());
+          Type *Tys[] = { RetTy, Src0->getType(), Src2->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_dword_atomic_cmpxchg: {
+          Value *Src0 = getPacketizeValue(CI->getOperand(0));
+          Value *BTI = getUniformValue(CI->getOperand(1));
+          Value *Src2 = getPacketizeValue(CI->getOperand(2));
+          Value *Src3 = getPacketizeValue(CI->getOperand(3));
+          Value *Src4 = getPacketizeValue(CI->getOperand(4));
+          Value *Src5 = getPacketizeValue(CI->getOperand(5));
+          Value *Args[] = { Src0, BTI, Src2, Src3, Src4, Src5 };
+          auto RetTy = B->GetVectorType(CI->getType());
+          Type *Tys[] = { RetTy, Src0->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_svm_gather: {
           Value *Predicate = getPacketizeValue(CI->getOperand(0));
           Value *NBlk = CI->getOperand(1);
           assert(isa<Constant>(NBlk));
+          Value *Addr = getPacketizeValue(CI->getOperand(2));
+          Value *Src3 = getPacketizeValue(CI->getOperand(3));
+          Value *Args[] = { Predicate, NBlk, Addr, Src3 };
+          auto RetTy = B->GetVectorType(CI->getType());
+          Type *Tys[] = { RetTy, Predicate->getType(), Addr->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_svm_scatter: {
+          Value *Predicate = getPacketizeValue(CI->getOperand(0));
+          Value *NBlk = CI->getOperand(1);
+          assert(isa<Constant>(NBlk));
+          Value *Addr = getPacketizeValue(CI->getOperand(2));
+          Value *Src3 = getPacketizeValue(CI->getOperand(3));
+          Value *Args[] = { Predicate, NBlk, Addr, Src3 };
+          // store, no return type
+          Type *Tys[] = { Predicate->getType(), Addr->getType(), Src3->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_svm_gather4_scaled: {
+          Value *Predicate = getPacketizeValue(CI->getOperand(0));
+          Value *ChMask = CI->getOperand(1);
+          assert(isa<Constant>(ChMask));
           Value *Scale = CI->getOperand(2);
           assert(isa<Constant>(Scale));
-          Value *BTIV = getPacketizeValue(CI->getOperand(3));
-          auto BTI = B->VEXTRACT(BTIV, (uint64_t)0, CI->getOperand(3)->getName());
-          Value *GOff = CI->getOperand(4);
-          if (!isa<Constant>(GOff)) {
-            Value *GOffV = getPacketizeValue(CI->getOperand(4));
-            GOff = B->VEXTRACT(GOffV, (uint64_t)0, CI->getOperand(4)->getName());
-          }
+          Value *Addr = getUniformValue(CI->getOperand(3));
+          Value *Src4 = getPacketizeValue(CI->getOperand(4));
+          Value *Src5 = getPacketizeValue(CI->getOperand(5));
+          Value *Args[] = { Predicate, ChMask, Scale, Addr, Src4, Src5 };
+          auto RetTy = B->GetVectorType(CI->getType());
+          Type *Tys[] = { RetTy, Predicate->getType(), Src4->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_svm_scatter4_scaled: {
+          Value *Predicate = getPacketizeValue(CI->getOperand(0));
+          Value *ChMask = CI->getOperand(1);
+          assert(isa<Constant>(ChMask));
+          Value *Scale = CI->getOperand(2);
+          assert(isa<Constant>(Scale));
+          Value *Addr = getUniformValue(CI->getOperand(3));
+          Value *Src4 = getPacketizeValue(CI->getOperand(4));
+          Value *Src5 = getPacketizeValue(CI->getOperand(5));
+          Value *Args[] = { Predicate, ChMask, Scale, Addr, Src4, Src5 };
+          // store no return type
+          Type *Tys[] = { Predicate->getType(), Addr->getType(), Src4->getType(), Src5->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_gather4_typed: {
+          Value *ChMask = CI->getOperand(0);
+          assert(isa<Constant>(ChMask));
+          Value *Predicate = getPacketizeValue(CI->getOperand(1));
+          Value *BTI = getUniformValue(CI->getOperand(2));
+          Value *Src3 = getPacketizeValue(CI->getOperand(3));
+          Value *Src4 = getPacketizeValue(CI->getOperand(4));
+          Value *Src5 = getPacketizeValue(CI->getOperand(5));
+          Value *Src6 = getPacketizeValue(CI->getOperand(6));
+          Value *Args[] = { ChMask, Predicate, BTI, Src3, Src4, Src5, Src6 };
+          auto RetTy = B->GetVectorType(CI->getType());
+          Type *Tys[] = { RetTy, Predicate->getType(), Src3->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_scatter4_typed: {
+          Value *ChMask = CI->getOperand(0);
+          assert(isa<Constant>(ChMask));
+          Value *Predicate = getPacketizeValue(CI->getOperand(1));
+          Value *BTI = getUniformValue(CI->getOperand(2));
+          Value *Src3 = getPacketizeValue(CI->getOperand(3));
+          Value *Src4 = getPacketizeValue(CI->getOperand(4));
+          Value *Src5 = getPacketizeValue(CI->getOperand(5));
+          Value *Src6 = getPacketizeValue(CI->getOperand(6));
+          Value *Args[] = { ChMask, Predicate, BTI, Src3, Src4, Src5, Src6 };
+          // store no return type
+          Type *Tys[] = { Predicate->getType(), Src3->getType(), Src6->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_scatter4_scaled:
+        case Intrinsic::genx_scatter_scaled: {
+          Value *Predicate = getPacketizeValue(CI->getOperand(0));
+          Value *NBlk = CI->getOperand(1); // or channel mask for scatter4
+          assert(isa<Constant>(NBlk));
+          Value *Scale = CI->getOperand(2);
+          assert(isa<Constant>(Scale));
+          Value *BTI = getUniformValue(CI->getOperand(3));
+          Value *GOff = getUniformValue(CI->getOperand(4));
+          Value *ElemOffsets = getPacketizeValue(CI->getOperand(5));
+          Value *InData = getPacketizeValue(CI->getOperand(6));
+          Value *Args[] = {
+            Predicate, NBlk, Scale, BTI, GOff, ElemOffsets, InData
+          };
+          // no return value for store
+          Type *Tys[] = { Args[0]->getType(), Args[5]->getType(), Args[6]->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_gather4_scaled:
+        case Intrinsic::genx_gather_scaled: {
+          Value *Predicate = getPacketizeValue(CI->getOperand(0));
+          Value *NBlk = CI->getOperand(1); // or channel mask for gather4
+          assert(isa<Constant>(NBlk));
+          Value *Scale = CI->getOperand(2);
+          assert(isa<Constant>(Scale));
+          Value *BTI = getUniformValue(CI->getOperand(3));
+          Value *GOff = getUniformValue(CI->getOperand(4));
           Value *ElemOffsets = getPacketizeValue(CI->getOperand(5));
           Value *InData = getPacketizeValue(CI->getOperand(6));
           Value *Args[] = {
@@ -921,6 +1389,131 @@ Value* GenXPacketize::packetizeGenXIntrinsic(Instruction* inst)
           return replacement;
         }
         break;
+        case Intrinsic::genx_untyped_atomic_add:
+        case Intrinsic::genx_untyped_atomic_sub:
+        case Intrinsic::genx_untyped_atomic_min:
+        case Intrinsic::genx_untyped_atomic_max:
+        case Intrinsic::genx_untyped_atomic_xchg:
+        case Intrinsic::genx_untyped_atomic_and:
+        case Intrinsic::genx_untyped_atomic_or:
+        case Intrinsic::genx_untyped_atomic_xor:
+        case Intrinsic::genx_untyped_atomic_imin:
+        case Intrinsic::genx_untyped_atomic_imax: {
+          Value *Src0 = getPacketizeValue(CI->getOperand(0));
+          Value *BTI = getUniformValue(CI->getOperand(1));
+          Value *GOFF = getUniformValue(CI->getOperand(2));
+          Value *Src3 = getPacketizeValue(CI->getOperand(3));
+          Value *Src4 = getPacketizeValue(CI->getOperand(4));
+          Value *Src5 = getPacketizeValue(CI->getOperand(5));
+          Value *Args[] = { Src0, BTI, GOFF, Src3, Src4, Src5 };
+          auto RetTy = B->GetVectorType(CI->getType());
+          Type *Tys[] = { RetTy, Src0->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_untyped_atomic_inc:
+        case Intrinsic::genx_untyped_atomic_dec: {
+          Value *Src0 = getPacketizeValue(CI->getOperand(0));
+          Value *BTI = getUniformValue(CI->getOperand(1));
+          Value *GOFF = getUniformValue(CI->getOperand(2));
+          Value *Src3 = getPacketizeValue(CI->getOperand(3));
+          Value *Src4 = getPacketizeValue(CI->getOperand(4));
+          Value *Args[] = { Src0, BTI, GOFF, Src3, Src4 };
+          auto RetTy = B->GetVectorType(CI->getType());
+          Type *Tys[] = { RetTy, Src0->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_untyped_atomic_cmpxchg: {
+          Value *Src0 = getPacketizeValue(CI->getOperand(0));
+          Value *BTI = getUniformValue(CI->getOperand(1));
+          Value *GOFF = getUniformValue(CI->getOperand(2));
+          Value *Src3 = getPacketizeValue(CI->getOperand(3));
+          Value *Src4 = getPacketizeValue(CI->getOperand(4));
+          Value *Src5 = getPacketizeValue(CI->getOperand(5));
+          Value *Src6 = getPacketizeValue(CI->getOperand(6));
+          Value *Args[] = { Src0, BTI, GOFF, Src3, Src4, Src5, Src6 };
+          auto RetTy = B->GetVectorType(CI->getType());
+          Type *Tys[] = { RetTy, Src0->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+
+        case Intrinsic::genx_typed_atomic_add:
+        case Intrinsic::genx_typed_atomic_sub:
+        case Intrinsic::genx_typed_atomic_min:
+        case Intrinsic::genx_typed_atomic_max:
+        case Intrinsic::genx_typed_atomic_xchg:
+        case Intrinsic::genx_typed_atomic_and:
+        case Intrinsic::genx_typed_atomic_or:
+        case Intrinsic::genx_typed_atomic_xor:
+        case Intrinsic::genx_typed_atomic_imin:
+        case Intrinsic::genx_typed_atomic_imax:
+        case Intrinsic::genx_typed_atomic_fmin:
+        case Intrinsic::genx_typed_atomic_fmax:
+        {
+          Value *Src0 = getPacketizeValue(CI->getOperand(0));
+          Value *BTI = getUniformValue(CI->getOperand(1));
+          Value *Src2 = getPacketizeValue(CI->getOperand(2));
+          Value *Src3 = getPacketizeValue(CI->getOperand(3));
+          Value *Src4 = getPacketizeValue(CI->getOperand(4));
+          Value *Src5 = getPacketizeValue(CI->getOperand(5));
+          Value *Src6 = getPacketizeValue(CI->getOperand(6));
+          Value *Args[] = { Src0, BTI, Src2, Src3, Src4, Src5, Src6 };
+          auto RetTy = B->GetVectorType(CI->getType());
+          Type *Tys[] = { RetTy, Src0->getType(), Src3->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_typed_atomic_inc:
+        case Intrinsic::genx_typed_atomic_dec: {
+          Value *Src0 = getPacketizeValue(CI->getOperand(0));
+          Value *BTI = getUniformValue(CI->getOperand(1));
+          Value *Src2 = getPacketizeValue(CI->getOperand(2));
+          Value *Src3 = getPacketizeValue(CI->getOperand(3));
+          Value *Src4 = getPacketizeValue(CI->getOperand(4));
+          Value *Src5 = getPacketizeValue(CI->getOperand(5));
+          Value *Args[] = { Src0, BTI, Src2, Src3, Src4, Src5 };
+          auto RetTy = B->GetVectorType(CI->getType());
+          Type *Tys[] = { RetTy, Src0->getType(), Src2->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_typed_atomic_fcmpwr:
+        case Intrinsic::genx_typed_atomic_cmpxchg: {
+          Value *Src0 = getPacketizeValue(CI->getOperand(0));
+          Value *BTI = getUniformValue(CI->getOperand(1));
+          Value *Src2 = getPacketizeValue(CI->getOperand(2));
+          Value *Src3 = getPacketizeValue(CI->getOperand(3));
+          Value *Src4 = getPacketizeValue(CI->getOperand(4));
+          Value *Src5 = getPacketizeValue(CI->getOperand(5));
+          Value *Src6 = getPacketizeValue(CI->getOperand(6));
+          Value *Src7 = getPacketizeValue(CI->getOperand(7));
+          Value *Args[] = { Src0, BTI, Src2, Src3, Src4, Src5, Src6, Src7 };
+          auto RetTy = B->GetVectorType(CI->getType());
+          Type *Tys[] = { RetTy, Src0->getType(), Src4->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        // default llvm-intrinsic packetizing rule should work for svm atomics
         default:
           break;
       }

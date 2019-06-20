@@ -89,7 +89,7 @@ CM_NODEBUG CM_INLINE void cm_svm_block_write_impl(uintptr_t addr,
 template <typename T0, int SZ>
 CM_NODEBUG CM_INLINE void cm_svm_block_read(svmptr_t addr,
                                             vector_ref<T0, SZ> dst) {
-  details::cm_svm_block_read_impl(addr, dst);
+  details::cm_svm_block_read_impl(uintptr_t(addr), dst);
 }
 
 template <typename T0, int N, int M>
@@ -103,7 +103,7 @@ CM_NODEBUG CM_INLINE void cm_svm_block_read(svmptr_t addr,
 template <typename T0, int N>
 CM_NODEBUG CM_INLINE void cm_svm_block_read_unaligned(svmptr_t addr,
                                                       vector_ref<T0, N> dst) {
-  details::cm_svm_block_read_unaligned_impl(addr, dst);
+  details::cm_svm_block_read_unaligned_impl(uintptr_t(addr), dst);
 }
 
 template <typename T0, int N, int M>
@@ -117,7 +117,7 @@ cm_svm_block_read_unaligned(svmptr_t addr, matrix_ref<T0, N, M> dst) {
 template <typename T0, int SZ>
 CM_NODEBUG CM_INLINE void cm_svm_block_write(svmptr_t addr,
                                              vector<T0, SZ> src) {
-  details::cm_svm_block_write_impl(addr, src);
+  details::cm_svm_block_write_impl(uintptr_t(addr), src);
 }
 
 template <typename T0, int N, int M>
@@ -200,7 +200,7 @@ cm_svm_scatter_write_impl(vector<uintptr_t, N> vAddr, vector<T0, N> src) {
 template <typename T0, int N>
 CM_NODEBUG CM_INLINE void cm_svm_scatter_read(vector<svmptr_t, N> vAddr,
                                               vector_ref<T0, N> dst) {
-  details::cm_svm_scatter_read_impl(vAddr, dst);
+  details::cm_svm_scatter_read_impl(vector<uintptr_t, N>(vAddr), dst);
 }
 
 template <typename T0, int N, int M>
@@ -215,7 +215,7 @@ CM_NODEBUG CM_INLINE void cm_svm_scatter_read(matrix<svmptr_t, N, M> vAddr,
 template <typename T0, int N>
 CM_NODEBUG CM_INLINE void cm_svm_scatter_write(vector<svmptr_t, N> vAddr,
                                                vector<T0, N> src) {
-  details::cm_svm_scatter_write_impl(vAddr, src);
+  details::cm_svm_scatter_write_impl(vector<uintptr_t, N>(vAddr), src);
 }
 
 template <typename T0, int N, int M>

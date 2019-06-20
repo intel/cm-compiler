@@ -144,6 +144,7 @@ public:
       RAW_NULLALLOWED =     GENX_ITR_FLAGVAL(2),   // raw operand or result can be null (V0)
     URAW =                  RAW | RAW_UNSIGNED,
     SRAW =                  RAW | RAW_SIGNED,
+    EXECSIZE_NOMASK =       GENX_ITR_CATVAL(0x2e), // execution size with NoMask
 
     // A general operand
     GENERAL =               GENX_ITR_CATVAL(0x30),
@@ -308,6 +309,9 @@ public:
   unsigned getExecSizeAllowedBits();
   // Determine if a predicated destination mask is permitted
   bool getPredAllowed();
+  // Get The overrided execution size or 0.
+  static unsigned getOverridedExecSize(CallInst *CI,
+                                       const GenXSubtarget *ST = nullptr);
 };
 
 } // namespace llvm

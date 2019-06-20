@@ -1,5 +1,5 @@
 =============================
-Intel(R) C-for-Media Compiler
+Intel(R) C for Metal Compiler
 =============================
 
 .. contents::
@@ -9,7 +9,7 @@ Intel(R) C-for-Media Compiler
 Introduction
 ============
 
-The Intel(R) C-for-Media compiler is a open source compiler that implements C-for-Media (CM) programming language. CM is a new GPU kernel programming language for Intel HD Graphics. 
+The Intel(R) C for Metal compiler is a open source compiler that implements C for Metal (CM) programming language. CM is a new GPU kernel programming language for Intel HD Graphics. 
 
 This document is a starting guide for setting up the development environment, 
 building and using this compiler.
@@ -17,7 +17,7 @@ building and using this compiler.
 License
 =======
 
-The Intel(R) C-for-Media Compiler is distributed under the MIT license. You may obtain a copy of the License at: https//opensource.org/licenses/MIT
+The Intel(R) C for Metal Compiler is distributed under the MIT license. You may obtain a copy of the License at: https//opensource.org/licenses/MIT
 
 Linux prerequisites
 ===================
@@ -39,8 +39,8 @@ There is no other dependences in order to build the compiler.
 
 However, in order to build and run those sample applications we provide, the easiest way of getting-start is to download the following package:
 
-- Intel(R) C-for-Media development package 
-  https://01.org/c-for-media-development-package/ 
+- Intel(R) C for Metal development package 
+  https://01.org/C-for-Metal-development-package/ 
 
 Please refer to the readme included in the package for its usage.
 

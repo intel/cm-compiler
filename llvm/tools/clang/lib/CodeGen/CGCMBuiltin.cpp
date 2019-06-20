@@ -129,10 +129,13 @@ inline unsigned getNumberOfColors(ChannelMaskType M) {
 } // namespace
 
 /// Get the integral value encoded as a non-type template argument.
-static unsigned getIntegralValue(const FunctionDecl *FD, unsigned Index) {
+template <typename T = unsigned>
+static T getIntegralValue(const FunctionDecl *FD, unsigned Index) {
   assert(FD && FD->isTemplateInstantiation());
   const TemplateArgumentList *TempArgs = FD->getTemplateSpecializationArgs();
-  return TempArgs->get(Index).getAsIntegral().getZExtValue();
+  if (std::is_unsigned<T>())
+    return TempArgs->get(Index).getAsIntegral().getZExtValue();
+  return TempArgs->get(Index).getAsIntegral().getSExtValue();
 }
 
 CMBuiltinKind CGCMRuntime::getCMBuiltinKind(const FunctionDecl *FD) const {
@@ -472,7 +475,7 @@ static llvm::Value *EmitCMPrintf(CodeGenFunction &CGF,
     return llvm::ConstantInt::get(CGF.Int32Ty, 0);
 
   // Vector type used by header etc.
-  llvm::Type *HdrVecTy = llvm::VectorType::get(CGF.Int32Ty, 8);
+  llvm::Type *HdrVecTy = llvm::VectorType::get(CGF.Int32Ty, 1);
   llvm::Value *Size = llvm::Constant::getNullValue(HdrVecTy);
   Size = CGF.Builder.CreateInsertElement(
       Size, llvm::ConstantInt::get(CGF.Int32Ty, TotalSize),
@@ -501,7 +504,7 @@ static llvm::Value *EmitCMPrintf(CodeGenFunction &CGF,
   llvm::Function *AtomicFn = CGF.CGM.getIntrinsic(AtomicID, Tys);
 
   // Offsets in bytes
-  unsigned Offsets[] = {0, 4, 8, 12, 16, 20, 24, 28};
+  unsigned Offsets[] = {0};
   llvm::Value *AtomicOffset = llvm::ConstantDataVector::get(
       CGF.getLLVMContext(), ArrayRef<unsigned>(Offsets));
 
@@ -514,7 +517,7 @@ static llvm::Value *EmitCMPrintf(CodeGenFunction &CGF,
   AtomicArgs.push_back(OriginalOffset);
 
   OriginalOffset = CGF.Builder.CreateCall(AtomicFn, AtomicArgs);
-
+  HdrVecTy = llvm::VectorType::get(CGF.Int32Ty, 8);
   llvm::Type *StrVecTy = llvm::VectorType::get(CGF.Int8Ty, StrSize);
   llvm::Function *WriteHdrFn = CGF.CGM.getIntrinsic(WriteID, HdrVecTy);
   llvm::Function *WriteStrFn = CGF.CGM.getIntrinsic(WriteID, StrVecTy);
@@ -529,7 +532,6 @@ static llvm::Value *EmitCMPrintf(CodeGenFunction &CGF,
 
   // vector type used to bit cast double and long long
   llvm::Type *TwoIntTy = llvm::VectorType::get(CGF.Int32Ty, 2);
-
   for (unsigned i = 1; i < NumArgs; ++i) {
     SmallVector<llvm::Value *, 4> HdrArgs;
     SmallVector<llvm::Value *, 4> StrArgs;
@@ -708,10 +710,6 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
       Fn = CGF.CGM.getIntrinsic(llvm::Intrinsic::genx_set_pause );
       const Expr *ArgE = E->getArg(0);
       llvm::APSInt Size(16);
-      if (!ArgE->EvaluateAsInt(Size, CGF.getContext())) {
-        Error(ArgE->getExprLoc(), "integral constant (short) expected for pause duration");
-        return RValue::get(0);
-      }
       llvm::Value *Arg = CGF.EmitAnyExpr(ArgE).getScalarVal();
       return RValue::get(CGF.Builder.CreateCall(Fn, Arg, ""));
     }
@@ -3096,11 +3094,16 @@ void CGCMRuntime::HandleBuiltinOWordWriteImpl(CMCallInfo &Info,
   bool SLM = (Kind == CMBK_slm_oword_write_impl);
   llvm::Function *StoreFn = getIntrinsic(ID, VecTy);
 
-  // The data size in OWords is in {1, 2, 4, 8}.
+  // The data size in OWords is in {1, 2, 4, 8, 16}.
   assert(isa<llvm::VectorType>(VecTy));
   assert(llvm::isPowerOf2_32(VecTy->getVectorNumElements()));
-  assert(VecTy->getPrimitiveSizeInBits() / 8 <= 8 * OWORD);
   assert(VecTy->getPrimitiveSizeInBits() / 8 >= OWORD);
+
+  auto &TOpts = CGM.getTarget().getTargetOpts();
+  unsigned MaxOBRWSize = llvm::StringSwitch<unsigned>(TOpts.CPU)
+    .Default(8);
+  assert(VecTy->getPrimitiveSizeInBits() / 8 <= MaxOBRWSize * OWORD);
+  (void)MaxOBRWSize;
 
   CGBuilderTy Builder(*Info.CGF, Info.CI);
   SmallVector<llvm::Value *, 4> Args;

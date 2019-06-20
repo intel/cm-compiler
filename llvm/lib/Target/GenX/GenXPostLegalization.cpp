@@ -149,6 +149,8 @@ bool GenXPostLegalization::runOnFunction(Function &F)
   Modified |= VD.run(DT);
   // Cleanup region reads and writes.
   Modified |= simplifyRegionInsts(&F, DL, TLI);
+  // Cleanup redundant global loads.
+  Modified |= cleanupLoads(&F);
   // Legalize constants in return.
   for (auto FI = F.begin(), FE = F.end(); FI != FE; ++FI) {
     BasicBlock *BB = &*FI;

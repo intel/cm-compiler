@@ -31,6 +31,8 @@
 // code directly from LLVM IR.
 //
 //===----------------------------------------------------------------------===//
+#include "visa_igc_common_header.h"
+#include "IsaDescription.h"
 #include "GenXIntrinsics.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Constants.h"
@@ -58,8 +60,8 @@ using namespace llvm;
 
 #define VA_CONV_OP(intrin, vsop) \
   Intrinsic::intrin,                          \
-  LITERAL | visa::ISA_VA,                     \
-  LITERAL | visa::vsop,                       \
+  LITERAL | ISA_VA,                           \
+  LITERAL | vsop,                             \
   SAMPLER | 1,                                \
   SURFACE | 2,                                \
   GENERAL | 3,                                \
@@ -70,8 +72,8 @@ using namespace llvm;
 
 #define VA_HDC_CONV_OP(intrin, vsop) \
   Intrinsic::intrin,                          \
-  LITERAL | visa::ISA_VA_SKL_PLUS,            \
-  LITERAL | visa::vsop,                       \
+  LITERAL | ISA_VA_SKL_PLUS,                  \
+  LITERAL | vsop,                             \
   SAMPLER | 1,                                \
   SURFACE | 2,                                \
   GENERAL | 3,                                \
@@ -83,8 +85,8 @@ using namespace llvm;
 
 #define VA_SKL_1DCONV_OP(intrin, vsop) \
   Intrinsic::intrin,                          \
-  LITERAL | visa::ISA_VA_SKL_PLUS,            \
-  LITERAL | visa::vsop,                       \
+  LITERAL | ISA_VA_SKL_PLUS,                  \
+  LITERAL | vsop,                             \
   SAMPLER | 1,                                \
   SURFACE | 2,                                \
   GENERAL | 3,                                \
@@ -95,8 +97,8 @@ using namespace llvm;
 
 #define VA_SKL_HDC_1DCONV_OP(intrin, vsop) \
   Intrinsic::intrin,                          \
-  LITERAL | visa::ISA_VA_SKL_PLUS,            \
-  LITERAL | visa::vsop,                       \
+  LITERAL | ISA_VA_SKL_PLUS,                  \
+  LITERAL | vsop,                             \
   SAMPLER | 1,                                \
   SURFACE | 2,                                \
   GENERAL | 3,                                \
@@ -109,8 +111,8 @@ using namespace llvm;
 
 #define VA_SKL_1PIXELCONV_OP(intrin, mode, offsets) \
   Intrinsic::intrin,                          \
-  LITERAL | visa::ISA_VA_SKL_PLUS,            \
-  LITERAL | visa::ISA_VAPLUS_1PIXELCONV,      \
+  LITERAL | ISA_VA_SKL_PLUS,                  \
+  LITERAL | VA_OP_CODE_1PIXEL_CONVOLVE,       \
   SAMPLER | 1,                                \
   SURFACE | 2,                                \
   GENERAL | 3,                                \
@@ -129,7 +131,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // fptosi, saturated
   Intrinsic::genx_fptosi_sat,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -138,7 +140,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // fptoui, saturated
   Intrinsic::genx_fptoui_sat,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -147,7 +149,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // sat
   Intrinsic::genx_sat,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SATURATION_SATURATE | 0, // dst (return value)
@@ -156,7 +158,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // trunc, unsigned result, unsigned operand, saturated
   Intrinsic::genx_uutrunc_sat,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -165,7 +167,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // trunc, unsigned result, signed operand, saturated
   Intrinsic::genx_ustrunc_sat,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -174,7 +176,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // trunc, signed result, unsigned operand, saturated
   Intrinsic::genx_sutrunc_sat,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -183,7 +185,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // trunc, signed result, signed operand, saturated
   Intrinsic::genx_sstrunc_sat,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -197,7 +199,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // add, signed result, signed operands, saturated
   Intrinsic::genx_ssadd_sat,
-  LITERAL | visa::ISA_ADD, // opcode
+  LITERAL | ISA_ADD, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -207,7 +209,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // add, signed result, unsigned operands, saturated
   Intrinsic::genx_suadd_sat,
-  LITERAL | visa::ISA_ADD, // opcode
+  LITERAL | ISA_ADD, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -217,7 +219,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // add, unsigned result, signed operands, saturated
   Intrinsic::genx_usadd_sat,
-  LITERAL | visa::ISA_ADD, // opcode
+  LITERAL | ISA_ADD, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -227,7 +229,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // add, unsigned result, unsigned operands, saturated
   Intrinsic::genx_uuadd_sat,
-  LITERAL | visa::ISA_ADD, // opcode
+  LITERAL | ISA_ADD, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -243,7 +245,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // avg, signed result, signed operands
   Intrinsic::genx_ssavg,
-  LITERAL | visa::ISA_AVG, // opcode
+  LITERAL | ISA_AVG, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | 0, // dst (return value)
@@ -253,7 +255,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // avg, signed result, unsigned operands
   Intrinsic::genx_suavg,
-  LITERAL | visa::ISA_AVG, // opcode
+  LITERAL | ISA_AVG, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | 0, // dst (return value)
@@ -263,7 +265,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // avg, unsigned result, signed operands
   Intrinsic::genx_usavg,
-  LITERAL | visa::ISA_AVG, // opcode
+  LITERAL | ISA_AVG, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -273,7 +275,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // avg, unsigned result, unsigned operands
   Intrinsic::genx_uuavg,
-  LITERAL | visa::ISA_AVG, // opcode
+  LITERAL | ISA_AVG, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -283,7 +285,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // avg, signed result, signed operands, saturated
   Intrinsic::genx_ssavg_sat,
-  LITERAL | visa::ISA_AVG, // opcode
+  LITERAL | ISA_AVG, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -293,7 +295,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // avg, signed result, unsigned operands, saturated
   Intrinsic::genx_suavg_sat,
-  LITERAL | visa::ISA_AVG, // opcode
+  LITERAL | ISA_AVG, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -303,7 +305,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // avg, unsigned result, signed operands, saturated
   Intrinsic::genx_usavg_sat,
-  LITERAL | visa::ISA_AVG, // opcode
+  LITERAL | ISA_AVG, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -313,7 +315,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // avg, unsigned result, unsigned operands, saturated
   Intrinsic::genx_uuavg_sat,
-  LITERAL | visa::ISA_AVG, // opcode
+  LITERAL | ISA_AVG, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -323,7 +325,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // bfe, signed result and operands (no source modifier)
   Intrinsic::genx_sbfe,
-  LITERAL | visa::ISA_BFE, // opcode
+  LITERAL | ISA_BFE, // opcode
   EXECSIZE_NOT2, // execution size
   IMPLICITPRED, // predication
   GENERAL | OWALIGNED | SIGNED | 0, // dst (return value)
@@ -334,7 +336,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // bfe, unsigned result and operands (no source modifier)
   Intrinsic::genx_ubfe,
-  LITERAL | visa::ISA_BFE, // opcode
+  LITERAL | ISA_BFE, // opcode
   EXECSIZE_NOT2, // execution size
   IMPLICITPRED, // predication
   GENERAL | OWALIGNED | UNSIGNED | 0, // dst (return value)
@@ -345,7 +347,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // bfi (no source modifier)
   Intrinsic::genx_bfi,
-  LITERAL | visa::ISA_BFI, // opcode
+  LITERAL | ISA_BFI, // opcode
   EXECSIZE_NOT2, // execution size
   IMPLICITPRED, // predication
   GENERAL | OWALIGNED | 0, // dst (return value)
@@ -357,7 +359,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // bfrev (no source modifier)
   Intrinsic::genx_bfrev,
-  LITERAL | visa::ISA_BFREV, // opcode
+  LITERAL | ISA_BFREV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -366,7 +368,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // cbit (no source modifier)
   Intrinsic::genx_cbit,
-  LITERAL | visa::ISA_CBIT, // opcode
+  LITERAL | ISA_CBIT, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -377,18 +379,18 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // cos
   Intrinsic::genx_cos,
-  LITERAL | visa::ISA_COS, // opcode
+  LITERAL | ISA_COS, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
   GENERAL | 1, // src0
   END,
-
+    
   // div: no intrinsic needed
 
   // dp2
   Intrinsic::genx_dp2,
-  LITERAL | visa::ISA_DP2, // opcode
+  LITERAL | ISA_DP2, // opcode
   EXECSIZE_GE4, // execution size
   IMPLICITPRED, // predication
   GENERAL | STRIDE1 | OWALIGNED | 0, // dst (return value)
@@ -398,7 +400,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // dp3
   Intrinsic::genx_dp3,
-  LITERAL | visa::ISA_DP3, // opcode
+  LITERAL | ISA_DP3, // opcode
   EXECSIZE_GE4, // execution size
   IMPLICITPRED, // predication
   GENERAL | STRIDE1 | OWALIGNED | 0, // dst (return value)
@@ -408,7 +410,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // dp4
   Intrinsic::genx_dp4,
-  LITERAL | visa::ISA_DP4, // opcode
+  LITERAL | ISA_DP4, // opcode
   EXECSIZE_GE4, // execution size
   IMPLICITPRED, // predication
   GENERAL | STRIDE1 | OWALIGNED | 0, // dst (return value)
@@ -418,7 +420,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // dph
   Intrinsic::genx_dph,
-  LITERAL | visa::ISA_DPH, // opcode
+  LITERAL | ISA_DPH, // opcode
   EXECSIZE_GE4, // execution size
   IMPLICITPRED, // predication
   GENERAL | STRIDE1 | OWALIGNED | 0, // dst (return value)
@@ -428,7 +430,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // exp
   Intrinsic::genx_exp,
-  LITERAL | visa::ISA_EXP, // opcode
+  LITERAL | ISA_EXP, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -437,7 +439,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // fbh, signed operand (no source modifier)
   Intrinsic::genx_sfbh,
-  LITERAL | visa::ISA_FBH, // opcode
+  LITERAL | ISA_FBH, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -446,7 +448,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // fbh, unsigned operand (no source modifier)
   Intrinsic::genx_ufbh,
-  LITERAL | visa::ISA_FBH, // opcode
+  LITERAL | ISA_FBH, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -455,7 +457,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // fbl (no source modifier)
   Intrinsic::genx_fbl,
-  LITERAL | visa::ISA_FBL, // opcode
+  LITERAL | ISA_FBL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -464,7 +466,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // frc (no saturation)
   Intrinsic::genx_frc,
-  LITERAL | visa::ISA_FRC, // opcode
+  LITERAL | ISA_FRC, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SATURATION_NOSAT | 0, // dst (return value)
@@ -473,7 +475,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // inv
   Intrinsic::genx_inv,
-  LITERAL | visa::ISA_INV, // opcode
+  LITERAL | ISA_INV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -482,7 +484,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // line
   Intrinsic::genx_line,
-  LITERAL | visa::ISA_LINE, // opcode
+  LITERAL | ISA_LINE, // opcode
   EXECSIZE_GE4, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -492,7 +494,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // log
   Intrinsic::genx_log,
-  LITERAL | visa::ISA_LOG, // opcode
+  LITERAL | ISA_LOG, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -501,7 +503,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // lrp
   Intrinsic::genx_lrp,
-  LITERAL | visa::ISA_LRP, // opcode
+  LITERAL | ISA_LRP, // opcode
   EXECSIZE_GE4, // execution size
   IMPLICITPRED, // predication
   GENERAL | OWALIGNED | CONTIGUOUS | 0, // dst (return value)
@@ -512,7 +514,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // lzd
   Intrinsic::genx_lzd,
-  LITERAL | visa::ISA_LZD, // opcode
+  LITERAL | ISA_LZD, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -520,7 +522,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::fma,
-  LITERAL | visa::ISA_MAD, // opcode
+  LITERAL | ISA_MAD, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -531,7 +533,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mad, signed result, signed operands
   Intrinsic::genx_ssmad,
-  LITERAL | visa::ISA_MAD, // opcode
+  LITERAL | ISA_MAD, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | 0, // dst (return value)
@@ -542,7 +544,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mad, signed result, unsigned operands
   Intrinsic::genx_sumad,
-  LITERAL | visa::ISA_MAD, // opcode
+  LITERAL | ISA_MAD, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | 0, // dst (return value)
@@ -553,7 +555,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mad, unsigned result, signed operands
   Intrinsic::genx_usmad,
-  LITERAL | visa::ISA_MAD, // opcode
+  LITERAL | ISA_MAD, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -564,7 +566,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mad, unsigned result, unsigned operands
   Intrinsic::genx_uumad,
-  LITERAL | visa::ISA_MAD, // opcode
+  LITERAL | ISA_MAD, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -575,7 +577,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mad, signed result, signed operands, saturated
   Intrinsic::genx_ssmad_sat,
-  LITERAL | visa::ISA_MAD, // opcode
+  LITERAL | ISA_MAD, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -586,7 +588,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mad, signed result, unsigned operands, saturated
   Intrinsic::genx_sumad_sat,
-  LITERAL | visa::ISA_MAD, // opcode
+  LITERAL | ISA_MAD, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -597,7 +599,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mad, unsigned result, signed operands, saturated
   Intrinsic::genx_usmad_sat,
-  LITERAL | visa::ISA_MAD, // opcode
+  LITERAL | ISA_MAD, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -608,7 +610,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mad, unsigned result, unsigned operands, saturated
   Intrinsic::genx_uumad_sat,
-  LITERAL | visa::ISA_MAD, // opcode
+  LITERAL | ISA_MAD, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -621,7 +623,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   // (No need to represent saturation in intrinsic as max cannot overflow
   // so saturation can be represented by separate intrinsic.)
   Intrinsic::genx_smax,
-  LITERAL | visa::ISA_FMINMAX, // opcode
+  LITERAL | ISA_FMINMAX, // opcode
   EXECSIZE, // execution size
   LITERAL | 1, // flag for max
   GENERAL | SIGNED | SATURATION_INTALLOWED | 0, // dst (return value)
@@ -633,7 +635,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   // (No need to represent saturation in intrinsic as max cannot overflow
   // so saturation can be represented by separate intrinsic.)
   Intrinsic::genx_umax,
-  LITERAL | visa::ISA_FMINMAX, // opcode
+  LITERAL | ISA_FMINMAX, // opcode
   EXECSIZE, // execution size
   LITERAL | 1, // flag for max
   GENERAL | UNSIGNED | SATURATION_INTALLOWED | 0, // dst (return value)
@@ -643,7 +645,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // max, float result and operands
   Intrinsic::genx_fmax,
-  LITERAL | visa::ISA_FMINMAX, // opcode
+  LITERAL | ISA_FMINMAX, // opcode
   EXECSIZE, // execution size
   LITERAL | 1, // flag for max
   GENERAL | 0, // dst (return value)
@@ -655,7 +657,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   // (No need to represent saturation in intrinsic as min cannot overflow
   // so saturation can be represented by separate intrinsic.)
   Intrinsic::genx_smin,
-  LITERAL | visa::ISA_FMINMAX, // opcode
+  LITERAL | ISA_FMINMAX, // opcode
   EXECSIZE, // execution size
   LITERAL | 0, // flag for max
   GENERAL | SIGNED | SATURATION_INTALLOWED | 0, // dst (return value)
@@ -667,7 +669,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   // (No need to represent saturation in intrinsic as min cannot overflow
   // so saturation can be represented by separate intrinsic.)
   Intrinsic::genx_umin,
-  LITERAL | visa::ISA_FMINMAX, // opcode
+  LITERAL | ISA_FMINMAX, // opcode
   EXECSIZE, // execution size
   LITERAL | 0, // flag for max
   GENERAL | UNSIGNED | SATURATION_INTALLOWED | 0, // dst (return value)
@@ -677,7 +679,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // min, float result and operands
   Intrinsic::genx_fmin,
-  LITERAL | visa::ISA_FMINMAX, // opcode
+  LITERAL | ISA_FMINMAX, // opcode
   EXECSIZE, // execution size
   LITERAL | 0, // flag for max
   GENERAL | 0, // dst (return value)
@@ -689,7 +691,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mul, signed result, signed operands
   Intrinsic::genx_ssmul,
-  LITERAL | visa::ISA_MUL, // opcode
+  LITERAL | ISA_MUL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | 0, // dst (return value)
@@ -699,7 +701,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mul, signed result, signed and unsigned operands
   Intrinsic::genx_sumul,
-  LITERAL | visa::ISA_MUL, // opcode
+  LITERAL | ISA_MUL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | 0, // dst (return value)
@@ -709,7 +711,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mul, signed result, unsigned and signed operands
   Intrinsic::genx_usmul,
-  LITERAL | visa::ISA_MUL, // opcode
+  LITERAL | ISA_MUL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | 0, // dst (return value)
@@ -719,7 +721,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mul, signed result, unsigned operands
   Intrinsic::genx_uumul,
-  LITERAL | visa::ISA_MUL, // opcode
+  LITERAL | ISA_MUL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | 0, // dst (return value)
@@ -729,7 +731,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mul, signed result, signed operands, saturated
   Intrinsic::genx_ssmul_sat,
-  LITERAL | visa::ISA_MUL, // opcode
+  LITERAL | ISA_MUL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -739,7 +741,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mul, signed result, unsigned operands, saturated
   Intrinsic::genx_sumul_sat,
-  LITERAL | visa::ISA_MUL, // opcode
+  LITERAL | ISA_MUL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -749,7 +751,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mul, unsigned result, signed operands, saturated
   Intrinsic::genx_usmul_sat,
-  LITERAL | visa::ISA_MUL, // opcode
+  LITERAL | ISA_MUL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -759,7 +761,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mul, unsigned result, unsigned operands, saturated
   Intrinsic::genx_uumul_sat,
-  LITERAL | visa::ISA_MUL, // opcode
+  LITERAL | ISA_MUL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -769,7 +771,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mulh, signed result and operands
   Intrinsic::genx_smulh,
-  LITERAL | visa::ISA_MULH, // opcode
+  LITERAL | ISA_MULH, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | 0, // dst (return value)
@@ -779,7 +781,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // mulh, unsigned result and operands
   Intrinsic::genx_umulh,
-  LITERAL | visa::ISA_MULH, // opcode
+  LITERAL | ISA_MULH, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -793,7 +795,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // pln
   Intrinsic::genx_pln,
-  LITERAL | visa::ISA_PLANE, // opcode
+  LITERAL | ISA_PLANE, // opcode
   EXECSIZE_GE8, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -803,7 +805,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // pow
   Intrinsic::genx_pow,
-  LITERAL | visa::ISA_POW, // opcode
+  LITERAL | ISA_POW, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -813,7 +815,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // rndd
   Intrinsic::genx_rndd,
-  LITERAL | visa::ISA_RNDD, // opcode
+  LITERAL | ISA_RNDD, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -822,7 +824,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // rnde
   Intrinsic::genx_rnde,
-  LITERAL | visa::ISA_RNDE, // opcode
+  LITERAL | ISA_RNDE, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -831,7 +833,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // rndu
   Intrinsic::genx_rndu,
-  LITERAL | visa::ISA_RNDU, // opcode
+  LITERAL | ISA_RNDU, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -840,7 +842,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // rndz
   Intrinsic::genx_rndz,
-  LITERAL | visa::ISA_RNDZ, // opcode
+  LITERAL | ISA_RNDZ, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -849,7 +851,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // rsqrt
   Intrinsic::genx_rsqrt,
-  LITERAL | visa::ISA_RSQRT, // opcode
+  LITERAL | ISA_RSQRT, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -857,7 +859,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_ssad2,
-  LITERAL | visa::ISA_SAD2, // opcode
+  LITERAL | ISA_SAD2, // opcode
   EXECSIZE_GE2, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | 0, // dst (return value)
@@ -866,7 +868,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_usad2,
-  LITERAL | visa::ISA_SAD2, // opcode
+  LITERAL | ISA_SAD2, // opcode
   EXECSIZE_GE2, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -876,7 +878,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // sssad2add, signed
   Intrinsic::genx_sssad2add,
-  LITERAL | visa::ISA_SAD2ADD, // opcode
+  LITERAL | ISA_SAD2ADD, // opcode
   EXECSIZE_GE2, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | 0, // dst (return value)
@@ -887,7 +889,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // uusad2add, unsigned
   Intrinsic::genx_uusad2add,
-  LITERAL | visa::ISA_SAD2ADD, // opcode
+  LITERAL | ISA_SAD2ADD, // opcode
   EXECSIZE_GE2, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -898,7 +900,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // susad2add, signed result, unsigned src
   Intrinsic::genx_susad2add,
-  LITERAL | visa::ISA_SAD2ADD, // opcode
+  LITERAL | ISA_SAD2ADD, // opcode
   EXECSIZE_GE2, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | 0, // dst (return value)
@@ -909,7 +911,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // ussad2add, unsigned result, signed src
   Intrinsic::genx_ussad2add,
-  LITERAL | visa::ISA_SAD2ADD, // opcode
+  LITERAL | ISA_SAD2ADD, // opcode
   EXECSIZE_GE2, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -920,7 +922,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // sssad2add, signed, saturated
   Intrinsic::genx_sssad2add_sat,
-  LITERAL | visa::ISA_SAD2ADD, // opcode
+  LITERAL | ISA_SAD2ADD, // opcode
   EXECSIZE_GE2, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -931,7 +933,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // uusad2add, unsigned, saturated
   Intrinsic::genx_uusad2add_sat,
-  LITERAL | visa::ISA_SAD2ADD, // opcode
+  LITERAL | ISA_SAD2ADD, // opcode
   EXECSIZE_GE2, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -942,7 +944,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // susad2add, signed result, unsigned src, saturated
   Intrinsic::genx_susad2add_sat,
-  LITERAL | visa::ISA_SAD2ADD, // opcode
+  LITERAL | ISA_SAD2ADD, // opcode
   EXECSIZE_GE2, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -953,7 +955,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // ussad2add, unsigned result, signed src, saturated
   Intrinsic::genx_ussad2add_sat,
-  LITERAL | visa::ISA_SAD2ADD, // opcode
+  LITERAL | ISA_SAD2ADD, // opcode
   EXECSIZE_GE2, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -964,7 +966,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // shl, signed result, signed operands
   Intrinsic::genx_ssshl,
-  LITERAL | visa::ISA_SHL, // opcode
+  LITERAL | ISA_SHL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | 0, // dst (return value)
@@ -974,7 +976,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // shl, signed result, unsigned operands
   Intrinsic::genx_sushl,
-  LITERAL | visa::ISA_SHL, // opcode
+  LITERAL | ISA_SHL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | 0, // dst (return value)
@@ -984,7 +986,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // shl, unsigned result, signed operands
   Intrinsic::genx_usshl,
-  LITERAL | visa::ISA_SHL, // opcode
+  LITERAL | ISA_SHL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -994,7 +996,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // shl, unsigned result, unsigned operands
   Intrinsic::genx_uushl,
-  LITERAL | visa::ISA_SHL, // opcode
+  LITERAL | ISA_SHL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | 0, // dst (return value)
@@ -1004,7 +1006,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // shl, signed result, signed operands, saturated
   Intrinsic::genx_ssshl_sat,
-  LITERAL | visa::ISA_SHL, // opcode
+  LITERAL | ISA_SHL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -1014,7 +1016,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // shl, signed result, unsigned operands, saturated
   Intrinsic::genx_sushl_sat,
-  LITERAL | visa::ISA_SHL, // opcode
+  LITERAL | ISA_SHL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | SIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -1024,7 +1026,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // shl, unsigned result, signed operands, saturated
   Intrinsic::genx_usshl_sat,
-  LITERAL | visa::ISA_SHL, // opcode
+  LITERAL | ISA_SHL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -1034,7 +1036,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // shl, unsigned result, unsigned operands, saturated
   Intrinsic::genx_uushl_sat,
-  LITERAL | visa::ISA_SHL, // opcode
+  LITERAL | ISA_SHL, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | UNSIGNED | SATURATION_SATURATE | 0, // dst (return value)
@@ -1048,7 +1050,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // sin
   Intrinsic::genx_sin,
-  LITERAL | visa::ISA_SIN, // opcode
+  LITERAL | ISA_SIN, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -1057,7 +1059,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // sqrt
   Intrinsic::genx_sqrt,
-  LITERAL | visa::ISA_SQRT, // opcode
+  LITERAL | ISA_SQRT, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -1066,7 +1068,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // ieee_sqrt
   Intrinsic::genx_ieee_sqrt,
-  LITERAL | visa::ISA_SQRTM, // opcode
+  LITERAL | ISA_SQRTM, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -1075,7 +1077,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
   // ieee_div
   Intrinsic::genx_ieee_div,
-  LITERAL | visa::ISA_DIVM, // opcode
+  LITERAL | ISA_DIVM, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -1094,109 +1096,118 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 #define VARNUM(a) LITERAL | (a), LITERAL | 0, LITERAL | 0, LITERAL | 0
 
   Intrinsic::genx_thread_x,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
-  LITERAL | visa::CLASS_GENERAL, VARNUM(visa::PREDEF_X), LITERAL | 0,
+  LITERAL | visa::CLASS_GENERAL, VARNUM(PREDEFINED_X), LITERAL | 0,
       LITERAL | 0, LITERAL | 0x21, LITERAL | 1, // v1
   END,
 
   Intrinsic::genx_thread_y,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
-  LITERAL | visa::CLASS_GENERAL, VARNUM(visa::PREDEF_Y), LITERAL | 0,
+  LITERAL | visa::CLASS_GENERAL, VARNUM(PREDEFINED_Y), LITERAL | 0,
       LITERAL | 0, LITERAL | 0x21, LITERAL | 1, // v2
   END,
 
   Intrinsic::genx_group_id_x,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
-  LITERAL | visa::CLASS_GENERAL, VARNUM(visa::PREDEF_GROUP_ID_X), LITERAL | 0,
+  LITERAL | visa::CLASS_GENERAL, VARNUM(PREDEFINED_GROUP_ID_X), LITERAL | 0,
       LITERAL | 0, LITERAL | 0x21, LITERAL | 1, // v7
   END,
 
   Intrinsic::genx_group_id_y,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
-  LITERAL | visa::CLASS_GENERAL, VARNUM(visa::PREDEF_GROUP_ID_Y), LITERAL | 0,
+  LITERAL | visa::CLASS_GENERAL, VARNUM(PREDEFINED_GROUP_ID_Y), LITERAL | 0,
       LITERAL | 0, LITERAL | 0x21, LITERAL | 1, // v8
   END,
 
   Intrinsic::genx_group_id_z,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
-  LITERAL | visa::CLASS_GENERAL, VARNUM(visa::PREDEF_GROUP_ID_Z), LITERAL | 0,
+  LITERAL | visa::CLASS_GENERAL, VARNUM(PREDEFINED_GROUP_ID_Z), LITERAL | 0,
       LITERAL | 0, LITERAL | 0x21, LITERAL | 1, // v23
   END,
   
   Intrinsic::genx_timestamp,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
-  LITERAL | visa::CLASS_GENERAL, VARNUM(visa::PREDEF_TSC), LITERAL | 0,
+  LITERAL | visa::CLASS_GENERAL, VARNUM(PREDEFINED_TSC), LITERAL | 0,
       LITERAL | 0, LITERAL | 0x22, LITERAL | 1, // v11(0,0)<1;1,0>
   END,
 
   Intrinsic::genx_r0,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
-  LITERAL | visa::CLASS_GENERAL, VARNUM(visa::PREDEF_R0), LITERAL | 0,
+  LITERAL | visa::CLASS_GENERAL, VARNUM(PREDEFINED_R0), LITERAL | 0,
       LITERAL | 0, LITERAL | 0x22, LITERAL | 1, // v12(0,0)<1;1,0>
   END,
 
   Intrinsic::genx_sr0,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
-  LITERAL | visa::CLASS_GENERAL, VARNUM(visa::PREDEF_SR0), LITERAL | 0,
-      LITERAL | 0, LITERAL | 0x22, LITERAL | 1, // v18(0,0)<1;1,0>
+  LITERAL | visa::CLASS_GENERAL, VARNUM(PREDEFINED_SR0), LITERAL | 0,
+      LITERAL | 0, LITERAL | 0x22, LITERAL | 1, // v13(0,0)<1;1,0>
+  END,
+
+  Intrinsic::genx_set_sr0_2,
+  LITERAL | ISA_MOV, // opcode
+  EXECSIZE_NOMASK, // execution size
+  IMPLICITPRED, // predication
+  LITERAL | visa::CLASS_GENERAL, VARNUM(PREDEFINED_SR0), LITERAL | 0,
+  LITERAL | 2, LITERAL | 0, LITERAL | 2, // v13(0,2)<1>
+  GENERAL | 1, // src (sr0.2 value)
   END,
 
   Intrinsic::genx_get_color,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
-  LITERAL | visa::CLASS_GENERAL, VARNUM(visa::PREDEF_COLOR), LITERAL | 0,
+  LITERAL | visa::CLASS_GENERAL, VARNUM(PREDEFINED_COLOR), LITERAL | 0,
       LITERAL | 0, LITERAL | 0x22, LITERAL | 1, // v22(0,0)<1;1,0>
   END,
 
   Intrinsic::genx_get_hwid,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
-  LITERAL | visa::CLASS_GENERAL, VARNUM(visa::PREDEF_HW_TID), LITERAL | 0,
+  LITERAL | visa::CLASS_GENERAL, VARNUM(PREDEFINED_HW_TID), LITERAL | 0,
       LITERAL | 0, LITERAL | 0x21, LITERAL | 1, // v12(0,0)<0;1,0>
   END,
 
   Intrinsic::genx_set_pause,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
-  LITERAL | visa::CLASS_GENERAL, VARNUM(visa::PREDEF_TSC), LITERAL | 0,
+  LITERAL | visa::CLASS_GENERAL, VARNUM(PREDEFINED_TSC), LITERAL | 0,
       LITERAL | 4, LITERAL | 0x22, LITERAL | 2, // v11(0,4)<1;1,1>
   GENERAL | 1, // src (pause length)
   END,
 
   Intrinsic::genx_dummy_mov,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
-  LITERAL | visa::CLASS_GENERAL, VARNUM(visa::PREDEF_NULL), LITERAL | 0,
+  LITERAL | visa::CLASS_GENERAL, VARNUM(PREDEFINED_NULL), LITERAL | 0,
       LITERAL | 0, LITERAL | 0x22, LITERAL | 2, // v0(0,0)<1;1,1>
   GENERAL | 1, // src (dummy mov src)
   END,
@@ -1205,8 +1216,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   // shared function intrinsics
 
   Intrinsic::genx_dword_atomic_add,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_ADD, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_ADD, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1218,8 +1229,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_dword_atomic_sub,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_SUB, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_SUB, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1231,8 +1242,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_dword_atomic_inc,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_INC, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_INC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1244,8 +1255,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_dword_atomic_dec,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_DEC, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_DEC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1257,8 +1268,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_dword_atomic_min,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_MIN, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_MIN, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1270,8 +1281,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_dword_atomic_max,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_MAX, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_MAX, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1283,8 +1294,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_dword_atomic_xchg,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_XCHG, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_XCHG, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1296,8 +1307,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_dword_atomic_cmpxchg,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_CMPXCHG, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_CMPXCHG, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1309,8 +1320,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_dword_atomic_and,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_AND, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_AND, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1322,8 +1333,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_dword_atomic_or,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_OR, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_OR, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1335,8 +1346,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_dword_atomic_xor,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_XOR, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_XOR, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1348,8 +1359,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_dword_atomic_imin,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_IMIN, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_IMIN, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1361,8 +1372,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_dword_atomic_imax,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_IMAX, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_IMAX, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1374,8 +1385,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_dword_atomic_fmax,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_FMAX, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_FMAX, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1387,8 +1398,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_dword_atomic_fmin,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_FMIN, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_FMIN, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1400,8 +1411,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_dword_atomic_fcmpwr,
-  LITERAL | visa::ISA_DWORD_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_FCMPWR, // sub-opcode
+  LITERAL | ISA_DWORD_ATOMIC, // opcode
+  LITERAL | ATOMIC_FCMPWR, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1414,8 +1425,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
 
 
   Intrinsic::genx_typed_atomic_add,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_ADD, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_ADD, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1429,8 +1440,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_typed_atomic_sub,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_SUB, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_SUB, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1444,8 +1455,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_typed_atomic_inc,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_INC, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_INC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1459,8 +1470,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_typed_atomic_dec,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_DEC, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_DEC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1474,8 +1485,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_typed_atomic_min,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_MIN, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_MIN, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1489,8 +1500,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_typed_atomic_max,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_MAX, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_MAX, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1504,8 +1515,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_typed_atomic_xchg,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_XCHG, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_XCHG, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1519,8 +1530,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_typed_atomic_cmpxchg,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_CMPXCHG, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_CMPXCHG, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1534,8 +1545,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_typed_atomic_and,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_AND, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_AND, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1549,8 +1560,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_typed_atomic_or,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_OR, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_OR, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1564,8 +1575,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_typed_atomic_xor,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_XOR, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_XOR, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1579,8 +1590,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_typed_atomic_imin,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_IMIN, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_IMIN, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1594,8 +1605,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_typed_atomic_imax,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_IMAX, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_IMAX, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1609,8 +1620,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_typed_atomic_fmax,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_FMAX, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_FMAX, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1624,8 +1635,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_typed_atomic_fmin,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_FMIN, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_FMIN, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1639,8 +1650,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_typed_atomic_fcmpwr,
-  LITERAL | visa::ISA_3D_TYPED_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_FCMPWR, // sub-opcode
+  LITERAL | ISA_3D_TYPED_ATOMIC, // opcode
+  LITERAL | ATOMIC_FCMPWR, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size
   PREDICATION | 1, // predication
   SURFACE | 2, // surface index
@@ -1654,20 +1665,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
 
-  Intrinsic::genx_gather_orig,
-  LITERAL | visa::ISA_GATHER, // opcode
-  LOG2ELTSIZE | 1, // log2 element size
-  BYTE | 2, // is_modified
-  GATHERNUMELTS | 5, // num_elts (from arg)
-  SURFACE | 3, // surface index
-  GENERAL | UNSIGNED | 4, // global offset
-  URAW | 5, // element offset
-  TWOADDR | 6, // not in vISA instruction: old value of result
-  RAW | 0, // dst (return value)
-  END,
-
   Intrinsic::genx_gather_scaled,
-  LITERAL | visa::ISA_GATHER_SCALED, // opcode
+  LITERAL | ISA_GATHER_SCALED, // opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
   LITERAL | 0, // block size (MBZ)
@@ -1680,20 +1679,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   RAW | 0, // dst (return value)
   END,
 
-  Intrinsic::genx_gather4_orig,
-  LITERAL | visa::ISA_GATHER4, // opcode
-  BYTE | 1, // channel mask
-  BYTE | 2, // is_modified
-  GATHERNUMELTS | 6, // num_elts (from arg) and execution mask (from predicate)
-  SURFACE | 4, // surface index
-  GENERAL | UNSIGNED | 5, // global offset
-  URAW | 6, // element offset
-  TWOADDR | 7, // not in vISA instruction: old value of result
-  RAW | 0, // dst (return value)
-  END,
-
   Intrinsic::genx_gather4_scaled,
-  LITERAL | visa::ISA_GATHER4_SCALED, // opcode
+  LITERAL | ISA_GATHER4_SCALED, // opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
   BYTE | 2, // channel mask
@@ -1706,7 +1693,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_gather4_typed,
-  LITERAL | visa::ISA_GATHER4_TYPED, // opcode
+  LITERAL | ISA_GATHER4_TYPED, // opcode
   EXECSIZE_FROM_ARG | 2, // execution size (must be 8)
   PREDICATION | 2, // predicate
   BYTE | 1, // channel mask
@@ -1720,7 +1707,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_media_ld,
-  LITERAL | visa::ISA_MEDIA_LD, // opcode
+  LITERAL | ISA_MEDIA_LD, // opcode
   BYTE | 1, // modifiers
   SURFACE | 2, // surface index
   BYTE | 3, // plane
@@ -1732,7 +1719,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_media_st,
-  LITERAL | visa::ISA_MEDIA_ST, // opcode
+  LITERAL | ISA_MEDIA_ST, // opcode
   BYTE | 1, // modifiers
   SURFACE | 2, // surface index
   BYTE | 3, // plane
@@ -1744,7 +1731,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_oword_ld,
-  LITERAL | visa::ISA_OWORD_LD, // opcode
+  LITERAL | ISA_OWORD_LD, // opcode
   LOG2OWORDS | 0, // size, log2 number of owords
   BYTE | 1, // is_modified
   SURFACE | 2, // surface index
@@ -1753,7 +1740,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_oword_ld_unaligned,
-  LITERAL | visa::ISA_OWORD_LD_UNALIGNED, // opcode
+  LITERAL | ISA_OWORD_LD_UNALIGNED, // opcode
   LOG2OWORDS | 0, // size, log2 number of owords
   BYTE | 1, // is_modified
   SURFACE | 2, // surface index
@@ -1762,25 +1749,15 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_oword_st,
-  LITERAL | visa::ISA_OWORD_ST, // opcode
+  LITERAL | ISA_OWORD_ST, // opcode
   LOG2OWORDS | 3, // log2 number of owords
   SURFACE | 1, // surface index
   GENERAL | UNSIGNED | 2, // offset
   RAW | 3, // src
   END,
 
-  Intrinsic::genx_scatter_orig,
-  LITERAL | visa::ISA_SCATTER, // opcode
-  LOG2ELTSIZE | 1, // log2 element size
-  GATHERNUMELTS | 5, // num_elts (from arg)
-  SURFACE | 2, // surface index
-  GENERAL | UNSIGNED | 3, // global offset
-  URAW | 4, // element offset
-  RAW | 5, // src
-  END,
-
   Intrinsic::genx_scatter_scaled,
-  LITERAL | visa::ISA_SCATTER_SCALED, // opcode
+  LITERAL | ISA_SCATTER_SCALED, // opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
   LITERAL | 0, // 1 byte block size (MBZ)
@@ -1792,18 +1769,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   RAW | 7, // src
   END,
 
-  Intrinsic::genx_scatter4_orig,
-  LITERAL | visa::ISA_SCATTER4, // opcode
-  BYTE | 1, // channel mask
-  GATHERNUMELTS | 5, // num_elts (from arg) and execution mask (from predicate)
-  SURFACE | 3, // surface index
-  GENERAL | UNSIGNED | 4, // global offset
-  URAW | 5, // element offset
-  RAW | 6, // src
-  END,
-
   Intrinsic::genx_scatter4_scaled,
-  LITERAL | visa::ISA_SCATTER4_SCALED, // opcode
+  LITERAL | ISA_SCATTER4_SCALED, // opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
   BYTE | 2, // channel mask
@@ -1815,7 +1782,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_scatter4_typed,
-  LITERAL | visa::ISA_SCATTER4_TYPED, // opcode
+  LITERAL | ISA_SCATTER4_TYPED, // opcode
   EXECSIZE_FROM_ARG | 2, // execution size (must be 8)
   PREDICATION | 2, // predicate
   BYTE | 1, // channel mask
@@ -1827,212 +1794,33 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   RAW | 7, // src
   END,
 
-  Intrinsic::genx_transpose_ld,
-  LITERAL | visa::ISA_TRANSPOSE_LD, // opcode
-  SURFACE | 1, // surface index
-  BYTE | 2, // log2 block width in i32s
-  TRANSPOSEHEIGHT | 2, // log2 block height
-  GENERAL | UNSIGNED | 3, // X offset
-  GENERAL | UNSIGNED | 4, // Y offset
-  RAW | 0, // dst
-  END,
-
-  Intrinsic::genx_untyped_atomic_add,
-  LITERAL | visa::ISA_SCATTER_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_ADD, // sub-opcode
-  GATHERNUMELTS | 4, // num_elts (from arg) and execution mask (from predicate)
-  SURFACE | 2, // surface index
-  GENERAL | UNSIGNED | 3, // global offset
-  URAW | 4, // element offset
-  URAW | 5, // src
-  NULLRAW, // src1 (null variable)
-  TWOADDR | 6, // not in vISA instruction: old value of result
-  URAW | RAW_NULLALLOWED | 0, // dst
-  END,
-
-  Intrinsic::genx_untyped_atomic_sub,
-  LITERAL | visa::ISA_SCATTER_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_SUB, // sub-opcode
-  GATHERNUMELTS | 4, // num_elts (from arg) and execution mask (from predicate)
-  SURFACE | 2, // surface index
-  GENERAL | UNSIGNED | 3, // global offset
-  URAW | 4, // element offset
-  URAW | 5, // src
-  NULLRAW, // src1 (null variable)
-  TWOADDR | 6, // not in vISA instruction: old value of result
-  URAW | RAW_NULLALLOWED | 0, // dst
-  END,
-
-  Intrinsic::genx_untyped_atomic_min,
-  LITERAL | visa::ISA_SCATTER_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_MIN, // sub-opcode
-  GATHERNUMELTS | 4, // num_elts (from arg) and execution mask (from predicate)
-  SURFACE | 2, // surface index
-  GENERAL | UNSIGNED | 3, // global offset
-  URAW | 4, // element offset
-  URAW | 5, // src
-  NULLRAW, // src1 (null variable)
-  TWOADDR | 6, // not in vISA instruction: old value of result
-  URAW | RAW_NULLALLOWED | 0, // dst
-  END,
-
-  Intrinsic::genx_untyped_atomic_max,
-  LITERAL | visa::ISA_SCATTER_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_MAX, // sub-opcode
-  GATHERNUMELTS | 4, // num_elts (from arg) and execution mask (from predicate)
-  SURFACE | 2, // surface index
-  GENERAL | UNSIGNED | 3, // global offset
-  URAW | 4, // element offset
-  URAW | 5, // src
-  NULLRAW, // src1 (null variable)
-  TWOADDR | 6, // not in vISA instruction: old value of result
-  URAW | RAW_NULLALLOWED | 0, // dst
-  END,
-
-  Intrinsic::genx_untyped_atomic_xchg,
-  LITERAL | visa::ISA_SCATTER_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_XCHG, // sub-opcode
-  GATHERNUMELTS | 4, // num_elts (from arg) and execution mask (from predicate)
-  SURFACE | 2, // surface index
-  GENERAL | UNSIGNED | 3, // global offset
-  URAW | 4, // element offset
-  URAW | 5, // src
-  NULLRAW, // src1 (null variable)
-  TWOADDR | 6, // not in vISA instruction: old value of result
-  URAW | RAW_NULLALLOWED | 0, // dst
-  END,
-
-  Intrinsic::genx_untyped_atomic_and,
-  LITERAL | visa::ISA_SCATTER_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_AND, // sub-opcode
-  GATHERNUMELTS | 4, // num_elts (from arg) and execution mask (from predicate)
-  SURFACE | 2, // surface index
-  GENERAL | UNSIGNED | 3, // global offset
-  URAW | 4, // element offset
-  URAW | 5, // src
-  NULLRAW, // src1 (null variable)
-  TWOADDR | 6, // not in vISA instruction: old value of result
-  URAW | RAW_NULLALLOWED | 0, // dst
-  END,
-
-  Intrinsic::genx_untyped_atomic_or,
-  LITERAL | visa::ISA_SCATTER_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_OR, // sub-opcode
-  GATHERNUMELTS | 4, // num_elts (from arg) and execution mask (from predicate)
-  SURFACE | 2, // surface index
-  GENERAL | UNSIGNED | 3, // global offset
-  URAW | 4, // element offset
-  URAW | 5, // src
-  NULLRAW, // src1 (null variable)
-  TWOADDR | 6, // not in vISA instruction: old value of result
-  URAW | RAW_NULLALLOWED | 0, // dst
-  END,
-
-  Intrinsic::genx_untyped_atomic_xor,
-  LITERAL | visa::ISA_SCATTER_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_XOR, // sub-opcode
-  GATHERNUMELTS | 4, // num_elts (from arg) and execution mask (from predicate)
-  SURFACE | 2, // surface index
-  GENERAL | UNSIGNED | 3, // global offset
-  URAW | 4, // element offset
-  URAW | 5, // src
-  NULLRAW, // src1 (null variable)
-  TWOADDR | 6, // not in vISA instruction: old value of result
-  URAW | RAW_NULLALLOWED | 0, // dst
-  END,
-
-  Intrinsic::genx_untyped_atomic_imin,
-  LITERAL | visa::ISA_SCATTER_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_IMIN, // sub-opcode
-  GATHERNUMELTS | 4, // num_elts (from arg) and execution mask (from predicate)
-  SURFACE | 2, // surface index
-  GENERAL | UNSIGNED | 3, // global offset
-  URAW | 4, // element offset
-  SRAW | 5, // src
-  NULLRAW, // src1 (null variable)
-  TWOADDR | 6, // not in vISA instruction: old value of result
-  SRAW | RAW_NULLALLOWED | 0, // dst
-  END,
-
-  Intrinsic::genx_untyped_atomic_imax,
-  LITERAL | visa::ISA_SCATTER_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_IMAX, // sub-opcode
-  GATHERNUMELTS | 4, // num_elts (from arg) and execution mask (from predicate)
-  SURFACE | 2, // surface index
-  GENERAL | UNSIGNED | 3, // global offset
-  URAW | 4, // element offset
-  SRAW | 5, // src
-  NULLRAW, // src1 (null variable)
-  TWOADDR | 6, // not in vISA instruction: old value of result
-  SRAW | RAW_NULLALLOWED | 0, // dst
-  END,
-
-  Intrinsic::genx_untyped_atomic_inc,
-  LITERAL | visa::ISA_SCATTER_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_INC, // sub-opcode
-  GATHERNUMELTS | 4, // num_elts (from arg) and execution mask (from predicate)
-  SURFACE | 2, // surface index
-  GENERAL | UNSIGNED | 3, // global offset
-  URAW | 4, // element offset
-  NULLRAW, // src0 (null variable)
-  NULLRAW, // src1 (null variable)
-  TWOADDR | 5, // not in vISA instruction: old value of result
-  URAW | RAW_NULLALLOWED | 0, // dst
-  END,
-
-  Intrinsic::genx_untyped_atomic_dec,
-  LITERAL | visa::ISA_SCATTER_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_DEC, // sub-opcode
-  GATHERNUMELTS | 4, // num_elts (from arg) and execution mask (from predicate)
-  SURFACE | 2, // surface index
-  GENERAL | UNSIGNED | 3, // global offset
-  URAW | 4, // element offset
-  NULLRAW, // src0 (null variable)
-  NULLRAW, // src1 (null variable)
-  TWOADDR | 5, // not in vISA instruction: old value of result
-  URAW | RAW_NULLALLOWED | 0, // dst
-  END,
-
-  Intrinsic::genx_untyped_atomic_cmpxchg,
-  LITERAL | visa::ISA_SCATTER_ATOMIC, // opcode
-  LITERAL | visa::ATOMIC_CMPXCHG, // sub-opcode
-  GATHERNUMELTS | 4, // num_elts (from arg) and execution mask (from predicate)
-  SURFACE | 2, // surface index
-  GENERAL | UNSIGNED | 3, // global offset
-  URAW | 4, // element offset
-  URAW | 5, // src0
-  URAW | 6, // src1
-  TWOADDR | 7, // not in vISA instruction: old value of result
-  URAW | RAW_NULLALLOWED | 0, // dst
-  END,
-
   Intrinsic::genx_svm_block_ld,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_BLOCK_LD, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_BLOCK_LD, // sub-opcode
   LOG2OWORDS | 0, // log2 number of owords
   GENERAL | UNSIGNED | 1, // address
   RAW | 0, // dst
   END,
 
   Intrinsic::genx_svm_block_ld_unaligned,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_BLOCK_LD, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_BLOCK_LD, // sub-opcode
   LOG2OWORDS_PLUS_8 | 0, // log2 number of owords with unaligned flag
   GENERAL | UNSIGNED | 1, // address
   RAW | 0, // dst
   END,
 
   Intrinsic::genx_svm_block_st,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_BLOCK_ST, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_BLOCK_ST, // sub-opcode
   LOG2OWORDS | 2, // log2 number of owords
   GENERAL | UNSIGNED | 1, // address
   RAW | 2, // src
   END,
 
   Intrinsic::genx_svm_gather,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_GATHER, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_GATHER, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
   SVMGATHERBLOCKSIZE | 0, // block size inferred from dst
@@ -2043,8 +1831,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_gather4_scaled,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_GATHER4_SCALED, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_GATHER4SCALED, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
   BYTE | 2, // channel mask
@@ -2056,8 +1844,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_scatter,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_SCATTER, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_SCATTER, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
   SVMGATHERBLOCKSIZE | 4, // block size inferred from dst
@@ -2067,8 +1855,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_scatter4_scaled,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_SCATTER4_SCALED, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_SCATTER4SCALED, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
   BYTE | 2, // channel mask
@@ -2079,11 +1867,11 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_atomic_add,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_ATOMIC, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_ATOMIC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
-  LITERAL | visa::ATOMIC_ADD, // sub-opcode
+  LITERAL | ATOMIC_ADD, // sub-opcode
   URAW | 2, // address
   URAW | 3, // src0
   NULLRAW, // src1 (null variable)
@@ -2092,11 +1880,11 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_atomic_sub,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_ATOMIC, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_ATOMIC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
-  LITERAL | visa::ATOMIC_SUB, // sub-opcode
+  LITERAL | ATOMIC_SUB, // sub-opcode
   URAW | 2, // address
   URAW | 3, // src0
   NULLRAW, // src1 (null variable)
@@ -2105,11 +1893,11 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_atomic_min,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_ATOMIC, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_ATOMIC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
-  LITERAL | visa::ATOMIC_MIN, // sub-opcode
+  LITERAL | ATOMIC_MIN, // sub-opcode
   URAW | 2, // address
   URAW | 3, // src0
   NULLRAW, // src1 (null variable)
@@ -2118,11 +1906,11 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_atomic_max,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_ATOMIC, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_ATOMIC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
-  LITERAL | visa::ATOMIC_MAX, // sub-opcode
+  LITERAL | ATOMIC_MAX, // sub-opcode
   URAW | 2, // address
   URAW | 3, // src0
   NULLRAW, // src1 (null variable)
@@ -2131,11 +1919,11 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_atomic_xchg,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_ATOMIC, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_ATOMIC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
-  LITERAL | visa::ATOMIC_XCHG, // sub-opcode
+  LITERAL | ATOMIC_XCHG, // sub-opcode
   URAW | 2, // address
   URAW | 3, // src0
   NULLRAW, // src1 (null variable)
@@ -2144,11 +1932,11 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_atomic_and,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_ATOMIC, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_ATOMIC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
-  LITERAL | visa::ATOMIC_AND, // sub-opcode
+  LITERAL | ATOMIC_AND, // sub-opcode
   URAW | 2, // address
   URAW | 3, // src0
   NULLRAW, // src1 (null variable)
@@ -2157,11 +1945,11 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_atomic_or,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_ATOMIC, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_ATOMIC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
-  LITERAL | visa::ATOMIC_OR, // sub-opcode
+  LITERAL | ATOMIC_OR, // sub-opcode
   URAW | 2, // address
   URAW | 3, // src0
   NULLRAW, // src1 (null variable)
@@ -2170,11 +1958,11 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_atomic_xor,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_ATOMIC, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_ATOMIC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
-  LITERAL | visa::ATOMIC_XOR, // sub-opcode
+  LITERAL | ATOMIC_XOR, // sub-opcode
   URAW | 2, // address
   URAW | 3, // src0
   NULLRAW, // src1 (null variable)
@@ -2183,11 +1971,11 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_atomic_imin,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_ATOMIC, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_ATOMIC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
-  LITERAL | visa::ATOMIC_IMIN, // sub-opcode
+  LITERAL | ATOMIC_IMIN, // sub-opcode
   URAW | 2, // address
   SRAW | 3, // src0
   NULLRAW, // src1 (null variable)
@@ -2196,11 +1984,11 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_atomic_imax,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_ATOMIC, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_ATOMIC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
-  LITERAL | visa::ATOMIC_IMAX, // sub-opcode
+  LITERAL | ATOMIC_IMAX, // sub-opcode
   URAW | 2, // address
   SRAW | 3, // src0
   NULLRAW, // src1 (null variable)
@@ -2209,11 +1997,11 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_atomic_inc,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_ATOMIC, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_ATOMIC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
-  LITERAL | visa::ATOMIC_INC, // sub-opcode
+  LITERAL | ATOMIC_INC, // sub-opcode
   URAW | 2, // address
   NULLRAW, // src0 (null variable)
   NULLRAW, // src1 (null variable)
@@ -2222,11 +2010,11 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_atomic_dec,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_ATOMIC, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_ATOMIC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
-  LITERAL | visa::ATOMIC_DEC, // sub-opcode
+  LITERAL | ATOMIC_DEC, // sub-opcode
   URAW | 2, // address
   NULLRAW, // src0 (null variable)
   NULLRAW, // src1 (null variable)
@@ -2235,11 +2023,11 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_svm_atomic_cmpxchg,
-  LITERAL | visa::ISA_SVM, // opcode
-  LITERAL | visa::SVM_ATOMIC, // sub-opcode
+  LITERAL | ISA_SVM, // opcode
+  LITERAL | SVM_ATOMIC, // sub-opcode
   EXECSIZE_FROM_ARG | 1, // execution size (must be 8 or 16)
   PREDICATION | 1, // predicate
-  LITERAL | visa::ATOMIC_CMPXCHG, // sub-opcode
+  LITERAL | ATOMIC_CMPXCHG, // sub-opcode
   URAW | 2, // address
   URAW | 3, // src0
   URAW | 4, // src1
@@ -2248,7 +2036,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_load,
-  LITERAL | visa::ISA_LOAD, // opcode
+  LITERAL | ISA_LOAD, // opcode
   SAMPLECHMASK | 1, // channel mask + simd_mode inferred from pixel addr operands
   SURFACE | 2, // surface index
   RAW | 3, // U pixel address
@@ -2258,7 +2046,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_sample,
-  LITERAL | visa::ISA_SAMPLE, // opcode
+  LITERAL | ISA_SAMPLE, // opcode
   SAMPLECHMASK | 1, // channel mask + simd_mode inferred from pixel addr operands
   SAMPLER | 2, // sampler index
   SURFACE | 3, // surface index
@@ -2269,7 +2057,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_sample_unorm,
-  LITERAL | visa::ISA_SAMPLE_UNORM, // opcode
+  LITERAL | ISA_SAMPLE_UNORM, // opcode
   BYTE | 1, // channel mask
   SAMPLER | 2, // sampler index
   SURFACE | 3, // surface index
@@ -2281,7 +2069,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_avs,
-  LITERAL | visa::ISA_AVS, // opcode
+  LITERAL | ISA_AVS, // opcode
   BYTE | 1, // channel mask
   SAMPLER | 2, // sampler index
   SURFACE | 3, // surface index
@@ -2300,7 +2088,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_3d_sample,
-  LITERAL | visa::ISA_3D_SAMPLE, // opcode
+  LITERAL | ISA_3D_SAMPLE, // opcode
   BYTE | 1, // 3d sampling opcode
   EXECSIZE_FROM_ARG | 2, // execution size
   PREDICATION | 2, // predication
@@ -2328,7 +2116,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_3d_load,
-  LITERAL | visa::ISA_3D_LOAD, // opcode
+  LITERAL | ISA_3D_LOAD, // opcode
   BYTE | 1, // 3d sampling opcode
   EXECSIZE_FROM_ARG | 2, // execution size
   PREDICATION | 2, // predication
@@ -2354,16 +2142,16 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   RAW | 20, // additional optional operand
   END,
 
-  VA_CONV_OP(genx_va_convolve2d,    ISA_VA_CONV),
-  VA_CONV_OP(genx_va_erode,         ISA_VA_ERODE),
-  VA_CONV_OP(genx_va_dilate,        ISA_VA_DILATE),
+  VA_CONV_OP(genx_va_convolve2d, Convolve_FOPCODE),
+  VA_CONV_OP(genx_va_erode,      ERODE_FOPCODE),
+  VA_CONV_OP(genx_va_dilate,     Dilate_FOPCODE),
 
   VA_HDC_CONV_OP(genx_va_hdc_erode,   ISA_HDC_ERODE),
   VA_HDC_CONV_OP(genx_va_hdc_dilate,  ISA_HDC_DILATE),
 
   Intrinsic::genx_va_minmax,
-  LITERAL | visa::ISA_VA,         // primary opcode
-  LITERAL | visa::ISA_VA_MM,      // sub-opcode
+  LITERAL | ISA_VA,               // primary opcode
+  LITERAL | MINMAX_FOPCODE,       // sub-opcode
   SURFACE | 1,                    // surface index
   GENERAL | 2,                    // normalized x co-ordinate
   GENERAL | 3,                    // normalized y co-ordinate
@@ -2372,8 +2160,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_va_minmax_filter,
-  LITERAL | visa::ISA_VA,         // primary opcode
-  LITERAL | visa::ISA_VA_MMF,     // sub-opcode
+  LITERAL | ISA_VA,               // primary opcode
+  LITERAL | MINMAXFILTER_FOPCODE, // sub-opcode
   SAMPLER | 1,                    // sampler index
   SURFACE | 2,                    // surface index
   GENERAL | 3,                    // normalized x co-ordinate
@@ -2385,8 +2173,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_va_hdc_minmax_filter,
-  LITERAL | visa::ISA_VA_SKL_PLUS,
-  LITERAL | visa::ISA_HDC_MMF,
+  LITERAL | ISA_VA_SKL_PLUS,
+  LITERAL | ISA_HDC_MMF,
   SAMPLER | 1,                    // sampler index
   SURFACE | 2,                    // surface index
   GENERAL | 3,                    // normalized x co-ordinate
@@ -2399,8 +2187,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_va_bool_centroid,
-  LITERAL | visa::ISA_VA,           // primary opcode
-  LITERAL | visa::ISA_VA_BOOLC,     // sub-opcode
+  LITERAL | ISA_VA,                 // primary opcode
+  LITERAL | BoolCentroid_FOPCODE,   // sub-opcode
   SURFACE | 1,                      // surface index
   GENERAL | 2,                      // normalized x co-ordinate
   GENERAL | 3,                      // normalized y co-ordinate
@@ -2410,8 +2198,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_va_centroid,
-  LITERAL | visa::ISA_VA,           // primary opcode
-  LITERAL | visa::ISA_VA_CENTROID,  // sub-opcode
+  LITERAL | ISA_VA,                 // primary opcode
+  LITERAL | Centroid_FOPCODE,       // sub-opcode
   SURFACE | 1,                      // surface index
   GENERAL | 2,                      // normalized x co-ordinate
   GENERAL | 3,                      // normalized y co-ordinate
@@ -2419,8 +2207,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   RAW | 0,                          // Destination
   END,
 
-  VA_SKL_1DCONV_OP(genx_va_1d_convolve_horizontal, ISA_VAPLUS_1DCONV_H),
-  VA_SKL_1DCONV_OP(genx_va_1d_convolve_vertical, ISA_VAPLUS_1DCONV_V),
+  VA_SKL_1DCONV_OP(genx_va_1d_convolve_horizontal, VA_OP_CODE_1D_CONVOLVE_HORIZONTAL),
+  VA_SKL_1DCONV_OP(genx_va_1d_convolve_vertical, VA_OP_CODE_1D_CONVOLVE_VERTICAL),
 
   VA_SKL_HDC_1DCONV_OP(genx_va_hdc_1d_convolve_horizontal, ISA_HDC_1DCONV_H),
   VA_SKL_HDC_1DCONV_OP(genx_va_hdc_1d_convolve_vertical, ISA_HDC_1DCONV_V),
@@ -2429,8 +2217,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   VA_SKL_1PIXELCONV_OP(genx_va_1pixel_convolve_1x1mode, LITERAL | 3, NULLRAW),
 
   Intrinsic::genx_va_hdc_1pixel_convolve,
-  LITERAL | visa::ISA_VA_SKL_PLUS,
-  LITERAL | visa::ISA_HDC_1PIXELCONV,
+  LITERAL | ISA_VA_SKL_PLUS,
+  LITERAL | ISA_HDC_1PIXELCONV,
   SAMPLER | 1,                    // sampler
   SURFACE | 2,                    // surface index
   GENERAL | 3,                    // normalized x co-ordinate
@@ -2443,8 +2231,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_va_lbp_creation,
-  LITERAL | visa::ISA_VA_SKL_PLUS,
-  LITERAL | visa::ISA_VAPLUS_LBPCREAT,
+  LITERAL | ISA_VA_SKL_PLUS,
+  LITERAL | VA_OP_CODE_LBP_CREATION,
   SURFACE | 1,                      // surface index
   GENERAL | 2,                      // normalized x co-ordinate
   GENERAL | 3,                      // normalized y co-ordinate
@@ -2453,8 +2241,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_va_hdc_lbp_creation,
-  LITERAL | visa::ISA_VA_SKL_PLUS,
-  LITERAL | visa::ISA_HDC_LBPCREATE,
+  LITERAL | ISA_VA_SKL_PLUS,
+  LITERAL | ISA_HDC_LBPCREATION,
   SURFACE | 1,                      // surface index
   GENERAL | 2,                      // normalized x co-ordinate
   GENERAL | 3,                      // normalized y co-ordinate
@@ -2465,8 +2253,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_va_lbp_correlation,
-  LITERAL | visa::ISA_VA_SKL_PLUS,
-  LITERAL | visa::ISA_VAPLUS_LBPCORRE,
+  LITERAL | ISA_VA_SKL_PLUS,
+  LITERAL | VA_OP_CODE_LBP_CORRELATION,
   SURFACE | 1,                      // surface index
   GENERAL | 2,                      // normalized x co-ordinate
   GENERAL | 3,                      // normalized y co-ordinate
@@ -2475,8 +2263,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_va_hdc_lbp_correlation,
-  LITERAL | visa::ISA_VA_SKL_PLUS,
-  LITERAL | visa::ISA_HDC_LBPCORRE,
+  LITERAL | ISA_VA_SKL_PLUS,
+  LITERAL | ISA_HDC_LBPCORRELATION,
   SURFACE | 1,                      // surface index
   GENERAL | 2,                      // normalized x co-ordinate
   GENERAL | 3,                      // normalized y co-ordinate
@@ -2487,8 +2275,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_va_correlation_search,
-  LITERAL | visa::ISA_VA_SKL_PLUS,
-  LITERAL | visa::ISA_VAPLUS_CORRESEARCH,
+  LITERAL | ISA_VA_SKL_PLUS,
+  LITERAL | VA_OP_CODE_CORRELATION_SEARCH,
   SURFACE | 1,                      // surface index
   GENERAL | 2,                      // normalized x co-ordinate
   GENERAL | 3,                      // normalized y co-ordinate
@@ -2502,8 +2290,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_va_hdc_convolve2d,
-  LITERAL | visa::ISA_VA_SKL_PLUS,
-  LITERAL | visa::ISA_HDC_CONV,
+  LITERAL | ISA_VA_SKL_PLUS,
+  LITERAL | ISA_HDC_CONV,
   SAMPLER | 1,                      // sampler index
   SURFACE | 2,                      // surface index
   GENERAL | 3,                      // normalized x co-ordinate
@@ -2515,8 +2303,8 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_va_flood_fill,
-  LITERAL | visa::ISA_VA_SKL_PLUS,
-  LITERAL | visa::ISA_VAPLUS_FLOODFILL,
+  LITERAL | ISA_VA_SKL_PLUS,
+  LITERAL | VA_OP_CODE_FLOOD_FILL,
   BYTE | 1,                         // Is8Connect
   RAW | 2,                          // pixel mask horizontal direction
   GENERAL | 3,                      // pixel mask vertical direction left
@@ -2526,35 +2314,35 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_barrier,
-  LITERAL | visa::ISA_BARRIER, // opcode
+  LITERAL | ISA_BARRIER, // opcode
   ISBARRIER,                   // suppress the nobarrier attribute
   END,
 
   Intrinsic::genx_sbarrier,
-  LITERAL | visa::ISA_SBARRIER, // opcode
+  LITERAL | ISA_SBARRIER, // opcode
   BYTE | 1, // signal flag
   END,
 
   Intrinsic::genx_cache_flush,
-  LITERAL | visa::ISA_SAMPLR_CACHE_FLUSH, // opcode
+  LITERAL | ISA_SAMPLR_CACHE_FLUSH, // opcode
   END,
 
   Intrinsic::genx_fence,
-  LITERAL | visa::ISA_FENCE, // opcode
+  LITERAL | ISA_FENCE, // opcode
   BYTE | 1, // mask
   END,
 
   Intrinsic::genx_wait,
-  LITERAL | visa::ISA_WAIT, // opcode
+  LITERAL | ISA_WAIT, // opcode
   GENERAL | UNSIGNED | 1, // mask
   END,
 
   Intrinsic::genx_yield,
-  LITERAL | visa::ISA_YIELD, // opcode
+  LITERAL | ISA_YIELD, // opcode
   END,
 
   Intrinsic::genx_raw_send,
-  LITERAL | visa::ISA_RAW_SEND, // opcode
+  LITERAL | ISA_RAW_SEND, // opcode
   BYTE | 1, // modifier sendc
   EXECSIZE_FROM_ARG | 2, // exec size inferred from predicate
   PREDICATION | 2, // predicate
@@ -2568,7 +2356,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_raw_send_noresult,
-  LITERAL | visa::ISA_RAW_SEND, // opcode
+  LITERAL | ISA_RAW_SEND, // opcode
   BYTE | 1, // modifier sendc
   EXECSIZE_FROM_ARG | 2, // exec size inferred from predicate
   PREDICATION | 2, // predicate
@@ -2581,7 +2369,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_raw_sends,
-  LITERAL | visa::ISA_RAW_SENDS, // opcode
+  LITERAL | ISA_RAW_SENDS, // opcode
   BYTE | 1, // modifier sendc
   EXECSIZE_FROM_ARG | 2, // exec size inferred from predicate
   PREDICATION | 2, // predicate
@@ -2598,7 +2386,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_raw_sends_noresult,
-  LITERAL | visa::ISA_RAW_SENDS, // opcode
+  LITERAL | ISA_RAW_SENDS, // opcode
   BYTE | 1, // modifier sendc
   EXECSIZE_FROM_ARG | 2, // exec size inferred from predicate
   PREDICATION | 2, // predicate
@@ -2613,11 +2401,12 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   NULLRAW | 7, // dst
   END,
 
+
   //--------------------------------------------------------------------
   // GenX backend internal intrinsics
 
   Intrinsic::genx_constanti,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -2625,7 +2414,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_constantf,
-  LITERAL | visa::ISA_MOV, // opcode
+  LITERAL | ISA_MOV, // opcode
   EXECSIZE, // execution size
   IMPLICITPRED, // predication
   GENERAL | 0, // dst (return value)
@@ -2633,14 +2422,14 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_constantpred,
-  LITERAL | visa::ISA_SETP, // opcode
+  LITERAL | ISA_SETP, // opcode
   EXECSIZE, // execution size
   PREDICATE | 0, // dst (return value)
   CONSTVI1ASI32 | 1, // src0
   END,
 
   Intrinsic::genx_add_addr,
-  LITERAL | visa::ISA_ADDR_ADD, // opcode
+  LITERAL | ISA_ADDR_ADD, // opcode
   EXECSIZE, // execution size
   ADDRESS | 0, // dst (return value)
   ADDRESS | 1, // src0
@@ -2648,7 +2437,7 @@ const GenXIntrinsicInfo::DescrElementType GenXIntrinsicInfo::Table[] = {
   END,
 
   Intrinsic::genx_predefined_surface,
-  LITERAL | visa::ISA_MOVS, // opcode
+  LITERAL | ISA_MOVS, // opcode
   EXECSIZE, // execution size
   SURFACE | 0, // dst (return value)
   INT | 1, // src0
@@ -2770,4 +2559,20 @@ bool GenXIntrinsicInfo::getPredAllowed()
   }
 
   return false;
+}
+
+unsigned GenXIntrinsicInfo::getOverridedExecSize(CallInst *CI,
+                                                 const GenXSubtarget *ST) {
+  unsigned ID = CI->getCalledFunction()->getIntrinsicID();
+  switch (ID) {
+  default:
+    break;
+  case Intrinsic::genx_raw_send:
+  case Intrinsic::genx_raw_sends:
+  case Intrinsic::genx_raw_send_noresult:
+  case Intrinsic::genx_raw_sends_noresult:
+    return 16;
+  }
+
+  return 0;
 }

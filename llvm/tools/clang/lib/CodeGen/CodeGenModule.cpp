@@ -1148,6 +1148,12 @@ static void setLinkageForGV(llvm::GlobalValue *GV,
       auto Fn = llvm::dyn_cast<llvm::Function>(GV);
       if (Fn && !Fn->hasFnAttribute("CMBuiltin"))
         Fn->addFnAttr("CMBuiltin");
+    } else if (auto AT = ND->getAttr<CMGenxVolatileAttr>()) {
+      if (auto Var = dyn_cast<llvm::GlobalVariable>(GV)) {
+        Var->addAttribute("genx_volatile");
+        int ByteOffset = AT->getOffset();
+        Var->addAttribute("genx_byte_offset", std::to_string(ByteOffset));
+      }
     } else if (ND->hasAttr<WeakAttr>() || ND->isWeakImported()) {
       // "extern_weak" is overloaded in LLVM; we probably should have
       // separate linkage types for this.

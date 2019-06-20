@@ -160,19 +160,3 @@ bool GenXModule::runOnModule(Module &M)
   }
   return ModuleModified;
 }
-
-//===----------------------------------------------------------------------===//
-//                       Utility functions
-//===----------------------------------------------------------------------===//
-namespace llvm {
-namespace genx {
-
-// Utility function to tell whether a Function is a kernel.
-bool isKernel(Function *F)
-{
-  // We use DLLExport to represent a kernel in LLVM IR.
-  return F->hasDLLExportStorageClass();
-}
-
-} // end namespace genx
-} // end namespace llvm

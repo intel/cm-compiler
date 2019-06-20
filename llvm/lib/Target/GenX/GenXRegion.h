@@ -187,7 +187,10 @@ Value *simplifyRegionInst(Instruction *Inst, const DataLayout *DL,
 bool simplifyRegionInsts(Function *F, const DataLayout *DL,
                          const TargetLibraryInfo *TLI);
 
+bool cleanupLoads(Function *F);
+
 } // end namespace genx
+
 } // end namespace llvm
 
 #endif /* GENXREGION_H */

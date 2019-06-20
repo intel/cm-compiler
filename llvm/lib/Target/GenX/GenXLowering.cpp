@@ -132,6 +132,7 @@ namespace {
 // GenXLowering : legalize execution widths and GRF crossing
 class GenXLowering : public FunctionPass {
   DominatorTree *DT;
+  const GenXSubtarget *ST;
   SmallVector<Instruction *, 8> ToErase;
 public:
   static char ID;
@@ -142,7 +143,6 @@ public:
   static bool splitStructPhi(PHINode *Phi);
 private:
   bool lowerGatherScatter4Typed(CallInst *CI, unsigned IID);
-  bool lowerMediaWalkerAPIs(CallInst *CI, unsigned IID);
   bool processInst(Instruction *Inst);
   bool lowerRdRegion(Instruction *Inst);
   bool lowerWrRegion(Instruction *Inst);
@@ -167,6 +167,7 @@ private:
   bool lowerFCmpInst(FCmpInst *Inst);
   bool widenByteOp(Instruction *Inst);
   bool lowerLoadStore(Instruction *Inst);
+  bool lowerMul64(Instruction *Inst);
 };
 
 } // end namespace
@@ -205,6 +206,8 @@ void GenXLowering::getAnalysisUsage(AnalysisUsage &AU) const
 bool GenXLowering::runOnFunction(Function &F) {
   auto *DTWP = getAnalysisIfAvailable<DominatorTreeWrapperPass>();
   DT = DTWP ? &DTWP->getDomTree() : nullptr;
+  auto P = getAnalysisIfAvailable<GenXSubtargetPass>();
+  ST = P ? P->getSubtarget() : nullptr;
   // First split any phi nodes with struct type.
   splitStructPhis(&F);
   // Create a list of basic blocks in the order we want to process them, before
@@ -243,26 +246,29 @@ bool GenXLowering::runOnFunction(Function &F) {
 }
 
 /***********************************************************************
- * lowerGatherScatter4Typed : lower gather4_typed and scatter4_typed
- *
- * This performs two functions:
- *
- * 1. If the operation is simd16 rather than simd8, it splits it into two
- *    simd8 instructions.
- *
- * 2. For a simd8 scatter/gather, when r or both v and r are zero, replace
- *    with undef so that they are not encoded in the vISA instruction and the
- *    message skips them.
- */
+* lowerGatherScatter4Typed : lower gather4_typed and scatter4_typed
+*
+* This performs two functions:
+*
+* 1. If the operation is simd16 rather than simd8, it splits it into two
+*    simd8 instructions.
+*
+* 2. For a simd8 scatter/gather, when r or both v and r are zero, replace
+*    with undef so that they are not encoded in the vISA instruction and the
+*    message skips them.
+*/
 bool GenXLowering::lowerGatherScatter4Typed(CallInst *CI, unsigned IID)
 {
-  enum { MASK_IDX = 0, PRED_IDX = 1, SURF_IDX = 2,
-      U_IDX = 3, V_IDX = 4, R_IDX = 5, DATA_IDX = 6 };
+  enum {
+    MASK_IDX = 0, PRED_IDX = 1, SURF_IDX = 2,
+    U_IDX = 3, V_IDX = 4, R_IDX = 5, DATA_IDX = 6
+  };
+
   if (CI->getArgOperand(U_IDX)->getType()->getVectorNumElements() == 16) {
     // 16 wide. Split into 2 x 8 wide.
     DebugLoc DL = CI->getDebugLoc();
     unsigned NumChannels = (unsigned)cast<ConstantInt>(
-          CI->getArgOperand(MASK_IDX))->getZExtValue();
+      CI->getArgOperand(MASK_IDX))->getZExtValue();
     NumChannels = (NumChannels & 0xa) >> 1 | (NumChannels & 5);
     NumChannels = (NumChannels & 0xc) >> 2 | (NumChannels & 3);
     SmallVector<Value *, 8> Args[2];
@@ -275,11 +281,12 @@ bool GenXLowering::lowerGatherScatter4Typed(CallInst *CI, unsigned IID)
     if (auto C = dyn_cast<Constant>(V)) {
       Args[0].push_back(getConstantSubvector(C, 0, 8));
       Args[1].push_back(getConstantSubvector(C, 8, 8));
-    } else {
+    }
+    else {
       Args[0].push_back(Region::createRdPredRegion(
-            V, 0, 8, "typedsplit", CI, DL));
+        V, 0, 8, "typedsplit", CI, DL));
       Args[1].push_back(Region::createRdPredRegion(
-            V, 8, 8, "typedsplit", CI, DL));
+        V, 8, 8, "typedsplit", CI, DL));
     }
     // surface index
     V = CI->getArgOperand(SURF_IDX);
@@ -318,9 +325,9 @@ bool GenXLowering::lowerGatherScatter4Typed(CallInst *CI, unsigned IID)
       // Create the 8 wide gather4_typed instructions.
       Instruction *Gathers[2];
       Type *Tys[] = { Args[0][DATA_IDX]->getType(),
-            Args[0][PRED_IDX]->getType(), Args[0][U_IDX]->getType() };
+        Args[0][PRED_IDX]->getType(), Args[0][U_IDX]->getType() };
       auto Decl = Intrinsic::getDeclaration(
-            CI->getParent()->getParent()->getParent(), (Intrinsic::ID)IID, Tys);
+        CI->getParent()->getParent()->getParent(), (Intrinsic::ID)IID, Tys);
       Gathers[0] = CallInst::Create(Decl, Args[0], CI->getName() + ".split0", CI);
       Gathers[0]->setDebugLoc(DL);
       Gathers[1] = CallInst::Create(Decl, Args[1], CI->getName() + ".split1", CI);
@@ -340,12 +347,13 @@ bool GenXLowering::lowerGatherScatter4Typed(CallInst *CI, unsigned IID)
         }
       }
       CI->replaceAllUsesWith(NewVec);
-    } else {
+    }
+    else {
       // Create the 8 wide scatter4_typed instructions.
       Type *Tys[] = { Args[0][PRED_IDX]->getType(), Args[0][U_IDX]->getType(),
-            Args[0][DATA_IDX]->getType() };
+        Args[0][DATA_IDX]->getType() };
       auto Decl = Intrinsic::getDeclaration(
-            CI->getParent()->getParent()->getParent(), (Intrinsic::ID)IID, Tys);
+        CI->getParent()->getParent()->getParent(), (Intrinsic::ID)IID, Tys);
       auto NewInst = CallInst::Create(Decl, Args[0], "", CI);
       NewInst->setDebugLoc(DL);
       NewInst = CallInst::Create(Decl, Args[1], "", CI);
@@ -370,12 +378,6 @@ bool GenXLowering::lowerGatherScatter4Typed(CallInst *CI, unsigned IID)
   return false;
 }
 
-/***********************************************************************
- * lowerMediaIntrinsic : lower media walker intrinsic calls
- */
-bool GenXLowering::lowerMediaWalkerAPIs(CallInst *CI, unsigned IID) {
-  return false;
-}
 
 /***********************************************************************
  * processInst : process one instruction in GenXLowering
@@ -414,6 +416,8 @@ bool GenXLowering::processInst(Instruction *Inst)
     if (Inst->getOpcode() == Instruction::AShr
         || Inst->getOpcode() == Instruction::LShr)
       return lowerShr(Inst);
+    if (Inst->getOpcode() == Instruction::Mul)
+      return lowerMul64(Inst);
     return false;
   }
   if (Inst->getOpcode() == Instruction::ICmp)
@@ -446,17 +450,32 @@ bool GenXLowering::processInst(Instruction *Inst)
       case Intrinsic::genx_gather4_typed:
       case Intrinsic::genx_scatter4_typed:
         // Special optimization, turn v = 0, r = 0 to undef, if possible.
-        // Also split 16 wide -> 2x 8 wide if necessary.
+        // Also split 16 wide -> 2x 8 wide if necessary.        
         return lowerGatherScatter4Typed(CI, IntrinsicID);
-      case Intrinsic::genx_thread_x:
-      case Intrinsic::genx_thread_y:
-      case Intrinsic::genx_get_color:
-        return lowerMediaWalkerAPIs(CI, IntrinsicID);
       default:
       case Intrinsic::genx_constantpred:
       case Intrinsic::genx_constanti:
       case Intrinsic::genx_constantf:
         break; // ignore
+      case Intrinsic::genx_vload: {
+        if (!Inst->use_empty()) {
+          Value *Ptr = Inst->getOperand(0);
+          LoadInst *LI = new LoadInst(Ptr, "", /*volatile*/ true, Inst);
+          LI->takeName(Inst);
+          LI->setDebugLoc(Inst->getDebugLoc());
+          Inst->replaceAllUsesWith(LI);
+        }
+        ToErase.push_back(Inst);
+        return true;
+      }
+      case Intrinsic::genx_vstore: {
+        Value *Val = Inst->getOperand(0);
+        Value *Ptr = Inst->getOperand(1);
+        auto ST = new StoreInst(Val, Ptr, /*volatile*/true, Inst);
+        ST->setDebugLoc(Inst->getDebugLoc());
+        ToErase.push_back(Inst);
+        return true;
+      }
       case Intrinsic::uadd_with_overflow:
         return lowerUAddWithOverflow(CI);
       case Intrinsic::sadd_with_overflow:
@@ -1663,6 +1682,67 @@ bool GenXLowering::lowerFCmpInst(FCmpInst *Inst) {
   return false;
 }
 
+// Lower cmp instructions that GenX cannot deal with.
+bool GenXLowering::lowerMul64(Instruction *Inst) {
+  IRBuilder<> Builder(Inst);
+  Builder.SetCurrentDebugLocation(Inst->getDebugLoc());
+  auto Src0 = Inst->getOperand(0);
+  auto Src1 = Inst->getOperand(1);
+  auto ETy = Src0->getType();
+  auto Len = 1;
+  if (ETy->isVectorTy()) {
+    Len = ETy->getVectorNumElements();
+    ETy = ETy->getVectorElementType();
+  }
+  if (!ETy->isIntegerTy() || ETy->getPrimitiveSizeInBits() != 64)
+    return false;
+  auto VTy = VectorType::get(ETy->getInt32Ty(Inst->getContext()), Len * 2);
+  // create src0 bitcast, then the low and high part
+  auto Src0V = Builder.CreateBitCast(Src0, VTy);
+  Region R(Inst);
+  R.Offset = 0;
+  R.Width = Len;  R.NumElements = Len;
+  R.Stride = 2;  R.VStride = 0;
+  auto Src0L = R.createRdRegion(Src0V, "", Inst, Inst->getDebugLoc());
+  R.Offset = 4;
+  auto Src0H = R.createRdRegion(Src0V, "", Inst, Inst->getDebugLoc());
+  // create src1 bitcast, then the low and high part
+  auto Src1V = Builder.CreateBitCast(Src1, VTy);
+  R.Offset = 0;
+  auto Src1L = R.createRdRegion(Src1V, "", Inst, Inst->getDebugLoc());
+  R.Offset = 4;
+  auto Src1H = R.createRdRegion(Src1V, "", Inst, Inst->getDebugLoc());
+  // create muls and adds
+  auto ResL = Builder.CreateMul(Src0L, Src1L);
+  // create the mulh intrinsic to the get the carry-part
+  Type *tys[2];
+  SmallVector<llvm::Value*, 2> args;
+  // build type-list
+  tys[0] = ResL->getType();
+  tys[1] = Src0L->getType();
+  // build argument list
+  args.push_back(Src0L);
+  args.push_back(Src1L);
+  auto M = Inst->getParent()->getParent()->getParent();
+  Function *IntrinFunc = Intrinsic::getDeclaration(M, Intrinsic::genx_umulh, tys);
+  Instruction *Cari = CallInst::Create(IntrinFunc, args, "", Inst);
+  Cari->setDebugLoc(Inst->getDebugLoc());
+  auto Temp0 = Builder.CreateMul(Src0L, Src1H);
+  auto Temp1 = Builder.CreateAdd(Cari, Temp0);
+  auto Temp2 = Builder.CreateMul(Src0H, Src1L);
+  auto ResH = Builder.CreateAdd(Temp2, Temp1);
+  // create the write-regions
+  auto UndefV = UndefValue::get(VTy);
+  R.Offset = 0;
+  auto WrL = R.createWrRegion(UndefV, ResL, "WrLow", Inst, Inst->getDebugLoc());
+  R.Offset = 4;
+  auto WrH = R.createWrRegion(WrL, ResH, "WrHigh", Inst, Inst->getDebugLoc());
+  // create the bitcast to the destination-type
+  auto Replace = Builder.CreateBitCast(WrH, Inst->getType(), "mul64");
+  Inst->replaceAllUsesWith(Replace);
+  ToErase.push_back(Inst);
+  return true;
+}
 /***********************************************************************
  * widenByteOp : widen a vector byte operation to short if that might
  *               improve code
@@ -1907,6 +1987,8 @@ bool genx::breakConstantExprs(Function *F) {
         Instruction *InsertPt =
             PN ? PN->getIncomingBlock(i)->getTerminator() : CurInst;
         Value *Op = CurInst->getOperand(i);
+        if (getUnderlyingGlobalVariable(Op) != nullptr)
+          continue;
         if (ConstantExpr *CE = dyn_cast<ConstantExpr>(Op)) {
           Instruction *NewInst = CE->getAsInstruction();
           NewInst->setDebugLoc(CurInst->getDebugLoc());
@@ -2012,6 +2094,18 @@ bool LoadStoreResolver::resolve() {
 
 // Return true if this load/store can be translated.
 bool LoadStoreResolver::isSupported() const {
+  auto IsGlobalLoadStore = [=]() {
+    Value *Ptr = nullptr;
+    if (auto LI = dyn_cast<LoadInst>(Inst))
+      Ptr = LI->getPointerOperand();
+    if (auto SI = dyn_cast<StoreInst>(Inst))
+      Ptr = SI->getPointerOperand();
+    return getUnderlyingGlobalVariable(Ptr) != nullptr;
+  };
+
+  if (IsGlobalLoadStore())
+    return false;
+
   Type *ValTy = Inst->getType();
   if (auto SI = dyn_cast<StoreInst>(Inst))
     ValTy = SI->getValueOperand()->getType();

@@ -147,6 +147,9 @@ bool GenXLiveRanges::isPredefinedVariable(Value *V) const {
  */
 void GenXLiveRanges::buildLiveRanges()
 {
+  // Build live ranges for global variables;
+  for (auto &G : FG->getModule()->globals())
+    Liveness->buildLiveRange(&G);
   for (auto i = FG->begin(), e = FG->end(); i != e; ++i) {
     Function *Func = *i;
     // Build live ranges for args.

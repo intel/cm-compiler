@@ -593,11 +593,14 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
     Opts.GenXAsmName = Args.getLastArgValue(OPT_cm_asm_name);
   // Emit vload/vstore intrinsic calls for pass-by-ref arguments.
   Opts.EmitVLoadStore = Args.hasArg(OPT_fvldst);
+  if (Args.hasArg(OPT_mCM_import_bif))
+    Opts.GenXBiFName = Args.getLastArgValue(OPT_mCM_import_bif);
   // By default, CM global variables are not default initialized, this option
   // forces initialization when initalizer is absent.
   Opts.InitializeCMGlobals = Args.hasArg(OPT_mCM_init_global);
+  Opts.EmitCMGlobalsAsVolatile = Args.hasArg(OPT_fvolatile_global);
   Opts.ReverseCMKernelList = Args.hasArg(OPT_mCM_reverse_kernels);
-
+  Opts.EmitCmOCL = Args.hasArg(OPT_fcmocl);
   Opts.RerollLoops = Args.hasArg(OPT_freroll_loops);
 
   Opts.DisableIntegratedAS = Args.hasArg(OPT_fno_integrated_as);

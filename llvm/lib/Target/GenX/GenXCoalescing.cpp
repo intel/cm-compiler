@@ -199,6 +199,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include <vector>
+#include <algorithm>
 
 using namespace llvm;
 using namespace genx;
@@ -311,6 +312,7 @@ namespace {
     void processKernelArgs(FunctionGroup *FG);
     void coalesceOutputArgs(FunctionGroup *FG);
     void coalesceCallables();
+    void coalesceGlobalLoads(FunctionGroup *FG);
     Instruction *insertCopy(SimpleValue Input, LiveRange *LR, Instruction *InsertBefore, StringRef Name, unsigned Number);
     Instruction *insertIntoStruct(Type *Ty, unsigned FlattenedIndex, Value *OldStruct, Instruction *NewVal, Instruction *InsertBefore);
     void showCoalesceFail(SimpleValue V, DebugLoc DL, const char *Intro, LiveRange *DestLR, LiveRange *SourceLR);
@@ -344,6 +346,9 @@ bool GenXCoalescing::runOnFunctionGroup(FunctionGroup &FG)
   Baling = &getAnalysis<GenXGroupBaling>();
   Liveness = &getAnalysis<GenXLiveness>();
   Numbering = &getAnalysis<GenXNumbering>();
+
+  // Coalesce all global loads prior to normal coalescing.
+  coalesceGlobalLoads(&FG);
 
   // Record all the coalescing candidates except the call arg and return
   // value pre-copy ones.
@@ -457,8 +462,10 @@ void GenXCoalescing::recordCandidates(FunctionGroup *FG)
                 // actually needs to be done at the wrregion.  That is handled
                 // when this pass reaches the wrregion, so we do not want to do
                 // anything here.
-                assert(Baling->getBaleInfo(CI).isOperandBaled(OperandNum)
-                    && "expecting rdregion to be baled in to the two addr operand");
+                //
+                // it may also be baled into a g_store.
+                // assert(Baling->getBaleInfo(CI).isOperandBaled(OperandNum) &&
+                // "expecting rdregion to be baled in to the two addr operand");
                 continue;
               }
               // Normal unbaled twoaddr operand.
@@ -1179,7 +1186,11 @@ void GenXCoalescing::processKernelArgs(FunctionGroup *FG)
   if (!isKernel(F))
     return;
   Instruction *InsertBefore = F->front().getFirstNonPHIOrDbg();
+  KernelMetadata KM(F);
+  unsigned Idx = 0;
   for (auto ai = F->arg_begin(), ae = F->arg_end(); ai != ae; ++ai) {
+    if (KM.shouldSkipArg(Idx++))
+      continue;
     auto Arg = &*ai;
     auto LR = Liveness->getLiveRange(Arg);
     if (!(LR->Offset & ((1U << LR->LogAlignment) - 1)))
@@ -1262,25 +1273,6 @@ void GenXCoalescing::coalesceOutputArgs(FunctionGroup *FG) {
   }
 }
 
-static bool isDummyReturnBlock(BasicBlock *BB) {
-  if (!BB)
-    return false;
-  auto TI = BB->getTerminator();
-  if (!isa<ReturnInst>(TI))
-    return false;
-  if (TI == &BB->front())
-    return true;
-  auto Inst = TI->getPrevNode();
-  return Inst == &BB->front() && getIntrinsicID(Inst) == Intrinsic::genx_output;
-}
-
-static BasicBlock *getUnconditionalSuccessor(Instruction *Inst) {
-  auto Br = dyn_cast<BranchInst>(Inst);
-  if (!Br || Br->isConditional())
-    return nullptr;
-  return Br->getSuccessor(0);
-}
-
 void GenXCoalescing::coalesceCallables() {
   for (auto CI : Callables) {
     auto NI = CI->getNextNode();
@@ -1294,9 +1286,7 @@ void GenXCoalescing::coalesceCallables() {
       }
     }
     auto Ret = CI->getNextNode();
-    if (!Ret ||
-        (!isa<ReturnInst>(Ret) &&
-         !isDummyReturnBlock(getUnconditionalSuccessor(Ret)))) {
+    if (!Ret || !isa<ReturnInst>(Ret)) {
       // getRetVal could not determine what happens to this return value.
       DiagnosticInfoFastComposition Err(CI,
         "Callable Call must be right before function return",
@@ -1344,6 +1334,42 @@ void GenXCoalescing::coalesceCallables() {
         LR2->sortAndMerge();
       }
       ++i;
+    }
+  }
+}
+
+void GenXCoalescing::coalesceGlobalLoads(FunctionGroup *FG) {
+  for (auto &GV : FG->getModule()->globals()) {
+    LiveRange *LR1 = Liveness->getLiveRangeOrNull(&GV);
+    if (!LR1)
+      continue;
+
+    // Collect all loads.
+    std::set<Instruction *> LoadsInGroup;
+    for (auto UI : GV.users()) {
+      if (auto LI = dyn_cast<LoadInst>(UI)) {
+        assert(LI->getPointerOperand() == &GV);
+        auto Fn = LI->getParent()->getParent();
+        // Check this load is inside the group.
+        if (std::find(FG->begin(), FG->end(), Fn) != FG->end())
+          LoadsInGroup.insert(LI);
+      }
+      // Global variable is uesd in a constexpr.
+      if (&GV != getUnderlyingGlobalVariable(UI))
+        continue;
+      for (auto U : UI->users())
+        if (auto LI = dyn_cast<LoadInst>(U)) {
+          auto Fn = LI->getParent()->getParent();
+          // Check this load is inside the group.
+          if (std::find(FG->begin(), FG->end(), Fn) != FG->end())
+            LoadsInGroup.insert(LI);
+        }
+    }
+
+    // Do coalescing.
+    for (auto LI : LoadsInGroup) {
+      LiveRange *LR2 = Liveness->getLiveRange(LI);
+      LR1 = Liveness->coalesce(LR1, LR2, false);
     }
   }
 }

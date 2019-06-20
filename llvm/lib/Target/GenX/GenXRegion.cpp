@@ -38,6 +38,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Support/Debug.h"
+#include <unordered_map>
 
 using namespace llvm;
 using namespace genx;
@@ -259,13 +260,16 @@ unsigned Region::getLegalSize(unsigned Idx, bool Allow2D,
 {
   // Determine the max valid width.
   unsigned ValidWidth = 1;
-  if ((!Stride || exactLog2(Stride) >= 0) && (Allow2D || Stride <= 4)) {
+  unsigned GRFWidth = ST ? ST->getGRFWidth() : 32;
+  int MaxStride = 4;
+  unsigned LogGRFWidth = llvm::log2(GRFWidth);
+  if ((!Stride || exactLog2(Stride) >= 0) && (Allow2D || Stride <= MaxStride)) {
     // The stride is legal, so we can potentially do more than one element at a
     // time.
     // Disallow 2D if the stride is too large for a real Gen region. For a
     // source operand (Allow2D is true), we allow a 1D region with stride too
     // large, because the vISA writer turns it into a 2D region with width 1.
-    bool StrideValid = Stride <= 4;
+    bool StrideValid = (Stride <= MaxStride);
 
     if (Indirect && isa<VectorType>(Indirect->getType())) {
       // Multi indirect.
@@ -285,8 +289,8 @@ unsigned Region::getLegalSize(unsigned Idx, bool Allow2D,
         if (1U << LogWidth == Width)
           LogWidth = llvm::log2(NumElements); // legal width
         unsigned LogElementBytes = llvm::log2(ElementBytes);
-        if (LogWidth + LogElementBytes > 6 /*log(64)*/)
-          LogWidth = 6 - LogElementBytes;
+        if (LogWidth + LogElementBytes > (LogGRFWidth + 1))
+          LogWidth = LogGRFWidth + 1 - LogElementBytes;
         ValidWidth = 1 << LogWidth;
         if (ValidWidth > 8)
           ValidWidth = 8;
@@ -295,7 +299,7 @@ unsigned Region::getLegalSize(unsigned Idx, bool Allow2D,
     } else {
       // Calculate number of elements up to the boundary imposed by GRF
       // crossing rules.
-      unsigned ElementsPerGRF = 32 / ElementBytes;
+      unsigned ElementsPerGRF = GRFWidth / ElementBytes;
       unsigned OffsetElements = Offset / ElementBytes;
       unsigned ElementsToBoundary = 1;
       unsigned RealIdx = Idx / Width * VStride + Idx % Width * Stride;
@@ -354,21 +358,21 @@ unsigned Region::getLegalSize(unsigned Idx, bool Allow2D,
                 ElementsToBoundary);
         } else if (!isa<VectorType>(Indirect->getType())) {
           // Use the alignment+offset of the single indirect index, with alignment
-          // limited to 32 bytes (one GRF).
+          // limited to one GRF.
           if (!Align.isUnknown()) {
             unsigned LogAlign = Align.getLogAlign();
             unsigned ExtraBits = Align.getExtraBits();
             ExtraBits += (Offset + RealIdx * ElementBytes);
             ExtraBits &= ((1 << LogAlign) - 1);
-            if (LogAlign >= 5 && !ExtraBits) {
+            if (LogAlign >= LogGRFWidth && !ExtraBits) {
               // Start is GRF aligned, so legal width is 1 GRF for <=BDW or
               // 2 GRFs for >=SKL.
               ElementsToBoundary = ElementsPerGRF * GRFsPerIndirect;
             } else if (LogAlign > (unsigned)llvm::log2(ElementBytes) ||
                        (LogAlign == (unsigned)llvm::log2(ElementBytes) &&
                         ExtraBits == 0)) {
-              LogAlign = std::min(5U, LogAlign) - llvm::log2(ElementBytes);
-              ExtraBits = (ExtraBits & 31) >> llvm::log2(ElementBytes);
+              LogAlign = std::min(LogGRFWidth, LogAlign) - llvm::log2(ElementBytes);
+              ExtraBits = (ExtraBits & (GRFWidth-1)) >> llvm::log2(ElementBytes);
               // We have some alignment, so we can say that the next GRF boundary
               // is (at least) that many elements away, minus the offset from that
               // alignment.
@@ -387,7 +391,7 @@ unsigned Region::getLegalSize(unsigned Idx, bool Allow2D,
       // calculated above.
       if (Allow2D && StrideValid) {
         if ((!VStride || exactLog2(VStride) >= 0) && exactLog2(Width) >= 0
-            && Width <= 16 && !(Idx % Width)
+          && Width <= 16 && !(Idx % Width)
             && ElementsToBoundary >= (Width - 1) * Stride + 1) {
           // The vstride and width are legal, and we're at the start of a
           // row, and ElementsToBoundary is big enough for at least one
@@ -829,6 +833,50 @@ bool llvm::genx::simplifyRegionInsts(Function *F, const DataLayout *DL,
         Inst->replaceAllUsesWith(V);
         Inst->eraseFromParent();
         Changed = true;
+      }
+    }
+  }
+  return Changed;
+}
+
+// Cleanup loads.
+// %load1 = load *m
+// %load2 = load *m
+// no store to m
+// use(load1, load2)
+//
+bool llvm::genx::cleanupLoads(Function *F) {
+  bool Changed = false;
+  for (auto &BB : F->getBasicBlockList()) {
+    // The dominating loads (may have different types) for each variable.
+    std::unordered_map<GlobalVariable *, std::vector<LoadInst *>> DomLoads;
+    for (auto I = BB.begin(); I != BB.end();) {
+      Instruction *Inst = &*I++;
+      if (auto SI = dyn_cast<StoreInst>(Inst)) {
+        auto GV = getUnderlyingGlobalVariable(SI->getPointerOperand());
+        if (!GV)
+          continue;
+        // Kill all live loads on this variable.
+        DomLoads[GV].clear();
+      } else if (auto LI = dyn_cast<LoadInst>(Inst)) {
+        auto GV = getUnderlyingGlobalVariable(LI->getPointerOperand());
+        if (!GV)
+          continue;
+        auto &Loads = DomLoads[GV];
+        LoadInst *DomLI = nullptr;
+        for (auto LI1 : Loads) {
+          if (LI1->getType() == LI->getType()) {
+            DomLI = LI1;
+            break;
+          }
+        }
+        if (DomLI == nullptr)
+          Loads.push_back(LI);
+        else {
+          LI->replaceAllUsesWith(DomLI);
+          LI->eraseFromParent();
+          Changed = true;
+        }
       }
     }
   }

@@ -26,7 +26,9 @@
 //
 //===----------------------------------------------------------------------===//
 #include "GenX.h"
+#include "FunctionGroup.h"
 #include "GenXIntrinsics.h"
+#include "GenXRegion.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
@@ -55,88 +57,6 @@ unsigned genx::getIntrinsicID(Value *V)
       if (Function *Callee = CI->getCalledFunction())
         return Callee->getIntrinsicID();
   return Intrinsic::not_intrinsic;
-}
-
-/***********************************************************************
- * KernelMetadata constructor
- *
- * Enter:   F = Function that purports to be a CM kernel
- *
- * The metadata node has the following operands:
- *  0: reference to Function
- *  1: kernel name
- *  2: asm name
- *  3: reference to metadata node containing kernel arg kinds
- *  4: slm-size in bytes
- *  5: kernel argument offsets
- *  6: reference to metadata node containing kernel argument input/output kinds
- */
-KernelMetadata::KernelMetadata(Function *F) : IsKernel(false), SLMSize(0)
-{
-  if (!genx::isKernel(F))
-    return;
-  NamedMDNode *Named = F->getParent()->getNamedMetadata("genx.kernels");
-  if (!Named)
-    return;
-
-  MDNode *Node = nullptr;
-  for (unsigned i = 0, e = Named->getNumOperands(); i != e; ++i) {
-    if (i == e)
-      return;
-    Node = Named->getOperand(i);
-    if (Node->getNumOperands() >= 7 &&
-        getValueAsMetadata(Node->getOperand(0)) == F)
-      break;
-  }
-  if (!Node)
-    return;
-  // Node is the metadata node for F, and it has the required 6 operands.
-  IsKernel = true;
-  if (MDString *MDS = dyn_cast<MDString>(Node->getOperand(1)))
-    Name = MDS->getString();
-  if (MDString *MDS = dyn_cast<MDString>(Node->getOperand(2)))
-    AsmName = MDS->getString();
-  if (ConstantInt *Sz = getValueAsMetadata<ConstantInt>(Node->getOperand(4)))
-    SLMSize = Sz->getZExtValue();
-  // Build the argument kinds and offsets arrays that should correspond to the
-  // function arguments (both explicit and implicit)
-  MDNode *KindsNode = dyn_cast<MDNode>(Node->getOperand(3));
-  MDNode *OffsetsNode = dyn_cast<MDNode>(Node->getOperand(5));
-  MDNode *InputOutputKinds = dyn_cast<MDNode>(Node->getOperand(6));
-  assert(KindsNode && OffsetsNode &&
-         KindsNode->getNumOperands() == OffsetsNode->getNumOperands());
-
-  for (unsigned i = 0, e = KindsNode->getNumOperands(); i != e; ++i) {
-    ArgKinds.push_back(getValueAsMetadata<ConstantInt>(KindsNode->getOperand(i))
-                           ->getZExtValue());
-    ArgOffsets.push_back(
-        getValueAsMetadata<ConstantInt>(OffsetsNode->getOperand(i))
-            ->getZExtValue());
-  }
-  assert(InputOutputKinds &&
-         KindsNode->getNumOperands() >= InputOutputKinds->getNumOperands());
-  for (unsigned i = 0, e = InputOutputKinds->getNumOperands(); i != e; ++i)
-    ArgIOKinds.push_back(
-        getValueAsMetadata<ConstantInt>(InputOutputKinds->getOperand(i))
-            ->getZExtValue());
-}
-
-/***********************************************************************
- * KernelMetadata::getArgCategory : get category of kernel arg
- */
-unsigned KernelMetadata::getArgCategory(unsigned Idx) const
-{
-  enum { AK_NORMAL, AK_SAMPLER, AK_SURFACE, AK_VME };
-  switch (getArgKind(Idx) & 7) {
-    case AK_SAMPLER:
-      return RegCategory::SAMPLER;
-    case AK_SURFACE:
-      return RegCategory::SURFACE;
-    case AK_VME:
-      return RegCategory::VME;
-    default:
-      return RegCategory::GENERAL;
-  }
 }
 
 /***********************************************************************
@@ -576,7 +496,7 @@ Value *ShuffleVectorAnalyzer::serialize() {
     }
 
     Value *Vi = nullptr;
-    if (idx < M)
+    if (idx < (int)M)
       Vi = Builder.CreateExtractElement(Op0, idx, "");
     else
       Vi = Builder.CreateExtractElement(Op1, idx - M, "");
@@ -837,4 +757,142 @@ void genx::LayoutBlocks(Function &func)
       }
     }
   }
+}
+
+// fold bitcast instruction into Store by change pointer type.
+Instruction *genx::foldBitCastInst(Instruction *Inst) {
+  assert(isa<LoadInst>(Inst) || isa<StoreInst>(Inst));
+  auto LI = dyn_cast<LoadInst>(Inst);
+  auto SI = dyn_cast<StoreInst>(Inst);
+
+  Value *Ptr = LI ? LI->getPointerOperand() : SI->getPointerOperand();
+  GlobalVariable *GV = dyn_cast<GlobalVariable>(Ptr);
+  if (!GV)
+    return nullptr;
+
+  if (SI) {
+    Value *Val = SI->getValueOperand();
+    if (auto CI = dyn_cast<BitCastInst>(Val)) {
+      auto SrcTy = CI->getSrcTy();
+      auto NewPtrTy = PointerType::get(SrcTy, SI->getPointerAddressSpace());
+      auto NewPtr = ConstantExpr::getBitCast(GV, NewPtrTy);
+      StoreInst *NewSI = new StoreInst(CI->getOperand(0), NewPtr,
+                                       /*volatile*/ SI->isVolatile(), Inst);
+      NewSI->takeName(SI);
+      NewSI->setDebugLoc(Inst->getDebugLoc());
+      Inst->eraseFromParent();
+      return NewSI;
+    }
+  } else if (LI->hasOneUse()) {
+    if (auto CI = dyn_cast<BitCastInst>(LI->user_back())) {
+      auto NewPtrTy = PointerType::get(CI->getType(), LI->getPointerAddressSpace());
+      auto NewPtr = ConstantExpr::getBitCast(GV, NewPtrTy);
+      auto NewLI = new LoadInst(NewPtr, "",
+                                /*volatile*/ LI->isVolatile(), Inst);
+      NewLI->takeName(LI);
+      NewLI->setDebugLoc(LI->getDebugLoc());
+      CI->replaceAllUsesWith(NewLI);
+      LI->replaceAllUsesWith(UndefValue::get(LI->getType()));
+      LI->eraseFromParent();
+      return NewLI;
+    }
+  }
+
+  return nullptr;
+}
+
+GlobalVariable *genx::getUnderlyingGlobalVariable(Value *V) {
+  while (auto CE = dyn_cast_or_null<ConstantExpr>(V)) {
+    if (CE->getOpcode() == CastInst::BitCast)
+      V = CE->getOperand(0);
+    else
+      break;
+  }
+  return dyn_cast_or_null<GlobalVariable>(V);
+}
+
+// verify a bale that ends with a g_store satisfying the following
+// conditions:
+// (1) the stored value is from a write-region
+// (2) the old value of the above write region is from g_store
+// (3) the global variable in g_store and g_load matches
+//
+bool genx::isLegalBale(const Bale &B) {
+  if (!B.endsWithGStore())
+    return true;
+
+  StoreInst *ST = dyn_cast<StoreInst>(B.getHead()->Inst);
+  // the head should be a store instruction. I.e. saturation is not supported.
+  if (!ST)
+    return false;
+
+  GlobalVariable *GV = getUnderlyingGlobalVariable(ST->getPointerOperand());
+  if (!GV)
+    return false;
+
+  // Check the baled region.
+  CallInst *Wrr = dyn_cast<CallInst>(ST->getValueOperand());
+  if (!Wrr || !isWrRegion(Wrr))
+    return false;
+
+  Value *OldVal = Wrr->getArgOperand(0);
+  if (isa<UndefValue>(OldVal))
+    return true;
+
+  // Check the underlying load instruction.
+  LoadInst *LI = dyn_cast<LoadInst>(OldVal);
+  return LI && getUnderlyingGlobalVariable(LI->getPointerOperand()) == GV;
+}
+
+// The following bale will produce identity moves.
+// %a0 = load m
+// %b0 = load m
+// bale {
+//   %a1 = rrd %a0, R
+//   %b1 = wrr %b0, %a1, R
+//   store %b1, m
+// }
+//
+bool genx::isIdentityBale(const Bale &B) {
+  if (!B.endsWithGStore())
+    return false;
+
+  StoreInst *ST = cast<StoreInst>(B.getHead()->Inst);
+  if (B.size() == 1) {
+    // The value to be stored should be a load from the same global.
+    auto LI = dyn_cast<LoadInst>(ST->getOperand(0));
+    return LI && getUnderlyingGlobalVariable(LI->getOperand(0)) ==
+                     getUnderlyingGlobalVariable(ST->getOperand(1));
+  }
+  if (B.size() != 3)
+    return false;
+
+  CallInst *B1 = dyn_cast<CallInst>(ST->getValueOperand());
+  GlobalVariable *GV = getUnderlyingGlobalVariable(ST->getPointerOperand());
+  if (!isWrRegion(B1) || !GV)
+    return false;
+
+  auto B0 = dyn_cast<LoadInst>(B1->getArgOperand(0));
+  if (!B0 || GV != getUnderlyingGlobalVariable(B0->getPointerOperand()))
+    return false;
+
+  CallInst *A1 = dyn_cast<CallInst>(B1->getArgOperand(1));
+  if (!isRdRegion(A1))
+    return false;
+  LoadInst *A0 = dyn_cast<LoadInst>(A1->getArgOperand(0));
+  if (!A0 || GV != getUnderlyingGlobalVariable(A0->getPointerOperand()))
+    return false;
+
+  Region R1(A1, BaleInfo());
+  Region R2(B1, BaleInfo());
+  return R1 == R2;
+}
+
+bool genx::skipOptWithLargeBlock(FunctionGroup &FG) {
+  for (auto fgi = FG.begin(), fge = FG.end(); fgi != fge; ++fgi) {
+    auto F = *fgi;
+    if (skipOptWithLargeBlock(*F))
+      return true;
+  }
+  return false;
 }

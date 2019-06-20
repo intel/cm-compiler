@@ -329,6 +329,17 @@ template <> inline void SPIRVMap<Decoration, std::string>::init() {
   add(DecorationInputAttachmentIndex, "InputAttachmentIndex");
   add(DecorationAlignment, "Alignment");
   add(DecorationMaxByteOffset, "MaxByteOffset");
+  add(DecorationAlignmentId, "AlignmentId");
+  add(DecorationMaxByteOffsetId, "MaxByteOffsetId");
+  add(DecorationExplicitInterpAMD, "ExplicitInterpAMD");
+  add(DecorationOverrideCoverageNV, "OverrideCoverageNV");
+  add(DecorationPassthroughNV, "PassthroughNV");
+  add(DecorationViewportRelativeNV, "ViewportRelativeNV");
+  add(DecorationSecondaryViewportRelativeNV, "DecorationSecondaryViewportRelativeNV");
+  add(DecorationNonUniformEXT, "DecorationNonUniformEXT");
+  add(DecorationCMKernelArgumentTypeINTEL, "CMKernelArgumentTypeINTEL");
+  add(DecorationHlslCounterBufferGOOGLE, "HlslCounterBufferGOOGLE");
+  add(DecorationHlslSemanticGOOGLE, "HlslSemanticGOOGLE");
 }
 SPIRV_DEF_NAMEMAP(Decoration, SPIRVDecorationNameMap)
 

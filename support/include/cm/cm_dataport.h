@@ -737,6 +737,14 @@ write(SurfaceIndex index, uint globalOffset, uint elementOffset, T data) {
   }
 }
 
+template <typename T>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<(sizeof(T) <= 4) && details::is_cm_scalar<T>::value,
+                        void>::type
+write(SurfaceIndex index, uint elementOffset, T data) {
+  write<T>(index, 0, elementOffset, data);
+}
+
 /// \brief Typed surface read.
 ///
 /// \param surfIndex surface index, which must correspond to a 1D, 2D or 3D

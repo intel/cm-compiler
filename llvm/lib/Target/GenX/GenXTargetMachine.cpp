@@ -133,7 +133,9 @@ bool GenXTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   // method getAnalysisIfAvailable.
   PM.add(createGenXSubtargetPass(Subtarget));
 
-  // All passes which modify the LLVM IR are now complete; run the verifier
+  PM.add(createTransformPrivMemPass());
+  PM.add(createPromoteMemoryToRegisterPass());
+    // All passes which modify the LLVM IR are now complete; run the verifier
   // to ensure that the IR is valid.
   if (!DisableVerify)
     PM.add(createVerifierPass());
@@ -214,7 +216,7 @@ bool GenXTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   ///
   PM.add(createDeadCodeEliminationPass());
   /// .. include:: GenXBaling.h
-  PM.add(createGenXFuncBalingPass(BalingKind::BK_Legalization));
+  PM.add(createGenXFuncBalingPass(BalingKind::BK_Legalization, &Subtarget));
   /// .. include:: GenXLegalization.cpp
   PM.add(createGenXLegalizationPass());
   /// .. include:: GenXEmulate.cpp
@@ -267,7 +269,7 @@ bool GenXTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   PM.add(createGenXModulePass());
   /// .. include:: GenXLiveness.h
   PM.add(createGenXLivenessPass());
-  PM.add(createGenXGroupBalingPass(BalingKind::BK_Analysis));
+  PM.add(createGenXGroupBalingPass(BalingKind::BK_Analysis, &Subtarget));
   PM.add(createGenXNumberingPass());
   PM.add(createGenXLiveRangesPass());
   /// .. include:: GenXRematerialization.cpp
@@ -292,7 +294,7 @@ bool GenXTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   /// **IR restriction**: Any pass after this needs to be careful when modifying
   /// code, as it also needs to update baling info.
   ///
-  PM.add(createGenXGroupBalingPass(BalingKind::BK_CodeGen));
+  PM.add(createGenXGroupBalingPass(BalingKind::BK_CodeGen, &Subtarget));
   /// .. include:: GenXUnbaling.cpp
   PM.add(createGenXUnbalingPass());
   /// .. include:: GenXDepressurizer.cpp

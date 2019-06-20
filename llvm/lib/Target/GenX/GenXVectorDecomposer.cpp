@@ -353,7 +353,7 @@ void VectorDecomposer::adjustDecomposition(Instruction *Inst)
   // Compute the GRF number of the first and last byte of the region.
   unsigned First = R.Offset / 32U;
   Last /= 32U;
-  if ((First > Decomposition.size()) || (Last > Decomposition.size())) {
+  if ((First >= Decomposition.size()) || (Last >= Decomposition.size())) {
     setNotDecomposing(Inst, "out-of-bounds");
     return; // don't attempt to decompose out-of-bounds accesses
   }

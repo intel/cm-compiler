@@ -44,6 +44,7 @@ class DebugLoc;
 class DominatorTree;
 class formatted_raw_ostream;
 class Function;
+class FunctionGroup;
 class FunctionGroupPass;
 class FunctionPass;
 class GenXSubtarget;
@@ -76,19 +77,20 @@ FunctionPass *createGenXGEPLoweringPass();
 FunctionPass *createGenXRegionCollapsingPass();
 FunctionPass *createGenXExtractVectorizerPass();
 FunctionPass *createGenXRawSendRipperPass();
-FunctionPass *createGenXFuncBalingPass(BalingKind Kind);
+FunctionPass *createGenXFuncBalingPass(BalingKind Kind, GenXSubtarget *ST);
 FunctionPass *createGenXLegalizationPass();
 ModulePass *createGenXEmulatePass();
 FunctionPass *createGenXDeadVectorRemovalPass();
 FunctionPass *createGenXPatternMatchPass(const TargetOptions *Options);
 FunctionPass *createGenXPostLegalizationPass();
+FunctionPass *createTransformPrivMemPass();
 FunctionPass *createGenXPromotePredicatePass();
 FunctionPass *createGenXIMadPostLegalizationPass();
 ModulePass *createGenXModulePass();
 FunctionGroupPass *createGenXLateSimdCFConformancePass();
 FunctionGroupPass *createGenXLivenessPass();
 FunctionGroupPass *createGenXCategoryPass();
-FunctionGroupPass *createGenXGroupBalingPass(BalingKind Kind);
+FunctionGroupPass *createGenXGroupBalingPass(BalingKind Kind, GenXSubtarget *ST);
 FunctionGroupPass *createGenXUnbalingPass();
 FunctionGroupPass *createGenXDepressurizerPass();
 FunctionGroupPass *createGenXLateLegalizationPass();
@@ -125,15 +127,6 @@ inline int log2(T Val)
 }
 
 namespace genx {
-
-// The encoding for register category, used in GenXCategory,
-// GenXLiveness and GenXVisaRegAlloc.  It is an anonymous enum inside a class
-// rather than a named enum so you don't need to cast to/from int.
-struct RegCategory {
-  enum { NONE, GENERAL, ADDRESS, PREDICATE,
-      SAMPLER, SURFACE, VME, NUMREALCATEGORIES,
-      EM, RM, NUMCATEGORIES };
-};
 
 // A local encoding (not part of vISA or GenX) of whether an operand should be signed.
 enum Signedness {
@@ -189,51 +182,6 @@ private:
   Instruction *loadSplatConstant(Instruction *InsertPos);
 };
 
-// KernelMetadata : class to parse kernel metadata
-class KernelMetadata {
-  bool IsKernel;
-  StringRef Name;
-  StringRef AsmName;
-  unsigned SLMSize;
-  SmallVector<unsigned, 4> ArgKinds;
-  SmallVector<unsigned, 4> ArgOffsets;
-  SmallVector<unsigned, 4> ArgIOKinds;
-public:
-  // default constructor
-  KernelMetadata() : IsKernel(false), SLMSize(0) {}
-  // constructor from Function
-  KernelMetadata(Function *F);
-  // Accessors
-  bool isKernel() const { return IsKernel; }
-  StringRef getName() const { return Name; }
-  StringRef getAsmName() const { return AsmName; }
-  unsigned getSLMSize() const { return SLMSize; }
-  ArrayRef<unsigned> getArgKinds() { return ArgKinds; }
-  unsigned getNumArgs() const { return ArgKinds.size(); }
-  unsigned getArgKind(unsigned Idx) const { return ArgKinds[Idx]; }
-  unsigned getArgCategory(unsigned Idx) const;
-  unsigned getArgOffset(unsigned Idx) const { return ArgOffsets[Idx]; }
-
-  enum ArgIOKind {
-    IO_Normal = 0,
-    IO_INPUT = 1,
-    IO_OUTPUT = 2,
-    IO_INPUT_OUTPUT = 3
-  };
-  ArgIOKind getArgInputOutputKind(unsigned Idx) const {
-    if (Idx < ArgIOKinds.size())
-      return static_cast<ArgIOKind>(ArgIOKinds[Idx] & 0x3);
-    return IO_Normal;
-  }
-  bool isOutputArg(unsigned Idx) const {
-    auto Kind = getArgInputOutputKind(Idx);
-    return Kind == ArgIOKind::IO_OUTPUT || Kind == ArgIOKind::IO_INPUT_OUTPUT;
-  }
-};
-
-// Utility function to tell whether a Function is a vISA kernel.
-bool isKernel(Function *F);
-
 // Load a constant using the llvm.genx.constant intrinsic.
 inline Instruction *loadConstant(Constant *C, Instruction *InsertBefore,
       SmallVectorImpl<Instruction *> *AddedInstructions = nullptr) {
@@ -248,6 +196,9 @@ bool loadConstants(Instruction *Inst);
 
 // Load constants used in phi nodes in a function.
 bool loadPhiConstants(Function *F, DominatorTree *DT, bool ExcludePredicate = false);
+
+// Legalize store instructions that value is a constant.
+bool loadGlobalStoreConstant(StoreInst *Inst);
 
 // Utility function to get the intrinsic ID if V is an intrinsic call.
 // V is allowed to be 0.
@@ -282,6 +233,32 @@ bool splitStructPhis(Function *F);
 
 // breakConstantExprs : break constant expressions in a function.
 bool breakConstantExprs(Function *F);
+
+// fold bitcast instruction to store/load pointer operand if possible.
+// Return this new instruction or nullptr.
+Instruction *foldBitCastInst(Instruction *Inst);
+
+// Return the underlying global variable. Return nullptr if it does not exist.
+GlobalVariable *getUnderlyingGlobalVariable(Value *V);
+
+class Bale;
+
+// verify a bale that ends with a g_store satisfying the following
+// conditions:
+// (1) the stored value is from a write-region
+// (2) the old value of the above write region is from g_store
+// (3) the global variable in g_store and g_load matches
+bool isLegalBale(const Bale &B);
+
+bool isIdentityBale(const Bale &B);
+
+// Skip optimizations on functions with large blocks.
+inline bool skipOptWithLargeBlock(const Function &F) {
+  return std::any_of(F.begin(), F.end(),
+                     [](const BasicBlock &BB) { return BB.size() >= 5000; });
+}
+
+bool skipOptWithLargeBlock(FunctionGroup &FG);
 
 // isRdRegion : test whether the intrinsic id is rdregion
 static inline bool isRdRegion(unsigned IntrinID) {
@@ -412,16 +389,6 @@ static inline bool isMaskPacking(const Value *V) {
     return V->getType()->getScalarType()->isIntegerTy(NElts);
   }
   return false;
-}
-
-// Turn a MDNode into llvm::value or its subclass.
-// Return nullptr if the underlying value has type mismatch.
-template <typename Ty = llvm::Value>
-Ty *getValueAsMetadata(Metadata *M) {
-  if (auto VM = dyn_cast<ValueAsMetadata>(M))
-    if (auto V = dyn_cast<Ty>(VM->getValue()))
-      return V;
-  return nullptr;
 }
 
 void LayoutBlocks(Function &func, LoopInfo &LI);

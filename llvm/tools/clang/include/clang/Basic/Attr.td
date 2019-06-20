@@ -2449,6 +2449,12 @@ def CMGenx : Attr {
   let Documentation = [Undocumented];
 }
 
+def CMGenxVolatile : Attr {
+  let Spellings = [Declspec<"genx_volatile">];
+  let Args = [IntArgument<"Offset", 1>];
+  let Documentation = [Undocumented];
+}
+
 def CMBuiltin : Attr {
   let Spellings = [Declspec<"cm_builtin">];
   let Documentation = [Undocumented];
@@ -2498,6 +2504,15 @@ def CMFloatControl : Attr {
 
 def CMEntry : Attr {
   let Spellings = [Declspec<"cm_entry">];
+  let Documentation = [Undocumented];
+}
+
+def CMOpenCLType : InheritableAttr {
+  let Spellings = [Keyword<"__opencl_type">,
+                   Clang<"opencl_type">,
+                   Declspec<"opencl_type">,
+                   CXX11<"", "opencl_type", 200809>];
+  let Args = [StringArgument<"type_desc">];
   let Documentation = [Undocumented];
 }
 

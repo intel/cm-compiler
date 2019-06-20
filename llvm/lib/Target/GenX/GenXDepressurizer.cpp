@@ -342,7 +342,7 @@ struct SinkCandidate {
 // GenX depressurizer pass
 class GenXDepressurizer : public FunctionGroupPass {
   enum { FlagThreshold = 6, AddrThreshold = 32, GRFThreshold = 2560,
-         FlagGRFTolerance = 2560 };
+         FlagGRFTolerance = 3840 };
   bool Modified;
   GenXGroupBaling *Baling;
   DominatorTree *DT;
@@ -427,6 +427,9 @@ void GenXDepressurizer::getAnalysisUsage(AnalysisUsage &AU) const {
  *      this FunctionGroup
  */
 bool GenXDepressurizer::runOnFunctionGroup(FunctionGroup &FG) {
+  if (skipOptWithLargeBlock(FG))
+    return false;
+
   Modified = false;
   Baling = &getAnalysis<GenXGroupBaling>();
   // Process functions in the function group in reverse order, so we know the
@@ -737,9 +740,7 @@ void GenXDepressurizer::processInstruction(Instruction *Inst) {
                    /*AllowClone=*/false);
 
   // Attempt sinking of non-flag value(s) if necessary.
-  if (Live->getPressure() > GRFThreshold &&
-      Live->getPressure(Liveness::FLAG) <= FlagThreshold &&
-      Live->getPressure(Liveness::ADDR) <= AddrThreshold)
+  if (Live->getPressure() > GRFThreshold)
     attemptSinking(Inst->getNextNode(), &BaleOperands, Liveness::GENERAL,
                    /*AllowClone=*/false);
 
