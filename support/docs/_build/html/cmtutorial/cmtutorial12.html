@@ -55,7 +55,7 @@
           <a href="cmtutorial11.html" title="Tutorial 11. Kernel Programming: Register Usage"
              accesskey="P">previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">CM (C for Metal) Tutorial</a> &#187;</li> 
+          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">C for Metal Tutorial</a> &#187;</li> 
       </ul>
     </div>
 
@@ -120,13 +120,13 @@ Cmk_bitonic_merge takes two 256-chunks and performs swapping elements based on t
 </div>
 <p>The implementation of bitonic_exchange2, 4 and 8 are similar to bitonic_exchange1. The only difference is stride distance and different flip vector. Unlike other strides, the shuffling data patterns for stride 2 cannot be expressed concisely with Gen register regioning. Take the stride 2 in stage 1 as an example, depicted in Figure 3. The first step copies A[2], A[3], A[6] and A[7] to B[0], B[1], B[4] and B[5], respectively as indicated by red arrows in Figure 3.b.</p>
 <a class="reference internal image-reference" href="../_images/bitonicsort-f3.png"><img alt="../_images/bitonicsort-f3.png" src="../_images/bitonicsort-f3.png" style="width: 800px;" /></a>
-<p>A straightforward CM implementation is to reshape vector A and B to 8x4 matrix and then use select() to copy elements. Reshaping vector to matrix does not generate any code. It is just a way how the compiler views the representation of the data of B. Let’s assume that vector B[0-31] reside in r10-13. format&lt;unsigned int, 8,4&gt;() intrinsic reshapes the same data into a 8x4 matrix representation as shown in Figure 4.a.</p>
+<p>A straightforward C for Metal implementation is to reshape vector A and B to 8x4 matrix and then use select() to copy elements. Reshaping vector to matrix does not generate any code. It is just a way how the compiler views the representation of the data of B. Let’s assume that vector B[0-31] reside in r10-13. format&lt;unsigned int, 8,4&gt;() intrinsic reshapes the same data into a 8x4 matrix representation as shown in Figure 4.a.</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">matrix_ref</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span> <span class="n">MB</span> <span class="o">=</span> <span class="n">B</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">32</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">i</span><span class="p">).</span><span class="n">format</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span><span class="p">();</span>
 <span class="n">matrix_ref</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span> <span class="n">MA</span> <span class="o">=</span> <span class="n">A</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">32</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">i</span><span class="p">).</span><span class="n">format</span><span class="o">&lt;</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span><span class="p">();</span>
 </pre></div>
 </div>
 <a class="reference internal image-reference" href="../_images/bitonicsort-f4.png"><img alt="../_images/bitonicsort-f4.png" src="../_images/bitonicsort-f4.png" style="width: 800px;" /></a>
-<p>Once both vector A and B are reshaped to 8x4 matrices, copying data from B to A is done by the following two simple CM statements.</p>
+<p>Once both vector A and B are reshaped to 8x4 matrices, copying data from B to A is done by the following two simple C for Metal statements.</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">MB</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">=</span> <span class="n">MA</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">);</span>
 <span class="n">MB</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span> <span class="o">=</span> <span class="n">MA</span><span class="p">.</span><span class="n">select</span><span class="o">&lt;</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
 </pre></div>
@@ -416,7 +416,7 @@ Cmk_bitonic_merge takes two 256-chunks and performs swapping elements based on t
 </div>
 <div class="section" id="sorting-more-than-256-elements">
 <h2>Sorting more than 256 elements<a class="headerlink" href="#sorting-more-than-256-elements" title="Permalink to this headline">¶</a></h2>
-<p>A bitonic stage sorts elements with butterfly network. For a stage K, each compare-and-swap step halves the stride distance of its prior step. The recursive step continues until stride distance 1 is complete. When stride distance is greater than 7, there is global synchronization between two steps i and i+1. Each HW thread reads processes two 256-element chunks as depicted in Figure 8. The 256-element blocks circled by light-blue dotted lines are processed by one HW threads. Global synchronization is done via enqueue from the host side. CM equeue is complete in FIFO order. Namely, one task will finish its job before the next enqueued tasks starts. The following code snippet is from the host code, BitonicSort.cpp, which is also depicted in Figure 7.</p>
+<p>A bitonic stage sorts elements with butterfly network. For a stage K, each compare-and-swap step halves the stride distance of its prior step. The recursive step continues until stride distance 1 is complete. When stride distance is greater than 7, there is global synchronization between two steps i and i+1. Each HW thread reads processes two 256-element chunks as depicted in Figure 8. The 256-element blocks circled by light-blue dotted lines are processed by one HW threads. Global synchronization is done via enqueue from the host side. C for Metal equeue is complete in FIFO order. Namely, one task will finish its job before the next enqueued tasks starts. The following code snippet is from the host code, BitonicSort.cpp, which is also depicted in Figure 7.</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="c1">// Each HW thread swap two 256-element chunks. Hence, we only need</span>
   <span class="c1">// to launch size/ (base_sort_size*2) HW threads</span>
   <span class="n">total_threads</span> <span class="o">=</span> <span class="n">size</span> <span class="o">/</span> <span class="p">(</span><span class="n">base_sort_size_</span> <span class="o">*</span> <span class="mi">2</span><span class="p">);</span>
@@ -561,12 +561,12 @@ Cmk_bitonic_merge takes two 256-chunks and performs swapping elements based on t
           <a href="cmtutorial11.html" title="Tutorial 11. Kernel Programming: Register Usage"
              >previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="cmtut.html" >CM (C for Metal) Tutorial</a> &#187;</li> 
+          <li class="nav-item nav-item-1"><a href="cmtut.html" >C for Metal Tutorial</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
-      Last updated on Wed Jun 19 12:06:58 2019 -0400.
+      Last updated on Thu Jun 27 15:27:24 2019 -0400.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

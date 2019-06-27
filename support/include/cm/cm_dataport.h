@@ -141,6 +141,97 @@ CM_NODEBUG CM_INLINE void write(SurfaceIndex index, int offset,
   details::__cm_intrinsic_impl_oword_write(index, offset, src);
 }
 
+/// \brief HWord block read.
+/// @param idx surface index, which must correspond to a buffer.
+///
+/// @param offset zero based offset of the input buffer in bytes. Must be HWord aligned.
+///
+/// @param dst the data to be read. The size of vector can be only 1, 2, 4 or
+/// 8 HWords.
+template <int N>
+CM_NODEBUG CM_INLINE void cm_hword_read(SurfaceIndex index, uint offset,
+  vector_ref<uint, N> dst) {
+  vector<uint, 8> header = 0;
+  const uint exDesc = 0xa;
+  uint desc = cm_get_value(index);
+
+  constexpr unsigned Sz = sizeof(uint) * N;
+  CM_STATIC_ERROR(details::isPowerOf2(N) && Sz >= details::GRF &&
+    Sz <= 8 * details::GRF,
+    "Data size must be 1/2/4/8 HWords");
+
+  switch (N)
+  {
+  case 8:
+    desc |= (0x0 << 8);  // MESSAGE_SPECIFIC_CONTROL
+    break;
+  case 16:
+    desc |= (0x1 << 8);
+    break;
+  case 32:
+    desc |= (0x2 << 8);
+    break;
+  case 64:
+    desc |= (0x3 << 8);
+    break;
+  }
+
+  desc += 0x1 << 13;
+  desc += 0x1 << 14;
+  desc += 0x1 << 19;
+  desc += (N / 8) << 20;   // Response length
+  desc += 0x1 << 25;  // Msg length
+  header(2) = offset;
+
+  cm_send(dst.format<uint, 1, N>(), header.format<uint, 1, 8>(),
+    exDesc, desc, 0u);
+}
+
+/// \brief HWord block write.
+/// @param idx surface index, which must correspond to a buffer.
+///
+/// @param offset zero based offset of the input buffer in bytes. Must be HWord aligned.
+///
+/// @param src the data to be written. The size of vector can be only 1, 2, 4 or
+/// 8 HWords.
+template <int N>
+CM_NODEBUG CM_INLINE void cm_hword_write(SurfaceIndex index, int offset,
+  vector<uint, N> src) {
+  vector<uint, 8> header = 0;
+  const uint exDesc = ((N / 8) << 6) + 0xa;
+  uint desc = cm_get_value(index);
+
+  constexpr unsigned Sz = sizeof(uint) * N;
+  CM_STATIC_ERROR(details::isPowerOf2(Sz) && Sz >= details::GRF &&
+    Sz <= 8 * details::GRF,
+    "Data size must be 1/2/4/8 HWords");
+
+  switch (N)
+  {
+  case 8:
+    desc |= (0x0 << 8);  // MESSAGE_SPECIFIC_CONTROL
+    break;
+  case 16:
+    desc |= (0x1 << 8);
+    break;
+  case 32:
+    desc |= (0x2 << 8);
+    break;
+  case 64:
+    desc |= (0x3 << 8);
+    break;
+  }
+
+  desc += 0x1 << 13;
+  desc += 0x9 << 14;
+  desc += 0x1 << 19;
+  desc += 0x1 << 25;  // Msg length
+  header(2) = offset;
+
+  cm_sends(NULL, header.format<uint, 1, 8>(), src.format<uint, 1, N>(),
+    exDesc, desc, 0u);
+}
+
 /// \brief Media block read.
 ///
 /// @param idx surface index, which must correspond to a 2D type surface.

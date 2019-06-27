@@ -9,7 +9,7 @@ Intel(R) C for Metal Compiler
 Introduction
 ============
 
-The Intel(R) C for Metal compiler is a open source compiler that implements C for Metal (CM) programming language. CM is a new GPU kernel programming language for Intel HD Graphics. 
+The Intel(R) C for Metal compiler is a open source compiler that implements C for Metal programming language. C for Metal is a new GPU kernel programming language for Intel HD Graphics. 
 
 This document is a starting guide for setting up the development environment, 
 building and using this compiler.
@@ -92,7 +92,7 @@ and test directories are.)
 Building and running the examples
 =================================
 
-Having installed the CM runtime + driver (from the developement package).  You may use the compiler binary (cmc) you build from source to replace the cmc binary coming with the developement package (under compiler/bin).
+Having installed the C for Metal runtime + driver (from the developement package).  You may use the compiler binary (cmc) you build from source to replace the cmc binary coming with the developement package (under compiler/bin).
 
 You can build and run examples under test/open_examples.
 
@@ -144,7 +144,7 @@ We welcome contributions to the compiler and the examples, including bug fixes, 
 
 You may create a new pull request on github for your code changes. We will review it, test it, and give you our feedback. When the change is finalized, we will push it to the project repository.
 
-For any new example using CM, as long as you have the entire application that can be built and run on either Linux or Windows, you can email it to the maintainer of this project. We can help you customize it, and publish it in our open-example folder.
+For any new example using C for Metal, as long as you have the entire application that can be built and run on either Linux or Windows, you can email it to the maintainer of this project. We can help you customize it, and publish it in our open-example folder.
 
 (*) Other names and brands maybe claimed as property of others.
 

@@ -27,8 +27,8 @@
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="CM (C for Metal) Tutorial" href="../cmtutorial/cmtut.html" />
-    <link rel="prev" title="CM (C for Metal) Language Specification" href="../cmlangspec/cmlangspec.html" />
+    <link rel="next" title="C for Metal Tutorial" href="../cmtutorial/cmtut.html" />
+    <link rel="prev" title="C for Metal Language Specification" href="../cmlangspec/cmlangspec.html" />
 <style type="text/css">
   table.right { float: right; margin-left: 20px; }
   table.right td { border: 1px solid #ccc; }
@@ -49,10 +49,10 @@
           <a href="../genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="../cmtutorial/cmtut.html" title="CM (C for Metal) Tutorial"
+          <a href="../cmtutorial/cmtut.html" title="C for Metal Tutorial"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="../cmlangspec/cmlangspec.html" title="CM (C for Metal) Language Specification"
+          <a href="../cmlangspec/cmlangspec.html" title="C for Metal Language Specification"
              accesskey="P">previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li> 
       </ul>
@@ -71,7 +71,7 @@
 <li><a class="reference internal" href="#cmc-user-guide" id="id1">CMC User Guide</a><ul>
 <li><a class="reference internal" href="#introduction" id="id2">1 Introduction</a></li>
 <li><a class="reference internal" href="#supported-gen-targets" id="id3">2 Supported Gen Targets</a></li>
-<li><a class="reference internal" href="#cm-header-files" id="id4">3 CM Header Files</a></li>
+<li><a class="reference internal" href="#c-for-metal-header-files" id="id4">3 C for Metal Header Files</a></li>
 <li><a class="reference internal" href="#compiler-options" id="id5">4 Compiler Options</a></li>
 <li><a class="reference internal" href="#implicit-macros" id="id6">5 Implicit Macros</a></li>
 <li><a class="reference internal" href="#environment-variables" id="id7">6 Environment Variables</a></li>
@@ -82,19 +82,19 @@
 </div>
 <div class="section" id="introduction">
 <h2><a class="toc-backref" href="#id2">1 Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
-<p>CM 6.0 contains a new CM compiler called cmc, based on LLVM with custom front-end changes and
-extensions for the CM language and a new Gen back-end. The old compiler (cm-icl) is still
+<p>C for Metal package contains a new C for Metal compiler called cmc, based on LLVM with custom front-end changes and
+extensions for the C for Metal language and a new Gen back-end. The old compiler (cm-icl) is still
 available and is included in the package but will no longer be developed. New features will
 only be available in cmc.</p>
 <p>This document describes the use of the cmc compiler.</p>
-<p>For information about the CM language see the <cite>CM (C for Metal) Language Specification</cite>.</p>
-<p>For information about porting applications to use the cmc compiler from the old compiler (cm-icl) see the <cite>CM LLVM Porting Guide</cite>.</p>
+<p>For information about the C for Metal language see the <cite>C for Metal Language Specification</cite>.</p>
+<p>For information about porting applications to use the cmc compiler from the old compiler (cm-icl) see the <cite>C for Metal Porting Guide</cite>.</p>
 </div>
 <div class="section" id="supported-gen-targets">
 <span id="supportedgentargets"></span><h2><a class="toc-backref" href="#id3">2 Supported Gen Targets</a><a class="headerlink" href="#supported-gen-targets" title="Permalink to this headline">¶</a></h2>
 <p>By default the cmc compiler produces a generic vISA file that is not targeted at any specific Gen variant.
-Some CM language features are by their nature Gen specific, and are only available when a specific Gen target is specified - for example the supported VME functions differ according to the Gen target.</p>
-<p>A specific Gen target may be specified by use of the -march=<em>gen</em> compiler option. This option implicitly predefines several macros that can be used within CM kernels to control conditional compilation, and also includes appropriate Gen specific header files.</p>
+Some C for Metal language features are by their nature Gen specific, and are only available when a specific Gen target is specified - for example the supported VME functions differ according to the Gen target.</p>
+<p>A specific Gen target may be specified by use of the -march=<em>gen</em> compiler option. This option implicitly predefines several macros that can be used within C for Metal kernels to control conditional compilation, and also includes appropriate Gen specific header files.</p>
 <p>The option -Qxcm_jit_target=<em>gen</em> may also be used, which has the same effect as -march but additionally invokes the GenX Finalizer (jitter) to produce targeted vISA code.</p>
 <p>The Gen target may be specified using a codename (e.g. CNL) or number (e.g. gen10). The case is not significant, so cnl, CNL, and Cnl are all equivalent.</p>
 <p>When a Gen target is specified, two macros are predefined. The macro CM_GENX is given a value which identifies the Gen target, and a macro of the form CM_GEN<em>n</em> is defined (without a value). The targets supported by cmc, and the corresponding macros, are given in the table below.</p>
@@ -166,13 +166,13 @@ Some CM language features are by their nature Gen specific, and are only availab
 </tbody>
 </table>
 </div>
-<div class="section" id="cm-header-files">
-<h2><a class="toc-backref" href="#id4">3 CM Header Files</a><a class="headerlink" href="#cm-header-files" title="Permalink to this headline">¶</a></h2>
-<p>The cmc compiler implicitly knows the path to the CM header files, so no option needs to be used to specify the path.</p>
-<p>Only the main header file cm/cm.h needs to be included in CM kernels unless cmtl functions are required, in which case cm/cmtl.h should also be included - all other header files will be included as needed, depending on the Gen variant specified.</p>
-<p>The include statement should appear in each CM source file as follows:</p>
+<div class="section" id="c-for-metal-header-files">
+<h2><a class="toc-backref" href="#id4">3 C for Metal Header Files</a><a class="headerlink" href="#c-for-metal-header-files" title="Permalink to this headline">¶</a></h2>
+<p>The cmc compiler implicitly knows the path to the C for Metal header files, so no option needs to be used to specify the path.</p>
+<p>Only the main header file cm/cm.h needs to be included in C for Metal kernels unless cmtl functions are required, in which case cm/cmtl.h should also be included - all other header files will be included as needed, depending on the Gen variant specified.</p>
+<p>The include statement should appear in each C for Metal source file as follows:</p>
 <p><code class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;cm/cm.h&gt;</span></code></p>
-<p>or if CM Template Library functions are required</p>
+<p>or if C for Metal Template Library functions are required</p>
 <p><code class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;cm/cm.h&gt;</span></code></p>
 <p><code class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;cm/cmtl.h&gt;</span></code></p>
 </div>
@@ -180,8 +180,8 @@ Some CM language features are by their nature Gen specific, and are only availab
 <h2><a class="toc-backref" href="#id5">4 Compiler Options</a><a class="headerlink" href="#compiler-options" title="Permalink to this headline">¶</a></h2>
 <p>The cmc compiler accepts options that are compatible with cm-icl, to minimize the migration effort required. However, not all cm-icl options are applicable to the cmc compiler, so some cm-icl options are simply ignored.</p>
 <p>The following table describes the main options that are useful for CM.
-Note that since cmc is based on LLVM/Clang, there are many other options that are available. Many of these will not be applicable to CM kernels or Gen targets, and some may result in unexpected behaviour.</p>
-<p>Note that all CM specific options (i.e. those starting with Qxcm or mCM) may use a slash ‘/’ or minus ‘-‘ as a delimeter. Most Clang options only accept minus ‘-‘.</p>
+Note that since cmc is based on LLVM/Clang, there are many other options that are available. Many of these will not be applicable to C for Metal kernels or Gen targets, and some may result in unexpected behaviour.</p>
+<p>Note that all C for Metal specific options (i.e. those starting with Qxcm or mCM) may use a slash ‘/’ or minus ‘-‘ as a delimeter. Most Clang options only accept minus ‘-‘.</p>
 <table border="1" class="docutils">
 <colgroup>
 <col width="13%" />
@@ -306,7 +306,7 @@ This option only has effect if -Qxcm_jit_target is also specified.</td>
 </div>
 <div class="section" id="implicit-macros">
 <h2><a class="toc-backref" href="#id6">5 Implicit Macros</a><a class="headerlink" href="#implicit-macros" title="Permalink to this headline">¶</a></h2>
-<p>A number of macros are predefined by cmc which may be used to control conditional compilation within CM kernels.
+<p>A number of macros are predefined by cmc which may be used to control conditional compilation within C for Metal kernels.
 These are described in the following table.</p>
 <table border="1" class="docutils">
 <colgroup>
@@ -320,7 +320,7 @@ These are described in the following table.</p>
 </thead>
 <tbody valign="top">
 <tr class="row-even"><td>__CM</td>
-<td>Always defined (without a value) to indicate that this is a CM compilation.</td>
+<td>Always defined (without a value) to indicate that this is a C for Metal compilation.</td>
 </tr>
 <tr class="row-odd"><td>__CMC</td>
 <td>Always defined (without a value) to indicate that the compiler is cmc.</td>
@@ -368,7 +368,7 @@ These are described in the following table.</p>
 <div class="section" id="reporting-compiler-bugs">
 <h2><a class="toc-backref" href="#id8">7 Reporting Compiler Bugs</a><a class="headerlink" href="#reporting-compiler-bugs" title="Permalink to this headline">¶</a></h2>
 <p>Like most compilers, cmc is a complex piece of software and may sometimes encounter a condition that isn’t currently allowed for. This may exhibit in one of a number of ways - ranging from an internal error, a failed compilation, or incorrect execution of the resulting kernel.</p>
-<p>Such incorrect behaviour should be reported to the CM team so that the bug can be investigated and resolved. As it is often difficult and time consuming to reproduce such errors, it is very helpful if appropriate information is included in the bug report.</p>
+<p>Such incorrect behaviour should be reported to the C for Metal team so that the bug can be investigated and resolved. As it is often difficult and time consuming to reproduce such errors, it is very helpful if appropriate information is included in the bug report.</p>
 <p>For internal compiler errors, cmc will usually generate two files, and ask that they be sent as part of the bug report. One comprises the pre-processed source file (so all header files are included with the kernel source), and the other is a script containing a command to invoke cmc with all the options required to reproduce the error. In most cases this will be sufficent for the issue to be identified and fixed.</p>
 <p>For failed compilations the compiler diagnostics produced, the preprocessed source, and command line used to invoke the compiler are required. However, in this case the compiler doesn’t automatically prepare the preprocessed source and command script.  The -E compiler option may be used to preprocess the source and header files into a single source  file - the output will need to be redirected into a file as it is sent to stdout by default.</p>
 <p>Incorrect execution is the most demanding case, as it is usually necessary to execute the kernel in order to reproduce the issue. This requires the source, the commands used to compile and run the kernel, and input data.</p>
@@ -387,17 +387,17 @@ These are described in the following table.</p>
           <a href="../genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="../cmtutorial/cmtut.html" title="CM (C for Metal) Tutorial"
+          <a href="../cmtutorial/cmtut.html" title="C for Metal Tutorial"
              >next</a> |</li>
         <li class="right" >
-          <a href="../cmlangspec/cmlangspec.html" title="CM (C for Metal) Language Specification"
+          <a href="../cmlangspec/cmlangspec.html" title="C for Metal Language Specification"
              >previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
-      Last updated on Wed Jun 19 12:06:58 2019 -0400.
+      Last updated on Thu Jun 27 15:27:24 2019 -0400.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

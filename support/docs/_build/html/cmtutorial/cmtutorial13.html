@@ -55,7 +55,7 @@
           <a href="cmtutorial12.html" title="Tutorial 12. Kernel Deep-Dive: BitonicSort"
              accesskey="P">previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">CM (C for Metal) Tutorial</a> &#187;</li> 
+          <li class="nav-item nav-item-1"><a href="cmtut.html" accesskey="U">C for Metal Tutorial</a> &#187;</li> 
       </ul>
     </div>
 
@@ -170,7 +170,7 @@ Because the intermediate result of the previous step is stored in 4x16
 matrix, which occupies r19 to r22, Gen register regioning allows one
 source operand to select lower half of two rows (likewise for the
 upper half). For instance, r19.0&lt;16;8,1&gt;:w selects lower half of
-row 0 and 1 (as depicted in Figure 3.b). CM compiler generates only
+row 0 and 1 (as depicted in Figure 3.b). C for Metal compiler generates only
 two add instructions, one each for two rows.
 the result of this step is stored in tmp_sum8 (4x8 matrix). Each row
 has only 8 unsigned short. Compiler lays out 2 rows in one register.
@@ -436,12 +436,12 @@ running into the destination stride restriction.</p>
           <a href="cmtutorial12.html" title="Tutorial 12. Kernel Deep-Dive: BitonicSort"
              >previous</a> |</li>
         <li class="nav-item nav-item-0"><a href="../index.html">CM 6.0 documentation</a> &#187;</li>
-          <li class="nav-item nav-item-1"><a href="cmtut.html" >CM (C for Metal) Tutorial</a> &#187;</li> 
+          <li class="nav-item nav-item-1"><a href="cmtut.html" >C for Metal Tutorial</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
-      Last updated on Wed Jun 19 12:06:58 2019 -0400.
+      Last updated on Thu Jun 27 15:27:24 2019 -0400.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

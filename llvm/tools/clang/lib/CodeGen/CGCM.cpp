@@ -789,6 +789,9 @@ llvm::Value *CGCMRuntime::EmitReadRegion1D(CGBuilderTy &Builder,
   llvm::Value *OffsetVal = Builder.CreateMul(
       Offset, llvm::ConstantInt::get(OffsetTy, Ty->getScalarSizeInBits() / 8));
 
+  if (OffsetVal->getType() != FnTy->getParamType(4))
+    OffsetVal = Builder.CreateZExtOrTrunc(OffsetVal, FnTy->getParamType(4));
+
   llvm::Value *Args[6] = {
       Region, llvm::ConstantInt::get(FnTy->getParamType(1), 0),
       llvm::ConstantInt::get(FnTy->getParamType(2), Size),
@@ -843,10 +846,11 @@ llvm::Value *CGCMRuntime::EmitWriteRegion1D(CGBuilderTy &Builder,
 
   // Offset = Offset * sizeof(EltTy)
   llvm::Type *OffsetTy = Offset->getType();
-  assert(FnTy->getParamType(5) == OffsetTy && "wrong offset type");
   Offset = Builder.CreateMul(
       Offset,
       llvm::ConstantInt::get(OffsetTy, Tys[0]->getScalarSizeInBits() / 8));
+  if (OffsetTy != FnTy->getParamType(5))
+    Offset = Builder.CreateZExtOrTrunc(Offset, FnTy->getParamType(5));
 
   llvm::Value *Args[] = {Dst,
                          Src,

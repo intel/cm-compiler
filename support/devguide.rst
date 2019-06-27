@@ -42,7 +42,7 @@ Within the llvm directory:
 * The declarations of GenX-specific intrinsics are in
   ``include/llvm/IR/IntrinsicsGenX.td``.
 
-* There are a few passes specific to the CM compiler that are not part of the
+* There are a few passes specific to the C for Metal compiler that are not part of the
   GenX backend. They are in
   ``lib/Transforms/Scalar/CM*.cpp``
 

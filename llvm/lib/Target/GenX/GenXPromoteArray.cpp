@@ -302,13 +302,14 @@ void TransformPrivMem::handleAllocaInst(llvm::AllocaInst* pAlloca)
 {
   // Extract the Alloca size and the base Type
   Type* pType = pAlloca->getType()->getPointerElementType();
-  Type* pBaseType = GetBaseType(pType)->getScalarType();
-  assert(pBaseType);
+  assert(!pType->isStructTy() && "CM does not support struct-type");
+  Type *pBaseType = GetBaseType(pType);
+  if (!pBaseType)
+    return;
+  pBaseType = pBaseType->getScalarType();
   llvm::AllocaInst* pVecAlloca = createVectorForAlloca(pAlloca, pBaseType);
   if (!pVecAlloca)
-  {
     return;
-  }
 
   IRBuilder<> IRB(pVecAlloca);
   Value* idx = IRB.getInt32(0);

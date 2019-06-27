@@ -4295,7 +4295,7 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
     Builder.CreateStore(errorResult, swiftErrorArg);
   }
 
-  if (getLangOpts().MdfCM)
+  if (getLangOpts().MdfCM && CGM.getCMRuntime().CallInfoStack.back())
     CGM.getCMRuntime().getCurCMCallInfo().setCallInst(cast<llvm::CallInst>(CI));
 
   // Emit any call-associated writebacks immediately.  Arguably this

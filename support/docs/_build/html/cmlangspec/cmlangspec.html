@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>CM (C for Metal) Language Specification &#8212; CM 6.0 documentation</title>
+    <title>C for Metal Language Specification &#8212; CM 6.0 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -63,8 +63,8 @@
       <div class="documentwrapper">
           <div class="body" role="main">
             
-  <div class="section" id="cm-c-for-metal-language-specification">
-<h1><a class="toc-backref" href="#id29">CM (C for Metal) Language Specification</a><a class="headerlink" href="#cm-c-for-metal-language-specification" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="c-for-metal-language-specification">
+<h1><a class="toc-backref" href="#id29">C for Metal Language Specification</a><a class="headerlink" href="#c-for-metal-language-specification" title="Permalink to this headline">¶</a></h1>
 <p>Revision 6.0</p>
 <p>Primary Author(s): Kai Yu Chen, Guei-Yuan Lueh</p>
 <p>Contributor(s): Chu-cheow Lim, Somnath Ghosh, Chunling Hu, Biju
@@ -111,7 +111,7 @@ Inside, VTune, Xeon, and Xeon Inside are trademarks of Intel Corporation in the 
 <div class="contents topic" id="table-of-contents">
 <p class="topic-title first">Table of Contents</p>
 <ul class="simple">
-<li><a class="reference internal" href="#cm-c-for-metal-language-specification" id="id29">CM (C for Metal) Language Specification</a><ul>
+<li><a class="reference internal" href="#c-for-metal-language-specification" id="id29">C for Metal Language Specification</a><ul>
 <li><a class="reference internal" href="#legal-notices-and-disclaimers" id="id30">Legal Notices and Disclaimers</a></li>
 <li><a class="reference internal" href="#introduction" id="id31">1 Introduction</a><ul>
 <li><a class="reference internal" href="#purpose-scope" id="id32">1.1 Purpose / Scope</a></li>
@@ -152,7 +152,7 @@ Inside, VTune, Xeon, and Xeon Inside are trademarks of Intel Corporation in the 
 <li><a class="reference internal" href="#media-walker-interface" id="id61">4.13 Media Walker Interface</a></li>
 <li><a class="reference internal" href="#synchronization-functions" id="id62">4.14 Synchronization Functions</a></li>
 <li><a class="reference internal" href="#raw-send-functions" id="id63">4.15 Raw Send Functions</a></li>
-<li><a class="reference internal" href="#cm-label-function" id="id64">4.16 CM label function</a></li>
+<li><a class="reference internal" href="#c-for-metal-label-function" id="id64">4.16 C for Metal label function</a></li>
 <li><a class="reference internal" href="#formatted-output" id="id65">4.17 Formatted Output</a></li>
 <li><a class="reference internal" href="#shared-virtual-memory-svm" id="id66">4.18 Shared Virtual Memory (SVM)</a></li>
 <li><a class="reference internal" href="#preprocessor-directives" id="id67">4.19 Preprocessor Directives</a></li>
@@ -160,7 +160,7 @@ Inside, VTune, Xeon, and Xeon Inside are trademarks of Intel Corporation in the 
 <li><a class="reference internal" href="#miscellaneous-functions" id="id69">4.21 Miscellaneous Functions</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#cm-template-library" id="id70">5 CM Template Library</a><ul>
+<li><a class="reference internal" href="#c-for-metal-template-library" id="id70">5 C for Metal Template Library</a><ul>
 <li><a class="reference internal" href="#i-o" id="id71">5.1 I/O</a></li>
 <li><a class="reference internal" href="#vectorization" id="id72">5.2 Vectorization</a></li>
 <li><a class="reference internal" href="#slm" id="id73">5.3 SLM</a></li>
@@ -190,8 +190,8 @@ Inside, VTune, Xeon, and Xeon Inside are trademarks of Intel Corporation in the 
 <h2><a class="toc-backref" href="#id31">1 Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="purpose-scope">
 <h3><a class="toc-backref" href="#id32">1.1 Purpose / Scope</a><a class="headerlink" href="#purpose-scope" title="Permalink to this headline">¶</a></h3>
-<p>This document provides a specification for the CM (C for Metal) language. CM is intended to support
-high-level programming of media kernels for the Intel® Graphics Media Accelerators [1]. The language is
+<p>This document provides a specification for the C for Metal language. C for Metal is intended to support
+high-level programming of compute and media kernels for the Intel® Graphics Media Accelerators [1]. The language is
 based on standard C++ language with some restrictions, plus additional features that are designed for
 easy expression of the inherent data parallelism in media applications and simplified interface with the
 architecture specific hardware features. The organization of this document is as follows:</p>
@@ -202,12 +202,12 @@ vector and matrix object types, variable qualifiers, type conversion/casting rul
 operations on vectors and matrices.</li>
 <li>Section 4 describes the functions, user/kernel function qualifiers, calling conventions, built-in
 functions and inline assembly.</li>
-<li>Section 5 describes the functions that can be found in the CM Template Library</li>
+<li>Section 5 describes the functions that can be found in the C for Metal Template Library</li>
 <li>Appendix A provides the media kernel example written in CM.</li>
 <li>Appendix B describes the access macros for VME interface.</li>
 </ul>
 <p>This document assumes reader familiarity with the standard C++ language. It is not intended to describe
-details of the target device, CM software stack, or the CM compiler usage. Some background
+details of the target device, C for Metal software stack, or the C for Metal compiler usage. Some background
 information is provided in the relevant sections. Please refer to the references listed in section 1.3 for
 further information.</p>
 </div>
@@ -224,43 +224,40 @@ further information.</p>
 </tr>
 </thead>
 <tbody valign="top">
-<tr class="row-even"><td>CM</td>
-<td>C for Metal Language</td>
-</tr>
-<tr class="row-odd"><td>C++  FE</td>
+<tr class="row-even"><td>C++  FE</td>
 <td>Standard Intel® C++ Compiler Front-End</td>
 </tr>
-<tr class="row-even"><td>CM FE</td>
-<td>CM Compiler Front-End</td>
+<tr class="row-odd"><td>CM FE</td>
+<td>C for Metal Compiler Front-End</td>
 </tr>
-<tr class="row-odd"><td>SIMD</td>
+<tr class="row-even"><td>SIMD</td>
 <td>Single Instruction Multiple Data</td>
 </tr>
-<tr class="row-even"><td>GPU</td>
+<tr class="row-odd"><td>GPU</td>
 <td>Graphics Processing Unit</td>
 </tr>
-<tr class="row-odd"><td>GenX</td>
+<tr class="row-even"><td>GenX</td>
 <td>Graphics core generations for Intel® Graphics Media Accelerators [1]</td>
 </tr>
-<tr class="row-even"><td>Host</td>
+<tr class="row-odd"><td>Host</td>
 <td>IA-32 and Intel® 64 architecture processors</td>
 </tr>
-<tr class="row-odd"><td>Device</td>
+<tr class="row-even"><td>Device</td>
 <td>Intel® GenX GPU</td>
 </tr>
-<tr class="row-even"><td>Kernel</td>
+<tr class="row-odd"><td>Kernel</td>
 <td>A program that can be executed on GenX hardware</td>
 </tr>
-<tr class="row-odd"><td>Thread</td>
+<tr class="row-even"><td>Thread</td>
 <td>An instance of a kernel program that is executed on a GenX hardware</td>
 </tr>
-<tr class="row-even"><td>LSB</td>
+<tr class="row-odd"><td>LSB</td>
 <td>Least Significant Bit</td>
 </tr>
-<tr class="row-odd"><td>GRF</td>
+<tr class="row-even"><td>GRF</td>
 <td>General Register File, a set of general-purpose registers available in GenX</td>
 </tr>
-<tr class="row-even"><td>DWORD</td>
+<tr class="row-odd"><td>DWORD</td>
 <td>Double-word, represents 4 bytes for GenX</td>
 </tr>
 </tbody>
@@ -275,16 +272,16 @@ further information.</p>
 <li>[3] “Intel® C++ Compiler User and Reference Guides”,
 <a class="reference external" href="http://www.intel.com/cd/software/products/asmo-na/eng/347618.htm">http://www.intel.com/cd/software/products/asmo-na/eng/347618.htm</a>.</li>
 <li>[4] “Graphics BSpec”, Vol5c.6, Intel Corporation.</li>
-<li>[5] CM Usage Model.</li>
-<li>[6] CM Runtime API specification.</li>
+<li>[5] C for Metal Usage Model.</li>
+<li>[6] C for Metal Runtime API specification.</li>
 <li>[7] <cite>CMC User Guide</cite>.</li>
-<li>[8] <cite>CM LLVM Porting Guide</cite>.</li>
+<li>[8] <cite>C for Metal Porting Guide</cite>.</li>
 </ul>
 </div>
 <div class="section" id="revision-history">
 <h3><a class="toc-backref" href="#id35">1.4 Revision History</a><a class="headerlink" href="#revision-history" title="Permalink to this headline">¶</a></h3>
-<div class="section" id="changes-since-cm-4-0">
-<h4>Changes since CM 4.0<a class="headerlink" href="#changes-since-cm-4-0" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="changes-since-c-for-metal-4-0">
+<h4>Changes since C for Metal 4.0<a class="headerlink" href="#changes-since-c-for-metal-4-0" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>Updated definition of sample32 API with new Output Format Control field</li>
 <li>Added cm_bf_insert, cm_bf_extract and cm_bf_reverse intrinsics</li>
@@ -293,8 +290,8 @@ char, uchar, short, ushort) as well as being byte addressable (not supported pre
 <li>Description of Gen10 HEVC VME Interface</li>
 </ul>
 </div>
-<div class="section" id="changes-since-cm-5-0">
-<h4>Changes since CM 5.0<a class="headerlink" href="#changes-since-cm-5-0" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="changes-since-c-for-metal-5-0">
+<h4>Changes since C for Metal 5.0<a class="headerlink" href="#changes-since-c-for-metal-5-0" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>Update the description of the cm_sincos() intrinsic</li>
 <li>Remove the requirement that the arguments to cm_min() and cm_max() have the same kind of type</li>
@@ -312,8 +309,8 @@ as all other variants require 2D surface)</li>
 <li>Moved topics relating to compiler usage to the CMC User Guide document.</li>
 </ul>
 </div>
-<div class="section" id="changes-since-cm-6-0">
-<h4>Changes since CM 6.0<a class="headerlink" href="#changes-since-cm-6-0" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="changes-since-c-for-metal-6-0">
+<h4>Changes since C for Metal 6.0<a class="headerlink" href="#changes-since-c-for-metal-6-0" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>For oword load read(), documented the deprecated MODIFIED_DWALIGNED modifier
 in addition to DWALIGNED.</li>
@@ -337,27 +334,27 @@ single precision float.</li>
 <h2><a class="toc-backref" href="#id36">2 Data Types</a><a class="headerlink" href="#data-types" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="scalar-data-types">
 <h3><a class="toc-backref" href="#id37">2.1 Scalar Data Types</a><a class="headerlink" href="#scalar-data-types" title="Permalink to this headline">¶</a></h3>
-<p>CM supports the following basic scalar data types defined in C++:</p>
+<p>C for Metal supports the following basic scalar data types defined in C++:</p>
 <ul class="simple">
 <li>char, unsigned char (uchar), short, unsigned short (ushort), int, unsigned int (uint), float, half<ul>
-<li>CM supports IEEE-754 conformant 16-bit half-precision floating point type.
+<li>C for Metal supports IEEE-754 conformant 16-bit half-precision floating point type.
 To enable this, use namespace “half_float” for host code, and keyword “half” for variable declaration.</li>
 </ul>
 </li>
 <li>double: double-precision floating-point data type is only supported for Gen7+ hardware platform,
 with the following usage restrictions:<ul>
-<li>Double operands can be used with usual CM operators where floating-point operands are
+<li>Double operands can be used with usual C for Metal operators where floating-point operands are
 allowed, except division.</li>
-<li>Double operands can be used with the following CM intrinsic functions:
+<li>Double operands can be used with the following C for Metal intrinsic functions:
 cm_abs/cm_min/cm_max/cm_add/cm_mul/cm_sum (all operands must be of double type).</li>
 <li>Double operands cannot be used in DWord scattered read/write and DWord atomic write.</li>
 </ul>
 </li>
 <li>unsigned long long, long long: unsigned and signed long long data types are 64-bit integers that are
 supported for Gen8+ hardware platform with strict restrictions:<ul>
-<li>unsigned long long and long long operands can be used with usual CM operators where long
+<li>unsigned long long and long long operands can be used with usual C for Metal operators where long
 long operands are allowed, except multiplication and division.</li>
-<li>No CM intrinsic functions are allowed for unsigned long long and long long types.</li>
+<li>No C for Metal intrinsic functions are allowed for unsigned long long and long long types.</li>
 <li>Unsigned long long and long long operands cannot be used in DWord scattered read/write
 and DWord atomic write.</li>
 </ul>
@@ -365,15 +362,15 @@ and DWord atomic write.</li>
 <li>svmptr_t: represents an integer of pointer size for SVM (shared virtual memory, Gen8+). When
 declaring a struct that is in SVM, use svmptr_t for a pointer field. The size of svmptr_t is set by
 compiler options /DCM_PTRSIZE=32 or /DCM_PTRSIZE=64; use the size appropriate to whether the
-CM program will be run from a 32 bit or 64 bit application. See <a class="reference internal" href="#sharedvirtualmemory"><span class="std std-ref">4.18 Shared Virtual Memory (SVM)</span></a>.</li>
+C for Metal program will be run from a 32 bit or 64 bit application. See <a class="reference internal" href="#sharedvirtualmemory"><span class="std std-ref">4.18 Shared Virtual Memory (SVM)</span></a>.</li>
 </ul>
-<p>The CM compiler will issue an error message for unsupported data types.</p>
+<p>The C for Metal compiler will issue an error message for unsupported data types.</p>
 </div>
 <div class="section" id="compound-data-types">
 <h3><a class="toc-backref" href="#id38">2.2 Compound Data Types</a><a class="headerlink" href="#compound-data-types" title="Permalink to this headline">¶</a></h3>
 <div class="section" id="base-object">
 <h4>2.2.1 Base Object<a class="headerlink" href="#base-object" title="Permalink to this headline">¶</a></h4>
-<p>To facilitate the expression of high-level data-parallel operations, CM provides the users with two kinds of
+<p>To facilitate the expression of high-level data-parallel operations, C for Metal provides the users with two kinds of
 compound data types for base objects: vector and matrix. These types are defined using syntax similar to C++
 template classes. The parameters are the type of data element and the size of a vector/matrix, as described
 below, which must be compile-time constants according to the C++ language specification.</p>
@@ -389,7 +386,7 @@ below, which must be compile-time constants according to the C++ language specif
 </div>
 <div class="section" id="reference-object">
 <h4>2.2.2 Reference Object<a class="headerlink" href="#reference-object" title="Permalink to this headline">¶</a></h4>
-<p>In addition, CM allows the user to define two types of reference objects: vector_ref and matrix_ref, as
+<p>In addition, C for Metal allows the user to define two types of reference objects: vector_ref and matrix_ref, as
 described below:</p>
 <ul class="simple">
 <li>“vector_ref&lt;type, size&gt;” represents a reference to the elements of some base object that form a
@@ -409,13 +406,13 @@ object result in applying these operations to the corresponding elements of the 
 </div>
 <div class="section" id="structures">
 <h4>2.2.3 Structures<a class="headerlink" href="#structures" title="Permalink to this headline">¶</a></h4>
-<p>CM supports C structures containing all the supported scalar data types and vector/matrix object types
+<p>C for Metal supports C structures containing all the supported scalar data types and vector/matrix object types
 described above, with the restriction that the structure data members must be properly aligned.  The
 reference object cannot be declared as a structure field.</p>
 </div>
 <div class="section" id="masks">
 <h4>2.2.4 Masks<a class="headerlink" href="#masks" title="Permalink to this headline">¶</a></h4>
-<p>Masks for SIMD comparison and merge operations are represented in CM as follows:</p>
+<p>Masks for SIMD comparison and merge operations are represented in C for Metal as follows:</p>
 <ul class="simple">
 <li>int – a vector mask packed into a single int type scalar.</li>
 <li>vector&lt;ushort, size&gt; – a vector mask.</li>
@@ -428,20 +425,20 @@ element is compared with 0, thus any non-zero value signifies “true”.</p>
 </div>
 <div class="section" id="other-built-in-data-types">
 <h3><a class="toc-backref" href="#id39">2.3 Other Built-in Data Types</a><a class="headerlink" href="#other-built-in-data-types" title="Permalink to this headline">¶</a></h3>
-<p>The following built-in data types are defined in CM to represent different objects created and managed by
-the CM host runtime [6]. Variables of such data types must be passed through kernel function
+<p>The following built-in data types are defined in C for Metal to represent different objects created and managed by
+the C for Metal host runtime [6]. Variables of such data types must be passed through kernel function
 parameters, except the reserved global surface indexes CM_STATIC_BUFFER_0 / CM_STATIC_BUFFER_1 /
-CM_STATIC_BUFFER_2 / CM_STATIC_BUFFER_3. CM does not allow the explicit use of local/global
+CM_STATIC_BUFFER_2 / CM_STATIC_BUFFER_3. C for Metal does not allow the explicit use of local/global
 variable or modification of such data types in kernel functions, except used as function call argument.
-CM does not allow alias among SurfaceIndexes used for dataport functions, as the ordering
+C for Metal does not allow alias among SurfaceIndexes used for dataport functions, as the ordering
 between typed and untyped accesses may not be guaranteed by either compiler or hardware.</p>
 <ul class="simple">
 <li>SurfaceIndex: represents a surface object used in dataport or other shared functions.</li>
 <li>SamplerIndex: represents a Sampler state object used in Sampler functions.</li>
 <li>VmeIndex: represents a VME state object used in VME functions.</li>
 </ul>
-<p>CM supports the use of vector of SurfaceIndex in kernel function, which must be passed from host as
-kernel function parameters. CM does not allow modification, reference, or sub-vector select/iselect
+<p>C for Metal supports the use of vector of SurfaceIndex in kernel function, which must be passed from host as
+kernel function parameters. C for Metal does not allow modification, reference, or sub-vector select/iselect
 operation of SurfaceIndex vector (only basic member select operation vector(i) is allowed).</p>
 <p>Usage example:</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;cm/cm.h&gt;</span><span class="cp"></span>
@@ -490,20 +487,20 @@ operation of SurfaceIndex vector (only basic member select operation vector(i) i
   <span class="n">vector</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span>   <span class="n">v</span><span class="p">;</span>
 </pre></div>
 </div>
-<p>CM supports global variables, which can be vector/matrix objects described above.
+<p>C for Metal supports global variables, which can be vector/matrix objects described above.
 Such variables are treated as normal local C++ variables declared in kernel functions.
 Functions can lexically reference global variables. This allows using them
 like global variables in addition to function parameters. Note that these global variables
 are thread private (i.e., a global variable is shared among the GenX kernel function marked
 with “__declspec(genx_main)” and all its callee functions within the same GenX hardware thread).</p>
-<p>CM also supports the “__declspec(genx_volatile)” (#define’d to _GENX_VOLATILE_) qualifier
+<p>C for Metal also supports the “__declspec(genx_volatile)” (#define’d to _GENX_VOLATILE_) qualifier
 for global variables to indicate that optimizations on these variables shall be limited,
 which often helps to decrease register pressure and increases performance.</p>
 <p>Optionally, this declspec takes an offset argument to bind a global variable to a specific byte offset,
 __declspec(genx_volatile(Offset)), #define’d to _GENX_VOLATILE_BINDING_(Offset).
 It is user’s responsibility to ensure there is no overlap to other binding globals or thread payloads.</p>
 <p>An example is given above (please refer to Section 3 and Section 4 for description
-on the operations and functions). CM does not support the initialization of global variables.</p>
+on the operations and functions). C for Metal does not support the initialization of global variables.</p>
 </div>
 <div class="section" id="type-conversions-and-casting">
 <h3><a class="toc-backref" href="#id41">2.5 Type Conversions and Casting</a><a class="headerlink" href="#type-conversions-and-casting" title="Permalink to this headline">¶</a></h3>
@@ -518,10 +515,10 @@ on the operations and functions). CM does not support the initialization of glob
 <span class="p">}</span>
 </pre></div>
 </div>
-<p>CM allows mixed operations of vector and matrix objects of different shapes if the operands have the
+<p>C for Metal allows mixed operations of vector and matrix objects of different shapes if the operands have the
 same number of data elements. The operand shape conformance is checked at compile time by C++ FE
 using template specialization rules for vector/matrix classes. An example is given above.</p>
-<p>In such cases, CM compiler determines the data element type in the destination operand based on the
+<p>In such cases, C for Metal compiler determines the data element type in the destination operand based on the
 source operand data types using standard C++ rules for handling mixed type computation for scalars
 (using template specialization mechanisms). Just like in standard C++, users may want to add explicit type
 conversions to change the default type promotion and conversion rules. An example is given here:</p>
@@ -539,7 +536,7 @@ conversions to change the default type promotion and conversion rules. An exampl
 </div>
 <div class="section" id="restrictions">
 <h3><a class="toc-backref" href="#id42">2.6 Restrictions</a><a class="headerlink" href="#restrictions" title="Permalink to this headline">¶</a></h3>
-<p>CM places restrictions on using the following standard C++ features in kernel functions and user defined
+<p>C for Metal places restrictions on using the following standard C++ features in kernel functions and user defined
 functions written for the graphics device (described in Section 3.4):</p>
 <ul class="simple">
 <li>Pointers</li>
@@ -560,17 +557,17 @@ functions written for the graphics device (described in Section 3.4):</p>
 <h2><a class="toc-backref" href="#id43">3 Operations</a><a class="headerlink" href="#operations" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="scalar-data-operations">
 <h3><a class="toc-backref" href="#id44">3.1 Scalar Data Operations</a><a class="headerlink" href="#scalar-data-operations" title="Permalink to this headline">¶</a></h3>
-<p>CM supports the standard C++ operations for the allowed scalar data types described in Section 2.1.</p>
-<p>For floating point operations, CM supports the operation modes implemented in GenX hardware which
+<p>C for Metal supports the standard C++ operations for the allowed scalar data types described in Section 2.1.</p>
+<p>For floating point operations, C for Metal supports the operation modes implemented in GenX hardware which
 have deviations from the IEEE* Floating-point standard IEEE-754.</p>
 </div>
 <div class="section" id="compound-data-operations">
 <h3><a class="toc-backref" href="#id45">3.2 Compound Data Operations</a><a class="headerlink" href="#compound-data-operations" title="Permalink to this headline">¶</a></h3>
-<p>CM provides a set of overloaded operators for manipulating vector and matrix objects. These are
+<p>C for Metal provides a set of overloaded operators for manipulating vector and matrix objects. These are
 described below.</p>
 <div class="section" id="assignment-operators">
 <h4>3.2.1 Assignment Operators<a class="headerlink" href="#assignment-operators" title="Permalink to this headline">¶</a></h4>
-<p>CM allows the user to assign the value for each data element in a vector/matrix object, as well as to use
+<p>C for Metal allows the user to assign the value for each data element in a vector/matrix object, as well as to use
 component-wise assignment between two objects. If a source operand is of scalar type then it is
 replicated. An example is given here:</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="n">vector</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span> <span class="n">vi</span><span class="p">,</span> <span class="n">vo</span><span class="p">;</span>
@@ -600,12 +597,12 @@ have the same total number of data elements. The data elements are copied in the
   <span class="n">vector</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span> <span class="n">vo</span><span class="p">(</span><span class="n">vi</span><span class="p">);</span> <span class="c1">// vo(0) = 117, vo(1) = 231</span>
 </pre></div>
 </div>
-<p>Similar to standard C++, constructors can be also used in CM to set the data elements in vector/matrix
+<p>Similar to standard C++, constructors can be also used in C for Metal to set the data elements in vector/matrix
 objects. One restriction is that vector_ref constructor can only take vector/vector_ref object with the
 same data type/size, which must be contiguous. Similarly, the matrix_ref constructor can only take
 matrix/matrix_ref object with the same data type/size, which must be contiguous. An example is given
 above.</p>
-<p>To model the data movement instructions with saturation on the target device, CM provides a special
+<p>To model the data movement instructions with saturation on the target device, C for Metal provides a special
 variant of matrix/vector constructor with the “SAT” parameter, as illustrated here:</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span> <span class="n">vi</span><span class="p">;</span>
   <span class="n">vector</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span> <span class="n">vo</span><span class="p">;</span>
@@ -615,7 +612,7 @@ variant of matrix/vector constructor with the “SAT” parameter, as illustrate
   <span class="n">vo</span> <span class="o">=</span> <span class="n">vector</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="mi">2</span><span class="o">&gt;</span><span class="p">(</span><span class="n">vi</span><span class="p">,</span> <span class="n">SAT</span><span class="p">);</span>   <span class="c1">// vo(0) = 155, vo(1) = 255</span>
 </pre></div>
 </div>
-<p>CM provides the following member functions that return the size of a matrix/vector object.</p>
+<p>C for Metal provides the following member functions that return the size of a matrix/vector object.</p>
 <p>n_rows(): returns the number of rows in a matrix.</p>
 <p>n_cols(): returns the number of columns in a matrix.</p>
 <p>n_elems(): returns the number of elements in a vector.</p>
@@ -702,7 +699,7 @@ S – Step of the sequence. Here initial value ‘I’ can be a variable.</p>
 </div>
 <div class="section" id="arithmetic-operators">
 <h4>3.2.4 Arithmetic Operators<a class="headerlink" href="#arithmetic-operators" title="Permalink to this headline">¶</a></h4>
-<p>CM supports the following arithmetic operators for vector/matrix objects:</p>
+<p>C for Metal supports the following arithmetic operators for vector/matrix objects:</p>
 <p>+, -, *, /, %, +=, -=, *=</p>
 <p>These are all component-wise operations that follow standard C++ rules for the corresponding scalar data
 computation. The operands must conform to the type conversion rules described in 2.5. Only when an
@@ -723,27 +720,27 @@ operand is of scalar type, it is replicated as needed.</p>
 </div>
 <div class="section" id="shift-operators">
 <h4>3.2.5 Shift Operators<a class="headerlink" href="#shift-operators" title="Permalink to this headline">¶</a></h4>
-<p>CM supports the following shift operators for vector/matrix objects:</p>
+<p>C for Metal supports the following shift operators for vector/matrix objects:</p>
 <p>&gt;&gt;, &lt;&lt;, &gt;&gt;=, &lt;&lt;=</p>
 <p>These are all component-wise operations that follow standard C++ rules for the corresponding scalar data
 computation.</p>
 </div>
 <div class="section" id="bitwise-operators">
 <h4>3.2.6 Bitwise Operators<a class="headerlink" href="#bitwise-operators" title="Permalink to this headline">¶</a></h4>
-<p>CM supports the following bitwise operators for vector/matrix objects:</p>
+<p>C for Metal supports the following bitwise operators for vector/matrix objects:</p>
 <p>&amp;, |, ^, !, &amp;=, |=, ^=, ~</p>
 <p>These are all component-wise operations that follow standard C++ rules for the corresponding scalar data
 computation.</p>
 </div>
 <div class="section" id="logical-operators">
 <h4>3.2.7 Logical Operators<a class="headerlink" href="#logical-operators" title="Permalink to this headline">¶</a></h4>
-<p>CM supports logical operators which operate on values that are contextually converted to bool. These
+<p>C for Metal supports logical operators which operate on values that are contextually converted to bool. These
 are guaranteed to be evaluated left-to-right within an expression.</p>
 <p>&amp;&amp; ||</p>
 </div>
 <div class="section" id="comparison-operators">
 <h4>3.2.8 Comparison Operators<a class="headerlink" href="#comparison-operators" title="Permalink to this headline">¶</a></h4>
-<p>CM provides a set of overloaded comparison operators for vector/matrix objects. They perform
+<p>C for Metal provides a set of overloaded comparison operators for vector/matrix objects. They perform
 component-wise comparison for the operands “x” and “y” and the result value is 0 for False, 1 for True. If
 one operand is of scalar type then it is replicated to match the size of another operand.</p>
 <ul class="simple">
@@ -769,7 +766,7 @@ one operand is of scalar type then it is replicated to match the size of another
 </div>
 <div class="section" id="select-member-functions">
 <span id="selectmemberfunctions"></span><h4>3.2.9 Select Member Functions<a class="headerlink" href="#select-member-functions" title="Permalink to this headline">¶</a></h4>
-<p>CM provides a set of “select” functions for referencing a subset of the elements of vector/matrix objects.
+<p>C for Metal provides a set of “select” functions for referencing a subset of the elements of vector/matrix objects.
 All these operations (except “iselect” and “replicate”) return a reference to the elements
 of matrix/vector objects, so they can be used as L-values in the statements.</p>
 <div class="section" id="operator-standard-matrix-vector-element-access-operator">
@@ -787,7 +784,7 @@ of a row and “j” is the index of a column (the index starts from 0).</li>
   <span class="n">m1</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span> <span class="o">=</span> <span class="n">v1</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span>
 </pre></div>
 </div>
-<p>Alternatively, CM supports the following syntax that is similar to the standard C array access operator:</p>
+<p>Alternatively, C for Metal supports the following syntax that is similar to the standard C array access operator:</p>
 </div>
 <div class="section" id="id1">
 <h5>[] Operator: Standard Matrix/Vector Element-Access Operator<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h5>
@@ -809,7 +806,7 @@ of a row and “j” is the index of a column (the index starts from 0)..</li>
 </div>
 <div class="section" id="select-sub-matrix-or-sub-vector-selection-with-regular-stride">
 <h5>select: Sub-Matrix or Sub-Vector Selection with Regular Stride<a class="headerlink" href="#select-sub-matrix-or-sub-vector-selection-with-regular-stride" title="Permalink to this headline">¶</a></h5>
-<p>CM also allows users to select a sub-matrix or sub-vector with regular strides using the following:</p>
+<p>C for Metal also allows users to select a sub-matrix or sub-vector with regular strides using the following:</p>
 <ul class="simple">
 <li><strong>select&lt;size, stride&gt;(ushort i=0)</strong>: returns a reference to the sub-vector starting from the i-th
 element (“size” indicates the number of selected elements; “stride” indicates the distance
@@ -849,14 +846,14 @@ columns).</li>
 </pre></div>
 </div>
 <a class="reference internal image-reference" href="../_images/m1_dot_select_4,1,4,2_(0,0).png"><img alt="../_images/m1_dot_select_4,1,4,2_(0,0).png" src="../_images/m1_dot_select_4,1,4,2_(0,0).png" style="width: 600px;" /></a>
-<p>Note: CM currently has the following restrictions on “select” operation:</p>
+<p>Note: C for Metal currently has the following restrictions on “select” operation:</p>
 <ul class="simple">
 <li>The selected sub-matrix / sub-vector must fit in the original matrix / vector (e.g., a row in the
 selected sub-matrix cannot exceed the original matrix width).</li>
 <li>The horizontal stride and vertical stride must be greater than 0.</li>
 <li>The horizontal / vertical stride must be 1 if the horizontal / vertical size is 1.</li>
 </ul>
-<p>The following can be used in CM to return a reference to the whole object.</p>
+<p>The following can be used in C for Metal to return a reference to the whole object.</p>
 <ul class="simple">
 <li><strong>select_all()</strong></li>
 </ul>
@@ -884,7 +881,7 @@ selected sub-matrix cannot exceed the original matrix width).</li>
 </div>
 <div class="section" id="iselect-indirect-select-or-vector-indexing">
 <h5>iselect: Indirect-Select or Vector Indexing<a class="headerlink" href="#iselect-indirect-select-or-vector-indexing" title="Permalink to this headline">¶</a></h5>
-<p>CM allows selecting a stream of elements from a vector based on the index-values in another vector.
+<p>C for Metal allows selecting a stream of elements from a vector based on the index-values in another vector.
 <strong>Doesn’t support Double data type on IVB.</strong></p>
 <p><strong>iselect(idx)</strong> – which means indirectly select the vector elements as specified by the index or offset
 values  in the vector ‘idx’, and return a new vector of length that is equal to the length of ‘idx’ vector. ‘idx’
@@ -915,7 +912,7 @@ is shown below:</p>
   <span class="c1">// Now: outVector = {38,38,0,57,38,38,57,38}</span>
 </pre></div>
 </div>
-<p>CM also allows selecting a stream of elements from a matrix based on vector offsets.</p>
+<p>C for Metal also allows selecting a stream of elements from a matrix based on vector offsets.</p>
 <p><strong>iselect(row, col)</strong> – which means indirectly select the matrix elements as specified by the row and column
 indices: row and col, both of which have unsigned short type, and return a new vector of length that is
 equal to the length of row or col vector. Note that row and col must have the same length. An example of
@@ -936,25 +933,25 @@ cannot be used as an lvalue.</p>
 <h5>replicate: source region replication operations<a class="headerlink" href="#replicate-source-region-replication-operations" title="Permalink to this headline">¶</a></h5>
 <p>The replicate operations all operate on linear (one dimensional) regions of matrix/vectors. A row major
 layout is assumed for matrix objects in determining the linear order.</p>
-<p>The following can be used in CM to replicate a matrix/vector object “REP” times and return a new vector
+<p>The following can be used in C for Metal to replicate a matrix/vector object “REP” times and return a new vector
 of “REP” * “rows” * “columns” length, where (rows, columns) specifies the original matrix size.</p>
 <ul class="simple">
 <li><strong>replicate&lt;REP&gt;()</strong></li>
 </ul>
-<p>The following can be used in CM to replicate “W” consecutive elements starting at  (i,j)/ (i) from the
+<p>The following can be used in C for Metal to replicate “W” consecutive elements starting at  (i,j)/ (i) from the
 matrix/vector object “REP” times, and return a new vector of “REP” * “W” length.</p>
 <ul class="simple">
 <li><strong>replicate&lt;REP, W&gt;( ushort i=0, ushort j=0) )</strong></li>
 <li><strong>replicate&lt;REP, W&gt;( ushort i=0 )</strong></li>
 </ul>
-<p>The following can be used in CM to select/replicate “REP” blocks of “W” consecutive elements starting at
+<p>The following can be used in C for Metal to select/replicate “REP” blocks of “W” consecutive elements starting at
 (i,j)/(i) from the matrix/vector object with each block strided by “VS” elements, and return a new vector
 of “REP” * “W” length. Selected blocks of “W” elements will overlap if “VS” &lt; “W”.</p>
 <ul class="simple">
 <li><strong>replicate&lt;REP, VS, W&gt;( ushort i=0, ushort j=0) )</strong></li>
 <li><strong>replicate&lt;REP, VS, W&gt;( ushort i=0 )</strong></li>
 </ul>
-<p>The following can be used in CM to select/replicate “REP” blocks of “W” sequential elements with a stride
+<p>The following can be used in C for Metal to select/replicate “REP” blocks of “W” sequential elements with a stride
 of “HS” starting at  (i,j)/(i) from the matrix/vector object with each block strided by “VS” elements, and
 return a new vector of “REP” * “W” length. Selected blocks of “W” elements will overlap if “VS” &lt; “W”.</p>
 <ul class="simple">
@@ -964,7 +961,7 @@ return a new vector of “REP” * “W” length. Selected blocks of “W” el
 </div>
 <div class="section" id="row-and-column-row-and-column-region-selection-operations">
 <h5>row and column: Row and column region selection operations<a class="headerlink" href="#row-and-column-row-and-column-region-selection-operations" title="Permalink to this headline">¶</a></h5>
-<p>The following can be used in CM to return a reference to the i-th row/column of a matrix object:</p>
+<p>The following can be used in C for Metal to return a reference to the i-th row/column of a matrix object:</p>
 <ul class="simple">
 <li><strong>row(i)</strong></li>
 <li><strong>column(i)</strong></li>
@@ -981,7 +978,7 @@ return a new vector of “REP” * “W” length. Selected blocks of “W” el
 </div>
 <div class="section" id="format-member-functions">
 <h4>3.2.10 Format Member Functions<a class="headerlink" href="#format-member-functions" title="Permalink to this headline">¶</a></h4>
-<p>The following can be used in CM to reinterpret the basic type (the type of data elements) of a
+<p>The following can be used in C for Metal to reinterpret the basic type (the type of data elements) of a
 matrix/vector and change the shape to another matrix/vector.</p>
 <ul class="simple">
 <li><strong>format&lt;type, rows, columns&gt;( )</strong>: returns a reference to the calling object interpreted as a new
@@ -992,7 +989,7 @@ size determined by the template type parameter.</li>
 </ul>
 <p>The object to be formatted must be contiguous and aligned. Generally it is the user’s responsibility to
 ensure that the format usage is correct, and a warning is issued for each format operation. When a
-discontinuity is determined at compile time the CM compiler will issue an error message.</p>
+discontinuity is determined at compile time the C for Metal compiler will issue an error message.</p>
 <p>Format operation example:</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span>  <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="o">&gt;</span>       <span class="n">m1</span><span class="p">;</span>
   <span class="c1">// ...</span>
@@ -1017,7 +1014,7 @@ discontinuity is determined at compile time the CM compiler will issue an error 
 </div>
 <div class="section" id="merge-member-functions">
 <h4>3.2.11 Merge Member Functions<a class="headerlink" href="#merge-member-functions" title="Permalink to this headline">¶</a></h4>
-<p>To model the masked move operations on the target device, CM provides a set of “merge” functions for
+<p>To model the masked move operations on the target device, C for Metal provides a set of “merge” functions for
 vector/matrix objects.</p>
 <p>Merge operations with one source operand are defined as follows:</p>
 <ul class="simple">
@@ -1079,7 +1076,7 @@ vector/matrix object.</p>
 </div>
 <div class="section" id="boolean-reduction-functions">
 <h4>3.2.12 Boolean Reduction Functions<a class="headerlink" href="#boolean-reduction-functions" title="Permalink to this headline">¶</a></h4>
-<p>To facilitate boolean operations, CM provides two predefined boolean reduction functions on mask
+<p>To facilitate boolean operations, C for Metal provides two predefined boolean reduction functions on mask
 objects:</p>
 <ul>
 <li><p class="first">ushort vector&lt;ushort, size&gt;::any(void) / ushort matrix&lt;ushort, R, C&gt;::any(void)</p>
@@ -1146,11 +1143,11 @@ original values of m1’s rows 0 and 1 plus m1’s row 1 and 2.</p>
 </div>
 <div class="section" id="control-flow">
 <h3><a class="toc-backref" href="#id47">3.4 Control flow</a><a class="headerlink" href="#control-flow" title="Permalink to this headline">¶</a></h3>
-<p>CM supports both scalar as well as SIMD control flow statements. Control flow statements define control
+<p>C for Metal supports both scalar as well as SIMD control flow statements. Control flow statements define control
 flow (statement) blocks that are subject to the control condition.</p>
 <div class="section" id="scalar-control-flow">
 <h4>3.4.1 Scalar control flow<a class="headerlink" href="#scalar-control-flow" title="Permalink to this headline">¶</a></h4>
-<p>Scalar control flow in CM is expressed by means of the standard C++ control flow statements – conditional
+<p>Scalar control flow in C for Metal is expressed by means of the standard C++ control flow statements – conditional
 statements (if-else/switch), loop statements (for/while/do-while), jump statements (break/continue/goto
 /return) or function calls.</p>
 <p>In scalar control flow statements, the condition must be a scalar and all channels of statements within
@@ -1161,9 +1158,9 @@ just scalar control flow statements.</p>
 </div>
 <div class="section" id="simd-control-flow">
 <h4>3.4.2 SIMD control flow<a class="headerlink" href="#simd-control-flow" title="Permalink to this headline">¶</a></h4>
-<p>SIMD control flow in CM is expressed by means of predefined C++ macros. The predefined macros used to
+<p>SIMD control flow in C for Metal is expressed by means of predefined C++ macros. The predefined macros used to
 express SIMD control flow and their scalar equivalents as shown in Table 3-1. The SIMD control flow
-statements allow the CM programmer to take advantage of the native SIMD control flow support
+statements allow the C for Metal programmer to take advantage of the native SIMD control flow support
 available in GenX hardware. The execution semantics of these statements match the corresponding
 instructions available in GenX instruction set architecture.</p>
 <p>SIMD control flow statements:</p>
@@ -1250,7 +1247,7 @@ to the SIMD width of its block, or must have a SIMD width equal to one. For stat
 have destinations, requiring the statement to have a SIMD width equal to the SIMD width of its
 block implies that the destinations must be a vector/matrix of SIMD width elements; source
 expressions of statements may be either scalars of size one or vectors/matrices of SIMD width
-elements as permitted  by the existing CM semantics.</li>
+elements as permitted  by the existing C for Metal semantics.</li>
 <li>Scalar control flow statements and conditional expressions are not permitted in SIMD control
 flow blocks.</li>
 <li>Jump statements other than the SIMD_BREAK and SIMD_CONTINUE statements are not allowed
@@ -1261,7 +1258,7 @@ imposed on calling intrinsic functions provided none of the other constraints ar
 <li>If it is not possible to determine the SIMD width of an statement in a SIMD context, then that
 statement is considered illegal in a SIMD context. For example an statement such as (scalar1 *
 scalar2) without a destination is considered illegal in SIMD context.</li>
-<li>The source operands of CM reduction operators reduction operators (any(), all(), cm_sum(),
+<li>The source operands of C for Metal reduction operators reduction operators (any(), all(), cm_sum(),
 cm_prod(), cm_reduction_max(), cm_reduction_min()) are required to have a size equal to the
 SIMD width of its immediate context. Furthermore reduction functions will perform reduction
 only on active scalar sub-elements of its source as determined by its context’s SIMD mask.</li>
@@ -1279,7 +1276,7 @@ context provided the read/write destination/source size is equal to the SIMD wid
 <h2><a class="toc-backref" href="#id48">4 Functions</a><a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="function-qualifiers">
 <h3><a class="toc-backref" href="#id49">4.1 Function Qualifiers</a><a class="headerlink" href="#function-qualifiers" title="Permalink to this headline">¶</a></h3>
-<p>CM allows the user to write standard C++ functions. In addition, the following attribute qualifiers are used
+<p>C for Metal allows the user to write standard C++ functions. In addition, the following attribute qualifiers are used
 to specify functions to be compiled for the graphics device. These cannot be used for the functions
 running on the host.</p>
 <ul>
@@ -1292,8 +1289,8 @@ Section 4.2. There can be more than one kernel function in a file.</p>
 <li><p class="first">“_GENX_” may be used (but is not required) to specify a user defined GenX function, which can be
 called from kernel functions or other user defined functions.</p>
 <p>_GENX_ [inline] return_type function(formal_ parameters)</p>
-<p>The optional “inline” qualifier is used to indicate if the function should be inlined by the CM compiler at
-the call site. If a user defined function with the “inline” specifier is not inlined, the CM compiler will
+<p>The optional “inline” qualifier is used to indicate if the function should be inlined by the C for Metal compiler at
+the call site. If a user defined function with the “inline” specifier is not inlined, the C for Metal compiler will
 issue a warning/error message.</p>
 </li>
 </ul>
@@ -1302,7 +1299,7 @@ same file.</p>
 </div>
 <div class="section" id="user-defined-functions">
 <h3><a class="toc-backref" href="#id50">4.2 User-defined functions</a><a class="headerlink" href="#user-defined-functions" title="Permalink to this headline">¶</a></h3>
-<p>CM supports user-defined function calls without recursion.  Parameters to a user-defined CM function
+<p>C for Metal supports user-defined function calls without recursion.  Parameters to a user-defined C for Metal function
 may have scalar type, vector/matrix type, or  SurfaceIndex/SamplerIndex/VmeIndex type.  In addition,
 vector_ref and matrix_ref types may be used to pass a vector/matrix object by reference.  A user-defined
 function can return scalar values or vector/matrix types. vector_ref/matrix_ref return types are not
@@ -1369,7 +1366,7 @@ reduced.</p>
 <p>There is a restriction imposed on arguments passed by reference in order to allow for an efficient CM
 implementation. Specifically the restriction is that for a subprogram that uses pass-by-reference, the
 behavior must be the same as if we use a copy-in/copy-out semantic to convey the pass-by-reference
-argument; otherwise the CM program is said to be erroneous and may produce incorrect results. Such
+argument; otherwise the C for Metal program is said to be erroneous and may produce incorrect results. Such
 errors are not caught by the compiler and it’s up to the user to guarantee safety.</p>
 <p>The implication of the above stated restriction is that no pass-by-reference argument that is written to in
 a subprogram (either directly or transitively by means of a nested subprogram call pass-by-reference
@@ -1422,7 +1419,7 @@ then it may be advantageous to use pass-by-reference for the parameter.</li>
 </div>
 <div class="section" id="built-in-functions">
 <h3><a class="toc-backref" href="#id51">4.3 Built-in Functions</a><a class="headerlink" href="#built-in-functions" title="Permalink to this headline">¶</a></h3>
-<p>CM defines a set of built-in or intrinsic functions that are efficiently translated to GenX instructions based
+<p>C for Metal defines a set of built-in or intrinsic functions that are efficiently translated to GenX instructions based
 on the target platform. It is advisable to use the intrinsic functions whenever possible to get better
 performance. The intrinsic functions have the following format:</p>
 <blockquote>
@@ -1494,7 +1491,7 @@ reserved. The default value of the flag is 0.</p>
 <h4>cm_fmod&lt;T&gt;<a class="headerlink" href="#cm-fmod-t" title="Permalink to this headline">¶</a></h4>
 <p>Floating-point Remainder, same as C standard function fmod():
 cm_fmod(y,x)=r, if y = qx + r where q is an integer and r&lt;x.</p>
-<p>NOTE: now part of cmtl; see <a class="reference internal" href="#cmtemplatelibrary"><span class="std std-ref">5 CM Template Library</span></a> (requires cmtl:: namespace)</p>
+<p>NOTE: now part of cmtl; see <a class="reference internal" href="#cmtemplatelibrary"><span class="std std-ref">5 C for Metal Template Library</span></a> (requires cmtl:: namespace)</p>
 <ul class="simple">
 <li>Parameter 1: matrix(_ref), vector(_ref) or scalar</li>
 <li>Parameter 2: matrix(_ref), vector(_ref) or scalar</li>
@@ -1620,7 +1617,7 @@ input parameter) or a scalar (for scalar input parameter).</p>
 <h4>cm_floor&lt;T&gt;<a class="headerlink" href="#cm-floor-t" title="Permalink to this headline">¶</a></h4>
 <p>floor(x) is the largest integer not greater than x – same functionality as
 cm_rndd.</p>
-<p>NOTE: now part of cmtl; see <a class="reference internal" href="#cmtemplatelibrary"><span class="std std-ref">5 CM Template Library</span></a> (requires cmtl:: namespace)</p>
+<p>NOTE: now part of cmtl; see <a class="reference internal" href="#cmtemplatelibrary"><span class="std std-ref">5 C for Metal Template Library</span></a> (requires cmtl:: namespace)</p>
 <ul class="simple">
 <li>Parameter 1: matrix(_ref), vector(_ref) or scalar.</li>
 <li>Parameter 2: flags (default is 0; use SAT for saturation).</li>
@@ -1640,7 +1637,7 @@ cm_rndd.</p>
 <h4>cm_ceil&lt;T&gt;<a class="headerlink" href="#cm-ceil-t" title="Permalink to this headline">¶</a></h4>
 <p>ceil(x) is the smallest integer not less than x – same functionality as
 cm_rndu.</p>
-<p>NOTE: now part of cmtl; see <a class="reference internal" href="#cmtemplatelibrary"><span class="std std-ref">5 CM Template Library</span></a> (requires cmtl:: namespace)</p>
+<p>NOTE: now part of cmtl; see <a class="reference internal" href="#cmtemplatelibrary"><span class="std std-ref">5 C for Metal Template Library</span></a> (requires cmtl:: namespace)</p>
 <ul class="simple">
 <li>Parameter 1: matrix(_ref), vector(_ref) or scalar.</li>
 <li>Parameter 2: flags (default is 0; use SAT for saturation).</li>
@@ -1890,7 +1887,7 @@ into the 1st parameter (passed by ref)</li>
 <div class="section" id="cm-atan2">
 <h4>cm_atan2<a class="headerlink" href="#cm-atan2" title="Permalink to this headline">¶</a></h4>
 <p>Same as C standard function atan2().</p>
-<p>NOTE: now part of cmtl; see <a class="reference internal" href="#cmtemplatelibrary"><span class="std std-ref">5 CM Template Library</span></a> (requires cmtl:: namespace)</p>
+<p>NOTE: now part of cmtl; see <a class="reference internal" href="#cmtemplatelibrary"><span class="std std-ref">5 C for Metal Template Library</span></a> (requires cmtl:: namespace)</p>
 <ul class="simple">
 <li>Parameter 1: matrix(_ref), vector(_ref) or scalar</li>
 <li>Parameter 2: matrix(_ref), vector(_ref) or scalar</li>
@@ -1903,7 +1900,7 @@ into the 1st parameter (passed by ref)</li>
 <h4>cm_atan2_fast<a class="headerlink" href="#cm-atan2-fast" title="Permalink to this headline">¶</a></h4>
 <p>Faster version of cm_atan2, but has a lower precision – only accurate up to
 0.01, where cm_atan2 is precise up to 0.00001.</p>
-<p>NOTE: now part of cmtl; see <a class="reference internal" href="#cmtemplatelibrary"><span class="std std-ref">5 CM Template Library</span></a> (requires cmtl:: namespace)</p>
+<p>NOTE: now part of cmtl; see <a class="reference internal" href="#cmtemplatelibrary"><span class="std std-ref">5 C for Metal Template Library</span></a> (requires cmtl:: namespace)</p>
 <ul class="simple">
 <li>Parameter 1: matrix(_ref), vector(_ref) or scalar</li>
 <li>Parameter 2: matrix(_ref), vector(_ref) or scalar</li>
@@ -2290,7 +2287,7 @@ treat all values as unsigned integers.</p>
 <h3><a class="toc-backref" href="#id53">4.5 Dataport Interface</a><a class="headerlink" href="#dataport-interface" title="Permalink to this headline">¶</a></h3>
 <div class="section" id="media-block-read-write">
 <h4>Media Block Read/Write<a class="headerlink" href="#media-block-read-write" title="Permalink to this headline">¶</a></h4>
-<p>CM provides several qualifiers that can be applied to the surface index:</p>
+<p>C for Metal provides several qualifiers that can be applied to the surface index:</p>
 <table border="1" class="docutils">
 <colgroup>
 <col width="20%" />
@@ -2451,7 +2448,7 @@ the width of matrix m must be DWord (i.e. 4 bytes) aligned.</td>
 </div>
 <div class="section" id="media-block-read-write-for-planar-surface">
 <h4>Media Block Read/Write for Planar Surface<a class="headerlink" href="#media-block-read-write-for-planar-surface" title="Permalink to this headline">¶</a></h4>
-<p>CM provides several qualifiers that can be applied to the surface index:</p>
+<p>C for Metal provides several qualifiers that can be applied to the surface index:</p>
 <table border="1" class="docutils">
 <colgroup>
 <col width="17%" />
@@ -2596,7 +2593,7 @@ the width of matrix m must be DWord (i.e. 4 bytes) aligned.</td>
 </div>
 <div class="section" id="oword-block-read-write">
 <h4>OWord Block Read/Write<a class="headerlink" href="#oword-block-read-write" title="Permalink to this headline">¶</a></h4>
-<p>CM provides the following qualifiers for specifying the input usage options:</p>
+<p>C for Metal provides the following qualifiers for specifying the input usage options:</p>
 <table border="1" class="docutils">
 <colgroup>
 <col width="23%" />
@@ -2618,7 +2615,7 @@ current hardware.</td>
 </tbody>
 </table>
 <p>Out-of-bound reads return zero, while out-of-bound writes are dropped.</p>
-<p>Note: CM currently only supports read/write operations of OWord Block data with
+<p>Note: C for Metal currently only supports read/write operations of OWord Block data with
 size &lt;= 128 bytes.</p>
 <p>Supported Surfaces:</p>
 <table border="1" class="docutils">
@@ -2705,6 +2702,90 @@ must be OWord (i.e. 16 bytes) aligned.</td>
 <tr class="row-even"><td>v</td>
 <td>the data location to be written.
 the width of vector v can be only 1, 2, 4 or 8 OWords.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="section" id="hword-block-read-write">
+<h4>HWord Block Read/Write<a class="headerlink" href="#hword-block-read-write" title="Permalink to this headline">¶</a></h4>
+<p>C for Metal supports the following function to read/write 1/2/4/8 HWord Block data.</p>
+<p>Supported Surfaces:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="29%" />
+<col width="8%" />
+<col width="63%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Format</th>
+<th class="head">Type</th>
+<th class="head">Notes</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>N/A</td>
+<td>Buffer</td>
+<td>&#160;</td>
+</tr>
+</tbody>
+</table>
+<div class="section" id="cm-hword-read">
+<h5>cm_hword_read<a class="headerlink" href="#cm-hword-read" title="Permalink to this headline">¶</a></h5>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">cm_hword_read</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">IND</span><span class="p">,</span> <span class="kt">int</span> <span class="n">offset</span><span class="p">,</span> <span class="n">vector_ref</span> <span class="n">v</span><span class="p">);</span>
+</pre></div>
+</div>
+<table border="1" class="docutils">
+<colgroup>
+<col width="19%" />
+<col width="81%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Parameters</th>
+<th class="head">&#160;</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>IND</td>
+<td>surface index, which must correspond to a buffer</td>
+</tr>
+<tr class="row-odd"><td>offset</td>
+<td>zero based offset of the input buffer in <em>bytes</em>.  Must be
+HWord (i.e. 32 bytes) aligned.</td>
+</tr>
+<tr class="row-even"><td>v</td>
+<td>the data location to be read.
+the width of vector v can be only 1, 2, 4 or 8 HWords.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="cm-hword-write">
+<h5>cm_hword_write<a class="headerlink" href="#cm-hword-write" title="Permalink to this headline">¶</a></h5>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">cm_hword_write</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">IND</span><span class="p">,</span> <span class="kt">int</span> <span class="n">offset</span><span class="p">,</span> <span class="k">const</span> <span class="n">vector</span> <span class="n">v</span><span class="p">);</span>
+</pre></div>
+</div>
+<table border="1" class="docutils">
+<colgroup>
+<col width="19%" />
+<col width="81%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Parameters</th>
+<th class="head">&#160;</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>IND</td>
+<td>surface index, which must correspond to a buffer</td>
+</tr>
+<tr class="row-odd"><td>offset</td>
+<td>zero based offset of the output buffer in <em>bytes</em>;
+must be HWord (i.e. 32 bytes) aligned.</td>
+</tr>
+<tr class="row-even"><td>v</td>
+<td>the data location to be written.
+the width of vector v can be only 1, 2, 4 or 8 HWords.</td>
 </tr>
 </tbody>
 </table>
@@ -3533,12 +3614,12 @@ de-allocated.</p>
 <p>The host program needs to organize all the threads into groups (collection of threads) by specifying the
 group-space and the thread-space within each group. This group and thread space information can be
 subsequently used to execute a kernel in that space. Formal description of the host API functions can be
-found in ‘CM runtime API Specification’ [6].</p>
+found in ‘C for Metal runtime API Specification’ [6].</p>
 <p>A kernel needs to specify which data would be allocated in the SLM (cm_slm_alloc). All the declared SLM
 buffers are allocated once for each group generated and are accessible only from the threads within that
 group. Runtime and hardware will keep track of each group’s SLM data separately.</p>
 <p>In the current SLM support in CM, SLM values are not first-class operands which mean they cannot be
-used directly in CM operations. They need to be read to GRF registers (cm_slm_read) before being used.
+used directly in C for Metal operations. They need to be read to GRF registers (cm_slm_read) before being used.
 After their use, they could be written back to SLM if needed (cm_slm_write). However, if data written to
 SLM by one thread needs to be read by other threads in the group, a barrier (cm_barrier) needs to be
 inserted to make the writes visible to the reads. If the SLM writes needed are only for loading data from
@@ -3901,7 +3982,7 @@ depends on the atomic operation.</p>
 </div>
 <div class="section" id="slm-block-read-write">
 <h4>SLM Block Read/Write<a class="headerlink" href="#slm-block-read-write" title="Permalink to this headline">¶</a></h4>
-<p>CM provides the following qualifiers for specifying the input usage options:</p>
+<p>C for Metal provides the following qualifiers for specifying the input usage options:</p>
 <table border="1" class="docutils">
 <colgroup>
 <col width="23%" />
@@ -3923,7 +4004,7 @@ current hardware.</td>
 </tbody>
 </table>
 <p>Out-of-bound reads return zero, while out-of-bound writes are dropped.</p>
-<p>Note: CM currently only supports read/write operations of SLM Block data with
+<p>Note: C for Metal currently only supports read/write operations of SLM Block data with
 size &lt;= 128 bytes.</p>
 <div class="section" id="cm-slm-block-read">
 <h5>cm_slm_block_read<a class="headerlink" href="#cm-slm-block-read" title="Permalink to this headline">¶</a></h5>
@@ -3998,7 +4079,7 @@ the width of vector v can be only 1, 2, 4 or 8 OWords.</td>
 </div>
 <div class="section" id="sampler-interface">
 <h3><a class="toc-backref" href="#id55">4.7 Sampler Interface</a><a class="headerlink" href="#sampler-interface" title="Permalink to this headline">¶</a></h3>
-<p>CM provides the user with the following sampler function support:</p>
+<p>C for Metal provides the user with the following sampler function support:</p>
 <div class="section" id="sample16">
 <h4>sample16<a class="headerlink" href="#sample16" title="Permalink to this headline">¶</a></h4>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">sample16</span><span class="p">(</span><span class="n">matrix_ref</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span> <span class="n">N</span><span class="p">,</span> <span class="mi">16</span><span class="o">&gt;</span> <span class="n">m</span><span class="p">,</span> <span class="n">ChannelMaskType</span> <span class="n">channelMask</span><span class="p">,</span>
@@ -4008,8 +4089,8 @@ the width of vector v can be only 1, 2, 4 or 8 OWords.</td>
 </div>
 <table border="1" class="docutils">
 <colgroup>
-<col width="20%" />
-<col width="80%" />
+<col width="18%" />
+<col width="82%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Parameters</th>
@@ -4028,17 +4109,17 @@ the surface being sampled.</td>
 </tr>
 <tr class="row-even"><td>surfIndex</td>
 <td>surface index. This is an abstract handle that represents
-the surface created by CM host runtime [6] and must be
-passed through kernel function parameters. CM does not allow
+the surface created by C for Metal host runtime [6] and must be
+passed through kernel function parameters. C for Metal does not allow
 the explicit use of local/global variable or modification of
 such abstract data types in kernel functions, except used as
 function call argument.</td>
 </tr>
 <tr class="row-odd"><td>sampIndex</td>
 <td>the index into the sampler state table. This is an abstract
-handle that represents the sampler state created by CM host
+handle that represents the sampler state created by C for Metal host
 runtime [6] and must be passed through kernel function
-parameters. CM does not allow the explicit use of
+parameters. C for Metal does not allow the explicit use of
 local/global variable or modification of such abstract data
 types in kernel functions, except used as function call
 argument.</td>
@@ -4144,8 +4225,8 @@ number of enabled channels.</td>
 </tr>
 <tr class="row-even"><td>surfIndex</td>
 <td>surface index. This is an abstract handle that represents the
-surface created by CM host runtime [6] and must be passed
-through kernel function parameters. CM does not allow the
+surface created by C for Metal host runtime [6] and must be passed
+through kernel function parameters. C for Metal does not allow the
 explicit use of local/global variable or modification of such
 abstract data types in kernel functions, except used as
 function call argument.</td>
@@ -5106,8 +5187,8 @@ matrix varies depending on mode set. The default mode is
 </div>
 <table border="1" class="docutils">
 <colgroup>
-<col width="20%" />
-<col width="80%" />
+<col width="19%" />
+<col width="81%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Parameters</th>
@@ -5129,9 +5210,9 @@ format: 8- bit, 16-bit.</p>
 <tr class="row-odd"><td>surfIndex</td>
 <td>surface index, which must correspond to a 2D type surface
 that has either 8-bit or 16-bit format.  This is an abstract
-handle that represents the surface created by CM host
+handle that represents the surface created by C for Metal host
 runtime [6] and must be passed through kernel function
-parameters. CM does not allow the explicit use of
+parameters. C for Metal does not allow the explicit use of
 local/global variable or modification of such abstract data
 types in kernel functions, except used as function call
 argument.</td>
@@ -5473,7 +5554,7 @@ Default value of 0 means size is 4.</td>
 <p>In addition, the sampler state setup in the host must satisfy the following constraints:</p>
 <ul class="simple">
 <li>Surface Type must be 2D</li>
-<li>Surface Format must be 1-bit. On the host side and driver side CM uses D3D formats.</li>
+<li>Surface Format must be 1-bit. On the host side and driver side C for Metal uses D3D formats.</li>
 </ul>
 <p>Supported Surfaces:</p>
 <table border="1" class="docutils">
@@ -6772,13 +6853,13 @@ image</td>
 <h3><a class="toc-backref" href="#id60">4.12 VME Interface</a><a class="headerlink" href="#vme-interface" title="Permalink to this headline">¶</a></h3>
 <div class="section" id="gen6-vme-interface">
 <h4>4.12.1 Gen6 VME Interface<a class="headerlink" href="#gen6-vme-interface" title="Permalink to this headline">¶</a></h4>
-<p>CM provides the user with the following Video Motion Estimation (VME) function support for Gen6
+<p>C for Metal provides the user with the following Video Motion Estimation (VME) function support for Gen6
 architecture. More detailed information on the VME functionality is provided in reference [4].</p>
 <p>The formal parameters for all three functions below are described here:</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="20%" />
-<col width="80%" />
+<col width="18%" />
+<col width="82%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Parameters</th>
@@ -6794,16 +6875,16 @@ matrix&lt;unsigned char, 4, 32&gt;.</td>
 </tr>
 <tr class="row-odd"><td>surfIndex</td>
 <td>surface index. This is an abstract handle that represents
-the surface created by CM host runtime [6] and must be
-passed through kernel function parameters. CM does not allow
+the surface created by C for Metal host runtime [6] and must be
+passed through kernel function parameters. C for Metal does not allow
 the explicit use of local/global variable or modification of
 such abstract data types in kernel functions, except used as
 function call argument.</td>
 </tr>
 <tr class="row-even"><td>SPIndex</td>
 <td>search path LUT index. This is an abstract handle that
-represents the VME state created by CM host runtime [6] and
-must be passed through kernel function parameters. CM does
+represents the VME state created by C for Metal host runtime [6] and
+must be passed through kernel function parameters. C for Metal does
 not allow the explicit use of local/global variable or
 modification of such abstract data types in kernel
 functions, except used as function call argument.</td>
@@ -6878,7 +6959,7 @@ enabled mode.</p>
 </div>
 <div class="section" id="gen7-vme-interface">
 <h4>4.12.2 Gen7 VME Interface<a class="headerlink" href="#gen7-vme-interface" title="Permalink to this headline">¶</a></h4>
-<p>CM provides the user with the following Video Motion Estimation (VME) function support for Gen7
+<p>C for Metal provides the user with the following Video Motion Estimation (VME) function support for Gen7
 architecture.</p>
 <div class="section" id="id15">
 <h5>run_vme_intra<a class="headerlink" href="#id15" title="Permalink to this headline">¶</a></h5>
@@ -6891,8 +6972,8 @@ architecture.</p>
 <p>The compiler generates code for GenX hardware to perform VME function in intra-search only mode.</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="20%" />
-<col width="80%" />
+<col width="18%" />
+<col width="82%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Parameters</th>
@@ -6914,16 +6995,16 @@ run_vme_intra function.</td>
 </tr>
 <tr class="row-odd"><td>surfIndex</td>
 <td>surface index. This is an abstract handle that represents
-the surface created by CM host runtime [6] and must be
-passed through kernel function parameters. CM does not allow
+the surface created by C for Metal host runtime [6] and must be
+passed through kernel function parameters. C for Metal does not allow
 the explicit use of local/global variable or modification of
 such abstract data types in kernel functions, except used as
 function call argument.</td>
 </tr>
 <tr class="row-even"><td>SPIndex</td>
 <td>search path LUT index. This is an abstract handle that
-represents the VME state created by CM host runtime [6] and
-must be passed through kernel function parameters. CM does
+represents the VME state created by C for Metal host runtime [6] and
+must be passed through kernel function parameters. C for Metal does
 not allow the explicit use of local/global variable or
 modification of such abstract data types in kernel
 functions, except used as function call argument.</td>
@@ -6981,8 +7062,8 @@ single reference mode).</td>
 enabled mode.</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="20%" />
-<col width="80%" />
+<col width="18%" />
+<col width="82%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Parameters</th>
@@ -7028,16 +7109,16 @@ constant.</p>
 </tr>
 <tr class="row-odd"><td>surfIndex</td>
 <td>surface index. This is an abstract handle that represents
-the surface created by CM host runtime [6] and must be
-passed through kernel function parameters. CM does not allow
+the surface created by C for Metal host runtime [6] and must be
+passed through kernel function parameters. C for Metal does not allow
 the explicit use of local/global variable or modification of
 such abstract data types in kernel functions, except used as
 function call argument.</td>
 </tr>
 <tr class="row-even"><td>SPIndex</td>
 <td>search path LUT index. This is an abstract handle that
-represents the VME state created by CM host runtime [6] and
-must be passed through kernel function parameters. CM does
+represents the VME state created by C for Metal host runtime [6] and
+must be passed through kernel function parameters. C for Metal does
 not allow the explicit use of local/global variable or
 modification of such abstract data types in kernel
 functions, except used as function call argument.</td>
@@ -7085,7 +7166,7 @@ other type.</li>
 </div>
 <div class="section" id="gen7-5-vme-interface">
 <h4>4.12.3 Gen7_5 VME Interface<a class="headerlink" href="#gen7-5-vme-interface" title="Permalink to this headline">¶</a></h4>
-<p>CM provides the following Video Motion Estimation (VME) APIs for Gen7_5 architecture.</p>
+<p>C for Metal provides the following Video Motion Estimation (VME) APIs for Gen7_5 architecture.</p>
 <div class="section" id="run-vme-ime">
 <h5>run_vme_ime<a class="headerlink" href="#run-vme-ime" title="Permalink to this headline">¶</a></h5>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">run_vme_ime</span><span class="p">(</span><span class="n">matrix</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">UNIInput</span><span class="p">,</span> <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="n">N1</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">IMEInput</span><span class="p">,</span>
@@ -7098,8 +7179,8 @@ other type.</li>
 parameters are described below:</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="20%" />
-<col width="80%" />
+<col width="18%" />
+<col width="82%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Parameters</th>
@@ -7148,8 +7229,8 @@ constant.</p>
 </tr>
 <tr class="row-even"><td>curSurfIndex</td>
 <td>surface index. This is an abstract handle that represents
-the surface created by CM host runtime [6] and must be
-passed through kernel function parameters. CM does not allow
+the surface created by C for Metal host runtime [6] and must be
+passed through kernel function parameters. C for Metal does not allow
 the explicit use of local/global variable or modification of
 such abstract data types in kernel functions, except used as
 function call argument.</td>
@@ -7196,8 +7277,8 @@ other type.</li>
 parameters are described below:</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="20%" />
-<col width="80%" />
+<col width="18%" />
+<col width="82%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Parameters</th>
@@ -7213,8 +7294,8 @@ parameters are described below:</p>
 </tr>
 <tr class="row-even"><td>curSurfIndex</td>
 <td>surface index. This is an abstract handle that represents
-the surface created by CM host runtime [6] and must be
-passed through kernel function parameters. CM does not allow
+the surface created by C for Metal host runtime [6] and must be
+passed through kernel function parameters. C for Metal does not allow
 the explicit use of local/global variable or modification of
 such abstract data types in kernel functions, except used as
 function call argument.</td>
@@ -7237,8 +7318,8 @@ as universal VME output data).</td>
 The formal parameters are described below:</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="20%" />
-<col width="80%" />
+<col width="18%" />
+<col width="82%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Parameters</th>
@@ -7254,8 +7335,8 @@ The formal parameters are described below:</p>
 </tr>
 <tr class="row-even"><td>curSurfIndex</td>
 <td>surface index. This is an abstract handle that represents
-the surface created by CM host runtime [6] and must be
-passed through kernel function parameters. CM does not allow
+the surface created by C for Metal host runtime [6] and must be
+passed through kernel function parameters. C for Metal does not allow
 the explicit use of local/global variable or modification of
 such abstract data types in kernel functions, except used as
 function call argument.</td>
@@ -7319,7 +7400,7 @@ as universal VME output data).</td>
 </div>
 <div class="section" id="gen8-vme-interface">
 <h4>4.12.4 Gen8 VME Interface<a class="headerlink" href="#gen8-vme-interface" title="Permalink to this headline">¶</a></h4>
-<p>CM provides the following Video Motion Estimation (VME) APIs for Gen8 architecture.</p>
+<p>C for Metal provides the following Video Motion Estimation (VME) APIs for Gen8 architecture.</p>
 <div class="section" id="id18">
 <h5>run_vme_ime<a class="headerlink" href="#id18" title="Permalink to this headline">¶</a></h5>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">run_vme_ime</span><span class="p">(</span><span class="n">matrix</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">UNIInput</span><span class="p">,</span> <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="n">N1</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">IMEInput</span><span class="p">,</span>
@@ -7332,8 +7413,8 @@ as universal VME output data).</td>
 parameters are described below:</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="20%" />
-<col width="80%" />
+<col width="18%" />
+<col width="82%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Parameters</th>
@@ -7382,8 +7463,8 @@ constant.</p>
 </tr>
 <tr class="row-even"><td>curSurfIndex</td>
 <td>surface index. This is an abstract handle that represents
-the surface created by CM host runtime [6] and must be
-passed through kernel function parameters. CM does not allow
+the surface created by C for Metal host runtime [6] and must be
+passed through kernel function parameters. C for Metal does not allow
 the explicit use of local/global variable or modification of
 such abstract data types in kernel functions, except used as
 function call argument.</td>
@@ -7434,8 +7515,8 @@ other type.</li>
 parameters are described below:</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="20%" />
-<col width="80%" />
+<col width="18%" />
+<col width="82%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Parameters</th>
@@ -7451,8 +7532,8 @@ parameters are described below:</p>
 </tr>
 <tr class="row-even"><td>curSurfIndex</td>
 <td>surface index. This is an abstract handle that represents
-the surface created by CM host runtime [6] and must be
-passed through kernel function parameters. CM does not allow
+the surface created by C for Metal host runtime [6] and must be
+passed through kernel function parameters. C for Metal does not allow
 the explicit use of local/global variable or modification of
 such abstract data types in kernel functions, except used as
 function call argument.</td>
@@ -7475,8 +7556,8 @@ as universal VME output data).</td>
 The formal parameters are described below:</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="20%" />
-<col width="80%" />
+<col width="18%" />
+<col width="82%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Parameters</th>
@@ -7492,8 +7573,8 @@ The formal parameters are described below:</p>
 </tr>
 <tr class="row-even"><td>curSurfIndex</td>
 <td>surface index. This is an abstract handle that represents
-the surface created by CM host runtime [6] and must be
-passed through kernel function parameters. CM does not allow
+the surface created by C for Metal host runtime [6] and must be
+passed through kernel function parameters. C for Metal does not allow
 the explicit use of local/global variable or modification of
 such abstract data types in kernel functions, except used as
 function call argument.</td>
@@ -7564,8 +7645,8 @@ as universal VME output data).</td>
 parameters are described below:</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="20%" />
-<col width="80%" />
+<col width="18%" />
+<col width="82%" />
 </colgroup>
 <thead valign="bottom">
 <tr class="row-odd"><th class="head">Parameters</th>
@@ -7581,8 +7662,8 @@ parameters are described below:</p>
 </tr>
 <tr class="row-even"><td>curSurfIndex</td>
 <td>surface index. This is an abstract handle that represents
-the surface created by CM host runtime [6] and must be
-passed through kernel function parameters. CM does not allow
+the surface created by C for Metal host runtime [6] and must be
+passed through kernel function parameters. C for Metal does not allow
 the explicit use of local/global variable or modification of
 such abstract data types in kernel functions, except used as
 function call argument.</td>
@@ -7596,7 +7677,7 @@ function call argument.</td>
 </div>
 <div class="section" id="gen10-hevc-vme-interface">
 <h4>4.12.5 Gen10 HEVC VME Interface<a class="headerlink" href="#gen10-hevc-vme-interface" title="Permalink to this headline">¶</a></h4>
-<p>CM provides the following HEVC-specific Video Motion Estimation (VME) APIs for the Gen10 architecture</p>
+<p>C for Metal provides the following HEVC-specific Video Motion Estimation (VME) APIs for the Gen10 architecture</p>
 <div class="section" id="cm-vme-hevc-ime">
 <h5>cm_vme_hevc_ime<a class="headerlink" href="#cm-vme-hevc-ime" title="Permalink to this headline">¶</a></h5>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">cm_vme_hevc_ime</span> <span class="p">(</span><span class="n">matrix</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">IMEInput</span><span class="p">,</span> <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">32</span><span class="o">&gt;</span> <span class="n">StreamInput</span><span class="p">,</span>
@@ -7897,10 +7978,10 @@ VME return data and SRM applied Coding Unit data (CU).</td>
 </div>
 <div class="section" id="media-walker-interface">
 <h3><a class="toc-backref" href="#id61">4.13 Media Walker Interface</a><a class="headerlink" href="#media-walker-interface" title="Permalink to this headline">¶</a></h3>
-<p>To support the Media Walker functionality, CM provides the following intrinsic functions for a kernel to
-query the thread position in the thread space. Please refer to CM runtime specification on the definition
+<p>To support the Media Walker functionality, C for Metal provides the following intrinsic functions for a kernel to
+query the thread position in the thread space. Please refer to C for Metal runtime specification on the definition
 of thread space and usage models of Media Walker [6].  The kernel can use these functions to obtain the
-per-thread X/Y origin and color values set by the CM runtime host.</p>
+per-thread X/Y origin and color values set by the C for Metal runtime host.</p>
 <div class="section" id="get-thread-origin-x">
 <h4>get_thread_origin_x<a class="headerlink" href="#get-thread-origin-x" title="Permalink to this headline">¶</a></h4>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">unsigned</span> <span class="kt">short</span> <span class="nf">get_thread_origin_x</span><span class="p">();</span>
@@ -7924,12 +8005,12 @@ predefined thread space height - 1.</p>
 </div>
 <p>This function returns the color value of the thread origin in the thread space. The return value is from 0 to
 predefined thread space color value - 1.</p>
-<p>If thread space is not defined by CM runtime host, the default thread space width is fixed at 511.</p>
+<p>If thread space is not defined by C for Metal runtime host, the default thread space width is fixed at 511.</p>
 </div>
 </div>
 <div class="section" id="synchronization-functions">
 <h3><a class="toc-backref" href="#id62">4.14 Synchronization Functions</a><a class="headerlink" href="#synchronization-functions" title="Permalink to this headline">¶</a></h3>
-<p>CM provides the following intrinsic functions for synchronization:</p>
+<p>C for Metal provides the following intrinsic functions for synchronization:</p>
 <div class="section" id="cm-wait">
 <h4>cm_wait<a class="headerlink" href="#cm-wait" title="Permalink to this headline">¶</a></h4>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">cm_wait</span><span class="p">(</span><span class="kt">unsigned</span> <span class="kt">char</span> <span class="n">mask</span> <span class="o">=</span> <span class="mi">0</span><span class="p">);</span>
@@ -8028,7 +8109,7 @@ architectures that don’t support (pre Gen10) the call will have no effect.</p>
 </div>
 <div class="section" id="raw-send-functions">
 <h3><a class="toc-backref" href="#id63">4.15 Raw Send Functions</a><a class="headerlink" href="#raw-send-functions" title="Permalink to this headline">¶</a></h3>
-<p>CM provides the following APIs for issuing raw send messages to GenX shared functions.</p>
+<p>C for Metal provides the following APIs for issuing raw send messages to GenX shared functions.</p>
 <div class="section" id="cm-send">
 <h4>cm_send<a class="headerlink" href="#cm-send" title="Permalink to this headline">¶</a></h4>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">cm_send</span><span class="p">(</span><span class="n">matrix_ref</span><span class="o">&lt;</span><span class="n">T1</span><span class="p">,</span> <span class="n">N1</span><span class="p">,</span> <span class="n">N2</span><span class="o">&gt;</span> <span class="n">rspVar</span><span class="p">,</span>
@@ -8103,7 +8184,7 @@ SIMD width of the <code class="docutils literal"><span class="pre">send</span></
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">unsigned</span> <span class="kt">int</span> <span class="nf">cm_get_value</span><span class="p">(</span><span class="n">T</span> <span class="n">index</span><span class="p">);</span>
 </pre></div>
 </div>
-<p>This intrinsic can be used to assemble the message descriptor, since CM does not allow direct
+<p>This intrinsic can be used to assemble the message descriptor, since C for Metal does not allow direct
 manipulation of abstract handles such as SurfaceIndex. The input parameter must be one of the
 abstract data types (SurfaceIndex, SamplerIndex or VmeIndex). The return data is the encapsulated
 index value.</p>
@@ -8117,31 +8198,31 @@ index value.</p>
 send message’s payload.</p>
 </div>
 </div>
-<div class="section" id="cm-label-function">
-<h3><a class="toc-backref" href="#id64">4.16 CM label function</a><a class="headerlink" href="#cm-label-function" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="c-for-metal-label-function">
+<h3><a class="toc-backref" href="#id64">4.16 C for Metal label function</a><a class="headerlink" href="#c-for-metal-label-function" title="Permalink to this headline">¶</a></h3>
 <p>The cm_label function is deprecated in cmc. For backwards compatibility it is ignored if used.</p>
 </div>
 <div class="section" id="formatted-output">
 <h3><a class="toc-backref" href="#id65">4.17 Formatted Output</a><a class="headerlink" href="#formatted-output" title="Permalink to this headline">¶</a></h3>
 <div class="section" id="printf">
 <h4>4.17.1 printf<a class="headerlink" href="#printf" title="Permalink to this headline">¶</a></h4>
-<p>Starting with version 3.0, CM includes support for calling printf in-kernel: it prints formatted output
-from a CM kernel to stdout on the host. Printf is defined as:</p>
+<p>Starting with version 3.0, C for Metal includes support for calling printf in-kernel: it prints formatted output
+from a C for Metal kernel to stdout on the host. Printf is defined as:</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">printf</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span><span class="o">*</span> <span class="n">format</span><span class="p">,</span> <span class="p">...);</span>
 </pre></div>
 </div>
-<p>CM device printf works similar to printf in &lt;stdio.h&gt; with the following exceptions:</p>
+<p>C for Metal device printf works similar to printf in &lt;stdio.h&gt; with the following exceptions:</p>
 <ul class="simple">
 <li>Unlike standard printf, which returns the number of bytes of the formatted output written
-to stdout, CM printf returns the total unformatted bytes written to the special surface that is
+to stdout, C for Metal printf returns the total unformatted bytes written to the special surface that is
 reserved to printf.</li>
-<li>The format string for the CM printf must have fewer than 128 bytes.</li>
-<li>There can be no more than 64 parameters passed to a CM printf call.</li>
+<li>The format string for the C for Metal printf must have fewer than 128 bytes.</li>
+<li>There can be no more than 64 parameters passed to a C for Metal printf call.</li>
 <li>The following conversion specifiers are currently not supported:  p, n.</li>
 </ul>
 <p>To use printf there are certain changes required in the host code to allocate the printf surface,
 read and format the data written, and then print the result to stdout after the kernel finishes
-execution. Please refer to the CM Runtime API documentation for more information.</p>
+execution. Please refer to the C for Metal Runtime API documentation for more information.</p>
 <p>Example</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;cm/cm.h&gt;</span><span class="cp"></span>
 
@@ -8184,23 +8265,23 @@ Hello from tid 0 with tx/ty: 0/0
 </div>
 <div class="section" id="shared-virtual-memory-svm">
 <span id="sharedvirtualmemory"></span><h3><a class="toc-backref" href="#id66">4.18 Shared Virtual Memory (SVM)</a><a class="headerlink" href="#shared-virtual-memory-svm" title="Permalink to this headline">¶</a></h3>
-<p>Shared Virtual Memory allows the CM program and the host application to share complex pointer-
+<p>Shared Virtual Memory allows the C for Metal program and the host application to share complex pointer-
 containing data structures such as trees and lists. A pointer to a location within SVM has the same pointer
-value on the host and in the CM program.</p>
+value on the host and in the C for Metal program.</p>
 <p>In CM, the type svmptr_t represents a pointer. It can be used as a parameter in a kernel (corresponding to
 an actual pointer passed from the host application), as the element type in a vector or matrix, and as a
 field within a struct declared for use within a data structure in memory shared with the host application.</p>
 <p>The svmptr_t type is in fact an integer type, carrying no information on what type it points to. Therefore
 adding one makes the pointer point to the next byte in memory, not the next item in an array of whatever
 it points to.</p>
-<p>Currently offsetof cannot be used in a CM program, so the offset of a field within a struct must be
+<p>Currently offsetof cannot be used in a C for Metal program, so the offset of a field within a struct must be
 computed manually by summing sizeof() each field before, taking care to avoid errors from alignment
 gaps.</p>
 <p>The size of svmptr_t is determined by the /DCM_PTRSIZE=32 or /DCM_PTRSIZE=64 compiler options. If
 svmptr_t is used as a kernel parameter or in a data structure shared between host application and CM
 program, then the size of svmptr_t must agree with the host application pointer size (and thus the vISA
 resulting from compilation is not portable between 32 bit and 64 bit host applications). A mismatch
-between pointer size in the host application and in the CM program will cause undefined behavior.</p>
+between pointer size in the host application and in the C for Metal program will cause undefined behavior.</p>
 <div class="section" id="cm-svm-block-read">
 <h4>cm_svm_block_read<a class="headerlink" href="#cm-svm-block-read" title="Permalink to this headline">¶</a></h4>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">Type</span><span class="p">,</span> <span class="kt">int</span> <span class="n">N</span><span class="o">&gt;</span>
@@ -8297,21 +8378,21 @@ depends on the atomic operation.</p>
 </div>
 <div class="section" id="preprocessor-directives">
 <h3><a class="toc-backref" href="#id67">4.19 Preprocessor Directives</a><a class="headerlink" href="#preprocessor-directives" title="Permalink to this headline">¶</a></h3>
-<p>Currently CM supports the following preprocessor directives (pragmas):</p>
+<p>Currently C for Metal supports the following preprocessor directives (pragmas):</p>
 <div class="section" id="pragma-unroll-n">
 <h4>#pragma unroll (n)<a class="headerlink" href="#pragma-unroll-n" title="Permalink to this headline">¶</a></h4>
-<p>This pragma may be specified immediately before a loop to instruct the CM compiler to unroll a loop
-for n times. The CM compiler may still not unroll the loop due to lack of resource.</p>
+<p>This pragma may be specified immediately before a loop to instruct the C for Metal compiler to unroll a loop
+for n times. The C for Metal compiler may still not unroll the loop due to lack of resource.</p>
 </div>
 <div class="section" id="pragma-unroll">
 <h4>#pragma unroll<a class="headerlink" href="#pragma-unroll" title="Permalink to this headline">¶</a></h4>
-<p>This pragma may be specified immediately before a loop to instruct the CM compiler to completely
-unroll a loop. The CM compiler may not unroll the loop due to lack of resources.</p>
+<p>This pragma may be specified immediately before a loop to instruct the C for Metal compiler to completely
+unroll a loop. The C for Metal compiler may not unroll the loop due to lack of resources.</p>
 </div>
 </div>
 <div class="section" id="rounding-mode-and-float-control-support">
 <h3><a class="toc-backref" href="#id68">4.20 Rounding mode and float control support</a><a class="headerlink" href="#rounding-mode-and-float-control-support" title="Permalink to this headline">¶</a></h3>
-<p>CM supports setting of floating point rounding mode and other floating point control on a per-kernel
+<p>C for Metal supports setting of floating point rounding mode and other floating point control on a per-kernel
 basis. This is achieved by using the _GENX_FLOAT_CONTROL_ or _GENX_ROUNDING_MODE_ kernel
 attributes. _GENX_FLOAT_CONTROL_ supports all control. _GENX_ROUNDING_MODE_ is a synonym for
 _GENX_FLOAT_CONTROL_ and is retained for backward compatibility.</p>
@@ -8442,15 +8523,15 @@ modes) and the results in this case may be undefined.</p>
 </div>
 </div>
 </div>
-<div class="section" id="cm-template-library">
-<span id="cmtemplatelibrary"></span><h2><a class="toc-backref" href="#id70">5 CM Template Library</a><a class="headerlink" href="#cm-template-library" title="Permalink to this headline">¶</a></h2>
-<p>The CM implementation also provides  a template library of functions.  Inclusion of the cm/cmtl.h header file
+<div class="section" id="c-for-metal-template-library">
+<span id="cmtemplatelibrary"></span><h2><a class="toc-backref" href="#id70">5 C for Metal Template Library</a><a class="headerlink" href="#c-for-metal-template-library" title="Permalink to this headline">¶</a></h2>
+<p>The C for Metal implementation also provides  a template library of functions.  Inclusion of the cm/cmtl.h header file
 is required to make use of these functions.</p>
 <p>The functions defined in cm/cmtl.h provide an implementation which has been defined to be as optimal as
-possible for the CM language. In general, if a function exists in the CM Template Library it is advisable to
+possible for the C for Metal language. In general, if a function exists in the C for Metal Template Library it is advisable to
 use it. To some extent this will also better enable code to cope with future variations and enhancements.</p>
-<p>The CM Template Library uses a namespace to stop pollution of the global namespace as much as
-possible. The namespace used for the CM Template Library is cmtl. Here is an example:</p>
+<p>The C for Metal Template Library uses a namespace to stop pollution of the global namespace as much as
+possible. The namespace used for the C for Metal Template Library is cmtl. Here is an example:</p>
 <p>#include &lt;cm/cm.h&gt;
 #include &lt;cm/cmtl.h&gt;</p>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">_GENX_MAIN_</span> <span class="kt">void</span> <span class="nf">my_func</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">ibuf</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">obuf</span><span class="p">)</span> <span class="p">{</span>
@@ -10186,8 +10267,8 @@ matrix) – usually float</td>
 <h4>Pseudo code<a class="headerlink" href="#pseudo-code" title="Permalink to this headline">¶</a></h4>
 <img alt="../_images/linear_pseudocode.png" src="../_images/linear_pseudocode.png" />
 </div>
-<div class="section" id="cm-implementation">
-<h4>CM implementation<a class="headerlink" href="#cm-implementation" title="Permalink to this headline">¶</a></h4>
+<div class="section" id="c-for-metal-implementation">
+<h4>C for Metal implementation<a class="headerlink" href="#c-for-metal-implementation" title="Permalink to this headline">¶</a></h4>
 <div class="highlight-c++"><div class="highlight"><pre><span></span><span class="n">_GENX_MAIN_</span> <span class="kt">void</span>
 <span class="nf">linear</span><span class="p">(</span><span class="n">SurfaceIndex</span> <span class="n">ibuf</span><span class="p">,</span> <span class="n">SurfaceIndex</span> <span class="n">obuf</span><span class="p">,</span> <span class="n">uint</span> <span class="n">h_pos</span><span class="p">,</span> <span class="n">uint</span> <span class="n">v_pos</span><span class="p">)</span>
 <span class="p">{</span>
@@ -10197,7 +10278,7 @@ matrix) – usually float</td>
     <span class="n">matrix</span><span class="o">&lt;</span><span class="n">uchar</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">24</span><span class="o">&gt;</span> <span class="n">out</span><span class="p">;</span>
     <span class="n">matrix</span><span class="o">&lt;</span><span class="kt">float</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">24</span><span class="o">&gt;</span> <span class="n">m</span><span class="p">;</span>
 
-<span class="c1">// CM intrinsic to read the input matrix via dataport</span>
+<span class="c1">// C for Metal intrinsic to read the input matrix via dataport</span>
     <span class="n">read</span><span class="p">(</span><span class="n">ibuf</span><span class="p">,</span> <span class="n">h_pos</span><span class="o">*</span><span class="mi">24</span><span class="p">,</span> <span class="n">v_pos</span><span class="o">*</span><span class="mi">6</span><span class="p">,</span> <span class="n">in</span><span class="p">);</span>
 
 <span class="c1">// Compute the sums of neighbor elements</span>
@@ -10226,7 +10307,7 @@ matrix) – usually float</td>
 <h2><a class="toc-backref" href="#id81">Appendix B VME Interface Access Macros</a><a class="headerlink" href="#appendix-b-vme-interface-access-macros" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="vme-interface-access-macros-for-gen6">
 <h3><a class="toc-backref" href="#id82">VME Interface Access Macros for Gen6</a><a class="headerlink" href="#vme-interface-access-macros-for-gen6" title="Permalink to this headline">¶</a></h3>
-<p>To facilitate the use of VME interface, CM provides the following access macros for setting up the input
+<p>To facilitate the use of VME interface, C for Metal provides the following access macros for setting up the input
 parameters, as well as retrieving the output results.</p>
 <div class="section" id="list-of-input-access-macros">
 <h4>List of Input Access Macros<a class="headerlink" href="#list-of-input-access-macros" title="Permalink to this headline">¶</a></h4>
@@ -11249,7 +11330,7 @@ input/output data variables are specified in Section 4.12.3.</p>
 <div class="line"><br /></div>
 <div class="line">// Format = S13.2, Valid range [-2048.00 to 2047.75]</div>
 <div class="line">// Note: The parameter should be specified as unsigned type.</div>
-<div class="line">//            CM does not have native type support for S13.2, etc.</div>
+<div class="line">//            C for Metal does not have native type support for S13.2, etc.</div>
 <div class="line">//            These are treated as unsigned data and programmer must ensure the proper encoding</div>
 <div class="line">//            as per HW format requirement.</div>
 <div class="line">VME_SET_UNIInput_CostCenter0(p, CostCenter0X, CostCenter0Y)</div>
@@ -13204,7 +13285,7 @@ input/output data variables are specified in Section 4.12.4.</p>
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
-      Last updated on Wed Jun 19 12:06:58 2019 -0400.
+      Last updated on Thu Jun 27 15:27:24 2019 -0400.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

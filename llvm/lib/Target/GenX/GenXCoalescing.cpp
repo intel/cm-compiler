@@ -1340,6 +1340,8 @@ void GenXCoalescing::coalesceCallables() {
 
 void GenXCoalescing::coalesceGlobalLoads(FunctionGroup *FG) {
   for (auto &GV : FG->getModule()->globals()) {
+    if (!GV.hasAttribute("genx_volatile"))
+      continue;
     LiveRange *LR1 = Liveness->getLiveRangeOrNull(&GV);
     if (!LR1)
       continue;
@@ -1354,7 +1356,7 @@ void GenXCoalescing::coalesceGlobalLoads(FunctionGroup *FG) {
         if (std::find(FG->begin(), FG->end(), Fn) != FG->end())
           LoadsInGroup.insert(LI);
       }
-      // Global variable is uesd in a constexpr.
+      // Global variable is used in a constexpr.
       if (&GV != getUnderlyingGlobalVariable(UI))
         continue;
       for (auto U : UI->users())

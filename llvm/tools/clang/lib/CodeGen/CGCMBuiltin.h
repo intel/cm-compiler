@@ -170,6 +170,8 @@ enum CMBuiltinKind {
   CMBK_cm_get_value,
   CMBK_cm_get_r0,
   CMBK_cm_get_sr0,
+  CMBK_rdregion,
+  CMBK_wrregion,
   CMBK_cm_label,
   CMBK_predefined_surface
 };

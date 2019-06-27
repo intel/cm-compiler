@@ -177,6 +177,7 @@
 #include "llvm/IR/IntrinsicsGenX.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IR/ValueHandle.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
@@ -254,6 +255,19 @@ struct CGNode {
   std::set<CGNode *> Callees;
 };
 
+// The ISPC SIMD CF lowering pass (a module pass)
+class ISPCSimdCFLowering : public ModulePass {
+public:
+  static char ID;
+
+  ISPCSimdCFLowering() : ModulePass(ID) {}
+  void getAnalysisUsage(AnalysisUsage &AU) const {
+    ModulePass::getAnalysisUsage(AU);
+  }
+
+  bool runOnModule(Module &M);
+};
+
 // The CM SIMD CF lowering pass (a function pass)
 class CMSimdCFLowering : public FunctionPass {
 public:
@@ -279,6 +293,22 @@ INITIALIZE_PASS_BEGIN(CMSimdCFLowering, "cmsimdcflowering", "Lower CM SIMD contr
 INITIALIZE_PASS_END(CMSimdCFLowering, "cmsimdcflowering", "Lower CM SIMD control flow", false, false)
 
 Pass *llvm::createCMSimdCFLoweringPass() { return new CMSimdCFLowering(); }
+
+char ISPCSimdCFLowering::ID = 0;
+namespace llvm {
+void initializeISPCSimdCFLoweringPass(PassRegistry&);
+}
+INITIALIZE_PASS_BEGIN(ISPCSimdCFLowering, "ispcsimdcflowering", "Lower ISPC SIMD control flow", false, false)
+INITIALIZE_PASS_END(ISPCSimdCFLowering, "ispcsimdcflowering", "Lower ISPC SIMD control flow", false, false)
+
+Pass *llvm::createISPCSimdCFLoweringPass() {
+    initializeISPCSimdCFLoweringPass(*PassRegistry::getPassRegistry());
+    return new ISPCSimdCFLowering();
+}
+
+bool ISPCSimdCFLowering::runOnModule(Module &M) {
+    return CMSimdCFLowering().doInitialization(M);
+}
 
 /***********************************************************************
  * doInitialization : per-module initialization for CM simd CF lowering

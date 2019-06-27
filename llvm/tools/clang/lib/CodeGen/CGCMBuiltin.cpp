@@ -312,6 +312,8 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(const FunctionDecl *FD) const {
               .StartsWith("__cm_intrinsic_impl_unpack_mask", CMBK_cm_unpack_mask)
               .StartsWith("__cm_intrinsic_impl_predefined_surface", CMBK_predefined_surface)
               .StartsWith("__cm_intrinsic_impl_svm_atomic", CMBK_cm_svm_atomic_impl)
+              .StartsWith("__cm_intrinsic_impl_rdregion", CMBK_rdregion)
+              .StartsWith("__cm_intrinsic_impl_wrregion", CMBK_wrregion)
               .Default(CMBK_none);
   }
 
@@ -1276,6 +1278,10 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(HandlePredefinedSurface(getCurCMCallInfo()));
   case CMBK_cm_svm_atomic_impl:
     return RValue::get(HandleBuiltinSVMAtomicImpl(getCurCMCallInfo()));
+  case CMBK_rdregion:
+    return RValue::get(HandleBuiltinRdregionImpl(getCurCMCallInfo()));
+  case CMBK_wrregion:
+    return RValue::get(HandleBuiltinWrregionImpl(getCurCMCallInfo()));
   }
 
   // Returns the normal call rvalue.
@@ -6461,6 +6467,46 @@ llvm::Value *CGCMRuntime::HandleBuiltinSVMAtomicImpl(CMCallInfo &CallInfo) {
   NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
   CallInfo.CI->eraseFromParent();
 
+  return NewCI;
+}
+
+// template <int width, int stride, typename T, int n>
+// typename simd_type<T, width>::type
+// __cm_intrinsic_impl_rdregion(typename simd_type<T, n>::type in, int offset);
+//
+llvm::Value *CGCMRuntime::HandleBuiltinRdregionImpl(CMCallInfo &CallInfo) {
+  const CallExpr *CE = CallInfo.CE;
+  auto CI = CallInfo.CI;
+  unsigned Width = getIntegralValue(CE->getDirectCallee(), 0);
+  unsigned Stride = getIntegralValue(CE->getDirectCallee(), 1);
+  auto NewCI = EmitReadRegion1D(CallInfo.CGF->Builder, CI->getArgOperand(0),
+                                Width, Stride, CI->getArgOperand(1));
+  CI->replaceAllUsesWith(NewCI);
+  CI->eraseFromParent();
+  return NewCI;
+}
+
+// template <int width, int stride, typename T, int n, int m>
+// typename simd_type<T, n>::type
+// __cm_intrinsic_impl_wrregion(typename simd_type<T, n>::type oldVal,
+//                              typename simd_type<T, m>::type newVal, int offset,
+//                              typename mask_type<n>::type mask = 1);
+//
+llvm::Value *CGCMRuntime::HandleBuiltinWrregionImpl(CMCallInfo &CallInfo) {
+  const CallExpr *CE = CallInfo.CE;
+  auto CI = CallInfo.CI;
+  unsigned Width = getIntegralValue(CE->getDirectCallee(), 0);
+  unsigned Stride = getIntegralValue(CE->getDirectCallee(), 1);
+
+  llvm::Value *Mask = CI->getArgOperand(3);
+  unsigned N = Mask->getType()->getVectorNumElements();
+  llvm::Type *MaskTy = getMaskType(Mask->getContext(), N);
+  Mask = CallInfo.CGF->Builder.CreateTrunc(Mask, MaskTy, ".trunc");
+  auto NewCI = EmitWriteRegion1D(CallInfo.CGF->Builder, CI->getArgOperand(0),
+                                 CI->getArgOperand(1), Width, Stride,
+                                 CI->getArgOperand(2), Mask);
+  CI->replaceAllUsesWith(NewCI);
+  CI->eraseFromParent();
   return NewCI;
 }
 

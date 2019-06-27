@@ -97,6 +97,7 @@ static inline constexpr unsigned getMaxNumOfOWordSLM() {
   return 8;
 }
 
+
 } // namespace details
 
 #endif /*_CLANG_CM_UTIL_H_ */

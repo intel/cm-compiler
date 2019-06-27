@@ -207,11 +207,19 @@ Constant *FoldBitCast(Constant *C, Type *DestTy, const DataLayout &DL) {
       // Build each element of the result.
       Constant *Elt = Zero;
       unsigned ShiftAmt = isLittleEndian ? 0 : SrcBitSize*(Ratio-1);
+// __BEGIN_GENX__
+      auto isAllUndef = [=](int StartIdx) {
+        for (unsigned j = 0; j != Ratio; ++j)
+          if (!isa<UndefValue>(C->getAggregateElement(StartIdx + j)))
+            return false;
+        return true;
+      };
+      if (isAllUndef(SrcElt)) {
+        Elt = UndefValue::get(DstEltTy);
+        SrcElt += Ratio;
+      } else
+// __END_GENX__
       for (unsigned j = 0; j != Ratio; ++j) {
-        if (isa<UndefValue>(C->getAggregateElement(SrcElt))) {
-          Elt = UndefValue::get(DstEltTy);
-          continue;
-        }
         Constant *Src = C->getAggregateElement(SrcElt++);
         if (Src && isa<UndefValue>(Src))
           Src = Constant::getNullValue(C->getType()->getVectorElementType());

@@ -7,7 +7,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>CM (C for Metal) Tutorial &#8212; CM 6.0 documentation</title>
+    <title>C for Metal Tutorial &#8212; CM 6.0 documentation</title>
     
     <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
@@ -63,14 +63,14 @@
       <div class="documentwrapper">
           <div class="body" role="main">
             
-  <div class="section" id="cm-c-for-metal-tutorial">
-<h1>CM (C for Metal) Tutorial<a class="headerlink" href="#cm-c-for-metal-tutorial" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="c-for-metal-tutorial">
+<h1>C for Metal Tutorial<a class="headerlink" href="#c-for-metal-tutorial" title="Permalink to this headline">¶</a></h1>
 <p>Revision 6.0</p>
-<p>Primary Author(s): Gang Chen and Guei-Yuan Lueh (with sources from current and past CM members)</p>
+<p>Primary Author(s): Gang Chen and Guei-Yuan Lueh (with sources from current and past C for Metal members)</p>
 <p>Contributor(s): Kaiyu Chen, Michael Liao, Fang Liu, Wei Pan, Yuting Yang</p>
 <p>Special thanks to our previous teammates in UK, David Stuttard, Tim Renouf, Tim Corringham, and Stephen Thomas, who were the main developers of this llvm-based compiler.</p>
-<div class="section" id="intro-comparing-cm-with-cuda-opencl">
-<h2>Intro: Comparing CM with CUDA/OpenCL<a class="headerlink" href="#intro-comparing-cm-with-cuda-opencl" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="intro-comparing-c-for-metal-with-cuda-opencl">
+<h2>Intro: Comparing C for Metal with CUDA/OpenCL<a class="headerlink" href="#intro-comparing-c-for-metal-with-cuda-opencl" title="Permalink to this headline">¶</a></h2>
 <div class="section" id="similarities">
 <h3>Similarities<a class="headerlink" href="#similarities" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
@@ -82,7 +82,7 @@
 <h3>Differences<a class="headerlink" href="#differences" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li>Explicit SIMD-programming model. Allow varying SIMD width.</li>
-<li>One CM thread is equivalent to one CUDA warp or one OCL subgroup, operates on a block of pixels instead of one pixel.<ul>
+<li>One C for Metal thread is equivalent to one CUDA warp or one OCL subgroup, operates on a block of pixels instead of one pixel.<ul>
 <li>access the entire vector register file instead of one-lane of the register file. Enable developers to achieve the most efficient register usage.</li>
 </ul>
 </li>
@@ -185,7 +185,7 @@ Inside, VTune, Xeon, and Xeon Inside are trademarks of Intel Corporation in the 
     </div>
     <div class="footer" role="contentinfo">
         &#169; Copyright 2009-2016, Intel Corporation. All rights reserved.
-      Last updated on Wed Jun 19 12:06:58 2019 -0400.
+      Last updated on Thu Jun 27 15:27:24 2019 -0400.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

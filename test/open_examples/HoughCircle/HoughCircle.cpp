@@ -71,7 +71,7 @@ bool validate_hough_circle(unsigned int *hough_cnt, unsigned int height,
     }
   }
 
-  delete expect_cnt;
+  delete[] expect_cnt;
   return pass;
 }
 

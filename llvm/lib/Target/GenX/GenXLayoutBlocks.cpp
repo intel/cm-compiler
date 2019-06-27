@@ -79,8 +79,7 @@ public:
     AU.addRequired<LoopInfoWrapperPass>();
   }
 
-  bool doInitialization(Module &M);
-  bool runOnFunction(Function &F) { return false; }
+  bool runOnFunction(Function &F);
   // createPrinterPass : get a pass to print the IR, together with the GenX
   // specific analyses
   virtual Pass *createPrinterPass(raw_ostream &O,
@@ -107,27 +106,17 @@ namespace llvm {
 } // namespace llvm
 
 /***********************************************************************
- * GenXLayoutBlocks::doInitialization: in all module functions,
+ * GenXLayoutBlocks::runOnFunction:
  *    reorder blocks to increase fallthrough,
  *    and specifically to satisfy the requirements of SIMD control flow
- *
- * This pass must precede CMSimdCFLowering which does all its work in
- * doInitialization, so we do the same:
- *
- * Really we want a module pass for CM simd CF lowering. But, without modifying
- * llvm's PassManagerBuilder, the earliest place to insert a pass is
- * EP_EarlyAsPossible, which must be a function pass. So, we do our
- * per-module processing here in doInitialization.
  */
-bool GenXLayoutBlocks::doInitialization(Module &M) {
-  for (Function &F : M) {
-    if (F.empty())
-      continue;
-    LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>(F).getLoopInfo();
-    if (LI.empty())
-      LayoutBlocks(F);
-    else
-      LayoutBlocks(F, LI);
-  }
+bool GenXLayoutBlocks::runOnFunction(Function &F) {
+  if (F.empty())
+    return false;
+  LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+  if (LI.empty())
+    LayoutBlocks(F);
+  else
+    LayoutBlocks(F, LI);
   return true;
 }

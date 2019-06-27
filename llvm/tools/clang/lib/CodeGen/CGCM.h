@@ -591,6 +591,12 @@ private:
   /// \brief Postprocess cm_svm_atomic implementation builtins.
   llvm::Value *HandleBuiltinSVMAtomicImpl(CMCallInfo &CallInfo);
 
+  /// \brief Postprocess rdregion implementation builtins.
+  llvm::Value *HandleBuiltinRdregionImpl(CMCallInfo &CallInfo);
+
+  /// \brief Postprocess wrregion implementation builtins.
+  llvm::Value *HandleBuiltinWrregionImpl(CMCallInfo &CallInfo);
+
 
   /// \brief Emit 1D/2D select expression.
   LValue EmitSelect(CodeGenFunction &CGF, const CMSelectExpr *E, LValue Base);

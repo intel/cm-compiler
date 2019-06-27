@@ -408,6 +408,7 @@ FunctionPass *createConstantHoistingPass();
 // CMSimdCFLowering - Lower CM SIMD control flow
 //
 Pass *createCMSimdCFLoweringPass();
+Pass *createISPCSimdCFLoweringPass();
 
 //===----------------------------------------------------------------------===//
 //

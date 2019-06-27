@@ -2111,8 +2111,9 @@ void GenXSimdCFConformance::replaceGotoJoinUses(CallInst *GotoJoin,
 void GenXLateSimdCFConformance::setCategories()
 {
   // First the EM values.
-  for (auto ei = EMVals.begin(), ee = EMVals.end(); ei != ee; ++ei) {
+  for (auto ei = EMVals.begin(); ei != EMVals.end(); /* empty */) {
     SimpleValue EMVal = *ei;
+    ei++;
     // For this EM value, set its category and modify its uses.
     Liveness->getOrCreateLiveRange(EMVal)->setCategory(RegCategory::EM);
     if (!isa<StructType>(EMVal.getValue()->getType()))
@@ -2137,11 +2138,24 @@ void GenXLateSimdCFConformance::setCategories()
           BasicBlock *TrueSucc = BB->getTerminator()->getSuccessor(0);
           if (BasicBlock *TrueSuccSucc
               = getEmptyCriticalEdgeSplitterSuccessor(TrueSucc)) {
+            for (auto i = TrueSucc->begin(); i != TrueSucc->end(); /*empty*/) {
+              Instruction *Inst = &*i++;
+              auto Phi = dyn_cast<PHINode>(Inst);
+              if (!Phi)
+                break;
+              if (Phi->getNumIncomingValues() == 1) {
+                Phi->replaceAllUsesWith(Phi->getIncomingValue(0));
+                Liveness->eraseLiveRange(Phi);
+                removeFromEMRMVals(Phi);
+                Phi->eraseFromParent();
+              }
+            }
+            // now BB should be truely empty
+            assert(isa<TerminatorInst>(&TrueSucc->front()) &&
+                   "BB is not empty for removal");
             // For a branching goto/join where the "true" successor is an empty
             // critical edge splitter block, remove the empty block, to ensure
             // that the "true" successor is a join label.
-            assert(isa<TerminatorInst>(&TrueSucc->front())
-                && "not expecting phi nodes in critical edge splitter");
             // Adjust phi nodes in TrueSuccSucc.
             adjustPhiNodesForBlockRemoval(TrueSuccSucc, TrueSucc);
             // Replace the use (we know there is only the one).

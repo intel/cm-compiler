@@ -521,4 +521,5 @@ enum CmFloatControl {
 // cm_label() is deprecated
 #define cm_label(...) CM_STATIC_WARNING(0, "cm_label() is deprecated")
 
+
 #endif /* _CLANG_CM_COMMON_H_ */
