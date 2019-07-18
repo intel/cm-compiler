@@ -211,9 +211,9 @@ private:
       case llvm::Intrinsic::genx_get_scoreboard_deltas:
         return KernelMetadata::AK_NORMAL | KernelMetadata::IMP_SB_DELTAS;
       case llvm::Intrinsic::genx_get_scoreboard_bti:
-        return KernelMetadata::AK_NORMAL | KernelMetadata::IMP_SB_BTI;
+        return KernelMetadata::AK_SURFACE | KernelMetadata::IMP_SB_BTI;
       case llvm::Intrinsic::genx_get_scoreboard_depcnt:
-        return KernelMetadata::AK_NORMAL | KernelMetadata::IMP_SB_DEPCNT;
+        return KernelMetadata::AK_SURFACE | KernelMetadata::IMP_SB_DEPCNT;
       case llvm::Intrinsic::genx_local_id_x:
         return KernelMetadata::AK_NORMAL | KernelMetadata::IMP_OCL_LOCAL_ID_X;
       case llvm::Intrinsic::genx_local_id_y:
