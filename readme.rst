@@ -37,14 +37,16 @@ Dependences (Intel Components)
 
 There is no other dependences in order to build the compiler.
 
-However, in order to build and run those sample applications we provide, the easiest way of getting-start is to download the following package:
+However, in order to build and run those sample applications we provide, the easiest way to get start is to download the development package, which we have uploaded under the release tab of this github project.
+
+Please refer to the readme included in the package for its usage.
+
+Several initial releases of the development packages are still saved on 01.org. 
 
 - Intel(R) C for Metal development package 
   https://01.org/C-for-Metal-development-package/ 
 
-Please refer to the readme included in the package for its usage.
-
-The source code for all the components in this development package are published on github.com/intel. However, putting them together still takes some effort (work in progress). 
+The source code for all the components in the development package are published on github.com/intel. We are planning to publish these scripts soon  (work in progress). 
 
 Building the compiler
 =====================
