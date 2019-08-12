@@ -67,14 +67,15 @@ public:
    int Init();
    int ExecuteCompressGraph(CmTask *pTask, int iterations);
    int ExecuteDecompressGraph(CmTask *pTask, int iterations);
-   int GetInputImage(const char *filename);
-   int Save2JPEG(const char *filename);
-   int Save2Raw(const char *infile, const char *outfile);
-   int AssemblerCompressGraph(CmTask *& pTask, int jpegQuality);
-   int AssemblerDecompressGraph(CmTask *& pTask);
+   int GetInputImage(const char *filename, const int width, const int height,
+         const int yuvformat);
+   void Save2JPEG(const char *filename);
+   void Save2Raw(const char *outfile);
+   void AssemblerCompressGraph(CmTask *& pTask, int jpegQuality);
+   void AssemblerDecompressGraph(CmTask *& pTask);
 
 protected:
-   int AddKernel(CmTask *pTask, CmKernel *pKernel);
+   void AddKernel(CmTask *pTask, CmKernel *pKernel);
    int GetSurface2DInfo(int width, int height, CM_SURFACE_FORMAT format,
          unsigned int * pitch, unsigned int * surface_size);
    int CreateKernel(char *isaFile, char *kernelName, CmKernel *& pKernel);
@@ -87,13 +88,14 @@ private:
    JpegEncoder  *m_jpegencoder;
    JpegDecoder  *m_jpegdecoder;
    int          m_fd;
+   int          m_yuvFormat;
 
    uint         m_PicWidth;
    uint         m_PicHeight;
-   uchar        *m_pSrcR;
-   uchar        *m_pSrcG;
-   uchar        *m_pSrcB;
-   uchar        *m_pDstRGB;
+   uchar        *m_pSrc0;
+   uchar        *m_pSrc1;
+   uchar        *m_pSrc2;
+   uchar        *m_pDst;
    uchar        *m_compressJpegData;
    uint         m_compressJpegDataSize;
    VASurfaceID  m_VAEncodedSurfaceID;

@@ -56,14 +56,20 @@ void jpegenc_pic_param_init(VAEncPictureParameterBufferJPEG *pic_param, int widt
    pic_param->num_scan = 1;
    pic_param->num_components = yuvComp.num_components;   // Supporting only up to 3 components
    // set component id Ci and Tqi
-   pic_param->component_id[0] = pic_param->quantiser_table_selector[0] = 0;
-   pic_param->component_id[1] = pic_param->quantiser_table_selector[1] = 1;
-   pic_param->component_id[2] = 2; pic_param->quantiser_table_selector[2] = 1;
+   if (yuvComp.fourcc_val == VA_FOURCC_Y800) {
+      pic_param->component_id[0] = 0;
+      pic_param->quantiser_table_selector[0] = 0;
+   } else {
+      pic_param->component_id[0] = pic_param->quantiser_table_selector[0] = 0;
+      pic_param->component_id[1] = pic_param->quantiser_table_selector[1] = 1;
+      pic_param->component_id[2] = 2; pic_param->quantiser_table_selector[2] = 1;
+   }
 
    pic_param->quality = quality;
 }
 
-void jpegenc_qmatrix_init(VAQMatrixBufferJPEG *quantization_param)
+void jpegenc_qmatrix_init(VAQMatrixBufferJPEG *quantization_param,
+      YUVComponentSpecs yuvComp)
 {
    int i;
 
@@ -72,17 +78,27 @@ void jpegenc_qmatrix_init(VAQMatrixBufferJPEG *quantization_param)
       quantization_param->lum_quantiser_matrix[i] = jpeg_luma_quant[jpeg_zigzag[i]];
    }
 
-   quantization_param->load_chroma_quantiser_matrix = 1;
-   for (i = 0; i<NUM_QUANT_ELEMENTS; i++) {
-      quantization_param->chroma_quantiser_matrix[i] = jpeg_chroma_quant[jpeg_zigzag[i]];
+   if (yuvComp.fourcc_val == VA_FOURCC_Y800) {
+      quantization_param->load_chroma_quantiser_matrix = 0;
+   } else {
+      quantization_param->load_chroma_quantiser_matrix = 1;
+      for (i = 0; i<NUM_QUANT_ELEMENTS; i++) {
+         quantization_param->chroma_quantiser_matrix[i] = jpeg_chroma_quant[jpeg_zigzag[i]];
+      }
    }
 
 }
 
-void jpegenc_hufftable_init(VAHuffmanTableBufferJPEGBaseline *hufftable_param)
+void jpegenc_hufftable_init(VAHuffmanTableBufferJPEGBaseline *hufftable_param,
+      YUVComponentSpecs yuvComp)
 {
    hufftable_param->load_huffman_table[0] = 1;  //Load Luma Hufftable
-   hufftable_param->load_huffman_table[1] = 1;  //Load Chroma Hufftable for other formats
+
+   if (yuvComp.fourcc_val == VA_FOURCC_Y800) {
+      hufftable_param->load_huffman_table[1] = 0; //Do not load Chroma Hufftable for Y8
+   } else {
+      hufftable_param->load_huffman_table[1] = 1;  //Load Chroma Hufftable for other formats
+   }
 
    /* Load Luma hufftable values */
    /* Load DC codes */
@@ -95,16 +111,18 @@ void jpegenc_hufftable_init(VAHuffmanTableBufferJPEGBaseline *hufftable_param)
    memcpy(hufftable_param->huffman_table[0].ac_values, jpeg_hufftable_luma_ac+17, 162);
    memset(hufftable_param->huffman_table[0].pad, 0, 2);
 
-   /* Load Chroma hufftable values */
-   /* Load DC codes */
-   memcpy(hufftable_param->huffman_table[1].num_dc_codes, jpeg_hufftable_chroma_dc+1, 16);
-   /* Load DC values */
-   memcpy(hufftable_param->huffman_table[1].dc_values, jpeg_hufftable_chroma_dc+17, 12);
-   /* Load AC codes */
-   memcpy(hufftable_param->huffman_table[1].num_ac_codes, jpeg_hufftable_chroma_ac+1, 16);
-   /* Load AC values */
-   memcpy(hufftable_param->huffman_table[1].ac_values, jpeg_hufftable_chroma_ac+17, 162);
-   memset(hufftable_param->huffman_table[1].pad, 0, 2);
+   /* Load Chroma hufftable values if needed */
+   if (yuvComp.fourcc_val != VA_FOURCC_Y800) {
+      /* Load DC codes */
+      memcpy(hufftable_param->huffman_table[1].num_dc_codes, jpeg_hufftable_chroma_dc+1, 16);
+      /* Load DC values */
+      memcpy(hufftable_param->huffman_table[1].dc_values, jpeg_hufftable_chroma_dc+17, 12);
+      /* Load AC codes */
+      memcpy(hufftable_param->huffman_table[1].num_ac_codes, jpeg_hufftable_chroma_ac+1, 16);
+      /* Load AC values */
+      memcpy(hufftable_param->huffman_table[1].ac_values, jpeg_hufftable_chroma_ac+17, 162);
+      memset(hufftable_param->huffman_table[1].pad, 0, 2);
+   }
 }
 
 void populate_quantdata(JPEGQuantSection *quantVal, int type)
@@ -290,20 +308,22 @@ int build_packed_jpeg_header_buffer(unsigned char **header_buffer, YUVComponentS
     }
 
     //Add QTable - U/V
-    JPEGQuantSection quantChroma;
-    populate_quantdata(&quantChroma, 1);
-    bitstream_put_ui(&bs, quantChroma.DQT, 16);
-    bitstream_put_ui(&bs, quantChroma.Lq, 16);
-    bitstream_put_ui(&bs, quantChroma.Pq, 4);
-    bitstream_put_ui(&bs, quantChroma.Tq, 4);
-    for(i=0; i<NUM_QUANT_ELEMENTS; i++) {
-       //scale the quantization table with quality factor
-       temp = (quantChroma.Qk[i] * quality)/100;
-       //clamp to range [1,255]
-       temp = (temp > 255) ? 255 : temp;
-       temp = (temp < 1) ? 1 : temp;
-       quantChroma.Qk[i] = (unsigned char)temp;
-       bitstream_put_ui(&bs, quantChroma.Qk[i], 8);
+    if (yuvComp.fourcc_val != VA_FOURCC_Y800) {
+       JPEGQuantSection quantChroma;
+       populate_quantdata(&quantChroma, 1);
+       bitstream_put_ui(&bs, quantChroma.DQT, 16);
+       bitstream_put_ui(&bs, quantChroma.Lq, 16);
+       bitstream_put_ui(&bs, quantChroma.Pq, 4);
+       bitstream_put_ui(&bs, quantChroma.Tq, 4);
+       for(i=0; i<NUM_QUANT_ELEMENTS; i++) {
+          //scale the quantization table with quality factor
+          temp = (quantChroma.Qk[i] * quality)/100;
+          //clamp to range [1,255]
+          temp = (temp > 255) ? 255 : temp;
+          temp = (temp < 1) ? 1 : temp;
+          quantChroma.Qk[i] = (unsigned char)temp;
+          bitstream_put_ui(&bs, quantChroma.Qk[i], 8);
+       }
     }
 
     //Add FrameHeader
@@ -357,6 +377,9 @@ int build_packed_jpeg_header_buffer(unsigned char **header_buffer, YUVComponentS
         for(j=0; j<NUM_AC_CODE_WORDS_HUFFVAL; j++) {
             bitstream_put_ui(&bs, acHuffSectionHdr.Vij[j], 8);
         }
+
+        if (yuvComp.fourcc_val == VA_FOURCC_Y800)
+           break;
     }
 
     //Add Restart Interval if restart_interval is not 0
@@ -406,32 +429,50 @@ void jpegenc_slice_param_init(VAEncSliceParameterBufferJPEG *slice_param, YUVCom
    slice_param->components[0].dc_table_selector = 0;
    slice_param->components[0].ac_table_selector = 0;
 
-   slice_param->components[1].component_selector = 2;
-   slice_param->components[1].dc_table_selector = 1;
-   slice_param->components[1].ac_table_selector = 1;
+   if (yuvComp.num_components > 1) {
+      slice_param->components[1].component_selector = 2;
+      slice_param->components[1].dc_table_selector = 1;
+      slice_param->components[1].ac_table_selector = 1;
 
-   slice_param->components[2].component_selector = 3;
-   slice_param->components[2].dc_table_selector = 1;
-   slice_param->components[2].ac_table_selector = 1;
+      slice_param->components[2].component_selector = 3;
+      slice_param->components[2].dc_table_selector = 1;
+      slice_param->components[2].ac_table_selector = 1;
+   }
 }
 
 
-void init_yuv_component(YUVComponentSpecs *yuvComponent, VASurfaceAttrib *fourcc)
+void init_yuv_component(YUVComponentSpecs *yuvComponent, VASurfaceAttrib *fourcc, unsigned int vaSurfaceType)
 {
-   /* HW expect YUV444 in interleave format and LIBVA doesn't support it */
-   /* A workaround to have LIBVA to create a RGBA surface */
-   yuvComponent->va_surface_format = VA_RT_FORMAT_YUV444;
-   yuvComponent->fourcc_val = fourcc->value.value.i = VA_FOURCC_RGBA;
-   yuvComponent->num_components = 3;
-   yuvComponent->y_h_subsample = 1;
-   yuvComponent->y_v_subsample = 1;
-   yuvComponent->u_h_subsample = 1;
-   yuvComponent->u_v_subsample = 1;
-   yuvComponent->v_h_subsample = 1;
-   yuvComponent->v_v_subsample = 1;
+   yuvComponent->va_surface_format = vaSurfaceType;
+   yuvComponent->fourcc_val = fourcc->value.value.i;
+
+   switch(yuvComponent->fourcc_val)
+   {
+   case VA_FOURCC_RGBA:
+      yuvComponent->num_components = 3;
+      yuvComponent->y_h_subsample = 1;
+      yuvComponent->y_v_subsample = 1;
+      yuvComponent->u_h_subsample = 1;
+      yuvComponent->u_v_subsample = 1;
+      yuvComponent->v_h_subsample = 1;
+      yuvComponent->v_v_subsample = 1;
+      break;
+   case VA_FOURCC_Y800:
+      yuvComponent->num_components = 1;
+      yuvComponent->y_h_subsample = 1;
+      yuvComponent->y_v_subsample = 1;
+      yuvComponent->u_h_subsample = 0;
+      yuvComponent->u_v_subsample = 0;
+      yuvComponent->v_h_subsample = 0;
+      yuvComponent->v_v_subsample = 0;
+      break;
+   default:
+      break;
+   }
+
 }
 
-JpegEncoder::JpegEncoder(CmDevice *pdevice, VADisplay va_dpy)
+JpegEncoder::JpegEncoder(CmDevice *pdevice, VADisplay va_dpy, unsigned int yuv_type)
 {
    VAStatus va_status;
    VAEntrypoint entrypoints[5];
@@ -464,7 +505,9 @@ JpegEncoder::JpegEncoder(CmDevice *pdevice, VADisplay va_dpy)
          VAEntrypointEncPicture, &m_attrib[0], 2);
 
    if (!((m_attrib[0].value & VA_RT_FORMAT_YUV444) ||
-         (m_attrib[0].value & VA_RT_FORMAT_YUV420)))
+         (m_attrib[0].value & VA_RT_FORMAT_YUV420) ||
+         (m_attrib[0].value & VA_RT_FORMAT_YUV400)
+         ))
    {
       assert(0);
    }
@@ -483,10 +526,24 @@ JpegEncoder::JpegEncoder(CmDevice *pdevice, VADisplay va_dpy)
    m_fourcc[0].flags = VA_SURFACE_ATTRIB_SETTABLE;
    m_fourcc[0].type = VASurfaceAttribPixelFormat;
    m_fourcc[0].value.type = VAGenericValueTypeInteger;
-   m_fourcc[0].value.value.i = VA_FOURCC_RGBA;
    m_fourcc[1].flags = VA_SURFACE_ATTRIB_SETTABLE;
    m_fourcc[1].type = VASurfaceAttribUsageHint;
-   m_fourcc[1].value.value.i = VA_SURFACE_ATTRIB_USAGE_HINT_ENCODER;
+      m_fourcc[1].value.value.i = VA_SURFACE_ATTRIB_USAGE_HINT_ENCODER;
+
+   switch(yuv_type)
+   {
+   case 0:  //YUV444
+      m_fourcc[0].value.value.i = VA_FOURCC_RGBA;
+      m_vaSurfaceType = VA_RT_FORMAT_YUV444;
+      break;
+   case 1:
+      m_fourcc[0].value.value.i = VA_FOURCC_Y800;
+      m_vaSurfaceType = VA_RT_FORMAT_YUV400;
+      break;
+   default:
+      throw std::out_of_range("Unsupported YUV format");
+   }
+
 }
 
 JpegEncoder::~JpegEncoder(void)
@@ -503,11 +560,64 @@ JpegEncoder::~JpegEncoder(void)
 }
 
 int JpegEncoder::GetVASurfaceAttrib(
-      VASurfaceAttrib  fourcc[]
+      VASurfaceAttrib  fourcc[],
+      unsigned int & surface_format
       )
 {
    if (fourcc != NULL)
+   {
       std::copy(m_fourcc, m_fourcc+2, fourcc);
+
+      surface_format = m_vaSurfaceType;
+   }
+}
+
+int JpegEncoder::CreateSurfaces(int picture_width, int picture_height, int
+      picture_pitch, unsigned char *gray_surface, VASurfaceID *OutVASurfaceID)
+{
+   VAStatus va_status;
+   VASurfaceAttrib attrib_list[4];
+   VASurfaceAttribExternalBuffers vaSurfaceExternalBuf;
+   unsigned int attrib_count = 2;
+
+   std::copy(m_fourcc, m_fourcc+2, attrib_list);
+
+   va_status = vaCreateSurfaces(m_pVADpy, m_vaSurfaceType, picture_width,
+         picture_height, OutVASurfaceID, 1, &attrib_list[0], attrib_count);
+   CHECK_VASTATUS(va_status, "vaCreateSurfaces");
+
+   /* 
+    * Input is gray scale image and doesn't require RGBtoYUV444
+    * conversion.  Upload to GPU memory to run JPEG encoder directly 
+    */
+   if (gray_surface != NULL)
+   {
+      VAImage surface_image;
+      void *surface_p = NULL;
+      unsigned char *y_dst, *y_src;
+
+      va_status = vaDeriveImage(m_pVADpy, *OutVASurfaceID, &surface_image);
+      CHECK_VASTATUS(va_status, "vaDeriveImage");
+
+      vaMapBuffer(m_pVADpy, surface_image.buf, &surface_p);
+      assert(VA_STATUS_SUCCESS == va_status);
+
+      y_dst = (unsigned char *)surface_p + surface_image.offsets[0];
+      y_src = gray_surface;
+
+      for (int row = 0; row < surface_image.height; row++)
+      {
+         memcpy(y_dst, y_src, surface_image.width);
+         y_dst += surface_image.pitches[0];
+         y_src += picture_width;
+      }
+
+      vaUnmapBuffer(m_pVADpy, surface_image.buf);
+      vaDestroyImage(m_pVADpy, surface_image.image_id);
+   }
+
+   return va_status;
+
 }
 
 int JpegEncoder::PreRun(
@@ -530,7 +640,7 @@ int JpegEncoder::PreRun(
    if (quality >= 100) quality=100;
    if (quality <= 0) quality=1;
 
-   init_yuv_component(&yuvComponent, &m_fourcc[0]);
+   init_yuv_component(&yuvComponent, &m_fourcc[0], m_vaSurfaceType);
 
    /* Create Config for the profile=VAProfileJPEGBaseline, entrypoint=VAEntrypointEncPicture,
     * with RT format attribute */
@@ -557,14 +667,14 @@ int JpegEncoder::PreRun(
    CHECK_VASTATUS(va_status, "vaCreateBuffer for VAEncPictureParameterBufferType");
 
    /* Load the Quatization Matrix */
-   jpegenc_qmatrix_init(&quantization_param);
+   jpegenc_qmatrix_init(&quantization_param, yuvComponent);
 
    va_status = vaCreateBuffer(m_pVADpy, m_contextID, VAQMatrixBufferType,
          sizeof(VAQMatrixBufferJPEG), 1, &quantization_param, &m_qmatrixBufID);
    CHECK_VASTATUS(va_status, "vaCreateBuffer for VAQMatrixBufferType");
 
    /* Load the Huffman Tables */
-   jpegenc_hufftable_init(&hufftable_param);
+   jpegenc_hufftable_init(&hufftable_param, yuvComponent);
 
    va_status = vaCreateBuffer(m_pVADpy, m_contextID, VAHuffmanTableBufferType,
          sizeof(VAHuffmanTableBufferJPEGBaseline), 1, &hufftable_param, &m_huffmantableBufID);
@@ -677,5 +787,6 @@ int JpegEncoder::WriteOut(VASurfaceID inputSurfID, const char* filename)
       fclose(jpeg_fp);
    }
 
+   vaUnmapBuffer(m_pVADpy, m_codedbufBufID);
 }
 

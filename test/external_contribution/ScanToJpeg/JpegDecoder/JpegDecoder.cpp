@@ -27,6 +27,7 @@
  */
 
 #include <assert.h>
+#include <fstream>
 #include "JpegDecoder.h"
 #include <va/va.h>
 
@@ -369,101 +370,9 @@ int JpegDecoder::parse_JFIF(const unsigned char *stream)
 
 }
 
-JpegDecoder::JpegDecoder(CmDevice *pdevice, VADisplay va_dpy)
+int GetVASurfaceAttrib(jdec_private * jdec, VASurfaceAttrib *fourcc, int *surface_type)
 {
-   VAStatus va_status;
-
-   m_pCmDev = pdevice;
-   m_pVADpy  = va_dpy;
-
-   m_jdecPriv = (struct jdec_private *)calloc(1, sizeof(struct jdec_private));
-   assert(m_jdecPriv != NULL);
-
-}
-
-JpegDecoder::~JpegDecoder(void)
-{
-
-}
-
-int JpegDecoder::ParseHeader(
-      const unsigned char *imgBuf,
-      unsigned int         imgSize
-      )
-{
-   int ret;
-
-   assert((imgBuf[0] == 0xFF) || (imgBuf[1] == SOI));
-
-   m_jdecPriv->stream_begin = imgBuf;
-   m_jdecPriv->stream_length = imgSize;
-   m_jdecPriv->stream_end = m_jdecPriv->stream_begin + m_jdecPriv->stream_length;
-
-   m_jdecPriv->stream = m_jdecPriv->stream_begin;
-
-   ret = parse_JFIF(m_jdecPriv->stream);
-
-   return ret;
-
-}
-
-int JpegDecoder::PreRun()
-{
-   VAEntrypoint entrypoints[5];
-   VAConfigAttrib attrib;
-   int num_entrypoints, vld_entrypoint;
-   VAStatus va_status;
-
-   va_status = vaQueryConfigEntrypoints(m_pVADpy, VAProfileJPEGBaseline,
-         entrypoints, &num_entrypoints);
-
-   CHECK_VASTATUS(va_status, "vaQueryConfigEntrypoints");
-
-   for (vld_entrypoint = 0; vld_entrypoint < num_entrypoints; vld_entrypoint++)
-   {
-      if (entrypoints[vld_entrypoint] == VAEntrypointVLD)
-         break;
-   }
-   if (vld_entrypoint == num_entrypoints)
-   {
-      /* not find VLD entry point */
-      assert(0);
-   }
-
-   /* Assuming finding VLD, find out the format for the render target */
-   attrib.type = VAConfigAttribRTFormat;
-   vaGetConfigAttributes(m_pVADpy, VAProfileJPEGBaseline, VAEntrypointVLD,
-         &attrib, 1);
-
-   if ((attrib.value & VA_RT_FORMAT_YUV420) == 0) {
-      /* not find desired YUV420 RT Format */
-      /* TODO: Add YUV444 checking */
-      assert(0);
-   }
-
-   va_status = vaCreateConfig(m_pVADpy, VAProfileJPEGBaseline, VAEntrypointVLD,
-         &attrib, 1, &m_configID);
-   CHECK_VASTATUS(va_status, "vaCreateConfig");
-}
-
-unsigned int JpegDecoder::GetPicWidth()
-{
-   assert(m_jdecPriv);
-
-   return m_jdecPriv->width;
-}
-
-unsigned int JpegDecoder::GetPicHeight()
-{
-   assert(m_jdecPriv);
-
-   return m_jdecPriv->height;
-}
-
-
-int JpegDecoder::GetVASurfaceAttrib(VASurfaceAttrib *fourcc, int *surface_type)
-{
-   assert(m_jdecPriv);
+   assert(jdec);
 
    fourcc->type = VASurfaceAttribPixelFormat;
    fourcc->flags = VA_SURFACE_ATTRIB_SETTABLE;
@@ -471,10 +380,10 @@ int JpegDecoder::GetVASurfaceAttrib(VASurfaceAttrib *fourcc, int *surface_type)
 
    int h[3], v[3];
 
-   for (int i = 0; i < m_jdecPriv->nf_components; i++)
+   for (int i = 0; i < jdec->nf_components; i++)
    {
-      h[i] = m_jdecPriv->component_infos[i].Hfactor;
-      v[i] = m_jdecPriv->component_infos[i].Vfactor;
+      h[i] = jdec->component_infos[i].Hfactor;
+      v[i] = jdec->component_infos[i].Vfactor;
    }
 
    if (h[0] == 2 && h[1] == 1 && h[2] == 1 &&
@@ -530,13 +439,90 @@ int JpegDecoder::GetVASurfaceAttrib(VASurfaceAttrib *fourcc, int *surface_type)
 
 }
 
-int JpegDecoder::Run(VASurfaceID inputSurfID)
+JpegDecoder::JpegDecoder(CmDevice *pdevice, VADisplay va_dpy)
 {
    VAStatus va_status;
-   VABufferID pic_param_buf, iqmatrix_buf, huffmantable_buf, slice_param_buf,
-              slice_data_buf;
+
+   m_pCmDev = pdevice;
+   m_pVADpy  = va_dpy;
+
+   m_jdecPriv = (struct jdec_private *)calloc(1, sizeof(struct jdec_private));
+   assert(m_jdecPriv != NULL);
+
+}
+
+JpegDecoder::~JpegDecoder(void)
+{
+   if (m_jdecPriv != NULL)
+      free(m_jdecPriv);
+
+   vaDestroyBuffer(m_pVADpy, m_pic_param_buf);
+   vaDestroyBuffer(m_pVADpy, m_iqmatrix_buf);
+   vaDestroyBuffer(m_pVADpy, m_huffmantable_buf);
+   vaDestroyBuffer(m_pVADpy, m_slice_param_buf);
+   vaDestroyBuffer(m_pVADpy, m_slice_data_buf);
+}
+
+int JpegDecoder::ParseHeader(
+      const unsigned char *imgBuf,
+      unsigned int         imgSize
+      )
+{
+   int ret;
+
+   assert((imgBuf[0] == 0xFF) || (imgBuf[1] == SOI));
+
+   m_jdecPriv->stream_begin = imgBuf;
+   m_jdecPriv->stream_length = imgSize;
+   m_jdecPriv->stream_end = m_jdecPriv->stream_begin + m_jdecPriv->stream_length;
+
+   m_jdecPriv->stream = m_jdecPriv->stream_begin;
+
+   ret = parse_JFIF(m_jdecPriv->stream);
+
+   return ret;
+
+}
+
+int JpegDecoder::PreRun(VASurfaceID inputSurfID)
+{
+   VAEntrypoint entrypoints[5];
+   VAConfigAttrib attrib;
+   int num_entrypoints, vld_entrypoint;
+   VAStatus va_status;
    int max_h_factor, max_v_factor;
    int i;
+
+   va_status = vaQueryConfigEntrypoints(m_pVADpy, VAProfileJPEGBaseline,
+         entrypoints, &num_entrypoints);
+
+   CHECK_VASTATUS(va_status, "vaQueryConfigEntrypoints");
+
+   for (vld_entrypoint = 0; vld_entrypoint < num_entrypoints; vld_entrypoint++)
+   {
+      if (entrypoints[vld_entrypoint] == VAEntrypointVLD)
+         break;
+   }
+   if (vld_entrypoint == num_entrypoints)
+   {
+      /* not find VLD entry point */
+      assert(0);
+   }
+
+   /* Assuming finding VLD, find out the format for the render target */
+   attrib.type = VAConfigAttribRTFormat;
+   vaGetConfigAttributes(m_pVADpy, VAProfileJPEGBaseline, VAEntrypointVLD,
+         &attrib, 1);
+
+   if ((attrib.value & VA_RT_FORMAT_YUV420) == 0) {
+      /* not find desired YUV420 RT Format */
+      /* TODO: Add YUV444 checking */
+      assert(0);
+   }
+
+   va_status = vaCreateConfig(m_pVADpy, VAProfileJPEGBaseline, VAEntrypointVLD,
+         &attrib, 1, &m_configID);
+   CHECK_VASTATUS(va_status, "vaCreateConfig");
 
    VAPictureParameterBufferJPEGBaseline pic_param;
    memset(&pic_param, 0, sizeof(pic_param));
@@ -564,7 +550,7 @@ int JpegDecoder::Run(VASurfaceID inputSurfID)
 
    va_status = vaCreateBuffer(m_pVADpy, m_contextID,
          VAPictureParameterBufferType, sizeof(VAPictureParameterBufferJPEGBaseline),
-         1, &pic_param, &pic_param_buf);
+         1, &pic_param, &m_pic_param_buf);
    CHECK_VASTATUS(va_status, "vaCreateBuffer");
 
    VAIQMatrixBufferJPEGBaseline iq_matrix;
@@ -588,7 +574,7 @@ int JpegDecoder::Run(VASurfaceID inputSurfID)
          VAIQMatrixBufferType,   //VAIQMatrixBufferJPEGBaseline ?
          sizeof(VAIQMatrixBufferJPEGBaseline),
          1, &iq_matrix,
-         &iqmatrix_buf);
+         &m_iqmatrix_buf);
    CHECK_VASTATUS(va_status, "vaCreateBuffer");
 
    VAHuffmanTableBufferJPEGBaseline huffman_table;
@@ -624,7 +610,7 @@ int JpegDecoder::Run(VASurfaceID inputSurfID)
          VAHuffmanTableBufferType,  // VAHuffmanTableBufferJPEGBaseline?
          sizeof(VAHuffmanTableBufferJPEGBaseline),
          1, &huffman_table,
-         &huffmantable_buf);
+         &m_huffmantable_buf);
    CHECK_VASTATUS(va_status, "vaCreateBuffer");
 
    // one slice for whole image?
@@ -657,7 +643,7 @@ int JpegDecoder::Run(VASurfaceID inputSurfID)
          VASliceParameterBufferType,      // VASliceParameterBufferJPEGBaseline ? 
          sizeof(VASliceParameterBufferJPEGBaseline),
          1,
-         &slice_param, &slice_param_buf);
+         &slice_param, &m_slice_param_buf);
    CHECK_VASTATUS(va_status, "vaCreateBuffer");
 
    va_status = vaCreateBuffer(m_pVADpy, m_contextID,
@@ -665,27 +651,67 @@ int JpegDecoder::Run(VASurfaceID inputSurfID)
          m_jdecPriv->stream_scan - m_jdecPriv->stream,
          1,
          (void*) m_jdecPriv->stream,   //jpeg-clip,
-         &slice_data_buf);
+         &m_slice_data_buf);
    CHECK_VASTATUS(va_status, "vaCreateBuffer");
+
+   return va_status;
+}
+
+unsigned int JpegDecoder::GetPicWidth()
+{
+   assert(m_jdecPriv);
+
+   return m_jdecPriv->width;
+}
+
+unsigned int JpegDecoder::GetPicHeight()
+{
+   assert(m_jdecPriv);
+
+   return m_jdecPriv->height;
+}
+
+
+
+int JpegDecoder::CreateSurfaces(const int picture_width, const int picture_height,
+      VASurfaceID *OutVASurfaceID)
+{
+   VASurfaceAttrib fourcc;
+   int surface_type;
+   VAStatus va_status;
+
+   GetVASurfaceAttrib(m_jdecPriv, &fourcc, &surface_type);
+
+   va_status = vaCreateSurfaces(m_pVADpy, surface_type, picture_width,
+         picture_height, OutVASurfaceID, 1, &fourcc, 2);
+   CHECK_VASTATUS(va_status, "vaCreateSurface");
+
+   return va_status;
+
+}
+
+int JpegDecoder::Run(VASurfaceID inputSurfID)
+{
+   VAStatus va_status;
 
    /* Begin picture */
    va_status = vaBeginPicture(m_pVADpy, m_contextID, inputSurfID);
    CHECK_VASTATUS(va_status, "vaBeginPicture");
 
    /* Render picture for all the VA buffers created */
-   va_status = vaRenderPicture(m_pVADpy, m_contextID, &pic_param_buf, 1);
+   va_status = vaRenderPicture(m_pVADpy, m_contextID, &m_pic_param_buf, 1);
    CHECK_VASTATUS(va_status, "vaRenderPicture");
 
-   va_status = vaRenderPicture(m_pVADpy, m_contextID, &iqmatrix_buf, 1);
+   va_status = vaRenderPicture(m_pVADpy, m_contextID, &m_iqmatrix_buf, 1);
    CHECK_VASTATUS(va_status, "vaRenderPicture");
 
-   va_status = vaRenderPicture(m_pVADpy, m_contextID, &huffmantable_buf, 1);
+   va_status = vaRenderPicture(m_pVADpy, m_contextID, &m_huffmantable_buf, 1);
    CHECK_VASTATUS(va_status, "vaRenderPicture");
 
-   va_status = vaRenderPicture(m_pVADpy, m_contextID, &slice_param_buf, 1);
+   va_status = vaRenderPicture(m_pVADpy, m_contextID, &m_slice_param_buf, 1);
    CHECK_VASTATUS(va_status, "vaRenderPicture");
 
-   va_status = vaRenderPicture(m_pVADpy, m_contextID, &slice_data_buf, 1);
+   va_status = vaRenderPicture(m_pVADpy, m_contextID, &m_slice_data_buf, 1);
    CHECK_VASTATUS(va_status, "vaRenderPicture");
 
    va_status = vaEndPicture(m_pVADpy, m_contextID);
@@ -694,6 +720,7 @@ int JpegDecoder::Run(VASurfaceID inputSurfID)
    va_status = vaSyncSurface(m_pVADpy, inputSurfID);
    CHECK_VASTATUS(va_status, "vaSyncSurface");
 
+   return va_status;
 }
 
 int JpegDecoder::WriteOut(VASurfaceID inputSurfID, const char* filename)
@@ -701,7 +728,9 @@ int JpegDecoder::WriteOut(VASurfaceID inputSurfID, const char* filename)
    VAStatus va_status;
    VAImage  imgout;
    void     *vaddrout = NULL;
-   size_t   w_items;
+
+   std::ofstream outfile(filename, std::ios::out | std::ios::binary);
+   int bytes_per_line = GetPicWidth();
 
    va_status = vaDeriveImage(m_pVADpy, inputSurfID, &imgout);
    CHECK_VASTATUS(va_status, "vaDeriveImage");
@@ -709,17 +738,18 @@ int JpegDecoder::WriteOut(VASurfaceID inputSurfID, const char* filename)
    va_status = vaMapBuffer(m_pVADpy, imgout.buf, &vaddrout);
    CHECK_VASTATUS(va_status, "vaMapBuffer");
 
-   FILE *jpeg_fp;
-   jpeg_fp = fopen(filename, "wb");
-
-   if (jpeg_fp != NULL)
+   for (int y = 0; y < GetPicHeight() ; y++)
    {
-      do {
-         w_items = fwrite(vaddrout, imgout.data_size, 1, jpeg_fp);
-      } while (w_items != 1);
-      va_status = vaUnmapBuffer(m_pVADpy, imgout.buf);
-      fclose(jpeg_fp);
+      outfile.write((char *)vaddrout, bytes_per_line);
+      vaddrout += imgout.pitches[0];
    }
 
+   outfile.close();
+
+   va_status = vaUnmapBuffer(m_pVADpy, imgout.buf);
+   CHECK_VASTATUS(va_status, "vaMapBuffer");
+
+
+   return va_status;
 }
 

@@ -31,7 +31,7 @@ static const char input_image_message[] = "Path to an 24bit .bmp RGB image.  Def
 static const char jpeg_output_image_message[] = "Path to save JPEG output image. Default: no output file";
 
 // @brief message for RGB raw output image argument
-static const char rgb_output_image_message[] = "Path to save RGB raw output image. Default: no output file";
+static const char raw_output_image_message[] = "Path to save RGB raw output image. Default: no output file";
 
 // @brief message for max-frames
 static const char max_frames_message[] = "Maximum number of frames to run.";
@@ -39,6 +39,14 @@ static const char max_frames_message[] = "Maximum number of frames to run.";
 // @brief message for jpeg-quality
 static const char jpeg_quality_message[] = "JPEG compression quality, range(1, 100). Default value: 90";
 
+// @brief message for yuv format
+static const char yuv_format_message[] = "YUV format, Option 0:YUV444, 1: Y8 (Grayscale). Default: 0: YUV444";
+
+// @brief message for image width
+static const char width_message[] = "Input image width";
+
+// @brief message for image height
+static const char height_message[] = "Input image height";
 
 // @brief Define flag for showing help message
 DEFINE_bool(h, false, help_message);
@@ -50,7 +58,7 @@ DEFINE_string(i, "nest.bmp", input_image_message);
 DEFINE_string(jpegout, "", jpeg_output_image_message);
 
 // @brief Define parameter for output image file
-DEFINE_string(rgbout, "", rgb_output_image_message);
+DEFINE_string(rawout, "", raw_output_image_message);
 
 // @brief Define parameter for maximum number of frames to run
 // Default is 10
@@ -60,6 +68,16 @@ DEFINE_int32(maxframes, 1, max_frames_message);
 // Default is 90
 DEFINE_int32(jpegquality, 90, jpeg_quality_message);
 
+// @brief Define parameter for YUV format
+// Default is YUV444
+DEFINE_int32(yuvformat, 0, yuv_format_message);
+
+// @brief message for image width
+DEFINE_int32(width, 0, width_message);
+
+// @brief message for image height
+DEFINE_int32(height, 0, height_message);
+
 static void showUsage() {
    std::cout << std::endl;
    std::cout << "hw_x64.ScanToJpeg [OPTION]" << std::endl;
@@ -67,10 +85,13 @@ static void showUsage() {
    std::cout << std::endl;
    std::cout << "   -h                          " << help_message << std::endl;
    std::cout << "   -i <filename>               " << input_image_message << std::endl;
-   std::cout << "   --jpegout <filename>         " << jpeg_output_image_message << std::endl;
-   std::cout << "   --rgbout <filename>          " << rgb_output_image_message << std::endl;
+   std::cout << "   --width <integer>           " << width_message << std::endl;
+   std::cout << "   --height <integer>          " << height_message << std::endl;
+   std::cout << "   --jpegout <filename>        " << jpeg_output_image_message << std::endl;
+   std::cout << "   --rawout <filename>         " << raw_output_image_message << std::endl;
    std::cout << "   --maxframes <integer>       " << max_frames_message <<  std::endl;
    std::cout << "   --jpegquality <integer>     " << jpeg_quality_message <<  std::endl;
+   std::cout << "   --yuvformat <integer>       " <<  yuv_format_message <<  std::endl;
    std::cout << std::endl;
    std::cout << std::endl;
 }
@@ -81,6 +102,14 @@ bool ParseCommandLine(int argc, char *argv[])
    if (FLAGS_h) {
       showUsage();
       return false;
+   }
+
+   if ((FLAGS_width == 0) || (FLAGS_height == 0)) {
+      throw std::logic_error("Please enter a valid image width or height");
+   }
+
+   if ((FLAGS_yuvformat < 0) || (FLAGS_yuvformat > 1)) {
+      throw std::logic_error("Only support yuvformat 0 or 1");
    }
 
    if (FLAGS_i.empty()) {

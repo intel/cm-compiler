@@ -30,20 +30,22 @@ using namespace std;
 class JpegEncoder
 {
 public:
-   JpegEncoder(CmDevice *device, VADisplay va_dpy);
+   JpegEncoder(CmDevice *device, VADisplay va_dpy, const unsigned int yuv_type);
    ~JpegEncoder(void);
 
    int PreRun(
-         VASurfaceID yCbCrSurfID,
+         VASurfaceID inputSurfID,
          int nPicWidth,
          int nPicHeight,
-         int frameSize,
-         int quality
+         int quality,
+         int frameSize
          );
 
+   int CreateSurfaces(int picture_width, int picture_height, int picture_pitch,
+         unsigned char *gray_surface, VASurfaceID *outSurfaceID);
    int GetCodedBufferAddress(VASurfaceID inputSurfID, unsigned char *& coded_mem,
          unsigned int &slice_length);
-   int GetVASurfaceAttrib(VASurfaceAttrib fourcc[]);
+   int GetVASurfaceAttrib(VASurfaceAttrib fourcc[], unsigned int & surface_format);
    int Run(VASurfaceID inputSurfID);
    int WriteOut(VASurfaceID inputSurfID, const char* filename);
 
@@ -61,6 +63,8 @@ private:
    VABufferID        m_packed_raw_headerBufID;        /* Header buffer id */
    VABufferID        m_qmatrixBufID;                  /* Quantization Matrix id */
    VABufferID        m_huffmantableBufID;             /* Huffman table id*/
+
+   unsigned int      m_vaSurfaceType;
 };
 
 #endif

@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
 
    scanpipeline->Init();
 
-   if (scanpipeline->GetInputImage(FLAGS_i.c_str()) < 0)
+   if (scanpipeline->GetInputImage(FLAGS_i.c_str(), FLAGS_width, FLAGS_height, FLAGS_yuvformat) < 0)
    {
       throw std::runtime_error(std::string("Error in GetInputImage - input file not found"));
    }
@@ -54,9 +54,9 @@ int main(int argc, char* argv[])
    scanpipeline->AssemblerDecompressGraph(decompressTask);
    scanpipeline->ExecuteDecompressGraph(decompressTask, FLAGS_maxframes);
 
-   if (!FLAGS_rgbout.empty())
+   if (!FLAGS_rawout.empty())
    {
-      scanpipeline->Save2Raw(FLAGS_i.c_str(), FLAGS_rgbout.c_str());
+      scanpipeline->Save2Raw(FLAGS_rawout.c_str());
    }
 
 	return 0;

@@ -34,11 +34,12 @@ public:
    JpegDecoder(CmDevice *device, VADisplay va_dpy);
    ~JpegDecoder(void);
 
-   int PreRun();
+   int PreRun(VASurfaceID inputSurfID);
    unsigned int GetPicWidth();
    unsigned int GetPicHeight();
    int ParseHeader(const unsigned char *imgBuf, unsigned int imgSize);
-   int GetVASurfaceAttrib(VASurfaceAttrib *fourcc, int *surface_type);
+   int CreateSurfaces(const int picture_width, const int picture_height,
+         VASurfaceID *VASurfaceID);
    int Run(VASurfaceID inputSurfID);
    int WriteOut(VASurfaceID inputSurfID, const char* filename);
 
@@ -61,6 +62,11 @@ private:
    jdec_private      *m_jdecPriv;
    static int        m_scanNum;
    static int        m_nextImageFound;
+   VABufferID        m_pic_param_buf;
+   VABufferID        m_iqmatrix_buf;
+   VABufferID        m_huffmantable_buf;
+   VABufferID        m_slice_param_buf;
+   VABufferID        m_slice_data_buf;
 };
 
 #endif

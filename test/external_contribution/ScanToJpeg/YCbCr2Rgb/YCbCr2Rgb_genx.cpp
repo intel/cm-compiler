@@ -69,9 +69,12 @@ YCbCr2Rgb_GENX (
 
    matrix<float, BLKH, BLKW> r, g, b;
 
-   r = inY + Coeffs(0) * (inCr - Offsets(1));
-   g = inY + Coeffs(1) * (inCb - Offsets(2)) + Coeffs(2) * (inCr - Offsets(1));
-   b = inY + Coeffs(3) * (inCb - Offsets(2));
+   matrix<float, BLKH, BLKW> inCr_offset_1 = inCr - Offsets(1);
+   matrix<float, BLKH, BLKW> inCb_offset_2 = inCb - Offsets(2);
+
+   r = inY + Coeffs(0) * inCr_offset_1;
+   g = inY + Coeffs(1) * inCb_offset_2 + Coeffs(2) * inCr_offset_1;
+   b = inY + Coeffs(3) * inCb_offset_2;
 
    matrix<uchar, BLKH, BLKW*4> rgb;
 
