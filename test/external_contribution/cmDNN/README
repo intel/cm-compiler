@@ -1,0 +1,35 @@
+How to build cmDNN
+==================
+
+Needs to modify the CM_ROOT in Makefile.linux pointing to your C-for-Metal
+development package location. So "make" can find the compiler and 
+runtime library. 
+
+make -f Makefile.linux
+
+How to run cmDNN
+================
+
+First, download the cmDNNData.tar.gz from our github release tab.
+
+Second, extract the cmDNNData.tar.gz under x64 so that a Data subdirectory 
+is created under x64. The following is the expected directory structure:
+
+x64
+ |
+ *--Release
+ |
+ *--Data
+      |
+      *-- Alexnet
+      |
+      *-- Resnet50
+      |
+      *-- VGG16
+      |
+      *-- VGG19
+
+cp hw_x64.cmDNN x64/Release
+cp cmDNN/cmDNN_genx.isa x64/Release 
+cd x64/Release
+./run_Alexnet.sh

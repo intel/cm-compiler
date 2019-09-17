@@ -1,0 +1,108 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.421
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cmDNN_App", "cmDNN_App\cmDNN_App.vcxproj", "{458E1359-3442-456E-A4AC-759C34C6C8F7}"
+	ProjectSection(ProjectDependencies) = postProject
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8} = {9A2CA996-193C-4432-B68D-471F2BAEEAC8}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cmDNN", "cmDNN\cmDNN.vcxproj", "{9A2CA996-193C-4432-B68D-471F2BAEEAC8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Mixed Platforms = Debug|Mixed Platforms
+		Debug|Win32 = Debug|Win32
+		Debug|x64 = Debug|x64
+		Debug-emu|Mixed Platforms = Debug-emu|Mixed Platforms
+		Debug-emu|Win32 = Debug-emu|Win32
+		Debug-emu|x64 = Debug-emu|x64
+		Debug-sim|Mixed Platforms = Debug-sim|Mixed Platforms
+		Debug-sim|Win32 = Debug-sim|Win32
+		Debug-sim|x64 = Debug-sim|x64
+		Release|Mixed Platforms = Release|Mixed Platforms
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+		Release-emu|Mixed Platforms = Release-emu|Mixed Platforms
+		Release-emu|Win32 = Release-emu|Win32
+		Release-emu|x64 = Release-emu|x64
+		Release-sim|Mixed Platforms = Release-sim|Mixed Platforms
+		Release-sim|Win32 = Release-sim|Win32
+		Release-sim|x64 = Release-sim|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug|Mixed Platforms.Build.0 = Debug|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug|Win32.ActiveCfg = Debug|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug|Win32.Build.0 = Debug|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug|x64.ActiveCfg = Debug|x64
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug|x64.Build.0 = Debug|x64
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug-emu|Mixed Platforms.ActiveCfg = Debug-emu|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug-emu|Mixed Platforms.Build.0 = Debug-emu|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug-emu|Win32.ActiveCfg = Debug-emu|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug-emu|Win32.Build.0 = Debug-emu|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug-emu|x64.ActiveCfg = Debug-emu|x64
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug-emu|x64.Build.0 = Debug-emu|x64
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug-sim|Mixed Platforms.ActiveCfg = Debug-sim|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug-sim|Mixed Platforms.Build.0 = Debug-sim|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug-sim|Win32.ActiveCfg = Debug-sim|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug-sim|Win32.Build.0 = Debug-sim|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug-sim|x64.ActiveCfg = Debug-sim|x64
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Debug-sim|x64.Build.0 = Debug-sim|x64
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release|Mixed Platforms.ActiveCfg = Release|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release|Mixed Platforms.Build.0 = Release|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release|Win32.ActiveCfg = Release|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release|Win32.Build.0 = Release|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release|x64.ActiveCfg = Release|x64
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release|x64.Build.0 = Release|x64
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release-emu|Mixed Platforms.ActiveCfg = Release-emu|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release-emu|Mixed Platforms.Build.0 = Release-emu|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release-emu|Win32.ActiveCfg = Release-emu|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release-emu|Win32.Build.0 = Release-emu|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release-emu|x64.ActiveCfg = Release-emu|x64
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release-emu|x64.Build.0 = Release-emu|x64
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release-sim|Mixed Platforms.ActiveCfg = Release-sim|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release-sim|Mixed Platforms.Build.0 = Release-sim|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release-sim|Win32.ActiveCfg = Release-sim|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release-sim|Win32.Build.0 = Release-sim|Win32
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release-sim|x64.ActiveCfg = Release-sim|x64
+		{458E1359-3442-456E-A4AC-759C34C6C8F7}.Release-sim|x64.Build.0 = Release-sim|x64
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug|Mixed Platforms.Build.0 = Debug|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug|Win32.Build.0 = Debug|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug|x64.ActiveCfg = Debug|x64
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug|x64.Build.0 = Debug|x64
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug-emu|Mixed Platforms.ActiveCfg = Debug|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug-emu|Mixed Platforms.Build.0 = Debug|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug-emu|Win32.ActiveCfg = Debug|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug-emu|Win32.Build.0 = Debug|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug-emu|x64.ActiveCfg = Debug-emu|x64
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug-emu|x64.Build.0 = Debug-emu|x64
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug-sim|Mixed Platforms.ActiveCfg = Debug|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug-sim|Mixed Platforms.Build.0 = Debug|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug-sim|Win32.ActiveCfg = Debug|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug-sim|Win32.Build.0 = Debug|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Debug-sim|x64.ActiveCfg = Debug|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release|Mixed Platforms.ActiveCfg = Release|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release|Mixed Platforms.Build.0 = Release|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release|Win32.ActiveCfg = Release|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release|Win32.Build.0 = Release|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release|x64.ActiveCfg = Release|x64
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release|x64.Build.0 = Release|x64
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release-emu|Mixed Platforms.ActiveCfg = Release|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release-emu|Mixed Platforms.Build.0 = Release|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release-emu|Win32.ActiveCfg = Release|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release-emu|Win32.Build.0 = Release|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release-emu|x64.ActiveCfg = Release|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release-sim|Mixed Platforms.ActiveCfg = Release|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release-sim|Mixed Platforms.Build.0 = Release|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release-sim|Win32.ActiveCfg = Release|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release-sim|Win32.Build.0 = Release|Win32
+		{9A2CA996-193C-4432-B68D-471F2BAEEAC8}.Release-sim|x64.ActiveCfg = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
