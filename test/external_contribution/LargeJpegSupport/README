@@ -1,0 +1,193 @@
+------------------------------------------------------------------------------
+                       C for Metal (CM) LargeJpegSupport Sample
+                                    README
+------------------------------------------------------------------------------
+This README provides sample description and build/execution instructions.
+
+CONTENTS:
+1   Sample Description
+2   System Requirements for Building and Running the Sample
+3   Sample Directory
+4   Basic Command-line Options
+
+
+1 Sample Description
+------------------------------------------------------------------------------
+This sample is an extension of Scan To Jpeg sample to support image width or
+height greater than HW surface limitation.  Intel GPU able to support maximum
+image width or height of 16384x16384 pixels.  We can't take advantage of JPEG
+encode or decode in GPU for image size greater than HW limitation. To overcome
+this issue, one solution is to divide the image into multiple segments or tiles.  
+
+For large size JPEG decode support, the JPEG must encode with restart marker.
+Using this sample to encode a JPEG file, restart marker is turned on by default.
+The restart marker values are from 0xFFD0, 0xFFD1 .. to 0xFFD7, and wrap again.
+The biggest restart interval is choosen to minimize restart marker generated,
+but sufficient enough for split or combine function.  The sample JPEG decode
+function won't work with JPEG file without restart marker, so need to use to
+sample to generate the JPEG file.  
+
+During the JPEG encode/decode process, a new split or combine function have added.
+
+Flows for JPEG encode
+1) Split raw 24bit input image and copy to a tile using CPU
+3) For RGB tile, convert RGB to YUV444 using CM kernel
+4) Do HW JPEG encode on a tile
+5) Combine the tile to final JPEG file.  The step will require to alter the
+restart marker to compliant to JPEG speciication
+6) Do Step 1 - 5 for all tiles
+7) Write the final JPEG output
+
+Flows for JPEG decode
+1) Split JPEG input image and copy to a tile using CPU
+2) The tiled JPEG restart marker is reprogram to make it single JPEG file
+3) For RGB JPEG tile, convert YUV444 to RGB using CM kernel
+4) Do HW JPEG decode on a tile
+5) Copy the tile raw output to final image raw output
+6) Do Step 1 - 5 for all tiles
+7) Write the final 32bit raw output
+
+Here are several options the sample support for large size images
+
+1) To encode a 24bit raw RGB or 8bit grayscale image with width > 16384 pixels 
+but less than 32768 pixels.  No limitation on height if given a tileheight which 
+is divisible by 8.
+
+2) To encode a 24bit raw RGB or 8bit grayscale image with width < 16384 pixels
+but no limitation on height if given a tileheight which is divisible by 8.
+
+3) To decode a RGB JPEG file with width > 16384 pixels but less than 32768
+pixels.  No limitation on height if given a tileheight which is divisible by 8.
+
+4) To decode a 24bit raw RGB or 8bit grayscale image with width < 16384 pixels
+but no limitation on height if given a tileheight which is divisible by 8.
+
+All 4 options above need to run with tileheight option.  The sample will
+divide input image into multiple tiles according to tileheight, and may divide 
+image width by half if the image width > 16384 pixels.
+
+Two ways the image will divide for encoding or decoding process
+
+1) For image width < 16384
+
+         Image Width
+        ------------              --
+        |   T0     | tileheight   |
+        ------------              |
+        |   T1     | tileheight   |
+        ------------              | Image Height
+        |   T2     |              |
+        ------------              |
+        |   ....   |              |
+        ------------              -
+
+2) For image width > 16384  but < 32768
+
+        | ----- Image Width -----|
+        --------------------------         
+        | tilewidth  | tilewidth |
+        --------------------------             --
+        |     T0     |    T1     | tileheight  |
+        --------------------------             |
+        |     T2     |    T3     | tileheight  |
+        --------------------------             | Image Height
+        |     T4     |    T5     |             |
+        --------------------------             |
+        |     ..     |    ..     |             |
+        --------------------------             --
+
+Image will divide to two column blocks by divide image width by 2 when the image
+width > 16385.  As a result, tilewidth = image width / 2.  For tile height, can
+supply through command option.  It can be a value less than image height and
+must be divisable by 8.   For example for image width 20160x13440 with tileheight=2048,
+most tiles are 10080(width) x 2048 (height) and last two tiles are 10080 (width) x 1152
+(height).
+
+The sample continue supports image size less than 16384x16384.  With no
+tileheight option, JPEG encode/decode will done in one pass and without divide
+image into tiles.
+
+Notes/Issues:
+1) The sample has not throughly tested.  Use the image with 16bytes align. 
+2) The sample JPEG decode only work with image with YUV444.  To test out JPEG
+decode, it is best to use the output from this sample JPEG encode. 
+2) The sample doesn't use double buffering and multithreading, mainly sequential
+flow. The performance should improve further when using it.
+3) Some GPU to CPU copy still done using CPU which is about 3X slower.
+Currently, CM doesn't support 8bit surface wrap from LIBVA surface, once it
+support, the remaining GPU to CPU copy can run using GPU kernel.
+ 
+
+2 System Requirements for Building and Running the Sample
+------------------------------------------------------------------------------
+After all required drivers installation, use the Makefile.linux include in this
+directory to build
+
+export CM_ROOT=<path to CM package>
+
+make -f Makefile.linux
+
+3 Sample Directory
+------------------------------------------------------------------------------
+The sample directory has the following structure:
+
++-- ScanToJpeg (a separated directory per sample)
+    |-- Scan2FilePipeline.cpp (Scan2FilePipline class implementation)
+    |-- include (All the kernels header file)
+    |-- main.cpp (Main sample file with code)
+    |-- README (This readme file)
+    |-- Rgb2Encode (Convert RGB to YCbCr or Grayscale CM kernel) 
+    |-- YCbCr2Rgb (Convert YCbCr to RGB CM kernel) 
+    |-- JPEG (Program GPU HW decoder/encoder through LIBVA)
+
+4 Basic Command-line Options
+------------------------------------------------------------------------------
+NOTE: command line parameters (keys and values) are case-sensitive.
+
+hw_x64.ScanToJpeg [OPTION]
+Options:
+
+   -h                          Print a usage message.
+   -i <filename>               Path to an 24bit .bmp RGB image.  Default value: nest.bmp
+   --width <integer>           Raw Input Image Width (Only require for encode) 
+   --height <integer>          Raw Input Image Height (Only require for encode)
+   --flowpath <string>         Choose between encode, decode, encdec (encode, then decode)
+   -jpegout <filename>         Path to save JPEG output image. Default: no output file
+   -rawout <filename>          Path to save RGB/Grayscale output image. Default: no output file
+   --maxframes <integer>       Maximum number of frames to run.
+   --jpegquality <integer>     JPEG compression quality, range(1, 100). Default value: 90
+   --yuvformat <integer>       Input Image format, 0 - RGB input 1 - Grayscale
+   --tileheight <integer>      Tile Height to split image into tiles
+input
+
+Running sample
+
+For encode for RGB input
+./hw_x64.LargeJpegSupport -i nest_1920x1280_rgb.raw --width 1920 --height 1280 --flowpath encode --jpegout nest.jpg --jpegquality 90 --tileheight 512
+
+For encode for grayscale input
+./hw_x64.LargeJpegSupport -i nest_gray.raw --width 1920 --height 1280 --flowpath encode --jpegout nest.jpg --jpegquality 90 --tileheight 512 --yuvformat 1
+
+For decode for RGB jpeg
+./hw_x64.LargeJpegSupport -i nest.jpeg --flowpath decode --rawout nest_output.raw --tileheight 512
+
+For decode for grayscale jpeg
+./hw_x64.LargeJpegSupport -i nest.jpeg --flowpath decode --rawout nest_output.raw --tileheight 512 --yuvformat 1
+
+5) View output raw file
+-------------------------------------------------------------------------------
+To view raw file, one option is ImageMagicK
+
+For 32bit RGB raw file, example command line for image width 1920, height
+1280
+display -size 1920x1280 -depth 8 BGRA:<raw filename>
+
+For 24bit RGB raw file, example command line for image width 1920, height
+1280
+display -size 1920x1280 -depth 8 BGR:<raw filename>
+
+For 8bit grayscale raw file, example command line for image width 1920, height
+1280
+display -size 1920x1280 -depth 8 gray:<raw file>
+
+

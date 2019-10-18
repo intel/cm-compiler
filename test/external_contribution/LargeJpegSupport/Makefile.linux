@@ -1,0 +1,54 @@
+###########################################################################
+# Makefile for HW Mode on Linux
+###########################################################################
+
+#macro CM_ROOT and APP_NAME are passed as Make parameters
+#CM_ROOT := /home/gangche1/Downloads/linuxcformediadevelopmentpackage20180202
+#CMC := ../../../build.64.linux/bin/cmc
+#CM_ROOT := ../..
+CMC := $(CM_ROOT)/compiler/bin/cmc
+APP_NAME_NO_STRIP:= $(shell pwd | awk -F '/' '{print $$NF}' )
+APP_NAME := $(strip $(APP_NAME_NO_STRIP))
+
+ifeq ($(strip $(GEN_MODE)),)
+GEN_MODE := GEN9
+endif
+
+ALL_FILE   := $(wildcard */*.cpp *.cpp)
+KERNEL_FILE   := $(wildcard */*genx*.cpp)
+HOST_FILE = $(filter-out $(KERNEL_FILE), $(ALL_FILE))
+APP         := $(APP_NAME)
+
+CXX           := g++
+INCL          := -I$(CM_ROOT)/runtime/include -I.. -Iinclude -Iinclude -I$(CM_ROOT)/examples
+CXXFLAGS      := -w -g ${INCL} -msse4.1 -D__LINUX__ -DLINUX -O0 -std=gnu++11 -fPIC -c -DCM_$(subst gen,GEN,$(GEN_MODE)) -rdynamic -ffloat-store -D_DEBUG 
+#CXXFLAGS      := -w ${INCL} -msse4.1 -D__LINUX__ -DLINUX -O3 -std=gnu++11 -fPIC -c -DCM_$(subst gen,GEN,$(GEN_MODE)) -rdynamic -ffloat-store -D_DEBUG 
+
+#.PHONY: clean, hw_x64, all
+.PHONY: clean, hw_x64, all
+
+all: hw_x64
+
+######## HW Mode with JITTER ##################
+HW_CXXFLAGS     := $(CXXFLAGS) 
+HW_LDFLAGS      :=  -lva  -ldl -fPIC -lgflags -lva-drm
+HW_APP_SOURCES  := $(HOST_FILE)
+HW_KERN_SOURCES := $(KERNEL_FILE)
+HW_CMCFLAGS     := -march=$(GEN_MODE) -isystem $(CM_ROOT)/compiler/include_llvm
+
+HW_X64_ID       := hw_x64
+HW_X64_APP      := $(HW_X64_ID).$(APP_NAME)
+HW_X64_ISA      := $(HW_KERN_SOURCES:.cpp=.isa)
+HW_X64_APP_OBJS := $(HW_APP_SOURCES:.cpp=.o)
+
+hw_x64: $(HW_X64_APP) $(HW_X64_ISA)
+$(HW_X64_APP): $(HW_X64_APP_OBJS)
+	$(CXX) $^ $(HW_LDFLAGS) -rdynamic $(CM_ROOT)/runtime/lib/x64/libigfxcmrt.so -o $@
+$(HW_X64_APP_OBJS): %.o: %.cpp 
+	$(CXX) $< $(HW_CXXFLAGS) -o $@
+
+$(HW_X64_ISA): %.isa: %.cpp
+	$(CMC) $< $(HW_CMCFLAGS) -o $@
+
+clean:
+	rm -f *.o *.isa $(wildcard */*.o) $(wildcard */*.isa) $(HW_X64_APP)
