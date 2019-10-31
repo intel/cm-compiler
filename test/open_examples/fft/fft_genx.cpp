@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Intel Corporation
+ * Copyright (c) 2017-2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -168,7 +168,7 @@ inline void fftbase_io(SurfaceIndex buf, unsigned width, vector<T, (1 << E) / 4 
     Offset.select<8, 1>() = Offset8;
     #pragma unroll
     for (int i = 8; i < SIMD; i+= 8) {
-        Offset.select<8, 1>(i) += 8;
+        Offset.select<8, 1>(i) = Offset8 + i;
     }
 
     // Read data to compute DFT.
