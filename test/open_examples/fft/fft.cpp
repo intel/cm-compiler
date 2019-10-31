@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Intel Corporation
+ * Copyright (c) 2017-2019, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,6 @@
  */
 
 #include <algorithm>
-#include <assert.h>
 #include <complex>
 #include <iomanip>
 #include <iostream>
@@ -30,10 +29,9 @@
 #include <vector>
 
 #define HAS_MKL 0
+#define ERROR_TOLERANCE 0.001f
 
 #if HAS_MKL
-#define _USE_MATH_DEFINES
-#include <math.h>
 #include "mkl/include/mkl_dfti.h"
 #endif
 
@@ -50,96 +48,6 @@
 
 using namespace std;
 
-static void print(size_t width, size_t height,
-                  const vector<complex<float>>& c)
-{
-    if (width > 64 || height > 64)
-        return;
-
-    cout << std::fixed;
-    cout << std::setprecision(4);
-
-    for (size_t i = 0; i < height; i++) {
-        cout << "\n";
-        for (size_t j = 0; j < width; j++) {
-            cout << c[i * width + j].real() << "+"
-                 << c[i * width + j].imag() << "I" << "\n";
-        }
-    }
-    cout << "\n";
-}
-
-static void print(size_t width, size_t height,
-                  const vector<float>& c0,
-                  const vector<float>& c1)
-{
-    if (width > 64 || height > 64)
-        return;
-
-    cout << std::fixed;
-    cout << std::setprecision(4);
-
-    for (size_t i = 0; i < height; i++) {
-        cout << "\n";
-        for (size_t j = 0; j < width; j++) {
-            cout << c0[i * width + j] << "+"
-                 << c1[i * width + j] << "I" << "\n";
-        }
-    }
-    cout << "\n";
-}
-
-static void print(size_t width, size_t height,
-                  const vector<float>& c)
-{
-    vector<float> c0(width * height);
-    vector<float> c1(width * height);
-    for (size_t i = 0; i < c0.size(); i++) {
-        c0[i] = c[2 * i];
-        c1[i] = c[2 * i + 1];
-    }
-    print(width, height, c0, c1);
-}
-
-#if HAS_MKL
-// ------------------------------------------------------------------------------------------------
-// CPU MKL 1D DFT in-place implementation. Column major only.
-// ------------------------------------------------------------------------------------------------
-void MKL_DFT_1D(vector<complex<float>>& data, const size_t& fftsize, const size_t& rows, const size_t& cols, const bool& forward)
-{
-    size_t length = data.size();
-
-    DFTI_DESCRIPTOR_HANDLE mklFFT;
-
-    MKL_LONG status;
-
-    status = DftiCreateDescriptor(&mklFFT, DFTI_SINGLE, DFTI_COMPLEX, 1, fftsize);
-
-    status = DftiSetValue(mklFFT, DFTI_NUMBER_OF_TRANSFORMS, cols);
-    status = DftiSetValue(mklFFT, DFTI_INPUT_DISTANCE, 1);
-    status = DftiSetValue(mklFFT, DFTI_OUTPUT_DISTANCE, 1);
-
-    MKL_LONG stride[2] = { 0, (long)cols };
-    status = DftiSetValue(mklFFT, DFTI_INPUT_STRIDES, stride);
-    status = DftiSetValue(mklFFT, DFTI_OUTPUT_STRIDES, stride);
-
-    status = DftiCommitDescriptor(mklFFT);
-
-    for (size_t row = 0; row < rows / fftsize; row++)
-    {
-        size_t offset = row * cols * fftsize;
-
-        switch (forward)
-        {
-        case true:  status = DftiComputeForward(mklFFT, &data[offset]);  break;
-        case false: status = DftiComputeBackward(mklFFT, &data[offset]); break;
-        }
-    }
-
-    status = DftiFreeDescriptor(&mklFFT);
-}
-#endif
-
 static float MaxAbsError(const complex<float>& ref, float x, float y)
 {
     float deltax = abs(ref.real() - x);
@@ -154,17 +62,101 @@ static float MaxAbsError(const complex<float>& ref, float x, float y)
     return max(deltax, deltay);
 }
 
+static void print(size_t width, size_t height,
+                  const vector<complex<float>>& c)
+{
+    cout << std::fixed;
+    cout << std::setprecision(4);
+
+    for (size_t i = 0; i < height; i++) {
+        cout << "\n";
+        for (size_t j = 0; j < width; j++) {
+            cout << c[i * width + j].real() << "+"
+                 << c[i * width + j].imag() << "I" << "\n";
+        }
+    }
+    cout << endl;
+}
+
+static void printGotExpected(size_t width, size_t height,
+                             const vector<float>& got,
+                             const vector<complex<float>>& exp)
+{
+    cout << std::fixed;
+    cout << std::setprecision(4);
+    cout << left << setw(25) << "    Got" << "Expected\n";
+    cout << left << setw(25) << "    ~~~" << "~~~~~~~~\n";
+
+    for (size_t i = 0; i < height; i++) {
+        cout << "\n";
+        for (size_t j = 0; j < width; j++) {
+            float got_re = got[i*2*width + 2*j + 0];
+            float got_im = got[i*2*width + 2*j + 1];
+            const complex<float>& expValue = exp[i*width + j];
+            float error = MaxAbsError(expValue, got_re, got_im);
+            cout << right << setw(8) << got_re << "+"
+                 << right << setw(8) << got_im << "I"
+                 << "   ";
+            cout << right << setw(8) << expValue.real() << "+"
+                 << right << setw(8) << expValue.imag() << "I";
+            if (error > ERROR_TOLERANCE) {
+                cout << "  <=== error: " << error;
+            }
+            cout << "\n";
+        }
+    }
+    cout << endl;
+}
+
+#if HAS_MKL
+// ----------------------------------------------------------------------------
+// CPU MKL 1D DFT in-place on columns of fftsize.
+// ----------------------------------------------------------------------------
+void mkl_dft_1d(vector<complex<float>>& data, const size_t& fftsize,
+                const size_t& rows, const size_t& cols, const bool& forward)
+{
+    size_t length = data.size();
+
+    DFTI_DESCRIPTOR_HANDLE mklFFT;
+
+    MKL_LONG status;
+
+    status = DftiCreateDescriptor(&mklFFT, DFTI_SINGLE, DFTI_COMPLEX,
+                                  1, fftsize);
+
+    status = DftiSetValue(mklFFT, DFTI_NUMBER_OF_TRANSFORMS, cols);
+    status = DftiSetValue(mklFFT, DFTI_INPUT_DISTANCE, 1);
+    status = DftiSetValue(mklFFT, DFTI_OUTPUT_DISTANCE, 1);
+
+    MKL_LONG stride[2] = { 0, (long)cols };
+    status = DftiSetValue(mklFFT, DFTI_INPUT_STRIDES, stride);
+    status = DftiSetValue(mklFFT, DFTI_OUTPUT_STRIDES, stride);
+
+    status = DftiCommitDescriptor(mklFFT);
+
+    for (size_t block = 0; block < rows / fftsize; block++) {
+        size_t offset = block * cols * fftsize;
+
+        switch (forward) {
+        case true:  status = DftiComputeForward(mklFFT, &data[offset]);  break;
+        case false: status = DftiComputeBackward(mklFFT, &data[offset]); break;
+        }
+    }
+
+    status = DftiFreeDescriptor(&mklFFT);
+}
+#endif
+
 // ------------------
 // Compare results.
 // ------------------
-static float MaxAbsError(const vector<complex<float>>& cpuSpectrum,
-                         const vector<float>& gpuSpectrum0,
-                         const vector<float>& gpuSpectrum1)
+static float MaxAbsError(const vector<float>& got,
+                         const vector<complex<float>>& expected)
 {
     float maxAbsError = -1.0f;
 
-    for (size_t i = 0; i < cpuSpectrum.size(); i++) {
-        float absError = MaxAbsError(cpuSpectrum[i], gpuSpectrum0[i], gpuSpectrum1[i]);
+    for (size_t i = 0; i < expected.size(); i++) {
+        float absError = MaxAbsError(expected[i], got[2*i], got[2*i+1]);
         if (maxAbsError < absError)
             maxAbsError = absError;
     }
@@ -172,83 +164,78 @@ static float MaxAbsError(const vector<complex<float>>& cpuSpectrum,
     return maxAbsError;
 }
 
-static double checkResult(size_t width, size_t height, unsigned fftsize,
-                          vector<complex<float>>& cpuData,
-                          const vector<float>& gpuOutput0,
-                          const vector<float>& gpuOutput1)
+static float checkResult(size_t width, size_t height, unsigned fftsize,
+                          const vector<float>& gpuOutput,
+                          vector<complex<float>>& cpuData)
 {
 #if HAS_MKL
     // perform CPU MKL FFT once for validation; notice this is done in-place
-    MKL_DFT_1D(cpuData, fftsize, height, width, true);
-#endif
-
-    print(width, height, cpuData);
-
-#if HAS_MKL
-    // get the error between CPU & GPU
-    return MaxAbsError(cpuData, gpuOutput0, gpuOutput1);
+    mkl_dft_1d(cpuData, fftsize, height, width, true);
 #else
-    return 0.0;
+    // overwrite cpuData with expected result of transforming constant signal
+    for (size_t block = 0; block < height / fftsize; block++) {
+        size_t offset = block * width * fftsize;
+        for (size_t col = 0; col < width; col++) {
+            cpuData[offset + col] = {1.0f*fftsize, 2.0f*fftsize};
+            for (size_t row = 1; row < fftsize; row++) {
+                cpuData[offset + row*width + col] = {0.0f, 0.0f};
+            }
+        }
+    }
 #endif
-}
 
-static double checkResult(size_t width, size_t height, unsigned fftsize,
-                          vector<complex<float>>& cpuData,
-                          const vector<float>& gpuOutput)
-{
-    vector<float> gpuOutput0(cpuData.size());
-    vector<float> gpuOutput1(cpuData.size());
-
-    for (size_t i = 0; i < cpuData.size(); i++) {
-        gpuOutput0[i] = gpuOutput[2 * i];
-        gpuOutput1[i] = gpuOutput[2 * i + 1];
+    if (width <= 64 && height <= 64) {
+        printGotExpected(width, height, gpuOutput, cpuData);
     }
 
-    return checkResult(width, height, fftsize, cpuData, gpuOutput0, gpuOutput1);
+    // get the error between GPU and CPU
+    return MaxAbsError(gpuOutput, cpuData);
 }
 
 
 // ---------------------------
 // Initialize the GPU signal.
 // ---------------------------
-static void initialize(vector<float>& cSignal0, vector<float>& cSignal1, const vector<complex<float>>& cpuSignal)
+static void initialize(vector<float>& gpuSignal,
+                       const vector<complex<float>>& cpuSignal)
 {
     for (size_t i = 0; i < cpuSignal.size(); i++) {
-        cSignal0[i] = (float)cpuSignal[i].real();
-        cSignal1[i] = (float)cpuSignal[i].imag();
-    }
-}
-
-static void initialize(vector<float>& cSignal, const vector<complex<float>>& cpuSignal)
-{
-    for (size_t i = 0; i < cpuSignal.size(); i++) {
-        cSignal[2 * i] = (float)cpuSignal[i].real();
-        cSignal[2 * i + 1] = (float)cpuSignal[i].imag();
+        gpuSignal[2 * i + 0] = cpuSignal[i].real();
+        gpuSignal[2 * i + 1] = cpuSignal[i].imag();
     }
 }
 
 // --------------------------
-// Generate a random signal.
+// Generate an input signal.
 // --------------------------
 static vector<complex<float>> generateSignal(size_t size)
 {
+    vector<complex<float>> output(size);
+#if HAS_MKL
+    // Random generation--result will be checked against MKL.
     float vmax = 1.0f;
     float vmin = -1.0f;
     float factor = (vmax - vmin) / RAND_MAX;
 
-    vector<complex<float>> output(size);
     for (size_t i = 0; i < size; i++) {
-        output[i] = { vmin + (float)std::rand() * factor, vmin + (float)std::rand() * factor };
+        output[i] = { vmin + (float)std::rand() * factor,
+                      vmin + (float)std::rand() * factor };
     }
+#else
+    // Constant signal generation.
+    for (size_t i = 0; i < size; i++) {
+        output[i] = {1.0f, 2.0f};
+    }
+#endif
 
     return output;
 }
 
 bool runTest(size_t width, size_t height, unsigned fftsize, unsigned simd)
 {
-    vector<float> data(width * height * 2);
-    vector<complex<float>> complex_data = generateSignal(width * height);
-    initialize(data, complex_data);
+    vector<complex<float>> cpuData = generateSignal(width * height);
+    vector<float> gpuData(width * height * 2);
+    initialize(gpuData, cpuData);
 
     // Creates a CmDevice from scratch.
     // Param device: pointer to the CmDevice object.
@@ -264,10 +251,10 @@ bool runTest(size_t width, size_t height, unsigned fftsize, unsigned simd)
         std::exit(1);
     }
 
-    // Creates a CmProgram object consisting of the kernels loaded from the code buffer.
+    // Creates a CmProgram object of the kernels loaded from the code buffer.
     CmProgram *program = nullptr;
     cm_result_check(device->LoadProgram(const_cast<char *>(isa_code.data()),
-        isa_code.size(), program));
+                                        isa_code.size(), program));
 
     // Creates the kernel.
     CmKernel *kernel = nullptr;
@@ -282,7 +269,8 @@ bool runTest(size_t width, size_t height, unsigned fftsize, unsigned simd)
     else if (fftsize == 32 && simd == 8)
         cm_result_check(device->CreateKernel(program, "fft32_simd8_io", kernel));
     else {
-        std::cerr << "Not implemented: fftsize = " << fftsize << ", simd = " << simd << "\n";
+        std::cerr << "Not implemented: fftsize = " << fftsize
+                  << ", simd = " << simd << "\n";
         exit(1);
     }
 
@@ -304,13 +292,15 @@ bool runTest(size_t width, size_t height, unsigned fftsize, unsigned simd)
 
     // Creates a CmThreadGroupSpace object.
     CmThreadGroupSpace *tg_space = nullptr;
-    cm_result_check(device->CreateThreadGroupSpace(thread_width, thread_height, group_width, group_height, tg_space));
+    cm_result_check(device->CreateThreadGroupSpace(thread_width, thread_height,
+                                         group_width, group_height, tg_space));
 
     // Gets the input/output surface index and set per kernel arguments.
     CmBuffer *io_surface = nullptr;
     SurfaceIndex *io_surface_idx = nullptr;
-    cm_result_check(device->CreateBuffer(width * height * sizeof(float) * 2, io_surface));
-    cm_result_check(io_surface->WriteSurface((uint8_t*)data.data(), nullptr));
+    cm_result_check(device->CreateBuffer(width * height * sizeof(float) * 2,
+                                         io_surface));
+    cm_result_check(io_surface->WriteSurface((uint8_t*)gpuData.data(), nullptr));
     cm_result_check(io_surface->GetIndex(io_surface_idx));
     cm_result_check(kernel->SetKernelArg(0, sizeof(SurfaceIndex), io_surface_idx));
 
@@ -331,10 +321,10 @@ bool runTest(size_t width, size_t height, unsigned fftsize, unsigned simd)
     cm_result_check(e->WaitForTaskFinished(time_out));
 
     // Check results.
-    cm_result_check(io_surface->ReadSurface((uint8_t*)data.data(), e));
-    double maxAbsError = checkResult(width, height, fftsize, complex_data, data);
-    print(width, height, data);
+    cm_result_check(io_surface->ReadSurface((uint8_t*)gpuData.data(), e));
+    float maxAbsError = checkResult(width, height, fftsize, gpuData, cpuData);
 
+    // Timed tests.
     unsigned num_iters = 100;
     vector<UINT64> exeTimesGPU(num_iters);
 
@@ -346,17 +336,18 @@ bool runTest(size_t width, size_t height, unsigned fftsize, unsigned simd)
         exeTimesGPU[i] = time_in_ns;
     }
 
+    cm_result_check(cmd_queue->DestroyEvent(e));
     cm_result_check(::DestroyCmDevice(device));
     sort(exeTimesGPU.begin(), exeTimesGPU.end());
     double minTimeGPU = exeTimesGPU[0] / 1000.0 / batch_size;
 
-    cout << "Buffer size:            " << width * height << endl;
-    cout << "FFT length:             " << fftsize << endl;
-    cout << "SIMD size:              " << simd << endl;
+    cout << "Buffer size:            " << width*height*sizeof(float)*2 << "B\n";
+    cout << "FFT length:             " << fftsize << "\n";
+    cout << "SIMD size:              " << simd << "\n";
     cout << "Execution time per FFT: " << minTimeGPU << "us\n";
     cout << "Max abs error:          " << maxAbsError << endl;
 
-    return maxAbsError <= 0.001;
+    return maxAbsError <= ERROR_TOLERANCE;
 }
 
 int main(int argc, char *argv[])
@@ -365,7 +356,6 @@ int main(int argc, char *argv[])
     int cols = 1024;
     int rows = 768;
     int fftsize = 8;
-    int baseFFT = 8;
     int simd = 8;
 
     // read the cmd line arguments if any
@@ -376,17 +366,18 @@ int main(int argc, char *argv[])
             rows = atoi(argv[++i]);
         else if (strcmp(argv[i], "-fft") == 0)
             fftsize = atoi(argv[++i]);
-        else if (strcmp(argv[i], "-base") == 0)
-            baseFFT = atoi(argv[++i]);
         else if (strcmp(argv[i], "-simd") == 0)
             simd = atoi(argv[++i]);
         else if (strcmp(argv[i], "-h") == 0) {
-            cout << "-cols c ... Signal width.       Default " << cols << "." << endl;
-            cout << "-rows r ... Signal height.      Default " << rows << ". Must be a multiple of FFT length." << endl;
-            cout << "-fft  l ... FFT length.         Default " << fftsize << "." << endl;
-            cout << "-base b ... FFT base length.    Default " << baseFFT << "." << endl;
-            cout << "-simd s ... Logical SIMD width. Default " << simd << "." << endl;
-            cout << "-h      ... Display this help." << endl;
+            cout << "-cols c ... Signal width.       Default " << cols
+                 << "\n";
+            cout << "-rows r ... Signal height.      Default " << rows
+                 << "  (Must be a multiple of FFT length)\n";
+            cout << "-fft  l ... FFT length.         Default " << fftsize
+                 << "\n";
+            cout << "-simd s ... Logical SIMD width. Default " << simd
+                 << "\n";
+            cout << "-h      ... Display this help.\n";
             cout << endl;
             return 0;
         }
