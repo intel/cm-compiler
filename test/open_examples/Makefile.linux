@@ -2,11 +2,9 @@
 # Makefile for HW Mode on Linux
 ###########################################################################
 
-#macro CM_ROOT and APP_NAME are passed as Make parameters
-#CM_ROOT := /home/gangche1/Perforce/gc-centos-cmrt/SWE_Media_CM_RT/mainline
-#CMC := ../../../build.64.linux/bin/cmc
-CM_ROOT := ../..
-CMC := $(CM_ROOT)/compiler/bin/cmc
+#Variables CM_ROOT and CMC may be set by the user.
+CM_ROOT ?= ../..
+CMC ?= $(CM_ROOT)/compiler/bin/cmc
 APP_NAME_NO_STRIP:= $(shell pwd | awk -F '/' '{print $$NF}' )
 APP_NAME := $(strip $(APP_NAME_NO_STRIP))
 
