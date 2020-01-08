@@ -29,16 +29,14 @@
 #include <va/va_drm.h>
 #include <assert.h>
 #include <fstream>
-//#include "va_display.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 #include "Scan2FilePipeline.h"
-#include "common/cm_rt_helpers.h"
 
-#include "Rgb2Encode.h"
-#include "YCbCr2Rgb.h"
-
-#define CM_Error_Handle(x) cm_result_check(x)
+#include "CMKernels.h"
+#include "JpegEncoder.h"
+#include "JpegDecoder.h"
+#include "ImageColorConversion.h"
 
 // Common interface
 static unsigned long GetCurrentTimeInMilliseconds()
@@ -49,27 +47,26 @@ static unsigned long GetCurrentTimeInMilliseconds()
     return (time.tv_sec * 1000.0) + time.tv_usec/1000.0;
 }
 
+JpegEncoder             *jpegEncoderNode;
+JpegDecoder             *jpegDecoderNode;
+Rgb2YCbCr               *rgb2YCbCrNode;
+YCbCr2Rgb               *yCbCr2RgbNode;
+ImageColorConversion    *imageCSCNode;
+
+vector<GPUGraph> gpuGraph;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // Initialize CM device
-Scan2FilePipeline::Scan2FilePipeline()
+Scan2FilePipeline::Scan2FilePipeline (void)
 {
-   m_PicWidth = 0;
-   m_PicHeight = 0;
-
-   m_pSrc0 = NULL;
-   m_pSrc1 = NULL;
-   m_pSrc2 = NULL;
-   m_pDst  = NULL;
-   m_pCmDev = NULL;
-   m_pCmQueue = NULL;
-   e_Pipeline = NULL;
+   m_fd = 0;
+   m_vaDpy = NULL;
+   gpuGraph.reserve(3);
 }
 
-int Scan2FilePipeline::Init()
+int Scan2FilePipeline::VAInit()
 {
-   UINT version = 0;
    int majorVer, minorVer;
    VAStatus vaStatus;
 
@@ -91,316 +88,300 @@ int Scan2FilePipeline::Init()
 
    vaStatus = vaInitialize(m_vaDpy, &majorVer, &minorVer);
    assert(vaStatus == VA_STATUS_SUCCESS);
-
-   // Create a CM Device
-   cm_result_check(CreateCmDevice( m_pCmDev, version, m_vaDpy ));
-
-   // For testing only - collect platform information
-	////////
-   int nGPUPlatform = 0;
-   int nGTPlatform = 0;
-   int nGPUFrequency = 0;
-   char* sGPUPlatform[] = {"Unk", "SNB", "IVB", "HSW", "BDW", "VLV", "CHV", "SKL", "BXT", "CNL", "KBL", "GLK"};
-   char* sGT[] = {"Unk", "GT1", "GT2", "GT3", "GT4"};
-   size_t size = 4;
-
-   cm_result_check(m_pCmDev->GetCaps( CAP_GPU_PLATFORM, size, &nGPUPlatform ));
-   cm_result_check(m_pCmDev->GetCaps( CAP_GT_PLATFORM, size, &nGTPlatform ));
-   cm_result_check(m_pCmDev->GetCaps( CAP_GPU_CURRENT_FREQUENCY, size, &nGPUFrequency ));
-   //printf("The test is running on Intel %s %s platform with frequency at %d MHz.\n", sGPUPlatform[nGPUPlatform], sGT[nGTPlatform], nGPUFrequency);
-
-   // Create a task queue
-   cm_result_check(m_pCmDev->CreateQueue(m_pCmQueue));
-
-   // Inits the print buffer.
-   cm_result_check(m_pCmDev->InitPrintBuffer());
-
-   return CM_SUCCESS;
 }
 
-Scan2FilePipeline::~Scan2FilePipeline()
+int Scan2FilePipeline::EncodeInit(const char *filename, const int width, const int height,
+      const int yuv_format)
 {
-   //free(m_pCommonISA);
-   delete m_jpegencoder;
-   delete m_jpegdecoder;
-   /* FIXME: rgbnode, and ycbcrnode haven't destroy */
-   ::DestroyCmDevice(m_pCmDev);
 
-   free(m_pSrc0);
-   free(m_pSrc1);
-   free(m_pSrc2);
-   free(m_pDst);
+   jpegEncoderNode = new JpegEncoder(m_vaDpy, yuv_format);
+   rgb2YCbCrNode = new Rgb2YCbCr(m_vaDpy);
+   imageCSCNode = new ImageColorConversion(m_vaDpy);
+
+   if ((!jpegEncoderNode) || (!rgb2YCbCrNode) || (!imageCSCNode))
+      return -1;
+
+
+   m_PicWidth = width;
+   m_PicHeight = height;
+   m_yuvFormat = yuv_format;
+   m_filename = filename;
+
+   return 0;
+}
+
+int Scan2FilePipeline::DecodeInit(const char *filename)
+{
+   jpegDecoderNode = new JpegDecoder(m_vaDpy);
+   imageCSCNode = new ImageColorConversion(m_vaDpy);
+   yCbCr2RgbNode = new YCbCr2Rgb(m_vaDpy);
+
+   if ((!jpegDecoderNode) || (!imageCSCNode) || (!yCbCr2RgbNode))
+      return -1;
+
+   m_filename = filename;
+
+   return 0;
+}
+
+Scan2FilePipeline::~Scan2FilePipeline(void)
+{
+   for (auto &it : gpuGraph)
+      it.node->Destroy(it.nodeSurfParam);
+
+   delete jpegEncoderNode;
+   delete jpegDecoderNode;
+   delete rgb2YCbCrNode;
+   delete yCbCr2RgbNode;
+   delete imageCSCNode;
+
+   //m_GpuTask.clear();
+   gpuGraph.clear();
 
    close(m_fd);
    vaTerminate(m_vaDpy);
 }
 
-int Scan2FilePipeline::GetInputImage(const char* filename, const int width,
-      const int height, const int yuv_format)
+int Scan2FilePipeline::UploadInputImage(const char* filename, unsigned char *pDst,
+      const int width, const int height, const int pitch, bool grayscale)
 {
-
-   CM_SURFACE_FORMAT cm_output_surface_format;
-   unsigned int outpitch = 0;
-   unsigned int outsize = 0;
-
-   m_PicWidth = width;
-   m_PicHeight = height;
-   m_yuvFormat = yuv_format;
-
-   unsigned int pitch_size = 0;
-   unsigned int surface_size = 0;
-   GetSurface2DInfo(m_PicWidth, m_PicHeight, CM_SURFACE_FORMAT_A8,
-         &pitch_size, &surface_size);
+   int bytes_per_line = width;
 
    std::ifstream infile(filename, std::ios::in | std::ios::binary);
    if (!infile)
    {
+      cout<<"File open failed "<<filename<<endl;
       return -1;
    }
 
-   unsigned char *pTmpInput = 0;
+   if (grayscale)
+      bytes_per_line = width;
+   else
+      bytes_per_line = width * 3;
 
+   unsigned char *pTmpInput = (unsigned char *)malloc(bytes_per_line);
 
-   if (m_yuvFormat == 0) // RGB input 24bit 8bpp
+   if (!pTmpInput)
    {
-      m_pSrc0 = (uchar *)CM_ALIGNED_MALLOC(surface_size, 0x1000);
-      m_pSrc1 = (uchar *)CM_ALIGNED_MALLOC(surface_size, 0x1000);
-      m_pSrc2 = (uchar *)CM_ALIGNED_MALLOC(surface_size, 0x1000);
-
-      pTmpInput = (uchar *) malloc(m_PicWidth*3);
-
-      memset(m_pSrc0, 0, surface_size);
-      memset(m_pSrc1, 0, surface_size);
-      memset(m_pSrc2, 0, surface_size);
-
-      for (int y = 0; y < m_PicHeight; y++)
-      {
-         infile.read((char*)pTmpInput, m_PicWidth*3);
-
-         for (int x = 0; x < m_PicWidth; x++)
-         {
-            m_pSrc0[x + y*pitch_size] = pTmpInput[x*3];
-            m_pSrc1[x + y*pitch_size] = pTmpInput[x*3 + 1];
-            m_pSrc2[x + y*pitch_size] = pTmpInput[x*3 + 2];
-         }
-      }
-
-      cm_output_surface_format = CM_SURFACE_FORMAT_A8R8G8B8;
+      infile.close();
+      return -1;
    }
-   else  // Grayscale input
+
+   for (int y = 0; y < height; y++)
    {
-      m_pSrc0 = (uchar *)CM_ALIGNED_MALLOC(surface_size, 0x1000);
-      pTmpInput = (uchar *) malloc(m_PicWidth);
-      memset(m_pSrc0, 0, surface_size);
+      infile.read((char *) pTmpInput, bytes_per_line);
 
-      for (int y = 0; y < m_PicHeight; y++)
+      if (grayscale)
       {
-         infile.read((char*)pTmpInput, m_PicWidth);
-
-         for (int x = 0; x < m_PicWidth; x++)
-         {
-            m_pSrc0[x + y*pitch_size] = pTmpInput[x];
-         }
-         //pTmpInput +=m_PicWidth;
+         memcpy(pDst, pTmpInput, bytes_per_line);
+         pDst += pitch;
       }
-      cm_output_surface_format = CM_SURFACE_FORMAT_A8;
+      else
+      {
+         for (int x = 0; x < width; x++)
+         {
+            pDst[x*4 + y*pitch] = pTmpInput[x*3];
+            pDst[x*4 + y*pitch + 1] = pTmpInput[x*3 + 1];
+            pDst[x*4 + y*pitch + 2] = pTmpInput[x*3 + 2];
+         }
+      }
    }
 
    infile.close();
-
    free(pTmpInput);
 
-   GetSurface2DInfo(m_PicWidth, m_PicHeight, cm_output_surface_format,
-      &outpitch, &outsize);
-   m_pDst = (uchar *)CM_ALIGNED_MALLOC(outsize, 0x1000);
-
-   return CM_SUCCESS;
+   return 0;
 
 }
 
-void Scan2FilePipeline::Save2JPEG(const char* filename)
+int Scan2FilePipeline::UploadJpegImage(const char *filename, unsigned char *& pDst,
+      uint &jpegDataSize)
 {
-   if (m_jpegencoder)
-      m_jpegencoder->WriteOut(m_VAEncodedSurfaceID, filename);
-}
-
-void Scan2FilePipeline::Save2Raw(const char* out_filename)
-{
-   if (out_filename != NULL)
+   std::ifstream infile(filename, std::ios::in | std::ios::binary);
+   if (!infile)
    {
-      if (m_yuvFormat == 0)
+      cout<<"File open failed "<<filename<<endl;
+      return -1;
+   }
+
+   infile.seekg(0, std::ios::end);
+   jpegDataSize = infile.tellg();
+   infile.seekg(0, std::ios::beg);
+
+   pDst = (uchar *) malloc(jpegDataSize);
+
+   if (pDst)
+   {
+      infile.read((char *)pDst, jpegDataSize);
+      infile.close();
+   }
+   else
+   {
+      infile.close();
+      return -1;
+   }
+
+   /* pDst will free in calling function */
+   return 0;
+}
+
+int Scan2FilePipeline::WriteToFile(const char *filename, unsigned char *pSrc,
+      const int width, const int height, const int pitch, bool grayscale)
+{
+   int bytes_per_line = width;
+
+   std::ofstream outfile(filename, std::ios::out | std::ios::binary);
+
+   if (!outfile)
+   {
+      cout<<"File creation failed "<<filename<<endl;
+      return -1;
+   }
+
+   if (grayscale)
+      bytes_per_line = width;
+   else
+      bytes_per_line = width * 3;
+
+   unsigned char *pTmpOutput = (unsigned char *)malloc(bytes_per_line);
+
+   if (!pTmpOutput)
+   {
+      outfile.close();
+      return -1;
+   }
+
+   for (int y = 0; y < height; y++)
+   {
+      if (grayscale)
       {
-         // RGB input image require to use CM kernel to do conversion from
-         // YUV444 to RGB after HW JPEG decode
-         // m_pDst is output surface after CM kernel conversion
-         if (m_pDst)
+         outfile.write((char *) pSrc, bytes_per_line);
+      }
+      else
+      {
+         unsigned char *tmpSrc = pSrc;
+
+         for (int x = 0; x < width; x++)
          {
-            unsigned int outpitch =0;
-            unsigned int outsize = 0;
-
-            std::ofstream outfile(out_filename, std::ios::out | std::ios::binary);
-
-            GetSurface2DInfo(m_PicWidth, m_PicHeight,
-                  CM_SURFACE_FORMAT_A8R8G8B8, &outpitch, &outsize);
-
-            uchar *tmp_dst1 = (uchar *) malloc (outpitch);
-            uchar *tmp_dst2 = m_pDst;
-            int bytes_per_line = m_PicWidth * 3;
-
-            for (int y = 0; y < m_PicHeight; y++)
-            {
-               for (int x = 0; x < m_PicWidth; x++)
-               {
-                  tmp_dst1[x*3] = tmp_dst2[x*4];
-                  tmp_dst1[x*3+1] = tmp_dst2[x*4+1];
-                  tmp_dst1[x*3+2] = tmp_dst2[x*4+2];
-               }
-
-               outfile.write((char *) tmp_dst1, bytes_per_line);
-               tmp_dst2 += outpitch;
-            }
-
-            free(tmp_dst1);
+            pTmpOutput[x*3] = tmpSrc[x*4];
+            pTmpOutput[x*3 + 1] = tmpSrc[x*4 + 1];
+            pTmpOutput[x*3 + 2] = tmpSrc[x*4 + 2];
          }
-
+         outfile.write((char *) pTmpOutput, bytes_per_line);
       }
-      else if (m_yuvFormat == 1)
-      {
-         // No format conversion after HW JPEG decode
-         // The decoded file can save out directly from Jpeg decoded surface
-         m_jpegdecoder->WriteOut(m_VADecodedSurfaceID, out_filename);
-      }
-   }
-}
 
-int Scan2FilePipeline::GetSurface2DInfo(int width, int height, CM_SURFACE_FORMAT format,
-        unsigned int * pitch, unsigned int * surface_size)
-{
-    m_pCmDev->GetSurface2DInfo(width, height, format, *pitch, *surface_size);
-}
-
-int Scan2FilePipeline::CreateKernel(char *isaFile, char* kernelName, CmKernel *& pKernel)
-{
-   int         nKernelSize;
-   uchar       *pCommonISA; // Common ISA kernel
-   CmProgram   *pProgram;
-
-   // Create kernel
-   FILE* pISA = fopen(isaFile, "rb");
-   if (pISA == NULL) {
-      perror("Open File failed\n");
-      return -1;
+      pSrc += pitch;
    }
 
-   fseek (pISA, 0, SEEK_END);
-   nKernelSize = ftell (pISA);
-   rewind(pISA);
+   outfile.close();
+   free(pTmpOutput);
 
-   if(nKernelSize == 0)
+}
+
+void Scan2FilePipeline::Save2JPEG(const char *filename)
+{
+   if (jpegEncoderNode)
+      jpegEncoderNode->WriteOut(m_VAEncodedSurfaceID, filename);
+}
+
+void Scan2FilePipeline::Save2Raw(const char *filename)
+{
+   GPUGraph lastNode = gpuGraph.back();
+   Scan2FilePipeline *elem;
+
+   if (lastNode.node != NULL)
    {
-      fclose(pISA);
-      return -1;
+      elem = lastNode.node;
+
+      elem->WriteOut(lastNode.nodeSurfParam, filename);
    }
-
-   pCommonISA = (uchar*) malloc(nKernelSize);
-   if( !pCommonISA )
-   {
-      fclose(pISA);
-      return -1;
-   }
-
-   if (fread(pCommonISA, 1, nKernelSize, pISA) != nKernelSize) {
-      perror("Read fail\n");
-      fclose(pISA);
-      free(pCommonISA);
-      return -1;
-   }
-   fclose(pISA);
-
-   //cm_result_check(m_pCmDev->LoadProgram(pCommonISA, nKernelSize, pProgram, "nojitter"));
-   cm_result_check(m_pCmDev->LoadProgram(pCommonISA, nKernelSize, pProgram));
-
-   cm_result_check(m_pCmDev->CreateKernel(pProgram, kernelName, pKernel));
-
-   free(pCommonISA);
-
-   return CM_SUCCESS;
 }
 
-void Scan2FilePipeline::AddKernel(CmTask *pTask, CmKernel *pKernel)
+int Scan2FilePipeline::CMSurface2DInfo(int width, int height, CM_SURFACE_FORMAT format,
+        unsigned int & pitch, unsigned int & surface_size)
 {
-   // Add kernel to task
-   cm_result_check(pTask-> AddKernel(pKernel));
-   cm_result_check(pTask-> AddSync());
+   rgb2YCbCrNode->GetSurface2DInfo(width, height, format, pitch, surface_size);
 }
 
-void Scan2FilePipeline::AssemblerCompressGraph(CmTask *& pTask, int jpegQuality)
+
+int Scan2FilePipeline::AssemblerCompressGraph(const int jpegQuality)
 {
    CM_SURFACE_FORMAT cm_surface_format;
    unsigned int pitch_size = 0;
    unsigned int surface_size = 0;
-   GetSurface2DInfo(m_PicWidth, m_PicHeight, CM_SURFACE_FORMAT_A8,
-         &pitch_size, &surface_size);
+   int status;
 
-   m_jpegencoder = new JpegEncoder(m_pCmDev, m_vaDpy, m_yuvFormat);
 
-   if (m_yuvFormat == 0)  // YUV444
+   if (m_yuvFormat == YUV444)  // YUV444
    {
-      // Source surface
-      CmSurface2DUP *pSrcR = NULL;
-      CmSurface2DUP *pSrcG = NULL;
-      CmSurface2DUP *pSrcB = NULL;
-      SurfaceIndex *pSI_SrcR = NULL;
-      SurfaceIndex *pSI_SrcG = NULL;
-      SurfaceIndex *pSI_SrcB = NULL;
+      /* 
+       * Hardware color format conversion doesn't support BGRX/BGRA to YUV444
+       * Use a CM kernel for conversion
+       */
 
-      cm_result_check(m_pCmDev->CreateSurface2DUP(m_PicWidth, m_PicHeight,
-            CM_SURFACE_FORMAT_A8, m_pSrc0, pSrcR));
-      cm_result_check(pSrcR->GetIndex(pSI_SrcR));
-      cm_result_check(m_pCmDev->CreateSurface2DUP(m_PicWidth, m_PicHeight,
-            CM_SURFACE_FORMAT_A8, m_pSrc1, pSrcG));
-      cm_result_check(pSrcG->GetIndex(pSI_SrcG));
-      cm_result_check(m_pCmDev->CreateSurface2DUP(m_PicWidth, m_PicHeight,
-            CM_SURFACE_FORMAT_A8, m_pSrc2, pSrcB));
-      cm_result_check(pSrcB->GetIndex(pSI_SrcB));
+      GPUGraph rgbtask;
 
-      CmSurface2D *pSrcJpegEncode = NULL;
-      SurfaceIndex *pSI_SrcJpegEncode = NULL;
+      CHECK_STATUS(rgb2YCbCrNode->CreateInputSurface(m_filename, m_PicWidth, m_PicHeight,
+            pitch_size, surface_size));
 
-      m_jpegencoder->CreateSurfaces(m_PicWidth, m_PicHeight, pitch_size,
-            NULL, &m_VAEncodedSurfaceID);
+      /* 
+       * CM not able to create surface to meet VA surface requirement.
+       * As a result, use the VACreateSurface for surface need to input to
+       * JpegEncoder, and the same VASurface can wrap to CM surface for output 
+       * surface for YUV444 conversion kernel.
+       */
+      CHECK_STATUS(jpegEncoderNode->CreateSurfaces(m_PicWidth, m_PicHeight, pitch_size, &m_VAEncodedSurfaceID));
 
-      cm_result_check(m_pCmDev->CreateSurface2D(m_VAEncodedSurfaceID,
-            pSrcJpegEncode));
-      cm_result_check(pSrcJpegEncode->GetIndex(pSI_SrcJpegEncode));
+      CHECK_STATUS(rgb2YCbCrNode->WrapSurface(m_VAEncodedSurfaceID));
 
-      if (pTask == NULL)
-         cm_result_check(m_pCmDev->CreateTask(pTask));
-
-      // Pixel conversion using CM from RGB to YCbCr or RGB to grayscale
-      Rgb2Encode *rgbnode = new Rgb2Encode(m_pCmDev);
-      CmKernel *pRgb2EncodeKernel;
-      cm_result_check(CreateKernel(rgbnode->GetIsa(), rgbnode->GetKernelName(m_yuvFormat), pRgb2EncodeKernel));
-      AddKernel(pTask, pRgb2EncodeKernel);
-
-      rgbnode->PreRun(pRgb2EncodeKernel, pSI_SrcR, pSI_SrcG, pSI_SrcB, pSI_SrcJpegEncode, m_PicWidth, m_PicHeight);
+      CHECK_STATUS(rgb2YCbCrNode->PreRun(m_PicWidth, m_PicHeight));
 
       cm_surface_format = CM_SURFACE_FORMAT_444P;
+
+      rgbtask.node = rgb2YCbCrNode;
+      rgbtask.nodeSurfParam = m_VAEncodedSurfaceID;
+
+      gpuGraph.push_back(rgbtask);
    }
-   else
+   else if ((m_yuvFormat == YUV420) || (m_yuvFormat == YUV422))
    {
-      /* There is issue wrap a VA Surface for single channel 8bit format like
-       * YUV400 to CM surface.  As a result require extra CPU copy to get
-       * the input for grayscale.  
-       *
-       * The proper way for different pixel format is like
-       * 1) Use vaCreateSurfaces to create a VA Surface
-       * 2) VA Surface -> CM Surface
-       *     CreateSurfac2D(vaSurfaceID, CmSurface2D)
-       *     CmSurface2D->GetIndex(cmSurfaceIndex)
+      /* 
+       * Use hardware color format conversion to convert RGB to YUV420 or YUV422
        */
-      m_jpegencoder->CreateSurfaces(m_PicWidth, m_PicHeight, pitch_size,
-            m_pSrc0, &m_VAEncodedSurfaceID);
+
+      unsigned int fourcc;
+      VASurfaceID vaInputSurfaceID;
+      GPUGraph csctask;
+
+      if (m_yuvFormat == YUV420)
+      {
+         fourcc = VA_FOURCC_NV12;
+         cm_surface_format = CM_SURFACE_FORMAT_NV12;
+
+      }
+      else
+      {
+         fourcc = VA_FOURCC_YUY2;
+         cm_surface_format = CM_SURFACE_FORMAT_YUY2;
+      }
+
+      CHECK_STATUS(imageCSCNode->CreateInputSurfaces(m_filename, m_PicWidth, m_PicHeight, VA_FOURCC_BGRX,
+            VA_RT_FORMAT_YUV420, &vaInputSurfaceID));
+      CHECK_STATUS(imageCSCNode->CreateSurfaces(m_PicWidth, m_PicHeight, fourcc,
+            VA_RT_FORMAT_YUV420, &m_VAEncodedSurfaceID));
+      CHECK_STATUS(imageCSCNode->PreRun(vaInputSurfaceID, m_PicWidth, m_PicHeight,
+            m_VAEncodedSurfaceID, m_PicWidth, m_PicHeight));
+
+      csctask.node = imageCSCNode;
+      csctask.nodeSurfParam = m_VAEncodedSurfaceID;
+
+      gpuGraph.push_back(csctask);
+
+   }
+   else if (m_yuvFormat = YUV400)
+   {
+      CHECK_STATUS(jpegEncoderNode->CreateInputSurfaces(m_filename, m_PicWidth, m_PicHeight,
+            &m_VAEncodedSurfaceID));
 
       cm_surface_format = CM_SURFACE_FORMAT_A8;
    }
@@ -409,102 +390,85 @@ void Scan2FilePipeline::AssemblerCompressGraph(CmTask *& pTask, int jpegQuality)
    unsigned int outpitch = 0;
    unsigned int outsize = 0;
 
-   GetSurface2DInfo(m_PicWidth, m_PicHeight, cm_surface_format,
-         &outpitch, &outsize);
+   /* Use a CM API to retrieve pitch and image size */
+   CMSurface2DInfo(m_PicWidth, m_PicHeight, cm_surface_format,
+         outpitch, outsize);
    /* Convert to JPEG file */
-   m_jpegencoder->PreRun(m_VAEncodedSurfaceID, m_PicWidth, m_PicHeight, jpegQuality,
-         outsize);
+   CHECK_STATUS(jpegEncoderNode->PreRun(m_VAEncodedSurfaceID, m_PicWidth, m_PicHeight, jpegQuality,
+         outsize));
+
+   GPUGraph encodetask;
+   encodetask.node = jpegEncoderNode;
+   encodetask.nodeSurfParam = m_VAEncodedSurfaceID;
+   gpuGraph.push_back(encodetask);
+
+   return 0;
 }
 
-void Scan2FilePipeline::AssemblerDecompressGraph(CmTask *& pTask)
+void Scan2FilePipeline::AssemblerDecompressGraph()
 {
-   VASurfaceAttrib fourcc;
-   int surface_type;
-   unsigned int imgWidth, imgHeight;
+   GPUGraph decodetask;
 
-   m_jpegdecoder = new JpegDecoder(m_pCmDev, m_vaDpy);
+   CHECK_STATUS(jpegDecoderNode->CreateInputSurfaces(m_filename, m_PicWidth, m_PicHeight,
+         m_yuvFormat, &m_VADecodedSurfaceID));
 
-   assert(m_compressJpegData && m_compressJpegDataSize);
+   CHECK_STATUS(jpegDecoderNode->PreRun(m_VADecodedSurfaceID));
 
-   m_jpegdecoder->ParseHeader(m_compressJpegData, m_compressJpegDataSize);
+   decodetask.node = jpegDecoderNode;
+   decodetask.nodeSurfParam = m_VADecodedSurfaceID;
 
-   imgWidth = m_jpegdecoder->GetPicWidth();
-   imgHeight = m_jpegdecoder->GetPicHeight();
+   gpuGraph.push_back(decodetask);
 
-   /* Convert to JPEG file */
-   /* Need to use vaCreateSurface instead of CM CreateSurface2D due to 
-    * CM CreteSurface2D won't able to create an RGBA surface with YUV444 render
-    * target
-    */
-
-   m_jpegdecoder->CreateSurfaces(imgWidth, imgHeight, &m_VADecodedSurfaceID);
-
-   /*
-   m_jpegdecoder->GetVASurfaceAttrib(&fourcc, &surface_type);
-
-   vaCreateSurfaces(m_vaDpy, surface_type, imgWidth,
-         imgHeight, &m_VADecodedSurfaceID, 1, &fourcc, 2);
-   */
-   m_jpegdecoder->PreRun(m_VADecodedSurfaceID);
-
-   if (m_yuvFormat == 0)
+   if ((m_yuvFormat == YUV420) || (m_yuvFormat == YUV422))
    {
-      if (pTask == NULL)
-         cm_result_check(m_pCmDev->CreateTask(pTask));
+      VASurfaceID rgbSurfaceID;
+      GPUGraph    csctask;
 
-      CmSurface2D *pSrcYCbCr = NULL;
-      SurfaceIndex *pSI_SrcYCbCr = NULL;
+      CHECK_STATUS(imageCSCNode->CreateSurfaces(m_PicWidth, m_PicHeight, VA_FOURCC_BGRX,
+            VA_RT_FORMAT_YUV420, &rgbSurfaceID));
 
-      cm_result_check(m_pCmDev->CreateSurface2D(m_VADecodedSurfaceID, pSrcYCbCr));
-      cm_result_check(pSrcYCbCr->GetIndex(pSI_SrcYCbCr));
+      CHECK_STATUS(imageCSCNode->PreRun(m_VADecodedSurfaceID, m_PicWidth, m_PicHeight,
+            rgbSurfaceID, m_PicWidth, m_PicHeight));
 
-      /* YCbCr to RGB node */
-      CmSurface2DUP *pDstRgb = NULL;
-      SurfaceIndex *pSI_DstRgb = NULL;
+      csctask.node = imageCSCNode;
+      csctask.nodeSurfParam = rgbSurfaceID;
 
-      /* Output surface to store after convert from YCbCr to RGB */
-      cm_result_check(m_pCmDev->CreateSurface2DUP(imgWidth, imgHeight,
-            CM_SURFACE_FORMAT_A8R8G8B8, m_pDst, pDstRgb));
-      cm_result_check(pDstRgb->GetIndex(pSI_DstRgb));
+      gpuGraph.push_back(csctask);
+   }
+   else if (m_yuvFormat == YUV444)
+   {
+      GPUGraph ycbcrtask;
 
-      YCbCr2Rgb *ycbcrnode = new YCbCr2Rgb(m_pCmDev);
-      CmKernel *pYCbCr2RgbKernel;
-      cm_result_check(CreateKernel(ycbcrnode->GetIsa(), ycbcrnode->GetKernelName(), pYCbCr2RgbKernel));
-      AddKernel(pTask, pYCbCr2RgbKernel);
+      CHECK_STATUS(yCbCr2RgbNode->WrapSurface(m_VADecodedSurfaceID));
 
-      /* The input surface to the kernel is the output from JPEG decoder */
-      ycbcrnode->PreRun(pYCbCr2RgbKernel, pSI_SrcYCbCr,  pSI_DstRgb, m_PicWidth, m_PicHeight);
+      CHECK_STATUS(yCbCr2RgbNode->CreateOutputSurfaces(m_PicWidth, m_PicHeight));
+
+      CHECK_STATUS(yCbCr2RgbNode->PreRun(m_PicWidth, m_PicHeight));
+
+      ycbcrtask.node = yCbCr2RgbNode;
+      ycbcrtask.nodeSurfParam = 0;
+
+      gpuGraph.push_back(ycbcrtask);
+   }
+   else if (m_yuvFormat == YUV400)
+   {
+      // No conversion require
    }
 
+   return;
+
 }
 
-
 // Execute GPU Graph
-int Scan2FilePipeline::ExecuteCompressGraph(CmTask *pCMTask, int iteration)
+int Scan2FilePipeline::ExecuteCompressGraph(int iteration)
 {
-   DWORD dwTimeOutMs = -1;
-   UINT64 executionTime=0;
-
    unsigned long start = GetCurrentTimeInMilliseconds();
    for (int loop = 0; loop < iteration; loop++)
    {
       unsigned long starte = GetCurrentTimeInMilliseconds();
-      /* Run RGBtoYCbCr CM kernel */
-      if (pCMTask != NULL)
-      {
-         cm_result_check(m_pCmQueue->Enqueue(pCMTask, e_Pipeline));
-         cm_result_check(e_Pipeline->WaitForTaskFinished(dwTimeOutMs));
-         e_Pipeline->GetExecutionTime(executionTime);
-      }
 
-      /* Run JPEG encoder */
-      m_jpegencoder->Run(m_VAEncodedSurfaceID);
-      m_jpegencoder->GetCodedBufferAddress(m_VAEncodedSurfaceID, m_compressJpegData,
-            m_compressJpegDataSize);
-
-      unsigned long ende = GetCurrentTimeInMilliseconds();
-      printf("Execution time=%dms, Kernel time: %.2fms\n", (ende-starte),
-            executionTime/1000000.0);
+      for (auto &it : gpuGraph)
+         it.node->Execute(it.nodeSurfParam);
    }
    unsigned long end = GetCurrentTimeInMilliseconds();
 
@@ -516,45 +480,18 @@ int Scan2FilePipeline::ExecuteCompressGraph(CmTask *pCMTask, int iteration)
       std::cout << "PPM = " << PPM << std::endl;
    }
 
-   if (pCMTask != NULL)
-   {
-      cm_result_check(m_pCmDev->FlushPrintBuffer());
-
-      cm_result_check(e_Pipeline->WaitForTaskFinished(dwTimeOutMs));
-
-      cm_result_check(m_pCmQueue->DestroyEvent(e_Pipeline));
-
-      cm_result_check(m_pCmDev->DestroyTask(pCMTask));
-   }
-
-   return CM_SUCCESS;
+   return 0;
 }
 
-// Execute GPU Graph
-int Scan2FilePipeline::ExecuteDecompressGraph(CmTask *pCMTask, int iteration)
-{
-   DWORD dwTimeOutMs = -1;
-   UINT64 executionTime=0;
 
+// Execute GPU Graph
+int Scan2FilePipeline::ExecuteDecompressGraph(int iteration)
+{
    unsigned long start = GetCurrentTimeInMilliseconds();
    for (int loop = 0; loop < iteration; loop++)
    {
-      unsigned long starte = GetCurrentTimeInMilliseconds();
-
-      /* Run JPEG decoder.  This is blocking call until decoder complete */
-      m_jpegdecoder->Run(m_VADecodedSurfaceID);
-
-      if (pCMTask != NULL)
-      {
-         /* Run YCbCrtoRGB CM kernel */
-         cm_result_check(m_pCmQueue->Enqueue(pCMTask, e_Pipeline));
-         cm_result_check(e_Pipeline->WaitForTaskFinished(dwTimeOutMs));
-         e_Pipeline->GetExecutionTime(executionTime);
-      }
-
-      unsigned long ende = GetCurrentTimeInMilliseconds();
-      printf("Execution time=%dms, Kernel time: %.2fms\n", (ende-starte),
-            executionTime/1000000.0);
+      for (auto &it : gpuGraph)
+         it.node->Execute(it.nodeSurfParam);
    }
    unsigned long end = GetCurrentTimeInMilliseconds();
 
@@ -566,18 +503,7 @@ int Scan2FilePipeline::ExecuteDecompressGraph(CmTask *pCMTask, int iteration)
       std::cout << "PPM = " << PPM << std::endl;
    }
 
-   if (pCMTask != NULL)
-   {
-      cm_result_check(m_pCmDev->FlushPrintBuffer());
-
-      cm_result_check(e_Pipeline->WaitForTaskFinished(dwTimeOutMs));
-
-      cm_result_check(m_pCmQueue->DestroyEvent(e_Pipeline));
-
-      cm_result_check(m_pCmDev->DestroyTask(pCMTask));
-   }
-
-   return CM_SUCCESS;
+   return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////

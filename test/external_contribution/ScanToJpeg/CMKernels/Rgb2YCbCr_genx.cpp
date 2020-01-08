@@ -29,9 +29,7 @@
 
 extern "C" _GENX_MAIN_ void
 Rgb2YCbCr_GENX (
-      SurfaceIndex SrcSIR,
-      SurfaceIndex SrcSIG,
-      SurfaceIndex SrcSIB,
+      SurfaceIndex SrcSI,
       SurfaceIndex DstSIYCbCr,
       vector<float, 9> Coeffs,
       vector<float, 3> Offsets
@@ -42,13 +40,16 @@ Rgb2YCbCr_GENX (
    pos(X) = get_thread_origin_x() * BLKW;
    pos(Y) = get_thread_origin_y() * BLKH;
 
+   matrix<uchar, BLKH, BLKW*4> rgba;
    matrix<uchar, BLKH, BLKW> inr;
    matrix<uchar, BLKH, BLKW> ing;
    matrix<uchar, BLKH, BLKW> inb;
 
-   read(SrcSIR, pos(X), pos(Y), inr);
-   read(SrcSIG, pos(X), pos(Y), ing);
-   read(SrcSIB, pos(X), pos(Y), inb);
+   read(SrcSI, pos(X)*4, pos(Y), rgba);
+
+   inr = rgba.select<BLKH, 1, BLKW, 4>(0,0);
+   ing = rgba.select<BLKH, 1, BLKW, 4>(0,1);
+   inb = rgba.select<BLKH, 1, BLKW, 4>(0,2);
 
    matrix<float, BLKH, BLKW> y, cb, cr;
 
@@ -67,41 +68,5 @@ Rgb2YCbCr_GENX (
    ycbcr.select<BLKH, 1, BLKW, 4>(0,3) = 0;
 
    write(DstSIYCbCr, pos(X)*4, pos(Y), ycbcr);
-
-}
-
-extern "C" _GENX_MAIN_ void
-Rgb2Y8_GENX (
-      SurfaceIndex SrcSIR,
-      SurfaceIndex SrcSIG,
-      SurfaceIndex SrcSIB,
-      SurfaceIndex DstSIY,
-      vector<float, 9> Coeffs,
-      vector<float, 3> Offsets
-      )
-{
-   vector<short, 2> pos;
-
-   pos(X) = get_thread_origin_x() * BLKW;
-   pos(Y) = get_thread_origin_y() * BLKH;
-
-   matrix<uchar, BLKH, BLKW> inr;
-   matrix<uchar, BLKH, BLKW> ing;
-   matrix<uchar, BLKH, BLKW> inb;
-
-   read(SrcSIR, pos(X), pos(Y), inr);
-   read(SrcSIG, pos(X), pos(Y), ing);
-   read(SrcSIB, pos(X), pos(Y), inb);
-
-   matrix<float, BLKH, BLKW> y;
-
-   // Y
-   y = inr*Coeffs(0) + ing*Coeffs(1) + inb*Coeffs(2) + Offsets(0);
-
-   matrix<uchar, BLKH, BLKW> yc;
-
-   yc = matrix<uchar, BLKH, BLKW>(y, SAT);
-
-   write(DstSIY, pos(X), pos(Y), yc);
 
 }

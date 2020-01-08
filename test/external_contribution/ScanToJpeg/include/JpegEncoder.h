@@ -21,16 +21,18 @@
  */
 using namespace std;
 
-#include "cm_rt.h"
+//#include "cm_rt.h"
 #include <va/va.h>
+#include "Scan2FilePipeline.h"
 
 #ifndef JPEGENCODER_H
 #define JPEGENCODER_H
 
-class JpegEncoder
+
+class JpegEncoder : public Scan2FilePipeline
 {
 public:
-   JpegEncoder(CmDevice *device, VADisplay va_dpy, const unsigned int yuv_type);
+   JpegEncoder(VADisplay va_dpy, const unsigned int yuv_type);
    ~JpegEncoder(void);
 
    int PreRun(
@@ -41,16 +43,16 @@ public:
          int frameSize
          );
 
+   int CreateInputSurfaces(const char *filename, int picture_width, int picture_height, VASurfaceID *outSurfaceID);
    int CreateSurfaces(int picture_width, int picture_height, int picture_pitch,
-         unsigned char *gray_surface, VASurfaceID *outSurfaceID);
-   int GetCodedBufferAddress(VASurfaceID inputSurfID, unsigned char *& coded_mem,
-         unsigned int &slice_length);
+         VASurfaceID *outSurfaceID);
+   int GetCodedBufferAddress(unsigned char *& coded_mem, unsigned int &slice_length);
    int GetVASurfaceAttrib(VASurfaceAttrib fourcc[], unsigned int & surface_format);
-   int Run(VASurfaceID inputSurfID);
    int WriteOut(VASurfaceID inputSurfID, const char* filename);
+   int Execute(VASurfaceID inputSurfID) override;
+   void Destroy(VASurfaceID vaSurfID) override;
 
 private:
-   CmDevice          *m_pCmDev;
    VADisplay         m_pVADpy;
    VAConfigAttrib    m_attrib[2];
    VASurfaceAttrib   m_fourcc[2];
@@ -64,6 +66,8 @@ private:
    VABufferID        m_qmatrixBufID;                  /* Quantization Matrix id */
    VABufferID        m_huffmantableBufID;             /* Huffman table id*/
 
+   unsigned char    *m_codedMem;
+   unsigned int      m_codedLength;
    unsigned int      m_vaSurfaceType;
 };
 

@@ -16,16 +16,30 @@ CONTENTS:
 Scan to Jpeg sample demonstrates how to combine C for Metal (CM) kernel with hardware
 GPU fixed pipeline.  In this example, it uses HW jpeg decoder and HW jpeg encoder.  
 
-The sample takes in a 24bit RGB raw file or 8bit grayscale raw file.  
+The sample takes in a 24bit RGB raw file or 8bit grayscale raw file as input and
+able to generate JPEG output either YUV420, YUV422, YUV444 and YUV400
+(grayscale).    
 
-For 24bit RGB input, it uses CM's RGB2YCbCr kernel to convert to YCbCr (YUV444P) and
-submit the buffer to HW jpeg encoder and compress to JPEG out. Subsequently, the
-JPEG output will feed into HW jpeg decoder to decompress into a YUV444P buffer,
-and it utilizes another CM kernel YCbCr2RGB to convert back to RGB format.
+To encode to YUV444 format, it uses CM's RGB2YCbCr kernel to convert RGB to YCbCr (YUV444P)
+and submit the buffer to HW jpeg encoder and compress to JPEG output
 
-For 8bit grayscale input, the image file coompress directly to JPEG file.
-Subsequently, the JPEG output will feed into HW JPEG decoder to decompress back
-to grayscale output.
+To encode to YUV420/YUV422 format, it uses GPU fixed pipeline for color space
+conversion to convert RGB to YUV420/YUV422, then submit the buffer to HW jpeg encoder
+and compress to JPEG output.
+
+To encode to grayscale format, the input image directly submit to HW jpeg
+encoder and compress to JPEG output.
+
+To decode JPEG file with YUV444 format, the decompress operation use JPEG decoder
+to decompress JPEG file to a surface, and the surface pass to a CM kernels YCbCr2RGB to
+convert YUV444 to RGB.
+
+To decode JPEG file with YUV420/YUV422 format, the decompress operation use JPEG
+decoder to decompress JPEG file to a surface and the surface pass to GPU fixed
+pipeline to convert YUV420/YUV422 to RGB.
+
+To decode grayscale JPEG file, the decompress operation use JPEG decoder to
+decompress JPEG file to a grayscale output and no color conversion require.
 
 The samples provides option to output JPEG file as well as un-compress RGB
 raw file.  Besides, it also provides option to alter the JPEG quality.  With that,
@@ -51,10 +65,10 @@ The sample directory has the following structure:
     |-- include (All the kernels header file)
     |-- main.cpp (Main sample file with code)
     |-- README (This readme file)
-    |-- Rgb2Encode (Convert RGB to YCbCr or Grayscale CM kernel) 
-    |-- YCbCr2Rgb (Convert YCbCr to RGB CM kernel) 
+    |-- CMKernels (CM kernels to convert YUV444 to RGB  and RGB to YUV444)
     |-- JpegDecoder (Program GPU HW decoder through LIBVA)
     |-- JpegEncoder (Program GPU HW encoder through LIBVA)
+    |-- ImageColorConversion (Program GPU color space conversion through LIBVA)
 
 4 Basic Command-line Options
 ------------------------------------------------------------------------------
@@ -64,30 +78,43 @@ hw_x64.ScanToJpeg [OPTION]
 Options:
 
    -h                          Print a usage message.
-   -i <filename>               Path to an 24bit .bmp RGB image.  Default value: nest.bmp
-   -jpegout <filename>         Path to save JPEG output image. Default: no output file
-   -rawout <filename>          Path to save RGB/Grayscale output image. Default: no output file
+   -i <filename>               Path to an 24bit .raw RGB image.  Default value: nest.raw
    --maxframes <integer>       Maximum number of frames to run.
+   --flowpath ( encode | decode) Specific for JPEG encoder or JPEG decoder. Default value: encode 
+
+   (for encode path only)
+   --jpegout <filename>         Path to save JPEG output image. Default: no output file
    --jpegquality <integer>     JPEG compression quality, range(1, 100). Default value: 90
    --width <integer>           Input Image Width
    --height <integer>          Input Image Height
-   --yuvformat <integer>       Input Image format, 0 - RGB input 1 - Grayscale input
+   --yuvformat <integer>       JPEG encode format (0: YUV444, 1: YUV420, 2:YUV422, 3:YUV400)
+
+   (for decode path only)
+   -rawout <filename>          Path to save RGB/Grayscale output image. Default: no output file
+                                          
 
 Running sample
 
-./hw_x64.ScanToJpeg -i nest.raw --width 1920 --height 1280 --jpegout nest.jpg --rawout output.raw --jpegquality 90
+To encode RGB RAW to JPEG YUV420
+./hw_x64.ScanToJpeg -i nest.raw --width 1920 --height 1280 --jpegout nest.jpg --jpegquality 90 --yuvformat 0
 
+To encode gray RAW to JPEG YUV400
+./hw_x64.ScanToJpeg -i nest_gray.raw --width 1920 --height 1280 --jpegout nest_gray.jpg --yuvformat 3
+
+To decode grayscale JPEG file
+./hw_x64.ScanToJpeg -i nest_gray.jpg --flowpath decode --rawout nestout_gray.raw
+
+To decode JPEG YUV422 file
+./hw_x64.ScanToJpeg -i nest.jpg --flowpath decode --rawout nestout.raw
 
 5) View output raw file
 -------------------------------------------------------------------------------
 To view raw file, one option is ImageMagicK
 
-For 24bit RGB raw file, example command line for image width 1920, height
-1280
+For 24bit RGB raw file, example command line for image width 1920, height 1280
 display -size 1920x1280 -depth 8 BGR:<raw filename>
 
-For 8bit grayscale raw file, example command line for image width 1920, height
-1280
+For 8bit grayscale raw file, example command line for image width 1920, height 1280
 display -size 1920x1280 -depth 8 gray:<raw file>
 
 

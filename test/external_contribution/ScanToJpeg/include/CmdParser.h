@@ -40,13 +40,17 @@ static const char max_frames_message[] = "Maximum number of frames to run.";
 static const char jpeg_quality_message[] = "JPEG compression quality, range(1, 100). Default value: 90";
 
 // @brief message for yuv format
-static const char yuv_format_message[] = "YUV format, Option 0:YUV444, 1: Y8 (Grayscale). Default: 0: YUV444";
+static const char yuv_format_message[] = "YUV format, Option 0:YUV444, 1:YUV420, 2: YUV422, 3: Y8 (Grayscale). Default: 1: YUV420";
 
 // @brief message for image width
 static const char width_message[] = "Input image width";
 
 // @brief message for image height
 static const char height_message[] = "Input image height";
+
+// @brief message for path
+static const char flowpath_message[] = "encode (For JPEG Encode function); decode (For JPEG Decode function); Default value: encode";
+
 
 // @brief Define flag for showing help message
 DEFINE_bool(h, false, help_message);
@@ -70,13 +74,16 @@ DEFINE_int32(jpegquality, 90, jpeg_quality_message);
 
 // @brief Define parameter for YUV format
 // Default is YUV444
-DEFINE_int32(yuvformat, 0, yuv_format_message);
+DEFINE_int32(yuvformat, 1, yuv_format_message);
 
 // @brief message for image width
 DEFINE_int32(width, 0, width_message);
 
 // @brief message for image height
 DEFINE_int32(height, 0, height_message);
+
+// @brief Define parameter for output image file
+DEFINE_string(flowpath, "encode", flowpath_message);
 
 static void showUsage() {
    std::cout << std::endl;
@@ -92,6 +99,7 @@ static void showUsage() {
    std::cout << "   --maxframes <integer>       " << max_frames_message <<  std::endl;
    std::cout << "   --jpegquality <integer>     " << jpeg_quality_message <<  std::endl;
    std::cout << "   --yuvformat <integer>       " <<  yuv_format_message <<  std::endl;
+   std::cout << "   --flowpath <type>           " << flowpath_message << std::endl;
    std::cout << std::endl;
    std::cout << std::endl;
 }
@@ -104,12 +112,19 @@ bool ParseCommandLine(int argc, char *argv[])
       return false;
    }
 
-   if ((FLAGS_width == 0) || (FLAGS_height == 0)) {
-      throw std::logic_error("Please enter a valid image width or height");
+   if (!FLAGS_flowpath.compare("encode"))
+   {
+      if ((FLAGS_width == 0) || (FLAGS_height == 0)) {
+         throw std::logic_error("Please enter a valid image width or height");
+      }
+
+      if ((FLAGS_width > 16 * 1024) || (FLAGS_height > 16 * 1024)) {
+         throw std::out_of_range("Detected width or height > 16K pixels");
+      }
    }
 
-   if ((FLAGS_yuvformat < 0) || (FLAGS_yuvformat > 1)) {
-      throw std::logic_error("Only support yuvformat 0 or 1");
+   if ((FLAGS_yuvformat < 0) || (FLAGS_yuvformat > 4)) {
+      throw std::logic_error("Only support yuvformat 0 to 3");
    }
 
    if (FLAGS_i.empty()) {

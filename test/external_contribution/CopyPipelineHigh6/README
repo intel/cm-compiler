@@ -36,7 +36,7 @@ Here are the copy pipeline graph implemented in the High6 version.
 "RGB-to-Lab" -> "7x7 Filter" -> "Background Suppression" -> "Lightness/Darkness" 
 
 -> "Basic Edge Detection"   -----------------\
-                                               --> "Lab-to-CMYK" -> "Halftone" -> "Pack8to1
+                                               --> "Lab-to-CMYK" -> "Halftone" or "ErrorDiffusion"  -> "Pack8to1
 -> "Advanced Enhancement of neutral edges" --/
 
 Refer to link above to get the detail of each kernel.
@@ -72,6 +72,8 @@ The sample directory has the following structure:
     |-- Dilate_And (Dilate3x3 + And CM kernel)
     |-- Lab2CMYK_RemoveFringe (Lab2CMYK + Remove Fringe CM kernel)
     |-- Halftone_Pack8to1 (Halftone + Pack8to1 CM kernel)
+    |-- ErrorDiffusion (Error Diffusion kernel)
+    |-- Pack8to1 ( Pack 8bit to 1 bit kernel for 3 channels)
     `-- Threshold_ProduceEdgeK (Simple threshold + ProduceEdgeK + Dilate3x3
                                 + Pack8to1 CM kernel)
 
@@ -88,12 +90,12 @@ Options:
    --lightness <integer>       Lightness control where ranges -3 to 3. Default value: 0
    --contrast <integer>        Contrast control where ranges -2 to 2. Default value: 0.
    --maxframes <integer>       Maximum number of frames to run.
-   --halftonepath              Halftone path. Default=yes
-   --edpath                    Unsupported. Coming soon
+   --halftonepath              Halftone path. Default=no
+   --edpath                    ErrorDiffusion path. Default=yes
 
 Running Pipeline:
 
 ./hw_x64.CopyPipelineHigh6 -i <24bit bitmap input file> -o <output filename>
 
-Use at least 1920x1080 pixels for input file.
+NOTE: Input image width needs to 128 bytes alignment.
 

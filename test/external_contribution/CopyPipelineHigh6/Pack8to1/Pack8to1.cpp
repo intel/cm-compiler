@@ -20,53 +20,55 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "cm_rt.h"
-#include "YCbCr2Rgb.h"
+#include "Pack8to1.h"
 
-#define BLOCK_WIDTH     8
-#define BLOCK_HEIGHT    8
+#define BLOCK_WIDTH     32
+#define BLOCK_HEIGHT    16
 
-YCbCr2Rgb::YCbCr2Rgb(CmDevice *pdevice)
+Pack8to1::Pack8to1(CmDevice *pdevice, int max_Thread_Count)
 {
    m_pCmDev = pdevice;
    m_pKernel   = NULL;
-
-   float coefficients[4] = {1.402, -0.344136, -0.714136, 1.772};
-   std::copy(coefficients, coefficients + 4, m_coeffs);
-
-   float offsets[3] = {0, 128.0, 128.0};
-   std::copy(offsets, offsets + 3, m_offsets);
+   m_max_Thread_Count = max_Thread_Count;
 }
 
-int YCbCr2Rgb::PreRun(
+Pack8to1::~Pack8to1(void)
+{
+}
+
+int Pack8to1::PreRun(
       CmKernel      *pKernel,
-      SurfaceIndex  *pSI_SrcSurfYCbCr,
-      SurfaceIndex  *pSI_DstSurf,
+      SurfaceIndex  *pSI_SrcSurfCMYK,
+      SurfaceIndex  *pSI_DstBit1C,
+      SurfaceIndex  *pSI_DstBit1M,
+      SurfaceIndex  *pSI_DstBit1Y,
+      SurfaceIndex  *pSI_DstK,
       int            nPicWidth,
       int            nPicHeight
       )
 {
    int   result;
 
-   CmThreadSpace *pTS       = NULL;
+   CmThreadGroupSpace *pTS       = NULL;
 
    int nPicWidthInBlk, nPicHeightInBlk;
    int nKernelInput;
 
    m_pKernel = pKernel;
 
-   nPicWidthInBlk = (nPicWidth + BLOCK_WIDTH - 1) / BLOCK_WIDTH;
-   nPicHeightInBlk = (nPicHeight + BLOCK_HEIGHT - 1) / BLOCK_HEIGHT;
+   nPicWidthInBlk = (nPicWidth + BLOCK_WIDTH - 1)/BLOCK_WIDTH;
+   nPicHeightInBlk = (nPicHeight + BLOCK_HEIGHT - 1)/BLOCK_HEIGHT;
 
-   CM_Error_Handle(m_pCmDev->CreateThreadSpace(nPicWidthInBlk, nPicHeightInBlk, pTS), "CreateThreadSpace Error");
+   CM_Error_Handle(m_pCmDev->CreateThreadGroupSpace(4, 2, nPicWidthInBlk/4, nPicHeightInBlk/2, pTS), "CreateThreadSpace Error");
 
    // Set up kernel args for Pipeline filter
    nKernelInput = 0;
-   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(SurfaceIndex), pSI_SrcSurfYCbCr);
-   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(SurfaceIndex), pSI_DstSurf);
-   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(unsigned int), &nPicHeight);
-   result = m_pKernel->SetKernelArg(nKernelInput++, 4*sizeof(float), &m_coeffs[0]);
-   result = m_pKernel->SetKernelArg(nKernelInput++, 3*sizeof(float), &m_offsets[0]);
-   result = m_pKernel->AssociateThreadSpace(pTS);
+   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(SurfaceIndex), pSI_SrcSurfCMYK);
+   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(SurfaceIndex), pSI_DstBit1C);
+   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(SurfaceIndex), pSI_DstBit1M);
+   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(SurfaceIndex), pSI_DstBit1Y);
+   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(SurfaceIndex), pSI_DstK);
+   result = m_pKernel->AssociateThreadGroupSpace(pTS);
 
    CM_Error_Handle(result, "SetKernelArg Error");
 

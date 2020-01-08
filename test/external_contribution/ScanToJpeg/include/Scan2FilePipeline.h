@@ -26,8 +26,6 @@ using namespace std;
 ////////////////////////////////////////////////////////////////////////////
 #include "Scan2FilePipeline_Defs.h"
 #include "cm_rt.h"
-#include "JpegEncoder.h"
-#include "JpegDecoder.h"
 #include <va/va.h>
 
 
@@ -41,19 +39,25 @@ typedef unsigned char   uchar;
 typedef unsigned short  ushort;
 typedef unsigned int    uint;
 
+enum YUVFormat
+{
+   YUV444 = 0,
+   YUV420,
+   YUV422,
+   YUV400
+};
+
+#define CHECK_STATUS(status)                                  \
+   if (status < 0) {                                   \
+      fprintf(stderr,"%s:(%d) failed,exit\n", __func__, __LINE__); \
+      exit(1);                                                    \
+   }
+
 #ifdef _DEBUG
 #define DEBUG_printf(message, result)	printf("%s: %d\n", message, result)
 #else
 #define DEBUG_printf(message, result)
 #endif
-
-
-#define CM_Error_Handle(result, msg)	\
-		if (result != CM_SUCCESS) {		\
-			DEBUG_printf(msg, result);			\
-			exit(1);				\
-		}
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 class Scan2FilePipeline
@@ -63,42 +67,53 @@ public:
    Scan2FilePipeline(void);
 	~Scan2FilePipeline(void);
 
+   int VAInit(void);
+
    //////////////////////////////////////////////////////////////////////////////
-   int Init();
-   int ExecuteCompressGraph(CmTask *pTask, int iterations);
-   int ExecuteDecompressGraph(CmTask *pTask, int iterations);
-   int GetInputImage(const char *filename, const int width, const int height,
-         const int yuvformat);
+   int EncodeInit(const char *filename, const int width, const int height,
+         const int yuv_format);
+   int DecodeInit(const char *filename);
+   int ExecuteCompressGraph( int iterations);
+   int ExecuteDecompressGraph(int iterations);
    void Save2JPEG(const char *filename);
    void Save2Raw(const char *outfile);
-   void AssemblerCompressGraph(CmTask *& pTask, int jpegQuality);
-   void AssemblerDecompressGraph(CmTask *& pTask);
+   int AssemblerCompressGraph(int jpegQuality);
+   void AssemblerDecompressGraph();
+   int CMSurface2DInfo(int width, int height, CM_SURFACE_FORMAT format,
+         unsigned int & pitch, unsigned int & surface_size);
+
+   virtual int Execute(VASurfaceID inputSurfID) { };
+   virtual void Destroy(VASurfaceID surfID) { };
+   virtual int WriteOut(VASurfaceID surfureID, const char * filename) { };
 
 protected:
-   void AddKernel(CmTask *pTask, CmKernel *pKernel);
-   int GetSurface2DInfo(int width, int height, CM_SURFACE_FORMAT format,
-         unsigned int * pitch, unsigned int * surface_size);
-   int CreateKernel(char *isaFile, char *kernelName, CmKernel *& pKernel);
+   int UploadInputImage(const char* filename, unsigned char *pDst,
+      const int width, const int height, const int pitch, bool grayscale);
+
+   int UploadJpegImage(const char *filename, unsigned char *& pDst,
+      uint &jpegDataSize);
+
+   int WriteToFile(const char *filename, unsigned char *pSrc,
+      const int width, const int height, const int pitch, bool grayscale);
 
 private:
-   CmDevice*    m_pCmDev;
-   CmQueue      *m_pCmQueue;
-   CmEvent      *e_Pipeline;
    VADisplay    m_vaDpy;
-   JpegEncoder  *m_jpegencoder;
-   JpegDecoder  *m_jpegdecoder;
    int          m_fd;
    int          m_yuvFormat;
 
-   uint         m_PicWidth;
-   uint         m_PicHeight;
-   uchar        *m_pSrc0;
-   uchar        *m_pSrc1;
-   uchar        *m_pSrc2;
-   uchar        *m_pDst;
-   uchar        *m_compressJpegData;
+   int          m_PicWidth;
+   int          m_PicHeight;
+   const char  *m_filename;
+   uchar       *m_compressJpegData;
    uint         m_compressJpegDataSize;
    VASurfaceID  m_VAEncodedSurfaceID;
    VASurfaceID  m_VADecodedSurfaceID;
+//   vector<GPUGraph *> m_GpuTask1;
+};
+
+struct GPUGraph
+{
+   Scan2FilePipeline *node;
+   VASurfaceID       nodeSurfParam;
 };
 #endif //__SCAN2FILEPIPELINE_H__

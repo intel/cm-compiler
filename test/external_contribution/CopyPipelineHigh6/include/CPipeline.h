@@ -37,6 +37,19 @@ typedef unsigned char   uchar;
 typedef unsigned short  ushort;
 typedef unsigned int    uint;
 
+enum GPUMode
+{
+   GPGPU = 0,
+   MEDIAWALKER
+};
+
+typedef struct gpuTask
+{
+   CmTask *cmTask;
+   GPUMode mode;
+} GPUTask;
+
+
 #ifdef _DEBUG
 #define DEBUG_printf(message, result)	printf("%s: %d\n", message, result)
 #else
@@ -61,11 +74,12 @@ public:
 
    //////////////////////////////////////////////////////////////////////////////
    int Init();
-   int ExecuteGraph(CmTask *pTask, int iterations);
+   int ExecuteGraph(vector<GPUTask> &pTask, int iterations);
    int GetInputImage(const char *filename);
    int SaveOutputImage(const char *filename);
    int SetLightnessContrast(const int lightness, const int contrast);
-   int AssemblerHigh6Graph(CmTask *& pTask);
+   int AssemblerHalfToneGraph(vector<GPUTask> &pTask);
+   int AssemblerErrorDiffuseGraph(vector<GPUTask> &pTask);
 
 protected:
    int AddKernel(CmTask *pTask, CmKernel *pKernel);

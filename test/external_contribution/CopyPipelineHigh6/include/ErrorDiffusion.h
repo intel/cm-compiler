@@ -21,28 +21,28 @@
  */
 using namespace std;
 
-#include "Scan2FilePipeline.h"
+#include "CPipeline.h"
 
-class YCbCr2Rgb : public Scan2FilePipeline
+class ErrorDiffusion : public CopyPipeline
 {
 public:
-   YCbCr2Rgb(VADisplay va_dpy);
-   ~YCbCr2Rgb(void){}
+   ErrorDiffusion(CmDevice *device);
+   ~ErrorDiffusion(void);
 
    int PreRun(
-         CmKernel *pKernel,
-         SurfaceIndex *pSI_SrcYCbCrSurf,
-         SurfaceIndex *pSI_DstRGBSurf,
-         int nPicWidth,
-         int nPicHeight
+         CmKernel       *pKernel,
+         SurfaceIndex   *pSI_SrcSurf,
+         SurfaceIndex   *pSI_DstSurf,
+         int             nPicWidth,
+         int             nPicHeight
          );
-   char* GetIsa() { return "YCbCr2Rgb/YCbCr2Rgb_genx.isa"; }
-   char* GetKernelName() { return "YCbCr2Rgb_GENX"; }
+   char* GetIsa() { return "ErrorDiffusion/ErrorDiffusion_genx.isa"; }
+   char* GetKernelName() { return "ErrorDiffusion_GENX"; }
 
 private:
-   CmDevice*   m_pCmDev;
-   CmKernel    *m_pKernel;
-   float       m_coeffs[4];
-   float       m_offsets[3];
+   CmDevice*      m_pCmDev;
+   CmKernel      *m_pKernel;
+   uchar         *m_pErrRowBuf;
+   uchar         *m_pErrColBuf;
 };
 

@@ -31,7 +31,6 @@ extern "C" _GENX_MAIN_ void
 YCbCr2Rgb_GENX (
       SurfaceIndex SrcSIYCbCr,
       SurfaceIndex DstSIRGB,
-      unsigned int picHeight,
       vector<float, 4> Coeffs,
       vector<float, 3> Offsets
       )

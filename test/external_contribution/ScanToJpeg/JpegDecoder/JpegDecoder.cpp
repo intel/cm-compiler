@@ -27,12 +27,17 @@
  */
 
 #include <assert.h>
-#include <fstream>
 #include "JpegDecoder.h"
 #include <va/va.h>
 
 #define CHECK_VASTATUS(va_status,func)                                  \
    if (va_status != VA_STATUS_SUCCESS) {                                   \
+      fprintf(stderr,"%s:%s (%d) failed,exit\n", __func__, func, __LINE__); \
+      exit(1);                                                             \
+   }
+
+#define CHECK_STATUS(status,func)                                       \
+   if (status < 0) {                                                       \
       fprintf(stderr,"%s:%s (%d) failed,exit\n", __func__, func, __LINE__); \
       exit(1);                                                             \
    }
@@ -366,7 +371,7 @@ int JpegDecoder::parse_JFIF(const unsigned char *stream)
 
    findEOI(stream);
 
-   return 1;
+   return 0;
 
 }
 
@@ -439,11 +444,10 @@ int GetVASurfaceAttrib(jdec_private * jdec, VASurfaceAttrib *fourcc, int *surfac
 
 }
 
-JpegDecoder::JpegDecoder(CmDevice *pdevice, VADisplay va_dpy)
+JpegDecoder::JpegDecoder(VADisplay va_dpy) : Scan2FilePipeline ()
 {
    VAStatus va_status;
 
-   m_pCmDev = pdevice;
    m_pVADpy  = va_dpy;
 
    m_jdecPriv = (struct jdec_private *)calloc(1, sizeof(struct jdec_private));
@@ -673,6 +677,57 @@ unsigned int JpegDecoder::GetPicHeight()
 
 
 
+int JpegDecoder::CreateInputSurfaces(const char *filename, int &picture_width,
+      int &picture_height, int &yuvformat, VASurfaceID *OutVASurfaceID)
+{
+   VASurfaceAttrib fourcc;
+   int surface_type;
+   int status, va_status;
+
+   if (UploadJpegImage(filename, m_compressJpegData,
+            m_compressJpegDataSize) < 0)
+      return -1;
+
+   status = ParseHeader(m_compressJpegData, m_compressJpegDataSize);
+
+   if (status == 0)
+   {
+      picture_width = GetPicWidth();
+      picture_height = GetPicHeight();
+
+      GetVASurfaceAttrib(m_jdecPriv, &fourcc, &surface_type);
+
+      switch (surface_type)
+      {
+      case VA_RT_FORMAT_YUV420:
+         yuvformat = YUV420;
+         break;
+      case VA_RT_FORMAT_YUV422:
+         yuvformat = YUV422;
+         break;
+      case VA_RT_FORMAT_YUV444:
+         yuvformat = YUV444;
+         break;
+      case VA_RT_FORMAT_YUV400:
+         yuvformat = YUV400;
+         break;
+      default:
+         cout << "Unknown supported JPEG compression type "<<surface_type<<endl;
+         break;
+      }
+
+      va_status = vaCreateSurfaces(m_pVADpy, surface_type, picture_width,
+         picture_height, OutVASurfaceID, 1, &fourcc, 2);
+      CHECK_VASTATUS(va_status, "vaCreateSurface");
+   }
+
+   return status;
+
+}
+
+
+
+
 int JpegDecoder::CreateSurfaces(const int picture_width, const int picture_height,
       VASurfaceID *OutVASurfaceID)
 {
@@ -690,7 +745,7 @@ int JpegDecoder::CreateSurfaces(const int picture_width, const int picture_heigh
 
 }
 
-int JpegDecoder::Run(VASurfaceID inputSurfID)
+int JpegDecoder::Execute(VASurfaceID inputSurfID)
 {
    VAStatus va_status;
 
@@ -729,27 +784,27 @@ int JpegDecoder::WriteOut(VASurfaceID inputSurfID, const char* filename)
    VAImage  imgout;
    void     *vaddrout = NULL;
 
-   std::ofstream outfile(filename, std::ios::out | std::ios::binary);
-   int bytes_per_line = GetPicWidth();
-
    va_status = vaDeriveImage(m_pVADpy, inputSurfID, &imgout);
    CHECK_VASTATUS(va_status, "vaDeriveImage");
 
    va_status = vaMapBuffer(m_pVADpy, imgout.buf, &vaddrout);
    CHECK_VASTATUS(va_status, "vaMapBuffer");
 
-   for (int y = 0; y < GetPicHeight() ; y++)
-   {
-      outfile.write((char *)vaddrout, bytes_per_line);
-      vaddrout += imgout.pitches[0];
-   }
 
-   outfile.close();
+   WriteToFile(filename, (unsigned char *)vaddrout, GetPicWidth(), GetPicHeight(),
+         imgout.pitches[0], true);
 
    va_status = vaUnmapBuffer(m_pVADpy, imgout.buf);
    CHECK_VASTATUS(va_status, "vaMapBuffer");
 
 
    return va_status;
+}
+
+void JpegDecoder::Destroy(VASurfaceID vaSurfaceID)
+{
+   free(m_compressJpegData);
+
+   CHECK_VASTATUS(vaDestroySurfaces(m_pVADpy, &vaSurfaceID, 1), "vaDestroySurfaces");
 }
 

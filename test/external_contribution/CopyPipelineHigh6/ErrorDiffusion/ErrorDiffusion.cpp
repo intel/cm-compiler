@@ -20,43 +20,38 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "cm_rt.h"
-#include "Rgb2Encode.h"
+#include "ErrorDiffusion.h"
 
 #define BLOCK_WIDTH     8
-#define BLOCK_HEIGHT    8
+#define BLOCK_HEIGHT    4
 
-Rgb2Encode::Rgb2Encode(CmDevice *pdevice)
+ErrorDiffusion::ErrorDiffusion(CmDevice *pdevice)
 {
    m_pCmDev = pdevice;
    m_pKernel   = NULL;
-
-   float coefficients[9] = {0.299, 0.587, 0.114, -0.168736, -0.331264, 0.5, 0.5, -0.418688, -0.081312};
-   std::copy(coefficients, coefficients + 9, m_coeffs);
-
-   float offsets[3] = {0.0, 128.0, 128.0};
-   std::copy(offsets, offsets + 3, m_offsets);
 }
 
-char * Rgb2Encode::GetKernelName(const int yuvFormat)
+ErrorDiffusion::~ErrorDiffusion(void)
 {
-   if (yuvFormat == 0) // YUV444
-      return "Rgb2YCbCr_GENX";
-   else if (yuvFormat == 1) // YUV400 or grayscale
-      return "Rgb2Y8_GENX";
+   free(m_pErrRowBuf);
+   free(m_pErrColBuf);
 }
 
-int Rgb2Encode::PreRun(
+int ErrorDiffusion::PreRun(
       CmKernel      *pKernel,
-      SurfaceIndex  *pSI_SrcSurfR,
-      SurfaceIndex  *pSI_SrcSurfG,
-      SurfaceIndex  *pSI_SrcSurfB,
-      SurfaceIndex  *pSI_DstSurf,
+      SurfaceIndex  *pSI_SrcSurfCMYK,
+      SurfaceIndex  *pSI_DstSurfCMYK,
       int            nPicWidth,
       int            nPicHeight
       )
 {
    int   result;
+
    CmThreadSpace *pTS       = NULL;
+   CmBuffer *pErrRowBuf = NULL;
+   CmBuffer *pErrColBuf = NULL;
+   SurfaceIndex *pSI_ErrRowBuf = NULL;
+   SurfaceIndex *pSI_ErrColBuf = NULL;
 
    int nPicWidthInBlk, nPicHeightInBlk;
    int nKernelInput;
@@ -66,16 +61,33 @@ int Rgb2Encode::PreRun(
    nPicWidthInBlk = (nPicWidth + BLOCK_WIDTH - 1) / BLOCK_WIDTH;
    nPicHeightInBlk = (nPicHeight + BLOCK_HEIGHT - 1) / BLOCK_HEIGHT;
 
-   CM_Error_Handle(m_pCmDev->CreateThreadSpace(nPicWidthInBlk, nPicHeightInBlk, pTS), "CreateThreadSpace Error");
+   CM_Error_Handle(m_pCmDev->CreateThreadSpace((nPicWidthInBlk+1), nPicHeightInBlk, pTS), "CreateThreadGroupSpace Error");
+
+   CM_Error_Handle(pTS->SelectThreadDependencyPattern(CM_WAVEFRONT26), "Select thread dependency error");
+
+   int rowErrBufferSize = (nPicWidthInBlk + 1) * 64;
+   uchar *pRowErr = (uchar *) CM_ALIGNED_MALLOC(rowErrBufferSize, 0x1000);
+   memset(pRowErr, 0, rowErrBufferSize);
+
+   int colErrBufferSize = nPicHeightInBlk * 128;
+   uchar *pColErr = (uchar *) CM_ALIGNED_MALLOC(colErrBufferSize, 0x1000);
+   memset(pColErr, 0, colErrBufferSize);
+
+   CM_Error_Handle(m_pCmDev->CreateBuffer(rowErrBufferSize, pErrRowBuf),
+         "CreateBuffer Error");
+   pErrRowBuf->GetIndex(pSI_ErrRowBuf);
+
+   CM_Error_Handle(m_pCmDev->CreateBuffer(colErrBufferSize, pErrColBuf),
+         "CreateBuffer Error");
+   pErrColBuf->GetIndex(pSI_ErrColBuf);
 
    // Set up kernel args for Pipeline filter
    nKernelInput = 0;
-   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(SurfaceIndex), pSI_SrcSurfR);
-   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(SurfaceIndex), pSI_SrcSurfG);
-   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(SurfaceIndex), pSI_SrcSurfB);
-   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(SurfaceIndex), pSI_DstSurf);
-   result = m_pKernel->SetKernelArg(nKernelInput++, 9*sizeof(float), &m_coeffs[0]);
-   result = m_pKernel->SetKernelArg(nKernelInput++, 3*sizeof(float), &m_offsets[0]);
+   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(SurfaceIndex), pSI_SrcSurfCMYK);
+   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(SurfaceIndex), pSI_ErrRowBuf);
+   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(SurfaceIndex), pSI_ErrColBuf);
+   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(SurfaceIndex), pSI_DstSurfCMYK);
+   result = m_pKernel->SetKernelArg(nKernelInput++, sizeof(int), &nPicWidthInBlk );
    result = m_pKernel->AssociateThreadSpace(pTS);
 
    CM_Error_Handle(result, "SetKernelArg Error");

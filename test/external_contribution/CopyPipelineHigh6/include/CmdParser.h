@@ -40,10 +40,10 @@ static const char contrast_message[] = "Contrast control where ranges -2 to 2. D
 static const char max_frames_message[] = "Maximum number of frames to run.";
 
 // @brief message for halftone path
-static const char halftone_message[] = "Halftone path. Default=yes";
+static const char halftone_message[] = "Halftone path. Default=no";
 
 // @brief message for error diffusion path
-static const char ed_message[] = "Unsupported. Coming soon";
+static const char ed_message[] = "Error diffusion path.  Default=yes";
 
 // @brief Define flag for showing help message
 DEFINE_bool(h, false, help_message);
@@ -67,10 +67,10 @@ DEFINE_int32(contrast, 0, contrast_message);
 DEFINE_int32(maxframes, 10, max_frames_message);
 
 // @brief Define flag for halftone path
-DEFINE_bool(halftonepath, true, halftone_message);
+DEFINE_bool(halftonepath, false, halftone_message);
 
 // @brief Define flag for error diffusion path
-DEFINE_bool(edpath, false, ed_message);
+DEFINE_bool(edpath, true, ed_message);
 
 static void showUsage() {
    std::cout << std::endl;
@@ -99,6 +99,11 @@ bool ParseCommandLine(int argc, char *argv[])
 
    if (FLAGS_i.empty()) {
       throw std::logic_error("Parameter -i is not set");
+   }
+
+   if ((!FLAGS_halftonepath) && (!FLAGS_edpath))
+   {
+      throw std::logic_error("Select either halftone path or error diffusion path");
    }
 
    return true;

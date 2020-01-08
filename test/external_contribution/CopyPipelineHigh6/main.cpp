@@ -27,7 +27,7 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
-   CmTask *copyTask = NULL;
+   vector<GPUTask> copyTask;
 
    if (!ParseCommandLine(argc, argv))
       return 0;
@@ -42,8 +42,17 @@ int main(int argc, char* argv[])
    }
 
    cpipeline->SetLightnessContrast(FLAGS_lightness, FLAGS_contrast);
-   cpipeline->AssemblerHigh6Graph(copyTask);
-   cpipeline->ExecuteGraph(copyTask, FLAGS_maxframes);
+
+   if (FLAGS_halftonepath)
+   {
+      cpipeline->AssemblerHalfToneGraph(copyTask);
+      cpipeline->ExecuteGraph(copyTask, FLAGS_maxframes);
+   }
+   else if (FLAGS_edpath)
+   {
+      cpipeline->AssemblerErrorDiffuseGraph(copyTask);
+      cpipeline->ExecuteGraph(copyTask, FLAGS_maxframes);
+   }
 
    if (!FLAGS_o.empty())
    {

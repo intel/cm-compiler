@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <time.h>
+#include <fstream>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 #include "CPipeline.h"
@@ -38,6 +39,8 @@
 #include "HalftonePack8to1.h"
 #include "ThresholdProduceEdgeK.h"
 #include "Unpack1to8Pack8to1.h"
+#include "ErrorDiffusion.h"
+#include "Pack8to1.h"
 
 #define CM_Error_Handle(x) cm_result_check(x)
 
@@ -134,9 +137,6 @@ int CopyPipeline::Init()
    // Create a task queue
    cm_result_check(m_pCmDev->CreateQueue(m_pCmQueue));
 
-   // Inits the print buffer.
-   cm_result_check(m_pCmDev->InitPrintBuffer());
-
    cm_result_check(m_pCmDev->GetCaps(
             CAP_USER_DEFINED_THREAD_COUNT_PER_THREAD_GROUP,
             size,
@@ -167,6 +167,9 @@ int CopyPipeline::GetInputImage(const char* filename)
    // Gets the width and height of the bitmap file.
    m_PicWidth = input_image.getWidth();
    m_PicHeight = input_image.getHeight();
+
+   if (m_PicWidth % 128)
+      throw std::logic_error("Image width needs to 128 bytes alignment");
 
    unsigned int pitch_size = 0;
    unsigned int surface_size = 0;
@@ -218,8 +221,14 @@ int CopyPipeline::SaveOutputImage(const char* filename)
    // CMYK, then do pack8to1 for interleave image
    cout << "Reformatting output to save to " << filename << endl;
 
-   CmTask *pTask = NULL;
-   cm_result_check(m_pCmDev->CreateTask(pTask));
+   CmTask *cmTask = NULL;
+   cm_result_check(m_pCmDev->CreateTask(cmTask));
+
+   vector<GPUTask> pTask;
+
+   GPUTask saveTask = {cmTask, GPGPU};
+
+   pTask.push_back(saveTask);
 
    CmSurface2DUP *pImageC = NULL;
    CmSurface2DUP *pImageM = NULL;
@@ -251,7 +260,7 @@ int CopyPipeline::SaveOutputImage(const char* filename)
    Unpack1to8Pack8to1 *unpackpacknode = new Unpack1to8Pack8to1(m_pCmDev, m_Max_Thread_Count);
    CmKernel *pUnpackAndPackKernel;
    cm_result_check(CreateKernel(unpackpacknode->GetIsa(), unpackpacknode->GetKernelName(), pUnpackAndPackKernel));
-   AddKernel(pTask, pUnpackAndPackKernel);
+   AddKernel(cmTask, pUnpackAndPackKernel);
    unpackpacknode->PreRun(pUnpackAndPackKernel, pSI_ImageC, pSI_ImageM, pSI_ImageY, pSI_ImageK, pSI_ImageCMYK, m_PicWidth, m_PicHeight);
 
    ExecuteGraph(pTask, 1);
@@ -339,16 +348,21 @@ int CopyPipeline::CreateKernel(char *isaFile, char* kernelName, CmKernel *& pKer
 int CopyPipeline::AddKernel(CmTask *pTask, CmKernel *pKernel)
 {
    // Add kernel to task
-   cm_result_check(pTask-> AddKernel(pKernel));
-   cm_result_check(pTask-> AddSync());
+   cm_result_check(pTask->AddKernel(pKernel));
+   cm_result_check(pTask->AddSync());
 
    return CM_SUCCESS;
 }
 
-int CopyPipeline::AssemblerHigh6Graph(CmTask *& pTask)
+//int CopyPipeline::AssemblerHalfToneGraph(CmTask *& pTask)
+int CopyPipeline::AssemblerHalfToneGraph(vector<GPUTask> & pTask)
 {
-   if (pTask == NULL)
-      cm_result_check(m_pCmDev->CreateTask(pTask));
+   CmTask *cmTask = NULL;
+   cm_result_check(m_pCmDev->CreateTask(cmTask));
+
+   GPUTask halfToneTask = {cmTask, GPGPU};
+
+   pTask.push_back(halfToneTask);
 
    // Source surface
    CmSurface2DUP *pSrcR = NULL;
@@ -424,7 +438,7 @@ int CopyPipeline::AssemblerHigh6Graph(CmTask *& pTask)
    RgbToLab *rgbnode = new RgbToLab(m_pCmDev, m_Max_Thread_Count);
    CmKernel *pRgb2LabKernel;
    cm_result_check(CreateKernel(rgbnode->GetIsa(), rgbnode->GetKernelName(), pRgb2LabKernel));
-   AddKernel(pTask, pRgb2LabKernel);
+   AddKernel(cmTask, pRgb2LabKernel);
 
    rgbnode->PreRun(pRgb2LabKernel, pSI_SrcR, pSI_SrcG, pSI_SrcB, pSI_u8buf0, pSI_u8buf1, pSI_u8buf2, m_PicWidth, m_PicHeight);
 
@@ -434,7 +448,7 @@ int CopyPipeline::AssemblerHigh6Graph(CmTask *& pTask)
    CmKernel *pSyBgLcKernel;
    cm_result_check(CreateKernel(sybglcnode->GetIsa(),
             sybglcnode->GetKernelName(), pSyBgLcKernel));
-   AddKernel(pTask, pSyBgLcKernel);
+   AddKernel(cmTask, pSyBgLcKernel);
    sybglcnode->PreRun(pSyBgLcKernel, pSI_u8buf0, pSI_u8buf1, pSI_u8buf2,
          pSI_u8buf3, pSI_u8buf4, pSI_u8buf5, m_PicWidth, m_PicHeight);
 
@@ -442,7 +456,7 @@ int CopyPipeline::AssemblerHigh6Graph(CmTask *& pTask)
    SoCgDiAO *socgdiaonode = new SoCgDiAO(m_pCmDev, m_Max_Thread_Count);
    CmKernel *pSoCgDiAOKernel;
    cm_result_check(CreateKernel(socgdiaonode->GetIsa(), socgdiaonode->GetKernelName(), pSoCgDiAOKernel));
-   AddKernel(pTask, pSoCgDiAOKernel);
+   AddKernel(cmTask, pSoCgDiAOKernel);
 
    socgdiaonode->PreRun(pSoCgDiAOKernel, pSI_u8buf3, pSI_u8buf0, m_PicWidth, m_PicHeight);
 
@@ -451,7 +465,7 @@ int CopyPipeline::AssemblerHigh6Graph(CmTask *& pTask)
    CmKernel *pBoxNemKernel;
    cm_result_check(CreateKernel(boxnemnode->GetIsa(),
             boxnemnode->GetKernelName(), pBoxNemKernel));
-   AddKernel(pTask, pBoxNemKernel);
+   AddKernel(cmTask, pBoxNemKernel);
 
    boxnemnode->PreRun(pBoxNemKernel, pSI_u8buf4, pSI_u8buf5, pSI_u8buf1, m_PicWidth,
          m_PicHeight);
@@ -461,7 +475,7 @@ int CopyPipeline::AssemblerHigh6Graph(CmTask *& pTask)
    CmKernel *pDilateAndKernel;
    cm_result_check(CreateKernel(dilateandnode->GetIsa(),
             dilateandnode->GetKernelName(), pDilateAndKernel));
-   AddKernel(pTask, pDilateAndKernel);
+   AddKernel(cmTask, pDilateAndKernel);
 
    dilateandnode->PreRun(pDilateAndKernel, pSI_u8buf0, pSI_u8buf1, pSI_u8buf2,
          m_PicWidth, m_PicHeight);
@@ -471,7 +485,7 @@ int CopyPipeline::AssemblerHigh6Graph(CmTask *& pTask)
    CmKernel *pCmykRFKernel;
    cm_result_check(CreateKernel(cmykrfnode->GetIsa(),
             cmykrfnode->GetKernelName(), pCmykRFKernel));
-   AddKernel(pTask, pCmykRFKernel);
+   AddKernel(cmTask, pCmykRFKernel);
 
    cmykrfnode->PreRun(pCmykRFKernel, pSI_u8buf3, pSI_u8buf4, pSI_u8buf5, pSI_u8buf2, pSI_u32buf,
          pSI_u8buf0, m_PicWidth, m_PicHeight);
@@ -482,7 +496,7 @@ int CopyPipeline::AssemblerHigh6Graph(CmTask *& pTask)
    CmKernel *pHalftoneKernel;
    cm_result_check(CreateKernel(halftonenode->GetIsa(),
             halftonenode->GetKernelName(), pHalftoneKernel));
-   AddKernel(pTask, pHalftoneKernel);
+   AddKernel(cmTask, pHalftoneKernel);
 
    halftonenode->PreRun(pHalftoneKernel, pSI_u32buf, pSI_DstImageC, pSI_DstImageM,
          pSI_DstImageY, pSI_u8buf1, m_PicWidth, m_PicHeight);
@@ -493,31 +507,210 @@ int CopyPipeline::AssemblerHigh6Graph(CmTask *& pTask)
    CmKernel *pThproducekKernel;
    cm_result_check(CreateKernel(thproduceknode->GetIsa(),
             thproduceknode->GetKernelName(), pThproducekKernel));
-   AddKernel(pTask, pThproducekKernel);
+   AddKernel(cmTask, pThproducekKernel);
 
    thproduceknode->PreRun(pThproducekKernel, pSI_u8buf0, pSI_u8buf2, pSI_u8buf1,
          pSI_DstImageK, m_PicWidth, m_PicHeight);
 }
 
-// Execute GPU RGBToC1ELab
-int CopyPipeline::ExecuteGraph(CmTask *pTask, int iteration)
+int CopyPipeline::AssemblerErrorDiffuseGraph(vector<GPUTask> & pTask)
 {
-   if (pTask == NULL)
-      return CM_FAILURE;
+   CmTask *preEDTask = NULL;
+   CmTask *EDTask = NULL;
+   CmTask *postEDTask = NULL;
 
+   cm_result_check(m_pCmDev->CreateTask(preEDTask));
+   cm_result_check(m_pCmDev->CreateTask(EDTask));
+   cm_result_check(m_pCmDev->CreateTask(postEDTask));
+
+   GPUTask preED = {preEDTask, GPGPU};
+   GPUTask ED = {EDTask, MEDIAWALKER};
+   GPUTask postED = {postEDTask, GPGPU};
+
+   pTask.push_back(preED);
+   pTask.push_back(ED);
+   pTask.push_back(postED);
+
+   // Source surface
+   CmSurface2DUP *pSrcR = NULL;
+   CmSurface2DUP *pSrcG = NULL;
+   CmSurface2DUP *pSrcB = NULL;
+   SurfaceIndex *pSI_SrcR = NULL;
+   SurfaceIndex *pSI_SrcG = NULL;
+   SurfaceIndex *pSI_SrcB = NULL;
+   cm_result_check(m_pCmDev->CreateSurface2DUP(m_PicWidth, m_PicHeight,
+            CM_SURFACE_FORMAT_A8, m_pSrcR, pSrcR));
+   cm_result_check(pSrcR->GetIndex(pSI_SrcR));
+   cm_result_check(m_pCmDev->CreateSurface2DUP(m_PicWidth, m_PicHeight,
+            CM_SURFACE_FORMAT_A8, m_pSrcG, pSrcG));
+   cm_result_check(pSrcG->GetIndex(pSI_SrcG));
+   cm_result_check(m_pCmDev->CreateSurface2DUP(m_PicWidth, m_PicHeight,
+            CM_SURFACE_FORMAT_A8, m_pSrcB, pSrcB));
+   cm_result_check(pSrcB->GetIndex(pSI_SrcB));
+
+   // Create 6 intermediate U8 buffers 
+   CmSurface2D  *u8buf0 = NULL;
+   CmSurface2D  *u8buf1 = NULL;
+   CmSurface2D  *u8buf2 = NULL;
+   CmSurface2D  *u8buf3 = NULL;
+   CmSurface2D  *u8buf4 = NULL;
+   CmSurface2D  *u8buf5 = NULL;
+   SurfaceIndex *pSI_u8buf0, *pSI_u8buf1, *pSI_u8buf2;
+   SurfaceIndex *pSI_u8buf3, *pSI_u8buf4, *pSI_u8buf5;
+
+   cm_result_check(m_pCmDev->CreateSurface2D(m_PicWidth, m_PicHeight, CM_SURFACE_FORMAT_A8, u8buf0));
+   cm_result_check(u8buf0->GetIndex(pSI_u8buf0));
+   cm_result_check(m_pCmDev->CreateSurface2D(m_PicWidth, m_PicHeight, CM_SURFACE_FORMAT_A8, u8buf1));
+   cm_result_check(u8buf1->GetIndex(pSI_u8buf1));
+   cm_result_check(m_pCmDev->CreateSurface2D(m_PicWidth, m_PicHeight, CM_SURFACE_FORMAT_A8, u8buf2));
+   cm_result_check(u8buf2->GetIndex(pSI_u8buf2));
+   cm_result_check(m_pCmDev->CreateSurface2D(m_PicWidth, m_PicHeight, CM_SURFACE_FORMAT_A8, u8buf3));
+   cm_result_check(u8buf3->GetIndex(pSI_u8buf3));
+   cm_result_check(m_pCmDev->CreateSurface2D(m_PicWidth, m_PicHeight, CM_SURFACE_FORMAT_A8, u8buf4));
+   cm_result_check(u8buf4->GetIndex(pSI_u8buf4));
+   cm_result_check(m_pCmDev->CreateSurface2D(m_PicWidth, m_PicHeight, CM_SURFACE_FORMAT_A8, u8buf5));
+   cm_result_check(u8buf5->GetIndex(pSI_u8buf5));
+
+   // Create one intermediate X8R8G8B8 buffer
+   CmSurface2D *u32buf0 = NULL;
+   CmSurface2D *u32buf1 = NULL;
+   SurfaceIndex *pSI_u32buf0, *pSI_u32buf1;
+
+   cm_result_check(m_pCmDev->CreateSurface2D(m_PicWidth, m_PicHeight, CM_SURFACE_FORMAT_A8R8G8B8,  u32buf0));
+   cm_result_check(u32buf0->GetIndex(pSI_u32buf0));
+   cm_result_check(m_pCmDev->CreateSurface2D(m_PicWidth, m_PicHeight, CM_SURFACE_FORMAT_R32F, u32buf1));
+   cm_result_check(u32buf1->GetIndex(pSI_u32buf1));
+
+   // Destination surface
+   CmSurface2DUP *pDstImageC = NULL;
+   CmSurface2DUP *pDstImageM = NULL;
+   CmSurface2DUP *pDstImageY = NULL;
+   CmSurface2DUP *pDstImageK = NULL;
+   SurfaceIndex *pSI_DstImageC = NULL;
+   SurfaceIndex *pSI_DstImageM = NULL;
+   SurfaceIndex *pSI_DstImageY = NULL;
+   SurfaceIndex *pSI_DstImageK = NULL;
+
+   cm_result_check(m_pCmDev->CreateSurface2DUP(m_PicWidth/8, m_PicHeight,
+            CM_SURFACE_FORMAT_A8, m_pDstC, pDstImageC));
+   cm_result_check(pDstImageC->GetIndex(pSI_DstImageC));
+   cm_result_check(m_pCmDev->CreateSurface2DUP(m_PicWidth/8, m_PicHeight,
+            CM_SURFACE_FORMAT_A8, m_pDstM, pDstImageM));
+   cm_result_check(pDstImageM->GetIndex(pSI_DstImageM));
+   cm_result_check(m_pCmDev->CreateSurface2DUP(m_PicWidth/8, m_PicHeight,
+            CM_SURFACE_FORMAT_A8, m_pDstY, pDstImageY));
+   cm_result_check(pDstImageY->GetIndex(pSI_DstImageY));
+   cm_result_check(m_pCmDev->CreateSurface2DUP(m_PicWidth/8, m_PicHeight,
+            CM_SURFACE_FORMAT_A8, m_pDstK, pDstImageK));
+   cm_result_check(pDstImageK->GetIndex(pSI_DstImageK));
+
+   // RGB To LAB node
+   RgbToLab *rgbnode = new RgbToLab(m_pCmDev, m_Max_Thread_Count);
+   CmKernel *pRgb2LabKernel;
+   cm_result_check(CreateKernel(rgbnode->GetIsa(), rgbnode->GetKernelName(), pRgb2LabKernel));
+   AddKernel(preEDTask, pRgb2LabKernel);
+
+   rgbnode->PreRun(pRgb2LabKernel, pSI_SrcR, pSI_SrcG, pSI_SrcB, pSI_u8buf0, pSI_u8buf1, pSI_u8buf2, m_PicWidth, m_PicHeight);
+
+   // Symmetric7x7, Background Suppresion, Lightness contrast combination node
+   SyBgLc *sybglcnode = new SyBgLc(m_pCmDev, m_Max_Thread_Count, m_lightness,
+         m_contrast);
+   CmKernel *pSyBgLcKernel;
+   cm_result_check(CreateKernel(sybglcnode->GetIsa(),
+            sybglcnode->GetKernelName(), pSyBgLcKernel));
+   AddKernel(preEDTask, pSyBgLcKernel);
+   sybglcnode->PreRun(pSyBgLcKernel, pSI_u8buf0, pSI_u8buf1, pSI_u8buf2,
+         pSI_u8buf3, pSI_u8buf4, pSI_u8buf5, m_PicWidth, m_PicHeight);
+
+   // Sobel3x3, CalculateGradient, Dilate, And, Or combination node
+   SoCgDiAO *socgdiaonode = new SoCgDiAO(m_pCmDev, m_Max_Thread_Count);
+   CmKernel *pSoCgDiAOKernel;
+   cm_result_check(CreateKernel(socgdiaonode->GetIsa(), socgdiaonode->GetKernelName(), pSoCgDiAOKernel));
+   AddKernel(preEDTask, pSoCgDiAOKernel);
+
+   socgdiaonode->PreRun(pSoCgDiAOKernel, pSI_u8buf3, pSI_u8buf0, m_PicWidth, m_PicHeight);
+
+   // Box3x3 and Neutral Edge Detection combination node
+   BoxNem *boxnemnode = new BoxNem(m_pCmDev, m_Max_Thread_Count);
+   CmKernel *pBoxNemKernel;
+   cm_result_check(CreateKernel(boxnemnode->GetIsa(),
+            boxnemnode->GetKernelName(), pBoxNemKernel));
+   AddKernel(preEDTask, pBoxNemKernel);
+
+   boxnemnode->PreRun(pBoxNemKernel, pSI_u8buf4, pSI_u8buf5, pSI_u8buf1, m_PicWidth,
+         m_PicHeight);
+
+   // Dilate and And to produce neutral edge mask
+   DilateAnd *dilateandnode = new DilateAnd(m_pCmDev, m_Max_Thread_Count);
+   CmKernel *pDilateAndKernel;
+   cm_result_check(CreateKernel(dilateandnode->GetIsa(),
+            dilateandnode->GetKernelName(), pDilateAndKernel));
+   AddKernel(preEDTask, pDilateAndKernel);
+
+   dilateandnode->PreRun(pDilateAndKernel, pSI_u8buf0, pSI_u8buf1, pSI_u8buf2,
+         m_PicWidth, m_PicHeight);
+
+   // Lab2CMYK + Remove fringe
+   CmykRF *cmykrfnode = new CmykRF(m_pCmDev, m_Max_Thread_Count);
+   CmKernel *pCmykRFKernel;
+   cm_result_check(CreateKernel(cmykrfnode->GetIsa(),
+            cmykrfnode->GetKernelName(), pCmykRFKernel));
+   AddKernel(preEDTask, pCmykRFKernel);
+
+   cmykrfnode->PreRun(pCmykRFKernel, pSI_u8buf3, pSI_u8buf4, pSI_u8buf5, pSI_u8buf2, pSI_u32buf0,
+         pSI_u8buf0, m_PicWidth, m_PicHeight);
+
+   // Error Diffusion
+   ErrorDiffusion *ednode = new ErrorDiffusion(m_pCmDev);
+
+   CmKernel *pEDKernel;
+   cm_result_check(CreateKernel(ednode->GetIsa(),
+            ednode->GetKernelName(), pEDKernel));
+   AddKernel(EDTask, pEDKernel);
+
+   ednode->PreRun(pEDKernel, pSI_u32buf0, pSI_u32buf1, m_PicWidth, m_PicHeight);
+
+   // Pack8to1  Take CMYK input and apply pack8to1 to C, M, Y channel only
+   Pack8to1 *pack8to1node = new Pack8to1(m_pCmDev, m_Max_Thread_Count);
+
+   CmKernel *pPackKernel;
+   cm_result_check(CreateKernel(pack8to1node->GetIsa(),
+            pack8to1node->GetKernelName(), pPackKernel));
+   AddKernel(postEDTask, pPackKernel);
+
+   pack8to1node->PreRun(pPackKernel, pSI_u32buf1, pSI_DstImageC, pSI_DstImageM, pSI_DstImageY,
+         pSI_u8buf1, m_PicWidth, m_PicHeight);
+
+   // SimpleThreshold + Dilate3x3 + ProduceEdgeK + Pack8to1
+   ThresholdProduceEdgeK *thproduceknode = new ThresholdProduceEdgeK(m_pCmDev,
+         m_Max_Thread_Count);
+   CmKernel *pThproducekKernel;
+   cm_result_check(CreateKernel(thproduceknode->GetIsa(),
+            thproduceknode->GetKernelName(), pThproducekKernel));
+   AddKernel(postEDTask, pThproducekKernel);
+
+   thproduceknode->PreRun(pThproducekKernel, pSI_u8buf0, pSI_u8buf2, pSI_u8buf1,
+         pSI_DstImageK, m_PicWidth, m_PicHeight);
+}
+
+// Execute GPU
+int CopyPipeline::ExecuteGraph(vector<GPUTask> &pTask, int iteration)
+{
    DWORD dwTimeOutMs = -1;
    UINT64 executionTime;
 
    unsigned long start = GetCurrentTimeInMilliseconds();
    for (int loop = 0; loop < iteration; loop++)
    {
-      unsigned long starte = GetCurrentTimeInMilliseconds();
-      cm_result_check(m_pCmQueue->EnqueueWithGroup(pTask, e_Pipeline));
-      cm_result_check(e_Pipeline->WaitForTaskFinished(dwTimeOutMs));
-      unsigned long ende = GetCurrentTimeInMilliseconds();
-      e_Pipeline->GetExecutionTime(executionTime);
-      printf("Execution time=%dms, Kernel time: %.2fms\n", (ende-starte),
-            executionTime/1000000.0);
+      for (auto &task : pTask)
+      {
+         if (task.mode == GPGPU)
+            cm_result_check(m_pCmQueue->EnqueueWithGroup(task.cmTask, e_Pipeline));
+         else if (task.mode == MEDIAWALKER)
+            cm_result_check(m_pCmQueue->Enqueue(task.cmTask, e_Pipeline));
+
+	      cm_result_check(e_Pipeline->WaitForTaskFinished(dwTimeOutMs));
+      }
    }
    unsigned long end = GetCurrentTimeInMilliseconds();
 
@@ -526,17 +719,15 @@ int CopyPipeline::ExecuteGraph(CmTask *pTask, int iteration)
       unsigned long total = end - start;
       double average_time = total / (double) iteration;
       int PPM = 60000.0 / average_time;
-      std::cout << "PPM = " << PPM << std::endl;
+      std::cout << "Execution time="<< average_time<<"ms, PPM = " << PPM << std::endl;
    }
 
-   cm_result_check(m_pCmDev->FlushPrintBuffer());
-
-   cm_result_check(e_Pipeline->WaitForTaskFinished(dwTimeOutMs));
+   for (auto &task : pTask)
+   {
+      cm_result_check(m_pCmDev->DestroyTask(task.cmTask));
+   }
 
    cm_result_check(m_pCmQueue->DestroyEvent(e_Pipeline));
-
-   cm_result_check(m_pCmDev->DestroyTask(pTask));
-
    return CM_SUCCESS;
 }
 

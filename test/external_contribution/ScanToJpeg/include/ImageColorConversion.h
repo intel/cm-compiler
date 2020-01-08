@@ -21,30 +21,36 @@
  */
 using namespace std;
 
+#include <va/va.h>
 #include "Scan2FilePipeline.h"
 
-class Rgb2YCbCr : public Scan2FilePipeline
+#ifndef IMAGECOLORCONVERSION_H
+#define IMAGECOLORCONVERSION_H
+
+class ImageColorConversion : public Scan2FilePipeline
 {
 public:
-   Rgb2YCbCr(CmDevice *device);
-   ~Rgb2YCbCr(void){}
+   ImageColorConversion(VADisplay va_dpy);
+   ~ImageColorConversion(void);
 
-   int PreRun(
-         CmKernel *pKernel,
-         SurfaceIndex *pSI_SrcRSurf,
-         SurfaceIndex *pSI_SrcGSurf,
-         SurfaceIndex *pSI_SrcBSurf,
-         SurfaceIndex *pSI_DstYCbCrSurf,
-         int nPicWidth,
-         int nPicHeight
-         );
-   char* GetIsa() { return "Rgb2YCbCr/Rgb2YCbCr_genx.isa"; }
-   char* GetKernelName() { return "Rgb2YCbCr_GENX"; }
+   int PreRun(VASurfaceID inSurfID, unsigned int inWidth, unsigned int inHeight,
+         VASurfaceID outSurfID, unsigned int outWidth, unsigned int outHeight);
+
+   int CreateInputSurfaces(const char * filename, const int picture_width,
+         const int picture_height, unsigned int fourcc,  int surface_type,
+         VASurfaceID *OutVASurfaceID);
+
+   int CreateSurfaces(const int picture_width, const int picture_height,
+         unsigned int fourcc, int surface_type, VASurfaceID *VASurfaceID);
+   int WriteOut(VASurfaceID vaSurfaceID, const char *filename) override;
+   int Execute(VASurfaceID inputSurfaceID) override;
+   void Destroy(VASurfaceID vaSurfaceID) override;
 
 private:
-   CmDevice*   m_pCmDev;
-   CmKernel    *m_pKernel;
-   float       m_coeffs[9];
-   float       m_offsets[3];
+   VADisplay         m_pVADpy;
+   VAContextID       m_contextID;
+   VAConfigID        m_configID;
+   VABufferID        m_pipeline_param_buf_id;
 };
 
+#endif

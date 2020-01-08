@@ -21,27 +21,31 @@
  */
 using namespace std;
 
-#include "cm_rt.h"
+//#include "cm_rt.h"
 #include "tinyjpeg-internal.h"
 #include <va/va.h>
+#include "Scan2FilePipeline.h"
 
 #ifndef JPEGDECODER_H
 #define JPEGDECODER_H
 
-class JpegDecoder
+class JpegDecoder : public Scan2FilePipeline
 {
 public:
-   JpegDecoder(CmDevice *device, VADisplay va_dpy);
+   JpegDecoder(VADisplay va_dpy);
    ~JpegDecoder(void);
 
    int PreRun(VASurfaceID inputSurfID);
    unsigned int GetPicWidth();
    unsigned int GetPicHeight();
    int ParseHeader(const unsigned char *imgBuf, unsigned int imgSize);
+   int CreateInputSurfaces(const char *filename, int &picture_width,
+         int &picture_height, int &yuvformat, VASurfaceID *OutVASurfaceID);
    int CreateSurfaces(const int picture_width, const int picture_height,
          VASurfaceID *VASurfaceID);
-   int Run(VASurfaceID inputSurfID);
-   int WriteOut(VASurfaceID inputSurfID, const char* filename);
+   int Execute(VASurfaceID inputSurfID) override;
+   int WriteOut(VASurfaceID inputSurfID, const char* filename) override;
+   void Destroy(VASurfaceID vaSurfID) override;
 
 private:
    int build_default_huffman_tables();
@@ -54,12 +58,13 @@ private:
    int parse_SOF(const unsigned char *stream);
    int parse_DQT(const unsigned char *stream);
 
-   CmDevice          *m_pCmDev;
    VADisplay         m_pVADpy;
    VASurfaceAttrib   m_fourcc;
    VAContextID       m_contextID;
    VAConfigID        m_configID;
-   jdec_private      *m_jdecPriv;
+   jdec_private     *m_jdecPriv;
+   unsigned char    *m_compressJpegData;
+   uint              m_compressJpegDataSize;
    static int        m_scanNum;
    static int        m_nextImageFound;
    VABufferID        m_pic_param_buf;
@@ -67,6 +72,7 @@ private:
    VABufferID        m_huffmantable_buf;
    VABufferID        m_slice_param_buf;
    VABufferID        m_slice_data_buf;
+
 };
 
 #endif

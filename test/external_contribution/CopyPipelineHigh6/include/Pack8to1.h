@@ -21,30 +21,30 @@
  */
 using namespace std;
 
-#include "Scan2FilePipeline.h"
+#include "CPipeline.h"
 
-class Rgb2Encode : public Scan2FilePipeline
+class Pack8to1 : public CopyPipeline
 {
 public:
-   Rgb2Encode(CmDevice *device);
-   ~Rgb2Encode(void){}
+   Pack8to1(CmDevice *device, int threadCount);
+   ~Pack8to1(void);
 
    int PreRun(
-         CmKernel *pKernel,
-         SurfaceIndex *pSI_SrcRSurf,
-         SurfaceIndex *pSI_SrcGSurf,
-         SurfaceIndex *pSI_SrcBSurf,
-         SurfaceIndex *pSI_Dst,
-         int nPicWidth,
-         int nPicHeight
+         CmKernel       *pKernel,
+         SurfaceIndex   *pSI_SrcSurf,
+         SurfaceIndex   *pSI_DstC,
+         SurfaceIndex   *pSI_DstM,
+         SurfaceIndex   *pSI_DstY,
+         SurfaceIndex   *pSI_DstK,
+         int             nPicWidth,
+         int             nPicHeight
          );
-   char* GetIsa() { return "Rgb2Encode/Rgb2Encode_genx.isa"; }
-   char* GetKernelName(const int yuvFormat);
+   char* GetIsa() { return "Pack8to1/Pack8to1_genx.isa"; }
+   char* GetKernelName() { return "Pack8to1_4C_GENX"; }
 
 private:
-   CmDevice*   m_pCmDev;
-   CmKernel    *m_pKernel;
-   float       m_coeffs[9];
-   float       m_offsets[3];
+   CmDevice*      m_pCmDev;
+   CmKernel      *m_pKernel;
+   int            m_max_Thread_Count;
 };
 

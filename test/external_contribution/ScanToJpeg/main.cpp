@@ -27,36 +27,42 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
-   //CmTask *scanTask = NULL;
-   CmTask  *compressTask = NULL;
-   CmTask  *decompressTask = NULL;
-
    if (!ParseCommandLine(argc, argv))
       return 0;
 
    Scan2FilePipeline *scanpipeline = new Scan2FilePipeline();
 
-   scanpipeline->Init();
+   scanpipeline->VAInit();
 
-   if (scanpipeline->GetInputImage(FLAGS_i.c_str(), FLAGS_width, FLAGS_height, FLAGS_yuvformat) < 0)
+   if (!FLAGS_flowpath.compare("encode"))
    {
-      throw std::runtime_error(std::string("Error in GetInputImage - input file not found"));
+      if (scanpipeline->EncodeInit(FLAGS_i.c_str(), FLAGS_width, FLAGS_height,
+               FLAGS_yuvformat) < 0)
+      {
+         throw std::runtime_error(std::string("JPEG Encoder initialization error"));
+      }
+
+      scanpipeline->AssemblerCompressGraph(FLAGS_jpegquality);
+      scanpipeline->ExecuteCompressGraph(FLAGS_maxframes);
+
+      if (!FLAGS_jpegout.empty())
+      {
+         scanpipeline->Save2JPEG(FLAGS_jpegout.c_str());
+      }
    }
-
-   scanpipeline->AssemblerCompressGraph(compressTask, FLAGS_jpegquality);
-   scanpipeline->ExecuteCompressGraph(compressTask, FLAGS_maxframes);
-
-   if (!FLAGS_jpegout.empty())
+   else if (!FLAGS_flowpath.compare("decode"))
    {
-      scanpipeline->Save2JPEG(FLAGS_jpegout.c_str());
-   }
+      if (scanpipeline->DecodeInit(FLAGS_i.c_str()) < 0)
+      {
+         throw std::runtime_error(std::string("JPEG Decoder initialization error"));
+      }
+      scanpipeline->AssemblerDecompressGraph();
+      scanpipeline->ExecuteDecompressGraph(FLAGS_maxframes);
 
-   scanpipeline->AssemblerDecompressGraph(decompressTask);
-   scanpipeline->ExecuteDecompressGraph(decompressTask, FLAGS_maxframes);
-
-   if (!FLAGS_rawout.empty())
-   {
-      scanpipeline->Save2Raw(FLAGS_rawout.c_str());
+      if (!FLAGS_rawout.empty())
+      {
+         scanpipeline->Save2Raw(FLAGS_rawout.c_str());
+      }
    }
 
 	return 0;

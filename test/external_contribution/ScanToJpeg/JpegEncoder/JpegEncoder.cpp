@@ -448,6 +448,25 @@ void init_yuv_component(YUVComponentSpecs *yuvComponent, VASurfaceAttrib *fourcc
 
    switch(yuvComponent->fourcc_val)
    {
+   case VA_FOURCC_NV12:
+      yuvComponent->num_components = 3;
+      yuvComponent->y_h_subsample = 2;
+      yuvComponent->y_v_subsample = 2;
+      yuvComponent->u_h_subsample = 1;
+      yuvComponent->u_v_subsample = 1;
+      yuvComponent->v_h_subsample = 1;
+      yuvComponent->v_v_subsample = 1;
+      break;
+   case VA_FOURCC_YUY2:
+      yuvComponent->num_components = 3;
+      yuvComponent->y_h_subsample = 2;
+      yuvComponent->y_v_subsample = 1;
+      yuvComponent->u_h_subsample = 1;
+      yuvComponent->u_v_subsample = 1;
+      yuvComponent->v_h_subsample = 1;
+      yuvComponent->v_v_subsample = 1;
+      break;
+
    case VA_FOURCC_RGBA:
       yuvComponent->num_components = 3;
       yuvComponent->y_h_subsample = 1;
@@ -472,12 +491,11 @@ void init_yuv_component(YUVComponentSpecs *yuvComponent, VASurfaceAttrib *fourcc
 
 }
 
-JpegEncoder::JpegEncoder(CmDevice *pdevice, VADisplay va_dpy, unsigned int yuv_type)
+JpegEncoder::JpegEncoder(VADisplay va_dpy, unsigned int yuv_type) : Scan2FilePipeline ()
 {
    VAStatus va_status;
    VAEntrypoint entrypoints[5];
 
-   m_pCmDev = pdevice;
    m_pVADpy  = va_dpy;
 
    /* Query for the entrypoints for the JPEGBaseline profile */
@@ -505,6 +523,7 @@ JpegEncoder::JpegEncoder(CmDevice *pdevice, VADisplay va_dpy, unsigned int yuv_t
          VAEntrypointEncPicture, &m_attrib[0], 2);
 
    if (!((m_attrib[0].value & VA_RT_FORMAT_YUV444) ||
+         (m_attrib[0].value & VA_RT_FORMAT_YUV422) ||
          (m_attrib[0].value & VA_RT_FORMAT_YUV420) ||
          (m_attrib[0].value & VA_RT_FORMAT_YUV400)
          ))
@@ -528,15 +547,23 @@ JpegEncoder::JpegEncoder(CmDevice *pdevice, VADisplay va_dpy, unsigned int yuv_t
    m_fourcc[0].value.type = VAGenericValueTypeInteger;
    m_fourcc[1].flags = VA_SURFACE_ATTRIB_SETTABLE;
    m_fourcc[1].type = VASurfaceAttribUsageHint;
-      m_fourcc[1].value.value.i = VA_SURFACE_ATTRIB_USAGE_HINT_ENCODER;
+   m_fourcc[1].value.value.i = VA_SURFACE_ATTRIB_USAGE_HINT_ENCODER;
 
    switch(yuv_type)
    {
-   case 0:  //YUV444
+   case YUV444:
       m_fourcc[0].value.value.i = VA_FOURCC_RGBA;
       m_vaSurfaceType = VA_RT_FORMAT_YUV444;
       break;
-   case 1:
+   case YUV422:
+      m_fourcc[0].value.value.i = VA_FOURCC_YUY2;
+      m_vaSurfaceType = VA_RT_FORMAT_YUV420;
+      break;
+   case YUV420:
+      m_fourcc[0].value.value.i = VA_FOURCC_NV12;
+      m_vaSurfaceType = VA_RT_FORMAT_YUV422;
+      break;
+   case YUV400:
       m_fourcc[0].value.value.i = VA_FOURCC_Y800;
       m_vaSurfaceType = VA_RT_FORMAT_YUV400;
       break;
@@ -572,12 +599,47 @@ int JpegEncoder::GetVASurfaceAttrib(
    }
 }
 
-int JpegEncoder::CreateSurfaces(int picture_width, int picture_height, int
-      picture_pitch, unsigned char *gray_surface, VASurfaceID *OutVASurfaceID)
+int JpegEncoder::CreateInputSurfaces(const char *filename, int picture_width, int picture_height,
+      VASurfaceID *outVASurfaceID)
 {
    VAStatus va_status;
    VASurfaceAttrib attrib_list[4];
-   VASurfaceAttribExternalBuffers vaSurfaceExternalBuf;
+   unsigned int attrib_count = 2;
+
+   std::copy(m_fourcc, m_fourcc+2, attrib_list);
+
+   va_status = vaCreateSurfaces(m_pVADpy, m_vaSurfaceType, picture_width,
+         picture_height, outVASurfaceID, 1, &attrib_list[0], attrib_count);
+   CHECK_VASTATUS(va_status, "vaCreateSurfaces");
+
+   VAImage surface_image;
+   void *surface_p = NULL;
+   unsigned char *y_dst;
+
+   va_status = vaDeriveImage(m_pVADpy, *outVASurfaceID, &surface_image);
+   CHECK_VASTATUS(va_status, "vaDeriveImage");
+
+   vaMapBuffer(m_pVADpy, surface_image.buf, &surface_p);
+   assert(VA_STATUS_SUCCESS == va_status);
+
+   y_dst = (unsigned char *) surface_p + surface_image.offsets[0];
+
+   assert(UploadInputImage(filename, y_dst, picture_width, picture_height,
+         surface_image.pitches[0], true) >= 0);
+
+   vaUnmapBuffer(m_pVADpy, surface_image.buf);
+   vaDestroyImage(m_pVADpy, surface_image.image_id);
+
+   return 0;
+
+}
+
+
+int JpegEncoder::CreateSurfaces(int picture_width, int picture_height, int
+      picture_pitch, VASurfaceID *OutVASurfaceID)
+{
+   VAStatus va_status;
+   VASurfaceAttrib attrib_list[4];
    unsigned int attrib_count = 2;
 
    std::copy(m_fourcc, m_fourcc+2, attrib_list);
@@ -585,36 +647,6 @@ int JpegEncoder::CreateSurfaces(int picture_width, int picture_height, int
    va_status = vaCreateSurfaces(m_pVADpy, m_vaSurfaceType, picture_width,
          picture_height, OutVASurfaceID, 1, &attrib_list[0], attrib_count);
    CHECK_VASTATUS(va_status, "vaCreateSurfaces");
-
-   /* 
-    * Input is gray scale image and doesn't require RGBtoYUV444
-    * conversion.  Upload to GPU memory to run JPEG encoder directly 
-    */
-   if (gray_surface != NULL)
-   {
-      VAImage surface_image;
-      void *surface_p = NULL;
-      unsigned char *y_dst, *y_src;
-
-      va_status = vaDeriveImage(m_pVADpy, *OutVASurfaceID, &surface_image);
-      CHECK_VASTATUS(va_status, "vaDeriveImage");
-
-      vaMapBuffer(m_pVADpy, surface_image.buf, &surface_p);
-      assert(VA_STATUS_SUCCESS == va_status);
-
-      y_dst = (unsigned char *)surface_p + surface_image.offsets[0];
-      y_src = gray_surface;
-
-      for (int row = 0; row < surface_image.height; row++)
-      {
-         memcpy(y_dst, y_src, surface_image.width);
-         y_dst += surface_image.pitches[0];
-         y_src += picture_width;
-      }
-
-      vaUnmapBuffer(m_pVADpy, surface_image.buf);
-      vaDestroyImage(m_pVADpy, surface_image.image_id);
-   }
 
    return va_status;
 
@@ -712,9 +744,10 @@ int JpegEncoder::PreRun(
    CHECK_VASTATUS(va_status, "vaCreateBuffer for VAEncPackedHeaderDataBufferType");
 }
 
-int JpegEncoder::Run(VASurfaceID inputSurfID)
+int JpegEncoder::Execute(VASurfaceID inputSurfID)
 {
    VAStatus va_status;
+
 
    /* Begin picture */
    va_status = vaBeginPicture(m_pVADpy, m_contextID, inputSurfID);
@@ -745,12 +778,21 @@ int JpegEncoder::Run(VASurfaceID inputSurfID)
    va_status = vaSyncSurface(m_pVADpy, inputSurfID);
    CHECK_VASTATUS(va_status, "vaSyncSurface");
 
+
+   GetCodedBufferAddress(m_codedMem, m_codedLength);
+
 }
 
-int JpegEncoder::GetCodedBufferAddress(VASurfaceID inputSurfID, unsigned char *& coded_mem, unsigned int &slice_length)
+void JpegEncoder::Destroy(VASurfaceID vaSurfaceID)
+{
+    CHECK_VASTATUS(vaDestroySurfaces(m_pVADpy, &vaSurfaceID, 1), "vaDestroySurfaces");
+}
+
+
+int JpegEncoder::GetCodedBufferAddress(unsigned char *& coded_mem, unsigned int &slice_length)
 {
    VAStatus va_status;
-   VACodedBufferSegment *coded_buffer_segment;
+   VACodedBufferSegment *coded_buffer_segment = NULL;
 
    va_status = vaMapBuffer(m_pVADpy, m_codedbufBufID, (void **)(&coded_buffer_segment));
    CHECK_VASTATUS(va_status, "vaMapBuffer");
@@ -764,17 +806,16 @@ int JpegEncoder::GetCodedBufferAddress(VASurfaceID inputSurfID, unsigned char *&
    }
 
    slice_length = coded_buffer_segment->size;
+
+   vaUnmapBuffer(m_pVADpy, m_codedbufBufID);
 }
 
 int JpegEncoder::WriteOut(VASurfaceID inputSurfID, const char* filename)
 {
    VAStatus va_status;
    size_t w_items;
-   VACodedBufferSegment *coded_buffer_segment;
-   unsigned char *coded_mem;
+   //unsigned char *coded_mem = NULL;
    unsigned int slice_data_length;
-
-   GetCodedBufferAddress(inputSurfID, coded_mem, slice_data_length);
 
    FILE *jpeg_fp;
    jpeg_fp = fopen(filename, "wb");
@@ -782,11 +823,10 @@ int JpegEncoder::WriteOut(VASurfaceID inputSurfID, const char* filename)
    if (jpeg_fp != NULL)
    {
       do {
-         w_items = fwrite(coded_mem, slice_data_length, 1, jpeg_fp);
+         w_items = fwrite(m_codedMem, m_codedLength, 1, jpeg_fp);
       } while (w_items != 1);
       fclose(jpeg_fp);
    }
 
-   vaUnmapBuffer(m_pVADpy, m_codedbufBufID);
 }
 
