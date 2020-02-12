@@ -281,10 +281,23 @@ bool runTest(size_t width, size_t height, unsigned fftsize, unsigned simd)
     unsigned group_width = 1;
     unsigned group_height = 1;
 
-    if (thread_width > 32) {
-        group_width = thread_width / 32;
-        thread_width = 32;
+    unsigned maxThreadGroupCount;
+    size_t size = 4;
+    cm_result_check(device->GetCaps(CAP_USER_DEFINED_THREAD_COUNT_PER_THREAD_GROUP,
+                    size, &maxThreadGroupCount));
+
+    //ThreadGroupCount should be power of 2
+    unsigned GroupWidth = 32;
+    while (GroupWidth > maxThreadGroupCount)
+    {
+        GroupWidth = GroupWidth >> 1;
     }
+
+    if (thread_width > GroupWidth) {
+    group_width = thread_width / GroupWidth;
+    thread_width = GroupWidth;
+    }
+
     if (thread_height > 1) {
         group_height = thread_height / 1;
         thread_height = 1;
