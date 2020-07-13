@@ -29,6 +29,7 @@ add_llvm_target(GenXCodeGen
   GenXLiveRanges.cpp
   GenXLiveness.cpp
   GenXLowering.cpp
+  GenXLowerAggrCopies.cpp 
   GenXEmulate.cpp
   GenXModule.cpp
   GenXNumbering.cpp

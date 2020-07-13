@@ -323,6 +323,9 @@ these are currently not used.</p>
 <li>isCNLplus - true if target is CNL or later</li>
 <li>isICL - true if target is ICL</li>
 <li>isICLLP - true if target is ICL LP</li>
+<li>isTGLLP - true if target is TGL LP</li>
+<li>emulateIDivRem - true if emulates integer division and reminder.</li>
+<li>has add3 and bfn instructions</li>
 <li>dumpRegAlloc - true if we should dump Reg Alloc info</li>
 <li>svmptrIs32Bit - true if svmptr_t is 32 bit</li>
 <li>svmptrIs64Bit - true if svmptr_t is 64 bit</li>
@@ -745,6 +748,8 @@ would need to be a has32x32Multiply flag in GenXSubtarget.</p>
 <li><p class="first">Cleanup predicate region reads if possible.</p>
 </li>
 </ul>
+<p>The beginning of the Add3Matcher</p>
+<p>the Beginning of the BfnMatcher</p>
 <p>visitFDiv : reduce fdiv strength.</p>
 <p>If fast-math is present, perform the following transforms:</p>
 <p>(fdiv x, y)         -&gt; (fmul x0, (fdiv 1., x1))
@@ -2217,8 +2222,8 @@ overall vISA file.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2019, LLVM Project.
-      Last updated on Fri Jun 14 15:52:05 2019 -0700.
+        &#169; Copyright 2003-2020, LLVM Project.
+      Last updated on Fri Jul 10 16:09:58 2020 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

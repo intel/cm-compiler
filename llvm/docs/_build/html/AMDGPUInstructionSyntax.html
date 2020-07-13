@@ -1,0 +1,355 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>AMDGPU Instruction Syntax &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="AMDGPU Instructions Notation" href="AMDGPUInstructionNotation.html" />
+    <link rel="prev" title="Syntax of AMDGPU Instruction Operands" href="AMDGPUOperandSyntax.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="AMDGPUInstructionNotation.html" title="AMDGPU Instructions Notation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="AMDGPUOperandSyntax.html" title="Syntax of AMDGPU Instruction Operands"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="AMDGPUUsage.html" accesskey="U">User Guide for AMDGPU Backend</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="amdgpu-instruction-syntax">
+<h1>AMDGPU Instruction Syntax<a class="headerlink" href="#amdgpu-instruction-syntax" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#instructions" id="id3">Instructions</a><ul>
+<li><a class="reference internal" href="#syntax" id="id4">Syntax</a></li>
+<li><a class="reference internal" href="#opcode-mnemonic" id="id5">Opcode Mnemonic</a></li>
+<li><a class="reference internal" href="#type-and-size-suffices" id="id6">Type and Size Suffices</a></li>
+<li><a class="reference internal" href="#encoding-suffices" id="id7">Encoding Suffices</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#operands" id="id8">Operands</a><ul>
+<li><a class="reference internal" href="#id1" id="id9">Syntax</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modifiers" id="id10">Modifiers</a><ul>
+<li><a class="reference internal" href="#id2" id="id11">Syntax</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="instructions">
+<span id="amdgpu-syn-instructions"></span><h2><a class="toc-backref" href="#id3">Instructions</a><a class="headerlink" href="#instructions" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="syntax">
+<h3><a class="toc-backref" href="#id4">Syntax</a><a class="headerlink" href="#syntax" title="Permalink to this headline">¶</a></h3>
+<p>An instruction has the following syntax:</p>
+<blockquote>
+<div><code class="docutils literal"><span class="pre">&lt;</span></code><em>opcode mnemonic</em><code class="docutils literal"><span class="pre">&gt;</span>&#160;&#160;&#160; <span class="pre">&lt;</span></code><em>operand0</em><code class="docutils literal"><span class="pre">&gt;,</span> <span class="pre">&lt;</span></code><em>operand1</em><code class="docutils literal"><span class="pre">&gt;,...</span>&#160;&#160;&#160; <span class="pre">&lt;</span></code><em>modifier0</em><code class="docutils literal"><span class="pre">&gt;</span> <span class="pre">&lt;</span></code><em>modifier1</em><code class="docutils literal"><span class="pre">&gt;...</span></code></div></blockquote>
+<p><a class="reference internal" href="AMDGPUOperandSyntax.html"><span class="doc">Operands</span></a> are normally comma-separated while
+<a class="reference internal" href="AMDGPUModifierSyntax.html"><span class="doc">modifiers</span></a> are space-separated.</p>
+<p>The order of <em>operands</em> and <em>modifiers</em> is fixed.
+Most <em>modifiers</em> are optional and may be omitted.</p>
+</div>
+<div class="section" id="opcode-mnemonic">
+<span id="amdgpu-syn-instruction-mnemo"></span><h3><a class="toc-backref" href="#id5">Opcode Mnemonic</a><a class="headerlink" href="#opcode-mnemonic" title="Permalink to this headline">¶</a></h3>
+<p>Opcode mnemonic describes opcode semantics and may include one or more suffices in this order:</p>
+<ul class="simple">
+<li><a class="reference internal" href="#amdgpu-syn-instruction-type"><span class="std std-ref">Destination operand type suffix</span></a>.</li>
+<li><a class="reference internal" href="#amdgpu-syn-instruction-type"><span class="std std-ref">Source operand type suffix</span></a>.</li>
+<li><a class="reference internal" href="#amdgpu-syn-instruction-enc"><span class="std std-ref">Encoding suffix</span></a>.</li>
+</ul>
+</div>
+<div class="section" id="type-and-size-suffices">
+<span id="amdgpu-syn-instruction-type"></span><h3><a class="toc-backref" href="#id6">Type and Size Suffices</a><a class="headerlink" href="#type-and-size-suffices" title="Permalink to this headline">¶</a></h3>
+<p>Instructions which operate with data have an implied type of <em>data</em> operands.
+This data type is specified as a suffix of instruction mnemonic.</p>
+<p>There are instructions which have 2 type suffices:
+the first is the data type of the destination operand,
+the second is the data type of source <em>data</em> operand(s).</p>
+<p>Note that data type specified by an instruction does not apply
+to other kinds of operands such as <em>addresses</em>, <em>offsets</em> and so on.</p>
+<p>The following table enumerates the most frequently used type suffices.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="52%" />
+<col width="27%" />
+<col width="20%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Type Suffices</th>
+<th class="head">Packed instruction?</th>
+<th class="head">Data Type</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>_b512, _b256, _b128, _b64, _b32, _b16, _b8</td>
+<td>No</td>
+<td>Bits.</td>
+</tr>
+<tr class="row-odd"><td>_u64, _u32, _u16, _u8</td>
+<td>No</td>
+<td>Unsigned integer.</td>
+</tr>
+<tr class="row-even"><td>_i64, _i32, _i16, _i8</td>
+<td>No</td>
+<td>Signed integer.</td>
+</tr>
+<tr class="row-odd"><td>_f64, _f32, _f16</td>
+<td>No</td>
+<td>Floating-point.</td>
+</tr>
+<tr class="row-even"><td>_b16, _u16, _i16, _f16</td>
+<td>Yes</td>
+<td>Packed.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Instructions which have no type suffices are assumed to operate with typeless data.
+The size of data is specified by size suffices:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="23%" />
+<col width="26%" />
+<col width="51%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Size Suffix</th>
+<th class="head">Implied data type</th>
+<th class="head">Required register size in dwords</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>-</td>
+<td>b32</td>
+<td>1</td>
+</tr>
+<tr class="row-odd"><td>x2</td>
+<td>b64</td>
+<td>2</td>
+</tr>
+<tr class="row-even"><td>x3</td>
+<td>b96</td>
+<td>3</td>
+</tr>
+<tr class="row-odd"><td>x4</td>
+<td>b128</td>
+<td>4</td>
+</tr>
+<tr class="row-even"><td>x8</td>
+<td>b256</td>
+<td>8</td>
+</tr>
+<tr class="row-odd"><td>x16</td>
+<td>b512</td>
+<td>16</td>
+</tr>
+<tr class="row-even"><td>x</td>
+<td>b32</td>
+<td>1</td>
+</tr>
+<tr class="row-odd"><td>xy</td>
+<td>b64</td>
+<td>2</td>
+</tr>
+<tr class="row-even"><td>xyz</td>
+<td>b96</td>
+<td>3</td>
+</tr>
+<tr class="row-odd"><td>xyzw</td>
+<td>b128</td>
+<td>4</td>
+</tr>
+<tr class="row-even"><td>d16_x</td>
+<td>b16</td>
+<td>1</td>
+</tr>
+<tr class="row-odd"><td>d16_xy</td>
+<td>b16x2</td>
+<td>2 for GFX8.0, 1 for GFX8.1 and GFX9</td>
+</tr>
+<tr class="row-even"><td>d16_xyz</td>
+<td>b16x3</td>
+<td>3 for GFX8.0, 2 for GFX8.1 and GFX9</td>
+</tr>
+<tr class="row-odd"><td>d16_xyzw</td>
+<td>b16x4</td>
+<td>4 for GFX8.0, 2 for GFX8.1 and GFX9</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">There are exceptions from rules described above.
+Operands which have type different from type specified by the opcode are
+<a class="reference internal" href="AMDGPUInstructionNotation.html#amdgpu-syn-instruction-operand-tags"><span class="std std-ref">tagged</span></a> in the description.</p>
+</div>
+<p>Examples of instructions with different types of source and destination operands:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">s_bcnt0_i32_b64</span>
+<span class="n">v_cvt_f32_u32</span>
+</pre></div>
+</div>
+<p>Examples of instructions with one data type:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">v_max3_f32</span>
+<span class="n">v_max3_i16</span>
+</pre></div>
+</div>
+<p>Examples of instructions which operate with packed data:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">v_pk_add_u16</span>
+<span class="n">v_pk_add_i16</span>
+<span class="n">v_pk_add_f16</span>
+</pre></div>
+</div>
+<p>Examples of typeless instructions which operate on b128 data:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">buffer_store_dwordx4</span>
+<span class="n">flat_load_dwordx4</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="encoding-suffices">
+<span id="amdgpu-syn-instruction-enc"></span><h3><a class="toc-backref" href="#id7">Encoding Suffices</a><a class="headerlink" href="#encoding-suffices" title="Permalink to this headline">¶</a></h3>
+<p>Most <em>VOP1</em>, <em>VOP2</em> and <em>VOPC</em> instructions have several variants:
+they may also be encoded in <em>VOP3</em>, <em>DPP</em> and <em>SDWA</em> formats.</p>
+<p>The assembler will automatically use optimal encoding based on instruction operands.
+To force specific encoding, one can add a suffix to the opcode of the instruction:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="75%" />
+<col width="25%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Encoding</th>
+<th class="head">Encoding Suffix</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>Native 32-bit encoding (<em>VOP1</em>, <em>VOP2</em> or <em>VOPC</em>)</td>
+<td>_e32</td>
+</tr>
+<tr class="row-odd"><td><em>VOP3</em> (64-bit) encoding</td>
+<td>_e64</td>
+</tr>
+<tr class="row-even"><td><em>DPP</em> encoding</td>
+<td>_dpp</td>
+</tr>
+<tr class="row-odd"><td><em>SDWA</em> encoding</td>
+<td>_sdwa</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>These suffices are used in this reference to indicate the assumed encoding.
+When no suffix is specified, a native encoding is implied.</p>
+</div>
+</div>
+<div class="section" id="operands">
+<h2><a class="toc-backref" href="#id8">Operands</a><a class="headerlink" href="#operands" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id1">
+<h3><a class="toc-backref" href="#id9">Syntax</a><a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>Syntax of most operands is described <a class="reference internal" href="AMDGPUOperandSyntax.html"><span class="doc">in this document</span></a>.</p>
+<p>For detailed information about operands follow <em>operand links</em> in GPU-specific documents:</p>
+<ul class="simple">
+<li><a class="reference internal" href="AMDGPU/AMDGPUAsmGFX7.html"><span class="doc">GFX7</span></a></li>
+<li><a class="reference internal" href="AMDGPU/AMDGPUAsmGFX8.html"><span class="doc">GFX8</span></a></li>
+<li><a class="reference internal" href="AMDGPU/AMDGPUAsmGFX9.html"><span class="doc">GFX9</span></a></li>
+</ul>
+</div>
+</div>
+<div class="section" id="modifiers">
+<h2><a class="toc-backref" href="#id10">Modifiers</a><a class="headerlink" href="#modifiers" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id2">
+<h3><a class="toc-backref" href="#id11">Syntax</a><a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<p>Syntax of modifiers is described <a class="reference internal" href="AMDGPUModifierSyntax.html"><span class="doc">in this document</span></a>.</p>
+<p>Information about modifiers supported for individual instructions may be found in GPU-specific documents:</p>
+<ul class="simple">
+<li><a class="reference internal" href="AMDGPU/AMDGPUAsmGFX7.html"><span class="doc">GFX7</span></a></li>
+<li><a class="reference internal" href="AMDGPU/AMDGPUAsmGFX8.html"><span class="doc">GFX8</span></a></li>
+<li><a class="reference internal" href="AMDGPU/AMDGPUAsmGFX9.html"><span class="doc">GFX9</span></a></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="AMDGPUInstructionNotation.html" title="AMDGPU Instructions Notation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="AMDGPUOperandSyntax.html" title="Syntax of AMDGPU Instruction Operands"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="AMDGPUUsage.html" >User Guide for AMDGPU Backend</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

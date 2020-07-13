@@ -674,9 +674,9 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
     PMBuilder.addExtension(PassManagerBuilder::EP_EarlyAsPossible,
                            addCMSimdCFLoweringPass);
     PMBuilder.addExtension(PassManagerBuilder::EP_ModuleOptimizerEarly,
-      addCMPacketizePass);
+                           addCMPacketizePass);
     PMBuilder.addExtension(PassManagerBuilder::EP_EnabledOnOptLevel0,
-      addCMPacketizePass);
+                           addCMPacketizePass);
     if (CodeGenOpts.EmitVLoadStore) {
       PMBuilder.addExtension(PassManagerBuilder::EP_ModuleOptimizerEarly,
                              addCMLowerLoadStorePass);

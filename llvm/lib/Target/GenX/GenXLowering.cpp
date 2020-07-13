@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -143,6 +143,7 @@ public:
   static bool splitStructPhi(PHINode *Phi);
 private:
   bool lowerGatherScatter4Typed(CallInst *CI, unsigned IID);
+  bool processTwoAddressOpnd(CallInst *CI);
   bool processInst(Instruction *Inst);
   bool lowerRdRegion(Instruction *Inst);
   bool lowerWrRegion(Instruction *Inst);
@@ -243,6 +244,37 @@ bool GenXLowering::runOnFunction(Function &F) {
     (*i)->eraseFromParent();
   ToErase.clear();
   return true;
+}
+
+// Optimize two address operands if any.
+//
+// An instruction with a two address opernd should be predicated. If predicate
+// is a constant splat, then the old value will be over-written. In this case,
+// replace the old value with undef which allows more optimizations to kick in.
+//
+bool GenXLowering::processTwoAddressOpnd(CallInst *CI) {
+  int OpNum = getTwoAddressOperandNum(CI);
+  // Skip write regions whose OpNum is 0.
+  if (OpNum > 0) {
+    Type *Ty = CI->getArgOperand(OpNum)->getType();
+    assert(Ty == CI->getType() && "two address op type out of sync");
+
+    for (unsigned i = 0; i < CI->getNumArgOperands(); ++i) {
+      auto Op = dyn_cast<Constant>(CI->getArgOperand(i));
+      // Check if the predicate operand is all true.
+      if (Op && Op->getType()->getScalarSizeInBits() == 1) {
+        if (Op->getType()->isVectorTy())
+          Op = Op->getSplatValue();
+        if (Op && Op->isOneValue()) {
+          CI->setOperand(OpNum, UndefValue::get(Ty));
+          return true;
+        }
+        return false;
+      }
+    }
+  }
+
+  return false;
 }
 
 /***********************************************************************
@@ -425,6 +457,7 @@ bool GenXLowering::processInst(Instruction *Inst)
   else if (auto CI = dyn_cast<FCmpInst>(Inst))
     return lowerFCmpInst(CI);
   if (CallInst *CI = dyn_cast<CallInst>(Inst)) {
+    processTwoAddressOpnd(CI);
     unsigned IntrinsicID = Intrinsic::not_intrinsic;
     if (Function *Callee = CI->getCalledFunction()) {
       IntrinsicID = Callee->getIntrinsicID();
@@ -450,7 +483,7 @@ bool GenXLowering::processInst(Instruction *Inst)
       case Intrinsic::genx_gather4_typed:
       case Intrinsic::genx_scatter4_typed:
         // Special optimization, turn v = 0, r = 0 to undef, if possible.
-        // Also split 16 wide -> 2x 8 wide if necessary.        
+        // Also split 16 wide -> 2x 8 wide if necessary.
         return lowerGatherScatter4Typed(CI, IntrinsicID);
       default:
       case Intrinsic::genx_constantpred:
@@ -907,7 +940,7 @@ bool GenXLowering::lowerCast(Instruction *Inst)
     }
 
     Instruction *NewInst;
-    if (Inst->getType()->isFloatingPointTy())
+    if (Inst->getType()->isFPOrFPVectorTy())
       NewInst = SelectInst::Create(Inst->getOperand(0),
           ConstantFP::get(Inst->getType(), OneVal),
           ConstantFP::get(Inst->getType(), 0), Inst->getName(), Inst);

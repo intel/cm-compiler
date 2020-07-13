@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -274,6 +274,7 @@ bool CMKernelArgOffset::runOnModule(Module &M)
  *  5: kernel argument offsets: initially placeholder; set to array in this pass
  *  6: kernel input/output kinds
  *  7: kernel argument type descriptors (optional).
+ *  8: named barrier count
  */
 void CMKernelArgOffset::processKernel(MDNode *Node)
 {

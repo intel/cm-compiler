@@ -1,0 +1,460 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>test-suite Guide &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="test-suite Makefile Guide (deprecated)" href="TestSuiteMakefileGuide.html" />
+    <link rel="prev" title="LLVM Testing Infrastructure Guide" href="TestingGuide.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="TestSuiteMakefileGuide.html" title="test-suite Makefile Guide (deprecated)"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="TestingGuide.html" title="LLVM Testing Infrastructure Guide"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="TestingGuide.html" accesskey="U">LLVM Testing Infrastructure Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="test-suite-guide">
+<h1>test-suite Guide<a class="headerlink" href="#test-suite-guide" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="quickstart">
+<h2>Quickstart<a class="headerlink" href="#quickstart" title="Permalink to this headline">¶</a></h2>
+<ol>
+<li><p class="first">The lit test runner is required to run the tests. You can either use one
+from an LLVM build:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% &lt;path to llvm build&gt;/bin/llvm-lit --version
+lit <span class="m">0</span>.8.0dev
+</pre></div>
+</div>
+<p>An alternative is installing it as a python package in a python virtual
+environment:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% mkdir venv
+% virtualenv venv
+% . venv/bin/activate
+% pip install svn+http://llvm.org/svn/llvm-project/llvm/trunk/utils/lit
+% lit --version
+lit <span class="m">0</span>.8.0dev
+</pre></div>
+</div>
+</li>
+<li><p class="first">Check out the <code class="docutils literal"><span class="pre">test-suite</span></code> module with:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% svn co http://llvm.org/svn/llvm-project/test-suite/trunk test-suite
+</pre></div>
+</div>
+</li>
+<li><p class="first">Create a build directory and use CMake to configure the suite. Use the
+<code class="docutils literal"><span class="pre">CMAKE_C_COMPILER</span></code> option to specify the compiler to test. Use a cache file
+to choose a typical build configuration:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% mkdir test-suite-build
+% <span class="nb">cd</span> test-suite-build
+% cmake -DCMAKE_C_COMPILER<span class="o">=</span>&lt;path to llvm build&gt;/bin/clang <span class="se">\</span>
+        -C../test-suite/cmake/caches/O3.cmake <span class="se">\</span>
+        ../test-suite
+</pre></div>
+</div>
+</li>
+<li><p class="first">Build the benchmarks:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>% make
+Scanning dependencies of target timeit-target
+[  0%] Building C object tools/CMakeFiles/timeit-target.dir/timeit.c.o
+[  0%] Linking C executable timeit-target
+...
+</pre></div>
+</div>
+</li>
+<li><p class="first">Run the tests with lit:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>% llvm-lit -v -j 1 -o results.json .
+-- Testing: 474 tests, 1 threads --
+PASS: test-suite :: MultiSource/Applications/ALAC/decode/alacconvert-decode.test (1 of 474)
+********** TEST &#39;test-suite :: MultiSource/Applications/ALAC/decode/alacconvert-decode.test&#39; RESULTS **********
+compile_time: 0.2192
+exec_time: 0.0462
+hash: &quot;59620e187c6ac38b36382685ccd2b63b&quot;
+size: 83348
+**********
+PASS: test-suite :: MultiSource/Applications/ALAC/encode/alacconvert-encode.test (2 of 474)
+...
+</pre></div>
+</div>
+</li>
+<li><p class="first">Show and compare result files (optional):</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="c1"># Make sure pandas is installed. Prepend `sudo` if necessary.</span>
+% pip install pandas
+<span class="c1"># Show a single result file:</span>
+% test-suite/utils/compare.py results.json
+<span class="c1"># Compare two result files:</span>
+% test-suite/utils/compare.py results_a.json results_b.json
+</pre></div>
+</div>
+</li>
+</ol>
+</div>
+<div class="section" id="structure">
+<h2>Structure<a class="headerlink" href="#structure" title="Permalink to this headline">¶</a></h2>
+<p>The test-suite contains benchmark and test programs.  The programs come with
+reference outputs so that their correctness can be checked.  The suite comes
+with tools to collect metrics such as benchmark runtime, compilation time and
+code size.</p>
+<p>The test-suite is divided into several directories:</p>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">SingleSource/</span></code></p>
+<p>Contains test programs that are only a single source file in size.  A
+subdirectory may contain several programs.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">MultiSource/</span></code></p>
+<p>Contains subdirectories which entire programs with multiple source files.
+Large benchmarks and whole applications go here.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">MicroBenchmarks/</span></code></p>
+<p>Programs using the <a class="reference external" href="https://github.com/google/benchmark">google-benchmark</a>
+library. The programs define functions that are run multiple times until the
+measurement results are statistically significant.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">External/</span></code></p>
+<p>Contains descriptions and test data for code that cannot be directly
+distributed with the test-suite. The most prominent members of this
+directory are the SPEC CPU benchmark suites.
+See <a class="reference external" href="#external-suites">External Suites</a>.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">Bitcode/</span></code></p>
+<p>These tests are mostly written in LLVM bitcode.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">CTMark/</span></code></p>
+<p>Contains symbolic links to other benchmarks forming a representative sample
+for compilation performance measurements.</p>
+</li>
+</ul>
+<div class="section" id="benchmarks">
+<h3>Benchmarks<a class="headerlink" href="#benchmarks" title="Permalink to this headline">¶</a></h3>
+<p>Every program can work as a correctness test. Some programs are unsuitable for
+performance measurements. Setting the <code class="docutils literal"><span class="pre">TEST_SUITE_BENCHMARKING_ONLY</span></code> CMake
+option to <code class="docutils literal"><span class="pre">ON</span></code> will disable them.</p>
+</div>
+</div>
+<div class="section" id="configuration">
+<h2>Configuration<a class="headerlink" href="#configuration" title="Permalink to this headline">¶</a></h2>
+<p>The test-suite has configuration options to customize building and running the
+benchmarks. CMake can print a list of them:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% <span class="nb">cd</span> test-suite-build
+<span class="c1"># Print basic options:</span>
+% cmake -LH
+<span class="c1"># Print all options:</span>
+% cmake -LAH
+</pre></div>
+</div>
+<div class="section" id="common-configuration-options">
+<h3>Common Configuration Options<a class="headerlink" href="#common-configuration-options" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">CMAKE_C_FLAGS</span></code></p>
+<p>Specify extra flags to be passed to C compiler invocations.  The flags are
+also passed to the C++ compiler and linker invocations.  See
+<a class="reference external" href="https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_FLAGS.html">https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_FLAGS.html</a></p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">CMAKE_C_COMPILER</span></code></p>
+<p>Select the C compiler executable to be used. Note that the C++ compiler is
+inferred automatically i.e. when specifying <code class="docutils literal"><span class="pre">path/to/clang</span></code> CMake will
+automatically use <code class="docutils literal"><span class="pre">path/to/clang++</span></code> as the C++ compiler.  See
+<a class="reference external" href="https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER.html">https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER.html</a></p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">CMAKE_BUILD_TYPE</span></code></p>
+<p>Select a build type like <code class="docutils literal"><span class="pre">OPTIMIZE</span></code> or <code class="docutils literal"><span class="pre">DEBUG</span></code> selecting a set of predefined
+compiler flags. These flags are applied regardless of the <code class="docutils literal"><span class="pre">CMAKE_C_FLAGS</span></code>
+option and may be changed by modifying <code class="docutils literal"><span class="pre">CMAKE_C_FLAGS_OPTIMIZE</span></code> etc.  See
+[https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html]](https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html)</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">TEST_SUITE_RUN_UNDER</span></code></p>
+<p>Prefix test invocations with the given tool. This is typically used to run
+cross-compiled tests within a simulator tool.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">TEST_SUITE_BENCHMARKING_ONLY</span></code></p>
+<p>Disable tests that are unsuitable for performance measurements. The disabled
+tests either run for a very short time or are dominated by I/O performance
+making them unsuitable as compiler performance tests.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">TEST_SUITE_SUBDIRS</span></code></p>
+<p>Semicolon-separated list of directories to include. This can be used to only
+build parts of the test-suite or to include external suites.  This option
+does not work reliably with deeper subdirectories as it skips intermediate
+<code class="docutils literal"><span class="pre">CMakeLists.txt</span></code> files which may be required.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">TEST_SUITE_COLLECT_STATS</span></code></p>
+<p>Collect internal LLVM statistics. Appends <code class="docutils literal"><span class="pre">-save-stats=obj</span></code> when invocing the
+compiler and makes the lit runner collect and merge the statistic files.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">TEST_SUITE_RUN_BENCHMARKS</span></code></p>
+<p>If this is set to <code class="docutils literal"><span class="pre">OFF</span></code> then lit will not actually run the tests but just
+collect build statistics like compile time and code size.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">TEST_SUITE_USE_PERF</span></code></p>
+<p>Use the <code class="docutils literal"><span class="pre">perf</span></code> tool for time measurement instead of the <code class="docutils literal"><span class="pre">timeit</span></code> tool that
+comes with the test-suite.  The <code class="docutils literal"><span class="pre">perf</span></code> is usually available on linux systems.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">TEST_SUITE_SPEC2000_ROOT</span></code>, <code class="docutils literal"><span class="pre">TEST_SUITE_SPEC2006_ROOT</span></code>, <code class="docutils literal"><span class="pre">TEST_SUITE_SPEC2017_ROOT</span></code>, ...</p>
+<p>Specify installation directories of external benchmark suites. You can find
+more information about expected versions or usage in the README files in the
+<code class="docutils literal"><span class="pre">External</span></code> directory (such as <code class="docutils literal"><span class="pre">External/SPEC/README</span></code>)</p>
+</li>
+</ul>
+</div>
+<div class="section" id="common-cmake-flags">
+<h3>Common CMake Flags<a class="headerlink" href="#common-cmake-flags" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p class="first"><code class="docutils literal"><span class="pre">-GNinja</span></code></p>
+<p>Generate build files for the ninja build tool.</p>
+</li>
+<li><p class="first"><code class="docutils literal"><span class="pre">-Ctest-suite/cmake/caches/&lt;cachefile.cmake&gt;</span></code></p>
+<p>Use a CMake cache.  The test-suite comes with several CMake caches which
+predefine common or tricky build configurations.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="displaying-and-analyzing-results">
+<h2>Displaying and Analyzing Results<a class="headerlink" href="#displaying-and-analyzing-results" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal"><span class="pre">compare.py</span></code> script displays and compares result files.  A result file is
+produced when invoking lit with the <code class="docutils literal"><span class="pre">-o</span> <span class="pre">filename.json</span></code> flag.</p>
+<p>Example usage:</p>
+<ul>
+<li><p class="first">Basic Usage:</p>
+<div class="highlight-text"><div class="highlight"><pre><span></span>% test-suite/utils/compare.py baseline.json
+Warning: &#39;test-suite :: External/SPEC/CINT2006/403.gcc/403.gcc.test&#39; has No metrics!
+Tests: 508
+Metric: exec_time
+
+Program                                         baseline
+
+INT2006/456.hmmer/456.hmmer                   1222.90
+INT2006/464.h264ref/464.h264ref               928.70
+...
+             baseline
+count  506.000000
+mean   20.563098
+std    111.423325
+min    0.003400
+25%    0.011200
+50%    0.339450
+75%    4.067200
+max    1222.896800
+</pre></div>
+</div>
+</li>
+<li><p class="first">Show compile_time or text segment size metrics:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% test-suite/utils/compare.py -m compile_time baseline.json
+% test-suite/utils/compare.py -m size.__text baseline.json
+</pre></div>
+</div>
+</li>
+<li><p class="first">Compare two result files and filter short running tests:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% test-suite/utils/compare.py --filter-short baseline.json experiment.json
+...
+Program                                         baseline  experiment  diff
+
+SingleSour.../Benchmarks/Linpack/linpack-pc     <span class="m">5</span>.16      <span class="m">4</span>.30        -16.5%
+MultiSourc...erolling-dbl/LoopRerolling-dbl     <span class="m">7</span>.01      <span class="m">7</span>.86         <span class="m">12</span>.2%
+SingleSour...UnitTests/Vectorizer/gcc-loops     <span class="m">3</span>.89      <span class="m">3</span>.54        -9.0%
+...
+</pre></div>
+</div>
+</li>
+<li><p class="first">Merge multiple baseline and experiment result files by taking the minimum
+runtime each:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% test-suite/utils/compare.py base0.json base1.json base2.json vs exp0.json exp1.json exp2.json
+</pre></div>
+</div>
+</li>
+</ul>
+<div class="section" id="continuous-tracking-with-lnt">
+<h3>Continuous Tracking with LNT<a class="headerlink" href="#continuous-tracking-with-lnt" title="Permalink to this headline">¶</a></h3>
+<p>LNT is a set of client and server tools for continuously monitoring
+performance. You can find more information at
+<a class="reference external" href="http://llvm.org/docs/lnt">http://llvm.org/docs/lnt</a>. The official LNT instance
+of the LLVM project is hosted at <a class="reference external" href="http://lnt.llvm.org">http://lnt.llvm.org</a>.</p>
+</div>
+</div>
+<div class="section" id="external-suites">
+<h2>External Suites<a class="headerlink" href="#external-suites" title="Permalink to this headline">¶</a></h2>
+<p>External suites such as SPEC can be enabled by either</p>
+<ul class="simple">
+<li>placing (or linking) them into the <code class="docutils literal"><span class="pre">test-suite/test-suite-externals/xxx</span></code> directory (example: <code class="docutils literal"><span class="pre">test-suite/test-suite-externals/speccpu2000</span></code>)</li>
+<li>using a configuration option such as <code class="docutils literal"><span class="pre">-D</span> <span class="pre">TEST_SUITE_SPEC2000_ROOT=path/to/speccpu2000</span></code></li>
+</ul>
+<p>You can find further information in the respective README files such as
+<code class="docutils literal"><span class="pre">test-suite/External/SPEC/README</span></code>.</p>
+<p>For the SPEC benchmarks you can switch between the <code class="docutils literal"><span class="pre">test</span></code>, <code class="docutils literal"><span class="pre">train</span></code> and
+<code class="docutils literal"><span class="pre">ref</span></code> input datasets via the <code class="docutils literal"><span class="pre">TEST_SUITE_RUN_TYPE</span></code> configuration option.
+The <code class="docutils literal"><span class="pre">train</span></code> dataset is used by default.</p>
+</div>
+<div class="section" id="custom-suites">
+<h2>Custom Suites<a class="headerlink" href="#custom-suites" title="Permalink to this headline">¶</a></h2>
+<p>You can build custom suites using the test-suite infrastructure. A custom suite
+has a <code class="docutils literal"><span class="pre">CMakeLists.txt</span></code> file at the top directory. The <code class="docutils literal"><span class="pre">CMakeLists.txt</span></code> will be
+picked up automatically if placed into a subdirectory of the test-suite or when
+setting the <code class="docutils literal"><span class="pre">TEST_SUITE_SUBDIRS</span></code> variable:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% cmake -DTEST_SUITE_SUBDIRS<span class="o">=</span>path/to/my/benchmark-suite ../test-suite
+</pre></div>
+</div>
+</div>
+<div class="section" id="profile-guided-optimization">
+<h2>Profile Guided Optimization<a class="headerlink" href="#profile-guided-optimization" title="Permalink to this headline">¶</a></h2>
+<p>Profile guided optimization requires to compile and run twice. First the
+benchmark should be compiled with profile generation instrumentation enabled
+and setup for training data. The lit runner will merge the profile files
+using <code class="docutils literal"><span class="pre">llvm-profdata</span></code> so they can be used by the second compilation run.</p>
+<p>Example:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="c1"># Profile generation run:</span>
+% cmake -DTEST_SUITE_PROFILE_GENERATE<span class="o">=</span>ON <span class="se">\</span>
+        -DTEST_SUITE_RUN_TYPE<span class="o">=</span>train <span class="se">\</span>
+        ../test-suite
+% make
+% llvm-lit .
+<span class="c1"># Use the profile data for compilation and actual benchmark run:</span>
+% cmake -DTEST_SUITE_PROFILE_GENERATE<span class="o">=</span>OFF <span class="se">\</span>
+        -DTEST_SUITE_PROFILE_USE<span class="o">=</span>ON <span class="se">\</span>
+        -DTEST_SUITE_RUN_TYPE<span class="o">=</span>ref <span class="se">\</span>
+        .
+% make
+% llvm-lit -o result.json .
+</pre></div>
+</div>
+<p>The <code class="docutils literal"><span class="pre">TEST_SUITE_RUN_TYPE</span></code> setting only affects the SPEC benchmark suites.</p>
+</div>
+<div class="section" id="cross-compilation-and-external-devices">
+<h2>Cross Compilation and External Devices<a class="headerlink" href="#cross-compilation-and-external-devices" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="compilation">
+<h3>Compilation<a class="headerlink" href="#compilation" title="Permalink to this headline">¶</a></h3>
+<p>CMake allows to cross compile to a different target via toolchain files. More
+information can be found here:</p>
+<ul class="simple">
+<li><a class="reference external" href="http://llvm.org/docs/lnt/tests.html#cross-compiling">http://llvm.org/docs/lnt/tests.html#cross-compiling</a></li>
+<li><a class="reference external" href="https://cmake.org/cmake/help/latest/manual/cmake-toolchains.7.html">https://cmake.org/cmake/help/latest/manual/cmake-toolchains.7.html</a></li>
+</ul>
+<p>Cross compilation from macOS to iOS is possible with the
+<code class="docutils literal"><span class="pre">test-suite/cmake/caches/target-target-*-iphoneos-internal.cmake</span></code> CMake cache
+files; this requires an internal iOS SDK.</p>
+</div>
+<div class="section" id="running">
+<h3>Running<a class="headerlink" href="#running" title="Permalink to this headline">¶</a></h3>
+<p>There are two ways to run the tests in a cross compilation setting:</p>
+<ul>
+<li><p class="first">Via SSH connection to an external device: The <code class="docutils literal"><span class="pre">TEST_SUITE_REMOTE_HOST</span></code> option
+should be set to the SSH hostname.  The executables and data files need to be
+transferred to the device after compilation.  This is typically done via the
+<code class="docutils literal"><span class="pre">rsync</span></code> make target.  After this, the lit runner can be used on the host
+machine. It will prefix the benchmark and verification command lines with an
+<code class="docutils literal"><span class="pre">ssh</span></code> command.</p>
+<p>Example:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>% cmake -G Ninja -D <span class="nv">CMAKE_C_COMPILER</span><span class="o">=</span>path/to/clang <span class="se">\</span>
+        -C ../test-suite/cmake/caches/target-arm64-iphoneos-internal.cmake <span class="se">\</span>
+        -D <span class="nv">TEST_SUITE_REMOTE_HOST</span><span class="o">=</span>mydevice <span class="se">\</span>
+        ../test-suite
+% ninja
+% ninja rsync
+% llvm-lit -j1 -o result.json .
+</pre></div>
+</div>
+</li>
+<li><p class="first">You can specify a simulator for the target machine with the
+<code class="docutils literal"><span class="pre">TEST_SUITE_RUN_UNDER</span></code> setting. The lit runner will prefix all benchmark
+invocations with it.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="running-the-test-suite-via-lnt">
+<h2>Running the test-suite via LNT<a class="headerlink" href="#running-the-test-suite-via-lnt" title="Permalink to this headline">¶</a></h2>
+<p>The LNT tool can run the test-suite. Use this when submitting test results to
+an LNT instance.  See
+<a class="reference external" href="http://llvm.org/docs/lnt/tests.html#llvm-cmake-test-suite">http://llvm.org/docs/lnt/tests.html#llvm-cmake-test-suite</a>
+for details.</p>
+</div>
+<div class="section" id="running-the-test-suite-via-makefiles-deprecated">
+<h2>Running the test-suite via Makefiles (deprecated)<a class="headerlink" href="#running-the-test-suite-via-makefiles-deprecated" title="Permalink to this headline">¶</a></h2>
+<p><strong>Note</strong>: The test-suite comes with a set of Makefiles that are considered
+deprecated.  They do not support newer testing modes like <code class="docutils literal"><span class="pre">Bitcode</span></code> or
+<code class="docutils literal"><span class="pre">Microbenchmarks</span></code> and are harder to use.</p>
+<p>Old documentation is available in the
+<a class="reference internal" href="TestSuiteMakefileGuide.html"><span class="doc">test-suite Makefile Guide</span></a>.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="TestSuiteMakefileGuide.html" title="test-suite Makefile Guide (deprecated)"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="TestingGuide.html" title="LLVM Testing Infrastructure Guide"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="TestingGuide.html" >LLVM Testing Infrastructure Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

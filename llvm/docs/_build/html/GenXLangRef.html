@@ -185,106 +185,114 @@
 <li><a class="reference internal" href="#llvm-genx-sin-reciprocal-square-root" id="id97"><code class="docutils literal"><span class="pre">llvm.genx.sin</span></code> : reciprocal square root</a></li>
 <li><a class="reference internal" href="#llvm-genx-sqrt-reciprocal-square-root" id="id98"><code class="docutils literal"><span class="pre">llvm.genx.sqrt</span></code> : reciprocal square root</a></li>
 <li><a class="reference internal" href="#llvm-genx-ieee-sqrt-reciprocal-square-root-ieee-variant" id="id99"><code class="docutils literal"><span class="pre">llvm.genx.ieee.sqrt</span></code> : reciprocal square root, IEEE variant</a></li>
-<li><a class="reference internal" href="#subb" id="id100">subb</a></li>
-<li><a class="reference internal" href="#xor" id="id101">xor</a></li>
+<li><a class="reference internal" href="#llvm-genx-dp4a-dp4a-instruction-dot-product-4-accumulate" id="id100"><code class="docutils literal"><span class="pre">llvm.genx.dp4a</span></code> : dp4a instruction (Dot Product 4 Accumulate)</a></li>
+<li><a class="reference internal" href="#add3" id="id101">add3</a></li>
+<li><a class="reference internal" href="#llvm-genx-add3-add3-instruction-without-saturation" id="id102"><code class="docutils literal"><span class="pre">llvm.genx.*add3</span></code> : add3 instruction without saturation</a></li>
+<li><a class="reference internal" href="#llvm-genx-add3-sat-add3-instruction-with-saturation" id="id103"><code class="docutils literal"><span class="pre">llvm.genx.*add3.sat</span></code> : add3 instruction with saturation</a></li>
+<li><a class="reference internal" href="#bfn" id="id104">bfn</a></li>
+<li><a class="reference internal" href="#llvm-genx-bfn-bfn-instruction" id="id105"><code class="docutils literal"><span class="pre">llvm.genx.bfn</span></code> : bfn instruction</a></li>
+<li><a class="reference internal" href="#subb" id="id106">subb</a></li>
+<li><a class="reference internal" href="#xor" id="id107">xor</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#visa-reserved-register-intrinsics" id="id102">vISA reserved register intrinsics</a><ul>
-<li><a class="reference internal" href="#llvm-genx-thread-read-thread-id-register" id="id103"><code class="docutils literal"><span class="pre">llvm.genx.thread.*</span></code> : read thread ID register</a></li>
-<li><a class="reference internal" href="#llvm-genx-group-id-read-group-id-register" id="id104"><code class="docutils literal"><span class="pre">llvm.genx.group.id.*</span></code> : read group ID register</a></li>
-<li><a class="reference internal" href="#llvm-genx-timestamp-read-visa-v11-timestamp" id="id105"><code class="docutils literal"><span class="pre">llvm.genx.timestamp</span></code> : read vISA v11 (%timestamp)</a></li>
-<li><a class="reference internal" href="#llvm-genx-r0-read-visa-v12-r0" id="id106"><code class="docutils literal"><span class="pre">llvm.genx.r0</span></code> : read vISA v12 (%r0)</a></li>
-<li><a class="reference internal" href="#llvm-genx-sr0-read-visa-v13-sr0" id="id107"><code class="docutils literal"><span class="pre">llvm.genx.sr0</span></code> : read vISA v13 (%sr0)</a></li>
-<li><a class="reference internal" href="#llvm-genx-set-sr0-2-write-visa-v13-0-2-sr0-2" id="id108"><code class="docutils literal"><span class="pre">llvm.genx.set.sr0.2</span></code> : write vISA v13(0, 2) (%sr0.2)</a></li>
-<li><a class="reference internal" href="#llvm-genx-get-color-read-color-value-of-the-thread-origin" id="id109"><code class="docutils literal"><span class="pre">llvm.genx.get.color</span></code> : read color value of the thread origin</a></li>
-<li><a class="reference internal" href="#llvm-genx-get-hwid-read-hw-id-value" id="id110"><code class="docutils literal"><span class="pre">llvm.genx.get.hwid</span></code> : read hw_id value</a></li>
-<li><a class="reference internal" href="#llvm-genx-set-pause-set-the-pause-register-v11-4" id="id111"><code class="docutils literal"><span class="pre">llvm.genx.set.pause</span></code> : set the pause register (v11.4)</a></li>
-<li><a class="reference internal" href="#llvm-genx-dummy-mov-insert-a-dummy-mov-to-v0" id="id112"><code class="docutils literal"><span class="pre">llvm.genx.dummy.mov</span></code> : insert a dummy mov to v0</a></li>
+<li><a class="reference internal" href="#visa-reserved-register-intrinsics" id="id108">vISA reserved register intrinsics</a><ul>
+<li><a class="reference internal" href="#llvm-genx-thread-read-thread-id-register" id="id109"><code class="docutils literal"><span class="pre">llvm.genx.thread.*</span></code> : read thread ID register</a></li>
+<li><a class="reference internal" href="#llvm-genx-group-id-read-group-id-register" id="id110"><code class="docutils literal"><span class="pre">llvm.genx.group.id.*</span></code> : read group ID register</a></li>
+<li><a class="reference internal" href="#llvm-genx-timestamp-read-visa-v11-timestamp" id="id111"><code class="docutils literal"><span class="pre">llvm.genx.timestamp</span></code> : read vISA v11 (%timestamp)</a></li>
+<li><a class="reference internal" href="#llvm-genx-r0-read-visa-v12-r0" id="id112"><code class="docutils literal"><span class="pre">llvm.genx.r0</span></code> : read vISA v12 (%r0)</a></li>
+<li><a class="reference internal" href="#llvm-genx-sr0-read-visa-v13-sr0" id="id113"><code class="docutils literal"><span class="pre">llvm.genx.sr0</span></code> : read vISA v13 (%sr0)</a></li>
+<li><a class="reference internal" href="#llvm-genx-set-sr0-2-write-visa-v13-0-2-sr0-2" id="id114"><code class="docutils literal"><span class="pre">llvm.genx.set.sr0.2</span></code> : write vISA v13(0, 2) (%sr0.2)</a></li>
+<li><a class="reference internal" href="#llvm-genx-get-color-read-color-value-of-the-thread-origin" id="id115"><code class="docutils literal"><span class="pre">llvm.genx.get.color</span></code> : read color value of the thread origin</a></li>
+<li><a class="reference internal" href="#llvm-genx-get-hwid-read-hw-id-value" id="id116"><code class="docutils literal"><span class="pre">llvm.genx.get.hwid</span></code> : read hw_id value</a></li>
+<li><a class="reference internal" href="#llvm-genx-set-pause-set-the-pause-register-v11-4" id="id117"><code class="docutils literal"><span class="pre">llvm.genx.set.pause</span></code> : set the pause register (v11.4)</a></li>
+<li><a class="reference internal" href="#llvm-genx-dummy-mov-insert-a-dummy-mov-to-v0" id="id118"><code class="docutils literal"><span class="pre">llvm.genx.dummy.mov</span></code> : insert a dummy mov to v0</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#shared-function-intrinsics" id="id113">Shared function intrinsics</a><ul>
-<li><a class="reference internal" href="#llvm-genx-dword-atomic-dword-atomic-with-binary-operator" id="id114"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.*</span></code> : dword atomic with binary operator</a></li>
-<li><a class="reference internal" href="#llvm-genx-dword-atomic-dword-atomic-with-fmin-fmax-operation" id="id115"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.*</span></code> : dword atomic with fmin/fmax operation</a></li>
-<li><a class="reference internal" href="#llvm-genx-dword-atomic-dword-atomic-with-inc-dec-operation" id="id116"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.*</span></code> : dword atomic with inc/dec operation</a></li>
-<li><a class="reference internal" href="#llvm-genx-dword-atomic-cmpxchg-visa-dword-atomic-cmpxchg-instruction" id="id117"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.cmpxchg</span></code> : vISA DWORD_ATOMIC CMPXCHG instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-dword-atomic-fcmpwr-visa-dword-atomic-fcmpwr-instruction" id="id118"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.fcmpwr</span></code> : vISA DWORD_ATOMIC FCMPWR instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-typed-atomic-atomic-typed-with-binary-operator" id="id119"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.*</span></code> : atomic typed with binary operator</a></li>
-<li><a class="reference internal" href="#llvm-genx-typed-atomic-atomic-typed-with-fmin-fmax-operation" id="id120"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.*</span></code> : atomic typed with fmin/fmax operation</a></li>
-<li><a class="reference internal" href="#llvm-genx-typed-atomic-atomic-typed-with-inc-dec-operation" id="id121"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.*</span></code> : atomic typed with inc/dec operation</a></li>
-<li><a class="reference internal" href="#llvm-genx-typed-atomic-cmpxchg-visa-typed-atomic-cmpxchg-instruction" id="id122"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.cmpxchg</span></code> : vISA TYPED_ATOMIC CMPXCHG instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-typed-atomic-fcmpwr-visa-typed-atomic-fcmpwr-instruction" id="id123"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.fcmpwr</span></code> : vISA TYPED_ATOMIC FCMPWR instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-gather-orig-visa-gather-instruction" id="id124"><code class="docutils literal"><span class="pre">llvm.genx.gather.orig</span></code> : vISA GATHER instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-gather-scaled-visa-gather-scaled-instruction" id="id125"><code class="docutils literal"><span class="pre">llvm.genx.gather.scaled</span></code> : vISA GATHER_SCALED instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-gather4-orig-visa-gather4-instruction" id="id126"><code class="docutils literal"><span class="pre">llvm.genx.gather4.orig</span></code> : vISA GATHER4 instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-gather4-scaled-visa-gather4-scaled-instruction" id="id127"><code class="docutils literal"><span class="pre">llvm.genx.gather4.scaled</span></code> : vISA GATHER4_SCALED instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-gather4-typed-visa-gather4-typed-instruction" id="id128"><code class="docutils literal"><span class="pre">llvm.genx.gather4.typed</span></code> : vISA GATHER4_TYPED instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-media-ld-visa-media-ld-instruction" id="id129"><code class="docutils literal"><span class="pre">llvm.genx.media.ld</span></code> : vISA MEDIA_LD instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-media-st-visa-media-st-instruction" id="id130"><code class="docutils literal"><span class="pre">llvm.genx.media.st</span></code> : vISA MEDIA_ST instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-oword-ld-oword-load-instruction" id="id131"><code class="docutils literal"><span class="pre">llvm.genx.oword.ld*</span></code> : oword load instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-oword-st-visa-oword-st-instruction" id="id132"><code class="docutils literal"><span class="pre">llvm.genx.oword.st</span></code> : vISA OWORD_ST instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-scatter-orig-visa-scatter-instruction" id="id133"><code class="docutils literal"><span class="pre">llvm.genx.scatter.orig</span></code> : vISA SCATTER instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-scatter-scaled-visa-scatter-scaled-instruction" id="id134"><code class="docutils literal"><span class="pre">llvm.genx.scatter.scaled</span></code> : vISA SCATTER_SCALED instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-scatter4-orig-visa-scatter4-instruction" id="id135"><code class="docutils literal"><span class="pre">llvm.genx.scatter4.orig</span></code> : vISA SCATTER4 instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-scatter4-scaled-visa-scatter4-scaled-instruction" id="id136"><code class="docutils literal"><span class="pre">llvm.genx.scatter4.scaled</span></code> : vISA SCATTER4_SCALED instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-scatter4-typed-visa-scatter4-typed-instruction" id="id137"><code class="docutils literal"><span class="pre">llvm.genx.scatter4.typed</span></code> : vISA SCATTER4_TYPED instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-transpose-ld-visa-transpose-ld-instruction" id="id138"><code class="docutils literal"><span class="pre">llvm.genx.transpose.ld</span></code> : vISA TRANSPOSE_LD instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-untyped-atomic-visa-untyped-atomic-with-binary-operator" id="id139"><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.*</span></code> : vISA UNTYPED_ATOMIC with binary operator</a></li>
-<li><a class="reference internal" href="#llvm-genx-untyped-atomic-visa-untyped-atomic-with-inc-dec" id="id140"><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.*</span></code> : vISA UNTYPED_ATOMIC with inc/dec</a></li>
-<li><a class="reference internal" href="#llvm-genx-untyped-atomic-cmpxchg-visa-untyped-atomic-cmpxchg-instruction" id="id141"><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.cmpxchg</span></code> : vISA UNTYPED_ATOMIC CMPXCHG instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-svm-block-ld-visa-svm-block-ld-instruction" id="id142"><code class="docutils literal"><span class="pre">llvm.genx.svm.block.ld*</span></code> : vISA SVM BLOCK_LD instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-svm-block-st-visa-svm-block-st-instruction" id="id143"><code class="docutils literal"><span class="pre">llvm.genx.svm.block.st</span></code> : vISA SVM BLOCK_ST instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-svm-gather-visa-svm-gather-instruction" id="id144"><code class="docutils literal"><span class="pre">llvm.genx.svm.gather</span></code> : vISA SVM GATHER instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-svm-gather4-scaled-visa-svm-gather4-scaled-instruction" id="id145"><code class="docutils literal"><span class="pre">llvm.genx.svm.gather4.scaled</span></code> : vISA SVM GATHER4_SCALED instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-svm-scatter-visa-svm-scatter-instruction" id="id146"><code class="docutils literal"><span class="pre">llvm.genx.svm.scatter</span></code> : vISA SVM SCATTER instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-svm-scatter4-scaled-visa-svm-scatter4-scaled-instruction" id="id147"><code class="docutils literal"><span class="pre">llvm.genx.svm.scatter4.scaled</span></code> : vISA SVM SCATTER4_SCALED instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-svm-atomic-visa-svm-atomic-with-binary-operator" id="id148"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.*</span></code> : vISA SVM_ATOMIC with binary operator</a></li>
-<li><a class="reference internal" href="#llvm-genx-svm-atomic-visa-svm-atomic-with-inc-dec" id="id149"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.*</span></code> : vISA SVM_ATOMIC with inc/dec</a></li>
-<li><a class="reference internal" href="#llvm-genx-svm-atomic-cmpxchg-visa-svm-atomic-cmpxchg-instruction" id="id150"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.cmpxchg</span></code> : vISA SVM_ATOMIC CMPXCHG instruction</a></li>
-<li><a class="reference internal" href="#id2" id="id151"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.*</span></code> : vISA SVM_ATOMIC with binary operator</a></li>
-<li><a class="reference internal" href="#llvm-genx-svm-atomic-fcmpwr-visa-svm-atomic-fcmpwr-instruction" id="id152"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.fcmpwr</span></code> : vISA SVM_ATOMIC FCMPWR instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-load-visa-load-sampler-load-instruction" id="id153"><code class="docutils literal"><span class="pre">llvm.genx.load</span></code> : vISA LOAD (sampler load) instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-sample-visa-sample-instruction" id="id154"><code class="docutils literal"><span class="pre">llvm.genx.sample</span></code> : vISA SAMPLE instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-sample-unorm-visa-sample-unorm-instruction" id="id155"><code class="docutils literal"><span class="pre">llvm.genx.sample.unorm</span></code> : vISA SAMPLE_UNORM instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-3d-sample-visa-3d-sample-instruction" id="id156"><code class="docutils literal"><span class="pre">llvm.genx.3d.sample</span></code> : vISA 3D_SAMPLE instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-3d-load-visa-3d-load-instruction" id="id157"><code class="docutils literal"><span class="pre">llvm.genx.3d.load</span></code> : vISA 3D_LOAD instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-avs-visa-avs-instruction" id="id158"><code class="docutils literal"><span class="pre">llvm.genx.avs</span></code> : vISA AVS instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-barrier-visa-barrier-instruction" id="id159"><code class="docutils literal"><span class="pre">llvm.genx.barrier</span></code> : vISA BARRIER instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-sbarrier-visa-sbarrier-instruction" id="id160"><code class="docutils literal"><span class="pre">llvm.genx.sbarrier</span></code> : vISA SBARRIER instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-cache-flush-visa-cache-flush-instruction" id="id161"><code class="docutils literal"><span class="pre">llvm.genx.cache.flush</span></code> : vISA CACHE_FLUSH instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-fence-visa-fence-instruction" id="id162"><code class="docutils literal"><span class="pre">llvm.genx.fence</span></code> : vISA FENCE instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-wait-visa-wait-instruction" id="id163"><code class="docutils literal"><span class="pre">llvm.genx.wait</span></code> : vISA WAIT instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-yield-visa-yield-instruction" id="id164"><code class="docutils literal"><span class="pre">llvm.genx.yield</span></code> : vISA YIELD instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-raw-send-visa-raw-send-instruction" id="id165"><code class="docutils literal"><span class="pre">llvm.genx.raw.send</span></code> : vISA RAW_SEND instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-raw-send-noresult-visa-raw-send-instruction-with-no-result" id="id166"><code class="docutils literal"><span class="pre">llvm.genx.raw.send.noresult</span></code> : vISA RAW_SEND instruction with no result</a></li>
-<li><a class="reference internal" href="#llvm-genx-raw-sends-visa-raw-sends-instruction" id="id167"><code class="docutils literal"><span class="pre">llvm.genx.raw.sends</span></code> : vISA RAW_SENDS instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-raw-sends-noresult-visa-raw-sends-instruction-with-no-result" id="id168"><code class="docutils literal"><span class="pre">llvm.genx.raw.sends.noresult</span></code> : vISA RAW_SENDS instruction with no result</a><ul>
-<li><a class="reference internal" href="#video-analytics-instrinsics" id="id169">Video Analytics Instrinsics</a></li>
+<li><a class="reference internal" href="#shared-function-intrinsics" id="id119">Shared function intrinsics</a><ul>
+<li><a class="reference internal" href="#llvm-genx-dword-atomic-dword-atomic-with-binary-operator" id="id120"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.*</span></code> : dword atomic with binary operator</a></li>
+<li><a class="reference internal" href="#llvm-genx-dword-atomic-dword-atomic-with-fmin-fmax-operation" id="id121"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.*</span></code> : dword atomic with fmin/fmax operation</a></li>
+<li><a class="reference internal" href="#llvm-genx-dword-atomic-dword-atomic-with-inc-dec-operation" id="id122"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.*</span></code> : dword atomic with inc/dec operation</a></li>
+<li><a class="reference internal" href="#llvm-genx-dword-atomic-cmpxchg-visa-dword-atomic-cmpxchg-instruction" id="id123"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.cmpxchg</span></code> : vISA DWORD_ATOMIC CMPXCHG instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-dword-atomic-fcmpwr-visa-dword-atomic-fcmpwr-instruction" id="id124"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.fcmpwr</span></code> : vISA DWORD_ATOMIC FCMPWR instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-typed-atomic-atomic-typed-with-binary-operator" id="id125"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.*</span></code> : atomic typed with binary operator</a></li>
+<li><a class="reference internal" href="#llvm-genx-typed-atomic-atomic-typed-with-fmin-fmax-operation" id="id126"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.*</span></code> : atomic typed with fmin/fmax operation</a></li>
+<li><a class="reference internal" href="#llvm-genx-typed-atomic-atomic-typed-with-inc-dec-operation" id="id127"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.*</span></code> : atomic typed with inc/dec operation</a></li>
+<li><a class="reference internal" href="#llvm-genx-typed-atomic-cmpxchg-visa-typed-atomic-cmpxchg-instruction" id="id128"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.cmpxchg</span></code> : vISA TYPED_ATOMIC CMPXCHG instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-typed-atomic-fcmpwr-visa-typed-atomic-fcmpwr-instruction" id="id129"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.fcmpwr</span></code> : vISA TYPED_ATOMIC FCMPWR instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-gather-orig-visa-gather-instruction" id="id130"><code class="docutils literal"><span class="pre">llvm.genx.gather.orig</span></code> : vISA GATHER instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-gather-private-cmc-internal-no-visa" id="id131"><code class="docutils literal"><span class="pre">llvm.genx.gather.private</span></code> : CMC internal, no VISA</a></li>
+<li><a class="reference internal" href="#llvm-genx-gather-scaled-visa-gather-scaled-instruction" id="id132"><code class="docutils literal"><span class="pre">llvm.genx.gather.scaled</span></code> : vISA GATHER_SCALED instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-gather4-orig-visa-gather4-instruction" id="id133"><code class="docutils literal"><span class="pre">llvm.genx.gather4.orig</span></code> : vISA GATHER4 instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-gather4-scaled-visa-gather4-scaled-instruction" id="id134"><code class="docutils literal"><span class="pre">llvm.genx.gather4.scaled</span></code> : vISA GATHER4_SCALED instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-gather4-typed-visa-gather4-typed-instruction" id="id135"><code class="docutils literal"><span class="pre">llvm.genx.gather4.typed</span></code> : vISA GATHER4_TYPED instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-media-ld-visa-media-ld-instruction" id="id136"><code class="docutils literal"><span class="pre">llvm.genx.media.ld</span></code> : vISA MEDIA_LD instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-media-st-visa-media-st-instruction" id="id137"><code class="docutils literal"><span class="pre">llvm.genx.media.st</span></code> : vISA MEDIA_ST instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-oword-ld-oword-load-instruction" id="id138"><code class="docutils literal"><span class="pre">llvm.genx.oword.ld*</span></code> : oword load instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-oword-st-visa-oword-st-instruction" id="id139"><code class="docutils literal"><span class="pre">llvm.genx.oword.st</span></code> : vISA OWORD_ST instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-scatter-orig-visa-scatter-instruction" id="id140"><code class="docutils literal"><span class="pre">llvm.genx.scatter.orig</span></code> : vISA SCATTER instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-scatter-private-cm-internal-no-visa" id="id141"><code class="docutils literal"><span class="pre">llvm.genx.scatter.private</span></code> : CM internal, no VISA</a></li>
+<li><a class="reference internal" href="#llvm-genx-scatter-scaled-visa-scatter-scaled-instruction" id="id142"><code class="docutils literal"><span class="pre">llvm.genx.scatter.scaled</span></code> : vISA SCATTER_SCALED instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-scatter4-orig-visa-scatter4-instruction" id="id143"><code class="docutils literal"><span class="pre">llvm.genx.scatter4.orig</span></code> : vISA SCATTER4 instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-scatter4-scaled-visa-scatter4-scaled-instruction" id="id144"><code class="docutils literal"><span class="pre">llvm.genx.scatter4.scaled</span></code> : vISA SCATTER4_SCALED instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-scatter4-typed-visa-scatter4-typed-instruction" id="id145"><code class="docutils literal"><span class="pre">llvm.genx.scatter4.typed</span></code> : vISA SCATTER4_TYPED instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-transpose-ld-visa-transpose-ld-instruction" id="id146"><code class="docutils literal"><span class="pre">llvm.genx.transpose.ld</span></code> : vISA TRANSPOSE_LD instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-untyped-atomic-visa-untyped-atomic-with-binary-operator" id="id147"><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.*</span></code> : vISA UNTYPED_ATOMIC with binary operator</a></li>
+<li><a class="reference internal" href="#llvm-genx-untyped-atomic-visa-untyped-atomic-with-inc-dec" id="id148"><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.*</span></code> : vISA UNTYPED_ATOMIC with inc/dec</a></li>
+<li><a class="reference internal" href="#llvm-genx-untyped-atomic-cmpxchg-visa-untyped-atomic-cmpxchg-instruction" id="id149"><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.cmpxchg</span></code> : vISA UNTYPED_ATOMIC CMPXCHG instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-svm-block-ld-visa-svm-block-ld-instruction" id="id150"><code class="docutils literal"><span class="pre">llvm.genx.svm.block.ld*</span></code> : vISA SVM BLOCK_LD instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-svm-block-st-visa-svm-block-st-instruction" id="id151"><code class="docutils literal"><span class="pre">llvm.genx.svm.block.st</span></code> : vISA SVM BLOCK_ST instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-svm-gather-visa-svm-gather-instruction" id="id152"><code class="docutils literal"><span class="pre">llvm.genx.svm.gather</span></code> : vISA SVM GATHER instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-svm-gather4-scaled-visa-svm-gather4-scaled-instruction" id="id153"><code class="docutils literal"><span class="pre">llvm.genx.svm.gather4.scaled</span></code> : vISA SVM GATHER4_SCALED instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-svm-scatter-visa-svm-scatter-instruction" id="id154"><code class="docutils literal"><span class="pre">llvm.genx.svm.scatter</span></code> : vISA SVM SCATTER instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-svm-scatter4-scaled-visa-svm-scatter4-scaled-instruction" id="id155"><code class="docutils literal"><span class="pre">llvm.genx.svm.scatter4.scaled</span></code> : vISA SVM SCATTER4_SCALED instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-svm-atomic-visa-svm-atomic-with-binary-operator" id="id156"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.*</span></code> : vISA SVM_ATOMIC with binary operator</a></li>
+<li><a class="reference internal" href="#llvm-genx-svm-atomic-visa-svm-atomic-with-inc-dec" id="id157"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.*</span></code> : vISA SVM_ATOMIC with inc/dec</a></li>
+<li><a class="reference internal" href="#llvm-genx-svm-atomic-cmpxchg-visa-svm-atomic-cmpxchg-instruction" id="id158"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.cmpxchg</span></code> : vISA SVM_ATOMIC CMPXCHG instruction</a></li>
+<li><a class="reference internal" href="#id2" id="id159"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.*</span></code> : vISA SVM_ATOMIC with binary operator</a></li>
+<li><a class="reference internal" href="#llvm-genx-svm-atomic-fcmpwr-visa-svm-atomic-fcmpwr-instruction" id="id160"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.fcmpwr</span></code> : vISA SVM_ATOMIC FCMPWR instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-load-visa-load-sampler-load-instruction" id="id161"><code class="docutils literal"><span class="pre">llvm.genx.load</span></code> : vISA LOAD (sampler load) instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-sample-visa-sample-instruction" id="id162"><code class="docutils literal"><span class="pre">llvm.genx.sample</span></code> : vISA SAMPLE instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-sample-unorm-visa-sample-unorm-instruction" id="id163"><code class="docutils literal"><span class="pre">llvm.genx.sample.unorm</span></code> : vISA SAMPLE_UNORM instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-3d-sample-visa-3d-sample-instruction" id="id164"><code class="docutils literal"><span class="pre">llvm.genx.3d.sample</span></code> : vISA 3D_SAMPLE instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-3d-load-visa-3d-load-instruction" id="id165"><code class="docutils literal"><span class="pre">llvm.genx.3d.load</span></code> : vISA 3D_LOAD instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-avs-visa-avs-instruction" id="id166"><code class="docutils literal"><span class="pre">llvm.genx.avs</span></code> : vISA AVS instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-barrier-visa-barrier-instruction" id="id167"><code class="docutils literal"><span class="pre">llvm.genx.barrier</span></code> : vISA BARRIER instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-sbarrier-visa-sbarrier-instruction" id="id168"><code class="docutils literal"><span class="pre">llvm.genx.sbarrier</span></code> : vISA SBARRIER instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-cache-flush-visa-cache-flush-instruction" id="id169"><code class="docutils literal"><span class="pre">llvm.genx.cache.flush</span></code> : vISA CACHE_FLUSH instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-fence-visa-fence-instruction" id="id170"><code class="docutils literal"><span class="pre">llvm.genx.fence</span></code> : vISA FENCE instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-wait-visa-wait-instruction" id="id171"><code class="docutils literal"><span class="pre">llvm.genx.wait</span></code> : vISA WAIT instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-yield-visa-yield-instruction" id="id172"><code class="docutils literal"><span class="pre">llvm.genx.yield</span></code> : vISA YIELD instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-raw-send-visa-raw-send-instruction" id="id173"><code class="docutils literal"><span class="pre">llvm.genx.raw.send</span></code> : vISA RAW_SEND instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-raw-send-noresult-visa-raw-send-instruction-with-no-result" id="id174"><code class="docutils literal"><span class="pre">llvm.genx.raw.send.noresult</span></code> : vISA RAW_SEND instruction with no result</a></li>
+<li><a class="reference internal" href="#llvm-genx-raw-sends-visa-raw-sends-instruction" id="id175"><code class="docutils literal"><span class="pre">llvm.genx.raw.sends</span></code> : vISA RAW_SENDS instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-raw-sends-noresult-visa-raw-sends-instruction-with-no-result" id="id176"><code class="docutils literal"><span class="pre">llvm.genx.raw.sends.noresult</span></code> : vISA RAW_SENDS instruction with no result</a><ul>
+<li><a class="reference internal" href="#video-analytics-instrinsics" id="id177">Video Analytics Instrinsics</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#llvm-genx-va-convolve2d-visa-va-2d-convolve-instruction" id="id170"><code class="docutils literal"><span class="pre">llvm.genx.va.convolve2d</span></code> vISA VA 2d Convolve instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-hdc-convolve2d-visa-va-hdc-2d-convolve-instruction" id="id171"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.convolve2d</span></code> vISA VA HDC 2d Convolve instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-erode-visa-va-erode-instruction" id="id172"><code class="docutils literal"><span class="pre">llvm.genx.va.erode</span></code> vISA VA Erode instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-hdc-erode-visa-va-hdc-erode-instruction" id="id173"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.erode</span></code> vISA VA HDC Erode instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-dilate-visa-va-dilate-instruction" id="id174"><code class="docutils literal"><span class="pre">llvm.genx.va.dilate</span></code> vISA VA Dilate instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-hdc-dilate-visa-va-hdc-dilate-instruction" id="id175"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.dilate</span></code> vISA VA HDC Dilate instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-minmax-visa-minmax-instruction" id="id176"><code class="docutils literal"><span class="pre">llvm.genx.va.minmax</span></code> vISA MinMax instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-minmax-filter-visa-minmax-filter-instruction" id="id177"><code class="docutils literal"><span class="pre">llvm.genx.va.minmax.filter</span></code> vISA MinMax Filter instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-hdc-minmax-filter-visa-hdc-minmax-filter-instruction" id="id178"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.minmax.filter</span></code> vISA HDC MinMax Filter instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-bool-centroid-visa-boolean-centroid-instruction" id="id179"><code class="docutils literal"><span class="pre">llvm.genx.va.bool.centroid</span></code> vISA Boolean Centroid instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-centroid-visa-centroid-instruction" id="id180"><code class="docutils literal"><span class="pre">llvm.genx.va.centroid</span></code> vISA Centroid instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-1d-convolve-horizontal-visa-1d-convolve-horizontal-instruction" id="id181"><code class="docutils literal"><span class="pre">llvm.genx.va.1d.convolve.horizontal</span></code> vISA 1d convolve horizontal instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-hdc-1d-convolve-horizontal-visa-hdc-1d-convolve-horizontal-instruction" id="id182"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.1d.convolve.horizontal</span></code> vISA HDC 1d convolve horizontal instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-1d-convolve-vertical-visa-1d-convolve-vertical-instruction" id="id183"><code class="docutils literal"><span class="pre">llvm.genx.va.1d.convolve.vertical</span></code> vISA 1d convolve vertical instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-hdc-1d-convolve-vertical-visa-hdc-1d-convolve-vertical-instruction" id="id184"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.1d.convolve.vertical</span></code> vISA HDC 1d convolve vertical instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-1pixel-convolve-visa-1-pixel-convolve-instruction" id="id185"><code class="docutils literal"><span class="pre">llvm.genx.va.1pixel.convolve</span></code> vISA 1 Pixel Convolve instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-hdc-1pixel-convolve-visa-hdc-1-pixel-convolve-instruction" id="id186"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.1pixel.convolve</span></code> vISA HDC 1 Pixel Convolve instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-1pixel-convolve-1x1mode-visa-1-pixel-convolve-1x1-mode-instruction" id="id187"><code class="docutils literal"><span class="pre">llvm.genx.va.1pixel.convolve.1x1mode</span></code> vISA 1 Pixel Convolve (1x1 mode) instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-lbp-creation-visa-lbp-creation-instruction" id="id188"><code class="docutils literal"><span class="pre">llvm.genx.va.lbp.creation</span></code> vISA LBP Creation instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-hdc-lbp-creation-visa-hdc-lbp-creation-instruction" id="id189"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.lbp.creation</span></code> vISA HDC LBP Creation instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-lbp-correlation-visa-lbp-correlation-instruction" id="id190"><code class="docutils literal"><span class="pre">llvm.genx.va.lbp.correlation</span></code> vISA LBP Correlation instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-hdc-lbp-correlation-visa-hdc-lbp-correlation-instruction" id="id191"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.lbp.correlation</span></code> vISA HDC LBP Correlation instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-correlation-search-visa-correlation-search-instruction" id="id192"><code class="docutils literal"><span class="pre">llvm.genx.va.correlation.search</span></code> vISA Correlation Search instruction</a></li>
-<li><a class="reference internal" href="#llvm-genx-va-flood-fill-visa-flood-fill-instruction" id="id193"><code class="docutils literal"><span class="pre">llvm.genx.va.flood.fill</span></code> vISA Flood Fill instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-convolve2d-visa-va-2d-convolve-instruction" id="id178"><code class="docutils literal"><span class="pre">llvm.genx.va.convolve2d</span></code> vISA VA 2d Convolve instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-hdc-convolve2d-visa-va-hdc-2d-convolve-instruction" id="id179"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.convolve2d</span></code> vISA VA HDC 2d Convolve instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-erode-visa-va-erode-instruction" id="id180"><code class="docutils literal"><span class="pre">llvm.genx.va.erode</span></code> vISA VA Erode instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-hdc-erode-visa-va-hdc-erode-instruction" id="id181"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.erode</span></code> vISA VA HDC Erode instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-dilate-visa-va-dilate-instruction" id="id182"><code class="docutils literal"><span class="pre">llvm.genx.va.dilate</span></code> vISA VA Dilate instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-hdc-dilate-visa-va-hdc-dilate-instruction" id="id183"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.dilate</span></code> vISA VA HDC Dilate instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-minmax-visa-minmax-instruction" id="id184"><code class="docutils literal"><span class="pre">llvm.genx.va.minmax</span></code> vISA MinMax instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-minmax-filter-visa-minmax-filter-instruction" id="id185"><code class="docutils literal"><span class="pre">llvm.genx.va.minmax.filter</span></code> vISA MinMax Filter instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-hdc-minmax-filter-visa-hdc-minmax-filter-instruction" id="id186"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.minmax.filter</span></code> vISA HDC MinMax Filter instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-bool-centroid-visa-boolean-centroid-instruction" id="id187"><code class="docutils literal"><span class="pre">llvm.genx.va.bool.centroid</span></code> vISA Boolean Centroid instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-centroid-visa-centroid-instruction" id="id188"><code class="docutils literal"><span class="pre">llvm.genx.va.centroid</span></code> vISA Centroid instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-1d-convolve-horizontal-visa-1d-convolve-horizontal-instruction" id="id189"><code class="docutils literal"><span class="pre">llvm.genx.va.1d.convolve.horizontal</span></code> vISA 1d convolve horizontal instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-hdc-1d-convolve-horizontal-visa-hdc-1d-convolve-horizontal-instruction" id="id190"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.1d.convolve.horizontal</span></code> vISA HDC 1d convolve horizontal instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-1d-convolve-vertical-visa-1d-convolve-vertical-instruction" id="id191"><code class="docutils literal"><span class="pre">llvm.genx.va.1d.convolve.vertical</span></code> vISA 1d convolve vertical instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-hdc-1d-convolve-vertical-visa-hdc-1d-convolve-vertical-instruction" id="id192"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.1d.convolve.vertical</span></code> vISA HDC 1d convolve vertical instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-1pixel-convolve-visa-1-pixel-convolve-instruction" id="id193"><code class="docutils literal"><span class="pre">llvm.genx.va.1pixel.convolve</span></code> vISA 1 Pixel Convolve instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-hdc-1pixel-convolve-visa-hdc-1-pixel-convolve-instruction" id="id194"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.1pixel.convolve</span></code> vISA HDC 1 Pixel Convolve instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-1pixel-convolve-1x1mode-visa-1-pixel-convolve-1x1-mode-instruction" id="id195"><code class="docutils literal"><span class="pre">llvm.genx.va.1pixel.convolve.1x1mode</span></code> vISA 1 Pixel Convolve (1x1 mode) instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-lbp-creation-visa-lbp-creation-instruction" id="id196"><code class="docutils literal"><span class="pre">llvm.genx.va.lbp.creation</span></code> vISA LBP Creation instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-hdc-lbp-creation-visa-hdc-lbp-creation-instruction" id="id197"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.lbp.creation</span></code> vISA HDC LBP Creation instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-lbp-correlation-visa-lbp-correlation-instruction" id="id198"><code class="docutils literal"><span class="pre">llvm.genx.va.lbp.correlation</span></code> vISA LBP Correlation instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-hdc-lbp-correlation-visa-hdc-lbp-correlation-instruction" id="id199"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.lbp.correlation</span></code> vISA HDC LBP Correlation instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-correlation-search-visa-correlation-search-instruction" id="id200"><code class="docutils literal"><span class="pre">llvm.genx.va.correlation.search</span></code> vISA Correlation Search instruction</a></li>
+<li><a class="reference internal" href="#llvm-genx-va-flood-fill-visa-flood-fill-instruction" id="id201"><code class="docutils literal"><span class="pre">llvm.genx.va.flood.fill</span></code> vISA Flood Fill instruction</a></li>
 </ul>
 </li>
 </ul>
@@ -1564,19 +1572,70 @@ represented by an LLVM IR Shr instruction then an llvm.genx.sstrunc.sat.</p>
 <li>Return value: result, same type</li>
 </ul>
 </div>
+<div class="section" id="llvm-genx-dp4a-dp4a-instruction-dot-product-4-accumulate">
+<h4><a class="toc-backref" href="#id100"><code class="docutils literal"><span class="pre">llvm.genx.dp4a</span></code> : dp4a instruction (Dot Product 4 Accumulate)</a><a class="headerlink" href="#llvm-genx-dp4a-dp4a-instruction-dot-product-4-accumulate" title="Permalink to this headline">¶</a></h4>
+<ul class="simple">
+<li>arg0: first input value, vector integer type</li>
+<li>arg1: second input value, vector integer type</li>
+<li>arg2: third input value, vector integer type</li>
+<li>Return value: result, vector integer type</li>
+</ul>
+</div>
+<div class="section" id="add3">
+<h4><a class="toc-backref" href="#id101">add3</a><a class="headerlink" href="#add3" title="Permalink to this headline">¶</a></h4>
+</div>
+<div class="section" id="llvm-genx-add3-add3-instruction-without-saturation">
+<h4><a class="toc-backref" href="#id102"><code class="docutils literal"><span class="pre">llvm.genx.*add3</span></code> : add3 instruction without saturation</a><a class="headerlink" href="#llvm-genx-add3-add3-instruction-without-saturation" title="Permalink to this headline">¶</a></h4>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">llvm.genx.add3</span></code> :</li>
+<li>arg0: first input, any scalar/vector integer type, i16/i32</li>
+<li>arg1: second input, same type as arg0</li>
+<li>arg2: third input, same type as arg0</li>
+</ul>
+</div>
+<div class="section" id="llvm-genx-add3-sat-add3-instruction-with-saturation">
+<h4><a class="toc-backref" href="#id103"><code class="docutils literal"><span class="pre">llvm.genx.*add3.sat</span></code> : add3 instruction with saturation</a><a class="headerlink" href="#llvm-genx-add3-sat-add3-instruction-with-saturation" title="Permalink to this headline">¶</a></h4>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">llvm.genx.ssadd3.sat</span></code> : result signed, operands signed</li>
+<li><code class="docutils literal"><span class="pre">llvm.genx.suadd3.sat</span></code> : result signed, operands unsigned</li>
+<li><code class="docutils literal"><span class="pre">llvm.genx.usadd3.sat</span></code> : result unsigned, operands signed</li>
+<li><code class="docutils literal"><span class="pre">llvm.genx.uuadd3.sat</span></code> : result unsigned, operands unsigned</li>
+<li>arg0: first input, any scalar/vector integer type, i16/i32</li>
+<li>arg1: second input, same type as arg0</li>
+<li>arg2: third input, same type as arg0</li>
+<li><dl class="first docutils">
+<dt>Return value: result, any scalar or vector integer type with same</dt>
+<dd>vector width</dd>
+</dl>
+</li>
+</ul>
+</div>
+<div class="section" id="bfn">
+<h4><a class="toc-backref" href="#id104">bfn</a><a class="headerlink" href="#bfn" title="Permalink to this headline">¶</a></h4>
+</div>
+<div class="section" id="llvm-genx-bfn-bfn-instruction">
+<h4><a class="toc-backref" href="#id105"><code class="docutils literal"><span class="pre">llvm.genx.bfn</span></code> : bfn instruction</a><a class="headerlink" href="#llvm-genx-bfn-bfn-instruction" title="Permalink to this headline">¶</a></h4>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">llvm.genx.bfn</span></code> :</li>
+<li>arg0: first input, any scalar/vector integer type, i16/i32</li>
+<li>arg1: second input, same type as arg0</li>
+<li>arg2: third input, same type as arg0</li>
+<li>arg3: fourth input, byte, constant</li>
+</ul>
+</div>
 <div class="section" id="subb">
-<h4><a class="toc-backref" href="#id100">subb</a><a class="headerlink" href="#subb" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id106">subb</a><a class="headerlink" href="#subb" title="Permalink to this headline">¶</a></h4>
 <p>No intrinsic for subb as it has two results.</p>
 </div>
 <div class="section" id="xor">
-<h4><a class="toc-backref" href="#id101">xor</a><a class="headerlink" href="#xor" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id107">xor</a><a class="headerlink" href="#xor" title="Permalink to this headline">¶</a></h4>
 <p>Intrinsic not needed; use LLVM IR Xor instruction</p>
 </div>
 </div>
 <div class="section" id="visa-reserved-register-intrinsics">
-<h3><a class="toc-backref" href="#id102">vISA reserved register intrinsics</a><a class="headerlink" href="#visa-reserved-register-intrinsics" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id108">vISA reserved register intrinsics</a><a class="headerlink" href="#visa-reserved-register-intrinsics" title="Permalink to this headline">¶</a></h3>
 <div class="section" id="llvm-genx-thread-read-thread-id-register">
-<h4><a class="toc-backref" href="#id103"><code class="docutils literal"><span class="pre">llvm.genx.thread.*</span></code> : read thread ID register</a><a class="headerlink" href="#llvm-genx-thread-read-thread-id-register" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id109"><code class="docutils literal"><span class="pre">llvm.genx.thread.*</span></code> : read thread ID register</a><a class="headerlink" href="#llvm-genx-thread-read-thread-id-register" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">llvm.genx.thread.x</span></code> : read vISA v1 (%thread_x)</li>
 <li><code class="docutils literal"><span class="pre">llvm.genx.thread.y</span></code> : read vISA v2 (%thread_y)</li>
@@ -1584,7 +1643,7 @@ represented by an LLVM IR Shr instruction then an llvm.genx.sstrunc.sat.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-group-id-read-group-id-register">
-<h4><a class="toc-backref" href="#id104"><code class="docutils literal"><span class="pre">llvm.genx.group.id.*</span></code> : read group ID register</a><a class="headerlink" href="#llvm-genx-group-id-read-group-id-register" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id110"><code class="docutils literal"><span class="pre">llvm.genx.group.id.*</span></code> : read group ID register</a><a class="headerlink" href="#llvm-genx-group-id-read-group-id-register" title="Permalink to this headline">¶</a></h4>
 <p><code class="docutils literal"><span class="pre">llvm.genx.group.id.x</span></code> : read vISA v7 (%group_id_x)
 <code class="docutils literal"><span class="pre">llvm.genx.group.id.y</span></code> : read vISA v8 (%group_id_y)
 <code class="docutils literal"><span class="pre">llvm.genx.group.id.z</span></code> : read vISA v23 (%group_id_z)</p>
@@ -1593,45 +1652,45 @@ represented by an LLVM IR Shr instruction then an llvm.genx.sstrunc.sat.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-timestamp-read-visa-v11-timestamp">
-<h4><a class="toc-backref" href="#id105"><code class="docutils literal"><span class="pre">llvm.genx.timestamp</span></code> : read vISA v11 (%timestamp)</a><a class="headerlink" href="#llvm-genx-timestamp-read-visa-v11-timestamp" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id111"><code class="docutils literal"><span class="pre">llvm.genx.timestamp</span></code> : read vISA v11 (%timestamp)</a><a class="headerlink" href="#llvm-genx-timestamp-read-visa-v11-timestamp" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>Return value:  vxi32 the value read</li>
 </ul>
 <p>The vector width must be power of 2 and no larger than 4.</p>
 </div>
 <div class="section" id="llvm-genx-r0-read-visa-v12-r0">
-<h4><a class="toc-backref" href="#id106"><code class="docutils literal"><span class="pre">llvm.genx.r0</span></code> : read vISA v12 (%r0)</a><a class="headerlink" href="#llvm-genx-r0-read-visa-v12-r0" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id112"><code class="docutils literal"><span class="pre">llvm.genx.r0</span></code> : read vISA v12 (%r0)</a><a class="headerlink" href="#llvm-genx-r0-read-visa-v12-r0" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>Return value:  vxi32 or i32 the value read</li>
 </ul>
 <p>The vector width must be power of 2 and no larger than 8.</p>
 </div>
 <div class="section" id="llvm-genx-sr0-read-visa-v13-sr0">
-<h4><a class="toc-backref" href="#id107"><code class="docutils literal"><span class="pre">llvm.genx.sr0</span></code> : read vISA v13 (%sr0)</a><a class="headerlink" href="#llvm-genx-sr0-read-visa-v13-sr0" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id113"><code class="docutils literal"><span class="pre">llvm.genx.sr0</span></code> : read vISA v13 (%sr0)</a><a class="headerlink" href="#llvm-genx-sr0-read-visa-v13-sr0" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>Return value:  vxi32 the value read</li>
 </ul>
 <p>The vector width must be 4</p>
 </div>
 <div class="section" id="llvm-genx-set-sr0-2-write-visa-v13-0-2-sr0-2">
-<h4><a class="toc-backref" href="#id108"><code class="docutils literal"><span class="pre">llvm.genx.set.sr0.2</span></code> : write vISA v13(0, 2) (%sr0.2)</a><a class="headerlink" href="#llvm-genx-set-sr0-2-write-visa-v13-0-2-sr0-2" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id114"><code class="docutils literal"><span class="pre">llvm.genx.set.sr0.2</span></code> : write vISA v13(0, 2) (%sr0.2)</a><a class="headerlink" href="#llvm-genx-set-sr0-2-write-visa-v13-0-2-sr0-2" title="Permalink to this headline">¶</a></h4>
 <p>arg0: data to write (1 dword)</p>
 <ul class="simple">
 <li>Return value:  void</li>
 </ul>
 </div>
 <div class="section" id="llvm-genx-get-color-read-color-value-of-the-thread-origin">
-<h4><a class="toc-backref" href="#id109"><code class="docutils literal"><span class="pre">llvm.genx.get.color</span></code> : read color value of the thread origin</a><a class="headerlink" href="#llvm-genx-get-color-read-color-value-of-the-thread-origin" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id115"><code class="docutils literal"><span class="pre">llvm.genx.get.color</span></code> : read color value of the thread origin</a><a class="headerlink" href="#llvm-genx-get-color-read-color-value-of-the-thread-origin" title="Permalink to this headline">¶</a></h4>
 <p>Return Value: i16 the value read</p>
 <p>This may not be the most appropriate way to access this value,
 but is a stop-gap solution.</p>
 </div>
 <div class="section" id="llvm-genx-get-hwid-read-hw-id-value">
-<h4><a class="toc-backref" href="#id110"><code class="docutils literal"><span class="pre">llvm.genx.get.hwid</span></code> : read hw_id value</a><a class="headerlink" href="#llvm-genx-get-hwid-read-hw-id-value" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id116"><code class="docutils literal"><span class="pre">llvm.genx.get.hwid</span></code> : read hw_id value</a><a class="headerlink" href="#llvm-genx-get-hwid-read-hw-id-value" title="Permalink to this headline">¶</a></h4>
 <p>Return Value: i32 the value read</p>
 </div>
 <div class="section" id="llvm-genx-set-pause-set-the-pause-register-v11-4">
-<h4><a class="toc-backref" href="#id111"><code class="docutils literal"><span class="pre">llvm.genx.set.pause</span></code> : set the pause register (v11.4)</a><a class="headerlink" href="#llvm-genx-set-pause-set-the-pause-register-v11-4" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id117"><code class="docutils literal"><span class="pre">llvm.genx.set.pause</span></code> : set the pause register (v11.4)</a><a class="headerlink" href="#llvm-genx-set-pause-set-the-pause-register-v11-4" title="Permalink to this headline">¶</a></h4>
 <p>arg0: length of pause 10 bits (0-4 must be 0)</p>
 <p>Return Value: none</p>
 <p>Set the pause value - this pauses instruction issue until the value has been
@@ -1640,7 +1699,7 @@ decremented to 0 (decrements every 32 clocks)</p>
 otherwise looks dead</p>
 </div>
 <div class="section" id="llvm-genx-dummy-mov-insert-a-dummy-mov-to-v0">
-<h4><a class="toc-backref" href="#id112"><code class="docutils literal"><span class="pre">llvm.genx.dummy.mov</span></code> : insert a dummy mov to v0</a><a class="headerlink" href="#llvm-genx-dummy-mov-insert-a-dummy-mov-to-v0" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id118"><code class="docutils literal"><span class="pre">llvm.genx.dummy.mov</span></code> : insert a dummy mov to v0</a><a class="headerlink" href="#llvm-genx-dummy-mov-insert-a-dummy-mov-to-v0" title="Permalink to this headline">¶</a></h4>
 <p>arg0: a value that we want to mov to v0 (usually to trigger a scoreboard dependency)</p>
 <p>Return Value: none</p>
 <p>This is primarily used to set up scoreboard dependencies. If a value is mov’ed to v0 then it
@@ -1652,11 +1711,11 @@ otherwise looks dead and also to prevent any kind of code motion optimisation</p
 </div>
 </div>
 <div class="section" id="shared-function-intrinsics">
-<h3><a class="toc-backref" href="#id113">Shared function intrinsics</a><a class="headerlink" href="#shared-function-intrinsics" title="Permalink to this headline">¶</a></h3>
+<h3><a class="toc-backref" href="#id119">Shared function intrinsics</a><a class="headerlink" href="#shared-function-intrinsics" title="Permalink to this headline">¶</a></h3>
 <p>These are in the order they appear in the vISA spec, not in
 alphabetical order.</p>
 <div class="section" id="llvm-genx-dword-atomic-dword-atomic-with-binary-operator">
-<h4><a class="toc-backref" href="#id114"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.*</span></code> : dword atomic with binary operator</a><a class="headerlink" href="#llvm-genx-dword-atomic-dword-atomic-with-binary-operator" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id120"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.*</span></code> : dword atomic with binary operator</a><a class="headerlink" href="#llvm-genx-dword-atomic-dword-atomic-with-binary-operator" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.add</span></code> : vISA DWORD_ATOMIC ADD instruction</li>
 <li><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.sub</span></code> : vISA DWORD_ATOMIC SUB instruction</li>
@@ -1680,7 +1739,7 @@ alphabetical order.</p>
 same vector width, which must be 1, 8 or 16.</p>
 </div>
 <div class="section" id="llvm-genx-dword-atomic-dword-atomic-with-fmin-fmax-operation">
-<h4><a class="toc-backref" href="#id115"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.*</span></code> : dword atomic with fmin/fmax operation</a><a class="headerlink" href="#llvm-genx-dword-atomic-dword-atomic-with-fmin-fmax-operation" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id121"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.*</span></code> : dword atomic with fmin/fmax operation</a><a class="headerlink" href="#llvm-genx-dword-atomic-dword-atomic-with-fmin-fmax-operation" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.fmin</span></code> : vISA DWORD_ATOMIC FMIN instruction</li>
 <li><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.fmax</span></code> : vISA DWORD_ATOMIC FMAX instruction</li>
@@ -1696,7 +1755,7 @@ same vector width, which must be 1, 8 or 16.</p>
 same vector width, which must be 1, 8 or 16.</p>
 </div>
 <div class="section" id="llvm-genx-dword-atomic-dword-atomic-with-inc-dec-operation">
-<h4><a class="toc-backref" href="#id116"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.*</span></code> : dword atomic with inc/dec operation</a><a class="headerlink" href="#llvm-genx-dword-atomic-dword-atomic-with-inc-dec-operation" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id122"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.*</span></code> : dword atomic with inc/dec operation</a><a class="headerlink" href="#llvm-genx-dword-atomic-dword-atomic-with-inc-dec-operation" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.inc</span></code> : vISA DWORD_ATOMIC INC instruction</li>
 <li><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.dec</span></code> : vISA DWORD_ATOMIC DEC instruction</li>
@@ -1711,7 +1770,7 @@ same vector width, which must be 1, 8 or 16.</p>
 same vector width, which must be 1, 8 or 16.</p>
 </div>
 <div class="section" id="llvm-genx-dword-atomic-cmpxchg-visa-dword-atomic-cmpxchg-instruction">
-<h4><a class="toc-backref" href="#id117"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.cmpxchg</span></code> : vISA DWORD_ATOMIC CMPXCHG instruction</a><a class="headerlink" href="#llvm-genx-dword-atomic-cmpxchg-visa-dword-atomic-cmpxchg-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id123"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.cmpxchg</span></code> : vISA DWORD_ATOMIC CMPXCHG instruction</a><a class="headerlink" href="#llvm-genx-dword-atomic-cmpxchg-visa-dword-atomic-cmpxchg-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>(Exec_size inferred from element offset type)</li>
 <li>arg0: vXi1 predicate</li>
@@ -1726,7 +1785,7 @@ same vector width, which must be 1, 8 or 16.</p>
 same vector width, which must be 1, 8 or 16.</p>
 </div>
 <div class="section" id="llvm-genx-dword-atomic-fcmpwr-visa-dword-atomic-fcmpwr-instruction">
-<h4><a class="toc-backref" href="#id118"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.fcmpwr</span></code> : vISA DWORD_ATOMIC FCMPWR instruction</a><a class="headerlink" href="#llvm-genx-dword-atomic-fcmpwr-visa-dword-atomic-fcmpwr-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id124"><code class="docutils literal"><span class="pre">llvm.genx.dword.atomic.fcmpwr</span></code> : vISA DWORD_ATOMIC FCMPWR instruction</a><a class="headerlink" href="#llvm-genx-dword-atomic-fcmpwr-visa-dword-atomic-fcmpwr-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>(Exec_size inferred from element offset type)</li>
 <li>arg0: vXi1 predicate</li>
@@ -1741,7 +1800,7 @@ same vector width, which must be 1, 8 or 16.</p>
 same vector width, which must be 1, 8 or 16.</p>
 </div>
 <div class="section" id="llvm-genx-typed-atomic-atomic-typed-with-binary-operator">
-<h4><a class="toc-backref" href="#id119"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.*</span></code> : atomic typed with binary operator</a><a class="headerlink" href="#llvm-genx-typed-atomic-atomic-typed-with-binary-operator" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id125"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.*</span></code> : atomic typed with binary operator</a><a class="headerlink" href="#llvm-genx-typed-atomic-atomic-typed-with-binary-operator" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.add</span></code> : vISA TYPED_ATOMIC ADD instruction</li>
 <li><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.sub</span></code> : vISA TYPED_ATOMIC SUB instruction</li>
@@ -1767,7 +1826,7 @@ same vector width, which must be 1, 8 or 16.</p>
 same vector width (which in reality must be 8)</p>
 </div>
 <div class="section" id="llvm-genx-typed-atomic-atomic-typed-with-fmin-fmax-operation">
-<h4><a class="toc-backref" href="#id120"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.*</span></code> : atomic typed with fmin/fmax operation</a><a class="headerlink" href="#llvm-genx-typed-atomic-atomic-typed-with-fmin-fmax-operation" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id126"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.*</span></code> : atomic typed with fmin/fmax operation</a><a class="headerlink" href="#llvm-genx-typed-atomic-atomic-typed-with-fmin-fmax-operation" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.fmin</span></code> : vISA TYPED_ATOMIC FMIN instruction</li>
 <li><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.fmax</span></code> : vISA TYPED_ATOMIC FMAX instruction</li>
@@ -1785,7 +1844,7 @@ same vector width (which in reality must be 8)</p>
 same vector width (which in reality must be 8)</p>
 </div>
 <div class="section" id="llvm-genx-typed-atomic-atomic-typed-with-inc-dec-operation">
-<h4><a class="toc-backref" href="#id121"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.*</span></code> : atomic typed with inc/dec operation</a><a class="headerlink" href="#llvm-genx-typed-atomic-atomic-typed-with-inc-dec-operation" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id127"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.*</span></code> : atomic typed with inc/dec operation</a><a class="headerlink" href="#llvm-genx-typed-atomic-atomic-typed-with-inc-dec-operation" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.inc</span></code> : vISA TYPED_ATOMIC INC instruction</li>
 <li><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.dec</span></code> : vISA TYPED_ATOMIC DEC instruction</li>
@@ -1802,7 +1861,7 @@ same vector width (which in reality must be 8)</p>
 same vector width (which in reality must be 8)</p>
 </div>
 <div class="section" id="llvm-genx-typed-atomic-cmpxchg-visa-typed-atomic-cmpxchg-instruction">
-<h4><a class="toc-backref" href="#id122"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.cmpxchg</span></code> : vISA TYPED_ATOMIC CMPXCHG instruction</a><a class="headerlink" href="#llvm-genx-typed-atomic-cmpxchg-visa-typed-atomic-cmpxchg-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id128"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.cmpxchg</span></code> : vISA TYPED_ATOMIC CMPXCHG instruction</a><a class="headerlink" href="#llvm-genx-typed-atomic-cmpxchg-visa-typed-atomic-cmpxchg-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>(Exec_size inferred from element offset type)</li>
 <li>arg0: vXi1 predicate</li>
@@ -1819,7 +1878,7 @@ same vector width (which in reality must be 8)</p>
 same vector width (which in reality must be 8)</p>
 </div>
 <div class="section" id="llvm-genx-typed-atomic-fcmpwr-visa-typed-atomic-fcmpwr-instruction">
-<h4><a class="toc-backref" href="#id123"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.fcmpwr</span></code> : vISA TYPED_ATOMIC FCMPWR instruction</a><a class="headerlink" href="#llvm-genx-typed-atomic-fcmpwr-visa-typed-atomic-fcmpwr-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id129"><code class="docutils literal"><span class="pre">llvm.genx.typed.atomic.fcmpwr</span></code> : vISA TYPED_ATOMIC FCMPWR instruction</a><a class="headerlink" href="#llvm-genx-typed-atomic-fcmpwr-visa-typed-atomic-fcmpwr-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>(Exec_size inferred from element offset type)</li>
 <li>arg0: vXi1 predicate</li>
@@ -1836,7 +1895,7 @@ same vector width (which in reality must be 8)</p>
 same vector width (which in reality must be 8)</p>
 </div>
 <div class="section" id="llvm-genx-gather-orig-visa-gather-instruction">
-<h4><a class="toc-backref" href="#id124"><code class="docutils literal"><span class="pre">llvm.genx.gather.orig</span></code> : vISA GATHER instruction</a><a class="headerlink" href="#llvm-genx-gather-orig-visa-gather-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id130"><code class="docutils literal"><span class="pre">llvm.genx.gather.orig</span></code> : vISA GATHER instruction</a><a class="headerlink" href="#llvm-genx-gather-orig-visa-gather-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: Elt_size inferred from argument type</li>
 <li>arg1: i32 is_modified, constant</li>
@@ -1851,8 +1910,22 @@ same vector width (which in reality must be 8)</p>
 which must be 1, 8 or 16.</p>
 <p>The element offset arg must have the same vector width.</p>
 </div>
+<div class="section" id="llvm-genx-gather-private-cmc-internal-no-visa">
+<h4><a class="toc-backref" href="#id131"><code class="docutils literal"><span class="pre">llvm.genx.gather.private</span></code> : CMC internal, no VISA</a><a class="headerlink" href="#llvm-genx-gather-private-cmc-internal-no-visa" title="Permalink to this headline">¶</a></h4>
+<ul class="simple">
+<li>arg0: v-by-i1 predicate</li>
+<li>(Num_elts inferred from data type)</li>
+<li>arg1: base pointer</li>
+<li>arg2: vXi32 element offset in elements</li>
+<li>arg3: old value of the data read</li>
+<li>Return value: the data read</li>
+</ul>
+<p>The vector width of the return value is the number of elements to read,
+which must be 1, 8 or 16.</p>
+<p>The element offset arg must have the same vector width.</p>
+</div>
 <div class="section" id="llvm-genx-gather-scaled-visa-gather-scaled-instruction">
-<h4><a class="toc-backref" href="#id125"><code class="docutils literal"><span class="pre">llvm.genx.gather.scaled</span></code> : vISA GATHER_SCALED instruction</a><a class="headerlink" href="#llvm-genx-gather-scaled-visa-gather-scaled-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id132"><code class="docutils literal"><span class="pre">llvm.genx.gather.scaled</span></code> : vISA GATHER_SCALED instruction</a><a class="headerlink" href="#llvm-genx-gather-scaled-visa-gather-scaled-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>(Exec_size inferred from element offset type)</li>
 <li><dl class="first docutils">
@@ -1880,7 +1953,7 @@ undefined values in the returned value.</p>
 only when scale is 0.</p>
 </div>
 <div class="section" id="llvm-genx-gather4-orig-visa-gather4-instruction">
-<h4><a class="toc-backref" href="#id126"><code class="docutils literal"><span class="pre">llvm.genx.gather4.orig</span></code> : vISA GATHER4 instruction</a><a class="headerlink" href="#llvm-genx-gather4-orig-visa-gather4-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id133"><code class="docutils literal"><span class="pre">llvm.genx.gather4.orig</span></code> : vISA GATHER4 instruction</a><a class="headerlink" href="#llvm-genx-gather4-orig-visa-gather4-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 channel mask, constant</li>
 <li>arg1: i32 is_modified, constant</li>
@@ -1902,7 +1975,7 @@ times the number of channels to read per element.
 The element type of the return value must be i32 or float.</p>
 </div>
 <div class="section" id="llvm-genx-gather4-scaled-visa-gather4-scaled-instruction">
-<h4><a class="toc-backref" href="#id127"><code class="docutils literal"><span class="pre">llvm.genx.gather4.scaled</span></code> : vISA GATHER4_SCALED instruction</a><a class="headerlink" href="#llvm-genx-gather4-scaled-visa-gather4-scaled-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id134"><code class="docutils literal"><span class="pre">llvm.genx.gather4.scaled</span></code> : vISA GATHER4_SCALED instruction</a><a class="headerlink" href="#llvm-genx-gather4-scaled-visa-gather4-scaled-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>(Exec_size inferred from element offset type)</li>
 <li>arg0: vXi1 predicate</li>
@@ -1926,7 +1999,7 @@ times the number of channels to read per element.
 The element type of the return value must be i32 or float.</p>
 </div>
 <div class="section" id="llvm-genx-gather4-typed-visa-gather4-typed-instruction">
-<h4><a class="toc-backref" href="#id128"><code class="docutils literal"><span class="pre">llvm.genx.gather4.typed</span></code> : vISA GATHER4_TYPED instruction</a><a class="headerlink" href="#llvm-genx-gather4-typed-visa-gather4-typed-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id135"><code class="docutils literal"><span class="pre">llvm.genx.gather4.typed</span></code> : vISA GATHER4_TYPED instruction</a><a class="headerlink" href="#llvm-genx-gather4-typed-visa-gather4-typed-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 channel mask, constant</li>
 <li>arg1: vXi1 predicate (Num_elts inferred from element offset type)</li>
@@ -1950,7 +2023,7 @@ times the number of channels to read per element.
 The element type of the return value must be i32 or float.</p>
 </div>
 <div class="section" id="llvm-genx-media-ld-visa-media-ld-instruction">
-<h4><a class="toc-backref" href="#id129"><code class="docutils literal"><span class="pre">llvm.genx.media.ld</span></code> : vISA MEDIA_LD instruction</a><a class="headerlink" href="#llvm-genx-media-ld-visa-media-ld-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id136"><code class="docutils literal"><span class="pre">llvm.genx.media.ld</span></code> : vISA MEDIA_LD instruction</a><a class="headerlink" href="#llvm-genx-media-ld-visa-media-ld-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 modifiers, constant</li>
 <li>arg1: i32 surface index</li>
@@ -1969,7 +2042,7 @@ this rounded block width, and the multiplier is the block height.</p>
 size of the return type is 256.</p>
 </div>
 <div class="section" id="llvm-genx-media-st-visa-media-st-instruction">
-<h4><a class="toc-backref" href="#id130"><code class="docutils literal"><span class="pre">llvm.genx.media.st</span></code> : vISA MEDIA_ST instruction</a><a class="headerlink" href="#llvm-genx-media-st-visa-media-st-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id137"><code class="docutils literal"><span class="pre">llvm.genx.media.st</span></code> : vISA MEDIA_ST instruction</a><a class="headerlink" href="#llvm-genx-media-st-visa-media-st-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 modifiers, constant</li>
 <li>arg1: i32 surface index</li>
@@ -1988,7 +2061,7 @@ this rounded block width, and the multiplier is the block height.</p>
 size of the data to write is 256.</p>
 </div>
 <div class="section" id="llvm-genx-oword-ld-oword-load-instruction">
-<h4><a class="toc-backref" href="#id131"><code class="docutils literal"><span class="pre">llvm.genx.oword.ld*</span></code> : oword load instruction</a><a class="headerlink" href="#llvm-genx-oword-ld-oword-load-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id138"><code class="docutils literal"><span class="pre">llvm.genx.oword.ld*</span></code> : oword load instruction</a><a class="headerlink" href="#llvm-genx-oword-ld-oword-load-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">llvm.genx.oword.ld</span></code> : vISA OWORD_LD instruction</li>
 <li><code class="docutils literal"><span class="pre">llvm.genx.oword.ld.unaligned</span></code> : vISA OWORD_LD_UNALIGNED instruction</li>
@@ -2001,7 +2074,7 @@ size of the data to write is 256.</p>
 <p>The byte size of the return type must be 16, 32, 64, or 128.</p>
 </div>
 <div class="section" id="llvm-genx-oword-st-visa-oword-st-instruction">
-<h4><a class="toc-backref" href="#id132"><code class="docutils literal"><span class="pre">llvm.genx.oword.st</span></code> : vISA OWORD_ST instruction</a><a class="headerlink" href="#llvm-genx-oword-st-visa-oword-st-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id139"><code class="docutils literal"><span class="pre">llvm.genx.oword.st</span></code> : vISA OWORD_ST instruction</a><a class="headerlink" href="#llvm-genx-oword-st-visa-oword-st-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>(log2 number of owords inferred from return type)</li>
 <li>arg0: i32 surface index</li>
@@ -2011,7 +2084,7 @@ size of the data to write is 256.</p>
 <p>The byte size of the data to write must be 16, 32, 64, or 128.</p>
 </div>
 <div class="section" id="llvm-genx-scatter-orig-visa-scatter-instruction">
-<h4><a class="toc-backref" href="#id133"><code class="docutils literal"><span class="pre">llvm.genx.scatter.orig</span></code> : vISA SCATTER instruction</a><a class="headerlink" href="#llvm-genx-scatter-orig-visa-scatter-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id140"><code class="docutils literal"><span class="pre">llvm.genx.scatter.orig</span></code> : vISA SCATTER instruction</a><a class="headerlink" href="#llvm-genx-scatter-orig-visa-scatter-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: Elt_size from argument element type</li>
 <li>arg1: i32 surface index</li>
@@ -2025,8 +2098,20 @@ bits will be ignored.</p>
 which must be 1, 8 or 16.
 The element offset arg must have the same vector width.</p>
 </div>
+<div class="section" id="llvm-genx-scatter-private-cm-internal-no-visa">
+<h4><a class="toc-backref" href="#id141"><code class="docutils literal"><span class="pre">llvm.genx.scatter.private</span></code> : CM internal, no VISA</a><a class="headerlink" href="#llvm-genx-scatter-private-cm-internal-no-visa" title="Permalink to this headline">¶</a></h4>
+<ul class="simple">
+<li>arg0: v-by-i1 predicate</li>
+<li>arg1: base pointer</li>
+<li>arg2 vXi32 element offset in elements</li>
+<li>arg3: the data to write. The first &lt;num_elts&gt; elements will be used.</li>
+</ul>
+<p>The vector width of the data to write is the number of elements to write,
+which must be 1, 8 or 16.
+The element offset arg must have the same vector width.</p>
+</div>
 <div class="section" id="llvm-genx-scatter-scaled-visa-scatter-scaled-instruction">
-<h4><a class="toc-backref" href="#id134"><code class="docutils literal"><span class="pre">llvm.genx.scatter.scaled</span></code> : vISA SCATTER_SCALED instruction</a><a class="headerlink" href="#llvm-genx-scatter-scaled-visa-scatter-scaled-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id142"><code class="docutils literal"><span class="pre">llvm.genx.scatter.scaled</span></code> : vISA SCATTER_SCALED instruction</a><a class="headerlink" href="#llvm-genx-scatter-scaled-visa-scatter-scaled-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>(Exec_size inferred from element offset type)</li>
 <li><dl class="first docutils">
@@ -2052,7 +2137,7 @@ blocks) accesses the upper bytes will be ignored.</p>
 only when scale is 0.</p>
 </div>
 <div class="section" id="llvm-genx-scatter4-orig-visa-scatter4-instruction">
-<h4><a class="toc-backref" href="#id135"><code class="docutils literal"><span class="pre">llvm.genx.scatter4.orig</span></code> : vISA SCATTER4 instruction</a><a class="headerlink" href="#llvm-genx-scatter4-orig-visa-scatter4-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id143"><code class="docutils literal"><span class="pre">llvm.genx.scatter4.orig</span></code> : vISA SCATTER4 instruction</a><a class="headerlink" href="#llvm-genx-scatter4-orig-visa-scatter4-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 channel mask, constant</li>
 <li>arg1: vXi1 predicate (Num_elts inferred from element offset type)</li>
@@ -2074,7 +2159,7 @@ times the number of channels to write per element.
 The element type of the data to write must be i32 or float.</p>
 </div>
 <div class="section" id="llvm-genx-scatter4-scaled-visa-scatter4-scaled-instruction">
-<h4><a class="toc-backref" href="#id136"><code class="docutils literal"><span class="pre">llvm.genx.scatter4.scaled</span></code> : vISA SCATTER4_SCALED instruction</a><a class="headerlink" href="#llvm-genx-scatter4-scaled-visa-scatter4-scaled-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id144"><code class="docutils literal"><span class="pre">llvm.genx.scatter4.scaled</span></code> : vISA SCATTER4_SCALED instruction</a><a class="headerlink" href="#llvm-genx-scatter4-scaled-visa-scatter4-scaled-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>(Exec_size inferred from element offset type)</li>
 <li>arg0: vXi1 predicate</li>
@@ -2098,7 +2183,7 @@ times the number of channels to write per element.
 The element type of the data to write must be i32 or float.</p>
 </div>
 <div class="section" id="llvm-genx-scatter4-typed-visa-scatter4-typed-instruction">
-<h4><a class="toc-backref" href="#id137"><code class="docutils literal"><span class="pre">llvm.genx.scatter4.typed</span></code> : vISA SCATTER4_TYPED instruction</a><a class="headerlink" href="#llvm-genx-scatter4-typed-visa-scatter4-typed-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id145"><code class="docutils literal"><span class="pre">llvm.genx.scatter4.typed</span></code> : vISA SCATTER4_TYPED instruction</a><a class="headerlink" href="#llvm-genx-scatter4-typed-visa-scatter4-typed-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 channel mask, constant</li>
 <li>arg1: vXi1 predicate (Num_elts inferred from U pixel address type)</li>
@@ -2121,7 +2206,7 @@ times the number of channels to read per element.
 The element type of the source value must be i32 or float.</p>
 </div>
 <div class="section" id="llvm-genx-transpose-ld-visa-transpose-ld-instruction">
-<h4><a class="toc-backref" href="#id138"><code class="docutils literal"><span class="pre">llvm.genx.transpose.ld</span></code> : vISA TRANSPOSE_LD instruction</a><a class="headerlink" href="#llvm-genx-transpose-ld-visa-transpose-ld-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id146"><code class="docutils literal"><span class="pre">llvm.genx.transpose.ld</span></code> : vISA TRANSPOSE_LD instruction</a><a class="headerlink" href="#llvm-genx-transpose-ld-visa-transpose-ld-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 surface index</li>
 <li>arg1: i32 log2 block width in i32s, constant (0-3)</li>
@@ -2136,7 +2221,7 @@ inferred from those values.
 The element type of the return value must be i32 or float.</p>
 </div>
 <div class="section" id="llvm-genx-untyped-atomic-visa-untyped-atomic-with-binary-operator">
-<h4><a class="toc-backref" href="#id139"><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.*</span></code> : vISA UNTYPED_ATOMIC with binary operator</a><a class="headerlink" href="#llvm-genx-untyped-atomic-visa-untyped-atomic-with-binary-operator" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id147"><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.*</span></code> : vISA UNTYPED_ATOMIC with binary operator</a><a class="headerlink" href="#llvm-genx-untyped-atomic-visa-untyped-atomic-with-binary-operator" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.add</span></code> : vISA UNTYPED_ATOMIC ADD instruction</li>
 <li><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.sub</span></code> : vISA UNTYPED_ATOMIC SUB instruction</li>
@@ -2159,7 +2244,7 @@ The element type of the return value must be i32 or float.</p>
 <p>Predicate, element offset, src, and the return value must all have the</p>
 </div>
 <div class="section" id="llvm-genx-untyped-atomic-visa-untyped-atomic-with-inc-dec">
-<h4><a class="toc-backref" href="#id140"><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.*</span></code> : vISA UNTYPED_ATOMIC with inc/dec</a><a class="headerlink" href="#llvm-genx-untyped-atomic-visa-untyped-atomic-with-inc-dec" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id148"><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.*</span></code> : vISA UNTYPED_ATOMIC with inc/dec</a><a class="headerlink" href="#llvm-genx-untyped-atomic-visa-untyped-atomic-with-inc-dec" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.inc</span></code> : vISA UNTYPED_ATOMIC INC instruction</li>
 <li><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.dec</span></code> : vISA UNTYPED_ATOMIC DEC instruction</li>
@@ -2174,7 +2259,7 @@ The element type of the return value must be i32 or float.</p>
 width, which must be 8 or 16.</p>
 </div>
 <div class="section" id="llvm-genx-untyped-atomic-cmpxchg-visa-untyped-atomic-cmpxchg-instruction">
-<h4><a class="toc-backref" href="#id141"><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.cmpxchg</span></code> : vISA UNTYPED_ATOMIC CMPXCHG instruction</a><a class="headerlink" href="#llvm-genx-untyped-atomic-cmpxchg-visa-untyped-atomic-cmpxchg-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id149"><code class="docutils literal"><span class="pre">llvm.genx.untyped.atomic.cmpxchg</span></code> : vISA UNTYPED_ATOMIC CMPXCHG instruction</a><a class="headerlink" href="#llvm-genx-untyped-atomic-cmpxchg-visa-untyped-atomic-cmpxchg-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: vXi1 predicate (Num_elts inferred from element offset type)</li>
 <li>arg1: i32 surface index</li>
@@ -2189,7 +2274,7 @@ width, which must be 8 or 16.</p>
 the same vector width, which must be 8 or 16.</p>
 </div>
 <div class="section" id="llvm-genx-svm-block-ld-visa-svm-block-ld-instruction">
-<h4><a class="toc-backref" href="#id142"><code class="docutils literal"><span class="pre">llvm.genx.svm.block.ld*</span></code> : vISA SVM BLOCK_LD instruction</a><a class="headerlink" href="#llvm-genx-svm-block-ld-visa-svm-block-ld-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id150"><code class="docutils literal"><span class="pre">llvm.genx.svm.block.ld*</span></code> : vISA SVM BLOCK_LD instruction</a><a class="headerlink" href="#llvm-genx-svm-block-ld-visa-svm-block-ld-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">llvm.genx.svm.block.ld</span></code> : vISA SVM BLOCK_LD instruction with oword alignment</li>
 <li><code class="docutils literal"><span class="pre">llvm.genx.svm.block.ld.unaligned</span></code> : vISA SVM BLOCK_LD instruction with
@@ -2202,7 +2287,7 @@ dword alignment</li>
 bytes.</p>
 </div>
 <div class="section" id="llvm-genx-svm-block-st-visa-svm-block-st-instruction">
-<h4><a class="toc-backref" href="#id143"><code class="docutils literal"><span class="pre">llvm.genx.svm.block.st</span></code> : vISA SVM BLOCK_ST instruction</a><a class="headerlink" href="#llvm-genx-svm-block-st-visa-svm-block-st-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id151"><code class="docutils literal"><span class="pre">llvm.genx.svm.block.st</span></code> : vISA SVM BLOCK_ST instruction</a><a class="headerlink" href="#llvm-genx-svm-block-st-visa-svm-block-st-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>(log2 number of oword inferred from data type)</li>
 <li>arg0: i64 address</li>
@@ -2212,7 +2297,7 @@ bytes.</p>
 bytes.</p>
 </div>
 <div class="section" id="llvm-genx-svm-gather-visa-svm-gather-instruction">
-<h4><a class="toc-backref" href="#id144"><code class="docutils literal"><span class="pre">llvm.genx.svm.gather</span></code> : vISA SVM GATHER instruction</a><a class="headerlink" href="#llvm-genx-svm-gather-visa-svm-gather-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id152"><code class="docutils literal"><span class="pre">llvm.genx.svm.gather</span></code> : vISA SVM GATHER instruction</a><a class="headerlink" href="#llvm-genx-svm-gather-visa-svm-gather-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>(exec size inferred from address vector width)</li>
 <li>arg0: vXi1 predicate (Num_elts inferred from this arg)</li>
@@ -2228,7 +2313,7 @@ The return value vector width is the address vector width times
 number of blocks (rounded up to 4 if block size is 1).</p>
 </div>
 <div class="section" id="llvm-genx-svm-gather4-scaled-visa-svm-gather4-scaled-instruction">
-<h4><a class="toc-backref" href="#id145"><code class="docutils literal"><span class="pre">llvm.genx.svm.gather4.scaled</span></code> : vISA SVM GATHER4_SCALED instruction</a><a class="headerlink" href="#llvm-genx-svm-gather4-scaled-visa-svm-gather4-scaled-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id153"><code class="docutils literal"><span class="pre">llvm.genx.svm.gather4.scaled</span></code> : vISA SVM GATHER4_SCALED instruction</a><a class="headerlink" href="#llvm-genx-svm-gather4-scaled-visa-svm-gather4-scaled-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>(exec_size inferred from element offset type)</li>
 <li>arg0: vXi1 predicate</li>
@@ -2252,7 +2337,7 @@ times the number of channels to read per element.
 The element type of the return value must be i32 or float.</p>
 </div>
 <div class="section" id="llvm-genx-svm-scatter-visa-svm-scatter-instruction">
-<h4><a class="toc-backref" href="#id146"><code class="docutils literal"><span class="pre">llvm.genx.svm.scatter</span></code> : vISA SVM SCATTER instruction</a><a class="headerlink" href="#llvm-genx-svm-scatter-visa-svm-scatter-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id154"><code class="docutils literal"><span class="pre">llvm.genx.svm.scatter</span></code> : vISA SVM SCATTER instruction</a><a class="headerlink" href="#llvm-genx-svm-scatter-visa-svm-scatter-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>(exec size inferred from address vector width)</li>
 <li>arg0: vXi1 predicate (Num_elts inferred from element offset type)</li>
@@ -2267,7 +2352,7 @@ The data vector width is the address vector width times
 number of blocks (rounded up to 4 if block size is 1).</p>
 </div>
 <div class="section" id="llvm-genx-svm-scatter4-scaled-visa-svm-scatter4-scaled-instruction">
-<h4><a class="toc-backref" href="#id147"><code class="docutils literal"><span class="pre">llvm.genx.svm.scatter4.scaled</span></code> : vISA SVM SCATTER4_SCALED instruction</a><a class="headerlink" href="#llvm-genx-svm-scatter4-scaled-visa-svm-scatter4-scaled-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id155"><code class="docutils literal"><span class="pre">llvm.genx.svm.scatter4.scaled</span></code> : vISA SVM SCATTER4_SCALED instruction</a><a class="headerlink" href="#llvm-genx-svm-scatter4-scaled-visa-svm-scatter4-scaled-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>(exec_size inferred from element offset type)</li>
 <li>arg0: vXi1 predicate</li>
@@ -2290,7 +2375,7 @@ times the number of channels to read per element.
 The element type of the data to write arg must be i32 or float.</p>
 </div>
 <div class="section" id="llvm-genx-svm-atomic-visa-svm-atomic-with-binary-operator">
-<h4><a class="toc-backref" href="#id148"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.*</span></code> : vISA SVM_ATOMIC with binary operator</a><a class="headerlink" href="#llvm-genx-svm-atomic-visa-svm-atomic-with-binary-operator" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id156"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.*</span></code> : vISA SVM_ATOMIC with binary operator</a><a class="headerlink" href="#llvm-genx-svm-atomic-visa-svm-atomic-with-binary-operator" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.add</span></code> : vISA SVM_ATOMIC ADD instruction</li>
 <li><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.sub</span></code> : vISA SVM_ATOMIC SUB instruction</li>
@@ -2312,7 +2397,7 @@ The element type of the data to write arg must be i32 or float.</p>
 same vector width, which must be 1, 2, 4, or 8.</p>
 </div>
 <div class="section" id="llvm-genx-svm-atomic-visa-svm-atomic-with-inc-dec">
-<h4><a class="toc-backref" href="#id149"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.*</span></code> : vISA SVM_ATOMIC with inc/dec</a><a class="headerlink" href="#llvm-genx-svm-atomic-visa-svm-atomic-with-inc-dec" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id157"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.*</span></code> : vISA SVM_ATOMIC with inc/dec</a><a class="headerlink" href="#llvm-genx-svm-atomic-visa-svm-atomic-with-inc-dec" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.inc</span></code> : vISA SVM_ATOMIC INC instruction</li>
 <li><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.dec</span></code> : vISA SVM_ATOMIC DEC instruction</li>
@@ -2326,7 +2411,7 @@ same vector width, which must be 1, 2, 4, or 8.</p>
 width, which must be 1, 2, 4 or 8.</p>
 </div>
 <div class="section" id="llvm-genx-svm-atomic-cmpxchg-visa-svm-atomic-cmpxchg-instruction">
-<h4><a class="toc-backref" href="#id150"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.cmpxchg</span></code> : vISA SVM_ATOMIC CMPXCHG instruction</a><a class="headerlink" href="#llvm-genx-svm-atomic-cmpxchg-visa-svm-atomic-cmpxchg-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id158"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.cmpxchg</span></code> : vISA SVM_ATOMIC CMPXCHG instruction</a><a class="headerlink" href="#llvm-genx-svm-atomic-cmpxchg-visa-svm-atomic-cmpxchg-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: vXi1 predicate (Num_elts inferred from element offset type)</li>
 <li>arg1: vXi64 element addresses in bytes</li>
@@ -2339,7 +2424,7 @@ width, which must be 1, 2, 4 or 8.</p>
 the same vector width, which must be 1, 2, 4 or 8.</p>
 </div>
 <div class="section" id="id2">
-<h4><a class="toc-backref" href="#id151"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.*</span></code> : vISA SVM_ATOMIC with binary operator</a><a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id159"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.*</span></code> : vISA SVM_ATOMIC with binary operator</a><a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.fmin</span></code> : vISA SVM_ATOMIC FMIN instruction</li>
 <li><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.fmax</span></code> : vISA SVM_ATOMIC FMAX instruction</li>
@@ -2353,7 +2438,7 @@ the same vector width, which must be 1, 2, 4 or 8.</p>
 same vector width, which must be 1, 2, 4, or 8.</p>
 </div>
 <div class="section" id="llvm-genx-svm-atomic-fcmpwr-visa-svm-atomic-fcmpwr-instruction">
-<h4><a class="toc-backref" href="#id152"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.fcmpwr</span></code> : vISA SVM_ATOMIC FCMPWR instruction</a><a class="headerlink" href="#llvm-genx-svm-atomic-fcmpwr-visa-svm-atomic-fcmpwr-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id160"><code class="docutils literal"><span class="pre">llvm.genx.svm.atomic.fcmpwr</span></code> : vISA SVM_ATOMIC FCMPWR instruction</a><a class="headerlink" href="#llvm-genx-svm-atomic-fcmpwr-visa-svm-atomic-fcmpwr-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: vXi1 predicate (Num_elts inferred from element offset type)</li>
 <li>arg1: vXi64 element addresses in bytes</li>
@@ -2366,7 +2451,7 @@ same vector width, which must be 1, 2, 4, or 8.</p>
 the same vector width, which must be 1, 2, 4 or 8.</p>
 </div>
 <div class="section" id="llvm-genx-load-visa-load-sampler-load-instruction">
-<h4><a class="toc-backref" href="#id153"><code class="docutils literal"><span class="pre">llvm.genx.load</span></code> : vISA LOAD (sampler load) instruction</a><a class="headerlink" href="#llvm-genx-load-visa-load-sampler-load-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id161"><code class="docutils literal"><span class="pre">llvm.genx.load</span></code> : vISA LOAD (sampler load) instruction</a><a class="headerlink" href="#llvm-genx-load-visa-load-sampler-load-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 channel mask, constant (simd_mode inferred from pixel address operands)</li>
 <li>arg1: i32 surface index</li>
@@ -2387,7 +2472,7 @@ the SIMD width times the number of enabled channels.</p>
 <p>The element type of the return value must be i32 or float.</p>
 </div>
 <div class="section" id="llvm-genx-sample-visa-sample-instruction">
-<h4><a class="toc-backref" href="#id154"><code class="docutils literal"><span class="pre">llvm.genx.sample</span></code> : vISA SAMPLE instruction</a><a class="headerlink" href="#llvm-genx-sample-visa-sample-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id162"><code class="docutils literal"><span class="pre">llvm.genx.sample</span></code> : vISA SAMPLE instruction</a><a class="headerlink" href="#llvm-genx-sample-visa-sample-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 channel mask, constant (simd_mode inferred from pixel address operands)</li>
 <li>arg1: i32 sampler index</li>
@@ -2409,7 +2494,7 @@ the SIMD width times the number of enabled channels.</p>
 <p>The element type of the return value must be i32 or float.</p>
 </div>
 <div class="section" id="llvm-genx-sample-unorm-visa-sample-unorm-instruction">
-<h4><a class="toc-backref" href="#id155"><code class="docutils literal"><span class="pre">llvm.genx.sample.unorm</span></code> : vISA SAMPLE_UNORM instruction</a><a class="headerlink" href="#llvm-genx-sample-unorm-visa-sample-unorm-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id163"><code class="docutils literal"><span class="pre">llvm.genx.sample.unorm</span></code> : vISA SAMPLE_UNORM instruction</a><a class="headerlink" href="#llvm-genx-sample-unorm-visa-sample-unorm-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 channel mask, constant</li>
 <li>arg1: i32 sampler index</li>
@@ -2426,7 +2511,7 @@ The number of 0 bits in that lower 4 bits of the channel mask arg is the
 number of channels to read per element.</p>
 </div>
 <div class="section" id="llvm-genx-3d-sample-visa-3d-sample-instruction">
-<h4><a class="toc-backref" href="#id156"><code class="docutils literal"><span class="pre">llvm.genx.3d.sample</span></code> : vISA 3D_SAMPLE instruction</a><a class="headerlink" href="#llvm-genx-3d-sample-visa-3d-sample-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id164"><code class="docutils literal"><span class="pre">llvm.genx.3d.sample</span></code> : vISA 3D_SAMPLE instruction</a><a class="headerlink" href="#llvm-genx-3d-sample-visa-3d-sample-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 opcode, constant</li>
 <li>arg1: vXi1 predicate mask, used to determine execution size</li>
@@ -2439,7 +2524,7 @@ number of channels to read per element.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-3d-load-visa-3d-load-instruction">
-<h4><a class="toc-backref" href="#id157"><code class="docutils literal"><span class="pre">llvm.genx.3d.load</span></code> : vISA 3D_LOAD instruction</a><a class="headerlink" href="#llvm-genx-3d-load-visa-3d-load-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id165"><code class="docutils literal"><span class="pre">llvm.genx.3d.load</span></code> : vISA 3D_LOAD instruction</a><a class="headerlink" href="#llvm-genx-3d-load-visa-3d-load-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 opcode, constant</li>
 <li>arg1: vXi1 predicate mask, used to determine execution size</li>
@@ -2451,7 +2536,7 @@ number of channels to read per element.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-avs-visa-avs-instruction">
-<h4><a class="toc-backref" href="#id158"><code class="docutils literal"><span class="pre">llvm.genx.avs</span></code> : vISA AVS instruction</a><a class="headerlink" href="#llvm-genx-avs-visa-avs-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id166"><code class="docutils literal"><span class="pre">llvm.genx.avs</span></code> : vISA AVS instruction</a><a class="headerlink" href="#llvm-genx-avs-visa-avs-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 channel mask, constant</li>
 <li>arg1: i32 sampler index</li>
@@ -2475,34 +2560,34 @@ sampler state.</p>
 <p>SIMD Control Flow: channel enable is ignored.</p>
 </div>
 <div class="section" id="llvm-genx-barrier-visa-barrier-instruction">
-<h4><a class="toc-backref" href="#id159"><code class="docutils literal"><span class="pre">llvm.genx.barrier</span></code> : vISA BARRIER instruction</a><a class="headerlink" href="#llvm-genx-barrier-visa-barrier-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id167"><code class="docutils literal"><span class="pre">llvm.genx.barrier</span></code> : vISA BARRIER instruction</a><a class="headerlink" href="#llvm-genx-barrier-visa-barrier-instruction" title="Permalink to this headline">¶</a></h4>
 </div>
 <div class="section" id="llvm-genx-sbarrier-visa-sbarrier-instruction">
-<h4><a class="toc-backref" href="#id160"><code class="docutils literal"><span class="pre">llvm.genx.sbarrier</span></code> : vISA SBARRIER instruction</a><a class="headerlink" href="#llvm-genx-sbarrier-visa-sbarrier-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id168"><code class="docutils literal"><span class="pre">llvm.genx.sbarrier</span></code> : vISA SBARRIER instruction</a><a class="headerlink" href="#llvm-genx-sbarrier-visa-sbarrier-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i8 signal flag, constant</li>
 </ul>
 </div>
 <div class="section" id="llvm-genx-cache-flush-visa-cache-flush-instruction">
-<h4><a class="toc-backref" href="#id161"><code class="docutils literal"><span class="pre">llvm.genx.cache.flush</span></code> : vISA CACHE_FLUSH instruction</a><a class="headerlink" href="#llvm-genx-cache-flush-visa-cache-flush-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id169"><code class="docutils literal"><span class="pre">llvm.genx.cache.flush</span></code> : vISA CACHE_FLUSH instruction</a><a class="headerlink" href="#llvm-genx-cache-flush-visa-cache-flush-instruction" title="Permalink to this headline">¶</a></h4>
 </div>
 <div class="section" id="llvm-genx-fence-visa-fence-instruction">
-<h4><a class="toc-backref" href="#id162"><code class="docutils literal"><span class="pre">llvm.genx.fence</span></code> : vISA FENCE instruction</a><a class="headerlink" href="#llvm-genx-fence-visa-fence-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id170"><code class="docutils literal"><span class="pre">llvm.genx.fence</span></code> : vISA FENCE instruction</a><a class="headerlink" href="#llvm-genx-fence-visa-fence-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i8 mask, constant</li>
 </ul>
 </div>
 <div class="section" id="llvm-genx-wait-visa-wait-instruction">
-<h4><a class="toc-backref" href="#id163"><code class="docutils literal"><span class="pre">llvm.genx.wait</span></code> : vISA WAIT instruction</a><a class="headerlink" href="#llvm-genx-wait-visa-wait-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id171"><code class="docutils literal"><span class="pre">llvm.genx.wait</span></code> : vISA WAIT instruction</a><a class="headerlink" href="#llvm-genx-wait-visa-wait-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i8 thread mask</li>
 </ul>
 </div>
 <div class="section" id="llvm-genx-yield-visa-yield-instruction">
-<h4><a class="toc-backref" href="#id164"><code class="docutils literal"><span class="pre">llvm.genx.yield</span></code> : vISA YIELD instruction</a><a class="headerlink" href="#llvm-genx-yield-visa-yield-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id172"><code class="docutils literal"><span class="pre">llvm.genx.yield</span></code> : vISA YIELD instruction</a><a class="headerlink" href="#llvm-genx-yield-visa-yield-instruction" title="Permalink to this headline">¶</a></h4>
 </div>
 <div class="section" id="llvm-genx-raw-send-visa-raw-send-instruction">
-<h4><a class="toc-backref" href="#id165"><code class="docutils literal"><span class="pre">llvm.genx.raw.send</span></code> : vISA RAW_SEND instruction</a><a class="headerlink" href="#llvm-genx-raw-send-visa-raw-send-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id173"><code class="docutils literal"><span class="pre">llvm.genx.raw.send</span></code> : vISA RAW_SEND instruction</a><a class="headerlink" href="#llvm-genx-raw-send-visa-raw-send-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0  i32 modifier whether it is send or sendc, constant</li>
 <li><dl class="first docutils">
@@ -2533,7 +2618,7 @@ predicatable. For a predicatable message, it must be a vector of i1 with
 width determining the execution size.</p>
 </div>
 <div class="section" id="llvm-genx-raw-send-noresult-visa-raw-send-instruction-with-no-result">
-<h4><a class="toc-backref" href="#id166"><code class="docutils literal"><span class="pre">llvm.genx.raw.send.noresult</span></code> : vISA RAW_SEND instruction with no result</a><a class="headerlink" href="#llvm-genx-raw-send-noresult-visa-raw-send-instruction-with-no-result" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id174"><code class="docutils literal"><span class="pre">llvm.genx.raw.send.noresult</span></code> : vISA RAW_SEND instruction with no result</a><a class="headerlink" href="#llvm-genx-raw-send-noresult-visa-raw-send-instruction-with-no-result" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0  i32 modifier whether it is send or sendc, constant</li>
 <li><dl class="first docutils">
@@ -2558,7 +2643,7 @@ predicatable. For a predicatable message, it must be a vector of i1 with
 width determining the execution size.</p>
 </div>
 <div class="section" id="llvm-genx-raw-sends-visa-raw-sends-instruction">
-<h4><a class="toc-backref" href="#id167"><code class="docutils literal"><span class="pre">llvm.genx.raw.sends</span></code> : vISA RAW_SENDS instruction</a><a class="headerlink" href="#llvm-genx-raw-sends-visa-raw-sends-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id175"><code class="docutils literal"><span class="pre">llvm.genx.raw.sends</span></code> : vISA RAW_SENDS instruction</a><a class="headerlink" href="#llvm-genx-raw-sends-visa-raw-sends-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0  i32 modifier whether it is send or sendc, constant</li>
 <li><dl class="first docutils">
@@ -2591,7 +2676,7 @@ predicatable. For a predicatable message, it must be a vector of i1 with
 width determining the execution size.</p>
 </div>
 <div class="section" id="llvm-genx-raw-sends-noresult-visa-raw-sends-instruction-with-no-result">
-<h4><a class="toc-backref" href="#id168"><code class="docutils literal"><span class="pre">llvm.genx.raw.sends.noresult</span></code> : vISA RAW_SENDS instruction with no result</a><a class="headerlink" href="#llvm-genx-raw-sends-noresult-visa-raw-sends-instruction-with-no-result" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id176"><code class="docutils literal"><span class="pre">llvm.genx.raw.sends.noresult</span></code> : vISA RAW_SENDS instruction with no result</a><a class="headerlink" href="#llvm-genx-raw-sends-noresult-visa-raw-sends-instruction-with-no-result" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0  i32 modifier whether it is send or sendc, constant</li>
 <li><dl class="first docutils">
@@ -2615,11 +2700,11 @@ next whole GRF.</p>
 predicatable. For a predicatable message, it must be a vector of i1 with
 width determining the execution size.</p>
 <div class="section" id="video-analytics-instrinsics">
-<h5><a class="toc-backref" href="#id169">Video Analytics Instrinsics</a><a class="headerlink" href="#video-analytics-instrinsics" title="Permalink to this headline">¶</a></h5>
+<h5><a class="toc-backref" href="#id177">Video Analytics Instrinsics</a><a class="headerlink" href="#video-analytics-instrinsics" title="Permalink to this headline">¶</a></h5>
 </div>
 </div>
 <div class="section" id="llvm-genx-va-convolve2d-visa-va-2d-convolve-instruction">
-<h4><a class="toc-backref" href="#id170"><code class="docutils literal"><span class="pre">llvm.genx.va.convolve2d</span></code> vISA VA 2d Convolve instruction</a><a class="headerlink" href="#llvm-genx-va-convolve2d-visa-va-2d-convolve-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id178"><code class="docutils literal"><span class="pre">llvm.genx.va.convolve2d</span></code> vISA VA 2d Convolve instruction</a><a class="headerlink" href="#llvm-genx-va-convolve2d-visa-va-2d-convolve-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: i32 surface index</li>
@@ -2630,7 +2715,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-hdc-convolve2d-visa-va-hdc-2d-convolve-instruction">
-<h4><a class="toc-backref" href="#id171"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.convolve2d</span></code> vISA VA HDC 2d Convolve instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-convolve2d-visa-va-hdc-2d-convolve-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id179"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.convolve2d</span></code> vISA VA HDC 2d Convolve instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-convolve2d-visa-va-hdc-2d-convolve-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: i32 surface index</li>
@@ -2643,7 +2728,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-erode-visa-va-erode-instruction">
-<h4><a class="toc-backref" href="#id172"><code class="docutils literal"><span class="pre">llvm.genx.va.erode</span></code> vISA VA Erode instruction</a><a class="headerlink" href="#llvm-genx-va-erode-visa-va-erode-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id180"><code class="docutils literal"><span class="pre">llvm.genx.va.erode</span></code> vISA VA Erode instruction</a><a class="headerlink" href="#llvm-genx-va-erode-visa-va-erode-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: i32 surface index</li>
@@ -2654,7 +2739,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-hdc-erode-visa-va-hdc-erode-instruction">
-<h4><a class="toc-backref" href="#id173"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.erode</span></code> vISA VA HDC Erode instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-erode-visa-va-hdc-erode-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id181"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.erode</span></code> vISA VA HDC Erode instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-erode-visa-va-hdc-erode-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: i32 surface index</li>
@@ -2666,7 +2751,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-dilate-visa-va-dilate-instruction">
-<h4><a class="toc-backref" href="#id174"><code class="docutils literal"><span class="pre">llvm.genx.va.dilate</span></code> vISA VA Dilate instruction</a><a class="headerlink" href="#llvm-genx-va-dilate-visa-va-dilate-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id182"><code class="docutils literal"><span class="pre">llvm.genx.va.dilate</span></code> vISA VA Dilate instruction</a><a class="headerlink" href="#llvm-genx-va-dilate-visa-va-dilate-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: i32 surface index</li>
@@ -2677,7 +2762,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-hdc-dilate-visa-va-hdc-dilate-instruction">
-<h4><a class="toc-backref" href="#id175"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.dilate</span></code> vISA VA HDC Dilate instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-dilate-visa-va-hdc-dilate-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id183"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.dilate</span></code> vISA VA HDC Dilate instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-dilate-visa-va-hdc-dilate-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: i32 surface index</li>
@@ -2689,7 +2774,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-minmax-visa-minmax-instruction">
-<h4><a class="toc-backref" href="#id176"><code class="docutils literal"><span class="pre">llvm.genx.va.minmax</span></code> vISA MinMax instruction</a><a class="headerlink" href="#llvm-genx-va-minmax-visa-minmax-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id184"><code class="docutils literal"><span class="pre">llvm.genx.va.minmax</span></code> vISA MinMax instruction</a><a class="headerlink" href="#llvm-genx-va-minmax-visa-minmax-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 surface index</li>
 <li>arg1: float normalized x-coordinate</li>
@@ -2699,7 +2784,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-minmax-filter-visa-minmax-filter-instruction">
-<h4><a class="toc-backref" href="#id177"><code class="docutils literal"><span class="pre">llvm.genx.va.minmax.filter</span></code> vISA MinMax Filter instruction</a><a class="headerlink" href="#llvm-genx-va-minmax-filter-visa-minmax-filter-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id185"><code class="docutils literal"><span class="pre">llvm.genx.va.minmax.filter</span></code> vISA MinMax Filter instruction</a><a class="headerlink" href="#llvm-genx-va-minmax-filter-visa-minmax-filter-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: i32 surface index</li>
@@ -2712,7 +2797,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-hdc-minmax-filter-visa-hdc-minmax-filter-instruction">
-<h4><a class="toc-backref" href="#id178"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.minmax.filter</span></code> vISA HDC MinMax Filter instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-minmax-filter-visa-hdc-minmax-filter-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id186"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.minmax.filter</span></code> vISA HDC MinMax Filter instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-minmax-filter-visa-hdc-minmax-filter-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: i32 surface index</li>
@@ -2726,7 +2811,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-bool-centroid-visa-boolean-centroid-instruction">
-<h4><a class="toc-backref" href="#id179"><code class="docutils literal"><span class="pre">llvm.genx.va.bool.centroid</span></code> vISA Boolean Centroid instruction</a><a class="headerlink" href="#llvm-genx-va-bool-centroid-visa-boolean-centroid-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id187"><code class="docutils literal"><span class="pre">llvm.genx.va.bool.centroid</span></code> vISA Boolean Centroid instruction</a><a class="headerlink" href="#llvm-genx-va-bool-centroid-visa-boolean-centroid-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: float normalized x-coordinate</li>
@@ -2737,7 +2822,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-centroid-visa-centroid-instruction">
-<h4><a class="toc-backref" href="#id180"><code class="docutils literal"><span class="pre">llvm.genx.va.centroid</span></code> vISA Centroid instruction</a><a class="headerlink" href="#llvm-genx-va-centroid-visa-centroid-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id188"><code class="docutils literal"><span class="pre">llvm.genx.va.centroid</span></code> vISA Centroid instruction</a><a class="headerlink" href="#llvm-genx-va-centroid-visa-centroid-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: float normalized x-coordinate</li>
@@ -2747,7 +2832,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-1d-convolve-horizontal-visa-1d-convolve-horizontal-instruction">
-<h4><a class="toc-backref" href="#id181"><code class="docutils literal"><span class="pre">llvm.genx.va.1d.convolve.horizontal</span></code> vISA 1d convolve horizontal instruction</a><a class="headerlink" href="#llvm-genx-va-1d-convolve-horizontal-visa-1d-convolve-horizontal-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id189"><code class="docutils literal"><span class="pre">llvm.genx.va.1d.convolve.horizontal</span></code> vISA 1d convolve horizontal instruction</a><a class="headerlink" href="#llvm-genx-va-1d-convolve-horizontal-visa-1d-convolve-horizontal-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: i32 surface index</li>
@@ -2758,7 +2843,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-hdc-1d-convolve-horizontal-visa-hdc-1d-convolve-horizontal-instruction">
-<h4><a class="toc-backref" href="#id182"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.1d.convolve.horizontal</span></code> vISA HDC 1d convolve horizontal instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-1d-convolve-horizontal-visa-hdc-1d-convolve-horizontal-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id190"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.1d.convolve.horizontal</span></code> vISA HDC 1d convolve horizontal instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-1d-convolve-horizontal-visa-hdc-1d-convolve-horizontal-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: i32 surface index</li>
@@ -2771,7 +2856,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-1d-convolve-vertical-visa-1d-convolve-vertical-instruction">
-<h4><a class="toc-backref" href="#id183"><code class="docutils literal"><span class="pre">llvm.genx.va.1d.convolve.vertical</span></code> vISA 1d convolve vertical instruction</a><a class="headerlink" href="#llvm-genx-va-1d-convolve-vertical-visa-1d-convolve-vertical-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id191"><code class="docutils literal"><span class="pre">llvm.genx.va.1d.convolve.vertical</span></code> vISA 1d convolve vertical instruction</a><a class="headerlink" href="#llvm-genx-va-1d-convolve-vertical-visa-1d-convolve-vertical-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: i32 surface index</li>
@@ -2782,7 +2867,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-hdc-1d-convolve-vertical-visa-hdc-1d-convolve-vertical-instruction">
-<h4><a class="toc-backref" href="#id184"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.1d.convolve.vertical</span></code> vISA HDC 1d convolve vertical instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-1d-convolve-vertical-visa-hdc-1d-convolve-vertical-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id192"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.1d.convolve.vertical</span></code> vISA HDC 1d convolve vertical instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-1d-convolve-vertical-visa-hdc-1d-convolve-vertical-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: i32 surface index</li>
@@ -2795,7 +2880,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-1pixel-convolve-visa-1-pixel-convolve-instruction">
-<h4><a class="toc-backref" href="#id185"><code class="docutils literal"><span class="pre">llvm.genx.va.1pixel.convolve</span></code> vISA 1 Pixel Convolve instruction</a><a class="headerlink" href="#llvm-genx-va-1pixel-convolve-visa-1-pixel-convolve-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id193"><code class="docutils literal"><span class="pre">llvm.genx.va.1pixel.convolve</span></code> vISA 1 Pixel Convolve instruction</a><a class="headerlink" href="#llvm-genx-va-1pixel-convolve-visa-1-pixel-convolve-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: i32 surface index</li>
@@ -2807,7 +2892,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-hdc-1pixel-convolve-visa-hdc-1-pixel-convolve-instruction">
-<h4><a class="toc-backref" href="#id186"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.1pixel.convolve</span></code> vISA HDC 1 Pixel Convolve instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-1pixel-convolve-visa-hdc-1-pixel-convolve-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id194"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.1pixel.convolve</span></code> vISA HDC 1 Pixel Convolve instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-1pixel-convolve-visa-hdc-1-pixel-convolve-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: i32 surface index</li>
@@ -2821,7 +2906,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-1pixel-convolve-1x1mode-visa-1-pixel-convolve-1x1-mode-instruction">
-<h4><a class="toc-backref" href="#id187"><code class="docutils literal"><span class="pre">llvm.genx.va.1pixel.convolve.1x1mode</span></code> vISA 1 Pixel Convolve (1x1 mode) instruction</a><a class="headerlink" href="#llvm-genx-va-1pixel-convolve-1x1mode-visa-1-pixel-convolve-1x1-mode-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id195"><code class="docutils literal"><span class="pre">llvm.genx.va.1pixel.convolve.1x1mode</span></code> vISA 1 Pixel Convolve (1x1 mode) instruction</a><a class="headerlink" href="#llvm-genx-va-1pixel-convolve-1x1mode-visa-1-pixel-convolve-1x1-mode-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 sampler index</li>
 <li>arg1: i32 surface index</li>
@@ -2831,7 +2916,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-lbp-creation-visa-lbp-creation-instruction">
-<h4><a class="toc-backref" href="#id188"><code class="docutils literal"><span class="pre">llvm.genx.va.lbp.creation</span></code> vISA LBP Creation instruction</a><a class="headerlink" href="#llvm-genx-va-lbp-creation-visa-lbp-creation-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id196"><code class="docutils literal"><span class="pre">llvm.genx.va.lbp.creation</span></code> vISA LBP Creation instruction</a><a class="headerlink" href="#llvm-genx-va-lbp-creation-visa-lbp-creation-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 surface index</li>
 <li>arg1: float normalized x-coordinate</li>
@@ -2841,7 +2926,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-hdc-lbp-creation-visa-hdc-lbp-creation-instruction">
-<h4><a class="toc-backref" href="#id189"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.lbp.creation</span></code> vISA HDC LBP Creation instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-lbp-creation-visa-hdc-lbp-creation-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id197"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.lbp.creation</span></code> vISA HDC LBP Creation instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-lbp-creation-visa-hdc-lbp-creation-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 surface index</li>
 <li>arg1: float normalized x-coordinate</li>
@@ -2853,7 +2938,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-lbp-correlation-visa-lbp-correlation-instruction">
-<h4><a class="toc-backref" href="#id190"><code class="docutils literal"><span class="pre">llvm.genx.va.lbp.correlation</span></code> vISA LBP Correlation instruction</a><a class="headerlink" href="#llvm-genx-va-lbp-correlation-visa-lbp-correlation-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id198"><code class="docutils literal"><span class="pre">llvm.genx.va.lbp.correlation</span></code> vISA LBP Correlation instruction</a><a class="headerlink" href="#llvm-genx-va-lbp-correlation-visa-lbp-correlation-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 surface index</li>
 <li>arg1: float normalized x-coordinate</li>
@@ -2863,7 +2948,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-hdc-lbp-correlation-visa-hdc-lbp-correlation-instruction">
-<h4><a class="toc-backref" href="#id191"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.lbp.correlation</span></code> vISA HDC LBP Correlation instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-lbp-correlation-visa-hdc-lbp-correlation-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id199"><code class="docutils literal"><span class="pre">llvm.genx.va.hdc.lbp.correlation</span></code> vISA HDC LBP Correlation instruction</a><a class="headerlink" href="#llvm-genx-va-hdc-lbp-correlation-visa-hdc-lbp-correlation-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 surface index</li>
 <li>arg1: float normalized x-coordinate</li>
@@ -2875,7 +2960,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-correlation-search-visa-correlation-search-instruction">
-<h4><a class="toc-backref" href="#id192"><code class="docutils literal"><span class="pre">llvm.genx.va.correlation.search</span></code> vISA Correlation Search instruction</a><a class="headerlink" href="#llvm-genx-va-correlation-search-visa-correlation-search-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id200"><code class="docutils literal"><span class="pre">llvm.genx.va.correlation.search</span></code> vISA Correlation Search instruction</a><a class="headerlink" href="#llvm-genx-va-correlation-search-visa-correlation-search-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i32 surface index</li>
 <li>arg1: float normalized x-coordinate</li>
@@ -2890,7 +2975,7 @@ width determining the execution size.</p>
 </ul>
 </div>
 <div class="section" id="llvm-genx-va-flood-fill-visa-flood-fill-instruction">
-<h4><a class="toc-backref" href="#id193"><code class="docutils literal"><span class="pre">llvm.genx.va.flood.fill</span></code> vISA Flood Fill instruction</a><a class="headerlink" href="#llvm-genx-va-flood-fill-visa-flood-fill-instruction" title="Permalink to this headline">¶</a></h4>
+<h4><a class="toc-backref" href="#id201"><code class="docutils literal"><span class="pre">llvm.genx.va.flood.fill</span></code> vISA Flood Fill instruction</a><a class="headerlink" href="#llvm-genx-va-flood-fill-visa-flood-fill-instruction" title="Permalink to this headline">¶</a></h4>
 <ul class="simple">
 <li>arg0: i8 Is8Connect, constant (valid values 0 or 1).</li>
 <li>arg1: v10i16 pixel mask horizontal direction</li>
@@ -2928,8 +3013,8 @@ width determining the execution size.</p>
       </ul>
     </div>
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2003-2019, LLVM Project.
-      Last updated on Fri Jun 14 15:52:05 2019 -0700.
+        &#169; Copyright 2003-2020, LLVM Project.
+      Last updated on Fri Jul 10 16:09:58 2020 -0700.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
     </div>
   </body>

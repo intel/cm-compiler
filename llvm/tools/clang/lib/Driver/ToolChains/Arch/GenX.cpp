@@ -40,6 +40,7 @@ static const char *getCanonicalGenXTargetCPU(std::string CPU) {
         .Cases("GEN10", "CNL", "CNL")
         .Cases("GEN11", "ICL", "ICL")
         .Cases("GEN11LP", "ICLLP", "ICLLP")
+        .Cases("GEN12LP", "TGLLP", "TGLLP")
         .Default("");
 
     return CanonicalCPU;

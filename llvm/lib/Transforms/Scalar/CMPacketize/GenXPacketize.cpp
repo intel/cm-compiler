@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -1054,6 +1054,7 @@ Value* GenXPacketize::packetizeGenXIntrinsic(Instruction* inst)
         case Intrinsic::genx_dp2:
         case Intrinsic::genx_dp3:
         case Intrinsic::genx_dp4:
+        case Intrinsic::genx_dp4a:
         case Intrinsic::genx_dph:
         case Intrinsic::genx_transpose_ld:
         case Intrinsic::genx_oword_ld:
@@ -1175,6 +1176,20 @@ Value* GenXPacketize::packetizeGenXIntrinsic(Instruction* inst)
           Value *Src4 = getPacketizeValue(CI->getOperand(4));
           Value *Src5 = getPacketizeValue(CI->getOperand(5));
           Value *Args[] = { Src0, BTI, Src2, Src3, Src4, Src5 };
+          auto RetTy = B->GetVectorType(CI->getType());
+          Type *Tys[] = { RetTy, Src0->getType() };
+          auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);
+          replacement = CallInst::Create(Decl, Args, CI->getName(), CI);
+          cast<CallInst>(replacement)->setDebugLoc(CI->getDebugLoc());
+          return replacement;
+        }
+        break;
+        case Intrinsic::genx_bfn: {
+          Value *Src0 = getPacketizeValue(CI->getOperand(0));
+          Value *Src1 = getPacketizeValue(CI->getOperand(1));
+          Value *Src2 = getPacketizeValue(CI->getOperand(2));
+          Value *BFN = getUniformValue(CI->getOperand(4));
+          Value *Args[] = { Src0, Src1, Src2, BFN };
           auto RetTy = B->GetVectorType(CI->getType());
           Type *Tys[] = { RetTy, Src0->getType() };
           auto Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IID, Tys);

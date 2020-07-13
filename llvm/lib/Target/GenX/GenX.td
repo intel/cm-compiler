@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -78,6 +78,7 @@ def : Proc<"GLK",             [FeatureLongLong]>;
 def : Proc<"CNL",             [FeatureLongLong]>;
 def : Proc<"ICL",             [FeatureLongLong]>;
 def : Proc<"ICLLP",           []>;
+def : Proc<"TGLLP",           []>;
 
 def GenX : Target {
   // Nothing here (yet?)

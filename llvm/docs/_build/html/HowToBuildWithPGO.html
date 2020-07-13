@@ -1,0 +1,258 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>How To Build Clang and LLVM with Profile-Guided Optimizations &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="How to Cross Compile Compiler-rt Builtins For Arm" href="HowToCrossCompileBuiltinsOnArm.html" />
+    <link rel="prev" title="How To Build On ARM" href="HowToBuildOnARM.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="HowToCrossCompileBuiltinsOnArm.html" title="How to Cross Compile Compiler-rt Builtins For Arm"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="HowToBuildOnARM.html" title="How To Build On ARM"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="how-to-build-clang-and-llvm-with-profile-guided-optimizations">
+<h1>How To Build Clang and LLVM with Profile-Guided Optimizations<a class="headerlink" href="#how-to-build-clang-and-llvm-with-profile-guided-optimizations" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>PGO (Profile-Guided Optimization) allows your compiler to better optimize code
+for how it actually runs. Users report that applying this to Clang and LLVM can
+decrease overall compile time by 20%.</p>
+<p>This guide walks you through how to build Clang with PGO, though it also applies
+to other subprojects, such as LLD.</p>
+</div>
+<div class="section" id="using-the-script">
+<h2>Using the script<a class="headerlink" href="#using-the-script" title="Permalink to this headline">¶</a></h2>
+<p>We have a script at <code class="docutils literal"><span class="pre">utils/collect_and_build_with_pgo.py</span></code>. This script is
+tested on a few Linux flavors, and requires a checkout of LLVM, Clang, and
+compiler-rt. Despite the the name, it performs four clean builds of Clang, so it
+can take a while to run to completion. Please see the script’s <code class="docutils literal"><span class="pre">--help</span></code> for
+more information on how to run it, and the different options available to you.
+If you want to get the most out of PGO for a particular use-case (e.g. compiling
+a specific large piece of software), please do read the section below on
+‘benchmark’ selection.</p>
+<p>Please note that this script is only tested on a few Linux distros. Patches to
+add support for other platforms, as always, are highly appreciated. :)</p>
+<p>This script also supports a <code class="docutils literal"><span class="pre">--dry-run</span></code> option, which causes it to print
+important commands instead of running them.</p>
+</div>
+<div class="section" id="selecting-benchmarks">
+<h2>Selecting ‘benchmarks’<a class="headerlink" href="#selecting-benchmarks" title="Permalink to this headline">¶</a></h2>
+<p>PGO does best when the profiles gathered represent how the user plans to use the
+compiler. Notably, highly accurate profiles of llc building x86_64 code aren’t
+incredibly helpful if you’re going to be targeting ARM.</p>
+<p>By default, the script above does two things to get solid coverage. It:</p>
+<ul class="simple">
+<li>runs all of Clang and LLVM’s lit tests, and</li>
+<li>uses the instrumented Clang to build Clang, LLVM, and all of the other
+LLVM subprojects available to it.</li>
+</ul>
+<p>Together, these should give you:</p>
+<ul class="simple">
+<li>solid coverage of building C++,</li>
+<li>good coverage of building C,</li>
+<li>great coverage of running optimizations,</li>
+<li>great coverage of the backend for your host’s architecture, and</li>
+<li>some coverage of other architectures (if other arches are supported backends).</li>
+</ul>
+<p>Altogether, this should cover a diverse set of uses for Clang and LLVM. If you
+have very specific needs (e.g. your compiler is meant to compile a large browser
+for four different platforms, or similar), you may want to do something else.
+This is configurable in the script itself.</p>
+</div>
+<div class="section" id="building-clang-with-pgo">
+<h2>Building Clang with PGO<a class="headerlink" href="#building-clang-with-pgo" title="Permalink to this headline">¶</a></h2>
+<p>If you prefer to not use the script, this briefly goes over how to build
+Clang/LLVM with PGO.</p>
+<p>First, you should have at least LLVM, Clang, and compiler-rt checked out
+locally.</p>
+<p>Next, at a high level, you’re going to need to do the following:</p>
+<ol class="arabic simple">
+<li>Build a standard Release Clang and the relevant libclang_rt.profile library</li>
+<li>Build Clang using the Clang you built above, but with instrumentation</li>
+<li>Use the instrumented Clang to generate profiles, which consists of two steps:</li>
+</ol>
+<blockquote>
+<div><ul class="simple">
+<li>Running the instrumented Clang/LLVM/lld/etc. on tasks that represent how
+users will use said tools.</li>
+<li>Using a tool to convert the “raw” profiles generated above into a single,
+final PGO profile.</li>
+</ul>
+</div></blockquote>
+<ol class="arabic simple" start="4">
+<li>Build a final release Clang (along with whatever other binaries you need)
+using the profile collected from your benchmark</li>
+</ol>
+<p>In more detailed steps:</p>
+<ol class="arabic simple">
+<li>Configure a Clang build as you normally would. It’s highly recommended that
+you use the Release configuration for this, since it will be used to build
+another Clang. Because you need Clang and supporting libraries, you’ll want
+to build the <code class="docutils literal"><span class="pre">all</span></code> target (e.g. <code class="docutils literal"><span class="pre">ninja</span> <span class="pre">all</span></code> or <code class="docutils literal"><span class="pre">make</span> <span class="pre">-j4</span> <span class="pre">all</span></code>).</li>
+<li>Configure a Clang build as above, but add the following CMake args:<ul>
+<li><code class="docutils literal"><span class="pre">-DLLVM_BUILD_INSTRUMENTED=IR</span></code> – This causes us to build everything
+with instrumentation.</li>
+<li><code class="docutils literal"><span class="pre">-DLLVM_BUILD_RUNTIME=No</span></code> – A few projects have bad interactions when
+built with profiling, and aren’t necessary to build. This flag turns them
+off.</li>
+<li><code class="docutils literal"><span class="pre">-DCMAKE_C_COMPILER=/path/to/stage1/clang</span></code> - Use the Clang we built in
+step 1.</li>
+<li><code class="docutils literal"><span class="pre">-DCMAKE_CXX_COMPILER=/path/to/stage1/clang++</span></code> - Same as above.</li>
+</ul>
+</li>
+</ol>
+<blockquote>
+<div>In this build directory, you simply need to build the <code class="docutils literal"><span class="pre">clang</span></code> target (and
+whatever supporting tooling your benchmark requires).</div></blockquote>
+<ol class="arabic" start="3">
+<li><p class="first">As mentioned above, this has two steps: gathering profile data, and then
+massaging it into a useful form:</p>
+<ol class="loweralpha">
+<li><p class="first">Build your benchmark using the Clang generated in step 2. The ‘standard’
+benchmark recommended is to run <code class="docutils literal"><span class="pre">check-clang</span></code> and <code class="docutils literal"><span class="pre">check-llvm</span></code> in your
+instrumented Clang’s build directory, and to do a full build of Clang/LLVM
+using your instrumented Clang. So, create yet another build directory,
+with the following CMake arguments:</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">-DCMAKE_C_COMPILER=/path/to/stage2/clang</span></code> - Use the Clang we built in
+step 2.</li>
+<li><code class="docutils literal"><span class="pre">-DCMAKE_CXX_COMPILER=/path/to/stage2/clang++</span></code> - Same as above.</li>
+</ul>
+<p>If your users are fans of debug info, you may want to consider using
+<code class="docutils literal"><span class="pre">-DCMAKE_BUILD_TYPE=RelWithDebInfo</span></code> instead of
+<code class="docutils literal"><span class="pre">-DCMAKE_BUILD_TYPE=Release</span></code>. This will grant better coverage of
+debug info pieces of clang, but will take longer to complete and will
+result in a much larger build directory.</p>
+<p>It’s recommended to build the <code class="docutils literal"><span class="pre">all</span></code> target with your instrumented Clang,
+since more coverage is often better.</p>
+</li>
+</ol>
+</li>
+</ol>
+<blockquote>
+<div><ol class="loweralpha simple" start="2">
+<li>You should now have a few <code class="docutils literal"><span class="pre">*.profraw</span></code> files in
+<code class="docutils literal"><span class="pre">path/to/stage2/profiles/</span></code>. You need to merge these using
+<code class="docutils literal"><span class="pre">llvm-profdata</span></code> (even if you only have one! The profile merge transforms
+profraw into actual profile data, as well). This can be done with
+<code class="docutils literal"><span class="pre">/path/to/stage1/llvm-profdata</span> <span class="pre">merge</span>
+<span class="pre">-output=/path/to/output/profdata.prof</span> <span class="pre">path/to/stage2/profiles/*.profraw</span></code>.</li>
+</ol>
+</div></blockquote>
+<ol class="arabic" start="4">
+<li><p class="first">Now, build your final, PGO-optimized Clang. To do this, you’ll want to pass
+the following additional arguments to CMake.</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">-DLLVM_PROFDATA_FILE=/path/to/output/profdata.prof</span></code> - Use the PGO
+profile from the previous step.</li>
+<li><code class="docutils literal"><span class="pre">-DCMAKE_C_COMPILER=/path/to/stage1/clang</span></code> - Use the Clang we built in
+step 1.</li>
+<li><code class="docutils literal"><span class="pre">-DCMAKE_CXX_COMPILER=/path/to/stage1/clang++</span></code> - Same as above.</li>
+</ul>
+<p>From here, you can build whatever targets you need.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">You may see warnings about a mismatched profile in the build output. These
+are generally harmless. To silence them, you can add
+<code class="docutils literal"><span class="pre">-DCMAKE_C_FLAGS='-Wno-backend-plugin'</span>
+<span class="pre">-DCMAKE_CXX_FLAGS='-Wno-backend-plugin'</span></code> to your CMake invocation.</p>
+</div>
+</li>
+</ol>
+<p>Congrats! You now have a Clang built with profile-guided optimizations, and you
+can delete all but the final build directory if you’d like.</p>
+<p>If this worked well for you and you plan on doing it often, there’s a slight
+optimization that can be made: LLVM and Clang have a tool called tblgen that’s
+built and run during the build process. While it’s potentially nice to build
+this for coverage as part of step 3, none of your other builds should benefit
+from building it. You can pass the CMake options
+<code class="docutils literal"><span class="pre">-DCLANG_TABLEGEN=/path/to/stage1/bin/clang-tblgen</span>
+<span class="pre">-DLLVM_TABLEGEN=/path/to/stage1/bin/llvm-tblgen</span></code> to steps 2 and onward to avoid
+these useless rebuilds.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="HowToCrossCompileBuiltinsOnArm.html" title="How to Cross Compile Compiler-rt Builtins For Arm"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="HowToBuildOnARM.html" title="How To Build On ARM"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -76,6 +76,7 @@ protected:
     GENX_CNL,
     GENX_ICLLP,
     GENX_ICL,
+    GENX_TGLLP,
   };
 
   // GenXVariant - GenX Tag identifying the variant to compile for
@@ -159,6 +160,15 @@ public:
 
   /// * isICLLP - true if target is ICL LP
   bool isICLLP() const { return GenXVariant == GENX_ICLLP; }
+
+  /// * isTGLLP - true if target is TGL LP
+  bool isTGLLP() const { return GenXVariant == GENX_TGLLP; }
+
+
+  /// * emulateIDivRem - true if emulates integer division and reminder.
+  bool emulateIDivRem() const { return GenXVariant >= GENX_TGLLP; }
+  /// * has add3 and bfn instructions
+  bool hasAdd3Bfn() const { return GenXVariant >= GENX_TGLLP; }
 
   /// * dumpRegAlloc - true if we should dump Reg Alloc info
   bool dumpRegAlloc() const { return DumpRegAlloc; }

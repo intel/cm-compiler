@@ -1,0 +1,178 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>waitcnt &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="vaddr" href="gfx7_addr_buf.html" />
+    <link rel="prev" title="imm16" href="gfx7_uimm16.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="gfx7_addr_buf.html" title="vaddr"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="gfx7_uimm16.html" title="imm16"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="../AMDGPUUsage.html" >User Guide for AMDGPU Backend</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="AMDGPUAsmGFX7.html" accesskey="U">Syntax of GFX7 Instructions</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="waitcnt">
+<span id="amdgpu-synid7-waitcnt"></span><h1>waitcnt<a class="headerlink" href="#waitcnt" title="Permalink to this headline">¶</a></h1>
+<p>Counts of outstanding instructions to wait for.</p>
+<p>The bits of this operand have the following meaning:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="18%" />
+<col width="82%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Bits</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>3:0</td>
+<td>VM_CNT: vector memory operations count.</td>
+</tr>
+<tr class="row-odd"><td>6:4</td>
+<td>EXP_CNT: export count.</td>
+</tr>
+<tr class="row-even"><td>12:8</td>
+<td>LGKM_CNT: LDS, GDS, Constant and Message count.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>This operand may be specified as a positive 16-bit <a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer_number</span></a>
+or as a combination of the following symbolic helpers:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="24%" />
+<col width="76%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>vmcnt(&lt;<em>N</em>&gt;)</td>
+<td>VM_CNT value. <em>N</em> must not exceed the largest VM_CNT value.</td>
+</tr>
+<tr class="row-odd"><td>expcnt(&lt;<em>N</em>&gt;)</td>
+<td>EXP_CNT value. <em>N</em> must not exceed the largest EXP_CNT value.</td>
+</tr>
+<tr class="row-even"><td>lgkmcnt(&lt;<em>N</em>&gt;)</td>
+<td>LGKM_CNT value. <em>N</em> must not exceed the largest LGKM_CNT value.</td>
+</tr>
+<tr class="row-odd"><td>vmcnt_sat(&lt;<em>N</em>&gt;)</td>
+<td>VM_CNT value computed as min(<em>N</em>, the largest VM_CNT value).</td>
+</tr>
+<tr class="row-even"><td>expcnt_sat(&lt;<em>N</em>&gt;)</td>
+<td>EXP_CNT value computed as min(<em>N</em>, the largest EXP_CNT value).</td>
+</tr>
+<tr class="row-odd"><td>lgkmcnt_sat(&lt;<em>N</em>&gt;)</td>
+<td>LGKM_CNT value computed as min(<em>N</em>, the largest LGKM_CNT value).</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>These helpers may be specified in any order. Ampersands and commas may be used as optional separators.</p>
+<p><em>N</em> is either an
+<a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer number</span></a> or an
+<a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-absolute-expression"><span class="std std-ref">absolute expression</span></a>.</p>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">s_waitcnt</span> <span class="mi">0</span>
+<span class="n">s_waitcnt</span> <span class="n">vmcnt</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">s_waitcnt</span> <span class="n">expcnt</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="n">lgkmcnt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">s_waitcnt</span> <span class="n">vmcnt</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="n">expcnt</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="n">lgkmcnt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">s_waitcnt</span> <span class="n">vmcnt</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">expcnt</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">lgkmcnt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">s_waitcnt</span> <span class="n">vmcnt</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">lgkmcnt_sat</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">expcnt</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="gfx7_addr_buf.html" title="vaddr"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="gfx7_uimm16.html" title="imm16"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="../AMDGPUUsage.html" >User Guide for AMDGPU Backend</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="AMDGPUAsmGFX7.html" >Syntax of GFX7 Instructions</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

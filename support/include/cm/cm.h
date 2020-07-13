@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -1943,6 +1943,29 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
 cm_f32tof16(const matrix<T, N1, N2> src) {
   matrix<half, N1, N2> _ret = src;
   return _ret.format<ushort>();
+}
+
+template <typename T1, typename T2, typename T3,
+	      typename T4, int N>
+CM_NODEBUG CM_INLINE typename std::enable_if<
+	details::is_dword_type<T1>::value &&
+	details::is_dword_type<T2>::value &&
+	details::is_dword_type<T3>::value &&
+	details::is_dword_type<T4>::value,
+	vector<T1, N> >::type
+cm_dp4a(vector<T2, N> src0,
+  vector<T3, N> src1,
+  vector<T4, N> src2,
+  int flag = _GENX_NOSAT)
+{
+  vector<T2, N> _Src0 = src0;
+	vector<T3, N> _Src1 = src1;
+	vector<T4, N> _Src2 = src2;
+	vector<T1, N> _Result = details::__cm_intrinsic_impl_dp4a<T1>(_Src0, _Src1, _Src2);
+	if (flag != _GENX_SAT)
+    return _Result;
+
+	return details::__cm_intrinsic_impl_sat<T1>(_Result);
 }
 
 

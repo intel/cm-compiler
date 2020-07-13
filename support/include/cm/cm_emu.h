@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -288,5 +288,176 @@ __impl_udivrem(vector<uint32_t, N> la, vector<uint32_t, N> lb,
 } // namespace details
 
 
+#define __IDIV_SCALAR_IMPL(TYPE, REM_TYPE, N, MODE)                            \
+  _GENX_FLOAT_CONTROL_(MODE)                                                   \
+  CM_NODEBUG CM_NOINLINE _CM_BUILTIN_ TYPE __cm_intrinsic_impl_sdiv(TYPE a,    \
+                                                                    TYPE b) {  \
+    vector<TYPE, N> _a = a;                                                    \
+    vector<TYPE, N> _b = b;                                                    \
+    vector<REM_TYPE, N> _r;                                                    \
+    vector<TYPE, N> _q = details::__impl_divrem(_a, _b, _r);                   \
+    return _q(0);                                                              \
+  }
+
+#define __IREM_SCALAR_IMPL(TYPE, REM_TYPE, N, MODE)                            \
+  _GENX_FLOAT_CONTROL_(MODE)                                                   \
+  CM_NODEBUG CM_NOINLINE _CM_BUILTIN_ REM_TYPE __cm_intrinsic_impl_srem(       \
+      TYPE a, TYPE b) {                                                        \
+    vector<TYPE, N> _a = a;                                                    \
+    vector<TYPE, N> _b = b;                                                    \
+    vector<REM_TYPE, N> _r;                                                    \
+    details::__impl_divrem(_a, _b, _r);                                        \
+    return _r(0);                                                              \
+  }
+
+#define __IDIV_VECTOR_IMPL(TYPE, REM_TYPE, N, MODE)                            \
+  _GENX_FLOAT_CONTROL_(MODE)                                                   \
+  CM_NODEBUG CM_NOINLINE _CM_BUILTIN_ vector<TYPE, N>                          \
+  __cm_intrinsic_impl_sdiv(vector<TYPE, N> a, vector<TYPE, N> b) {             \
+    vector<REM_TYPE, N> r;                                                     \
+    vector<TYPE, N> q = details::__impl_divrem(a, b, r);                       \
+    return q;                                                                  \
+  }
+
+#define __IREM_VECTOR_IMPL(TYPE, REM_TYPE, N, MODE)                            \
+  _GENX_FLOAT_CONTROL_(MODE)                                                   \
+  CM_NODEBUG CM_NOINLINE _CM_BUILTIN_ vector<REM_TYPE, N>                      \
+  __cm_intrinsic_impl_srem(vector<TYPE, N> a, vector<TYPE, N> b) {             \
+    vector<REM_TYPE, N> r;                                                     \
+    details::__impl_divrem(a, b, r);                                           \
+    return r;                                                                  \
+  }
+
+__IDIV_SCALAR_IMPL(int8_t, int8_t,  1, CM_RTE)
+__IDIV_VECTOR_IMPL(int8_t, int8_t,  1, CM_RTE)
+__IDIV_VECTOR_IMPL(int8_t, int8_t,  2, CM_RTE)
+__IDIV_VECTOR_IMPL(int8_t, int8_t,  4, CM_RTE)
+__IDIV_VECTOR_IMPL(int8_t, int8_t,  8, CM_RTE)
+__IDIV_VECTOR_IMPL(int8_t, int8_t, 16, CM_RTE)
+__IDIV_VECTOR_IMPL(int8_t, int8_t, 32, CM_RTE)
+
+__IREM_SCALAR_IMPL(int8_t, int8_t,  1, CM_RTE)
+__IREM_VECTOR_IMPL(int8_t, int8_t,  1, CM_RTE)
+__IREM_VECTOR_IMPL(int8_t, int8_t,  2, CM_RTE)
+__IREM_VECTOR_IMPL(int8_t, int8_t,  4, CM_RTE)
+__IREM_VECTOR_IMPL(int8_t, int8_t,  8, CM_RTE)
+__IREM_VECTOR_IMPL(int8_t, int8_t, 16, CM_RTE)
+__IREM_VECTOR_IMPL(int8_t, int8_t, 32, CM_RTE)
+
+__IDIV_SCALAR_IMPL(int16_t, int16_t,  1, CM_RTE)
+__IDIV_VECTOR_IMPL(int16_t, int16_t,  1, CM_RTE)
+__IDIV_VECTOR_IMPL(int16_t, int16_t,  2, CM_RTE)
+__IDIV_VECTOR_IMPL(int16_t, int16_t,  4, CM_RTE)
+__IDIV_VECTOR_IMPL(int16_t, int16_t,  8, CM_RTE)
+__IDIV_VECTOR_IMPL(int16_t, int16_t, 16, CM_RTE)
+__IDIV_VECTOR_IMPL(int16_t, int16_t, 32, CM_RTE)
+
+__IREM_SCALAR_IMPL(int16_t, int16_t,  1, CM_RTE)
+__IREM_VECTOR_IMPL(int16_t, int16_t,  1, CM_RTE)
+__IREM_VECTOR_IMPL(int16_t, int16_t,  2, CM_RTE)
+__IREM_VECTOR_IMPL(int16_t, int16_t,  4, CM_RTE)
+__IREM_VECTOR_IMPL(int16_t, int16_t,  8, CM_RTE)
+__IREM_VECTOR_IMPL(int16_t, int16_t, 16, CM_RTE)
+__IREM_VECTOR_IMPL(int16_t, int16_t, 32, CM_RTE)
+
+__IDIV_SCALAR_IMPL(int32_t, uint32_t,  1, CM_RTZ)
+__IDIV_VECTOR_IMPL(int32_t, uint32_t,  1, CM_RTZ)
+__IDIV_VECTOR_IMPL(int32_t, uint32_t,  2, CM_RTZ)
+__IDIV_VECTOR_IMPL(int32_t, uint32_t,  4, CM_RTZ)
+__IDIV_VECTOR_IMPL(int32_t, uint32_t,  8, CM_RTZ)
+__IDIV_VECTOR_IMPL(int32_t, uint32_t, 16, CM_RTZ)
+
+__IREM_SCALAR_IMPL(int32_t, uint32_t,  1, CM_RTZ)
+__IREM_VECTOR_IMPL(int32_t, uint32_t,  1, CM_RTZ)
+__IREM_VECTOR_IMPL(int32_t, uint32_t,  2, CM_RTZ)
+__IREM_VECTOR_IMPL(int32_t, uint32_t,  4, CM_RTZ)
+__IREM_VECTOR_IMPL(int32_t, uint32_t,  8, CM_RTZ)
+__IREM_VECTOR_IMPL(int32_t, uint32_t, 16, CM_RTZ)
+
+#define __UDIV_SCALAR_IMPL(TYPE, REM_TYPE, N, MODE)                            \
+  _GENX_FLOAT_CONTROL_(MODE)                                                   \
+  CM_NODEBUG CM_NOINLINE _CM_BUILTIN_ TYPE __cm_intrinsic_impl_udiv(TYPE a,    \
+                                                                    TYPE b) {  \
+    vector<TYPE, N> _a = a;                                                    \
+    vector<TYPE, N> _b = b;                                                    \
+    vector<REM_TYPE, N> _r;                                                    \
+    vector<TYPE, N> _q = details::__impl_udivrem(_a, _b, _r);                  \
+    return _q(0);                                                              \
+  }
+
+#define __UREM_SCALAR_IMPL(TYPE, REM_TYPE, N, MODE)                            \
+  _GENX_FLOAT_CONTROL_(MODE)                                                   \
+  CM_NODEBUG CM_NOINLINE _CM_BUILTIN_ REM_TYPE __cm_intrinsic_impl_urem(       \
+      TYPE a, TYPE b) {                                                        \
+    vector<TYPE, N> _a = a;                                                    \
+    vector<TYPE, N> _b = b;                                                    \
+    vector<REM_TYPE, N> _r;                                                    \
+    details::__impl_udivrem(_a, _b, _r);                                       \
+    return _r(0);                                                              \
+  }
+
+#define __UDIV_VECTOR_IMPL(TYPE, REM_TYPE, N, MODE)                            \
+  _GENX_FLOAT_CONTROL_(MODE)                                                   \
+  CM_NODEBUG CM_NOINLINE _CM_BUILTIN_ vector<TYPE, N>                          \
+  __cm_intrinsic_impl_udiv(vector<TYPE, N> a, vector<TYPE, N> b) {             \
+    vector<REM_TYPE, N> r;                                                     \
+    vector<TYPE, N> q = details::__impl_udivrem(a, b, r);                      \
+    return q;                                                                  \
+  }
+
+#define __UREM_VECTOR_IMPL(TYPE, REM_TYPE, N, MODE)                            \
+  _GENX_FLOAT_CONTROL_(MODE)                                                   \
+  CM_NODEBUG CM_NOINLINE _CM_BUILTIN_ vector<REM_TYPE, N>                      \
+  __cm_intrinsic_impl_urem(vector<TYPE, N> a, vector<TYPE, N> b) {             \
+    vector<REM_TYPE, N> r;                                                     \
+    details::__impl_udivrem(a, b, r);                                          \
+    return r;                                                                  \
+  }
+
+__UDIV_SCALAR_IMPL(uint8_t, uint8_t,  1, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint8_t, uint8_t,  1, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint8_t, uint8_t,  2, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint8_t, uint8_t,  4, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint8_t, uint8_t,  8, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint8_t, uint8_t, 16, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint8_t, uint8_t, 32, CM_RTZ)
+
+__UREM_SCALAR_IMPL(uint8_t, uint8_t,  1, CM_RTZ)
+__UREM_VECTOR_IMPL(uint8_t, uint8_t,  1, CM_RTZ)
+__UREM_VECTOR_IMPL(uint8_t, uint8_t,  2, CM_RTZ)
+__UREM_VECTOR_IMPL(uint8_t, uint8_t,  4, CM_RTZ)
+__UREM_VECTOR_IMPL(uint8_t, uint8_t,  8, CM_RTZ)
+__UREM_VECTOR_IMPL(uint8_t, uint8_t, 16, CM_RTZ)
+__UREM_VECTOR_IMPL(uint8_t, uint8_t, 32, CM_RTZ)
+
+__UDIV_SCALAR_IMPL(uint16_t, uint16_t,  1, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint16_t, uint16_t,  1, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint16_t, uint16_t,  2, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint16_t, uint16_t,  4, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint16_t, uint16_t,  8, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint16_t, uint16_t, 16, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint16_t, uint16_t, 32, CM_RTZ)
+
+__UREM_SCALAR_IMPL(uint16_t, uint16_t,  1, CM_RTZ)
+__UREM_VECTOR_IMPL(uint16_t, uint16_t,  1, CM_RTZ)
+__UREM_VECTOR_IMPL(uint16_t, uint16_t,  2, CM_RTZ)
+__UREM_VECTOR_IMPL(uint16_t, uint16_t,  4, CM_RTZ)
+__UREM_VECTOR_IMPL(uint16_t, uint16_t,  8, CM_RTZ)
+__UREM_VECTOR_IMPL(uint16_t, uint16_t, 16, CM_RTZ)
+__UREM_VECTOR_IMPL(uint16_t, uint16_t, 32, CM_RTZ)
+
+__UDIV_SCALAR_IMPL(uint32_t, uint32_t,  1, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint32_t, uint32_t,  1, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint32_t, uint32_t,  2, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint32_t, uint32_t,  4, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint32_t, uint32_t,  8, CM_RTZ)
+__UDIV_VECTOR_IMPL(uint32_t, uint32_t, 16, CM_RTZ)
+
+__UREM_SCALAR_IMPL(uint32_t, uint32_t,  1, CM_RTZ)
+__UREM_VECTOR_IMPL(uint32_t, uint32_t,  1, CM_RTZ)
+__UREM_VECTOR_IMPL(uint32_t, uint32_t,  2, CM_RTZ)
+__UREM_VECTOR_IMPL(uint32_t, uint32_t,  4, CM_RTZ)
+__UREM_VECTOR_IMPL(uint32_t, uint32_t,  8, CM_RTZ)
+__UREM_VECTOR_IMPL(uint32_t, uint32_t, 16, CM_RTZ)
 
 #endif // _CLANG_CM_EMU_H_

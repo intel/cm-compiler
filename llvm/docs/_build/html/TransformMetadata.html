@@ -1,0 +1,490 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Code Transformation Metadata &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="FaultMaps and implicit checks" href="FaultMaps.html" />
+    <link rel="prev" title="Type Metadata" href="TypeMetadata.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="FaultMaps.html" title="FaultMaps and implicit checks"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="TypeMetadata.html" title="Type Metadata"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="code-transformation-metadata">
+<span id="transformation-metadata"></span><h1>Code Transformation Metadata<a class="headerlink" href="#code-transformation-metadata" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#overview" id="id1">Overview</a></li>
+<li><a class="reference internal" href="#metadata-on-loops" id="id2">Metadata on Loops</a></li>
+<li><a class="reference internal" href="#transformation-metadata-structure" id="id3">Transformation Metadata Structure</a></li>
+<li><a class="reference internal" href="#pass-specific-transformation-metadata" id="id4">Pass-Specific Transformation Metadata</a><ul>
+<li><a class="reference internal" href="#loop-vectorization-and-interleaving" id="id5">Loop Vectorization and Interleaving</a></li>
+<li><a class="reference internal" href="#loop-unrolling" id="id6">Loop Unrolling</a></li>
+<li><a class="reference internal" href="#unroll-and-jam" id="id7">Unroll-And-Jam</a></li>
+<li><a class="reference internal" href="#loop-distribution" id="id8">Loop Distribution</a></li>
+<li><a class="reference internal" href="#versioning-licm" id="id9">Versioning LICM</a></li>
+<li><a class="reference internal" href="#loop-interchange" id="id10">Loop Interchange</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ambiguous-transformation-order" id="id11">Ambiguous Transformation Order</a></li>
+<li><a class="reference internal" href="#leftover-transformations" id="id12">Leftover Transformations</a></li>
+</ul>
+</div>
+<div class="section" id="overview">
+<h2><a class="toc-backref" href="#id1">Overview</a><a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>LLVM transformation passes can be controlled by attaching metadata to
+the code to transform. By default, transformation passes use heuristics
+to determine whether or not to perform transformations, and when doing
+so, other details of how the transformations are applied (e.g., which
+vectorization factor to select).
+Unless the optimizer is otherwise directed, transformations are applied
+conservatively. This conservatism generally allows the optimizer to
+avoid unprofitable transformations, but in practice, this results in the
+optimizer not applying transformations that would be highly profitable.</p>
+<p>Frontends can give additional hints to LLVM passes on which
+transformations they should apply. This can be additional knowledge that
+cannot be derived from the emitted IR, or directives passed from the
+user/programmer. OpenMP pragmas are an example of the latter.</p>
+<p>If any such metadata is dropped from the program, the code’s semantics
+must not change.</p>
+</div>
+<div class="section" id="metadata-on-loops">
+<h2><a class="toc-backref" href="#id2">Metadata on Loops</a><a class="headerlink" href="#metadata-on-loops" title="Permalink to this headline">¶</a></h2>
+<p>Attributes can be attached to loops as described in <a class="reference internal" href="LangRef.html#llvm-loop"><span class="std std-ref">‘llvm.loop’</span></a>.
+Attributes can describe properties of the loop, disable transformations,
+force specific transformations and set transformation options.</p>
+<p>Because metadata nodes are immutable (with the exception of
+<code class="docutils literal"><span class="pre">MDNode::replaceOperandWith</span></code> which is dangerous to use on uniqued
+metadata), in order to add or remove a loop attributes, a new <code class="docutils literal"><span class="pre">MDNode</span></code>
+must be created and assigned as the new <code class="docutils literal"><span class="pre">llvm.loop</span></code> metadata. Any
+connection between the old <code class="docutils literal"><span class="pre">MDNode</span></code> and the loop is lost. The
+<code class="docutils literal"><span class="pre">llvm.loop</span></code> node is also used as LoopID (<code class="docutils literal"><span class="pre">Loop::getLoopID()</span></code>), i.e.
+the loop effectively gets a new identifier. For instance,
+<code class="docutils literal"><span class="pre">llvm.mem.parallel_loop_access</span></code> references the LoopID. Therefore, if
+the parallel access property is to be preserved after adding/removing
+loop attributes, any <code class="docutils literal"><span class="pre">llvm.mem.parallel_loop_access</span></code> reference must be
+updated to the new LoopID.</p>
+</div>
+<div class="section" id="transformation-metadata-structure">
+<h2><a class="toc-backref" href="#id3">Transformation Metadata Structure</a><a class="headerlink" href="#transformation-metadata-structure" title="Permalink to this headline">¶</a></h2>
+<p>Some attributes describe code transformations (unrolling, vectorizing,
+loop distribution, etc.). They can either be a hint to the optimizer
+that a transformation might be beneficial, instruction to use a specific
+option, , or convey a specific request from the user (such as
+<code class="docutils literal"><span class="pre">#pragma</span> <span class="pre">clang</span> <span class="pre">loop</span></code> or <code class="docutils literal"><span class="pre">#pragma</span> <span class="pre">omp</span> <span class="pre">simd</span></code>).</p>
+<p>If a transformation is forced but cannot be carried-out for any reason,
+an optimization-missed warning must be emitted. Semantic information
+such as a transformation being safe (e.g.
+<code class="docutils literal"><span class="pre">llvm.mem.parallel_loop_access</span></code>) can be unused by the optimizer
+without generating a warning.</p>
+<p>Unless explicitly disabled, any optimization pass may heuristically
+determine whether a transformation is beneficial and apply it. If
+metadata for another transformation was specified, applying a different
+transformation before it might be inadvertent due to being applied on a
+different loop or the loop not existing anymore. To avoid having to
+explicitly disable an unknown number of passes, the attribute
+<code class="docutils literal"><span class="pre">llvm.loop.disable_nonforced</span></code> disables all optional, high-level,
+restructuring transformations.</p>
+<p>The following example avoids the loop being altered before being
+vectorized, for instance being unrolled.</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span>  <span class="k">br</span> <span class="k">i1</span> <span class="nv">%exitcond</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%for.exit</span><span class="p">,</span> <span class="kt">label</span> <span class="nv">%for.header</span><span class="p">,</span> <span class="nv">!llvm.loop</span> <span class="nv nv-Anonymous">!0</span>
+<span class="p">...</span>
+<span class="nv nv-Anonymous">!0</span> <span class="p">=</span> <span class="k">distinct</span> <span class="p">!{</span><span class="nv nv-Anonymous">!0</span><span class="p">,</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span> <span class="nv nv-Anonymous">!2</span><span class="p">}</span>
+<span class="nv nv-Anonymous">!1</span> <span class="p">=</span> <span class="p">!{</span><span class="nv">!&quot;llvm.loop.vectorize.enable&quot;</span><span class="p">,</span> <span class="k">i1</span> <span class="k">true</span><span class="p">}</span>
+<span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="p">!{</span><span class="nv">!&quot;llvm.loop.disable_nonforced&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>After a transformation is applied, follow-up attributes are set on the
+transformed and/or new loop(s). This allows additional attributes
+including followup-transformations to be specified. Specifying multiple
+transformations in the same metadata node is possible for compatibility
+reasons, but their execution order is undefined. For instance, when
+<code class="docutils literal"><span class="pre">llvm.loop.vectorize.enable</span></code> and <code class="docutils literal"><span class="pre">llvm.loop.unroll.enable</span></code> are
+specified at the same time, unrolling may occur either before or after
+vectorization.</p>
+<p>As an example, the following instructs a loop to be vectorized and only
+then unrolled.</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!0</span> <span class="p">=</span> <span class="k">distinct</span> <span class="p">!{</span><span class="nv nv-Anonymous">!0</span><span class="p">,</span> <span class="nv nv-Anonymous">!1</span><span class="p">,</span> <span class="nv nv-Anonymous">!2</span><span class="p">,</span> <span class="nv nv-Anonymous">!3</span><span class="p">}</span>
+<span class="nv nv-Anonymous">!1</span> <span class="p">=</span> <span class="p">!{</span><span class="nv">!&quot;llvm.loop.vectorize.enable&quot;</span><span class="p">,</span> <span class="k">i1</span> <span class="k">true</span><span class="p">}</span>
+<span class="nv nv-Anonymous">!2</span> <span class="p">=</span> <span class="p">!{</span><span class="nv">!&quot;llvm.loop.disable_nonforced&quot;</span><span class="p">}</span>
+<span class="nv nv-Anonymous">!3</span> <span class="p">=</span> <span class="p">!{</span><span class="nv">!&quot;llvm.loop.vectorize.followup_vectorized&quot;</span><span class="p">,</span> <span class="p">!{</span><span class="s">&quot;llvm.loop.unroll.enable&quot;</span><span class="p">}}</span>
+</pre></div>
+</div>
+<p>If, and only if, no followup is specified, the pass may add attributes itself.
+For instance, the vectorizer adds a <code class="docutils literal"><span class="pre">llvm.loop.isvectorized</span></code> attribute and
+all attributes from the original loop excluding its loop vectorizer
+attributes. To avoid this, an empty followup attribute can be used, e.g.</p>
+<div class="highlight-llvm"><div class="highlight"><pre><span></span><span class="nv nv-Anonymous">!3</span> <span class="p">=</span> <span class="p">!{</span><span class="nv">!&quot;llvm.loop.vectorize.followup_vectorized&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>The followup attributes of a transformation that cannot be applied will
+never be added to a loop and are therefore effectively ignored. This means
+that any followup-transformation in such attributes requires that its
+prior transformations are applied before the followup-transformation.
+The user should receive a warning about the first transformation in the
+transformation chain that could not be applied if it a forced
+transformation. All following transformations are skipped.</p>
+</div>
+<div class="section" id="pass-specific-transformation-metadata">
+<h2><a class="toc-backref" href="#id4">Pass-Specific Transformation Metadata</a><a class="headerlink" href="#pass-specific-transformation-metadata" title="Permalink to this headline">¶</a></h2>
+<p>Transformation options are specific to each transformation. In the
+following, we present the model for each LLVM loop optimization pass and
+the metadata to influence them.</p>
+<div class="section" id="loop-vectorization-and-interleaving">
+<h3><a class="toc-backref" href="#id5">Loop Vectorization and Interleaving</a><a class="headerlink" href="#loop-vectorization-and-interleaving" title="Permalink to this headline">¶</a></h3>
+<p>Loop vectorization and interleaving is interpreted as a single
+transformation. It is interpreted as forced if
+<code class="docutils literal"><span class="pre">!{&quot;llvm.loop.vectorize.enable&quot;,</span> <span class="pre">i1</span> <span class="pre">true}</span></code> is set.</p>
+<p>Assuming the pre-vectorization loop is</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="c1">// original loop</span>
+  <span class="n">Stmt</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>then the code after vectorization will be approximately (assuming an
+SIMD width of 4):</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">rtc</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(;</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">4</span><span class="p">)</span> <span class="c1">// vectorized/interleaved loop</span>
+    <span class="n">Stmt</span><span class="p">(</span><span class="nl">i</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="mi">3</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="k">for</span> <span class="p">(;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="c1">// epilogue loop</span>
+  <span class="n">Stmt</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal"><span class="pre">rtc</span></code> is a generated runtime check.</p>
+<p><code class="docutils literal"><span class="pre">llvm.loop.vectorize.followup_vectorized</span></code> will set the attributes for
+the vectorized loop. If not specified, <code class="docutils literal"><span class="pre">llvm.loop.isvectorized</span></code> is
+combined with the original loop’s attributes to avoid it being
+vectorized multiple times.</p>
+<p><code class="docutils literal"><span class="pre">llvm.loop.vectorize.followup_epilogue</span></code> will set the attributes for
+the remainder loop. If not specified, it will have the original loop’s
+attributes combined with <code class="docutils literal"><span class="pre">llvm.loop.isvectorized</span></code> and
+<code class="docutils literal"><span class="pre">llvm.loop.unroll.runtime.disable</span></code> (unless the original loop already
+has unroll metadata).</p>
+<p>The attributes specified by <code class="docutils literal"><span class="pre">llvm.loop.vectorize.followup_all</span></code> are
+added to both loops.</p>
+<p>When using a follow-up attribute, it replaces any automatically deduced
+attributes for the generated loop in question. Therefore it is
+recommended to add <code class="docutils literal"><span class="pre">llvm.loop.isvectorized</span></code> to
+<code class="docutils literal"><span class="pre">llvm.loop.vectorize.followup_all</span></code> which avoids that the loop
+vectorizer tries to optimize the loops again.</p>
+</div>
+<div class="section" id="loop-unrolling">
+<h3><a class="toc-backref" href="#id6">Loop Unrolling</a><a class="headerlink" href="#loop-unrolling" title="Permalink to this headline">¶</a></h3>
+<p>Unrolling is interpreted as forced any <code class="docutils literal"><span class="pre">!{!&quot;llvm.loop.unroll.enable&quot;}</span></code>
+metadata or option (<code class="docutils literal"><span class="pre">llvm.loop.unroll.count</span></code>, <code class="docutils literal"><span class="pre">llvm.loop.unroll.full</span></code>)
+is present. Unrolling can be full unrolling, partial unrolling of a loop
+with constant trip count or runtime unrolling of a loop with a trip
+count unknown at compile-time.</p>
+<p>If the loop has been unrolled fully, there is no followup-loop. For
+partial/runtime unrolling, the original loop of</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="c1">// original loop</span>
+  <span class="n">Stmt</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>is transformed into (using an unroll factor of 4):</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="k">for</span> <span class="p">(;</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">4</span><span class="p">)</span> <span class="c1">// unrolled loop</span>
+  <span class="n">Stmt</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+  <span class="n">Stmt</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">);</span>
+  <span class="n">Stmt</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">2</span><span class="p">);</span>
+  <span class="n">Stmt</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">3</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="k">for</span> <span class="p">(;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="c1">// remainder loop</span>
+  <span class="n">Stmt</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">llvm.loop.unroll.followup_unrolled</span></code> will set the loop attributes of
+the unrolled loop. If not specified, the attributes of the original loop
+without the <code class="docutils literal"><span class="pre">llvm.loop.unroll.*</span></code> attributes are copied and
+<code class="docutils literal"><span class="pre">llvm.loop.unroll.disable</span></code> added to it.</p>
+<p><code class="docutils literal"><span class="pre">llvm.loop.unroll.followup_remainder</span></code> defines the attributes of the
+remainder loop. If not specified the remainder loop will have no
+attributes. The remainder loop might not be present due to being fully
+unrolled in which case this attribute has no effect.</p>
+<p>Attributes defined in <code class="docutils literal"><span class="pre">llvm.loop.unroll.followup_all</span></code> are added to the
+unrolled and remainder loops.</p>
+<p>To avoid that the partially unrolled loop is unrolled again, it is
+recommended to add <code class="docutils literal"><span class="pre">llvm.loop.unroll.disable</span></code> to
+<code class="docutils literal"><span class="pre">llvm.loop.unroll.followup_all</span></code>. If no follow-up attribute specified
+for a generated loop, it is added automatically.</p>
+</div>
+<div class="section" id="unroll-and-jam">
+<h3><a class="toc-backref" href="#id7">Unroll-And-Jam</a><a class="headerlink" href="#unroll-and-jam" title="Permalink to this headline">¶</a></h3>
+<p>Unroll-and-jam uses the following transformation model (here with an
+unroll factor if 2). Currently, it does not support a fallback version
+when the transformation is unsafe.</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// original outer loop</span>
+  <span class="n">Fore</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="n">m</span><span class="p">;</span> <span class="n">j</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="c1">// original inner loop</span>
+    <span class="n">SubLoop</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">);</span>
+  <span class="n">Aft</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="k">for</span> <span class="p">(;</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">2</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// unrolled outer loop</span>
+  <span class="n">Fore</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+  <span class="n">Fore</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">);</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="n">m</span><span class="p">;</span> <span class="n">j</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// unrolled inner loop</span>
+    <span class="n">SubLoop</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">);</span>
+    <span class="n">SubLoop</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">j</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="n">Aft</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+  <span class="n">Aft</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">);</span>
+<span class="p">}</span>
+<span class="k">for</span> <span class="p">(;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// remainder outer loop</span>
+  <span class="n">Fore</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="n">m</span><span class="p">;</span> <span class="n">j</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="c1">// remainder inner loop</span>
+    <span class="n">SubLoop</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">);</span>
+  <span class="n">Aft</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">llvm.loop.unroll_and_jam.followup_outer</span></code> will set the loop attributes
+of the unrolled outer loop. If not specified, the attributes of the
+original outer loop without the <code class="docutils literal"><span class="pre">llvm.loop.unroll.*</span></code> attributes are
+copied and <code class="docutils literal"><span class="pre">llvm.loop.unroll.disable</span></code> added to it.</p>
+<p><code class="docutils literal"><span class="pre">llvm.loop.unroll_and_jam.followup_inner</span></code> will set the loop attributes
+of the unrolled inner loop. If not specified, the attributes of the
+original inner loop are used unchanged.</p>
+<p><code class="docutils literal"><span class="pre">llvm.loop.unroll_and_jam.followup_remainder_outer</span></code> sets the loop
+attributes of the outer remainder loop. If not specified it will not
+have any attributes. The remainder loop might not be present due to
+being fully unrolled.</p>
+<p><code class="docutils literal"><span class="pre">llvm.loop.unroll_and_jam.followup_remainder_inner</span></code> sets the loop
+attributes of the inner remainder loop. If not specified it will have
+the attributes of the original inner loop. It the outer remainder loop
+is unrolled, the inner remainder loop might be present multiple times.</p>
+<p>Attributes defined in <code class="docutils literal"><span class="pre">llvm.loop.unroll_and_jam.followup_all</span></code> are
+added to all of the aforementioned output loops.</p>
+<p>To avoid that the unrolled loop is unrolled again, it is
+recommended to add <code class="docutils literal"><span class="pre">llvm.loop.unroll.disable</span></code> to
+<code class="docutils literal"><span class="pre">llvm.loop.unroll_and_jam.followup_all</span></code>. It suppresses unroll-and-jam
+as well as an additional inner loop unrolling. If no follow-up
+attribute specified for a generated loop, it is added automatically.</p>
+</div>
+<div class="section" id="loop-distribution">
+<h3><a class="toc-backref" href="#id8">Loop Distribution</a><a class="headerlink" href="#loop-distribution" title="Permalink to this headline">¶</a></h3>
+<p>The LoopDistribution pass tries to separate vectorizable parts of a loop
+from the non-vectorizable part (which otherwise would make the entire
+loop non-vectorizable). Conceptually, it transforms a loop such as</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// original loop</span>
+  <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span><span class="p">;</span>
+  <span class="n">B</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">B</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+  <span class="n">C</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">+</span> <span class="n">C</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">];</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>into the following code:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="p">(</span><span class="n">rtc</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="c1">// coincident loop</span>
+    <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span><span class="p">;</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="c1">// coincident loop</span>
+    <span class="n">B</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">B</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="c1">// sequential loop</span>
+    <span class="n">C</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">+</span> <span class="n">C</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">];</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// fallback loop</span>
+    <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span><span class="p">;</span>
+    <span class="n">B</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">B</span><span class="p">[</span><span class="n">i</span><span class="p">];</span>
+    <span class="n">C</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">+</span> <span class="n">C</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mi">1</span><span class="p">];</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal"><span class="pre">rtc</span></code> is a generated runtime check.</p>
+<p><code class="docutils literal"><span class="pre">llvm.loop.distribute.followup_coincident</span></code> sets the loop attributes of
+all loops without loop-carried dependencies (i.e. vectorizable loops).
+There might be more than one such loops. If not defined, the loops will
+inherit the original loop’s attributes.</p>
+<p><code class="docutils literal"><span class="pre">llvm.loop.distribute.followup_sequential</span></code> sets the loop attributes of the
+loop with potentially unsafe dependencies. There should be at most one
+such loop. If not defined, the loop will inherit the original loop’s
+attributes.</p>
+<p><code class="docutils literal"><span class="pre">llvm.loop.distribute.followup_fallback</span></code> defines the loop attributes
+for the fallback loop, which is a copy of the original loop for when
+loop versioning is required. If undefined, the fallback loop inherits
+all attributes from the original loop.</p>
+<p>Attributes defined in <code class="docutils literal"><span class="pre">llvm.loop.distribute.followup_all</span></code> are added to
+all of the aforementioned output loops.</p>
+<p>It is recommended to add <code class="docutils literal"><span class="pre">llvm.loop.disable_nonforced</span></code> to
+<code class="docutils literal"><span class="pre">llvm.loop.distribute.followup_fallback</span></code>. This avoids that the
+fallback version (which is likely never executed) is further optimzed
+which would increase the code size.</p>
+</div>
+<div class="section" id="versioning-licm">
+<h3><a class="toc-backref" href="#id9">Versioning LICM</a><a class="headerlink" href="#versioning-licm" title="Permalink to this headline">¶</a></h3>
+<p>The pass hoists code out of loops that are only loop-invariant when
+dynamic conditions apply. For instance, it transforms the loop</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="c1">// original loop</span>
+  <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">B</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+</pre></div>
+</div>
+<p>into:</p>
+<div class="highlight-c"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="p">(</span><span class="n">rtc</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">auto</span> <span class="n">b</span> <span class="o">=</span> <span class="n">B</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="c1">// versioned loop</span>
+    <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span><span class="p">;</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">+=</span><span class="mi">1</span><span class="p">)</span> <span class="c1">// unversioned loop</span>
+    <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">B</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The runtime condition (<code class="docutils literal"><span class="pre">rtc</span></code>) checks that the array <code class="docutils literal"><span class="pre">A</span></code> and the
+element <cite>B[0]</cite> do not alias.</p>
+<p>Currently, this transformation does not support followup-attributes.</p>
+</div>
+<div class="section" id="loop-interchange">
+<h3><a class="toc-backref" href="#id10">Loop Interchange</a><a class="headerlink" href="#loop-interchange" title="Permalink to this headline">¶</a></h3>
+<p>Currently, the <code class="docutils literal"><span class="pre">LoopInterchange</span></code> pass does not use any metadata.</p>
+</div>
+</div>
+<div class="section" id="ambiguous-transformation-order">
+<h2><a class="toc-backref" href="#id11">Ambiguous Transformation Order</a><a class="headerlink" href="#ambiguous-transformation-order" title="Permalink to this headline">¶</a></h2>
+<p>If there multiple transformations defined, the order in which they are
+executed depends on the order in LLVM’s pass pipeline, which is subject
+to change. The default optimization pipeline (anything higher than
+<code class="docutils literal"><span class="pre">-O0</span></code>) has the following order.</p>
+<p>When using the legacy pass manager:</p>
+<blockquote>
+<div><ul class="simple">
+<li>LoopInterchange (if enabled)</li>
+<li>SimpleLoopUnroll/LoopFullUnroll (only performs full unrolling)</li>
+<li>VersioningLICM (if enabled)</li>
+<li>LoopDistribute</li>
+<li>LoopVectorizer</li>
+<li>LoopUnrollAndJam (if enabled)</li>
+<li>LoopUnroll (partial and runtime unrolling)</li>
+</ul>
+</div></blockquote>
+<p>When using the legacy pass manager with LTO:</p>
+<blockquote>
+<div><ul class="simple">
+<li>LoopInterchange (if enabled)</li>
+<li>SimpleLoopUnroll/LoopFullUnroll (only performs full unrolling)</li>
+<li>LoopVectorizer</li>
+<li>LoopUnroll (partial and runtime unrolling)</li>
+</ul>
+</div></blockquote>
+<p>When using the new pass manager:</p>
+<blockquote>
+<div><ul class="simple">
+<li>SimpleLoopUnroll/LoopFullUnroll (only performs full unrolling)</li>
+<li>LoopDistribute</li>
+<li>LoopVectorizer</li>
+<li>LoopUnrollAndJam (if enabled)</li>
+<li>LoopUnroll (partial and runtime unrolling)</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="leftover-transformations">
+<h2><a class="toc-backref" href="#id12">Leftover Transformations</a><a class="headerlink" href="#leftover-transformations" title="Permalink to this headline">¶</a></h2>
+<p>Forced transformations that have not been applied after the last
+transformation pass should be reported to the user. The transformation
+passes themselves cannot be responsible for this reporting because they
+might not be in the pipeline, there might be multiple passes able to
+apply a transformation (e.g. <code class="docutils literal"><span class="pre">LoopInterchange</span></code> and Polly) or a
+transformation attribute may be ‘hidden’ inside another passes’ followup
+attribute.</p>
+<p>The pass <code class="docutils literal"><span class="pre">-transform-warning</span></code> (<code class="docutils literal"><span class="pre">WarnMissedTransformationsPass</span></code>)
+emits such warnings. It should be placed after the last transformation
+pass.</p>
+<p>The current pass pipeline has a fixed order in which transformations
+passes are executed. A transformation can be in the followup of a pass
+that is executed later and thus leftover. For instance, a loop nest
+cannot be distributed and then interchanged with the current pass
+pipeline. The loop distribution will execute, but there is no loop
+interchange pass following such that any loop interchange metadata will
+be ignored. The <code class="docutils literal"><span class="pre">-transform-warning</span></code> should emit a warning in this
+case.</p>
+<p>Future versions of LLVM may fix this by executing transformations using
+a dynamic ordering.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="FaultMaps.html" title="FaultMaps and implicit checks"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="TypeMetadata.html" title="Type Metadata"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

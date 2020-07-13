@@ -1,0 +1,217 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>LLVM Bug Life Cycle &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Moving LLVM Projects to GitHub" href="Proposals/GitHubMove.html" />
+    <link rel="prev" title="How To Validate a New Release" href="ReleaseProcess.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="Proposals/GitHubMove.html" title="Moving LLVM Projects to GitHub"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="ReleaseProcess.html" title="How To Validate a New Release"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-bug-life-cycle">
+<h1>LLVM Bug Life Cycle<a class="headerlink" href="#llvm-bug-life-cycle" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction-achieving-consistency-in-how-we-deal-with-bug-reports" id="id2">Introduction - Achieving consistency in how we deal with bug reports</a></li>
+<li><a class="reference internal" href="#reporting-bugs" id="id3">Reporting bugs</a></li>
+<li><a class="reference internal" href="#triaging-bugs" id="id4">Triaging bugs</a></li>
+<li><a class="reference internal" href="#actively-working-on-fixing-bugs" id="id5">Actively working on fixing bugs</a></li>
+<li><a class="reference internal" href="#resolving-closing-bugs" id="id6">Resolving/Closing bugs</a></li>
+<li><a class="reference internal" href="#maintenance-of-products-components-metadata" id="id7">Maintenance of products/components metadata</a></li>
+<li><a class="reference internal" href="#maintenance-of-cc-by-default-settings" id="id8">Maintenance of cc-by-default settings</a></li>
+</ul>
+</div>
+<div class="section" id="introduction-achieving-consistency-in-how-we-deal-with-bug-reports">
+<h2><a class="toc-backref" href="#id2">Introduction - Achieving consistency in how we deal with bug reports</a><a class="headerlink" href="#introduction-achieving-consistency-in-how-we-deal-with-bug-reports" title="Permalink to this headline">¶</a></h2>
+<p>We aim to achieve a basic level of consistency in how reported bugs evolve from
+being reported, to being worked on, and finally getting closed out. The
+consistency helps reporters, developers and others to gain a better
+understanding of what a particular bug state actually means and what to expect
+might happen next.</p>
+<p>At the same time, we aim to not over-specify the life cycle of bugs in the
+<a class="reference external" href="https://bugs.llvm.org/enter_bug.cgi">the LLVM Bug Tracking System</a>, as the
+overall goal is to make it easier to work with and understand the bug reports.</p>
+<p>The main parts of the life cycle documented here are:</p>
+<ol class="arabic simple">
+<li><a class="reference internal" href="#reporting">Reporting</a></li>
+<li><a class="reference internal" href="#triaging">Triaging</a></li>
+<li><a class="reference internal" href="#actively-working-on-fixing">Actively working on fixing</a></li>
+<li><a class="reference internal" href="#closing">Closing</a></li>
+</ol>
+<p>Furthermore, some of the metadata in the bug tracker, such as who to notify on
+newly reported bugs or what the breakdown into products &amp; components is we use,
+needs to be maintained. See the following for details:</p>
+<ol class="arabic simple">
+<li><a class="reference internal" href="#maintenance-of-bug-products-component-metadata">Maintenance of Bug products/component metadata</a></li>
+<li><a class="reference internal" href="#maintenance-of-cc-by-default-settings">Maintenance of cc-by-default settings</a></li>
+</ol>
+</div>
+<div class="section" id="reporting-bugs">
+<span id="reporting"></span><h2><a class="toc-backref" href="#id3">Reporting bugs</a><a class="headerlink" href="#reporting-bugs" title="Permalink to this headline">¶</a></h2>
+<p>See <a class="reference internal" href="HowToSubmitABug.html"><span class="doc">How to submit an LLVM bug report</span></a> on further details on how to submit good bug reports.</p>
+<p>Make sure that you have one or more people on cc on the bug report that you
+think will react to it. We aim to automatically add specific people on cc for
+most products/components, but may not always succeed in doing so.</p>
+<p>If you know the area of LLVM code the root cause of the bug is in, good
+candidates to add as cc may be the same people you’d ask for a code review in
+that area. See <a class="reference internal" href="Phabricator.html#finding-potential-reviewers"><span class="std std-ref">Finding potential reviewers</span></a> for more details.</p>
+</div>
+<div class="section" id="triaging-bugs">
+<span id="triaging"></span><h2><a class="toc-backref" href="#id4">Triaging bugs</a><a class="headerlink" href="#triaging-bugs" title="Permalink to this headline">¶</a></h2>
+<p>Bugs with status NEW indicate that they still need to be triaged.
+When triage is complete, the status of the bug is moved to CONFIRMED.</p>
+<p>The goal of triaging a bug is to make sure a newly reported bug ends up in a
+good, actionable, state. Try to answer the following questions while triaging.</p>
+<ul class="simple">
+<li>Is the reported behavior actually wrong?<ul>
+<li>E.g. does a miscompile example depend on undefined behavior?</li>
+</ul>
+</li>
+<li>Can you easily reproduce the bug?<ul>
+<li>If not, are there reasonable excuses why it cannot easily be reproduced?</li>
+</ul>
+</li>
+<li>Is it related to an already reported bug?<ul>
+<li>Use the “See also”/”depends on”/”blocks” fields if so.</li>
+<li>Close it as a duplicate if so, pointing to the issue it duplicates.</li>
+</ul>
+</li>
+<li>Are the following fields filled in correctly?<ul>
+<li>Product</li>
+<li>Component</li>
+<li>Title</li>
+</ul>
+</li>
+<li>CC others not already cc’ed that you happen to know would be good to pull in.</li>
+<li>Add the “beginner” keyword if you think this would be a good bug to be fixed
+by someone new to LLVM.</li>
+</ul>
+</div>
+<div class="section" id="actively-working-on-fixing-bugs">
+<span id="actively-working-on-fixing"></span><h2><a class="toc-backref" href="#id5">Actively working on fixing bugs</a><a class="headerlink" href="#actively-working-on-fixing-bugs" title="Permalink to this headline">¶</a></h2>
+<p>Please remember to assign the bug to yourself if you’re actively working on
+fixing it and to unassign it when you’re no longer actively working on it.  You
+unassign a bug by setting the Assignee field to “<a class="reference external" href="mailto:unassignedbugs&#37;&#52;&#48;nondot&#46;org">unassignedbugs<span>&#64;</span>nondot<span>&#46;</span>org</a>”.</p>
+</div>
+<div class="section" id="resolving-closing-bugs">
+<span id="closing"></span><h2><a class="toc-backref" href="#id6">Resolving/Closing bugs</a><a class="headerlink" href="#resolving-closing-bugs" title="Permalink to this headline">¶</a></h2>
+<p>For simplicity, we only have 1 status for all resolved or closed bugs:
+RESOLVED.</p>
+<p>Resolving bugs is good! Make sure to properly record the reason for resolving.
+Examples of reasons for resolving are:</p>
+<ul class="simple">
+<li>Revision NNNNNN fixed the bug.</li>
+<li>The bug cannot be reproduced with revision NNNNNN.</li>
+<li>The circumstances for the bug don’t apply anymore.</li>
+<li>There is a sound reason for not fixing it (WONTFIX).</li>
+<li>There is a specific and plausible reason to think that a given bug is
+otherwise inapplicable or obsolete.<ul>
+<li>One example is an old open bug that doesn’t contain enough information to
+clearly understand the problem being reported (e.g. not reproducible). It is
+fine to resolve such a bug e.g. with resolution WORKSFORME and leaving a
+comment to encourage the reporter to reopen the bug with more information
+if it’s still reproducable on their end.</li>
+</ul>
+</li>
+</ul>
+<p>If a bug is resolved, please fill in the revision number it was fixed in in the
+“Fixed by Commit(s)” field.</p>
+</div>
+<div class="section" id="maintenance-of-products-components-metadata">
+<span id="maintenance-of-bug-products-component-metadata"></span><h2><a class="toc-backref" href="#id7">Maintenance of products/components metadata</a><a class="headerlink" href="#maintenance-of-products-components-metadata" title="Permalink to this headline">¶</a></h2>
+<p>Please raise a bug against “Bugzilla Admin”/”Products” to request any changes
+to be made to the breakdown of products &amp; components modeled in Bugzilla.</p>
+</div>
+<div class="section" id="maintenance-of-cc-by-default-settings">
+<span id="id1"></span><h2><a class="toc-backref" href="#id8">Maintenance of cc-by-default settings</a><a class="headerlink" href="#maintenance-of-cc-by-default-settings" title="Permalink to this headline">¶</a></h2>
+<p>Please raise a bug against “Bugzilla Admin”/”Products” to request any changes
+to be made to the cc-by-default settings for specific components.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="Proposals/GitHubMove.html" title="Moving LLVM Projects to GitHub"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="ReleaseProcess.html" title="How To Validate a New Release"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

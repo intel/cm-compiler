@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,8 +40,7 @@ static_assert(0, "CM:w:cm_vme.h should not be included explicitly - only "
 #elif defined(CM_GEN11)
 #include "gen11_vme.h"
 #else
-
-
+#include "gen12_vme.h"
 #endif
 
 #endif /* _CLANG_CM_VME_H_ */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -42,7 +42,7 @@
 #include "llvm/Transforms/Utils/Local.h"
 #include <llvm/ADT/SmallVector.h>
 
-#define MAX_ALLOCA_PROMOTE_GRF_NUM      48
+#define MAX_ALLOCA_PROMOTE_GRF_NUM      96
 
 using namespace llvm;
 using namespace genx;
@@ -207,6 +207,8 @@ bool TransformPrivMem::CheckIfAllocaPromotable(llvm::AllocaInst* pAlloca)
   // if alloca size exceeds alloc size threshold, return false
   if (allocaSize > allowedAllocaSizeInBytes)
   {
+    report_fatal_error(
+        "cannot support alloca that is too big to promote to GRF");
     return false;
   }
   return true;
@@ -214,27 +216,21 @@ bool TransformPrivMem::CheckIfAllocaPromotable(llvm::AllocaInst* pAlloca)
 
 static Type* GetBaseType(Type* pType)
 {
-  if (pType->isStructTy())
-  {
-    int num_elements = pType->getStructNumElements();
-    if (num_elements > 1)
-      return nullptr;
+  while (pType->isStructTy() || pType->isArrayTy()) {
+    if (pType->isStructTy()) {
+      int num_elements = pType->getStructNumElements();
+      if (num_elements > 1) {
+        assert(!pType->isStructTy() &&
+               "CM does not support struct-type for 2 or more elements");
+        return nullptr;
+      }
 
-    pType = pType->getStructElementType(0);
-  }
-
-  while (pType->isArrayTy())
-  {
-    pType = pType->getArrayElementType();
-  }
-
-  if (pType->isStructTy())
-  {
-    int num_elements = pType->getStructNumElements();
-    if (num_elements > 1)
-      return nullptr;
-
-    pType = pType->getStructElementType(0);
+      pType = pType->getStructElementType(0);
+    } else if (pType->isArrayTy()) {
+      pType = pType->getArrayElementType();
+    } else {
+      assert(0);
+    }
   }
   return pType;
 }
@@ -302,7 +298,6 @@ void TransformPrivMem::handleAllocaInst(llvm::AllocaInst* pAlloca)
 {
   // Extract the Alloca size and the base Type
   Type* pType = pAlloca->getType()->getPointerElementType();
-  assert(!pType->isStructTy() && "CM does not support struct-type");
   Type *pBaseType = GetBaseType(pType);
   if (!pBaseType)
     return;

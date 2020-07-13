@@ -1,0 +1,845 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-mca - LLVM Machine Code Analyzer &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="bugpoint - automatic test case reduction tool" href="bugpoint.html" />
+    <link rel="prev" title="dsymutil - manipulate archived DWARF debug symbol files" href="dsymutil.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="bugpoint.html" title="bugpoint - automatic test case reduction tool"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="dsymutil.html" title="dsymutil - manipulate archived DWARF debug symbol files"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-mca-llvm-machine-code-analyzer">
+<h1>llvm-mca - LLVM Machine Code Analyzer<a class="headerlink" href="#llvm-mca-llvm-machine-code-analyzer" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-mca</strong> [<em>options</em>] [input]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-mca</strong> is a performance analysis tool that uses information
+available in LLVM (e.g. scheduling models) to statically measure the performance
+of machine code in a specific CPU.</p>
+<p>Performance is measured in terms of throughput as well as processor resource
+consumption. The tool currently works for processors with an out-of-order
+backend, for which there is a scheduling model available in LLVM.</p>
+<p>The main goal of this tool is not just to predict the performance of the code
+when run on the target, but also help with diagnosing potential performance
+issues.</p>
+<p>Given an assembly code sequence, <strong class="program">llvm-mca</strong> estimates the Instructions
+Per Cycle (IPC), as well as hardware resource pressure. The analysis and
+reporting style were inspired by the IACA tool from Intel.</p>
+<p>For example, you can compile code with clang, output assembly, and pipe it
+directly into <strong class="program">llvm-mca</strong> for analysis:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>$ clang foo.c -O2 -target x86_64-unknown-unknown -S -o - <span class="p">|</span> llvm-mca -mcpu<span class="o">=</span>btver2
+</pre></div>
+</div>
+<p>Or for Intel syntax:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>$ clang foo.c -O2 -target x86_64-unknown-unknown -mllvm -x86-asm-syntax<span class="o">=</span>intel -S -o - <span class="p">|</span> llvm-mca -mcpu<span class="o">=</span>btver2
+</pre></div>
+</div>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<p>If <code class="docutils literal"><span class="pre">input</span></code> is “<code class="docutils literal"><span class="pre">-</span></code>” or omitted, <strong class="program">llvm-mca</strong> reads from standard
+input. Otherwise, it will read from the specified filename.</p>
+<p>If the <a class="reference internal" href="opt.html#cmdoption-o"><code class="xref std std-option docutils literal"><span class="pre">-o</span></code></a> option is omitted, then <strong class="program">llvm-mca</strong> will send its output
+to standard output if the input is from standard input.  If the <a class="reference internal" href="opt.html#cmdoption-o"><code class="xref std std-option docutils literal"><span class="pre">-o</span></code></a>
+option specifies “<code class="docutils literal"><span class="pre">-</span></code>“, then the output will also be sent to standard output.</p>
+<dl class="option">
+<dt id="cmdoption-help">
+<code class="descname">-help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-help" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print a summary of command line options.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mtriple">
+<code class="descname">-mtriple</code><code class="descclassname">=&lt;target triple&gt;</code><a class="headerlink" href="#cmdoption-mtriple" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify a target triple string.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-march">
+<code class="descname">-march</code><code class="descclassname">=&lt;arch&gt;</code><a class="headerlink" href="#cmdoption-march" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the architecture for which to analyze the code. It defaults to the
+host default target.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mcpu">
+<code class="descname">-mcpu</code><code class="descclassname">=&lt;cpuname&gt;</code><a class="headerlink" href="#cmdoption-mcpu" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the processor for which to analyze the code.  By default, the cpu name
+is autodetected from the host.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-output-asm-variant">
+<code class="descname">-output-asm-variant</code><code class="descclassname">=&lt;variant id&gt;</code><a class="headerlink" href="#cmdoption-output-asm-variant" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the output assembly variant for the report generated by the tool.
+On x86, possible values are [0, 1]. A value of 0 (vic. 1) for this flag enables
+the AT&amp;T (vic. Intel) assembly format for the code printed out by the tool in
+the analysis report.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-dispatch">
+<code class="descname">-dispatch</code><code class="descclassname">=&lt;width&gt;</code><a class="headerlink" href="#cmdoption-dispatch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify a different dispatch width for the processor. The dispatch width
+defaults to field ‘IssueWidth’ in the processor scheduling model.  If width is
+zero, then the default dispatch width is used.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-register-file-size">
+<code class="descname">-register-file-size</code><code class="descclassname">=&lt;size&gt;</code><a class="headerlink" href="#cmdoption-register-file-size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the size of the register file. When specified, this flag limits how
+many physical registers are available for register renaming purposes. A value
+of zero for this flag means “unlimited number of physical registers”.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-iterations">
+<code class="descname">-iterations</code><code class="descclassname">=&lt;number of iterations&gt;</code><a class="headerlink" href="#cmdoption-iterations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the number of iterations to run. If this flag is set to 0, then the
+tool sets the number of iterations to a default value (i.e. 100).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-noalias">
+<code class="descname">-noalias</code><code class="descclassname">=&lt;bool&gt;</code><a class="headerlink" href="#cmdoption-noalias" title="Permalink to this definition">¶</a></dt>
+<dd><p>If set, the tool assumes that loads and stores don’t alias. This is the
+default behavior.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-lqueue">
+<code class="descname">-lqueue</code><code class="descclassname">=&lt;load queue size&gt;</code><a class="headerlink" href="#cmdoption-lqueue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the size of the load queue in the load/store unit emulated by the tool.
+By default, the tool assumes an unbound number of entries in the load queue.
+A value of zero for this flag is ignored, and the default load queue size is
+used instead.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-squeue">
+<code class="descname">-squeue</code><code class="descclassname">=&lt;store queue size&gt;</code><a class="headerlink" href="#cmdoption-squeue" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the size of the store queue in the load/store unit emulated by the
+tool. By default, the tool assumes an unbound number of entries in the store
+queue. A value of zero for this flag is ignored, and the default store queue
+size is used instead.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-timeline">
+<code class="descname">-timeline</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-timeline" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable the timeline view.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-timeline-max-iterations">
+<code class="descname">-timeline-max-iterations</code><code class="descclassname">=&lt;iterations&gt;</code><a class="headerlink" href="#cmdoption-timeline-max-iterations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Limit the number of iterations to print in the timeline view. By default, the
+timeline view prints information for up to 10 iterations.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-timeline-max-cycles">
+<code class="descname">-timeline-max-cycles</code><code class="descclassname">=&lt;cycles&gt;</code><a class="headerlink" href="#cmdoption-timeline-max-cycles" title="Permalink to this definition">¶</a></dt>
+<dd><p>Limit the number of cycles in the timeline view. By default, the number of
+cycles is set to 80.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-resource-pressure">
+<code class="descname">-resource-pressure</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-resource-pressure" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable the resource pressure view. This is enabled by default.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-register-file-stats">
+<code class="descname">-register-file-stats</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-register-file-stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable register file usage statistics.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-dispatch-stats">
+<code class="descname">-dispatch-stats</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-dispatch-stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable extra dispatch statistics. This view collects and analyzes instruction
+dispatch events, as well as static/dynamic dispatch stall events. This view
+is disabled by default.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-scheduler-stats">
+<code class="descname">-scheduler-stats</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-scheduler-stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable extra scheduler statistics. This view collects and analyzes instruction
+issue events. This view is disabled by default.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-retire-stats">
+<code class="descname">-retire-stats</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-retire-stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable extra retire control unit statistics. This view is disabled by default.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-instruction-info">
+<code class="descname">-instruction-info</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-instruction-info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable the instruction info view. This is enabled by default.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-all-stats">
+<code class="descname">-all-stats</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-all-stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print all hardware statistics. This enables extra statistics related to the
+dispatch logic, the hardware schedulers, the register file(s), and the retire
+control unit. This option is disabled by default.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-all-views">
+<code class="descname">-all-views</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-all-views" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable all the view.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-instruction-tables">
+<code class="descname">-instruction-tables</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-instruction-tables" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prints resource pressure information based on the static information
+available from the processor model. This differs from the resource pressure
+view because it doesn’t require that the code is simulated. It instead prints
+the theoretical uniform distribution of resource pressure for every
+instruction in sequence.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-mca</strong> returns 0 on success. Otherwise, an error message is printed
+to standard error, and the tool returns 1.</p>
+</div>
+<div class="section" id="using-markers-to-analyze-specific-code-blocks">
+<h2>USING MARKERS TO ANALYZE SPECIFIC CODE BLOCKS<a class="headerlink" href="#using-markers-to-analyze-specific-code-blocks" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-mca</strong> allows for the optional usage of special code comments to
+mark regions of the assembly code to be analyzed.  A comment starting with
+substring <code class="docutils literal"><span class="pre">LLVM-MCA-BEGIN</span></code> marks the beginning of a code region. A comment
+starting with substring <code class="docutils literal"><span class="pre">LLVM-MCA-END</span></code> marks the end of a code region.  For
+example:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span># LLVM-MCA-BEGIN My Code Region
+  ...
+# LLVM-MCA-END
+</pre></div>
+</div>
+<p>Multiple regions can be specified provided that they do not overlap.  A code
+region can have an optional description. If no user-defined region is specified,
+then <strong class="program">llvm-mca</strong> assumes a default region which contains every
+instruction in the input file.  Every region is analyzed in isolation, and the
+final performance report is the union of all the reports generated for every
+code region.</p>
+<p>Inline assembly directives may be used from source code to annotate the
+assembly text:</p>
+<div class="highlight-c++"><div class="highlight"><pre><span></span><span class="kt">int</span> <span class="nf">foo</span><span class="p">(</span><span class="kt">int</span> <span class="n">a</span><span class="p">,</span> <span class="kt">int</span> <span class="n">b</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kr">__asm</span> <span class="k">volatile</span><span class="p">(</span><span class="s">&quot;# LLVM-MCA-BEGIN foo&quot;</span><span class="p">);</span>
+  <span class="n">a</span> <span class="o">+=</span> <span class="mi">42</span><span class="p">;</span>
+  <span class="kr">__asm</span> <span class="k">volatile</span><span class="p">(</span><span class="s">&quot;# LLVM-MCA-END&quot;</span><span class="p">);</span>
+  <span class="n">a</span> <span class="o">*=</span> <span class="n">b</span><span class="p">;</span>
+  <span class="k">return</span> <span class="n">a</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="how-llvm-mca-works">
+<h2>HOW LLVM-MCA WORKS<a class="headerlink" href="#how-llvm-mca-works" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-mca</strong> takes assembly code as input. The assembly code is parsed
+into a sequence of MCInst with the help of the existing LLVM target assembly
+parsers. The parsed sequence of MCInst is then analyzed by a <code class="docutils literal"><span class="pre">Pipeline</span></code> module
+to generate a performance report.</p>
+<p>The Pipeline module simulates the execution of the machine code sequence in a
+loop of iterations (default is 100). During this process, the pipeline collects
+a number of execution related statistics. At the end of this process, the
+pipeline generates and prints a report from the collected statistics.</p>
+<p>Here is an example of a performance report generated by the tool for a
+dot-product of two packed float vectors of four elements. The analysis is
+conducted for target x86, cpu btver2.  The following result can be produced via
+the following command using the example located at
+<code class="docutils literal"><span class="pre">test/tools/llvm-mca/X86/BtVer2/dot-product.s</span></code>:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>$ llvm-mca -mtriple<span class="o">=</span>x86_64-unknown-unknown -mcpu<span class="o">=</span>btver2 -iterations<span class="o">=</span><span class="m">300</span> dot-product.s
+</pre></div>
+</div>
+<div class="highlight-none"><div class="highlight"><pre><span></span>Iterations:        300
+Instructions:      900
+Total Cycles:      610
+Total uOps:        900
+
+Dispatch Width:    2
+uOps Per Cycle:    1.48
+IPC:               1.48
+Block RThroughput: 2.0
+
+
+Instruction Info:
+[1]: #uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 1      2     1.00                        vmulps      %xmm0, %xmm1, %xmm2
+ 1      3     1.00                        vhaddps     %xmm2, %xmm2, %xmm3
+ 1      3     1.00                        vhaddps     %xmm3, %xmm3, %xmm4
+
+
+Resources:
+[0]   - JALU0
+[1]   - JALU1
+[2]   - JDiv
+[3]   - JFPA
+[4]   - JFPM
+[5]   - JFPU0
+[6]   - JFPU1
+[7]   - JLAGU
+[8]   - JMul
+[9]   - JSAGU
+[10]  - JSTC
+[11]  - JVALU0
+[12]  - JVALU1
+[13]  - JVIMUL
+
+
+Resource pressure per iteration:
+[0]    [1]    [2]    [3]    [4]    [5]    [6]    [7]    [8]    [9]    [10]   [11]   [12]   [13]
+ -      -      -     2.00   1.00   2.00   1.00    -      -      -      -      -      -      -
+
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6]    [7]    [8]    [9]    [10]   [11]   [12]   [13]   Instructions:
+ -      -      -      -     1.00    -     1.00    -      -      -      -      -      -      -     vmulps      %xmm0, %xmm1, %xmm2
+ -      -      -     1.00    -     1.00    -      -      -      -      -      -      -      -     vhaddps     %xmm2, %xmm2, %xmm3
+ -      -      -     1.00    -     1.00    -      -      -      -      -      -      -      -     vhaddps     %xmm3, %xmm3, %xmm4
+</pre></div>
+</div>
+<p>According to this report, the dot-product kernel has been executed 300 times,
+for a total of 900 simulated instructions. The total number of simulated micro
+opcodes (uOps) is also 900.</p>
+<p>The report is structured in three main sections.  The first section collects a
+few performance numbers; the goal of this section is to give a very quick
+overview of the performance throughput. Important performance indicators are
+<strong>IPC</strong>, <strong>uOps Per Cycle</strong>, and  <strong>Block RThroughput</strong> (Block Reciprocal
+Throughput).</p>
+<p>IPC is computed dividing the total number of simulated instructions by the total
+number of cycles. In the absence of loop-carried data dependencies, the
+observed IPC tends to a theoretical maximum which can be computed by dividing
+the number of instructions of a single iteration by the <em>Block RThroughput</em>.</p>
+<p>Field ‘uOps Per Cycle’ is computed dividing the total number of simulated micro
+opcodes by the total number of cycles. A delta between Dispatch Width and this
+field is an indicator of a performance issue. In the absence of loop-carried
+data dependencies, the observed ‘uOps Per Cycle’ should tend to a theoretical
+maximum throughput which can be computed by dividing the number of uOps of a
+single iteration by the <em>Block RThroughput</em>.</p>
+<p>Field <em>uOps Per Cycle</em> is bounded from above by the dispatch width. That is
+because the dispatch width limits the maximum size of a dispatch group. Both IPC
+and ‘uOps Per Cycle’ are limited by the amount of hardware parallelism. The
+availability of hardware resources affects the resource pressure distribution,
+and it limits the number of instructions that can be executed in parallel every
+cycle.  A delta between Dispatch Width and the theoretical maximum uOps per
+Cycle (computed by dividing the number of uOps of a single iteration by the
+<em>Block RTrhoughput</em>) is an indicator of a performance bottleneck caused by the
+lack of hardware resources.
+In general, the lower the Block RThroughput, the better.</p>
+<p>In this example, <code class="docutils literal"><span class="pre">uOps</span> <span class="pre">per</span> <span class="pre">iteration/Block</span> <span class="pre">RThroughput</span></code> is 1.50. Since there
+are no loop-carried dependencies, the observed <em>uOps Per Cycle</em> is expected to
+approach 1.50 when the number of iterations tends to infinity. The delta between
+the Dispatch Width (2.00), and the theoretical maximum uOp throughput (1.50) is
+an indicator of a performance bottleneck caused by the lack of hardware
+resources, and the <em>Resource pressure view</em> can help to identify the problematic
+resource usage.</p>
+<p>The second section of the report shows the latency and reciprocal
+throughput of every instruction in the sequence. That section also reports
+extra information related to the number of micro opcodes, and opcode properties
+(i.e., ‘MayLoad’, ‘MayStore’, and ‘HasSideEffects’).</p>
+<p>The third section is the <em>Resource pressure view</em>.  This view reports
+the average number of resource cycles consumed every iteration by instructions
+for every processor resource unit available on the target.  Information is
+structured in two tables. The first table reports the number of resource cycles
+spent on average every iteration. The second table correlates the resource
+cycles to the machine instruction in the sequence. For example, every iteration
+of the instruction vmulps always executes on resource unit [6]
+(JFPU1 - floating point pipeline #1), consuming an average of 1 resource cycle
+per iteration.  Note that on AMD Jaguar, vector floating-point multiply can
+only be issued to pipeline JFPU1, while horizontal floating-point additions can
+only be issued to pipeline JFPU0.</p>
+<p>The resource pressure view helps with identifying bottlenecks caused by high
+usage of specific hardware resources.  Situations with resource pressure mainly
+concentrated on a few resources should, in general, be avoided.  Ideally,
+pressure should be uniformly distributed between multiple resources.</p>
+<div class="section" id="timeline-view">
+<h3>Timeline View<a class="headerlink" href="#timeline-view" title="Permalink to this headline">¶</a></h3>
+<p>The timeline view produces a detailed report of each instruction’s state
+transitions through an instruction pipeline.  This view is enabled by the
+command line option <code class="docutils literal"><span class="pre">-timeline</span></code>.  As instructions transition through the
+various stages of the pipeline, their states are depicted in the view report.
+These states are represented by the following characters:</p>
+<ul class="simple">
+<li>D : Instruction dispatched.</li>
+<li>e : Instruction executing.</li>
+<li>E : Instruction executed.</li>
+<li>R : Instruction retired.</li>
+<li>= : Instruction already dispatched, waiting to be executed.</li>
+<li>- : Instruction executed, waiting to be retired.</li>
+</ul>
+<p>Below is the timeline view for a subset of the dot-product example located in
+<code class="docutils literal"><span class="pre">test/tools/llvm-mca/X86/BtVer2/dot-product.s</span></code> and processed by
+<strong class="program">llvm-mca</strong> using the following command:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>$ llvm-mca -mtriple<span class="o">=</span>x86_64-unknown-unknown -mcpu<span class="o">=</span>btver2 -iterations<span class="o">=</span><span class="m">3</span> -timeline dot-product.s
+</pre></div>
+</div>
+<div class="highlight-none"><div class="highlight"><pre><span></span>Timeline view:
+                    012345
+Index     0123456789
+
+[0,0]     DeeER.    .    .   vmulps   %xmm0, %xmm1, %xmm2
+[0,1]     D==eeeER  .    .   vhaddps  %xmm2, %xmm2, %xmm3
+[0,2]     .D====eeeER    .   vhaddps  %xmm3, %xmm3, %xmm4
+[1,0]     .DeeE-----R    .   vmulps   %xmm0, %xmm1, %xmm2
+[1,1]     . D=eeeE---R   .   vhaddps  %xmm2, %xmm2, %xmm3
+[1,2]     . D====eeeER   .   vhaddps  %xmm3, %xmm3, %xmm4
+[2,0]     .  DeeE-----R  .   vmulps   %xmm0, %xmm1, %xmm2
+[2,1]     .  D====eeeER  .   vhaddps  %xmm2, %xmm2, %xmm3
+[2,2]     .   D======eeeER   vhaddps  %xmm3, %xmm3, %xmm4
+
+
+Average Wait times (based on the timeline view):
+[0]: Executions
+[1]: Average time spent waiting in a scheduler&#39;s queue
+[2]: Average time spent waiting in a scheduler&#39;s queue while ready
+[3]: Average time elapsed from WB until retire stage
+
+      [0]    [1]    [2]    [3]
+0.     3     1.0    1.0    3.3       vmulps   %xmm0, %xmm1, %xmm2
+1.     3     3.3    0.7    1.0       vhaddps  %xmm2, %xmm2, %xmm3
+2.     3     5.7    0.0    0.0       vhaddps  %xmm3, %xmm3, %xmm4
+</pre></div>
+</div>
+<p>The timeline view is interesting because it shows instruction state changes
+during execution.  It also gives an idea of how the tool processes instructions
+executed on the target, and how their timing information might be calculated.</p>
+<p>The timeline view is structured in two tables.  The first table shows
+instructions changing state over time (measured in cycles); the second table
+(named <em>Average Wait times</em>) reports useful timing statistics, which should
+help diagnose performance bottlenecks caused by long data dependencies and
+sub-optimal usage of hardware resources.</p>
+<p>An instruction in the timeline view is identified by a pair of indices, where
+the first index identifies an iteration, and the second index is the
+instruction index (i.e., where it appears in the code sequence).  Since this
+example was generated using 3 iterations: <code class="docutils literal"><span class="pre">-iterations=3</span></code>, the iteration
+indices range from 0-2 inclusively.</p>
+<p>Excluding the first and last column, the remaining columns are in cycles.
+Cycles are numbered sequentially starting from 0.</p>
+<p>From the example output above, we know the following:</p>
+<ul class="simple">
+<li>Instruction [1,0] was dispatched at cycle 1.</li>
+<li>Instruction [1,0] started executing at cycle 2.</li>
+<li>Instruction [1,0] reached the write back stage at cycle 4.</li>
+<li>Instruction [1,0] was retired at cycle 10.</li>
+</ul>
+<p>Instruction [1,0] (i.e., vmulps from iteration #1) does not have to wait in the
+scheduler’s queue for the operands to become available. By the time vmulps is
+dispatched, operands are already available, and pipeline JFPU1 is ready to
+serve another instruction.  So the instruction can be immediately issued on the
+JFPU1 pipeline. That is demonstrated by the fact that the instruction only
+spent 1cy in the scheduler’s queue.</p>
+<p>There is a gap of 5 cycles between the write-back stage and the retire event.
+That is because instructions must retire in program order, so [1,0] has to wait
+for [0,2] to be retired first (i.e., it has to wait until cycle 10).</p>
+<p>In the example, all instructions are in a RAW (Read After Write) dependency
+chain.  Register %xmm2 written by vmulps is immediately used by the first
+vhaddps, and register %xmm3 written by the first vhaddps is used by the second
+vhaddps.  Long data dependencies negatively impact the ILP (Instruction Level
+Parallelism).</p>
+<p>In the dot-product example, there are anti-dependencies introduced by
+instructions from different iterations.  However, those dependencies can be
+removed at register renaming stage (at the cost of allocating register aliases,
+and therefore consuming physical registers).</p>
+<p>Table <em>Average Wait times</em> helps diagnose performance issues that are caused by
+the presence of long latency instructions and potentially long data dependencies
+which may limit the ILP.  Note that <strong class="program">llvm-mca</strong>, by default, assumes at
+least 1cy between the dispatch event and the issue event.</p>
+<p>When the performance is limited by data dependencies and/or long latency
+instructions, the number of cycles spent while in the <em>ready</em> state is expected
+to be very small when compared with the total number of cycles spent in the
+scheduler’s queue.  The difference between the two counters is a good indicator
+of how large of an impact data dependencies had on the execution of the
+instructions.  When performance is mostly limited by the lack of hardware
+resources, the delta between the two counters is small.  However, the number of
+cycles spent in the queue tends to be larger (i.e., more than 1-3cy),
+especially when compared to other low latency instructions.</p>
+</div>
+<div class="section" id="extra-statistics-to-further-diagnose-performance-issues">
+<h3>Extra Statistics to Further Diagnose Performance Issues<a class="headerlink" href="#extra-statistics-to-further-diagnose-performance-issues" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal"><span class="pre">-all-stats</span></code> command line option enables extra statistics and performance
+counters for the dispatch logic, the reorder buffer, the retire control unit,
+and the register file.</p>
+<p>Below is an example of <code class="docutils literal"><span class="pre">-all-stats</span></code> output generated by  <strong class="program">llvm-mca</strong>
+for 300 iterations of the dot-product example discussed in the previous
+sections.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>Dynamic Dispatch Stall Cycles:
+RAT     - Register unavailable:                      0
+RCU     - Retire tokens unavailable:                 0
+SCHEDQ  - Scheduler full:                            272  (44.6%)
+LQ      - Load queue full:                           0
+SQ      - Store queue full:                          0
+GROUP   - Static restrictions on the dispatch group: 0
+
+
+Dispatch Logic - number of cycles where we saw N micro opcodes dispatched:
+[# dispatched], [# cycles]
+ 0,              24  (3.9%)
+ 1,              272  (44.6%)
+ 2,              314  (51.5%)
+
+
+Schedulers - number of cycles where we saw N instructions issued:
+[# issued], [# cycles]
+ 0,          7  (1.1%)
+ 1,          306  (50.2%)
+ 2,          297  (48.7%)
+
+Scheduler&#39;s queue usage:
+[1] Resource name.
+[2] Average number of used buffer entries.
+[3] Maximum number of used buffer entries.
+[4] Total number of buffer entries.
+
+ [1]            [2]        [3]        [4]
+JALU01           0          0          20
+JFPU01           17         18         18
+JLSAGU           0          0          12
+
+
+Retire Control Unit - number of cycles where we saw N instructions retired:
+[# retired], [# cycles]
+ 0,           109  (17.9%)
+ 1,           102  (16.7%)
+ 2,           399  (65.4%)
+
+Total ROB Entries:                64
+Max Used ROB Entries:             35  ( 54.7% )
+Average Used ROB Entries per cy:  32  ( 50.0% )
+
+
+Register File statistics:
+Total number of mappings created:    900
+Max number of mappings used:         35
+
+*  Register File #1 -- JFpuPRF:
+   Number of physical registers:     72
+   Total number of mappings created: 900
+   Max number of mappings used:      35
+
+*  Register File #2 -- JIntegerPRF:
+   Number of physical registers:     64
+   Total number of mappings created: 0
+   Max number of mappings used:      0
+</pre></div>
+</div>
+<p>If we look at the <em>Dynamic Dispatch Stall Cycles</em> table, we see the counter for
+SCHEDQ reports 272 cycles.  This counter is incremented every time the dispatch
+logic is unable to dispatch a full group because the scheduler’s queue is full.</p>
+<p>Looking at the <em>Dispatch Logic</em> table, we see that the pipeline was only able to
+dispatch two micro opcodes 51.5% of the time.  The dispatch group was limited to
+one micro opcode 44.6% of the cycles, which corresponds to 272 cycles.  The
+dispatch statistics are displayed by either using the command option
+<code class="docutils literal"><span class="pre">-all-stats</span></code> or <code class="docutils literal"><span class="pre">-dispatch-stats</span></code>.</p>
+<p>The next table, <em>Schedulers</em>, presents a histogram displaying a count,
+representing the number of instructions issued on some number of cycles.  In
+this case, of the 610 simulated cycles, single instructions were issued 306
+times (50.2%) and there were 7 cycles where no instructions were issued.</p>
+<p>The <em>Scheduler’s queue usage</em> table shows that the average and maximum number of
+buffer entries (i.e., scheduler queue entries) used at runtime.  Resource JFPU01
+reached its maximum (18 of 18 queue entries). Note that AMD Jaguar implements
+three schedulers:</p>
+<ul class="simple">
+<li>JALU01 - A scheduler for ALU instructions.</li>
+<li>JFPU01 - A scheduler floating point operations.</li>
+<li>JLSAGU - A scheduler for address generation.</li>
+</ul>
+<p>The dot-product is a kernel of three floating point instructions (a vector
+multiply followed by two horizontal adds).  That explains why only the floating
+point scheduler appears to be used.</p>
+<p>A full scheduler queue is either caused by data dependency chains or by a
+sub-optimal usage of hardware resources.  Sometimes, resource pressure can be
+mitigated by rewriting the kernel using different instructions that consume
+different scheduler resources.  Schedulers with a small queue are less resilient
+to bottlenecks caused by the presence of long data dependencies.  The scheduler
+statistics are displayed by using the command option <code class="docutils literal"><span class="pre">-all-stats</span></code> or
+<code class="docutils literal"><span class="pre">-scheduler-stats</span></code>.</p>
+<p>The next table, <em>Retire Control Unit</em>, presents a histogram displaying a count,
+representing the number of instructions retired on some number of cycles.  In
+this case, of the 610 simulated cycles, two instructions were retired during the
+same cycle 399 times (65.4%) and there were 109 cycles where no instructions
+were retired.  The retire statistics are displayed by using the command option
+<code class="docutils literal"><span class="pre">-all-stats</span></code> or <code class="docutils literal"><span class="pre">-retire-stats</span></code>.</p>
+<p>The last table presented is <em>Register File statistics</em>.  Each physical register
+file (PRF) used by the pipeline is presented in this table.  In the case of AMD
+Jaguar, there are two register files, one for floating-point registers (JFpuPRF)
+and one for integer registers (JIntegerPRF).  The table shows that of the 900
+instructions processed, there were 900 mappings created.  Since this dot-product
+example utilized only floating point registers, the JFPuPRF was responsible for
+creating the 900 mappings.  However, we see that the pipeline only used a
+maximum of 35 of 72 available register slots at any given time. We can conclude
+that the floating point PRF was the only register file used for the example, and
+that it was never resource constrained.  The register file statistics are
+displayed by using the command option <code class="docutils literal"><span class="pre">-all-stats</span></code> or
+<code class="docutils literal"><span class="pre">-register-file-stats</span></code>.</p>
+<p>In this example, we can conclude that the IPC is mostly limited by data
+dependencies, and not by resource pressure.</p>
+</div>
+<div class="section" id="instruction-flow">
+<h3>Instruction Flow<a class="headerlink" href="#instruction-flow" title="Permalink to this headline">¶</a></h3>
+<p>This section describes the instruction flow through the default pipeline of
+<strong class="program">llvm-mca</strong>, as well as the functional units involved in the process.</p>
+<p>The default pipeline implements the following sequence of stages used to
+process instructions.</p>
+<ul class="simple">
+<li>Dispatch (Instruction is dispatched to the schedulers).</li>
+<li>Issue (Instruction is issued to the processor pipelines).</li>
+<li>Write Back (Instruction is executed, and results are written back).</li>
+<li>Retire (Instruction is retired; writes are architecturally committed).</li>
+</ul>
+<p>The default pipeline only models the out-of-order portion of a processor.
+Therefore, the instruction fetch and decode stages are not modeled. Performance
+bottlenecks in the frontend are not diagnosed. <strong class="program">llvm-mca</strong> assumes that
+instructions have all been decoded and placed into a queue before the simulation
+start.  Also, <strong class="program">llvm-mca</strong> does not model branch prediction.</p>
+<div class="section" id="instruction-dispatch">
+<h4>Instruction Dispatch<a class="headerlink" href="#instruction-dispatch" title="Permalink to this headline">¶</a></h4>
+<p>During the dispatch stage, instructions are picked in program order from a
+queue of already decoded instructions, and dispatched in groups to the
+simulated hardware schedulers.</p>
+<p>The size of a dispatch group depends on the availability of the simulated
+hardware resources.  The processor dispatch width defaults to the value
+of the <code class="docutils literal"><span class="pre">IssueWidth</span></code> in LLVM’s scheduling model.</p>
+<p>An instruction can be dispatched if:</p>
+<ul class="simple">
+<li>The size of the dispatch group is smaller than processor’s dispatch width.</li>
+<li>There are enough entries in the reorder buffer.</li>
+<li>There are enough physical registers to do register renaming.</li>
+<li>The schedulers are not full.</li>
+</ul>
+<p>Scheduling models can optionally specify which register files are available on
+the processor. <strong class="program">llvm-mca</strong> uses that information to initialize register
+file descriptors.  Users can limit the number of physical registers that are
+globally available for register renaming by using the command option
+<code class="docutils literal"><span class="pre">-register-file-size</span></code>.  A value of zero for this option means <em>unbounded</em>. By
+knowing how many registers are available for renaming, the tool can predict
+dispatch stalls caused by the lack of physical registers.</p>
+<p>The number of reorder buffer entries consumed by an instruction depends on the
+number of micro-opcodes specified for that instruction by the target scheduling
+model.  The reorder buffer is responsible for tracking the progress of
+instructions that are “in-flight”, and retiring them in program order.  The
+number of entries in the reorder buffer defaults to the value specified by field
+<cite>MicroOpBufferSize</cite> in the target scheduling model.</p>
+<p>Instructions that are dispatched to the schedulers consume scheduler buffer
+entries. <strong class="program">llvm-mca</strong> queries the scheduling model to determine the set
+of buffered resources consumed by an instruction.  Buffered resources are
+treated like scheduler resources.</p>
+</div>
+<div class="section" id="instruction-issue">
+<h4>Instruction Issue<a class="headerlink" href="#instruction-issue" title="Permalink to this headline">¶</a></h4>
+<p>Each processor scheduler implements a buffer of instructions.  An instruction
+has to wait in the scheduler’s buffer until input register operands become
+available.  Only at that point, does the instruction becomes eligible for
+execution and may be issued (potentially out-of-order) for execution.
+Instruction latencies are computed by <strong class="program">llvm-mca</strong> with the help of the
+scheduling model.</p>
+<p><strong class="program">llvm-mca</strong>’s scheduler is designed to simulate multiple processor
+schedulers.  The scheduler is responsible for tracking data dependencies, and
+dynamically selecting which processor resources are consumed by instructions.
+It delegates the management of processor resource units and resource groups to a
+resource manager.  The resource manager is responsible for selecting resource
+units that are consumed by instructions.  For example, if an instruction
+consumes 1cy of a resource group, the resource manager selects one of the
+available units from the group; by default, the resource manager uses a
+round-robin selector to guarantee that resource usage is uniformly distributed
+between all units of a group.</p>
+<p><strong class="program">llvm-mca</strong>’s scheduler internally groups instructions into three sets:</p>
+<ul class="simple">
+<li>WaitSet: a set of instructions whose operands are not ready.</li>
+<li>ReadySet: a set of instructions ready to execute.</li>
+<li>IssuedSet: a set of instructions executing.</li>
+</ul>
+<p>Depending on the operands availability, instructions that are dispatched to the
+scheduler are either placed into the WaitSet or into the ReadySet.</p>
+<p>Every cycle, the scheduler checks if instructions can be moved from the WaitSet
+to the ReadySet, and if instructions from the ReadySet can be issued to the
+underlying pipelines. The algorithm prioritizes older instructions over younger
+instructions.</p>
+</div>
+<div class="section" id="write-back-and-retire-stage">
+<h4>Write-Back and Retire Stage<a class="headerlink" href="#write-back-and-retire-stage" title="Permalink to this headline">¶</a></h4>
+<p>Issued instructions are moved from the ReadySet to the IssuedSet.  There,
+instructions wait until they reach the write-back stage.  At that point, they
+get removed from the queue and the retire control unit is notified.</p>
+<p>When instructions are executed, the retire control unit flags the instruction as
+“ready to retire.”</p>
+<p>Instructions are retired in program order.  The register file is notified of the
+retirement so that it can free the physical registers that were allocated for
+the instruction during the register renaming stage.</p>
+</div>
+<div class="section" id="load-store-unit-and-memory-consistency-model">
+<h4>Load/Store Unit and Memory Consistency Model<a class="headerlink" href="#load-store-unit-and-memory-consistency-model" title="Permalink to this headline">¶</a></h4>
+<p>To simulate an out-of-order execution of memory operations, <strong class="program">llvm-mca</strong>
+utilizes a simulated load/store unit (LSUnit) to simulate the speculative
+execution of loads and stores.</p>
+<p>Each load (or store) consumes an entry in the load (or store) queue. Users can
+specify flags <code class="docutils literal"><span class="pre">-lqueue</span></code> and <code class="docutils literal"><span class="pre">-squeue</span></code> to limit the number of entries in the
+load and store queues respectively. The queues are unbounded by default.</p>
+<p>The LSUnit implements a relaxed consistency model for memory loads and stores.
+The rules are:</p>
+<ol class="arabic simple">
+<li>A younger load is allowed to pass an older load only if there are no
+intervening stores or barriers between the two loads.</li>
+<li>A younger load is allowed to pass an older store provided that the load does
+not alias with the store.</li>
+<li>A younger store is not allowed to pass an older store.</li>
+<li>A younger store is not allowed to pass an older load.</li>
+</ol>
+<p>By default, the LSUnit optimistically assumes that loads do not alias
+(<cite>-noalias=true</cite>) store operations.  Under this assumption, younger loads are
+always allowed to pass older stores.  Essentially, the LSUnit does not attempt
+to run any alias analysis to predict when loads and stores do not alias with
+each other.</p>
+<p>Note that, in the case of write-combining memory, rule 3 could be relaxed to
+allow reordering of non-aliasing store operations.  That being said, at the
+moment, there is no way to further relax the memory model (<code class="docutils literal"><span class="pre">-noalias</span></code> is the
+only option).  Essentially, there is no option to specify a different memory
+type (e.g., write-back, write-combining, write-through; etc.) and consequently
+to weaken, or strengthen, the memory model.</p>
+<p>Other limitations are:</p>
+<ul class="simple">
+<li>The LSUnit does not know when store-to-load forwarding may occur.</li>
+<li>The LSUnit does not know anything about cache hierarchy and memory types.</li>
+<li>The LSUnit does not know how to identify serializing operations and memory
+fences.</li>
+</ul>
+<p>The LSUnit does not attempt to predict if a load or store hits or misses the L1
+cache.  It only knows if an instruction “MayLoad” and/or “MayStore.”  For
+loads, the scheduling model provides an “optimistic” load-to-use latency (which
+usually matches the load-to-use latency for when there is a hit in the L1D).</p>
+<p><strong class="program">llvm-mca</strong> does not know about serializing operations or memory-barrier
+like instructions.  The LSUnit conservatively assumes that an instruction which
+has both “MayLoad” and unmodeled side effects behaves like a “soft”
+load-barrier.  That means, it serializes loads without forcing a flush of the
+load queue.  Similarly, instructions that “MayStore” and have unmodeled side
+effects are treated like store barriers.  A full memory barrier is a “MayLoad”
+and “MayStore” instruction with unmodeled side effects.  This is inaccurate, but
+it is the best that we can do at the moment with the current information
+available in LLVM.</p>
+<p>A load/store barrier consumes one entry of the load/store queue.  A load/store
+barrier enforces ordering of loads/stores.  A younger load cannot pass a load
+barrier.  Also, a younger store cannot pass a store barrier.  A younger load
+has to wait for the memory/load barrier to execute.  A load/store barrier is
+“executed” when it becomes the oldest entry in the load/store queue(s). That
+also means, by construction, all of the older loads/stores have been executed.</p>
+<p>In conclusion, the full set of load/store consistency rules are:</p>
+<ol class="arabic simple">
+<li>A store may not pass a previous store.</li>
+<li>A store may not pass a previous load (regardless of <code class="docutils literal"><span class="pre">-noalias</span></code>).</li>
+<li>A store has to wait until an older store barrier is fully executed.</li>
+<li>A load may pass a previous load.</li>
+<li>A load may not pass a previous store unless <code class="docutils literal"><span class="pre">-noalias</span></code> is set.</li>
+<li>A load has to wait until an older load barrier is fully executed.</li>
+</ol>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="bugpoint.html" title="bugpoint - automatic test case reduction tool"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="dsymutil.html" title="dsymutil - manipulate archived DWARF debug symbol files"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

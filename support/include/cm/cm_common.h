@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -483,6 +483,9 @@ enum CmFloatControl {
 #define _GENX_VOLATILE_BINDING_(Offset) __declspec(genx_volatile(Offset))
 #define _CM_BUILTIN_                    __declspec(cm_builtin)
 #define SAT _GENX_SAT
+
+// Global variable definition macro, emu mode only.
+#define __GLOBAL(V) V
 
 // SIMT entry function attribute
 #define _SIMT8_       __declspec(genx_SIMT(8))

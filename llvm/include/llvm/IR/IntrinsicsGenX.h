@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -102,13 +102,14 @@ class KernelMetadata {
   StringRef Name;
   StringRef AsmName;
   unsigned SLMSize;
+  unsigned NBarrierCnt;
   SmallVector<unsigned, 4> ArgKinds;
   SmallVector<unsigned, 4> ArgOffsets;
   SmallVector<unsigned, 4> ArgIOKinds;
 
 public:
   // default constructor
-  KernelMetadata() : IsKernel(false), SLMSize(0) {}
+  KernelMetadata() : IsKernel(false), SLMSize(0), NBarrierCnt(0) {}
   /*
    * KernelMetadata constructor
    *
@@ -123,8 +124,9 @@ public:
    *  5: kernel argument offsets
    *  6: reference to metadata node containing kernel argument input/output kinds
    *  7: kernel argument type descriptors (optional).
+   *  8: named barrier count
    */
-  KernelMetadata(Function *F) : IsKernel(false), SLMSize(0) {
+  KernelMetadata(Function *F) : IsKernel(false), SLMSize(0), NBarrierCnt(0) {
     if (!genx::isKernel(F))
       return;
     NamedMDNode *Named = F->getParent()->getNamedMetadata("genx.kernels");
@@ -150,6 +152,8 @@ public:
       AsmName = MDS->getString();
     if (ConstantInt *Sz = getValueAsMetadata<ConstantInt>(Node->getOperand(4)))
       SLMSize = Sz->getZExtValue();
+    if (ConstantInt *Sz = getValueAsMetadata<ConstantInt>(Node->getOperand(8)))
+      NBarrierCnt = Sz->getZExtValue();
     // Build the argument kinds and offsets arrays that should correspond to the
     // function arguments (both explicit and implicit)
     MDNode *KindsNode = dyn_cast<MDNode>(Node->getOperand(3));
@@ -178,6 +182,7 @@ public:
   StringRef getName() const { return Name; }
   StringRef getAsmName() const { return AsmName; }
   unsigned getSLMSize() const { return SLMSize; }
+  unsigned getNBarrierCnt() const { return NBarrierCnt; }
   ArrayRef<unsigned> getArgKinds() { return ArgKinds; }
   unsigned getNumArgs() const { return ArgKinds.size(); }
   unsigned getArgKind(unsigned Idx) const { return ArgKinds[Idx]; }

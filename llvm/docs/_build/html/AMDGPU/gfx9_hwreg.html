@@ -1,0 +1,206 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>hwreg &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="imm4" href="gfx9_imm4.html" />
+    <link rel="prev" title="imm32" href="gfx9_fimm32.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="gfx9_imm4.html" title="imm4"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="gfx9_fimm32.html" title="imm32"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="../AMDGPUUsage.html" >User Guide for AMDGPU Backend</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="AMDGPUAsmGFX9.html" accesskey="U">Syntax of GFX9 Instructions</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="hwreg">
+<span id="amdgpu-synid9-hwreg"></span><h1>hwreg<a class="headerlink" href="#hwreg" title="Permalink to this headline">¶</a></h1>
+<p>Bits of a hardware register being accessed.</p>
+<p>The bits of this operand have the following meaning:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="26%" />
+<col width="74%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Bits</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>5:0</td>
+<td>Register <em>id</em>.</td>
+</tr>
+<tr class="row-odd"><td>10:6</td>
+<td>First bit <em>offset</em> (0..31).</td>
+</tr>
+<tr class="row-even"><td>15:11</td>
+<td><em>Size</em> in bits (1..32).</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>This operand may be specified as a positive 16-bit <a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer_number</span></a> or using the syntax described below.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="32%" />
+<col width="68%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>hwreg({0..63})</td>
+<td>All bits of a register indicated by its <em>id</em>.</td>
+</tr>
+<tr class="row-odd"><td>hwreg(&lt;<em>name</em>&gt;)</td>
+<td>All bits of a register indicated by its <em>name</em>.</td>
+</tr>
+<tr class="row-even"><td>hwreg({0..63}, {0..31}, {1..32})</td>
+<td>Register bits indicated by register <em>id</em>, first bit <em>offset</em> and <em>size</em>.</td>
+</tr>
+<tr class="row-odd"><td>hwreg(&lt;<em>name</em>&gt;, {0..31}, {1..32})</td>
+<td>Register bits indicated by register <em>name</em>, first bit <em>offset</em> and <em>size</em>.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Register <em>id</em>, <em>offset</em> and <em>size</em> must be specified as positive <a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer numbers</span></a>.</p>
+<p>Defined register <em>names</em> include:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="31%" />
+<col width="69%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Name</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>HW_REG_MODE</td>
+<td>Shader writeable mode bits.</td>
+</tr>
+<tr class="row-odd"><td>HW_REG_STATUS</td>
+<td>Shader read-only status.</td>
+</tr>
+<tr class="row-even"><td>HW_REG_TRAPSTS</td>
+<td>Trap status.</td>
+</tr>
+<tr class="row-odd"><td>HW_REG_HW_ID</td>
+<td>Id of wave, simd, compute unit, etc.</td>
+</tr>
+<tr class="row-even"><td>HW_REG_GPR_ALLOC</td>
+<td>Per-wave SGPR and VGPR allocation.</td>
+</tr>
+<tr class="row-odd"><td>HW_REG_LDS_ALLOC</td>
+<td>Per-wave LDS allocation.</td>
+</tr>
+<tr class="row-even"><td>HW_REG_IB_STS</td>
+<td>Counters of outstanding instructions.</td>
+</tr>
+<tr class="row-odd"><td>HW_REG_SH_MEM_BASES</td>
+<td>Memory aperture.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">s_getreg_b32</span> <span class="n">s2</span><span class="p">,</span> <span class="mh">0x6</span>
+<span class="n">s_getreg_b32</span> <span class="n">s2</span><span class="p">,</span> <span class="n">hwreg</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+<span class="n">s_getreg_b32</span> <span class="n">s2</span><span class="p">,</span> <span class="n">hwreg</span><span class="p">(</span><span class="mi">51</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">31</span><span class="p">)</span>
+<span class="n">s_getreg_b32</span> <span class="n">s2</span><span class="p">,</span> <span class="n">hwreg</span><span class="p">(</span><span class="n">HW_REG_LDS_ALLOC</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="gfx9_imm4.html" title="imm4"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="gfx9_fimm32.html" title="imm32"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="../AMDGPUUsage.html" >User Guide for AMDGPU Backend</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="AMDGPUAsmGFX9.html" >Syntax of GFX9 Instructions</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

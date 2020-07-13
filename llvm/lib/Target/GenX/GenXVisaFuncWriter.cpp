@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -757,8 +757,8 @@ void VisaFuncWriter::writeLabel(Value *BB)
 }
 
 /***********************************************************************
- * VisaFuncWriter::getKernelAttrsFromMetadata : set slm size from kernel
- *      metadata
+ * VisaFuncWriter::getKernelAttrsFromMetadata : set slm size and
+ * named barrier count from kernel metadata
  */
 void VisaFuncWriter::getKernelAttrsFromMetadata()
 {
@@ -779,6 +779,7 @@ void VisaFuncWriter::getKernelAttrsFromMetadata()
       addAttribute("SLMSize", Twine(SLMSize));
     }
   }
+
 }
 
 /***********************************************************************

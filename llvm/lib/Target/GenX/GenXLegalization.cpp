@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -460,7 +460,7 @@ unsigned GenXLegalization::getExecSizeAllowedBits(Instruction *Inst)
   case BinaryOperator::UDiv:
   case BinaryOperator::SRem:
   case BinaryOperator::URem:
-    return 0x1f;
+    return ST->emulateIDivRem() ? 0x3f : 0x1f;
   }
 
   unsigned ID = getIntrinsicID(Inst);
@@ -525,6 +525,24 @@ bool GenXLegalization::processInst(Instruction *Inst)
   if ((Inst->getType()->getScalarType()->getPrimitiveSizeInBits() == 64) &&
       !(ST->hasLongLong()))
     report_fatal_error("'double' and 'long long' type are not supported by this target");
+  if (ST->isTGLLP()) {
+    switch (getIntrinsicID(Inst)) {
+    case Intrinsic::genx_ssad2:
+    case Intrinsic::genx_sssad2add:
+    case Intrinsic::genx_sssad2add_sat:
+    case Intrinsic::genx_susad2add:
+    case Intrinsic::genx_susad2add_sat:
+    case Intrinsic::genx_usad2:
+    case Intrinsic::genx_ussad2add:
+    case Intrinsic::genx_ussad2add_sat:
+    case Intrinsic::genx_uusad2add:
+    case Intrinsic::genx_uusad2add_sat:
+      report_fatal_error("'sad2' and 'sada2' are not supported by this target");
+    default:
+      break;
+    }
+  }
+
   if (!isa<VectorType>(Inst->getType())) {
     if (Inst->getOpcode() == Instruction::BitCast
         && Inst->getOperand(0)->getType()->getScalarType()->isIntegerTy(1)) {
@@ -1673,6 +1691,7 @@ Value *GenXLegalization::splitInst(Value *Last, BaleInst BInst,
     case Intrinsic::genx_sqrt:
     case Intrinsic::genx_ieee_sqrt:
     case Intrinsic::genx_ieee_div:
+    case Intrinsic::genx_dp4a:
       // These intrinsics only overload the return type; the arg type must be
       // the same.
       Decl = Intrinsic::getDeclaration(M, (Intrinsic::ID)IntrinID,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -222,6 +222,7 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(const FunctionDecl *FD) const {
                            .StartsWith("_Z10cm_3d_load", CMBK_cm_3d_load)
                            .StartsWith("_Z13cm_svm_atomic", CMBK_cm_svm_atomic)
                            .StartsWith("_Z6cm_shl", CMBK_cm_shl)
+                           .StartsWith("_Z7cm_dp4a", CMBK_cm_dp4a)
                            .Default(CMBK_none);
 
   // Handle implementation intrinsics.
@@ -233,6 +234,7 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(const FunctionDecl *FD) const {
     // Order matters here. If there are two strings to check for and one is a
     // prefix of the other, the longer one must be checked for first.
     Kind = StringSwitch<CMBuiltinKind>(MangledImplName)
+              .StartsWith("__cm_intrinsic_impl_dp4a", CMBK_cm_dp4a_impl)
               .StartsWith("__cm_intrinsic_impl_oword_read_dwaligned", CMBK_oword_read_dwaligned_impl)
               .StartsWith("__cm_intrinsic_impl_oword_read", CMBK_oword_read_impl)
               .StartsWith("__cm_intrinsic_impl_oword_write", CMBK_oword_write_impl)
@@ -982,6 +984,7 @@ llvm::Value *CGCMRuntime::EmitBuiltinSLMFree(CodeGenFunction &CGF,
   return NextIndex;
 }
 
+
 RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
                                    ReturnValueSlot ReturnValue) {
 
@@ -1047,6 +1050,7 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_write_atomic_typed:
   case CMBK_cm_slm_read:
   case CMBK_cm_slm_write:
+  case CMBK_cm_dp4a:
     HandleBuiltinInterface(getCurCMCallInfo());
     return RV;
   case CMBK_oword_read_impl:
@@ -1282,6 +1286,8 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(HandleBuiltinRdregionImpl(getCurCMCallInfo()));
   case CMBK_wrregion:
     return RValue::get(HandleBuiltinWrregionImpl(getCurCMCallInfo()));
+  case CMBK_cm_dp4a_impl:
+    return RValue::get(HandleBuiltinDP4AImpl(getCurCMCallInfo(), Kind));
   }
 
   // Returns the normal call rvalue.
@@ -2454,6 +2460,9 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
     break;
   case CMBK_cm_rndz_impl:
     ID = llvm::Intrinsic::genx_rndz;
+    break;
+  case CMBK_cm_dp4a_impl:
+    ID = llvm::Intrinsic::genx_dp4a;
     break;
   case CMBK_sample16_impl:
     ID = llvm::Intrinsic::genx_sample;
@@ -5334,6 +5343,8 @@ void CGCMRuntime::HandleBuiltinAVSSampler(CMCallInfo &Info) {
 
   auto &TOpts = CGM.getTarget().getTargetOpts();
   llvm::Value *IEFBypass = llvm::StringSwitch<llvm::Value *>(TOpts.CPU)
+      // IEFBypass is removed on TGL and should be always set to 0.
+      .Case("TGLLP", llvm::Constant::getNullValue(FTy->getParamType(13)))
       .Default(Info.CGF->Builder.CreateZExtOrBitCast(Info.CI->getArgOperand(14),
                                                      FTy->getParamType(13)));
 
@@ -6508,6 +6519,34 @@ llvm::Value *CGCMRuntime::HandleBuiltinWrregionImpl(CMCallInfo &CallInfo) {
   CI->replaceAllUsesWith(NewCI);
   CI->eraseFromParent();
   return NewCI;
+}
+
+// template <typename T1, typename T2, typename T3, typename T4, int N>
+// vector<T1, N> cm_dp4a(vector<T2, N> src0, vector<T3, N> src1, vector<T4, N>
+// src2, int flag);
+llvm::Value *CGCMRuntime::HandleBuiltinDP4AImpl(CMCallInfo &CallInfo,
+                                                CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_dp4a_impl);
+
+  llvm::Function *CalledFn = CallInfo.CI->getCalledFunction();
+  llvm::Type *RetTy = CalledFn->getReturnType();
+
+  llvm::Type *Tys[4] = {RetTy, CalledFn->getFunctionType()->getParamType(0),
+                        CalledFn->getFunctionType()->getParamType(1),
+                        CalledFn->getFunctionType()->getParamType(2)};
+  llvm::Function *GenxFn = getIntrinsic(llvm::Intrinsic::genx_dp4a, Tys);
+
+  assert(CallInfo.CI->getNumArgOperands() == 3);
+  llvm::CallInst *CI = CallInfo.CI;
+  llvm::Value *Args[3] = {CI->getArgOperand(0), CI->getArgOperand(1),
+                          CI->getArgOperand(2)};
+
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+  llvm::CallInst *Result = Builder.CreateCall(GenxFn, Args, CI->getName());
+  Result->setDebugLoc(CI->getDebugLoc());
+
+  CI->eraseFromParent();
+  return Result;
 }
 
 

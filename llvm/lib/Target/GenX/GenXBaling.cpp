@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -745,8 +745,8 @@ void GenXBaling::processSat(Instruction *Inst)
       // V is an intrinsic other than rdregion/wrregion. Check that its return
       // value is suitable for baling.
       GenXIntrinsicInfo II(ValIntrinID);
-      if (II.getRetInfo().getSaturation()
-          == GenXIntrinsicInfo::SATURATION_DEFAULT)
+      if (!II.getRetInfo().isRaw() && II.getRetInfo().getSaturation() ==
+                                          GenXIntrinsicInfo::SATURATION_DEFAULT)
         setOperandBaled(Inst, OperandNum, &BI);
     }
   }
@@ -1783,8 +1783,11 @@ bool GenXBaling::prologue(Function *F) {
     }
     for (auto I = BB.rbegin(); I != BB.rend(); /*empty*/) {
       Instruction *Inst = &*I++;
-      if (isInstructionTriviallyDead(Inst))
+      if (isInstructionTriviallyDead(Inst)) {
+        if (Liveness)
+          Liveness->eraseLiveRange(Inst);
         Inst->eraseFromParent();
+      }
     }
   }
 

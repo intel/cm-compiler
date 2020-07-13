@@ -1,0 +1,265 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>msg &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="param" href="gfx7_param.html" />
+    <link rel="prev" title="label" href="gfx7_label.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="gfx7_param.html" title="param"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="gfx7_label.html" title="label"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="../AMDGPUUsage.html" >User Guide for AMDGPU Backend</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="AMDGPUAsmGFX7.html" accesskey="U">Syntax of GFX7 Instructions</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="msg">
+<span id="amdgpu-synid7-msg"></span><h1>msg<a class="headerlink" href="#msg" title="Permalink to this headline">¶</a></h1>
+<p>A 16-bit message code. The bits of this operand have the following meaning:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="18%" />
+<col width="82%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Bits</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>3:0</td>
+<td>Message <em>type</em>.</td>
+</tr>
+<tr class="row-odd"><td>6:4</td>
+<td>Optional <em>operation</em>.</td>
+</tr>
+<tr class="row-even"><td>9:7</td>
+<td>Optional <em>parameters</em>.</td>
+</tr>
+<tr class="row-odd"><td>15:10</td>
+<td>Unused.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>This operand may be specified as a positive 16-bit <a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer_number</span></a> or using the syntax described below:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="36%" />
+<col width="64%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>sendmsg(&lt;<em>type</em>&gt;)</td>
+<td>A message identified by its <em>type</em>.</td>
+</tr>
+<tr class="row-odd"><td>sendmsg(&lt;<em>type</em>&gt;, &lt;<em>op</em>&gt;)</td>
+<td>A message identified by its <em>type</em> and <em>operation</em>.</td>
+</tr>
+<tr class="row-even"><td>sendmsg(&lt;<em>type</em>&gt;, &lt;<em>op</em>&gt;, &lt;<em>stream</em>&gt;)</td>
+<td>A message identified by its <em>type</em> and <em>operation</em> with a stream <em>id</em>.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p><em>Type</em> may be specified using message <em>name</em> or message <em>id</em>.</p>
+<p><em>Op</em> may be specified using operation <em>name</em> or operation <em>id</em>.</p>
+<p>Stream <em>id</em> is an integer in the range 0..3.</p>
+<p>Message <em>id</em>, operation <em>id</em> and stream <em>id</em> must be specified as positive <a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer numbers</span></a>.</p>
+<p>Each message type supports specific operations:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="22%" />
+<col width="13%" />
+<col width="38%" />
+<col width="15%" />
+<col width="13%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Message name</th>
+<th class="head">Message Id</th>
+<th class="head">Supported Operations</th>
+<th class="head">Operation Id</th>
+<th class="head">Stream Id</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>MSG_INTERRUPT</td>
+<td>1</td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr class="row-odd"><td>MSG_GS</td>
+<td>2</td>
+<td>GS_OP_CUT</td>
+<td>1</td>
+<td>Optional</td>
+</tr>
+<tr class="row-even"><td></td>
+<td>&#160;</td>
+<td>GS_OP_EMIT</td>
+<td>2</td>
+<td>Optional</td>
+</tr>
+<tr class="row-odd"><td></td>
+<td>&#160;</td>
+<td>GS_OP_EMIT_CUT</td>
+<td>3</td>
+<td>Optional</td>
+</tr>
+<tr class="row-even"><td>MSG_GS_DONE</td>
+<td>3</td>
+<td>GS_OP_NOP</td>
+<td>0</td>
+<td>-</td>
+</tr>
+<tr class="row-odd"><td></td>
+<td>&#160;</td>
+<td>GS_OP_CUT</td>
+<td>1</td>
+<td>Optional</td>
+</tr>
+<tr class="row-even"><td></td>
+<td>&#160;</td>
+<td>GS_OP_EMIT</td>
+<td>2</td>
+<td>Optional</td>
+</tr>
+<tr class="row-odd"><td></td>
+<td>&#160;</td>
+<td>GS_OP_EMIT_CUT</td>
+<td>3</td>
+<td>Optional</td>
+</tr>
+<tr class="row-even"><td>MSG_SYSMSG</td>
+<td>15</td>
+<td>SYSMSG_OP_ECC_ERR_INTERRUPT</td>
+<td>1</td>
+<td>-</td>
+</tr>
+<tr class="row-odd"><td></td>
+<td>&#160;</td>
+<td>SYSMSG_OP_REG_RD</td>
+<td>2</td>
+<td>-</td>
+</tr>
+<tr class="row-even"><td></td>
+<td>&#160;</td>
+<td>SYSMSG_OP_HOST_TRAP_ACK</td>
+<td>3</td>
+<td>-</td>
+</tr>
+<tr class="row-odd"><td></td>
+<td>&#160;</td>
+<td>SYSMSG_OP_TTRACE_PC</td>
+<td>4</td>
+<td>-</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">s_sendmsg</span> <span class="mh">0x12</span>
+<span class="n">s_sendmsg</span> <span class="n">sendmsg</span><span class="p">(</span><span class="n">MSG_INTERRUPT</span><span class="p">)</span>
+<span class="n">s_sendmsg</span> <span class="n">sendmsg</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">GS_OP_CUT</span><span class="p">)</span>
+<span class="n">s_sendmsg</span> <span class="n">sendmsg</span><span class="p">(</span><span class="n">MSG_GS</span><span class="p">,</span> <span class="n">GS_OP_EMIT</span><span class="p">)</span>
+<span class="n">s_sendmsg</span> <span class="n">sendmsg</span><span class="p">(</span><span class="n">MSG_GS</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="n">s_sendmsg</span> <span class="n">sendmsg</span><span class="p">(</span><span class="n">MSG_GS_DONE</span><span class="p">,</span> <span class="n">GS_OP_EMIT_CUT</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">s_sendmsg</span> <span class="n">sendmsg</span><span class="p">(</span><span class="n">MSG_SYSMSG</span><span class="p">,</span> <span class="n">SYSMSG_OP_TTRACE_PC</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="gfx7_param.html" title="param"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="gfx7_label.html" title="label"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="../AMDGPUUsage.html" >User Guide for AMDGPU Backend</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="AMDGPUAsmGFX7.html" >Syntax of GFX7 Instructions</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

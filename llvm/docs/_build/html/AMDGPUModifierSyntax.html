@@ -1,0 +1,1866 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Syntax of AMDGPU Instruction Modifiers &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Syntax of AMDGPU Instruction Operands" href="AMDGPUOperandSyntax.html" />
+    <link rel="prev" title="Type deviation" href="AMDGPU/gfx9_type_dev.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="AMDGPUOperandSyntax.html" title="Syntax of AMDGPU Instruction Operands"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="AMDGPU/gfx9_type_dev.html" title="Type deviation"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="AMDGPUUsage.html" accesskey="U">User Guide for AMDGPU Backend</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="syntax-of-amdgpu-instruction-modifiers">
+<h1>Syntax of AMDGPU Instruction Modifiers<a class="headerlink" href="#syntax-of-amdgpu-instruction-modifiers" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#conventions" id="id23">Conventions</a></li>
+<li><a class="reference internal" href="#modifiers" id="id24">Modifiers</a><ul>
+<li><a class="reference internal" href="#ds-modifiers" id="id25">DS Modifiers</a><ul>
+<li><a class="reference internal" href="#offset8" id="id26">offset8</a></li>
+<li><a class="reference internal" href="#offset16" id="id27">offset16</a></li>
+<li><a class="reference internal" href="#pattern" id="id28">pattern</a></li>
+<li><a class="reference internal" href="#gds" id="id29">gds</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#exp-modifiers" id="id30">EXP Modifiers</a><ul>
+<li><a class="reference internal" href="#done" id="id31">done</a></li>
+<li><a class="reference internal" href="#compr" id="id32">compr</a></li>
+<li><a class="reference internal" href="#vm" id="id33">vm</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#flat-modifiers" id="id34">FLAT Modifiers</a><ul>
+<li><a class="reference internal" href="#offset12" id="id35">offset12</a></li>
+<li><a class="reference internal" href="#offset13s" id="id36">offset13s</a></li>
+<li><a class="reference internal" href="#glc" id="id37">glc</a></li>
+<li><a class="reference internal" href="#slc" id="id38">slc</a></li>
+<li><a class="reference internal" href="#tfe" id="id39">tfe</a></li>
+<li><a class="reference internal" href="#nv" id="id40">nv</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mimg-modifiers" id="id41">MIMG Modifiers</a><ul>
+<li><a class="reference internal" href="#dmask" id="id42">dmask</a></li>
+<li><a class="reference internal" href="#unorm" id="id43">unorm</a></li>
+<li><a class="reference internal" href="#id1" id="id44">glc</a></li>
+<li><a class="reference internal" href="#id2" id="id45">slc</a></li>
+<li><a class="reference internal" href="#r128" id="id46">r128</a></li>
+<li><a class="reference internal" href="#id3" id="id47">tfe</a></li>
+<li><a class="reference internal" href="#lwe" id="id48">lwe</a></li>
+<li><a class="reference internal" href="#da" id="id49">da</a></li>
+<li><a class="reference internal" href="#d16" id="id50">d16</a></li>
+<li><a class="reference internal" href="#a16" id="id51">a16</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#miscellaneous-modifiers" id="id52">Miscellaneous Modifiers</a><ul>
+<li><a class="reference internal" href="#amdgpu-synid-glc" id="id53">glc</a></li>
+<li><a class="reference internal" href="#amdgpu-synid-slc" id="id54">slc</a></li>
+<li><a class="reference internal" href="#amdgpu-synid-tfe" id="id55">tfe</a></li>
+<li><a class="reference internal" href="#amdgpu-synid-nv" id="id56">nv</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mubuf-mtbuf-modifiers" id="id57">MUBUF/MTBUF Modifiers</a><ul>
+<li><a class="reference internal" href="#amdgpu-synid-idxen" id="id58">idxen</a></li>
+<li><a class="reference internal" href="#offen" id="id59">offen</a></li>
+<li><a class="reference internal" href="#addr64" id="id60">addr64</a></li>
+<li><a class="reference internal" href="#amdgpu-synid-buf-offset12" id="id61">offset12</a></li>
+<li><a class="reference internal" href="#id9" id="id62">glc</a></li>
+<li><a class="reference internal" href="#id10" id="id63">slc</a></li>
+<li><a class="reference internal" href="#lds" id="id64">lds</a></li>
+<li><a class="reference internal" href="#id11" id="id65">tfe</a></li>
+<li><a class="reference internal" href="#dfmt" id="id66">dfmt</a></li>
+<li><a class="reference internal" href="#nfmt" id="id67">nfmt</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#smrd-smem-modifiers" id="id68">SMRD/SMEM Modifiers</a><ul>
+<li><a class="reference internal" href="#id12" id="id69">glc</a></li>
+<li><a class="reference internal" href="#id13" id="id70">nv</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#vintrp-modifiers" id="id71">VINTRP Modifiers</a><ul>
+<li><a class="reference internal" href="#high" id="id72">high</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#vop1-vop2-dpp-modifiers" id="id73">VOP1/VOP2 DPP Modifiers</a><ul>
+<li><a class="reference internal" href="#dpp-ctrl" id="id74">dpp_ctrl</a></li>
+<li><a class="reference internal" href="#row-mask" id="id75">row_mask</a></li>
+<li><a class="reference internal" href="#bank-mask" id="id76">bank_mask</a></li>
+<li><a class="reference internal" href="#bound-ctrl" id="id77">bound_ctrl</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#vop1-vop2-vopc-sdwa-modifiers" id="id78">VOP1/VOP2/VOPC SDWA Modifiers</a><ul>
+<li><a class="reference internal" href="#clamp" id="id79">clamp</a></li>
+<li><a class="reference internal" href="#omod" id="id80">omod</a></li>
+<li><a class="reference internal" href="#dst-sel" id="id81">dst_sel</a></li>
+<li><a class="reference internal" href="#dst-unused" id="id82">dst_unused</a></li>
+<li><a class="reference internal" href="#src0-sel" id="id83">src0_sel</a></li>
+<li><a class="reference internal" href="#src1-sel" id="id84">src1_sel</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#vop1-vop2-vopc-sdwa-operand-modifiers" id="id85">VOP1/VOP2/VOPC SDWA Operand Modifiers</a><ul>
+<li><a class="reference internal" href="#abs" id="id86">abs</a></li>
+<li><a class="reference internal" href="#neg" id="id87">neg</a></li>
+<li><a class="reference internal" href="#sext" id="id88">sext</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#vop3-modifiers" id="id89">VOP3 Modifiers</a><ul>
+<li><a class="reference internal" href="#op-sel" id="id90">op_sel</a></li>
+<li><a class="reference internal" href="#amdgpu-synid-clamp" id="id91">clamp</a></li>
+<li><a class="reference internal" href="#amdgpu-synid-omod" id="id92">omod</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#vop3-operand-modifiers" id="id93">VOP3 Operand Modifiers</a><ul>
+<li><a class="reference internal" href="#amdgpu-synid-abs" id="id94">abs</a></li>
+<li><a class="reference internal" href="#amdgpu-synid-neg" id="id95">neg</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#vop3p-modifiers" id="id96">VOP3P Modifiers</a><ul>
+<li><a class="reference internal" href="#amdgpu-synid-op-sel" id="id97">op_sel</a></li>
+<li><a class="reference internal" href="#op-sel-hi" id="id98">op_sel_hi</a></li>
+<li><a class="reference internal" href="#neg-lo" id="id99">neg_lo</a></li>
+<li><a class="reference internal" href="#neg-hi" id="id100">neg_hi</a></li>
+<li><a class="reference internal" href="#id19" id="id101">clamp</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#vop3p-v-mad-mix-modifiers" id="id102">VOP3P V_MAD_MIX Modifiers</a><ul>
+<li><a class="reference internal" href="#m-op-sel" id="id103">m_op_sel</a></li>
+<li><a class="reference internal" href="#m-op-sel-hi" id="id104">m_op_sel_hi</a></li>
+<li><a class="reference internal" href="#id20" id="id105">abs</a></li>
+<li><a class="reference internal" href="#id21" id="id106">neg</a></li>
+<li><a class="reference internal" href="#id22" id="id107">clamp</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="conventions">
+<h2><a class="toc-backref" href="#id23">Conventions</a><a class="headerlink" href="#conventions" title="Permalink to this headline">¶</a></h2>
+<p>The following notation is used throughout this document:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="24%" />
+<col width="76%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Notation</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>{0..N}</td>
+<td>Any integer value in the range from 0 to N (inclusive).</td>
+</tr>
+<tr class="row-odd"><td>&lt;x&gt;</td>
+<td>Syntax and meaning of <em>x</em> is explained elsewhere.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="modifiers">
+<span id="amdgpu-syn-modifiers"></span><h2><a class="toc-backref" href="#id24">Modifiers</a><a class="headerlink" href="#modifiers" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="ds-modifiers">
+<h3><a class="toc-backref" href="#id25">DS Modifiers</a><a class="headerlink" href="#ds-modifiers" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="offset8">
+<span id="amdgpu-synid-ds-offset8"></span><h4><a class="toc-backref" href="#id26">offset8</a><a class="headerlink" href="#offset8" title="Permalink to this headline">¶</a></h4>
+<p>Specifies an immediate unsigned 8-bit offset, in bytes. The default value is 0.</p>
+<p>Used with DS instructions which have 2 addresses.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="26%" />
+<col width="74%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>offset:{0..0xFF}</td>
+<td>Specifies an unsigned 8-bit offset as a positive
+<a class="reference internal" href="AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer number</span></a>.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">offset</span><span class="p">:</span><span class="mi">255</span>
+<span class="n">offset</span><span class="p">:</span><span class="mh">0xff</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="offset16">
+<span id="amdgpu-synid-ds-offset16"></span><h4><a class="toc-backref" href="#id27">offset16</a><a class="headerlink" href="#offset16" title="Permalink to this headline">¶</a></h4>
+<p>Specifies an immediate unsigned 16-bit offset, in bytes. The default value is 0.</p>
+<p>Used with DS instructions which have 1 address.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="27%" />
+<col width="73%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>offset:{0..0xFFFF}</td>
+<td>Specifies an unsigned 16-bit offset as a positive
+<a class="reference internal" href="AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer number</span></a>.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">offset</span><span class="p">:</span><span class="mi">65535</span>
+<span class="n">offset</span><span class="p">:</span><span class="mh">0xffff</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="pattern">
+<span id="amdgpu-synid-sw-offset16"></span><h4><a class="toc-backref" href="#id28">pattern</a><a class="headerlink" href="#pattern" title="Permalink to this headline">¶</a></h4>
+<p>This is a special modifier which may be used with <em>ds_swizzle_b32</em> instruction only.
+It specifies a swizzle pattern in numeric or symbolic form. The default value is 0.</p>
+<p>See AMD documentation for more information.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="48%" />
+<col width="52%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>offset:{0..0xFFFF}</td>
+<td>Specifies a 16-bit swizzle pattern.</td>
+</tr>
+<tr class="row-odd"><td>offset:swizzle(QUAD_PERM,{0..3},{0..3},{0..3},{0..3})</td>
+<td><p class="first">Specifies a quad permute mode pattern</p>
+<p class="last">Each number is a lane <em>id</em>.</p>
+</td>
+</tr>
+<tr class="row-even"><td>offset:swizzle(BITMASK_PERM, “&lt;mask&gt;”)</td>
+<td><p class="first">Specifies a bitmask permute mode pattern.</p>
+<p>The pattern converts a 5-bit lane <em>id</em> to another
+lane <em>id</em> with which the lane interacts.</p>
+<p><em>mask</em> is a 5 character sequence which
+specifies how to transform the bits of the
+lane <em>id</em>.</p>
+<p>The following characters are allowed:</p>
+<ul class="last simple">
+<li>“0” - set bit to 0.</li>
+<li>“1” - set bit to 1.</li>
+<li>“p” - preserve bit.</li>
+<li>“i” - inverse bit.</li>
+</ul>
+</td>
+</tr>
+<tr class="row-odd"><td>offset:swizzle(BROADCAST,{2..32},{0..N})</td>
+<td><p class="first">Specifies a broadcast mode.</p>
+<p>Broadcasts the value of any particular lane to
+all lanes in its group.</p>
+<p>The first numeric parameter is a group
+size and must be equal to 2, 4, 8, 16 or 32.</p>
+<p>The second numeric parameter is an index of the
+lane being broadcasted.</p>
+<p class="last">The index must not exceed group size.</p>
+</td>
+</tr>
+<tr class="row-even"><td>offset:swizzle(SWAP,{1..16})</td>
+<td><p class="first">Specifies a swap mode.</p>
+<p class="last">Swaps the neighboring groups of
+1, 2, 4, 8 or 16 lanes.</p>
+</td>
+</tr>
+<tr class="row-odd"><td>offset:swizzle(REVERSE,{2..32})</td>
+<td><p class="first">Specifies a reverse mode.</p>
+<p class="last">Reverses the lanes for groups of 2, 4, 8, 16 or 32 lanes.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Numeric parameters may be specified as either <a class="reference internal" href="AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer numbers</span></a> or
+<a class="reference internal" href="AMDGPUOperandSyntax.html#amdgpu-synid-absolute-expression"><span class="std std-ref">absolute expressions</span></a>.</p>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">offset</span><span class="p">:</span><span class="mi">255</span>
+<span class="n">offset</span><span class="p">:</span><span class="mh">0xffff</span>
+<span class="n">offset</span><span class="p">:</span><span class="n">swizzle</span><span class="p">(</span><span class="n">QUAD_PERM</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span> <span class="p">,</span><span class="mi">3</span><span class="p">)</span>
+<span class="n">offset</span><span class="p">:</span><span class="n">swizzle</span><span class="p">(</span><span class="n">BITMASK_PERM</span><span class="p">,</span> <span class="s2">&quot;01pi0&quot;</span><span class="p">)</span>
+<span class="n">offset</span><span class="p">:</span><span class="n">swizzle</span><span class="p">(</span><span class="n">BROADCAST</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+<span class="n">offset</span><span class="p">:</span><span class="n">swizzle</span><span class="p">(</span><span class="n">SWAP</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span>
+<span class="n">offset</span><span class="p">:</span><span class="n">swizzle</span><span class="p">(</span><span class="n">REVERSE</span><span class="p">,</span> <span class="mi">30</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="gds">
+<span id="amdgpu-synid-gds"></span><h4><a class="toc-backref" href="#id29">gds</a><a class="headerlink" href="#gds" title="Permalink to this headline">¶</a></h4>
+<p>Specifies whether to use GDS or LDS memory (LDS is the default).</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>gds</td>
+<td>Use GDS memory.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="exp-modifiers">
+<h3><a class="toc-backref" href="#id30">EXP Modifiers</a><a class="headerlink" href="#exp-modifiers" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="done">
+<span id="amdgpu-synid-done"></span><h4><a class="toc-backref" href="#id31">done</a><a class="headerlink" href="#done" title="Permalink to this headline">¶</a></h4>
+<p>Specifies if this is the last export from the shader to the target. By default, current
+instruction does not finish an export sequence.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>done</td>
+<td>Indicates the last export operation.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="compr">
+<span id="amdgpu-synid-compr"></span><h4><a class="toc-backref" href="#id32">compr</a><a class="headerlink" href="#compr" title="Permalink to this headline">¶</a></h4>
+<p>Indicates if the data are compressed (data are not compressed by default).</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>compr</td>
+<td>Data are compressed.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="vm">
+<span id="amdgpu-synid-vm"></span><h4><a class="toc-backref" href="#id33">vm</a><a class="headerlink" href="#vm" title="Permalink to this headline">¶</a></h4>
+<p>Specifies valid mask flag state (off by default).</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>vm</td>
+<td>Set valid mask flag.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="flat-modifiers">
+<h3><a class="toc-backref" href="#id34">FLAT Modifiers</a><a class="headerlink" href="#flat-modifiers" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="offset12">
+<span id="amdgpu-synid-flat-offset12"></span><h4><a class="toc-backref" href="#id35">offset12</a><a class="headerlink" href="#offset12" title="Permalink to this headline">¶</a></h4>
+<p>Specifies an immediate unsigned 12-bit offset, in bytes. The default value is 0.</p>
+<p>Cannot be used with <em>global/scratch</em> opcodes. GFX9 only.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="24%" />
+<col width="76%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>offset:{0..4095}</td>
+<td>Specifies a 12-bit unsigned offset as a positive
+<a class="reference internal" href="AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer number</span></a>.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">offset</span><span class="p">:</span><span class="mi">4095</span>
+<span class="n">offset</span><span class="p">:</span><span class="mh">0xff</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="offset13s">
+<span id="amdgpu-synid-flat-offset13s"></span><h4><a class="toc-backref" href="#id36">offset13s</a><a class="headerlink" href="#offset13s" title="Permalink to this headline">¶</a></h4>
+<p>Specifies an immediate signed 13-bit offset, in bytes. The default value is 0.</p>
+<p>Can be used with <em>global/scratch</em> opcodes only. GFX9 only.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="34%" />
+<col width="66%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>offset:{-4096..4095}</td>
+<td>Specifies a 13-bit signed offset as an
+<a class="reference internal" href="AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer number</span></a>.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">offset</span><span class="p">:</span><span class="o">-</span><span class="mi">4000</span>
+<span class="n">offset</span><span class="p">:</span><span class="mh">0x10</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="glc">
+<h4><a class="toc-backref" href="#id37">glc</a><a class="headerlink" href="#glc" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-glc"><span class="std std-ref">here</span></a>.</p>
+</div>
+<div class="section" id="slc">
+<h4><a class="toc-backref" href="#id38">slc</a><a class="headerlink" href="#slc" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-slc"><span class="std std-ref">here</span></a>.</p>
+</div>
+<div class="section" id="tfe">
+<h4><a class="toc-backref" href="#id39">tfe</a><a class="headerlink" href="#tfe" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-tfe"><span class="std std-ref">here</span></a>.</p>
+</div>
+<div class="section" id="nv">
+<h4><a class="toc-backref" href="#id40">nv</a><a class="headerlink" href="#nv" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-nv"><span class="std std-ref">here</span></a>.</p>
+</div>
+</div>
+<div class="section" id="mimg-modifiers">
+<h3><a class="toc-backref" href="#id41">MIMG Modifiers</a><a class="headerlink" href="#mimg-modifiers" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="dmask">
+<span id="amdgpu-synid-dmask"></span><h4><a class="toc-backref" href="#id42">dmask</a><a class="headerlink" href="#dmask" title="Permalink to this headline">¶</a></h4>
+<p>Specifies which channels (image components) are used by the operation. By default, no channels
+are used.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="22%" />
+<col width="78%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>dmask:{0..15}</td>
+<td><p class="first">Specifies image channels as a positive
+<a class="reference internal" href="AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer number</span></a>.</p>
+<p>Each bit corresponds to one of 4 image
+components (RGBA).</p>
+<p class="last">If the specified bit value
+is 0, the component is not used, value 1 means
+that the component is used.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>This modifier has some limitations depending on instruction kind:</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="68%" />
+<col width="32%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Instruction Kind</th>
+<th class="head">Valid dmask Values</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>32-bit atomic <em>cmpswap</em></td>
+<td>0x3</td>
+</tr>
+<tr class="row-odd"><td>32-bit atomic instructions except for <em>cmpswap</em></td>
+<td>0x1</td>
+</tr>
+<tr class="row-even"><td>64-bit atomic <em>cmpswap</em></td>
+<td>0xF</td>
+</tr>
+<tr class="row-odd"><td>64-bit atomic instructions except for <em>cmpswap</em></td>
+<td>0x3</td>
+</tr>
+<tr class="row-even"><td><em>gather4</em></td>
+<td>0x1, 0x2, 0x4, 0x8</td>
+</tr>
+<tr class="row-odd"><td>Other instructions</td>
+<td>any value</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">dmask</span><span class="p">:</span><span class="mh">0xf</span>
+<span class="n">dmask</span><span class="p">:</span><span class="mb">0b1111</span>
+<span class="n">dmask</span><span class="p">:</span><span class="mi">3</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="unorm">
+<span id="amdgpu-synid-unorm"></span><h4><a class="toc-backref" href="#id43">unorm</a><a class="headerlink" href="#unorm" title="Permalink to this headline">¶</a></h4>
+<p>Specifies whether the address is normalized or not (the address is normalized by default).</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="38%" />
+<col width="63%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>unorm</td>
+<td>Force the address to be unnormalized.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="id1">
+<h4><a class="toc-backref" href="#id44">glc</a><a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-glc"><span class="std std-ref">here</span></a>.</p>
+</div>
+<div class="section" id="id2">
+<h4><a class="toc-backref" href="#id45">slc</a><a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-slc"><span class="std std-ref">here</span></a>.</p>
+</div>
+<div class="section" id="r128">
+<span id="amdgpu-synid-r128"></span><h4><a class="toc-backref" href="#id46">r128</a><a class="headerlink" href="#r128" title="Permalink to this headline">¶</a></h4>
+<p>Specifies texture resource size. The default size is 256 bits.</p>
+<p>GFX7 and GFX8 only.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="28%" />
+<col width="72%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>r128</td>
+<td>Specifies 128 bits texture resource size.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">Using this modifier should descrease <em>rsrc</em> operand size from 8 to 4 dwords, but assembler does not currently support this feature.</p>
+</div>
+</div>
+<div class="section" id="id3">
+<h4><a class="toc-backref" href="#id47">tfe</a><a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-tfe"><span class="std std-ref">here</span></a>.</p>
+</div>
+<div class="section" id="lwe">
+<span id="amdgpu-synid-lwe"></span><h4><a class="toc-backref" href="#id48">lwe</a><a class="headerlink" href="#lwe" title="Permalink to this headline">¶</a></h4>
+<p>Specifies LOD warning status (LOD warning is disabled by default).</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>lwe</td>
+<td>Enables LOD warning.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="da">
+<span id="amdgpu-synid-da"></span><h4><a class="toc-backref" href="#id49">da</a><a class="headerlink" href="#da" title="Permalink to this headline">¶</a></h4>
+<p>Specifies if an array index must be sent to TA. By default, array index is not sent.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>da</td>
+<td>Send an array-index to TA.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="d16">
+<span id="amdgpu-synid-d16"></span><h4><a class="toc-backref" href="#id50">d16</a><a class="headerlink" href="#d16" title="Permalink to this headline">¶</a></h4>
+<p>Specifies data size: 16 or 32 bits (32 bits by default). Not supported by GFX7.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>d16</td>
+<td><p class="first">Enables 16-bits data mode.</p>
+<p>On loads, convert data in memory to 16-bit
+format before storing it in VGPRs.</p>
+<p>For stores, convert 16-bit data in VGPRs to
+32 bits before going to memory.</p>
+<p>Note that GFX8.0 does not support data packing.
+Each 16-bit data element occupies 1 VGPR.</p>
+<p class="last">GFX8.1 and GFX9 support data packing.
+Each pair of 16-bit data elements
+occupies 1 VGPR.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="a16">
+<span id="amdgpu-synid-a16"></span><h4><a class="toc-backref" href="#id51">a16</a><a class="headerlink" href="#a16" title="Permalink to this headline">¶</a></h4>
+<p>Specifies size of image address components: 16 or 32 bits (32 bits by default). GFX9 only.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>a16</td>
+<td>Enables 16-bits image address components.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="miscellaneous-modifiers">
+<h3><a class="toc-backref" href="#id52">Miscellaneous Modifiers</a><a class="headerlink" href="#miscellaneous-modifiers" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="amdgpu-synid-glc">
+<span id="id4"></span><h4><a class="toc-backref" href="#id53">glc</a><a class="headerlink" href="#amdgpu-synid-glc" title="Permalink to this headline">¶</a></h4>
+<p>This modifier has different meaning for loads, stores, and atomic operations.
+The default value is off (0).</p>
+<p>See AMD documentation for details.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>glc</td>
+<td>Set glc bit to 1.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="amdgpu-synid-slc">
+<span id="id5"></span><h4><a class="toc-backref" href="#id54">slc</a><a class="headerlink" href="#amdgpu-synid-slc" title="Permalink to this headline">¶</a></h4>
+<p>Specifies cache policy. The default value is off (0).</p>
+<p>See AMD documentation for details.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>slc</td>
+<td>Set slc bit to 1.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="amdgpu-synid-tfe">
+<span id="id6"></span><h4><a class="toc-backref" href="#id55">tfe</a><a class="headerlink" href="#amdgpu-synid-tfe" title="Permalink to this headline">¶</a></h4>
+<p>Controls access to partially resident textures. The default value is off (0).</p>
+<p>See AMD documentation for details.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>tfe</td>
+<td>Set tfe bit to 1.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="amdgpu-synid-nv">
+<span id="id7"></span><h4><a class="toc-backref" href="#id56">nv</a><a class="headerlink" href="#amdgpu-synid-nv" title="Permalink to this headline">¶</a></h4>
+<p>Specifies if instruction is operating on non-volatile memory. By default, memory is volatile.</p>
+<p>GFX9 only.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>nv</td>
+<td>Indicates that instruction operates on
+non-volatile memory.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="mubuf-mtbuf-modifiers">
+<h3><a class="toc-backref" href="#id57">MUBUF/MTBUF Modifiers</a><a class="headerlink" href="#mubuf-mtbuf-modifiers" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="amdgpu-synid-idxen">
+<span id="idxen"></span><h4><a class="toc-backref" href="#id58">idxen</a><a class="headerlink" href="#amdgpu-synid-idxen" title="Permalink to this headline">¶</a></h4>
+<p>Specifies whether address components include an index. By default, no components are used.</p>
+<p>Can be used together with <a class="reference internal" href="#amdgpu-synid-offen"><span class="std std-ref">offen</span></a>.</p>
+<p>Cannot be used with <a class="reference internal" href="#amdgpu-synid-addr64"><span class="std std-ref">addr64</span></a>.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>idxen</td>
+<td>Address components include an index.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="offen">
+<span id="amdgpu-synid-offen"></span><h4><a class="toc-backref" href="#id59">offen</a><a class="headerlink" href="#offen" title="Permalink to this headline">¶</a></h4>
+<p>Specifies whether address components include an offset. By default, no components are used.</p>
+<p>Can be used together with <a class="reference internal" href="#amdgpu-synid-idxen"><span class="std std-ref">idxen</span></a>.</p>
+<p>Cannot be used with <a class="reference internal" href="#amdgpu-synid-addr64"><span class="std std-ref">addr64</span></a>.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>offen</td>
+<td>Address components include an offset.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="addr64">
+<span id="amdgpu-synid-addr64"></span><h4><a class="toc-backref" href="#id60">addr64</a><a class="headerlink" href="#addr64" title="Permalink to this headline">¶</a></h4>
+<p>Specifies whether a 64-bit address is used. By default, no address is used.</p>
+<p>GFX7 only. Cannot be used with <a class="reference internal" href="#amdgpu-synid-offen"><span class="std std-ref">offen</span></a> and
+<a class="reference internal" href="#amdgpu-synid-idxen"><span class="std std-ref">idxen</span></a> modifiers.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>addr64</td>
+<td>A 64-bit address is used.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="amdgpu-synid-buf-offset12">
+<span id="id8"></span><h4><a class="toc-backref" href="#id61">offset12</a><a class="headerlink" href="#amdgpu-synid-buf-offset12" title="Permalink to this headline">¶</a></h4>
+<p>Specifies an immediate unsigned 12-bit offset, in bytes. The default value is 0.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="36%" />
+<col width="64%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>offset:{0..0xFFF}</td>
+<td>Specifies a 12-bit unsigned offset as a positive
+<a class="reference internal" href="AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer number</span></a>.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">offset</span><span class="p">:</span><span class="mi">0</span>
+<span class="n">offset</span><span class="p">:</span><span class="mh">0x10</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id9">
+<h4><a class="toc-backref" href="#id62">glc</a><a class="headerlink" href="#id9" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-glc"><span class="std std-ref">here</span></a>.</p>
+</div>
+<div class="section" id="id10">
+<h4><a class="toc-backref" href="#id63">slc</a><a class="headerlink" href="#id10" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-slc"><span class="std std-ref">here</span></a>.</p>
+</div>
+<div class="section" id="lds">
+<span id="amdgpu-synid-lds"></span><h4><a class="toc-backref" href="#id64">lds</a><a class="headerlink" href="#lds" title="Permalink to this headline">¶</a></h4>
+<p>Specifies where to store the result: VGPRs or LDS (VGPRs by default).</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="60%" />
+<col width="40%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>lds</td>
+<td>Store result in LDS.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="id11">
+<h4><a class="toc-backref" href="#id65">tfe</a><a class="headerlink" href="#id11" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-tfe"><span class="std std-ref">here</span></a>.</p>
+</div>
+<div class="section" id="dfmt">
+<span id="amdgpu-synid-dfmt"></span><h4><a class="toc-backref" href="#id66">dfmt</a><a class="headerlink" href="#dfmt" title="Permalink to this headline">¶</a></h4>
+<p>TBD</p>
+</div>
+<div class="section" id="nfmt">
+<span id="amdgpu-synid-nfmt"></span><h4><a class="toc-backref" href="#id67">nfmt</a><a class="headerlink" href="#nfmt" title="Permalink to this headline">¶</a></h4>
+<p>TBD</p>
+</div>
+</div>
+<div class="section" id="smrd-smem-modifiers">
+<h3><a class="toc-backref" href="#id68">SMRD/SMEM Modifiers</a><a class="headerlink" href="#smrd-smem-modifiers" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="id12">
+<h4><a class="toc-backref" href="#id69">glc</a><a class="headerlink" href="#id12" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-glc"><span class="std std-ref">here</span></a>.</p>
+</div>
+<div class="section" id="id13">
+<h4><a class="toc-backref" href="#id70">nv</a><a class="headerlink" href="#id13" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-nv"><span class="std std-ref">here</span></a>.</p>
+</div>
+</div>
+<div class="section" id="vintrp-modifiers">
+<h3><a class="toc-backref" href="#id71">VINTRP Modifiers</a><a class="headerlink" href="#vintrp-modifiers" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="high">
+<span id="amdgpu-synid-high"></span><h4><a class="toc-backref" href="#id72">high</a><a class="headerlink" href="#high" title="Permalink to this headline">¶</a></h4>
+<p>Specifies which half of the LDS word to use. Low half of LDS word is used by default.
+GFX9 only.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="56%" />
+<col width="44%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>high</td>
+<td>Use high half of LDS word.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="vop1-vop2-dpp-modifiers">
+<h3><a class="toc-backref" href="#id73">VOP1/VOP2 DPP Modifiers</a><a class="headerlink" href="#vop1-vop2-dpp-modifiers" title="Permalink to this headline">¶</a></h3>
+<p>GFX8 and GFX9 only.</p>
+<div class="section" id="dpp-ctrl">
+<span id="amdgpu-synid-dpp-ctrl"></span><h4><a class="toc-backref" href="#id74">dpp_ctrl</a><a class="headerlink" href="#dpp-ctrl" title="Permalink to this headline">¶</a></h4>
+<p>Specifies how data are shared between threads. This is a mandatory modifier.
+There is no default value.</p>
+<p>Note. The lanes of a wavefront are organized in four banks and four rows.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>quad_perm:[{0..3},{0..3},{0..3},{0..3}]</td>
+<td>Full permute of 4 threads.</td>
+</tr>
+<tr class="row-odd"><td>row_mirror</td>
+<td>Mirror threads within row.</td>
+</tr>
+<tr class="row-even"><td>row_half_mirror</td>
+<td>Mirror threads within 1/2 row (8 threads).</td>
+</tr>
+<tr class="row-odd"><td>row_bcast:15</td>
+<td>Broadcast 15th thread of each row to next row.</td>
+</tr>
+<tr class="row-even"><td>row_bcast:31</td>
+<td>Broadcast thread 31 to rows 2 and 3.</td>
+</tr>
+<tr class="row-odd"><td>wave_shl:1</td>
+<td>Wavefront left shift by 1 thread.</td>
+</tr>
+<tr class="row-even"><td>wave_rol:1</td>
+<td>Wavefront left rotate by 1 thread.</td>
+</tr>
+<tr class="row-odd"><td>wave_shr:1</td>
+<td>Wavefront right shift by 1 thread.</td>
+</tr>
+<tr class="row-even"><td>wave_ror:1</td>
+<td>Wavefront right rotate by 1 thread.</td>
+</tr>
+<tr class="row-odd"><td>row_shl:{1..15}</td>
+<td>Row shift left by 1-15 threads.</td>
+</tr>
+<tr class="row-even"><td>row_shr:{1..15}</td>
+<td>Row shift right by 1-15 threads.</td>
+</tr>
+<tr class="row-odd"><td>row_ror:{1..15}</td>
+<td>Row rotate right by 1-15 threads.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Note: Numeric parameters may be specified as either
+<a class="reference internal" href="AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer numbers</span></a> or
+<a class="reference internal" href="AMDGPUOperandSyntax.html#amdgpu-synid-absolute-expression"><span class="std std-ref">absolute expressions</span></a>.</p>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">quad_perm</span><span class="p">:[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+<span class="n">row_shl</span><span class="p">:</span><span class="mi">3</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="row-mask">
+<span id="amdgpu-synid-row-mask"></span><h4><a class="toc-backref" href="#id75">row_mask</a><a class="headerlink" href="#row-mask" title="Permalink to this headline">¶</a></h4>
+<p>Controls which rows are enabled for data sharing. By default, all rows are enabled.</p>
+<p>Note. The lanes of a wavefront are organized in four banks and four rows.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="43%" />
+<col width="57%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>row_mask:{0..15}</td>
+<td><p class="first">Specifies a <em>row mask</em> as a positive
+<a class="reference internal" href="AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer number</span></a>.</p>
+<p class="last">Each of 4 bits in the mask controls one
+row (0 - disabled, 1 - enabled).</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">row_mask</span><span class="p">:</span><span class="mh">0xf</span>
+<span class="n">row_mask</span><span class="p">:</span><span class="mb">0b1010</span>
+<span class="n">row_mask</span><span class="p">:</span><span class="mb">0b1111</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="bank-mask">
+<span id="amdgpu-synid-bank-mask"></span><h4><a class="toc-backref" href="#id76">bank_mask</a><a class="headerlink" href="#bank-mask" title="Permalink to this headline">¶</a></h4>
+<p>Controls which banks are enabled for data sharing. By default, all banks are enabled.</p>
+<p>Note. The lanes of a wavefront are organized in four banks and four rows.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="42%" />
+<col width="58%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>bank_mask:{0..15}</td>
+<td><p class="first">Specifies a <em>bank mask</em> as a positive
+<a class="reference internal" href="AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer number</span></a>.</p>
+<p class="last">Each of 4 bits in the mask controls one
+bank (0 - disabled, 1 - enabled).</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">bank_mask</span><span class="p">:</span><span class="mh">0x3</span>
+<span class="n">bank_mask</span><span class="p">:</span><span class="mb">0b0011</span>
+<span class="n">bank_mask</span><span class="p">:</span><span class="mb">0b1111</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="bound-ctrl">
+<span id="amdgpu-synid-bound-ctrl"></span><h4><a class="toc-backref" href="#id77">bound_ctrl</a><a class="headerlink" href="#bound-ctrl" title="Permalink to this headline">¶</a></h4>
+<p>Controls data sharing when accessing an invalid lane. By default, data sharing with
+invalid lanes is disabled.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>bound_ctrl:0</td>
+<td><p class="first">Enables data sharing with invalid lanes.</p>
+<p class="last">Accessing data from an invalid lane will
+return zero.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="vop1-vop2-vopc-sdwa-modifiers">
+<h3><a class="toc-backref" href="#id78">VOP1/VOP2/VOPC SDWA Modifiers</a><a class="headerlink" href="#vop1-vop2-vopc-sdwa-modifiers" title="Permalink to this headline">¶</a></h3>
+<p>GFX8 and GFX9 only.</p>
+<div class="section" id="clamp">
+<h4><a class="toc-backref" href="#id79">clamp</a><a class="headerlink" href="#clamp" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-clamp"><span class="std std-ref">here</span></a>.</p>
+</div>
+<div class="section" id="omod">
+<h4><a class="toc-backref" href="#id80">omod</a><a class="headerlink" href="#omod" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-omod"><span class="std std-ref">here</span></a>.</p>
+<p>GFX9 only.</p>
+</div>
+<div class="section" id="dst-sel">
+<span id="amdgpu-synid-dst-sel"></span><h4><a class="toc-backref" href="#id81">dst_sel</a><a class="headerlink" href="#dst-sel" title="Permalink to this headline">¶</a></h4>
+<p>Selects which bits in the destination are affected. By default, all bits are affected.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>dst_sel:DWORD</td>
+<td>Use bits 31:0.</td>
+</tr>
+<tr class="row-odd"><td>dst_sel:BYTE_0</td>
+<td>Use bits 7:0.</td>
+</tr>
+<tr class="row-even"><td>dst_sel:BYTE_1</td>
+<td>Use bits 15:8.</td>
+</tr>
+<tr class="row-odd"><td>dst_sel:BYTE_2</td>
+<td>Use bits 23:16.</td>
+</tr>
+<tr class="row-even"><td>dst_sel:BYTE_3</td>
+<td>Use bits 31:24.</td>
+</tr>
+<tr class="row-odd"><td>dst_sel:WORD_0</td>
+<td>Use bits 15:0.</td>
+</tr>
+<tr class="row-even"><td>dst_sel:WORD_1</td>
+<td>Use bits 31:16.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="dst-unused">
+<span id="amdgpu-synid-dst-unused"></span><h4><a class="toc-backref" href="#id82">dst_unused</a><a class="headerlink" href="#dst-unused" title="Permalink to this headline">¶</a></h4>
+<p>Controls what to do with the bits in the destination which are not selected
+by <a class="reference internal" href="#amdgpu-synid-dst-sel"><span class="std std-ref">dst_sel</span></a>.
+By default, unused bits are preserved.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>dst_unused:UNUSED_PAD</td>
+<td>Pad with zeros.</td>
+</tr>
+<tr class="row-odd"><td>dst_unused:UNUSED_SEXT</td>
+<td>Sign-extend upper bits, zero lower bits.</td>
+</tr>
+<tr class="row-even"><td>dst_unused:UNUSED_PRESERVE</td>
+<td>Preserve bits.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="src0-sel">
+<span id="amdgpu-synid-src0-sel"></span><h4><a class="toc-backref" href="#id83">src0_sel</a><a class="headerlink" href="#src0-sel" title="Permalink to this headline">¶</a></h4>
+<p>Controls which bits in the src0 are used. By default, all bits are used.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>src0_sel:DWORD</td>
+<td>Use bits 31:0.</td>
+</tr>
+<tr class="row-odd"><td>src0_sel:BYTE_0</td>
+<td>Use bits 7:0.</td>
+</tr>
+<tr class="row-even"><td>src0_sel:BYTE_1</td>
+<td>Use bits 15:8.</td>
+</tr>
+<tr class="row-odd"><td>src0_sel:BYTE_2</td>
+<td>Use bits 23:16.</td>
+</tr>
+<tr class="row-even"><td>src0_sel:BYTE_3</td>
+<td>Use bits 31:24.</td>
+</tr>
+<tr class="row-odd"><td>src0_sel:WORD_0</td>
+<td>Use bits 15:0.</td>
+</tr>
+<tr class="row-even"><td>src0_sel:WORD_1</td>
+<td>Use bits 31:16.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="src1-sel">
+<span id="amdgpu-synid-src1-sel"></span><h4><a class="toc-backref" href="#id84">src1_sel</a><a class="headerlink" href="#src1-sel" title="Permalink to this headline">¶</a></h4>
+<p>Controls which bits in the src1 are used. By default, all bits are used.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>src1_sel:DWORD</td>
+<td>Use bits 31:0.</td>
+</tr>
+<tr class="row-odd"><td>src1_sel:BYTE_0</td>
+<td>Use bits 7:0.</td>
+</tr>
+<tr class="row-even"><td>src1_sel:BYTE_1</td>
+<td>Use bits 15:8.</td>
+</tr>
+<tr class="row-odd"><td>src1_sel:BYTE_2</td>
+<td>Use bits 23:16.</td>
+</tr>
+<tr class="row-even"><td>src1_sel:BYTE_3</td>
+<td>Use bits 31:24.</td>
+</tr>
+<tr class="row-odd"><td>src1_sel:WORD_0</td>
+<td>Use bits 15:0.</td>
+</tr>
+<tr class="row-even"><td>src1_sel:WORD_1</td>
+<td>Use bits 31:16.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="vop1-vop2-vopc-sdwa-operand-modifiers">
+<span id="amdgpu-synid-sdwa-operand-modifiers"></span><h3><a class="toc-backref" href="#id85">VOP1/VOP2/VOPC SDWA Operand Modifiers</a><a class="headerlink" href="#vop1-vop2-vopc-sdwa-operand-modifiers" title="Permalink to this headline">¶</a></h3>
+<p>Operand modifiers are not used separately. They are applied to source operands.</p>
+<p>GFX8 and GFX9 only.</p>
+<div class="section" id="abs">
+<h4><a class="toc-backref" href="#id86">abs</a><a class="headerlink" href="#abs" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-abs"><span class="std std-ref">here</span></a>.</p>
+</div>
+<div class="section" id="neg">
+<h4><a class="toc-backref" href="#id87">neg</a><a class="headerlink" href="#neg" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-neg"><span class="std std-ref">here</span></a>.</p>
+</div>
+<div class="section" id="sext">
+<span id="amdgpu-synid-sext"></span><h4><a class="toc-backref" href="#id88">sext</a><a class="headerlink" href="#sext" title="Permalink to this headline">¶</a></h4>
+<p>Sign-extends value of a (sub-dword) operand to fill all 32 bits.
+Has no effect for 32-bit operands.</p>
+<p>Valid for integer operands only.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>sext(&lt;operand&gt;)</td>
+<td>Sign-extend operand value.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">sext</span><span class="p">(</span><span class="n">v4</span><span class="p">)</span>
+<span class="n">sext</span><span class="p">(</span><span class="n">v255</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="vop3-modifiers">
+<h3><a class="toc-backref" href="#id89">VOP3 Modifiers</a><a class="headerlink" href="#vop3-modifiers" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="op-sel">
+<span id="amdgpu-synid-vop3-op-sel"></span><h4><a class="toc-backref" href="#id90">op_sel</a><a class="headerlink" href="#op-sel" title="Permalink to this headline">¶</a></h4>
+<p>Selects the low [15:0] or high [31:16] operand bits for source and destination operands.
+By default, low bits are used for all operands.</p>
+<p>The number of values specified with the op_sel modifier must match the number of instruction
+operands (both source and destination). First value controls src0, second value controls src1
+and so on, except that the last value controls destination.
+The value 0 selects the low bits, while 1 selects the high bits.</p>
+<p>Note. op_sel modifier affects 16-bit operands only. For 32-bit operands the value specified
+by op_sel must be 0.</p>
+<p>GFX9 only.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="40%" />
+<col width="60%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>op_sel:[{0..1},{0..1}]</td>
+<td>Select operand bits for instructions with 1 source operand.</td>
+</tr>
+<tr class="row-odd"><td>op_sel:[{0..1},{0..1},{0..1}]</td>
+<td>Select operand bits for instructions with 2 source operands.</td>
+</tr>
+<tr class="row-even"><td>op_sel:[{0..1},{0..1},{0..1},{0..1}]</td>
+<td>Select operand bits for instructions with 3 source operands.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">op_sel</span><span class="p">:[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">op_sel</span><span class="p">:[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="amdgpu-synid-clamp">
+<span id="id14"></span><h4><a class="toc-backref" href="#id91">clamp</a><a class="headerlink" href="#amdgpu-synid-clamp" title="Permalink to this headline">¶</a></h4>
+<p>Clamp meaning depends on instruction.</p>
+<p>For <em>v_cmp</em> instructions, clamp modifier indicates that the compare signals
+if a floating point exception occurs. By default, signaling is disabled.
+Not supported by GFX7.</p>
+<p>For integer operations, clamp modifier indicates that the result must be clamped
+to the largest and smallest representable value. By default, there is no clamping.
+Integer clamping is not supported by GFX7.</p>
+<p>For floating point operations, clamp modifier indicates that the result must be clamped
+to the range [0.0, 1.0]. By default, there is no clamping.</p>
+<p>Note. Clamp modifier is applied after <a class="reference internal" href="#amdgpu-synid-omod"><span class="std std-ref">output modifiers</span></a> (if any).</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>clamp</td>
+<td>Enables clamping (or signaling).</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+<div class="section" id="amdgpu-synid-omod">
+<span id="id15"></span><h4><a class="toc-backref" href="#id92">omod</a><a class="headerlink" href="#amdgpu-synid-omod" title="Permalink to this headline">¶</a></h4>
+<p>Specifies if an output modifier must be applied to the result.
+By default, no output modifiers are applied.</p>
+<p>Note. Output modifiers are applied before <a class="reference internal" href="#amdgpu-synid-clamp"><span class="std std-ref">clamping</span></a> (if any).</p>
+<p>Output modifiers are valid for f32 and f64 floating point results only.
+They must not be used with f16.</p>
+<p>Note. <em>v_cvt_f16_f32</em> is an exception. This instruction produces f16 result
+but accepts output modifiers.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>mul:2</td>
+<td>Multiply the result by 2.</td>
+</tr>
+<tr class="row-odd"><td>mul:4</td>
+<td>Multiply the result by 4.</td>
+</tr>
+<tr class="row-even"><td>div:2</td>
+<td>Multiply the result by 0.5.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="vop3-operand-modifiers">
+<span id="amdgpu-synid-vop3-operand-modifiers"></span><h3><a class="toc-backref" href="#id93">VOP3 Operand Modifiers</a><a class="headerlink" href="#vop3-operand-modifiers" title="Permalink to this headline">¶</a></h3>
+<p>Operand modifiers are not used separately. They are applied to source operands.</p>
+<div class="section" id="amdgpu-synid-abs">
+<span id="id16"></span><h4><a class="toc-backref" href="#id94">abs</a><a class="headerlink" href="#amdgpu-synid-abs" title="Permalink to this headline">¶</a></h4>
+<p>Computes absolute value of its operand. Applied before <a class="reference internal" href="#amdgpu-synid-neg"><span class="std std-ref">neg</span></a> (if any).
+Valid for floating point operands only.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>abs(&lt;operand&gt;)</td>
+<td>Get absolute value of operand.</td>
+</tr>
+<tr class="row-odd"><td>|&lt;operand&gt;|</td>
+<td>The same as above.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<pre class="literal-block">
+abs(v36)
+|v36|
+</pre>
+</div>
+<div class="section" id="amdgpu-synid-neg">
+<span id="id17"></span><h4><a class="toc-backref" href="#id95">neg</a><a class="headerlink" href="#amdgpu-synid-neg" title="Permalink to this headline">¶</a></h4>
+<p>Computes negative value of its operand. Applied after <a class="reference internal" href="#amdgpu-synid-abs"><span class="std std-ref">abs</span></a> (if any).
+Valid for floating point operands only.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="45%" />
+<col width="55%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>neg(&lt;operand&gt;)</td>
+<td>Get negative value of operand.</td>
+</tr>
+<tr class="row-odd"><td>-&lt;operand&gt;</td>
+<td>The same as above.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">neg</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<span class="o">-</span><span class="n">v4</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="vop3p-modifiers">
+<h3><a class="toc-backref" href="#id96">VOP3P Modifiers</a><a class="headerlink" href="#vop3p-modifiers" title="Permalink to this headline">¶</a></h3>
+<p>This section describes modifiers of <em>regular</em> VOP3P instructions.</p>
+<p><em>v_mad_mix_f32</em>, <em>v_mad_mixhi_f16</em> and <em>v_mad_mixlo_f16</em>
+instructions use these modifiers <a class="reference internal" href="#amdgpu-synid-mad-mix"><span class="std std-ref">in a special manner</span></a>.</p>
+<p>GFX9 only.</p>
+<div class="section" id="amdgpu-synid-op-sel">
+<span id="id18"></span><h4><a class="toc-backref" href="#id97">op_sel</a><a class="headerlink" href="#amdgpu-synid-op-sel" title="Permalink to this headline">¶</a></h4>
+<p>Selects the low [15:0] or high [31:16] operand bits as input to the operation
+which results in the lower-half of the destination.
+By default, low bits are used for all operands.</p>
+<p>The number of values specified by the <em>op_sel</em> modifier must match the number of source
+operands. First value controls src0, second value controls src1 and so on.</p>
+<p>The value 0 selects the low bits, while 1 selects the high bits.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="35%" />
+<col width="65%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>op_sel:[{0..1}]</td>
+<td>Select operand bits for instructions with 1 source operand.</td>
+</tr>
+<tr class="row-odd"><td>op_sel:[{0..1},{0..1}]</td>
+<td>Select operand bits for instructions with 2 source operands.</td>
+</tr>
+<tr class="row-even"><td>op_sel:[{0..1},{0..1},{0..1}]</td>
+<td>Select operand bits for instructions with 3 source operands.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">op_sel</span><span class="p">:[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">op_sel</span><span class="p">:[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="op-sel-hi">
+<span id="amdgpu-synid-op-sel-hi"></span><h4><a class="toc-backref" href="#id98">op_sel_hi</a><a class="headerlink" href="#op-sel-hi" title="Permalink to this headline">¶</a></h4>
+<p>Selects the low [15:0] or high [31:16] operand bits as input to the operation
+which results in the upper-half of the destination.
+By default, high bits are used for all operands.</p>
+<p>The number of values specified by the <em>op_sel_hi</em> modifier must match the number of source
+operands. First value controls src0, second value controls src1 and so on.</p>
+<p>The value 0 selects the low bits, while 1 selects the high bits.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="36%" />
+<col width="64%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>op_sel_hi:[{0..1}]</td>
+<td>Select operand bits for instructions with 1 source operand.</td>
+</tr>
+<tr class="row-odd"><td>op_sel_hi:[{0..1},{0..1}]</td>
+<td>Select operand bits for instructions with 2 source operands.</td>
+</tr>
+<tr class="row-even"><td>op_sel_hi:[{0..1},{0..1},{0..1}]</td>
+<td>Select operand bits for instructions with 3 source operands.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">op_sel_hi</span><span class="p">:[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">op_sel_hi</span><span class="p">:[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="neg-lo">
+<span id="amdgpu-synid-neg-lo"></span><h4><a class="toc-backref" href="#id99">neg_lo</a><a class="headerlink" href="#neg-lo" title="Permalink to this headline">¶</a></h4>
+<p>Specifies whether to change sign of operand values selected by
+<a class="reference internal" href="#amdgpu-synid-op-sel"><span class="std std-ref">op_sel</span></a>. These values are then used
+as input to the operation which results in the upper-half of the destination.</p>
+<p>The number of values specified by this modifier must match the number of source
+operands. First value controls src0, second value controls src1 and so on.</p>
+<p>The value 0 indicates that the corresponding operand value is used unmodified,
+the value 1 indicates that negative value of the operand must be used.</p>
+<p>By default, operand values are used unmodified.</p>
+<p>This modifier is valid for floating point operands only.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="33%" />
+<col width="67%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>neg_lo:[{0..1}]</td>
+<td>Select affected operands for instructions with 1 source operand.</td>
+</tr>
+<tr class="row-odd"><td>neg_lo:[{0..1},{0..1}]</td>
+<td>Select affected operands for instructions with 2 source operands.</td>
+</tr>
+<tr class="row-even"><td>neg_lo:[{0..1},{0..1},{0..1}]</td>
+<td>Select affected operands for instructions with 3 source operands.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">neg_lo</span><span class="p">:[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">neg_lo</span><span class="p">:[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="neg-hi">
+<span id="amdgpu-synid-neg-hi"></span><h4><a class="toc-backref" href="#id100">neg_hi</a><a class="headerlink" href="#neg-hi" title="Permalink to this headline">¶</a></h4>
+<p>Specifies whether to change sign of operand values selected by
+<a class="reference internal" href="#amdgpu-synid-op-sel-hi"><span class="std std-ref">op_sel_hi</span></a>. These values are then used
+as input to the operation which results in the upper-half of the destination.</p>
+<p>The number of values specified by this modifier must match the number of source
+operands. First value controls src0, second value controls src1 and so on.</p>
+<p>The value 0 indicates that the corresponding operand value is used unmodified,
+the value 1 indicates that negative value of the operand must be used.</p>
+<p>By default, operand values are used unmodified.</p>
+<p>This modifier is valid for floating point operands only.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="32%" />
+<col width="68%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>neg_hi:[{0..1}]</td>
+<td>Select affected operands for instructions with 1 source operand.</td>
+</tr>
+<tr class="row-odd"><td>neg_hi:[{0..1},{0..1}]</td>
+<td>Select affected operands for instructions with 2 source operands.</td>
+</tr>
+<tr class="row-even"><td>neg_hi:[{0..1},{0..1},{0..1}]</td>
+<td>Select affected operands for instructions with 3 source operands.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">neg_hi</span><span class="p">:[</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">neg_hi</span><span class="p">:[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id19">
+<h4><a class="toc-backref" href="#id101">clamp</a><a class="headerlink" href="#id19" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-clamp"><span class="std std-ref">here</span></a>.</p>
+</div>
+</div>
+<div class="section" id="vop3p-v-mad-mix-modifiers">
+<span id="amdgpu-synid-mad-mix"></span><h3><a class="toc-backref" href="#id102">VOP3P V_MAD_MIX Modifiers</a><a class="headerlink" href="#vop3p-v-mad-mix-modifiers" title="Permalink to this headline">¶</a></h3>
+<p><em>v_mad_mix_f32</em>, <em>v_mad_mixhi_f16</em> and <em>v_mad_mixlo_f16</em> instructions
+use <em>op_sel</em> and <em>op_sel_hi</em> modifiers
+in a manner different from <em>regular</em> VOP3P instructions.</p>
+<p>See a description below.</p>
+<p>GFX9 only.</p>
+<div class="section" id="m-op-sel">
+<span id="amdgpu-synid-mad-mix-op-sel"></span><h4><a class="toc-backref" href="#id103">m_op_sel</a><a class="headerlink" href="#m-op-sel" title="Permalink to this headline">¶</a></h4>
+<p>This operand has meaning only for 16-bit source operands as indicated by
+<a class="reference internal" href="#amdgpu-synid-mad-mix-op-sel-hi"><span class="std std-ref">m_op_sel_hi</span></a>.
+It specifies to select either the low [15:0] or high [31:16] operand bits
+as input to the operation.</p>
+<p>The number of values specified by the <em>op_sel</em> modifier must match the number of source
+operands. First value controls src0, second value controls src1 and so on.</p>
+<p>The value 0 indicates the low bits, the value 1 indicates the high 16 bits.</p>
+<p>By default, low bits are used for all operands.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="39%" />
+<col width="61%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>op_sel:[{0..1},{0..1},{0..1}]</td>
+<td>Select location of each 16-bit source operand.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">op_sel</span><span class="p">:[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="m-op-sel-hi">
+<span id="amdgpu-synid-mad-mix-op-sel-hi"></span><h4><a class="toc-backref" href="#id104">m_op_sel_hi</a><a class="headerlink" href="#m-op-sel-hi" title="Permalink to this headline">¶</a></h4>
+<p>Selects the size of source operands: either 32 bits or 16 bits.
+By default, 32 bits are used for all source operands.</p>
+<p>The number of values specified by the <em>op_sel_hi</em> modifier must match the number of source
+operands. First value controls src0, second value controls src1 and so on.</p>
+<p>The value 0 indicates 32 bits, the value 1 indicates 16 bits.</p>
+<p>The location of 16 bits in the operand may be specified by
+<a class="reference internal" href="#amdgpu-synid-mad-mix-op-sel"><span class="std std-ref">m_op_sel</span></a>.</p>
+<blockquote>
+<div><table border="1" class="docutils">
+<colgroup>
+<col width="53%" />
+<col width="47%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Syntax</th>
+<th class="head">Description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>op_sel_hi:[{0..1},{0..1},{0..1}]</td>
+<td>Select size of each source operand.</td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">op_sel_hi</span><span class="p">:[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="id20">
+<h4><a class="toc-backref" href="#id105">abs</a><a class="headerlink" href="#id20" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-abs"><span class="std std-ref">here</span></a>.</p>
+</div>
+<div class="section" id="id21">
+<h4><a class="toc-backref" href="#id106">neg</a><a class="headerlink" href="#id21" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-neg"><span class="std std-ref">here</span></a>.</p>
+</div>
+<div class="section" id="id22">
+<h4><a class="toc-backref" href="#id107">clamp</a><a class="headerlink" href="#id22" title="Permalink to this headline">¶</a></h4>
+<p>See a description <a class="reference internal" href="#amdgpu-synid-clamp"><span class="std std-ref">here</span></a>.</p>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="AMDGPUOperandSyntax.html" title="Syntax of AMDGPU Instruction Operands"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="AMDGPU/gfx9_type_dev.html" title="Type deviation"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="AMDGPUUsage.html" >User Guide for AMDGPU Backend</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

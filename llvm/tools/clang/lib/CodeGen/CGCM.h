@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -597,6 +597,9 @@ private:
   /// \brief Postprocess wrregion implementation builtins.
   llvm::Value *HandleBuiltinWrregionImpl(CMCallInfo &CallInfo);
 
+  /// \brief Postprocess dp4a implementation builtin.
+  llvm::Value *HandleBuiltinDP4AImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+
 
   /// \brief Emit 1D/2D select expression.
   LValue EmitSelect(CodeGenFunction &CGF, const CMSelectExpr *E, LValue Base);
@@ -668,6 +671,7 @@ private:
 
   /// Emit cm_slm_free builtin call.
   llvm::Value *EmitBuiltinSLMFree(CodeGenFunction &CGF, const CallExpr *E);
+
 
   /// \brief Emit one of gather_scaled, scatter_scaled,
   ///    gather4_scaled, scatter4_scaled.

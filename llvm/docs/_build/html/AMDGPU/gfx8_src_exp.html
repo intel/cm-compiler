@@ -1,0 +1,116 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>vsrc &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="ssrc" href="gfx8_ssrc32_0.html" />
+    <link rel="prev" title="src" href="gfx8_src64_1.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="gfx8_ssrc32_0.html" title="ssrc"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="gfx8_src64_1.html" title="src"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="../AMDGPUUsage.html" >User Guide for AMDGPU Backend</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="AMDGPUAsmGFX8.html" accesskey="U">Syntax of GFX8 Instructions</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="vsrc">
+<span id="amdgpu-synid8-src-exp"></span><h1>vsrc<a class="headerlink" href="#vsrc" title="Permalink to this headline">¶</a></h1>
+<p>Data to copy to export buffers. This is an optional operand. Must be specified as <a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-off"><span class="std std-ref">off</span></a> if not used.</p>
+<p><a class="reference internal" href="../AMDGPUModifierSyntax.html#amdgpu-synid-compr"><span class="std std-ref">compr</span></a> modifier indicates use of compressed (16-bit) data. This limits number of source operands from 4 to 2:</p>
+<ul class="simple">
+<li>src0 and src1 must specify the first register (or <a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-off"><span class="std std-ref">off</span></a>).</li>
+<li>src2 and src3 must specify the second register (or <a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-off"><span class="std std-ref">off</span></a>).</li>
+</ul>
+<p>An example:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">exp</span> <span class="n">mrtz</span> <span class="n">v3</span><span class="p">,</span> <span class="n">v3</span><span class="p">,</span> <span class="n">off</span><span class="p">,</span> <span class="n">off</span> <span class="n">compr</span>
+</pre></div>
+</div>
+<p><em>Size:</em> 1 dword.</p>
+<p><em>Operands:</em> <a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-v"><span class="std std-ref">v</span></a>, <a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-off"><span class="std std-ref">off</span></a></p>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="gfx8_ssrc32_0.html" title="ssrc"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="gfx8_src64_1.html" title="src"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="../AMDGPUUsage.html" >User Guide for AMDGPU Backend</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="AMDGPUAsmGFX8.html" >Syntax of GFX8 Instructions</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

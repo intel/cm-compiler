@@ -1,0 +1,443 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Test-Suite Extentions &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Moving LLVM Projects to GitHub" href="GitHubMove.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="GitHubMove.html" title="Moving LLVM Projects to GitHub"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="test-suite-extentions">
+<h1>Test-Suite Extentions<a class="headerlink" href="#test-suite-extentions" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#abstract" id="id1">Abstract</a></li>
+<li><a class="reference internal" href="#benchmarks" id="id2">Benchmarks</a></li>
+<li><a class="reference internal" href="#applications-libraries" id="id3">Applications/Libraries</a></li>
+<li><a class="reference internal" href="#generic-algorithms" id="id4">Generic Algorithms</a></li>
+</ul>
+</div>
+<div class="section" id="abstract">
+<h2><a class="toc-backref" href="#id1">Abstract</a><a class="headerlink" href="#abstract" title="Permalink to this headline">¶</a></h2>
+<p>These are ideas for additional programs, benchmarks, applications and
+algorithms that could be added to the LLVM Test-Suite.
+The test-suite could be much larger than it is now, which would help us
+detecting compiler errors (crashes, miscompiles) during development.</p>
+<p>Most probably, the reason why the programs below have not been added to
+the test-suite yet is that nobody has found time to do it. But there
+might be other issues as well, such as</p>
+<blockquote>
+<div><ul class="simple">
+<li><dl class="first docutils">
+<dt>Licensing (Support can still be added as external module,</dt>
+<dd>like for the SPEC benchmarks)</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Language (in particular, there is no official LLVM frontend</dt>
+<dd>for FORTRAN yet)</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Parallelism (currently, all programs in test-suite use</dt>
+<dd>one thread only)</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="benchmarks">
+<h2><a class="toc-backref" href="#id2">Benchmarks</a><a class="headerlink" href="#benchmarks" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="spec-cpu-2017">
+<h3>SPEC CPU 2017<a class="headerlink" href="#spec-cpu-2017" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://www.spec.org/cpu2017/">https://www.spec.org/cpu2017/</a></p>
+<p>The following have not been included yet because they contain Fortran
+code.</p>
+<p>In case of cactuBSSN only a small portion is Fortran. The hosts’s
+Fortran compiler could be used for these parts.</p>
+<p>Note that CMake’s Ninja generator has difficulties with Fortran. See the
+<a class="reference external" href="https://cmake.org/cmake/help/v3.13/generator/Ninja.html#fortran-support">CMake documentation</a>
+for details.</p>
+<blockquote>
+<div><ul class="simple">
+<li>503.bwaves_r/603.bwaves_s</li>
+<li>507.cactuBSSN_r</li>
+<li>521.wrf_r/621.wrf_s</li>
+<li>527.cam4_r/627.cam4_s</li>
+<li>628.pop2_s</li>
+<li>548.exchange2_r/648.exchange2_s</li>
+<li>549.fotonik3d_r/649.fotonik3d_s</li>
+<li>554.roms_r/654.roms_s</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="spec-omp2012">
+<h3>SPEC OMP2012<a class="headerlink" href="#spec-omp2012" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://www.spec.org/omp2012/">https://www.spec.org/omp2012/</a></p>
+<blockquote>
+<div><ul class="simple">
+<li>350.md</li>
+<li>351.bwaves</li>
+<li>352.nab</li>
+<li>357.bt331</li>
+<li>358.botsalgn</li>
+<li>359.botsspar</li>
+<li>360.ilbdc</li>
+<li>362.fma3d</li>
+<li>363.swim</li>
+<li>367.imagick</li>
+<li>370.mgrid331</li>
+<li>371.applu331</li>
+<li>372.smithwa</li>
+<li>376.kdtree</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="opencv">
+<h3>OpenCV<a class="headerlink" href="#opencv" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://opencv.org/">https://opencv.org/</a></p>
+</div>
+<div class="section" id="openmp-4-x-simd-benchmarks">
+<h3>OpenMP 4.x SIMD Benchmarks<a class="headerlink" href="#openmp-4-x-simd-benchmarks" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://github.com/flwende/simd_benchmarks">https://github.com/flwende/simd_benchmarks</a></p>
+</div>
+<div class="section" id="pwm-benchmarking">
+<h3>PWM-benchmarking<a class="headerlink" href="#pwm-benchmarking" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://github.com/tbepler/PWM-benchmarking">https://github.com/tbepler/PWM-benchmarking</a></p>
+</div>
+<div class="section" id="slambench">
+<h3>SLAMBench<a class="headerlink" href="#slambench" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://github.com/pamela-project/slambench">https://github.com/pamela-project/slambench</a></p>
+</div>
+<div class="section" id="firehose">
+<h3>FireHose<a class="headerlink" href="#firehose" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="http://firehose.sandia.gov/">http://firehose.sandia.gov/</a></p>
+</div>
+<div class="section" id="a-benchmark-for-the-c-c-standard-library">
+<h3>A Benchmark for the C/C++ Standard Library<a class="headerlink" href="#a-benchmark-for-the-c-c-standard-library" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://github.com/hiraditya/std-benchmark">https://github.com/hiraditya/std-benchmark</a></p>
+</div>
+<div class="section" id="openbenchmarking-org-cpu-processor-suite">
+<h3>OpenBenchmarking.org CPU / Processor Suite<a class="headerlink" href="#openbenchmarking-org-cpu-processor-suite" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://openbenchmarking.org/suite/pts/cpu">https://openbenchmarking.org/suite/pts/cpu</a></p>
+<p>This is a subset of the
+<a class="reference external" href="https://github.com/phoronix-test-suite/phoronix-test-suite/">Phoronix Test Suite</a>
+and is itself a collection of benchmark suites</p>
+</div>
+<div class="section" id="parboil-benchmarks">
+<h3>Parboil Benchmarks<a class="headerlink" href="#parboil-benchmarks" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="http://impact.crhc.illinois.edu/parboil/parboil.aspx">http://impact.crhc.illinois.edu/parboil/parboil.aspx</a></p>
+</div>
+<div class="section" id="machsuite">
+<h3>MachSuite<a class="headerlink" href="#machsuite" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://breagen.github.io/MachSuite/">https://breagen.github.io/MachSuite/</a></p>
+</div>
+<div class="section" id="rodinia">
+<h3>Rodinia<a class="headerlink" href="#rodinia" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="http://lava.cs.virginia.edu/Rodinia/download_links.htm">http://lava.cs.virginia.edu/Rodinia/download_links.htm</a></p>
+<p>Rodinia has already been partially included in
+MultiSource/Benchmarks/Rodinia. Benchmarks still missing are:</p>
+<blockquote>
+<div><ul class="simple">
+<li>streamcluster</li>
+<li>particlefilter</li>
+<li>nw</li>
+<li>nn</li>
+<li>myocyte</li>
+<li>mummergpu</li>
+<li>lud</li>
+<li>leukocyte</li>
+<li>lavaMD</li>
+<li>kmeans</li>
+<li>hotspot3D</li>
+<li>heartwall</li>
+<li>cfd</li>
+<li>bfs</li>
+<li>b+tree</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="vecmathlib-tests-harness">
+<h3>vecmathlib tests harness<a class="headerlink" href="#vecmathlib-tests-harness" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://bitbucket.org/eschnett/vecmathlib/wiki/Home">https://bitbucket.org/eschnett/vecmathlib/wiki/Home</a></p>
+</div>
+<div class="section" id="parsec">
+<h3>PARSEC<a class="headerlink" href="#parsec" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="http://parsec.cs.princeton.edu/">http://parsec.cs.princeton.edu/</a></p>
+</div>
+<div class="section" id="graph500-reference-implementations">
+<h3>Graph500 reference implementations<a class="headerlink" href="#graph500-reference-implementations" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://github.com/graph500/graph500/tree/v2-spec">https://github.com/graph500/graph500/tree/v2-spec</a></p>
+</div>
+<div class="section" id="nas-parallel-benchmarks">
+<h3>NAS Parallel Benchmarks<a class="headerlink" href="#nas-parallel-benchmarks" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://www.nas.nasa.gov/publications/npb.html">https://www.nas.nasa.gov/publications/npb.html</a></p>
+<p>The official benchmark is written in Fortran, but an unofficial
+C-translation is available as well:
+<a class="reference external" href="https://github.com/benchmark-subsetting/NPB3.0-omp-C">https://github.com/benchmark-subsetting/NPB3.0-omp-C</a></p>
+</div>
+<div class="section" id="darpa-hpcs-ssca-2-c-openmp-reference-implementation">
+<h3>DARPA HPCS SSCA#2 C/OpenMP reference implementation<a class="headerlink" href="#darpa-hpcs-ssca-2-c-openmp-reference-implementation" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="http://www.highproductivity.org/SSCABmks.htm">http://www.highproductivity.org/SSCABmks.htm</a></p>
+<p>This web site does not exist any more, but there seems to be a copy of
+some of the benchmarks
+<a class="reference external" href="https://github.com/gtcasl/hpc-benchmarks/tree/master/SSCA2v2.2">https://github.com/gtcasl/hpc-benchmarks/tree/master/SSCA2v2.2</a></p>
+</div>
+<div class="section" id="kokkos">
+<h3>Kokkos<a class="headerlink" href="#kokkos" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://github.com/kokkos/kokkos-kernels/tree/master/perf_test">https://github.com/kokkos/kokkos-kernels/tree/master/perf_test</a>
+<a class="reference external" href="https://github.com/kokkos/kokkos/tree/master/benchmarks">https://github.com/kokkos/kokkos/tree/master/benchmarks</a></p>
+</div>
+<div class="section" id="polymage">
+<h3>PolyMage<a class="headerlink" href="#polymage" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://github.com/bondhugula/polymage-benchmarks">https://github.com/bondhugula/polymage-benchmarks</a></p>
+</div>
+<div class="section" id="polybench">
+<h3>PolyBench<a class="headerlink" href="#polybench" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://sourceforge.net/projects/polybench/">https://sourceforge.net/projects/polybench/</a></p>
+<p>A modified version of Polybench 3.2 is already presented in
+SingleSource/Benchmarks/Polybench. A newer version 4.2.1 is available.</p>
+</div>
+<div class="section" id="high-performance-geometric-multigrid">
+<h3>High Performance Geometric Multigrid<a class="headerlink" href="#high-performance-geometric-multigrid" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://crd.lbl.gov/departments/computer-science/PAR/research/hpgmg/">https://crd.lbl.gov/departments/computer-science/PAR/research/hpgmg/</a></p>
+</div>
+<div class="section" id="raja-performance-suite">
+<h3>RAJA Performance Suite<a class="headerlink" href="#raja-performance-suite" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://github.com/LLNL/RAJAPerf">https://github.com/LLNL/RAJAPerf</a></p>
+</div>
+<div class="section" id="coral-2-benchmarks">
+<h3>CORAL-2 Benchmarks<a class="headerlink" href="#coral-2-benchmarks" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://asc.llnl.gov/coral-2-benchmarks/">https://asc.llnl.gov/coral-2-benchmarks/</a></p>
+<p>Many of its programs have already been integreated in
+MultiSource/Benchmarks/DOE-ProxyApps-C and
+MultiSource/Benchmarks/DOE-ProxyApps-C++.</p>
+<blockquote>
+<div><ul class="simple">
+<li>Nekbone</li>
+<li>QMCPack</li>
+<li>LAMMPS</li>
+<li>Kripke</li>
+<li>Quicksilver</li>
+<li>PENNANT</li>
+<li>Big Data Analytic Suite</li>
+<li>Deep Learning Suite</li>
+<li>Stream</li>
+<li>Stride</li>
+<li>ML/DL micro-benchmark</li>
+<li>Pynamic</li>
+<li>ACME</li>
+<li>VPIC</li>
+<li>Laghos</li>
+<li>Parallel Integer Sort</li>
+<li>Havoq</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="nwchem">
+<h3>NWChem<a class="headerlink" href="#nwchem" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="http://www.nwchem-sw.org/index.php/Benchmarks">http://www.nwchem-sw.org/index.php/Benchmarks</a></p>
+</div>
+<div class="section" id="tvm">
+<h3>TVM<a class="headerlink" href="#tvm" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://github.com/dmlc/tvm/tree/master/apps/benchmark">https://github.com/dmlc/tvm/tree/master/apps/benchmark</a></p>
+</div>
+<div class="section" id="hydrobench">
+<h3>HydroBench<a class="headerlink" href="#hydrobench" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://github.com/HydroBench/Hydro">https://github.com/HydroBench/Hydro</a></p>
+</div>
+<div class="section" id="parres">
+<h3>ParRes<a class="headerlink" href="#parres" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://github.com/ParRes/Kernels/tree/master/Cxx11">https://github.com/ParRes/Kernels/tree/master/Cxx11</a></p>
+</div>
+</div>
+<div class="section" id="applications-libraries">
+<h2><a class="toc-backref" href="#id3">Applications/Libraries</a><a class="headerlink" href="#applications-libraries" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="gnupg">
+<h3>GnuPG<a class="headerlink" href="#gnupg" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://gnupg.org/">https://gnupg.org/</a></p>
+</div>
+<div class="section" id="blitz">
+<h3>Blitz++<a class="headerlink" href="#blitz" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://sourceforge.net/projects/blitz/">https://sourceforge.net/projects/blitz/</a></p>
+</div>
+<div class="section" id="ffmpeg">
+<h3>FFmpeg<a class="headerlink" href="#ffmpeg" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://ffmpeg.org/">https://ffmpeg.org/</a></p>
+</div>
+<div class="section" id="freepooma">
+<h3>FreePOOMA<a class="headerlink" href="#freepooma" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="http://www.nongnu.org/freepooma/">http://www.nongnu.org/freepooma/</a></p>
+</div>
+<div class="section" id="ftensors">
+<h3>FTensors<a class="headerlink" href="#ftensors" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="http://www.wlandry.net/Projects/FTensor">http://www.wlandry.net/Projects/FTensor</a></p>
+</div>
+<div class="section" id="rawspeed">
+<h3>rawspeed<a class="headerlink" href="#rawspeed" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://github.com/darktable-org/rawspeed">https://github.com/darktable-org/rawspeed</a></p>
+<p>Its test dataset is 756 MB in size, which is too large to be included
+into the test-suite repository.</p>
+</div>
+<div class="section" id="c-performance-benchmarks">
+<h3>C++ Performance Benchmarks<a class="headerlink" href="#c-performance-benchmarks" title="Permalink to this headline">¶</a></h3>
+<p><a class="reference external" href="https://gitlab.com/chriscox/CppPerformanceBenchmarks">https://gitlab.com/chriscox/CppPerformanceBenchmarks</a></p>
+</div>
+</div>
+<div class="section" id="generic-algorithms">
+<h2><a class="toc-backref" href="#id4">Generic Algorithms</a><a class="headerlink" href="#generic-algorithms" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="image-processing">
+<h3>Image processing<a class="headerlink" href="#image-processing" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="resampling">
+<h4>Resampling<a class="headerlink" href="#resampling" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<div><ul class="simple">
+<li>Bilinear</li>
+<li>Bicubic</li>
+<li>Lanczos</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="dither">
+<h4>Dither<a class="headerlink" href="#dither" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<div><ul class="simple">
+<li>Threshold</li>
+<li>Random</li>
+<li>Halftone</li>
+<li>Bayer</li>
+<li>Floyd-Steinberg</li>
+<li>Jarvis</li>
+<li>Stucki</li>
+<li>Burkes</li>
+<li>Sierra</li>
+<li>Atkinson</li>
+<li>Gradient-based</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="feature-detection">
+<h4>Feature detection<a class="headerlink" href="#feature-detection" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<div><ul class="simple">
+<li>Harris</li>
+<li>Histogram of Oriented Gradients</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="color-conversion">
+<h4>Color conversion<a class="headerlink" href="#color-conversion" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<div><ul class="simple">
+<li>RGB to grayscale</li>
+<li>HSL to RGB</li>
+</ul>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="graph">
+<h3>Graph<a class="headerlink" href="#graph" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="search-algorithms">
+<h4>Search Algorithms<a class="headerlink" href="#search-algorithms" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<div><ul class="simple">
+<li>Breadth-First-Search</li>
+<li>Depth-First-Search</li>
+<li>Dijkstra’s algorithm</li>
+<li>A-Star</li>
+</ul>
+</div></blockquote>
+</div>
+<div class="section" id="spanning-tree">
+<h4>Spanning Tree<a class="headerlink" href="#spanning-tree" title="Permalink to this headline">¶</a></h4>
+<blockquote>
+<div><ul class="simple">
+<li>Kruskal’s algorithm</li>
+<li>Prim’s algorithm</li>
+</ul>
+</div></blockquote>
+</div>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="GitHubMove.html" title="Moving LLVM Projects to GitHub"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

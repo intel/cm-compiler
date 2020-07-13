@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -64,6 +64,7 @@ void GenXSubtarget::resetSubtargetFeatures(StringRef CPU, StringRef FS) {
     .Case("CNL", GENX_CNL)
     .Case("ICL", GENX_ICL)
     .Case("ICLLP", GENX_ICLLP)
+    .Case("TGLLP", GENX_TGLLP)
     .Default(GENX_SKL);
 
   std::string CPUName = CPU;
@@ -82,6 +83,25 @@ GenXSubtarget::GenXSubtarget(const Triple &TT, const std::string &CPU,
 
 StringRef GenXSubtarget::getEmulateFunction(const Instruction *Inst) const {
   StringRef EmuFnName;
+  if (emulateIDivRem()) {
+    unsigned Opcode = Inst->getOpcode();
+    switch (Opcode) {
+    default:
+      break;
+    case BinaryOperator::SDiv:
+      EmuFnName = "__cm_intrinsic_impl_sdiv";
+      break;
+    case BinaryOperator::SRem:
+      EmuFnName = "__cm_intrinsic_impl_srem";
+      break;
+    case BinaryOperator::UDiv:
+      EmuFnName = "__cm_intrinsic_impl_udiv";
+      break;
+    case BinaryOperator::URem:
+      EmuFnName = "__cm_intrinsic_impl_urem";
+      break;
+    }
+  }
   return EmuFnName;
 }
 

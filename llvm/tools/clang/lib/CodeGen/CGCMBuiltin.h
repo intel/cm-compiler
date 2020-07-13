@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -92,6 +92,7 @@ enum CMBuiltinKind {
   CMBK_cm_bfrev, CMBK_cm_bfrev_impl,
   CMBK_cm_bfins, CMBK_cm_bfins_impl,
   CMBK_cm_bfext, CMBK_cm_bfext_impl,
+  CMBK_cm_dp4a, CMBK_cm_dp4a_impl,
   // Data port interface.
   CMBK_oword_read_impl,
   CMBK_oword_read_dwaligned_impl,

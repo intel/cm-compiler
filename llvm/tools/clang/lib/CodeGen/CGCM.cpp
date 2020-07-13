@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -1258,6 +1258,7 @@ void CGCMRuntime::EmitCMConstantInitializer(
 //      3 = input and output
 //  * <argtype_desc> is a metadata node describing N strings where N is the
 //    number of kernel arguments, each string describing argument type in OpenCL.
+//  * <nbarrier_cnt> is the named barrier count for this kernel
 //
 void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
                                        llvm::Function *Fn) {
@@ -1401,7 +1402,8 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
       getMD(llvm::ConstantInt::getNullValue(I32Ty)),
       getMD(llvm::ConstantInt::getNullValue(I32Ty)), // placeholder for arg offsets
       IOKinds,
-      ArgDescs
+      ArgDescs,
+      getMD(llvm::ConstantInt::getNullValue(I32Ty))
   };
 
   // Add this kernel to the root.

@@ -1,0 +1,332 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-exegesis - LLVM Machine Instruction Benchmark &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llvm-pdbutil - PDB File forensics and diagnostics" href="llvm-pdbutil.html" />
+    <link rel="prev" title="llvm-build - LLVM Project Build Utility" href="llvm-build.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llvm-pdbutil.html" title="llvm-pdbutil - PDB File forensics and diagnostics"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llvm-build.html" title="llvm-build - LLVM Project Build Utility"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-exegesis-llvm-machine-instruction-benchmark">
+<h1>llvm-exegesis - LLVM Machine Instruction Benchmark<a class="headerlink" href="#llvm-exegesis-llvm-machine-instruction-benchmark" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-exegesis</strong> [<em>options</em>]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-exegesis</strong> is a benchmarking tool that uses information available
+in LLVM to measure host machine instruction characteristics like latency or port
+decomposition.</p>
+<p>Given an LLVM opcode name and a benchmarking mode, <strong class="program">llvm-exegesis</strong>
+generates a code snippet that makes execution as serial (resp. as parallel) as
+possible so that we can measure the latency (resp. uop decomposition) of the
+instruction.
+The code snippet is jitted and executed on the host subtarget. The time taken
+(resp. resource usage) is measured using hardware performance counters. The
+result is printed out as YAML to the standard output.</p>
+<p>The main goal of this tool is to automatically (in)validate the LLVM’s TableDef
+scheduling models. To that end, we also provide analysis of the results.</p>
+<p><strong class="program">llvm-exegesis</strong> can also benchmark arbitrary user-provided code
+snippets.</p>
+</div>
+<div class="section" id="example-1-benchmarking-instructions">
+<h2>EXAMPLE 1: benchmarking instructions<a class="headerlink" href="#example-1-benchmarking-instructions" title="Permalink to this headline">¶</a></h2>
+<p>Assume you have an X86-64 machine. To measure the latency of a single
+instruction, run:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>$ llvm-exegesis -mode<span class="o">=</span>latency -opcode-name<span class="o">=</span>ADD64rr
+</pre></div>
+</div>
+<p>Measuring the uop decomposition of an instruction works similarly:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>$ llvm-exegesis -mode<span class="o">=</span>uops -opcode-name<span class="o">=</span>ADD64rr
+</pre></div>
+</div>
+<p>The output is a YAML document (the default is to write to stdout, but you can
+redirect the output to a file using <cite>-benchmarks-file</cite>):</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>---
+key:
+  opcode_name:     ADD64rr
+  mode:            latency
+  config:          &#39;&#39;
+cpu_name:        haswell
+llvm_triple:     x86_64-unknown-linux-gnu
+num_repetitions: 10000
+measurements:
+  - { key: latency, value: 1.0058, debug_string: &#39;&#39; }
+error:           &#39;&#39;
+info:            &#39;explicit self cycles, selecting one aliasing configuration.
+Snippet:
+ADD64rr R8, R8, R10
+&#39;
+...
+</pre></div>
+</div>
+<p>To measure the latency of all instructions for the host architecture, run:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
+<span class="nb">readonly</span> <span class="nv">INSTRUCTIONS</span><span class="o">=</span><span class="k">$(($(</span>grep INSTRUCTION_LIST_END build/lib/Target/X86/X86GenInstrInfo.inc <span class="p">|</span> cut -f2 -d<span class="o">=</span><span class="k">)</span> <span class="o">-</span> <span class="m">1</span><span class="k">))</span>
+<span class="k">for</span> INSTRUCTION in <span class="k">$(</span>seq <span class="m">1</span> <span class="si">${</span><span class="nv">INSTRUCTIONS</span><span class="si">}</span><span class="k">)</span><span class="p">;</span>
+<span class="k">do</span>
+  ./build/bin/llvm-exegesis -mode<span class="o">=</span>latency -opcode-index<span class="o">=</span><span class="si">${</span><span class="nv">INSTRUCTION</span><span class="si">}</span> <span class="p">|</span> sed -n <span class="s1">&#39;/---/,$p&#39;</span>
+<span class="k">done</span>
+</pre></div>
+</div>
+<p>FIXME: Provide an <strong class="program">llvm-exegesis</strong> option to test all instructions.</p>
+</div>
+<div class="section" id="example-2-benchmarking-a-custom-code-snippet">
+<h2>EXAMPLE 2: benchmarking a custom code snippet<a class="headerlink" href="#example-2-benchmarking-a-custom-code-snippet" title="Permalink to this headline">¶</a></h2>
+<p>To measure the latency/uops of a custom piece of code, you can specify the
+<cite>snippets-file</cite> option (<cite>-</cite> reads from standard input).</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>$ <span class="nb">echo</span> <span class="s2">&quot;vzeroupper&quot;</span> <span class="p">|</span> llvm-exegesis -mode<span class="o">=</span>uops -snippets-file<span class="o">=</span>-
+</pre></div>
+</div>
+<p>Real-life code snippets typically depend on registers or memory.
+<strong class="program">llvm-exegesis</strong> checks the liveliness of registers (i.e. any register
+use has a corresponding def or is a “live in”). If your code depends on the
+value of some registers, you have two options:</p>
+<ul class="simple">
+<li>Mark the register as requiring a definition. <strong class="program">llvm-exegesis</strong> will
+automatically assign a value to the register. This can be done using the
+directive <cite>LLVM-EXEGESIS-DEFREG &lt;reg name&gt; &lt;hex_value&gt;</cite>, where <cite>&lt;hex_value&gt;</cite>
+is a bit pattern used to fill <cite>&lt;reg_name&gt;</cite>. If <cite>&lt;hex_value&gt;</cite> is smaller than
+the register width, it will be sign-extended.</li>
+<li>Mark the register as a “live in”. <strong class="program">llvm-exegesis</strong> will benchmark
+using whatever value was in this registers on entry. This can be done using
+the directive <cite>LLVM-EXEGESIS-LIVEIN &lt;reg name&gt;</cite>.</li>
+</ul>
+<p>For example, the following code snippet depends on the values of XMM1 (which
+will be set by the tool) and the memory buffer passed in RDI (live in).</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span># LLVM-EXEGESIS-LIVEIN RDI
+# LLVM-EXEGESIS-DEFREG XMM1 42
+vmulps        (%rdi), %xmm1, %xmm2
+vhaddps       %xmm2, %xmm2, %xmm3
+addq $0x10, %rdi
+</pre></div>
+</div>
+</div>
+<div class="section" id="example-3-analysis">
+<h2>EXAMPLE 3: analysis<a class="headerlink" href="#example-3-analysis" title="Permalink to this headline">¶</a></h2>
+<p>Assuming you have a set of benchmarked instructions (either latency or uops) as
+YAML in file <cite>/tmp/benchmarks.yaml</cite>, you can analyze the results using the
+following command:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span>  $ llvm-exegesis -mode<span class="o">=</span>analysis <span class="se">\</span>
+-benchmarks-file<span class="o">=</span>/tmp/benchmarks.yaml <span class="se">\</span>
+-analysis-clusters-output-file<span class="o">=</span>/tmp/clusters.csv <span class="se">\</span>
+-analysis-inconsistencies-output-file<span class="o">=</span>/tmp/inconsistencies.html
+</pre></div>
+</div>
+<p>This will group the instructions into clusters with the same performance
+characteristics. The clusters will be written out to <cite>/tmp/clusters.csv</cite> in the
+following format:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>cluster_id,opcode_name,config,sched_class
+...
+2,ADD32ri8_DB,,WriteALU,1.00
+2,ADD32ri_DB,,WriteALU,1.01
+2,ADD32rr,,WriteALU,1.01
+2,ADD32rr_DB,,WriteALU,1.00
+2,ADD32rr_REV,,WriteALU,1.00
+2,ADD64i32,,WriteALU,1.01
+2,ADD64ri32,,WriteALU,1.01
+2,MOVSX64rr32,,BSWAP32r_BSWAP64r_MOVSX64rr32,1.00
+2,VPADDQYrr,,VPADDBYrr_VPADDDYrr_VPADDQYrr_VPADDWYrr_VPSUBBYrr_VPSUBDYrr_VPSUBQYrr_VPSUBWYrr,1.02
+2,VPSUBQYrr,,VPADDBYrr_VPADDDYrr_VPADDQYrr_VPADDWYrr_VPSUBBYrr_VPSUBDYrr_VPSUBQYrr_VPSUBWYrr,1.01
+2,ADD64ri8,,WriteALU,1.00
+2,SETBr,,WriteSETCC,1.01
+...
+</pre></div>
+</div>
+<p><strong class="program">llvm-exegesis</strong> will also analyze the clusters to point out
+inconsistencies in the scheduling information. The output is an html file. For
+example, <cite>/tmp/inconsistencies.html</cite> will contain messages like the following :</p>
+<img alt="../_images/llvm-exegesis-analysis.png" class="align-center" src="../_images/llvm-exegesis-analysis.png" />
+<p>Note that the scheduling class names will be resolved only when
+<strong class="program">llvm-exegesis</strong> is compiled in debug mode, else only the class id will
+be shown. This does not invalidate any of the analysis results though.</p>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl class="option">
+<dt id="cmdoption-help">
+<code class="descname">-help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-help" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print a summary of command line options.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-opcode-index">
+<code class="descname">-opcode-index</code><code class="descclassname">=&lt;LLVM opcode index&gt;</code><a class="headerlink" href="#cmdoption-opcode-index" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the opcode to measure, by index. See example 1 for details.
+Either <cite>opcode-index</cite>, <cite>opcode-name</cite> or <cite>snippets-file</cite> must be set.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-opcode-name">
+<code class="descname">-opcode-name</code><code class="descclassname">=&lt;opcode name 1&gt;,&lt;opcode name 2&gt;,…</code><a class="headerlink" href="#cmdoption-opcode-name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the opcode to measure, by name. Several opcodes can be specified as
+a comma-separated list. See example 1 for details.
+Either <cite>opcode-index</cite>, <cite>opcode-name</cite> or <cite>snippets-file</cite> must be set.</p>
+<dl class="option">
+<dt id="cmdoption-snippets-file">
+<code class="descname">-snippets-file</code><code class="descclassname">=&lt;filename&gt;</code><a class="headerlink" href="#cmdoption-snippets-file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the custom code snippet to measure. See example 2 for details.
+Either <cite>opcode-index</cite>, <cite>opcode-name</cite> or <cite>snippets-file</cite> must be set.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mode">
+<code class="descname">-mode</code><code class="descclassname">=[latency|uops|analysis]</code><a class="headerlink" href="#cmdoption-mode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the run mode.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-num-repetitions">
+<code class="descname">-num-repetitions</code><code class="descclassname">=&lt;Number of repetition&gt;</code><a class="headerlink" href="#cmdoption-num-repetitions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the number of repetitions of the asm snippet.
+Higher values lead to more accurate measurements but lengthen the benchmark.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-benchmarks-file">
+<code class="descname">-benchmarks-file</code><code class="descclassname">=&lt;/path/to/file&gt;</code><a class="headerlink" href="#cmdoption-benchmarks-file" title="Permalink to this definition">¶</a></dt>
+<dd><p>File to read (<cite>analysis</cite> mode) or write (<cite>latency</cite>/<cite>uops</cite> modes) benchmark
+results. “-” uses stdin/stdout.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-analysis-clusters-output-file">
+<code class="descname">-analysis-clusters-output-file</code><code class="descclassname">=&lt;/path/to/file&gt;</code><a class="headerlink" href="#cmdoption-analysis-clusters-output-file" title="Permalink to this definition">¶</a></dt>
+<dd><p>If provided, write the analysis clusters as CSV to this file. “-” prints to
+stdout.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-analysis-inconsistencies-output-file">
+<code class="descname">-analysis-inconsistencies-output-file</code><code class="descclassname">=&lt;/path/to/file&gt;</code><a class="headerlink" href="#cmdoption-analysis-inconsistencies-output-file" title="Permalink to this definition">¶</a></dt>
+<dd><p>If non-empty, write inconsistencies found during analysis to this file. <cite>-</cite>
+prints to stdout.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-analysis-numpoints">
+<code class="descname">-analysis-numpoints</code><code class="descclassname">=&lt;dbscan numPoints parameter&gt;</code><a class="headerlink" href="#cmdoption-analysis-numpoints" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the numPoints parameters to be used for DBSCAN clustering
+(<cite>analysis</cite> mode).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-analysis-espilon">
+<code class="descname">-analysis-espilon</code><code class="descclassname">=&lt;dbscan epsilon parameter&gt;</code><a class="headerlink" href="#cmdoption-analysis-espilon" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the numPoints parameters to be used for DBSCAN clustering
+(<cite>analysis</cite> mode).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-ignore-invalid-sched-class">
+<code class="descname">-ignore-invalid-sched-class</code><code class="descclassname">=false</code><a class="headerlink" href="#cmdoption-ignore-invalid-sched-class" title="Permalink to this definition">¶</a></dt>
+<dd><p>If set, ignore instructions that do not have a sched class (class idx = 0).</p>
+<dl class="option">
+<dt id="cmdoption-mcpu">
+<code class="descname">-mcpu</code><code class="descclassname">=&lt;cpu name&gt;</code><a class="headerlink" href="#cmdoption-mcpu" title="Permalink to this definition">¶</a></dt>
+<dd><p>If set, measure the cpu characteristics using the counters for this CPU. This
+is useful when creating new sched models (the host CPU is unknown to LLVM).</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="exit-status">
+<h2>EXIT STATUS<a class="headerlink" href="#exit-status" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-exegesis</strong> returns 0 on success. Otherwise, an error message is
+printed to standard error, and the tool returns a non 0 value.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llvm-pdbutil.html" title="llvm-pdbutil - PDB File forensics and diagnostics"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llvm-build.html" title="llvm-build - LLVM Project Build Utility"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

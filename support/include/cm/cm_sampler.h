@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -214,6 +214,8 @@ sample16(matrix_ref<T, N, 16> m, vector_ref<short, 1> nullmask,
 }
 #endif
 
+// sample32 is no longer supported in Gen12
+#if !(defined(CM_GEN12))
 /// \brief Sampler interface.
 ///
 /// \param m the matrix to store the return results, where N is at least the
@@ -261,7 +263,6 @@ CM_NODEBUG CM_INLINE void
 sample32(matrix_ref<ushort, N, 32> m, ChannelMaskType channelMask,
          SurfaceIndex surfIndex, SamplerIndex sampIndex, float u, float v,
          float deltaU, float deltaV, OutputFormatControl ofc = CM_16_FULL) {
-
 #define SAMPLE32(mask)                                                         \
   switch (ofc) {                                                               \
   default:                                                                     \
@@ -336,7 +337,10 @@ sample32(matrix_ref<ushort, N, 32> m, ChannelMaskType channelMask,
 
 #undef SAMPLE32
 }
+#endif
 
+// sample32 is no longer supported in Gen12
+#if !(defined(CM_GEN12))
 template <typename T = void>
 CM_NODEBUG CM_INLINE void
 sample32(vector_ref<ushort, 32> vec, ChannelMaskType channelMask,
@@ -345,6 +349,7 @@ sample32(vector_ref<ushort, 32> vec, ChannelMaskType channelMask,
   matrix_ref<ushort, 1, 32> _Src = vec.format<ushort, 1, 32>();
   sample32(_Src, channelMask, surfIndex, sampIndex, u, v, deltaU, deltaV, ofc);
 }
+#endif
 
 /// \brief Sampler interface.
 ///

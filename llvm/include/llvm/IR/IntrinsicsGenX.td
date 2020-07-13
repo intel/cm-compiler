@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -1229,6 +1229,70 @@ let TargetPrefix = "genx" in {  // All intrinsics start with "llvm.genx.".
               Intrinsic<[llvm_anyfloat_ty], [LLVMMatchType<0>], [IntrNoMem]>;
 
 
+  /// ``llvm.genx.dp4a`` : dp4a instruction (Dot Product 4 Accumulate)
+  /// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ///
+  /// * arg0: first input value, vector integer type
+  /// * arg1: second input value, vector integer type
+  /// * arg2: third input value, vector integer type
+  ///
+  /// * Return value: result, vector integer type
+  ///
+  def int_genx_dp4a :
+              Intrinsic<[llvm_anyvector_ty],
+                    [llvm_anyvector_ty, llvm_anyvector_ty, llvm_anyvector_ty], [IntrNoMem]>;
+
+  /// add3
+  /// ^^^^
+  ///
+  /// ``llvm.genx.*add3`` : add3 instruction without saturation
+  /// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  /// * ``llvm.genx.add3`` :
+  ///
+  /// * arg0: first input, any scalar/vector integer type, i16/i32
+  /// * arg1: second input, same type as arg0
+  /// * arg2: third input, same type as arg0
+  def int_genx_add3 : Intrinsic<[llvm_anyint_ty],
+                [llvm_anyint_ty, LLVMMatchType<1>, LLVMMatchType<1>], [IntrNoMem]>;
+
+  /// ``llvm.genx.*add3.sat`` : add3 instruction with saturation
+  /// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  /// * ``llvm.genx.ssadd3.sat`` : result signed, operands signed
+  /// * ``llvm.genx.suadd3.sat`` : result signed, operands unsigned
+  /// * ``llvm.genx.usadd3.sat`` : result unsigned, operands signed
+  /// * ``llvm.genx.uuadd3.sat`` : result unsigned, operands unsigned
+  ///
+  /// * arg0: first input, any scalar/vector integer type, i16/i32
+  /// * arg1: second input, same type as arg0
+  /// * arg2: third input, same type as arg0
+  ///
+  /// * Return value: result, any scalar or vector integer type with same
+  ///               vector width
+  ///
+  def int_genx_ssadd3_sat : Intrinsic<[llvm_anyint_ty],
+                [llvm_anyint_ty, LLVMMatchType<1>, LLVMMatchType<1>], [IntrNoMem]>;
+  def int_genx_suadd3_sat : Intrinsic<[llvm_anyint_ty],
+                [llvm_anyint_ty, LLVMMatchType<1>, LLVMMatchType<1>], [IntrNoMem]>;
+  def int_genx_usadd3_sat : Intrinsic<[llvm_anyint_ty],
+                [llvm_anyint_ty, LLVMMatchType<1>, LLVMMatchType<1>], [IntrNoMem]>;
+  def int_genx_uuadd3_sat : Intrinsic<[llvm_anyint_ty],
+                [llvm_anyint_ty, LLVMMatchType<1>, LLVMMatchType<1>], [IntrNoMem]>;
+
+  /// bfn
+  /// ^^^
+  ///
+  /// ``llvm.genx.bfn`` : bfn instruction
+  /// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  /// * ``llvm.genx.bfn`` :
+  ///
+  /// * arg0: first input, any scalar/vector integer type, i16/i32
+  /// * arg1: second input, same type as arg0
+  /// * arg2: third input, same type as arg0
+  /// * arg3: fourth input, byte, constant
+  def int_genx_bfn : Intrinsic<[llvm_anyint_ty],
+                [llvm_anyint_ty, LLVMMatchType<1>, LLVMMatchType<1>, llvm_i8_ty], [IntrNoMem]>;
+
+
   /// subb
   /// ^^^^
   /// No intrinsic for subb as it has two results.
@@ -1675,6 +1739,26 @@ let TargetPrefix = "genx" in {  // All intrinsics start with "llvm.genx.".
     llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_anyint_ty, LLVMMatchType<0>],
     [IntrReadMem]>;
 
+  /// ``llvm.genx.gather.private`` : CMC internal, no VISA 
+  /// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ///
+  /// * arg0: v-by-i1 predicate
+  /// * (Num_elts inferred from data type)
+  /// * arg1: base pointer 
+  /// * arg2: vXi32 element offset in elements
+  /// * arg3: old value of the data read
+  ///
+  /// * Return value: the data read
+  ///
+  /// The vector width of the return value is the number of elements to read,
+  /// which must be 1, 8 or 16.
+  ///
+  /// The element offset arg must have the same vector width.
+  ///
+  def int_genx_gather_private : Intrinsic<[llvm_anyvector_ty], 
+    [llvm_anyvector_ty, llvm_anyptr_ty, llvm_anyint_ty, LLVMMatchType<0>],
+    [IntrReadMem]>;
+
   /// ``llvm.genx.gather.scaled`` : vISA GATHER_SCALED instruction
   /// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   ///
@@ -1896,6 +1980,21 @@ let TargetPrefix = "genx" in {  // All intrinsics start with "llvm.genx.".
   // (Silly name because of LLVM prefix bug.)
   def int_genx_scatter_orig : Intrinsic<[], [llvm_anyvector_ty, llvm_i32_ty,
     llvm_i32_ty, llvm_anyint_ty, llvm_anyvector_ty], []>;
+
+  /// ``llvm.genx.scatter.private`` : CM internal, no VISA 
+  /// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ///
+  /// * arg0: v-by-i1 predicate 
+  /// * arg1: base pointer 
+  /// * arg2 vXi32 element offset in elements
+  /// * arg3: the data to write. The first <num_elts> elements will be used.
+  ///
+  /// The vector width of the data to write is the number of elements to write,
+  /// which must be 1, 8 or 16.
+  /// The element offset arg must have the same vector width.
+  ///
+  def int_genx_scatter_private : Intrinsic<[], [llvm_anyvector_ty,
+    llvm_anyptr_ty, llvm_anyint_ty, llvm_anyvector_ty], []>;
 
   /// ``llvm.genx.scatter.scaled`` : vISA SCATTER_SCALED instruction
   /// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2536,6 +2635,7 @@ let TargetPrefix = "genx" in {  // All intrinsics start with "llvm.genx.".
   /// * arg0: i8 signal flag, constant
   ///
   def int_genx_sbarrier : Intrinsic<[], [llvm_i8_ty], []>;
+
 
   /// ``llvm.genx.cache.flush`` : vISA CACHE_FLUSH instruction
   /// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

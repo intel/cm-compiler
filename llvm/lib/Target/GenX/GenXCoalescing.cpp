@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -1285,7 +1285,20 @@ void GenXCoalescing::coalesceCallables() {
         OC->eraseFromParent();
       }
     }
-    auto Ret = CI->getNextNode();
+
+    auto Nxt = CI->getNextNode();
+    auto Ret = Nxt;
+
+    // 1. Possible next node is branch to return
+    auto Br = dyn_cast<BranchInst>(Nxt);
+    if (Br && Br->isUnconditional())
+      Ret = &Br->getSuccessor(0)->front();
+
+    // 2. Possible next node is Intrinsic::genx_output
+    if (getIntrinsicID(Ret) == Intrinsic::genx_output)
+      Ret = Ret->getNextNode();
+
+    // Check if next node is correct return insn
     if (!Ret || !isa<ReturnInst>(Ret)) {
       // getRetVal could not determine what happens to this return value.
       DiagnosticInfoFastComposition Err(CI,

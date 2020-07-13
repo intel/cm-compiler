@@ -1,0 +1,1119 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Speculative Load Hardening &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Stack Safety Analysis" href="StackSafetyAnalysis.html" />
+    <link rel="prev" title="Control Flow Verification Tool Design Document" href="CFIVerify.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="index.html">
+    <img src="_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="StackSafetyAnalysis.html" title="Stack Safety Analysis"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="CFIVerify.html" title="Control Flow Verification Tool Design Document"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="speculative-load-hardening">
+<h1>Speculative Load Hardening<a class="headerlink" href="#speculative-load-hardening" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="a-spectre-variant-1-mitigation-technique">
+<h2>A Spectre Variant #1 Mitigation Technique<a class="headerlink" href="#a-spectre-variant-1-mitigation-technique" title="Permalink to this headline">¶</a></h2>
+<p>Author: Chandler Carruth - <a class="reference external" href="mailto:chandlerc&#37;&#52;&#48;google&#46;com">chandlerc<span>&#64;</span>google<span>&#46;</span>com</a></p>
+</div>
+<div class="section" id="problem-statement">
+<h2>Problem Statement<a class="headerlink" href="#problem-statement" title="Permalink to this headline">¶</a></h2>
+<p>Recently, Google Project Zero and other researchers have found information leak
+vulnerabilities by exploiting speculative execution in modern CPUs. These
+exploits are currently broken down into three variants:</p>
+<ul class="simple">
+<li>GPZ Variant #1 (a.k.a. Spectre Variant #1): Bounds check (or predicate) bypass</li>
+<li>GPZ Variant #2 (a.k.a. Spectre Variant #2): Branch target injection</li>
+<li>GPZ Variant #3 (a.k.a. Meltdown): Rogue data cache load</li>
+</ul>
+<p>For more details, see the Google Project Zero blog post and the Spectre research
+paper:</p>
+<ul class="simple">
+<li>https://googleprojectzero.blogspot.com/2018/01/reading-privileged-memory-with-side.html</li>
+<li>https://spectreattack.com/spectre.pdf</li>
+</ul>
+<p>The core problem of GPZ Variant #1 is that speculative execution uses branch
+prediction to select the path of instructions speculatively executed. This path
+is speculatively executed with the available data, and may load from memory and
+leak the loaded values through various side channels that survive even when the
+speculative execution is unwound due to being incorrect. Mispredicted paths can
+cause code to be executed with data inputs that never occur in correct
+executions, making checks against malicious inputs ineffective and allowing
+attackers to use malicious data inputs to leak secret data. Here is an example,
+extracted and simplified from the Project Zero paper:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">struct</span> <span class="n">array</span> <span class="p">{</span>
+  <span class="n">unsigned</span> <span class="n">long</span> <span class="n">length</span><span class="p">;</span>
+  <span class="n">unsigned</span> <span class="n">char</span> <span class="n">data</span><span class="p">[];</span>
+<span class="p">};</span>
+<span class="n">struct</span> <span class="n">array</span> <span class="o">*</span><span class="n">arr1</span> <span class="o">=</span> <span class="o">...</span><span class="p">;</span> <span class="o">//</span> <span class="n">small</span> <span class="n">array</span>
+<span class="n">struct</span> <span class="n">array</span> <span class="o">*</span><span class="n">arr2</span> <span class="o">=</span> <span class="o">...</span><span class="p">;</span> <span class="o">//</span> <span class="n">array</span> <span class="n">of</span> <span class="n">size</span> <span class="mh">0x400</span>
+<span class="n">unsigned</span> <span class="n">long</span> <span class="n">untrusted_offset_from_caller</span> <span class="o">=</span> <span class="o">...</span><span class="p">;</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">untrusted_offset_from_caller</span> <span class="o">&lt;</span> <span class="n">arr1</span><span class="o">-&gt;</span><span class="n">length</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">unsigned</span> <span class="n">char</span> <span class="n">value</span> <span class="o">=</span> <span class="n">arr1</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="n">untrusted_offset_from_caller</span><span class="p">];</span>
+  <span class="n">unsigned</span> <span class="n">long</span> <span class="n">index2</span> <span class="o">=</span> <span class="p">((</span><span class="n">value</span><span class="o">&amp;</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="mh">0x100</span><span class="p">)</span><span class="o">+</span><span class="mh">0x200</span><span class="p">;</span>
+  <span class="n">unsigned</span> <span class="n">char</span> <span class="n">value2</span> <span class="o">=</span> <span class="n">arr2</span><span class="o">-&gt;</span><span class="n">data</span><span class="p">[</span><span class="n">index2</span><span class="p">];</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>The key of the attack is to call this with <code class="docutils literal"><span class="pre">untrusted_offset_from_caller</span></code> that
+is far outside of the bounds when the branch predictor will predict that it
+will be in-bounds. In that case, the body of the <code class="docutils literal"><span class="pre">if</span></code> will be executed
+speculatively, and may read secret data into <code class="docutils literal"><span class="pre">value</span></code> and leak it via a
+cache-timing side channel when a dependent access is made to populate <code class="docutils literal"><span class="pre">value2</span></code>.</p>
+</div>
+<div class="section" id="high-level-mitigation-approach">
+<h2>High Level Mitigation Approach<a class="headerlink" href="#high-level-mitigation-approach" title="Permalink to this headline">¶</a></h2>
+<p>While several approaches are being actively pursued to mitigate specific
+branches and/or loads inside especially risky software (most notably various OS
+kernels), these approaches require manual and/or static analysis aided auditing
+of code and explicit source changes to apply the mitigation. They are unlikely
+to scale well to large applications. We are proposing a comprehensive
+mitigation approach that would apply automatically across an entire program
+rather than through manual changes to the code. While this is likely to have a
+high performance cost, some applications may be in a good position to take this
+performance / security tradeoff.</p>
+<p>The specific technique we propose is to cause loads to be checked using
+branchless code to ensure that they are executing along a valid control flow
+path. Consider the following C-pseudo-code representing the core idea of a
+predicate guarding potentially invalid loads:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">void</span> <span class="n">leak</span><span class="p">(</span><span class="nb">int</span> <span class="n">data</span><span class="p">);</span>
+<span class="n">void</span> <span class="n">example</span><span class="p">(</span><span class="nb">int</span><span class="o">*</span> <span class="n">pointer1</span><span class="p">,</span> <span class="nb">int</span><span class="o">*</span> <span class="n">pointer2</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="n">condition</span><span class="p">)</span> <span class="p">{</span>
+    <span class="o">//</span> <span class="o">...</span> <span class="n">lots</span> <span class="n">of</span> <span class="n">code</span> <span class="o">...</span>
+    <span class="n">leak</span><span class="p">(</span><span class="o">*</span><span class="n">pointer1</span><span class="p">);</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+    <span class="o">//</span> <span class="o">...</span> <span class="n">more</span> <span class="n">code</span> <span class="o">...</span>
+    <span class="n">leak</span><span class="p">(</span><span class="o">*</span><span class="n">pointer2</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>This would get transformed into something resembling the following:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>uintptr_t all_ones_mask = std::numerical_limits&lt;uintptr_t&gt;::max();
+uintptr_t all_zeros_mask = 0;
+void leak(int data);
+void example(int* pointer1, int* pointer2) {
+  uintptr_t predicate_state = all_ones_mask;
+  if (condition) {
+    // Assuming ?: is implemented using branchless logic...
+    predicate_state = !condition ? all_zeros_mask : predicate_state;
+    // ... lots of code ...
+    //
+    // Harden the pointer so it can&#39;t be loaded
+    pointer1 &amp;= predicate_state;
+    leak(*pointer1);
+  } else {
+    predicate_state = condition ? all_zeros_mask : predicate_state;
+    // ... more code ...
+    //
+    // Alternative: Harden the loaded value
+    int value2 = *pointer2 &amp; predicate_state;
+    leak(value2);
+  }
+}
+</pre></div>
+</div>
+<p>The result should be that if the <code class="docutils literal"><span class="pre">if</span> <span class="pre">(condition)</span> <span class="pre">{</span></code> branch is mis-predicted,
+there is a <em>data</em> dependency on the condition used to zero out any pointers
+prior to loading through them or to zero out all of the loaded bits. Even
+though this code pattern may still execute speculatively, <em>invalid</em> speculative
+executions are prevented from leaking secret data from memory (but note that
+this data might still be loaded in safe ways, and some regions of memory are
+required to not hold secrets, see below for detailed limitations). This
+approach only requires the underlying hardware have a way to implement a
+branchless and unpredicted conditional update of a register's value. All modern
+architectures have support for this, and in fact such support is necessary to
+correctly implement constant time cryptographic primitives.</p>
+<p>Crucial properties of this approach:</p>
+<ul class="simple">
+<li>It is not preventing any particular side-channel from working. This is
+important as there are an unknown number of potential side channels and we
+expect to continue discovering more. Instead, it prevents the observation of
+secret data in the first place.</li>
+<li>It accumulates the predicate state, protecting even in the face of nested
+<em>correctly</em> predicted control flows.</li>
+<li>It passes this predicate state across function boundaries to provide
+<a class="reference external" href="#interprocedural-checking">interprocedural protection</a>.</li>
+<li>When hardening the address of a load, it uses a <em>destructive</em> or
+<em>non-reversible</em> modification of the address to prevent an attacker from
+reversing the check using attacker-controlled inputs.</li>
+<li>It does not completely block speculative execution, and merely prevents
+<em>mis</em>-speculated paths from leaking secrets from memory (and stalls
+speculation until this can be determined).</li>
+<li>It is completely general and makes no fundamental assumptions about the
+underlying architecture other than the ability to do branchless conditional
+data updates and a lack of value prediction.</li>
+<li>It does not require programmers to identify all possible secret data using
+static source code annotations or code vulnerable to a variant #1 style
+attack.</li>
+</ul>
+<p>Limitations of this approach:</p>
+<ul class="simple">
+<li>It requires re-compiling source code to insert hardening instruction
+sequences. Only software compiled in this mode is protected.</li>
+<li>The performance is heavily dependent on a particular architecture's
+implementation strategy. We outline a potential x86 implementation below and
+characterize its performance.</li>
+<li>It does not defend against secret data already loaded from memory and
+residing in registers or leaked through other side-channels in
+non-speculative execution. Code dealing with this, e.g cryptographic
+routines, already uses constant-time algorithms and code to prevent
+side-channels. Such code should also scrub registers of secret data following
+<a class="reference external" href="https://github.com/HACS-workshop/spectre-mitigations/blob/master/crypto_guidelines">these
+guidelines</a>.</li>
+<li>To achieve reasonable performance, many loads may not be checked, such as
+those with compile-time fixed addresses. This primarily consists of accesses
+at compile-time constant offsets of global and local variables. Code which
+needs this protection and intentionally stores secret data must ensure the
+memory regions used for secret data are necessarily dynamic mappings or heap
+allocations. This is an area which can be tuned to provide more comprehensive
+protection at the cost of performance.</li>
+<li><a class="reference external" href="#hardening-the-address-of-the-load">Hardened loads</a> may still load data from
+<em>valid</em> addresses if not <em>attacker-controlled</em> addresses. To prevent these
+from reading secret data, the low 2gb of the address space and 2gb above and
+below any executable pages should be protected.</li>
+</ul>
+<p>Credit:</p>
+<ul class="simple">
+<li>The core idea of tracing misspeculation through data and marking pointers to
+block misspeculated loads was developed as part of a HACS 2018 discussion
+between Chandler Carruth, Paul Kocher, Thomas Pornin, and several other
+individuals.</li>
+<li>Core idea of masking out loaded bits was part of the original mitigation
+suggested by Jann Horn when these attacks were reported.</li>
+</ul>
+<div class="section" id="indirect-branches-calls-and-returns">
+<h3>Indirect Branches, Calls, and Returns<a class="headerlink" href="#indirect-branches-calls-and-returns" title="Permalink to this headline">¶</a></h3>
+<p>It is possible to attack control flow other than conditional branches with
+variant #1 style mispredictions.</p>
+<ul class="simple">
+<li>A prediction towards a hot call target of a virtual method can lead to it
+being speculatively executed when an expected type is used (often called
+&quot;type confusion&quot;).</li>
+<li>A hot case may be speculatively executed due to prediction instead of the
+correct case for a switch statement implemented as a jump table.</li>
+<li>A hot common return address may be predicted incorrectly when returning from
+a function.</li>
+</ul>
+<p>These code patterns are also vulnerable to Spectre variant #2, and as such are
+best mitigated with a
+<a class="reference external" href="https://support.google.com/faqs/answer/7625886">retpoline</a> on x86 platforms.
+When a mitigation technique like retpoline is used, speculation simply cannot
+proceed through an indirect control flow edge (or it cannot be mispredicted in
+the case of a filled RSB) and so it is also protected from variant #1 style
+attacks. However, some architectures, micro-architectures, or vendors do not
+employ the retpoline mitigation, and on future x86 hardware (both Intel and
+AMD) it is expected to become unnecessary due to hardware-based mitigation.</p>
+<p>When not using a retpoline, these edges will need independent protection from
+variant #1 style attacks. The analogous approach to that used for conditional
+control flow should work:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>uintptr_t all_ones_mask = std::numerical_limits&lt;uintptr_t&gt;::max();
+uintptr_t all_zeros_mask = 0;
+void leak(int data);
+void example(int* pointer1, int* pointer2) {
+  uintptr_t predicate_state = all_ones_mask;
+  switch (condition) {
+  case 0:
+    // Assuming ?: is implemented using branchless logic...
+    predicate_state = (condition != 0) ? all_zeros_mask : predicate_state;
+    // ... lots of code ...
+    //
+    // Harden the pointer so it can&#39;t be loaded
+    pointer1 &amp;= predicate_state;
+    leak(*pointer1);
+    break;
+
+  case 1:
+    predicate_state = (condition != 1) ? all_zeros_mask : predicate_state;
+    // ... more code ...
+    //
+    // Alternative: Harden the loaded value
+    int value2 = *pointer2 &amp; predicate_state;
+    leak(value2);
+    break;
+
+    // ...
+  }
+}
+</pre></div>
+</div>
+<p>The core idea remains the same: validate the control flow using data-flow and
+use that validation to check that loads cannot leak information along
+misspeculated paths. Typically this involves passing the desired target of such
+control flow across the edge and checking that it is correct afterwards. Note
+that while it is tempting to think that this mitigates variant #2 attacks, it
+does not. Those attacks go to arbitrary gadgets that don't include the checks.</p>
+</div>
+<div class="section" id="variant-1-1-and-1-2-attacks-bounds-check-bypass-store">
+<h3>Variant #1.1 and #1.2 attacks: &quot;Bounds Check Bypass Store&quot;<a class="headerlink" href="#variant-1-1-and-1-2-attacks-bounds-check-bypass-store" title="Permalink to this headline">¶</a></h3>
+<p>Beyond the core variant #1 attack, there are techniques to extend this attack.
+The primary technique is known as &quot;Bounds Check Bypass Store&quot; and is discussed
+in this research paper: https://people.csail.mit.edu/vlk/spectre11.pdf</p>
+<p>We will analyze these two variants independently. First, variant #1.1 works by
+speculatively storing over the return address after a bounds check bypass. This
+speculative store then ends up being used by the CPU during speculative
+execution of the return, potentially directing speculative execution to
+arbitrary gadgets in the binary. Let's look at an example.</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">unsigned</span> <span class="n">char</span> <span class="n">local_buffer</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span>
+<span class="n">unsigned</span> <span class="n">char</span> <span class="o">*</span><span class="n">untrusted_data_from_caller</span> <span class="o">=</span> <span class="o">...</span><span class="p">;</span>
+<span class="n">unsigned</span> <span class="n">long</span> <span class="n">untrusted_size_from_caller</span> <span class="o">=</span> <span class="o">...</span><span class="p">;</span>
+<span class="k">if</span> <span class="p">(</span><span class="n">untrusted_size_from_caller</span> <span class="o">&lt;</span> <span class="n">sizeof</span><span class="p">(</span><span class="n">local_buffer</span><span class="p">))</span> <span class="p">{</span>
+  <span class="o">//</span> <span class="n">Speculative</span> <span class="n">execution</span> <span class="n">enters</span> <span class="n">here</span> <span class="k">with</span> <span class="n">a</span> <span class="n">too</span><span class="o">-</span><span class="n">large</span> <span class="n">size</span><span class="o">.</span>
+  <span class="n">memcpy</span><span class="p">(</span><span class="n">local_buffer</span><span class="p">,</span> <span class="n">untrusted_data_from_caller</span><span class="p">,</span>
+         <span class="n">untrusted_size_from_caller</span><span class="p">);</span>
+  <span class="o">//</span> <span class="n">The</span> <span class="n">stack</span> <span class="n">has</span> <span class="n">now</span> <span class="n">been</span> <span class="n">smashed</span><span class="p">,</span> <span class="n">writing</span> <span class="n">an</span> <span class="n">attacker</span><span class="o">-</span><span class="n">controlled</span>
+  <span class="o">//</span> <span class="n">address</span> <span class="n">over</span> <span class="n">the</span> <span class="k">return</span> <span class="n">adress</span><span class="o">.</span>
+  <span class="n">minor_processing</span><span class="p">(</span><span class="n">local_buffer</span><span class="p">);</span>
+  <span class="k">return</span><span class="p">;</span>
+  <span class="o">//</span> <span class="n">Control</span> <span class="n">will</span> <span class="n">speculate</span> <span class="n">to</span> <span class="n">the</span> <span class="n">attacker</span><span class="o">-</span><span class="n">written</span> <span class="n">address</span><span class="o">.</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>However, this can be mitigated by hardening the load of the return address just
+like any other load. This is sometimes complicated because x86 for example
+<em>implicitly</em> loads the return address off the stack. However, the
+implementation technique below is specifically designed to mitigate this
+implicit load by using the stack pointer to communicate misspeculation between
+functions. This additionally causes a misspeculation to have an invalid stack
+pointer and never be able to read the speculatively stored return address. See
+the detailed discussion below.</p>
+<p>For variant #1.2, the attacker speculatively stores into the vtable or jump
+table used to implement an indirect call or indirect jump. Because this is
+speculative, this will often be possible even when these are stored in
+read-only pages. For example:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>class FancyObject : public BaseObject {
+public:
+  void DoSomething() override;
+};
+void f(unsigned long attacker_offset, unsigned long attacker_data) {
+  FancyObject object = getMyObject();
+  unsigned long *arr[4] = getFourDataPointers();
+  if (attacker_offset &lt; 4) {
+    // We have bypassed the bounds check speculatively.
+    unsigned long *data = arr[attacker_offset];
+    // Now we have computed a pointer inside of `object`, the vptr.
+    *data = attacker_data;
+    // The vptr points to the virtual table and we speculatively clobber that.
+    g(object); // Hand the object to some other routine.
+  }
+}
+// In another file, we call a method on the object.
+void g(BaseObject &amp;object) {
+  object.DoSomething();
+  // This speculatively calls the address stored over the vtable.
+}
+</pre></div>
+</div>
+<p>Mitigating this requires hardening loads from these locations, or mitigating
+the indirect call or indirect jump. Any of these are sufficient to block the
+call or jump from using a speculatively stored value that has been read back.</p>
+<p>For both of these, using retpolines would be equally sufficient. One possible
+hybrid approach is to use retpolines for indirect call and jump, while relying
+on SLH to mitigate returns.</p>
+<p>Another approach that is sufficient for both of these is to harden all of the
+speculative stores. However, as most stores aren't interesting and don't
+inherently leak data, this is expected to be prohibitively expensive given the
+attack it is defending against.</p>
+</div>
+</div>
+<div class="section" id="implementation-details">
+<h2>Implementation Details<a class="headerlink" href="#implementation-details" title="Permalink to this headline">¶</a></h2>
+<p>There are a number of complex details impacting the implementation of this
+technique, both on a particular architecture and within a particular compiler.
+We discuss proposed implementation techniques for the x86 architecture and the
+LLVM compiler. These are primarily to serve as an example, as other
+implementation techniques are very possible.</p>
+<div class="section" id="x86-implementation-details">
+<h3>x86 Implementation Details<a class="headerlink" href="#x86-implementation-details" title="Permalink to this headline">¶</a></h3>
+<p>On the x86 platform we break down the implementation into three core
+components: accumulating the predicate state through the control flow graph,
+checking the loads, and checking control transfers between procedures.</p>
+<div class="section" id="accumulating-predicate-state">
+<h4>Accumulating Predicate State<a class="headerlink" href="#accumulating-predicate-state" title="Permalink to this headline">¶</a></h4>
+<p>Consider baseline x86 instructions like the following, which test three
+conditions and if all pass, loads data from memory and potentially leaks it
+through some side channel:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="c1"># %bb.0:                                # %entry</span>
+        <span class="n">pushq</span>   <span class="o">%</span><span class="n">rax</span>
+        <span class="n">testl</span>   <span class="o">%</span><span class="n">edi</span><span class="p">,</span> <span class="o">%</span><span class="n">edi</span>
+        <span class="n">jne</span>     <span class="o">.</span><span class="n">LBB0_4</span>
+<span class="c1"># %bb.1:                                # %then1</span>
+        <span class="n">testl</span>   <span class="o">%</span><span class="n">esi</span><span class="p">,</span> <span class="o">%</span><span class="n">esi</span>
+        <span class="n">jne</span>     <span class="o">.</span><span class="n">LBB0_4</span>
+<span class="c1"># %bb.2:                                # %then2</span>
+        <span class="n">testl</span>   <span class="o">%</span><span class="n">edx</span><span class="p">,</span> <span class="o">%</span><span class="n">edx</span>
+        <span class="n">je</span>      <span class="o">.</span><span class="n">LBB0_3</span>
+<span class="o">.</span><span class="n">LBB0_4</span><span class="p">:</span>                                <span class="c1"># %exit</span>
+        <span class="n">popq</span>    <span class="o">%</span><span class="n">rax</span>
+        <span class="n">retq</span>
+<span class="o">.</span><span class="n">LBB0_3</span><span class="p">:</span>                                <span class="c1"># %danger</span>
+        <span class="n">movl</span>    <span class="p">(</span><span class="o">%</span><span class="n">rcx</span><span class="p">),</span> <span class="o">%</span><span class="n">edi</span>
+        <span class="n">callq</span>   <span class="n">leak</span>
+        <span class="n">popq</span>    <span class="o">%</span><span class="n">rax</span>
+        <span class="n">retq</span>
+</pre></div>
+</div>
+<p>When we go to speculatively execute the load, we want to know whether any of
+the dynamically executed predicates have been misspeculated. To track that,
+along each conditional edge, we need to track the data which would allow that
+edge to be taken. On x86, this data is stored in the flags register used by the
+conditional jump instruction. Along both edges after this fork in control flow,
+the flags register remains alive and contains data that we can use to build up
+our accumulated predicate state. We accumulate it using the x86 conditional
+move instruction which also reads the flag registers where the state resides.
+These conditional move instructions are known to not be predicted on any x86
+processors, making them immune to misprediction that could reintroduce the
+vulnerability. When we insert the conditional moves, the code ends up looking
+like the following:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span># %bb.0:                                # %entry
+        pushq   %rax
+        xorl    %eax, %eax              # Zero out initial predicate state.
+        movq    $-1, %r8                # Put all-ones mask into a register.
+        testl   %edi, %edi
+        jne     .LBB0_1
+# %bb.2:                                # %then1
+        cmovneq %r8, %rax               # Conditionally update predicate state.
+        testl   %esi, %esi
+        jne     .LBB0_1
+# %bb.3:                                # %then2
+        cmovneq %r8, %rax               # Conditionally update predicate state.
+        testl   %edx, %edx
+        je      .LBB0_4
+.LBB0_1:
+        cmoveq  %r8, %rax               # Conditionally update predicate state.
+        popq    %rax
+        retq
+.LBB0_4:                                # %danger
+        cmovneq %r8, %rax               # Conditionally update predicate state.
+        ...
+</pre></div>
+</div>
+<p>Here we create the &quot;empty&quot; or &quot;correct execution&quot; predicate state by zeroing
+<code class="docutils literal"><span class="pre">%rax</span></code>, and we create a constant &quot;incorrect execution&quot; predicate value by
+putting <code class="docutils literal"><span class="pre">-1</span></code> into <code class="docutils literal"><span class="pre">%r8</span></code>. Then, along each edge coming out of a conditional
+branch we do a conditional move that in a correct execution will be a no-op,
+but if misspeculated, will replace the <code class="docutils literal"><span class="pre">%rax</span></code> with the value of <code class="docutils literal"><span class="pre">%r8</span></code>.
+Misspeculating any one of the three predicates will cause <code class="docutils literal"><span class="pre">%rax</span></code> to hold the
+&quot;incorrect execution&quot; value from <code class="docutils literal"><span class="pre">%r8</span></code> as we preserve incoming values when
+execution is correct rather than overwriting it.</p>
+<p>We now have a value in <code class="docutils literal"><span class="pre">%rax</span></code> in each basic block that indicates if at some
+point previously a predicate was mispredicted. And we have arranged for that
+value to be particularly effective when used below to harden loads.</p>
+<div class="section" id="indirect-call-branch-and-return-predicates">
+<h5>Indirect Call, Branch, and Return Predicates<a class="headerlink" href="#indirect-call-branch-and-return-predicates" title="Permalink to this headline">¶</a></h5>
+<p>There is no analogous flag to use when tracing indirect calls, branches, and
+returns. The predicate state must be accumulated through some other means.
+Fundamentally, this is the reverse of the problem posed in CFI: we need to
+check where we came from rather than where we are going. For function-local
+jump tables, this is easily arranged by testing the input to the jump table
+within each destination (not yet implemented, use retpolines):</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>        pushq   %rax
+        xorl    %eax, %eax              # Zero out initial predicate state.
+        movq    $-1, %r8                # Put all-ones mask into a register.
+        jmpq    *.LJTI0_0(,%rdi,8)      # Indirect jump through table.
+.LBB0_2:                                # %sw.bb
+        testq   $0, %rdi                # Validate index used for jump table.
+        cmovneq %r8, %rax               # Conditionally update predicate state.
+        ...
+        jmp     _Z4leaki                # TAILCALL
+
+.LBB0_3:                                # %sw.bb1
+        testq   $1, %rdi                # Validate index used for jump table.
+        cmovneq %r8, %rax               # Conditionally update predicate state.
+        ...
+        jmp     _Z4leaki                # TAILCALL
+
+.LBB0_5:                                # %sw.bb10
+        testq   $2, %rdi                # Validate index used for jump table.
+        cmovneq %r8, %rax               # Conditionally update predicate state.
+        ...
+        jmp     _Z4leaki                # TAILCALL
+        ...
+
+        .section        .rodata,&quot;a&quot;,@progbits
+        .p2align        3
+.LJTI0_0:
+        .quad   .LBB0_2
+        .quad   .LBB0_3
+        .quad   .LBB0_5
+        ...
+</pre></div>
+</div>
+<p>Returns have a simple mitigation technique on x86-64 (or other ABIs which have
+what is called a &quot;red zone&quot; region beyond the end of the stack). This region is
+guaranteed to be preserved across interrupts and context switches, making the
+return address used in returning to the current code remain on the stack and
+valid to read. We can emit code in the caller to verify that a return edge was
+not mispredicted:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>        <span class="n">callq</span>   <span class="n">other_function</span>
+<span class="n">return_addr</span><span class="p">:</span>
+        <span class="n">testq</span>   <span class="o">-</span><span class="mi">8</span><span class="p">(</span><span class="o">%</span><span class="n">rsp</span><span class="p">),</span> <span class="n">return_addr</span>   <span class="c1"># Validate return address.</span>
+        <span class="n">cmovneq</span> <span class="o">%</span><span class="n">r8</span><span class="p">,</span> <span class="o">%</span><span class="n">rax</span>               <span class="c1"># Update predicate state.</span>
+</pre></div>
+</div>
+<p>For an ABI without a &quot;red zone&quot; (and thus unable to read the return address
+from the stack), we can compute the expected return address prior to the call
+into a register preserved across the call and use that similarly to the above.</p>
+<p>Indirect calls (and returns in the absence of a red zone ABI) pose the most
+significant challenge to propagate. The simplest technique would be to define a
+new ABI such that the intended call target is passed into the called function
+and checked in the entry. Unfortunately, new ABIs are quite expensive to deploy
+in C and C++. While the target function could be passed in TLS, we would still
+require complex logic to handle a mixture of functions compiled with and
+without this extra logic (essentially, making the ABI backwards compatible).
+Currently, we suggest using retpolines here and will continue to investigate
+ways of mitigating this.</p>
+</div>
+<div class="section" id="optimizations-alternatives-and-tradeoffs">
+<h5>Optimizations, Alternatives, and Tradeoffs<a class="headerlink" href="#optimizations-alternatives-and-tradeoffs" title="Permalink to this headline">¶</a></h5>
+<p>Merely accumulating predicate state involves significant cost. There are
+several key optimizations we employ to minimize this and various alternatives
+that present different tradeoffs in the generated code.</p>
+<p>First, we work to reduce the number of instructions used to track the state:</p>
+<ul class="simple">
+<li>Rather than inserting a <code class="docutils literal"><span class="pre">cmovCC</span></code> instruction along every conditional edge in
+the original program, we track each set of condition flags we need to capture
+prior to entering each basic block and reuse a common <code class="docutils literal"><span class="pre">cmovCC</span></code> sequence for
+those.<ul>
+<li>We could further reuse suffixes when there are multiple <code class="docutils literal"><span class="pre">cmovCC</span></code>
+instructions required to capture the set of flags. Currently this is
+believed to not be worth the cost as paired flags are relatively rare and
+suffixes of them are exceedingly rare.</li>
+</ul>
+</li>
+<li>A common pattern in x86 is to have multiple conditional jump instructions
+that use the same flags but handle different conditions. Naively, we could
+consider each fallthrough between them an &quot;edge&quot; but this causes a much more
+complex control flow graph. Instead, we accumulate the set of conditions
+necessary for fallthrough and use a sequence of <code class="docutils literal"><span class="pre">cmovCC</span></code> instructions in a
+single fallthrough edge to track it.</li>
+</ul>
+<p>Second, we trade register pressure for simpler <code class="docutils literal"><span class="pre">cmovCC</span></code> instructions by
+allocating a register for the &quot;bad&quot; state. We could read that value from memory
+as part of the conditional move instruction, however, this creates more
+micro-ops and requires the load-store unit to be involved. Currently, we place
+the value into a virtual register and allow the register allocator to decide
+when the register pressure is sufficient to make it worth spilling to memory
+and reloading.</p>
+</div>
+</div>
+<div class="section" id="hardening-loads">
+<h4>Hardening Loads<a class="headerlink" href="#hardening-loads" title="Permalink to this headline">¶</a></h4>
+<p>Once we have the predicate accumulated into a special value for correct vs.
+misspeculated, we need to apply this to loads in a way that ensures they do not
+leak secret data. There are two primary techniques for this: we can either
+harden the loaded value to prevent observation, or we can harden the address
+itself to prevent the load from occuring. These have significantly different
+performance tradeoffs.</p>
+<div class="section" id="hardening-loaded-values">
+<h5>Hardening loaded values<a class="headerlink" href="#hardening-loaded-values" title="Permalink to this headline">¶</a></h5>
+<p>The most appealing way to harden loads is to mask out all of the bits loaded.
+The key requirement is that for each bit loaded, along the misspeculated path
+that bit is always fixed at either 0 or 1 regardless of the value of the bit
+loaded. The most obvious implementation uses either an <code class="docutils literal"><span class="pre">and</span></code> instruction with
+an all-zero mask along misspeculated paths and an all-one mask along correct
+paths, or an <code class="docutils literal"><span class="pre">or</span></code> instruction with an all-one mask along misspeculated paths
+and an all-zero mask along correct paths. Other options become less appealing
+such as multiplying by zero, or multiple shift instructions. For reasons we
+elaborate on below, we end up suggesting you use <code class="docutils literal"><span class="pre">or</span></code> with an all-ones mask,
+making the x86 instruction sequence look like the following:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>        <span class="o">...</span>
+
+<span class="o">.</span><span class="n">LBB0_4</span><span class="p">:</span>                                <span class="c1"># %danger</span>
+        <span class="n">cmovneq</span> <span class="o">%</span><span class="n">r8</span><span class="p">,</span> <span class="o">%</span><span class="n">rax</span>               <span class="c1"># Conditionally update predicate state.</span>
+        <span class="n">movl</span>    <span class="p">(</span><span class="o">%</span><span class="n">rsi</span><span class="p">),</span> <span class="o">%</span><span class="n">edi</span>            <span class="c1"># Load potentially secret data from %rsi.</span>
+        <span class="n">orl</span>     <span class="o">%</span><span class="n">eax</span><span class="p">,</span> <span class="o">%</span><span class="n">edi</span>
+</pre></div>
+</div>
+<p>Other useful patterns may be to fold the load into the <code class="docutils literal"><span class="pre">or</span></code> instruction itself
+at the cost of a register-to-register copy.</p>
+<p>There are some challenges with deploying this approach:</p>
+<ol class="simple">
+<li>Many loads on x86 are folded into other instructions. Separating them would
+add very significant and costly register pressure with prohibitive
+performance cost.</li>
+<li>Loads may not target a general purpose register requiring extra instructions
+to map the state value into the correct register class, and potentially more
+expensive instructions to mask the value in some way.</li>
+<li>The flags registers on x86 are very likely to be live, and challenging to
+preserve cheaply.</li>
+<li>There are many more values loaded than pointers &amp; indices used for loads. As
+a consequence, hardening the result of a load requires substantially more
+instructions than hardening the address of the load (see below).</li>
+</ol>
+<p>Despite these challenges, hardening the result of the load critically allows
+the load to proceed and thus has dramatically less impact on the total
+speculative / out-of-order potential of the execution. There are also several
+interesting techniques to try and mitigate these challenges and make hardening
+the results of loads viable in at least some cases. However, we generally
+expect to fall back when unprofitable from hardening the loaded value to the
+next approach of hardening the address itself.</p>
+<div class="section" id="loads-folded-into-data-invariant-operations-can-be-hardened-after-the-operation">
+<h6>Loads folded into data-invariant operations can be hardened after the operation<a class="headerlink" href="#loads-folded-into-data-invariant-operations-can-be-hardened-after-the-operation" title="Permalink to this headline">¶</a></h6>
+<p>The first key to making this feasible is to recognize that many operations on
+x86 are &quot;data-invariant&quot;. That is, they have no (known) observable behavior
+differences due to the particular input data. These instructions are often used
+when implementing cryptographic primitives dealing with private key data
+because they are not believed to provide any side-channels. Similarly, we can
+defer hardening until after them as they will not in-and-of-themselves
+introduce a speculative execution side-channel. This results in code sequences
+that look like:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>        <span class="o">...</span>
+
+<span class="o">.</span><span class="n">LBB0_4</span><span class="p">:</span>                                <span class="c1"># %danger</span>
+        <span class="n">cmovneq</span> <span class="o">%</span><span class="n">r8</span><span class="p">,</span> <span class="o">%</span><span class="n">rax</span>               <span class="c1"># Conditionally update predicate state.</span>
+        <span class="n">addl</span>    <span class="p">(</span><span class="o">%</span><span class="n">rsi</span><span class="p">),</span> <span class="o">%</span><span class="n">edi</span>            <span class="c1"># Load and accumulate without leaking.</span>
+        <span class="n">orl</span>     <span class="o">%</span><span class="n">eax</span><span class="p">,</span> <span class="o">%</span><span class="n">edi</span>
+</pre></div>
+</div>
+<p>While an addition happens to the loaded (potentially secret) value, that
+doesn't leak any data and we then immediately harden it.</p>
+</div>
+<div class="section" id="hardening-of-loaded-values-deferred-down-the-data-invariant-expression-graph">
+<h6>Hardening of loaded values deferred down the data-invariant expression graph<a class="headerlink" href="#hardening-of-loaded-values-deferred-down-the-data-invariant-expression-graph" title="Permalink to this headline">¶</a></h6>
+<p>We can generalize the previous idea and sink the hardening down the expression
+graph across as many data-invariant operations as desirable. This can use very
+conservative rules for whether something is data-invariant. The primary goal
+should be to handle multiple loads with a single hardening instruction:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>        <span class="o">...</span>
+
+<span class="o">.</span><span class="n">LBB0_4</span><span class="p">:</span>                                <span class="c1"># %danger</span>
+        <span class="n">cmovneq</span> <span class="o">%</span><span class="n">r8</span><span class="p">,</span> <span class="o">%</span><span class="n">rax</span>               <span class="c1"># Conditionally update predicate state.</span>
+        <span class="n">addl</span>    <span class="p">(</span><span class="o">%</span><span class="n">rsi</span><span class="p">),</span> <span class="o">%</span><span class="n">edi</span>            <span class="c1"># Load and accumulate without leaking.</span>
+        <span class="n">addl</span>    <span class="mi">4</span><span class="p">(</span><span class="o">%</span><span class="n">rsi</span><span class="p">),</span> <span class="o">%</span><span class="n">edi</span>           <span class="c1"># Continue without leaking.</span>
+        <span class="n">addl</span>    <span class="mi">8</span><span class="p">(</span><span class="o">%</span><span class="n">rsi</span><span class="p">),</span> <span class="o">%</span><span class="n">edi</span>
+        <span class="n">orl</span>     <span class="o">%</span><span class="n">eax</span><span class="p">,</span> <span class="o">%</span><span class="n">edi</span>              <span class="c1"># Mask out bits from all three loads.</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="preserving-the-flags-while-hardening-loaded-values-on-haswell-zen-and-newer-processors">
+<h6>Preserving the flags while hardening loaded values on Haswell, Zen, and newer processors<a class="headerlink" href="#preserving-the-flags-while-hardening-loaded-values-on-haswell-zen-and-newer-processors" title="Permalink to this headline">¶</a></h6>
+<p>Sadly, there are no useful instructions on x86 that apply a mask to all 64 bits
+without touching the flag registers. However, we can harden loaded values that
+are narrower than a word (fewer than 32-bits on 32-bit systems and fewer than
+64-bits on 64-bit systems) by zero-extending the value to the full word size
+and then shifting right by at least the number of original bits using the BMI2
+<code class="docutils literal"><span class="pre">shrx</span></code> instruction:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>        <span class="o">...</span>
+
+<span class="o">.</span><span class="n">LBB0_4</span><span class="p">:</span>                                <span class="c1"># %danger</span>
+        <span class="n">cmovneq</span> <span class="o">%</span><span class="n">r8</span><span class="p">,</span> <span class="o">%</span><span class="n">rax</span>               <span class="c1"># Conditionally update predicate state.</span>
+        <span class="n">addl</span>    <span class="p">(</span><span class="o">%</span><span class="n">rsi</span><span class="p">),</span> <span class="o">%</span><span class="n">edi</span>            <span class="c1"># Load and accumulate 32 bits of data.</span>
+        <span class="n">shrxq</span>   <span class="o">%</span><span class="n">rax</span><span class="p">,</span> <span class="o">%</span><span class="n">rdi</span><span class="p">,</span> <span class="o">%</span><span class="n">rdi</span>        <span class="c1"># Shift out all 32 bits loaded.</span>
+</pre></div>
+</div>
+<p>Because on x86 the zero-extend is free, this can efficiently harden the loaded
+value.</p>
+</div>
+</div>
+<div class="section" id="hardening-the-address-of-the-load">
+<h5>Hardening the address of the load<a class="headerlink" href="#hardening-the-address-of-the-load" title="Permalink to this headline">¶</a></h5>
+<p>When hardening the loaded value is inapplicable, most often because the
+instruction directly leaks information (like <code class="docutils literal"><span class="pre">cmp</span></code> or <code class="docutils literal"><span class="pre">jmpq</span></code>), we switch to
+hardening the <em>address</em> of the load instead of the loaded value. This avoids
+increasing register pressure by unfolding the load or paying some other high
+cost.</p>
+<p>To understand how this works in practice, we need to examine the exact
+semantics of the x86 addressing modes which, in its fully general form, looks
+like <code class="docutils literal"><span class="pre">(%base,%index,scale)offset</span></code>. Here <code class="docutils literal"><span class="pre">%base</span></code> and <code class="docutils literal"><span class="pre">%index</span></code> are 64-bit
+registers that can potentially be any value, and may be attacker controlled,
+and <code class="docutils literal"><span class="pre">scale</span></code> and <code class="docutils literal"><span class="pre">offset</span></code> are fixed immediate values. <code class="docutils literal"><span class="pre">scale</span></code> must be <code class="docutils literal"><span class="pre">1</span></code>, <code class="docutils literal"><span class="pre">2</span></code>,
+<code class="docutils literal"><span class="pre">4</span></code>, or <code class="docutils literal"><span class="pre">8</span></code>, and <code class="docutils literal"><span class="pre">offset</span></code> can be any 32-bit sign extended value. The exact
+computation performed to find the address is then: <code class="docutils literal"><span class="pre">%base</span> <span class="pre">+</span> <span class="pre">(scale</span> <span class="pre">*</span> <span class="pre">%index)</span> <span class="pre">+</span> <span class="pre">offset</span></code> under 64-bit 2's complement modular arithmetic.</p>
+<p>One issue with this approach is that, after hardening, the  <code class="docutils literal"><span class="pre">%base</span> <span class="pre">+</span> <span class="pre">(scale</span> <span class="pre">*</span> <span class="pre">%index)</span></code> subexpression will compute a value near zero (<code class="docutils literal"><span class="pre">-1</span> <span class="pre">+</span> <span class="pre">(scale</span> <span class="pre">*</span> <span class="pre">-1)</span></code>) and
+then a large, positive <code class="docutils literal"><span class="pre">offset</span></code> will index into memory within the first two
+gigabytes of address space. While these offsets are not attacker controlled,
+the attacker could chose to attack a load which happens to have the desired
+offset and then successfully read memory in that region. This significantly
+raises the burden on the attacker and limits the scope of attack but does not
+eliminate it. To fully close the attack we must work with the operating system
+to preclude mapping memory in the low two gigabytes of address space.</p>
+<div class="section" id="bit-load-checking-instructions">
+<h6>64-bit load checking instructions<a class="headerlink" href="#bit-load-checking-instructions" title="Permalink to this headline">¶</a></h6>
+<p>We can use the following instruction sequences to check loads. We set up <code class="docutils literal"><span class="pre">%r8</span></code>
+in these examples to hold the special value of <code class="docutils literal"><span class="pre">-1</span></code> which will be <code class="docutils literal"><span class="pre">cmov</span></code>ed over
+<code class="docutils literal"><span class="pre">%rax</span></code> in misspeculated paths.</p>
+<p>Single register addressing mode:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>        <span class="o">...</span>
+
+<span class="o">.</span><span class="n">LBB0_4</span><span class="p">:</span>                                <span class="c1"># %danger</span>
+        <span class="n">cmovneq</span> <span class="o">%</span><span class="n">r8</span><span class="p">,</span> <span class="o">%</span><span class="n">rax</span>               <span class="c1"># Conditionally update predicate state.</span>
+        <span class="n">orq</span>     <span class="o">%</span><span class="n">rax</span><span class="p">,</span> <span class="o">%</span><span class="n">rsi</span>              <span class="c1"># Mask the pointer if misspeculating.</span>
+        <span class="n">movl</span>    <span class="p">(</span><span class="o">%</span><span class="n">rsi</span><span class="p">),</span> <span class="o">%</span><span class="n">edi</span>
+</pre></div>
+</div>
+<p>Two register addressing mode:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>        <span class="o">...</span>
+
+<span class="o">.</span><span class="n">LBB0_4</span><span class="p">:</span>                                <span class="c1"># %danger</span>
+        <span class="n">cmovneq</span> <span class="o">%</span><span class="n">r8</span><span class="p">,</span> <span class="o">%</span><span class="n">rax</span>               <span class="c1"># Conditionally update predicate state.</span>
+        <span class="n">orq</span>     <span class="o">%</span><span class="n">rax</span><span class="p">,</span> <span class="o">%</span><span class="n">rsi</span>              <span class="c1"># Mask the pointer if misspeculating.</span>
+        <span class="n">orq</span>     <span class="o">%</span><span class="n">rax</span><span class="p">,</span> <span class="o">%</span><span class="n">rcx</span>              <span class="c1"># Mask the index if misspeculating.</span>
+        <span class="n">movl</span>    <span class="p">(</span><span class="o">%</span><span class="n">rsi</span><span class="p">,</span><span class="o">%</span><span class="n">rcx</span><span class="p">),</span> <span class="o">%</span><span class="n">edi</span>
+</pre></div>
+</div>
+<p>This will result in a negative address near zero or in <code class="docutils literal"><span class="pre">offset</span></code> wrapping the
+address space back to a small positive address. Small, negative addresses will
+fault in user-mode for most operating systems, but targets which need the high
+address space to be user accessible may need to adjust the exact sequence used
+above. Additionally, the low addresses will need to be marked unreadable by the
+OS to fully harden the load.</p>
+</div>
+<div class="section" id="rip-relative-addressing-is-even-easier-to-break">
+<h6>RIP-relative addressing is even easier to break<a class="headerlink" href="#rip-relative-addressing-is-even-easier-to-break" title="Permalink to this headline">¶</a></h6>
+<p>There is a common addressing mode idiom that is substantially harder to check:
+addressing relative to the instruction pointer. We cannot change the value of
+the instruction pointer register and so we have the harder problem of forcing
+<code class="docutils literal"><span class="pre">%base</span> <span class="pre">+</span> <span class="pre">scale</span> <span class="pre">*</span> <span class="pre">%index</span> <span class="pre">+</span> <span class="pre">offset</span></code> to be an invalid address, by <em>only</em> changing
+<code class="docutils literal"><span class="pre">%index</span></code>. The only advantage we have is that the attacker also cannot modify
+<code class="docutils literal"><span class="pre">%base</span></code>. If we use the fast instruction sequence above, but only apply it to
+the index, we will always access <code class="docutils literal"><span class="pre">%rip</span> <span class="pre">+</span> <span class="pre">(scale</span> <span class="pre">*</span> <span class="pre">-1)</span> <span class="pre">+</span> <span class="pre">offset</span></code>. If the
+attacker can find a load which with this address happens to point to secret
+data, then they can reach it. However, the loader and base libraries can also
+simply refuse to map the heap, data segments, or stack within 2gb of any of the
+text in the program, much like it can reserve the low 2gb of address space.</p>
+</div>
+<div class="section" id="the-flag-registers-again-make-everything-hard">
+<h6>The flag registers again make everything hard<a class="headerlink" href="#the-flag-registers-again-make-everything-hard" title="Permalink to this headline">¶</a></h6>
+<p>Unfortunately, the technique of using <code class="docutils literal"><span class="pre">orq</span></code>-instructions has a serious flaw on
+x86. The very thing that makes it easy to accumulate state, the flag registers
+containing predicates, causes serious problems here because they may be alive
+and used by the loading instruction or subsequent instructions. On x86, the
+<code class="docutils literal"><span class="pre">orq</span></code> instruction <strong>sets</strong> the flags and will override anything already there.
+This makes inserting them into the instruction stream very hazardous.
+Unfortunately, unlike when hardening the loaded value, we have no fallback here
+and so we must have a fully general approach available.</p>
+<p>The first thing we must do when generating these sequences is try to analyze
+the surrounding code to prove that the flags are not in fact alive or being
+used. Typically, it has been set by some other instruction which just happens
+to set the flags register (much like ours!) with no actual dependency. In those
+cases, it is safe to directly insert these instructions. Alternatively we may
+be able to move them earlier to avoid clobbering the used value.</p>
+<p>However, this may ultimately be impossible. In that case, we need to preserve
+the flags around these instructions:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>        <span class="o">...</span>
+
+<span class="o">.</span><span class="n">LBB0_4</span><span class="p">:</span>                                <span class="c1"># %danger</span>
+        <span class="n">cmovneq</span> <span class="o">%</span><span class="n">r8</span><span class="p">,</span> <span class="o">%</span><span class="n">rax</span>               <span class="c1"># Conditionally update predicate state.</span>
+        <span class="n">pushfq</span>
+        <span class="n">orq</span>     <span class="o">%</span><span class="n">rax</span><span class="p">,</span> <span class="o">%</span><span class="n">rcx</span>              <span class="c1"># Mask the pointer if misspeculating.</span>
+        <span class="n">orq</span>     <span class="o">%</span><span class="n">rax</span><span class="p">,</span> <span class="o">%</span><span class="n">rdx</span>              <span class="c1"># Mask the index if misspeculating.</span>
+        <span class="n">popfq</span>
+        <span class="n">movl</span>    <span class="p">(</span><span class="o">%</span><span class="n">rcx</span><span class="p">,</span><span class="o">%</span><span class="n">rdx</span><span class="p">),</span> <span class="o">%</span><span class="n">edi</span>
+</pre></div>
+</div>
+<p>Using the <code class="docutils literal"><span class="pre">pushf</span></code> and <code class="docutils literal"><span class="pre">popf</span></code> instructions saves the flags register around our
+inserted code, but comes at a high cost. First, we must store the flags to the
+stack and reload them. Second, this causes the stack pointer to be adjusted
+dynamically, requiring a frame pointer be used for referring to temporaries
+spilled to the stack, etc.</p>
+<p>On newer x86 processors we can use the <code class="docutils literal"><span class="pre">lahf</span></code> and <code class="docutils literal"><span class="pre">sahf</span></code> instructions to save
+all of the flags besides the overflow flag in a register rather than on the
+stack. We can then use <code class="docutils literal"><span class="pre">seto</span></code> and <code class="docutils literal"><span class="pre">add</span></code> to save and restore the overflow flag
+in a register. Combined, this will save and restore flags in the same manner as
+above but using two registers rather than the stack. That is still very
+expensive if slightly less expensive than <code class="docutils literal"><span class="pre">pushf</span></code> and <code class="docutils literal"><span class="pre">popf</span></code> in most cases.</p>
+</div>
+<div class="section" id="a-flag-less-alternative-on-haswell-zen-and-newer-processors">
+<h6>A flag-less alternative on Haswell, Zen and newer processors<a class="headerlink" href="#a-flag-less-alternative-on-haswell-zen-and-newer-processors" title="Permalink to this headline">¶</a></h6>
+<p>Starting with the BMI2 x86 instruction set extensions available on Haswell and
+Zen processors, there is an instruction for shifting that does not set any
+flags: <code class="docutils literal"><span class="pre">shrx</span></code>. We can use this and the <code class="docutils literal"><span class="pre">lea</span></code> instruction to implement analogous
+code sequences to the above ones. However, these are still very marginally
+slower, as there are fewer ports able to dispatch shift instructions in most
+modern x86 processors than there are for <code class="docutils literal"><span class="pre">or</span></code> instructions.</p>
+<p>Fast, single register addressing mode:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>        <span class="o">...</span>
+
+<span class="o">.</span><span class="n">LBB0_4</span><span class="p">:</span>                                <span class="c1"># %danger</span>
+        <span class="n">cmovneq</span> <span class="o">%</span><span class="n">r8</span><span class="p">,</span> <span class="o">%</span><span class="n">rax</span>               <span class="c1"># Conditionally update predicate state.</span>
+        <span class="n">shrxq</span>   <span class="o">%</span><span class="n">rax</span><span class="p">,</span> <span class="o">%</span><span class="n">rsi</span><span class="p">,</span> <span class="o">%</span><span class="n">rsi</span>        <span class="c1"># Shift away bits if misspeculating.</span>
+        <span class="n">movl</span>    <span class="p">(</span><span class="o">%</span><span class="n">rsi</span><span class="p">),</span> <span class="o">%</span><span class="n">edi</span>
+</pre></div>
+</div>
+<p>This will collapse the register to zero or one, and everything but the offset
+in the addressing mode to be less than or equal to 9. This means the full
+address can only be guaranteed to be less than <code class="docutils literal"><span class="pre">(1</span> <span class="pre">&lt;&lt;</span> <span class="pre">31)</span> <span class="pre">+</span> <span class="pre">9</span></code>. The OS may wish
+to protect an extra page of the low address space to account for this</p>
+</div>
+</div>
+<div class="section" id="optimizations">
+<h5>Optimizations<a class="headerlink" href="#optimizations" title="Permalink to this headline">¶</a></h5>
+<p>A very large portion of the cost for this approach comes from checking loads in
+this way, so it is important to work to optimize this. However, beyond making
+the instruction sequences to <em>apply</em> the checks efficient (for example by
+avoiding <code class="docutils literal"><span class="pre">pushfq</span></code> and <code class="docutils literal"><span class="pre">popfq</span></code> sequences), the only significant optimization is
+to check fewer loads without introducing a vulnerability. We apply several
+techniques to accomplish that.</p>
+<div class="section" id="don-t-check-loads-from-compile-time-constant-stack-offsets">
+<h6>Don't check loads from compile-time constant stack offsets<a class="headerlink" href="#don-t-check-loads-from-compile-time-constant-stack-offsets" title="Permalink to this headline">¶</a></h6>
+<p>We implement this optimization on x86 by skipping the checking of loads which
+use a fixed frame pointer offset.</p>
+<p>The result of this optimization is that patterns like reloading a spilled
+register or accessing a global field don't get checked. This is a very
+significant performance win.</p>
+</div>
+<div class="section" id="don-t-check-dependent-loads">
+<h6>Don't check dependent loads<a class="headerlink" href="#don-t-check-dependent-loads" title="Permalink to this headline">¶</a></h6>
+<p>A core part of why this mitigation strategy works is that it establishes a
+data-flow check on the loaded address. However, this means that if the address
+itself was already loaded using a checked load, there is no need to check a
+dependent load provided it is within the same basic block as the checked load,
+and therefore has no additional predicates guarding it. Consider code like the
+following:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>        <span class="o">...</span>
+
+<span class="o">.</span><span class="n">LBB0_4</span><span class="p">:</span>                                <span class="c1"># %danger</span>
+        <span class="n">movq</span>    <span class="p">(</span><span class="o">%</span><span class="n">rcx</span><span class="p">),</span> <span class="o">%</span><span class="n">rdi</span>
+        <span class="n">movl</span>    <span class="p">(</span><span class="o">%</span><span class="n">rdi</span><span class="p">),</span> <span class="o">%</span><span class="n">edx</span>
+</pre></div>
+</div>
+<p>This will get transformed into:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>        <span class="o">...</span>
+
+<span class="o">.</span><span class="n">LBB0_4</span><span class="p">:</span>                                <span class="c1"># %danger</span>
+        <span class="n">cmovneq</span> <span class="o">%</span><span class="n">r8</span><span class="p">,</span> <span class="o">%</span><span class="n">rax</span>               <span class="c1"># Conditionally update predicate state.</span>
+        <span class="n">orq</span>     <span class="o">%</span><span class="n">rax</span><span class="p">,</span> <span class="o">%</span><span class="n">rcx</span>              <span class="c1"># Mask the pointer if misspeculating.</span>
+        <span class="n">movq</span>    <span class="p">(</span><span class="o">%</span><span class="n">rcx</span><span class="p">),</span> <span class="o">%</span><span class="n">rdi</span>            <span class="c1"># Hardened load.</span>
+        <span class="n">movl</span>    <span class="p">(</span><span class="o">%</span><span class="n">rdi</span><span class="p">),</span> <span class="o">%</span><span class="n">edx</span>            <span class="c1"># Unhardened load due to dependent addr.</span>
+</pre></div>
+</div>
+<p>This doesn't check the load through <code class="docutils literal"><span class="pre">%rdi</span></code> as that pointer is dependent on a
+checked load already.</p>
+</div>
+<div class="section" id="protect-large-load-heavy-blocks-with-a-single-lfence">
+<h6>Protect large, load-heavy blocks with a single lfence<a class="headerlink" href="#protect-large-load-heavy-blocks-with-a-single-lfence" title="Permalink to this headline">¶</a></h6>
+<p>It may be worth using a single <code class="docutils literal"><span class="pre">lfence</span></code> instruction at the start of a block
+which begins with a (very) large number of loads that require independent
+protection <em>and</em> which require hardening the address of the load. However, this
+is unlikely to be profitable in practice. The latency hit of the hardening
+would need to exceed that of an <code class="docutils literal"><span class="pre">lfence</span></code> when <em>correctly</em> speculatively
+executed. But in that case, the <code class="docutils literal"><span class="pre">lfence</span></code> cost is a complete loss of speculative
+execution (at a minimum). So far, the evidence we have of the performance cost
+of using <code class="docutils literal"><span class="pre">lfence</span></code> indicates few if any hot code patterns where this trade off
+would make sense.</p>
+</div>
+<div class="section" id="tempting-optimizations-that-break-the-security-model">
+<h6>Tempting optimizations that break the security model<a class="headerlink" href="#tempting-optimizations-that-break-the-security-model" title="Permalink to this headline">¶</a></h6>
+<p>Several optimizations were considered which didn't pan out due to failure to
+uphold the security model. One in particular is worth discussing as many others
+will reduce to it.</p>
+<p>We wondered whether only the <em>first</em> load in a basic block could be checked. If
+the check works as intended, it forms an invalid pointer that doesn't even
+virtual-address translate in the hardware. It should fault very early on in its
+processing. Maybe that would stop things in time for the misspeculated path to
+fail to leak any secrets. This doesn't end up working because the processor is
+fundamentally out-of-order, even in its speculative domain. As a consequence,
+the attacker could cause the initial address computation itself to stall and
+allow an arbitrary number of unrelated loads (including attacked loads of
+secret data) to pass through.</p>
+</div>
+</div>
+</div>
+<div class="section" id="interprocedural-checking">
+<h4>Interprocedural Checking<a class="headerlink" href="#interprocedural-checking" title="Permalink to this headline">¶</a></h4>
+<p>Modern x86 processors may speculate into called functions and out of functions
+to their return address. As a consequence, we need a way to check loads that
+occur after a misspeculated predicate but where the load and the misspeculated
+predicate are in different functions. In essence, we need some interprocedural
+generalization of the predicate state tracking. A primary challenge to passing
+the predicate state between functions is that we would like to not require a
+change to the ABI or calling convention in order to make this mitigation more
+deployable, and further would like code mitigated in this way to be easily
+mixed with code not mitigated in this way and without completely losing the
+value of the mitigation.</p>
+<div class="section" id="embed-the-predicate-state-into-the-high-bit-s-of-the-stack-pointer">
+<h5>Embed the predicate state into the high bit(s) of the stack pointer<a class="headerlink" href="#embed-the-predicate-state-into-the-high-bit-s-of-the-stack-pointer" title="Permalink to this headline">¶</a></h5>
+<p>We can use the same technique that allows hardening pointers to pass the
+predicate state into and out of functions. The stack pointer is trivially
+passed between functions and we can test for it having the high bits set to
+detect when it has been marked due to misspeculation. The callsite instruction
+sequence looks like (assuming a misspeculated state value of <code class="docutils literal"><span class="pre">-1</span></code>):</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>        ...
+
+.LBB0_4:                                # %danger
+        cmovneq %r8, %rax               # Conditionally update predicate state.
+        shlq    $47, %rax
+        orq     %rax, %rsp
+        callq   other_function
+        movq    %rsp, %rax
+        sarq    63, %rax                # Sign extend the high bit to all bits.
+</pre></div>
+</div>
+<p>This first puts the predicate state into the high bits of <code class="docutils literal"><span class="pre">%rsp</span></code> before calling
+the function and then reads it back out of high bits of <code class="docutils literal"><span class="pre">%rsp</span></code> afterward. When
+correctly executing (speculatively or not), these are all no-ops. When
+misspeculating, the stack pointer will end up negative. We arrange for it to
+remain a canonical address, but otherwise leave the low bits alone to allow
+stack adjustments to proceed normally without disrupting this. Within the
+called function, we can extract this predicate state and then reset it on
+return:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>other_function:
+        # prolog
+        callq   other_function
+        movq    %rsp, %rax
+        sarq    63, %rax                # Sign extend the high bit to all bits.
+        # ...
+
+.LBB0_N:
+        cmovneq %r8, %rax               # Conditionally update predicate state.
+        shlq    $47, %rax
+        orq     %rax, %rsp
+        retq
+</pre></div>
+</div>
+<p>This approach is effective when all code is mitigated in this fashion, and can
+even survive very limited reaches into unmitigated code (the state will
+round-trip in and back out of an unmitigated function, it just won't be
+updated). But it does have some limitations. There is a cost to merging the
+state into <code class="docutils literal"><span class="pre">%rsp</span></code> and it doesn't insulate mitigated code from misspeculation in
+an unmitigated caller.</p>
+<p>There is also an advantage to using this form of interprocedural mitigation: by
+forming these invalid stack pointer addresses we can prevent speculative
+returns from successfully reading speculatively written values to the actual
+stack. This works first by forming a data-dependency between computing the
+address of the return address on the stack and our predicate state. And even
+when satisfied, if a misprediction causes the state to be poisoned the
+resulting stack pointer will be invalid.</p>
+</div>
+<div class="section" id="rewrite-api-of-internal-functions-to-directly-propagate-predicate-state">
+<h5>Rewrite API of internal functions to directly propagate predicate state<a class="headerlink" href="#rewrite-api-of-internal-functions-to-directly-propagate-predicate-state" title="Permalink to this headline">¶</a></h5>
+<p>(Not yet implemented.)</p>
+<p>We have the option with internal functions to directly adjust their API to
+accept the predicate as an argument and return it. This is likely to be
+marginally cheaper than embedding into <code class="docutils literal"><span class="pre">%rsp</span></code> for entering functions.</p>
+</div>
+<div class="section" id="use-lfence-to-guard-function-transitions">
+<h5>Use <code class="docutils literal"><span class="pre">lfence</span></code> to guard function transitions<a class="headerlink" href="#use-lfence-to-guard-function-transitions" title="Permalink to this headline">¶</a></h5>
+<p>An <code class="docutils literal"><span class="pre">lfence</span></code> instruction can be used to prevent subsequent loads from
+speculatively executing until all prior mispredicted predicates have resolved.
+We can use this broader barrier to speculative loads executing between
+functions. We emit it in the entry block to handle calls, and prior to each
+return. This approach also has the advantage of providing the strongest degree
+of mitigation when mixed with unmitigated code by halting all misspeculation
+entering a function which is mitigated, regardless of what occured in the
+caller. However, such a mixture is inherently more risky. Whether this kind of
+mixture is a sufficient mitigation requires careful analysis.</p>
+<p>Unfortunately, experimental results indicate that the performance overhead of
+this approach is very high for certain patterns of code. A classic example is
+any form of recursive evaluation engine. The hot, rapid call and return
+sequences exhibit dramatic performance loss when mitigated with <code class="docutils literal"><span class="pre">lfence</span></code>. This
+component alone can regress performance by 2x or more, making it an unpleasant
+tradeoff even when only used in a mixture of code.</p>
+</div>
+<div class="section" id="use-an-internal-tls-location-to-pass-predicate-state">
+<h5>Use an internal TLS location to pass predicate state<a class="headerlink" href="#use-an-internal-tls-location-to-pass-predicate-state" title="Permalink to this headline">¶</a></h5>
+<p>We can define a special thread-local value to hold the predicate state between
+functions. This avoids direct ABI implications by using a side channel between
+callers and callees to communicate the predicate state. It also allows implicit
+zero-initialization of the state, which allows non-checked code to be the first
+code executed.</p>
+<p>However, this requires a load from TLS in the entry block, a store to TLS
+before every call and every ret, and a load from TLS after every call. As a
+consequence it is expected to be substantially more expensive even than using
+<code class="docutils literal"><span class="pre">%rsp</span></code> and potentially <code class="docutils literal"><span class="pre">lfence</span></code> within the function entry block.</p>
+</div>
+<div class="section" id="define-a-new-abi-and-or-calling-convention">
+<h5>Define a new ABI and/or calling convention<a class="headerlink" href="#define-a-new-abi-and-or-calling-convention" title="Permalink to this headline">¶</a></h5>
+<p>We could define a new ABI and/or calling convention to explicitly pass the
+predicate state in and out of functions. This may be interesting if none of the
+alternatives have adequate performance, but it makes deployment and adoption
+dramatically more complex, and potentially infeasible.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="high-level-alternative-mitigation-strategies">
+<h2>High-Level Alternative Mitigation Strategies<a class="headerlink" href="#high-level-alternative-mitigation-strategies" title="Permalink to this headline">¶</a></h2>
+<p>There are completely different alternative approaches to mitigating variant 1
+attacks. <a class="reference external" href="https://lwn.net/Articles/743265/">Most</a>
+<a class="reference external" href="https://lwn.net/Articles/744287/">discussion</a> so far focuses on mitigating
+specific known attackable components in the Linux kernel (or other kernels) by
+manually rewriting the code to contain an instruction sequence that is not
+vulnerable. For x86 systems this is done by either injecting an <code class="docutils literal"><span class="pre">lfence</span></code>
+instruction along the code path which would leak data if executed speculatively
+or by rewriting memory accesses to have branch-less masking to a known safe
+region. On Intel systems, <code class="docutils literal"><span class="pre">lfence</span></code> <a class="reference external" href="https://newsroom.intel.com/wp-content/uploads/sites/11/2018/01/Intel-Analysis-of-Speculative-Execution-Side-Channels.pdf">will prevent the speculative load of secret
+data</a>.
+On AMD systems <code class="docutils literal"><span class="pre">lfence</span></code> is currently a no-op, but can be made
+dispatch-serializing by setting an MSR, and thus preclude misspeculation of the
+code path (<a class="reference external" href="https://developer.amd.com/wp-content/resources/Managing-Speculation-on-AMD-Processors.pdf">mitigation G-2 +
+V1-1</a>).</p>
+<p>However, this relies on finding and enumerating all possible points in code
+which could be attacked to leak information. While in some cases static
+analysis is effective at doing this at scale, in many cases it still relies on
+human judgement to evaluate whether code might be vulnerable. Especially for
+software systems which receive less detailed scrutiny but remain sensitive to
+these attacks, this seems like an impractical security model. We need an
+automatic and systematic mitigation strategy.</p>
+<div class="section" id="automatic-lfence-on-conditional-edges">
+<h3>Automatic <code class="docutils literal"><span class="pre">lfence</span></code> on Conditional Edges<a class="headerlink" href="#automatic-lfence-on-conditional-edges" title="Permalink to this headline">¶</a></h3>
+<p>A natural way to scale up the existing hand-coded mitigations is simply to
+inject an <code class="docutils literal"><span class="pre">lfence</span></code> instruction into both the target and fallthrough
+destinations of every conditional branch. This ensures that no predicate or
+bounds check can be bypassed speculatively. However, the performance overhead
+of this approach is, simply put, catastrophic. Yet it remains the only truly
+&quot;secure by default&quot; approach known prior to this effort and serves as the
+baseline for performance.</p>
+<p>One attempt to address the performance overhead of this and make it more
+realistic to deploy is <a class="reference external" href="https://blogs.msdn.microsoft.com/vcblog/2018/01/15/spectre-mitigations-in-msvc/">MSVC's /Qspectre
+switch</a>.
+Their technique is to use static analysis within the compiler to only insert
+<code class="docutils literal"><span class="pre">lfence</span></code> instructions into conditional edges at risk of attack. However,
+<a class="reference external" href="https://arstechnica.com/gadgets/2018/02/microsofts-compiler-level-spectre-fix-shows-how-hard-this-problem-will-be-to-solve/">initial</a>
+<a class="reference external" href="https://www.paulkocher.com/doc/MicrosoftCompilerSpectreMitigation.html">analysis</a>
+has shown that this approach is incomplete and only catches a small and limited
+subset of attackable patterns which happen to resemble very closely the initial
+proofs of concept. As such, while its performance is acceptable, it does not
+appear to be an adequate systematic mitigation.</p>
+</div>
+</div>
+<div class="section" id="performance-overhead">
+<h2>Performance Overhead<a class="headerlink" href="#performance-overhead" title="Permalink to this headline">¶</a></h2>
+<p>The performance overhead of this style of comprehensive mitigation is very
+high. However, it compares very favorably with previously recommended
+approaches such as the <code class="docutils literal"><span class="pre">lfence</span></code> instruction. Just as users can restrict the
+scope of <code class="docutils literal"><span class="pre">lfence</span></code> to control its performance impact, this mitigation technique
+could be restricted in scope as well.</p>
+<p>However, it is important to understand what it would cost to get a fully
+mitigated baseline. Here we assume targeting a Haswell (or newer) processor and
+using all of the tricks to improve performance (so leaves the low 2gb
+unprotected and +/- 2gb surrounding any PC in the program). We ran both
+Google's microbenchmark suite and a large highly-tuned server built using
+ThinLTO and PGO. All were built with <code class="docutils literal"><span class="pre">-march=haswell</span></code> to give access to BMI2
+instructions, and benchmarks were run on large Haswell servers. We collected
+data both with an <code class="docutils literal"><span class="pre">lfence</span></code>-based mitigation and load hardening as presented
+here. The summary is that mitigating with load hardening is 1.77x faster than
+mitigating with <code class="docutils literal"><span class="pre">lfence</span></code>, and the overhead of load hardening compared to a
+normal program is likely between a 10% overhead and a 50% overhead with most
+large applications seeing a 30% overhead or less.</p>
+<p>| Benchmark                              | <code class="docutils literal"><span class="pre">lfence</span></code> | Load Hardening | Mitigated Speedup |
+| -------------------------------------- | -------: | -------------: | ----------------: |
+| Google microbenchmark suite            |   -74.8% |         -36.4% |          <strong>2.5x</strong> |
+| Large server QPS (using ThinLTO &amp; PGO) |   -62%   |         -29%   |          <strong>1.8x</strong> |</p>
+<p>Below is a visualization of the microbenchmark suite results which helps show
+the distribution of results that is somewhat lost in the summary. The y-axis is
+a log-scale speedup ratio of load hardening relative to <code class="docutils literal"><span class="pre">lfence</span></code> (up -&gt; faster
+-&gt; better). Each box-and-whiskers represents one microbenchmark which may have
+many different metrics measured. The red line marks the median, the box marks
+the first and third quartiles, and the whiskers mark the min and max.</p>
+<p><img alt="_images/speculative_load_hardening_microbenchmarks.png" src="_images/speculative_load_hardening_microbenchmarks.png" />Microbenchmark result visualization</p>
+<p>We don't yet have benchmark data on SPEC or the LLVM test suite, but we can
+work on getting that. Still, the above should give a pretty clear
+characterization of the performance, and specific benchmarks are unlikely to
+reveal especially interesting properties.</p>
+<div class="section" id="future-work-fine-grained-control-and-api-integration">
+<h3>Future Work: Fine Grained Control and API-Integration<a class="headerlink" href="#future-work-fine-grained-control-and-api-integration" title="Permalink to this headline">¶</a></h3>
+<p>The performance overhead of this technique is likely to be very significant and
+something users wish to control or reduce. There are interesting options here
+that impact the implementation strategy used.</p>
+<p>One particularly appealing option is to allow both opt-in and opt-out of this
+mitigation at reasonably fine granularity such as on a per-function basis,
+including intelligent handling of inlining decisions -- protected code can be
+prevented from inlining into unprotected code, and unprotected code will become
+protected when inlined into protected code. For systems where only a limited
+set of code is reachable by externally controlled inputs, it may be possible to
+limit the scope of mitigation through such mechanisms without compromising the
+application's overall security. The performance impact may also be focused in a
+few key functions that can be hand-mitigated in ways that have lower
+performance overhead while the remainder of the application receives automatic
+protection.</p>
+<p>For both limiting the scope of mitigation or manually mitigating hot functions,
+there needs to be some support for mixing mitigated and unmitigated code
+without completely defeating the mitigation. For the first use case, it would
+be particularly desirable that mitigated code remains safe when being called
+during misspeculation from unmitigated code.</p>
+<p>For the second use case, it may be important to connect the automatic
+mitigation technique to explicit mitigation APIs such as what is described in
+http://wg21.link/p0928 (or any other eventual API) so that there is a clean way
+to switch from automatic to manual mitigation without immediately exposing a
+hole. However, the design for how to do this is hard to come up with until the
+APIs are better established. We will revisit this as those APIs mature.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="StackSafetyAnalysis.html" title="Stack Safety Analysis"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="CFIVerify.html" title="Control Flow Verification Tool Design Document"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="index.html">Documentation</a>&raquo;</li>
+ 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

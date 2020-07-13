@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,7 +21,6 @@
  */
 
 #pragma once
-
 #include <stdint.h>
 
 ///
@@ -31,7 +30,6 @@
 #define TYPE_INTEGER ISA_TYPE_UW|ISA_TYPE_W|ISA_TYPE_UB|ISA_TYPE_B|ISA_TYPE_D|ISA_TYPE_UD|ISA_TYPE_Q|ISA_TYPE_UQ
 #define TYPE_FLOAT   ISA_TYPE_DF|ISA_TYPE_F
 #define TYPE_FLOAT_ALL   ISA_TYPE_DF|ISA_TYPE_F|ISA_TYPE_HF
-///#define TYPE_SPECIAL ISA_TYPE_SAMPLER|TYPE_SURFACE|TYPE_VME
 #define TYPE_ANY TYPE_INTEGER | TYPE_FLOAT
 
 #define SIZEOF_CISA_OPCODE sizeof(unsigned char)
@@ -46,7 +44,6 @@
 #define OPND_ADDRESS_OF    0x10000
 #define OPND_SURFACE       0x20000
 #define OPND_SAMPLE        0x40000
-#define OPND_VME           0x80000
 #define OPND_IMM           0x100000
 #define OPND_PRED          0x200000
 #define OPND_OTHER         0x400000
@@ -68,7 +65,7 @@
 #define OPND_VECTOR_SRC              OPND_SRC_GEN | OPND_IMM |OPND_SRC_INDIR | OPND_SRC_ADDR | OPND_ADDRESS_OF | OPND_SRC_PRED
 #define OPND_VECTOR_DST              OPND_DST_GEN | OPND_DST_INDIR | OPND_DST_ADDR | OPND_DST_PRED
 
-#define OPND_SPECIAL                 OPND_SAMPLE | OPND_VME | OPND_VME
+#define OPND_SPECIAL                 OPND_SAMPLE | OPND_SURFACE
 
 #define SAME_DATA_TYPE    0x1
 #define SAME_SPECIAL_KIND 0x2

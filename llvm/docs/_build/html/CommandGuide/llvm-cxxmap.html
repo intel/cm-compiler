@@ -1,0 +1,184 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-cxxmap - Mangled name remapping tool &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llvm-diff - LLVM structural ‘diff’" href="llvm-diff.html" />
+    <link rel="prev" title="llvm-config - Print LLVM compilation options" href="llvm-config.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llvm-diff.html" title="llvm-diff - LLVM structural ‘diff’"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llvm-config.html" title="llvm-config - Print LLVM compilation options"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-cxxmap-mangled-name-remapping-tool">
+<h1>llvm-cxxmap - Mangled name remapping tool<a class="headerlink" href="#llvm-cxxmap-mangled-name-remapping-tool" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-cxxmap</strong> [<em>options</em>] <em>symbol-file-1</em> <em>symbol-file-2</em></p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>The <strong class="program">llvm-cxxmap</strong> tool performs fuzzy matching of C++ mangled names,
+based on a file describing name components that should be considered equivalent.</p>
+<p>The symbol files should contain a list of C++ mangled names (one per line).
+Blank lines and lines starting with <code class="docutils literal"><span class="pre">#</span></code> are ignored. The output is a list
+of pairs of equivalent symbols, one per line, of the form</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>&lt;symbol-1&gt; &lt;symbol-2&gt;
+</pre></div>
+</div>
+<p>where <code class="docutils literal"><span class="pre">&lt;symbol-1&gt;</span></code> is a symbol from <em>symbol-file-1</em> and <code class="docutils literal"><span class="pre">&lt;symbol-2&gt;</span></code> is
+a symbol from <em>symbol-file-2</em>. Mappings for which the two symbols are identical
+are omitted.</p>
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<dl class="option">
+<dt id="cmdoption-llvm-cxxmap-remapping-file">
+<code class="descname">-remapping-file</code><code class="descclassname">=file</code><code class="descclassname">, </code><code class="descname">-r</code><code class="descclassname">=file</code><a class="headerlink" href="#cmdoption-llvm-cxxmap-remapping-file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify a file containing a list of equivalence rules that should be used
+to determine whether two symbols are equivalent. Required.
+See <a class="reference internal" href="#remapping-file"><span class="std std-ref">REMAPPING FILE</span></a>.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-cxxmap-output">
+<code class="descname">-output</code><code class="descclassname">=file</code><code class="descclassname">, </code><code class="descname">-o</code><code class="descclassname">=file</code><a class="headerlink" href="#cmdoption-llvm-cxxmap-output" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify a file to write the list of matched names to. If unspecified, the
+list will be written to stdout.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-cxxmap-wambiguous">
+<code class="descname">-Wambiguous</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-cxxmap-wambiguous" title="Permalink to this definition">¶</a></dt>
+<dd><p>Produce a warning if there are multiple equivalent (but distinct) symbols in
+<em>symbol-file-2</em>.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-llvm-cxxmap-wincomplete">
+<code class="descname">-Wincomplete</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-llvm-cxxmap-wincomplete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Produce a warning if <em>symbol-file-1</em> contains a symbol for which there is no
+equivalent symbol in <em>symbol-file-2</em>.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="remapping-file">
+<span id="id1"></span><h2>REMAPPING FILE<a class="headerlink" href="#remapping-file" title="Permalink to this headline">¶</a></h2>
+<p>The remapping file is a text file containing lines of the form</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>fragmentkind fragment1 fragment2
+</pre></div>
+</div>
+<p>where <code class="docutils literal"><span class="pre">fragmentkind</span></code> is one of <code class="docutils literal"><span class="pre">name</span></code>, <code class="docutils literal"><span class="pre">type</span></code>, or <code class="docutils literal"><span class="pre">encoding</span></code>,
+indicating whether the following mangled name fragments are
+&lt;<a class="reference external" href="http://itanium-cxx-abi.github.io/cxx-abi/abi.html#mangle.name">name</a>&gt;s,
+&lt;<a class="reference external" href="http://itanium-cxx-abi.github.io/cxx-abi/abi.html#mangle.type">type</a>&gt;s, or
+&lt;<a class="reference external" href="http://itanium-cxx-abi.github.io/cxx-abi/abi.html#mangle.encoding">encoding</a>&gt;s,
+respectively.
+Blank lines and lines starting with <code class="docutils literal"><span class="pre">#</span></code> are ignored.</p>
+<p>For convenience, built-in &lt;substitution&gt;s such as <code class="docutils literal"><span class="pre">St</span></code> and <code class="docutils literal"><span class="pre">Ss</span></code>
+are accepted as &lt;name&gt;s (even though they technically are not &lt;name&gt;s).</p>
+<p>For example, to specify that <code class="docutils literal"><span class="pre">absl::string_view</span></code> and <code class="docutils literal"><span class="pre">std::string_view</span></code>
+should be treated as equivalent, the following remapping file could be used:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span># absl::string_view is considered equivalent to std::string_view
+type N4absl11string_viewE St17basic_string_viewIcSt11char_traitsIcEE
+
+# std:: might be std::__1:: in libc++ or std::__cxx11:: in libstdc++
+name St St3__1
+name St St7__cxx11
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Symbol remapping is currently only supported for C++ mangled names
+following the Itanium C++ ABI mangling scheme. This covers all C++ targets
+supported by Clang other than Windows targets.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llvm-diff.html" title="llvm-diff - LLVM structural ‘diff’"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llvm-config.html" title="llvm-config - Print LLVM compilation options"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

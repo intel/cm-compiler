@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -1112,6 +1112,9 @@ void CMSimdCFLower::predicateStore(Instruction *SI, unsigned SimdWidth)
   // Scalar store not predicated
   if (!StoreVT || StoreVT->getNumElements() == 1)
     return; 
+  // no predication for ISPC uniform store
+  if (SI->getMetadata("ISPC-Uniform") != nullptr)
+    return;
   // local-variable store that is only used within the same basic block 
   // do not need predicate
   if (isSingleBlockLocalStore(SI))

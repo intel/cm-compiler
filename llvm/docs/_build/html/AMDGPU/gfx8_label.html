@@ -1,0 +1,119 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>label &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="msg" href="gfx8_msg.html" />
+    <link rel="prev" title="imm4" href="gfx8_imm4.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="gfx8_msg.html" title="msg"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="gfx8_imm4.html" title="imm4"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="../AMDGPUUsage.html" >User Guide for AMDGPU Backend</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="AMDGPUAsmGFX8.html" accesskey="U">Syntax of GFX8 Instructions</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="label">
+<span id="amdgpu-synid8-label"></span><h1>label<a class="headerlink" href="#label" title="Permalink to this headline">¶</a></h1>
+<p>A branch target which is a 16-bit signed integer treated as a PC-relative dword offset.</p>
+<p>This operand may be specified as:</p>
+<ul class="simple">
+<li>An <a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer_number</span></a>. The number is truncated to 16 bits.</li>
+<li>An <a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-absolute-expression"><span class="std std-ref">absolute_expression</span></a> which must start with an <a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-integer-number"><span class="std std-ref">integer_number</span></a>. The value of the expression is truncated to 16 bits.</li>
+<li>A <a class="reference internal" href="../AMDGPUOperandSyntax.html#amdgpu-synid-symbol"><span class="std std-ref">symbol</span></a> (for example, a label). The value is handled as a 16-bit PC-relative dword offset to be resolved by a linker.</li>
+</ul>
+<p>Examples:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">offset</span> <span class="o">=</span> <span class="mi">30</span>
+<span class="n">s_branch</span> <span class="n">loop_end</span>
+<span class="n">s_branch</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">offset</span>
+<span class="n">s_branch</span> <span class="mi">32</span>
+<span class="n">loop_end</span><span class="p">:</span>
+</pre></div>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="gfx8_msg.html" title="msg"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="gfx8_imm4.html" title="imm4"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="../AMDGPUUsage.html" >User Guide for AMDGPU Backend</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="AMDGPUAsmGFX8.html" >Syntax of GFX8 Instructions</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

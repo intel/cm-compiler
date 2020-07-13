@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -375,6 +375,9 @@ template <typename T> void __cm_intrinsic_impl_dummy_mov(T src0);
 
 // Predefined surface support.
 SurfaceIndex __cm_intrinsic_impl_predefined_surface(unsigned id);
+
+template <typename T1, typename T2, typename T3, typename T4, int N>
+vector<T1, N> __cm_intrinsic_impl_dp4a(vector<T2, N> src0, vector<T3, N> src1, vector<T4, N> src2);
 
 
 } // namespace details

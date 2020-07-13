@@ -54,6 +54,7 @@ public:
                         .Case("CNL", true)
                         .Case("ICL", true)
                         .Case("ICLLP", true)
+                        .Case("TGLLP", true)
                         .Default(false);
 
     if (CPUKnown)
@@ -87,9 +88,12 @@ public:
                                     DiagnosticsEngine &Diags);
 
   virtual bool hasFeature(StringRef Feature) const {
+    // ICLLP and TGLLP don't support the "long long" or "double" types.
+    // We simply check for the CPU here rather than using the feature mechanism
+    // as that is overkill for current needs.
     bool has = llvm::StringSwitch<bool>(Feature)
-      .Case("longlong", (CPU != "ICLLP"))
-      .Case("double", (CPU != "ICLLP"))
+      .Case("longlong", (CPU != "ICLLP") && (CPU != "TGLLP"))
+      .Case("double", (CPU != "ICLLP") && (CPU != "TGLLP"))
       .Default(true);
     return has;
   }

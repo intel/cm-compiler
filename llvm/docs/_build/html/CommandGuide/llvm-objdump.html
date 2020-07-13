@@ -1,0 +1,260 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>llvm-objdump - LLVM’s object file dumper &#8212; LLVM 8 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/llvm-theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '8',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="llvm-config - Print LLVM compilation options" href="llvm-config.html" />
+    <link rel="prev" title="llvm-nm - list LLVM bitcode and object file’s symbol table" href="llvm-nm.html" />
+<style type="text/css">
+  table.right { float: right; margin-left: 20px; }
+  table.right td { border: 1px solid #ccc; }
+</style>
+
+  </head>
+  <body>
+<div class="logo">
+  <a href="../index.html">
+    <img src="../_static/logo.png"
+         alt="LLVM Logo" width="250" height="88"/></a>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="llvm-config.html" title="llvm-config - Print LLVM compilation options"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="llvm-nm.html" title="llvm-nm - list LLVM bitcode and object file’s symbol table"
+             accesskey="P">previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" accesskey="U">LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="llvm-objdump-llvm-s-object-file-dumper">
+<h1>llvm-objdump - LLVM’s object file dumper<a class="headerlink" href="#llvm-objdump-llvm-s-object-file-dumper" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="synopsis">
+<h2>SYNOPSIS<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-objdump</strong> [<em>commands</em>] [<em>options</em>] [<em>filenames…</em>]</p>
+</div>
+<div class="section" id="description">
+<h2>DESCRIPTION<a class="headerlink" href="#description" title="Permalink to this headline">¶</a></h2>
+<p>The <strong class="program">llvm-objdump</strong> utility prints the contents of object files and
+final linked images named on the command line. If no file name is specified,
+<strong class="program">llvm-objdump</strong> will attempt to read from <em>a.out</em>. If <em>-</em> is used as a
+file name, <strong class="program">llvm-objdump</strong> will process a file on its standard input
+stream.</p>
+</div>
+<div class="section" id="commands">
+<h2>COMMANDS<a class="headerlink" href="#commands" title="Permalink to this headline">¶</a></h2>
+<p>At least one of the following commands are required, and some commands can be
+combined with other commands:</p>
+<dl class="option">
+<dt id="cmdoption-d">
+<code class="descname">-d</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">-disassemble</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-d" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display assembler mnemonics for the machine instructions. Disassembles all
+text sections found in the input file(s).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-disassemble-all">
+<code class="descname">-D</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">-disassemble-all</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-disassemble-all" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display assembler mnemonics for the machine instructions. Disassembles all
+sections found in the input file(s).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-help">
+<code class="descname">-help</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-help" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display usage information and exit. Does not stack with other commands.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-r">
+<code class="descname">-r</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-r" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display the relocation entries in the file.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-s">
+<code class="descname">-s</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-s" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display the content of each section.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-section-headers">
+<code class="descname">-section-headers</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-section-headers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display summaries of the headers for each section.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-t">
+<code class="descname">-t</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-t" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display the symbol table.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-version">
+<code class="descname">-version</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Display the version of this program. Does not stack with other commands.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="options">
+<h2>OPTIONS<a class="headerlink" href="#options" title="Permalink to this headline">¶</a></h2>
+<p><strong class="program">llvm-objdump</strong> supports the following options:</p>
+<dl class="option">
+<dt id="cmdoption-arch">
+<code class="descname">-arch</code><code class="descclassname">=&lt;architecture&gt;</code><a class="headerlink" href="#cmdoption-arch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Specify the architecture to disassemble. see <code class="docutils literal"><span class="pre">-version</span></code> for available
+architectures.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-cfg">
+<code class="descname">-cfg</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-cfg" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a CFG for every symbol in the object file and write it to a graphviz
+file (Mach-O-only).</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-dsym">
+<code class="descname">-dsym</code><code class="descclassname">=&lt;string&gt;</code><a class="headerlink" href="#cmdoption-dsym" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use .dSYM file for debug info.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-g">
+<code class="descname">-g</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-g" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print line information from debug info if available.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-m">
+<code class="descname">-m</code><code class="descclassname"></code><code class="descclassname">, </code><code class="descname">-macho</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-m" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use Mach-O specific object file parser. Commands and other options may behave
+differently when used with <code class="docutils literal"><span class="pre">-macho</span></code>.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mattr">
+<code class="descname">-mattr</code><code class="descclassname">=&lt;a1,+a2,-a3,…&gt;</code><a class="headerlink" href="#cmdoption-mattr" title="Permalink to this definition">¶</a></dt>
+<dd><p>Target specific attributes.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-mc-x86-disable-arith-relaxation">
+<code class="descname">-mc-x86-disable-arith-relaxation</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-mc-x86-disable-arith-relaxation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Disable relaxation of arithmetic instruction for X86.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-stats">
+<code class="descname">-stats</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-stats" title="Permalink to this definition">¶</a></dt>
+<dd><p>Enable statistics output from program.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-triple">
+<code class="descname">-triple</code><code class="descclassname">=&lt;string&gt;</code><a class="headerlink" href="#cmdoption-triple" title="Permalink to this definition">¶</a></dt>
+<dd><p>Target triple to disassemble for, see <code class="docutils literal"><span class="pre">-version</span></code> for available targets.</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-x86-asm-syntax">
+<code class="descname">-x86-asm-syntax</code><code class="descclassname">=&lt;style&gt;</code><a class="headerlink" href="#cmdoption-x86-asm-syntax" title="Permalink to this definition">¶</a></dt>
+<dd><p>When used with the <code class="docutils literal"><span class="pre">-disassemble</span></code> option, choose style of code to emit from
+X86 backend. Supported values are:</p>
+<blockquote>
+<div><dl class="option">
+<dt id="cmdoption-arg-att">
+<code class="descname">att</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-arg-att" title="Permalink to this definition">¶</a></dt>
+<dd><p>AT&amp;T-style assembly</p>
+</dd></dl>
+
+<dl class="option">
+<dt id="cmdoption-arg-intel">
+<code class="descname">intel</code><code class="descclassname"></code><a class="headerlink" href="#cmdoption-arg-intel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Intel-style assembly</p>
+</dd></dl>
+
+</div></blockquote>
+<p>The default disassembly style is <strong>att</strong>.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="bugs">
+<h2>BUGS<a class="headerlink" href="#bugs" title="Permalink to this headline">¶</a></h2>
+<p>To report bugs, please visit &lt;<a class="reference external" href="http://llvm.org/bugs/">http://llvm.org/bugs/</a>&gt;.</p>
+</div>
+<div class="section" id="see-also">
+<h2>SEE ALSO<a class="headerlink" href="#see-also" title="Permalink to this headline">¶</a></h2>
+<p><em class="manpage">llvm-nm(1)</em></p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="llvm-config.html" title="llvm-config - Print LLVM compilation options"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="llvm-nm.html" title="llvm-nm - list LLVM bitcode and object file’s symbol table"
+             >previous</a> |</li>
+  <li><a href="http://llvm.org/">LLVM Home</a>&nbsp;|&nbsp;</li>
+  <li><a href="../index.html">Documentation</a>&raquo;</li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >LLVM Command Guide</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2003-2019, LLVM Project.
+      Last updated on Wed Aug 7 15:07:05 2019 -0700.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.6.1.
+    </div>
+  </body>
+</html>

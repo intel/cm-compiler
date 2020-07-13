@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Intel Corporation
+ * Copyright (c) 2020, Intel Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -94,7 +94,11 @@ CM_NODEBUG CM_INLINE typename std::enable_if<(M1 > M2), void>::type
 if_assign(matrix_ref<T, N, M1> m1, matrix<T, N, M2> m2) {}
 
 static inline constexpr unsigned getMaxNumOfOWordSLM() {
+#if defined(CM_GEN12)
+  return 16;
+#else
   return 8;
+#endif
 }
 
 
