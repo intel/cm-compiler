@@ -1302,6 +1302,9 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
     TheCall->setType(Context.IntTy);
     break;
   }
+  case Builtin::BI__cm_builtin_cm_printf:
+    if (CheckCmPrintfCall(TheCall))
+      return ExprError();
 
   // check secure string manipulation functions where overflows
   // are detectable at compile time
@@ -9541,6 +9544,10 @@ struct IntRange {
 
     if (const VectorType *VT = dyn_cast<VectorType>(T))
       T = VT->getElementType().getTypePtr();
+    if (const CMVectorType *VT = dyn_cast<CMVectorType>(T))
+      T = VT->getElementType().getTypePtr();
+    if (const CMMatrixType *MT = dyn_cast<CMMatrixType>(T))
+      T = MT->getElementType().getTypePtr();
     if (const ComplexType *CT = dyn_cast<ComplexType>(T))
       T = CT->getElementType().getTypePtr();
     if (const AtomicType *AT = dyn_cast<AtomicType>(T))

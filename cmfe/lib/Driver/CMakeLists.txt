@@ -24,6 +24,7 @@ add_clang_library(clangDriver
   ToolChain.cpp
   ToolChains/Arch/AArch64.cpp
   ToolChains/Arch/ARM.cpp
+  ToolChains/Arch/GenX.cpp
   ToolChains/Arch/Mips.cpp
   ToolChains/Arch/PPC.cpp
   ToolChains/Arch/RISCV.cpp
@@ -44,6 +45,7 @@ add_clang_library(clangDriver
   ToolChains/DragonFly.cpp
   ToolChains/FreeBSD.cpp
   ToolChains/Fuchsia.cpp
+  ToolChains/GenX.cpp
   ToolChains/Gnu.cpp
   ToolChains/Haiku.cpp
   ToolChains/HIP.cpp

@@ -44,6 +44,10 @@ set(LIBS
   clangTooling
 )
 
+set(LLVM_LINK_COMPONENTS
+	InstCombine
+)
+
 if (CLANG_ENABLE_ARCMT)
   list(APPEND LIBS clangARCMigrate)
 endif ()

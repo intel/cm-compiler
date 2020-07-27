@@ -1129,6 +1129,13 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   case tok::kw___pixel:
   case tok::kw___bool:
   case tok::kw__Atomic:
+  case tok::kw__CM_Vector:
+  case tok::kw__CM_Matrix:
+  case tok::kw__CM_VectorRef:
+  case tok::kw__CM_MatrixRef:
+  case tok::kw_SurfaceIndex:
+  case tok::kw_SamplerIndex:
+  case tok::kw_VmeIndex:
 #define GENERIC_IMAGE_TYPE(ImgType, Id) case tok::kw_##ImgType##_t:
 #include "clang/Basic/OpenCLImageTypes.def"
   case tok::kw___unknown_anytype:
@@ -1214,6 +1221,7 @@ public:
 ///           elaborated-type-specifier
 ///           typename-specifier
 ///           cv-qualifier
+///           cm-vector-specifier
 ///
 ///         simple-type-specifier:
 ///           '::'[opt] nested-name-specifier[opt] type-name
@@ -1451,6 +1459,15 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
 
     // AltiVec
   case tok::kw___vector:
+    return TPResult::True;
+
+  case tok::kw_SurfaceIndex:
+  case tok::kw_SamplerIndex:
+  case tok::kw_VmeIndex:
+  case tok::kw__CM_Vector:
+  case tok::kw__CM_Matrix:
+  case tok::kw__CM_VectorRef:
+  case tok::kw__CM_MatrixRef:
     return TPResult::True;
 
   case tok::annot_template_id: {

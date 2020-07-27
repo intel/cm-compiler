@@ -824,6 +824,9 @@ void AggExprEmitter::VisitCastExpr(CastExpr *E) {
   case CK_PointerToBoolean:
   case CK_ToVoid:
   case CK_VectorSplat:
+  case CK_CMBaseToReference:
+  case CK_CMReferenceToBase:
+  case CK_CMVectorMatrixSplat:
   case CK_IntegralCast:
   case CK_BooleanToSignedIntegral:
   case CK_IntegralToBoolean:

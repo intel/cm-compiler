@@ -73,6 +73,9 @@ enum ActionKind {
   /// Emit a .o file.
   EmitObj,
 
+  /// Emit a .spv file.
+  EmitSPIRV,
+
   /// Parse and apply any fixits to the source.
   FixIt,
 
@@ -152,10 +155,12 @@ public:
     /// LLVM IR: we accept this so that we can run the optimizer on it,
     /// and compile it to assembly or object code.
     LLVM_IR,
+    SPIRV,
 
     ///@{ Languages that the frontend can parse and compile.
     C,
     CXX,
+    CM,
     ObjC,
     ObjCXX,
     OpenCL,

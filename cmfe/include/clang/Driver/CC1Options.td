@@ -410,6 +410,8 @@ def ftabstop : Separate<["-"], "ftabstop">, MetaVarName<"<N>">,
   HelpText<"Set the tab stop distance.">;
 def ferror_limit : Separate<["-"], "ferror-limit">, MetaVarName<"<N>">,
   HelpText<"Set the maximum number of errors to emit before stopping (0 = no limit).">;
+def ftypo_correction_limit : Separate<["-"], "ftypo-correction-limit">, MetaVarName<"<N>">,
+  HelpText<"Set the maximum number of typo correction tries before giving up (0 = no limit).">;
 def fmacro_backtrace_limit : Separate<["-"], "fmacro-backtrace-limit">, MetaVarName<"<N>">,
   HelpText<"Set the maximum number of entries to print in a macro expansion backtrace (0 = no limit).">;
 def ftemplate_backtrace_limit : Separate<["-"], "ftemplate-backtrace-limit">, MetaVarName<"<N>">,
@@ -578,6 +580,8 @@ def emit_codegen_only : Flag<["-"], "emit-codegen-only">,
   HelpText<"Generate machine code, but discard output">;
 def emit_obj : Flag<["-"], "emit-obj">,
   HelpText<"Emit native object files">;
+def emit_spirv_bc : Flag<["-"], "emit-spirv-bc">,
+  HelpText<"Build ASTs then convert to LLVM, emit .spv file">;
 def rewrite_test : Flag<["-"], "rewrite-test">,
   HelpText<"Rewriter playground">;
 def rewrite_macros : Flag<["-"], "rewrite-macros">,

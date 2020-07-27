@@ -1267,6 +1267,13 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
   case tok::kw_typename:
   case tok::kw_typeof:
   case tok::kw___vector:
+  case tok::kw_SurfaceIndex:
+  case tok::kw_SamplerIndex:
+  case tok::kw_VmeIndex:
+  case tok::kw__CM_Vector:
+  case tok::kw__CM_Matrix:
+  case tok::kw__CM_VectorRef:
+  case tok::kw__CM_MatrixRef:
 #define GENERIC_IMAGE_TYPE(ImgType, Id) case tok::kw_##ImgType##_t:
 #include "clang/Basic/OpenCLImageTypes.def"
   {
@@ -1482,6 +1489,7 @@ ExprResult Parser::ParseCastExpression(bool isUnaryExpression,
 ///         postfix-expression '[' expression ']'
 ///         postfix-expression '[' braced-init-list ']'
 ///         postfix-expression '(' argument-expression-list[opt] ')'
+///         postfix-expression '.' cm-method-expression
 ///         postfix-expression '.' identifier
 ///         postfix-expression '->' identifier
 ///         postfix-expression '++'
@@ -1574,8 +1582,12 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
           LHS = Actions.ActOnOMPArraySectionExpr(LHS.get(), Loc, Idx.get(),
                                                  ColonLoc, Length.get(), RLoc);
         } else {
-          LHS = Actions.ActOnArraySubscriptExpr(getCurScope(), LHS.get(), Loc,
-                                                Idx.get(), RLoc);
+          if (getLangOpts().MdfCM &&
+              LHS.get()->getType()->isCMVectorMatrixType())
+            LHS = Actions.ActOnCMSubscriptAccess(LHS.get(), Loc, Idx.get(), RLoc);
+          else
+            LHS = Actions.ActOnArraySubscriptExpr(getCurScope(), LHS.get(), Loc,
+                                                  Idx.get(), RLoc);
         }
       } else {
         LHS = ExprError();
@@ -1707,9 +1719,16 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
         assert((ArgExprs.size() == 0 ||
                 ArgExprs.size()-1 == CommaLocs.size())&&
                "Unexpected number of commas!");
-        LHS = Actions.ActOnCallExpr(getCurScope(), LHS.get(), Loc,
-                                    ArgExprs, Tok.getLocation(),
-                                    ExecConfig);
+        // CM standard matrix/vector element-access operator e.g.
+        // matrix<int, 4, 4> m; m(0, 1) = 0
+        // vector<int, 4> v; v(2) = 1;
+        Expr *Base = LHS.get();
+        if (getLangOpts().MdfCM && Base->getType()->isCMVectorMatrixType())
+          LHS = Actions.ActOnCMElementAccess(LHS.get(), Loc, ArgExprs,
+                                             Tok.getLocation());
+        else
+          LHS = Actions.ActOnCallExpr(getCurScope(), LHS.get(), Loc, ArgExprs,
+                                      Tok.getLocation(), ExecConfig);
         PT.consumeClose();
       }
 
@@ -1730,6 +1749,66 @@ Parser::ParsePostfixExpressionSuffix(ExprResult LHS) {
       if (getLangOpts().CPlusPlus && !LHS.isInvalid()) {
         Expr *Base = OrigLHS;
         const Type* BaseType = Base->getType().getTypePtrOrNull();
+
+        // The grammar itself is ambiguous. We have to decide how to parse the
+        // following template.
+        //
+        // template <typename T> void foo(T t) {
+        //   t.select<4, 1>(0);
+        // }
+        //
+        // In C++, this is valid a comma expression when T = Sel is used below.
+        //
+        // struct Sel {
+        //   int select;
+        // };
+        //
+        // However, for CM we could not parse it as a comma expression from
+        // which there is no way to rebuild a vector select member expr.
+        //
+        // With this example in mind, we parse as CM method invocations when
+        // opKind is period, and
+        //
+        // (1) Base type is CM vector/matrix, or
+        //
+        // (2) Base type is not a CM vector/matrix yet but it is dependent and
+        //     non record.
+        //
+        // That is, we resolve this ambiguity in favor of the CM side. For this
+        // reason, CM is *not* a faithful extension.
+        auto parseAsCMMember = [&]() {
+          if (BaseType->isCMVectorMatrixType() ||
+              (BaseType->isDependentType() && !BaseType->isRecordType())) {
+
+            // Continue only when this is a supported member name.
+            if (Tok.is(tok::identifier) &&
+                isCMMethodIdentifier(*Tok.getIdentifierInfo()))
+              return true;
+
+            // Historically CM matrix and vectors were implemented using C++
+            // templates. In some cases the template keyword was required before
+            // dependent member function invocations - although this usage is no
+            // longer necessary now that vectors and matrices are first class
+            // types we accept it in order to be polite.
+            // Note that we don't care whether the template keyword would have
+            // been necessary, we just accept it in all cases.
+            if (Tok.is(tok::kw_template) && NextToken().is(tok::identifier) &&
+                isCMMethodIdentifier(*NextToken().getIdentifierInfo())) {
+              // Discard the template keyword
+              ConsumeToken();
+              return true;
+            }
+          }
+
+          return false;
+        };
+
+        // Special case for CM method invocation
+        if (getLangOpts().MdfCM && OpKind == tok::period && parseAsCMMember()) {
+          LHS = ParseCMMethodExpr(Base);
+          break;
+        }
+
         if (BaseType && Tok.is(tok::l_paren) &&
             (BaseType->isFunctionType() ||
              BaseType->isSpecificPlaceholderType(BuiltinType::BoundMember))) {
@@ -2582,8 +2661,12 @@ Parser::ParseParenExpression(ParenParseOption &ExprType, bool stopIfCastExpr,
       }
 
       ExprType = SimpleExpr;
-      Result = Actions.ActOnParenListExpr(OpenLoc, Tok.getLocation(),
-                                          ArgExprs);
+      if (getLangOpts().MdfCM && (ArgExprs.size() == 1))
+        Result = Actions.ActOnParenExpr(OpenLoc, Tok.getLocation(),
+                                        ArgExprs[0]);
+      else
+        Result = Actions.ActOnParenListExpr(OpenLoc, Tok.getLocation(),
+                                            ArgExprs);
     }
   } else {
     InMessageExpressionRAIIObject InMessage(*this, false);

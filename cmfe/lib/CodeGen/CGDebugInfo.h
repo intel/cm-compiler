@@ -67,6 +67,9 @@ class CGDebugInfo {
   llvm::DIType *ClassTy = nullptr;
   llvm::DICompositeType *ObjTy = nullptr;
   llvm::DIType *SelTy = nullptr;
+  llvm::DIType *CMSurfaceIndexTy = nullptr;
+  llvm::DIType *CMSamplerIndexTy = nullptr;
+  llvm::DIType *CMVmeIndexTy = nullptr;
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
   llvm::DIType *SingletonId = nullptr;
 #include "clang/Basic/OpenCLImageTypes.def"
@@ -170,6 +173,10 @@ class CGDebugInfo {
   /// Get Objective-C object type.
   llvm::DIType *CreateType(const ObjCObjectType *Ty, llvm::DIFile *F);
   llvm::DIType *CreateType(const ObjCTypeParamType *Ty, llvm::DIFile *Unit);
+
+  /// CM type.
+  llvm::DIType *CreateType(const CMVectorType *Ty, llvm::DIFile *F);
+  llvm::DIType *CreateType(const CMMatrixType *Ty, llvm::DIFile *F);
 
   llvm::DIType *CreateType(const VectorType *Ty, llvm::DIFile *F);
   llvm::DIType *CreateType(const ArrayType *Ty, llvm::DIFile *F);

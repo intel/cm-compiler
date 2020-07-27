@@ -124,6 +124,10 @@ public:
                                              bool IsVolatile = false) {
     return CGBuilderBaseTy::CreateStore(Val, Addr, IsVolatile);
   }
+  llvm::LoadInst *CreateDefaultAlignedLoad(llvm::Value *Addr,
+                                           bool IsVolatile = false) {
+    return CGBuilderBaseTy::CreateLoad(Addr, IsVolatile);
+  }
 
   /// Emit a load from an i1 flag variable.
   llvm::LoadInst *CreateFlagLoad(llvm::Value *Addr,

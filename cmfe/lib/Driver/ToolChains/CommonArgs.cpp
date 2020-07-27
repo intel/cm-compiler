@@ -10,6 +10,7 @@
 #include "CommonArgs.h"
 #include "Arch/AArch64.h"
 #include "Arch/ARM.h"
+#include "Arch/GenX.h"
 #include "Arch/Mips.h"
 #include "Arch/PPC.h"
 #include "Arch/SystemZ.h"
@@ -248,6 +249,9 @@ static StringRef getWebAssemblyTargetCPU(const ArgList &Args) {
 
 std::string tools::getCPUName(const ArgList &Args, const llvm::Triple &T,
                               bool FromAs) {
+  if (T.getArchName().startswith("genx"))
+    return GenX::getGenXTargetCPU(Args);
+
   Arg *A;
 
   switch (T.getArch()) {

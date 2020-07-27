@@ -117,6 +117,12 @@ public:
   EmitObjAction(llvm::LLVMContext *_VMContext = nullptr);
 };
 
+class EmitSPIRVAction : public CodeGenAction {
+  virtual void anchor();
+public:
+  EmitSPIRVAction(llvm::LLVMContext *_VMContext = nullptr);
+};
+
 }
 
 #endif

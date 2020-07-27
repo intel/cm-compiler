@@ -77,7 +77,8 @@ static bool IsStandardConversion(Sema &S, Expr* From, QualType ToType,
                                  bool InOverloadResolution,
                                  StandardConversionSequence &SCS,
                                  bool CStyle,
-                                 bool AllowObjCWritebackConversion);
+                                 bool AllowObjCWritebackConversion,
+                                 bool AllowCMVMRefConversion = false);
 
 static bool IsTransparentUnionStandardConversion(Sema &S, Expr* From,
                                                  QualType &ToType,
@@ -1357,6 +1358,19 @@ TryUserDefinedConversion(Sema &S, Expr *From, QualType ToType,
 /// \param AllowObjCWritebackConversion Whether we allow the Objective-C
 /// writeback conversion, which allows __autoreleasing id* parameters to
 /// be initialized with __strong id* or __weak id* arguments.
+///
+/// \param AllowCMVMRefConversion Whether we allow CM vector_ref to matrix_ref
+/// or vector_ref to matrix_ref conversion. This is to distingish the following
+/// two cases:
+///
+/// (1) initialization
+///    matrix<float, 2, 8> m1;
+///    matrix_ref<float, 4, 4> m2 = m1;  // not viable
+///
+/// (2) assignment
+///     matrix<float, 2, 8> m1;
+///     matrix_ref<float, 4, 4> m2 = ...
+///     m2 = m1; // viable
 static ImplicitConversionSequence
 TryImplicitConversion(Sema &S, Expr *From, QualType ToType,
                       bool SuppressUserConversions,
@@ -1364,10 +1378,12 @@ TryImplicitConversion(Sema &S, Expr *From, QualType ToType,
                       bool InOverloadResolution,
                       bool CStyle,
                       bool AllowObjCWritebackConversion,
-                      bool AllowObjCConversionOnExplicit) {
+                      bool AllowObjCConversionOnExplicit,
+                      bool AllowCMVMRefConversion = false) {
   ImplicitConversionSequence ICS;
   if (IsStandardConversion(S, From, ToType, InOverloadResolution,
-                           ICS.Standard, CStyle, AllowObjCWritebackConversion)){
+                           ICS.Standard, CStyle, AllowObjCWritebackConversion,
+                           AllowCMVMRefConversion)){
     ICS.setStandard();
     return ICS;
   }
@@ -1452,13 +1468,21 @@ Sema::PerformImplicitConversion(Expr *From, QualType ToType,
   if (getLangOpts().ObjC)
     CheckObjCBridgeRelatedConversions(From->getBeginLoc(), ToType,
                                       From->getType(), From);
+
+  // CM conversion: Determine whether we will allow vector_ref to matrix_ref
+  // conversion, matrix_ref to vector_ref, or matrix_ref to matrix_ref
+  // conversions.
+  bool AllowCMVMRefConversion =
+      getLangOpts().MdfCM && (Action == AA_Assigning);
+
   ICS = ::TryImplicitConversion(*this, From, ToType,
                                 /*SuppressUserConversions=*/false,
                                 AllowExplicit,
                                 /*InOverloadResolution=*/false,
                                 /*CStyle=*/false,
                                 AllowObjCWritebackConversion,
-                                /*AllowObjCConversionOnExplicit=*/false);
+                                /*AllowObjCConversionOnExplicit=*/false,
+                                AllowCMVMRefConversion);
   return PerformImplicitConversion(From, ToType, ICS, Action);
 }
 
@@ -1621,7 +1645,8 @@ static bool IsStandardConversion(Sema &S, Expr* From, QualType ToType,
                                  bool InOverloadResolution,
                                  StandardConversionSequence &SCS,
                                  bool CStyle,
-                                 bool AllowObjCWritebackConversion) {
+                                 bool AllowObjCWritebackConversion,
+                                 bool AllowCMVMRefConversion) {
   QualType FromType = From->getType();
 
   // Standard conversions (C++ [conv])
@@ -1844,6 +1869,17 @@ static bool IsStandardConversion(Sema &S, Expr* From, QualType ToType,
     // Pointer to member conversions (4.11).
     SCS.Second = ICK_Pointer_Member;
   } else if (IsVectorConversion(S, FromType, ToType, SecondICK)) {
+    SCS.Second = SecondICK;
+    FromType = ToType.getUnqualifiedType();
+  } else if (S.IsCMVectorConversion(FromType, ToType, SecondICK,
+                                    AllowCMVMRefConversion)) {
+    // If initializing a reference varible or argument check whether the
+    // initializer is an lvalue or not. Note even this is a constant rvalue
+    // expression, initialization will fail. E.g. this is illegal:
+    // vector_ref<int, 8> v = 1;
+    if (!AllowCMVMRefConversion && ToType->isCMReferenceType() &&
+        From->isRValue())
+      return false;
     SCS.Second = SecondICK;
     FromType = ToType.getUnqualifiedType();
   } else if (!S.getLangOpts().CPlusPlus &&
@@ -5367,6 +5403,10 @@ static bool CheckConvertedConstantConversions(Sema &S,
   case ICK_Derived_To_Base:
   case ICK_Vector_Conversion:
   case ICK_Vector_Splat:
+  case ICK_CMVectorMatrix_Conversion:
+  case ICK_CMBaseToReference:
+  case ICK_CMReferenceToBase:
+  case ICK_CMVectorMatrix_Splat:
   case ICK_Complex_Real:
   case ICK_Block_Pointer_Conversion:
   case ICK_TransparentUnionConversion:
@@ -9858,6 +9898,13 @@ static void DiagnoseBadConversion(Sema &S, OverloadCandidate *Cand,
           << (unsigned)isObjectArgument << I + 1
           << (FromExpr ? FromExpr->getSourceRange() : SourceRange());
       MaybeEmitInheritedConstructorNote(S, Cand->FoundDecl);
+      return;
+    }
+  } else if (ToTy->isCMReferenceType()) {
+    // Cannot bind a rvalue argument to a CM reference parameter.
+    if (FromExpr && FromExpr->isRValue()) {
+      S.Diag(Fn->getLocation(), diag::note_ovl_candidate_bad_cm_reference)
+        << I + 1;
       return;
     }
   }

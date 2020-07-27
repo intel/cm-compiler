@@ -57,6 +57,7 @@ TYPE("c++",                      CXX,          PP_CXX,          "cpp",   "u")
 TYPE("objective-c++-cpp-output", PP_ObjCXX,    INVALID,         "mii",   "u")
 TYPE("objc++-cpp-output",        PP_ObjCXX_Alias, INVALID,      "mii",   "u")
 TYPE("objective-c++",            ObjCXX,       PP_ObjCXX,       "mm",    "u")
+TYPE("cm",                       MDF_CM,       PP_CXX,          "cpp",   "u")
 TYPE("renderscript",             RenderScript, PP_C,            "rs",    "u")
 
 // C family input files to precompile.
@@ -86,6 +87,7 @@ TYPE("ir",                       LLVM_IR,      INVALID,         "ll",    "u")
 TYPE("ir",                       LLVM_BC,      INVALID,         "bc",    "u")
 TYPE("lto-ir",                   LTO_IR,       INVALID,         "s",     "")
 TYPE("lto-bc",                   LTO_BC,       INVALID,         "o",     "")
+TYPE("spv",                      SPIRV,        INVALID,         "spv",   "u")
 
 // Misc.
 TYPE("ast",                      AST,          INVALID,         "ast",   "u")

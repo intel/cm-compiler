@@ -1971,6 +1971,14 @@ public:
   bool isComplexIntegerType() const;            // GCC _Complex integer type.
   bool isVectorType() const;                    // GCC vector type.
   bool isExtVectorType() const;                 // Extended vector type.
+  bool isCMVectorType() const;                  // CM vector/vector_ref type.
+  bool isCMMatrixType() const;                  // CM matrix/matrix_ref type.
+  bool isCMVectorMatrixType() const;            // CM vector/matrix/_ref/_ref type.
+  bool isDependentCMVectorMatrixType() const;   // CM vector/matrix/_ref/_ref type with vary sizes.
+  bool isCMBaseType() const;                    // CM vector or matrix type.
+  bool isCMReferenceType() const;               // CM vector_ref or matrix_ref type.
+  unsigned getCMVectorMatrixSize() const;
+  QualType getCMVectorMatrixElementType() const;
   bool isDependentAddressSpaceType() const;     // value-dependent address space qualifier
   bool isObjCObjectPointerType() const;         // pointer to ObjC object
   bool isObjCRetainableType() const;            // ObjC object or block pointer
@@ -2027,6 +2035,8 @@ public:
   bool isAlignValT() const;                     // C++17 std::align_val_t
   bool isStdByteType() const;                   // C++17 std::byte
   bool isAtomicType() const;                    // C11 _Atomic()
+  bool isCMElementType(bool AllowNonArithmetic = true) const; // CM supported element type.
+  bool isCMScalarType() const;                  // CM supported scalar type.
 
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
   bool is##Id##Type() const;
@@ -2049,6 +2059,10 @@ public:
 
   bool isPipeType() const;                      // OpenCL pipe type
   bool isOpenCLSpecificType() const;            // Any OpenCL specific type
+
+  bool isCMSurfaceIndexType() const;            // CM SurfaceIndex type
+  bool isCMSamplerIndexType() const;            // CM SamplerIndex type
+  bool isCMVmeIndexType() const;                // CM VmeIndex type
 
   /// Determines if this type, which must satisfy
   /// isObjCLifetimeType(), is implicitly __unsafe_unretained rather
@@ -3348,6 +3362,210 @@ public:
   static bool classof(const Type *T) {
     return T->getTypeClass() == ExtVector;
   }
+};
+
+/// \brief This type represents a common base type for CM vector type and matrix
+/// type, where either the type or size is dependent. For Example,
+/// @code
+/// template <typename T, int Size, int NRow, NCol>
+/// void func() {
+///   vector<T, Size> v;
+///   vector_ref<T, Size> vref;
+///   matrix<T, NRow, NCol> m;
+///   matrix_ref<T, NRow, NCol> mref;
+/// }
+/// @code
+class CMVectorTypeCommon {
+protected:
+  const ASTContext &Context;
+
+  /// \brief Whether this is a reference type.
+  bool IsReference;
+
+  /// \brief The element type.
+  QualType ElementType;
+
+  /// \brief The starting location, i.e. the vector or matrix location.
+  SourceLocation VMLoc;
+
+  /// \brief The less location.
+  SourceLocation LessLoc;
+
+  /// \brief The greater location.
+  SourceLocation GreaterLoc;
+
+  CMVectorTypeCommon(const ASTContext &Context, bool IsReference,
+                     QualType ElementType, SourceLocation VMLoc,
+                     SourceLocation LLoc, SourceLocation GLoc)
+      : Context(Context), IsReference(IsReference), ElementType(ElementType),
+        VMLoc(VMLoc), LessLoc(LLoc), GreaterLoc(GLoc) {}
+
+public:
+  SourceLocation getVMLoc() const { return VMLoc; }
+  SourceLocation getLessLoc() const { return LessLoc; }
+  SourceLocation getGreaterLoc() const { return GreaterLoc; }
+
+  QualType getElementType() const { return ElementType; }
+
+  /// \brief Whether this is a vector_ref or matrix_ref type.
+  bool isReference() const { return IsReference; }
+};
+
+/// \brief This represents a CM vector type or CM vector_ref type.
+class CMVectorType : public Type,
+                     public CMVectorTypeCommon,
+                     public llvm::FoldingSetNode {
+protected:
+  /// \brief The number of elements.
+  unsigned NumElements;
+
+  CMVectorType(const ASTContext &Context, TypeClass TC, bool IsReference,
+               QualType ElementType, QualType Can, unsigned NumElts,
+               SourceLocation VLoc, SourceLocation LLoc, SourceLocation GLoc);
+
+  friend class ASTContext;
+
+public:
+  unsigned getNumElements() const { return NumElements; }
+
+  bool isSugared() const { return false; }
+  QualType desugar() const { return QualType(this, 0); }
+
+  static bool classof(const Type *T) {
+    return T->getTypeClass() == CMVector ||
+           T->getTypeClass() == DependentCMVector;
+  }
+
+  void Profile(llvm::FoldingSetNodeID &ID) {
+    Profile(ID, isReference(), getElementType(), getNumElements(),
+            getTypeClass());
+  }
+  static void Profile(llvm::FoldingSetNodeID &ID, bool IsReference,
+                      QualType ElementType, unsigned NumElts,
+                      TypeClass TypeClass) {
+    ID.AddBoolean(IsReference);
+    ID.AddPointer(ElementType.getAsOpaquePtr());
+    ID.AddInteger(NumElts);
+    ID.AddInteger(TypeClass);
+  }
+};
+
+/// \brief This represents a CM matrix type or CM matrix_ref type.
+class CMMatrixType : public Type,
+                     public CMVectorTypeCommon,
+                     public llvm::FoldingSetNode {
+protected:
+  /// \brief The number of rows.
+  unsigned NumRows;
+
+  /// \brife The number of columns.
+  unsigned NumColumns;
+
+  CMMatrixType(const ASTContext &Context, TypeClass TC, bool IsReference,
+               QualType ElementType, QualType Can, unsigned NRows,
+               unsigned NCols, SourceLocation MLoc, SourceLocation LLoc,
+               SourceLocation GLoc);
+
+  friend class ASTContext;
+
+public:
+  unsigned getNumRows() const { return NumRows; }
+  unsigned getNumColumns() const { return NumColumns; }
+  unsigned getNumElements() const { return NumRows * NumColumns; }
+
+  bool isSugared() const { return false; }
+  QualType desugar() const { return QualType(this, 0); }
+
+  static bool classof(const Type *T) {
+    return T->getTypeClass() == CMMatrix ||
+           T->getTypeClass() == DependentCMMatrix;
+  }
+
+  void Profile(llvm::FoldingSetNodeID &ID) {
+    Profile(ID, isReference(), getElementType(), getNumRows(), getNumColumns(),
+            getTypeClass());
+  }
+  static void Profile(llvm::FoldingSetNodeID &ID, bool IsReference,
+                      QualType ElementType, unsigned NRows, unsigned NCols,
+                      TypeClass TypeClass) {
+    ID.AddBoolean(IsReference);
+    ID.AddPointer(ElementType.getAsOpaquePtr());
+    ID.AddInteger(NRows);
+    ID.AddInteger(NCols);
+    ID.AddInteger(TypeClass);
+  }
+};
+
+/// \brief This represents a CM vector type which has dependent components.
+class DependentCMVectorType : public CMVectorType {
+  /// \brief The number of rows.
+  Expr *SizeExpr;
+
+  DependentCMVectorType(const ASTContext &Context, bool IsReference,
+                        QualType ElementType, QualType Can, Expr *SizeExpr,
+                        SourceLocation VLoc, SourceLocation LLoc,
+                        SourceLocation GLoc);
+
+  friend class ASTContext;
+
+public:
+  Expr *getSizeExpr() const { return SizeExpr; }
+
+  // The dimension information is not avaliable.
+  bool isPlaceholder() const { return SizeExpr == 0; }
+
+  bool isSugared() const { return false; }
+  QualType desugar() const { return QualType(this, 0); }
+
+  static bool classof(const Type *T) {
+    return T->getTypeClass() == DependentCMVector;
+  }
+
+  void Profile(llvm::FoldingSetNodeID &ID) {
+    Profile(ID, Context, isReference(), getElementType(), getSizeExpr());
+  }
+
+  static void Profile(llvm::FoldingSetNodeID &ID, const ASTContext &Context,
+                      bool IsReference, QualType ElementType, Expr *SizeExpr);
+};
+
+/// \brief This represents a CM matrix type which has dependent components.
+class DependentCMMatrixType : public CMMatrixType {
+  /// \brief The number of rows.
+  Expr *NumRowExpr;
+
+  /// \brife The number of columns.
+  Expr *NumColumnExpr;
+
+  DependentCMMatrixType(const ASTContext &Context, bool IsReference,
+                        QualType ElementType, QualType Can, Expr *NRowExpr,
+                        Expr *NColExpr, SourceLocation MLoc,
+                        SourceLocation LLoc, SourceLocation GLoc);
+
+  friend class ASTContext;
+
+public:
+  Expr *getNumRowExpr() const { return NumRowExpr; }
+  Expr *getNumColumnExpr() const { return NumColumnExpr; }
+
+  // The dimension information is not avaliable.
+  bool isPlaceholder() const { return NumRowExpr == 0 || NumColumnExpr == 0; }
+
+  bool isSugared() const { return false; }
+  QualType desugar() const { return QualType(this, 0); }
+
+  static bool classof(const Type *T) {
+    return T->getTypeClass() == DependentCMMatrix;
+  }
+
+  void Profile(llvm::FoldingSetNodeID &ID) {
+    Profile(ID, Context, isReference(), getElementType(), getNumRowExpr(),
+            getNumColumnExpr());
+  }
+
+  static void Profile(llvm::FoldingSetNodeID &ID, const ASTContext &Context,
+                      bool IsReference, QualType ElementType, Expr *NumRowExpr,
+                      Expr *NumColExpr);
 };
 
 /// FunctionType - C99 6.7.5.3 - Function Declarators.  This is the common base
@@ -6386,6 +6604,47 @@ inline bool Type::isExtVectorType() const {
   return isa<ExtVectorType>(CanonicalType);
 }
 
+inline bool Type::isCMVectorType() const {
+  return isa<CMVectorType>(CanonicalType);
+}
+inline bool Type::isCMMatrixType() const {
+  return isa<CMMatrixType>(CanonicalType);
+}
+inline bool Type::isCMVectorMatrixType() const {
+  return isCMVectorType() || isCMMatrixType();
+}
+inline bool Type::isDependentCMVectorMatrixType() const {
+  return isa<DependentCMVectorType>(CanonicalType) ||
+         isa<DependentCMMatrixType>(CanonicalType);
+}
+inline bool Type::isCMBaseType() const {
+  if (const CMVectorType *T = getAs<CMVectorType>())
+    return !T->isReference();
+  if (const CMMatrixType *T = getAs<CMMatrixType>())
+    return !T->isReference();
+  return false;
+}
+inline bool Type::isCMReferenceType() const {
+  if (const CMVectorType *T = getAs<CMVectorType>())
+    return T->isReference();
+  if (const CMMatrixType *T = getAs<CMMatrixType>())
+    return T->isReference();
+  return false;
+}
+inline unsigned Type::getCMVectorMatrixSize() const {
+  if (const CMVectorType *T = getAs<CMVectorType>())
+    return T->getNumElements();
+  if (const CMMatrixType *T = getAs<CMMatrixType>())
+    return T->getNumElements();
+  return 0;
+}
+inline QualType Type::getCMVectorMatrixElementType() const {
+  if (const CMVectorType *T = getAs<CMVectorType>())
+    return T->getElementType();
+  if (const CMMatrixType *T = getAs<CMMatrixType>())
+    return T->getElementType();
+  return QualType();
+}
 inline bool Type::isDependentAddressSpaceType() const {
   return isa<DependentAddressSpaceType>(CanonicalType);
 }
@@ -6405,6 +6664,77 @@ inline bool Type::isObjCObjectOrInterfaceType() const {
 
 inline bool Type::isAtomicType() const {
   return isa<AtomicType>(CanonicalType);
+}
+
+/// \brief Determine if this type is supported as a CM vector or matrix element
+/// type. According to CM language specification Section 2.1, supported element
+/// types are:
+///
+/// (1) char, unsigned char (uchar), short, unsigned short (ushort),
+///     int, unsigned int (uint), half, float, double;
+///
+/// (2) long, unsigned long, unsigned long long (Gen 8+) are 64 bit integers;
+///
+/// (3) SurfaceIndex, SampleIndex, VmeIndex.
+///
+/// (4) FunctionPointer
+///
+inline bool Type::isCMElementType(bool AllowNonArithmetic) const {
+  if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType)) {
+     switch (BT->getKind()) {
+     default:
+       return false;
+     case BuiltinType::Char_S:
+     case BuiltinType::Char_U:
+     case BuiltinType::SChar:
+     case BuiltinType::UChar:
+     case BuiltinType::Short:
+     case BuiltinType::UShort:
+     case BuiltinType::Int:
+     case BuiltinType::UInt:
+     case BuiltinType::Half:
+     case BuiltinType::Float:
+     case BuiltinType::Double:
+     case BuiltinType::Long:
+     case BuiltinType::ULong:
+     case BuiltinType::LongLong:
+     case BuiltinType::ULongLong:
+       return true;
+     case BuiltinType::CMSurfaceIndex:
+     case BuiltinType::CMSamplerIndex:
+     case BuiltinType::CMVmeIndex:
+       return AllowNonArithmetic;
+     }
+  } else if (isFunctionPointerType())
+    return true;
+  return false;
+}
+
+// FIXME: svmptr_t is also a scalar type.
+inline bool Type::isCMScalarType() const {
+  if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType)) {
+    switch (BT->getKind()) {
+    default:
+      return false;
+    case BuiltinType::Char_S:
+    case BuiltinType::Char_U:
+    case BuiltinType::SChar:
+    case BuiltinType::UChar:
+    case BuiltinType::Short:
+    case BuiltinType::UShort:
+    case BuiltinType::Int:
+    case BuiltinType::UInt:
+    case BuiltinType::Half:
+    case BuiltinType::Float:
+    case BuiltinType::Double:
+    case BuiltinType::Long:
+    case BuiltinType::ULong:
+    case BuiltinType::LongLong:
+    case BuiltinType::ULongLong:
+      return true;
+    }
+  }
+  return false;
 }
 
 inline bool Type::isObjCQualifiedIdType() const {
@@ -6502,6 +6832,18 @@ inline bool Type::isOCLExtOpaqueType() const {
 inline bool Type::isOpenCLSpecificType() const {
   return isSamplerT() || isEventT() || isImageType() || isClkEventT() ||
          isQueueT() || isReserveIDT() || isPipeType() || isOCLExtOpaqueType();
+}
+
+inline bool Type::isCMSurfaceIndexType() const {
+  return isSpecificBuiltinType(BuiltinType::CMSurfaceIndex);
+}
+
+inline bool Type::isCMSamplerIndexType() const {
+  return isSpecificBuiltinType(BuiltinType::CMSamplerIndex);
+}
+
+inline bool Type::isCMVmeIndexType() const {
+  return isSpecificBuiltinType(BuiltinType::CMVmeIndex);
 }
 
 inline bool Type::isTemplateTypeParmType() const {

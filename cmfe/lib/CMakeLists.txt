@@ -23,3 +23,6 @@ if(CLANG_ENABLE_STATIC_ANALYZER)
   add_subdirectory(StaticAnalyzer)
 endif()
 add_subdirectory(Format)
+add_subdirectory(FrontendWrapper)
+
+

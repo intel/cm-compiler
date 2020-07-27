@@ -36,11 +36,13 @@ add_clang_library(clangSema
   SemaDeclObjC.cpp
   SemaExceptionSpec.cpp
   SemaExpr.cpp
+  SemaExprCM.cpp
   SemaExprCXX.cpp
   SemaExprMember.cpp
   SemaExprObjC.cpp
   SemaFixItUtils.cpp
   SemaInit.cpp
+  SemaInitCM.cpp
   SemaLambda.cpp
   SemaLookup.cpp
   SemaObjCProperty.cpp
@@ -56,6 +58,7 @@ add_clang_library(clangSema
   SemaTemplateInstantiateDecl.cpp
   SemaTemplateVariadic.cpp
   SemaType.cpp
+  SemaTypeCM.cpp
   TypeLocBuilder.cpp
 
   LINK_LIBS

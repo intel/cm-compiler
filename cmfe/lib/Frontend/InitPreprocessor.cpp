@@ -555,6 +555,7 @@ static void InitializeCPlusPlusFeatureTestMacros(const LangOptions &LangOpts,
 static void InitializePredefinedMacros(const TargetInfo &TI,
                                        const LangOptions &LangOpts,
                                        const FrontendOptions &FEOpts,
+                                       const TargetOptions &TOpts,
                                        MacroBuilder &Builder) {
   // Compiler version introspection macros.
   Builder.defineMacro("__llvm__");  // LLVM Backend
@@ -610,6 +611,44 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
                       Twine(getClangFullCPPVersion()) + "\"");
 
   // Initialize language-specific preprocessor defines.
+
+  // MDF CM language specific macros
+  if (LangOpts.MdfCM) {
+    Builder.defineMacro("__CM");
+    Builder.defineMacro("__VARIADIC_TEMPLATES");
+    // We define __CLANG_CM and __CMC for use in cm header files
+    Builder.defineMacro("__CLANG_CM");
+    Builder.defineMacro("__CMC");
+    // If a GenX target CPU was specified define the appropriate value
+    if (!TOpts.CPU.empty()) {
+      const char *CmTarget = llvm::StringSwitch<const char*>(TOpts.CPU)
+      .Case("HSW", "CM_GEN7_5")
+      .Case("BDW", "CM_GEN8")
+      .Case("CHV", "CM_GEN8_5")
+      .Case("SKL", "CM_GEN9")
+      .Case("BXT", "CM_GEN9")
+      .Case("KBL", "CM_GEN9_5")
+      .Case("GLK", "CM_GEN9_5")
+      .Case("ICL", "CM_GEN11")
+      .Case("ICLLP", "CM_GEN11")
+      .Case("TGLLP", "CM_GEN12")
+      .Default("");
+      Builder.defineMacro(CmTarget);
+      const char *GenXValue = llvm::StringSwitch<const char*>(TOpts.CPU)
+      .Case("HSW", "750")
+      .Case("BDW", "800")
+      .Case("CHV", "850")
+      .Case("SKL", "900")
+      .Case("BXT", "920")
+      .Case("KBL", "950")
+      .Case("GLK", "970")
+      .Case("ICL", "1100")
+      .Case("ICLLP", "1150")
+      .Case("TGLLP", "1200")
+      .Default("");
+      Builder.defineMacro("CM_GENX", GenXValue);
+    }
+  }
 
   // Standard conforming mode?
   if (!LangOpts.GNUMode && !LangOpts.MSVCCompat)
@@ -1087,7 +1126,8 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
 void clang::InitializePreprocessor(
     Preprocessor &PP, const PreprocessorOptions &InitOpts,
     const PCHContainerReader &PCHContainerRdr,
-    const FrontendOptions &FEOpts) {
+    const FrontendOptions &FEOpts,
+    const TargetOptions &TOpts) {
   const LangOptions &LangOpts = PP.getLangOpts();
   std::string PredefineBuffer;
   PredefineBuffer.reserve(4080);
@@ -1106,9 +1146,10 @@ void clang::InitializePreprocessor(
     // macros. This is not the right way to handle this.
     if ((LangOpts.CUDA || LangOpts.OpenMPIsDevice) && PP.getAuxTargetInfo())
       InitializePredefinedMacros(*PP.getAuxTargetInfo(), LangOpts, FEOpts,
-                                 Builder);
+                                 TOpts, Builder);
 
-    InitializePredefinedMacros(PP.getTargetInfo(), LangOpts, FEOpts, Builder);
+    InitializePredefinedMacros(PP.getTargetInfo(), LangOpts, FEOpts, TOpts,
+                               Builder);
 
     // Install definitions to make Objective-C++ ARC work well with various
     // C++ Standard Library implementations.

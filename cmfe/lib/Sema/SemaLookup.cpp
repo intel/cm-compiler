@@ -2724,6 +2724,11 @@ addAssociatedClassesAndNamespaces(AssociatedLookup &Result, QualType Ty) {
     case Type::Complex:
       break;
 
+    // These are fundamental types.
+    case Type::CMVector:
+    case Type::CMMatrix:
+      break;
+
     // Non-deduced auto types only get here for error cases.
     case Type::Auto:
     case Type::DeducedTemplateSpecialization:

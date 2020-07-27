@@ -66,7 +66,8 @@ class Driver {
     GCCMode,
     GXXMode,
     CPPMode,
-    CLMode
+    CLMode,
+    CMMode
   } Mode;
 
   enum SaveTempsMode {
@@ -169,8 +170,11 @@ public:
   typedef SmallVector<std::pair<types::ID, const llvm::opt::Arg *>, 16>
       InputList;
 
+  /// Whether the driver should follow MDF CM like behavior.
+  bool CCCIsCM() const { return Mode == CMMode; }
+
   /// Whether the driver should follow g++ like behavior.
-  bool CCCIsCXX() const { return Mode == GXXMode; }
+  bool CCCIsCXX() const { return Mode == GXXMode || Mode == CMMode; }
 
   /// Whether the driver is just the preprocessor.
   bool CCCIsCPP() const { return Mode == CPPMode; }

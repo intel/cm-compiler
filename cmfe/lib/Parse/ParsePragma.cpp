@@ -25,6 +25,12 @@ using namespace clang;
 
 namespace {
 
+struct PragmaCmNonstrictHandler : public PragmaHandler {
+  explicit PragmaCmNonstrictHandler() : PragmaHandler("cm_nonstrict") {}
+  void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
+                    Token &FirstToken) override;
+};
+
 struct PragmaAlignHandler : public PragmaHandler {
   explicit PragmaAlignHandler() : PragmaHandler("align") {}
   void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
@@ -261,6 +267,9 @@ struct PragmaAttributeHandler : public PragmaHandler {
 }  // end namespace
 
 void Parser::initializePragmaHandlers() {
+  CmNonstrictHandler = llvm::make_unique<PragmaCmNonstrictHandler>();
+  PP.AddPragmaHandler(CmNonstrictHandler.get());
+
   AlignHandler = llvm::make_unique<PragmaAlignHandler>();
   PP.AddPragmaHandler(AlignHandler.get());
 
@@ -382,6 +391,8 @@ void Parser::initializePragmaHandlers() {
 
 void Parser::resetPragmaHandlers() {
   // Remove the pragma handlers we installed.
+  PP.RemovePragmaHandler(CmNonstrictHandler.get());
+  CmNonstrictHandler.reset();
   PP.RemovePragmaHandler(AlignHandler.get());
   AlignHandler.reset();
   PP.RemovePragmaHandler("GCC", GCCVisibilityHandler.get());
@@ -1895,6 +1906,12 @@ static void ParseAlignPragma(Preprocessor &PP, Token &FirstTok,
   Toks[0].setAnnotationValue(reinterpret_cast<void*>(
                              static_cast<uintptr_t>(Kind)));
   PP.EnterTokenStream(Toks, /*DisableMacroExpansion=*/true);
+}
+
+void PragmaCmNonstrictHandler::HandlePragma(Preprocessor &PP,
+                                            PragmaIntroducerKind Introducer,
+                                            Token &CmNonstrictTok) {
+  PP.Diag(CmNonstrictTok.getLocation(), diag::warn_cm_pragma_cm_nonstrict_deprecated);
 }
 
 void PragmaAlignHandler::HandlePragma(Preprocessor &PP,

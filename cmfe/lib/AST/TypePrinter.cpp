@@ -255,6 +255,10 @@ bool TypePrinter::canPrefixQualifiers(const Type *T,
     case Type::DependentSizedExtVector:
     case Type::Vector:
     case Type::ExtVector:
+    case Type::CMVector:
+    case Type::CMMatrix:
+    case Type::DependentCMVector:
+    case Type::DependentCMMatrix:
     case Type::FunctionProto:
     case Type::FunctionNoProto:
     case Type::Paren:
@@ -710,6 +714,81 @@ void TypePrinter::printExtVectorAfter(const ExtVectorType *T, raw_ostream &OS) {
   OS << " __attribute__((ext_vector_type(";
   OS << T->getNumElements();
   OS << ")))";
+}
+
+void TypePrinter::printCMVectorBefore(const CMVectorType *T,
+                                      raw_ostream &OS) {
+  if (T->isReference())
+    OS << "vector_ref<";
+  else
+    OS << "vector<";
+  printBefore(T->getElementType(), OS);
+  OS << ',';
+  OS << T->getNumElements();
+  OS << '>';
+}
+
+void TypePrinter::printCMVectorAfter(const CMVectorType *T,
+                                     raw_ostream &OS) {
+  printAfter(T->getElementType(), OS);
+}
+
+void TypePrinter::printDependentCMVectorBefore(const DependentCMVectorType *T,
+                                               raw_ostream &OS) {
+  if (T->isReference())
+    OS << "vector_ref<";
+  else
+    OS << "vector<";
+  printBefore(T->getElementType(), OS);
+  OS << ',';
+  if (T->getSizeExpr())
+    T->getSizeExpr()->printPretty(OS, 0, Policy);
+  OS << '>';
+}
+
+void TypePrinter::printDependentCMVectorAfter(const DependentCMVectorType *T,
+                                              raw_ostream &OS) {
+  printAfter(T->getElementType(), OS);
+}
+
+void TypePrinter::printCMMatrixBefore(const CMMatrixType *T,
+                                      raw_ostream &OS) {
+  if (T->isReference())
+    OS << "matrix_ref<";
+  else
+    OS << "matrix<";
+  printBefore(T->getElementType(), OS);
+  OS << ',';
+  OS << T->getNumRows();
+  OS << ',';
+  OS << T->getNumColumns();
+  OS << '>';
+}
+
+void TypePrinter::printCMMatrixAfter(const CMMatrixType *T,
+                                     raw_ostream &OS) {
+  printAfter(T->getElementType(), OS);
+}
+
+void TypePrinter::printDependentCMMatrixBefore(const DependentCMMatrixType *T,
+                                               raw_ostream &OS) {
+  if (T->isReference())
+    OS << "matrix_ref<";
+  else
+    OS << "matrix<";
+  printBefore(T->getElementType(), OS);
+  OS << ',';
+  if (T->getNumRowExpr())
+    T->getNumRowExpr()->printPretty(OS, 0, Policy);
+  OS << ',';
+  if (T->getNumColumnExpr())
+    T->getNumColumnExpr()->printPretty(OS, 0, Policy);
+  OS << '>';
+}
+
+void TypePrinter::printDependentCMMatrixAfter(const DependentCMMatrixType *T,
+                                              raw_ostream &OS) {
+  printAfter(T->getElementType(), OS);
 }
 
 void

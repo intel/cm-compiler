@@ -156,6 +156,7 @@ class Parser : public CodeCompletionHandler {
   // used as type traits.
   llvm::SmallDenseMap<IdentifierInfo *, tok::TokenKind> RevertibleTypeTraits;
 
+  std::unique_ptr<PragmaHandler> CmNonstrictHandler;
   std::unique_ptr<PragmaHandler> AlignHandler;
   std::unique_ptr<PragmaHandler> GCCVisibilityHandler;
   std::unique_ptr<PragmaHandler> OptionsHandler;
@@ -650,6 +651,10 @@ private:
                              SourceLocation PragmaLocation);
   bool HandlePragmaMSInitSeg(StringRef PragmaName,
                              SourceLocation PragmaLocation);
+
+  /// Handle the annotation token produced for
+  /// #pragma cm_nonstrict...
+  void HandlePragmaCmNonstrict();
 
   /// Handle the annotation token produced for
   /// #pragma align...
@@ -1641,6 +1646,22 @@ private:
   ExprResult ParsePostfixExpressionSuffix(ExprResult LHS);
   ExprResult ParseUnaryExprOrTypeTraitExpression();
   ExprResult ParseBuiltinPrimaryExpression();
+  ExprResult ParseCMMethodExpr(ExprResult LHS);
+  ExprResult ParseCMAll(ExprResult LHS);
+  ExprResult ParseCMAny(ExprResult LHS);
+  ExprResult ParseCMColumn(ExprResult LHS);
+  ExprResult ParseCMFormat(ExprResult LHS);
+  ExprResult ParseCMGenxSelect(ExprResult LHS);
+  ExprResult ParseCMIselect(ExprResult LHS);
+  ExprResult ParseCMMerge(ExprResult LHS);
+  ExprResult ParseCMNCols(ExprResult LHS);
+  ExprResult ParseCMNElems(ExprResult LHS);
+  ExprResult ParseCMNRows(ExprResult LHS);
+  ExprResult ParseCMReplicate(ExprResult LHS);
+  ExprResult ParseCMRow(ExprResult LHS);
+  ExprResult ParseCMSelect(ExprResult LHS);
+  ExprResult ParseCMSelectAll(ExprResult LHS);
+  bool isCMMethodIdentifier(const IdentifierInfo &Id);
 
   ExprResult ParseExprAfterUnaryExprOrTypeTrait(const Token &OpTok,
                                                      bool &isCastExpr,
@@ -1660,7 +1681,10 @@ private:
   /// used for misc language extensions.
   bool ParseSimpleExpressionList(SmallVectorImpl<Expr*> &Exprs,
                                  SmallVectorImpl<SourceLocation> &CommaLocs);
-
+  /// ParseCMExpressionList - A simple comma-separated list of expressions in a
+  /// context where '>' is not considered to be an operator.
+  bool ParseCMExpressionList(SmallVectorImpl<Expr*> &Exprs,
+                             SmallVectorImpl<SourceLocation> &CommaLocs);
 
   /// ParenParseOption - Control what ParseParenExpression will parse.
   enum ParenParseOption {
@@ -2545,6 +2569,8 @@ private:
                                          SourceLocation EndLoc);
   void ParseUnderlyingTypeSpecifier(DeclSpec &DS);
   void ParseAtomicSpecifier(DeclSpec &DS);
+
+  void ParseCMTypeSpecifiers(DeclSpec &DS);
 
   ExprResult ParseAlignArgument(SourceLocation Start,
                                 SourceLocation &EllipsisLoc);

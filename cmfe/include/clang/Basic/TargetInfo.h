@@ -827,7 +827,6 @@ public:
     bool earlyClobber() { return (Flags & CI_EarlyClobber) != 0; }
     bool allowsRegister() const { return (Flags & CI_AllowsRegister) != 0; }
     bool allowsMemory() const { return (Flags & CI_AllowsMemory) != 0; }
-
     /// Return true if this output operand has a matching
     /// (tied) input operand.
     bool hasMatchingInput() const { return (Flags & CI_HasMatchingInput) != 0; }
@@ -1030,6 +1029,11 @@ public:
   /// \return  False on error (invalid CPU name).
   virtual bool setCPU(const std::string &Name) {
     return false;
+  }
+
+  virtual const std::string &getCPU() const {
+    static std::string CPU("undefined");
+    return CPU;
   }
 
   /// Fill a SmallVectorImpl with the valid values to setCPU.

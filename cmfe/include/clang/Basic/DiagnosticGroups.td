@@ -1026,6 +1026,11 @@ def SerializedDiagnostics : DiagGroup<"serialized-diagnostics">;
 // compiling CUDA C/C++ but which is not compatible with the CUDA spec.
 def CudaCompat : DiagGroup<"cuda-compat">;
 
+// MDF CM diagnostics.
+def MdfCm : DiagGroup<"mdf-cm-diagnostics">;
+def CmBoundsCheck : DiagGroup<"cm-bounds-check">;
+def GenTarget : DiagGroup<"gen-target">;
+
 // A warning group for things that will change semantics in the future.
 def FutureCompat : DiagGroup<"future-compat">;
 

@@ -22,6 +22,7 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclOpenMP.h"
 #include "clang/AST/DeclVisitor.h"
+#include "clang/AST/ExprCM.h"
 #include "clang/AST/LocInfoType.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/TemplateArgumentVisitor.h"
@@ -301,6 +302,11 @@ namespace  {
     void VisitBlockExpr(const BlockExpr *Node);
     void VisitOpaqueValueExpr(const OpaqueValueExpr *Node);
     void VisitGenericSelectionExpr(const GenericSelectionExpr *E);
+
+    // MDF CM Exprs
+    void VisitCMBoolReductionExpr(const CMBoolReductionExpr *Node);
+    void VisitCMSelectExpr(const CMSelectExpr *Node);
+    void VisitCMSizeExpr(const CMSizeExpr *Node);
 
     // C++
     void VisitLambdaExpr(const LambdaExpr *Node) {
@@ -1460,7 +1466,6 @@ void ASTDumper::VisitOMPExecutableDirective(
 //  Expr dumping methods.
 //===----------------------------------------------------------------------===//
 
-
 void ASTDumper::VisitInitListExpr(const InitListExpr *ILE) {
   if (auto *Filler = ILE->getArrayFiller()) {
     dumpStmt(Filler, "array_filler");
@@ -1499,6 +1504,18 @@ void ASTDumper::VisitGenericSelectionExpr(const GenericSelectionExpr *E) {
       dumpStmt(E->getAssocExpr(I));
     });
   }
+}
+
+void ASTDumper::VisitCMBoolReductionExpr(const CMBoolReductionExpr *Node) {
+  OS << " Kind = '" << Node->getBoolReductionKindName() << "'";
+}
+
+void ASTDumper::VisitCMSelectExpr(const CMSelectExpr *Node) {
+  OS << " Kind = '" << Node->getSelectKindName() << "'";
+}
+
+void ASTDumper::VisitCMSizeExpr(const CMSizeExpr *Node) {
+  OS << " Kind = '" << Node->getSizeExprKindName() << "'";
 }
 
 //===----------------------------------------------------------------------===//

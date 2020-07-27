@@ -1,4 +1,5 @@
 set(LLVM_LINK_COMPONENTS
+  ${LLVM_TARGETS_TO_BUILD}
   Analysis
   BitReader
   BitWriter
@@ -18,9 +19,11 @@ set(LLVM_LINK_COMPONENTS
   Passes
   ProfileData
   ScalarOpts
+  SPIRVLib
   Support
   Target
   TransformUtils
+  GenXIntrinsics
   )
 
 # In a standard Clang+LLVM build, we need to generate intrinsics before
@@ -41,6 +44,8 @@ add_clang_library(clangCodeGen
   CGAtomic.cpp
   CGBlocks.cpp
   CGBuiltin.cpp
+  CGCM.cpp
+  CGCMBuiltin.cpp
   CGCUDANV.cpp
   CGCUDARuntime.cpp
   CGCXX.cpp
@@ -83,6 +88,7 @@ add_clang_library(clangCodeGen
   CodeGenTypes.cpp
   ConstantInitBuilder.cpp
   CoverageMappingGen.cpp
+  CMImportBiF.cpp
   ItaniumCXXABI.cpp
   MacroPPCallbacks.cpp
   MicrosoftCXXABI.cpp

@@ -99,7 +99,11 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
             .Case("unroll_and_jam", "#pragma unroll_and_jam")
             .Case("nounroll_and_jam", "#pragma nounroll_and_jam")
             .Default("#pragma clang loop");
-    S.Diag(St->getBeginLoc(), diag::err_pragma_loop_precedes_nonloop) << Pragma;
+    // Emit a warning if we are compiling CM, and an error otherwise
+    if (S.getLangOpts().MdfCM)
+      S.Diag(St->getBeginLoc(), diag::warn_pragma_loop_precedes_nonloop) << Pragma;
+    else
+      S.Diag(St->getBeginLoc(), diag::err_pragma_loop_precedes_nonloop) << Pragma;
     return nullptr;
   }
 

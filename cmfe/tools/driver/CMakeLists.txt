@@ -4,6 +4,7 @@ set( LLVM_LINK_COMPONENTS
   CodeGen
   Core
   IPO
+  SPIRVLib
   AggressiveInstCombine
   InstCombine
   Instrumentation
@@ -15,6 +16,9 @@ set( LLVM_LINK_COMPONENTS
   Support
   TransformUtils
   Vectorize
+  GenXCodeGen
+  GenXInfo
+  GenXOpts
   )
 
 option(CLANG_PLUGIN_SUPPORT "Build clang with plugin support" ON)
@@ -63,7 +67,7 @@ endif()
 add_dependencies(clang clang-headers)
 
 if(NOT CLANG_LINKS_TO_CREATE)
-  set(CLANG_LINKS_TO_CREATE clang++ clang-cl clang-cpp)
+  set(CLANG_LINKS_TO_CREATE clang++ clang-cl clang-cpp cmc)
 endif()
 
 foreach(link ${CLANG_LINKS_TO_CREATE})

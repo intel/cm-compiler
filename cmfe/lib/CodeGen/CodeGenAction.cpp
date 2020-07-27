@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/CodeGen/CodeGenAction.h"
+#include "CGCM.h"
 #include "CodeGenModule.h"
 #include "CoverageMappingGen.h"
 #include "MacroPPCallbacks.h"
@@ -25,6 +26,7 @@
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/CodeGen/MachineOptimizationRemarkEmitter.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
@@ -40,8 +42,14 @@
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Support/YAMLTraits.h"
 #include "llvm/Transforms/IPO/Internalize.h"
+#include "llvm/GenXIntrinsics/GenXIntrOpts.h"
+#include "llvm/GenXIntrinsics/GenXSPIRVReaderAdaptor.h"
+#include "LLVMSPIRVLib.h"
 
+#include <fstream>
+#include <iostream>
 #include <memory>
+
 using namespace clang;
 using namespace llvm;
 
@@ -287,6 +295,37 @@ namespace clang {
       // Link each LinkModule into our module.
       if (LinkInModules())
         return;
+
+      if (!CodeGenOpts.GenXBiFName.empty()) {
+        std::unique_ptr<llvm::Module> m_GenericModule;
+        if (llvm::sys::fs::exists(CodeGenOpts.GenXBiFName))
+        {
+          llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>> FileOrErr =
+            llvm::MemoryBuffer::getFileOrSTDIN(CodeGenOpts.GenXBiFName);
+          if (!FileOrErr) {
+            Diags.Report(diag::err_cannot_open_file) << CodeGenOpts.GenXBiFName << "cannot open";
+            return;
+          }
+          llvm::Expected<std::unique_ptr<llvm::Module>> pMod =
+            llvm::getOwningLazyBitcodeModule(std::move(*FileOrErr), Ctx);
+          if (llvm::Error EC = pMod.takeError()) {
+            Diags.Report(diag::err_cannot_open_file) << CodeGenOpts.GenXBiFName << "cannot load";
+            return;
+          }
+          else
+            m_GenericModule = std::move(*pMod);
+          auto MainModule = getModule();
+          if (m_GenericModule) {
+            m_GenericModule->setDataLayout(MainModule->getDataLayout());
+            m_GenericModule->setTargetTriple(MainModule->getTargetTriple());
+            CMImportBiF(MainModule, std::move(m_GenericModule));
+          }
+        }
+        else {
+          Diags.Report(diag::err_cannot_open_file) << CodeGenOpts.GenXBiFName << "does not exist";
+          return;
+        }
+      }
 
       EmbedBitcode(getModule(), CodeGenOpts, llvm::MemoryBufferRef());
 
@@ -843,6 +882,8 @@ GetOutputStream(CompilerInstance &CI, StringRef InFile, BackendAction Action) {
     return CI.createNullOutputFile();
   case Backend_EmitObj:
     return CI.createDefaultOutputFile(true, InFile, "o");
+  case Backend_EmitSPIRV:
+    return CI.createDefaultOutputFile(true, InFile, "spv");
   }
 
   llvm_unreachable("Invalid action!");
@@ -1002,6 +1043,56 @@ std::unique_ptr<llvm::Module> CodeGenAction::loadModule(MemoryBufferRef MBRef) {
 }
 
 void CodeGenAction::ExecuteAction() {
+  // If this is an SPIRV file, we have to treat it specially.
+  if (getCurrentFileKind().getLanguage() == InputKind::SPIRV) {
+    BackendAction BA = static_cast<BackendAction>(Act);
+    CompilerInstance &CI = getCompilerInstance();
+    std::unique_ptr<raw_pwrite_stream> OS =
+      GetOutputStream(CI, getCurrentFile(), BA);
+    if (BA != Backend_EmitNothing && !OS)
+      return;
+
+    LLVMContext Context;
+    std::ifstream IFS(getCurrentFile().str(), std::ios::binary);
+    llvm::Module *M;
+    std::string Err;
+
+    if (!readSpirv(*VMContext, IFS, M, Err)) {
+      return;
+    }
+
+    // Prepare IR for further transformations
+    legacy::PassManager PerModulePasses;
+    PerModulePasses.add(createGenXSPIRVReaderAdaptorPass());
+    PerModulePasses.add(createGenXRestoreIntrAttrPass());
+    PerModulePasses.run(*M);
+
+    TheModule.reset(M);
+
+    const TargetOptions &TargetOpts = CI.getTargetOpts();
+    if (TheModule->getTargetTriple() != TargetOpts.Triple) {
+      CI.getDiagnostics().Report(SourceLocation(),
+        diag::warn_fe_override_module)
+        << TargetOpts.Triple;
+      TheModule->setTargetTriple(TargetOpts.Triple);
+    }
+    // need to force the following option for CM-specific pass to kick in
+    StringRef TargetTriple(M->getTargetTriple());
+    if (TargetTriple.startswith("genx")) {
+      CI.getLangOpts().MdfCM = 1;
+    }
+
+    LLVMContext &Ctx = TheModule->getContext();
+    Ctx.setInlineAsmDiagnosticHandler(BitcodeInlineAsmDiagHandler,
+      &CI.getDiagnostics());
+
+    EmitBackendOutput(CI.getDiagnostics(), CI.getHeaderSearchOpts(),
+      CI.getCodeGenOpts(), TargetOpts, CI.getLangOpts(),
+      CI.getTarget().getDataLayout(), TheModule.get(), BA,
+      std::move(OS));
+    return;
+  }
+
   // If this is an IR file, we have to treat it specially.
   if (getCurrentFileKind().getLanguage() == InputKind::LLVM_IR) {
     BackendAction BA = static_cast<BackendAction>(Act);
@@ -1073,3 +1164,7 @@ EmitCodeGenOnlyAction::EmitCodeGenOnlyAction(llvm::LLVMContext *_VMContext)
 void EmitObjAction::anchor() { }
 EmitObjAction::EmitObjAction(llvm::LLVMContext *_VMContext)
   : CodeGenAction(Backend_EmitObj, _VMContext) {}
+
+void EmitSPIRVAction::anchor() { }
+EmitSPIRVAction::EmitSPIRVAction(llvm::LLVMContext *_VMContext)
+  : CodeGenAction(Backend_EmitSPIRV, _VMContext) {}

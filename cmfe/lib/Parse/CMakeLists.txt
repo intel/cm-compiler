@@ -10,6 +10,7 @@ add_clang_library(clangParse
   ParseDecl.cpp
   ParseDeclCXX.cpp
   ParseExpr.cpp
+  ParseExprCM.cpp
   ParseExprCXX.cpp
   ParseInit.cpp
   ParseObjc.cpp

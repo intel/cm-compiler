@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprCM.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
@@ -137,6 +138,7 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
     // FIXME: ObjC++0x might have different rules
   case Expr::ObjCIvarRefExprClass:
   case Expr::FunctionParmPackExprClass:
+  case Expr::CMFormatExprClass:
   case Expr::MSPropertyRefExprClass:
   case Expr::MSPropertySubscriptExprClass:
   case Expr::OMPArraySectionExprClass:
@@ -187,6 +189,9 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
   case Expr::AsTypeExprClass:
   case Expr::ObjCIndirectCopyRestoreExprClass:
   case Expr::AtomicExprClass:
+  case Expr::CMBoolReductionExprClass:
+  case Expr::CMMergeExprClass:
+  case Expr::CMSizeExprClass:
   case Expr::CXXFoldExprClass:
   case Expr::ArrayInitLoopExprClass:
   case Expr::ArrayInitIndexExprClass:
@@ -229,6 +234,11 @@ static Cl::Kinds ClassifyInternal(ASTContext &Ctx, const Expr *E) {
     // Member access is complex.
   case Expr::MemberExprClass:
     return ClassifyMemberExpr(Ctx, cast<MemberExpr>(E));
+
+  case Expr::CMSelectExprClass:
+    // iselect / replicate returns a prvalue, otherwise lvalue.
+    return cast<CMSelectExpr>(E)->isReplicate() ||
+           cast<CMSelectExpr>(E)->isISelect() ? Cl::CL_PRValue : Cl::CL_LValue;
 
   case Expr::UnaryOperatorClass:
     switch (cast<UnaryOperator>(E)->getOpcode()) {

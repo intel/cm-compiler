@@ -267,6 +267,22 @@ void ASTTypeWriter::VisitExtVectorType(const ExtVectorType *T) {
   Code = TYPE_EXT_VECTOR;
 }
 
+void ASTTypeWriter::VisitCMVectorType(const CMVectorType *T) {
+  llvm_unreachable("not implemented yet");
+}
+
+void ASTTypeWriter::VisitCMMatrixType(const CMMatrixType *T) {
+  llvm_unreachable("not implemented yet");
+}
+
+void ASTTypeWriter::VisitDependentCMVectorType(const DependentCMVectorType *T) {
+  llvm_unreachable("not implemented yet");
+}
+
+void ASTTypeWriter::VisitDependentCMMatrixType(const DependentCMMatrixType *T) {
+  llvm_unreachable("not implemented yet");
+}
+
 void ASTTypeWriter::VisitFunctionType(const FunctionType *T) {
   Record.AddTypeRef(T->getReturnType());
   FunctionType::ExtInfo C = T->getExtInfo();
@@ -692,6 +708,20 @@ void TypeLocWriter::VisitDependentVectorTypeLoc(
 void TypeLocWriter::VisitExtVectorTypeLoc(ExtVectorTypeLoc TL) {
   Record.AddSourceLocation(TL.getNameLoc());
 }
+
+void TypeLocWriter::VisitCMVectorTypeLoc(CMVectorTypeLoc TL) {
+  llvm_unreachable("not implemented yet");
+}
+void TypeLocWriter::VisitCMMatrixTypeLoc(CMMatrixTypeLoc TL) {
+  llvm_unreachable("not implemented yet");
+}
+void TypeLocWriter::VisitDependentCMVectorTypeLoc(DependentCMVectorTypeLoc TL) {
+  llvm_unreachable("not implemented yet");
+}
+void TypeLocWriter::VisitDependentCMMatrixTypeLoc(DependentCMMatrixTypeLoc TL) {
+  llvm_unreachable("not implemented yet");
+}
+
 
 void TypeLocWriter::VisitFunctionTypeLoc(FunctionTypeLoc TL) {
   Record.AddSourceLocation(TL.getLocalRangeBegin());

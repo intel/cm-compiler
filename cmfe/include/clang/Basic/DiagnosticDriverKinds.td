@@ -323,6 +323,11 @@ def err_test_module_file_extension_format : Error<
 def warn_drv_invoking_fallback : Warning<"falling back to %0">,
   InGroup<Fallback>;
 
+def warn_cm_iga_enabled : Warning<
+  "IGA has been enabled by the ENABLE_IGA environment variable">;
+def warn_cm_ignored_flag : Warning<
+  "'%0' is ignored">, InGroup<OptionIgnored>;
+
 def warn_slash_u_filename : Warning<"'/U%0' treated as the '/U' option">,
   InGroup<DiagGroup<"slash-u-filename">>;
 def note_use_dashdash : Note<"Use '--' to treat subsequent arguments as filenames">;

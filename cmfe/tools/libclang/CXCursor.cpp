@@ -288,6 +288,14 @@ CXCursor cxcursor::MakeCXCursor(const Stmt *S, const Decl *Parent,
     K = CXCursor_UnexposedExpr;
     break;
 
+  case Stmt::CMSelectExprClass:
+  case Stmt::CMBoolReductionExprClass:
+  case Stmt::CMFormatExprClass:
+  case Stmt::CMMergeExprClass:
+  case Stmt::CMSizeExprClass:
+    K = CXCursor_UnexposedExpr;
+    break;
+
   case Stmt::OpaqueValueExprClass:
     if (Expr *Src = cast<OpaqueValueExpr>(S)->getSourceExpr())
       return MakeCXCursor(Src, Parent, TU, RegionOfInterest);

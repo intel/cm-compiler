@@ -2058,6 +2058,20 @@ void MicrosoftCXXNameMangler::mangleType(const BuiltinType *T, Qualifiers,
     break;
 #include "clang/Basic/OpenCLExtensionTypes.def"
 
+  // FIXME: define the mangling scheme.
+  case BuiltinType::CMSurfaceIndex:
+    Out << "PA";
+    mangleArtificialTagType(TTK_Struct, "cm_surface_index");
+    break;
+  case BuiltinType::CMSamplerIndex:
+    Out << "PA";
+    mangleArtificialTagType(TTK_Struct, "cm_sampler_index");
+    break;
+  case BuiltinType::CMVmeIndex:
+    Out << "PA";
+    mangleArtificialTagType(TTK_Struct, "cm_vme_index");
+    break;
+
   case BuiltinType::NullPtr:
     Out << "$$T";
     break;
@@ -2708,6 +2722,26 @@ void MicrosoftCXXNameMangler::mangleType(const DependentSizedExtVectorType *T,
     "cannot mangle this dependent-sized extended vector type yet");
   Diags.Report(Range.getBegin(), DiagID)
     << Range;
+}
+
+void MicrosoftCXXNameMangler::mangleType(const CMVectorType *T,
+                                         Qualifiers Quals, SourceRange Range) {
+  llvm_unreachable("not implemented yet");
+}
+
+void MicrosoftCXXNameMangler::mangleType(const CMMatrixType *T,
+                                         Qualifiers Quals, SourceRange Range) {
+  llvm_unreachable("not implemented yet");
+}
+
+void MicrosoftCXXNameMangler::mangleType(const DependentCMVectorType *T,
+                                         Qualifiers Quals, SourceRange Range) {
+  llvm_unreachable("not implemented yet");
+}
+
+void MicrosoftCXXNameMangler::mangleType(const DependentCMMatrixType *T,
+                                         Qualifiers Quals, SourceRange Range) {
+  llvm_unreachable("not implemented yet");
 }
 
 void MicrosoftCXXNameMangler::mangleType(const DependentAddressSpaceType *T,

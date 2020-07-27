@@ -125,4 +125,3 @@ Features not supported or with limited support for Cuda devices
   math functions is not implemented yet.
 
 - Debug information for OpenMP target regions is not supported yet.
-
