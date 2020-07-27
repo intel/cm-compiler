@@ -359,6 +359,11 @@ bool Declarator::isDeclarationOfFunction() const {
     case TST_unspecified:
     case TST_void:
     case TST_wchar:
+    case TST_cm_vector:
+    case TST_cm_matrix:
+    case TST_SurfaceIndex:
+    case TST_SamplerIndex:
+    case TST_VmeIndex:
 #define GENERIC_IMAGE_TYPE(ImgType, Id) case TST_##ImgType##_t:
 #include "clang/Basic/OpenCLImageTypes.def"
       return false;
@@ -556,6 +561,11 @@ const char *DeclSpec::getSpecifierName(DeclSpec::TST T,
   case DeclSpec::TST_underlyingType: return "__underlying_type";
   case DeclSpec::TST_unknown_anytype: return "__unknown_anytype";
   case DeclSpec::TST_atomic: return "_Atomic";
+  case DeclSpec::TST_cm_vector: return "vector";
+  case DeclSpec::TST_cm_matrix: return "matrix";
+  case DeclSpec::TST_SurfaceIndex: return "SurfaceIndex";
+  case DeclSpec::TST_SamplerIndex: return "SamplerIndex";
+  case DeclSpec::TST_VmeIndex: return "VmeIndex";
 #define GENERIC_IMAGE_TYPE(ImgType, Id) \
   case DeclSpec::TST_##ImgType##_t: \
     return #ImgType "_t";
@@ -883,6 +893,13 @@ bool DeclSpec::SetTypeQual(TQ T, SourceLocation Loc, const char *&PrevSpec,
     if (Lang.C99)
       IsExtension = false;
     return BadSpecifier(T, T, PrevSpec, DiagID, IsExtension);
+  }
+
+  // MDF Cm permits but ignores atomic and volatile qualifiers.
+  if (Lang.MdfCM && (T == TQ_volatile || T == TQ_atomic)) {
+    PrevSpec = DeclSpec::getSpecifierName(T);
+    DiagID = diag::warn_cm_qualifier_ignored;
+    return true;
   }
 
   return SetTypeQual(T, Loc);
@@ -1327,6 +1344,22 @@ bool DeclSpec::isMissingDeclaratorOk() {
   TST tst = getTypeSpecType();
   return isDeclRep(tst) && getRepAsDecl() != nullptr &&
     StorageClassSpec != DeclSpec::SCS_typedef;
+}
+
+bool DeclSpec::SetTypeCMType(CMTypeKind TK, SourceLocation Loc,
+                             SourceLocation LessLoc, ParsedType Ty, Expr *Size,
+                             SourceLocation GreaterLoc) {
+  TypeSpecType = TST_cm_vector;
+  CMTypeDesc = CMParsedType(TK, Ty, Size, 0, Loc, LessLoc, GreaterLoc);
+  return false;
+}
+
+bool DeclSpec::SetTypeCMType(CMTypeKind TK, SourceLocation Loc,
+                             SourceLocation LessLoc, ParsedType Ty, Expr *NRows,
+                             Expr *NColumns, SourceLocation GreaterLoc) {
+  TypeSpecType = TST_cm_matrix;
+  CMTypeDesc = CMParsedType(TK, Ty, NRows, NColumns, Loc, LessLoc, GreaterLoc);
+  return false;
 }
 
 void UnqualifiedId::setOperatorFunctionId(SourceLocation OperatorLoc,

@@ -698,6 +698,11 @@ llvm::DIType *CGDebugInfo::CreateType(const BuiltinType *BT) {
     return getOrCreateStructPtrType("opencl_" #ExtType, Id##Ty);
 #include "clang/Basic/OpenCLExtensionTypes.def"
 
+  case BuiltinType::CMSurfaceIndex:
+  case BuiltinType::CMSamplerIndex:
+  case BuiltinType::CMVmeIndex:
+    Encoding = llvm::dwarf::DW_ATE_unsigned;
+    break;
   case BuiltinType::UChar:
   case BuiltinType::Char_U:
     Encoding = llvm::dwarf::DW_ATE_unsigned_char;
@@ -2510,6 +2515,34 @@ llvm::DIType *CGDebugInfo::CreateType(const VectorType *Ty,
   return DBuilder.createVectorType(Size, Align, ElementTy, SubscriptArray);
 }
 
+llvm::DIType *CGDebugInfo::CreateType(const CMVectorType *Ty,
+                                      llvm::DIFile *Unit) {
+  llvm::DIType *ElementTy = getOrCreateType(Ty->getElementType(), Unit);
+  int64_t Count = Ty->getNumElements();
+
+  llvm::Metadata *Subscript = DBuilder.getOrCreateSubrange(0, Count);
+  llvm::DINodeArray SubscriptArray = DBuilder.getOrCreateArray(Subscript);
+
+  uint64_t Size = CGM.getContext().getTypeSize(Ty);
+  auto Align = getTypeAlignIfRequired(Ty, CGM.getContext());
+
+  return DBuilder.createVectorType(Size, Align, ElementTy, SubscriptArray);
+}
+
+llvm::DIType *CGDebugInfo::CreateType(const CMMatrixType *Ty,
+                                      llvm::DIFile *Unit) {
+  llvm::DIType *ElementTy = getOrCreateType(Ty->getElementType(), Unit);
+  int64_t Count = Ty->getNumElements();
+
+  llvm::Metadata *Subscript = DBuilder.getOrCreateSubrange(0, Count);
+  llvm::DINodeArray SubscriptArray = DBuilder.getOrCreateArray(Subscript);
+
+  uint64_t Size = CGM.getContext().getTypeSize(Ty);
+  auto Align = getTypeAlignIfRequired(Ty, CGM.getContext());
+
+  return DBuilder.createVectorType(Size, Align, ElementTy, SubscriptArray);
+}
+
 llvm::DIType *CGDebugInfo::CreateType(const ArrayType *Ty, llvm::DIFile *Unit) {
   uint64_t Size;
   uint32_t Align;
@@ -2893,6 +2926,10 @@ llvm::DIType *CGDebugInfo::CreateTypeNode(QualType Ty, llvm::DIFile *Unit) {
   case Type::ExtVector:
   case Type::Vector:
     return CreateType(cast<VectorType>(Ty), Unit);
+  case Type::CMVector:
+    return CreateType(cast<CMVectorType>(Ty), Unit);
+  case Type::CMMatrix:
+    return CreateType(cast<CMMatrixType>(Ty), Unit);
   case Type::ObjCObjectPointer:
     return CreateType(cast<ObjCObjectPointerType>(Ty), Unit);
   case Type::ObjCObject:

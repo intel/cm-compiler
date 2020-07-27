@@ -78,6 +78,11 @@ namespace clang {
     TST_auto_type,        // __auto_type extension
     TST_unknown_anytype,  // __unknown_anytype extension
     TST_atomic,           // C11 _Atomic
+    TST_cm_vector,        // CM vector
+    TST_cm_matrix,        // CM matrix
+    TST_SurfaceIndex,     // CM SurfaceIndex
+    TST_SamplerIndex,     // CM SamplerIndex
+    TST_VmeIndex,         // CM VmeIndex
 #define GENERIC_IMAGE_TYPE(ImgType, Id) TST_##ImgType##_t, // OpenCL image types
 #include "clang/Basic/OpenCLImageTypes.def"
     TST_error // erroneous type

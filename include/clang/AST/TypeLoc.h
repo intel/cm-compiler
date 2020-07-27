@@ -1756,6 +1756,28 @@ class ComplexTypeLoc : public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
                                                         ComplexType> {
 };
 
+class CMVectorTypeLoc : public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
+                                                         CMVectorTypeLoc,
+                                                         CMVectorType> {
+};
+
+class CMMatrixTypeLoc : public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
+                                                         CMMatrixTypeLoc,
+                                                         CMMatrixType> {
+};
+
+class DependentCMVectorTypeLoc
+    : public InheritingConcreteTypeLoc<CMVectorTypeLoc,
+                                       DependentCMVectorTypeLoc,
+                                       DependentCMVectorType> {
+};
+
+class DependentCMMatrixTypeLoc
+    : public InheritingConcreteTypeLoc<CMMatrixTypeLoc,
+                                       DependentCMMatrixTypeLoc,
+                                       DependentCMMatrixType> {
+};
+
 struct TypeofLocInfo {
   SourceLocation TypeofLoc;
   SourceLocation LParenLoc;

@@ -1354,6 +1354,15 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
       case DeclSpec::TSW_longlong:
         Result = Context.LongLongTy;
 
+        // The 'long long' type is not supported by all Gen targets.
+        if (!S.Context.getTargetInfo().hasFeature("longlong")) {
+          const SourceManager &SM = S.getSourceManager();
+          if (!SM.isInSystemHeader(DeclLoc))
+            S.Diag(DS.getTypeSpecWidthLoc(),
+                   diag::warn_cm_target_doesnt_support_type)
+                << "long long" << S.Context.getTargetInfo().getCPU();
+        }
+
         // 'long long' is a C99 or C++11 feature.
         if (!S.getLangOpts().C99) {
           if (S.getLangOpts().CPlusPlus)
@@ -1372,6 +1381,15 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
       case DeclSpec::TSW_long:        Result = Context.UnsignedLongTy; break;
       case DeclSpec::TSW_longlong:
         Result = Context.UnsignedLongLongTy;
+
+        // The 'long long' type is not supported by all Gen targets.
+        if (!S.Context.getTargetInfo().hasFeature("longlong")) {
+          const SourceManager &SM = S.getSourceManager();
+          if (!SM.isInSystemHeader(DeclLoc))
+            S.Diag(DS.getTypeSpecWidthLoc(),
+                   diag::warn_cm_target_doesnt_support_type)
+                << "long long" << S.Context.getTargetInfo().getCPU();
+        }
 
         // 'long long' is a C99 or C++11 feature.
         if (!S.getLangOpts().C99) {
@@ -1455,6 +1473,16 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
       Result = Context.LongDoubleTy;
     else
       Result = Context.DoubleTy;
+
+    // The 'double' type is not supported by all Gen targets.
+    if (!S.Context.getTargetInfo().hasFeature("double")) {
+      const SourceManager &SM = S.getSourceManager();
+      if (!SM.isInSystemHeader(DeclLoc))
+        S.Diag(DS.getTypeSpecTypeLoc(),
+               diag::warn_cm_target_doesnt_support_type)
+            << "double" << S.Context.getTargetInfo().getCPU();
+    }
+
     break;
   case DeclSpec::TST_float128:
     if (!S.Context.getTargetInfo().hasFloat128Type())
@@ -1583,6 +1611,44 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
     }
     break;
 
+  case DeclSpec::TST_cm_vector: {
+    const DeclSpec::CMParsedType &Desc = DS.getCMTypeDesc();
+    TypeSourceInfo *TInfo = 0;
+    QualType EltTy = S.GetTypeFromParser(Desc.ElementType, &TInfo);
+
+    Result = S.BuildCMVectorType(Desc.isReference(), EltTy, Desc.First,
+                                 Desc.VMLoc, Desc.LessLoc, Desc.GreaterLoc);
+    if (Result.isNull()) {
+      Result = Context.IntTy;
+      declarator.setInvalidType(true);
+    }
+  } break;
+
+  case DeclSpec::TST_cm_matrix: {
+    const DeclSpec::CMParsedType &Desc = DS.getCMTypeDesc();
+    TypeSourceInfo *TInfo = 0;
+    QualType EltTy = S.GetTypeFromParser(Desc.ElementType, &TInfo);
+
+    Result = S.BuildCMMatrixType(Desc.isReference(), EltTy, Desc.First,
+                                 Desc.Second, Desc.VMLoc, Desc.LessLoc,
+                                 Desc.GreaterLoc);
+    if (Result.isNull()) {
+      Result = Context.IntTy;
+      declarator.setInvalidType(true);
+    }
+   } break;
+
+  case DeclSpec::TST_SurfaceIndex:
+    Result = Context.CMSurfaceIndexTy;
+    break;
+
+  case DeclSpec::TST_SamplerIndex:
+    Result = Context.CMSamplerIndexTy;
+    break;
+
+  case DeclSpec::TST_VmeIndex:
+    Result = Context.CMVmeIndexTy;
+    break;
 #define GENERIC_IMAGE_TYPE(ImgType, Id)                                        \
   case DeclSpec::TST_##ImgType##_t:                                            \
     switch (getImageAccess(DS.getAttributes())) {                              \

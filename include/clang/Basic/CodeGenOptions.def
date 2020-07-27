@@ -28,6 +28,13 @@ CODEGENOPT(Name, Bits, Default)
 CODEGENOPT(Name, Bits, Default)
 #endif
 
+CODEGENOPT(EmitVLoadStore, 1, 0) ///< MDF-CM: Emit load/store intrinsic calls
+                                 ///< for pass-by-ref arguments
+CODEGENOPT(InitializeCMGlobals, 1, 0)    ///< MDF-CM: Initialize CM global variables.
+CODEGENOPT(EmitCMGlobalsAsVolatile, 1, 0)    ///< MDF-CM: Make CM global variables volatile.
+CODEGENOPT(ReverseCMKernelList, 1, 0)    ///< MDF-CM: Emit kernels asm name in reversed order.
+CODEGENOPT(EmitCmOCL, 1, 0)              ///< MDF-CM: Emit CM kernels to run on OpenCL runtime.
+
 CODEGENOPT(DisableIntegratedAS, 1, 0) ///< -no-integrated-as
 ENUM_CODEGENOPT(CompressDebugSections, llvm::DebugCompressionType, 2,
                 llvm::DebugCompressionType::None)
@@ -135,6 +142,9 @@ CODEGENOPT(FatalWarnings     , 1, 0) ///< Set when -Wa,--fatal-warnings is
 CODEGENOPT(EnableSegmentedStacks , 1, 0) ///< Set when -fsplit-stack is enabled.
 CODEGENOPT(NoImplicitFloat   , 1, 0) ///< Set when -mno-implicit-float is enabled.
 CODEGENOPT(NoInfsFPMath      , 1, 0) ///< Assume FP arguments, results not +-Inf.
+CODEGENOPT(NoInline          , 1, 0) ///< Set when -fno-inline is enabled. 
+                                     ///< Disables use of the inline keyword.
+CODEGENOPT(ForceNoInline, 1, 1) ///< Set noinline as the default attribute
 CODEGENOPT(NoSignedZeros     , 1, 0) ///< Allow ignoring the signedness of FP zero
 CODEGENOPT(NullPointerIsValid , 1, 0) ///< Assume Null pointer deference is defined.
 CODEGENOPT(Reassociate       , 1, 0) ///< Allow reassociation of FP math ops
@@ -226,6 +236,7 @@ CODEGENOPT(StrictEnums       , 1, 0) ///< Optimize based on strict enum definiti
 CODEGENOPT(StrictVTablePointers, 1, 0) ///< Optimize based on the strict vtable pointers
 CODEGENOPT(TimePasses        , 1, 0) ///< Set when -ftime-report is enabled.
 CODEGENOPT(UnrollLoops       , 1, 0) ///< Control whether loops are unrolled.
+CODEGENOPT(NoUnrollPragmalessLoops, 1, 0) ///< Disable unrolling of pragma-less loops.
 CODEGENOPT(RerollLoops       , 1, 0) ///< Control whether loops are rerolled.
 CODEGENOPT(NoUseJumpTables   , 1, 0) ///< Set when -fno-jump-tables is enabled.
 CODEGENOPT(UnsafeFPMath      , 1, 0) ///< Allow unsafe floating point optzns.

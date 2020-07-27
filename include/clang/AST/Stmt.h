@@ -301,6 +301,7 @@ protected:
     friend class OverloadExpr; // ctor
     friend class ParenListExpr; // ctor
     friend class PseudoObjectExpr; // ctor
+    friend class CMMemberExpr; // ctor
     friend class ShuffleVectorExpr; // ctor
 
     unsigned : NumStmtBits;

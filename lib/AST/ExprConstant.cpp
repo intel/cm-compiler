@@ -39,6 +39,7 @@
 #include "clang/AST/ASTLambda.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprCM.h"
 #include "clang/AST/OSLog.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/StmtVisitor.h"
@@ -7702,6 +7703,9 @@ EvaluateBuiltinClassifyType(QualType T, const LangOptions &LangOpts) {
     case BuiltinType::ObjCId:
     case BuiltinType::ObjCClass:
     case BuiltinType::ObjCSel:
+    case BuiltinType::CMSurfaceIndex:
+    case BuiltinType::CMSamplerIndex:
+    case BuiltinType::CMVmeIndex:
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
     case BuiltinType::Id:
 #include "clang/Basic/OpenCLImageTypes.def"
@@ -7751,6 +7755,8 @@ EvaluateBuiltinClassifyType(QualType T, const LangOptions &LangOpts) {
   case Type::BlockPointer:
   case Type::Vector:
   case Type::ExtVector:
+  case Type::CMMatrix:
+  case Type::CMVector:
   case Type::ObjCObject:
   case Type::ObjCInterface:
   case Type::ObjCObjectPointer:
@@ -9720,6 +9726,9 @@ bool IntExprEvaluator::VisitCastExpr(const CastExpr *E) {
   case CK_IntegralToPointer:
   case CK_ToVoid:
   case CK_VectorSplat:
+  case CK_CMBaseToReference:
+  case CK_CMReferenceToBase:
+  case CK_CMVectorMatrixSplat:
   case CK_IntegralToFloating:
   case CK_FloatingCast:
   case CK_CPointerToObjCPointerCast:
@@ -10254,6 +10263,9 @@ bool ComplexExprEvaluator::VisitCastExpr(const CastExpr *E) {
   case CK_PointerToBoolean:
   case CK_ToVoid:
   case CK_VectorSplat:
+  case CK_CMBaseToReference:
+  case CK_CMReferenceToBase:
+  case CK_CMVectorMatrixSplat:
   case CK_IntegralCast:
   case CK_BooleanToSignedIntegral:
   case CK_IntegralToBoolean:
@@ -11159,6 +11171,11 @@ static ICEDiag CheckICE(const Expr* E, const ASTContext &Ctx) {
   case Expr::ArraySubscriptExprClass:
   case Expr::OMPArraySectionExprClass:
   case Expr::MemberExprClass:
+  case Expr::CMSelectExprClass:
+  case Expr::CMBoolReductionExprClass:      // TODO: could be ICE in some cases - future optimization
+  case Expr::CMFormatExprClass:
+  case Expr::CMMergeExprClass:
+  case Expr::CMSizeExprClass:
   case Expr::CompoundAssignOperatorClass:
   case Expr::CompoundLiteralExprClass:
   case Expr::ExtVectorElementExprClass:

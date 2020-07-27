@@ -255,6 +255,73 @@ VectorType::VectorType(TypeClass tc, QualType vecType, unsigned nElements,
   VectorTypeBits.NumElements = nElements;
 }
 
+CMVectorType::CMVectorType(const ASTContext &Context, TypeClass TC,
+                           bool IsReference, QualType ElementType, QualType Can,
+                           unsigned NumElts, SourceLocation VLoc,
+                           SourceLocation LLoc, SourceLocation GLoc)
+    : Type(TC, Can, ElementType->isDependentType(),
+           ElementType->isInstantiationDependentType(),
+           ElementType->isVariablyModifiedType(),
+           ElementType->containsUnexpandedParameterPack()),
+      CMVectorTypeCommon(Context, IsReference, ElementType, VLoc, LLoc, GLoc),
+      NumElements(NumElts) {}
+
+CMMatrixType::CMMatrixType(const ASTContext &Context, TypeClass TC,
+                           bool IsReference, QualType ElementType, QualType Can,
+                           unsigned NRows, unsigned NCols, SourceLocation MLoc,
+                           SourceLocation LLoc, SourceLocation GLoc)
+    : Type(TC, Can, ElementType->isDependentType(),
+           ElementType->isInstantiationDependentType(),
+           ElementType->isVariablyModifiedType(),
+           ElementType->containsUnexpandedParameterPack()),
+      CMVectorTypeCommon(Context, IsReference, ElementType, MLoc, LLoc, GLoc),
+      NumRows(NRows), NumColumns(NCols) {}
+
+DependentCMVectorType::DependentCMVectorType(
+    const ASTContext &Context, bool IsReference, QualType ElementType,
+    QualType Can, Expr *SizeExpr, SourceLocation VLoc, SourceLocation LLoc,
+    SourceLocation GLoc)
+    : CMVectorType(Context, DependentCMVector, IsReference, ElementType, Can, 0,
+                   VLoc, LLoc, GLoc),
+      SizeExpr(SizeExpr) {
+  setDependent();
+  setInstantiationDependent();
+  if (SizeExpr && SizeExpr->containsUnexpandedParameterPack())
+    setContainsUnexpandedParameterPack();
+}
+
+DependentCMMatrixType::DependentCMMatrixType(
+    const ASTContext &Context, bool IsReference, QualType ElementType,
+    QualType Can, Expr *NRowExpr, Expr *NColExpr, SourceLocation MLoc,
+    SourceLocation LLoc, SourceLocation GLoc)
+    : CMMatrixType(Context, DependentCMMatrix, IsReference, ElementType, Can, 0,
+                   0, MLoc, LLoc, GLoc),
+      NumRowExpr(NRowExpr), NumColumnExpr(NColExpr) {
+  setDependent();
+  setInstantiationDependent();
+  if ((NRowExpr && NRowExpr->containsUnexpandedParameterPack()) ||
+      (NColExpr && NColExpr->containsUnexpandedParameterPack()))
+    setContainsUnexpandedParameterPack();
+}
+
+void DependentCMVectorType::Profile(llvm::FoldingSetNodeID &ID,
+                                    const ASTContext &Context, bool IsReference,
+                                    QualType ElementType, Expr *SizeExpr) {
+  ID.AddBoolean(IsReference);
+  ID.AddPointer(ElementType.getAsOpaquePtr());
+  if (SizeExpr) SizeExpr->Profile(ID, Context, true);
+}
+
+void DependentCMMatrixType::Profile(llvm::FoldingSetNodeID &ID,
+                                    const ASTContext &Context, bool IsReference,
+                                    QualType ElementType, Expr *NRowExpr,
+                                    Expr *NColExpr) {
+  ID.AddBoolean(IsReference);
+  ID.AddPointer(ElementType.getAsOpaquePtr());
+  if (NRowExpr) NRowExpr->Profile(ID, Context, true);
+  if (NColExpr) NColExpr->Profile(ID, Context, true);
+}
+
 /// getArrayElementTypeNoTypeQual - If this is an array type, return the
 /// element type of the array, potentially with type qualifiers missing.
 /// This method should never be used when type qualifiers are meaningful.
@@ -1733,6 +1800,10 @@ bool Type::hasAutoForTrailingReturnType() const {
 bool Type::hasIntegerRepresentation() const {
   if (const auto *VT = dyn_cast<VectorType>(CanonicalType))
     return VT->getElementType()->isIntegerType();
+  if (const CMVectorType *VT =  dyn_cast<CMVectorType>(CanonicalType))
+    return VT->getElementType()->isIntegerType();
+  if (const CMMatrixType *MT =  dyn_cast<CMMatrixType>(CanonicalType))
+    return MT->getElementType()->isIntegerType();
   else
     return isIntegerType();
 }
@@ -1874,6 +1945,10 @@ bool Type::isSignedIntegerOrEnumerationType() const {
 bool Type::hasSignedIntegerRepresentation() const {
   if (const auto *VT = dyn_cast<VectorType>(CanonicalType))
     return VT->getElementType()->isSignedIntegerOrEnumerationType();
+  else if (const CMVectorType *VT = dyn_cast<CMVectorType>(CanonicalType))
+    return VT->getElementType()->isSignedIntegerOrEnumerationType();
+  else if (const CMMatrixType *VT = dyn_cast<CMMatrixType>(CanonicalType))
+    return VT->getElementType()->isSignedIntegerOrEnumerationType();
   else
     return isSignedIntegerOrEnumerationType();
 }
@@ -1914,6 +1989,10 @@ bool Type::isUnsignedIntegerOrEnumerationType() const {
 bool Type::hasUnsignedIntegerRepresentation() const {
   if (const auto *VT = dyn_cast<VectorType>(CanonicalType))
     return VT->getElementType()->isUnsignedIntegerOrEnumerationType();
+  else if (const CMVectorType *VT = dyn_cast<CMVectorType>(CanonicalType))
+    return VT->getElementType()->isUnsignedIntegerOrEnumerationType();
+  else if (const CMMatrixType *VT = dyn_cast<CMMatrixType>(CanonicalType))
+    return VT->getElementType()->isUnsignedIntegerOrEnumerationType();
   else
     return isUnsignedIntegerOrEnumerationType();
 }
@@ -1929,6 +2008,10 @@ bool Type::isFloatingType() const {
 
 bool Type::hasFloatingRepresentation() const {
   if (const auto *VT = dyn_cast<VectorType>(CanonicalType))
+    return VT->getElementType()->isFloatingType();
+  else if (const CMVectorType *VT = dyn_cast<CMVectorType>(CanonicalType))
+    return VT->getElementType()->isFloatingType();
+  else if (const CMMatrixType *VT = dyn_cast<CMMatrixType>(CanonicalType))
     return VT->getElementType()->isFloatingType();
   else
     return isFloatingType();
@@ -2792,6 +2875,9 @@ StringRef BuiltinType::getName(const PrintingPolicy &Policy) const {
     return "queue_t";
   case OCLReserveID:
     return "reserve_id_t";
+  case CMSurfaceIndex:    return "SurfaceIndex";
+  case CMSamplerIndex:    return "SamplerIndex";
+  case CMVmeIndex:        return "VmeIndex";
   case OMPArraySection:
     return "<OpenMP array section type>";
 #define EXT_OPAQUE_TYPE(ExtType, Id, Ext) \
@@ -3559,6 +3645,10 @@ static CachedProperties computeCachedProperties(const Type *T) {
   case Type::Vector:
   case Type::ExtVector:
     return Cache::get(cast<VectorType>(T)->getElementType());
+  case Type::CMVector:
+    return Cache::get(cast<CMVectorType>(T)->getElementType());
+  case Type::CMMatrix:
+    return Cache::get(cast<CMMatrixType>(T)->getElementType());
   case Type::FunctionNoProto:
     return Cache::get(cast<FunctionType>(T)->getReturnType());
   case Type::FunctionProto: {
@@ -3644,6 +3734,10 @@ LinkageInfo LinkageComputer::computeTypeLinkageInfo(const Type *T) {
   case Type::Vector:
   case Type::ExtVector:
     return computeTypeLinkageInfo(cast<VectorType>(T)->getElementType());
+  case Type::CMVector:
+    return computeTypeLinkageInfo(cast<CMVectorType>(T)->getElementType());
+  case Type::CMMatrix:
+    return computeTypeLinkageInfo(cast<CMMatrixType>(T)->getElementType());
   case Type::FunctionNoProto:
     return computeTypeLinkageInfo(cast<FunctionType>(T)->getReturnType());
   case Type::FunctionProto: {
@@ -3772,6 +3866,9 @@ bool Type::canHaveNullability(bool ResultIfUnknown) const {
     case BuiltinType::ObjCId:
     case BuiltinType::ObjCClass:
     case BuiltinType::ObjCSel:
+    case BuiltinType::CMVmeIndex:
+    case BuiltinType::CMSamplerIndex:
+    case BuiltinType::CMSurfaceIndex:
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
     case BuiltinType::Id:
 #include "clang/Basic/OpenCLImageTypes.def"
@@ -3802,6 +3899,10 @@ bool Type::canHaveNullability(bool ResultIfUnknown) const {
   case Type::DependentSizedExtVector:
   case Type::Vector:
   case Type::ExtVector:
+  case Type::CMVector:
+  case Type::CMMatrix:
+  case Type::DependentCMVector:
+  case Type::DependentCMMatrix:
   case Type::DependentAddressSpace:
   case Type::FunctionProto:
   case Type::FunctionNoProto:

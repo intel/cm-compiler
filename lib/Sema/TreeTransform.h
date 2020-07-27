@@ -842,6 +842,17 @@ public:
                                               Expr *SizeExpr,
                                               SourceLocation AttributeLoc);
 
+  /// \brief Build a new CM vector type.
+  QualType RebuildCMVectorType(bool IsReference, QualType ElementType,
+                               unsigned NumElements, SourceLocation VLoc,
+                               SourceLocation LLoc, SourceLocation GLoc);
+
+  /// \brief Build a new CM matrix type.
+  QualType RebuildCMMatrixType(bool IsReference, QualType ElementType,
+                               unsigned NumRows, unsigned NumCols,
+                               SourceLocation MLoc, SourceLocation LLoc,
+                               SourceLocation GLoc);
+
   /// Build a new DependentAddressSpaceType or return the pointee
   /// type variable with the correct address space (retrieved from
   /// AddrSpaceExpr) applied to it. The former will be returned in cases
@@ -2595,11 +2606,11 @@ public:
   /// Subclasses may override this routine to provide different behavior.
   ExprResult RebuildCXXFunctionalCastExpr(TypeSourceInfo *TInfo,
                                           SourceLocation LParenLoc,
-                                          Expr *Sub,
+                                          MultiExprArg Exprs,
                                           SourceLocation RParenLoc,
                                           bool ListInitialization) {
     return getSema().BuildCXXTypeConstructExpr(TInfo, LParenLoc,
-                                               MultiExprArg(&Sub, 1), RParenLoc,
+                                               Exprs, RParenLoc,
                                                ListInitialization);
   }
 
@@ -4963,6 +4974,139 @@ QualType TreeTransform<Derived>::TransformExtVectorType(TypeLocBuilder &TLB,
 
   ExtVectorTypeLoc NewTL = TLB.push<ExtVectorTypeLoc>(Result);
   NewTL.setNameLoc(TL.getNameLoc());
+
+  return Result;
+}
+
+template<typename Derived>
+QualType TreeTransform<Derived>::TransformCMVectorType(TypeLocBuilder &TLB,
+                                                       CMVectorTypeLoc TL) {
+  const CMVectorType *T = TL.getTypePtr();
+  QualType EltType = getDerived().TransformType(T->getElementType());
+  if (T->getElementType().isNull())
+    return QualType();
+
+  QualType Result = TL.getType();
+  if (getDerived().AlwaysRebuild() || EltType != T->getElementType()) {
+    Result = getDerived().RebuildCMVectorType(
+        T->isReference(), EltType, T->getNumElements(), T->getVMLoc(),
+        T->getLessLoc(), T->getGreaterLoc());
+    if (Result.isNull())
+      return QualType();
+  }
+
+  CMVectorTypeLoc NewTL = TLB.push<CMVectorTypeLoc>(Result);
+  NewTL.setNameLoc(TL.getNameLoc());
+
+  return Result;
+}
+
+template<typename Derived>
+QualType TreeTransform<Derived>::TransformCMMatrixType(TypeLocBuilder &TLB,
+                                                       CMMatrixTypeLoc TL) {
+  const CMMatrixType *T = TL.getTypePtr();
+  QualType EltType = getDerived().TransformType(T->getElementType());
+  if (T->getElementType().isNull())
+    return QualType();
+
+  QualType Result = TL.getType();
+  if (getDerived().AlwaysRebuild() || EltType != T->getElementType()) {
+    Result = getDerived().RebuildCMMatrixType(
+        T->isReference(), EltType, T->getNumRows(), T->getNumColumns(),
+        T->getVMLoc(), T->getLessLoc(), T->getGreaterLoc());
+
+    if (Result.isNull())
+      return QualType();
+  }
+
+  CMMatrixTypeLoc NewTL = TLB.push<CMMatrixTypeLoc>(Result);
+  NewTL.setNameLoc(TL.getNameLoc());
+
+  return Result;
+}
+
+template <typename Derived>
+QualType TreeTransform<Derived>::TransformDependentCMVectorType(
+    TypeLocBuilder &TLB, DependentCMVectorTypeLoc TL) {
+  const DependentCMVectorType *T = TL.getTypePtr();
+
+  QualType ElementType = getDerived().TransformType(T->getElementType());
+  if (ElementType.isNull())
+    return QualType();
+
+  // Vector sizes are constant expressions.
+  EnterExpressionEvaluationContext Unevaluated(
+      SemaRef, Sema::ExpressionEvaluationContext::ConstantEvaluated);
+
+  ExprResult Size = getDerived().TransformExpr(T->getSizeExpr());
+  Size = SemaRef.ActOnConstantExpression(Size);
+  if (Size.isInvalid())
+    return QualType();
+
+  QualType Result = TL.getType();
+  if (getDerived().AlwaysRebuild() || ElementType != T->getElementType() ||
+      Size.get() != T->getSizeExpr()) {
+    Result = SemaRef.BuildCMVectorType(T->isReference(), ElementType,
+                                       Size.get(), T->getVMLoc(),
+                                       T->getLessLoc(), T->getGreaterLoc());
+    if (Result.isNull())
+      return QualType();
+  }
+
+  // Result might be dependent or not.
+  if (isa<DependentCMVectorType>(Result)) {
+    DependentCMVectorTypeLoc NewTL = TLB.push<DependentCMVectorTypeLoc>(Result);
+    NewTL.setNameLoc(TL.getNameLoc());
+  } else {
+    CMVectorTypeLoc NewTL = TLB.push<CMVectorTypeLoc>(Result);
+    NewTL.setNameLoc(TL.getNameLoc());
+  }
+
+  return Result;
+}
+
+template <typename Derived>
+QualType TreeTransform<Derived>::TransformDependentCMMatrixType(
+    TypeLocBuilder &TLB, DependentCMMatrixTypeLoc TL) {
+  const DependentCMMatrixType *T = TL.getTypePtr();
+
+  QualType ElementType = getDerived().TransformType(T->getElementType());
+  if (ElementType.isNull())
+    return QualType();
+
+  // Vector sizes are constant expressions.
+  EnterExpressionEvaluationContext Unevaluated(
+      SemaRef, Sema::ExpressionEvaluationContext::ConstantEvaluated);
+
+  ExprResult NRows = getDerived().TransformExpr(T->getNumRowExpr());
+  NRows = SemaRef.ActOnConstantExpression(NRows);
+  if (NRows.isInvalid())
+    return QualType();
+
+  ExprResult NCols = getDerived().TransformExpr(T->getNumColumnExpr());
+  NCols = SemaRef.ActOnConstantExpression(NCols);
+  if (NCols.isInvalid())
+    return QualType();
+
+  QualType Result = TL.getType();
+  if (getDerived().AlwaysRebuild() || ElementType != T->getElementType() ||
+      NRows.get() != T->getNumRowExpr() ||
+      NCols.get() != T->getNumColumnExpr()) {
+    Result = SemaRef.BuildCMMatrixType(
+        T->isReference(), ElementType, NRows.get(), NCols.get(),
+        T->getVMLoc(), T->getLessLoc(), T->getGreaterLoc());
+    if (Result.isNull())
+      return QualType();
+  }
+
+  // Result might be dependent or not.
+  if (isa<DependentCMMatrixType>(Result)) {
+    DependentCMMatrixTypeLoc NewTL = TLB.push<DependentCMMatrixTypeLoc>(Result);
+    NewTL.setNameLoc(TL.getNameLoc());
+  } else {
+    CMMatrixTypeLoc NewTL = TLB.push<CMMatrixTypeLoc>(Result);
+    NewTL.setNameLoc(TL.getNameLoc());
+  }
 
   return Result;
 }
@@ -10071,9 +10215,15 @@ TreeTransform<Derived>::TransformCXXFunctionalCastExpr(
       SubExpr.get() == E->getSubExpr())
     return E;
 
+  SmallVector<Expr *, 2> Exprs;
+  Exprs.push_back(SubExpr.get());
+  if (E->getSatExpr())
+    // template on saturation expression is not supported.
+    Exprs.push_back(E->getSatExpr());
+
   return getDerived().RebuildCXXFunctionalCastExpr(Type,
                                                    E->getLParenLoc(),
-                                                   SubExpr.get(),
+                                                   Exprs,
                                                    E->getRParenLoc(),
                                                    E->isListInitialization());
 }
@@ -12316,6 +12466,143 @@ TreeTransform<Derived>::TransformAtomicExpr(AtomicExpr *E) {
                                         RetTy, E->getOp(), E->getRParenLoc());
 }
 
+template <typename Derived>
+ExprResult
+TreeTransform<Derived>::TransformCMSelectExpr(CMSelectExpr *E) {
+  ExprResult Base = getDerived().TransformExpr(E->getBase());
+  if (!Base.isUsable())
+    return ExprError();
+
+  // We could move this check to each select expression's sema analysis.
+  if (!Base.get()->getType()->isCMVectorMatrixType()) {
+    getSema().Diag(Base.get()->getExprLoc(),
+                   diag::err_cm_vector_matrix_type_expected)
+        << E->getSelectKindName();
+    return ExprError();
+  }
+
+  SmallVector<Expr *, 8> ArgExprs;
+  if (getDerived().TransformExprs(E->getArgExprs(), E->getNumArgExprs(), false,
+                                  ArgExprs))
+    return ExprError();
+
+  if (E->isISelect())
+    return getSema().ActOnCMISelect(E->getMemberLoc(), Base.get(), ArgExprs,
+                                    E->getRParenLoc());
+  if (E->isRowSelect()) {
+    assert(ArgExprs.size() == 1);
+    return getSema().ActOnCMRow(E->getMemberLoc(), Base.get(), ArgExprs[0],
+                                E->getRParenLoc());
+  }
+  if (E->isColumnSelect()) {
+    assert(ArgExprs.size() == 1);
+    return getSema().ActOnCMColumn(E->getMemberLoc(), Base.get(), ArgExprs[0],
+                                   E->getRParenLoc());
+  }
+  if (E->isSelectAll()) {
+    assert(ArgExprs.size() == 0);
+    return getSema().ActOnCMSelectAll(E->getMemberLoc(), Base.get(),
+                                      E->getRParenLoc());
+  }
+  if (E->isSelect()) {
+    unsigned NumConstArgs = E->getNumConstArgs();
+    MultiExprArg AllArgs(ArgExprs);
+    MultiExprArg ConstArgs = AllArgs.slice(0, NumConstArgs);
+    MultiExprArg Args = AllArgs.slice(NumConstArgs);
+    return getSema().ActOnCMSelect(E->getMemberLoc(), Base.get(), ConstArgs,
+                                   Args, E->getRParenLoc());
+  }
+  if (E->isElementSelect())
+    return getSema().ActOnCMElementAccess(Base.get(), E->getMemberLoc(),
+                                          ArgExprs, E->getRParenLoc());
+  if (E->isSubscriptSelect())
+    return getSema().ActOnCMSubscriptAccess(Base.get(), E->getMemberLoc(),
+                                            ArgExprs[0], E->getRParenLoc());
+  if (E->isReplicate()) {
+    unsigned NumConstArgs = E->getNumConstArgs();
+    MultiExprArg AllArgs(ArgExprs);
+    MultiExprArg ReplicateArgs = AllArgs.slice(0, NumConstArgs);
+    MultiExprArg Offsets = AllArgs.slice(NumConstArgs);
+    return getSema().ActOnCMReplicate(E->getMemberLoc(), Base.get(),
+                                      ReplicateArgs, Offsets,
+                                      E->getRParenLoc());
+  }
+
+  llvm_unreachable("invalid select kind");
+}
+
+template <typename Derived>
+ExprResult
+TreeTransform<Derived>::TransformCMBoolReductionExpr(CMBoolReductionExpr *E) {
+  ExprResult Base = getDerived().TransformExpr(E->getBase());
+  if (!Base.isUsable())
+    return ExprError();
+
+  if (E->isAll())
+    return getSema().ActOnCMAll(E->getMemberLoc(), Base.get(),
+                                E->getRParenLoc());
+  if (E->isAny())
+    return getSema().ActOnCMAny(E->getMemberLoc(), Base.get(),
+                                E->getRParenLoc());
+
+  llvm_unreachable("invalid reduction kind");
+}
+
+template <typename Derived>
+ExprResult
+TreeTransform<Derived>::TransformCMFormatExpr(CMFormatExpr *E) {
+  ExprResult Base = getDerived().TransformExpr(E->getBase());
+  if (!Base.isUsable())
+    return ExprError();
+
+  QualType EltTy = getDerived().TransformType(E->getElementType());
+
+  SmallVector<Expr *, 8> ArgExprs;
+  if (getDerived().TransformExprs(E->getArgExprs(), E->getNumArgExprs(), false,
+                                  ArgExprs))
+    return ExprError();
+
+  return getSema().BuildCMFormat(Base.get(), E->getMemberLoc(), EltTy, ArgExprs,
+                                 E->getRParenLoc());
+}
+
+template <typename Derived>
+ExprResult
+TreeTransform<Derived>::TransformCMMergeExpr(CMMergeExpr *E) {
+  ExprResult Base = getDerived().TransformExpr(E->getBase());
+  if (!Base.isUsable())
+    return ExprError();
+
+  SmallVector<Expr *, 8> ArgExprs;
+  if (getDerived().TransformExprs(E->getArgExprs(), E->getNumArgExprs(), false,
+                                  ArgExprs))
+    return ExprError();
+
+  return getSema().BuildCMMerge(Base.get(), E->getMemberLoc(), ArgExprs,
+                                E->getRParenLoc());
+}
+
+template <typename Derived>
+ExprResult TreeTransform<Derived>::TransformCMSizeExpr(CMSizeExpr *E) {
+  ExprResult Base = getDerived().TransformExpr(E->getBase());
+  if (!Base.isUsable())
+    return ExprError();
+
+  if (E->isNElems())
+    return getSema().ActOnCMNElems(E->getMemberLoc(), Base.get(),
+                                   E->getRParenLoc());
+
+  if (E->isNRows())
+    return getSema().ActOnCMNRows(E->getMemberLoc(), Base.get(),
+                                  E->getRParenLoc());
+
+  if (E->isNCols())
+    return getSema().ActOnCMNCols(E->getMemberLoc(), Base.get(),
+                                  E->getRParenLoc());
+
+  llvm_unreachable("invalid size kind");
+}
+
 //===----------------------------------------------------------------------===//
 // Type reconstruction
 //===----------------------------------------------------------------------===//
@@ -12512,6 +12799,43 @@ TreeTransform<Derived>::RebuildDependentSizedExtVectorType(QualType ElementType,
                                                            Expr *SizeExpr,
                                                   SourceLocation AttributeLoc) {
   return SemaRef.BuildExtVectorType(ElementType, SizeExpr, AttributeLoc);
+}
+
+template <typename Derived>
+QualType TreeTransform<Derived>::RebuildCMVectorType(bool IsReference,
+                                                     QualType ElementType,
+                                                     unsigned NumElements,
+                                                     SourceLocation VLoc,
+                                                     SourceLocation LLoc,
+                                                     SourceLocation GLoc) {
+  unsigned Width = SemaRef.Context.getIntWidth(SemaRef.Context.IntTy);
+  llvm::APInt NumElts(Width, NumElements, true);
+  IntegerLiteral *Size = IntegerLiteral::Create(SemaRef.Context, NumElts,
+                                                SemaRef.Context.IntTy, VLoc);
+  return SemaRef.BuildCMVectorType(IsReference, ElementType, Size, VLoc, LLoc,
+                                   GLoc);
+}
+
+template <typename Derived>
+QualType TreeTransform<Derived>::RebuildCMMatrixType(bool IsReference,
+                                                     QualType ElementType,
+                                                     unsigned NumRows,
+                                                     unsigned NumCols,
+                                                     SourceLocation MLoc,
+                                                     SourceLocation LLoc,
+                                                     SourceLocation GLoc) {
+  unsigned Width = SemaRef.Context.getIntWidth(SemaRef.Context.IntTy);
+
+  llvm::APInt NRows(Width, NumRows, true);
+  IntegerLiteral *NRowExpr = IntegerLiteral::Create(
+      SemaRef.Context, NRows, SemaRef.Context.IntTy, MLoc);
+
+  llvm::APInt NCols(Width, NumCols, true);
+  IntegerLiteral *NColExpr = IntegerLiteral::Create(
+      SemaRef.Context, NCols, SemaRef.Context.IntTy, MLoc);
+
+  return SemaRef.BuildCMMatrixType(IsReference, ElementType, NRowExpr, NColExpr,
+                                   MLoc, LLoc, GLoc);
 }
 
 template<typename Derived>

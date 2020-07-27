@@ -500,6 +500,12 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
       ResultType = llvm::IntegerType::get(getLLVMContext(), 128);
       break;
 
+    case BuiltinType::CMSurfaceIndex:
+    case BuiltinType::CMSamplerIndex:
+    case BuiltinType::CMVmeIndex:
+      ResultType = llvm::IntegerType::get(getLLVMContext(), 32);
+      break;
+
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
     case BuiltinType::Id:
 #include "clang/Basic/OpenCLImageTypes.def"
@@ -593,6 +599,26 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
     const VectorType *VT = cast<VectorType>(Ty);
     ResultType = llvm::VectorType::get(ConvertType(VT->getElementType()),
                                        VT->getNumElements());
+    break;
+  }
+  case Type::CMVector: {
+    const CMVectorType *VT = cast<CMVectorType>(Ty);
+    ResultType = llvm::VectorType::get(ConvertType(VT->getElementType()),
+                                       VT->getNumElements());
+    if (Ty->isCMReferenceType()) {
+      unsigned AS = Context.getTargetAddressSpace(VT->getElementType());
+      ResultType = llvm::PointerType::get(ResultType, AS);
+    }
+    break;
+  }
+  case Type::CMMatrix: {
+    const CMMatrixType *MT = cast<CMMatrixType>(Ty);
+    ResultType = llvm::VectorType::get(ConvertType(MT->getElementType()),
+                                       MT->getNumElements());
+    if (Ty->isCMReferenceType()) {
+      unsigned AS = Context.getTargetAddressSpace(MT->getElementType());
+      ResultType = llvm::PointerType::get(ResultType, AS);
+    }
     break;
   }
   case Type::FunctionNoProto:

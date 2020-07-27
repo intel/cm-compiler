@@ -890,6 +890,13 @@ public:
     /// std::initializer_list argument.
     SK_StdInitializerListConstructorCall,
 
+    /// Initialize a CM vector or matrix from an constant array.
+    SK_CMVectorMatrixInit,
+    /// Initialize a CM SurfaceIndex from an integer.
+    SK_CMSurfaceIndexInit,
+    /// Initialize a CM SamplerIndex from an integer.
+    SK_CMSamplerIndexInit,
+
     /// Initialize an OpenCL sampler from an integer.
     SK_OCLSamplerInit,
 
@@ -1326,6 +1333,15 @@ public:
   /// Add a step to construct a std::initializer_list object from an
   /// initializer list.
   void AddStdInitializerListConstructionStep(QualType T);
+
+  /// Add a step to initialize a CM vector/matrix from a constant array.
+  void AddCMVectorMatrixInitStep(QualType T);
+
+  /// Add a step to initialize a CM SurfaceIndex from an integer.
+  void AddCMSurfaceIndexInitStep(QualType T);
+
+  /// Add a step to initialize a CM SamplerIndex from an integer.
+  void AddCMSamplerIndexInitStep(QualType T);
 
   /// Add a step to initialize an OpenCL sampler from an integer
   /// constant.

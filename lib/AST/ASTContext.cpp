@@ -29,6 +29,7 @@
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprCM.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExternalASTSource.h"
 #include "clang/AST/Mangle.h"
@@ -1304,6 +1305,12 @@ void ASTContext::InitBuiltinTypes(const TargetInfo &Target,
 #include "clang/Basic/OpenCLExtensionTypes.def"
   }
 
+  if (LangOpts.MdfCM) {
+    InitBuiltinType(CMSurfaceIndexTy, BuiltinType::CMSurfaceIndex);
+    InitBuiltinType(CMSamplerIndexTy, BuiltinType::CMSamplerIndex);
+    InitBuiltinType(CMVmeIndexTy, BuiltinType::CMVmeIndex);
+  }
+
   // Builtin type for __objc_yes and __objc_no
   ObjCBuiltinBoolTy = (Target.useSignedCharForObjCBool() ?
                        SignedCharTy : BoolTy);
@@ -1813,7 +1820,30 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
       Align = TargetVectorAlign;
     break;
   }
-
+  case Type::CMVector:
+  case Type::CMMatrix: {
+    // Should consider if this is a vector/matrix reference?
+    if (const CMVectorType *VT = dyn_cast<CMVectorType>(T)) {
+      auto EltInfo = getTypeInfo(VT->getElementType());
+      Width = EltInfo.Width * VT->getNumElements();
+    } else {
+      const CMMatrixType *MT = dyn_cast<CMMatrixType>(T);
+      auto EltInfo = getTypeInfo(MT->getElementType());
+      Width = EltInfo.Width * MT->getNumElements();
+    }
+    Align = Width;
+    // If the alignment is not a power of 2, round up to the next power of 2.
+    // This happens for non-power-of-2 length vectors.
+    if (Align & (Align-1)) {
+      Align = llvm::NextPowerOf2(Align);
+      Width = llvm::alignTo(Width, Align);
+    }
+    // Adjust the alignment based on the target max.
+    uint64_t TargetVectorAlign = Target->getMaxVectorAlign();
+    if (TargetVectorAlign && TargetVectorAlign < Align)
+      Align = TargetVectorAlign;
+    break;
+  }
   case Type::Builtin:
     switch (cast<BuiltinType>(T)->getKind()) {
     default: llvm_unreachable("Unknown builtin type!");
@@ -1944,6 +1974,12 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
     case BuiltinType::ObjCSel:
       Width = Target->getPointerWidth(0);
       Align = Target->getPointerAlign(0);
+      break;
+    case BuiltinType::CMSurfaceIndex:
+    case BuiltinType::CMSamplerIndex:
+    case BuiltinType::CMVmeIndex:
+      Width = Target->getIntWidth();
+      Align = Target->getIntAlign();
       break;
     case BuiltinType::OCLSampler:
     case BuiltinType::OCLEvent:
@@ -3135,6 +3171,10 @@ QualType ASTContext::getVariableArrayDecayedType(QualType type) const {
   case Type::DependentVector:
   case Type::ExtVector:
   case Type::DependentSizedExtVector:
+  case Type::CMVector:
+  case Type::CMMatrix:
+  case Type::DependentCMVector:
+  case Type::DependentCMMatrix:
   case Type::DependentAddressSpace:
   case Type::ObjCObject:
   case Type::ObjCInterface:
@@ -3521,6 +3561,217 @@ ASTContext::getDependentSizedExtVectorType(QualType vecType,
 
   Types.push_back(New);
   return QualType(New, 0);
+}
+
+QualType ASTContext::getCMVectorType(bool IsReference, QualType EltType,
+                                     unsigned NumElts, SourceLocation VMLoc,
+                                     SourceLocation LessLoc,
+                                     SourceLocation GreaterLoc) const {
+  assert(EltType->isBuiltinType() || EltType->isDependentType() ||
+         EltType->isFunctionPointerType());
+
+  // Check if we've already instantiated a vector of this type.
+  llvm::FoldingSetNodeID ID;
+  CMVectorType::Profile(ID, IsReference, EltType, NumElts, Type::CMVector);
+
+  void *InsertPos = 0;
+  if (CMVectorType *VTP = CMVectorTypes.FindNodeOrInsertPos(ID, InsertPos))
+    return QualType(VTP, 0);
+
+  // If the element type isn't canonical, this won't be a canonical type either,
+  // so fill in the canonical type field.
+  QualType Canonical;
+  if (!EltType.isCanonical()) {
+    Canonical = getCMVectorType(IsReference, getCanonicalType(EltType), NumElts,
+                                VMLoc, LessLoc, GreaterLoc);
+
+    // Get the new insert position for the node we care about.
+    CMVectorType *NewIP = CMVectorTypes.FindNodeOrInsertPos(ID, InsertPos);
+    assert(NewIP == 0 && "Shouldn't be in the map!"); (void)NewIP;
+  }
+  CMVectorType *New = new (*this, TypeAlignment)
+      CMVectorType(*this, Type::CMVector, IsReference, EltType, Canonical,
+                   NumElts, VMLoc, LessLoc, GreaterLoc);
+  CMVectorTypes.InsertNode(New, InsertPos);
+  Types.push_back(New);
+  return QualType(New, 0);
+}
+
+QualType ASTContext::getCMMatrixType(bool IsReference, QualType EltType,
+                                     unsigned NumRows, unsigned NumCols,
+                                     SourceLocation VMLoc,
+                                     SourceLocation LessLoc,
+                                     SourceLocation GreaterLoc) const {
+  assert(EltType->isBuiltinType() || EltType->isDependentType());
+
+  // Check if we've already instantiated a vector of this type.
+  llvm::FoldingSetNodeID ID;
+  CMMatrixType::Profile(ID, IsReference, EltType, NumRows, NumCols,
+                        Type::CMMatrix);
+
+  void *InsertPos = 0;
+  if (CMMatrixType *MTP = CMMatrixTypes.FindNodeOrInsertPos(ID, InsertPos))
+    return QualType(MTP, 0);
+
+  // If the element type isn't canonical, this won't be a canonical type either,
+  // so fill in the canonical type field.
+  QualType Canonical;
+  if (!EltType.isCanonical()) {
+    Canonical = getCMMatrixType(IsReference, getCanonicalType(EltType), NumRows,
+                                NumCols, VMLoc, LessLoc, GreaterLoc);
+
+    // Get the new insert position for the node we care about.
+    CMMatrixType *NewIP = CMMatrixTypes.FindNodeOrInsertPos(ID, InsertPos);
+    assert(NewIP == 0 && "Shouldn't be in the map!"); (void)NewIP;
+  }
+  CMMatrixType *New = new (*this, TypeAlignment)
+      CMMatrixType(*this, Type::CMMatrix, IsReference, EltType, Canonical,
+                   NumRows, NumCols, VMLoc, LessLoc, GreaterLoc);
+  CMMatrixTypes.InsertNode(New, InsertPos);
+  Types.push_back(New);
+  return QualType(New, 0);
+}
+
+QualType ASTContext::getDependentCMVectorType(bool IsReference,
+                                              QualType EltType, Expr *SizeExpr,
+                                              SourceLocation VMLoc,
+                                              SourceLocation LessLoc,
+                                              SourceLocation GreaterLoc) const{
+  llvm::FoldingSetNodeID ID;
+  DependentCMVectorType::Profile(ID, *this, IsReference,
+                                 getCanonicalType(EltType), SizeExpr);
+
+  void *InsertPos = 0;
+  DependentCMVectorType *Canon =
+      DependentCMVectorTypes.FindNodeOrInsertPos(ID, InsertPos);
+  DependentCMVectorType *New = 0;
+  if (Canon) {
+    // We already have a canonical version of this type; use it as
+    // the canonical type for a newly-built type.
+    New = new (*this, TypeAlignment)
+        DependentCMVectorType(*this, IsReference, EltType, QualType(Canon, 0),
+                              SizeExpr, VMLoc, LessLoc, GreaterLoc);
+  } else {
+    QualType CanonEltTy = getCanonicalType(EltType);
+    if (CanonEltTy == EltType) {
+      New = new (*this, TypeAlignment)
+          DependentCMVectorType(*this, IsReference, EltType, QualType(),
+                                SizeExpr, VMLoc, LessLoc, GreaterLoc);
+
+      DependentCMVectorType *CanonCheck
+        = DependentCMVectorTypes.FindNodeOrInsertPos(ID, InsertPos);
+      assert(!CanonCheck && "Dependent CM vector canonical type broken");
+      (void)CanonCheck;
+      DependentCMVectorTypes.InsertNode(New, InsertPos);
+    } else {
+      QualType Canon = getDependentCMVectorType(
+          IsReference, CanonEltTy, SizeExpr, SourceLocation(), SourceLocation(),
+          SourceLocation());
+      New = new (*this, TypeAlignment)
+          DependentCMVectorType(*this, IsReference, EltType, Canon, SizeExpr,
+                                VMLoc, LessLoc, GreaterLoc);
+    }
+  }
+
+  Types.push_back(New);
+  return QualType(New, 0);
+}
+
+QualType ASTContext::getDependentCMMatrixType(
+    bool IsReference, QualType EltType, Expr *NumRowExpr, Expr *NumColExpr,
+    SourceLocation VMLoc, SourceLocation LessLoc,
+    SourceLocation GreaterLoc) const {
+  llvm::FoldingSetNodeID ID;
+  DependentCMMatrixType::Profile(ID, *this, IsReference,
+                                 getCanonicalType(EltType), NumRowExpr,
+                                 NumColExpr);
+
+  void *InsertPos = 0;
+  DependentCMMatrixType *Canon =
+      DependentCMMatrixTypes.FindNodeOrInsertPos(ID, InsertPos);
+  DependentCMMatrixType *New = 0;
+  if (Canon) {
+    // We already have a canonical version of this type; use it as
+    // the canonical type for a newly-built type.
+    New = new (*this, TypeAlignment) DependentCMMatrixType(
+        *this, IsReference, EltType, QualType(Canon, 0), NumRowExpr, NumColExpr,
+        VMLoc, LessLoc, GreaterLoc);
+  } else {
+    QualType CanonEltTy = getCanonicalType(EltType);
+    if (CanonEltTy == EltType) {
+      New = new (*this, TypeAlignment) DependentCMMatrixType(
+          *this, IsReference, EltType, QualType(), NumRowExpr, NumColExpr,
+          VMLoc, LessLoc, GreaterLoc);
+
+      DependentCMMatrixType *CanonCheck =
+          DependentCMMatrixTypes.FindNodeOrInsertPos(ID, InsertPos);
+      assert(!CanonCheck && "Dependent CM matrix canonical type broken");
+      (void)CanonCheck;
+      DependentCMMatrixTypes.InsertNode(New, InsertPos);
+    } else {
+      QualType Canon = getDependentCMMatrixType(
+          IsReference, CanonEltTy, NumRowExpr, NumColExpr, SourceLocation(),
+          SourceLocation(), SourceLocation());
+      New = new (*this, TypeAlignment)
+          DependentCMMatrixType(*this, IsReference, EltType, Canon, NumRowExpr,
+                                NumColExpr, VMLoc, LessLoc, GreaterLoc);
+    }
+  }
+
+  Types.push_back(New);
+  return QualType(New, 0);
+}
+
+/// \brief Return a corresponding CM vector / matrix base type.
+QualType ASTContext::getCMVectorMatrixBaseType(QualType T) const {
+  if (!T->isCMReferenceType())
+    return T;
+
+  if (const DependentCMVectorType *VT = T->getAs<DependentCMVectorType>())
+    return getDependentCMVectorType(false, VT->getElementType(),
+                                    VT->getSizeExpr(), VT->getVMLoc(),
+                                    VT->getLessLoc(), VT->getGreaterLoc());
+  else if (const CMVectorType *VT = T->getAs<CMVectorType>())
+    return getCMVectorType(false, VT->getElementType(), VT->getNumElements(),
+                           VT->getVMLoc(), VT->getLessLoc(),
+                           VT->getGreaterLoc());
+  else if (const DependentCMMatrixType *MT = T->getAs<DependentCMMatrixType>())
+    return getDependentCMMatrixType(false, MT->getElementType(),
+                                    MT->getNumRowExpr(), MT->getNumColumnExpr(),
+                                    MT->getVMLoc(), MT->getLessLoc(),
+                                    MT->getGreaterLoc());
+  else if (const CMMatrixType *MT = T->getAs<CMMatrixType>())
+    return getCMMatrixType(false, MT->getElementType(),
+                           MT->getNumRows(), MT->getNumColumns(),
+                           MT->getVMLoc(), MT->getLessLoc(),
+                           MT->getGreaterLoc());
+
+  llvm_unreachable("unexpected type");
+}
+
+/// \brief Return a CM vector/matrix type with a specificed base element type.
+QualType ASTContext::getCMVectorMatrixTypeWithElementType(QualType T,
+                                                          QualType E) const {
+  if (!T->isCMVectorMatrixType() || !E->isCMElementType())
+    return T;
+
+  if (const DependentCMVectorType *VT = T->getAs<DependentCMVectorType>())
+    return getDependentCMVectorType(VT->isReference(), E, VT->getSizeExpr(),
+                                    VT->getVMLoc(), VT->getLessLoc(),
+                                    VT->getGreaterLoc());
+  else if (const CMVectorType *VT = T->getAs<CMVectorType>())
+    return getCMVectorType(VT->isReference(), E, VT->getNumElements(),
+                           VT->getVMLoc(), VT->getLessLoc(),
+                           VT->getGreaterLoc());
+  else if (const DependentCMMatrixType *MT = T->getAs<DependentCMMatrixType>())
+    return getDependentCMMatrixType(MT->isReference(), T, MT->getNumRowExpr(),
+                                    MT->getNumColumnExpr(), MT->getVMLoc(),
+                                    MT->getLessLoc(), MT->getGreaterLoc());
+  else if (const CMMatrixType *MT = T->getAs<CMMatrixType>())
+    return getCMMatrixType(MT->isReference(), E, MT->getNumRows(),
+                           MT->getNumColumns(), MT->getVMLoc(),
+                           MT->getLessLoc(), MT->getGreaterLoc());
+  llvm_unreachable("unexpected type");
 }
 
 QualType ASTContext::getDependentAddressSpaceType(QualType PointeeType,
@@ -6573,6 +6824,9 @@ static char getObjCEncodingForPrimitiveKind(const ASTContext *C,
     case BuiltinType::OCLQueue:
     case BuiltinType::OCLReserveID:
     case BuiltinType::OCLSampler:
+    case BuiltinType::CMSurfaceIndex:
+    case BuiltinType::CMSamplerIndex:
+    case BuiltinType::CMVmeIndex:
     case BuiltinType::Dependent:
 #define BUILTIN_TYPE(KIND, ID)
 #define PLACEHOLDER_TYPE(KIND, ID) \
@@ -6990,7 +7244,11 @@ void ASTContext::getObjCEncodingForTypeImpl(QualType T, std::string& S,
     if (NotEncodedT)
       *NotEncodedT = T;
     return;
-
+  case Type::CMVector:
+  case Type::CMMatrix:
+    // Just ignore it. No objective C/C++ will be supported.
+    return;
+      
   // We could see an undeduced auto type here during error recovery.
   // Just ignore it.
   case Type::Auto:
@@ -7832,6 +8090,25 @@ bool ASTContext::areCompatibleVectorTypes(QualType FirstVec,
     return true;
 
   return false;
+}
+
+/// \brief Return true if the two specified CM vector types are compatible.
+static bool areCompatCMVectorTypes(const CMVectorType *LHS,
+                                   const CMVectorType *RHS) {
+  assert(LHS->isCanonicalUnqualified() && RHS->isCanonicalUnqualified());
+  return LHS->isReference() == RHS->isReference() &&
+         LHS->getElementType() == RHS->getElementType() &&
+         LHS->getNumElements() == RHS->getNumElements();
+}
+
+/// \brief Return true if the two specified CM matrix types are compatible.
+static bool areCompatCMMatrixTypes(const CMMatrixType *LHS,
+                                   const CMMatrixType *RHS) {
+  assert(LHS->isCanonicalUnqualified() && RHS->isCanonicalUnqualified());
+  return LHS->isReference() == RHS->isReference() &&
+         LHS->getElementType() == RHS->getElementType() &&
+         LHS->getNumRows() == RHS->getNumRows() &&
+         LHS->getNumColumns() == RHS->getNumColumns();
 }
 
 //===----------------------------------------------------------------------===//
@@ -8985,6 +9262,16 @@ QualType ASTContext::mergeTypes(QualType LHS, QualType RHS,
                              RHSCan->getAs<VectorType>()))
       return LHS;
     return {};
+  case Type::CMVector:
+    if (areCompatCMVectorTypes(LHSCan->getAs<CMVectorType>(),
+                               RHSCan->getAs<CMVectorType>()))
+      return LHS;
+    return {};
+  case Type::CMMatrix:
+    if (areCompatCMMatrixTypes(LHSCan->getAs<CMMatrixType>(),
+                               RHSCan->getAs<CMMatrixType>()))
+      return LHS;
+    return {};
   case Type::ObjCObject: {
     // Check if the types are assignment compatible.
     // FIXME: This should be type compatibility, e.g. whether
@@ -9424,8 +9711,22 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Context,
     Str = End;
 
     QualType ElementType = DecodeTypeFromStr(Str, Context, Error, RequiresICE,
-                                             false);
+                                               false);
     Type = Context.getExtVectorType(ElementType, NumElements);
+    break;
+  }
+  case 'Q': {
+    char *End;
+      
+    unsigned NumElements = strtoul(Str, &End, 10);
+    assert(End != Str && "Missing vector size");
+      
+    Str = End;
+      
+    QualType ElementType = DecodeTypeFromStr(Str, Context, Error, RequiresICE,
+                                               false);
+    Type = Context.getCMVectorType(false, ElementType, NumElements,
+                                   SourceLocation(), SourceLocation(), SourceLocation());
     break;
   }
   case 'X': {

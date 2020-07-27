@@ -720,6 +720,9 @@ void USRGenerator::VisitType(QualType T) {
         case BuiltinType::OCLQueue:
         case BuiltinType::OCLReserveID:
         case BuiltinType::OCLSampler:
+        case BuiltinType::CMSurfaceIndex:
+        case BuiltinType::CMSamplerIndex:
+        case BuiltinType::CMVmeIndex:
         case BuiltinType::ShortAccum:
         case BuiltinType::Accum:
         case BuiltinType::LongAccum:

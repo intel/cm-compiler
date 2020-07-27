@@ -1391,6 +1391,13 @@ Sema::BuildCXXTypeConstructExpr(TypeSourceInfo *TInfo,
                                       RParenOrBraceLoc);
   }
 
+  // MDF CM has a special functional cast that takes an optional SAT argument.
+  if (getLangOpts().MdfCM && !ListInitialization) {
+    if (Ty->isCMBaseType() && Exprs.size() == 2)
+      return BuildCMFunctionalCastExpr(TInfo, Ty, LParenOrBraceLoc, Exprs[0],
+                                       RParenOrBraceLoc, Exprs[1]);
+  }
+
   //   For an expression of the form T(), T shall not be an array type.
   QualType ElemTy = Ty;
   if (Ty->isArrayType()) {
@@ -4018,6 +4025,10 @@ Sema::PerformImplicitConversion(Expr *From, QualType ToType,
 
   case ICK_Integral_Promotion:
   case ICK_Integral_Conversion:
+    // Scalar conversion only produces a base type, not a reference type.
+    if (ToType->isCMReferenceType())
+      ToType = Context.getCMVectorMatrixBaseType(ToType);
+
     if (ToType->isBooleanType()) {
       assert(FromType->castAs<EnumType>()->getDecl()->isFixed() &&
              SCS.Second == ICK_Integral_Promotion &&
@@ -4032,6 +4043,10 @@ Sema::PerformImplicitConversion(Expr *From, QualType ToType,
 
   case ICK_Floating_Promotion:
   case ICK_Floating_Conversion:
+    // Scalar conversion only produces a base type, not a reference type.
+    if (ToType->isCMReferenceType())
+      ToType = Context.getCMVectorMatrixBaseType(ToType);
+
     From = ImpCastExprToType(From, ToType, CK_FloatingCast,
                              VK_RValue, /*BasePath=*/nullptr, CCK).get();
     break;
@@ -4057,6 +4072,10 @@ Sema::PerformImplicitConversion(Expr *From, QualType ToType,
   }
 
   case ICK_Floating_Integral:
+    // Scalar conversion only produces a base type, not a reference type.
+    if (ToType->isCMReferenceType())
+      ToType = Context.getCMVectorMatrixBaseType(ToType);
+
     if (ToType->isRealFloatingType())
       From = ImpCastExprToType(From, ToType, CK_IntegralToFloating,
                                VK_RValue, /*BasePath=*/nullptr, CCK).get();
@@ -4176,6 +4195,25 @@ Sema::PerformImplicitConversion(Expr *From, QualType ToType,
     break;
   }
 
+  case ICK_CMVectorMatrix_Conversion:
+    From = ImpCastExprToType(From, ToType, CK_BitCast, From->getValueKind(),
+                             /*BasePath*/0, CCK).get();
+    break;
+  case ICK_CMBaseToReference:
+    From = ImpCastExprToType(From, ToType, CK_CMBaseToReference,
+                             From->getValueKind(), /*BasePath*/ 0, CCK).get();
+    break;
+  case ICK_CMReferenceToBase:
+    From = ImpCastExprToType(From, ToType, CK_CMReferenceToBase,
+                             From->getValueKind(), /*BasePath*/ 0, CCK).get();
+    break;
+  case ICK_CMVectorMatrix_Splat:
+    // Splat only produces a base type, not a reference type.
+    if (ToType->isCMReferenceType())
+      ToType = Context.getCMVectorMatrixBaseType(ToType);
+    From = ImpCastExprToType(From, ToType, CK_CMVectorMatrixSplat, VK_RValue,
+                             /*BasePath*/0, CCK).get();
+    break;
   case ICK_Complex_Real:
     // Case 1.  x -> _Complex y
     if (const ComplexType *ToComplex = ToType->getAs<ComplexType>()) {
@@ -5946,6 +5984,11 @@ QualType Sema::CXXCheckConditionalOperands(ExprResult &Cond, ExprResult &LHS,
     return LTy;
   }
 
+  if (LHS.get()->getType()->isCMVectorMatrixType() ||
+      RHS.get()->getType()->isCMVectorMatrixType())
+    return CheckCMVectorMatrixOperands(LHS, RHS, QuestionLoc,
+                                       /*isCompAssign*/ false);
+
   // Extension: conditional operator involving vector types.
   if (LTy->isVectorType() || RTy->isVectorType())
     return CheckVectorOperands(LHS, RHS, QuestionLoc, /*isCompAssign*/false,
@@ -7678,7 +7721,9 @@ public:
 
   ExprResult Transform(Expr *E) {
     ExprResult Res;
-    while (true) {
+    auto CorrectionLimit = SemaRef.Diags.getTypoCorrectionLimit();
+    bool isTypoCorrectionUnlimited = CorrectionLimit == 0;
+    while (isTypoCorrectionUnlimited || CorrectionLimit-- > 0) {
       Res = TryTransform(E);
 
       // Exit if either the transform was valid or if there were no TypoExprs

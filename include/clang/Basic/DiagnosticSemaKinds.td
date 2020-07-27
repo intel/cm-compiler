@@ -810,6 +810,8 @@ def err_pragma_loop_compatibility : Error<
   "%select{incompatible|duplicate}0 directives '%1' and '%2'">;
 def err_pragma_loop_precedes_nonloop : Error<
   "expected a for, while, or do-while loop to follow '%0'">;
+def warn_pragma_loop_precedes_nonloop : Warning<
+  "expected a for, while, or do-while loop to follow '%0'">;
 
 def err_pragma_attribute_matcher_subrule_contradicts_rule : Error<
   "redundant attribute subject matcher sub-rule '%0'; '%1' already matches "
@@ -2878,6 +2880,9 @@ def warn_attribute_wrong_decl_type : Warning<
   "|non-K&R-style functions}1">,
   InGroup<IgnoredAttributes>;
 def err_attribute_wrong_decl_type : Error<warn_attribute_wrong_decl_type.Text>;
+def warn_attribute_wrong_annoation : Warning<
+  "'%0' only applies to %2 type; type here is %1">,
+  InGroup<IgnoredAttributes>;
 def warn_type_attribute_wrong_type : Warning<
   "'%0' only applies to %select{function|pointer|"
   "Objective-C object or block pointer}1 types; type here is %2">,
@@ -9270,6 +9275,202 @@ let CategoryName = "Documentation Issue" in {
 def warn_not_a_doxygen_trailing_member_comment : Warning<
   "not a Doxygen trailing comment">, InGroup<Documentation>, DefaultIgnore;
 } // end of documentation issue category
+
+let CategoryName = "MDF CM Issue" in {
+def warn_cm_no_referable_kernel : Warning<
+  "No CM kernel definitions found">;
+def warn_cm_qualifier_ignored : Warning<
+  "unsupported qualifier ignored">;
+def err_cm_invalid_element_type : Error<
+  "%select{vector|matrix|vector_ref|matrix_ref}0 declared with unsupported element type, %1">;
+def err_cm_exceptions_not_supported : Error<
+  "cannot use '%0' - CM does not support exceptions">;
+def err_cm_kw_template_missing : Error<
+  "template specialization nested within a template definition must be made explicit by use of the 'template' keyword">;
+def note_cm_kw_template_missing : Note<
+  "replace '%0' with 'template %0'">;
+def err_cm_static_assert : Error<
+  "%0">;
+def warn_cm_static_assert : Warning<
+  "%0">;
+def note_cmtl_func_usage : Note<"'cmtl::%0()' is available when 'cmtl.h' is included">;
+def note_cmtl_macro_usage : Note<"'%0' is available when 'cmtl.h' is included">;
+def err_cm_atomic_unknown_op : Error<
+  "Unknown value '%0' specified for value of type CmAtomicOpType">;
+def err_cm_atomic_no_src_expected : Error<
+  "ATOMIC_%select{ADD|SUB|INC|DEC|MIN|MAX|XCHG|CMPXCHG|AND|OR|XOR|MINSINT|MAXSINT}0 does not expect a source">;
+def err_cm_atomic_one_src_expected : Error<
+  "ATOMIC_%select{ADD|SUB|INC|DEC|MIN|MAX|XCHG|CMPXCHG|AND|OR|XOR|MINSINT|MAXSINT}0 requires one source">;
+def err_cm_atomic_one_src_expected_two_given : Error<
+  "ATOMIC_%select{ADD|SUB|INC|DEC|MIN|MAX|XCHG|CMPXCHG|AND|OR|XOR|MINSINT|MAXSINT}0 requires one source but two were specified">;
+def err_cm_atomic_two_src_expected : Error<
+  "ATOMIC_CMPXCHG requires two sources to be specified">;
+def err_cm_select_non_const_value : Error<
+  "select %select{size|stride|v_size|v_stride|h_size|h_stride}0 value must be a constant integer expression">;
+def err_cm_select_zero_size : Error<
+  "select %select{size|v_size|h_size}0 must be greater than zero">;
+def err_cm_select_zero_stride : Error<
+  "select %select{stride|v_stride|h_stride}0 must be greater than zero">;
+def err_cm_select_stride_must_be_one : Error<
+  "when select %select{size|v_size|h_size}0 is 1, the %select{stride|v_stride|h_stride}0 must also be 1">;
+def err_cm_select_wrong_number_values : Error<
+  "too %select{few|many}0 values: %select{vector|matrix}1 select expects %select{2|4}1 integer constant values">;
+def err_cm_select_wrong_number_offsets : Error<
+  "too %select{few|many}0 offsets: %select{vector|matrix}1 select expects %select{1|2}1 integer offsets">;
+def warn_cm_select_out_of_bounds : Warning<
+  "%select{vector|matrix}0 select out of bounds %select{|in rows|in columns}1">, InGroup<CmBoundsCheck>;
+def warn_cm_select_out_of_bounds_offset : Warning<
+  "select %select{|row |column }0offset out of bounds (offset %1, bounds 0..%2)">, InGroup<CmBoundsCheck>;
+def warn_cm_out_of_bound_index : Warning<
+  "%select{row|column}0 index '%1' is out of bounds, matrix has %2 %select{rows|columns}0">, InGroup<CmBoundsCheck>;
+def err_cm_select_non_integer_offset : Error<
+  "select offset must be an integer expression">;
+def err_cm_select_index_negative : Error<
+  "select %select{offset|row offset|column offset}0 cannot be negative (%1)">;
+def err_cm_replicate_non_const_value : Error<
+  "replicate value must be a constant integer expression">;
+def err_cm_replicate_non_integer_offset : Error<
+  "replicate offset must be an integer expression">;
+def err_cm_replicate_too_many_args : Error<
+  "too many arguments: replicate expects at most 4 constant integer values">;
+def err_cm_replicate_too_many_offsets : Error<
+  "too many offsets: replicate of a %select{vector|matrix}0 expects at most %select{1|2}0 integer offset%s1">;
+def err_cm_replicate_arg_negative : Error<
+  "replicate %select{REP|vertical stride|width|horizontal stride}0 value cannot be negative (%1)">;
+def err_cm_replicate_arg_zero : Error<
+  "replicate %select{REP|width}0 value cannot be zero">;
+def err_cm_replicate_unexpected_offset : Error<
+  "replicate does not accept an offset when only the REP argument is specified">;
+def err_cm_replicate_offset_negative : Error<
+  "replicate offset cannot be negative (%0)">;
+def warn_cm_replicate_out_of_bounds : Warning<
+  "replicate out of bounds - size of source %select{vector|matrix}0 exceeded">, InGroup<CmBoundsCheck>;
+def err_cm_select_non_integer_index : Error<
+  "select offset must be an integer expression">;
+def err_cm_non_integer_index : Error<
+  "%select{row|column|element|subscript}0 index must be an integer expression">;
+def err_cm_negative_index : Error<
+  "%select{row|column}0 index must be positive">;
+def err_cm_matrix_only_method : Error<
+  "%select{column|n_cols|n_rows|row}0() member function is only valid for matrix/matrix_ref">;
+def err_cm_sema_error_1 : Error<
+  "CM semantic error 1">;
+def err_cm_sema_error_2 : Error<
+  "CM semantic error 2">;
+def err_cm_positive_dim_expected : Error<
+  "positive %select{size|number of rows|number of columns}0 expected">;
+def err_cm_element_type_no_ref : Error<
+  "%select{vector|matrix|vector_ref|matrix_ref}0 element type should not be a reference, %1">;
+def err_cm_element_type_no_ptr : Error<
+  "%select{vector|matrix|vector_ref|matrix_ref}0 element type should not be a pointer, %1">;
+def err_cm_element_type_incomplete : Error<
+  "%select{vector|matrix|vector_ref|matrix_ref}0 element type should not be incomplete, %1">;
+def err_cm_element_type_no_qualifier : Error<
+  "%select{vector|matrix|vector_ref|matrix_ref}0 element type should not have qualifiers, %1">;
+def err_cm_dim_expr_type: Error<
+  "%select{vector|matrix|vector_ref|matrix_ref}0 %select{size|number of rows|number of columns}1 should be an integer constant">;
+def err_cm_vector_not_convertable: Error<
+  "can't convert values between %0 and %1">;
+def err_cm_merge_wrong_number_args : Error<
+  "too %select{few|many}0 arguments: merge() expects at %select{least two|most three}0 arguments">;
+def err_cm_merge_invalid_source : Error<
+  "cannot convert to type %0 from type %1">;
+def err_cm_merge_invalid_mask : Error<
+   "invalid merge mask type %0 for type %1">;
+def err_cm_merge_invalid_mask_element : Error<
+   "invalid merge mask element type %0">;
+def warn_cm_merge_mask_insufficient : Warning<
+   "merge mask has fewer bits (%0) than the number of merge elements (%1)">;
+def err_cm_genx_select_deprecated : Error<
+  "genx_select() is deprecated - use replicate()">;
+def err_cm_inappropriate_mask_object : Error<
+  "%select{all|any}0() can only be applied to a vector/matrix with integer or float elements">;
+def err_cm_format_too_few_dimensions : Error<
+  "format<>() expects 0 or 2 dimensions">;
+def err_cm_format_too_many_dimensions : Error<
+  "format<>() expects no more than 2 dimensions">;
+def err_cm_format_non_const_value : Error<
+  "format %select{rows|columns}0 value must be a constant integer expression">;
+def err_cm_format_non_positive_value : Error<
+  "format %select{rows|columns}0 value must be greater than 0">;
+def err_cm_format_invalid_size : Error<
+  "unable to format %select{vector|matrix}0 of size %1 bytes to "
+  "%select{vector|matrix}2 with element type size %3 bytes">;
+def err_cm_format_invalid_type : Error<
+  "invalid type for format operation, %0">;
+def err_cm_format_mismatches_source_size : Error<
+  "format matrix size %0 does not match the source size %1 in bytes">;
+def err_cm_element_access_invalid_index_num : Error<
+  "%select{vector|matrix}0 element access expects %select{one index|two indices}0">;
+def err_cm_element_access_invalid_index : Error<
+  "%select{vector|matrix}0 element access out-of-bound [%1, %2)">;
+def err_cm_invalid_saturation_argument : Error<
+  "invalid argument for functional cast, only SAT is allowed">;
+def err_cm_reference_var_requires_init : Error<
+  "declaration of CM reference variable %0 requires an initializer">;
+def err_cm_invalid_vector_matrix_init : Error<
+  "invalid %select{vector|matrix}0 initializer">;
+def err_cm_vector_matrix_init_not_constant : Error<
+  "%select{vector|matrix}0 initializer must be a constant array">;
+def err_cm_not_constant_vector_matrix_init_global : Error<
+  "nonconstant %select{vector|matrix}0 cannot be initialized in global scope">;
+def err_cm_vector_matrix_init_not_global : Error<
+  "%select{vector|matrix}0 initializer must be a global array">;
+def note_cm_var_initialization : Note<
+  "defined here">;
+def err_cm_iselect_invalid_index_type : Error<
+  "iselect expects vector<unsigned short, N> index type, %0">;
+def err_cm_iselect_invalid_index_num : Error<
+  "%select{vector|matrix}0 iselect expects %1 index expression%s1">;
+def err_cm_iselect_size_mismatch : Error<
+  "matrix iselect row and column index size must be the same, %0 != %1">;
+def err_cm_vector_matrix_type_expected : Error<
+  "vector or matrix type expected for %0 operator">;
+def err_cm_vector_matrix_invalid_element_type : Error<
+  "invalid element type %0">;
+def err_cm_invalid_param_type : Error<
+  "unsupported function parameter type %0">;
+def err_cm_kernel_no_ref_param_type : Error<
+  "kernel function does not allow reference parameter type %0">;
+def err_cm_invalid_return_type: Error<
+  "unsupported function return type %0">;
+def err_cm_invalid_float_control_use: Error<
+  "float control / rounding mode can only be applied to a kernel">;
+def note_ovl_candidate_bad_cm_reference : Note<
+  "candidate function not viable: expects a CM reference argument"
+  " for %ordinal0 argument">;
+def err_cm_format_string_expected: Error<
+  "format string expected">;
+def err_cm_printf_string_too_long: Error<
+  "%select{format |}0string length cannot exceed 127 bytes - length is %0 bytes">;
+def err_cm_printf_wide_chars_not_supported: Error<
+  "printf() does not support wide characters">;
+def err_cm_printf_too_many_args: Error<
+  "printf() accepts a maximum of 64 arguments - %0 supplied">;
+def err_cm_printf_unsupported_type: Error<
+  "%select{SamplerIndex|SurfaceIndex|VmeIndex|vector|matrix}0 values are not supported by printf()">;
+def err_cm_ref_init_from_rvalue: Error<
+  "%0 initialization value must be an lvalue">;
+def err_cm_uninitialized_array: Error<
+  "array %0 is not constant initialized">;
+def err_cm_max_data_size_exceeded: Error<
+  "size of %select{vector|matrix}0 (%1 bytes) exceeds maximum supported size (must be less than 16384 bytes)">;
+def err_cm_matrix_vector_reference: Error<
+  "C++ reference parameter may not refer to a %select{vector|matrix|vector_ref|matrix_ref}0">;
+def warn_cm_target_doesnt_support_type: Warning<
+  "'%0' is not supported by the %1 target">, InGroup<GenTarget>;
+def err_cm_kernel_arg_attr: Error<
+  "attribute %0 can only be applied to a kernel argument">;
+def err_cm_kernel_arg_attr_type: Error<
+  "attribute %0 can not be applied to an argument of type %1">;
+def err_cm_kernel_func_attr: Error<
+  "attribute %0 can only be applied to a kernel function">;
+def err_cm_volatile_attr: Error<
+  "volatile attribute can only be applied to a file scope vector or matrix variable">;
+def err_cm_volatile_init: Error<
+  "volatile variable does not take an initializer">;
+
+} // end of MDF CM issue category
 
 let CategoryName = "Nullability Issue" in {
 

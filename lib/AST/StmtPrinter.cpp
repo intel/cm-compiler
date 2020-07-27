@@ -21,6 +21,7 @@
 #include "clang/AST/DeclOpenMP.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprCM.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ExprOpenMP.h"
@@ -1351,6 +1352,135 @@ void StmtPrinter::VisitObjCIsaExpr(ObjCIsaExpr *Node) {
   OS << (Node->isArrow() ? "->isa" : ".isa");
 }
 
+void StmtPrinter::VisitCMSelectExpr(CMSelectExpr *Node) {
+ PrintExpr(Node->getBase());
+ switch(Node->getSelectKind()) {
+ case CMSelectExpr::SK_select:
+   OS << ".select<";
+   if (Node->is1D()) {
+     PrintExpr(Node->getSize());
+     OS << ',';
+     PrintExpr(Node->getStride());
+   } else {
+     PrintExpr(Node->getVSize());
+     OS << ',';
+     PrintExpr(Node->getVStride());
+     OS << ',';
+     PrintExpr(Node->getHSize());
+     OS << ',';
+     PrintExpr(Node->getHStride());
+   }
+   OS << ">(";
+   if (Node->is1D()) {
+     PrintExpr(Node->getOffset());
+   } else {
+     PrintExpr(Node->getVOffset());
+     OS << ',';
+     PrintExpr(Node->getHOffset());
+   }
+   OS << ')';
+   break;
+ case CMSelectExpr::SK_select_all:
+   OS << ".select_all()";
+   break;
+ case CMSelectExpr::SK_iselect:
+   OS << ".iselect(";
+   PrintExpr(Node->getISelectIndexExpr(0));
+   if (Node->is2D()) {
+     OS << ',';
+     PrintExpr(Node->getISelectIndexExpr(1));
+   }
+   OS << ')';
+   break;
+ case CMSelectExpr::SK_element:
+   OS << '(';
+   PrintExpr(Node->getIndex());
+   OS << ')';
+   break;
+ case CMSelectExpr::SK_subscript:
+   OS << '[';
+   PrintExpr(Node->getSubscriptIndex());
+   OS << ']';
+   break;
+ case CMSelectExpr::SK_row:
+   OS << ".row(";
+   PrintExpr(Node->getRowExpr());
+   OS << ')';
+   break;
+ case CMSelectExpr::SK_column:
+   OS << ".column(";
+   PrintExpr(Node->getColumnExpr());
+   OS << ')';
+   break;
+ case CMSelectExpr::SK_replicate:
+   OS << ".replicate<";
+   PrintExpr(Node->getRepExpr());
+   switch(Node->getNumParameters()) {
+   case 2:
+     OS << ',';
+     PrintExpr(Node->getRepWExpr());
+     break;
+   case 3:
+     OS << ',';
+     PrintExpr(Node->getRepVSExpr());
+     OS << ',';
+     PrintExpr(Node->getRepWExpr());
+     break;
+   case 4:
+     OS << ',';
+     PrintExpr(Node->getRepVSExpr());
+     OS << ',';
+     PrintExpr(Node->getRepWExpr());
+     OS << ',';
+     PrintExpr(Node->getRepHSExpr());
+     break;
+   }
+   OS << ">(";
+   if (Node->getNumParameters() > 1) {
+     if (Node->is1D())
+       PrintExpr(Node->getRepOffset());
+     else {
+       PrintExpr(Node->getRepVOffset());
+       OS << ',';
+       PrintExpr(Node->getRepHOffset());
+     }
+   }
+   OS << ')';
+   break;
+ }
+}
+void StmtPrinter::VisitCMBoolReductionExpr(CMBoolReductionExpr *Node) {
+  PrintExpr(Node->getBase());
+  OS << '.' << Node->getBoolReductionKindName() << "()";
+}
+void StmtPrinter::VisitCMFormatExpr(CMFormatExpr *Node) {
+  PrintExpr(Node->getBase());
+  OS << ".format<";
+  Node->getElementType().print(OS, Policy);
+  if (Node->isMatrixFormat()) {
+    OS << ',';
+    PrintExpr(Node->getRows());
+    OS << ',';
+    PrintExpr(Node->getColumns());
+  }
+  OS << ">()";
+}
+void StmtPrinter::VisitCMMergeExpr(CMMergeExpr *Node) {
+  PrintExpr(Node->getBase());
+  OS << ".merge(";
+  PrintExpr(Node->getSrc1());
+  OS << ',';
+  if (Node->isTwoSourceMerge()) {
+    PrintExpr(Node->getSrc2());
+    OS << ',';
+  }
+  PrintExpr(Node->getMask());
+  OS << ')';
+}
+void StmtPrinter::VisitCMSizeExpr(CMSizeExpr *Node) {
+  PrintExpr(Node->getBase());
+  OS << '.' << Node->getSizeExprKindName() << "()";
+}
 void StmtPrinter::VisitExtVectorElementExpr(ExtVectorElementExpr *Node) {
   PrintExpr(Node->getBase());
   OS << ".";

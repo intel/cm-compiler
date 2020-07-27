@@ -6572,6 +6572,19 @@ void TypeLocReader::VisitExtVectorTypeLoc(ExtVectorTypeLoc TL) {
   TL.setNameLoc(ReadSourceLocation());
 }
 
+void TypeLocReader::VisitCMVectorTypeLoc(CMVectorTypeLoc TL) {
+  llvm_unreachable("not implemented yet");
+}
+void TypeLocReader::VisitCMMatrixTypeLoc(CMMatrixTypeLoc TL) {
+  llvm_unreachable("not implemented yet");
+}
+void TypeLocReader::VisitDependentCMVectorTypeLoc(DependentCMVectorTypeLoc TL) {
+  llvm_unreachable("not implemented yet");
+}
+void TypeLocReader::VisitDependentCMMatrixTypeLoc(DependentCMMatrixTypeLoc TL) {
+  llvm_unreachable("not implemented yet");
+}
+
 void TypeLocReader::VisitFunctionTypeLoc(FunctionTypeLoc TL) {
   TL.setLocalRangeBegin(ReadSourceLocation());
   TL.setLParenLoc(ReadSourceLocation());
@@ -6956,6 +6969,15 @@ QualType ASTReader::GetType(TypeID ID) {
       break;
     case PREDEF_TYPE_OBJC_SEL:
       T = Context.ObjCBuiltinSelTy;
+      break;
+    case PREDEF_TYPE_SURFACE_INDEX_ID:
+      T = Context.CMSurfaceIndexTy;
+      break;
+    case PREDEF_TYPE_SAMPLER_INDEX_ID:
+      T = Context.CMSamplerIndexTy;
+      break;
+    case PREDEF_TYPE_VME_INDEX_ID:
+      T = Context.CMVmeIndexTy;
       break;
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
     case PREDEF_TYPE_##Id##_ID: \

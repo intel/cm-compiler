@@ -5395,6 +5395,24 @@ bool UnnamedLocalNoLinkageFinder::VisitExtVectorType(const ExtVectorType* T) {
   return Visit(T->getElementType());
 }
 
+bool UnnamedLocalNoLinkageFinder::VisitCMVectorType(const CMVectorType* T) {
+  return Visit(T->getElementType());
+}
+
+bool UnnamedLocalNoLinkageFinder::VisitCMMatrixType(const CMMatrixType* T) {
+  return Visit(T->getElementType());
+}
+
+bool UnnamedLocalNoLinkageFinder::VisitDependentCMVectorType(
+    const DependentCMVectorType *T) {
+  return Visit(T->getElementType());
+}
+
+bool UnnamedLocalNoLinkageFinder::VisitDependentCMMatrixType(
+    const DependentCMMatrixType *T) {
+  return Visit(T->getElementType());
+}
+
 bool UnnamedLocalNoLinkageFinder::VisitFunctionProtoType(
                                                   const FunctionProtoType* T) {
   for (const auto &A : T->param_types()) {
@@ -6215,7 +6233,13 @@ ExprResult Sema::CheckTemplateArgument(NonTypeTemplateParmDecl *Param,
 
   if (CTAK == CTAK_Deduced &&
       !Context.hasSameType(ParamType.getNonLValueExprType(Context),
-                           Arg->getType())) {
+                           Arg->getType()) &&
+      // MDF CM:
+      //   -- allow int arg to match unsigned int param for backwards
+      //      compatibility with previous CM compiler behavior
+      !(getLangOpts().MdfCM &&
+          ParamType->isUnsignedIntegerOrEnumerationType() &&
+          Arg->getType()->isSignedIntegerOrEnumerationType())) {
     // FIXME: If either type is dependent, we skip the check. This isn't
     // correct, since during deduction we're supposed to have replaced each
     // template parameter with some unique (non-dependent) placeholder.

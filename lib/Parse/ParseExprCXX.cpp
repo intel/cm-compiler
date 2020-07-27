@@ -1937,6 +1937,13 @@ void Parser::ParseCXXSimpleTypeSpecifier(DeclSpec &DS) {
     return;
   }
 
+  case tok::kw__CM_Vector:
+  case tok::kw__CM_VectorRef:
+  case tok::kw__CM_Matrix:
+  case tok::kw__CM_MatrixRef:
+    ParseCMTypeSpecifiers(DS);
+    return DS.Finish(Actions, Policy);
+
   // builtin types
   case tok::kw_short:
     DS.SetTypeSpecWidth(DeclSpec::TSW_short, Loc, PrevSpec, DiagID, Policy);

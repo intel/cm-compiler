@@ -10,6 +10,7 @@
 #include "Clang.h"
 #include "Arch/AArch64.h"
 #include "Arch/ARM.h"
+#include "Arch/GenX.h"
 #include "Arch/Mips.h"
 #include "Arch/PPC.h"
 #include "Arch/RISCV.h"
@@ -312,6 +313,10 @@ static void getTargetFeatures(const ToolChain &TC, const llvm::Triple &Triple,
                               bool ForAS) {
   const Driver &D = TC.getDriver();
   std::vector<StringRef> Features;
+
+  if (Triple.getArchName().startswith("genx"))
+    GenX::getGenXTargetFeatures(D, Triple, Args, Features);
+
   switch (Triple.getArch()) {
   default:
     break;
@@ -1380,6 +1385,9 @@ void Clang::RenderTargetOptions(const llvm::Triple &EffectiveTriple,
   // Add the target features
   getTargetFeatures(TC, EffectiveTriple, Args, CmdArgs, false);
 
+  if (TC.getTriple().getArchName().startswith("genx"))
+    AddGenXTargetArgs(Args, CmdArgs);
+
   // Add target specific flags.
   switch (TC.getArch()) {
   default:
@@ -1930,6 +1938,18 @@ void Clang::AddWebAssemblyTargetArgs(const ArgList &Args,
                    options::OPT_fvisibility_ms_compat)) {
     CmdArgs.push_back("-fvisibility");
     CmdArgs.push_back("hidden");
+  }
+}
+
+void Clang::AddGenXTargetArgs(const ArgList &Args,
+                              ArgStringList &CmdArgs) const {
+  if (Args.hasArg(options::OPT_mCM_no_input_reorder)) {
+    CmdArgs.push_back("-mllvm");
+    CmdArgs.push_back("-enable-kernel-arg-reordering=false");
+  }
+  if (Args.hasArg(options::OPT_fcmocl)) {
+    CmdArgs.push_back("-mllvm");
+    CmdArgs.push_back("-enable-kernel-arg-reordering=false");
   }
 }
 
@@ -3169,6 +3189,13 @@ static void RenderDebugOptions(const ToolChain &TC, const Driver &D,
     } else {
       DebugInfoKind = codegenoptions::LimitedDebugInfo;
     }
+  } else if (D.CCCIsCM()) {
+    if (!Args.hasArg(options::OPT_mCM_no_debug) && !Args.hasArg(options::OPT_Qxcm_release)) {
+      // for CM we implicitly specify -gline-tables-only if no "-g" group
+      // options were specified unless it's requested explicitly in the other
+      // direction.
+      DebugInfoKind = codegenoptions::DebugLineTablesOnly;
+    }
   }
 
   // If a debugger tuning argument appeared, remember it.
@@ -3553,6 +3580,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     } else if (JA.getType() == types::TY_LLVM_BC ||
                JA.getType() == types::TY_LTO_BC) {
       CmdArgs.push_back("-emit-llvm-bc");
+    }
+    else if (JA.getType() == types::TY_SPIRV) {
+      CmdArgs.push_back("-emit-spirv-bc");
     } else if (JA.getType() == types::TY_PP_Asm) {
       CmdArgs.push_back("-S");
     } else if (JA.getType() == types::TY_AST) {
@@ -4061,6 +4091,48 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (!shouldUseLeafFramePointer(Args, RawTriple))
     CmdArgs.push_back("-momit-leaf-frame-pointer");
 
+  // If -std=cm is specified, set the source input type to MDF CM.
+  if (Arg *Std = Args.getLastArg(options::OPT_std_EQ)) {
+    if (strcmp(Std->getValue(), "cm") == 0) {
+      InputType = types::TY_MDF_CM;
+    }
+  }
+
+  // If the input type is MDF CM enable MSVC format diagnostics, and pass on
+  // any assembly file name option.
+  // We also enable shadow declaration warnings by default.
+  if (types::isCM(InputType)) {
+    CmdArgs.push_back("-fdiagnostics-format");
+    CmdArgs.push_back("msvc");
+    CmdArgs.push_back("-Wshadow");
+    CmdArgs.push_back("-Wuninitialized");
+    CmdArgs.push_back("-fdeclspec");
+    if (Args.hasFlag(options::OPT_fvldst, options::OPT_fno_vldst, true))
+      CmdArgs.push_back("-fvldst");
+    if (Arg *A = Args.getLastArg(options::OPT_mCM_import_bif)) {
+      const char *BiFName = A->getValue();
+      if ((BiFName[0] == '=') || (BiFName[0] == ':'))
+        BiFName = &BiFName[1];
+      if (strlen(BiFName)) {
+        CmdArgs.push_back("-mCM_import_bif");
+        CmdArgs.push_back(BiFName);
+      }
+    }
+    if (Args.getLastArg(options::OPT_mCM_init_global))
+      CmdArgs.push_back("-mCM_init_global");
+    if (Args.getLastArg(options::OPT_fvolatile_global))
+      CmdArgs.push_back("-fvolatile-global");
+    if (Args.getLastArg(options::OPT_mCM_reverse_kernels))
+      CmdArgs.push_back("-mCM_reverse_kernels");
+    if (Args.getLastArg(options::OPT_fcm_pointer))
+      CmdArgs.push_back("-fcm-pointer");
+    if (Args.getLastArg(options::OPT_fcmocl))
+      CmdArgs.push_back("-fcmocl");
+  }
+
+  if (Args.getLastArg(options::OPT_fno_force_noinline))
+    CmdArgs.push_back("-fno-force-noinline");
+
   // Explicitly error on some things we know we don't support and can't just
   // ignore.
   if (!Args.hasArg(options::OPT_fallow_unsupported)) {
@@ -4170,11 +4242,16 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   // Manually translate -O4 to -O3; let clang reject others.
   if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
-    if (A->getOption().matches(options::OPT_O4)) {
-      CmdArgs.push_back("-O3");
-      D.Diag(diag::warn_O4_is_O3);
-    } else {
-      A->render(Args, CmdArgs);
+    // For CM we ignore any O group options as the default optimizations are
+    // currently necessary to avoid generating IR which causes asserts in the
+    // Gen backend.
+    if (!D.CCCIsCM()) {
+      if (A->getOption().matches(options::OPT_O4)) {
+        CmdArgs.push_back("-O3");
+        D.Diag(diag::warn_O4_is_O3);
+      } else {
+        A->render(Args, CmdArgs);
+      }
     }
   }
 
@@ -4360,6 +4437,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back(A->getValue());
   else
     CmdArgs.push_back("19");
+
+  CmdArgs.push_back("-ftypo-correction-limit");
+  if (Arg *A = Args.getLastArg(options::OPT_ftypo_correction_limit_EQ))
+    CmdArgs.push_back(A->getValue());
+  else
+    CmdArgs.push_back("0");
 
   if (Arg *A = Args.getLastArg(options::OPT_fmacro_backtrace_limit_EQ)) {
     CmdArgs.push_back("-fmacro-backtrace-limit");
@@ -4681,7 +4764,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
 
   // -fms-extensions=0 is default.
   if (Args.hasFlag(options::OPT_fms_extensions, options::OPT_fno_ms_extensions,
-                   IsWindowsMSVC))
+                   IsWindowsMSVC && !types::isCM(InputType)))
     CmdArgs.push_back("-fms-extensions");
 
   // -fno-use-line-directives is default.
@@ -4690,11 +4773,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-fuse-line-directives");
 
   // -fms-compatibility=0 is default.
-  if (Args.hasFlag(options::OPT_fms_compatibility,
-                   options::OPT_fno_ms_compatibility,
-                   (IsWindowsMSVC &&
-                    Args.hasFlag(options::OPT_fms_extensions,
-                                 options::OPT_fno_ms_extensions, true))))
+  if (Args.hasFlag(
+          options::OPT_fms_compatibility, options::OPT_fno_ms_compatibility,
+          (IsWindowsMSVC && Args.hasFlag(options::OPT_fms_extensions,
+                                         options::OPT_fno_ms_extensions,
+                                         !types::isCM(InputType)))))
     CmdArgs.push_back("-fms-compatibility");
 
   VersionTuple MSVT = TC.computeMSVCVersion(&D, Args);
@@ -6043,8 +6126,21 @@ void ClangAs::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddAllArgs(CmdArgs, options::OPT_mllvm);
 
   assert(Output.isFilename() && "Unexpected lipo output.");
-  CmdArgs.push_back("-o");
-  CmdArgs.push_back(Output.getFilename());
+
+  if (D.CCCIsCM()) {
+    // When compiling for CM we allow '=' or ':' delimeters to be specified
+    // for backwards compatibility - we discard any such delimeters here.
+    const char *Filename = Output.getFilename();
+    while (*Filename == '=' || *Filename == ':')
+      ++Filename;
+    if (strlen(Filename)) {
+      CmdArgs.push_back("-o");
+      CmdArgs.push_back(Filename);
+    }
+  } else {
+    CmdArgs.push_back("-o");
+    CmdArgs.push_back(Output.getFilename());
+  }
 
   const llvm::Triple &T = getToolChain().getTriple();
   Arg *A;

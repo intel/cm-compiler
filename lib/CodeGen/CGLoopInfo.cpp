@@ -270,6 +270,8 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
         break;
       case LoopHintAttr::Unroll:
         setUnrollState(LoopAttributes::Enable);
+        if (isMdfCM)
+          setUnrollState(LoopAttributes::Full);
         break;
       case LoopHintAttr::UnrollAndJam:
         setUnrollAndJamState(LoopAttributes::Enable);

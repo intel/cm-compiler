@@ -16,6 +16,7 @@
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprCM.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ExprOpenMP.h"
@@ -1122,6 +1123,26 @@ void StmtProfiler::VisitMemberExpr(const MemberExpr *S) {
   if (!Canonical)
     VisitNestedNameSpecifier(S->getQualifier());
   ID.AddBoolean(S->isArrow());
+}
+
+void StmtProfiler::VisitCMSelectExpr(const CMSelectExpr *S) {
+  llvm_unreachable("not implemented yet");
+}
+
+void StmtProfiler::VisitCMBoolReductionExpr(const CMBoolReductionExpr *S) {
+  llvm_unreachable("not implemented yet");
+}
+
+void StmtProfiler::VisitCMFormatExpr(const CMFormatExpr *S) {
+  llvm_unreachable("not implemented yet");
+}
+
+void StmtProfiler::VisitCMMergeExpr(const CMMergeExpr *S) {
+  llvm_unreachable("not implemented yet");
+}
+
+void StmtProfiler::VisitCMSizeExpr(const CMSizeExpr *S) {
+  llvm_unreachable("not implemented yet");
 }
 
 void StmtProfiler::VisitCompoundLiteralExpr(const CompoundLiteralExpr *S) {

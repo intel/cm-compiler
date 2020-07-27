@@ -9193,6 +9193,80 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
     for (auto Param : NewFD->parameters())
       checkIsValidOpenCLKernelParameter(*this, D, Param, ValidTypes);
   }
+
+  if (getLangOpts().MdfCM) {
+    bool IsGenxMain = NewFD->hasAttr<CMGenxMainAttr>();
+    bool IsGenx = NewFD->hasAttr<CMGenxAttr>();
+    QualType RetType = NewFD->getReturnType();
+    QualType RetTy = RetType->getCanonicalTypeUnqualified();
+    if (IsGenxMain) {
+      // CM kernels can only have return type void.
+      if (!RetTy->isVoidType()) {
+        Diag(D.getIdentifierLoc(), diag::err_expected_kernel_void_return_type);
+        D.setInvalidType();
+      }
+    } else if (IsGenx) {
+      // User-defined functions can return scalar values or vector / matrix
+      // types. vector_ref / matrix_ref return types are not supported.
+      // Note that we do allow enum and boolean types.
+      if (!RetTy->isVoidType() && !RetTy->isCMScalarType() &&
+          !RetTy->isCMBaseType() && !RetTy->isBooleanType() &&
+          !RetTy->isEnumeralType()) {
+        Diag(D.getIdentifierLoc(), diag::err_cm_invalid_return_type) << RetType;
+        D.setInvalidType();
+      }
+    } else {
+      // For functions without the _GENX* attributes vector_ref / matrix_ref
+      // return type is not supported too.
+      if (RetTy->isCMReferenceType()) {
+        Diag(D.getIdentifierLoc(), diag::err_cm_invalid_return_type) << RetType;
+        D.setInvalidType();
+      }
+    }
+
+    if (IsGenx || IsGenxMain) {
+      for (FunctionDecl::param_iterator PI = NewFD->param_begin(),
+                                        PE = NewFD->param_end();
+           PI != PE; ++PI) {
+        ParmVarDecl *Param = *PI;
+        QualType ParamTy = Param->getType()->getCanonicalTypeUnqualified();
+        // CM spec 4.2.
+        //
+        // Parameters to a user-defined CM function may have scalar type,
+        // vector/matrix type, or SurfaceIndex/SamplerIndex/VmeIndex type.
+        //
+        // Note that Enum and boolean types should be allowed, but spec does not.
+        if (!ParamTy->isCMScalarType() && !ParamTy->isCMVectorMatrixType() &&
+            !ParamTy->isCMVmeIndexType() && !ParamTy->isCMSurfaceIndexType() &&
+            !ParamTy->isCMSamplerIndexType() && !ParamTy->isEnumeralType() &&
+            !ParamTy->isBooleanType()) {
+
+          // Allow pointer arguments.
+          // TODO, only allow certain pointers?
+          if (getLangOpts().CMPointer && ParamTy->isPointerType())
+            continue;
+
+          Diag(Param->getLocation(), diag::err_cm_invalid_param_type)
+              << Param->getType();
+          D.setInvalidType();
+        }
+
+        // In addition, vector_ref and matrix_ref types may not be used to pass a
+        // vector / matrix object by reference.
+        if (IsGenxMain && ParamTy->isCMReferenceType()) {
+          Diag(Param->getLocation(), diag::err_cm_kernel_no_ref_param_type)
+              << ParamTy;
+          D.setInvalidType();
+        }
+      }
+    }
+  }
+
+  if (NewFD->hasAttr<CMFloatControlAttr>()) {
+    if (!NewFD->hasAttr<CMGenxMainAttr>() && !NewFD->hasAttr<NoInlineAttr>())
+      Diag(NewFD->getLocation(), diag::err_cm_invalid_float_control_use);
+  }
+
   for (const ParmVarDecl *Param : NewFD->parameters()) {
     QualType PT = Param->getType();
 
@@ -11579,6 +11653,14 @@ void Sema::ActOnUninitializedDecl(Decl *RealDecl) {
       return;
     }
 
+    if (Type->isCMReferenceType()) {
+      Diag(Var->getLocation(), diag::err_reference_var_requires_init)
+          << Var->getDeclName()
+          << SourceRange(Var->getLocation(), Var->getLocation());
+      Var->setInvalidDecl();
+      return;
+    }
+
     // Do not attempt to type-check the default initializer for a
     // variable with dependent type.
     if (Type->isDependentType())
@@ -12289,6 +12371,37 @@ Sema::BuildDeclaratorGroup(MutableArrayRef<Decl *> Group) {
     }
   }
 
+  // CM: do not support arrays without a constant initializer.
+  // CM: do not support nonconstant vector-matrix initialization in global
+  // scope.
+  if (getLangOpts().MdfCM) {
+    for (unsigned i = 0, e = Group.size(); i != e; ++i) {
+      if (VarDecl *D = dyn_cast<VarDecl>(Group[i])) {
+        if (D->isInvalidDecl())
+          break;
+        if (D->getType()->isArrayType()) {
+          Expr *Init = D->getInit();
+          if (!Init || !Init->isConstantInitializer(Context, false)) {
+            Diag(D->getLocation(), diag::err_cm_uninitialized_array) << D;
+            D->setInvalidDecl();
+            break;
+          }
+        }
+        const QualType &T = D->getType();
+        const Type *Tp = T.getTypePtr();
+        if (Tp->isCMVectorMatrixType()) {
+          Expr *Init = D->getInit();
+          if (Init && D->isFileVarDecl() && !T.isConstQualified()) {
+            Diag(D->getLocation(),
+                 diag::err_cm_not_constant_vector_matrix_init_global)
+                << Tp->isCMMatrixType();
+            break;
+          }
+        }
+      }
+    }
+  }
+
   ActOnDocumentableDecls(Group);
 
   return DeclGroupPtrTy::make(
@@ -12583,6 +12696,15 @@ ParmVarDecl *Sema::CheckParameter(DeclContext *DC, SourceLocation StartLoc,
       !(getLangOpts().OpenCL &&
         (T->isArrayType() || T.getAddressSpace() == LangAS::opencl_private))) {
     Diag(NameLoc, diag::err_arg_with_address_space);
+    New->setInvalidDecl();
+  }
+
+  if (getLangOpts().MdfCM && T->isReferenceType() &&
+      T->getPointeeType()->isCMVectorMatrixType()) {
+    int kind = (T->getPointeeType()->isCMVectorType() ? 0 : 1) +
+               (T->getPointeeType()->isCMReferenceType() ? 2 : 0);
+    Diag(TSInfo->getTypeLoc().getEndLoc(),
+         diag::err_cm_matrix_vector_reference) << kind;
     New->setInvalidDecl();
   }
 

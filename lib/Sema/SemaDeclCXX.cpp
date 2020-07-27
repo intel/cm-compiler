@@ -13924,20 +13924,57 @@ Decl *Sema::BuildStaticAssertDeclaration(SourceLocation StaticAssertLoc,
       if (AssertMessage)
         AssertMessage->printPretty(Msg, nullptr, getPrintingPolicy());
 
-      Expr *InnerCond = nullptr;
-      std::string InnerCondDescription;
-      std::tie(InnerCond, InnerCondDescription) =
-        findFailedBooleanCondition(Converted.get());
-      if (InnerCond && !isa<CXXBoolLiteralExpr>(InnerCond)
-                    && !isa<IntegerLiteral>(InnerCond)) {
-        Diag(StaticAssertLoc, diag::err_static_assert_requirement_failed)
-          << InnerCondDescription << !AssertMessage
-          << Msg.str() << InnerCond->getSourceRange();
+      // Intercept and reformat any MDF CM specific static_assert diagnostics
+      // raised using the CM_STATIC_ERROR or CM_STATIC_WARNING macros.
+      // Where the static_assert is raised within a template, we use the
+      // location of the first instantiation that appears in the main source
+      // file as the location for the diagnostic - this is (usually) more
+      // useful to the end user than the location of  the CM_STATIC_ERROR or
+      // CM_STATIC_WARNING.
+      if (getLangOpts().MdfCM &&
+          (Msg.str().startswith(StringRef("\"CM:e:")) ||
+           Msg.str().startswith(StringRef("\"CM:w:")))) {
+        // Calculate the length of the message without the prefix and quotes.
+        unsigned size = Msg.str().size() - 7;
+        SourceLocation Loc = StaticAssertLoc;
+        if (inTemplateInstantiation()) {
+          for (auto Active : CodeSynthesisContexts) {
+            if (!SourceMgr.isInMainFile(Active.PointOfInstantiation))
+              break;
+            Loc = Active.PointOfInstantiation;
+          }
+        } else if (getSourceManager().isInSystemHeader(Loc)) {
+          // this is in a CM include file but not in a template so we'll use the
+          // location of the #include as the location for the diagnostic.
+          PresumedLoc PLoc = getSourceManager().getPresumedLoc(Loc, true);
+          Loc = PLoc.getIncludeLoc();
+        }
+        if (Msg.str().startswith(StringRef("\"CM:e:"))) {
+          Diag(Loc, diag::err_cm_static_assert) << Msg.str().substr(6, size);
+          Failed = true;
+        } else {
+          Diag(Loc, diag::warn_cm_static_assert) << Msg.str().substr(6, size);
+          Failed = false;
+        }
       } else {
         Diag(StaticAssertLoc, diag::err_static_assert_failed)
           << !AssertMessage << Msg.str() << AssertExpr->getSourceRange();
+        Failed = true;
+
+        Expr *InnerCond = nullptr;
+        std::string InnerCondDescription;
+        std::tie(InnerCond, InnerCondDescription) =
+          findFailedBooleanCondition(Converted.get());
+        if (InnerCond) {
+          Diag(StaticAssertLoc, diag::err_static_assert_requirement_failed)
+            << InnerCondDescription << !AssertMessage
+            << Msg.str() << InnerCond->getSourceRange();
+        } else {
+          Diag(StaticAssertLoc, diag::err_static_assert_failed)
+            << !AssertMessage << Msg.str() << AssertExpr->getSourceRange();
+        }
+        Failed = true;
       }
-      Failed = true;
     }
   }
 

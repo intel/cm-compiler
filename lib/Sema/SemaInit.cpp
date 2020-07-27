@@ -3264,6 +3264,9 @@ void InitializationSequence::Step::Destroy() {
   case SK_ProduceObjCObject:
   case SK_StdInitializerList:
   case SK_StdInitializerListConstructorCall:
+  case SK_CMVectorMatrixInit:
+  case SK_CMSurfaceIndexInit:
+  case SK_CMSamplerIndexInit:
   case SK_OCLSamplerInit:
   case SK_OCLZeroOpaqueType:
     break;
@@ -3540,6 +3543,27 @@ void InitializationSequence::AddProduceObjCObjectStep(QualType T) {
 void InitializationSequence::AddStdInitializerListConstructionStep(QualType T) {
   Step S;
   S.Kind = SK_StdInitializerList;
+  S.Type = T;
+  Steps.push_back(S);
+}
+
+void InitializationSequence::AddCMVectorMatrixInitStep(QualType T) {
+  Step S;
+  S.Kind = SK_CMVectorMatrixInit;
+  S.Type = T;
+  Steps.push_back(S);
+}
+
+void InitializationSequence::AddCMSurfaceIndexInitStep(QualType T) {
+  Step S;
+  S.Kind = SK_CMSurfaceIndexInit;
+  S.Type = T;
+  Steps.push_back(S);
+}
+
+void InitializationSequence::AddCMSamplerIndexInitStep(QualType T) {
+  Step S;
+  S.Kind = SK_CMSamplerIndexInit;
   S.Type = T;
   Steps.push_back(S);
 }
@@ -5655,6 +5679,24 @@ void InitializationSequence::InitializeFrom(Sema &S,
     return;
   }
 
+  // Initialize a CM vector/ matrix base declaration with a constant array.
+  if (DestType->isCMBaseType() && SourceType->isConstantArrayType()) {
+    AddCMVectorMatrixInitStep(DestType);
+    return;
+  }
+
+  // Initialize a CM SurfaceIndex with a constant value.
+  if (DestType->isCMSurfaceIndexType() && SourceType->isIntegralType(Context)) {
+    AddCMSurfaceIndexInitStep(DestType);
+    return;
+  }
+
+  // Initialize a CM SurfaceIndex with a constant value.
+  if (DestType->isCMSamplerIndexType() && SourceType->isIntegralType(Context)) {
+    AddCMSamplerIndexInitStep(DestType);
+    return;
+  }
+
   //    - Otherwise, the initial value of the object being initialized is the
   //      (possibly converted) value of the initializer expression. Standard
   //      conversions (Clause 4) will be used, if necessary, to convert the
@@ -5704,6 +5746,8 @@ void InitializationSequence::InitializeFrom(Sema &S,
       SetFailed(InitializationSequence::FK_AddressOfUnaddressableFunction);
     else
       SetFailed(InitializationSequence::FK_ConversionFailed);
+  } else if (DestType->isCMReferenceType() && !Args[0]->isLValue()) {
+    SetFailed(InitializationSequence::FK_ConversionFailed);
   } else {
     AddConversionSequenceStep(ICS, DestType, TopLevelOfInitList);
 
@@ -7434,6 +7478,9 @@ ExprResult InitializationSequence::Perform(Sema &S,
   case SK_PassByIndirectRestore:
   case SK_ProduceObjCObject:
   case SK_StdInitializerList:
+  case SK_CMVectorMatrixInit:
+  case SK_CMSurfaceIndexInit:
+  case SK_CMSamplerIndexInit:
   case SK_OCLSamplerInit:
   case SK_OCLZeroOpaqueType: {
     assert(Args.size() == 1);
@@ -8011,6 +8058,38 @@ ExprResult InitializationSequence::Perform(Sema &S,
       break;
     }
 
+    case SK_CMVectorMatrixInit: {
+      assert(Step->Type->isCMBaseType() && "CM vector/matrix type expected");
+      // Only support variable initialization.
+      if (Entity.getKind() != InitializedEntity::EK_Variable)
+        S.Diag(Kind.getLocation(), diag::err_cm_invalid_vector_matrix_init)
+            << Step->Type->isCMMatrixType();
+      else {
+        Expr *E = CurInit.get()->IgnoreParenImpCasts();
+        assert(E->getType()->isConstantArrayType());
+        S.DiagnoseCMVectorMatrixInitializer(Step->Type, E);
+      }
+      break;
+    }
+
+    case SK_CMSurfaceIndexInit:
+      assert(Step->Type->isCMSurfaceIndexType() &&
+             "SurfaceIndex initialization of a non-SurfaceIndex type.");
+      CurInit = S.ImpCastExprToType(CurInit.get(), S.Context.IntTy,
+                          CK_IntegralCast, CurInit.get()->getValueKind());
+      CurInit = S.ImpCastExprToType(CurInit.get(), Step->Type,
+                          CK_BitCast, CurInit.get()->getValueKind());
+      break;
+
+    case SK_CMSamplerIndexInit:
+      assert(Step->Type->isCMSamplerIndexType() &&
+             "SamplerIndex initialization of a non-SamplerIndex type.");
+      CurInit = S.ImpCastExprToType(CurInit.get(), S.Context.IntTy,
+                          CK_IntegralCast, CurInit.get()->getValueKind());
+      CurInit = S.ImpCastExprToType(CurInit.get(), Step->Type,
+                          CK_BitCast, CurInit.get()->getValueKind());
+      break;
+
     case SK_OCLSamplerInit: {
       // Sampler initialization have 5 cases:
       //   1. function argument passing
@@ -8465,6 +8544,12 @@ bool InitializationSequence::Diagnose(Sema &S,
       << OnlyArg->isLValue()
       << FromType
       << Args[0]->getSourceRange();
+    // Special case for CM reference type initialization from a rvalue
+    if (DestType->isCMReferenceType() && (DestType == FromType) &&
+        !Args[0]->isLValue() )
+      PDiag = S.PDiag(diag::err_cm_ref_init_from_rvalue)
+        << DestType
+        << Args[0]->getSourceRange();
     S.HandleFunctionTypeMismatch(PDiag, FromType, DestType);
     S.Diag(Kind.getLocation(), PDiag);
     emitBadConversionNotes(S, Entity, Args[0]);
@@ -8988,6 +9073,18 @@ void InitializationSequence::dump(raw_ostream &OS) const {
 
     case SK_StdInitializerListConstructorCall:
       OS << "list initialization from std::initializer_list";
+      break;
+
+    case SK_CMVectorMatrixInit:
+      OS << "CM vector/matrix from constant array";
+      break;
+
+    case SK_CMSurfaceIndexInit:
+      OS << "CM SurfaceIndex from integer";
+      break;
+
+    case SK_CMSamplerIndexInit:
+      OS << "CM SamplerIndex from integer";
       break;
 
     case SK_OCLSamplerInit:

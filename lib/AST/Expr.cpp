@@ -18,6 +18,7 @@
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/EvaluatedExprVisitor.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprCM.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/Mangle.h"
 #include "clang/AST/RecordLayout.h"
@@ -1620,6 +1621,176 @@ SourceLocation MemberExpr::getEndLoc() const {
   return EndLoc;
 }
 
+CMMemberExpr::CMMemberExpr(const ASTContext &C, StmtClass SC, Expr *Base,
+                           SourceLocation MemLoc, ArrayRef<Expr *> Args,
+                           QualType T, ExprValueKind VK)
+    : Expr(SC, T, VK, OK_Ordinary, Base->isTypeDependent(),
+           Base->isValueDependent(), Base->isInstantiationDependent(),
+           Base->containsUnexpandedParameterPack()),
+      MemberLoc(MemLoc) {
+  NumSubExprs = 1 + Args.size();
+  SubExprs = new (C) Stmt *[NumSubExprs];
+  SubExprs[0] = Base;
+
+  if (T->isDependentType())
+    ExprBits.TypeDependent = true;
+  if (T->isInstantiationDependentType())
+    ExprBits.InstantiationDependent = true;
+
+  for (unsigned i = 0; i != Args.size(); ++i) {
+    if (Args[i]->isTypeDependent())
+      ExprBits.TypeDependent = true;
+    if (Args[i]->isValueDependent())
+      ExprBits.ValueDependent = true;
+    if (Args[i]->isInstantiationDependent())
+      ExprBits.InstantiationDependent = true;
+    if (Args[i]->containsUnexpandedParameterPack())
+      ExprBits.ContainsUnexpandedParameterPack = true;
+
+    SubExprs[1 + i] = Args[i];
+  }
+}
+
+Expr *CMMemberExpr::getBase() const {
+  return static_cast<Expr *>(SubExprs[0]);
+}
+
+CMSelectExpr::CMSelectExpr(const ASTContext &C, CMSelectKind SK, Expr *Base,
+                           SourceLocation SelectLoc, ArrayRef<Expr *> Args,
+                           unsigned NumConstArgs, SourceLocation RPLoc,
+                           QualType T, ExprValueKind VK)
+    : CMMemberExpr(C, CMSelectExprClass, Base, SelectLoc, Args, T, VK),
+      SelectKind(SK), RParenLoc(RPLoc), NumConstArgs(NumConstArgs) {
+  assert(NumConstArgs <= Args.size());
+}
+
+CMSelectExpr::CMSelectExpr(const ASTContext &C, CMSelectKind SK, Expr *Base,
+                           SourceLocation SelectLoc, ArrayRef<Expr *> Args,
+                           SourceLocation RPLoc, QualType T, ExprValueKind VK)
+    : CMMemberExpr(C, CMSelectExprClass, Base, SelectLoc, Args, T, VK),
+      SelectKind(SK), RParenLoc(RPLoc), NumConstArgs(0) {}
+
+Expr *CMSelectExpr::getSize() const {
+  assert(isSelect() && is1D());
+  return static_cast<Expr *>(SubExprs[1]);
+}
+Expr *CMSelectExpr::getStride() const {
+  assert(isSelect() && is1D());
+  return static_cast<Expr *>(SubExprs[2]);
+}
+Expr *CMSelectExpr::getOffset() const {
+  assert(isSelect() && is1D());
+  return static_cast<Expr *>(SubExprs[3]);
+}
+
+Expr *CMSelectExpr::getVSize() const {
+  assert(isSelect() && is2D());
+  return static_cast<Expr *>(SubExprs[1]);
+}
+Expr *CMSelectExpr::getVStride() const {
+  assert(isSelect() && is2D());
+  return static_cast<Expr *>(SubExprs[2]);
+}
+Expr *CMSelectExpr::getHSize() const {
+  assert(isSelect() && is2D());
+  return static_cast<Expr *>(SubExprs[3]);
+}
+Expr *CMSelectExpr::getHStride() const {
+  assert(isSelect() && is2D());
+  return static_cast<Expr *>(SubExprs[4]);
+}
+Expr *CMSelectExpr::getVOffset() const {
+  assert(isSelect() && is2D());
+  return static_cast<Expr *>(SubExprs[5]);
+}
+Expr *CMSelectExpr::getHOffset() const {
+  assert(isSelect() && is2D());
+  return static_cast<Expr *>(SubExprs[6]);
+}
+
+Expr *CMSelectExpr::getRowExpr() const {
+  assert(isRowSelect() && is2D());
+  return static_cast<Expr *>(SubExprs[1]);
+}
+Expr *CMSelectExpr::getColumnExpr() const {
+  assert(isColumnSelect() && is2D());
+  return static_cast<Expr *>(SubExprs[1]);
+}
+
+Expr *CMSelectExpr::getIndex() const {
+  assert(isElementSelect() && is1D());
+  return static_cast<Expr *>(SubExprs[1]);
+}
+Expr *CMSelectExpr::getRowIndex() const {
+  assert(isElementSelect() && is2D());
+  return static_cast<Expr *>(SubExprs[1]);
+}
+Expr *CMSelectExpr::getColumnIndex() const {
+  assert(isElementSelect() && is2D());
+  return static_cast<Expr *>(SubExprs[2]);
+}
+
+Expr *CMSelectExpr::getSubscriptIndex() const {
+  assert(isSubscriptSelect());
+  return static_cast<Expr *>(SubExprs[1]);
+}
+
+/// \brief The number of parameter in specifing this replicate operation.
+/// This is 1 for replicate<REP>(),
+///         2 for replicate<REP, W>(...)
+///         3 for replicate<REP, VS, W>(...)
+///         4 for replicate<REP, VS, W, HS>(...)
+unsigned CMSelectExpr::getNumParameters() const {
+  assert(isReplicate());
+  assert(NumSubExprs >= 2);
+  // A special case, when there is no offset argument, there are two
+  // expressions, base and REP expr.
+  if (NumSubExprs == 2)
+    return 1;
+
+  // Base, REP, [VS], W, [HS], Offsets
+  assert(NumSubExprs >= 1u + 2 + (is1D() ? 1 : 2));
+
+  // For all other cases, there are 1 or 2 offset expressions.
+  return NumSubExprs - 1 - (is1D() ? 1 : 2);
+}
+Expr *CMSelectExpr::getRepExpr() const {
+  assert(isReplicate());
+  return static_cast<Expr *>(SubExprs[1]);
+}
+Expr *CMSelectExpr::getRepWExpr() const {
+  assert(getNumParameters() > 1);
+  if (getNumParameters() == 2)
+    return static_cast<Expr *>(SubExprs[2]);
+
+  return static_cast<Expr *>(SubExprs[3]);
+}
+Expr *CMSelectExpr::getRepVSExpr() const {
+   assert(getNumParameters() >= 3);
+   return static_cast<Expr *>(SubExprs[2]);
+}
+Expr *CMSelectExpr::getRepHSExpr() const {
+  assert(getNumParameters() >= 4);
+  return static_cast<Expr *>(SubExprs[4]);
+}
+Expr *CMSelectExpr::getRepOffset() const {
+  assert(getNumParameters() > 1 && is1D());
+  return static_cast<Expr *>(SubExprs[NumSubExprs - 1]);
+}
+Expr *CMSelectExpr::getRepVOffset() const {
+  assert(getNumParameters() > 1 && is2D());
+  return static_cast<Expr *>(SubExprs[NumSubExprs - 2]);
+}
+Expr *CMSelectExpr::getRepHOffset() const {
+  assert(getNumParameters() > 1 && is2D());
+  return static_cast<Expr *>(SubExprs[NumSubExprs - 1]);
+}
+
+Expr *CMSelectExpr::getISelectIndexExpr(unsigned i) const {
+  assert((i == 0 || (i == 1 && is2D())) && "index out of bound");
+  return static_cast<Expr *>(SubExprs[i + 1]);
+}
+
 bool CastExpr::CastConsistency() const {
   switch (getCastKind()) {
   case CK_DerivedToBase:
@@ -1696,6 +1867,9 @@ bool CastExpr::CastConsistency() const {
   case CK_PointerToIntegral:
   case CK_ToVoid:
   case CK_VectorSplat:
+  case CK_CMBaseToReference:
+  case CK_CMReferenceToBase:
+  case CK_CMVectorMatrixSplat:
   case CK_IntegralCast:
   case CK_BooleanToSignedIntegral:
   case CK_IntegralToFloating:
@@ -3160,6 +3334,7 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
   case ObjCAvailabilityCheckExprClass:
   case CXXUuidofExprClass:
   case OpaqueValueExprClass:
+  case CMBoolReductionExprClass:
     // These never have a side-effect.
     return false;
 
@@ -3203,6 +3378,12 @@ bool Expr::HasSideEffects(const ASTContext &Ctx,
     // These always have a side-effect.
     return true;
 
+  case CMSelectExprClass:
+  case CMMergeExprClass:
+  case CMFormatExprClass:
+  case CMSizeExprClass:
+    // TODO: Check if CM expressions above have side effects
+    return false;
   case StmtExprClass: {
     // StmtExprs have a side-effect if any substatement does.
     SideEffectFinder Finder(Ctx, IncludePossibleEffects);

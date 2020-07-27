@@ -9,6 +9,14 @@ endif()
 if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   project(Clang)
 
+  #if somebody passed LLVM_CMAKE_PATH he knows what he does
+  if (NOT LLVM_CMAKE_PATH)
+    get_filename_component(LLVM_CMAKE_PATH ${LLVM_DIR} ABSOLUTE BASE_DIR ${CMAKE_BINARY_DIR})
+    message(STATUS "Calculated absolute llvm path is: ${LLVM_CMAKE_PATH}")
+  else()
+    message(STATUS "Predefined llvm path is: ${LLVM_CMAKE_PATH}")
+  endif()
+
   # Rely on llvm-config.
   set(CONFIG_OUTPUT)
   if(LLVM_CONFIG)
@@ -54,7 +62,6 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
     # CMake assumes slashes as PATH.
     file(TO_CMAKE_PATH ${LLVM_CONFIG_CMAKE_PATH} LLVM_CMAKE_PATH)
   endif()
-
 
   if(NOT MSVC_IDE)
     set(LLVM_ENABLE_ASSERTIONS ${ENABLE_ASSERTIONS}
@@ -189,9 +196,11 @@ Please install Python or specify the PYTHON_EXECUTABLE CMake variable.")
     endif()
   endif()
 
+  message(STATUS "Configuring clang as standalone")
   set( CLANG_BUILT_STANDALONE 1 )
   set(BACKEND_PACKAGE_STRING "LLVM ${LLVM_PACKAGE_VERSION}")
 else()
+  message(STATUS "Configuring clang as NOT standalone")
   set(BACKEND_PACKAGE_STRING "${PACKAGE_STRING}")
 endif()
 
@@ -379,6 +388,82 @@ include_directories(BEFORE
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   )
+
+
+if( CLANG_BUILT_STANDALONE )
+  # Fix undefined LLVM_CMAKE_PATH in standalone build.
+  get_filename_component(LLVM_CMAKE_PATH ${LLVM_DIR} ABSOLUTE BASE_DIR ${CMAKE_BINARY_DIR})
+
+  if( NOT PARTIAL_CLANG )
+    # Handle dependency of codegen on visa libraries.
+    if( NOT DEFINED VISA_INSTALL_DIR )
+      message(FATAL_ERROR "Path to vISA libraries is not defined, use -DVISA_INSTALL_DIR to specify")
+    endif()
+    get_filename_component(VISA_INSTALL_DIR ${VISA_INSTALL_DIR} ABSOLUTE BASE_DIR ${CMAKE_BINARY_DIR})
+
+    # Determine vISA modifier.
+    if(CMAKE_SIZEOF_VOID_P EQUAL 4)
+      set(GENX_TARGET_MODIFIER "32")
+    elseif(CMAKE_SIZEOF_VOID_P EQUAL 8)
+      set(GENX_TARGET_MODIFIER "64")
+    else()
+      message(FATAL_ERROR "unexpected platform")
+    endif()
+
+    # Import target for every vISA library.
+    set(FULL_VISA_LIBS igfxcmjit iga_s iga_enc)
+    list(TRANSFORM FULL_VISA_LIBS APPEND ${GENX_TARGET_MODIFIER})
+    # Account for non-prefixed igfxcmjit under linux.
+    list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
+    foreach(VISA_LIB ${FULL_VISA_LIBS})
+    unset(VISA_LIB_PATH CACHE)
+    find_library(VISA_LIB_PATH ${VISA_LIB} PATHS ${VISA_INSTALL_DIR}/lib NO_DEFAULT_PATH)
+    add_library(${VISA_LIB} STATIC IMPORTED)
+    set_property(TARGET ${VISA_LIB} PROPERTY IMPORTED_LOCATION ${VISA_LIB_PATH})
+    endforeach()
+
+    # support for relative VC Opts dir
+    get_filename_component(VC_OPTS_LIBDIR ${VC_OPTS_LIBDIR} ABSOLUTE BASE_DIR ${CMAKE_BINARY_DIR})
+
+    # Import genx opts library and add dependency on scalar opts.
+    find_library(GENX_OPTS_PATH LLVMGenXOpts PATHS ${LLVM_LIBRARY_DIR} ${VC_OPTS_LIBDIR} NO_DEFAULT_PATH)
+    add_library(LLVMGenXOpts STATIC IMPORTED)
+    set_property(TARGET LLVMGenXOpts PROPERTY IMPORTED_LOCATION ${GENX_OPTS_PATH})
+    set_property(TARGET LLVMGenXOpts PROPERTY INTERFACE_LINK_LIBRARIES LLVMScalarOpts)
+
+    # Introduce codegen as imported target which depends on vISA libraries.
+    # This ensures that anyone linking with codegen also links with vISA.
+    find_library(GENX_CODEGEN_PATH LLVMGenXCodeGen PATHS ${LLVM_LIBRARY_DIR} ${VC_OPTS_LIBDIR} NO_DEFAULT_PATH)
+    add_library(LLVMGenXCodeGen STATIC IMPORTED)
+    set_property(TARGET LLVMGenXCodeGen PROPERTY IMPORTED_LOCATION ${GENX_CODEGEN_PATH})
+    set_property(TARGET LLVMGenXCodeGen PROPERTY INTERFACE_LINK_LIBRARIES LLVMGenXOpts ${FULL_VISA_LIBS})
+
+    # Introduce GenXInfo as imported target just like CodeGen
+    find_library(GENX_INFO_PATH LLVMGenXInfo PATHS ${LLVM_LIBRARY_DIR} ${VC_OPTS_LIBDIR} NO_DEFAULT_PATH)
+    add_library(LLVMGenXInfo STATIC IMPORTED)
+    set_property(TARGET LLVMGenXInfo PROPERTY IMPORTED_LOCATION ${GENX_INFO_PATH})
+
+    if ( VC_OPTS_LIBDIR )
+      message(STATUS "including: ${VC_OPTS_LIBDIR}/../include")
+      include_directories("${VC_OPTS_LIBDIR}/../include")
+    endif()
+  endif()
+
+  # Add dependency of genx intrinsics
+  get_filename_component(INTR_CMAKE_PATH ${LLVMGenXIntrinsics_DIR} ABSOLUTE BASE_DIR ${CMAKE_BINARY_DIR})
+  find_package(LLVMGenXIntrinsics REQUIRED HINTS "${INTR_CMAKE_PATH}" NODEFAULTPATH)
+  message(STATUS "found LLVM GenX Intrinsics: ${LLVMGenXIntrinsics_DIR}")
+  include_directories("${LLVMGenXIntrinsics_DIR}/../../../include")
+  link_directories("${LLVMGenXIntrinsics_DIR}/../../../lib")
+
+  # temporary SPIRV path
+  include_directories("${LLVMGenXIntrinsics_DIR}/../../../include/LLVMSPIRVLib")
+else()
+  include_directories(${LLVM_MAIN_SRC_DIR}/projects/vc-intrinsics/SPIRV-LLVM-Translator/include)
+  include_directories(${LLVM_MAIN_SRC_DIR}/projects/vc-intrinsics/GenXIntrinsics/include)
+  include_directories(${LLVM_BINARY_DIR}/projects/vc-intrinsics/GenXIntrinsics/include)
+  include_directories(${LLVM_MAIN_SRC_DIR}/projects/vc-opt/include)
+endif()
 
 if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
   install(DIRECTORY include/clang include/clang-c

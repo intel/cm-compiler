@@ -1061,6 +1061,9 @@ static bool rewriteToNumericBoxedExpression(const ObjCMessageExpr *Msg,
     case CK_PointerToIntegral:
     case CK_ToVoid:
     case CK_VectorSplat:
+    case CK_CMBaseToReference:
+    case CK_CMReferenceToBase:
+    case CK_CMVectorMatrixSplat:
     case CK_CPointerToObjCPointerCast:
     case CK_BlockPointerToObjCPointerCast:
     case CK_AnyPointerToBlockPointerCast:

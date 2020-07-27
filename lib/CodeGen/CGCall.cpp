@@ -14,6 +14,7 @@
 
 #include "CGCall.h"
 #include "ABIInfo.h"
+#include "CGCM.h"
 #include "CGBlocks.h"
 #include "CGCXXABI.h"
 #include "CGCleanup.h"
@@ -2823,6 +2824,10 @@ void CodeGenFunction::EmitFunctionEpilog(const CGFunctionInfo &FI,
 
   // Functions with no result always return void.
   if (!ReturnValue.isValid()) {
+    // Emit kernel ouput argument marker if necessary.
+    if (getLangOpts().MdfCM)
+      CGM.getCMRuntime().EmitCMOutput(*this);
+
     Builder.CreateRetVoid();
     return;
   }
@@ -3594,6 +3599,22 @@ void CodeGenFunction::EmitCallArg(CallArgList &args, const Expr *E,
   if (E->isGLValue()) {
     assert(E->getObjectKind() == OK_Ordinary);
     return args.add(EmitReferenceBindingToExpr(E), type);
+  }
+
+  // CM vector_ref/matrix_ref have reference semantics.
+  if (type->isCMReferenceType()) {
+    LValue LV = EmitLValue(E);
+    llvm::Value *Address = 0;
+
+    // this is a simple variable reference.
+    if (LV.isSimple())
+      Address = LV.getAddress().getPointer();
+    else {
+      // this is CM region reference.
+      assert(LV.isCMRegion());
+      Address = CGM.getCMRuntime().EmitCMReferenceArg(*this, LV);
+    }
+    return args.add(RValue::get(Address), type);
   }
 
   bool HasAggregateEvalKind = hasAggregateEvaluationKind(type);
@@ -4421,6 +4442,13 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
     llvm::Value *errorResult = Builder.CreateLoad(swiftErrorTemp);
     Builder.CreateStore(errorResult, swiftErrorArg);
   }
+
+  if (getLangOpts().MdfCM && CGM.getCMRuntime().CallInfoStack.back())
+    if (auto CInst = dyn_cast<llvm::CallInst>(CI)) {
+      llvm::Function *F = CInst->getCalledFunction();
+      if (F && CGM.getCMRuntime().isCMBuiltin(F->getName()))
+        CGM.getCMRuntime().getCurCMCallInfo().setCallInst(CInst);
+    }
 
   // Emit any call-associated writebacks immediately.  Arguably this
   // should happen after any return-value munging.

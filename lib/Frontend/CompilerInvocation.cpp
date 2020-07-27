@@ -125,6 +125,10 @@ static unsigned getOptimizationLevel(ArgList &Args, InputKind IK,
   if (IK.getLanguage() == InputKind::OpenCL && !Args.hasArg(OPT_cl_opt_disable))
     DefaultOpt = llvm::CodeGenOpt::Default;
 
+  // For MDF CM we default to maximum non-size-increasing optimization
+  if (IK.getLanguage() == InputKind::CM)
+    DefaultOpt = 2;
+
   if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
     if (A->getOption().matches(options::OPT_O0))
       return llvm::CodeGenOpt::None;
@@ -768,6 +772,35 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.UnrollLoops =
       Args.hasFlag(OPT_funroll_loops, OPT_fno_unroll_loops,
                    (Opts.OptimizationLevel > 1));
+
+  Opts.NoUnrollPragmalessLoops = false;
+  if (IK.getLanguage() == InputKind::CM) {
+    // For CM only, unrolling of pragma-less loops is by default disabled,
+    // and only enabled by -funroll-loops.  Thus, assuming >= -O2 and not -Os,
+    // loop unrolling has three states on CM:
+    //    default: unroll pragma loops but not pragma-less loops
+    //    -funroll-loops: attempt to unroll all loops
+    //    -fno-unroll-loops: do not unroll any loops
+    // Opts.NoUnrollPragmalessLoops is set only for the first (default) case,
+    // not for the !UnrollLoops case, in which the unroller is not running
+    // anyway.
+    // Setting Opts.NoUnrollPragmalessLoops causes BackendUtil to send
+    // a -unroll-threshold=0 to llvm.
+    Opts.NoUnrollPragmalessLoops = Opts.UnrollLoops
+        && !Args.hasArg(OPT_funroll_loops);
+  }
+  // For CM only, set as noinline for functions without inline attribute.
+  Opts.ForceNoInline = !Args.hasArg(OPT_fno_force_noinline);
+  // Emit vload/vstore intrinsic calls for pass-by-ref arguments.
+  Opts.EmitVLoadStore = Args.hasArg(OPT_fvldst);
+  if (Args.hasArg(OPT_mCM_import_bif))
+    Opts.GenXBiFName = Args.getLastArgValue(OPT_mCM_import_bif);
+  // By default, CM global variables are not default initialized, this option
+  // forces initialization when initalizer is absent.
+  Opts.InitializeCMGlobals = Args.hasArg(OPT_mCM_init_global);
+  Opts.EmitCMGlobalsAsVolatile = Args.hasArg(OPT_fvolatile_global);
+  Opts.ReverseCMKernelList = Args.hasArg(OPT_mCM_reverse_kernels);
+  Opts.EmitCmOCL = Args.hasArg(OPT_fcmocl);
   Opts.RerollLoops = Args.hasArg(OPT_freroll_loops);
 
   Opts.DisableIntegratedAS = Args.hasArg(OPT_fno_integrated_as);
@@ -909,7 +942,8 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.LTOUnit = Args.hasFlag(OPT_flto_unit, OPT_fno_lto_unit, false);
   Opts.EnableSplitLTOUnit = Args.hasArg(OPT_fsplit_lto_unit);
   if (Arg *A = Args.getLastArg(OPT_fthinlto_index_EQ)) {
-    if (IK.getLanguage() != InputKind::LLVM_IR)
+    if (IK.getLanguage() != InputKind::LLVM_IR && 
+        IK.getLanguage() != InputKind::SPIRV)
       Diags.Report(diag::err_drv_argument_only_allowed_with)
           << A->getAsString(Args) << "-x ir";
     Opts.ThinLTOIndexFile = Args.getLastArgValue(OPT_fthinlto_index_EQ);
@@ -1524,6 +1558,8 @@ bool clang::ParseDiagnosticArgs(DiagnosticOptions &Opts, ArgList &Args,
   Opts.ElideType = !Args.hasArg(OPT_fno_elide_type);
   Opts.ShowTemplateTree = Args.hasArg(OPT_fdiagnostics_show_template_tree);
   Opts.ErrorLimit = getLastArgIntValue(Args, OPT_ferror_limit, 0, Diags);
+  Opts.TypoCorrectionLimit =
+      getLastArgIntValue(Args, OPT_ftypo_correction_limit, 0, Diags);
   Opts.MacroBacktraceLimit =
       getLastArgIntValue(Args, OPT_fmacro_backtrace_limit,
                          DiagnosticOptions::DefaultMacroBacktraceLimit, Diags);
@@ -1620,6 +1656,8 @@ static InputKind ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
       Opts.ProgramAction = frontend::EmitCodeGenOnly; break;
     case OPT_emit_obj:
       Opts.ProgramAction = frontend::EmitObj; break;
+    case OPT_emit_spirv_bc:
+      Opts.ProgramAction = frontend::EmitSPIRV; break;
     case OPT_fixit_EQ:
       Opts.FixItSuffix = A->getValue();
       LLVM_FALLTHROUGH;
@@ -1825,6 +1863,7 @@ static InputKind ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
     DashX = llvm::StringSwitch<InputKind>(XValue)
                 .Case("c", InputKind::C)
                 .Case("cl", InputKind::OpenCL)
+                .Case("cm", InputKind::CM)
                 .Case("cuda", InputKind::CUDA)
                 .Case("hip", InputKind::HIP)
                 .Case("c++", InputKind::CXX)
@@ -1849,6 +1888,7 @@ static InputKind ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
                   .Cases("ast", "pcm",
                          InputKind(InputKind::Unknown, InputKind::Precompiled))
                   .Case("ir", InputKind::LLVM_IR)
+                  .Case("spv", InputKind::SPIRV)
                   .Default(InputKind::Unknown);
 
     if (DashX.isUnknown())
@@ -2069,6 +2109,7 @@ void CompilerInvocation::setLangDefaults(LangOptions &Opts, InputKind IK,
     switch (IK.getLanguage()) {
     case InputKind::Unknown:
     case InputKind::LLVM_IR:
+    case InputKind::SPIRV:
       llvm_unreachable("Invalid input kind!");
     case InputKind::OpenCL:
       LangStd = LangStandard::lang_opencl10;
@@ -2106,6 +2147,9 @@ void CompilerInvocation::setLangDefaults(LangOptions &Opts, InputKind IK,
     case InputKind::RenderScript:
       LangStd = LangStandard::lang_c99;
       break;
+    case InputKind::CM:
+      LangStd = LangStandard::lang_mdf_cm;
+      break;
     case InputKind::HIP:
       LangStd = LangStandard::lang_hip;
       break;
@@ -2127,6 +2171,14 @@ void CompilerInvocation::setLangDefaults(LangOptions &Opts, InputKind IK,
   Opts.GNUInline = !Opts.C99 && !Opts.CPlusPlus;
   Opts.HexFloats = Std.hasHexFloats();
   Opts.ImplicitInt = Std.hasImplicitInt();
+
+  // Set MDF CM language option if language std is MDF CM.
+  if (LangStd == LangStandard::lang_mdf_cm) {
+    Opts.MdfCM = 1;
+    // CM has native half support (the half keyword is enabled later).
+    Opts.NativeHalfType = 1;
+    Opts.NativeHalfArgsAndReturns = 1;
+  }
 
   // Set OpenCL Version.
   Opts.OpenCL = Std.isOpenCL();
@@ -2171,8 +2223,8 @@ void CompilerInvocation::setLangDefaults(LangOptions &Opts, InputKind IK,
   // OpenCL and C++ both have bool, true, false keywords.
   Opts.Bool = Opts.OpenCL || Opts.CPlusPlus;
 
-  // OpenCL has half keyword
-  Opts.Half = Opts.OpenCL;
+  // OpenCL and MDF CM have half keyword
+  Opts.Half = Opts.OpenCL || Opts.MdfCM;
 
   // C++ has wchar_t keyword.
   Opts.WChar = Opts.CPlusPlus;
@@ -2209,6 +2261,7 @@ static bool IsInputCompatibleWithStandard(InputKind IK,
   switch (IK.getLanguage()) {
   case InputKind::Unknown:
   case InputKind::LLVM_IR:
+  case InputKind::SPIRV:
     llvm_unreachable("should not parse language flags for this input");
 
   case InputKind::C:
@@ -2218,6 +2271,9 @@ static bool IsInputCompatibleWithStandard(InputKind IK,
 
   case InputKind::OpenCL:
     return S.getLanguage() == InputKind::OpenCL;
+
+  case InputKind::CM:
+    return S.getLanguage() == InputKind::CM;
 
   case InputKind::CXX:
   case InputKind::ObjCXX:
@@ -2255,6 +2311,8 @@ static const StringRef GetInputKindName(InputKind IK) {
     return "Objective-C++";
   case InputKind::OpenCL:
     return "OpenCL";
+  case InputKind::CM:
+    return "MDF CM";
   case InputKind::CUDA:
     return "CUDA";
   case InputKind::RenderScript:
@@ -2266,6 +2324,8 @@ static const StringRef GetInputKindName(InputKind IK) {
     return "Asm";
   case InputKind::LLVM_IR:
     return "LLVM IR";
+  case InputKind::SPIRV:
+    return "SPIRV";
 
   case InputKind::Unknown:
     break;
@@ -2380,6 +2440,9 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
 
   if (Args.hasArg(OPT_fno_operator_names))
     Opts.CXXOperatorNames = 0;
+
+  if (Args.hasArg(OPT_fcm_pointer))
+    Opts.CMPointer = 1;
 
   if (Args.hasArg(OPT_fcuda_is_device))
     Opts.CUDAIsDevice = 1;
@@ -2537,6 +2600,7 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
                                    Opts.DollarIdents);
   Opts.PascalStrings = Args.hasArg(OPT_fpascal_strings);
   Opts.VtorDispMode = getLastArgIntValue(Args, OPT_vtordisp_mode_EQ, 1, Diags);
+  Opts.M_IX86 = getLastArgIntValue(Args, OPT_fm_ix86, 0, Diags);
   Opts.Borland = Args.hasArg(OPT_fborland_extensions);
   Opts.WritableStrings = Args.hasArg(OPT_fwritable_strings);
   Opts.ConstStrings = Args.hasFlag(OPT_fconst_strings, OPT_fno_const_strings,
@@ -3045,6 +3109,7 @@ static bool isStrictlyPreprocessorAction(frontend::ActionKind Action) {
   case frontend::EmitLLVMOnly:
   case frontend::EmitCodeGenOnly:
   case frontend::EmitObj:
+  case frontend::EmitSPIRV:
   case frontend::FixIt:
   case frontend::GenerateModule:
   case frontend::GenerateModuleInterface:
@@ -3277,7 +3342,8 @@ bool CompilerInvocation::CreateFromArgs(CompilerInvocation &Res,
                         Res.getFileSystemOpts().WorkingDir);
   llvm::Triple T(Res.getTargetOpts().Triple);
   if (DashX.getFormat() == InputKind::Precompiled ||
-      DashX.getLanguage() == InputKind::LLVM_IR) {
+      DashX.getLanguage() == InputKind::LLVM_IR ||
+      DashX.getLanguage() == InputKind::SPIRV) {
     // ObjCAAutoRefCount and Sanitize LangOpts are used to setup the
     // PassManager in BackendUtil.cpp. They need to be initializd no matter
     // what the input type is.

@@ -100,6 +100,14 @@ def ConstantExpr : DStmt<FullExpr>;
 // Atomic expressions
 def AtomicExpr : DStmt<Expr>;
 
+// MDF CM member expressions
+def CMMemberExpr : DStmt<Expr, 1>;
+def CMSelectExpr : DStmt<CMMemberExpr>;
+def CMBoolReductionExpr : DStmt<CMMemberExpr>;
+def CMFormatExpr : DStmt<CMMemberExpr>;
+def CMMergeExpr : DStmt<CMMemberExpr>;
+def CMSizeExpr : DStmt<CMMemberExpr>;
+
 // GNU Extensions.
 def AddrLabelExpr : DStmt<Expr>;
 def StmtExpr : DStmt<Expr>;

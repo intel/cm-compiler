@@ -1012,6 +1012,26 @@ void ASTStmtWriter::VisitAtomicExpr(AtomicExpr *E) {
   Code = serialization::EXPR_ATOMIC;
 }
 
+void ASTStmtWriter::VisitCMSelectExpr(CMSelectExpr *E) {
+  llvm_unreachable("not implemented yet");
+}
+
+void ASTStmtWriter::VisitCMBoolReductionExpr(CMBoolReductionExpr *E) {
+  llvm_unreachable("not implemented yet");
+}
+
+void ASTStmtWriter::VisitCMFormatExpr(CMFormatExpr *E) {
+  llvm_unreachable("not implemented yet");
+}
+
+void ASTStmtWriter::VisitCMMergeExpr(CMMergeExpr *E) {
+  llvm_unreachable("not implemented yet");
+}
+
+void ASTStmtWriter::VisitCMSizeExpr(CMSizeExpr *E) {
+  llvm_unreachable("not implemented yet");
+}
+
 //===----------------------------------------------------------------------===//
 // Objective-C Expressions and Statements.
 //===----------------------------------------------------------------------===//

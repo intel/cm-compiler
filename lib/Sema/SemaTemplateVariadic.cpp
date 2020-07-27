@@ -865,6 +865,12 @@ bool Sema::containsUnexpandedParameterPacks(Declarator &D) {
 #define GENERIC_IMAGE_TYPE(ImgType, Id) case TST_##ImgType##_t:
 #include "clang/Basic/OpenCLImageTypes.def"
   case TST_unknown_anytype:
+  // No upexpanded parameter packs for CM vector and matrix types.
+  case TST_cm_matrix:
+  case TST_cm_vector:
+  case TST_SurfaceIndex:
+  case TST_SamplerIndex:
+  case TST_VmeIndex:
   case TST_error:
     break;
   }

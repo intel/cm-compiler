@@ -253,6 +253,10 @@ bool CallAndMessageChecker::PreVisitProcessArg(CheckerContext &C,
                          ArgumentNumber))
     return true;
 
+  // CM vector/matrix args are currently too hard to check, so we'll skip them.
+  if (ArgEx->getType()->isCMVectorMatrixType())
+    return true;
+
   if (V.isUndef()) {
     if (ExplodedNode *N = C.generateErrorNode()) {
       LazyInit_BT(BD, BT);

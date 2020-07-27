@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "CGCM.h"
 #include "CGCXXABI.h"
 #include "CGObjCRuntime.h"
 #include "CGOpenCLRuntime.h"
@@ -2266,6 +2267,34 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
                                                   DestAddr, SrcAddr, SizeVal);
     return RValue::get(DestAddr.getPointer());
   }
+
+  case Builtin::BIget_thread_origin_x:
+  case Builtin::BIget_thread_origin_y:
+  case Builtin::BIget_color:
+  case Builtin::BIcm_get_hwid:
+  case Builtin::BIcm_lane_id:
+  case Builtin::BIcm_local_id:
+  case Builtin::BIcm_local_size:
+  case Builtin::BIcm_group_id:
+  case Builtin::BIcm_group_count:
+  case Builtin::BI__cm_builtin_cm_printf:
+  case Builtin::BIcm_slm_init:
+  case Builtin::BIcm_slm_alloc:
+  case Builtin::BIcm_slm_free:
+  case Builtin::BIcm_barrier:
+  case Builtin::BIcm_fence:
+  case Builtin::BIcm_slm_fence:
+  case Builtin::BI__cm_builtin_cm_wait:
+  case Builtin::BIcm_pause:
+  case Builtin::BI__cm_builtin_dummy_mov:
+  case Builtin::BIcm_scoreboard_bti:
+  case Builtin::BIcm_scoreboard_deltas:
+  case Builtin::BIcm_scoreboard_depcnt:
+  case Builtin::BIcm_sbarrier:
+  case Builtin::BIcm_yield :
+  case Builtin::BIcm_print_buffer :
+  case Builtin::BIcm_print_format_index:
+    return CGM.getCMRuntime().EmitCMBuiltin(*this, BuiltinID, E);
 
   case Builtin::BI__builtin___memmove_chk: {
     // fold __builtin_memmove_chk(x, y, cst1, cst2) to memmove iff cst1<=cst2.

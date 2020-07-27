@@ -237,6 +237,10 @@ private:
   // Cap on depth of constexpr evaluation backtrace stack, 0 -> no limit.
   unsigned ConstexprBacktraceLimit = 0;
 
+  // A quick workaround for "out of memory" error when trying to check
+  // exponentially huge number of candidates, 0 -> no limit.
+  unsigned TypoCorrectionLimit = 0;
+
   IntrusiveRefCntPtr<DiagnosticIDs> Diags;
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;
   DiagnosticConsumer *Client = nullptr;
@@ -625,6 +629,14 @@ public:
   }
   bool getSuppressSystemWarnings() const {
     return GetCurDiagState()->SuppressSystemWarnings;
+  }
+
+  /// Specify a limit for the number of typo correction tries before giving up.
+  ///
+  /// Zero disables the limit.
+  void setTypoCorrectionLimit(unsigned Limit) { TypoCorrectionLimit = Limit; }
+  unsigned getTypoCorrectionLimit() const noexcept {
+    return TypoCorrectionLimit;
   }
 
   /// Suppress all diagnostics, to silence the front end when we

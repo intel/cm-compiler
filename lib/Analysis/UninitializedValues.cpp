@@ -46,7 +46,8 @@ static bool isTrackedVar(const VarDecl *vd, const DeclContext *dc) {
       !vd->isExceptionVariable() && !vd->isInitCapture() &&
       !vd->isImplicit() && vd->getDeclContext() == dc) {
     QualType ty = vd->getType();
-    return ty->isScalarType() || ty->isVectorType() || ty->isRecordType();
+    return ty->isScalarType() || ty->isVectorType() ||
+           ty->isRecordType() || ty->isCMVectorMatrixType();
   }
   return false;
 }
@@ -303,6 +304,12 @@ static const Expr *stripCasts(ASTContext &C, const Expr *Ex) {
         continue;
       }
     }
+
+    if (const auto *CM = dyn_cast<CMMemberExpr>(Ex)) {
+      Ex = CM->getBase();
+      continue;
+    }
+
     break;
   }
   return Ex;
@@ -423,6 +430,27 @@ void ClassifyRefs::classify(const Expr *E, Class C) {
     }
   }
 
+  if (const CMMemberExpr *CMM = dyn_cast<CMMemberExpr>(E)) {
+    if (const CMFormatExpr *CMF = dyn_cast<CMFormatExpr>(CMM))
+      return;
+    if (const CMSelectExpr *CMS = dyn_cast<CMSelectExpr>(CMM)) {
+      if (CMS->getSelectKind() == CMSelectExpr::SK_subscript ||
+        CMS->getSelectKind() == CMSelectExpr::SK_iselect ||
+        CMS->getSelectKind() == CMSelectExpr::SK_replicate)
+          classify(CMM->getBase(), C);
+      return;
+    }
+    classify(CMM->getBase(), C);
+    return;
+  }
+
+  if (const CastExpr *CE = dyn_cast<CastExpr>(E)) {
+    if (CE->getCastKind() == CK_LValueToRValue) {
+      classify(CE->getSubExpr(), C);
+      return;
+    }
+  }
+
   FindVarResult Var = findVar(E, DC);
   if (const DeclRefExpr *DRE = Var.getDeclRefExpr())
     Classification[DRE] = std::max(Classification[DRE], C);
@@ -498,6 +526,8 @@ void ClassifyRefs::VisitCastExpr(CastExpr *CE) {
       classify(CSE->getSubExpr(), Ignore);
     }
   }
+  else if (CE->getCastKind() == CK_CMBaseToReference)
+    classify(CE->getSubExpr(), Ignore);
 }
 
 //------------------------------------------------------------------------====//
@@ -529,6 +559,7 @@ public:
   void VisitBinaryOperator(BinaryOperator *bo);
   void VisitBlockExpr(BlockExpr *be);
   void VisitCallExpr(CallExpr *ce);
+  void VisitCastExpr(CastExpr *CE);
   void VisitDeclRefExpr(DeclRefExpr *dr);
   void VisitDeclStmt(DeclStmt *ds);
   void VisitObjCForCollectionStmt(ObjCForCollectionStmt *FS);
@@ -742,6 +773,14 @@ void TransferFunctions::VisitCallExpr(CallExpr *ce) {
       // user doesn't care).
       vals.setAllScratchValues(Unknown);
     }
+  }
+}
+
+void TransferFunctions::VisitCastExpr(CastExpr *CE) {
+  if (CE->getCastKind() == CK_CMBaseToReference) {
+    FindVarResult Var = findVar(CE->getSubExpr());
+    if (const VarDecl *VD = Var.getDecl())
+      vals[VD] = Initialized;
   }
 }
 

@@ -137,6 +137,18 @@ class Sema;
     /// A vector splat from an arithmetic type
     ICK_Vector_Splat,
 
+    /// CM vector-matrix conversions
+    ICK_CMVectorMatrix_Conversion,
+
+    /// CM base to reference type conversions
+    ICK_CMBaseToReference,
+
+    /// CM reference type to base conversions
+    ICK_CMReferenceToBase,
+
+    /// A CM vector/matrix splat
+    ICK_CMVectorMatrix_Splat,
+
     /// Complex-real conversions (C99 6.3.1.7)
     ICK_Complex_Real,
 

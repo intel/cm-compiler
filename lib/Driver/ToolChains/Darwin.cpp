@@ -2028,6 +2028,11 @@ DerivedArgList *MachO::TranslateArgs(const DerivedArgList &Args,
     else if (Name == "x86_64" || Name == "x86_64h")
       DAL->AddFlagArg(nullptr, Opts.getOption(options::OPT_m64));
 
+    else if (Name == "genx32")
+      DAL->AddJoinedArg(nullptr, MArch, "genx32");
+    else if (Name == "genx64")
+      DAL->AddJoinedArg(nullptr, MArch, "genx64");
+
     else if (Name == "arm")
       DAL->AddJoinedArg(nullptr, MArch, "armv4t");
     else if (Name == "armv4t")

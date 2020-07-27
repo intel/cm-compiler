@@ -16,6 +16,7 @@
 #include "CGCUDARuntime.h"
 #include "CGCXXABI.h"
 #include "CGCall.h"
+#include "CGCM.h"
 #include "CGDebugInfo.h"
 #include "CGObjCRuntime.h"
 #include "CGOpenCLRuntime.h"
@@ -58,6 +59,9 @@
 #include "llvm/Support/ConvertUTF.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MD5.h"
+
+#include "llvm/GenXIntrinsics/GenXIntrinsics.h"
+#include "llvm/GenXIntrinsics/GenXMetadata.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -134,6 +138,8 @@ CodeGenModule::CodeGenModule(ASTContext &C, const HeaderSearchOptions &HSO,
     createOpenMPRuntime();
   if (LangOpts.CUDA)
     createCUDARuntime();
+  if (LangOpts.MdfCM)
+    createCMRuntime();
 
   // Enable TBAA unless it's suppressed. ThreadSanitizer needs TBAA even at O0.
   if (LangOpts.Sanitize.has(SanitizerKind::Thread) ||
@@ -223,6 +229,10 @@ void CodeGenModule::createCUDARuntime() {
 
 void CodeGenModule::addReplacement(StringRef Name, llvm::Constant *C) {
   Replacements[Name] = C;
+}
+
+void CodeGenModule::createCMRuntime() {
+  CMRuntime.reset(new CGCMRuntime(*this));
 }
 
 void CodeGenModule::applyReplacements() {
@@ -587,6 +597,9 @@ void CodeGenModule::Release() {
   if (DebugInfo)
     DebugInfo->finalize();
 
+  if (LangOpts.MdfCM)
+    getCMRuntime().finalize();
+
   if (getCodeGenOpts().EmitVersionIdentMetadata)
     EmitVersionIdentMetadata();
 
@@ -830,6 +843,8 @@ void CodeGenModule::setDLLImportDLLExport(llvm::GlobalValue *GV,
     if (D->hasAttr<DLLImportAttr>())
       GV->setDLLStorageClass(llvm::GlobalVariable::DLLImportStorageClass);
     else if (D->hasAttr<DLLExportAttr>() && !GV->isDeclarationForLinker())
+      GV->setDLLStorageClass(llvm::GlobalVariable::DLLExportStorageClass);
+    else if (D->hasAttr<CMGenxMainAttr>())
       GV->setDLLStorageClass(llvm::GlobalVariable::DLLExportStorageClass);
   }
 }
@@ -1497,9 +1512,25 @@ static void setLinkageForGV(llvm::GlobalValue *GV, const NamedDecl *ND) {
   // Don't set internal linkage on declarations.
   // "extern_weak" is overloaded in LLVM; we probably should have
   // separate linkage types for this.
-  if (isExternallyVisible(LV.getLinkage()) &&
-      (ND->hasAttr<WeakAttr>() || ND->isWeakImported()))
-    GV->setLinkage(llvm::GlobalValue::ExternalWeakLinkage);
+  if (isExternallyVisible(LV.getLinkage())) {
+    if (ND->hasAttr<WeakAttr>() || ND->isWeakImported())
+      GV->setLinkage(llvm::GlobalValue::ExternalWeakLinkage);
+    else if (ND->hasAttr<CMGenxMainAttr>())
+      GV->setLinkage(llvm::GlobalValue::ExternalLinkage);
+    else if (ND->hasAttr<CMBuiltinAttr>()) {
+      GV->setLinkage(llvm::GlobalValue::ExternalLinkage);
+      auto Fn = llvm::dyn_cast<llvm::Function>(GV);
+      if (Fn && !Fn->hasFnAttribute("CMBuiltin"))
+        Fn->addFnAttr("CMBuiltin");
+    } else if (auto AT = ND->getAttr<CMGenxVolatileAttr>()) {
+      if (auto Var = dyn_cast<llvm::GlobalVariable>(GV)) {
+        Var->addAttribute(llvm::genx::FunctionMD::GenXVolatile);
+        int ByteOffset = AT->getOffset();
+        Var->addAttribute(llvm::genx::FunctionMD::GenXByteOffset,
+                          std::to_string(ByteOffset));
+      }
+    }
+  }
 }
 
 void CodeGenModule::CreateFunctionTypeMetadataForIcall(const FunctionDecl *FD,
@@ -2743,7 +2774,8 @@ llvm::Constant *CodeGenModule::GetOrCreateLLVMFunction(
     }
 
     // Handle dropped DLL attributes.
-    if (D && !D->hasAttr<DLLImportAttr>() && !D->hasAttr<DLLExportAttr>()) {
+    if (D && !D->hasAttr<DLLImportAttr>() && !D->hasAttr<DLLExportAttr>() &&
+        !D->hasAttr<CMGenxMainAttr>()) {
       Entry->setDLLStorageClass(llvm::GlobalValue::DefaultStorageClass);
       setDSOLocal(Entry);
     }
@@ -3509,7 +3541,12 @@ void CodeGenModule::EmitGlobalVarDefinition(const VarDecl *D,
     // exists. A use may still exists, however, so we still may need
     // to do a RAUW.
     assert(!ASTTy->isIncompleteType() && "Unexpected incomplete type");
-    Init = EmitNullConstant(D->getType());
+    if (LangOpts.MdfCM && !CodeGenOpts.InitializeCMGlobals)
+      // CM doesn't initialize Global variables - we initialize them with
+      // Undef values here.
+      Init = llvm::UndefValue::get(getTypes().ConvertType(D->getType()));
+    else
+      Init = EmitNullConstant(D->getType());
   } else {
     initializedGlobalDecl = GlobalDecl(D);
     emitter.emplace(*this);
@@ -3787,6 +3824,14 @@ llvm::GlobalValue::LinkageTypes CodeGenModule::getLLVMLinkageForDeclarator(
     else
       return llvm::GlobalVariable::WeakAnyLinkage;
   }
+
+  // CM kernels have external linkage, but all other CM functons have internal
+  // linkage (whether or not they have the CMGenxAttr attribute).
+  // CM Builtins have external linkage to stop being deleted by optimizer.
+  if (D->hasAttr<CMGenxMainAttr>() || D->hasAttr<CMBuiltinAttr>())
+    return llvm::Function::ExternalLinkage;
+  else if (LangOpts.MdfCM)
+    return llvm::Function::InternalLinkage;
 
   if (const auto *FD = D->getAsFunction())
     if (FD->isMultiVersion() && Linkage == GVA_AvailableExternally)
@@ -4170,6 +4215,12 @@ llvm::Function *CodeGenModule::getIntrinsic(unsigned IID,
                                             ArrayRef<llvm::Type*> Tys) {
   return llvm::Intrinsic::getDeclaration(&getModule(), (llvm::Intrinsic::ID)IID,
                                          Tys);
+}
+
+llvm::Function *CodeGenModule::getGenXIntrinsic(unsigned IID,
+  ArrayRef<llvm::Type*> Tys) {
+  return llvm::GenXIntrinsic::getGenXDeclaration(&getModule(), (llvm::GenXIntrinsic::ID)IID,
+    Tys);
 }
 
 static llvm::StringMapEntry<llvm::GlobalVariable *> &

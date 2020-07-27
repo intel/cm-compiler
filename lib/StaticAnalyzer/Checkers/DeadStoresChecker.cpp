@@ -217,6 +217,11 @@ public:
     if (VD->getType()->getAs<ReferenceType>())
       return;
 
+    // CM vector/matrix types confuse the dead stores checker.
+    // These justify their own checker one day...
+    if (VD->getType()->isCMVectorMatrixType())
+      return;
+
     if (!isLive(Live, VD) &&
         !(VD->hasAttr<UnusedAttr>() || VD->hasAttr<BlocksAttr>() ||
           VD->hasAttr<ObjCPreciseLifetimeAttr>())) {
@@ -326,6 +331,10 @@ public:
           // Reference types confuse the dead stores checker.  Skip them
           // for now.
           if (V->getType()->getAs<ReferenceType>())
+            return;
+
+          // CM vector/matrix types confuse the dead stores checker.
+          if (V->getType()->isCMVectorMatrixType())
             return;
 
           if (const Expr *E = V->getInit()) {

@@ -852,6 +852,9 @@ public:
     case CK_UncheckedDerivedToBase:
     case CK_MemberPointerToBoolean:
     case CK_VectorSplat:
+    case CK_CMBaseToReference:
+    case CK_CMReferenceToBase:
+    case CK_CMVectorMatrixSplat:
     case CK_FloatingRealToComplex:
     case CK_FloatingComplexToReal:
     case CK_FloatingComplexToBoolean:

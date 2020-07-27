@@ -52,7 +52,11 @@ types::ID types::getPrecompiledType(ID Id) {
   return TY_INVALID;
 }
 
-const char *types::getTypeTempSuffix(ID Id, bool CLMode) {
+const char *types::getTypeTempSuffix(ID Id, bool CLMode, bool CMMode) {
+  if (CMMode) {
+    if (Id == TY_PP_Asm || Id == TY_Object)
+      return CLMode ? "bin" : "isa";
+  }
   if (CLMode) {
     switch (Id) {
     case TY_Object:
@@ -176,6 +180,8 @@ bool types::isCuda(ID Id) {
   }
 }
 
+bool types::isCM(ID Id) { return Id == ID::TY_MDF_CM; }
+
 bool types::isHIP(ID Id) {
   switch (Id) {
   default:
@@ -207,6 +213,7 @@ types::ID types::lookupTypeForExtension(llvm::StringRef Ext) {
            .Case("S", TY_Asm)
            .Case("s", TY_PP_Asm)
            .Case("bc", TY_LLVM_BC)
+           .Case("spv", TY_SPIRV)
            .Case("cc", TY_CXX)
            .Case("CC", TY_CXX)
            .Case("cl", TY_CL)
@@ -239,6 +246,7 @@ types::ID types::lookupTypeForExtension(llvm::StringRef Ext) {
            .Case("fpp", TY_Fortran)
            .Case("FPP", TY_Fortran)
            .Case("gch", TY_PCH)
+           .Case("cm",  TY_MDF_CM)
            .Case("hip", TY_HIP)
            .Case("hpp", TY_CXXHeader)
            .Case("iim", TY_PP_CXXModule)
