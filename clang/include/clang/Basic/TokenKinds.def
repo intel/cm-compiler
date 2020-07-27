@@ -666,6 +666,18 @@ KEYWORD(__builtin_available       , KEYALL)
 // Clang-specific keywords enabled only in testing.
 TESTING_KEYWORD(__unknown_anytype , KEYALL)
 
+// Clang-CM Extensions.
+KEYWORD(SurfaceIndex, KEYCM)
+KEYWORD(SamplerIndex, KEYCM)
+KEYWORD(VmeIndex, KEYCM)
+KEYWORD(_CM_Vector, KEYCM)
+KEYWORD(_CM_Matrix, KEYCM)
+KEYWORD(_CM_VectorRef, KEYCM)
+KEYWORD(_CM_MatrixRef, KEYCM)
+ALIAS("vector", _CM_Vector, KEYCM)
+ALIAS("matrix", _CM_Matrix, KEYCM)
+ALIAS("vector_ref", _CM_VectorRef, KEYCM)
+ALIAS("matrix_ref", _CM_MatrixRef, KEYCM)
 
 //===----------------------------------------------------------------------===//
 // Objective-C @-preceded keywords.

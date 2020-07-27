@@ -20,6 +20,7 @@
 #include "Targets/ARM.h"
 #include "Targets/AVR.h"
 #include "Targets/BPF.h"
+#include "Targets/GenX.h"
 #include "Targets/Hexagon.h"
 #include "Targets/Lanai.h"
 #include "Targets/Le64.h"
@@ -118,6 +119,14 @@ void addMinGWDefines(const llvm::Triple &Triple, const LangOptions &Opts,
 
 TargetInfo *AllocateTarget(const llvm::Triple &Triple,
                            const TargetOptions &Opts) {
+  auto ArchName = Triple.getArchName();
+  if (ArchName.startswith("genx")) {
+    if (ArchName.startswith("genx32"))
+      return new GenXTargetInfo(Triple, 32);
+
+    return new GenXTargetInfo(Triple, 64);
+  }
+
   llvm::Triple::OSType os = Triple.getOS();
 
   switch (Triple.getArch()) {

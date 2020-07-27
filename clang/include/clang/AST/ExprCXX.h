@@ -1521,6 +1521,8 @@ class CXXFunctionalCastExpr final
       private llvm::TrailingObjects<CXXFunctionalCastExpr, CXXBaseSpecifier *> {
   SourceLocation LParenLoc;
   SourceLocation RParenLoc;
+  // MDF CM optional argument for functional style casts.
+  Expr *SatExpr = nullptr;
 
   CXXFunctionalCastExpr(QualType ty, ExprValueKind VK,
                         TypeSourceInfo *writtenTy,
@@ -1551,6 +1553,9 @@ public:
   void setLParenLoc(SourceLocation L) { LParenLoc = L; }
   SourceLocation getRParenLoc() const { return RParenLoc; }
   void setRParenLoc(SourceLocation L) { RParenLoc = L; }
+
+  Expr *getSatExpr() const { return SatExpr; }
+  void setSatExpr(Expr *E) { SatExpr = E; }
 
   /// Determine whether this expression models list-initialization.
   bool isListInitialization() const { return LParenLoc.isInvalid(); }

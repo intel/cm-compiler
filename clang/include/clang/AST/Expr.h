@@ -2925,6 +2925,188 @@ public:
   }
 };
 
+/// \brief Abstract class to all CM member expressions.
+///
+/// This abstract class is inherited by all of the classes representing
+/// CM specific operators.
+class CMMemberExpr : public Expr {
+protected:
+  /// \brief All subexpressions stored.
+  Stmt **SubExprs;
+
+  /// \brief The number of subexpressions stored. It is up to its subclasses to
+  /// interpret these subexpressions.
+  unsigned NumSubExprs;
+
+  /// \brief The source location of the member name.
+  SourceLocation MemberLoc;
+
+public:
+  // These versions of the constructor are for derived classes.
+  CMMemberExpr(const ASTContext &C, StmtClass SC, Expr *Base,
+               SourceLocation MemLoc, ArrayRef<Expr *> Args, QualType T,
+               ExprValueKind VK);
+
+  /// \brief Returns the bases expression.
+  Expr *getBase() const;
+
+  /// \brief Returns the member location.
+  SourceLocation getMemberLoc() const { return MemberLoc; }
+
+  /// \brief Returns the number of subexpression stored as arguments, excluding
+  /// the base.
+  unsigned getNumArgExprs() const {
+    assert(NumSubExprs >= 1);
+    return NumSubExprs - 1;
+  }
+
+  // This assumes that the base is always stored as the first entry.
+  Expr **getArgExprs() { return reinterpret_cast<Expr **>(SubExprs + 1); }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() >= firstCMMemberExprConstant &&
+           T->getStmtClass() <= lastCMMemberExprConstant;
+  }
+
+  /// Iterators
+  child_range children() {
+    return child_range(SubExprs, SubExprs + NumSubExprs);
+  }
+};
+
+/// \brief Represent CM select member functions.
+///
+/// \code
+/// vector<float, 8> v;
+/// v.select<size, stride>(i)
+///
+/// matrix<float, 4, 4> m;
+/// m.select<v_size, v_stride, h_size, h_stride>(i, j)
+/// \code
+///
+class CMSelectExpr : public CMMemberExpr {
+public:
+  enum CMSelectKind {
+    SK_select,
+    SK_select_all,
+    SK_iselect,
+    SK_element,
+    SK_subscript,
+    SK_row,
+    SK_column,
+    SK_replicate
+  };
+
+private:
+  /// \brief The kind of select member.
+  CMSelectKind SelectKind;
+
+  /// \brief The closing ')' location.
+  SourceLocation RParenLoc;
+
+  /// \brief The number of constant arguments. This is to distinguish
+  /// the expressions stored as size and stride or as offset.
+  unsigned NumConstArgs;
+
+public:
+  CMSelectExpr(const ASTContext &C, CMSelectKind SK, Expr *Base,
+               SourceLocation SelectLoc, ArrayRef<Expr *> Args,
+               unsigned NumConstArgs, SourceLocation RParenLoc, QualType T,
+               ExprValueKind VK);
+
+  CMSelectExpr(const ASTContext &C, CMSelectKind SK, Expr *Base,
+               SourceLocation SelectLoc, ArrayRef<Expr *> Args,
+               SourceLocation RParenLoc, QualType T, ExprValueKind VK);
+
+  CMSelectKind getSelectKind() const { return SelectKind; }
+  bool isSelect() const { return SelectKind == SK_select; }
+  bool isSelectAll() const { return SelectKind == SK_select_all; }
+  bool isISelect() const { return SelectKind == SK_iselect; }
+  bool isElementSelect() const { return SelectKind == SK_element; }
+  bool isSubscriptSelect() const { return SelectKind == SK_subscript; }
+  bool isRowSelect() const { return SelectKind == SK_row; }
+  bool isColumnSelect() const { return SelectKind == SK_column; }
+  bool isReplicate() const { return SelectKind == SK_replicate; }
+
+  const char *getSelectKindName() const {
+    switch (SelectKind) {
+    case SK_select:
+      return "select";
+    case SK_select_all:
+      return "select_all";
+    case SK_iselect:
+      return "iselect";
+    case SK_element:
+      return "element";
+    case SK_subscript:
+      return "subscript";
+    case SK_row:
+      return "row";
+    case SK_column:
+      return "column";
+    case SK_replicate:
+      return "replicate";
+    }
+    llvm_unreachable("invalid select kind");
+  }
+
+  bool is1D() const { return getBase()->getType()->isCMVectorType(); }
+  bool is2D() const { return !is1D(); }
+  unsigned getNumConstArgs() const { return NumConstArgs; }
+
+  // 1D select.
+  Expr *getSize() const;
+  Expr *getStride() const;
+  Expr *getOffset() const;
+
+  // 2D select.
+  Expr *getVSize() const;
+  Expr *getVStride() const;
+  Expr *getHSize() const;
+  Expr *getHStride() const;
+  Expr *getVOffset() const;
+  Expr *getHOffset() const;
+
+  // 2D row/column
+  Expr *getRowExpr() const;
+  Expr *getColumnExpr() const;
+
+  // Vector element access
+  Expr *getIndex() const;
+
+  // Matrix element access
+  Expr *getRowIndex() const;
+  Expr *getColumnIndex() const;
+
+  // Subscript access
+  Expr *getSubscriptIndex() const;
+
+  /// \brief The number of parameter in specifing this replicate operation.
+  /// This is 1 for replicate<REP>(),
+  ///         2 for replicate<REP, W>(...)
+  ///         3 for replicate<REP, VS, W>(...)
+  ///         4 for replicate<REP, VS, W, HS>(...)
+  unsigned getNumParameters() const;
+  Expr *getRepExpr() const;
+  Expr *getRepWExpr() const;
+  Expr *getRepVSExpr() const;
+  Expr *getRepHSExpr() const;
+  Expr *getRepOffset() const;
+  Expr *getRepVOffset() const;
+  Expr *getRepHOffset() const;
+
+  /// \brief Returns the index expression for iselect.
+  Expr *getISelectIndexExpr(unsigned i) const;
+
+  SourceLocation getRParenLoc() const { return RParenLoc; }
+  SourceLocation getBeginLoc() const { return getBase()->getBeginLoc(); }
+  SourceLocation getEndLoc() const { return getRParenLoc(); }
+
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == CMSelectExprClass;
+  }
+};
+
 /// CompoundLiteralExpr - [C99 6.5.2.5]
 ///
 class CompoundLiteralExpr : public Expr {
@@ -3003,6 +3185,9 @@ public:
 class CastExpr : public Expr {
   Stmt *Op;
 
+  /// Indicate whether this conversion is saturated. Only valid for MDF CM.
+  bool IsSaturated;
+
   bool CastConsistency() const;
 
   const CXXBaseSpecifier * const *path_buffer() const {
@@ -3031,6 +3216,7 @@ protected:
     CastExprBits.Kind = kind;
     CastExprBits.PartOfExplicitCast = false;
     CastExprBits.BasePathSize = BasePathSize;
+    setSaturated(false);
     assert((CastExprBits.BasePathSize == BasePathSize) &&
            "BasePathSize overflow!");
     assert(CastConsistency());
@@ -3063,6 +3249,9 @@ public:
   const Expr *getSubExprAsWritten() const {
     return const_cast<CastExpr *>(this)->getSubExprAsWritten();
   }
+
+  bool isSaturated() const { return IsSaturated; }
+  void setSaturated(bool Val) { IsSaturated = Val; }
 
   /// If this cast applies a user-defined conversion, retrieve the conversion
   /// function that it invokes.

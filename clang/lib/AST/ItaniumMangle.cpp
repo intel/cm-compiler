@@ -1928,6 +1928,10 @@ bool CXXNameMangler::mangleUnresolvedTypeOrSimpleId(QualType Ty,
   case Type::DependentSizedExtVector:
   case Type::Vector:
   case Type::ExtVector:
+  case Type::CMVector:
+  case Type::CMMatrix:
+  case Type::DependentCMVector:
+  case Type::DependentCMMatrix:
   case Type::FunctionProto:
   case Type::FunctionNoProto:
   case Type::Paren:
@@ -2613,6 +2617,15 @@ void CXXNameMangler::mangleType(const BuiltinType *T) {
   case BuiltinType::ObjCSel:
     Out << "13objc_selector";
     break;
+  case BuiltinType::CMSurfaceIndex:
+    Out << "15cm_surfaceindex";
+    break;
+  case BuiltinType::CMSamplerIndex:
+    Out << "15cm_samplerindex";
+    break;
+  case BuiltinType::CMVmeIndex:
+    Out << "11cm_vmeindex";
+    break;
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
   case BuiltinType::Id: \
     type_name = "ocl_" #ImgType "_" #Suffix; \
@@ -3161,6 +3174,57 @@ void CXXNameMangler::mangleType(const DependentSizedExtVectorType *T) {
   mangleType(T->getElementType());
 }
 
+// FIXME: Formally define type mangling for all CM builtin types.
+//
+// We mangle it as follows:
+// <builtin-type>    ::= <cm-builtin-type>
+// <cm-builtin-type> ::= <cm-vector-type>
+//
+// <cm-vector-type> ::= u2CMvb <size>_<element type> # vector
+//                      u2CMvr <size>_<element type> # vector_ref
+//                      u2CMmb <# rows>x<# cols>_<element type> # matrix
+//                      u2CMmr <# rows>x<# cols>_<element type> # matrix_ref
+//
+void CXXNameMangler::mangleType(const CMVectorType *T) {
+  if (T->isReference())
+    Out << "u2CMvr";
+  else
+    Out << "u2CMvb";
+  Out << T->getNumElements() << "_";
+  mangleType(T->getElementType());
+}
+
+void CXXNameMangler::mangleType(const CMMatrixType *T) {
+  if (T->isReference())
+    Out << "u2CMmr";
+  else
+    Out << "u2CMmb";
+  Out << T->getNumRows() << "x" << T->getNumColumns() << "_";
+  mangleType(T->getElementType());
+}
+
+void CXXNameMangler::mangleType(const DependentCMVectorType *T) {
+  if (T->isReference())
+    Out << "u2CMvr";
+  else
+    Out << "u2CMvb";
+  mangleExpression(T->getSizeExpr());
+  Out << "_";
+  mangleType(T->getElementType());
+}
+
+void CXXNameMangler::mangleType(const DependentCMMatrixType *T) {
+  if (T->isReference())
+    Out << "u2CMmr";
+  else
+    Out << "u2CMmb";
+  mangleExpression(T->getNumRowExpr());
+  Out << "x";
+  mangleExpression(T->getNumColumnExpr());
+  Out << "_";
+  mangleType(T->getElementType());
+}
+
 void CXXNameMangler::mangleType(const DependentAddressSpaceType *T) {
   SplitQualType split = T->getPointeeType().split();
   mangleQualifiers(split.Quals, T);
@@ -3560,6 +3624,11 @@ recurse:
   case Expr::CUDAKernelCallExprClass:
   case Expr::AsTypeExprClass:
   case Expr::PseudoObjectExprClass:
+  case Expr::CMSelectExprClass:
+  case Expr::CMBoolReductionExprClass:
+  case Expr::CMMergeExprClass:
+  case Expr::CMFormatExprClass:
+  case Expr::CMSizeExprClass:
   case Expr::AtomicExprClass:
   case Expr::FixedPointLiteralClass:
   {

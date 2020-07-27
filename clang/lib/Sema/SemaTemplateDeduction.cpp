@@ -2095,6 +2095,195 @@ DeduceTemplateArgumentsByTypeMatch(Sema &S,
 
       return Sema::TDK_NonDeducedMismatch;
     }
+    case Type::CMVector: {
+      const CMVectorType *VectorParam = Param->getAs<CMVectorType>();
+      if (const CMVectorType *VectorArg = Arg->getAs<CMVectorType>()) {
+        // Make sure that the vectors have the same number of elements.
+        if (VectorParam->getNumElements() != VectorArg->getNumElements())
+          return Sema::TDK_NonDeducedMismatch;
+
+        // Perform deduction on the element types.
+        return DeduceTemplateArgumentsByTypeMatch(
+            S, TemplateParams, VectorParam->getElementType(),
+            VectorArg->getElementType(), Info, Deduced, TDF);
+      }
+
+      if (const DependentCMVectorType *VectorArg =
+              Arg->getAs<DependentCMVectorType>()) {
+        // We can't check the number of elements, since the argument has a
+        // dependent number of elements. This can only occur during partial
+        // ordering.
+
+        // Perform deduction on the element types.
+        return DeduceTemplateArgumentsByTypeMatch(
+            S, TemplateParams, VectorParam->getElementType(),
+            VectorArg->getElementType(), Info, Deduced, TDF);
+      }
+
+      return Sema::TDK_NonDeducedMismatch;
+    }
+    case Type::CMMatrix: {
+      const CMMatrixType *MatrixParam = Param->getAs<CMMatrixType>();
+      if (const CMMatrixType *MatrixArg = Arg->getAs<CMMatrixType>()) {
+        // Make sure that the vectors have the same number of rows and columns.
+        if (MatrixParam->getNumRows() != MatrixArg->getNumRows() ||
+            MatrixParam->getNumColumns() != MatrixArg->getNumColumns())
+          return Sema::TDK_NonDeducedMismatch;
+
+        // Perform deduction on the element types.
+        return DeduceTemplateArgumentsByTypeMatch(
+            S, TemplateParams, MatrixParam->getElementType(),
+            MatrixArg->getElementType(), Info, Deduced, TDF);
+      }
+
+      if (const DependentCMMatrixType *MatrixArg =
+              Arg->getAs<DependentCMMatrixType>()) {
+        // We can't check the number of elements, since the argument has a
+        // dependent number of rows/columns. This can only occur during partial
+        // ordering.
+
+        // Perform deduction on the element types.
+        return DeduceTemplateArgumentsByTypeMatch(
+            S, TemplateParams, MatrixParam->getElementType(),
+            MatrixArg->getElementType(), Info, Deduced, TDF);
+      }
+
+      return Sema::TDK_NonDeducedMismatch;
+    }
+    case Type::DependentCMVector: {
+      const DependentCMVectorType *VectorParam =
+          Param->getAs<DependentCMVectorType>();
+
+      if (const CMVectorType *VectorArg = Arg->getAs<CMVectorType>()) {
+        // Perform deduction on the element types.
+        if (Sema::TemplateDeductionResult Result =
+                DeduceTemplateArgumentsByTypeMatch(
+                    S, TemplateParams, VectorParam->getElementType(),
+                    VectorArg->getElementType(), Info, Deduced, TDF))
+          return Result;
+
+        // Perform deduction on the vector size, if we can.
+        NonTypeTemplateParmDecl *NTTP =
+            getDeducedParameterFromExpr(Info, VectorParam->getSizeExpr());
+        if (!NTTP)
+          return Sema::TDK_Success;
+
+        llvm::APSInt ArgSize(S.Context.getTypeSize(S.Context.IntTy), false);
+        ArgSize = VectorArg->getNumElements();
+
+        return DeduceNonTypeTemplateArgument(S, TemplateParams, NTTP, ArgSize,
+                                             S.Context.IntTy, false, Info,
+                                             Deduced);
+      }
+
+      if (const DependentCMVectorType *VectorArg =
+              Arg->getAs<DependentCMVectorType>()) {
+        // Perform deduction on the element types.
+        if (Sema::TemplateDeductionResult Result =
+                DeduceTemplateArgumentsByTypeMatch(
+                    S, TemplateParams, VectorParam->getElementType(),
+                    VectorArg->getElementType(), Info, Deduced, TDF))
+          return Result;
+
+        // Perform deduction on the vector size, if we can.
+        NonTypeTemplateParmDecl *NTTP =
+            getDeducedParameterFromExpr(Info, VectorParam->getSizeExpr());
+        if (!NTTP)
+          return Sema::TDK_Success;
+
+        return DeduceNonTypeTemplateArgument(
+            S, TemplateParams, NTTP, VectorArg->getSizeExpr(), Info, Deduced);
+      }
+
+      return Sema::TDK_NonDeducedMismatch;
+    }
+    case Type::DependentCMMatrix: {
+      const DependentCMMatrixType *MatrixParam =
+          cast<DependentCMMatrixType>(Param);
+
+      if (const CMMatrixType *MatrixArg = Arg->getAs<CMMatrixType>()) {
+        // Perform deduction on the element types.
+        if (Sema::TemplateDeductionResult Result =
+                DeduceTemplateArgumentsByTypeMatch(
+                    S, TemplateParams, MatrixParam->getElementType(),
+                    MatrixArg->getElementType(), Info, Deduced, TDF))
+          return Result;
+
+        // Perform deduction on the # of rows, if we can.
+        NonTypeTemplateParmDecl *NRows =
+            getDeducedParameterFromExpr(Info, MatrixParam->getNumRowExpr());
+
+        // Perform deduction on the # of columns, if we can.
+        NonTypeTemplateParmDecl *NCols =
+            getDeducedParameterFromExpr(Info, MatrixParam->getNumColumnExpr());
+
+        /// No deduction on NRows or NCols.
+        if (!NRows && !NCols)
+          return Sema::TDK_Success;
+
+        if (NRows) {
+          llvm::APSInt ArgNRows(S.Context.getTypeSize(S.Context.IntTy), false);
+          ArgNRows = MatrixArg->getNumRows();
+          if (Sema::TemplateDeductionResult Result =
+                  DeduceNonTypeTemplateArgument(S, TemplateParams, NRows,
+                                                ArgNRows, S.Context.IntTy,
+                                                false, Info, Deduced))
+            return Result;
+        }
+
+        if (NCols) {
+          llvm::APSInt ArgNCols(S.Context.getTypeSize(S.Context.IntTy), false);
+          ArgNCols = MatrixArg->getNumColumns();
+          return DeduceNonTypeTemplateArgument(S, TemplateParams, NCols,
+                                               ArgNCols, S.Context.IntTy, false,
+                                               Info, Deduced);
+        }
+
+        // No deduction error.
+        return Sema::TDK_Success;
+      }
+
+      if (const DependentCMMatrixType *MatrixArg =
+              Arg->getAs<DependentCMMatrixType>()) {
+        // Perform deduction on the element types.
+        if (Sema::TemplateDeductionResult Result =
+                DeduceTemplateArgumentsByTypeMatch(
+                    S, TemplateParams, MatrixParam->getElementType(),
+                    MatrixArg->getElementType(), Info, Deduced, TDF))
+          return Result;
+
+        // Perform deduction on the # of rows, if we can.
+        NonTypeTemplateParmDecl *NRows =
+            getDeducedParameterFromExpr(Info, MatrixParam->getNumRowExpr());
+
+        // Perform deduction on the # of columns, if we can.
+        NonTypeTemplateParmDecl *NCols =
+            getDeducedParameterFromExpr(Info, MatrixParam->getNumColumnExpr());
+
+        /// No deduction on NRows or NCols.
+        if (!NRows && !NCols)
+          return Sema::TDK_Success;
+
+        if (NRows) {
+          if (Sema::TemplateDeductionResult Result =
+                  DeduceNonTypeTemplateArgument(S, TemplateParams, NRows,
+                                                MatrixArg->getNumRowExpr(),
+                                                Info, Deduced))
+            return Result;
+        }
+
+        if (NCols) {
+          return DeduceNonTypeTemplateArgument(S, TemplateParams, NCols,
+                                               MatrixArg->getNumColumnExpr(),
+                                               Info, Deduced);
+        }
+
+        // No deduction error.
+        return Sema::TDK_Success;
+      }
+
+      return Sema::TDK_NonDeducedMismatch;
+    }
 
     case Type::TypeOfExpr:
     case Type::TypeOf:
@@ -3171,6 +3360,30 @@ CheckOriginalCallArgDeduction(Sema &S, TemplateDeductionInfo &Info,
   // Check for type equality (top-level cv-qualifiers are ignored).
   if (Context.hasSameUnqualifiedType(A, DeducedA))
     return Sema::TDK_Success;
+
+  // Check CM vector_ref and vector or matrix_ref and matrix. Implicit
+  // conversions are allowed between base and reference objects, as long as
+  // they have the same element type and shape.
+  if (S.getLangOpts().MdfCM) {
+    if (DeducedA->isCMVectorType() && A->isCMVectorType()) {
+      const CMVectorType *VT1 = DeducedA->getAs<CMVectorType>();
+      const CMVectorType *VT2 = A->getAs<CMVectorType>();
+      if (S.Context.hasSameUnqualifiedType(VT1->getElementType(),
+                                           VT2->getElementType()) &&
+          VT1->getNumElements() == VT2->getNumElements())
+        return Sema::TDK_Success;
+    }
+
+    if (DeducedA->isCMMatrixType() && A->isCMMatrixType()) {
+      const CMMatrixType *MT1 = DeducedA->getAs<CMMatrixType>();
+      const CMMatrixType *MT2 = A->getAs<CMMatrixType>();
+      if (S.Context.hasSameUnqualifiedType(MT1->getElementType(),
+                                           MT2->getElementType()) &&
+          MT1->getNumRows() == MT2->getNumRows() &&
+          MT1->getNumColumns() == MT2->getNumColumns())
+        return Sema::TDK_Success;
+    }
+  }
 
   // Strip off references on the argument types; they aren't needed for
   // the following checks.
@@ -5389,6 +5602,31 @@ MarkUsedTemplateParameters(ASTContext &Ctx, QualType T,
                                Depth, Used);
     break;
   }
+
+  case Type::CMVector:
+    MarkUsedTemplateParameters(Ctx, cast<CMVectorType>(T)->getElementType(),
+                               OnlyDeduced, Depth, Used);
+    break;
+  case Type::CMMatrix:
+    MarkUsedTemplateParameters(Ctx, cast<CMMatrixType>(T)->getElementType(),
+                               OnlyDeduced, Depth, Used);
+    break;
+  case Type::DependentCMVector: {
+    const DependentCMVectorType *VecType = cast<DependentCMVectorType>(T);
+    MarkUsedTemplateParameters(Ctx, VecType->getElementType(), OnlyDeduced,
+                               Depth, Used);
+    MarkUsedTemplateParameters(Ctx, VecType->getSizeExpr(), OnlyDeduced,
+                               Depth, Used);
+  } break;
+  case Type::DependentCMMatrix: {
+    const DependentCMMatrixType *VecType = cast<DependentCMMatrixType>(T);
+    MarkUsedTemplateParameters(Ctx, VecType->getElementType(), OnlyDeduced,
+                               Depth, Used);
+    MarkUsedTemplateParameters(Ctx, VecType->getNumRowExpr(), OnlyDeduced,
+                               Depth, Used);
+    MarkUsedTemplateParameters(Ctx, VecType->getNumColumnExpr(), OnlyDeduced,
+                               Depth, Used);
+  } break;
 
   case Type::DependentAddressSpace: {
     const DependentAddressSpaceType *DependentASType =

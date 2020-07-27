@@ -419,6 +419,14 @@ public:
     return SyntaxUsed == AS_ContextSensitiveKeyword;
   }
 
+  bool isCMGenxAttribute() const {
+    return getKind() == AT_CMGenx || getKind() == AT_CMGenxMain;
+  }
+
+  bool isCMGenxSIMTAttribute() const {
+    return (getKind() == AT_CMGenxSIMT);
+  }
+
   bool isInvalid() const { return Invalid; }
   void setInvalid(bool b = true) const { Invalid = b; }
 

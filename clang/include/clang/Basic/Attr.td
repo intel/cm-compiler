@@ -2720,6 +2720,85 @@ def TypeTagForDatatype : InheritableAttr {
   let Documentation = [TypeTagForDatatypeDocs];
 }
 
+// MDF CM related attributes
+
+def CMGenx : Attr {
+  let Spellings = [Declspec<"genx">];
+  let Documentation = [Undocumented];
+}
+
+def CMGenxVolatile : Attr {
+  let Spellings = [Declspec<"genx_volatile">];
+  let Args = [IntArgument<"Offset", 1>];
+  let Documentation = [Undocumented];
+}
+
+def CMBuiltin : Attr {
+  let Spellings = [Declspec<"cm_builtin">];
+  let Documentation = [Undocumented];
+}
+
+def CMGenxMain : Attr {
+  let Spellings = [Declspec<"genx_main">];
+  let Documentation = [Undocumented];
+}
+
+def CMGenxStackcall : Attr {
+  let Spellings = [Declspec<"genx_stackcall">];
+  let Documentation = [Undocumented];
+}
+
+def CMGenxSIMT : Attr {
+  let Spellings = [Declspec<"genx_SIMT">];
+  let Args = [IntArgument<"Mode">];
+  let Documentation = [Undocumented];
+}
+
+def CMGenxNoSIMDPred : Attr {
+  let Spellings = [Declspec<"genx_no_SIMD_pred">];
+  let Documentation = [Undocumented];
+}
+
+def CMInput : Attr {
+  let Spellings = [Declspec<"cm_input">];
+  let Documentation = [Undocumented];
+}
+
+def CMOutput : Attr {
+  let Spellings = [Declspec<"cm_output">];
+  let Documentation = [Undocumented];
+}
+
+def CMInputOutput : Attr {
+  let Spellings = [Declspec<"cm_input_output">];
+  let Documentation = [Undocumented];
+}
+
+def CMCallable : Attr {
+  let Spellings = [Declspec<"cm_callable">];
+  let Documentation = [Undocumented];
+}
+
+def CMFloatControl : Attr {
+  let Spellings = [Declspec<"cm_float_control">];
+  let Args = [IntArgument<"Mode">];
+  let Documentation = [Undocumented];
+}
+
+def CMEntry : Attr {
+  let Spellings = [Declspec<"cm_entry">];
+  let Documentation = [Undocumented];
+}
+
+def CMOpenCLType : InheritableAttr {
+  let Spellings = [Keyword<"__type">,
+                   Clang<"type">,
+                   Declspec<"type">,
+                   CXX11<"", "type", 200809>];
+  let Args = [StringArgument<"type_desc">];
+  let Documentation = [Undocumented];
+}
+
 // Microsoft-related attributes
 
 def MSNoVTable : InheritableAttr, TargetSpecificAttr<TargetMicrosoftCXXABI> {

@@ -13,6 +13,7 @@
 
 #include "CGCXXABI.h"
 #include "CGCall.h"
+#include "CGCM.h"
 #include "CGCleanup.h"
 #include "CGDebugInfo.h"
 #include "CGObjCRuntime.h"
@@ -24,6 +25,7 @@
 #include "TargetInfo.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
+#include "clang/AST/ExprCM.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/NSAPI.h"
 #include "clang/Basic/CodeGenOptions.h"
@@ -1290,6 +1292,12 @@ LValue CodeGenFunction::EmitLValue(const Expr *E) {
   case Expr::LambdaExprClass:
     return EmitLambdaLValue(cast<LambdaExpr>(E));
 
+  case Expr::CMSelectExprClass:
+    return CGM.getCMRuntime().EmitCMSelectExprLValue(*this,
+                                                     cast<CMSelectExpr>(E));
+  case Expr::CMFormatExprClass:
+    return CGM.getCMRuntime().EmitCMFormatExprLValue(*this,
+                                                     cast<CMFormatExpr>(E));
   case Expr::ExprWithCleanupsClass: {
     const auto *cleanups = cast<ExprWithCleanups>(E);
     enterFullExpression(cleanups);
@@ -1655,6 +1663,11 @@ llvm::Value *CodeGenFunction::EmitLoadOfScalar(Address Addr, bool Volatile,
     return EmitAtomicLoad(AtomicLValue, Loc).getScalarVal();
   }
 
+  // Load of arguments are through vector load intrinsic calls.
+  if (CGM.getCodeGenOpts().EmitVLoadStore &&
+      isa<llvm::Argument>(Addr.getPointer()))
+    return CGCMRuntime::EmitCMRefLoad(*this, Addr.getPointer());
+
   llvm::LoadInst *Load = Builder.CreateLoad(Addr, Volatile);
   if (isNontemporal) {
     llvm::MDNode *Node = llvm::MDNode::get(
@@ -1736,6 +1749,13 @@ void CodeGenFunction::EmitStoreOfScalar(llvm::Value *Value, Address Addr,
     return;
   }
 
+  // Store of arguments are through vector store intrinsic calls.
+  if (CGM.getCodeGenOpts().EmitVLoadStore &&
+      isa<llvm::Argument>(Addr.getPointer())) {
+    CGCMRuntime::EmitCMRefStore(*this, Value, Addr.getPointer());
+    return;
+  }
+
   llvm::StoreInst *Store = Builder.CreateStore(Value, Addr, Volatile);
   if (isNontemporal) {
     llvm::MDNode *Node =
@@ -1779,6 +1799,10 @@ RValue CodeGenFunction::EmitLoadOfLValue(LValue LV, SourceLocation Loc) {
   if (LV.isSimple()) {
     assert(!LV.getType()->isFunctionType());
 
+    if (LV.isCMArgumentReference())
+      return RValue::get(CGM.getCMRuntime().EmitCMRefLoad(
+          *this, LV.getAddress().getPointer()));
+
     // Everything needs a load.
     return RValue::get(EmitLoadOfScalar(LV, Loc));
   }
@@ -1788,6 +1812,11 @@ RValue CodeGenFunction::EmitLoadOfLValue(LValue LV, SourceLocation Loc) {
                                               LV.isVolatileQualified());
     return RValue::get(Builder.CreateExtractElement(Load, LV.getVectorIdx(),
                                                     "vecext"));
+  }
+
+  if (LV.isCMRegion()) {
+    assert(getLangOpts().MdfCM);
+    return CGM.getCMRuntime().EmitCMReadRegion(*this, LV);
   }
 
   // If this is a reference to a subset of the elements of a vector, either
@@ -1932,6 +1961,10 @@ void CodeGenFunction::EmitStoreThroughLValue(RValue Src, LValue Dst,
 
     if (Dst.isGlobalReg())
       return EmitStoreThroughGlobalRegLValue(Src, Dst);
+
+    // This is a CM region write.
+    if (Dst.isCMRegion())
+      return CGM.getCMRuntime().EmitCMWriteRegion(*this, Src, Dst);
 
     assert(Dst.isBitField() && "Unknown LValue type");
     return EmitStoreThroughBitfieldLValue(Src, Dst);
@@ -2506,6 +2539,10 @@ LValue CodeGenFunction::EmitDeclRefLValue(const DeclRefExpr *E) {
       return MakeAddrLValue(addr, T, AlignmentSource::Decl);
     }
   }
+
+  // Emit referencing a CM vector_ref/matrix_ref variable differently.
+  if (getLangOpts().MdfCM && T->isCMReferenceType())
+    return CGM.getCMRuntime().EmitCMDeclRefLValue(*this, E);
 
   // FIXME: We should be able to assert this for FunctionDecls as well!
   // FIXME: We should be able to assert this for all DeclRefExprs, not just
@@ -4145,6 +4182,7 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
   case CK_PointerToIntegral:
   case CK_PointerToBoolean:
   case CK_VectorSplat:
+  case CK_CMVectorMatrixSplat:
   case CK_IntegralCast:
   case CK_BooleanToSignedIntegral:
   case CK_IntegralToBoolean:
@@ -4201,6 +4239,12 @@ LValue CodeGenFunction::EmitCastLValue(const CastExpr *E) {
   case CK_BlockPointerToObjCPointerCast:
   case CK_NoOp:
   case CK_LValueToRValue:
+    return EmitLValue(E->getSubExpr());
+
+  case CK_CMReferenceToBase:
+    return EmitLValue(E->getSubExpr());
+
+  case CK_CMBaseToReference:
     return EmitLValue(E->getSubExpr());
 
   case CK_UncheckedDerivedToBase:
@@ -4350,6 +4394,22 @@ RValue CodeGenFunction::EmitRValueForField(LValue LV,
 
 RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
                                      ReturnValueSlot ReturnValue) {
+  RValue RV;
+
+  if (getLangOpts().MdfCM && CGM.getCMRuntime().instrumentCMCall(E)) {
+    CGCMRuntime &CMRT = CGM.getCMRuntime();
+
+    CMRT.pushCMCallInfo(*this, E);
+    RV = EmitCallExprInner(E, ReturnValue);
+    CMRT.popCMCallInfo();
+  } else
+    RV = EmitCallExprInner(E, ReturnValue);
+
+  return RV;
+}
+
+RValue CodeGenFunction::EmitCallExprInner(const CallExpr *E,
+                                          ReturnValueSlot ReturnValue) {
   // Builtins never have block type.
   if (E->getCallee()->getType()->isBlockPointerType())
     return EmitBlockCallExpr(E, ReturnValue);
@@ -4364,6 +4424,10 @@ RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
     if (const CXXMethodDecl *MD =
           dyn_cast_or_null<CXXMethodDecl>(CE->getCalleeDecl()))
       return EmitCXXOperatorMemberCallExpr(CE, MD, ReturnValue);
+
+  // Emit CM call expressions.
+  if (getLangOpts().MdfCM && CGM.getCMRuntime().instrumentCMCall(E))
+    return CGM.getCMRuntime().EmitCMCallExpr(*this, E, ReturnValue);
 
   CGCallee callee = EmitCallee(E->getCallee());
 

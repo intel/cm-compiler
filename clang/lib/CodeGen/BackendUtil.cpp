@@ -27,6 +27,8 @@
 #include "llvm/CodeGen/RegAllocRegistry.h"
 #include "llvm/CodeGen/SchedulerRegistry.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/GenXIntrinsics/GenXIntrOpts.h"
+#include "llvm/GenXIntrinsics/GenXSPIRVWriterAdaptor.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRPrintingPasses.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -64,7 +66,9 @@
 #include "llvm/Transforms/Utils/CanonicalizeAliases.h"
 #include "llvm/Transforms/Utils/NameAnonGlobals.h"
 #include "llvm/Transforms/Utils/SymbolRewriter.h"
+#include "LLVMSPIRVLib.h"
 #include <memory>
+#include <sstream>
 using namespace clang;
 using namespace llvm;
 
@@ -151,17 +155,20 @@ class PassManagerBuilderWrapper : public PassManagerBuilder {
 public:
   PassManagerBuilderWrapper(const Triple &TargetTriple,
                             const CodeGenOptions &CGOpts,
-                            const LangOptions &LangOpts)
+                            const LangOptions &LangOpts,
+                            const clang::TargetOptions &TargetOpts)
       : PassManagerBuilder(), TargetTriple(TargetTriple), CGOpts(CGOpts),
-        LangOpts(LangOpts) {}
+        LangOpts(LangOpts), TargetOpts(TargetOpts) {}
   const Triple &getTargetTriple() const { return TargetTriple; }
   const CodeGenOptions &getCGOpts() const { return CGOpts; }
   const LangOptions &getLangOpts() const { return LangOpts; }
+  const clang::TargetOptions &getTargetOpts() const { return TargetOpts; }
 
 private:
   const Triple &TargetTriple;
   const CodeGenOptions &CGOpts;
   const LangOptions &LangOpts;
+  const clang::TargetOptions &TargetOpts;
 };
 }
 
@@ -367,6 +374,11 @@ static void addSymbolRewriterPass(const CodeGenOptions &Opts,
   MPM->add(createRewriteSymbolsPass(DL));
 }
 
+static void addCMSimdCFLoweringPass(const PassManagerBuilder &Builder,
+                                    legacy::PassManagerBase &PM) {
+  PM.add(createCMSimdCFLoweringPass());
+}
+
 static CodeGenOpt::Level getCGOptLevel(const CodeGenOptions &CodeGenOpts) {
   switch (CodeGenOpts.OptimizationLevel) {
   default:
@@ -530,7 +542,7 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
       createTLII(TargetTriple, CodeGenOpts));
 
-  PassManagerBuilderWrapper PMBuilder(TargetTriple, CodeGenOpts, LangOpts);
+  PassManagerBuilderWrapper PMBuilder(TargetTriple, CodeGenOpts, LangOpts, TargetOpts);
 
   // At O0 and O1 we only run the always inliner which is more efficient. At
   // higher optimization levels we run the normal inliner.
@@ -568,6 +580,10 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
       !CodeGenOpts.SampleProfileFile.empty())
     PMBuilder.addExtension(PassManagerBuilder::EP_EarlyAsPossible,
                            addAddDiscriminatorsPass);
+
+  if (LangOpts.MdfCM)
+    PMBuilder.addExtension(PassManagerBuilder::EP_EarlyAsPossible,
+                           addCMSimdCFLoweringPass);
 
   // In ObjC ARC mode, add the main ARC optimization passes.
   if (LangOpts.ObjCAutoRefCount) {
@@ -704,7 +720,9 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
   PMBuilder.populateModulePassManager(MPM);
 }
 
-static void setCommandLineOpts(const CodeGenOptions &CodeGenOpts) {
+static void setCommandLineOpts(BackendAction Action,
+                               const CodeGenOptions &CodeGenOpts,
+                               const LangOptions &LangOpts) {
   SmallVector<const char *, 16> BackendArgs;
   BackendArgs.push_back("clang"); // Fake program name.
   if (!CodeGenOpts.DebugPass.empty()) {
@@ -715,6 +733,18 @@ static void setCommandLineOpts(const CodeGenOptions &CodeGenOpts) {
     BackendArgs.push_back("-limit-float-precision");
     BackendArgs.push_back(CodeGenOpts.LimitFloatPrecision.c_str());
   }
+
+  if (CodeGenOpts.NoUnrollPragmalessLoops)
+    BackendArgs.push_back("-unroll-threshold=1");
+  if (LangOpts.MdfCM) {
+    BackendArgs.push_back("-pragma-unroll-threshold=0xffffffff");
+    BackendArgs.push_back("-enable-pre=false");
+    BackendArgs.push_back("-instcombine-code-sinking=false");
+
+    if (!CodeGenOpts.EmitVLoadStore)
+      BackendArgs.push_back("-genx-emit-vldst=false");
+  }
+
   BackendArgs.push_back(nullptr);
   llvm::cl::ParseCommandLineOptions(BackendArgs.size() - 1,
                                     BackendArgs.data());
@@ -724,7 +754,16 @@ void EmitAssemblyHelper::CreateTargetMachine(bool MustCreateTM) {
   // Create the TargetMachine for generating code.
   std::string Error;
   std::string Triple = TheModule->getTargetTriple();
-  const llvm::Target *TheTarget = TargetRegistry::lookupTarget(Triple, Error);
+  StringRef TripleStr(Triple);
+  const llvm::Target *TheTarget;
+  // genx in not a real triple. In case of genx triple use lookup
+  // that compares by arch names, not arch enums.
+  if (TripleStr.startswith("genx")) {
+    const std::string Arch = TripleStr.startswith("genx32") ? "genx32" : "genx64";
+    llvm::Triple T;
+    TheTarget = TargetRegistry::lookupTarget(Arch, T, Error);
+  } else
+    TheTarget = TargetRegistry::lookupTarget(Triple, Error);
   if (!TheTarget) {
     if (MustCreateTM)
       Diags.Report(diag::err_fe_unable_to_create_target) << Error;
@@ -776,11 +815,12 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
                                       std::unique_ptr<raw_pwrite_stream> OS) {
   TimeRegion Region(FrontendTimesIsEnabled ? &CodeGenerationTime : nullptr);
 
-  setCommandLineOpts(CodeGenOpts);
+  setCommandLineOpts(Action, CodeGenOpts, LangOpts);
 
   bool UsesCodeGen = (Action != Backend_EmitNothing &&
                       Action != Backend_EmitBC &&
-                      Action != Backend_EmitLL);
+                      Action != Backend_EmitLL &&
+                      Action != Backend_EmitSPIRV);
   CreateTargetMachine(UsesCodeGen);
 
   if (UsesCodeGen && !TM)
@@ -803,6 +843,8 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
       createTargetTransformInfoWrapperPass(getTargetIRAnalysis()));
 
   std::unique_ptr<llvm::ToolOutputFile> ThinLinkOS, DwoOS;
+
+  std::ostringstream OStr;
 
   switch (Action) {
   case Backend_EmitNothing:
@@ -844,6 +886,16 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
         createPrintModulePass(*OS, "", CodeGenOpts.EmitLLVMUseLists));
     break;
 
+  case Backend_EmitSPIRV: {
+    // GENX BEGIN
+    StringRef TargetTriple(TheModule->getTargetTriple());
+    PerModulePasses.add(createGenXSPIRVWriterAdaptorPass());
+    // GENX END
+    PerModulePasses.add(createSPIRVWriterPass(OStr));
+
+    break;
+  }
+
   default:
     if (!CodeGenOpts.SplitDwarfFile.empty() &&
         (CodeGenOpts.getSplitDwarfMode() == CodeGenOptions::SplitFileFission)) {
@@ -881,6 +933,10 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
     PrettyStackTraceString CrashInfo("Code generation");
     CodeGenPasses.run(*TheModule);
   }
+
+  // Output content of stringstream to raw_ostream.
+  if (Action == Backend_EmitSPIRV)
+    *OS << OStr.str();
 
   if (ThinLinkOS)
     ThinLinkOS->keep();
@@ -927,7 +983,7 @@ static PassBuilder::OptimizationLevel mapToLevel(const CodeGenOptions &Opts) {
 void EmitAssemblyHelper::EmitAssemblyWithNewPassManager(
     BackendAction Action, std::unique_ptr<raw_pwrite_stream> OS) {
   TimeRegion Region(FrontendTimesIsEnabled ? &CodeGenerationTime : nullptr);
-  setCommandLineOpts(CodeGenOpts);
+  setCommandLineOpts(Action, CodeGenOpts, LangOpts);
 
   // The new pass manager always makes a target machine available to passes
   // during construction.
@@ -1087,6 +1143,10 @@ void EmitAssemblyHelper::EmitAssemblyWithNewPassManager(
     MPM.addPass(PrintModulePass(*OS, "", CodeGenOpts.EmitLLVMUseLists));
     break;
 
+  case Backend_EmitSPIRV:
+    assert(0);
+    break;
+
   case Backend_EmitAssembly:
   case Backend_EmitMCNull:
   case Backend_EmitObj:
@@ -1162,7 +1222,7 @@ static void runThinLTOBackend(ModuleSummaryIndex *CombinedIndex, Module *M,
       ModuleToDefinedGVSummaries;
   CombinedIndex->collectDefinedGVSummariesPerModule(ModuleToDefinedGVSummaries);
 
-  setCommandLineOpts(CGOpts);
+  setCommandLineOpts(Action, CGOpts, LOpts);
 
   // We can simply import the values mentioned in the combined index, since
   // we should only invoke this using the individual indexes written out
@@ -1251,6 +1311,10 @@ static void runThinLTOBackend(ModuleSummaryIndex *CombinedIndex, Module *M,
       WriteBitcodeToFile(*M, *OS, CGOpts.EmitLLVMUseLists);
       return false;
     };
+    break;
+  case Backend_EmitSPIRV:
+    // to-be-implemented
+    assert(0);
     break;
   default:
     Conf.CGFileType = getCodeGenFileType(Action);

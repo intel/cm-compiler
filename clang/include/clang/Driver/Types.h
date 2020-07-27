@@ -42,7 +42,8 @@ namespace types {
 
   /// getTypeTempSuffix - Return the suffix to use when creating a
   /// temp file of this type, or null if unspecified.
-  const char *getTypeTempSuffix(ID Id, bool CLMode = false);
+  const char *getTypeTempSuffix(ID Id, bool CLMode = false,
+                                bool CMMode = false);
 
   /// onlyAssembleType - Should this type only be assembled.
   bool onlyAssembleType(ID Id);
@@ -82,6 +83,9 @@ namespace types {
 
   /// isObjC - Is this an "ObjC" input (Obj-C and Obj-C++ sources and headers).
   bool isObjC(ID Id);
+
+  /// isCM - Is this a "CM" input (C++ sources in MDF CM mode).
+  bool isCM(ID Id);
 
   /// isSrcFile - Is this a source file, i.e. something that still has to be
   /// preprocessed. The logic behind this is the same that decides if the first

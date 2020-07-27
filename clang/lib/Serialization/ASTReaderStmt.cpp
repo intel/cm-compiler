@@ -1066,6 +1066,26 @@ void ASTStmtReader::VisitAtomicExpr(AtomicExpr *E) {
   E->RParenLoc = ReadSourceLocation();
 }
 
+void ASTStmtReader::VisitCMSelectExpr(CMSelectExpr *E) {
+  llvm_unreachable("not implemented yet");
+}
+
+void ASTStmtReader::VisitCMBoolReductionExpr(CMBoolReductionExpr *E) {
+  llvm_unreachable("not implemented yet");
+}
+
+void ASTStmtReader::VisitCMFormatExpr(CMFormatExpr *E) {
+  llvm_unreachable("not implemented yet");
+}
+
+void ASTStmtReader::VisitCMMergeExpr(CMMergeExpr *E) {
+  llvm_unreachable("not implemented yet");
+}
+
+void ASTStmtReader::VisitCMSizeExpr(CMSizeExpr *E) {
+  llvm_unreachable("not implemented yet");
+}
+
 //===----------------------------------------------------------------------===//
 // Objective-C Expressions and Statements
 

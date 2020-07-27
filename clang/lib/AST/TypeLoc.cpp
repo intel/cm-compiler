@@ -381,6 +381,9 @@ TypeSpecifierType BuiltinTypeLoc::getWrittenTypeSpec() const {
   case BuiltinType::ObjCId:
   case BuiltinType::ObjCClass:
   case BuiltinType::ObjCSel:
+  case BuiltinType::CMSurfaceIndex:
+  case BuiltinType::CMSamplerIndex:
+  case BuiltinType::CMVmeIndex:
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
   case BuiltinType::Id:
 #include "clang/Basic/OpenCLImageTypes.def"

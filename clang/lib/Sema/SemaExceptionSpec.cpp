@@ -1262,6 +1262,11 @@ CanThrowResult Sema::canThrow(const Expr *E) {
     // FIXME: Can any of the above throw?  If so, when?
     return CT_Cannot;
 
+  case Expr::CMSelectExprClass:
+  case Expr::CMBoolReductionExprClass:
+  case Expr::CMFormatExprClass:
+  case Expr::CMMergeExprClass:
+  case Expr::CMSizeExprClass:
   case Expr::AddrLabelExprClass:
   case Expr::ArrayTypeTraitExprClass:
   case Expr::AtomicExprClass:

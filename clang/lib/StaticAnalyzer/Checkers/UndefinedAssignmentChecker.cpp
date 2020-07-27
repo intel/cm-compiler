@@ -106,6 +106,11 @@ void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
     break;
   }
 
+  // CM vector/matrix values may be aliased, so we can't currently be certain
+  // whether one is actually undefined or not. Ignore them for now.
+  if (ex->getType()->isCMVectorMatrixType())
+    return;
+
   if (OS.str().empty())
     OS << DefaultMsg;
 

@@ -24,6 +24,7 @@
 #include "clang/AST/DeclOpenMP.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprCM.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ExprOpenMP.h"
@@ -1004,6 +1005,28 @@ DEF_TRAVERSE_TYPE(VectorType, { TRY_TO(TraverseType(T->getElementType())); })
 
 DEF_TRAVERSE_TYPE(ExtVectorType, { TRY_TO(TraverseType(T->getElementType())); })
 
+DEF_TRAVERSE_TYPE(CMVectorType, {
+    TRY_TO(TraverseType(T->getElementType()));
+  })
+
+DEF_TRAVERSE_TYPE(CMMatrixType, {
+    TRY_TO(TraverseType(T->getElementType()));
+  })
+
+DEF_TRAVERSE_TYPE(DependentCMVectorType, {
+    if (T->getSizeExpr())
+      TRY_TO(TraverseStmt(T->getSizeExpr()));
+    TRY_TO(TraverseType(T->getElementType()));
+  })
+
+DEF_TRAVERSE_TYPE(DependentCMMatrixType, {
+    if (T->getNumRowExpr())
+      TRY_TO(TraverseStmt(T->getNumRowExpr()));
+    if (T->getNumColumnExpr())
+      TRY_TO(TraverseStmt(T->getNumColumnExpr()));
+    TRY_TO(TraverseType(T->getElementType()));
+  })
+
 DEF_TRAVERSE_TYPE(FunctionNoProtoType,
                   { TRY_TO(TraverseType(T->getReturnType())); })
 
@@ -1233,6 +1256,28 @@ DEF_TRAVERSE_TYPELOC(DependentVectorType, {
 DEF_TRAVERSE_TYPELOC(ExtVectorType, {
   TRY_TO(TraverseType(TL.getTypePtr()->getElementType()));
 })
+
+DEF_TRAVERSE_TYPELOC(CMVectorType, {
+    TRY_TO(TraverseType(TL.getTypePtr()->getElementType()));
+  })
+
+DEF_TRAVERSE_TYPELOC(CMMatrixType, {
+    TRY_TO(TraverseType(TL.getTypePtr()->getElementType()));
+  })
+
+DEF_TRAVERSE_TYPELOC(DependentCMVectorType, {
+    if (TL.getTypePtr()->getSizeExpr())
+      TRY_TO(TraverseStmt(TL.getTypePtr()->getSizeExpr()));
+    TRY_TO(TraverseType(TL.getTypePtr()->getElementType()));
+  })
+
+DEF_TRAVERSE_TYPELOC(DependentCMMatrixType, {
+    if (TL.getTypePtr()->getNumRowExpr())
+      TRY_TO(TraverseStmt(TL.getTypePtr()->getNumRowExpr()));
+    if (TL.getTypePtr()->getNumColumnExpr())
+      TRY_TO(TraverseStmt(TL.getTypePtr()->getNumColumnExpr()));
+    TRY_TO(TraverseType(TL.getTypePtr()->getElementType()));
+  })
 
 DEF_TRAVERSE_TYPELOC(FunctionNoProtoType,
                      { TRY_TO(TraverseTypeLoc(TL.getReturnLoc())); })
@@ -2556,6 +2601,11 @@ DEF_TRAVERSE_STMT(CUDAKernelCallExpr, {})
 
 // These operators (all of them) do not need any action except
 // iterating over the children.
+DEF_TRAVERSE_STMT(CMSelectExpr, {})
+DEF_TRAVERSE_STMT(CMBoolReductionExpr, {})
+DEF_TRAVERSE_STMT(CMFormatExpr, {})
+DEF_TRAVERSE_STMT(CMMergeExpr, {})
+DEF_TRAVERSE_STMT(CMSizeExpr, {})
 DEF_TRAVERSE_STMT(BinaryConditionalOperator, {})
 DEF_TRAVERSE_STMT(ConditionalOperator, {})
 DEF_TRAVERSE_STMT(UnaryOperator, {})

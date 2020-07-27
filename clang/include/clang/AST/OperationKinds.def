@@ -182,6 +182,28 @@ CAST_OPERATION(ToVoid)
 ///    __attribute__((ext_vector_type(4))) int v = 5;
 CAST_OPERATION(VectorSplat)
 
+/// CK_CMVectorMatrixSplat - A conversion from an arithmetic type to a
+/// vector of that element type.  Fills all elements ("splats") with
+/// the source value.
+///    vector<int, 4> v = 5;
+///    matrix<int, 4, 4> m = 5;
+CAST_OPERATION(CMVectorMatrixSplat)
+
+/// CK_CMBaseToReference - A conversion from base type to a reference type.
+///
+///    vector<int, 8> v = 5;
+///    vector_ref<int, 4> vref = v;
+///
+CAST_OPERATION(CMBaseToReference)
+
+/// CK_CMReferenceToBase - A conversion from reference type to a base type.
+///
+///    vector_ref<int, 8> v1 = v0;
+///    vector<int, 8> v2 = 5;
+///    v2 += v1;
+///
+CAST_OPERATION(CMReferenceToBase)
+
 /// CK_IntegralCast - A cast between integral types (other than to
 /// boolean).  Variously a bitcast, a truncation, a sign-extension,
 /// or a zero-extension.

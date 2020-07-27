@@ -34,7 +34,8 @@ enum ClangFlags {
   CC1Option = (1 << 10),
   CC1AsOption = (1 << 11),
   NoDriverOption = (1 << 12),
-  Ignored = (1 << 13)
+  CMOption = (1 << 13),          // MDF CM options
+  Ignored = (1 << 14)
 };
 
 enum ID {

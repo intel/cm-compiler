@@ -1238,6 +1238,20 @@ ParsedTemplateArgument Parser::ParseTemplateArgument() {
   if (isCXXTypeId(TypeIdAsTemplateArgument)) {
     TypeResult TypeArg = ParseTypeName(
         /*Range=*/nullptr, DeclaratorContext::TemplateArgContext);
+    // If the type is followed by an identifier that is a type name, then this
+    // may be an attempt to qualify a user defined type. We don't allow that
+    // here as combining the types is too tricky. We'll produce a specific
+    // error diagnostic that is hopefully more helpful than the default one.
+    if (Tok.is(tok::identifier)) {
+      CXXScopeSpec SS;
+      IdentifierInfo *II = Tok.getIdentifierInfo();
+      if (Actions.ClassifyName(getCurScope(), SS, II, Tok.getLocation(), Tok,
+          false).getKind() == Sema::NC_Type) {
+        Diag(Tok.getLocation(), diag::err_cm_invalid_type_combination) << II;
+        ConsumeToken();
+      }
+    }
+    
     return Actions.ActOnTemplateTypeArgument(TypeArg);
   }
 

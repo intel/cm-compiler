@@ -489,6 +489,76 @@ static bool IsStructurallyEquivalent(StructuralEquivalenceContext &Context,
     break;
   }
 
+  case Type::CMVector: {
+    const CMVectorType *V1 = cast<CMVectorType>(T1);
+    const CMVectorType *V2 = cast<CMVectorType>(T2);
+
+    if (V1->isReference() != V2->isReference())
+      return false;
+    if (V1->getNumElements() != V2->getNumElements())
+      return false;
+    if (!IsStructurallyEquivalent(Context,
+                                  V1->getElementType(),
+                                  V2->getElementType()))
+      return false;
+    break;
+  }
+
+  case Type::CMMatrix: {
+    const CMMatrixType *M1 = cast<CMMatrixType>(T1);
+    const CMMatrixType *M2 = cast<CMMatrixType>(T2);
+
+    if (M1->isReference() != M2->isReference())
+      return false;
+    if (M1->getNumRows() != M2->getNumRows())
+      return false;
+    if (M1->getNumColumns() != M2->getNumColumns())
+      return false;
+    if (!IsStructurallyEquivalent(Context,
+                                  M1->getElementType(),
+                                  M2->getElementType()))
+      return false;
+    break;
+  }
+
+  case Type::DependentCMVector: {
+    const DependentCMVectorType *V1 = cast<DependentCMVectorType>(T1);
+    const DependentCMVectorType *V2 = cast<DependentCMVectorType>(T2);
+
+    if (V1->isReference() != V2->isReference())
+      return false;
+    if (!IsStructurallyEquivalent(Context,
+                                  V1->getSizeExpr(),
+                                  V2->getSizeExpr()))
+      return false;
+    if (!IsStructurallyEquivalent(Context,
+                                  V1->getElementType(),
+                                  V2->getElementType()))
+      return false;
+    break;
+  }
+
+  case Type::DependentCMMatrix: {
+    const DependentCMMatrixType *M1 = cast<DependentCMMatrixType>(T1);
+    const DependentCMMatrixType *M2 = cast<DependentCMMatrixType>(T2);
+
+    if (M1->isReference() != M2->isReference())
+      return false;
+    if (!IsStructurallyEquivalent(Context,
+                                  M1->getNumRowExpr(),
+                                  M2->getNumRowExpr()))
+      return false;
+    if (!IsStructurallyEquivalent(Context,
+                                  M1->getNumColumnExpr(),
+                                  M2->getNumColumnExpr()))
+      return false;
+    if (!IsStructurallyEquivalent(Context,
+                                  M1->getElementType(),
+                                  M2->getElementType()))
+      return false;
+    break;
+  }
+
   case Type::FunctionProto: {
     const auto *Proto1 = cast<FunctionProtoType>(T1);
     const auto *Proto2 = cast<FunctionProtoType>(T2);

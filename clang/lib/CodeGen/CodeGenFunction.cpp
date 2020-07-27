@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenFunction.h"
+#include "CGCM.h"
 #include "CGBlocks.h"
 #include "CGCleanup.h"
 #include "CGCUDARuntime.h"
@@ -38,6 +39,7 @@
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Operator.h"
 #include "llvm/Transforms/Utils/PromoteMemToReg.h"
+#include "llvm/GenXIntrinsics/GenXMetadata.h"
 using namespace clang;
 using namespace CodeGen;
 
@@ -46,6 +48,9 @@ using namespace CodeGen;
 static bool shouldEmitLifetimeMarkers(const CodeGenOptions &CGOpts,
                                       const LangOptions &LangOpts) {
   if (CGOpts.DisableLifetimeMarkers)
+    return false;
+
+  if (LangOpts.MdfCM)
     return false;
 
   // Disable lifetime markers in msan builds.
@@ -104,6 +109,10 @@ CodeGenFunction::~CodeGenFunction() {
 
   if (getLangOpts().OpenMP && CurFn)
     CGM.getOpenMPRuntime().functionFinished(*this);
+
+  // Clear per function objects.
+  if (CGM.getLangOpts().MdfCM)
+    CGM.getCMRuntime().clear();
 }
 
 CharUnits CodeGenFunction::getNaturalPointeeTypeAlignment(QualType T,
@@ -214,6 +223,8 @@ TypeEvaluationKind CodeGenFunction::getEvaluationKind(QualType type) {
     case Type::MemberPointer:
     case Type::Vector:
     case Type::ExtVector:
+    case Type::CMVector:
+    case Type::CMMatrix:
     case Type::FunctionProto:
     case Type::FunctionNoProto:
     case Type::Enum:
@@ -846,6 +857,40 @@ void CodeGenFunction::StartFunction(GlobalDecl GD,
   CurFnInfo = &FnInfo;
   assert(CurFn->isDeclaration() && "Function already has body?");
 
+  // Pass inline keyword to optimizer if it appears explicitly on any
+  // declaration. Also, in the case of -fno-inline attach NoInline
+  // attribute to all function that are not marked AlwaysInline.
+  if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D)) {
+    if (!CGM.getCodeGenOpts().NoInline) {
+      for (auto RI : FD->redecls())
+        if (RI->isInlineSpecified()) {
+          // For MDF CM, emit inline attribute as alwaysinline.
+          if (getLangOpts().MdfCM)
+            Fn->addFnAttr(llvm::Attribute::AlwaysInline);
+          else
+            Fn->addFnAttr(llvm::Attribute::InlineHint);
+          break;
+        }
+    } else if (!FD->hasAttr<AlwaysInlineAttr>())
+      Fn->addFnAttr(llvm::Attribute::NoInline);
+
+    // For a GenX function if it is not alwaysinline, it will be noinline to
+    // match the old compiler's behavior. This behavior can be overwritten
+    // with option -fno-force-noinline.
+    //
+    // For C++ members, make them always inline to optimize away this pointer.
+    if (getLangOpts().MdfCM && FD->isCXXInstanceMember())
+      Fn->addFnAttr(llvm::Attribute::AlwaysInline);
+
+    if (getLangOpts().MdfCM &&
+        CGM.getCodeGenOpts().ForceNoInline &&
+        !Fn->getAttributes().hasAttrSomewhere(llvm::Attribute::AlwaysInline))
+      Fn->addFnAttr(llvm::Attribute::NoInline);
+  }
+
+  // Finer control on the loop info for MDF cm.
+  LoopStack.isMdfCM = getLangOpts().MdfCM;
+
   // If this function has been blacklisted for any of the enabled sanitizers,
   // disable the sanitizer for the function.
   do {
@@ -949,6 +994,31 @@ void CodeGenFunction::StartFunction(GlobalDecl GD,
     // Add metadata for a kernel function.
     if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D))
       EmitOpenCLKernelMetadata(FD, Fn);
+  }
+
+  if (getLangOpts().MdfCM) {
+    if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D)) {
+      CGM.getCMRuntime().EmitCMKernelMetadata(FD, Fn);
+      if (auto FloatControlAttr = FD->getAttr<CMFloatControlAttr>())
+        Fn->addFnAttr(llvm::genx::FunctionMD::CMFloatControl,
+                      std::to_string(FloatControlAttr->getMode()));
+      if (auto GenxSIMTAttr = FD->getAttr<CMGenxSIMTAttr>())
+        Fn->addFnAttr("CMGenxSIMT", std::to_string(GenxSIMTAttr->getMode()));
+
+      if (FD->hasAttr<CMGenxNoSIMDPredAttr>())
+        Fn->addFnAttr("CMGenxNoSIMDPred");
+
+      if (FD->hasAttr<CMGenxMainAttr>())
+      {
+        Fn->addFnAttr(llvm::genx::FunctionMD::CMGenXMain);
+        if (FD->hasAttr<CMCallableAttr>())
+          Fn->addFnAttr("CMCallable");
+        else if (FD->hasAttr<CMEntryAttr>())
+          Fn->addFnAttr("CMEntry");
+      }
+      else if (FD->hasAttr<CMGenxStackcallAttr>())
+        Fn->addFnAttr(llvm::genx::FunctionMD::CMStackCall);
+    }
   }
 
   // If we are checking function types, emit a function type signature as
@@ -2045,6 +2115,8 @@ void CodeGenFunction::EmitVariablyModifiedType(QualType type) {
     case Type::Complex:
     case Type::Vector:
     case Type::ExtVector:
+    case Type::CMVector:
+    case Type::CMMatrix:
     case Type::Record:
     case Type::Enum:
     case Type::Elaborated:

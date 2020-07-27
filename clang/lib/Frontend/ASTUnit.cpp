@@ -1133,6 +1133,9 @@ bool ASTUnit::Parse(std::shared_ptr<PCHContainerOperations> PCHContainerOps,
   assert(Clang->getFrontendOpts().Inputs[0].getKind().getLanguage() !=
              InputKind::LLVM_IR &&
          "IR inputs not support here!");
+  assert(Clang->getFrontendOpts().Inputs[0].getKind().getLanguage() !=
+             InputKind::SPIRV &&
+         "SPIRV inputs not support here!");
 
   // Configure the various subsystems.
   LangOpts = Clang->getInvocation().LangOpts;
@@ -1564,6 +1567,9 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocationAction(
   assert(Clang->getFrontendOpts().Inputs[0].getKind().getLanguage() !=
              InputKind::LLVM_IR &&
          "IR inputs not support here!");
+  assert(Clang->getFrontendOpts().Inputs[0].getKind().getLanguage() !=
+             InputKind::SPIRV &&
+         "SPIRV inputs not support here!");
 
   // Configure the various subsystems.
   AST->TheSema.reset();
@@ -2188,7 +2194,10 @@ void ASTUnit::CodeComplete(
   assert(Clang->getFrontendOpts().Inputs[0].getKind().getLanguage() !=
              InputKind::LLVM_IR &&
          "IR inputs not support here!");
-
+  assert(Clang->getFrontendOpts().Inputs[0].getKind().getLanguage() !=
+             InputKind::SPIRV &&
+         "SPIRV inputs not support here!");
+  
   // Use the source and file managers that we were given.
   Clang->setFileManager(&FileMgr);
   Clang->setSourceManager(&SourceMgr);

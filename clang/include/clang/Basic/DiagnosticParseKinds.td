@@ -158,6 +158,7 @@ def err_expected_expression : Error<"expected expression">;
 def err_expected_type : Error<"expected a type">;
 def err_expected_external_declaration : Error<"expected external declaration">;
 def err_extraneous_closing_brace : Error<"extraneous closing brace ('}')">;
+def err_expected_less : Error<"expected '<'">;
 def err_expected_semi_declaration : Error<
   "expected ';' at end of declaration">;
 def err_expected_semi_decl_list : Error<
@@ -1254,5 +1255,23 @@ let CategoryName = "Coroutines Issue" in {
 def err_for_co_await_not_range_for : Error<
   "'co_await' modifier can only be applied to range-based for loop">;
 }
+
+let CategoryName = "MDF CM Issue" in {
+def err_cm_variadic_kernels_not_supported : Error<
+  "CM does not support variadic kernel functions">;
+def err_cm_parse_error_1 : Error<
+  "CM parse error 1">;
+def err_cm_parse_error_2 : Error<
+  "CM parse error 2">;
+def note_cm_less_here : Note<
+  "the matching '<' is here">;
+def err_cm_not_currently_supported : Error<
+  "'%0' is not currently supported">;
+def err_cm_invalid_type_combination : Error<
+  "type %0 cannot be combined with the preceding type/qualifier">;
+def warn_cm_pragma_cm_nonstrict_deprecated: Warning<
+  "cm_nonstrict is deprecated - see CM LLVM Porting Guide">,
+  InGroup<Deprecated>;
+} // end of MDF CM issue category
 
 } // end of Parser diagnostics

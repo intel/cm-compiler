@@ -483,6 +483,9 @@ NSAPI::getNSNumberFactoryMethodKind(QualType T) const {
   case BuiltinType::OCLClkEvent:
   case BuiltinType::OCLQueue:
   case BuiltinType::OCLReserveID:
+  case BuiltinType::CMSurfaceIndex:
+  case BuiltinType::CMSamplerIndex:
+  case BuiltinType::CMVmeIndex:
   case BuiltinType::BoundMember:
   case BuiltinType::Dependent:
   case BuiltinType::Overload:

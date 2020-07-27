@@ -31,6 +31,7 @@ namespace clang {
 namespace CodeGen {
   class AggValueSlot;
   struct CGBitFieldInfo;
+  class CGCMRegionInfo;
 
 /// RValue - This trivial value class is used to represent the result of an
 /// expression that is evaluated.  It can be one of three things: either a
@@ -170,7 +171,8 @@ class LValue {
     VectorElt,    // This is a vector element l-value (V[i]), use getVector*
     BitField,     // This is a bitfield l-value, use getBitfield*.
     ExtVectorElt, // This is an extended vector subset, use getExtVectorComp
-    GlobalReg     // This is a register l-value, use getGlobalReg()
+    GlobalReg,    // This is a register l-value, use getGlobalReg()
+    CMRegion      // This is a CM region.
   } LVType;
 
   llvm::Value *V;
@@ -184,6 +186,9 @@ class LValue {
 
     // BitField start bit and size
     const CGBitFieldInfo *BitFieldInfo;
+
+    // CM region description v.select<8, 1, 8, 2>(i, j).
+    const CGCMRegionInfo *CMRegionInfo;
   };
 
   QualType Type;
@@ -254,6 +259,7 @@ public:
   bool isBitField() const { return LVType == BitField; }
   bool isExtVectorElt() const { return LVType == ExtVectorElt; }
   bool isGlobalReg() const { return LVType == GlobalReg; }
+  bool isCMRegion() const { return LVType == CMRegion; }
 
   bool isVolatileQualified() const { return Quals.hasVolatile(); }
   bool isRestrictQualified() const { return Quals.hasRestrict(); }
@@ -364,6 +370,22 @@ public:
   // global register lvalue
   llvm::Value *getGlobalReg() const { assert(isGlobalReg()); return V; }
 
+  // CM region lvalue
+  llvm::Value *getCMRegionAddr() const {
+    assert(isCMRegion());
+    return V;
+  }
+  const CGCMRegionInfo &getCMRegionInfo() const {
+    assert(isCMRegion());
+    return *CMRegionInfo;
+  }
+  bool isCMArgumentReference() const {
+    // This is simple LValue reference to a function parameter, but not in a CM
+    // region.
+    return isSimple() && getType()->isCMReferenceType() &&
+           isa<llvm::Argument>(V);
+  }
+
   static LValue MakeAddr(Address address, QualType type, ASTContext &Context,
                          LValueBaseInfo BaseInfo, TBAAAccessInfo TBAAInfo) {
     Qualifiers qs = type.getQualifiers();
@@ -425,6 +447,21 @@ public:
     R.V = Reg.getPointer();
     R.Initialize(type, type.getQualifiers(), Reg.getAlignment(),
                  LValueBaseInfo(AlignmentSource::Decl), TBAAAccessInfo());
+    return R;
+  }
+
+  /// \brief Create a new object to represent a CM region.
+  ///
+  /// \param Addr - The address of the base object.
+  /// \param Info - The CM region description.
+  static LValue MakeCMRegion(llvm::Value *Addr, const CGCMRegionInfo &Info,
+                             QualType T, CharUnits Alignment) {
+    LValue R;
+    R.LVType = CMRegion;
+    R.V = Addr;
+    R.CMRegionInfo = &Info;
+    R.Initialize(T, T.getQualifiers(), Alignment, LValueBaseInfo(),
+                 TBAAAccessInfo());
     return R;
   }
 

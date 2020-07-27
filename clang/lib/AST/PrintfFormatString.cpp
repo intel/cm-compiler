@@ -316,9 +316,17 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
     case 'f': k = ConversionSpecifier::fArg; break;
     case 'g': k = ConversionSpecifier::gArg; break;
     case 'i': k = ConversionSpecifier::iArg; break;
-    case 'n': k = ConversionSpecifier::nArg; break;
+    case 'n':
+      // not supported in CM
+      if (!LO.MdfCM)
+        k = ConversionSpecifier::nArg;
+      break;
     case 'o': k = ConversionSpecifier::oArg; break;
-    case 'p': k = ConversionSpecifier::pArg; break;
+    case 'p':
+      // not supported in CM
+      if (!LO.MdfCM)
+        k = ConversionSpecifier::pArg;
+      break;
     case 's': k = ConversionSpecifier::sArg; break;
     case 'u': k = ConversionSpecifier::uArg; break;
     case 'x': k = ConversionSpecifier::xArg; break;

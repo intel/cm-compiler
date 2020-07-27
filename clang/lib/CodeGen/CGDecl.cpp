@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "CGCM.h"
 #include "CGBlocks.h"
 #include "CGCXXABI.h"
 #include "CGCleanup.h"
@@ -1194,6 +1195,25 @@ static llvm::Constant *replaceUndef(llvm::Constant *constant) {
   return llvm::ConstantVector::get(Values);
 }
 
+/// Should we use the LLVM lifetime intrinsics for the given local variable?
+static bool shouldUseLifetimeMarkers(CodeGenFunction &CGF, const VarDecl &D,
+                                     unsigned Size) {
+  // Do not emit lifetime markers for CM. We don't emit lifetime markers since
+  // mem2reg will fail to turn CM base objects into values.
+  if (CGF.getLangOpts().MdfCM)
+    return false;
+
+  // For now, only in optimized builds.
+  if (CGF.CGM.getCodeGenOpts().OptimizationLevel == 0)
+    return false;
+
+  // Limit the size of marked objects to 32 bytes. We don't want to increase
+  // compile time by marking tiny objects.
+  unsigned SizeThreshold = 32;
+
+  return Size > SizeThreshold;
+}
+
 /// EmitAutoVarDecl - Emit code and set up an entry in LocalDeclMap for a
 /// variable declaration with auto, register, or no storage class specifier.
 /// These turn into simple stack objects, or GlobalValues depending on target.
@@ -1614,6 +1634,11 @@ void CodeGenFunction::EmitAutoVarInit(const AutoVarEmission &emission) {
     return;
   }
 
+  // Initialize a CM vector/matrix variable with a constant.
+  if (getLangOpts().MdfCM && type->isCMBaseType() &&
+      Init && Init->getType()->isConstantArrayType())
+    return CGM.getCMRuntime().EmitCMConstantInitializer(*this, emission);
+
   // Check whether this is a byref variable that's potentially
   // captured and moved by its own initializer.  If so, we'll need to
   // emit the initializer first, then copy into the variable.
@@ -1774,6 +1799,28 @@ void CodeGenFunction::EmitExprAsInit(const Expr *init, const ValueDecl *D,
     EmitStoreThroughLValue(rvalue, lvalue, true);
     return;
   }
+
+  // CM vector_ref/matrix_ref have reference semantics, e.g.
+  // vector_ref<int, 4> vref = v.select<4, 2>(0);
+  // Cache the rhs and retrieve by DeclRefExprs
+  if (type->isCMReferenceType()) {
+    LValue LV = EmitLValue(init);
+    assert(LV.isSimple() || LV.isCMRegion());
+
+    // This just makes it easier to load the address for the following case.
+    // vector<int, 4> v = 0;
+    // vector_ref<int, 4> vref = v;
+    if (LV.isSimple()) {
+      llvm::Value *Val = LV.getAddress().getPointer();
+      EmitStoreThroughLValue(RValue::get(Val), lvalue, true);
+    }
+
+    // For simple initializers, both loading from address and from the cached
+    // lvalue are correct, but not possible for a region lvalue, which has no
+    // proper address to store yet.
+    return CGM.getCMRuntime().EmitCMRefDeclInit(*this, D, LV);
+  }
+
   switch (getEvaluationKind(type)) {
   case TEK_Scalar:
     EmitScalarInit(init, D, lvalue, capturedByInit);
@@ -2380,6 +2427,11 @@ void CodeGenFunction::EmitParmDecl(const VarDecl &D, ParamValue Arg,
 
       // Enter the cleanup scope.
       EmitAutoVarWithLifetime(*this, D, DeclPtr, lt);
+    }
+    // Register this pass-by-CM-reference argument.
+    if (getLangOpts().MdfCM && Ty->isCMReferenceType()) {
+      LValue LV = MakeNaturalAlignAddrLValue(Arg.getAnyValue(), Ty);
+      CGM.getCMRuntime().EmitCMRefDeclInit(*this, &D, LV);
     }
   }
 

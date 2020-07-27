@@ -53,6 +53,10 @@ def CC1AsOption : OptionFlag;
 // NoDriverOption - This option should not be accepted by the driver.
 def NoDriverOption : OptionFlag;
 
+// CMOption - This is a cmc.exe option. Options with this flag are made
+// available when the driver is running in MDF CM mode.
+def CMOption : OptionFlag;
+
 // A short name to show in documentation. The name will be interpreted as rST.
 class DocName<string name> { string DocName = name; }
 
@@ -624,6 +628,8 @@ def emit_ast : Flag<["-"], "emit-ast">,
   HelpText<"Emit Clang AST files for source inputs">;
 def emit_llvm : Flag<["-"], "emit-llvm">, Flags<[CC1Option]>, Group<Action_Group>,
   HelpText<"Use the LLVM representation for assembler and object files">;
+def emit_spirv : Flag<["-"], "emit-spirv">, Flags<[CC1Option]>, Group<Action_Group>,
+  HelpText<"output spirv">;
 def exported__symbols__list : Separate<["-"], "exported_symbols_list">;
 def e : JoinedOrSeparate<["-"], "e">, Group<Link_Group>;
 def fPIC : Flag<["-"], "fPIC">, Group<f_Group>;
@@ -877,6 +883,7 @@ def femulated_tls : Flag<["-"], "femulated-tls">, Group<f_Group>, Flags<[CC1Opti
 def fno_emulated_tls : Flag<["-"], "fno-emulated-tls">, Group<f_Group>, Flags<[CC1Option]>;
 def fencoding_EQ : Joined<["-"], "fencoding=">, Group<f_Group>;
 def ferror_limit_EQ : Joined<["-"], "ferror-limit=">, Group<f_Group>, Flags<[CoreOption]>;
+def ftypo_correction_limit_EQ : Joined<["-"], "ftypo-correction-limit=">, Group<f_Group>, Flags<[CoreOption]>;
 def fexceptions : Flag<["-"], "fexceptions">, Group<f_Group>, Flags<[CC1Option]>,
   HelpText<"Enable support for exception handling">;
 def fdwarf_exceptions : Flag<["-"], "fdwarf-exceptions">, Group<f_Group>,
@@ -1273,6 +1280,8 @@ def fms_compatibility_version
       HelpText<"Dot-separated value representing the Microsoft compiler "
                "version number to report in _MSC_VER (0 = don't define it "
                "(default))">;
+def fm_ix86 : Joined<["-"], "fm_ix86=">, Group<f_Group>, Flags<[CC1Option, CoreOption]>,
+  HelpText<"Version of the target processor to report in _M_IX86 (default 600)">;
 def fdelayed_template_parsing : Flag<["-"], "fdelayed-template-parsing">, Group<f_Group>,
   HelpText<"Parse templated function definitions at the end of the "
            "translation unit">,  Flags<[CC1Option, CoreOption]>;
@@ -1402,6 +1411,8 @@ def fno_exceptions : Flag<["-"], "fno-exceptions">, Group<f_Group>;
 def fno_gnu_keywords : Flag<["-"], "fno-gnu-keywords">, Group<f_Group>, Flags<[CC1Option]>;
 def fno_inline_functions : Flag<["-"], "fno-inline-functions">, Group<f_clang_Group>, Flags<[CC1Option]>;
 def fno_inline : Flag<["-"], "fno-inline">, Group<f_clang_Group>, Flags<[CC1Option]>;
+def fno_force_noinline : Flag<["-"], "fno-force-noinline">, Group<f_Group>,
+  HelpText<"Do not use noinline as the default inline attribute">, Flags<[CC1Option]>;
 def fno_experimental_isel : Flag<["-"], "fno-experimental-isel">, Group<f_clang_Group>,
   HelpText<"Disables the experimental global instruction selector">;
 def fno_experimental_new_pass_manager : Flag<["-"], "fno-experimental-new-pass-manager">,
@@ -3146,6 +3157,7 @@ defm stack_arrays : BooleanFFlag<"stack-arrays">, Group<gfortran_Group>;
 defm underscoring : BooleanFFlag<"underscoring">, Group<gfortran_Group>;
 defm whole_file : BooleanFFlag<"whole-file">, Group<gfortran_Group>;
 
+include "CMOptions.td"
 
 include "CC1Options.td"
 

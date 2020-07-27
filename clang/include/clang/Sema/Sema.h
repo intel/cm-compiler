@@ -21,6 +21,7 @@
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/ExprCM.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ExternalASTSource.h"
@@ -44,6 +45,7 @@
 #include "clang/Sema/ExternalSemaSource.h"
 #include "clang/Sema/IdentifierResolver.h"
 #include "clang/Sema/ObjCMethodList.h"
+#include "clang/Sema/Overload.h"
 #include "clang/Sema/Ownership.h"
 #include "clang/Sema/Scope.h"
 #include "clang/Sema/TypoCorrection.h"
@@ -1413,6 +1415,30 @@ public:
                               SourceLocation AttrLoc);
   QualType BuildAddressSpaceAttr(QualType &T, Expr *AddrSpace,
                                  SourceLocation AttrLoc);
+
+  QualType BuildCMVectorType(bool IsReference, QualType T, Expr *SizeExpr,
+                             SourceLocation VLoc, SourceLocation LessLoc,
+                             SourceLocation GreaterLoc);
+
+  QualType BuildCMMatrixType(bool IsReference, QualType T, Expr *NRowExpr,
+                             Expr *NColExpr, SourceLocation MLoc,
+                             SourceLocation LessLoc, SourceLocation GreaterLoc);
+
+  // === -----------------------------------------------------------------===//
+  // CM related semantic analysis.
+  //
+
+  /// \brief Determine whether the conversion from FromType to ToType is a valid
+  /// CM vector/matrix conversion.
+  ///
+  /// \param ICK Will be set to the CM vector conversion kind, if this is a CM
+  /// vector conversion.
+  bool IsCMVectorConversion(QualType FromType, QualType ToType,
+                            ImplicitConversionKind &ICK,
+                            bool AllowCMVMRefConversion);
+
+  /// \brief Check whether vector/matrix initializer is valid.
+  void DiagnoseCMVectorMatrixInitializer(QualType VarType, Expr *E);
 
   bool CheckFunctionReturnType(QualType T, SourceLocation Loc);
 
@@ -10520,6 +10546,77 @@ private:
   bool SemaBuiltinFPClassification(CallExpr *TheCall, unsigned NumArgs);
   bool SemaBuiltinVSX(CallExpr *TheCall);
   bool SemaBuiltinOSLogFormat(CallExpr *TheCall);
+
+  // MDF CM specific functions and builtins
+  bool CheckCmPrintfCall(CallExpr *TheCall);
+
+public:
+  // Check if a vector/matrix has arithmetic element type.
+  bool CheckCMArithmeticType(SourceLocation Loc, QualType Ty);
+  ExprResult CheckCMMergeOperand(SourceLocation MergeLoc, QualType DstType,
+                               ExprResult Src);
+  ExprResult ActOnCMAll(SourceLocation AllLoc, Expr *Base, SourceLocation RParenLoc);
+  ExprResult ActOnCMAny(SourceLocation AnyLoc, Expr *Base, SourceLocation RParenLoc);
+  ExprResult ActOnCMColumn(SourceLocation ColumnLoc, Expr *Base, Expr *ColExpr,
+                           SourceLocation RParenLoc);
+  ExprResult ActOnCMFormat(SourceLocation FormatLoc, Expr *Base,
+                           ParsedType FormatType,
+                           MultiExprArg Args,
+                           SourceLocation GreaterLoc,
+                           SourceLocation RPLoc);
+  ExprResult ActOnCMGenxSelect(SourceLocation GenxSelectLoc, Expr *Base,
+                               MultiExprArg GenxSelectArgs,
+                               SourceLocation GreaterLoc,
+                               MultiExprArg OffsetArgs);
+  ExprResult ActOnCMISelect(SourceLocation ISelectLoc, Expr *Base,
+                            MultiExprArg Args, SourceLocation RParenLoc);
+  ExprResult ActOnCMMerge(SourceLocation MergeLoc, Expr *Base,
+                          MultiExprArg Args, SourceLocation RParenLoc);
+  ExprResult ActOnCMNCols(SourceLocation NColsLoc, Expr *Base,
+                          SourceLocation RParenLoc);
+  ExprResult ActOnCMNElems(SourceLocation NElemsLoc, Expr *Base,
+                           SourceLocation RParenLoc);
+  ExprResult ActOnCMNRows(SourceLocation NRowsLoc, Expr *Base,
+                          SourceLocation RParenLoc);
+  ExprResult ActOnCMReplicate(SourceLocation ReplicateLoc, Expr *Base,
+                              MultiExprArg ReplicateArgs,
+                              MultiExprArg Offsets,
+                              SourceLocation RParenLoc);
+  ExprResult ActOnCMRow(SourceLocation RowLoc, Expr *Base, Expr *RowExpr,
+                        SourceLocation RParenLoc);
+  ExprResult ActOnCMSelect(SourceLocation SelectLoc, Expr *Base,
+                           MultiExprArg ConstArgs, MultiExprArg Args,
+                           SourceLocation RParenLoc);
+
+  ExprResult ActOnCMSelectAll(SourceLocation SelectAllLoc, Expr *Base,
+                              SourceLocation RParenLoc);
+  ExprResult ActOnCMElementAccess(Expr *Base, SourceLocation LParenLoc,
+                                  MultiExprArg ArgExprs,
+                                  SourceLocation RParenLoc);
+  ExprResult ActOnCMSubscriptAccess(Expr *Base, SourceLocation LLoc,
+                                    Expr *Idx, SourceLocation RLoc);
+  ExprResult BuildCMBoolReductionExpr(
+      Expr *Base, CMBoolReductionExpr::CMBoolReductionKind RK,
+      SourceLocation ReductionLoc, SourceLocation RParenLoc);
+  ExprResult BuildCMMerge(Expr *Base, SourceLocation MergeLoc,
+                          MultiExprArg Args, SourceLocation RParenLoc);
+  ExprResult BuildCMFormat(Expr *Base, SourceLocation FormatLoc,
+                           QualType ElementType, MultiExprArg Args,
+                           SourceLocation RParenLoc);
+  ExprResult DefaultCMReferenceToBaseConversion(Expr *E);
+  ExprResult DefaultCMUnaryConversion(Expr *E);
+  QualType CheckCMVectorMatrixOperands(ExprResult &LHS, ExprResult &RHS,
+                                       SourceLocation Loc, bool IsCompAssign,
+                                       bool IsShift = false);
+  QualType CheckCMVectorMatrixCompareOpnds(ExprResult &LHS, ExprResult &RHS,
+                                           SourceLocation Loc);
+
+  ExprResult BuildCMFunctionalCastExpr(TypeSourceInfo *TInfo,
+                                       QualType Ty,
+                                       SourceLocation LParenLoc,
+                                       Expr *CastExpr,
+                                       SourceLocation RParenLoc,
+                                       Expr *Sat);
 
 public:
   // Used by C++ template instantiation.

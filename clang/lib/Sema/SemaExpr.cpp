@@ -1779,6 +1779,40 @@ Sema::DecomposeUnqualifiedId(const UnqualifiedId &Id,
   }
 }
 
+// check for cmtl:: function names that are used without the namespace
+static bool is_cmtl_func_name(std::string s) { 
+  bool is_cmtl_func = llvm::StringSwitch<bool>(s)
+   .Cases("_Read4Borders", "ReadBlock", true)
+   .Case("WriteBlock", true)
+   .Cases("ReadLinear", "WriteLinear", "ReadBlock", true)
+   .Cases("Vectorize2DKRNL", "Vectorize2DKRNLRow", true)
+   .Case("_2Dto1D", true)
+   .Cases("DumpSLM", "TransposeFromSLM", "TransposeToSLM", true)
+   .Cases("Unpack", "UnpackSingle", "Pack", true)
+   .Cases("CachedStackTop", "CachedStackPush", "CachedStackPop", true)
+   .Cases("CachedStackInit", "CachedStackEmpty", true)
+   .Cases("MirrorVertical", "MirrorHorizontal_16x16", true)
+   .Cases("Rotate90_16x16", "Rotate270_16x16", "Rotate180_16x16", true)
+   .Cases("Transpose_16x16", "ReverseTranspose_16x16", true)
+   .Case("Transpose_8x8", true)
+   .Case("Map", true)
+   .Cases("cm_atan2_fast", "cm_atan2", true)
+   .Case("cm_fmod", true)
+   .Case("cm_assert_range", true)
+   .Case("_CM_vector_init", true)
+   .Default(false);
+  return is_cmtl_func;
+}
+
+// check for cmtl macro names that are used without cmtl.h included
+static bool is_cmtl_macro_name(std::string s) { 
+  bool is_cmtl_macro = llvm::StringSwitch<bool>(s)
+   .Case("cm_vector", true)
+   .Case("cm_matrix", true)
+   .Default(false);
+  return is_cmtl_macro;
+}
+
 static void emitEmptyLookupTypoDiagnostic(
     const TypoCorrection &TC, Sema &SemaRef, const CXXScopeSpec &SS,
     DeclarationName Typo, SourceLocation TypoLoc, ArrayRef<Expr *> Args,
@@ -2013,6 +2047,14 @@ Sema::DiagnoseEmptyLookup(Scope *S, CXXScopeSpec &SS, LookupResult &R,
 
   // Give up, we can't recover.
   Diag(R.getNameLoc(), diagnostic) << Name;
+
+  // generate a helpful diagnostic for cmtl:: functions that are used without
+  // specifying the namespace.
+  if (is_cmtl_func_name(Name.getAsString()))
+    Diag(R.getNameLoc(), diag::note_cmtl_func_usage) << Name.getAsString();
+  else if (is_cmtl_macro_name(Name.getAsString()))
+    Diag(R.getNameLoc(), diag::note_cmtl_macro_usage) << Name.getAsString();
+
   return true;
 }
 
@@ -3922,6 +3964,8 @@ static void captureVariablyModifiedType(ASTContext &Context, QualType T,
     case Type::Complex:
     case Type::Vector:
     case Type::ExtVector:
+    case Type::CMVector:
+    case Type::CMMatrix:
     case Type::Record:
     case Type::Enum:
     case Type::Elaborated:
@@ -7920,6 +7964,55 @@ Sema::CheckAssignmentConstraints(QualType LHSType, ExprResult &RHS,
     return Incompatible;
   }
 
+  if (LHSType->isCMVectorMatrixType()) {
+    QualType ElType = LHSType->getCMVectorMatrixElementType();
+    if (RHSType->isCMElementType()) {
+      if (ElType != RHSType) {
+        Kind = PrepareScalarCast(RHS, ElType);
+        RHS = ImpCastExprToType(RHS.get(), ElType, Kind);
+      }
+      Kind = CK_CMVectorMatrixSplat;
+      return Compatible;
+    }
+
+    if (RHSType->isCMVectorMatrixType()) {
+      unsigned NumElts = LHSType->getCMVectorMatrixSize();
+      unsigned RHSNumElts = RHSType->getCMVectorMatrixSize();
+      QualType RHSElType = RHSType->getCMVectorMatrixElementType();
+      if (NumElts == RHSNumElts) {
+        if (ElType == RHSElType) {
+          Kind = CK_BitCast;
+          return Compatible;
+        }
+        if (ElType->isIntegralType(Context) &&
+            RHSElType->isIntegralType(Context)) {
+          Kind = CK_IntegralCast;
+          return Compatible;
+        }
+        if (ElType->isRealFloatingType() && RHSElType->isRealFloatingType()) {
+          Kind = CK_FloatingCast;
+          return Compatible;
+        }
+        if (ElType->isRealFloatingType() &&
+            RHSElType->isIntegralType(Context)) {
+          Kind = CK_IntegralToFloating;
+          return Compatible;
+        }
+        if (ElType->isIntegralType(Context) &&
+            RHSElType->isRealFloatingType()) {
+          Kind = CK_FloatingToIntegral;
+          return Compatible;
+        }
+      }
+    }
+
+    if (RHSType->isCMVectorMatrixType() &&
+        Context.getTypeSize(LHSType) == Context.getTypeSize(RHSType)) {
+      Kind = CK_BitCast;
+      return Compatible;
+    }
+  }
+
   // Diagnose attempts to convert between __float128 and long double where
   // such conversions currently can't be handled.
   if (unsupportedTypeConversion(*this, LHSType, RHSType))
@@ -8923,6 +9016,10 @@ QualType Sema::CheckMultiplyDivideOperands(ExprResult &LHS, ExprResult &RHS,
                                /*AllowBothBool*/getLangOpts().AltiVec,
                                /*AllowBoolConversions*/false);
 
+  if (LHS.get()->getType()->isCMVectorMatrixType() ||
+      RHS.get()->getType()->isCMVectorMatrixType())
+    return CheckCMVectorMatrixOperands(LHS, RHS, Loc, IsCompAssign);
+
   QualType compType = UsualArithmeticConversions(LHS, RHS, IsCompAssign);
   if (LHS.isInvalid() || RHS.isInvalid())
     return QualType();
@@ -8948,6 +9045,14 @@ QualType Sema::CheckRemainderOperands(
       return CheckVectorOperands(LHS, RHS, Loc, IsCompAssign,
                                  /*AllowBothBool*/getLangOpts().AltiVec,
                                  /*AllowBoolConversions*/false);
+    return InvalidOperands(Loc, LHS, RHS);
+  }
+
+  if (LHS.get()->getType()->isCMVectorMatrixType() ||
+      RHS.get()->getType()->isCMVectorMatrixType()) {
+    if (LHS.get()->getType()->hasIntegerRepresentation() &&
+        RHS.get()->getType()->hasIntegerRepresentation())
+      return CheckCMVectorMatrixOperands(LHS, RHS, Loc, IsCompAssign);
     return InvalidOperands(Loc, LHS, RHS);
   }
 
@@ -9240,6 +9345,13 @@ QualType Sema::CheckAdditionOperands(ExprResult &LHS, ExprResult &RHS,
     return compType;
   }
 
+  if (LHS.get()->getType()->isCMVectorMatrixType() ||
+      RHS.get()->getType()->isCMVectorMatrixType()) {
+    QualType compType = CheckCMVectorMatrixOperands(LHS, RHS, Loc, CompLHSTy);
+    if (CompLHSTy) *CompLHSTy = compType;
+    return compType;
+  }
+
   QualType compType = UsualArithmeticConversions(LHS, RHS, CompLHSTy);
   if (LHS.isInvalid() || RHS.isInvalid())
     return QualType();
@@ -9330,6 +9442,13 @@ QualType Sema::CheckSubtractionOperands(ExprResult &LHS, ExprResult &RHS,
         LHS, RHS, Loc, CompLHSTy,
         /*AllowBothBool*/getLangOpts().AltiVec,
         /*AllowBoolConversions*/getLangOpts().ZVector);
+    if (CompLHSTy) *CompLHSTy = compType;
+    return compType;
+  }
+
+  if (LHS.get()->getType()->isCMVectorMatrixType() ||
+      RHS.get()->getType()->isCMVectorMatrixType()) {
+    QualType compType = CheckCMVectorMatrixOperands(LHS, RHS, Loc, CompLHSTy);
     if (CompLHSTy) *CompLHSTy = compType;
     return compType;
   }
@@ -9625,6 +9744,10 @@ QualType Sema::CheckShiftOperands(ExprResult &LHS, ExprResult &RHS,
     }
     return checkVectorShift(*this, LHS, RHS, Loc, IsCompAssign);
   }
+
+  if (LHS.get()->getType()->isCMVectorMatrixType() ||
+      RHS.get()->getType()->isCMVectorMatrixType())
+    return CheckCMVectorMatrixOperands(LHS, RHS, Loc, IsCompAssign, /*IsShift=*/true);
 
   // Shifts don't perform usual arithmetic conversions, they just do integer
   // promotions on each operand. C99 6.5.7p3
@@ -10301,6 +10424,9 @@ QualType Sema::CheckCompareOperands(ExprResult &LHS, ExprResult &RHS,
       (RHSType->isArithmeticType() || RHSType->isEnumeralType()))
     return checkArithmeticOrEnumeralCompare(*this, LHS, RHS, Loc, Opc);
 
+  if (LHSType->isCMVectorMatrixType() || RHSType->isCMVectorMatrixType())
+    return CheckCMVectorMatrixCompareOpnds(LHS, RHS, Loc);
+
   const Expr::NullPointerConstantKind LHSNullKind =
       LHS.get()->isNullPointerConstant(Context, Expr::NPC_ValueDependentIsNull);
   const Expr::NullPointerConstantKind RHSNullKind =
@@ -10759,6 +10885,10 @@ QualType Sema::CheckVectorCompareOperands(ExprResult &LHS, ExprResult &RHS,
   // often indicate logic errors in the program.
   diagnoseTautologicalComparison(*this, Loc, LHS.get(), RHS.get(), Opc);
 
+  QualType RHSType = RHS.get()->getType();
+  if (LHSType->isCMVectorMatrixType() || RHSType->isCMVectorMatrixType())
+    return CheckCMVectorMatrixCompareOpnds(LHS, RHS, Loc);
+
   // Check for comparisons of floating point operands using != and ==.
   if (BinaryOperator::isEqualityOp(Opc) &&
       LHSType->hasFloatingRepresentation()) {
@@ -10807,6 +10937,15 @@ inline QualType Sema::CheckBitwiseOperands(ExprResult &LHS, ExprResult &RHS,
       return CheckVectorOperands(LHS, RHS, Loc, IsCompAssign,
                         /*AllowBothBool*/true,
                         /*AllowBoolConversions*/getLangOpts().ZVector);
+    return InvalidOperands(Loc, LHS, RHS);
+  }
+
+  if (LHS.get()->getType()->isCMVectorMatrixType() ||
+      RHS.get()->getType()->isCMVectorMatrixType()) {
+    if (LHS.get()->getType()->hasIntegerRepresentation() &&
+        RHS.get()->getType()->hasIntegerRepresentation())
+      return CheckCMVectorMatrixOperands(LHS, RHS, Loc, IsCompAssign);
+
     return InvalidOperands(Loc, LHS, RHS);
   }
 
@@ -12942,6 +13081,13 @@ ExprResult Sema::CreateBuiltinUnaryOp(SourceLocation OpLoc,
               resultType->getAs<VectorType>()->getVectorKind() !=
               VectorType::AltiVecBool))
       break;
+    else if (getLangOpts().MdfCM && resultType->isCMVectorMatrixType()) {
+      Input = DefaultCMUnaryConversion(Input.get());
+      QualType inputType = Input.get()->getType();
+      resultType = Context.getCMVectorMatrixBaseType(inputType);
+
+      break;
+    }
     else if (getLangOpts().CPlusPlus && // C++ [expr.unary.op]p6
              Opc == UO_Plus &&
              resultType->isPointerType())
@@ -13019,6 +13165,12 @@ ExprResult Sema::CreateBuiltinUnaryOp(SourceLocation OpLoc,
       }
       // Vector logical not returns the signed variant of the operand type.
       resultType = GetSignedVectorType(resultType);
+      break;
+    } else if (resultType->isCMVectorMatrixType()) {
+      // Result type is vector<ushort, N>.
+      unsigned NElts = resultType->getCMVectorMatrixSize();
+      resultType = Context.getCMVectorType(
+          /*isRef*/ false, Context.UnsignedShortTy, NElts, OpLoc, OpLoc, OpLoc);
       break;
     } else {
       // FIXME: GCC's vector extension permits the usage of '!' with a vector

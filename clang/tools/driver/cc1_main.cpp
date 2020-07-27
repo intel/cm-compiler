@@ -27,6 +27,7 @@
 #include "clang/FrontendTool/Utils.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Config/llvm-config.h"
+#include "llvm/GenXCodeGen/GenXTarget.h"
 #include "llvm/LinkAllPasses.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
@@ -181,6 +182,8 @@ int cc1_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
   llvm::InitializeAllTargetMCs();
   llvm::InitializeAllAsmPrinters();
   llvm::InitializeAllAsmParsers();
+
+  llvm::initializeGenX();
 
 #ifdef LINK_POLLY_INTO_TOOLS
   llvm::PassRegistry &Registry = *llvm::PassRegistry::getPassRegistry();

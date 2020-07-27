@@ -22,6 +22,7 @@
 #include "ToolChains/DragonFly.h"
 #include "ToolChains/FreeBSD.h"
 #include "ToolChains/Fuchsia.h"
+#include "ToolChains/GenX.h"
 #include "ToolChains/Gnu.h"
 #include "ToolChains/HIP.h"
 #include "ToolChains/Haiku.h"
@@ -119,6 +120,13 @@ Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,
   UserConfigDir = CLANG_CONFIG_FILE_USER_DIR;
 #endif
 
+  // if the ClangExecutable is called cmc the Driver defaults to CM mode.
+  // We also change the compiler title to reflect being in CM mode.
+  if (Name == "cmc") {
+    Mode = CMMode;
+    DriverTitle = "CM LLVM compiler";
+  }
+
   // Compute the path to the resource directory.
   StringRef ClangResourceDir(CLANG_RESOURCE_DIR);
   SmallString<128> P(Dir);
@@ -160,6 +168,7 @@ void Driver::setDriverModeFromOption(StringRef Opt) {
                    .Case("g++", GXXMode)
                    .Case("cpp", CPPMode)
                    .Case("cl", CLMode)
+                   .Case("cm", CMMode)
                    .Default(None))
     Mode = *M;
   else
@@ -277,7 +286,7 @@ phases::ID Driver::getFinalPhase(const DerivedArgList &DAL,
     FinalPhase = phases::Backend;
 
     // -c compilation only runs up to the assembler.
-  } else if ((PhaseArg = DAL.getLastArg(options::OPT_c))) {
+  } else if (CCCIsCM() || (PhaseArg = DAL.getLastArg(options::OPT_c))) {
     FinalPhase = phases::Assemble;
 
     // Otherwise do everything.
@@ -473,6 +482,18 @@ static llvm::Triple computeTargetTriple(const Driver &D,
 
     if (AT != llvm::Triple::UnknownArch && AT != Target.getArch())
       Target.setArch(AT);
+
+    // genx is not a real triple and functions getNBitArchVariant
+    // will return UnknownArch so code above will not handle genx.
+    StringRef ArchName = Target.getArchName();
+    if (ArchName.startswith("genx")) {
+      std::string NewTriple = Target.getTriple();
+      if (A->getOption().matches(options::OPT_m64))
+        NewTriple.replace(0, ArchName.size(), "genx64");
+      else if (A->getOption().matches(options::OPT_m32))
+        NewTriple.replace(0, ArchName.size(), "genx32");
+      Target.setTriple(NewTriple);
+    }
   }
 
   // Handle -miamcu flag.
@@ -1023,6 +1044,13 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
     T.setObjectFormat(llvm::Triple::COFF);
     TargetTriple = T.str();
   }
+  if (CCCIsCM()) {
+    // We only change the arch value here - the vendor and os values are the
+    // default values, i.e. the triple becomes genx64-pc-win32.
+    llvm::Triple T(TargetTriple);
+    T.setArchName("genx64");
+    TargetTriple = T.str();
+  }
   if (const Arg *A = Args.getLastArg(options::OPT_target))
     TargetTriple = A->getValue();
   if (const Arg *A = Args.getLastArg(options::OPT_ccc_install_dir))
@@ -1224,7 +1252,12 @@ void Driver::generateCompilationDiagnostics(
   // Print the version of the compiler.
   PrintVersion(C, llvm::errs());
 
-  Diag(clang::diag::note_drv_command_failed_diag_msg)
+  if (CCCIsCM())
+    Diag(clang::diag::note_drv_command_failed_diag_msg)
+      << "PLEASE submit a bug report to the MDF team and include the "
+         "crash backtrace, preprocessed source, and associated run script.";
+  else
+    Diag(clang::diag::note_drv_command_failed_diag_msg)
       << "PLEASE submit a bug report to " BUG_REPORT_URL " and include the "
          "crash backtrace, preprocessed source, and associated run script.";
 
@@ -2097,6 +2130,12 @@ void Driver::BuildInputs(const ToolChain &TC, DerivedArgList &Args,
           else if (Args.hasArg(options::OPT_ObjCXX))
             Ty = types::TY_ObjCXX;
         }
+
+        // If the driver is in MDF CM mode, then we'll treat any c++ source
+        // files as CM source files
+        if ((Ty == types::TY_CXX) && CCCIsCM())
+          Ty = types::TY_MDF_CM;
+
       } else {
         assert(InputTypeArg && "InputType set w/o InputTypeArg");
         if (!InputTypeArg->getOption().matches(options::OPT_x)) {
@@ -3439,6 +3478,10 @@ Action *Driver::ConstructPhaseAction(
           Args.hasArg(options::OPT_S) ? types::TY_LLVM_IR : types::TY_LLVM_BC;
       return C.MakeAction<BackendJobAction>(Input, Output);
     }
+    if (Args.hasArg(options::OPT_emit_spirv)) {
+      types::ID Output = types::TY_SPIRV;
+      return C.MakeAction<BackendJobAction>(Input, Output);
+    }
     return C.MakeAction<BackendJobAction>(Input, types::TY_PP_Asm);
   }
   case phases::Assemble:
@@ -3517,6 +3560,13 @@ void Driver::BuildJobs(Compilation &C) const {
     // DiagnosticsEngine, so that extra values, position, and so on could be
     // printed.
     if (!A->isClaimed()) {
+      // Warn uses of ignored flags.
+      if (A->getOption().getGroup().getID() == options::OPT_cm_ignored_Group) {
+        Diag(clang::diag::warn_cm_ignored_flag)
+            << A->getAsString(C.getArgs());
+        continue;
+      }
+
       if (A->getOption().hasFlag(options::NoArgumentUnused))
         continue;
 
@@ -4166,7 +4216,9 @@ const char *Driver::getDefaultImageName() const {
 /// suitable for FileType.
 static const char *MakeCLOutputFilename(const ArgList &Args, StringRef ArgValue,
                                         StringRef BaseName,
-                                        types::ID FileType) {
+                                        types::ID FileType,
+                                        bool IsCMMode = false) {
+
   SmallString<128> Filename = ArgValue;
 
   if (ArgValue.empty()) {
@@ -4177,9 +4229,14 @@ static const char *MakeCLOutputFilename(const ArgList &Args, StringRef ArgValue,
     llvm::sys::path::append(Filename, BaseName);
   }
 
-  if (!llvm::sys::path::has_extension(ArgValue)) {
+  if (!llvm::sys::path::has_extension(ArgValue) || IsCMMode) {
     // If the argument didn't provide an extension, then set it.
-    const char *Extension = types::getTypeTempSuffix(FileType, true);
+    // We always replace the extension for CM as only ".isa" files are
+    // accepted by the CM Finalizer.
+    const char *Extension = types::getTypeTempSuffix(
+        FileType,
+        !IsCMMode || (IsCMMode && Args.hasArg(options::OPT_fcmocl)),
+        IsCMMode);
 
     if (FileType == types::TY_Image &&
         Args.hasArg(options::OPT__SLASH_LD, options::OPT__SLASH_LDd)) {
@@ -4200,7 +4257,8 @@ const char *Driver::GetNamedOutputPath(Compilation &C, const JobAction &JA,
                                        StringRef OffloadingPrefix) const {
   llvm::PrettyStackTraceString CrashInfo("Computing output path");
   // Output to a user requested destination?
-  if (AtTopLevel && !isa<DsymutilJobAction>(JA) && !isa<VerifyJobAction>(JA)) {
+  if ((AtTopLevel && !isa<DsymutilJobAction>(JA) &&
+      !isa<VerifyJobAction>(JA)) || CCCIsCM()) {
     if (Arg *FinalOutput = C.getArgs().getLastArg(options::OPT_o))
       return C.addResultFile(FinalOutput->getValue(), &JA);
   }
@@ -4222,7 +4280,7 @@ const char *Driver::GetNamedOutputPath(Compilation &C, const JobAction &JA,
     return "-";
 
   // Is this the assembly listing for /FA?
-  if (JA.getType() == types::TY_PP_Asm &&
+  if (JA.getType() == types::TY_PP_Asm && !CCCIsCM() &&
       (C.getArgs().hasArg(options::OPT__SLASH_FA) ||
        C.getArgs().hasArg(options::OPT__SLASH_Fa))) {
     // Use /Fa and the input filename to determine the asm file name.
@@ -4235,7 +4293,7 @@ const char *Driver::GetNamedOutputPath(Compilation &C, const JobAction &JA,
 
   // Output to a temporary file?
   if ((!AtTopLevel && !isSaveTempsEnabled() &&
-       !C.getArgs().hasArg(options::OPT__SLASH_Fo)) ||
+       !C.getArgs().hasArg(options::OPT__SLASH_Fo) && !CCCIsCM()) ||
       CCGenDiagnostics) {
     StringRef Name = llvm::sys::path::filename(BaseInput);
     std::pair<StringRef, StringRef> Split = Name.split('.');
@@ -4277,8 +4335,8 @@ const char *Driver::GetNamedOutputPath(Compilation &C, const JobAction &JA,
         C.getArgs()
             .getLastArg(options::OPT__SLASH_Fo, options::OPT__SLASH_o)
             ->getValue();
-    NamedOutput =
-        MakeCLOutputFilename(C.getArgs(), Val, BaseName, types::TY_Object);
+    NamedOutput = MakeCLOutputFilename(C.getArgs(), Val, BaseName,
+                                       types::TY_Object, CCCIsCM());
   } else if (JA.getType() == types::TY_Image &&
              C.getArgs().hasArg(options::OPT__SLASH_Fe,
                                 options::OPT__SLASH_o)) {
@@ -4306,7 +4364,10 @@ const char *Driver::GetNamedOutputPath(Compilation &C, const JobAction &JA,
   } else if (JA.getType() == types::TY_PCH && IsCLMode()) {
     NamedOutput = C.getArgs().MakeArgString(GetClPchPath(C, BaseName));
   } else {
-    const char *Suffix = types::getTypeTempSuffix(JA.getType(), IsCLMode());
+    const char *Suffix = types::getTypeTempSuffix(
+        JA.getType(),
+        IsCLMode() || (CCCIsCM() && C.getArgs().hasArg(options::OPT_fcmocl)),
+        CCCIsCM());
     assert(Suffix && "All types used for output should have a suffix.");
 
     std::string::size_type End = std::string::npos;
@@ -4516,6 +4577,10 @@ const ToolChain &Driver::getToolChain(const ArgList &Args,
                                       const llvm::Triple &Target) const {
 
   auto &TC = ToolChains[Target.str()];
+  if (!TC && Target.getArchName().startswith("genx")) {
+    // The GenX toolchain is independent of OS
+    TC = llvm::make_unique<toolchains::GenX>(*this, Target, Args);
+  }
   if (!TC) {
     switch (Target.getOS()) {
     case llvm::Triple::Haiku:
@@ -4758,8 +4823,9 @@ std::pair<unsigned, unsigned> Driver::getIncludeExcludeOptionFlagMasks(bool IsCl
     // Include CL and Core options.
     IncludedFlagsBitmask |= options::CLOption;
     IncludedFlagsBitmask |= options::CoreOption;
-  } else {
+  } else if (Mode != CMMode) {
     ExcludedFlagsBitmask |= options::CLOption;
+    ExcludedFlagsBitmask |= options::CMOption;
   }
 
   return std::make_pair(IncludedFlagsBitmask, ExcludedFlagsBitmask);

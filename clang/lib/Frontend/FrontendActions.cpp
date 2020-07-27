@@ -832,6 +832,7 @@ void PrintPreprocessedAction::ExecuteAction() {
 void PrintPreambleAction::ExecuteAction() {
   switch (getCurrentFileKind().getLanguage()) {
   case InputKind::C:
+  case InputKind::CM:
   case InputKind::CXX:
   case InputKind::ObjC:
   case InputKind::ObjCXX:
@@ -843,6 +844,7 @@ void PrintPreambleAction::ExecuteAction() {
   case InputKind::Unknown:
   case InputKind::Asm:
   case InputKind::LLVM_IR:
+  case InputKind::SPIRV:
   case InputKind::RenderScript:
     // We can't do anything with these.
     return;

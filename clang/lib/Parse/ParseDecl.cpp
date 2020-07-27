@@ -3822,6 +3822,26 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
       ParseOpenCLQualifiers(DS.getAttributes());
       break;
 
+    case tok::kw_SurfaceIndex:
+      isInvalid = DS.SetTypeSpecType(DeclSpec::TST_SurfaceIndex, Loc,
+                                     PrevSpec, DiagID, Policy);
+      break;
+    case tok::kw_SamplerIndex:
+      isInvalid = DS.SetTypeSpecType(DeclSpec::TST_SamplerIndex, Loc,
+                                     PrevSpec, DiagID, Policy);
+      break;
+    case tok::kw_VmeIndex:
+      isInvalid = DS.SetTypeSpecType(DeclSpec::TST_VmeIndex, Loc,
+                                     PrevSpec, DiagID, Policy);
+      break;
+
+    case tok::kw__CM_Vector:
+    case tok::kw__CM_VectorRef:
+    case tok::kw__CM_Matrix:
+    case tok::kw__CM_MatrixRef:
+      ParseCMTypeSpecifiers(DS);
+      continue;
+
     case tok::less:
       // GCC ObjC supports types like "<SomeProtocol>" as a synonym for
       // "id<SomeProtocol>".  This is hopelessly old fashioned and dangerous,
@@ -4652,6 +4672,11 @@ bool Parser::isKnownToBeTypeSpecifier(const Token &Tok) const {
 #define GENERIC_IMAGE_TYPE(ImgType, Id) case tok::kw_##ImgType##_t:
 #include "clang/Basic/OpenCLImageTypes.def"
 
+    // CM specific types:
+  case tok::kw_SurfaceIndex:
+  case tok::kw_SamplerIndex:
+  case tok::kw_VmeIndex:
+
     // struct-or-union-specifier (C99) or class-specifier (C++)
   case tok::kw_class:
   case tok::kw_struct:
@@ -4730,6 +4755,11 @@ bool Parser::isTypeSpecifierQualifier() {
   case tok::kw___vector:
 #define GENERIC_IMAGE_TYPE(ImgType, Id) case tok::kw_##ImgType##_t:
 #include "clang/Basic/OpenCLImageTypes.def"
+
+    // CM specific types:
+  case tok::kw_SurfaceIndex:
+  case tok::kw_SamplerIndex:
+  case tok::kw_VmeIndex:
 
     // struct-or-union-specifier (C99) or class-specifier (C++)
   case tok::kw_class:
@@ -4889,6 +4919,11 @@ bool Parser::isDeclarationSpecifier(bool DisambiguatingWithExpression) {
   case tok::kw__Decimal64:
   case tok::kw__Decimal128:
   case tok::kw___vector:
+
+    // CM specific types:
+  case tok::kw_SurfaceIndex:
+  case tok::kw_SamplerIndex:
+  case tok::kw_VmeIndex:
 
     // struct-or-union-specifier (C99) or class-specifier (C++)
   case tok::kw_class:
@@ -6032,6 +6067,13 @@ void Parser::ParseParenDeclarator(Declarator &D) {
   PrototypeScope.Exit();
 }
 
+// hasCMGenxAttribute - look through the list of attributes and return true
+// if either AT_CMGenx or AT_CMGenxMain is found, otherwise return false.
+static bool hasCMGenxAttribute(const ParsedAttributesView &Attrs) {
+  return std::any_of(Attrs.begin(), Attrs.end(),
+                     [](const ParsedAttr &Attr) { return Attr.isCMGenxAttribute(); });
+}
+
 /// ParseFunctionDeclarator - We are after the identifier and have parsed the
 /// declarator D up to a paren, which indicates that we are parsing function
 /// arguments.
@@ -6241,6 +6283,12 @@ void Parser::ParseFunctionDeclarator(Declarator &D,
                     ExceptionSpecTokens, DeclsInPrototype, StartLoc,
                     LocalEndLoc, D, TrailingReturnType, &DS),
                 std::move(FnAttrs), EndLoc);
+
+  // If this is an MDF CM kernel and declared variadic, generate an error.
+  if (getLangOpts().MdfCM && D.hasAttributes() &&
+      hasCMGenxAttribute(D.getDeclSpec().getAttributes()) &&
+      EllipsisLoc.isValid() && PP.getSourceManager().isInMainFile(EllipsisLoc))
+    Diag(D.getIdentifierLoc(), diag::err_cm_variadic_kernels_not_supported) << EllipsisLoc;
 }
 
 /// ParseRefQualifier - Parses a member function ref-qualifier. Returns
@@ -6926,4 +6974,109 @@ bool Parser::TryAltiVecTokenOutOfLine(DeclSpec &DS, SourceLocation Loc,
     return true;
   }
   return false;
+}
+
+///
+/// CM base types and reference types:
+///
+/// type-specifier:
+///   cm-vector-specifier
+///
+/// cm-vector-specifier:
+///   _CM_Vector    < type-name , constant-expression >
+///   _CM_VectorRef < type-name , constant-expression >
+///   _CM_Matrix    < type-name , constant-expression , constant-expression >
+///   _CM_MatrixRef < type-name , constant-expression , constant-expression >
+///
+void Parser::ParseCMTypeSpecifiers(DeclSpec &DS) {
+  assert((Tok.is(tok::kw__CM_Vector) || Tok.is(tok::kw__CM_VectorRef) ||
+          Tok.is(tok::kw__CM_Matrix) || Tok.is(tok::kw__CM_MatrixRef)) &&
+         "Not a CM specifier");
+
+  DeclSpec::CMTypeKind TK = DeclSpec::CMTK_unspecified;
+  const char *VMName = 0;
+  bool IsMatrix = false;
+
+  if (Tok.is(tok::kw__CM_Vector)) {
+    TK = DeclSpec::CMTK_Vector;
+    VMName = "vector";
+  } else if (Tok.is(tok::kw__CM_Matrix)) {
+    TK = DeclSpec::CMTK_Matrix;
+    VMName = "matrix";
+    IsMatrix = true;
+  } else if (Tok.is(tok::kw__CM_VectorRef)) {
+    TK = DeclSpec::CMTK_VectorRef;
+    VMName = "vector_ref";
+  } else {
+    TK = DeclSpec::CMTK_MatrixRef;
+    VMName = "matrix_ref";
+    IsMatrix = true;
+  }
+
+  // Eat '_CM_Vector/VectorRef/Matrix/MatrixRef' token.
+  SourceLocation VMLoc = ConsumeToken();
+  SourceLocation LessLoc = Tok.getLocation();
+  if (ExpectAndConsume(tok::less, diag::err_expected_less, VMName)) {
+    SkipUntil(tok::greater);
+    DS.SetTypeSpecError();
+    return;
+  }
+
+  // Parse the element type.
+  TypeResult TyResult = ParseTypeName();
+  if (TyResult.isInvalid()) {
+    SkipUntil(tok::greater, StopAtSemi);
+    return;
+  }
+
+  // The first comma.
+  if (ExpectAndConsume(tok::comma)) {
+    SkipUntil(tok::greater);
+    DS.SetTypeSpecError();
+    return;
+  }
+
+  // When parsing a CM base type or a reference type, the first non-nested >
+  // is taken as the end of type defintion, rather than a greater-than operator.
+  GreaterThanIsOperatorScope G(GreaterThanIsOperator, false);
+
+  // Size or the number of rows.
+  ExprResult First(ParseConstantExpression());
+
+  // The number of columns.
+  ExprResult Second;
+
+  if (IsMatrix) {
+    // The second comma.
+    if (ExpectAndConsume(tok::comma)) {
+      SkipUntil(tok::greater);
+      DS.SetTypeSpecError();
+      return;
+    }
+    Second = ParseConstantExpression();
+  }
+
+  // The closing '>'.
+  SourceLocation GreaterLoc = Tok.getLocation();
+  if (ExpectAndConsume(tok::greater)) {
+    Diag(LessLoc, diag::note_cm_less_here);
+    SkipUntil(tok::semi);
+    DS.SetTypeSpecError();
+    return;
+  }
+
+  // Type starts from Vector/Matrix keywords and ends with '>'
+  DS.SetRangeEnd(GreaterLoc);
+
+  if (!First.isUsable() || (IsMatrix && !Second.isUsable())) {
+    DS.SetTypeSpecError();
+    return;
+  }
+
+  if (IsMatrix)
+    DS.SetTypeCMType(TK, VMLoc, LessLoc, TyResult.get(), First.get(),
+                     Second.get(), GreaterLoc);
+  else
+    DS.SetTypeCMType(TK, VMLoc, LessLoc, TyResult.get(), First.get(),
+                     GreaterLoc);
 }

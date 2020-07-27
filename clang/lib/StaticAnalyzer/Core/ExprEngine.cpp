@@ -1298,6 +1298,11 @@ void ExprEngine::Visit(const Stmt *S, ExplodedNode *Pred,
     }
 
     // Cases not handled yet; but will handle some day.
+    case Stmt::CMSelectExprClass:
+    case Stmt::CMBoolReductionExprClass:
+    case Stmt::CMMergeExprClass:
+    case Stmt::CMFormatExprClass:
+    case Stmt::CMSizeExprClass:
     case Stmt::DesignatedInitExprClass:
     case Stmt::DesignatedInitUpdateExprClass:
     case Stmt::ArrayInitLoopExprClass:

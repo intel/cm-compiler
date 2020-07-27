@@ -13,6 +13,7 @@
 
 #include "CGCXXABI.h"
 #include "CGCleanup.h"
+#include "CGCM.h"
 #include "CGDebugInfo.h"
 #include "CGObjCRuntime.h"
 #include "CodeGenFunction.h"
@@ -36,6 +37,8 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
 #include <cstdarg>
+
+#include "llvm/GenXIntrinsics/GenXIntrinsics.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -331,18 +334,21 @@ public:
     bool TreatBooleanAsSigned;
     bool EmitImplicitIntegerTruncationChecks;
     bool EmitImplicitIntegerSignChangeChecks;
+    bool IsSaturated;
 
     ScalarConversionOpts()
         : TreatBooleanAsSigned(false),
           EmitImplicitIntegerTruncationChecks(false),
-          EmitImplicitIntegerSignChangeChecks(false) {}
+          EmitImplicitIntegerSignChangeChecks(false),
+	  IsSaturated(false) {}
 
     ScalarConversionOpts(clang::SanitizerSet SanOpts)
         : TreatBooleanAsSigned(false),
           EmitImplicitIntegerTruncationChecks(
               SanOpts.hasOneOf(SanitizerKind::ImplicitIntegerTruncation)),
           EmitImplicitIntegerSignChangeChecks(
-              SanOpts.has(SanitizerKind::ImplicitIntegerSignChange)) {}
+              SanOpts.has(SanitizerKind::ImplicitIntegerSignChange)),
+	  IsSaturated(false) {}
   };
   Value *
   EmitScalarConversion(Value *Src, QualType SrcTy, QualType DstTy,
@@ -783,6 +789,19 @@ public:
   Value *VisitBinPtrMemI(const Expr *E) { return EmitLoadOfLValue(E); }
 
   // Other Operators.
+  Value *VisitCMMergeExpr(const CMMergeExpr *ME) {
+    CGF.CGM.getCMRuntime().EmitCMMergeExpr(CGF, ME);
+    return 0;
+  }
+  Value *VisitCMBoolReductionExpr(const CMBoolReductionExpr *E) {
+    return CGF.CGM.getCMRuntime().EmitCMBoolReductionExpr(CGF, E);
+  }
+  Value *VisitCMSelectExpr(const CMSelectExpr *SE) {
+    return CGF.CGM.getCMRuntime().EmitCMSelectExpr(CGF, SE);
+  }
+  Value *VisitCMFormatExpr(const CMFormatExpr *SE) {
+    return CGF.CGM.getCMRuntime().EmitCMFormatExpr(CGF, SE);
+  }
   Value *VisitBlockExpr(const BlockExpr *BE);
   Value *VisitAbstractConditionalOperator(const AbstractConditionalOperator *);
   Value *VisitChooseExpr(ChooseExpr *CE);
@@ -1309,6 +1328,114 @@ Value *ScalarExprEmitter::EmitScalarConversion(Value *Src, QualType SrcType,
     return Builder.CreateVectorSplat(NumElements, Src, "splat");
   }
 
+  // CM vector/matrix types. Note that saturation is only enabled when DstType
+  // is CM vector/matrix type. Otherwise, this flag is ignored.
+  //
+  // FIXME: Complete this scalar conversion and merge this into CMRT getCastOp.
+  if (DstType->isCMVectorMatrixType()) {
+    llvm::VectorType *DstVecTy = cast<llvm::VectorType>(DstTy);
+    llvm::Type *DstEltTy = DstVecTy->getElementType();
+    unsigned DstNumElts = DstVecTy->getNumElements();
+
+    QualType DstEltType = DstType->getCMVectorMatrixElementType();
+    QualType SrcEltType = SrcType->isCMVectorMatrixType()
+                              ? SrcType->getCMVectorMatrixElementType()
+                              : SrcType;
+
+    // Vector splat.
+    if (SrcType->isCMElementType()) {
+      if (Opts.IsSaturated)
+        llvm_unreachable("not implemented yet");
+
+      llvm::Value *Elt = EmitScalarConversion(Src, SrcType, DstEltType, Loc,
+                                              Opts);
+      return Builder.CreateVectorSplat(DstNumElts, Elt, "splat");
+    }
+
+    // Vector/matrix conversions.
+    if (llvm::VectorType *SrcVecTy = dyn_cast<llvm::VectorType>(SrcTy)) {
+      unsigned SrcNumElts = SrcVecTy->getNumElements();
+      llvm::Type *SrcEltTy = SrcVecTy->getElementType();
+      if (SrcNumElts == DstNumElts && !Opts.IsSaturated) {
+        // float->double or double->float.
+        if (DstEltTy->isFloatingPointTy() && SrcEltTy->isFloatingPointTy())
+          return (DstEltTy->getTypeID() < SrcEltTy->getTypeID())
+                     ? Builder.CreateFPTrunc(Src, DstTy, "conv")
+                     : Builder.CreateFPExt(Src, DstTy, "conv");
+
+        // int->short etc.
+        if (DstEltTy->isIntegerTy() && SrcEltTy->isIntegerTy())
+          return SrcEltType->isUnsignedIntegerType()
+                     ? Builder.CreateZExtOrTrunc(Src, DstTy, "conv")
+                     : Builder.CreateSExtOrTrunc(Src, DstTy, "conv");
+
+        // float->int etc.
+        if (CGF.getContext().getLangOpts().MdfCM && DstEltTy->isIntegerTy()
+            && SrcEltTy->isFloatingPointTy()
+            && (DstEltTy->getPrimitiveSizeInBits() < 32
+             || (!DstEltType->isSignedIntegerType()
+              && DstEltTy->getPrimitiveSizeInBits() <= 32))) {
+          // CM: float->any int goes via signed int unless the type is signed int
+          auto InterTy = llvm::VectorType::get(llvm::Type::getInt32Ty(
+                DstVecTy->getContext()), SrcNumElts);
+          return Builder.CreateZExtOrTrunc(
+              Builder.CreateFPToSI(Src, InterTy, "conv"), DstTy, "conv");
+        }
+        if (DstEltTy->isIntegerTy() && SrcEltTy->isFloatingPointTy())
+          return DstEltType->isUnsignedIntegerType()
+                     ? Builder.CreateFPToUI(Src, DstTy, "conv")
+                     : Builder.CreateFPToSI(Src, DstTy, "conv");
+
+        // int->float etc.
+        bool SrcSigned = false;
+        if (const CMVectorType *VT = SrcType->getAs<CMVectorType>())
+          SrcSigned = VT->getElementType()->isSignedIntegerType();
+        else if (const CMMatrixType *MT = SrcType->getAs<CMMatrixType>())
+          SrcSigned = MT->getElementType()->isSignedIntegerType();
+
+        if (DstEltTy->isFloatingPointTy() && SrcEltTy->isIntegerTy())
+          return SrcSigned ? Builder.CreateSIToFP(Src, DstTy, "conv")
+                           : Builder.CreateUIToFP(Src, DstTy, "conv");
+      } else if (SrcNumElts == DstNumElts && Opts.IsSaturated) {
+        llvm::Function *Fn = 0;
+        llvm::Type *Tys[2] = {DstTy, SrcTy};
+
+        // float->int etc.
+        if (DstEltTy->isIntegerTy()) {
+          if (SrcEltTy->isFloatingPointTy()) {
+            // saturating float->int
+            Fn = DstEltType->isUnsignedIntegerType()
+                    ? CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_fptoui_sat, Tys)
+                    : CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_fptosi_sat, Tys);
+            return Builder.CreateCall(Fn, Src, "conv.sat");
+          }
+          // saturating int->int
+          if (DstEltTy->getPrimitiveSizeInBits()
+              < SrcEltTy->getPrimitiveSizeInBits()) {
+            // saturating int->int, truncating
+            if (DstEltType->isUnsignedIntegerType()) {
+              if (SrcEltType->isUnsignedIntegerType())
+                Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_uutrunc_sat, Tys);
+              else
+                Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_ustrunc_sat, Tys);
+            } else {
+              if (SrcEltType->isUnsignedIntegerType())
+                Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_sutrunc_sat, Tys);
+              else
+                Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_sstrunc_sat, Tys);
+            }
+            return Builder.CreateCall(Fn, Src, "conv.sat");
+          }
+          // saturating int->int, extending (so we can ignore the saturation)
+          return SrcEltType->isUnsignedIntegerType()
+                     ? Builder.CreateZExtOrTrunc(Src, DstTy, "conv.sat")
+                     : Builder.CreateSExtOrTrunc(Src, DstTy, "conv.sat");
+        }
+        llvm_unreachable("not implemented yet");
+      }
+    }
+  }
+
   if (isa<llvm::VectorType>(SrcTy) || isa<llvm::VectorType>(DstTy)) {
     // Allow bitcast from vector to integer/fp of the same size.
     unsigned SrcSize = SrcTy->getPrimitiveSizeInBits();
@@ -1385,6 +1512,15 @@ Value *ScalarExprEmitter::EmitScalarConversion(Value *Src, QualType SrcType,
       Res = Builder.CreateUIToFP(Src, DstTy, "conv");
   } else if (isa<llvm::IntegerType>(DstTy)) {
     assert(SrcTy->isFloatingPointTy() && "Unknown real conversion");
+    if (CGF.getContext().getLangOpts().MdfCM
+        && (DstTy->getPrimitiveSizeInBits() < 32
+            || (!DstType->isSignedIntegerType()
+             && DstTy->getPrimitiveSizeInBits() == 32))) {
+      // CM: float->any int goes via signed int unless the type is signed int
+      auto InterTy = llvm::Type::getInt32Ty(DstTy->getContext());
+      return Builder.CreateZExtOrTrunc(
+          Builder.CreateFPToSI(Src, InterTy, "conv"), DstTy, "conv");
+    }
     if (DstType->isSignedIntegerOrEnumerationType())
       Res = Builder.CreateFPToSI(Src, DstTy, "conv");
     else
@@ -1700,6 +1836,16 @@ Value *ScalarExprEmitter::VisitConvertVectorExpr(ConvertVectorExpr *E) {
       Res = Builder.CreateUIToFP(Src, DstTy, "conv");
   } else if (isa<llvm::IntegerType>(DstEltTy)) {
     assert(SrcEltTy->isFloatingPointTy() && "Unknown real conversion");
+    if (CGF.getContext().getLangOpts().MdfCM
+        && (DstEltTy->getPrimitiveSizeInBits() < 32
+         || (!DstEltType->isSignedIntegerType()
+          && DstEltTy->getPrimitiveSizeInBits() == 32))) {
+      // CM: float->any int goes via signed int unless the type is signed int
+      auto InterTy = llvm::VectorType::get(llvm::Type::getInt32Ty(
+            DstTy->getContext()), SrcTy->getVectorNumElements());
+      return Builder.CreateZExtOrTrunc(
+          Builder.CreateFPToSI(Src, InterTy, "conv"), DstTy, "conv");
+    }
     if (DstEltType->isSignedIntegerOrEnumerationType())
       Res = Builder.CreateFPToSI(Src, DstTy, "conv");
     else
@@ -2139,6 +2285,37 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
   case CK_LValueToRValue:
     assert(CGF.getContext().hasSameUnqualifiedType(E->getType(), DestTy));
     assert(E->isGLValue() && "lvalue-to-rvalue applied to r-value!");
+    if (CMSelectExpr *SE = dyn_cast<CMSelectExpr>(E))
+      return CGF.CGM.getCMRuntime().EmitCMSelectExpr(CGF, SE);
+    else if (CMFormatExpr *FE = dyn_cast<CMFormatExpr>(E))
+      return CGF.CGM.getCMRuntime().EmitCMFormatExpr(CGF, FE);
+
+    // This is a bit hacky; idealy we should intruduce a CM specific
+    // expression and do not use an implicit cast expression.
+    if (ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(E)) {
+      if (ICE->getCastKind() == CK_CMReferenceToBase) {
+        // Emit its enclosing select/format expression as a rvalue, i.e. load
+        // this region value.
+        if (CMSelectExpr *SE = dyn_cast<CMSelectExpr>(ICE->getSubExpr()))
+          return CGF.CGM.getCMRuntime().EmitCMSelectExpr(CGF, SE);
+        else if (CMFormatExpr *FE = dyn_cast<CMFormatExpr>(ICE->getSubExpr()))
+          return CGF.CGM.getCMRuntime().EmitCMFormatExpr(CGF, FE);
+      }
+    }
+
+    // This is CM vector/matrix functional style cast with saturation, only
+    // applies to floating point types.
+    if (CE->isSaturated()) {
+      llvm::Value *Val = Visit(const_cast<Expr *>(E));
+      llvm::Type *Ty = Val->getType();
+      if (Ty->isFPOrFPVectorTy()) {
+        // float->float or double->double etc.
+        llvm::Function *F = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_sat, Ty);
+        Val = Builder.CreateCall(F, Val, "conv.sat");
+      }
+      return Val;
+    }
+
     return Visit(const_cast<Expr*>(E));
 
   case CK_IntegralToPointer: {
@@ -2188,7 +2365,34 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
     unsigned NumElements = DstTy->getVectorNumElements();
     return Builder.CreateVectorSplat(NumElements, Elt, "splat");
   }
+  case CK_CMReferenceToBase:
+    // This is CM vector/matrix functional style cast with saturation, only
+    // applies to floating point types.
+    if (CE->isSaturated()) {
+      llvm::Value *Val = Visit(const_cast<Expr *>(E));
+      llvm::Type *Ty = Val->getType();
+      if (Ty->isFPOrFPVectorTy()) {
+        // float->float or double->double etc.
+        llvm::Function *F = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_sat, Ty);
+        Val = Builder.CreateCall(F, Val, "conv.sat");
+      }
+      return Val;
+    }
 
+    return Visit(E);
+  case CK_CMBaseToReference:
+    return Visit(E);
+  case CK_CMVectorMatrixSplat: {
+    assert(DestTy->isCMBaseType() && "CM base type expected");
+    Value *Elt = Visit(const_cast<Expr *>(E));
+    Elt = EmitScalarConversion(Elt, E->getType(),
+                               DestTy->getCMVectorMatrixElementType(),
+                               E->getExprLoc());
+
+    // Splat the element across to all elements
+    unsigned NumElements = DestTy->getCMVectorMatrixSize();
+    return Builder.CreateVectorSplat(NumElements, Elt, "splat");;
+  }
   case CK_FixedPointCast:
     return EmitScalarConversion(Visit(E), E->getType(), DestTy,
                                 CE->getExprLoc());
@@ -2206,17 +2410,22 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
       if (!ICE->isPartOfExplicitCast())
         Opts = ScalarConversionOpts(CGF.SanOpts);
     }
+    Opts.IsSaturated = CE->isSaturated();
     return EmitScalarConversion(Visit(E), E->getType(), DestTy,
                                 CE->getExprLoc(), Opts);
   }
   case CK_IntegralToFloating:
   case CK_FloatingToIntegral:
-  case CK_FloatingCast:
+  case CK_FloatingCast: {
+    ScalarConversionOpts Opts;
+    Opts.IsSaturated = CE->isSaturated();
     return EmitScalarConversion(Visit(E), E->getType(), DestTy,
-                                CE->getExprLoc());
+                                CE->getExprLoc(), Opts);
+  }
   case CK_BooleanToSignedIntegral: {
     ScalarConversionOpts Opts;
     Opts.TreatBooleanAsSigned = true;
+    Opts.IsSaturated = CE->isSaturated();
     return EmitScalarConversion(Visit(E), E->getType(), DestTy,
                                 CE->getExprLoc(), Opts);
   }
@@ -2586,6 +2795,20 @@ Value *ScalarExprEmitter::VisitUnaryLNot(const UnaryOperator *E) {
     else
       Result = Builder.CreateICmp(llvm::CmpInst::ICMP_EQ, Oper, Zero, "cmp");
     return Builder.CreateSExt(Result, ConvertType(E->getType()), "sext");
+  }
+
+  // Perform vector logical not on comparison with zero vector.
+  if (E->getType()->isCMVectorMatrixType()) {
+    Value *Oper = Visit(E->getSubExpr());
+    Value *Zero = llvm::Constant::getNullValue(Oper->getType());
+    Value *Result = 0;
+    if (Oper->getType()->isFPOrFPVectorTy())
+      Result = Builder.CreateFCmpOEQ(Oper, Zero, "cmp");
+    else
+      Result = Builder.CreateICmpEQ(Oper, Zero, "cmp");
+
+    // CM performs zero-extension!
+    return Builder.CreateZExt(Result, ConvertType(E->getType()), "zext");
   }
 
   // Compare operand to zero.
@@ -3701,6 +3924,9 @@ Value *ScalarExprEmitter::EmitCompare(const BinaryOperator *E,
     if (LHSTy->isVectorType())
       return Builder.CreateSExt(Result, ConvertType(E->getType()), "sext");
 
+    // CM always zero-extends the result to the target vector type.
+    if (LHSTy->isCMVectorMatrixType())
+      return Builder.CreateZExt(Result, ConvertType(E->getType()), "zext");
   } else {
     // Complex Comparison: can only be an equality comparison.
     CodeGenFunction::ComplexPairTy LHS, RHS;

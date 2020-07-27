@@ -34,7 +34,8 @@ namespace clang {
     Backend_EmitLL,        ///< Emit human-readable LLVM assembly
     Backend_EmitNothing,   ///< Don't emit anything (benchmarking mode)
     Backend_EmitMCNull,    ///< Run CodeGen, but don't emit anything
-    Backend_EmitObj        ///< Emit native object files
+    Backend_EmitObj,       ///< Emit native object files
+    Backend_EmitSPIRV      ///< Emit spirv-binary files
   };
 
   void EmitBackendOutput(DiagnosticsEngine &Diags, const HeaderSearchOptions &,

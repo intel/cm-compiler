@@ -38,6 +38,7 @@
 //  A -> "reference" to __builtin_va_list
 //  V -> Vector, followed by the number of elements and the base type.
 //  E -> ext_vector, followed by the number of elements and the base type.
+//  Q -> CmVector, followed by the number of elements and the base type.
 //  X -> _Complex, followed by the base type.
 //  Y -> ptrdiff_t
 //  P -> FILE
@@ -841,6 +842,35 @@ LANGBUILTIN(__fastfail, "vUi",    "nr", ALL_MS_LANGUAGES)
 
 // Microsoft library builtins.
 LIBBUILTIN(_setjmpex, "iJ", "fj",   "setjmpex.h", ALL_MS_LANGUAGES)
+
+// MDF CM builtins
+// FIXME: enable only for CM.
+BUILTIN(get_thread_origin_x, "Us", "ni")
+BUILTIN(get_thread_origin_y, "Us", "ni")
+BUILTIN(get_color, "Us", "ni")
+BUILTIN(cm_get_hwid, "Ui", "ni")
+BUILTIN(cm_lane_id,  "Ui", "ni")
+BUILTIN(cm_local_id, "UiUi", "ni")
+BUILTIN(cm_local_size, "UiUi", "ni")
+BUILTIN(cm_group_id, "UiUi", "ni")
+BUILTIN(cm_group_count, "UiUi", "ni")
+BUILTIN(cm_slm_init, "vIUi", "ni")
+BUILTIN(cm_slm_alloc, "UiUi", "ni")
+BUILTIN(cm_slm_free, "UiUi", "ni")
+BUILTIN(cm_barrier, "v", "ni")
+BUILTIN(__cm_builtin_cm_wait, "v.", "ni")
+BUILTIN(cm_fence, "v.", "ni")
+BUILTIN(cm_slm_fence, "v.", "ni")
+BUILTIN(cm_pause, "vUs", "ni")
+BUILTIN(__cm_builtin_dummy_mov, "vUs", "ni")
+BUILTIN(__cm_builtin_cm_printf, "Ui.", "Ui, nt")
+BUILTIN(cm_scoreboard_bti, "Ui","ni")
+BUILTIN(cm_scoreboard_deltas, "Q16c", "ni")
+BUILTIN(cm_scoreboard_depcnt, "UiUi", "ni")
+BUILTIN(cm_sbarrier, "vUi", "ni")
+BUILTIN(cm_yield, "v", "ni")
+BUILTIN(cm_print_buffer, "LUi", "ni")
+BUILTIN(cm_print_format_index, "icC*", "ni")
 
 // C99 library functions
 // C99 stdarg.h

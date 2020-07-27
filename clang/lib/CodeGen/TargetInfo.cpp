@@ -9053,6 +9053,38 @@ static bool getTypeString(SmallStringEnc &Enc, const Decl *D,
   return false;
 }
 
+class GenXTargetCodeGenInfo : public TargetCodeGenInfo {
+public:
+  GenXTargetCodeGenInfo(CodeGen::CodeGenTypes &CGT)
+    : TargetCodeGenInfo(new DefaultABIInfo(CGT)) {}
+  // Discard pointer type and rely on
+  // CM's IR generation for format
+  // For 'cr' constraint avaliable vector sizes are
+  // directly related to possible
+  // number of channels.
+  llvm::Type *adjustInlineAsmType(CodeGen::CodeGenFunction &CGF,
+                                  StringRef Constraint,
+                                  llvm::Type *Ty) const override {
+    if (Ty->isPointerTy())
+      Ty = Ty->getPointerElementType();
+    bool IsControlConstraint =
+        llvm::StringSwitch<bool>(Constraint).Case("^cr", true).Default(false);
+    if (!IsControlConstraint)
+      return Ty;
+
+    if (!Ty->isIntOrIntVectorTy())
+      return nullptr;
+
+    if (Ty->isVectorTy()) {
+      unsigned NumElements = Ty->getVectorNumElements();
+      if (!llvm::isPowerOf2_32(NumElements) || NumElements > 32)
+        return nullptr;
+    }
+
+    return Ty;
+  }
+};
+
 //===----------------------------------------------------------------------===//
 // RISCV ABI Implementation
 //===----------------------------------------------------------------------===//
@@ -9270,6 +9302,9 @@ const TargetCodeGenInfo &CodeGenModule::getTargetCodeGenInfo() {
   };
 
   const llvm::Triple &Triple = getTarget().getTriple();
+  if (Triple.getArchName().startswith("genx"))
+    return SetCGInfo(new GenXTargetCodeGenInfo(Types));
+
   switch (Triple.getArch()) {
   default:
     return SetCGInfo(new DefaultTargetCodeGenInfo(Types));

@@ -396,7 +396,7 @@ void CompilerInstance::createPreprocessor(TranslationUnitKind TUKind) {
 
   // Predefine macros and configure the preprocessor.
   InitializePreprocessor(*PP, PPOpts, getPCHContainerReader(),
-                         getFrontendOpts());
+                         getFrontendOpts(), getTargetOpts());
 
   // Initialize the header search object.  In CUDA compilations, we use the aux
   // triple (the host triple) to initialize our header search, since we need to

@@ -75,6 +75,10 @@ static bool isLeftShiftResultUnrepresentable(const BinaryOperator *B,
 
 void UndefResultChecker::checkPostStmt(const BinaryOperator *B,
                                        CheckerContext &C) const {
+  // CM vector/matrix types are too hard to track for now.
+  if (B->getType()->isCMVectorMatrixType())
+    return;
+
   if (C.getSVal(B).isUndef()) {
 
     // Do not report assignments of uninitialized values inside swap functions.

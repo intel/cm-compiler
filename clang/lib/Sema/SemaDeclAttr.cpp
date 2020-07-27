@@ -4379,6 +4379,208 @@ static void handleCallConvAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   }
 }
 
+static void handleCMGenxAttr(Sema &S, Decl *D, const ParsedAttr &AL){
+  assert(!AL.isInvalid());
+  D->addAttr(::new (S.Context) CMGenxAttr(AL.getRange(), S.Context,
+                                AL.getAttributeSpellingListIndex()));
+}
+
+static void handleCMGenxVolatileAttr(Sema &S, Decl *D,
+                                     const ParsedAttr &AL) {
+  assert(!AL.isInvalid());
+
+  if (AL.getNumArgs() > 1) {
+    S.Diag(AL.getLoc(), diag::err_attribute_wrong_number_arguments)
+        << AL.getName() << 1;
+    return;
+  }
+
+  llvm::APSInt OffsetVal(32);
+  if (AL.getNumArgs() == 1) {
+    Expr *OffsetExpr = AL.getArgAsExpr(0);
+    if (!OffsetExpr->isIntegerConstantExpr(OffsetVal, S.Context)) {
+      S.Diag(AL.getLoc(), diag::err_attribute_argument_type)
+        << AL.getName() << AANT_ArgumentIntegerConstant
+        << OffsetExpr->getSourceRange();
+    }
+  }
+
+  uint32_t OffsetNum = (uint32_t)OffsetVal.getZExtValue();
+  D->addAttr(::new (S.Context)
+                 CMGenxVolatileAttr(AL.getRange(), S.Context, OffsetNum,
+                                    AL.getAttributeSpellingListIndex()));
+}
+
+static void handleCMBuiltinAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  assert(!AL.isInvalid());
+  D->addAttr(::new (S.Context) CMBuiltinAttr(
+      AL.getRange(), S.Context, AL.getAttributeSpellingListIndex()));
+}
+
+static void handleCMGenxMainAttr(Sema &S, Decl *D, const ParsedAttr &AL){
+  assert(!AL.isInvalid());
+  D->addAttr(::new (S.Context) CMGenxMainAttr(AL.getRange(), S.Context,
+                                AL.getAttributeSpellingListIndex()));
+}
+
+static void handleCMGenxStackcallAttr(Sema &S, Decl *D, const ParsedAttr &AL){
+  assert(!AL.isInvalid());
+  D->addAttr(::new (S.Context) CMGenxStackcallAttr(AL.getRange(), S.Context,
+                                AL.getAttributeSpellingListIndex()));
+}
+
+static void handleCMInputAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  assert(!AL.isInvalid());
+  D->addAttr(::new (S.Context) CMInputAttr(
+      AL.getRange(), S.Context, AL.getAttributeSpellingListIndex()));
+}
+
+static void handleCMOutputAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  assert(!AL.isInvalid());
+  D->addAttr(::new (S.Context) CMOutputAttr(
+      AL.getRange(), S.Context, AL.getAttributeSpellingListIndex()));
+}
+
+static void handleCMInputOutputAttr(Sema &S, Decl *D,
+                                    const ParsedAttr &AL) {
+  assert(!AL.isInvalid());
+  D->addAttr(::new (S.Context) CMInputOutputAttr(
+      AL.getRange(), S.Context, AL.getAttributeSpellingListIndex()));
+}
+
+static void handleCMCallableAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  assert(!AL.isInvalid());
+  D->addAttr(::new (S.Context) CMCallableAttr(AL.getRange(), S.Context,
+                                AL.getAttributeSpellingListIndex()));
+}
+
+static void handleCMFloatControlAttr(Sema &S, Decl *D, const ParsedAttr &AL){
+  assert(!AL.isInvalid());
+
+  if (!isa<FunctionDecl>(D)) {
+    S.Diag(AL.getLoc(), diag::warn_attribute_wrong_decl_type)
+      << AL.getName() << 0;
+    return;
+  }
+
+  if (AL.getNumArgs() != 1) {
+    S.Diag(AL.getLoc(), diag::err_attribute_wrong_number_arguments)
+      << AL.getName() << 1;
+    return;
+  }
+
+  Expr *ModeExpr = AL.getArgAsExpr(0);
+  llvm::APSInt ModeVal(32);
+
+  if (!ModeExpr->isIntegerConstantExpr(ModeVal, S.Context)) {
+    S.Diag(AL.getLoc(), diag::err_attribute_argument_type)
+      << AL.getName() << AANT_ArgumentIntegerConstant
+      << ModeExpr->getSourceRange();
+  }
+
+  uint32_t ModeNum = (uint32_t)ModeVal.getZExtValue();
+
+  D->addAttr(::new (S.Context) CMFloatControlAttr(AL.getRange(), S.Context,
+                                ModeNum, AL.getAttributeSpellingListIndex()));
+}
+
+static void handleCMGenxSIMTAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  assert(!AL.isInvalid());
+
+  if (!isa<FunctionDecl>(D)) {
+    S.Diag(AL.getLoc(), diag::warn_attribute_wrong_decl_type)
+      << AL.getName() << 0;
+    return;
+  }
+
+  if (AL.getNumArgs() != 1) {
+    S.Diag(AL.getLoc(), diag::err_attribute_wrong_number_arguments)
+      << AL.getName() << 1;
+    return;
+  }
+
+  Expr *ModeExpr = AL.getArgAsExpr(0);
+  llvm::APSInt ModeVal(32);
+
+  if (!ModeExpr->isIntegerConstantExpr(ModeVal, S.Context)) {
+    S.Diag(AL.getLoc(), diag::err_attribute_argument_type)
+      << AL.getName() << AANT_ArgumentIntegerConstant
+      << ModeExpr->getSourceRange();
+  }
+
+  uint32_t ModeNum = (uint32_t)ModeVal.getZExtValue();
+
+  D->addAttr(::new (S.Context) CMGenxSIMTAttr(AL.getRange(), S.Context,
+    ModeNum, AL.getAttributeSpellingListIndex()));
+}
+
+static void handleCMGenxNoSIMDPredAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  assert(!AL.isInvalid());
+
+  if (!isa<FunctionDecl>(D)) {
+    S.Diag(AL.getLoc(), diag::warn_attribute_wrong_decl_type)
+      << AL.getName() << 0;
+    return;
+  }
+
+  D->addAttr(::new (S.Context) CMGenxNoSIMDPredAttr(AL.getRange(), S.Context,
+    AL.getAttributeSpellingListIndex()));
+}
+
+static void handleCMEntryAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
+  assert(!AL.isInvalid());
+  D->addAttr(::new (S.Context) CMEntryAttr(AL.getRange(), S.Context,
+    AL.getAttributeSpellingListIndex()));
+}
+
+static void handleCMOpenCLTypeAttr(Sema &S, Decl *D,
+                                   const ParsedAttr &AL) {
+  assert(!AL.isInvalid());
+
+  if (!isa<ParmVarDecl>(D)) {
+    S.Diag(AL.getLoc(), diag::warn_attribute_wrong_decl_type)
+        << AL.getName() << 0;
+    return;
+  }
+
+  if (AL.getNumArgs() != 1) {
+    S.Diag(AL.getLoc(), diag::err_attribute_wrong_number_arguments)
+        << AL.getName() << 1;
+    return;
+  }
+
+  StringRef TypeDesc;
+  if (!S.checkStringLiteralArgumentAttr(AL, 0, TypeDesc, nullptr))
+    return;
+
+  if (const ParmVarDecl *PVD = dyn_cast<ParmVarDecl>(D)) {
+    StringRef desc0 = TypeDesc.split(' ').first;
+    const Type *T = PVD->getTypeSourceInfo()->getType().getTypePtr();
+    if (T->isCMSamplerIndexType()) {
+      if (!desc0.equals("sampler_t"))
+        S.Diag(D->getLocation(), diag::warn_attribute_wrong_annoation)
+            << PVD->getNameAsString() << desc0 << "sampler_t";
+    } else if (T->isCMSurfaceIndexType()) {
+      if (!desc0.equals("buffer_t") && !desc0.equals("image2d_t"))
+        S.Diag(D->getLocation(), diag::warn_attribute_wrong_annoation)
+            << PVD->getNameAsString() << desc0 << "buffer_t or image2d_t";
+    } else if (T->isCMVectorType()) {
+      if (!desc0.equals("svmptr_t"))
+        S.Diag(D->getLocation(), diag::warn_attribute_wrong_annoation)
+            << PVD->getNameAsString() << desc0 << "svmptr_t";
+    } else if (T->isCMVmeIndexType()) {
+    } else {
+      if (!desc0.equals("buffer_t") && !desc0.equals("const"))
+        S.Diag(D->getLocation(), diag::warn_attribute_wrong_annoation)
+            << PVD->getNameAsString() << desc0 << "buffer_t or const";
+    }
+  }
+
+  D->addAttr(::new (S.Context)
+                 CMOpenCLTypeAttr(AL.getRange(), S.Context, TypeDesc,
+                                  AL.getAttributeSpellingListIndex()));
+}
+
 static void handleSuppressAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   if (!checkAttributeAtLeastNumArgs(S, AL, 1))
     return;
@@ -6844,6 +7046,50 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
     handleSimpleAttribute<LTOVisibilityPublicAttr>(S, D, AL);
     break;
 
+  // MDF CM attributes:
+  case ParsedAttr::AT_CMGenx:
+    handleCMGenxAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_CMGenxVolatile:
+    handleCMGenxVolatileAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_CMBuiltin:
+    handleCMBuiltinAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_CMGenxMain:
+    handleCMGenxMainAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_CMGenxStackcall:
+    handleCMGenxStackcallAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_CMInput:
+    handleCMInputAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_CMOutput:
+    handleCMOutputAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_CMInputOutput:
+    handleCMInputOutputAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_CMCallable:
+    handleCMCallableAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_CMFloatControl:
+    handleCMFloatControlAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_CMGenxSIMT:
+    handleCMGenxSIMTAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_CMGenxNoSIMDPred:
+    handleCMGenxNoSIMDPredAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_CMEntry:
+    handleCMEntryAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_CMOpenCLType:
+    handleCMOpenCLTypeAttr(S, D, AL);
+    break;
+
   // Microsoft attributes:
   case ParsedAttr::AT_EmptyBases:
     handleSimpleAttribute<EmptyBasesAttr>(S, D, AL);
@@ -7076,6 +7322,83 @@ void Sema::ProcessDeclAttributeList(Scope *S, Decl *D,
             << A << ExpectedKernelFunction;
         D->setInvalidDecl();
       }
+    }
+  }
+
+  if (D->hasAttr<CMGenxVolatileAttr>()) {
+    VarDecl *VD = dyn_cast<VarDecl>(D);
+    if (!VD || !VD->isFileVarDecl()) {
+      Diag(D->getLocation(), diag::err_cm_volatile_attr) << D->getSourceRange();
+      D->dropAttr<CMGenxVolatileAttr>();
+    }
+    QualType Ty = VD->getType();
+    if (!Ty->isCMVectorMatrixType()) {
+      Diag(D->getLocation(), diag::err_cm_volatile_attr) << D->getSourceRange();
+      D->dropAttr<CMGenxVolatileAttr>();
+    }
+    if (VD->getInit()) {
+      Diag(D->getLocation(), diag::err_cm_volatile_init)
+          << VD->getInit() << D->getSourceRange();
+      D->dropAttr<CMGenxVolatileAttr>();
+    }
+    return;
+  }
+
+  // Check CM kernel argument attributes.
+  if (auto FD = dyn_cast<FunctionDecl>(D)) {
+    bool IsMain = FD->hasAttr<CMGenxMainAttr>();
+
+    // check function itself.
+    auto checkAttr = [=](Attr *A) {
+      if (A && !IsMain) {
+        Diag(D->getLocation(), diag::err_cm_kernel_func_attr) << A
+                                                              << A->getRange();
+        D->setInvalidDecl();
+      }
+    };
+    checkAttr(D->getAttr<CMInputAttr>());
+    checkAttr(D->getAttr<CMOutputAttr>());
+    checkAttr(D->getAttr<CMInputOutputAttr>());
+
+    // Only allow the following types to have input/output attributes.
+    // - cm vector / reference  (what about vector of surfaceindex ?)
+    // - integeral / enum
+    // - floating point
+    //
+    // Notably do not support reference and bool.
+    //
+    auto isSupportedTy = [](QualType T) {
+      if (T->isDependentType())
+        return true;
+      if (T->isCMBaseType())
+        return true;
+      if (T->isCMReferenceType())
+        return false;
+      if (T->isBooleanType())
+        return false;
+      if (T->isIntegralOrEnumerationType() || T->isFloatingType())
+        return true;
+
+      // Anything else.
+      return false;
+    };
+
+    auto checkParamAttr = [=](ParmVarDecl *VD, Attr *A) {
+      if (A && !IsMain) {
+        Diag(D->getLocation(), diag::err_cm_kernel_arg_attr) << A
+                                                             << A->getRange();
+        D->setInvalidDecl();
+      } else if (A && IsMain && !isSupportedTy(VD->getType())) {
+        Diag(VD->getLocation(), diag::err_cm_kernel_arg_attr_type)
+            << A << VD->getType() << VD->getSourceRange();
+        D->setInvalidDecl();
+      }
+    };
+    // check function arguments.
+    for (auto VD : FD->parameters()) {
+      checkParamAttr(VD, VD->getAttr<CMInputAttr>());
+      checkParamAttr(VD, VD->getAttr<CMOutputAttr>());
+      checkParamAttr(VD, VD->getAttr<CMInputOutputAttr>());
     }
   }
 

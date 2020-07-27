@@ -531,6 +531,18 @@ void ExprEngine::VisitCast(const CastExpr *CastE, const Expr *Ex,
         state = handleLVectorSplat(state, LCtx, CastE, Bldr, Pred);
         continue;
       }
+      case CK_CMBaseToReference:
+      case CK_CMReferenceToBase:
+      case CK_CMVectorMatrixSplat:
+        // TODO: We ignore these cases for now, but we should improve this
+        // to give useful results for CM kernels.
+        QualType resultType = CastE->getType();
+        SVal result = svalBuilder.conjureSymbolVal(nullptr, CastE, LCtx,
+                                                   resultType,
+                                                   currBldrCtx->blockCount());
+        state = state->BindExpr(CastE, LCtx, result);
+        Bldr.generateNode(CastE, Pred, state);
+        continue;
     }
   }
 }

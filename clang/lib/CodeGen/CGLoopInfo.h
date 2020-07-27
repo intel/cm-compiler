@@ -114,6 +114,9 @@ class LoopInfoStack {
 public:
   LoopInfoStack() {}
 
+  /// Set if this is compiling in MDF cm mode.
+  bool isMdfCM = false;
+
   /// Begin a new structured loop. The set of staged attributes will be
   /// applied to the loop and then cleared.
   void push(llvm::BasicBlock *Header, const llvm::DebugLoc &StartLoc,

@@ -304,6 +304,11 @@ public:
   static const TST TST_auto_type = clang::TST_auto_type;
   static const TST TST_unknown_anytype = clang::TST_unknown_anytype;
   static const TST TST_atomic = clang::TST_atomic;
+  static const TST TST_cm_vector = clang::TST_cm_vector;
+  static const TST TST_cm_matrix = clang::TST_cm_matrix;
+  static const TST TST_SurfaceIndex = clang::TST_SurfaceIndex;
+  static const TST TST_SamplerIndex = clang::TST_SamplerIndex;
+  static const TST TST_VmeIndex = clang::TST_VmeIndex;
 #define GENERIC_IMAGE_TYPE(ImgType, Id) \
   static const TST TST_##ImgType##_t = clang::TST_##ImgType##_t;
 #include "clang/Basic/OpenCLImageTypes.def"
@@ -330,6 +335,54 @@ public:
     PQ_TypeQualifier         = 4,
     PQ_FunctionSpecifier     = 8
     // FIXME: Attributes should be included here.
+  };
+
+  /// \brief CM specific types.
+  enum CMTypeKind {
+    CMTK_unspecified = -1,
+    CMTK_Vector      = 0,
+    CMTK_Matrix      = 1,
+    CMTK_VectorRef   = 2,
+    CMTK_MatrixRef   = 3
+  };
+
+  /// \brief Describes parsed base types and reference types.
+  ///
+  /// @code
+  /// vector<T, N> v;
+  /// matrix<T, N1, N2> m;
+  /// vector_ref<T, N> vref;
+  /// matrix_ref<T, N1, N2> mref;
+  /// @endcode
+  ///
+  /// Parsed CM types will be converted to vector QualType's as approapriate.
+  ///
+  struct CMParsedType {
+    CMTypeKind Kind;
+    /// \brief The element type of this matrix or vector.
+    ParsedType ElementType;
+    /// \brief The size of this vector or the number of rows of this matrix.
+    Expr *First;
+    /// \brief The number of columns of this matrix and it is 0 for a vector.
+    Expr *Second;
+    /// \brief The starting location of vector/matrix/vector_ref/matrix_ref.
+    SourceLocation VMLoc;
+    /// \brief The '<' location.
+    SourceLocation LessLoc;
+    /// \brief The '>' location.
+    SourceLocation GreaterLoc;
+
+    CMParsedType() : Kind(CMTK_unspecified), First(0), Second(0) {}
+
+    CMParsedType(CMTypeKind K, ParsedType ETy, Expr *First, Expr *Second,
+                 SourceLocation VMLoc, SourceLocation LLoc, SourceLocation GLoc)
+    : Kind(K), ElementType(ETy), First(First), Second(Second), VMLoc(VMLoc),
+      LessLoc(LLoc), GreaterLoc(GLoc) {}
+
+    bool isValid() const { return Kind != CMTK_unspecified; }
+    bool isReference() const {
+      return Kind == CMTK_VectorRef || Kind == CMTK_MatrixRef;
+    }
   };
 
 private:
@@ -377,6 +430,9 @@ private:
 
   // Scope specifier for the type spec, if applicable.
   CXXScopeSpec TypeScope;
+
+  // Parsed CM specific type information, if applicable.
+  CMParsedType CMTypeDesc;
 
   // SourceLocation info.  These are null if the item wasn't specified or if
   // the setting was synthesized.
@@ -475,6 +531,18 @@ public:
     TypeSpecOwned = false;
     TSTLoc = SourceLocation();
   }
+
+  const CMParsedType &getCMTypeDesc() const {
+    assert(CMTypeDesc.isValid() && "invalid parsed CM type");
+    assert((TypeSpecType == TST_cm_vector || TypeSpecType == TST_cm_matrix) &&
+           "unexpected type specifier");
+    return CMTypeDesc;
+  }
+  bool SetTypeCMType(CMTypeKind TK, SourceLocation Loc, SourceLocation LessLoc,
+                     ParsedType Ty, Expr *Size, SourceLocation GreaterLoc);
+  bool SetTypeCMType(CMTypeKind TK, SourceLocation Loc, SourceLocation LessLoc,
+                     ParsedType Ty, Expr *NRows, Expr *NCols,
+                     SourceLocation GreaterLoc);
 
   // type-specifier
   TSW getTypeSpecWidth() const { return (TSW)TypeSpecWidth; }

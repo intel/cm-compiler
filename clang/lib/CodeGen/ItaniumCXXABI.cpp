@@ -2859,6 +2859,10 @@ static bool TypeInfoIsInStandardLibrary(const BuiltinType *Ty) {
 #include "clang/Basic/OpenCLExtensionTypes.def"
     case BuiltinType::OCLSampler:
     case BuiltinType::OCLEvent:
+    case BuiltinType::CMSurfaceIndex:
+    case BuiltinType::CMSamplerIndex:
+    case BuiltinType::CMVmeIndex:
+      return true;
     case BuiltinType::OCLClkEvent:
     case BuiltinType::OCLQueue:
     case BuiltinType::OCLReserveID:
@@ -3081,6 +3085,8 @@ void ItaniumRTTIBuilder::BuildVTablePointer(const Type *Ty) {
   // GCC treats vector and complex types as fundamental types.
   case Type::Vector:
   case Type::ExtVector:
+  case Type::CMVector:
+  case Type::CMMatrix:
   case Type::Complex:
   case Type::Atomic:
   // FIXME: GCC treats block pointers as fundamental types?!
@@ -3316,6 +3322,8 @@ llvm::Constant *ItaniumRTTIBuilder::BuildTypeInfo(
   case Type::Builtin:
   case Type::Vector:
   case Type::ExtVector:
+  case Type::CMVector:
+  case Type::CMMatrix:
   case Type::Complex:
   case Type::BlockPointer:
     // Itanium C++ ABI 2.9.5p4:

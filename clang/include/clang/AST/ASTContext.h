@@ -190,6 +190,10 @@ private:
       DependentAddressSpaceTypes;
   mutable llvm::FoldingSet<VectorType> VectorTypes;
   mutable llvm::FoldingSet<DependentVectorType> DependentVectorTypes;
+  mutable llvm::FoldingSet<CMVectorType> CMVectorTypes;
+  mutable llvm::FoldingSet<CMMatrixType> CMMatrixTypes;
+  mutable llvm::FoldingSet<DependentCMVectorType> DependentCMVectorTypes;
+  mutable llvm::FoldingSet<DependentCMMatrixType> DependentCMMatrixTypes;
   mutable llvm::FoldingSet<FunctionNoProtoType> FunctionNoProtoTypes;
   mutable llvm::ContextualFoldingSet<FunctionProtoType, ASTContext&>
     FunctionProtoTypes;
@@ -1047,6 +1051,7 @@ public:
   CanQualType PseudoObjectTy, ARCUnbridgedCastTy;
   CanQualType ObjCBuiltinIdTy, ObjCBuiltinClassTy, ObjCBuiltinSelTy;
   CanQualType ObjCBuiltinBoolTy;
+  CanQualType CMSurfaceIndexTy, CMSamplerIndexTy, CMVmeIndexTy;
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
   CanQualType SingletonId;
 #include "clang/Basic/OpenCLImageTypes.def"
@@ -1363,6 +1368,46 @@ public:
   QualType getDependentSizedExtVectorType(QualType VectorType,
                                           Expr *SizeExpr,
                                           SourceLocation AttrLoc) const;
+
+  /// \brief Return the unique reference to the type for a cm vector of the
+  /// specified element type.
+  ///
+  QualType getCMVectorType(bool IsReference, QualType EltType, unsigned NumElts,
+                           SourceLocation VMLoc, SourceLocation LessLoc,
+                           SourceLocation GreaterLoc) const;
+
+  /// \brief Return the unique reference to the type for a CM matrix of the
+  /// specified element type.
+  ///
+  QualType getCMMatrixType(bool IsReference, QualType EltType, unsigned NumRows,
+                           unsigned NumCols, SourceLocation VMLoc,
+                           SourceLocation LessLoc,
+                           SourceLocation GreaterLoc) const;
+
+  /// \brief Return a non-unique reference to the type for a CM vector of
+  /// the specified element type.  Either the element type is type/instantiation
+  /// dependent or the size expressions is type/value/instantiation dependent.
+  ///
+  QualType getDependentCMVectorType(bool IsReference, QualType EltType,
+                                    Expr *SizeExpr, SourceLocation VMLoc,
+                                    SourceLocation LessLoc,
+                                    SourceLocation GreaterLoc) const;
+
+  /// \brief Return a non-unique reference to the type for a CM matrix of
+  /// the specified element type. Either the element type is type/instantiation
+  /// dependent or dimension expressions are type/value/instantiation dependent.
+  ///
+  QualType getDependentCMMatrixType(bool IsReference, QualType EltType,
+                                    Expr *NumRowExpr, Expr *NumColExpr,
+                                    SourceLocation VMLoc,
+                                    SourceLocation LessLoc,
+                                    SourceLocation GreaterLoc) const;
+
+  /// \brief Return a corresponding CM vector / matrix base type.
+  QualType getCMVectorMatrixBaseType(QualType T) const;
+
+  /// \brief Return a CM vector/matrix type with a specificed base element type.
+  QualType getCMVectorMatrixTypeWithElementType(QualType T, QualType E) const;
 
   QualType getDependentAddressSpaceType(QualType PointeeType,
                                         Expr *AddrSpaceExpr,

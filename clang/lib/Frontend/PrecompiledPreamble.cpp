@@ -304,6 +304,9 @@ llvm::ErrorOr<PrecompiledPreamble> PrecompiledPreamble::Build(
   assert(Clang->getFrontendOpts().Inputs[0].getKind().getLanguage() !=
              InputKind::LLVM_IR &&
          "IR inputs not support here!");
+  assert(Clang->getFrontendOpts().Inputs[0].getKind().getLanguage() !=
+             InputKind::SPIRV &&
+         "SPIRV inputs not support here!");
 
   // Clear out old caches and data.
   Diagnostics.Reset();

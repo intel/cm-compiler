@@ -31,5 +31,6 @@ InputKind FrontendOptions::getInputKindForExtension(StringRef Extension) {
     .Case("cl", InputKind::OpenCL)
     .Case("cu", InputKind::CUDA)
     .Cases("ll", "bc", InputKind::LLVM_IR)
+    .Case("spv", InputKind::SPIRV)
     .Default(InputKind::Unknown);
 }

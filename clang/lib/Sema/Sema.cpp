@@ -1067,6 +1067,64 @@ void Sema::ActOnEndOfTranslationUnit() {
       Consumer.CompleteTentativeDefinition(VD);
   }
 
+// FIXME: the following code looks bogus.
+#if 0
+  // if this is an MDF CM source, perform appropriate checks now...
+  if (getLangOpts().MdfCM)  {
+    int XCcount= 0;
+    int TLDcount = 0;
+    int TUcount = 0;
+    int Fcount = 0;
+    int Kcount = 0;
+    int KDcount = 0;
+    int KMcount = 0;
+    for (llvm::DenseMapIterator<DeclarationName, NamedDecl*> I = LocallyScopedExternCDecls.begin(),
+                                E = LocallyScopedExternCDecls.end();
+         I != E; ++I) {
+       ++XCcount;
+       if (FunctionDecl *FD = dyn_cast<FunctionDecl>(I->second)) {
+           ++Fcount;
+          if (FD->hasAttr<CMGenxAttr>()) {
+            ++Kcount;
+          }
+          if (FD->hasAttr<CMGenxMainAttr>()) {
+            ++KMcount;
+            if (FD->hasBody())
+              ++KDcount;
+         }
+       }
+    }
+    for (DeclContext::decl_iterator
+           I = CurContext->decls_begin(),
+           E = CurContext->decls_end(); I != E; ++I) {
+       ++TLDcount;
+       if (isa<TranslationUnitDecl>(*I))
+          ++TUcount;
+       if (FunctionDecl *FD = dyn_cast<FunctionDecl>(*I)) {
+          ++Fcount;
+          if (FD->hasAttr<CMGenxAttr>()) {
+            ++Kcount;
+          }
+          // Count function definitions that have _GENX_MAIN_
+          if (FD->hasAttr<CMGenxMainAttr>()) {
+            ++KMcount;
+            if (FD->hasBody())
+              ++KDcount;
+         }
+       } else if (const FunctionTemplateDecl *FT = dyn_cast<FunctionTemplateDecl>(*I)) {
+         // Count instantiated function templates that have _GENX_MAIN_
+         if (FT->spec_begin() != FT->spec_end()) {
+           FunctionDecl *T = FT->getTemplatedDecl();
+           if (T->hasAttr<CMGenxMainAttr>() && T->hasBody())
+              ++KDcount;
+         }
+       }
+    }
+    if (KDcount == 0)
+      Diag(SourceLocation(), diag::warn_cm_no_referable_kernel);
+  }
+#endif
+
   // If there were errors, disable 'unused' warnings since they will mostly be
   // noise. Don't warn for a use from a module: either we should warn on all
   // file-scope declarations in modules or not at all, but whether the
@@ -1309,6 +1367,27 @@ void Sema::EmitCurrentDiagnostic(unsigned DiagID) {
   // Emit the diagnostic.
   if (!Diags.EmitCurrentDiagnostic())
     return;
+
+#if 0
+// FIXME: remove this?
+  // If this is not a note, and we're in a template instantiation that is
+  // different from the last template instantiation where we emitted an error,
+  // and this is not a special case MDF CM diagnostic print a template
+  // instantiation backtrace.
+  if (!DiagnosticIDs::isBuiltinNote(DiagID) &&
+      inTemplateInstantiation() &&
+      (DiagID != diag::err_cm_invalid_element_type) &&
+      (DiagID != diag::err_cm_kw_template_missing) &&
+      (DiagID != diag::err_cm_sema_error_1) &&
+      (DiagID != diag::err_cm_sema_error_2) &&
+      (DiagID != diag::err_cm_static_assert) &&
+      (DiagID != diag::warn_cm_static_assert) &&
+      (ActiveTemplateInstantiations.back()
+        != LastTemplateInstantiationErrorContext)) {
+    PrintInstantiationStack();
+    LastTemplateInstantiationErrorContext = ActiveTemplateInstantiations.back();
+  }
+#endif
 
   // If this is not a note, and we're in a template instantiation
   // that is different from the last template instantiation where
@@ -1848,6 +1927,21 @@ bool Sema::tryToRecoverWithCall(ExprResult &E, const PartialDiagnostic &PD,
   }
 
   if (!ForceComplain) return false;
+
+  if (E.get()->getType() == Context.BoundMemberTy &&
+      Overloads.size() == 1) {
+    // This condition is most often caused by a missing template keyword.
+    // We'll treat templates that are defined in a system header (i.e. the
+    // CM templates) as a special case in order to improve the user experience.
+    SourceLocation boundMemberLoc = Overloads.begin().getDecl()->getLocation();
+    if (PP.getSourceManager().isInSystemHeader(boundMemberLoc)) {
+      StringRef boundMemberName = Overloads.begin().getDecl()->getName();
+      Diag(Loc, diag::err_cm_kw_template_missing);
+      Diag(Loc, diag::note_cm_kw_template_missing) << boundMemberName;
+      E = ExprError();
+      return true;
+    }
+  }
 
   bool IsMV = IsCPUDispatchCPUSpecificMultiVersion(E.get());
   Diag(Loc, PD) << /*not zero-arg*/ 0 << IsMV << Range;

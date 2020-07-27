@@ -2669,6 +2669,7 @@ public:
 
   class AutoVarEmission {
     friend class CodeGenFunction;
+    friend class CGCMRuntime;
 
     const VarDecl *Variable;
 
@@ -3592,6 +3593,7 @@ public:
   RValue EmitCallExpr(const CallExpr *E,
                       ReturnValueSlot ReturnValue = ReturnValueSlot());
   RValue EmitSimpleCallExpr(const CallExpr *E, ReturnValueSlot ReturnValue);
+  RValue EmitCallExprInner(const CallExpr *E, ReturnValueSlot ReturnValue);
   CGCallee EmitCallee(const Expr *E);
 
   void checkTargetFeatures(const CallExpr *E, const FunctionDecl *TargetDecl);
@@ -3710,6 +3712,7 @@ public:
   /// is unhandled by the current target.
   llvm::Value *EmitTargetBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
 
+  llvm::Value *EmitGenxBuiltinExpr(unsigned BuiltinID, const CallExpr *E);
   llvm::Value *EmitAArch64CompareBuiltinExpr(llvm::Value *Op, llvm::Type *Ty,
                                              const llvm::CmpInst::Predicate Fp,
                                              const llvm::CmpInst::Predicate Ip,
