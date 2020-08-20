@@ -2754,6 +2754,14 @@ def CMGenxSIMT : Attr {
   let Documentation = [Undocumented];
 }
 
+def CMGenxReplicateMask : Attr {
+  let Spellings = [Clang<"genx_replicate_mask">];
+  let Args = [ExprArgument<"NumChannels">];
+  let Subjects = SubjectList<[Function]>;
+  let TemplateDependent = 1;
+  let Documentation = [CMReplicateMaskDocs];
+}
+
 def CMGenxNoSIMDPred : Attr {
   let Spellings = [Declspec<"genx_no_SIMD_pred">];
   let Documentation = [Undocumented];

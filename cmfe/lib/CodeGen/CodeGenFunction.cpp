@@ -1010,7 +1010,20 @@ void CodeGenFunction::StartFunction(GlobalDecl GD,
 
         Fn->removeFnAttr(llvm::Attribute::AlwaysInline);
         Fn->removeFnAttr(llvm::Attribute::InlineHint);
-     }
+      }
+
+      if (auto *GenxReplicateMaskAttr =
+              FD->getAttr<CMGenxReplicateMaskAttr>()) {
+        auto *NumChannelsExpr = GenxReplicateMaskAttr->getNumChannels();
+        llvm::APSInt ResultInt;
+        if (ConstantFoldsToSimpleInteger(NumChannelsExpr, ResultInt)) {
+          Fn->addFnAttr(llvm::genx::FunctionMD::CMGenxReplicateMask,
+                        std::to_string(ResultInt.getZExtValue()));
+        } else {
+          CGM.getDiags().Report(NumChannelsExpr->getBeginLoc(),
+                                diag::err_cm_genx_replicate_mask_expects_ice);
+        }
+      }
 
       if (FD->hasAttr<CMGenxNoSIMDPredAttr>())
         Fn->addFnAttr("CMGenxNoSIMDPred");

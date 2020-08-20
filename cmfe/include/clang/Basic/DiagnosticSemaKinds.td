@@ -9469,7 +9469,6 @@ def err_cm_volatile_attr: Error<
   "volatile attribute can only be applied to a file scope vector or matrix variable">;
 def err_cm_volatile_init: Error<
   "volatile variable does not take an initializer">;
-
 } // end of MDF CM issue category
 
 let CategoryName = "Nullability Issue" in {
