@@ -4514,6 +4514,12 @@ static void handleCMGenxSIMTAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
     ModeNum, AL.getAttributeSpellingListIndex()));
 }
 
+static void handleCMGenxReplicateMask(Sema &S, Decl *D, const ParsedAttr &AL) {
+  D->addAttr(::new (S.Context) CMGenxReplicateMaskAttr(
+      AL.getRange(), S.Context, AL.getArgAsExpr(0),
+      AL.getAttributeSpellingListIndex()));
+}
+
 static void handleCMGenxNoSIMDPredAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   assert(!AL.isInvalid());
 
@@ -7079,6 +7085,9 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
     break;
   case ParsedAttr::AT_CMGenxSIMT:
     handleCMGenxSIMTAttr(S, D, AL);
+    break;
+  case ParsedAttr::AT_CMGenxReplicateMask:
+    handleCMGenxReplicateMask(S, D, AL);
     break;
   case ParsedAttr::AT_CMGenxNoSIMDPred:
     handleCMGenxNoSIMDPredAttr(S, D, AL);

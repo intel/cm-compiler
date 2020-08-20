@@ -272,7 +272,8 @@ def warn_profile_data_missing : Warning<
 def warn_profile_data_unprofiled : Warning<
   "no profile data available for file \"%0\"">,
   InGroup<ProfileInstrUnprofiled>;
-
 } // end of instrumentation issue category
 
+def err_cm_genx_replicate_mask_expects_ice : Error<
+  "'genx_replicate_mask' expects integer constant expression as argument">;
 }
