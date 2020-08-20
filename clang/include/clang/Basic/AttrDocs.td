@@ -3900,3 +3900,14 @@ Likewise, when applied to a strong local variable, that variable becomes
 
 When compiled without ``-fobjc-arc``, this attribute is ignored.
 }]; }
+
+def CMReplicateMaskDocs : Documentation {
+   let Category = DocCatFunction;
+   let Content = [{
+   This attribute is applied to function declaration to indicate
+   that simd mask will be replicated by a ineteger which is passed as
+   an argument to this attribute. This is needed if function returns results
+   of instructions whose return type is larger then possible execution size
+   (for example gather4).
+   }];
+}
