@@ -3714,7 +3714,7 @@ void CGCMRuntime::HandleBuiltin3dOperationImpl(CMCallInfo &CallInfo, CMBuiltinKi
     auto MT = VMT->castAs<CMMatrixType>();
     SimdWidth = MT->getNumRows() * MT->getNumColumns();
   } else
-    SimdWidth = VMT->getAs<CMVectorType>()->getNumElements();
+    SimdWidth = VMT->castAs<CMVectorType>()->getNumElements();
 
   // The vISA spec says that the additional arguments only need to
   // have at least the SIMD Width elements in, rather than exactly.
@@ -4108,8 +4108,9 @@ llvm::Value *CGCMRuntime::HandleBuiltinPackMaskImpl(CMCallInfo &CallInfo) {
 
   int N = getIntegralValue(FD, 0);
 
-  // we may have 2 integer template arguments if operand is matrix
+  assert(FD && FD->isTemplateInstantiation());
   const TemplateArgumentList *TempArgs = FD->getTemplateSpecializationArgs();
+  // we may have 2 integer template arguments if operand is matrix
   if (TempArgs->size() == 2)
     N *= getIntegralValue(FD, 1);
 
@@ -5766,7 +5767,7 @@ void CGCMRuntime::HandleBuiltinSVMAtomicOpImpl(CMCallInfo &CallInfo) {
     const CMMatrixType *DstMTType = DstType->castAs<CMMatrixType>();
     NumElems = DstMTType->getNumColumns() * DstMTType->getNumRows();
   } else
-    NumElems = DstType->getAs<CMVectorType>()->getNumElements();
+    NumElems = DstType->castAs<CMVectorType>()->getNumElements();
 
   if (NumElems != 8)
     return Error(DstEx->getExprLoc(), "destination must have 8 elements");
@@ -6139,7 +6140,7 @@ void CGCMRuntime::HandleBuiltinVAMinMax(CMCallInfo &Info) {
     return;
   }
 
-  if (DstType->getAs<CMVectorType>()->getNumElements() != NumElementsNeeded) {
+  if (DstType->castAs<CMVectorType>()->getNumElements() != NumElementsNeeded) {
     Error(DstEx->getExprLoc(), "invalid vector size for the vector element type");
     return;
   }

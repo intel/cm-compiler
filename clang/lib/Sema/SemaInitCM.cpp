@@ -96,8 +96,8 @@ static bool isConvertibleVMType(Sema &S, QualType FromType, QualType ToType,
 
      if (FromType->isCMVectorType() && ToType->isCMVectorType()) {
        // Do not just compare the type, since FromType may not be a reference.
-       const CMVectorType *FT = FromType->getAs<CMVectorType>();
-       const CMVectorType *TT = ToType->getAs<CMVectorType>();
+       const CMVectorType *FT = FromType->castAs<CMVectorType>();
+       const CMVectorType *TT = ToType->castAs<CMVectorType>();
        return S.Context.hasSameType(FT->getElementType(),
                                     TT->getElementType()) &&
               FT->getNumElements() == TT->getNumElements();
