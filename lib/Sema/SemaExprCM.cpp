@@ -395,7 +395,7 @@ ExprResult Sema::ActOnCMISelect(SourceLocation ISelectLoc, Expr *Base,
 
     if (!Res.get()->getType()->isDependentType()) {
       // Convert to unsigned short if necessary.
-      const CMVectorType *VT = Res.get()->getType()->getAs<CMVectorType>();
+      const CMVectorType *VT = Res.get()->getType()->castAs<CMVectorType>();
       QualType EltTy = VT->getCMVectorMatrixElementType();
       EltTy = EltTy->getCanonicalTypeUnqualified();
       if (EltTy != Context.UnsignedShortTy) {
@@ -1255,7 +1255,7 @@ ExprResult Sema::ActOnCMSelect(SourceLocation SelectLoc, Expr *Base,
     }
   } else {
     assert(Size > 0 && Stride > 0);
-    const CMVectorType *VT = BaseTy->getAs<CMVectorType>();
+    const CMVectorType *VT = BaseTy->castAs<CMVectorType>();
     unsigned NumElts = VT->getNumElements();
 
     unsigned Offset = 0;
@@ -1362,7 +1362,7 @@ ExprResult Sema::DefaultCMUnaryConversion(Expr *E) {
       Ty = Context.getCMVectorType(false, PromotedEltTy, VTy->getNumElements(),
                                    Loc, Loc, Loc);
     else {
-      const CMMatrixType *MTy = Ty->getAs<CMMatrixType>();
+      const CMMatrixType *MTy = Ty->castAs<CMMatrixType>();
       Ty = Context.getCMMatrixType(false, PromotedEltTy, MTy->getNumRows(),
                                    MTy->getNumColumns(), Loc, Loc, Loc);
     }
@@ -1759,7 +1759,7 @@ ExprResult Sema::ActOnCMElementAccess(Expr *Base, SourceLocation LParenLoc,
 
   QualType EltTy;
   if (Ty->isCMVectorType()) {
-    const CMVectorType *VT = Ty->getAs<CMVectorType>();
+    const CMVectorType *VT = Ty->castAs<CMVectorType>();
     EltTy = VT->getElementType();
 
     // If the number of elements is known, check out-of-bound accesses.

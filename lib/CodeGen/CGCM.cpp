@@ -93,7 +93,7 @@ unsigned CGCMRegionInfo::getBaseSize() const {
 
   QualType Ty = Base.getType();
   assert(Ty->isCMVectorType() && "vector type expected");
-  return Ty->getAs<CMVectorType>()->getNumElements();
+  return Ty->castAs<CMVectorType>()->getNumElements();
 }
 
 void CGCMRegionInfo::print(raw_ostream &OS) const {
