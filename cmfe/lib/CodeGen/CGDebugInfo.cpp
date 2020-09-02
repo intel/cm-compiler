@@ -3254,13 +3254,12 @@ llvm::DISubprogram *CGDebugInfo::getFunctionFwdDeclOrStub(GlobalDecl GD,
   unsigned Line = getLineNumber(Loc);
   collectFunctionDeclProps(GD, Unit, Name, LinkageName, DContext, TParamsArray,
                            Flags);
-  auto *FD = dyn_cast<FunctionDecl>(GD.getDecl());
-
+  auto *FD = cast<FunctionDecl>(GD.getDecl());
   // Build function type.
   SmallVector<QualType, 16> ArgTypes;
-  if (FD)
-    for (const ParmVarDecl *Parm : FD->parameters())
-      ArgTypes.push_back(Parm->getType());
+  for (const ParmVarDecl *Parm : FD->parameters())
+    ArgTypes.push_back(Parm->getType());
+
   CallingConv CC = FD->getType()->castAs<FunctionType>()->getCallConv();
   QualType FnType = CGM.getContext().getFunctionType(
       FD->getReturnType(), ArgTypes, FunctionProtoType::ExtProtoInfo(CC));
