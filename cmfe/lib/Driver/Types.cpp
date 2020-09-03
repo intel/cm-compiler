@@ -52,11 +52,7 @@ types::ID types::getPrecompiledType(ID Id) {
   return TY_INVALID;
 }
 
-const char *types::getTypeTempSuffix(ID Id, bool CLMode, bool CMMode) {
-  if (CMMode) {
-    if (Id == TY_PP_Asm || Id == TY_Object)
-      return CLMode ? "bin" : "isa";
-  }
+const char *types::getTypeTempSuffix(ID Id, bool CLMode) {
   if (CLMode) {
     switch (Id) {
     case TY_Object:

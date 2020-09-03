@@ -3,6 +3,7 @@
 
 #include "clang/FrontendWrapper/Interface.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -79,6 +80,7 @@ class IDriverInvocationImpl final : public IDriverInvocation {
   OutputTypeT OutputType = OutputTypeT::OTHER;
 
   TargetRuntimeT TargetRuntime = TargetRuntimeT::CM;
+  BinaryFormatT BinaryFormat = BinaryFormatT::CM;
   StrT TargetArch;
 
   StrT InputFilename;
@@ -86,21 +88,15 @@ class IDriverInvocationImpl final : public IDriverInvocation {
 
   StrT TargetFeaturesStr;
 
-  bool   IsHelpInvocation = false;
+  bool IsHelpInvocation = false;
+  bool TimePasses = false;
 
   IDriverInvocationImpl() {};
 
-  IDriverInvocationImpl(SeqStrT &&FeArgs, SeqStrT &&BeArgs,
-                        InputTypeT InputType, OutputTypeT OutputType,
-                        StrT&& InputFilename, StrT&& OutputFilename,
-                        TargetRuntimeT TargetRuntime, StrT&& TargetArch,
-                        StrT&& TargetFeaturesStr)
-    : FrontendArgs(std::move(FeArgs)), BackendArgs(std::move(BeArgs)),
-      InputType(std::move(InputType)), OutputType(std::move(OutputType)),
-      TargetRuntime(TargetRuntime), TargetArch(std::move(TargetArch)),
-      InputFilename(std::move(InputFilename)),
-      OutputFilename(std::move(OutputFilename)),
-      TargetFeaturesStr(std::move(TargetFeaturesStr)) {}
+  template <typename FeArgsT, typename BeArgsT>
+  IDriverInvocationImpl(FeArgsT &&FeArgs, BeArgsT &&BeArgs)
+      : FrontendArgs{std::forward<FeArgsT>(FeArgs)},
+        BackendArgs{std::forward<BeArgsT>(BeArgs)} {}
 
 public:
 
@@ -111,18 +107,36 @@ public:
     return p;
   }
 
-  static IDriverInvocationImpl* createInvocation(
-          SeqStrT &&FeArgs, SeqStrT &&BeArgs,
-          InputTypeT InputType, OutputTypeT OutputType,
-          StrT&& InputFilename, StrT&& OutputFilename,
-          TargetRuntimeT TargetRuntime, StrT&& TargetArch,
-          StrT&& TargetFeaturesStr) {
+  template <typename FeArgsT, typename BeArgsT>
+  static IDriverInvocationImpl *createInvocation(FeArgsT &&FeArgs,
+                                                 BeArgsT &&BeArgs) {
+    auto *P = new IDriverInvocationImpl{std::forward<FeArgsT>(FeArgs),
+                                        std::forward<BeArgsT>(BeArgs)};
+    return P;
+  }
 
-    auto p = new IDriverInvocationImpl(
-        std::move(FeArgs), std::move(BeArgs), InputType, OutputType,
-        std::move(InputFilename), std::move(OutputFilename),
-        TargetRuntime, std::move(TargetArch), std::move(TargetFeaturesStr));
-    return p;
+  template <typename InputFilenameT, typename OutputFilenameT>
+  void setIOParams(InputFilenameT &&InputFilenameIn, InputTypeT InputTypeIn,
+                   OutputFilenameT &&OutputFilenameIn,
+                   OutputTypeT OutputTypeIn) {
+    InputFilename = std::forward<InputFilenameT>(InputFilenameIn);
+    OutputFilename = std::forward<OutputFilenameT>(OutputFilenameIn);
+    InputType = InputTypeIn;
+    OutputType = OutputTypeIn;
+  }
+
+  template <typename TargetArchT>
+  void setTargetParams(BinaryFormatT BinaryFormatIn,
+                       TargetRuntimeT TargetRuntimeIn,
+                       TargetArchT &&TargetArchIn,
+                       const std::vector<std::string> &TargetFeaturesIn,
+                       bool TimePassesIn) {
+    BinaryFormat = BinaryFormatIn;
+    TargetRuntime = TargetRuntimeIn;
+    TargetArch = std::forward<TargetArchT>(TargetArchIn);
+    TargetFeaturesStr = llvm::join(TargetFeaturesIn, ",");
+    validateTargetParams(TargetFeaturesIn);
+    TimePasses = TimePassesIn;
   }
 
   void discard() override {
@@ -130,6 +144,8 @@ public:
   }
 
   const TargetRuntimeT& getTargetRuntime() const override { return TargetRuntime; }
+  BinaryFormatT getBinaryFormat() const override { return BinaryFormat; }
+  bool getTimePasses() const override { return TimePasses; }
 
   const StrT& getTargetArch() const override { return TargetArch; }
 
@@ -144,6 +160,23 @@ public:
   const StrT& getTargetFeaturesStr() const override { return TargetFeaturesStr; }
 
   bool isHelp() const override { return IsHelpInvocation; }
+
+private:
+  // Pass \p TargetFeaturesIn as it is easier to analyze it before join.
+  void validateTargetParams(const std::vector<std::string> &TargetFeaturesIn) {
+    bool HasOCLRuntimeFeature = std::any_of(
+        TargetFeaturesIn.begin(), TargetFeaturesIn.end(),
+        [](const std::string &Feature) { return Feature == "+ocl_runtime"; });
+    if (HasOCLRuntimeFeature)
+      assert((BinaryFormat == BinaryFormatT::OCL ||
+              BinaryFormat == BinaryFormatT::ZE) &&
+             "+ocl_runtime feature must be set for ocl or ze binary outputs "
+             "and unset for cm binary output");
+    else
+      assert(BinaryFormat == BinaryFormatT::CM &&
+             "+ocl_runtime feature must be set for ocl or ze binary outputs "
+             "and unset for cm binary output");
+  }
 };
 
 template <typename T> using SeqT = std::vector<T>;

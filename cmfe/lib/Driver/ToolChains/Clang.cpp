@@ -1943,11 +1943,8 @@ void Clang::AddWebAssemblyTargetArgs(const ArgList &Args,
 
 void Clang::AddGenXTargetArgs(const ArgList &Args,
                               ArgStringList &CmdArgs) const {
-  if (Args.hasArg(options::OPT_mCM_no_input_reorder)) {
-    CmdArgs.push_back("-mllvm");
-    CmdArgs.push_back("-enable-kernel-arg-reordering=false");
-  }
-  if (Args.hasArg(options::OPT_fcmocl)) {
+  if (Args.hasArg(options::OPT_mCM_no_input_reorder) ||
+      !GenX::isCMBinaryFormat(Args)) {
     CmdArgs.push_back("-mllvm");
     CmdArgs.push_back("-enable-kernel-arg-reordering=false");
   }
@@ -4126,8 +4123,12 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-mCM_reverse_kernels");
     if (Args.getLastArg(options::OPT_fcm_pointer))
       CmdArgs.push_back("-fcm-pointer");
-    if (Args.getLastArg(options::OPT_fcmocl))
-      CmdArgs.push_back("-fcmocl");
+  }
+  // As backend depends on this option, it is passed even if the input is not
+  // CM text (e.g. the input is spir-v).
+  if (auto *Arg = Args.getLastArg(options::OPT_binary_format)) {
+    CmdArgs.push_back("-binary-format");
+    CmdArgs.push_back(Arg->getValue());
   }
 
   if (Args.getLastArg(options::OPT_fno_force_noinline))

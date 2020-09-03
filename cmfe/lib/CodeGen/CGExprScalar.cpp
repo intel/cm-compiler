@@ -1373,9 +1373,9 @@ Value *ScalarExprEmitter::EmitScalarConversion(Value *Src, QualType SrcType,
         if (CGF.getContext().getLangOpts().MdfCM && DstEltTy->isIntegerTy()
             && SrcEltTy->isFloatingPointTy()
             && (DstEltTy->getPrimitiveSizeInBits() < 32
-             || (!DstEltType->isSignedIntegerType()
+             || (DstEltType->isSignedIntegerType()
               && DstEltTy->getPrimitiveSizeInBits() <= 32))) {
-          // CM: float->any int goes via signed int unless the type is signed int
+          // CM: float->any int goes via signed int unless signed int doesn't fit destination type
           auto InterTy = llvm::VectorType::get(llvm::Type::getInt32Ty(
                 DstVecTy->getContext()), SrcNumElts);
           return Builder.CreateZExtOrTrunc(
@@ -1514,9 +1514,9 @@ Value *ScalarExprEmitter::EmitScalarConversion(Value *Src, QualType SrcType,
     assert(SrcTy->isFloatingPointTy() && "Unknown real conversion");
     if (CGF.getContext().getLangOpts().MdfCM
         && (DstTy->getPrimitiveSizeInBits() < 32
-            || (!DstType->isSignedIntegerType()
+            || (DstType->isSignedIntegerType()
              && DstTy->getPrimitiveSizeInBits() == 32))) {
-      // CM: float->any int goes via signed int unless the type is signed int
+      // CM: float->any int goes via signed int unless signed int doesn't fit destination type
       auto InterTy = llvm::Type::getInt32Ty(DstTy->getContext());
       return Builder.CreateZExtOrTrunc(
           Builder.CreateFPToSI(Src, InterTy, "conv"), DstTy, "conv");
@@ -1838,9 +1838,9 @@ Value *ScalarExprEmitter::VisitConvertVectorExpr(ConvertVectorExpr *E) {
     assert(SrcEltTy->isFloatingPointTy() && "Unknown real conversion");
     if (CGF.getContext().getLangOpts().MdfCM
         && (DstEltTy->getPrimitiveSizeInBits() < 32
-         || (!DstEltType->isSignedIntegerType()
+         || (DstEltType->isSignedIntegerType()
           && DstEltTy->getPrimitiveSizeInBits() == 32))) {
-      // CM: float->any int goes via signed int unless the type is signed int
+      // CM: float->any int goes via signed int unless signed int doesn't fit destination type
       auto InterTy = llvm::VectorType::get(llvm::Type::getInt32Ty(
             DstTy->getContext()), SrcTy->getVectorNumElements());
       return Builder.CreateZExtOrTrunc(

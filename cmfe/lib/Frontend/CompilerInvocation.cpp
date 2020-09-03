@@ -800,8 +800,13 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.InitializeCMGlobals = Args.hasArg(OPT_mCM_init_global);
   Opts.EmitCMGlobalsAsVolatile = Args.hasArg(OPT_fvolatile_global);
   Opts.ReverseCMKernelList = Args.hasArg(OPT_mCM_reverse_kernels);
-  Opts.EmitCmOCL = Args.hasArg(OPT_fcmocl);
   Opts.RerollLoops = Args.hasArg(OPT_freroll_loops);
+  if (auto *Arg = Args.getLastArg(OPT_binary_format)) {
+    bool IsOCLOrZEBinary = llvm::StringSwitch<bool>(Arg->getValue())
+                               .Cases("ocl", "ze", true)
+                               .Default(false);
+    Opts.EmitCmOCLL0 = IsOCLOrZEBinary;
+  }
 
   Opts.DisableIntegratedAS = Args.hasArg(OPT_fno_integrated_as);
   Opts.Autolink = !Args.hasArg(OPT_fno_autolink);

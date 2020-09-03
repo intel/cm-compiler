@@ -35,21 +35,19 @@ StringRef fixupComplexArgument(StringRef Input) {
   return Input;
 }
 
-const char *getFinalizerPlatform(const char *CPU) {
-  if (!CPU)
-    CPU = "";
+std::string getFinalizerPlatform(StringRef CPU) {
   // Unfortunately, the finalizer doesn't support all platforms, so we map
   // any unsupported platforms to the most appropriate supported one.
-  const char *FinalizerPlatform = llvm::StringSwitch<const char *>(CPU)
-                                      .Case("KBL", "SKL")
-                                      .Case("GLK", "BXT")
-                                      .Case("", "SKL")
-                                      .Default(CPU);
+  auto FinalizerPlatform = llvm::StringSwitch<StringRef>(CPU)
+                               .Case("KBL", "SKL")
+                               .Case("GLK", "BXT")
+                               .Case("", "SKL")
+                               .Default(CPU);
 
-  return FinalizerPlatform;
+  return FinalizerPlatform.str();
 }
 
-bool mayDisableIGA(std::string CPU) {
+bool mayDisableIGA(const std::string &CPU) {
   // IGA may be disabled for targets before ICL.
   // CPU is expected to be a canonical Genx target name.
   bool mayDisable = llvm::StringSwitch<bool>(CPU)
@@ -68,8 +66,6 @@ bool mayDisableIGA(std::string CPU) {
 ArgStringList constructCompatibilityFinalizerOptions(const ArgList &Args,
                                                      const Driver &DR) {
   ArgStringList CompatibilityArgs;
-
-  const char *Platform = tools::GenX::getGenXTargetCPU(Args);
 
   if (Args.getLastArg(options::OPT_mdump_asm) ||
       llvm::sys::Process::GetEnv("CM_FORCE_ASSEMBLY_DUMP")) {
@@ -111,8 +107,9 @@ ArgStringList constructCompatibilityFinalizerOptions(const ArgList &Args,
     }
   }
 
+  auto Platform = getFinalizerPlatform(tools::GenX::getGenXTargetCPU(Args));
   CompatibilityArgs.push_back("-platform");
-  CompatibilityArgs.push_back(getFinalizerPlatform(Platform));
+  CompatibilityArgs.push_back(Args.MakeArgString(Platform));
 
   // For GenX variants below Gen11 we disable IGA by default, by passing the
   // -disableIGASyntax option to the finalizer.

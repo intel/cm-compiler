@@ -78,16 +78,14 @@ unsigned CGCMRegionInfo::getBaseWidth() const {
   assert(is2DRegion());
 
   QualType Ty = Base.getType();
-  assert(Ty->isCMMatrixType() && "matrix type expected");
-  return Ty->getAs<CMMatrixType>()->getNumColumns();
+  return Ty->castAs<CMMatrixType>()->getNumColumns();
 }
 
 unsigned CGCMRegionInfo::getBaseHeight() const {
   assert(is2DRegion());
 
   QualType Ty = Base.getType();
-  assert(Ty->isCMMatrixType() && "matrix type expected");
-  return Ty->getAs<CMMatrixType>()->getNumRows();
+  return Ty->castAs<CMMatrixType>()->getNumRows();
 }
 
 unsigned CGCMRegionInfo::getBaseSize() const {
@@ -194,7 +192,7 @@ LValue CGCMRuntime::EmitRowColumnSelect(CodeGenFunction &CGF,
   assert(E->isColumnSelect() || E->isRowSelect());
   assert(E->is2D() && "not selecting matrix");
 
-  const CMMatrixType *MT = E->getBase()->getType()->getAs<CMMatrixType>();
+  const CMMatrixType *MT = E->getBase()->getType()->castAs<CMMatrixType>();
   unsigned Height = MT->getNumRows();
   unsigned Width = MT->getNumColumns();
 
@@ -586,7 +584,7 @@ llvm::Value *CGCMRuntime::EmitReplicateSelect(CodeGenFunction &CGF,
   } else {
     assert(E->is2D());
     // Offset = (VOffset * <BaseWidth> + HOffset ) * sizeof(EltType)
-    const CMMatrixType *MT = E->getBase()->getType()->getAs<CMMatrixType>();
+    const CMMatrixType *MT = E->getBase()->getType()->castAs<CMMatrixType>();
     unsigned BaseWidth = MT->getNumColumns();
     llvm::Value *VOffset = CGF.EmitAnyExpr(E->getRepVOffset()).getScalarVal();
     llvm::Value *HOffset = CGF.EmitAnyExpr(E->getRepHOffset()).getScalarVal();
@@ -678,7 +676,7 @@ llvm::Value *CGCMRuntime::EmitISelect(CodeGenFunction &CGF,
     assert(A1->getType() == OffsetTy);
 
     // Compute (a0 * <matrix_width> + a1) * sizeof(BaseEltTy)
-    const CMMatrixType *MT = E->getBase()->getType()->getAs<CMMatrixType>();
+    const CMMatrixType *MT = E->getBase()->getType()->castAs<CMMatrixType>();
     unsigned Width = MT->getNumColumns();
 
     llvm::Value *WidthVal = llvm::ConstantVector::getSplat(
@@ -1451,7 +1449,7 @@ void CGCMRuntime::finalize() {
   // Mark this kernel to emit code compatible with OpenCL runtime.
   for (auto K : Kernels->operands()) {
     StringRef Attr;
-    if (CGM.getCodeGenOpts().EmitCmOCL)
+    if (CGM.getCodeGenOpts().EmitCmOCLL0)
       Attr = "1";
     llvm::Metadata *M = K->getOperand(llvm::genx::KernelMDOp::FunctionRef).get();
     if (auto F = dyn_cast_or_null<llvm::Function>(getVal(M)))
@@ -1475,18 +1473,14 @@ void CGCMRuntime::EmitCMOutput(CodeGenFunction &CGF) {
   if (!FD || !FD->hasAttr<CMGenxMainAttr>())
     return;
 
-  SmallVector<llvm::Value *, 8> OutArgs;
   auto &Builder = CGF.Builder;
   for (auto VD : FD->parameters()) {
     if (VD->hasAttr<CMOutputAttr>() || VD->hasAttr<CMInputOutputAttr>()) {
       Address Addr = CGF.GetAddrOfLocalVar(VD);
-      OutArgs.push_back(Builder.CreateLoad(Addr));
+      auto* ArgTy = CGM.getTypes().ConvertType(VD->getOriginalType());
+      auto OutFn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_output_1, {ArgTy});
+      Builder.CreateCall(OutFn, {Builder.CreateLoad(Addr)});
     }
-  }
-
-  if (!OutArgs.empty()) {
-    auto OutFn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_output);
-    Builder.CreateCall(OutFn, OutArgs);
   }
 }
 namespace {
@@ -1560,4 +1554,34 @@ void CGCMRuntime::EmitCMRefStore(CodeGenFunction &CGF, llvm::Value *Val,
   llvm::Function *Fn = CGF.CGM.getGenXIntrinsic(ID, Tys);
   llvm::Value *Vals[] = {Val, Addr};
   CGF.Builder.CreateCall(Fn, Vals);
+}
+
+/// \brief Emit single select element as pointer to vector element using GEP
+llvm::Value *CGCMRuntime::EmitElementSelectAsPointer(CodeGenFunction &CGF,
+                                                     const CMSelectExpr *SE) {
+  assert(SE->isElementSelect() && "Single element select expected");
+
+  LValue LV = EmitCMSelectExprLValue(CGF, SE);
+  assert(LV.isCMRegion());
+  const CGCMRegionInfo &RI = LV.getCMRegionInfo();
+  LValue Base = RI.getBase();
+
+  llvm::Value *Index = nullptr;
+  if (SE->is1D()) {
+    Index = RI.getVOffset();
+  } else {
+    assert(SE->is2D());
+    // Index = VOffset * <BaseWidth> + HOffset
+    const CMMatrixType *MT = SE->getBase()->getType()->castAs<CMMatrixType>();
+    unsigned BaseWidth = MT->getNumColumns();
+    llvm::Value *VOffset = RI.getVOffset();
+    llvm::Value *HOffset = RI.getHOffset();
+
+    llvm::Value *BaseW = llvm::ConstantInt::get(VOffset->getType(), BaseWidth);
+    Index = CGF.Builder.CreateMul(VOffset, BaseW);
+    Index = CGF.Builder.CreateAdd(Index, HOffset);
+  }
+  auto *Zero = llvm::ConstantInt::get(Index->getType(), 0);
+  auto *GEP = CGF.Builder.CreateGEP(getBaseAddr(Base), {Zero, Index});
+  return GEP;
 }

@@ -8095,6 +8095,7 @@ bool ASTContext::areCompatibleVectorTypes(QualType FirstVec,
 /// \brief Return true if the two specified CM vector types are compatible.
 static bool areCompatCMVectorTypes(const CMVectorType *LHS,
                                    const CMVectorType *RHS) {
+  assert(LHS && RHS);
   assert(LHS->isCanonicalUnqualified() && RHS->isCanonicalUnqualified());
   return LHS->isReference() == RHS->isReference() &&
          LHS->getElementType() == RHS->getElementType() &&
@@ -8104,6 +8105,7 @@ static bool areCompatCMVectorTypes(const CMVectorType *LHS,
 /// \brief Return true if the two specified CM matrix types are compatible.
 static bool areCompatCMMatrixTypes(const CMMatrixType *LHS,
                                    const CMMatrixType *RHS) {
+  assert(LHS && RHS);
   assert(LHS->isCanonicalUnqualified() && RHS->isCanonicalUnqualified());
   return LHS->isReference() == RHS->isReference() &&
          LHS->getElementType() == RHS->getElementType() &&
