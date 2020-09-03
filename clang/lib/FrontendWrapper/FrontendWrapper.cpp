@@ -1,23 +1,24 @@
-#include "clang/Driver/Driver.h"
-#include "clang/Driver/ToolChain.h"
-#include "clang/Driver/Compilation.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TargetOptions.h"
+#include "clang/Driver/Compilation.h"
+#include "clang/Driver/Driver.h"
+#include "clang/Driver/Options.h"
+#include "clang/Driver/ToolChain.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "clang/FrontendTool/Utils.h"
-#include "clang/FrontendWrapper/Interface.h"
 #include "clang/FrontendWrapper/ArgsManagement.h"
+#include "clang/FrontendWrapper/Interface.h"
 #include "clang/FrontendWrapper/Utils.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Support/Process.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/VirtualFileSystem.h"
-#include "llvm/Support/Process.h"
 
 #include <string>
 
@@ -114,6 +115,7 @@ OutputTypeT deriveOutputFromActionKind(clang::frontend::ActionKind Action) {
     return OutputTypeT::LLVM_IR;
   case clang::frontend::ActionKind::EmitSPIRV:
     return OutputTypeT::SPIRV;
+  case clang::frontend::PrintPreprocessedInput:
   case clang::frontend::RunPreprocessorOnly:
     return OutputTypeT::PREPROC;
   default:
@@ -133,6 +135,60 @@ InputTypeT deriveInputTypeFromInputLanguage(clang::InputKind::Language T) {
   }
 }
 
+static llvm::opt::InputArgList
+parseOptions(const std::vector<const char *> &CArgs, unsigned Flag,
+             llvm::opt::OptTable *Opts) {
+  unsigned MissingArgIndex, MissingArgCount;
+  llvm::opt::InputArgList Args = Opts->ParseArgs(
+      llvm::makeArrayRef(CArgs.data(), CArgs.data() + CArgs.size()),
+      MissingArgIndex, MissingArgCount, Flag);
+  assert(MissingArgCount == 0 &&
+         "must have been covered in CompilerInvocation::CreateFromArgs");
+  return Args;
+}
+
+static llvm::opt::InputArgList
+parseCompilerOptions(const std::vector<const char *> &CArgs,
+                     llvm::opt::OptTable *Opts) {
+  return parseOptions(CArgs, clang::driver::options::CC1Option, Opts);
+}
+
+static IDriverInvocation::BinaryFormatT
+getBinaryFormat(const llvm::opt::InputArgList &Args) {
+  auto *Arg = Args.getLastArg(clang::driver::options::OPT_binary_format);
+  if (!Arg)
+    // CMRT binary is default
+    return IDriverInvocation::BinaryFormatT::CM;
+  return llvm::StringSwitch<IDriverInvocation::BinaryFormatT>(Arg->getValue())
+      .Case("cm", IDriverInvocation::BinaryFormatT::CM)
+      .Case("ocl", IDriverInvocation::BinaryFormatT::OCL)
+      .Case("ze", IDriverInvocation::BinaryFormatT::ZE)
+      .Default(IDriverInvocation::BinaryFormatT::CM);
+}
+
+static bool getTimePasses(const llvm::opt::InputArgList &Args) {
+  return Args.hasArg(clang::driver::options::OPT_ftime_report);
+}
+
+struct OptionInfoT {
+  IDriverInvocation::BinaryFormatT BinaryFormat;
+  bool TimePasses;
+};
+
+static OptionInfoT
+makeAdditionalOptionParsing(const std::vector<const char *> &CArgs) {
+  // Opts create info table which will be set up in parseCompilerOptions and
+  // used in getBinaryFormat.
+  std::unique_ptr<llvm::opt::OptTable> Opts =
+      clang::driver::createDriverOptTable();
+
+  auto ParsedArgs = parseCompilerOptions(CArgs, Opts.get());
+  OptionInfoT Info;
+  Info.BinaryFormat = getBinaryFormat(ParsedArgs);
+  Info.TimePasses = getTimePasses(ParsedArgs);
+  return Info;
+}
+
 // TODO: all non-debug llvm::errs() output should be moved to diagnostics
 wrapper::IDriverInvocationImpl*
 createDriverInvocationFromCCArgs(const std::vector<const char*> &CArgs,
@@ -150,6 +206,8 @@ createDriverInvocationFromCCArgs(const std::vector<const char*> &CArgs,
     llvm::errs() << "Fatal error was encountered\n";
     return nullptr;
   }
+
+  auto OptionInfo = makeAdditionalOptionParsing(CArgs);
 
   OutputTypeT OutputType =
     deriveOutputFromActionKind(Clang.getFrontendOpts().ProgramAction);
@@ -205,12 +263,16 @@ createDriverInvocationFromCCArgs(const std::vector<const char*> &CArgs,
       FrontendArgs.emplace_back(CArgs[i]);
     }
   }
-  return wrapper::IDriverInvocationImpl::createInvocation(
-    std::move(FrontendArgs), std::move(BackendArgs), InputType, OutputType,
-    std::move(InputFilename), std::move(OutputFilename),
-    TargetRuntime, std::move(TargetArch),
-    llvm::join(TO.FeaturesAsWritten, ","));
+  auto *Result = wrapper::IDriverInvocationImpl::createInvocation(
+      std::move(FrontendArgs), std::move(BackendArgs));
+  Result->setIOParams(std::move(InputFilename), InputType,
+                      std::move(OutputFilename), OutputType);
+  Result->setTargetParams(OptionInfo.BinaryFormat, TargetRuntime,
+                          std::move(TargetArch), TO.FeaturesAsWritten,
+                          OptionInfo.TimePasses);
+  return Result;
 }
+
 wrapper::IDriverInvocationImpl*
 makeDriverInvocationFromCompilation(clang::driver::Compilation &Compilation,
                                     llvm::SmallVectorImpl<const char *> &Args,

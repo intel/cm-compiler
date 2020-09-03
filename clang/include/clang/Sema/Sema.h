@@ -9449,6 +9449,9 @@ public:
   /// required.
   ExprResult IgnoredValueConversions(Expr *E);
 
+  // CheckUnaryOperand - promotes integer vectors and scalars
+  ExprResult CheckUnaryOperand(Expr* E);
+
   // UsualUnaryConversions - promotes integers (C99 6.3.1.1p2) and converts
   // functions and arrays to their respective pointers (C99 6.3.2.1).
   ExprResult UsualUnaryConversions(Expr *E);

@@ -389,6 +389,7 @@ vector<T1, N> __cm_intrinsic_impl_dp4a(vector<T2, N> src0, vector<T3, N> src1, v
                                        int flag);
 
 
+
 template <typename T, int n> struct simd_type {
   static constexpr int length = n;
   using type = T __attribute__((ext_vector_type(n)));

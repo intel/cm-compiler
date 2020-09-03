@@ -91,6 +91,32 @@ using namespace clang::driver;
 using namespace clang;
 using namespace llvm::opt;
 
+static void validateCMArgs(const ArgList &Args, DiagnosticsEngine &Diag) {
+  if (auto *BFArg = Args.getLastArg(options::OPT_binary_format)) {
+    bool CorrectBinaryFormat = llvm::StringSwitch<bool>(BFArg->getValue())
+                                   .Cases("cm", "ocl", "ze", true)
+                                   .Default(false);
+    if (!CorrectBinaryFormat)
+      Diag.Report(diag::err_drv_unsupported_option_argument)
+          << BFArg->getOption().getName() << BFArg->getValue();
+  }
+}
+
+static const char *getCMTypeTempSuffix(types::ID FileType,
+                                       const ArgList &Args) {
+  if (FileType != types::TY_PP_Asm && FileType != types::TY_Object)
+    return nullptr;
+  if (!Args.hasArg(options::OPT_binary_format))
+    // default binary format is "cm", generating isa file
+    return "isa";
+  StringRef BFStr = Args.getLastArg(options::OPT_binary_format)->getValue();
+  auto *Format = llvm::StringSwitch<const char *>(BFStr)
+                     .Case("cm", "isa")
+                     .Cases("ocl", "ze", "bin")
+                     .Default(nullptr);
+  return Format;
+}
+
 Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,
                DiagnosticsEngine &Diags,
                IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS)
@@ -1045,6 +1071,7 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
     TargetTriple = T.str();
   }
   if (CCCIsCM()) {
+    validateCMArgs(Args, Diags);
     // We only change the arch value here - the vendor and os values are the
     // default values, i.e. the triple becomes genx64-pc-win32.
     llvm::Triple T(TargetTriple);
@@ -4231,18 +4258,19 @@ static const char *MakeCLOutputFilename(const ArgList &Args, StringRef ArgValue,
 
   if (!llvm::sys::path::has_extension(ArgValue) || IsCMMode) {
     // If the argument didn't provide an extension, then set it.
-    // We always replace the extension for CM as only ".isa" files are
-    // accepted by the CM Finalizer.
-    const char *Extension = types::getTypeTempSuffix(
-        FileType,
-        !IsCMMode || (IsCMMode && Args.hasArg(options::OPT_fcmocl)),
-        IsCMMode);
+    const char *Extension = types::getTypeTempSuffix(FileType, true);
 
     if (FileType == types::TY_Image &&
         Args.hasArg(options::OPT__SLASH_LD, options::OPT__SLASH_LDd)) {
       // The output file is a dll.
       Extension = "dll";
     }
+
+    // We always replace the extension for CM as only ".isa" files are
+    // accepted by the CM Finalizer.
+    if (IsCMMode)
+      if (auto *NewExtension = getCMTypeTempSuffix(FileType, Args))
+        Extension = NewExtension;
 
     llvm::sys::path::replace_extension(Filename, Extension);
   }
@@ -4364,10 +4392,10 @@ const char *Driver::GetNamedOutputPath(Compilation &C, const JobAction &JA,
   } else if (JA.getType() == types::TY_PCH && IsCLMode()) {
     NamedOutput = C.getArgs().MakeArgString(GetClPchPath(C, BaseName));
   } else {
-    const char *Suffix = types::getTypeTempSuffix(
-        JA.getType(),
-        IsCLMode() || (CCCIsCM() && C.getArgs().hasArg(options::OPT_fcmocl)),
-        CCCIsCM());
+    const char *Suffix = types::getTypeTempSuffix(JA.getType(), IsCLMode());
+    if (CCCIsCM())
+      if (auto *NewExtension = getCMTypeTempSuffix(JA.getType(), C.getArgs()))
+        Suffix = NewExtension;
     assert(Suffix && "All types used for output should have a suffix.");
 
     std::string::size_type End = std::string::npos;
