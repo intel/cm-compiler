@@ -755,6 +755,9 @@ public:
     return EmitWriteRegion1D(CGF.Builder, Dst, Src, Size, Stride,
                              llvm::ConstantInt::get(CGF.Int16Ty, Offset), Mask);
   }
+
+  /// \brief Emit single select element as pointer to vector element
+  llvm::Value *EmitElementSelectAsPointer(CodeGenFunction &CGF, const CMSelectExpr *SE);
 };
 
 // Returns the llvm type for masks (<32 x i1> etc.).

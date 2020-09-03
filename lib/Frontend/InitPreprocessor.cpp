@@ -621,7 +621,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("__CMC");
     // If a GenX target CPU was specified define the appropriate value
     if (!TOpts.CPU.empty()) {
-      const char *CmTarget = llvm::StringSwitch<const char*>(TOpts.CPU)
+      const char *CmTarget = llvm::StringSwitch<const char *>(TOpts.CPU)
       .Case("HSW", "CM_GEN7_5")
       .Case("BDW", "CM_GEN8")
       .Case("CHV", "CM_GEN8_5")
@@ -634,7 +634,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
       .Case("TGLLP", "CM_GEN12")
       .Default("");
       Builder.defineMacro(CmTarget);
-      const char *GenXValue = llvm::StringSwitch<const char*>(TOpts.CPU)
+      const char *GenXValue = llvm::StringSwitch<const char *>(TOpts.CPU)
       .Case("HSW", "750")
       .Case("BDW", "800")
       .Case("CHV", "850")

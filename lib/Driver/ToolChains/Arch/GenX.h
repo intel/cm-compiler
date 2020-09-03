@@ -13,6 +13,7 @@
 #include "clang/Driver/Driver.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/Option/ArgList.h"
 #include "llvm/Option/Option.h"
 #include <string>
 #include <vector>
@@ -22,11 +23,14 @@ namespace driver {
 namespace tools {
 namespace GenX {
 
-const char *getGenXTargetCPU(const llvm::opt::ArgList &Args);
+std::string getGenXTargetCPU(const llvm::opt::ArgList &Args);
 
 void getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,
                            const llvm::opt::ArgList &Args,
                            std::vector<llvm::StringRef> &Features);
+
+// binary format for CMRT is required according to options
+bool isCMBinaryFormat(const llvm::opt::ArgList &Args);
 
 } // end namespace GenX
 } // namespace tools

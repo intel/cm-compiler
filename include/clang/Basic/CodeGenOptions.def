@@ -33,7 +33,7 @@ CODEGENOPT(EmitVLoadStore, 1, 0) ///< MDF-CM: Emit load/store intrinsic calls
 CODEGENOPT(InitializeCMGlobals, 1, 0)    ///< MDF-CM: Initialize CM global variables.
 CODEGENOPT(EmitCMGlobalsAsVolatile, 1, 0)    ///< MDF-CM: Make CM global variables volatile.
 CODEGENOPT(ReverseCMKernelList, 1, 0)    ///< MDF-CM: Emit kernels asm name in reversed order.
-CODEGENOPT(EmitCmOCL, 1, 0)              ///< MDF-CM: Emit CM kernels to run on OpenCL runtime.
+CODEGENOPT(EmitCmOCLL0, 1, 0)            ///< MDF-CM: Emit CM kernels to run on OpenCL or L0 runtime.
 
 CODEGENOPT(DisableIntegratedAS, 1, 0) ///< -no-integrated-as
 ENUM_CODEGENOPT(CompressDebugSections, llvm::DebugCompressionType, 2,

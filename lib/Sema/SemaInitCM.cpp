@@ -105,8 +105,8 @@ static bool isConvertibleVMType(Sema &S, QualType FromType, QualType ToType,
 
      if (FromType->isCMMatrixType() && ToType->isCMMatrixType()) {
        // Do not just compare the type, since FromType may not be a reference.
-       const CMMatrixType *FT = FromType->getAs<CMMatrixType>();
-       const CMMatrixType *TT = ToType->getAs<CMMatrixType>();
+       const CMMatrixType *FT = FromType->castAs<CMMatrixType>();
+       const CMMatrixType *TT = ToType->castAs<CMMatrixType>();
        return S.Context.hasSameType(FT->getElementType(),
                                     TT->getElementType()) &&
               FT->getNumRows() == TT->getNumRows() &&

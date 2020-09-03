@@ -2123,8 +2123,8 @@ DeduceTemplateArgumentsByTypeMatch(Sema &S,
       return Sema::TDK_NonDeducedMismatch;
     }
     case Type::CMMatrix: {
-      const CMMatrixType *MatrixParam = Param->getAs<CMMatrixType>();
       if (const CMMatrixType *MatrixArg = Arg->getAs<CMMatrixType>()) {
+        const CMMatrixType *MatrixParam = Param->castAs<CMMatrixType>();
         // Make sure that the vectors have the same number of rows and columns.
         if (MatrixParam->getNumRows() != MatrixArg->getNumRows() ||
             MatrixParam->getNumColumns() != MatrixArg->getNumColumns())
@@ -2138,6 +2138,7 @@ DeduceTemplateArgumentsByTypeMatch(Sema &S,
 
       if (const DependentCMMatrixType *MatrixArg =
               Arg->getAs<DependentCMMatrixType>()) {
+        const CMMatrixType *MatrixParam = Param->castAs<CMMatrixType>();
         // We can't check the number of elements, since the argument has a
         // dependent number of rows/columns. This can only occur during partial
         // ordering.
@@ -3375,8 +3376,8 @@ CheckOriginalCallArgDeduction(Sema &S, TemplateDeductionInfo &Info,
     }
 
     if (DeducedA->isCMMatrixType() && A->isCMMatrixType()) {
-      const CMMatrixType *MT1 = DeducedA->getAs<CMMatrixType>();
-      const CMMatrixType *MT2 = A->getAs<CMMatrixType>();
+      const CMMatrixType *MT1 = DeducedA->castAs<CMMatrixType>();
+      const CMMatrixType *MT2 = A->castAs<CMMatrixType>();
       if (S.Context.hasSameUnqualifiedType(MT1->getElementType(),
                                            MT2->getElementType()) &&
           MT1->getNumRows() == MT2->getNumRows() &&

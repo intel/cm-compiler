@@ -116,7 +116,7 @@ ExprResult Sema::ActOnCMColumn(SourceLocation ColumnLoc, Expr *Base,
   }
 
   QualType BaseTy = Base->getType();
-  const CMMatrixType *MT = BaseTy->getAs<CMMatrixType>();
+  const CMMatrixType *MT = BaseTy->castAs<CMMatrixType>();
 
   // Check whether index is out of bound.
   {
@@ -657,7 +657,7 @@ ExprResult Sema::ActOnCMNCols(SourceLocation NColsLoc, Expr *Base,
     return ExprError();
   }
 
-  const CMMatrixType *MT = Base->getType()->getAs<CMMatrixType>();
+  const CMMatrixType *MT = Base->getType()->castAs<CMMatrixType>();
   unsigned Width = Context.getIntWidth(Context.UnsignedIntTy);
   llvm::APInt NumCols(Width, MT->getNumColumns(), true);
   // This is a bit lossy since the source information is lost. But this is
@@ -680,7 +680,7 @@ ExprResult Sema::ActOnCMNRows(SourceLocation NRowsLoc, Expr *Base,
     return ExprError();
   }
 
-  const CMMatrixType *MT = Base->getType()->getAs<CMMatrixType>();
+  const CMMatrixType *MT = Base->getType()->castAs<CMMatrixType>();
   unsigned Width = Context.getIntWidth(Context.UnsignedIntTy);
   llvm::APInt NumRows(Width, MT->getNumRows(), true);
   // This is a bit lossy since the source information is lost. But this is
@@ -975,7 +975,7 @@ ExprResult Sema::ActOnCMRow(SourceLocation RowLoc, Expr *Base, Expr *RowExpr,
     return ExprError();
   }
 
-  const CMMatrixType *MT = BaseTy->getAs<CMMatrixType>();
+  const CMMatrixType *MT = BaseTy->castAs<CMMatrixType>();
 
   // Check whether index is out of bound.
   {
@@ -1179,7 +1179,7 @@ ExprResult Sema::ActOnCMSelect(SourceLocation SelectLoc, Expr *Base,
   // Out-of-bound checks.
   if (IsMatrix) {
     assert(Size > 0 && Stride > 0 && HSize > 0 && HStride > 0);
-    const CMMatrixType *MT = BaseTy->getAs<CMMatrixType>();
+    const CMMatrixType *MT = BaseTy->castAs<CMMatrixType>();
     unsigned NRows = MT->getNumRows();
     unsigned NCols = MT->getNumColumns();
 
@@ -1458,7 +1458,7 @@ QualType Sema::CheckCMVectorMatrixOperands(ExprResult &LHS, ExprResult &RHS,
   }
 
   const CMVectorType *LVT = LHSType->getAs<CMVectorType>();
-  const CMMatrixType *LMT = LHSType->getAs<CMMatrixType>();
+  const CMMatrixType *LMT = LVT ? nullptr : LHSType->castAs<CMMatrixType>();
   QualType EltTy = LVT ? LVT->getElementType() : LMT->getElementType();
 
   // Handle the case of a vector/matrix and scalar.
@@ -1582,8 +1582,8 @@ QualType Sema::CheckCMVectorMatrixOperands(ExprResult &LHS, ExprResult &RHS,
 
     // Check whether matrix dimension differs.
     if (LHSType->isCMMatrixType() && RHSType->isCMMatrixType()) {
-      unsigned LHSNRows = LHSType->getAs<CMMatrixType>()->getNumRows();
-      unsigned RHSNRows = RHSType->getAs<CMMatrixType>()->getNumRows();
+      unsigned LHSNRows = LHSType->castAs<CMMatrixType>()->getNumRows();
+      unsigned RHSNRows = RHSType->castAs<CMMatrixType>()->getNumRows();
       NeedVMConversion |= (LHSNRows != RHSNRows);
     }
 
@@ -1766,7 +1766,7 @@ ExprResult Sema::ActOnCMElementAccess(Expr *Base, SourceLocation LParenLoc,
     if (!CheckValueInBound(*this, Args[0], VT->getNumElements(), false))
       return ExprError();
   } else {
-    const CMMatrixType *MT = Ty->getAs<CMMatrixType>();
+    const CMMatrixType *MT = Ty->castAs<CMMatrixType>();
     EltTy = MT->getElementType();
     if (!CheckValueInBound(*this, Args[0], MT->getNumRows(), true) ||
         !CheckValueInBound(*this, Args[1], MT->getNumColumns(), true))
@@ -1814,8 +1814,7 @@ ExprResult Sema::ActOnCMSubscriptAccess(Expr *Base, SourceLocation LLoc,
       return ExprError();
     ExprType = VT->getElementType();
   } else {
-    const CMMatrixType *MT = BaseType->getAs<CMMatrixType>();
-    assert(MT && "matrix type expected");
+    const CMMatrixType *MT = BaseType->castAs<CMMatrixType>();
     if (!CheckValueInBound(*this, Idx, MT->getNumRows(), false))
       return ExprError();
     ExprType = Context.getCMVectorType(

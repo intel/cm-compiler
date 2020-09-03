@@ -1002,8 +1002,15 @@ void CodeGenFunction::StartFunction(GlobalDecl GD,
       if (auto FloatControlAttr = FD->getAttr<CMFloatControlAttr>())
         Fn->addFnAttr(llvm::genx::FunctionMD::CMFloatControl,
                       std::to_string(FloatControlAttr->getMode()));
-      if (auto GenxSIMTAttr = FD->getAttr<CMGenxSIMTAttr>())
+      // Ignore inline attributes and add NoInline if function
+      // has CMGenxSIMT attribute
+      if (auto GenxSIMTAttr = FD->getAttr<CMGenxSIMTAttr>()) {
         Fn->addFnAttr("CMGenxSIMT", std::to_string(GenxSIMTAttr->getMode()));
+        Fn->addFnAttr(llvm::Attribute::NoInline);
+
+        Fn->removeFnAttr(llvm::Attribute::AlwaysInline);
+        Fn->removeFnAttr(llvm::Attribute::InlineHint);
+     }
 
       if (FD->hasAttr<CMGenxNoSIMDPredAttr>())
         Fn->addFnAttr("CMGenxNoSIMDPred");

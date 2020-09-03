@@ -3429,7 +3429,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinMediaReadPlane(CMCallInfo &Info) {
   // Compute block width in bytes.
   QualType CallTy = Info.CE->getType();
   assert(CallTy->isCMMatrixType());
-  const CMMatrixType *MT = CallTy->getAs<CMMatrixType>();
+  const CMMatrixType *MT = CallTy->castAs<CMMatrixType>();
   unsigned NCols = MT->getNumColumns();
   unsigned BlockWidthInBytes = NCols * RetTy->getScalarSizeInBits() / 8;
   SmallVector<llvm::Value *, 8> Args;
@@ -3711,7 +3711,7 @@ void CGCMRuntime::HandleBuiltin3dOperationImpl(CMCallInfo &CallInfo, CMBuiltinKi
   assert(VMT->isCMVectorMatrixType());
   unsigned SimdWidth;
   if (VMT->isCMMatrixType()) {
-    auto MT = VMT->getAs<CMMatrixType>();
+    auto MT = VMT->castAs<CMMatrixType>();
     SimdWidth = MT->getNumRows() * MT->getNumColumns();
   } else
     SimdWidth = VMT->getAs<CMVectorType>()->getNumElements();
@@ -3752,9 +3752,9 @@ void CGCMRuntime::HandleBuiltin3dOperationImpl(CMCallInfo &CallInfo, CMBuiltinKi
     QualType AT = CallInfo.CE->getArg(I)->getType();
     unsigned NumElements = 0;
     if (AT->isCMMatrixType())
-      NumElements = AT->getAs<CMMatrixType>()->getNumRows() * AT->getAs<CMMatrixType>()->getNumColumns();
+      NumElements = AT->castAs<CMMatrixType>()->getNumRows() * AT->castAs<CMMatrixType>()->getNumColumns();
     else if (AT->isCMVectorType())
-      NumElements = AT->getAs<CMVectorType>()->getNumElements();
+      NumElements = AT->castAs<CMVectorType>()->getNumElements();
     else
       CGF.CGM.Error(CallInfo.CE->getArg(I)->getExprLoc(), "must be a matrix or vector type");
     if (NumElements < SimdWidth)
@@ -3848,37 +3848,37 @@ typedef enum _CmAtomicOpType_ {
 unsigned getAtomicIntrinsicID(CmAtomicOpType Op) {
   switch (Op) {
   case ATOMIC_ADD:
-    return llvm::GenXIntrinsic::genx_dword_atomic_add;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_add;
   case ATOMIC_SUB:
-    return llvm::GenXIntrinsic::genx_dword_atomic_sub;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_sub;
   case ATOMIC_INC:
-    return llvm::GenXIntrinsic::genx_dword_atomic_inc;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_inc;
   case ATOMIC_DEC:
-    return llvm::GenXIntrinsic::genx_dword_atomic_dec;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_dec;
   case ATOMIC_MIN:
-    return llvm::GenXIntrinsic::genx_dword_atomic_min;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_min;
   case ATOMIC_MAX:
-    return llvm::GenXIntrinsic::genx_dword_atomic_max;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_max;
   case ATOMIC_XCHG:
-    return llvm::GenXIntrinsic::genx_dword_atomic_xchg;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_xchg;
   case ATOMIC_CMPXCHG:
-    return llvm::GenXIntrinsic::genx_dword_atomic_cmpxchg;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_cmpxchg;
   case ATOMIC_AND:
-    return llvm::GenXIntrinsic::genx_dword_atomic_and;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_and;
   case ATOMIC_OR:
-    return llvm::GenXIntrinsic::genx_dword_atomic_or;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_or;
   case ATOMIC_XOR:
-    return llvm::GenXIntrinsic::genx_dword_atomic_xor;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_xor;
   case ATOMIC_MINSINT:
-    return llvm::GenXIntrinsic::genx_dword_atomic_imin;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_imin;
   case ATOMIC_MAXSINT:
-    return llvm::GenXIntrinsic::genx_dword_atomic_imax;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_imax;
   case ATOMIC_FMAX:
-    return llvm::GenXIntrinsic::genx_dword_atomic_fmax;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_fmax;
   case ATOMIC_FMIN:
-    return llvm::GenXIntrinsic::genx_dword_atomic_fmin;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_fmin;
   case ATOMIC_FCMPWR:
-    return llvm::GenXIntrinsic::genx_dword_atomic_fcmpwr;
+    return llvm::GenXIntrinsic::genx_dword_atomic2_fcmpwr;
   }
 
   llvm_unreachable("invalid atomic operation");
@@ -3953,8 +3953,11 @@ llvm::Value *CGCMRuntime::HandleBuiltinWriteAtomicImpl(CMCallInfo &CallInfo,
   // Offset type (selectively mangled)
   if (ID != llvm::GenXIntrinsic::genx_dword_atomic_cmpxchg &&
       ID != llvm::GenXIntrinsic::genx_dword_atomic_inc &&
-      ID != llvm::GenXIntrinsic::genx_dword_atomic_dec)
-    Tys.push_back(CallInfo.CI->getArgOperand(2)->getType());
+      ID != llvm::GenXIntrinsic::genx_dword_atomic_dec &&
+      ID != llvm::GenXIntrinsic::genx_dword_atomic2_cmpxchg &&
+      ID != llvm::GenXIntrinsic::genx_dword_atomic2_inc &&
+      ID != llvm::GenXIntrinsic::genx_dword_atomic2_dec)
+     Tys.push_back(CallInfo.CI->getArgOperand(2)->getType());
 
   llvm::Function *GenxFn = getGenXIntrinsic(ID, Tys);
 
@@ -3983,16 +3986,18 @@ llvm::Value *CGCMRuntime::HandleBuiltinWriteAtomicImpl(CMCallInfo &CallInfo,
 
   // INC or DEC does not have any source.
   if (ID != llvm::GenXIntrinsic::genx_dword_atomic_inc &&
-      ID != llvm::GenXIntrinsic::genx_dword_atomic_dec)
+      ID != llvm::GenXIntrinsic::genx_dword_atomic_dec &&
+      ID != llvm::GenXIntrinsic::genx_dword_atomic2_inc &&
+      ID != llvm::GenXIntrinsic::genx_dword_atomic2_dec)
     Args.push_back(CI->getArgOperand(3));
 
   // cmpxchg or fcmpwr takes one extra source.
   if (ID == llvm::GenXIntrinsic::genx_dword_atomic_cmpxchg ||
-      ID == llvm::GenXIntrinsic::genx_dword_atomic_fcmpwr)
+      ID == llvm::GenXIntrinsic::genx_dword_atomic_fcmpwr ||
+      ID == llvm::GenXIntrinsic::genx_dword_atomic2_cmpxchg ||
+      ID == llvm::GenXIntrinsic::genx_dword_atomic2_fcmpwr)
+ 
     Args.push_back(CI->getArgOperand(4));
-
-  // The old value for the return value.
-  Args.push_back(CI->getArgOperand(5));
 
   // Call genx intrinsic.
   llvm::CallInst *NewCI = Builder.CreateCall(GenxFn, Args);
@@ -4080,8 +4085,11 @@ llvm::Value *CGCMRuntime::HandleBuiltinWriteAtomicTypedImpl(CMCallInfo &CallInfo
   return NewCI;
 }
 
-/// template <typename T, int N>
+/// template <int N>
 /// uint __cm_intrinsic_pack_mask(vector<ushort, N> src);
+///
+/// template <int N, int M>
+/// uint __cm_intrinsic_pack_mask(matrix<ushort, N, M> src);
 ///
 /// pack_mask (N) <dst> <src1>
 /// Translates pack_mask pseudo-op into a couple of GenX instructions.
@@ -4096,7 +4104,14 @@ llvm::Value *CGCMRuntime::HandleBuiltinPackMaskImpl(CMCallInfo &CallInfo) {
   llvm::CallInst *CI = CallInfo.CI;
   CGBuilderTy &Builder = CallInfo.CGF->Builder;
   llvm::LLVMContext &Context = CallInfo.CGF->getLLVMContext();
-  int N = getIntegralValue(CallInfo.CE->getDirectCallee(), 0);
+  auto *FD = CallInfo.CE->getDirectCallee();
+
+  int N = getIntegralValue(FD, 0);
+
+  // we may have 2 integer template arguments if operand is matrix
+  const TemplateArgumentList *TempArgs = FD->getTemplateSpecializationArgs();
+  if (TempArgs->size() == 2)
+    N *= getIntegralValue(FD, 1);
 
   llvm::Value *Trunc = Builder.CreateTrunc(
       CI->getArgOperand(0),
@@ -4591,8 +4606,7 @@ void CGCMRuntime::HandleBuiltinReadWriteUntypedImpl(CMCallInfo &CallInfo,
 
   // Check whether matrix height is no less than the number of colors enabled.
   QualType MT = CallInfo.CE->getArg(2)->getType();
-  assert(MT->isCMMatrixType());
-  unsigned N1 = MT->getAs<CMMatrixType>()->getNumRows();
+  unsigned N1 = MT->castAs<CMMatrixType>()->getNumRows();
 
   if (N1 < getNumberOfColors(static_cast<ChannelMaskType>(Mask))) {
     if (Kind == CMBK_read_untyped)
@@ -4671,12 +4685,12 @@ void CGCMRuntime::HandleBuiltinReadTypedImpl(CMCallInfo &CallInfo) {
   QualType MT = CallInfo.CE->getArg(2)->getType();
   unsigned N1=0, N2=0;
   if (MT->isCMMatrixType()) {
-    N1 = MT->getAs<CMMatrixType>()->getNumRows();
-    N2 = MT->getAs<CMMatrixType>()->getNumColumns();
+    N1 = MT->castAs<CMMatrixType>()->getNumRows();
+    N2 = MT->castAs<CMMatrixType>()->getNumColumns();
   }
   else if (MT->isCMVectorType()) {
     N1 = 1;
-    N2 = MT->getAs<CMVectorType>()->getNumElements();
+    N2 = MT->castAs<CMVectorType>()->getNumElements();
   }
 
   if (N1 < getNumberOfColors(static_cast<ChannelMaskType>(Mask)))
@@ -4738,9 +4752,8 @@ void CGCMRuntime::HandleBuiltinWriteTypedImpl(CMCallInfo &CallInfo) {
 
   // Check whether matrix height is no less than the number of colors enabled.
   QualType MT = CallInfo.CE->getArg(2)->getType();
-  assert(MT->isCMMatrixType());
-  unsigned N1 = MT->getAs<CMMatrixType>()->getNumRows();
-  unsigned N2 = MT->getAs<CMMatrixType>()->getNumColumns();
+  unsigned N1 = MT->castAs<CMMatrixType>()->getNumRows();
+  unsigned N2 = MT->castAs<CMMatrixType>()->getNumColumns();
 
   if (N1 < getNumberOfColors(static_cast<ChannelMaskType>(Mask)))
     return Error(CallInfo.CE->getArg(2)->getExprLoc(),
@@ -5164,6 +5177,7 @@ void CGCMRuntime::HandleBuiltinSLMAtomic(CMCallInfo &CallInfo) {
 
   // At this point, the atomic call is valid. We emit the atomic send message.
   unsigned ID = getAtomicIntrinsicID(OpKind);
+
   llvm::Value *Arg2 = CallInfo.CI->getArgOperand(2);
   unsigned N = Arg2->getType()->getVectorNumElements();
 
@@ -5174,7 +5188,10 @@ void CGCMRuntime::HandleBuiltinSLMAtomic(CMCallInfo &CallInfo) {
   // Return type
   if (ID == llvm::GenXIntrinsic::genx_dword_atomic_fmin ||
       ID == llvm::GenXIntrinsic::genx_dword_atomic_fmax ||
-      ID == llvm::GenXIntrinsic::genx_dword_atomic_fcmpwr)
+      ID == llvm::GenXIntrinsic::genx_dword_atomic2_fmin ||
+      ID == llvm::GenXIntrinsic::genx_dword_atomic2_fmax ||
+      ID == llvm::GenXIntrinsic::genx_dword_atomic_fcmpwr ||
+      ID == llvm::GenXIntrinsic::genx_dword_atomic2_fcmpwr)
     Tys.push_back(llvm::VectorType::get(CGF.FloatTy, N));
   else
     Tys.push_back(llvm::VectorType::get(CGF.Int32Ty, N));
@@ -5186,7 +5203,10 @@ void CGCMRuntime::HandleBuiltinSLMAtomic(CMCallInfo &CallInfo) {
   llvm::Type *OffsetTy = llvm::VectorType::get(CGF.Int32Ty, N);
   if (ID != llvm::GenXIntrinsic::genx_dword_atomic_cmpxchg &&
       ID != llvm::GenXIntrinsic::genx_dword_atomic_inc &&
-      ID != llvm::GenXIntrinsic::genx_dword_atomic_dec)
+      ID != llvm::GenXIntrinsic::genx_dword_atomic_dec &&
+      ID != llvm::GenXIntrinsic::genx_dword_atomic2_cmpxchg &&
+      ID != llvm::GenXIntrinsic::genx_dword_atomic2_inc &&
+      ID != llvm::GenXIntrinsic::genx_dword_atomic2_dec) 
     Tys.push_back(OffsetTy);
 
   // Collect arguments.
@@ -5220,19 +5240,17 @@ void CGCMRuntime::HandleBuiltinSLMAtomic(CMCallInfo &CallInfo) {
 
   // INC or DEC does not have any source.
   if (ID != llvm::GenXIntrinsic::genx_dword_atomic_inc &&
-      ID != llvm::GenXIntrinsic::genx_dword_atomic_dec)
-    Args.push_back(CallInfo.CI->getArgOperand(4));
+      ID != llvm::GenXIntrinsic::genx_dword_atomic_dec &&
+      ID != llvm::GenXIntrinsic::genx_dword_atomic2_inc &&
+      ID != llvm::GenXIntrinsic::genx_dword_atomic2_dec)
+     Args.push_back(CallInfo.CI->getArgOperand(4));
 
   // cmpxchg or fcmpwr takes one extra source.
   if (ID == llvm::GenXIntrinsic::genx_dword_atomic_cmpxchg ||
-      ID == llvm::GenXIntrinsic::genx_dword_atomic_fcmpwr)
-    Args.push_back(CallInfo.CI->getArgOperand(5));
-
-  // The old value for the return value.
-  if (NeedResult)
-    Args.push_back(CGF.Builder.CreateDefaultAlignedLoad(Dst));
-  else
-    Args.push_back(llvm::UndefValue::get(Tys[0]));
+      ID == llvm::GenXIntrinsic::genx_dword_atomic_fcmpwr ||
+      ID == llvm::GenXIntrinsic::genx_dword_atomic2_cmpxchg ||
+      ID == llvm::GenXIntrinsic::genx_dword_atomic2_fcmpwr)
+     Args.push_back(CallInfo.CI->getArgOperand(5));
 
   // Call genx intrinsic.
   llvm::CallInst *NewCI = Builder.CreateCall(Fn, Args);
@@ -5745,7 +5763,7 @@ void CGCMRuntime::HandleBuiltinSVMAtomicOpImpl(CMCallInfo &CallInfo) {
 
   uint32_t NumElems = 0;
   if (DstType->isCMMatrixType()) {
-    const CMMatrixType *DstMTType = DstType->getAs<CMMatrixType>();
+    const CMMatrixType *DstMTType = DstType->castAs<CMMatrixType>();
     NumElems = DstMTType->getNumColumns() * DstMTType->getNumRows();
   } else
     NumElems = DstType->getAs<CMVectorType>()->getNumElements();
@@ -5880,8 +5898,9 @@ void CGCMRuntime::HandleBuiltinAVSSampler(CMCallInfo &Info) {
       Info.CI->getArgOperand(10), FTy->getParamType(9));
 
   auto &TOpts = CGM.getTarget().getTargetOpts();
-  llvm::Value *IEFBypass = llvm::StringSwitch<llvm::Value *>(TOpts.CPU)
-       // IEFBypass is removed on TGLLP and should be always set to 0.
+  llvm::Value *IEFBypass =
+      llvm::StringSwitch<llvm::Value *>(TOpts.CPU)
+      // IEFBypass is removed on TGLLP and should be always set to 0.
       .Case("TGLLP", llvm::Constant::getNullValue(FTy->getParamType(13)))
       .Default(Info.CGF->Builder.CreateZExtOrBitCast(
               Info.CI->getArgOperand(14), FTy->getParamType(13)));
@@ -5946,9 +5965,9 @@ void CGCMRuntime::HandleBuiltinVA2dConvolve(CMCallInfo &Info, CMBuiltinKind Kind
     QualType DstType = DstEx->getType();
     assert(DstType->isCMMatrixType() && "destination argument must be a matrix");
 
-    assert(DstType->getAs<CMMatrixType>()->getNumColumns() == 16 && "destination matrix must have 16 columns");
+    assert(DstType->castAs<CMMatrixType>()->getNumColumns() == 16 && "destination matrix must have 16 columns");
 
-    uint32_t NumRows = DstType->getAs<CMMatrixType>()->getNumRows();
+    uint32_t NumRows = DstType->castAs<CMMatrixType>()->getNumRows();
     if (!((ExecMode == 0 && NumRows == 4) || (ExecMode == 2 && NumRows == 1))) {
       Error(DstEx->getExprLoc(), "number of rows in cm_va_2d_convolve() destination "
                                  "matrix does not match the execution mode");
@@ -6201,8 +6220,8 @@ void CGCMRuntime::HandleBuiltinVAMinMaxFilter(CMCallInfo &Info) {
     }
   }
 
-  uint32_t NumRows = DstType->getAs<CMMatrixType>()->getNumRows();
-  uint32_t NumCols = DstType->getAs<CMMatrixType>()->getNumColumns();
+  uint32_t NumRows = DstType->castAs<CMMatrixType>()->getNumRows();
+  uint32_t NumCols = DstType->castAs<CMMatrixType>()->getNumColumns();
 
   if (NumRows != NumRowsNeeded || NumCols != NumColsNeeded) {
     Error(DstEx->getExprLoc(), "destination matrix dimenions not compatible with return data format");
@@ -6306,8 +6325,8 @@ void CGCMRuntime::HandleBuiltinVACentroid(CMCallInfo &Info, CMBuiltinKind Kind) 
     return;
   }
 
-  if (DstType->getAs<CMMatrixType>()->getNumRows() != (Kind == CMBK_cm_va_centroid ? 4 : 2)
-      || DstType->getAs<CMMatrixType>()->getNumColumns() != 8) {
+  if (DstType->castAs<CMMatrixType>()->getNumRows() != (Kind == CMBK_cm_va_centroid ? 4 : 2)
+      || DstType->castAs<CMMatrixType>()->getNumColumns() != 8) {
     Error(DstEx->getExprLoc(), "incorrect destination matrix dimenions");
     return;
   }
@@ -6377,8 +6396,8 @@ void CGCMRuntime::HandleBuiltinVA1dConvolution(CMCallInfo &Info, CMBuiltinKind K
     // elements in the result is the same. So, just validate that the number
     // of overall elements matches what the execution mode is expecting.
 
-    uint32_t NumElements = DstType->getAs<CMMatrixType>()->getNumRows() *
-        DstType->getAs<CMMatrixType>()->getNumColumns();
+    uint32_t NumElements = DstType->castAs<CMMatrixType>()->getNumRows() *
+        DstType->castAs<CMMatrixType>()->getNumColumns();
     if (!((ExecMode == 0 && NumElements == 64)
           || (ExecMode == 2 && NumElements == 16))) {
       Error(DstEx->getExprLoc(), "cm_va_1d_convolution() destination "
@@ -6456,8 +6475,8 @@ void CGCMRuntime::HandleBuiltinVA1PixelConvolve(CMCallInfo &Info) {
   QualType DstType = DstEx->getType();
   assert(DstType->isCMMatrixType() && "destination argument must be a matrix");
 
-  uint32_t NumRows = DstType->getAs<CMMatrixType>()->getNumRows();
-  uint32_t NumCols = DstType->getAs<CMMatrixType>()->getNumColumns();
+  uint32_t NumRows = DstType->castAs<CMMatrixType>()->getNumRows();
+  uint32_t NumCols = DstType->castAs<CMMatrixType>()->getNumColumns();
 
   if (ExecMode == 3) {
     if (NumRows != 1 || NumCols != 1) {
@@ -6465,7 +6484,7 @@ void CGCMRuntime::HandleBuiltinVA1PixelConvolve(CMCallInfo &Info) {
       return;
     }
   } else {
-    if (DstType->getAs<CMMatrixType>()->getNumColumns() != 16) {
+    if (DstType->castAs<CMMatrixType>()->getNumColumns() != 16) {
       Error(DstEx->getExprLoc(), "destination matrix must have 16 columns");
       return;
     }
@@ -6483,8 +6502,8 @@ void CGCMRuntime::HandleBuiltinVA1PixelConvolve(CMCallInfo &Info) {
     QualType OffsType = OffsEx->getType();
     assert(OffsType->isCMMatrixType() && "offsets parameter must be a matrix");
 
-    uint32_t OffsNumRows = OffsType->getAs<CMMatrixType>()->getNumRows();
-    uint32_t OffsNumCols = OffsType->getAs<CMMatrixType>()->getNumColumns();
+    uint32_t OffsNumRows = OffsType->castAs<CMMatrixType>()->getNumRows();
+    uint32_t OffsNumCols = OffsType->castAs<CMMatrixType>()->getNumColumns();
 
     if (OffsNumRows * OffsNumCols != 32) {
       Error(OffsEx->getExprLoc(), "offsets matrix has incorrect dimensions");
@@ -6604,8 +6623,8 @@ void CGCMRuntime::HandleBuiltinVALbpCreation(CMCallInfo &Info, CMBuiltinKind Kin
     QualType DstType = DstEx->getType();
     assert(DstType->isCMMatrixType() && "destination argument must be a matrix");
 
-    if (DstType->getAs<CMMatrixType>()->getNumColumns() != 16
-        || DstType->getAs<CMMatrixType>()->getNumRows() != (ExecMode == 0 ? 8 : 4)) {
+    if (DstType->castAs<CMMatrixType>()->getNumColumns() != 16
+        || DstType->castAs<CMMatrixType>()->getNumRows() != (ExecMode == 0 ? 8 : 4)) {
       Error(DstEx->getExprLoc(), "destination matrix's dimensions are incorrect for the specified execution mode");
       return;
     }
@@ -6670,8 +6689,8 @@ void CGCMRuntime::HandleBuiltinVALbpCorrelation(CMCallInfo &Info, CMBuiltinKind 
     QualType DstType = DstEx->getType();
     assert(DstType->isCMMatrixType() && "destination argument must be a matrix");
 
-    if (DstType->getAs<CMMatrixType>()->getNumColumns() != 16
-        || DstType->getAs<CMMatrixType>()->getNumRows() != 4) {
+    if (DstType->castAs<CMMatrixType>()->getNumColumns() != 16
+        || DstType->castAs<CMMatrixType>()->getNumRows() != 4) {
       Error(DstEx->getExprLoc(), "destination matrix's dimensions are incorrect");
       return;
     }
@@ -6731,8 +6750,8 @@ void CGCMRuntime::HandleBuiltinVACorrelationSearch(CMCallInfo &Info) {
   // results isn't known until runtime, which means the precise shape of
   // return matrix cannot be validated. All that can be validated is that
   // that number of columns is a value that is valid according to the spec.
-  if (DstType->getAs<CMMatrixType>()->getNumColumns() != 16
-      && DstType->getAs<CMMatrixType>()->getNumColumns() != 8) {
+  if (DstType->castAs<CMMatrixType>()->getNumColumns() != 16
+      && DstType->castAs<CMMatrixType>()->getNumColumns() != 8) {
     Error(DstEx->getExprLoc(), "destination matrix must have either 8 or 16 columns");
     return;
   }

@@ -13,60 +13,72 @@
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Option/ArgList.h"
 
+#include <utility>
+
 using namespace clang::driver;
 using namespace clang::driver::tools;
 using namespace clang;
 using namespace llvm::opt;
 
-static const char *getCanonicalGenXTargetCPU(const std::string &CPU) {
-    // As side-effect of the way we accept the CM command line options for
-    // backwards compatiblity, the CPU string may be prefixed by '=' or ':'.
-    // If so, remove the prefix character.
-    size_t CPUNameStart = CPU.find_first_not_of("=:");
-    if (CPUNameStart == std::string::npos)
-        CPUNameStart = 0;
-    std::string CPUName = CPU.substr(CPUNameStart);
-    std::transform(CPUName.begin(), CPUName.end(), CPUName.begin(), ::toupper);
+static std::string getCanonicalGenXTargetCPU(const std::string &CPU,
+                                             const ArgList &Args) {
+  // As side-effect of the way we accept the CM command line options for
+  // backwards compatiblity, the CPU string may be prefixed by '=' or ':'.
+  // If so, remove the prefix character.
+  size_t CPUNameStart = CPU.find_first_not_of("=:");
+  if (CPUNameStart == std::string::npos)
+    CPUNameStart = 0;
+  std::string CPUName = CPU.substr(CPUNameStart);
+  std::transform(CPUName.begin(), CPUName.end(), CPUName.begin(), ::toupper);
 
-    // Ensure the CPU name is in canonical form
-    const char *CanonicalCPU = llvm::StringSwitch<const char *>(CPUName)
-        .Cases("GEN7_5", "HSW", "HSW")
-        .Cases("GEN8", "BDW", "BDW")
-        .Cases("GEN8LP", "GEN8_5", "CHV", "CHV")
-        .Cases("GEN9", "SKL", "SKL")
-        .Cases("GEN9LP", "BXT", "BXT")
-        .Cases("GEN9_5", "GEN9P5", "KBL", "KBL")
-        .Cases("GEN9_5LP", "GEN9P5LP", "GLK", "GLK")
-        .Cases("GEN11", "ICL", "ICL")
-        .Cases("GEN11LP", "ICLLP", "ICLLP")
-        .Cases("GEN12LP", "TGLLP", "TGLLP")
-        .Default("");
+  // Ensure the CPU name is in canonical form
+  const char *CanonicalCPU =
+      llvm::StringSwitch<const char *>(CPUName)
+          .Cases("GEN7_5", "HSW", "HSW")
+          .Cases("GEN8", "BDW", "BDW")
+          .Cases("GEN8LP", "GEN8_5", "CHV", "CHV")
+          .Cases("GEN9", "SKL", "SKL")
+          .Cases("GEN9LP", "BXT", "BXT")
+          .Cases("GEN9_5", "GEN9P5", "KBL", "KBL")
+          .Cases("GEN9_5LP", "GEN9P5LP", "GLK", "GLK")
+          .Cases("GEN11", "ICL", "ICL")
+          .Cases("GEN11LP", "ICLLP", "ICLLP")
+          .Cases("GEN12LP", "TGLLP", "TGLLP")
+          .Default("");
 
-    return CanonicalCPU;
+  return CanonicalCPU;
 }
 
+std::string GenX::getGenXTargetCPU(const ArgList &Args) {
+  // GenX target CPU may be specified using one of /Qxcm_jit_target=xxx,
+  // -mcpu=xxx, or -march=xxx.
+  if (const Arg *A = Args.getLastArg(options::OPT_Qxcm_jit_target)) {
+    auto Jit_CPU = getCanonicalGenXTargetCPU(A->getValue(), Args);
+    if (!Jit_CPU.empty())
+      return std::move(Jit_CPU);
+  }
+  if (const Arg *A = Args.getLastArg(options::OPT_mcpu_EQ)) {
+    auto Mcpu_CPU = getCanonicalGenXTargetCPU(A->getValue(), Args);
+    if (!Mcpu_CPU.empty())
+      return std::move(Mcpu_CPU);
+  }
+  if (const Arg *A = Args.getLastArg(options::OPT_march_EQ)) {
+    auto March_CPU = getCanonicalGenXTargetCPU(A->getValue(), Args);
+    if (!March_CPU.empty())
+      return std::move(March_CPU);
+  }
+  // no GenX target CPU specified
+  return "";
+}
 
-const char *GenX::getGenXTargetCPU(const ArgList &Args) {
-    // GenX target CPU may be specified using one of /Qxcm_jit_target=xxx,
-    // -mcpu=xxx, or -march=xxx.
-    if (const Arg *A = Args.getLastArg(options::OPT_Qxcm_jit_target)) {
-        const char *Jit_CPU = getCanonicalGenXTargetCPU(A->getValue());
-        if (strlen(Jit_CPU))
-            return Jit_CPU;
-    }
-    if (const Arg *A = Args.getLastArg(options::OPT_mcpu_EQ)) {
-        const char *Mcpu_CPU = getCanonicalGenXTargetCPU(A->getValue());
-        if (strlen(Mcpu_CPU))
-            return Mcpu_CPU;
-    }
-    if (const Arg *A = Args.getLastArg(options::OPT_march_EQ)) {
-        const char *March_CPU = getCanonicalGenXTargetCPU(A->getValue());
-        if (strlen(March_CPU))
-            return March_CPU;
-    }
-
-    // no GenX target CPU specified
-    return "";
+bool GenX::isCMBinaryFormat(const ArgList &Args) {
+  auto *Arg = Args.getLastArg(options::OPT_binary_format);
+  if (!Arg)
+    // CMRT binary is default
+    return true;
+  return llvm::StringSwitch<bool>(Arg->getValue())
+      .Case("cm", true)
+      .Default(false);
 }
 
 void GenX::getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,
@@ -85,7 +97,6 @@ void GenX::getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,
   if (Args.getLastArg(options::OPT_femulate_i64))
     Features.push_back("+emulate_i64");
 
-  if (Args.getLastArg(options::OPT_fcmocl))
+  if (!isCMBinaryFormat(Args))
     Features.push_back("+ocl_runtime");
-
 }
