@@ -3598,6 +3598,14 @@ void CodeGenFunction::EmitCallArg(CallArgList &args, const Expr *E,
 
   if (E->isGLValue()) {
     assert(E->getObjectKind() == OK_Ordinary);
+    // If argument is a result of single element select then emit GEP
+    // which points to vector element
+    if (const CMSelectExpr *SE = dyn_cast<CMSelectExpr>(E->IgnoreParens())) {
+      assert(SE->isElementSelect() && "Single element select expected");
+      auto *Address = CGM.getCMRuntime().EmitElementSelectAsPointer(*this, SE);
+      return args.add(RValue::get(Address), type);
+    }
+
     return args.add(EmitReferenceBindingToExpr(E), type);
   }
 

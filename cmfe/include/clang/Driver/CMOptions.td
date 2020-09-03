@@ -153,9 +153,16 @@ def mCM_enableiga : CMCompileFlag<"mCM_enableiga">;
 
 def mCM_no_input_reorder : CMCompileFlag<"mCM_no_input_reorder">, HelpText<"Stop the compiler from reordering kernel arguments">;
 
-def fcmocl : Flag<["-", "/"], "fcmocl">, Group<cm_Group>,
-  HelpText<"enable experimental feature to compile kernels to execute on top of OpenCL runtime">,
+def binary_format : Separate<["-"], "binary-format">, Group<cm_Group>,
+  HelpText<"Set in which format should be generated binary; values: 'cm', 'ocl' or 'ze'">,
   Flags<[CMOption, CC1Option]>;
+
+def binary_format_eq : Joined<["-"], "binary-format=">, Group<cm_Group>,
+  HelpText<"Alias for -binary-format <value>">, Alias<binary_format>, Flags<[CMOption, CC1Option]>;
+
+def fcmocl : Flag<["-", "/"], "fcmocl">, Group<cm_Group>,
+  HelpText<"Alias for -binary-format=ocl">,
+  Alias<binary_format>, AliasArgs<["ocl"]>, Flags<[CMOption, CC1Option]>;
 
 def mCM_no_vector_decomposition : CMCompileFlag<"mCM_no_vector_decomposition">, HelpText<"Disable vector decomposition optimization">;
 

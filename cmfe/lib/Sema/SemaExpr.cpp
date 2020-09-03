@@ -675,6 +675,19 @@ ExprResult Sema::CallExprUnaryConversions(Expr *E) {
   return Res.get();
 }
 
+ExprResult Sema::CheckUnaryOperand(Expr* E) {
+  if (!E)
+    return ExprError();
+  if (E->getType()->isCMVectorMatrixType()) {
+    ExprResult Res = DefaultFunctionArrayLvalueConversion(E);
+    if (Res.isInvalid())
+      return ExprError();
+    E = Res.get();
+    return DefaultCMUnaryConversion(E);
+  }
+  return UsualUnaryConversions(E);
+}
+
 /// UsualUnaryConversions - Performs various conversions that are common to most
 /// operators (C99 6.3). The conversions of array and function types are
 /// sometimes suppressed. For example, the array->pointer conversion doesn't
@@ -1780,7 +1793,7 @@ Sema::DecomposeUnqualifiedId(const UnqualifiedId &Id,
 }
 
 // check for cmtl:: function names that are used without the namespace
-static bool is_cmtl_func_name(std::string s) { 
+static bool is_cmtl_func_name(std::string s) {
   bool is_cmtl_func = llvm::StringSwitch<bool>(s)
    .Cases("_Read4Borders", "ReadBlock", true)
    .Case("WriteBlock", true)
@@ -1805,7 +1818,7 @@ static bool is_cmtl_func_name(std::string s) {
 }
 
 // check for cmtl macro names that are used without cmtl.h included
-static bool is_cmtl_macro_name(std::string s) { 
+static bool is_cmtl_macro_name(std::string s) {
   bool is_cmtl_macro = llvm::StringSwitch<bool>(s)
    .Case("cm_vector", true)
    .Case("cm_matrix", true)
@@ -13058,7 +13071,7 @@ ExprResult Sema::CreateBuiltinUnaryOp(SourceLocation OpLoc,
   case UO_Minus:
     CanOverflow = Opc == UO_Minus &&
                   isOverflowingIntegerType(Context, Input.get()->getType());
-    Input = UsualUnaryConversions(Input.get());
+    Input = CheckUnaryOperand(Input.get());
     if (Input.isInvalid()) return ExprError();
     // Unary plus and minus require promoting an operand of half vector to a
     // float vector and truncating the result back to a half vector. For now, we
@@ -13097,7 +13110,7 @@ ExprResult Sema::CreateBuiltinUnaryOp(SourceLocation OpLoc,
       << resultType << Input.get()->getSourceRange());
 
   case UO_Not: // bitwise complement
-    Input = UsualUnaryConversions(Input.get());
+    Input = CheckUnaryOperand(Input.get());
     if (Input.isInvalid())
       return ExprError();
     resultType = Input.get()->getType();
