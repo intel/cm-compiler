@@ -1057,7 +1057,9 @@ void CodeGenAction::ExecuteAction() {
     llvm::Module *M;
     std::string Err;
 
-    if (!readSpirv(*VMContext, IFS, M, Err)) {
+    SPIRV::TranslatorOpts Opts;
+    Opts.setDesiredBIsRepresentation(SPIRV::BIsRepresentation::SPIRVFriendlyIR);
+    if (!readSpirv(*VMContext, Opts, IFS, M, Err)) {
       return;
     }
 
