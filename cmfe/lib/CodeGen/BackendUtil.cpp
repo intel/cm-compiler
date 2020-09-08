@@ -888,10 +888,11 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
 
   case Backend_EmitSPIRV: {
     // GENX BEGIN
-    StringRef TargetTriple(TheModule->getTargetTriple());
     PerModulePasses.add(createGenXSPIRVWriterAdaptorPass());
     // GENX END
-    PerModulePasses.add(createSPIRVWriterPass(OStr));
+    SPIRV::TranslatorOpts Opts;
+    Opts.setSPIRVAllowUnknownIntrinsicsEnabled(true);
+    PerModulePasses.add(createSPIRVWriterPass(OStr, Opts));
 
     break;
   }
