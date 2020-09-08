@@ -178,6 +178,14 @@ install(
   PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
   DESTINATION lib${LLVM_LIBDIR_SUFFIX}/clang/${CLANG_VERSION}/include/cuda_wrappers)
 
+install(
+  DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cm/include/
+  DESTINATION include
+  COMPONENT clangFEWrapper
+  FILES_MATCHING PATTERN *.h
+  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+)
+
 if (NOT CMAKE_CONFIGURATION_TYPES) # don't add this for IDE's.
   add_llvm_install_targets(install-clang-headers
                            DEPENDS clang-headers
