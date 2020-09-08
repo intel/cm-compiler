@@ -19,3 +19,7 @@ add_clang_library(clangFEWrapper
 
 set_target_properties(clangFEWrapper PROPERTIES LINK_DEPENDS "${VERSION_SCRIPT}")
 target_compile_definitions(clangFEWrapper PUBLIC INTEL_CM_CLANGFE_LIB)
+
+if(LLVM_ON_UNIX)
+  include("package.cmake")
+endif()
