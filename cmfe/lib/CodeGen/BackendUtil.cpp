@@ -893,6 +893,7 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
     // GENX END
     SPIRV::TranslatorOpts Opts;
     Opts.setSPIRVAllowUnknownIntrinsicsEnabled(true);
+    Opts.setDebugInfoEIS(SPIRV::DebugInfoEIS::OpenCL_DebugInfo_100);
     PerModulePasses.add(createSPIRVWriterPass(OStr, Opts));
 
     break;
