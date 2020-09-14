@@ -4570,7 +4570,7 @@ static void handleCMOpenCLTypeAttr(Sema &S, Decl *D,
       if (!desc0.equals("buffer_t") && !desc0.equals("image2d_t"))
         S.Diag(D->getLocation(), diag::warn_attribute_wrong_annoation)
             << PVD->getNameAsString() << desc0 << "buffer_t or image2d_t";
-    } else if (T->isCMVectorType()) {
+    } else if (T->isPointerType()) {
       if (!desc0.equals("svmptr_t"))
         S.Diag(D->getLocation(), diag::warn_attribute_wrong_annoation)
             << PVD->getNameAsString() << desc0 << "svmptr_t";
