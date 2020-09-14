@@ -362,6 +362,21 @@ struct is_half_type
                             std::is_same<half,
                                 typename std::remove_const<T>::type>::value> {
 };
+template <typename T>
+struct is_char_type
+    : std::integral_constant<
+          bool,
+          std::is_same<char, typename std::remove_const<T>::type>::value> {};
+template <typename T>
+struct is_float_type
+    : std::integral_constant<
+          bool,
+          std::is_same<float, typename std::remove_const<T>::type>::value> {};
+template <typename T>
+struct is_short_type
+    : std::integral_constant<
+          bool,
+          std::is_same<short, typename std::remove_const<T>::type>::value> {};
 
 template <typename T>
 struct is_float_or_half
