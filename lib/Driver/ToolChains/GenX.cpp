@@ -78,7 +78,6 @@ ArgStringList constructCompatibilityFinalizerOptions(const ArgList &Args,
   if (Args.hasArg(options::OPT_Qxcm_print_asm_count))
     CompatibilityArgs.push_back("-printasmcount");
   if (Args.hasArg(options::OPT_mCM_printregusage)) {
-    CompatibilityArgs.push_back("-noroundrobin");
     CompatibilityArgs.push_back("-printregusage");
   }
   if (Args.hasArg(options::OPT_Qxcm_opt_report))
