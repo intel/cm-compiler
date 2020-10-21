@@ -16,9 +16,6 @@ set( LLVM_LINK_COMPONENTS
   Support
   TransformUtils
   Vectorize
-  GenXCodeGen
-  GenXInfo
-  GenXOpts
   )
 
 option(CLANG_PLUGIN_SUPPORT "Build clang with plugin support" ON)
