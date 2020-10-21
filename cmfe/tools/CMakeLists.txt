@@ -2,18 +2,14 @@ create_subdirectory_options(CLANG TOOL)
 
 add_clang_subdirectory(diagtool)
 
-if(NOT PARTIAL_CLANG)
-  add_clang_subdirectory(driver)
-endif()
+add_clang_subdirectory(driver)
 
 add_clang_subdirectory(clang-diff)
 add_clang_subdirectory(clang-format)
 add_clang_subdirectory(clang-format-vs)
 add_clang_subdirectory(clang-fuzzer)
 add_clang_subdirectory(clang-import-test)
-if(NOT PARTIAL_CLANG)
-  add_clang_subdirectory(clang-offload-bundler)
-endif()
+add_clang_subdirectory(clang-offload-bundler)
 
 add_clang_subdirectory(c-index-test)
 
