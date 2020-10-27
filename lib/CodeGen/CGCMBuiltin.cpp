@@ -605,7 +605,7 @@ static llvm::Value *EmitCMPrintf(CodeGenFunction &CGF,
 
         case BuiltinType::Char_S:
         case BuiltinType::SChar:
-          IsSigned = true;
+          IsSigned = true; /* FALLTHRU */
         case BuiltinType::Char_U:
         case BuiltinType::UChar:
           HeaderVec = setHeaderDataType(CGF, HeaderVec,
@@ -616,7 +616,7 @@ static llvm::Value *EmitCMPrintf(CodeGenFunction &CGF,
           break;
 
         case BuiltinType::Short:
-          IsSigned = true;
+          IsSigned = true; /* FALLTHRU */
         case BuiltinType::UShort:
           HeaderVec = setHeaderDataType(
               CGF, HeaderVec, (IsSigned ? CMPDT_Short : CMPDT_Ushort));
@@ -627,7 +627,7 @@ static llvm::Value *EmitCMPrintf(CodeGenFunction &CGF,
 
         case BuiltinType::Int:
         case BuiltinType::Long:
-          IsSigned = true;
+          IsSigned = true; /* FALLTHRU */
         case BuiltinType::UInt:
         case BuiltinType::ULong:
           HeaderVec = setHeaderDataType(CGF, HeaderVec,
@@ -638,7 +638,7 @@ static llvm::Value *EmitCMPrintf(CodeGenFunction &CGF,
           break;
 
         case BuiltinType::LongLong:
-          IsSigned = true;
+          IsSigned = true; /* FALLTHRU */
         case BuiltinType::ULongLong: {
           HeaderVec = setHeaderDataType(
               CGF, HeaderVec, (IsSigned ? CMPDT_Qword : CMPDT_Uqword));
@@ -947,7 +947,7 @@ static void checkSLMSize(CGCMRuntime &CMRT, SourceLocation Loc,
   }
   // The maximal size is 64KB.
   auto &TOpts = CMRT.CGM.getTarget().getTargetOpts();
-  const int MAX_SLM_SIZE_IN_BYTES = llvm::StringSwitch<unsigned>(TOpts.CPU)
+  auto MAX_SLM_SIZE_IN_BYTES = llvm::StringSwitch<unsigned>(TOpts.CPU)
       .Default(64 << 10);
 
   if (SLMSize == 0)
@@ -2514,6 +2514,7 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
     break;
   case CMBK_cm_line_impl:
     ID = llvm::GenXIntrinsic::genx_line;
+    break;
   case CMBK_cm_max_impl:
   case CMBK_cm_reduced_max_impl:
     if (T0->isFloatingType())
