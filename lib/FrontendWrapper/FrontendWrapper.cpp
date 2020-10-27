@@ -1,3 +1,8 @@
+#include "clang/FrontendWrapper/Interface.h"
+
+#include "ArgsManagement.h"
+#include "Utils.h"
+
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/DiagnosticOptions.h"
@@ -10,9 +15,6 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "clang/FrontendTool/Utils.h"
-#include "clang/FrontendWrapper/ArgsManagement.h"
-#include "clang/FrontendWrapper/Interface.h"
-#include "clang/FrontendWrapper/Utils.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/SmallString.h"
