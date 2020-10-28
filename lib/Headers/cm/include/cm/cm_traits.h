@@ -386,6 +386,35 @@ struct is_float_or_half
               std::is_same<float, typename std::remove_const<T>::type>::value> {
 };
 
+// compile-time checks if first template parameter is equal for any other
+template <typename...> struct is_one_of {
+  static constexpr bool value = false;
+};
+
+template <typename Checked, typename First, typename... Other>
+struct is_one_of<Checked, First, Other...> {
+  static constexpr bool value =
+      std::is_same<typename std::remove_const<Checked>::type,
+                   typename std::remove_const<First>::type>::value ||
+      is_one_of<Checked, Other...>::value;
+};
+template <typename Checked, typename... T>
+inline constexpr bool is_one_of_v = is_one_of<Checked, T...>::value;
+
+// compile-time checks if compile-time known  element of enum class is equal for
+// any other compile-time known elements of enum
+template <typename enumClass, enumClass... E> struct is_one_of_enum {
+  static constexpr bool value = false;
+};
+
+template <typename enumClass, enumClass Checked, enumClass First,
+          enumClass... Else>
+struct is_one_of_enum<enumClass, Checked, First, Else...> {
+  static constexpr bool value =
+      (Checked == First) || is_one_of_enum<enumClass, Checked, Else...>::value;
+};
+template <typename enumClass, enumClass... T>
+inline constexpr bool is_one_of_enum_v = is_one_of_enum<enumClass, T...>::value;
 
 // Extends to cm vector/matrix types.
 template <typename T, int N> struct is_float_or_half<vector<T, N> > {
