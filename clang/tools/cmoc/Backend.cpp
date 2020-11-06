@@ -31,6 +31,7 @@
 
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/DynamicLibrary.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -58,9 +59,10 @@ struct LibOclocWrapper {
   freeOutputPtr freeOutput;
 
   LibOclocWrapper() {
+    const std::string LibPath = getLibOclocName();
     std::string Err;
     auto Lib =
-        llvm::sys::DynamicLibrary::getPermanentLibrary(LIBOCLOC_NAME, &Err);
+        llvm::sys::DynamicLibrary::getPermanentLibrary(LibPath.c_str(), &Err);
     if (!Lib.isValid())
       FatalError(Err);
 
@@ -71,6 +73,16 @@ struct LibOclocWrapper {
         Lib.getAddressOfSymbol("oclocFreeOutput"));
     if (!freeOutput)
       FatalError("oclocFreeOutput symbol is missing");
+  }
+
+private:
+  static std::string getLibOclocName() {
+    std::string Dir;
+    if (auto EnvDir = llvm::sys::Process::GetEnv("CMOC_OCLOC_DIR"))
+      Dir = EnvDir.getValue();
+    llvm::SmallString<32> Path;
+    llvm::sys::path::append(Path, Dir, LIBOCLOC_NAME);
+    return Path.str().str();
   }
 };
 } // namespace
@@ -152,7 +164,7 @@ static void invokeBE(const std::vector<char> &SPIRV, const std::string &NeoCPU,
                      const std::string &RevId, const std::string &Options,
                      const std::string &InternalOptions,
                      ILTranslationResult &Result) {
-  LibOclocWrapper LibOcloc;
+  const LibOclocWrapper LibOcloc;
 
   const char *SpvFileName = "cmoc_spirv";
 
