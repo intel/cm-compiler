@@ -23,8 +23,11 @@ namespace driver {
 namespace tools {
 namespace GenX {
 
+// get CPU from args
 std::string getGenXTargetCPU(const llvm::opt::ArgList &Args);
 
+
+// get features from args and triple
 void getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,
                            const llvm::opt::ArgList &Args,
                            std::vector<llvm::StringRef> &Features);
