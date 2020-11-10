@@ -110,6 +110,7 @@ ArgStringList constructCompatibilityFinalizerOptions(const ArgList &Args,
   CompatibilityArgs.push_back("-platform");
   CompatibilityArgs.push_back(Args.MakeArgString(Platform));
 
+
   // For GenX variants below Gen11 we disable IGA by default, by passing the
   // -disableIGASyntax option to the finalizer.
   // IGA syntax may be enabled (or more accurately not disabled) either by
