@@ -2531,16 +2531,27 @@ llvm::DIType *CGDebugInfo::CreateType(const CMVectorType *Ty,
 
 llvm::DIType *CGDebugInfo::CreateType(const CMMatrixType *Ty,
                                       llvm::DIFile *Unit) {
-  llvm::DIType *ElementTy = getOrCreateType(Ty->getElementType(), Unit);
-  int64_t Count = Ty->getNumElements();
 
-  llvm::Metadata *Subscript = DBuilder.getOrCreateSubrange(0, Count);
+  llvm::Metadata *Subscript =
+      DBuilder.getOrCreateSubrange(0, Ty->getNumColumns());
   llvm::DINodeArray SubscriptArray = DBuilder.getOrCreateArray(Subscript);
 
   uint64_t Size = CGM.getContext().getTypeSize(Ty);
   auto Align = getTypeAlignIfRequired(Ty, CGM.getContext());
 
-  return DBuilder.createVectorType(Size, Align, ElementTy, SubscriptArray);
+  llvm::DIType *ElementTy = getOrCreateType(Ty->getElementType(), Unit);
+  llvm::DIType *InnerVectorTy =
+      DBuilder.createVectorType(Size, Align, ElementTy, SubscriptArray);
+
+  Subscript = DBuilder.getOrCreateSubrange(0, Ty->getNumRows());
+  SubscriptArray = DBuilder.getOrCreateArray(Subscript);
+  llvm::DIType *MatrixTy =
+      DBuilder.createVectorType(Size, Align, InnerVectorTy, SubscriptArray);
+
+  llvm::NamedMDNode *MatrixEnum =
+      CGM.getModule().getOrInsertNamedMetadata("DICMMatrixTypesEnum");
+  MatrixEnum->addOperand(MatrixTy);
+  return MatrixTy;
 }
 
 llvm::DIType *CGDebugInfo::CreateType(const ArrayType *Ty, llvm::DIFile *Unit) {
