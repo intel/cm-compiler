@@ -18,8 +18,9 @@ namespace driver {
 
 namespace tools {
 namespace GenX {
-// For GenX, we do not need to instantiate tools for PreProcess, PreCompile and
-// Compile. We simply use "clang -cc1" for those actions.
+// Stub for assembler. Does not produce any jobs.
+// Currently used to trick driver and generate only compilation
+// job that produces IR even when binary requested.
 class LLVM_LIBRARY_VISIBILITY Assemble : public Tool {
 public:
   Assemble(const ToolChain &TC) : Tool("GenX::Assemble", "Gen Finalizer", TC) {}
@@ -28,8 +29,7 @@ public:
   void ConstructJob(Compilation &C, const JobAction &JA,
                     const InputInfo &Output, const InputInfoList &Inputs,
                     const llvm::opt::ArgList &TCArgs,
-                    const char *LinkingOutput) const override;
-  mutable std::string FinalizerExecutable;
+                    const char *LinkingOutput) const override {}
 };
 
 } // end namespace GenX
