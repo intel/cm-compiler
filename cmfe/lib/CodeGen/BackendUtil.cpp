@@ -740,9 +740,6 @@ static void setCommandLineOpts(BackendAction Action,
     BackendArgs.push_back("-pragma-unroll-threshold=0xffffffff");
     BackendArgs.push_back("-enable-pre=false");
     BackendArgs.push_back("-instcombine-code-sinking=false");
-
-    if (!CodeGenOpts.EmitVLoadStore)
-      BackendArgs.push_back("-genx-emit-vldst=false");
   }
 
   BackendArgs.push_back(nullptr);

@@ -28,8 +28,6 @@ CODEGENOPT(Name, Bits, Default)
 CODEGENOPT(Name, Bits, Default)
 #endif
 
-CODEGENOPT(EmitVLoadStore, 1, 0) ///< MDF-CM: Emit load/store intrinsic calls
-                                 ///< for pass-by-ref arguments
 CODEGENOPT(InitializeCMGlobals, 1, 0)    ///< MDF-CM: Initialize CM global variables.
 CODEGENOPT(EmitCMGlobalsAsVolatile, 1, 0)    ///< MDF-CM: Make CM global variables volatile.
 CODEGENOPT(ReverseCMKernelList, 1, 0)    ///< MDF-CM: Emit kernels asm name in reversed order.

@@ -200,13 +200,8 @@ def fcm_pointer : Flag<["-", "/"], "fcm-pointer">, Group<cm_Group>,
   HelpText<"enable experimental pointer support in CM">,
   Flags<[CMOption, CC1Option]>;
 
-def fvldst : Flag<["-", "/"], "fvldst">, Group<cm_Group>,
-  HelpText<"enable experimental pass by reference codegen and optimization">,
-  Flags<[CMOption, CC1Option, CC1AsOption]>;
-
-def fno_vldst : Flag<["-", "/"], "fno-vldst">, Group<cm_Group>,
-  HelpText<"disable experimental pass by reference codegen and optimization">,
-  Flags<[CMOption, CC1Option, CC1AsOption]>;
+def fvldst : CMIgnoredFlag<"fvldst">;
+def fno_vldst : CMIgnoredFlag<"fno-vldst">;
 
 // Options passed to GenX backend.
 def mdump_regalloc : CMFlag<"mdump_regalloc">,
