@@ -1942,13 +1942,7 @@ void Clang::AddWebAssemblyTargetArgs(const ArgList &Args,
 }
 
 void Clang::AddGenXTargetArgs(const ArgList &Args,
-                              ArgStringList &CmdArgs) const {
-  if (Args.hasArg(options::OPT_mCM_no_input_reorder) ||
-      !GenX::isCMBinaryFormat(Args)) {
-    CmdArgs.push_back("-mllvm");
-    CmdArgs.push_back("-enable-kernel-arg-reordering=false");
-  }
-}
+                              ArgStringList &CmdArgs) const {}
 
 void Clang::DumpCompilationDatabase(Compilation &C, StringRef Filename,
                                     StringRef Target, const InputInfo &Output,
@@ -4104,8 +4098,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-Wshadow");
     CmdArgs.push_back("-Wuninitialized");
     CmdArgs.push_back("-fdeclspec");
-    if (Args.hasFlag(options::OPT_fvldst, options::OPT_fno_vldst, true))
-      CmdArgs.push_back("-fvldst");
     if (Arg *A = Args.getLastArg(options::OPT_mCM_import_bif)) {
       const char *BiFName = A->getValue();
       if ((BiFName[0] == '=') || (BiFName[0] == ':'))

@@ -1530,7 +1530,7 @@ static bool isScalar(llvm::Value *Addr) {
 
 llvm::Value *CGCMRuntime::EmitCMRefLoad(CodeGenFunction &CGF, llvm::Value *Addr) {
 
-  if (!CGF.CGM.getCodeGenOpts().EmitVLoadStore || isScalar(Addr))
+  if (isScalar(Addr))
     return CGF.Builder.CreateDefaultAlignedLoad(Addr);
 
   unsigned ID = llvm::GenXIntrinsic::genx_vload;
@@ -1544,7 +1544,7 @@ llvm::Value *CGCMRuntime::EmitCMRefLoad(CodeGenFunction &CGF, llvm::Value *Addr)
 void CGCMRuntime::EmitCMRefStore(CodeGenFunction &CGF, llvm::Value *Val,
                                  llvm::Value *Addr) {
 
-  if (!CGF.CGM.getCodeGenOpts().EmitVLoadStore || isScalar(Addr)) {
+  if (isScalar(Addr)) {
     CGF.Builder.CreateDefaultAlignedStore(Val, Addr);
     return;
   }
