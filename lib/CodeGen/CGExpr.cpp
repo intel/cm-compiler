@@ -1664,8 +1664,7 @@ llvm::Value *CodeGenFunction::EmitLoadOfScalar(Address Addr, bool Volatile,
   }
 
   // Load of arguments are through vector load intrinsic calls.
-  if (CGM.getCodeGenOpts().EmitVLoadStore &&
-      isa<llvm::Argument>(Addr.getPointer()))
+  if (isa<llvm::Argument>(Addr.getPointer()))
     return CGCMRuntime::EmitCMRefLoad(*this, Addr.getPointer());
 
   llvm::LoadInst *Load = Builder.CreateLoad(Addr, Volatile);
@@ -1750,8 +1749,7 @@ void CodeGenFunction::EmitStoreOfScalar(llvm::Value *Value, Address Addr,
   }
 
   // Store of arguments are through vector store intrinsic calls.
-  if (CGM.getCodeGenOpts().EmitVLoadStore &&
-      isa<llvm::Argument>(Addr.getPointer())) {
+  if (isa<llvm::Argument>(Addr.getPointer())) {
     CGCMRuntime::EmitCMRefStore(*this, Value, Addr.getPointer());
     return;
   }
