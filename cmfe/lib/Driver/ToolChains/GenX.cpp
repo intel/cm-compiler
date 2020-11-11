@@ -237,26 +237,6 @@ bool GenX::isPICDefault() const { return false; }
 
 bool GenX::isPIEDefault() const { return false; }
 
-void GenX::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
-                                     ArgStringList &CC1Args) const {
-  if (DriverArgs.hasArg(options::OPT_nostdinc))
-    return;
-
-  // For MDF CM compilations we only want the CM include files in the include
-  // search path.
-  SmallString<128> CmIncludeDir(getDriver().InstalledDir);
-  llvm::sys::path::append(CmIncludeDir, "../include_llvm");
-  addSystemInclude(DriverArgs, CC1Args, CmIncludeDir.str());
-
-  SmallString<128> CmIncludeDir2(getDriver().InstalledDir);
-  llvm::sys::path::append(CmIncludeDir2, "../include");
-  addSystemInclude(DriverArgs, CC1Args, CmIncludeDir2.str());
-
-  SmallString<128> CmIncludeDir3(getDriver().InstalledDir);
-  llvm::sys::path::append(CmIncludeDir3, "include");
-  addSystemInclude(DriverArgs, CC1Args, CmIncludeDir3.str());
-}
-
 void GenX::addClangTargetOptions(const llvm::opt::ArgList &  DriverArgs,
                                  llvm::opt::ArgStringList &  CC1Args,
                                  Action::OffloadKind DeviceOffloadKind) const {
