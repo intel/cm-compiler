@@ -791,8 +791,6 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   }
   // For CM only, set as noinline for functions without inline attribute.
   Opts.ForceNoInline = !Args.hasArg(OPT_fno_force_noinline);
-  // Emit vload/vstore intrinsic calls for pass-by-ref arguments.
-  Opts.EmitVLoadStore = Args.hasArg(OPT_fvldst);
   if (Args.hasArg(OPT_mCM_import_bif))
     Opts.GenXBiFName = Args.getLastArgValue(OPT_mCM_import_bif);
   // By default, CM global variables are not default initialized, this option
