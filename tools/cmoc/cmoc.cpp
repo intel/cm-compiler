@@ -79,6 +79,26 @@ using BinaryData = std::vector<char>;
 using IDriverInvocation = IGC::AdaptorCM::Frontend::IDriverInvocation;
 using IDriverInvocationPtr = IGC::AdaptorCM::Frontend::IDriverInvocationPtr;
 
+std::string FindCmHeaders(const char *argv0) {
+  auto ExecPath =
+      llvm::sys::fs::getMainExecutable(argv0, (void *)&FindCmHeaders);
+  auto ExecRoot = llvm::sys::path::parent_path(ExecPath);
+#if defined(__linux__)
+  auto IncRoot = llvm::sys::path::parent_path(ExecRoot);
+#else
+  auto IncRoot = ExecRoot;
+#endif
+  llvm::SmallVector<char, 1024> PathData(IncRoot.begin(), IncRoot.end());
+  llvm::sys::path::append(PathData, "include", "cm", "cm.h");
+  llvm::StringRef CMHeaderPath(PathData.begin(), PathData.size());
+  if (llvm::sys::fs::exists(CMHeaderPath)) {
+    return llvm::sys::path::parent_path(
+               llvm::sys::path::parent_path(CMHeaderPath))
+        .str();
+  }
+  return {};
+}
+
 class CmocContext {
   using InputArgs = IGC::AdaptorCM::Frontend::InputArgs;
   using FEWrapper =
@@ -134,16 +154,29 @@ public:
 CmocContext::CmocContext(int argc, const char **argv)
     : FE{IGC::AdaptorCM::Frontend::makeFEWrapper(FatalError).getValue()} {
 
-  auto SupportDirOpt = llvm::sys::Process::GetEnv("CM_INCLUDE_DIR");
-  if (!SupportDirOpt) {
-    SupportDirOpt = llvm::sys::Process::GetEnv("CMOC_SUPPORT_DIR");
+  auto IncludeDirOpt = llvm::sys::Process::GetEnv("CM_INCLUDE_DIR");
+  if (!IncludeDirOpt)
+    IncludeDirOpt = llvm::sys::Process::GetEnv("CMOC_SUPPORT_DIR");
+
+  llvm::StringRef CmIncludesDir;
+  if (IncludeDirOpt) {
+    CmIncludesDir = getStableCStr(IncludeDirOpt.getValue(), StableStrings);
+
+    if (DebugEnabled)
+      llvm::errs() << "CM includes path is taken from environment variable\n";
+
+  } else {
+    auto IncludePath = FindCmHeaders(argv[0]);
+    CmIncludesDir = getStableCStr(IncludePath, StableStrings);
+
+    if (DebugEnabled && !CmIncludesDir.empty())
+      llvm::errs() << "CM includes path is auto-detected\n";
   }
 
-  if (SupportDirOpt) {
-    llvm::StringRef SupportDir = getStableCStr(SupportDirOpt.getValue(),
-                                               StableStrings);
+  if (!CmIncludesDir.empty()) {
+
     OriginalArgs.push_back("-isystem");
-    OriginalArgs.push_back(SupportDir.str());
+    OriginalArgs.push_back(CmIncludesDir.str());
 
     if (DebugEnabled) {
       llvm::errs() << "original arguments we adjusted to include support " <<
