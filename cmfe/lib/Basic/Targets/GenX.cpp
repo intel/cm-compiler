@@ -55,5 +55,8 @@ bool GenXTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
   OCLRuntime = std::any_of(
       Features.begin(), Features.end(),
       [](const std::string &Feature) { return Feature == "+ocl_runtime"; });
+  I64Emulation = std::any_of(
+      Features.begin(), Features.end(),
+      [](const std::string &Feature) { return Feature == "+emulate_i64"; });
   return true;
 }

@@ -33,6 +33,7 @@ class LLVM_LIBRARY_VISIBILITY GenXTargetInfo : public TargetInfo {
   static const Builtin::Info BuiltinInfo[];
   std::string CPU;
   bool OCLRuntime = false;
+  bool I64Emulation = false;
 
 public:
   GenXTargetInfo(const llvm::Triple &Triple, unsigned PointerWidth);
@@ -95,7 +96,7 @@ public:
       .Case("longlong", (CPU != "ICLLP") && (CPU != "TGLLP"))
       .Case("double", (CPU != "ICLLP") && (CPU != "TGLLP"))
       .Default(true);
-    return has;
+    return has || I64Emulation;
   }
 
   virtual const char *getClobbers() const { return ""; }
