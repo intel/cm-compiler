@@ -1354,15 +1354,6 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
       case DeclSpec::TSW_longlong:
         Result = Context.LongLongTy;
 
-        // The 'long long' type is not supported by all Gen targets.
-        if (!S.Context.getTargetInfo().hasFeature("longlong")) {
-          const SourceManager &SM = S.getSourceManager();
-          if (!SM.isInSystemHeader(DeclLoc))
-            S.Diag(DS.getTypeSpecWidthLoc(),
-                   diag::warn_cm_target_doesnt_support_type)
-                << "long long" << S.Context.getTargetInfo().getCPU();
-        }
-
         // 'long long' is a C99 or C++11 feature.
         if (!S.getLangOpts().C99) {
           if (S.getLangOpts().CPlusPlus)
@@ -1381,15 +1372,6 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
       case DeclSpec::TSW_long:        Result = Context.UnsignedLongTy; break;
       case DeclSpec::TSW_longlong:
         Result = Context.UnsignedLongLongTy;
-
-        // The 'long long' type is not supported by all Gen targets.
-        if (!S.Context.getTargetInfo().hasFeature("longlong")) {
-          const SourceManager &SM = S.getSourceManager();
-          if (!SM.isInSystemHeader(DeclLoc))
-            S.Diag(DS.getTypeSpecWidthLoc(),
-                   diag::warn_cm_target_doesnt_support_type)
-                << "long long" << S.Context.getTargetInfo().getCPU();
-        }
 
         // 'long long' is a C99 or C++11 feature.
         if (!S.getLangOpts().C99) {
@@ -1780,6 +1762,24 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
   }
 
   assert(!Result.isNull() && "This function should not return a null type");
+
+  auto Ty = Result.getCanonicalType();
+  bool IsI64 = false;
+  if (Ty->isCMVectorMatrixType()) {
+    Ty = Ty->getCMVectorMatrixElementType();
+  }
+  if (Ty->isBuiltinType() && Ty->isIntegerType())
+    IsI64 = Context.getTypeSize(Ty) >= 64;
+
+  if (IsI64 && !S.Context.getTargetInfo().hasFeature("longlong")) {
+    const SourceManager &SM = S.getSourceManager();
+    if (!SM.isInSystemHeader(DeclLoc) &&
+        (DS.getStorageClassSpec() != DeclSpec::SCS_typedef)) {
+      S.Diag(DeclLoc, diag::warn_cm_target_doesnt_support_type)
+          << "64-bit integer types" << S.Context.getTargetInfo().getCPU();
+    }
+  }
+
   return Result;
 }
 
