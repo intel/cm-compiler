@@ -196,6 +196,8 @@ public:
     return {Args, Del};
   }
 
+  DyLibTy &LibInfo() { return Lib; }
+
 #undef CMFE_WRAPPER_GET_SYMBOL
 #undef CMFE_WRAPPER_GET_SYMBOL_IMPL
 };
