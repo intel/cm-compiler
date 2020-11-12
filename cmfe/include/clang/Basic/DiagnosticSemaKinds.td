@@ -9458,7 +9458,7 @@ def err_cm_max_data_size_exceeded: Error<
 def err_cm_matrix_vector_reference: Error<
   "C++ reference parameter may not refer to a %select{vector|matrix|vector_ref|matrix_ref}0">;
 def warn_cm_target_doesnt_support_type: Warning<
-  "'%0' is not supported by the %1 target">, InGroup<GenTarget>;
+  "'%0' are not supported by the %1 target">, InGroup<GenTarget>;
 def err_cm_kernel_arg_attr: Error<
   "attribute %0 can only be applied to a kernel argument">;
 def err_cm_kernel_arg_attr_type: Error<
