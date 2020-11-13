@@ -34,6 +34,8 @@ class LLVM_LIBRARY_VISIBILITY GenXTargetInfo : public TargetInfo {
   std::string CPU;
   bool OCLRuntime = false;
   bool I64Emulation = false;
+  bool NativeI64Support = false;
+  bool NativeDoubleSupport = false;
 
 public:
   GenXTargetInfo(const llvm::Triple &Triple, unsigned PointerWidth);
@@ -44,60 +46,25 @@ public:
     ArchDefineName = 1 << 0 // <name> is substituted for arch name.
   } ArchDefineTypes;
 
-  virtual bool setCPU(const std::string &Name) {
-    bool CPUKnown = llvm::StringSwitch<bool>(Name)
-                        .Case("HSW", true)
-                        .Case("BDW", true)
-                        .Case("CHV", true)
-                        .Case("SKL", true)
-                        .Case("BXT", true)
-                        .Case("GLK", true)
-                        .Case("KBL", true)
-                        .Case("ICL", true)
-                        .Case("ICLLP", true)
-                        .Case("TGLLP", true)
-                        .Default(false);
+  bool setCPU(const std::string &Name) override;
 
-    if (CPUKnown)
-      CPU = Name;
-
-    return CPUKnown;
-  }
-
-  virtual const std::string &getCPU() const { return CPU; }
+  const std::string &getCPU() const override { return CPU; }
 
   ArrayRef<Builtin::Info> getTargetBuiltins() const override {
     return ArrayRef<Builtin::Info>();
   }
 
-  virtual BuiltinVaListKind getBuiltinVaListKind() const {
+  BuiltinVaListKind getBuiltinVaListKind() const override {
     return TargetInfo::VoidPtrBuiltinVaList;
   }
 
-  virtual void getTargetDefines(const LangOptions &Opts,
-                                MacroBuilder &Builder) const {
-    Builder.defineMacro("_WIN32");
-    Builder.defineMacro("_WINNT");
-    Builder.defineMacro("_X86_");
-    Builder.defineMacro("__MSVCRT__");
-    Builder.defineMacro("_HAS_EXCEPTIONS", "0");
-    // OCL runtime specific headers support
-    if (OCLRuntime)
-      Builder.defineMacro("__CM_OCL_RUNTIME");
-  }
+  void getTargetDefines(const LangOptions &Opts,
+                        MacroBuilder &Builder) const override;
 
-  virtual void getDefaultFeatures(llvm::StringMap<bool> &Features) const {}
+  bool handleTargetFeatures(std::vector<std::string> &Features,
+                            DiagnosticsEngine &Diags) override;
 
-  virtual bool handleTargetFeatures(std::vector<std::string> &Features,
-                                    DiagnosticsEngine &Diags);
-
-  virtual bool hasFeature(StringRef Feature) const {
-    bool has = llvm::StringSwitch<bool>(Feature)
-      .Case("longlong", (CPU != "ICLLP") && (CPU != "TGLLP"))
-      .Case("double", (CPU != "ICLLP") && (CPU != "TGLLP"))
-      .Default(true);
-    return has || I64Emulation;
-  }
+  bool hasFeature(StringRef Feature) const override;
 
   virtual const char *getClobbers() const { return ""; }
 
