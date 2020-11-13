@@ -1774,7 +1774,9 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
   if (IsI64 && !S.Context.getTargetInfo().hasFeature("longlong")) {
     const SourceManager &SM = S.getSourceManager();
     if (!SM.isInSystemHeader(DeclLoc) &&
-        (DS.getStorageClassSpec() != DeclSpec::SCS_typedef)) {
+        // skip typedefs and using declarations
+        (DS.getStorageClassSpec() != DeclSpec::SCS_typedef &&
+         declarator.getContext() != DeclaratorContext::AliasDeclContext)) {
       S.Diag(DeclLoc, diag::warn_cm_target_doesnt_support_type)
           << "64-bit integer types" << S.Context.getTargetInfo().getCPU();
     }

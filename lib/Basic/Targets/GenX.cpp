@@ -51,6 +51,12 @@ GenXTargetInfo::GenXTargetInfo(const llvm::Triple &Triple,
 /// configured set of features.
 bool GenXTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
                                           DiagnosticsEngine &Diags) {
+
+  NativeI64Support = llvm::StringSwitch<bool>(CPU)
+                         .Cases("ICLLP", "TGLLP", false)
+                         .Default(true);
+  NativeDoubleSupport = NativeI64Support;
+
   // OCL runtime specific headers support
   OCLRuntime = std::any_of(
       Features.begin(), Features.end(),
@@ -59,4 +65,41 @@ bool GenXTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       Features.begin(), Features.end(),
       [](const std::string &Feature) { return Feature == "+emulate_i64"; });
   return true;
+}
+
+bool GenXTargetInfo::setCPU(const std::string &Name) {
+  bool CPUKnown = llvm::StringSwitch<bool>(Name)
+                      .Case("HSW", true)
+                      .Case("BDW", true)
+                      .Case("CHV", true)
+                      .Case("SKL", true)
+                      .Case("BXT", true)
+                      .Case("GLK", true)
+                      .Case("KBL", true)
+                      .Case("ICL", true)
+                      .Case("ICLLP", true)
+                      .Case("TGLLP", true)
+                      .Default(false);
+
+  if (CPUKnown)
+    CPU = Name;
+
+  return CPUKnown;
+}
+void GenXTargetInfo::getTargetDefines(const LangOptions &Opts,
+                                      MacroBuilder &Builder) const {
+  Builder.defineMacro("_WIN32");
+  Builder.defineMacro("_WINNT");
+  Builder.defineMacro("_X86_");
+  Builder.defineMacro("__MSVCRT__");
+  Builder.defineMacro("_HAS_EXCEPTIONS", "0");
+  // OCL runtime specific headers support
+  if (OCLRuntime)
+    Builder.defineMacro("__CM_OCL_RUNTIME");
+}
+bool GenXTargetInfo::hasFeature(StringRef Feature) const {
+  return llvm::StringSwitch<bool>(Feature)
+      .Case("longlong", NativeI64Support || I64Emulation)
+      .Case("double", NativeDoubleSupport)
+      .Default(true);
 }
