@@ -93,6 +93,8 @@ void GenXTargetInfo::getTargetDefines(const LangOptions &Opts,
   Builder.defineMacro("_X86_");
   Builder.defineMacro("__MSVCRT__");
   Builder.defineMacro("_HAS_EXCEPTIONS", "0");
+  if (I64Emulation)
+    Builder.defineMacro("__CM_INTEGER_EMULATION_ENABLED__");
   // OCL runtime specific headers support
   if (OCLRuntime)
     Builder.defineMacro("__CM_OCL_RUNTIME");
