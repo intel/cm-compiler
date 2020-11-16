@@ -191,3 +191,5 @@ if (NOT CMAKE_CONFIGURATION_TYPES) # don't add this for IDE's.
                            DEPENDS clang-headers
                            COMPONENT clang-headers)
 endif()
+
+add_subdirectory(cm/include)
