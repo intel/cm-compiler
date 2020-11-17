@@ -2420,8 +2420,8 @@ CM_INLINE vector<float, N> cm_tanh_cody_waite_impl(vector<float, N> x)
  *
  * rational polynomial for single precision = x + x * (g * (p(1) * g + p(0)) / (g + q(0))
  * g = x^2
- * p0 = −0.82377 28127 E+00
- * p1 = −0.38310 10665 E-02
+ * p0 = -0.82377 28127 E+00
+ * p1 = -0.38310 10665 E-02
  * q0 = 0.24713 19654 E+01
  * q1 = 1.00000 00000 E+00
  *
