@@ -295,10 +295,7 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
         std::is_integral<U>::value,
     vector<T0, SZ> >::type
 cm_shr(vector<T1, SZ> src0, U src1, int flag = _GENX_NOSAT) {
-  typedef typename details::computation_type<decltype(src0), U>::type ComputationTy;
-  typename details::vector_type<ComputationTy>::type _Src0 = src0;
-  typename details::vector_type<ComputationTy>::type _Src1 = src1;
-  typename details::vector_type<ComputationTy>::type _Result = _Src0 >> _Src1;
+  vector<T0, SZ> _Result = src0 >> src1;
 
   if (flag != _GENX_SAT)
     return _Result;
@@ -323,9 +320,8 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
             std::is_integral<T1>::value &&std::is_integral<T2>::value,
     typename std::remove_const<T0>::type>::type
 cm_shr(T1 src0, T2 src1, int flag = _GENX_NOSAT) {
-  typedef typename details::computation_type<T1, T2>::type ComputationTy;
-  typename details::vector_type<ComputationTy>::type _Src0 = src0;
-  typename details::vector_type<ComputationTy>::type _Src1 = src1;
+  typename details::vector_type<T1>::type _Src0 = src0;
+  typename details::vector_type<T2>::type _Src1 = src1;
   vector<T0, 1> _Result = cm_shr<T0>(_Src0, _Src1, flag);
   return _Result(0);
 }
