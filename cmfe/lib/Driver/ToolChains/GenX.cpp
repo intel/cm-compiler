@@ -133,7 +133,6 @@ ArgStringList constructCompatibilityFinalizerOptions(const ArgList &Args,
   // Scalar jmp instructions will be translated into goto's
   if (Args.hasArg(options::OPT_mCM_disable_jmpi)) {
     CompatibilityArgs.push_back("-noScalarJmp");
-    CompatibilityArgs.push_back("-disableStructurizer");
   }
 
   // preRA scheduler options.
