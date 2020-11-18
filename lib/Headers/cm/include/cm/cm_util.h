@@ -136,6 +136,12 @@ static inline constexpr unsigned getMaxNumOfOWordSLM() {
 #endif
 }
 
+// to emit warnings, dependent on if function actually called
+template <typename T = void>
+constexpr bool always_false() {
+  return false;
+}
+
 
 } // namespace details
 
