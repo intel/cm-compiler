@@ -46,3 +46,35 @@ set(CM_HEADERS
 
   opencl-c-common.h
   )
+
+set(LLVM_LINK_COMPONENTS
+  Support
+  )
+
+add_llvm_utility(ResourceEmbedder
+  ResourceEmbedder.cpp
+  )
+
+set(OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedHeaders.inc")
+add_custom_command(OUTPUT ${OUTPUT_FILE}
+  COMMAND
+  ResourceEmbedder
+  ${CM_HEADERS}
+  -output=${OUTPUT_FILE}
+  DEPENDS
+  ResourceEmbedder
+  WORKING_DIRECTORY
+  "${CMAKE_CURRENT_SOURCE_DIR}"
+  )
+
+add_custom_target(EmbedCmHeaders
+  SOURCES ${CM_HEADERS}
+  DEPENDS ${OUTPUT_FILE}
+  )
+
+add_library(CmEmbeddedHeaders INTERFACE)
+target_include_directories(CmEmbeddedHeaders
+  INTERFACE
+  ${CMAKE_CURRENT_BINARY_DIR}
+  )
+add_dependencies(CmEmbeddedHeaders EmbedCmHeaders)
