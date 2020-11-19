@@ -435,12 +435,10 @@ int main(int argc, const char **argv) {
   }
 
   BinaryData PrimaryOutput;
-  BinaryData DebugInfoOutput;
   if (Ctx.getOutputKind() == OutputKind::VISA) {
     ILTranslationResult TranslatedResult;
     Ctx.runVCOpt(VCOptInput, Ctx.getInputKind(), TranslatedResult);
     PrimaryOutput = std::move(TranslatedResult.KernelBinary);
-    DebugInfoOutput = std::move(TranslatedResult.DebugInfo);
   } else {
     PrimaryOutput = std::move(VCOptInput);
   }
@@ -451,12 +449,6 @@ int main(int argc, const char **argv) {
 
   if (auto Err = WriteBinaryToFile(OutputFilename, PrimaryOutput))
     FatalError("error during writing output file: " + Err.message());
-
-  if (!DebugInfoOutput.empty()) {
-    auto Err = WriteBinaryToFile(OutputFilename + ".dbg", DebugInfoOutput);
-    if (Err)
-      FatalError("error during writing debug info file" + Err.message());
-  }
 
   return EXIT_SUCCESS;
 }

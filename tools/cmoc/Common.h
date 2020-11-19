@@ -35,10 +35,9 @@ enum class InputKind { TEXT, IR, SPIRV, Unsupported };
 
 struct ILTranslationResult {
   std::vector<char> KernelBinary;
-  std::vector<char> DebugInfo;
 };
 
-void translateIL(const std::string &CPUName, const std::string &BinFormat,
+void translateIL(const std::string &CPUName, const std::string &BinaryFormat,
                  const std::string &Features,
                  const std::vector<std::string> &BackendOptions,
                  const std::vector<char> &SPIRV_IR, InputKind IK,
