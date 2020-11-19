@@ -30,6 +30,7 @@
 #endif
 
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
@@ -109,6 +110,16 @@ static std::string translateStepping(const std::string &CPU) {
   return "";
 }
 
+// Get correct file extension to search for in ocloc outputs.
+// CM requires plain binary from IGC (isa binary) -- .gen.
+// OCL and ZE should work with binary prepared by NEO -- .bin.
+// .bin wraps things like .gen, .dbg and others.
+static std::string translateRequiredExtension(const std::string &BinaryFormat) {
+  return llvm::StringSwitch<std::string>(BinaryFormat)
+      .Case("cm", ".gen")
+      .Cases("ocl", "ze", ".bin");
+}
+
 template <typename OsT>
 static void printEscapedString(OsT &OS, const char *Str, const char Escape) {
   OS << Escape;
@@ -129,39 +140,33 @@ static void printEscapedArgs(OsT &OS, const std::vector<const char *> &Args,
   OS << '\n';
 }
 
-// Copy outputs. We are interested only in .gen and .dbg.
-// gen -- direct output of IGC. dbg -- debug info.
-// Gen binary should always be present, debug info is optional.
+// Copy outputs. Required file should have provided extension (it is
+// different for different binary kinds).
 static void saveOutputs(uint32_t NumOutputs, uint8_t **DataOutputs,
                         uint64_t *LenOutputs, char **NameOutputs,
+                        const std::string &RequiredExtension,
                         ILTranslationResult &Result) {
   llvm::ArrayRef<const uint8_t *> OutBins{DataOutputs, NumOutputs};
   llvm::ArrayRef<uint64_t> OutLens{LenOutputs, NumOutputs};
   llvm::ArrayRef<const char *> OutNames{NameOutputs, NumOutputs};
   auto Zip = llvm::zip(OutBins, OutLens, OutNames);
   using ZipTy = typename decltype(Zip)::value_type;
-  auto BinIt = std::find_if(Zip.begin(), Zip.end(), [](ZipTy File) {
-    llvm::StringRef Name{std::get<2>(File)};
-    return Name.endswith(".gen");
-  });
-  auto DbgIt = std::find_if(Zip.begin(), Zip.end(), [](ZipTy File) {
-    llvm::StringRef Name{std::get<2>(File)};
-    return Name.endswith(".dbg");
-  });
-  assert(BinIt != Zip.end() && "Gen binary is missing");
+  auto BinIt =
+      std::find_if(Zip.begin(), Zip.end(), [&RequiredExtension](ZipTy File) {
+        llvm::StringRef Name{std::get<2>(File)};
+        return Name.endswith(RequiredExtension);
+      });
+  assert(BinIt != Zip.end() && "Output binary is missing");
 
   llvm::ArrayRef<uint8_t> BinRef{std::get<0>(*BinIt),
                                  static_cast<std::size_t>(std::get<1>(*BinIt))};
   Result.KernelBinary.assign(BinRef.begin(), BinRef.end());
-  if (DbgIt != Zip.end()) {
-    llvm::ArrayRef<uint8_t> DbgRef{
-        std::get<0>(*DbgIt), static_cast<std::size_t>(std::get<1>(*DbgIt))};
-    Result.DebugInfo.assign(DbgRef.begin(), DbgRef.end());
-  }
 }
 
 static void invokeBE(const std::vector<char> &SPIRV, const std::string &NeoCPU,
-                     const std::string &RevId, const std::string &Options,
+                     const std::string &RevId,
+                     const std::string &RequiredExtension,
+                     const std::string &Options,
                      const std::string &InternalOptions,
                      ILTranslationResult &Result) {
   const LibOclocWrapper LibOcloc;
@@ -206,7 +211,8 @@ static void invokeBE(const std::vector<char> &SPIRV, const std::string &NeoCPU,
                       &SpvLen, &SpvFileName, 0, nullptr, nullptr, nullptr,
                       &NumOutputs, &DataOutputs, &LenOutputs, &NameOutputs))
     FatalError("Call to oclocInvoke failed");
-  saveOutputs(NumOutputs, DataOutputs, LenOutputs, NameOutputs, Result);
+  saveOutputs(NumOutputs, DataOutputs, LenOutputs, NameOutputs,
+              RequiredExtension, Result);
   if (LibOcloc.freeOutput(&NumOutputs, &DataOutputs, &LenOutputs, &NameOutputs))
     FatalError("Call to oclocFreeOutput failed");
 }
@@ -246,7 +252,7 @@ composeInternalOptions(const std::string &BinFormat,
   return InternalOptions;
 }
 
-void translateIL(const std::string &CPUName, const std::string &BinFormat,
+void translateIL(const std::string &CPUName, const std::string &BinaryFormat,
                  const std::string &Features,
                  const std::vector<std::string> &BackendOptions,
                  const std::vector<char> &SPIRV_IR, InputKind IK,
@@ -254,20 +260,24 @@ void translateIL(const std::string &CPUName, const std::string &BinFormat,
 
   if (isCmocDebugEnabled()) {
     llvm::errs() << "requested platform for translateIL: " << CPUName << "\n";
-    llvm::errs() << "requested runtime for translateIL: " << BinFormat << "\n";
+    llvm::errs() << "requested runtime for translateIL: " << BinaryFormat
+                 << "\n";
   }
 
   const std::string Options = composeOptions();
-  const std::string InternalOptions =
-      composeInternalOptions(BinFormat, BackendOptions, Features, TimePasses);
+  const std::string InternalOptions = composeInternalOptions(
+      BinaryFormat, BackendOptions, Features, TimePasses);
 
   if (isCmocDebugEnabled()) {
     llvm::errs() << "IGC Translation Options: " << Options << "\n";
     llvm::errs() << "IGC Translation Internal: " << InternalOptions << "\n";
   }
 
+  const std::string RequiredExtension =
+      translateRequiredExtension(BinaryFormat);
   const std::string NeoCPU = translateCPU(CPUName);
   const std::string RevId = translateStepping(CPUName);
 
-  invokeBE(SPIRV_IR, NeoCPU, RevId, Options, InternalOptions, Result);
+  invokeBE(SPIRV_IR, NeoCPU, RevId, RequiredExtension, Options, InternalOptions,
+           Result);
 }
