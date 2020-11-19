@@ -1,6 +1,7 @@
 #include "clang/FrontendWrapper/Interface.h"
 
 #include "ArgsManagement.h"
+#include "HeaderStorage.h"
 #include "Utils.h"
 
 #include "clang/Basic/Diagnostic.h"
@@ -28,6 +29,11 @@ namespace {
 
 const char* DbgStr = std::getenv("IGC_CMFE_DEBUG");
 const bool DebugEnabled = DbgStr ? (strcmp(DbgStr, "1") == 0) : false;
+
+// Helper to create array ref for header descriptors.
+static llvm::ArrayRef<CmHeaderDesc> getCmHeaderDescs() {
+  return {CmDescBegin, CmDescEnd};
+}
 
 template <typename InputIter>
 std::vector<const char*> makeCOpts(InputIter Begin, InputIter End,
@@ -67,6 +73,8 @@ llvm::IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem>
 createFileSystem(const wrapper::IInputArgs *InArgs,
                  llvm::StringRef InputFileName) {
   auto MemFS = wrapper::MakeIntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem>();
+
+  (void)getCmHeaderDescs();
 
   auto Src = wrapper::getSrc<llvm::StringRef>(InArgs);
   MemFS->addFile(InputFileName, 0,
@@ -424,4 +432,3 @@ IntelCMClangFECompile(const Intel::CM::ClangFE::IInputArgs *InArgs) {
 int IntelCMClangFEGetInterfaceVersion() {
   return Intel::CM::ClangFE::InterfaceVersion;
 }
-
