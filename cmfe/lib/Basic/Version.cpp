@@ -13,6 +13,7 @@
 
 #include "clang/Basic/Version.h"
 #include "clang/Basic/LLVM.h"
+#include "llvm/GenXIntrinsics/GenXIntrinsics.h"
 #include "clang/Config/config.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cstdlib>
@@ -71,6 +72,10 @@ std::string getLLVMRepositoryPath() {
   return URL;
 }
 
+std::string getVCIntrinsicsRepositoryPath() {
+  return llvm::GenXIntrinsic::getVCIntrinsicsRepository();
+}
+
 std::string getClangRevision() {
 #ifdef SVN_REVISION
   return SVN_REVISION;
@@ -87,13 +92,17 @@ std::string getLLVMRevision() {
 #endif
 }
 
+std::string getVCIntrinsicsRevision() {
+  return llvm::GenXIntrinsic::getVCIntrinsicsRevision();
+}
+
 std::string getClangFullRepositoryVersion() {
   std::string buf;
   llvm::raw_string_ostream OS(buf);
   std::string Path = getClangRepositoryPath();
   std::string Revision = getClangRevision();
   if (!Path.empty() || !Revision.empty()) {
-    OS << '(';
+    OS << "(Clang sources: ";
     if (!Path.empty())
       OS << Path;
     if (!Revision.empty()) {
@@ -106,12 +115,22 @@ std::string getClangFullRepositoryVersion() {
   // Support LLVM in a separate repository.
   std::string LLVMRev = getLLVMRevision();
   if (!LLVMRev.empty() && LLVMRev != Revision) {
-    OS << " (";
+    OS << "(LLVM sources: ";
     std::string LLVMRepo = getLLVMRepositoryPath();
     if (!LLVMRepo.empty())
       OS << LLVMRepo << ' ';
     OS << LLVMRev << ')';
   }
+
+  std::string VCIRev = getVCIntrinsicsRevision();
+  if (!VCIRev.empty()) {
+    OS << "(VC-Intrinsics sources: ";
+    std::string VCIRepo = getVCIntrinsicsRepositoryPath();
+    if (!VCIRepo.empty())
+      OS << VCIRepo << ' ';
+    OS << VCIRev << ')';
+  }
+
   return OS.str();
 }
 
@@ -125,7 +144,7 @@ std::string getClangToolFullVersion(StringRef ToolName) {
 #ifdef CLANG_VENDOR
   OS << CLANG_VENDOR;
 #endif
-  OS << ToolName << " version " CLANG_VERSION_STRING " "
+  OS << ToolName << " version " CLANG_VERSION_STRING " " << '\n'
      << getClangFullRepositoryVersion();
 
   // If vendor supplied, include the base LLVM version as well.

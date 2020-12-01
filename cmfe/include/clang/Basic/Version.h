@@ -30,6 +30,10 @@ namespace clang {
   /// This supports LLVM residing in a separate repository from clang.
   std::string getLLVMRepositoryPath();
 
+  /// Retrieves the repository path from which vc-intrinsics were built.
+  ///
+  std::string getVCIntrinsicsRepositotyPath();
+
   /// Retrieves the repository revision number (or identifier) from which
   /// this Clang was built.
   std::string getClangRevision();
@@ -40,6 +44,10 @@ namespace clang {
   /// If Clang and LLVM are in the same repository, this returns the same
   /// string as getClangRevision.
   std::string getLLVMRevision();
+
+  /// Retrieves the repository revision number (or identifier) from which
+  /// vc-intrinsics were built.
+  std::string getVCIntrinsicsRevision();
 
   /// Retrieves the full repository version that is an amalgamation of
   /// the information in getClangRepositoryPath() and getClangRevision().
