@@ -2,6 +2,7 @@ set(LLVM_LINK_COMPONENTS
   Core
   MC
   Support
+  GenXIntrinsics
   )
 
 find_first_existing_vc_file(llvm_vc "${LLVM_MAIN_SRC_DIR}")
@@ -12,15 +13,23 @@ set(version_inc "${CMAKE_CURRENT_BINARY_DIR}/SVNVersion.inc")
 
 set(get_svn_script "${LLVM_CMAKE_PATH}/GetSVN.cmake")
 
-if(DEFINED llvm_vc AND DEFINED clang_vc)
+if(DEFINED clang_vc)
+  set(SRC_DIRS ${CLANG_SOURCE_DIR})
+  set(SRC_NAMES SVN)
+endif()
+
+if(DEFINED llvm_vc)
+  set(SRC_DIRS ${SRC_DIRS} ${LLVM_MAIN_SRC_DIR})
+  set(SRC_NAMES ${SRC_NAMES} LLVM)
+endIf()
+
+if(DEFINED SRC_DIRS)
   # Create custom target to generate the VC revision include.
   add_custom_command(OUTPUT "${version_inc}"
     DEPENDS "${llvm_vc}" "${clang_vc}" "${get_svn_script}"
     COMMAND
-    ${CMAKE_COMMAND} "-DFIRST_SOURCE_DIR=${LLVM_MAIN_SRC_DIR}"
-                     "-DFIRST_NAME=LLVM"
-                     "-DSECOND_SOURCE_DIR=${CLANG_SOURCE_DIR}"
-                     "-DSECOND_NAME=SVN"
+    ${CMAKE_COMMAND} "-DSOURCE_DIRS=\"${SRC_DIRS}\""
+                     "-DNAMES=\"${SRC_NAMES}\""
                      "-DHEADER_FILE=${version_inc}"
                      -P "${get_svn_script}")
 
