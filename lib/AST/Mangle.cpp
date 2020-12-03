@@ -111,6 +111,11 @@ bool MangleContext::shouldMangleDeclName(const NamedDecl *D) {
   if (D->hasAttr<AsmLabelAttr>())
     return true;
 
+  // _CM_CALLABLE_ functions shouldn't be mangled
+  if (dyn_cast<FunctionDecl>(D)
+     && dyn_cast<FunctionDecl>(D)->hasAttr<CMCallableAttr>())
+    return false;
+
   return shouldMangleCXXName(D);
 }
 
