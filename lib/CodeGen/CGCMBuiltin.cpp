@@ -3530,7 +3530,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinScatterReadWriteImpl(CMCallInfo &Info,
         );
   else
     NewCI =
-        EmitGatherScaled(CGF, llvm::GenXIntrinsic::genx_gather_scaled2,
+        EmitGatherScaled(CGF, llvm::GenXIntrinsic::genx_gather_masked_scaled2,
                          llvm::APInt(32, NBlocksLog2), // NBlocks
                          0,                            // scale
                          Info.CI->getArgOperand(0),    // surface index
@@ -4632,7 +4632,7 @@ void CGCMRuntime::HandleBuiltinReadWriteUntypedImpl(CMCallInfo &CallInfo,
   if (IsRead) {
     auto NewCI = EmitGatherScaled(
         CGF,
-        llvm::GenXIntrinsic::genx_gather4_scaled2,
+        llvm::GenXIntrinsic::genx_gather4_masked_scaled2,
         llvm::APInt(32, Mask),                     // channel mask
         0,                                         // scale
         CallInfo.CI->getArgOperand(0),             // surface index
@@ -4809,7 +4809,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinSLMReadImpl(CMCallInfo &CallInfo) {
 
   // Use scaled message for any platform since scale is 0.
   auto NewCI = EmitGatherScaled(CGF,
-      llvm::GenXIntrinsic::genx_gather_scaled2,
+      llvm::GenXIntrinsic::genx_gather_masked_scaled2,
       llvm::APInt(32, NBlocksLog2), // NBlocks
       0, // scale
       getSLMSurfaceIndex(CGF), // SLM surface index
@@ -4942,7 +4942,7 @@ void CGCMRuntime::HandleBuiltinSLMRead4(CMCallInfo &CallInfo, bool IsDwordAddr) 
 
   // Use scaled message for any platform since scale is 0.
   auto NewCI = EmitGatherScaled(CGF,
-      llvm::GenXIntrinsic::genx_gather4_scaled2,
+      llvm::GenXIntrinsic::genx_gather4_masked_scaled2,
       Mask, // channel mask
       0, // scale
       getSLMSurfaceIndex(CGF), // SLM surface index
@@ -7174,14 +7174,24 @@ llvm::CallInst *
 CGCMRuntime::EmitGatherScaled(CodeGenFunction &CGF, unsigned IntrinsicID,
                               llvm::APInt Selector, unsigned Scale,
                               llvm::Value *Surface, llvm::Value *GlobalOffset,
-                              llvm::Value *ElementOffset, llvm::Value *Data) {
-  assert((IntrinsicID == llvm::GenXIntrinsic::genx_gather_scaled2 ||
-          IntrinsicID == llvm::GenXIntrinsic::genx_gather4_scaled2) &&
+                              llvm::Value *ElementOffset, llvm::Value *Data, llvm::Value *Mask) {
+  assert((IntrinsicID == llvm::GenXIntrinsic::genx_gather_masked_scaled2 ||
+          IntrinsicID == llvm::GenXIntrinsic::genx_gather4_masked_scaled2) &&
          "Expected gather intrinsics");
+  
+  // By default Mask is all ones value, unless specified.
+  if (Mask == nullptr) {
+    llvm::Type *MaskTy = getMaskType(
+       CGF.getLLVMContext(),
+       ElementOffset->getType()->getVectorNumElements());
+    Mask = llvm::Constant::getAllOnesValue(MaskTy);
+  }
+
   // Types for overloading.
-  SmallVector<llvm::Type *, 2> Tys;
+  SmallVector<llvm::Type *, 3> Tys;
   Tys.push_back(Data->getType());          // return type for gather
   Tys.push_back(ElementOffset->getType()); // element offset
+  Tys.push_back(Mask->getType());
 
   llvm::Function *Fn = getGenXIntrinsic(IntrinsicID, Tys);
 
@@ -7192,6 +7202,7 @@ CGCMRuntime::EmitGatherScaled(CodeGenFunction &CGF, unsigned IntrinsicID,
       Surface,
       GlobalOffset,
       ElementOffset,
+      Mask
   };
   return CGF.Builder.CreateCall(Fn, Args);
 }
