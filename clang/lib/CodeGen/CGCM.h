@@ -734,7 +734,8 @@ private:
                                    llvm::Value *Surface,
                                    llvm::Value *GlobalOffset,
                                    llvm::Value *ElementOffset,
-                                   llvm::Value *Data);
+                                   llvm::Value *Data,
+                                   llvm::Value *Mask = nullptr);
 
 public:
   /// \brief Returns the corresponding genx intrinsic ID for this call.
