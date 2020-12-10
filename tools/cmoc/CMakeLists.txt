@@ -1,8 +1,10 @@
+set(CMC_TOOL_NAME cmc)
+
 set(LLVM_LINK_COMPONENTS
   Support
   )
 
-add_clang_tool(cmoc
+add_clang_tool(${CMC_TOOL_NAME}
   cmoc.cpp
   Backend.cpp
   )
@@ -14,12 +16,12 @@ if(OCLOC_API_HEADER)
     DIRECTORY
     )
 
-  target_include_directories(cmoc
+  target_include_directories(${CMC_TOOL_NAME}
     PRIVATE
     ${OCLOC_API_INCLUDE_DIR}
     )
 
-  target_compile_definitions(cmoc
+  target_compile_definitions(${CMC_TOOL_NAME}
     PRIVATE
     "USE_OCLOC_API_HEADER"
     )
@@ -35,12 +37,12 @@ else()
   set(LIBOCLOC "libocloc.so")
 endif()
 
-target_compile_definitions(cmoc
+target_compile_definitions(${CMC_TOOL_NAME}
   PRIVATE
   "LIBOCLOC_NAME=\"${LIBOCLOC}\""
   )
 
-target_link_libraries(cmoc
+target_link_libraries(${CMC_TOOL_NAME}
   PRIVATE
   CMFrontendWrapper
   )
