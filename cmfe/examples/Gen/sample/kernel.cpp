@@ -1,6 +1,6 @@
 /*===================== begin_copyright_notice ==================================
 
- Copyright (c) 2020, Intel Corporation
+ Copyright (c) 2021, Intel Corporation
 
 
  Permission is hereby granted, free of charge, to any person obtaining a
@@ -24,8 +24,22 @@
 
 #include <cm/cm.h>
 
+#ifdef SHIM
+#include "shim_support.h"
+#else
+#define SHIM_API_EXPORT
+#endif
+extern "C" SHIM_API_EXPORT void vector_add(SurfaceIndex, SurfaceIndex, SurfaceIndex);
+
+// shim layer (CM kernel, OpenCL runtime, GPU)
+#ifdef SHIM
+EXPORT_SIGNATURE(vector_add);
+#endif
 
 #define SURFACE_TYPE [[type("buffer_t")]]
+#if defined(SHIM) || defined(CMRT_EMU)
+#undef SURFACE_TYPE
+#endif
 
 #define SZ 16
 _GENX_MAIN_ void vector_add(
