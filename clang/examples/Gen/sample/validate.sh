@@ -66,6 +66,39 @@ then
     HAVE_GPU=0
 fi
 
+echo "Checking SHIM Layer"
+g++ -std=gnu++17 -DCMRT_EMU -DSHIM -shared -fpic \
+    -I${CMEMU_PATH}/include/libcm -I${CMEMU_PATH}/include/shim \
+    -L${CMEMU_PATH}/lib/x64 -Wl,-rpath -Wl,${CMEMU_PATH}/lib/x64 \
+    kernel.cpp -o kernel.shim -lcm
+if [ $? -ne 0 ];
+then
+    echo "Compile (SHIM kernel) failed"
+    exit 240
+fi
+
+g++ -std=gnu++17 -DKERNEL=\"kernel.shim\" \
+    -L${CMEMU_PATH}/bin -L${CMEMU_PATH}/lib/x64 \
+    -Wl,-rpath -Wl,${CMEMU_PATH}/bin:${CMEMU_PATH}/lib/x64:. \
+    host.cpp -lshim -ligfxcmrt_emu -lcm -Wl,--disable-new-dtags -o vector.shim
+if [ $? -ne 0 ];
+then
+    echo "Compile (SHIM host) failed"
+    exit 239
+fi
+
+CM_RT_PLATFORM=skl ./vector.shim > ${OUT}/shim.run 2>&1
+if [ $? -ne 0 ];
+then
+    echo "Run (SHIM) failed"
+    exit 238
+fi
+grep PASSED ${OUT}/shim.run > /dev/null
+if [ $? -ne 0 ];
+then
+    echo "Run (SHIM) did not contain expected output"
+    exit 237
+fi
 
 if [ ${HAVE_GPU} -ne 0 ];
 then
@@ -114,6 +147,40 @@ fi
 
 
 
+echo "Checking SHIM(L0) Layer"
+g++ -std=gnu++17 -DCMRT_EMU -DSHIM -shared -fpic \
+    -I${CMEMU_PATH}/include/libcm -I${CMEMU_PATH}/include/shim \
+    -L${CMEMU_PATH}/lib/x64 -Wl,-rpath -Wl,${CMEMU_PATH}/lib/x64 \
+    kernel.cpp -o kernel.l0.shim -lcm
+if [ $? -ne 0 ];
+then
+    echo "Compile (SHIM/L0 kernel) failed"
+    exit 140
+fi
+
+g++ -std=gnu++17 -DKERNEL=\"kernel.l0.shim\" \
+    -I${CSDK_IGC}/usr/local/include \
+    -L${CMEMU_PATH}/lib/x64 -L${CMEMU_PATH}/bin \
+    -Wl,-rpath -Wl,${CMEMU_PATH}/lib/x64:${CMEMU_PATH}/bin:. \
+    host_l0.cpp -lshim_l0 -ligfxcmrt_emu -lcm -Wl,--disable-new-dtags -o vector.l0.shim
+if [ $? -ne 0 ];
+then
+    echo "Compile (SHIM/L0 host) failed"
+    exit 139
+fi
+
+CM_RT_PLATFORM=skl ./vector.l0.shim > ${OUT}/shim.l0.run 2>&1
+if [ $? -ne 0 ];
+then
+    echo "Run (SHIM/L0) failed"
+    exit 138
+fi
+grep PASSED ${OUT}/shim.l0.run > /dev/null
+if [ $? -ne 0 ];
+then
+    echo "Run (SHIM/L0) did not contain expected output"
+    exit 137
+fi
 
 if [ ${HAVE_GPU} -ne 0 ];
 then
