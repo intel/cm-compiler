@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 project(sample)
 
@@ -23,6 +23,10 @@ foreach(program CMOC OCLOC)
     message(INFO " using ${binary} from ${${program}}")
   endif()
 endforeach(program)
+find_library(LIB_CM_64 NAMES cm libcm PATHS ${CMEMU_PATH}/lib/x64)
+find_library(LIB_SHIM_64 NAMES shim PATHS ${CMEMU_PATH}/lib/x64)
+find_library(LIB_SHIM_L0_64 NAMES shim_l0 PATHS ${CMEMU_PATH}/lib/x64)
+find_library(LIB_CMEMU_64 NAMES igfxcmrt_emu igfxcmrt64_emu PATHS ${CMEMU_PATH}/lib/x64)
 find_library(LIB_OPENCL NAMES Intel_OpenCL_ICD64 PATHS ${CSDK_IGC}/runtime/opencl/lib)
 find_library(LIB_LEVEL0 NAMES ze_loader PATHS ${CSDK_IGC}/runtime/level_zero/lib)
 
@@ -40,6 +44,20 @@ endif()
 set(INSTALL_DIR ${CMAKE_BINARY_DIR}/bin)
 
 
+#######
+# SHIM
+add_library(kernel.shim MODULE ${KERNEL})
+set_target_properties(kernel.shim PROPERTIES COMPILE_FLAGS "-DCMRT_EMU -DSHIM")
+target_include_directories(kernel.shim PUBLIC ${CMEMU_PATH}/include/libcm ${CMEMU_PATH}/include/shim)
+target_link_libraries(kernel.shim ${LIB_CM_64})
+install(TARGETS kernel.shim DESTINATION ${INSTALL_DIR})
+
+add_executable(vector.shim ${HOST_OCL})
+set_target_properties(vector.shim PROPERTIES COMPILE_FLAGS -DKERNEL=\\\"kernel.shim${dll}\\\")
+target_include_directories(vector.shim PUBLIC ${CMEMU_PATH}/include/libcm ${CSDK_IGC}/runtime/opencl/include)
+target_link_libraries(vector.shim ${LIB_SHIM_64} ${LIB_CMEMU_64} ${LIB_CM_64})
+add_dependencies(vector.shim kernel.shim)
+install(TARGETS vector.shim DESTINATION ${INSTALL_DIR})
 
 
 #######
@@ -66,6 +84,20 @@ install(TARGETS vector.skl DESTINATION ${INSTALL_DIR})
 
 
 
+#######
+# SHIM / L0
+add_library(kernel.l0.shim MODULE ${KERNEL})
+set_target_properties(kernel.l0.shim PROPERTIES COMPILE_FLAGS "-DCMRT_EMU -DSHIM")
+target_include_directories(kernel.l0.shim PUBLIC ${CMEMU_PATH}/include/shim ${CMEMU_PATH}/include/libcm)
+target_link_libraries(kernel.l0.shim ${LIB_CM_64})
+install(TARGETS kernel.l0.shim DESTINATION ${INSTALL_DIR})
+
+add_executable(vector.l0.shim ${HOST_L0})
+set_target_properties(vector.l0.shim PROPERTIES COMPILE_FLAGS -DKERNEL=\\\"kernel.l0.shim${dll}\\\")
+target_include_directories(vector.l0.shim PUBLIC ${CMEMU_PATH}/include/shim ${CSDK_IGC}/runtime/level_zero/include)
+target_link_libraries(vector.l0.shim ${LIB_SHIM_L0_64} ${LIB_CMEMU_64} ${LIB_CM_64})
+add_dependencies(vector.l0.shim kernel.l0.shim)
+install(TARGETS vector.l0.shim DESTINATION ${INSTALL_DIR})
 
 
 #######
