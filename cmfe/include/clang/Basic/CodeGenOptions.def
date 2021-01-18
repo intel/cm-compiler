@@ -28,10 +28,16 @@ CODEGENOPT(Name, Bits, Default)
 CODEGENOPT(Name, Bits, Default)
 #endif
 
-CODEGENOPT(InitializeCMGlobals, 1, 0)    ///< MDF-CM: Initialize CM global variables.
-CODEGENOPT(EmitCMGlobalsAsVolatile, 1, 0)    ///< MDF-CM: Make CM global variables volatile.
-CODEGENOPT(ReverseCMKernelList, 1, 0)    ///< MDF-CM: Emit kernels asm name in reversed order.
-CODEGENOPT(EmitCmOCLL0, 1, 0)            ///< MDF-CM: Emit CM kernels to run on OpenCL or L0 runtime.
+// those options can be provided or not
+CODEGENOPT(InitializeCMGlobals, 1, 0)      /// CM: initialize CM global variables.
+CODEGENOPT(EmitCMGlobalsAsVolatile, 1, 0)  /// CM: make CM global variables volatile.
+CODEGENOPT(ReverseCMKernelList, 1, 0)      /// CM: emit kernels asm name in reversed order.
+CODEGENOPT(EmitCmOCLL0, 1, 0)              /// CM: emit CM kernels to run on OpenCL or L0 runtime.
+
+// those options are deduced from arch
+VALUE_CODEGENOPT(IncreaseSLM, 32, 0)        /// CM: increase amount of SLM available
+VALUE_CODEGENOPT(IncreaseOBRWSize, 32, 0)   /// CM: increase OBRW size
+CODEGENOPT(IEFByPass, 1, 0)                /// CM: if IEFByPass supported
 
 CODEGENOPT(DisableIntegratedAS, 1, 0) ///< -no-integrated-as
 ENUM_CODEGENOPT(CompressDebugSections, llvm::DebugCompressionType, 2,

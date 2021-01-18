@@ -797,6 +797,29 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   // forces initialization when initalizer is absent.
   Opts.InitializeCMGlobals = Args.hasArg(OPT_mCM_init_global);
   Opts.EmitCMGlobalsAsVolatile = Args.hasArg(OPT_fvolatile_global);
+
+  if (Args.hasArg(OPT_mCM_increase_slm))
+    Opts.IncreaseSLM = getLastArgIntValue(Args, OPT_mCM_increase_slm, 0);
+  else {
+    Opts.IncreaseSLM = llvm::StringSwitch<unsigned>(TargetOpts.CPU)
+      .Default(0);
+  }
+
+  if (Args.hasArg(OPT_mCM_increase_obr))
+    Opts.IncreaseOBRWSize = getLastArgIntValue(Args, OPT_mCM_increase_obr, 0);
+  else {
+    Opts.IncreaseOBRWSize = llvm::StringSwitch<unsigned>(TargetOpts.CPU)
+      .Default(0);
+  }
+
+  if (Args.hasArg(OPT_mCM_iefbypass))
+    Opts.IEFByPass = true;
+  else {
+    Opts.IEFByPass = llvm::StringSwitch<bool>(TargetOpts.CPU)
+      .Case("TGLLP", false)
+      .Default(true);
+  }
+
   Opts.ReverseCMKernelList = Args.hasArg(OPT_mCM_reverse_kernels);
   Opts.RerollLoops = Args.hasArg(OPT_freroll_loops);
   if (auto *Arg = Args.getLastArg(OPT_binary_format)) {

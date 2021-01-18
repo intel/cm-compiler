@@ -296,4 +296,8 @@ def err_unknown_analyzer_checker : Error<
     "no analyzer checkers are associated with '%0'">;
 def note_suggest_disabling_all_checkers : Note<
     "use -analyzer-disable-all-checks to disable all static analyzer checkers">;
+
+// CM codegen
+def warn_cm_oword_size : Warning<"Data size in OWords exceeds %0">;
+
 }
