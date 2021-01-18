@@ -90,6 +90,10 @@ private:
 
 // clang-format off
 const std::unordered_map<std::string, std::string> CmToNeoCPU{
+    {"BDW", "bdw"},
+    {"BXT", "bxt"},
+    {"GLK", "glk"},
+    {"KBL", "kbl"},
     {"SKL", "skl"},
     {"ICLLP", "icllp"},
     {"TGLLP", "tgllp"},
@@ -104,9 +108,8 @@ static std::string translateCPU(const std::string &CPU) {
 
 // Try to guess revision id for given stepping.
 // Relies on enumeration values inside driver since
-// ocloc accepts these numeric values instead of letter codes.
+// ocloc accepts these numeric values instead of letter codes
 static std::string translateStepping(const std::string &CPU) {
-  enum RevIdMap { A = 0, B = 3 };
   return "";
 }
 
