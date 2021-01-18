@@ -39,6 +39,7 @@ EXPORT_SIGNATURE(vector_add);
 #define SURFACE_TYPE [[type("buffer_t")]]
 #if defined(SHIM) || defined(CMRT_EMU)
 #undef SURFACE_TYPE
+#define SURFACE_TYPE
 #endif
 
 #define SZ 16
