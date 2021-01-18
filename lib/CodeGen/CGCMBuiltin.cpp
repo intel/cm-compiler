@@ -945,15 +945,15 @@ static void checkSLMSize(CGCMRuntime &CMRT, SourceLocation Loc,
     if (auto *CI = dyn_cast_or_null<llvm::ConstantInt>(SzVal))
       SLMSize = CI->getZExtValue();
   }
-  // The maximal size is 64KB.
-  auto &TOpts = CMRT.CGM.getTarget().getTargetOpts();
-  auto MAX_SLM_SIZE_IN_BYTES = llvm::StringSwitch<unsigned>(TOpts.CPU)
-      .Default(64 << 10);
+
+  // The maximal size is determined by platform
+  auto &COpts = CMRT.CGM.getCodeGenOpts();
+  auto MAX_SLM_SIZE_IN_BYTES = (64 + COpts.IncreaseSLM) << 10;
 
   if (SLMSize == 0)
     CMRT.Error(Loc, "use slm, but slm is not initialized");
   else if (SLMSize > MAX_SLM_SIZE_IN_BYTES)
-    CMRT.Error(Loc, "use slm, but slm size is too large, <= 64KB");
+    CMRT.Error(Loc, "use slm, but slm size is too large");
 }
 
 void CGCMRuntime::EmitBuiltinSLMInit(CodeGenFunction &CGF, const CallExpr *E) {
@@ -3254,11 +3254,12 @@ void CGCMRuntime::HandleBuiltinOWordWriteImpl(CMCallInfo &Info,
   assert(llvm::isPowerOf2_32(VecTy->getVectorNumElements()));
   assert(VecTy->getPrimitiveSizeInBits() / 8 >= OWORD);
 
-  auto &TOpts = CGM.getTarget().getTargetOpts();
-  unsigned MaxOBRWSize = llvm::StringSwitch<unsigned>(TOpts.CPU)
-    .Default(8);
-  assert(VecTy->getPrimitiveSizeInBits() / 8 <= MaxOBRWSize * OWORD);
-  (void)MaxOBRWSize;
+  auto &COpts = CGM.getCodeGenOpts();
+  unsigned MaxOBRWSize = 8 + COpts.IncreaseOBRWSize;
+  if (VecTy->getPrimitiveSizeInBits() / 8 > MaxOBRWSize * OWORD) {
+    CGM.getDiags().Report(diag::warn_cm_oword_size) << MaxOBRWSize;
+    assert(0 && "OWords assertion for debug build");
+  }
 
   CGBuilderTy Builder(*Info.CGF, Info.CI);
   SmallVector<llvm::Value *, 4> Args;
@@ -5899,13 +5900,13 @@ void CGCMRuntime::HandleBuiltinAVSSampler(CMCallInfo &Info) {
   llvm::Value *VerticalBlockNumber = Info.CGF->Builder.CreateSExtOrBitCast(
       Info.CI->getArgOperand(10), FTy->getParamType(9));
 
-  auto &TOpts = CGM.getTarget().getTargetOpts();
-  llvm::Value *IEFBypass =
-      llvm::StringSwitch<llvm::Value *>(TOpts.CPU)
-      // IEFBypass is removed on TGLLP and should be always set to 0.
-      .Case("TGLLP", llvm::Constant::getNullValue(FTy->getParamType(13)))
-      .Default(Info.CGF->Builder.CreateZExtOrBitCast(
-              Info.CI->getArgOperand(14), FTy->getParamType(13)));
+  auto &COpts = CGM.getCodeGenOpts();
+
+  // IEFBypass is removed on some platforms (like TGLLP, etc) and should be always set to 0
+  llvm::Value *IEFBypass = llvm::Constant::getNullValue(FTy->getParamType(13));
+  if (COpts.IEFByPass)
+    IEFBypass = Info.CGF->Builder.CreateZExtOrBitCast(
+      Info.CI->getArgOperand(14), FTy->getParamType(13));
 
   // Arguments.
   llvm::Value *Args[] = {
