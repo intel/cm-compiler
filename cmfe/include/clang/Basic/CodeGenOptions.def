@@ -35,8 +35,8 @@ CODEGENOPT(ReverseCMKernelList, 1, 0)      /// CM: emit kernels asm name in reve
 CODEGENOPT(EmitCmOCLL0, 1, 0)              /// CM: emit CM kernels to run on OpenCL or L0 runtime.
 
 // those options are deduced from arch
-VALUE_CODEGENOPT(IncreaseSLM, 32, 0)        /// CM: increase amount of SLM available
-VALUE_CODEGENOPT(IncreaseOBRWSize, 32, 0)   /// CM: increase OBRW size
+VALUE_CODEGENOPT(MaxSLMSize, 32, 64)       /// CM: maximum amount of SLM available
+VALUE_CODEGENOPT(MaxOBRWSize, 32, 8)       /// CM: maximum OBRW size
 CODEGENOPT(IEFByPass, 1, 0)                /// CM: if IEFByPass supported
 
 CODEGENOPT(DisableIntegratedAS, 1, 0) ///< -no-integrated-as

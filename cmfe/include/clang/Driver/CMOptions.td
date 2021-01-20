@@ -185,12 +185,12 @@ def mCM_init_global : Flag<["-", "/"], "mCM_init_global">, Group<cm_Group>,
   HelpText<"Always initialize CM global variables">,
   Flags<[CMOption, CC1Option, CC1AsOption]>;
 
-def mCM_increase_slm : Flag<["-", "/"], "mCM_increase_slm">, Group<cm_Group>,
-  HelpText<"Increase SLM size in kilobytes (base is 64)">,
+def mCM_max_slm : Flag<["-", "/"], "mCM_max_slm">, Group<cm_Group>,
+  HelpText<"Maximum SLM size in kilobytes (base is target dependent)">,
   Flags<[CMOption, CC1Option, CC1AsOption]>;
 
-def mCM_increase_obr : Flag<["-", "/"], "mCM_increase_obr">, Group<cm_Group>,
-  HelpText<"Increase maximum owords per vector (base is 8)">,
+def mCM_max_obr : Flag<["-", "/"], "mCM_max_obr">, Group<cm_Group>,
+  HelpText<"Maximum owords per vector (base is target dependent)">,
   Flags<[CMOption, CC1Option, CC1AsOption]>;
 
 def mCM_iefbypass : Flag<["-", "/"], "mCM_iefbypass">, Group<cm_Group>,
