@@ -948,7 +948,7 @@ static void checkSLMSize(CGCMRuntime &CMRT, SourceLocation Loc,
 
   // The maximal size is determined by platform
   auto &COpts = CMRT.CGM.getCodeGenOpts();
-  auto MAX_SLM_SIZE_IN_BYTES = (64 + COpts.IncreaseSLM) << 10;
+  auto MAX_SLM_SIZE_IN_BYTES = COpts.MaxSLMSize << 10;
 
   if (SLMSize == 0)
     CMRT.Error(Loc, "use slm, but slm is not initialized");
@@ -3255,7 +3255,7 @@ void CGCMRuntime::HandleBuiltinOWordWriteImpl(CMCallInfo &Info,
   assert(VecTy->getPrimitiveSizeInBits() / 8 >= OWORD);
 
   auto &COpts = CGM.getCodeGenOpts();
-  unsigned MaxOBRWSize = 8 + COpts.IncreaseOBRWSize;
+  unsigned MaxOBRWSize = COpts.MaxOBRWSize;
   if (VecTy->getPrimitiveSizeInBits() / 8 > MaxOBRWSize * OWORD) {
     CGM.getDiags().Report(diag::warn_cm_oword_size) << MaxOBRWSize;
     assert(0 && "OWords assertion for debug build");

@@ -798,18 +798,18 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.InitializeCMGlobals = Args.hasArg(OPT_mCM_init_global);
   Opts.EmitCMGlobalsAsVolatile = Args.hasArg(OPT_fvolatile_global);
 
-  if (Args.hasArg(OPT_mCM_increase_slm))
-    Opts.IncreaseSLM = getLastArgIntValue(Args, OPT_mCM_increase_slm, 0);
+  if (Args.hasArg(OPT_mCM_max_slm))
+    Opts.MaxSLMSize = getLastArgIntValue(Args, OPT_mCM_max_slm, 0);
   else {
-    Opts.IncreaseSLM = llvm::StringSwitch<unsigned>(TargetOpts.CPU)
-      .Default(0);
+    Opts.MaxSLMSize = llvm::StringSwitch<unsigned>(TargetOpts.CPU)
+      .Default(64);
   }
 
-  if (Args.hasArg(OPT_mCM_increase_obr))
-    Opts.IncreaseOBRWSize = getLastArgIntValue(Args, OPT_mCM_increase_obr, 0);
+  if (Args.hasArg(OPT_mCM_max_obr))
+    Opts.MaxOBRWSize = getLastArgIntValue(Args, OPT_mCM_max_obr, 0);
   else {
-    Opts.IncreaseOBRWSize = llvm::StringSwitch<unsigned>(TargetOpts.CPU)
-      .Default(0);
+    Opts.MaxOBRWSize = llvm::StringSwitch<unsigned>(TargetOpts.CPU)
+      .Default(8);
   }
 
   if (Args.hasArg(OPT_mCM_iefbypass))
