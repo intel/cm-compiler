@@ -128,6 +128,17 @@ OutputTypeT deriveOutputFromActionKind(clang::frontend::ActionKind Action) {
   case clang::frontend::PrintPreprocessedInput:
   case clang::frontend::RunPreprocessorOnly:
     return OutputTypeT::PREPROC;
+  // PREPROC output type should probably be renamed type to something like
+  // "FEOnlyOutput" (alternatively a new type could be introduced).
+  // However, given the current interface should be preserved - both approaches
+  // are impractical (as such modifications break ABI compatibility)
+  // Such changes were undesired and thus we piggy-back on existing
+  // functionality - PREPROC action implies that FE handles output by itself.
+  case clang::frontend::ASTDeclList:
+  case clang::frontend::ASTDump:
+  case clang::frontend::ASTPrint:
+  case clang::frontend::ASTView:
+    return OutputTypeT::PREPROC;
   default:
     return OutputTypeT::OTHER;
   }
