@@ -32,19 +32,18 @@ static std::string getCanonicalGenXTargetCPU(const std::string &CPU,
   std::transform(CPUName.begin(), CPUName.end(), CPUName.begin(), ::toupper);
 
   // Ensure the CPU name is in canonical form
-  const char *CanonicalCPU =
-      llvm::StringSwitch<const char *>(CPUName)
-          .Cases("GEN7_5", "HSW", "HSW")
-          .Cases("GEN8", "BDW", "BDW")
-          .Cases("GEN8LP", "GEN8_5", "CHV", "CHV")
-          .Cases("GEN9", "SKL", "SKL")
-          .Cases("GEN9LP", "BXT", "BXT")
-          .Cases("GEN9_5", "GEN9P5", "KBL", "KBL")
-          .Cases("GEN9_5LP", "GEN9P5LP", "GLK", "GLK")
-          .Cases("GEN11", "ICL", "ICL")
-          .Cases("GEN11LP", "ICLLP", "ICLLP")
-          .Cases("GEN12LP", "TGLLP", "TGLLP")
-          .Default("");
+  auto *CanonicalCPU = llvm::StringSwitch<const char *>(CPUName)
+                           .Cases("GEN7_5", "HSW", "HSW")
+                           .Cases("GEN8", "BDW", "BDW")
+                           .Cases("GEN8LP", "GEN8_5", "CHV", "CHV")
+                           .Cases("GEN9", "SKL", "SKL")
+                           .Cases("GEN9LP", "BXT", "BXT")
+                           .Cases("GEN9_5", "GEN9P5", "KBL", "KBL")
+                           .Cases("GEN9_5LP", "GEN9P5LP", "GLK", "GLK")
+                           .Cases("GEN11", "ICL", "ICL")
+                           .Cases("GEN11LP", "ICLLP", "ICLLP")
+                           .Cases("GEN12LP", "TGLLP", "TGLLP")
+                           .Default("");
 
   return CanonicalCPU;
 }
