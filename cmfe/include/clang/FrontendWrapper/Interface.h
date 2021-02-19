@@ -106,6 +106,9 @@ static const int InterfaceVersion = 9;
 } // namespace CM
 } // namespace Intel
 
+extern "C" INTEL_CM_CLANGFE_DLL_DECL bool IntelCMClangFEIsShowVersionInvocation(
+    Intel::CM::ClangFE::IDriverInvocation const *DriverInvocPtr);
+
 extern "C" INTEL_CM_CLANGFE_DLL_DECL int
 IntelCMClangFEGetInterfaceVersion();
 
