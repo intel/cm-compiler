@@ -309,12 +309,18 @@ makeDriverInvocationFromCompilation(clang::driver::Compilation &Compilation,
                                         return (strcmp(p, "-help") == 0) ||
                                                (strcmp(p, "--help") == 0);
                                      });
-    if (HelpIsMissing) {
+    bool ShowVersionIsMissing =
+        std::none_of(Args.begin(), Args.end(), [](const char *p) {
+          return (strcmp(p, "-v") == 0) || (strcmp(p, "--version") == 0);
+        });
+
+    if (HelpIsMissing && ShowVersionIsMissing) {
       llvm::errs() << "FEWrapper fatal error: no Jobs created\n";
       return nullptr;
     }
-
-    return wrapper::IDriverInvocationImpl::createHelp();
+    if (!HelpIsMissing)
+      return wrapper::IDriverInvocationImpl::createHelp();
+    return wrapper::IDriverInvocationImpl::createShowVersion();
   }
   if (Jobs.size() != 1) {
     llvm::errs() << "FEWrapper unexpected number of jobs were created\n";
@@ -335,6 +341,12 @@ makeDriverInvocationFromCompilation(clang::driver::Compilation &Compilation,
 }
 
 } // namespace
+
+extern "C" INTEL_CM_CLANGFE_DLL_DECL bool IntelCMClangFEIsShowVersionInvocation(
+    Intel::CM::ClangFE::IDriverInvocation const *DriverInvocPtr) {
+  return static_cast<wrapper::IDriverInvocationImpl const *>(DriverInvocPtr)
+      ->isShowVersion();
+}
 
 extern "C" INTEL_CM_CLANGFE_DLL_DECL Intel::CM::ClangFE::IDriverInvocation *
 IntelCMClangFEBuildDriverInvocation(int argc, const char * argv[]) {

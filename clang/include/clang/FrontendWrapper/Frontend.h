@@ -196,6 +196,12 @@ public:
     return {Args, Del};
   }
 
+  bool isDriverShowVersionInvocation(IDriverInvocation *DriverInvoc) {
+    auto *isShowVersionInvocation =
+        CMFE_WRAPPER_GET_SYMBOL(IntelCMClangFEIsShowVersionInvocation);
+    return isShowVersionInvocation(DriverInvoc);
+  }
+
   DyLibTy &LibInfo() { return Lib; }
 
 #undef CMFE_WRAPPER_GET_SYMBOL
