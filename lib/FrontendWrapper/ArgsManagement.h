@@ -89,6 +89,7 @@ class IDriverInvocationImpl final : public IDriverInvocation {
   StrT TargetFeaturesStr;
 
   bool IsHelpInvocation = false;
+  bool IsShowVersionInvocation = false;
   bool TimePasses = false;
 
   IDriverInvocationImpl() {};
@@ -104,6 +105,12 @@ public:
   static IDriverInvocationImpl* createHelp() {
     auto p = new IDriverInvocationImpl();
     p->IsHelpInvocation = true;
+    return p;
+  }
+
+  static IDriverInvocationImpl *createShowVersion() {
+    auto p = new IDriverInvocationImpl();
+    p->IsShowVersionInvocation = true;
     return p;
   }
 
@@ -160,6 +167,7 @@ public:
   const StrT& getTargetFeaturesStr() const override { return TargetFeaturesStr; }
 
   bool isHelp() const override { return IsHelpInvocation; }
+  bool isShowVersion() const { return IsShowVersionInvocation; }
 
 private:
   // Pass \p TargetFeaturesIn as it is easier to analyze it before join.

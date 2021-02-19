@@ -127,6 +127,10 @@ public:
     assert(DriverInvocation);
     return DriverInvocation->isHelp();
   }
+  bool isShowVersion() {
+    assert(DriverInvocation);
+    return FE.isDriverShowVersionInvocation(DriverInvocation.get());
+  }
   const std::string& getInputFilename() const {
     assert(DriverInvocation);
     return DriverInvocation->getInputFilename();
@@ -411,6 +415,9 @@ int main(int argc, const char **argv) {
     printCmocHelp();
     return EXIT_SUCCESS;
   }
+
+  if (Ctx.isShowVersion())
+    return EXIT_SUCCESS;
 
   checkInputOutputCompatibility(Ctx.getInputKind(), Ctx.getOutputKind());
 
