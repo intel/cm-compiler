@@ -1117,7 +1117,7 @@ cm_line(vector<T, 4> src0, vector<T, SZ> src1, int flag = _GENX_NOSAT) {
   vector<T, SZ> _Result;
 #pragma unroll
   for (int i = 0; i < SZ; i += 4) {
-    _Result.select<4,1>(i) = src0[0] * src1[i] + src0[3];
+    _Result.select<4,1>(i) = src0[0] * src1.select<4,1>(i) + src0[3];
   }
 
   if (flag == _GENX_SAT)
