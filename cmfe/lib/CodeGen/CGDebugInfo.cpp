@@ -3377,6 +3377,48 @@ llvm::DISubprogram *CGDebugInfo::getFunctionDeclaration(const Decl *D) {
   return nullptr;
 }
 
+static bool isCMSurfaceIndexWithAttributes(ParmVarDecl const *D) {
+  auto *T = dyn_cast<BuiltinType>(D->getType());
+  if (!T)
+    return false;
+  if (T->getKind() != BuiltinType::CMSurfaceIndex)
+    return false;
+  for (auto &&Attr : D->attrs())
+    if (dyn_cast<CMOpenCLTypeAttr>(Attr))
+      return true;
+  return false;
+}
+
+
+// This is a helper function which wraps QualType of SurfaceIndex decl
+// into TypeDef with sugar type "SurfaceIndex_attr1_attr2_attr3"
+// This is needed for specific typechecks on some of workloads
+// For example kernel argument "SurfaceIndex [[type("buffer_t bfloat")]]"
+// will be wraped as "SurfaceIndex_buffer_t_bfloat"
+static QualType wrapCMSurfaceIndexWithAttributes(ParmVarDecl const *D) {
+  auto *T = cast<BuiltinType>(D->getType());
+  assert(T->getKind() == BuiltinType::CMSurfaceIndex);
+  assert(D->hasAttrs());
+  auto &&C = D->getASTContext();
+  auto PrintOption = PrintingPolicy{LangOptions{}};
+  auto Name = std::string{T->getName(PrintOption).str()};
+  auto &&NameStream = llvm::raw_string_ostream{Name};
+  for (auto &&Attr : D->attrs()) {
+    auto *CMAttr = dyn_cast<CMOpenCLTypeAttr>(Attr);
+    if (!CMAttr)
+      continue;
+    NameStream << "_";
+    auto AttrDesc = CMAttr->getType_desc().str();
+    std::replace(AttrDesc.begin(), AttrDesc.end(), ' ', '_');
+    NameStream << AttrDesc;
+  }
+  Name = NameStream.str();
+  auto *TDD = TypedefDecl::Create(
+      C, C.getTranslationUnitDecl(), D->getInnerLocStart(), D->getLocation(),
+      &C.Idents.get(Name), C.getTrivialTypeSourceInfo(D->getType()));
+  return C.getTypedefType(TDD);
+}
+
 // getOrCreateFunctionType - Construct type. If it is a c++ method, include
 // implicit parameter "this".
 llvm::DISubroutineType *CGDebugInfo::getOrCreateFunctionType(const Decl *D,
@@ -3446,8 +3488,10 @@ llvm::DISubroutineType *CGDebugInfo::getOrCreateFunctionType(const Decl *D,
     if (isa<FunctionNoProtoType>(Ty) && !FD->isVariadic())
       EltTys.push_back(DBuilder.createUnspecifiedParameter());
     if (const auto *FPT = dyn_cast<FunctionProtoType>(Ty)) {
-      auto ParamTypes = FPT->param_types();
-      for (auto PT : ParamTypes) {
+      for (auto *PD : FD->parameters()) {
+        auto PT = PD->getType();
+        if (isCMSurfaceIndexWithAttributes(PD))
+          PT = wrapCMSurfaceIndexWithAttributes(PD);
         EltTys.push_back(getOrCreateType(PT, F));
       }
       // Handle variadic function types; they need an additional
@@ -3806,10 +3850,14 @@ llvm::DILocalVariable *CGDebugInfo::EmitDeclare(const VarDecl *VD,
     Unit = getOrCreateFile(VD->getLocation());
   llvm::DIType *Ty;
   uint64_t XOffset = 0;
+  auto VDTy = VD->getType();
+  if (auto *PVD = dyn_cast<ParmVarDecl>(VD))
+    if (isCMSurfaceIndexWithAttributes(PVD))
+      VDTy = wrapCMSurfaceIndexWithAttributes(PVD);
   if (VD->hasAttr<BlocksAttr>())
     Ty = EmitTypeForVarWithBlocksAttr(VD, &XOffset).WrappedType;
   else
-    Ty = getOrCreateType(VD->getType(), Unit);
+    Ty = getOrCreateType(VDTy, Unit);
 
   // If there is no debug info for this type then do not emit debug info
   // for this variable.
