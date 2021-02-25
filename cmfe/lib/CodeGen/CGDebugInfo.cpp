@@ -3431,20 +3431,34 @@ llvm::DISubroutineType *CGDebugInfo::getOrCreateFunctionType(const Decl *D,
                                          getDwarfCC(CC));
   }
 
-  // Handle variadic function types; they need an additional
-  // unspecified parameter.
-  if (const auto *FD = dyn_cast<FunctionDecl>(D))
-    if (FD->isVariadic()) {
-      SmallVector<llvm::Metadata *, 16> EltTys;
-      EltTys.push_back(getOrCreateType(FD->getReturnType(), F));
-      if (const auto *FPT = dyn_cast<FunctionProtoType>(FnType))
-        for (QualType ParamType : FPT->param_types())
-          EltTys.push_back(getOrCreateType(ParamType, F));
+  // Handle Function types
+  // This code actually makes CGDebugInfo::CreateType(const FunctionType *)
+  // function useless, and it probably can be removed.
+  // The reason why function decls are processed here is the ability to
+  // access FunctionDecl with additional metadata.
+  if (const auto *FD = dyn_cast<FunctionDecl>(D)) {
+    auto *Ty = cast<FunctionType>(FnType);
+    SmallVector<llvm::Metadata *, 16> EltTys;
+    // Add the result type at least.
+    EltTys.push_back(getOrCreateType(FD->getReturnType(), F));
+    // Set up remainder of arguments if there is a prototype.
+    // otherwise emit it as a variadic function.
+    if (isa<FunctionNoProtoType>(Ty) && !FD->isVariadic())
       EltTys.push_back(DBuilder.createUnspecifiedParameter());
-      llvm::DITypeRefArray EltTypeArray = DBuilder.getOrCreateTypeArray(EltTys);
-      return DBuilder.createSubroutineType(EltTypeArray, llvm::DINode::FlagZero,
-                                           getDwarfCC(CC));
+    if (const auto *FPT = dyn_cast<FunctionProtoType>(Ty)) {
+      auto ParamTypes = FPT->param_types();
+      for (auto PT : ParamTypes) {
+        EltTys.push_back(getOrCreateType(PT, F));
+      }
+      // Handle variadic function types; they need an additional
+      // unspecified parameter.
+      if (FPT->isVariadic())
+        EltTys.push_back(DBuilder.createUnspecifiedParameter());
     }
+    llvm::DITypeRefArray EltTypeArray = DBuilder.getOrCreateTypeArray(EltTys);
+    return DBuilder.createSubroutineType(EltTypeArray, llvm::DINode::FlagZero,
+                                         getDwarfCC(Ty->getCallConv()));
+  }
 
   return cast<llvm::DISubroutineType>(getOrCreateType(FnType, F));
 }
