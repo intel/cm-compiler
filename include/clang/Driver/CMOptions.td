@@ -201,6 +201,10 @@ def mCM_reverse_kernels : Flag<["-", "/"], "mCM_reverse_kernels">, Group<cm_Grou
   HelpText<"Emit the kernel asm name in reversed order">,
   Flags<[CMOption, CC1Option, CC1AsOption]>;
 
+def mCM_enable_stackcalls : Flag<["-", "/"], "mCM_enable_stackcalls">, Group<cm_Group>,
+  HelpText<"Enable stack calls by default for all non-main kernel functions">,
+  Flags<[CMOption, CC1Option, CC1AsOption]>;
+
 // Passed to cc1 to specify the GenX assembly file base name
 def cm_asm_name : CMCC1<"cm-asm-name">;
 

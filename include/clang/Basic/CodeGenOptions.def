@@ -33,6 +33,7 @@ CODEGENOPT(InitializeCMGlobals, 1, 0)      /// CM: initialize CM global variable
 CODEGENOPT(EmitCMGlobalsAsVolatile, 1, 0)  /// CM: make CM global variables volatile.
 CODEGENOPT(ReverseCMKernelList, 1, 0)      /// CM: emit kernels asm name in reversed order.
 CODEGENOPT(EmitCmOCLL0, 1, 0)              /// CM: emit CM kernels to run on OpenCL or L0 runtime.
+CODEGENOPT(EnableCMStackcalls, 1, 0)       /// CM: enable CM stack calls by default.
 
 // those options are deduced from arch
 VALUE_CODEGENOPT(MaxSLMSize, 32, 64)       /// CM: maximum amount of SLM available
