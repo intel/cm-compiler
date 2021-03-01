@@ -821,6 +821,7 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   }
 
   Opts.ReverseCMKernelList = Args.hasArg(OPT_mCM_reverse_kernels);
+  Opts.EnableCMStackcalls = Args.hasArg(OPT_mCM_enable_stackcalls);
   Opts.RerollLoops = Args.hasArg(OPT_freroll_loops);
   if (auto *Arg = Args.getLastArg(OPT_binary_format)) {
     bool IsOCLOrZEBinary = llvm::StringSwitch<bool>(Arg->getValue())

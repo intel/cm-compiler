@@ -1036,7 +1036,7 @@ void CodeGenFunction::StartFunction(GlobalDecl GD,
         else if (FD->hasAttr<CMEntryAttr>())
           Fn->addFnAttr("CMEntry");
       }
-      else if (FD->hasAttr<CMGenxStackcallAttr>())
+      else if (CGM.getCodeGenOpts().EnableCMStackcalls || FD->hasAttr<CMGenxStackcallAttr>())
         Fn->addFnAttr(llvm::genx::FunctionMD::CMStackCall);
     }
   }
