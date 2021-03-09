@@ -20,7 +20,6 @@ set(LLVM_LINK_COMPONENTS
   Passes
   ProfileData
   ScalarOpts
-  SPIRVLib
   Support
   Target
   TransformUtils
@@ -111,3 +110,5 @@ add_clang_library(clangCodeGen
   clangLex
   clangSerialization
   )
+
+target_link_libraries(clangCodeGen PUBLIC LLVMSPIRVLib)

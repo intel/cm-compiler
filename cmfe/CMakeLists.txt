@@ -399,15 +399,39 @@ if( CLANG_BUILT_STANDALONE )
   message(STATUS "found LLVM GenX Intrinsics: ${LLVMGenXIntrinsics_DIR}")
   include_directories("${LLVMGenXIntrinsics_DIR}/../../../include")
   link_directories("${LLVMGenXIntrinsics_DIR}/../../../lib")
-
-  # temporary SPIRV path
-  include_directories("${LLVMGenXIntrinsics_DIR}/../../../include/LLVMSPIRVLib")
 else()
-  include_directories(${LLVM_MAIN_SRC_DIR}/projects/vc-intrinsics/SPIRV-LLVM-Translator/include)
   include_directories(${LLVM_MAIN_SRC_DIR}/projects/vc-intrinsics/GenXIntrinsics/include)
   include_directories(${LLVM_BINARY_DIR}/projects/vc-intrinsics/GenXIntrinsics/include)
   include_directories(${LLVM_MAIN_SRC_DIR}/projects/vc-opt/include)
 endif()
+
+
+# ==================================== SPIRV-LLVM-Translator ====================================
+set(SPIRV_TRANSLATOR_DIR "" CACHE PATH "Path to SPIRV-LLVM-Translator prebuild")
+
+if(TARGET LLVMSPIRVLib)
+  message(STATUS "[SPIRV] Found target LLVMSPIRVLib. Try to use it...")
+  find_path(SPIRV_TRANSLATOR_HEADER_DIR "LLVMSPIRVLib.h"
+   PATHS ${LLVM_MAIN_SRC_DIR}/projects/SPIRV-LLVM-Translator/include
+   REQUIRED
+   NO_DEFAULT_PATH
+   )
+  target_include_directories(LLVMSPIRVLib INTERFACE ${SPIRV_TRANSLATOR_HEADER_DIR})
+  message(STATUS "[SPIRV] Using LLVMSPIRVLib from: \"${LLVM_MAIN_SRC_DIR}/projects/SPIRV-LLVM-Translator\"")
+elseif(SPIRV_TRANSLATOR_DIR)
+  message(STATUS "[SPIRV] SPIRV_TRANSLATOR_DIR was set to \"${SPIRV_TRANSLATOR_DIR}\". "
+                 "Checking for LLVMSPIRVLib target...")
+  # search for LLVMSPIRVLib only in SPIRV_TRANSLATOR_DIR, do not consider system paths
+  find_library(SPIRV_TRANSLATOR_LIB NAMES LLVMSPIRVLib PATHS ${SPIRV_TRANSLATOR_DIR}/lib/ REQUIRED NO_DEFAULT_PATH)
+  find_path(SPIRV_TRANSLATOR_HEADER_DIR "LLVMSPIRVLib.h" PATHS ${SPIRV_TRANSLATOR_DIR}/include/LLVMSPIRVLib REQUIRED NO_DEFAULT_PATH)
+  add_library(LLVMSPIRVLib STATIC IMPORTED)
+  set_target_properties(LLVMSPIRVLib PROPERTIES
+    IMPORTED_LOCATION ${SPIRV_TRANSLATOR_LIB}
+    INTERFACE_INCLUDE_DIRECTORIES ${SPIRV_TRANSLATOR_HEADER_DIR}
+  )
+  message(STATUS "[SPIRV] Using LLVMSPIRVLib from: \"${SPIRV_TRANSLATOR_LIB}\"")
+endif()
+
 
 if (NOT LLVM_INSTALL_TOOLCHAIN_ONLY)
   install(DIRECTORY include/clang include/clang-c
