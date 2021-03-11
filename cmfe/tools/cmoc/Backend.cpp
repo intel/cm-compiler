@@ -102,7 +102,8 @@ const std::unordered_map<std::string, std::string> CmToNeoCPU{
 
 static std::string translateCPU(const std::string &CPU) {
   auto It = CmToNeoCPU.find(CPU);
-  assert(It != CmToNeoCPU.end() && "Unexpected CPU model");
+  if (It == CmToNeoCPU.end())
+    FatalError("Unexpected CPU model: " + CPU);
   return It->second;
 }
 
@@ -198,10 +199,6 @@ static void invokeBE(const std::vector<char> &SPIRV, const std::string &NeoCPU,
     printEscapedArgs(llvm::errs(), OclocArgs, '"');
   }
 
-  // Silence ocloc if no debug.
-  if (!isCmocDebugEnabled())
-    OclocArgs.push_back("-q");
-
   uint32_t NumOutputs = 0;
   uint8_t **DataOutputs = nullptr;
   uint64_t *LenOutputs = nullptr;
@@ -212,8 +209,11 @@ static void invokeBE(const std::vector<char> &SPIRV, const std::string &NeoCPU,
   const uint64_t SpvLen = SPIRV.size();
   if (LibOcloc.invoke(OclocArgs.size(), OclocArgs.data(), 1, &SpvSource,
                       &SpvLen, &SpvFileName, 0, nullptr, nullptr, nullptr,
-                      &NumOutputs, &DataOutputs, &LenOutputs, &NameOutputs))
+                      &NumOutputs, &DataOutputs, &LenOutputs, &NameOutputs)) {
+    // no need to print build log here if -q option is not passed
+    // and now it is not
     FatalError("Call to oclocInvoke failed");
+  }
   saveOutputs(NumOutputs, DataOutputs, LenOutputs, NameOutputs,
               RequiredExtension, Result);
   if (LibOcloc.freeOutput(&NumOutputs, &DataOutputs, &LenOutputs, &NameOutputs))
