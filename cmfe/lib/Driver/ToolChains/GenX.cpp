@@ -35,7 +35,7 @@ StringRef fixupComplexArgument(StringRef Input) {
   return Input;
 }
 
-std::string getFinalizerPlatform(StringRef CPU) {
+std::string getFinalizerPlatform(StringRef CPU, StringRef Stepping) {
   // Unfortunately, the finalizer doesn't support all platforms, so we map
   // any unsupported platforms to the most appropriate supported one.
   auto FinalizerPlatform = llvm::StringSwitch<StringRef>(CPU)
@@ -43,6 +43,7 @@ std::string getFinalizerPlatform(StringRef CPU) {
                                .Case("GLK", "BXT")
                                .Case("", "SKL")
                                .Default(CPU);
+
 
   return FinalizerPlatform.str();
 }
@@ -106,10 +107,11 @@ ArgStringList constructCompatibilityFinalizerOptions(const ArgList &Args,
     }
   }
 
-  auto Platform = getFinalizerPlatform(tools::GenX::getGenXTargetCPU(Args));
+  auto CPU = tools::GenX::getGenXTargetCPU(Args);
+  std::string Stepping = "";
+  auto Platform = getFinalizerPlatform(CPU, Stepping);
   CompatibilityArgs.push_back("-platform");
   CompatibilityArgs.push_back(Args.MakeArgString(Platform));
-
 
   // For GenX variants below Gen11 we disable IGA by default, by passing the
   // -disableIGASyntax option to the finalizer.
