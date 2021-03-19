@@ -148,35 +148,40 @@ static std::vector<size_t> printStrings(raw_ostream &Out) {
 
   Out << "static const char ResourceStorage[][" << MaxChunkSize << "] = {\n";
   ChunkPrinter Printer(Out);
-  std::vector<size_t> Sizes;
+  std::vector<size_t> EncodedSizes;
   for (auto &&InputFile : InputFiles) {
     auto InErr = MemoryBuffer::getFile(InputFile);
     if (auto EC = InErr.getError())
       report_fatal_error(EC.message());
-    StringRef Buf = InErr.get()->getBuffer();
+    auto &MemBuf = InErr.get();
+    // Memory buffer guarantees that end is null character. We need this
+    // character to separate files since we will restore them later
+    // as memory buffers again which requires zero terminator.
+    StringRef Buf{MemBuf->getBufferStart(), MemBuf->getBufferSize() + 1};
     Printer.printInChunks(Buf);
-    Sizes.push_back(Buf.size());
+    EncodedSizes.push_back(Buf.size());
   }
   Printer.finalize();
   Out << "};\n\n";
 
   Out << "#endif // CM_GET_RESOURCE_STORAGE\n\n";
-  return Sizes;
+  return EncodedSizes;
 }
 
 // Print initializer for array of resource descriptors.
-static void printDescriptors(const std::vector<size_t> &Sizes,
+static void printDescriptors(const std::vector<size_t> &EncodedSizes,
                              raw_ostream &Out) {
   Out << "#ifdef CM_GET_RESOURCE_DESCS\n";
 
   std::vector<size_t> Positions;
   Positions.push_back(0);
-  std::partial_sum(Sizes.begin(), std::prev(Sizes.end()),
+  std::partial_sum(EncodedSizes.begin(), std::prev(EncodedSizes.end()),
                    std::back_inserter(Positions));
-  for (auto &&Desc : llvm::zip(InputFiles, Positions, Sizes)) {
+  for (auto &&Desc : llvm::zip(InputFiles, Positions, EncodedSizes)) {
     const std::string &Header = std::get<0>(Desc);
     const std::size_t Pos = std::get<1>(Desc);
-    const std::size_t Size = std::get<2>(Desc);
+    // Real size if less then encoded by one because of null termination.
+    const std::size_t Size = std::get<2>(Desc) - 1;
     Out << "{\"";
     writeEscapedCString(Header, Out);
     Out << "\", (const char *)ResourceStorage + " << Pos << ", " << Size
@@ -188,8 +193,8 @@ static void printDescriptors(const std::vector<size_t> &Sizes,
 
 // Print string storage and descriptors in form of "Name, Begin pointer, Size".
 static void printStoragePart(raw_ostream &Out) {
-  std::vector<size_t> Sizes = printStrings(Out);
-  printDescriptors(Sizes, Out);
+  std::vector<size_t> EncodedSizes = printStrings(Out);
+  printDescriptors(EncodedSizes, Out);
 }
 
 int main(int argc, const char *const *argv) {
