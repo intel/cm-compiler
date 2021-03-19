@@ -69,12 +69,48 @@ void insertTargetAndModeArgs(const clang::driver::ParsedClangName &NameParts,
   }
 }
 
+// Use this virtual absolute location to store our headers.
+// This will be added later as system headers path.
+// Use UNC convention for windows and simple root path for linux.
+#ifdef _WIN32
+static const auto BuiltinHeadersRoot = "//cm/builtin";
+#else
+static const auto BuiltinHeadersRoot = "/cm/builtin";
+#endif
+
 llvm::IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem>
-createFileSystem(const wrapper::IInputArgs *InArgs,
-                 llvm::StringRef InputFileName) {
+createBuiltinMemoryFileSystem() {
   auto MemFS = wrapper::MakeIntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem>();
 
-  (void)getCmHeaderDescs();
+  MemFS->setCurrentWorkingDirectory(BuiltinHeadersRoot);
+
+  for (const CmHeaderDesc &D : getCmHeaderDescs()) {
+    llvm::StringRef Name{D.Name};
+    llvm::StringRef Data{D.Begin, D.Size};
+    auto MemBuf = llvm::MemoryBuffer::getMemBuffer(Data);
+    MemFS->addFile(Name, 0, std::move(MemBuf),
+                   /*User=*/llvm::None, /*Group=*/llvm::None,
+                   llvm::sys::fs::file_type::regular_file,
+                   llvm::sys::fs::all_read);
+  }
+
+  return MemFS;
+}
+
+llvm::IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> getHeadersFileSystem() {
+  static auto MemFS = createBuiltinMemoryFileSystem();
+  return MemFS;
+}
+
+// These code is deceptive. It extracts filename from command line
+// but uses InArgs->InputText as its content. So actually if someone (FCL)
+// just generated real file but has not copied it to input, compiler
+// will compile empty source. This layer will be temporarily disabled.
+// Additionally, for debugger support reasons.
+llvm::IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem>
+createInputsFileSystem(const wrapper::IInputArgs *InArgs,
+                       llvm::StringRef InputFileName) {
+  auto MemFS = wrapper::MakeIntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem>();
 
   auto Src = wrapper::getSrc<llvm::StringRef>(InArgs);
   MemFS->addFile(InputFileName, 0,
@@ -85,6 +121,17 @@ createFileSystem(const wrapper::IInputArgs *InArgs,
                    llvm::MemoryBuffer::getMemBuffer(File.Src, File.Name));
   }
   return MemFS;
+}
+
+llvm::IntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem>
+createFileSystem(const wrapper::IInputArgs *InArgs,
+                 llvm::StringRef InputFileName) {
+  auto OverlayMemFS =
+      wrapper::MakeIntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem>(
+          llvm::vfs::getRealFileSystem());
+  OverlayMemFS->pushOverlay(getHeadersFileSystem());
+
+  return OverlayMemFS;
 }
 
 llvm::StringRef getTheOnlyInputFileName(const clang::CompilerInstance &Clang) {
@@ -214,7 +261,6 @@ makeAdditionalOptionParsing(const std::vector<const char *> &CArgs) {
 wrapper::IDriverInvocationImpl*
 createDriverInvocationFromCCArgs(const std::vector<const char*> &CArgs,
                                  DiagnosticSubsystem &DS) {
-
   clang::CompilerInstance Clang;
 
   if (!clang::CompilerInvocation::CreateFromArgs(
@@ -425,6 +471,12 @@ IntelCMClangFECompile(const Intel::CM::ClangFE::IInputArgs *InArgs) {
       });
 
   clang::CompilerInstance Clang;
+
+  clang::HeaderSearchOptions &HS = Clang.getHeaderSearchOpts();
+  // CM_INCLUDE_DIR has highest priority in system header search process.
+  if (auto IncludeDirOpt = llvm::sys::Process::GetEnv("CM_INCLUDE_DIR"))
+    HS.AddPath(IncludeDirOpt.getValue(), clang::frontend::System, false, true);
+
   if (!clang::CompilerInvocation::CreateFromArgs(
         Clang.getInvocation(), CStrCompOpts.data(),
         CStrCompOpts.data() + CStrCompOpts.size(), *DS.Diags)) {
@@ -432,15 +484,18 @@ IntelCMClangFECompile(const Intel::CM::ClangFE::IInputArgs *InArgs) {
     return nullptr;
   }
 
+  // At this time header search options were filled with arguments so
+  // embedded headers will have lowest priority in search.
+  HS.AddPath(BuiltinHeadersRoot, clang::frontend::System, false, true);
+  // Do not use any of standard paths.
+  HS.UseStandardSystemIncludes = 0;
+  HS.UseBuiltinIncludes = 0;
+
   auto IRStream = OutArgsBuilder.getIRStream();
   Clang.setOutputStream(std::move(IRStream));
 
-  // TODO: Enable facilities required for builds whuch use custom FileSystem to be usable
-  // We have the capability to use our own file system,
-  // however at the present moment the user interface required to do so
-  // is not defined clearly, thus this functionality is temporaly disabled
-  // auto MemFS = createFileSystem(InArgs, getTheOnlyInputFileName(Clang));
-  // Clang.setVirtualFileSystem(MemFS);
+  auto MemFS = createFileSystem(InArgs, getTheOnlyInputFileName(Clang));
+  Clang.setVirtualFileSystem(MemFS);
 
   Clang.setDiagnostics(&*DS.Diags);
 
