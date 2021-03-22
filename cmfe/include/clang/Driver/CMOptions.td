@@ -205,6 +205,9 @@ def mCM_enable_stackcalls : Flag<["-", "/"], "mCM_enable_stackcalls">, Group<cm_
   HelpText<"Enable stack calls by default for all non-main kernel functions">,
   Flags<[CMOption, CC1Option, CC1AsOption]>;
 
+def mCM_optimize_none : Flag<["-", "/"], "mCM_optimize_none">, Group<cm_Group>,
+  Flags<[CC1Option]>;
+
 // Passed to cc1 to specify the GenX assembly file base name
 def cm_asm_name : CMCC1<"cm-asm-name">;
 

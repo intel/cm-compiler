@@ -238,9 +238,20 @@ static bool getTimePasses(const llvm::opt::InputArgList &Args) {
   return Args.hasArg(clang::driver::options::OPT_ftime_report);
 }
 
+static std::string getVCApiOptions(const llvm::opt::InputArgList &Args) {
+  std::string VCApiOptions = "";
+  if (Args.hasArg(clang::driver::options::OPT_mCM_optimize_none)) {
+    if (!VCApiOptions.empty())
+      VCApiOptions += " ";
+    VCApiOptions += "-optimize=none";
+  }
+  return VCApiOptions;
+}
+
 struct OptionInfoT {
   IDriverInvocation::BinaryFormatT BinaryFormat;
   bool TimePasses;
+  std::string VCApiOptions;
 };
 
 static OptionInfoT
@@ -254,6 +265,7 @@ makeAdditionalOptionParsing(const std::vector<const char *> &CArgs) {
   OptionInfoT Info;
   Info.BinaryFormat = getBinaryFormat(ParsedArgs);
   Info.TimePasses = getTimePasses(ParsedArgs);
+  Info.VCApiOptions = getVCApiOptions(ParsedArgs);
   return Info;
 }
 
@@ -337,6 +349,7 @@ createDriverInvocationFromCCArgs(const std::vector<const char*> &CArgs,
   Result->setTargetParams(OptionInfo.BinaryFormat, TargetRuntime,
                           std::move(TargetArch), TO.FeaturesAsWritten,
                           OptionInfo.TimePasses);
+  Result->setVCApiOptions(OptionInfo.VCApiOptions);
   return Result;
 }
 
@@ -392,6 +405,12 @@ extern "C" INTEL_CM_CLANGFE_DLL_DECL bool IntelCMClangFEIsShowVersionInvocation(
     Intel::CM::ClangFE::IDriverInvocation const *DriverInvocPtr) {
   return static_cast<wrapper::IDriverInvocationImpl const *>(DriverInvocPtr)
       ->isShowVersion();
+}
+
+extern "C" INTEL_CM_CLANGFE_DLL_DECL const char *IntelCMClangFEGetVCApiOptions(
+    Intel::CM::ClangFE::IDriverInvocation const *DriverInvocPtr) {
+  return static_cast<wrapper::IDriverInvocationImpl const *>(DriverInvocPtr)
+      ->getVCApiOptions().c_str();
 }
 
 extern "C" INTEL_CM_CLANGFE_DLL_DECL Intel::CM::ClangFE::IDriverInvocation *

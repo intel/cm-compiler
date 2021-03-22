@@ -220,8 +220,10 @@ static void invokeBE(const std::vector<char> &SPIRV, const std::string &NeoCPU,
     FatalError("Call to oclocFreeOutput failed");
 }
 
-static std::string composeOptions() {
+static std::string composeOptions(const std::string &APIOptions) {
   std::string Options{"-vc-codegen "};
+
+  Options.append(APIOptions);
 
   auto AuxVCOptions = llvm::sys::Process::GetEnv("CM_VC_API_OPTIONS");
   if (AuxVCOptions) {
@@ -257,6 +259,7 @@ composeInternalOptions(const std::string &BinFormat,
 
 void translateIL(const std::string &CPUName, const std::string &BinaryFormat,
                  const std::string &Features,
+                 const std::string &APIOptions,
                  const std::vector<std::string> &BackendOptions,
                  const std::vector<char> &SPIRV_IR, InputKind IK,
                  bool TimePasses, ILTranslationResult &Result) {
@@ -267,7 +270,7 @@ void translateIL(const std::string &CPUName, const std::string &BinaryFormat,
                  << "\n";
   }
 
-  const std::string Options = composeOptions();
+  const std::string Options = composeOptions(APIOptions);
   const std::string InternalOptions = composeInternalOptions(
       BinaryFormat, BackendOptions, Features, TimePasses);
 
