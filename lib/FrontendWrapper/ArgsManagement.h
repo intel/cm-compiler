@@ -91,6 +91,7 @@ class IDriverInvocationImpl final : public IDriverInvocation {
   bool IsHelpInvocation = false;
   bool IsShowVersionInvocation = false;
   bool TimePasses = false;
+  StrT VCApiOptions = "";
 
   IDriverInvocationImpl() {};
 
@@ -168,6 +169,9 @@ public:
 
   bool isHelp() const override { return IsHelpInvocation; }
   bool isShowVersion() const { return IsShowVersionInvocation; }
+
+  const StrT& getVCApiOptions() const { return VCApiOptions; }
+  void setVCApiOptions(const StrT& vcApiOptions) { VCApiOptions = vcApiOptions; }
 
 private:
   // Pass \p TargetFeaturesIn as it is easier to analyze it before join.
