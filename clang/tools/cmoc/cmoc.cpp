@@ -111,6 +111,10 @@ public:
     assert(DriverInvocation);
     return FE.isDriverShowVersionInvocation(DriverInvocation.get());
   }
+  std::string getVCApiOptions() {
+    assert(DriverInvocation);
+    return FE.getVCApiOptions(DriverInvocation.get());
+  }
   const std::string& getInputFilename() const {
     assert(DriverInvocation);
     return DriverInvocation->getInputFilename();
@@ -295,7 +299,9 @@ void CmocContext::runVCOpt(const BinaryData &In, InputKind IK,
 
   const auto &TargetFeatures = DriverInvocation->getTargetFeaturesStr();
 
-  translateIL(CPU, BinFormat, TargetFeatures, VcOpts, In, IK,
+  std::string APIOptions = getVCApiOptions();
+
+  translateIL(CPU, BinFormat, TargetFeatures, APIOptions, VcOpts, In, IK,
               DriverInvocation->getTimePasses(), Result);
 }
 
