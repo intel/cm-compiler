@@ -62,6 +62,7 @@ add_custom_command(OUTPUT ${OUTPUT_FILE}
   ${CM_HEADERS}
   -output=${OUTPUT_FILE}
   DEPENDS
+  ${CM_HEADERS}
   ResourceEmbedder
   WORKING_DIRECTORY
   "${CMAKE_CURRENT_SOURCE_DIR}"
