@@ -1178,9 +1178,14 @@ template <typename T> CM_NODEBUG CM_INLINE T cm_frc(T src0) {
 template <typename RT, typename T0, int SZ>
 CM_NODEBUG CM_INLINE vector<RT, SZ> cm_lzd(vector<T0, SZ> src0,
                                            int flag = _GENX_NOSAT) {
+  CM_STATIC_ERROR(std::is_integral<T0>::value,
+                  "cm_lzd supports only integral data types!");
+  using IntermType =
+      typename std::conditional<details::is_qword_type<T0>::value,
+                                unsigned long long, unsigned int>::type;
   // Saturation parameter ignored
-  vector<uint, SZ> _Src0 = src0;
-  return details::__cm_intrinsic_impl_lzd<uint>(_Src0);
+  vector<IntermType, SZ> _Src0 = src0;
+  return details::__cm_intrinsic_impl_lzd<IntermType>(_Src0);
 }
 
 template <typename RT, typename T0, int N1, int N2>
