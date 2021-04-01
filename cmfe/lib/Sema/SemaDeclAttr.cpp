@@ -4379,12 +4379,6 @@ static void handleCallConvAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   }
 }
 
-static void handleCMGenxAttr(Sema &S, Decl *D, const ParsedAttr &AL){
-  assert(!AL.isInvalid());
-  D->addAttr(::new (S.Context) CMGenxAttr(AL.getRange(), S.Context,
-                                AL.getAttributeSpellingListIndex()));
-}
-
 static void handleCMGenxVolatileAttr(Sema &S, Decl *D,
                                      const ParsedAttr &AL) {
   assert(!AL.isInvalid());
@@ -4409,49 +4403,6 @@ static void handleCMGenxVolatileAttr(Sema &S, Decl *D,
   D->addAttr(::new (S.Context)
                  CMGenxVolatileAttr(AL.getRange(), S.Context, OffsetNum,
                                     AL.getAttributeSpellingListIndex()));
-}
-
-static void handleCMBuiltinAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
-  assert(!AL.isInvalid());
-  D->addAttr(::new (S.Context) CMBuiltinAttr(
-      AL.getRange(), S.Context, AL.getAttributeSpellingListIndex()));
-}
-
-static void handleCMGenxMainAttr(Sema &S, Decl *D, const ParsedAttr &AL){
-  assert(!AL.isInvalid());
-  D->addAttr(::new (S.Context) CMGenxMainAttr(AL.getRange(), S.Context,
-                                AL.getAttributeSpellingListIndex()));
-}
-
-static void handleCMGenxStackcallAttr(Sema &S, Decl *D, const ParsedAttr &AL){
-  assert(!AL.isInvalid());
-  D->addAttr(::new (S.Context) CMGenxStackcallAttr(AL.getRange(), S.Context,
-                                AL.getAttributeSpellingListIndex()));
-}
-
-static void handleCMInputAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
-  assert(!AL.isInvalid());
-  D->addAttr(::new (S.Context) CMInputAttr(
-      AL.getRange(), S.Context, AL.getAttributeSpellingListIndex()));
-}
-
-static void handleCMOutputAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
-  assert(!AL.isInvalid());
-  D->addAttr(::new (S.Context) CMOutputAttr(
-      AL.getRange(), S.Context, AL.getAttributeSpellingListIndex()));
-}
-
-static void handleCMInputOutputAttr(Sema &S, Decl *D,
-                                    const ParsedAttr &AL) {
-  assert(!AL.isInvalid());
-  D->addAttr(::new (S.Context) CMInputOutputAttr(
-      AL.getRange(), S.Context, AL.getAttributeSpellingListIndex()));
-}
-
-static void handleCMCallableAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
-  assert(!AL.isInvalid());
-  D->addAttr(::new (S.Context) CMCallableAttr(AL.getRange(), S.Context,
-                                AL.getAttributeSpellingListIndex()));
 }
 
 static void handleCMFloatControlAttr(Sema &S, Decl *D, const ParsedAttr &AL){
@@ -4530,12 +4481,6 @@ static void handleCMGenxNoSIMDPredAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   }
 
   D->addAttr(::new (S.Context) CMGenxNoSIMDPredAttr(AL.getRange(), S.Context,
-    AL.getAttributeSpellingListIndex()));
-}
-
-static void handleCMEntryAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
-  assert(!AL.isInvalid());
-  D->addAttr(::new (S.Context) CMEntryAttr(AL.getRange(), S.Context,
     AL.getAttributeSpellingListIndex()));
 }
 
@@ -7054,31 +6999,31 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
 
   // MDF CM attributes:
   case ParsedAttr::AT_CMGenx:
-    handleCMGenxAttr(S, D, AL);
+    handleSimpleAttribute<CMGenxAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_CMGenxVolatile:
     handleCMGenxVolatileAttr(S, D, AL);
     break;
   case ParsedAttr::AT_CMBuiltin:
-    handleCMBuiltinAttr(S, D, AL);
+    handleSimpleAttribute<CMBuiltinAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_CMGenxMain:
-    handleCMGenxMainAttr(S, D, AL);
+    handleSimpleAttribute<CMGenxMainAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_CMGenxStackcall:
-    handleCMGenxStackcallAttr(S, D, AL);
+    handleSimpleAttribute<CMGenxStackcallAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_CMInput:
-    handleCMInputAttr(S, D, AL);
+    handleSimpleAttribute<CMInputAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_CMOutput:
-    handleCMOutputAttr(S, D, AL);
+    handleSimpleAttribute<CMOutputAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_CMInputOutput:
-    handleCMInputOutputAttr(S, D, AL);
+    handleSimpleAttribute<CMInputOutputAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_CMCallable:
-    handleCMCallableAttr(S, D, AL);
+    handleSimpleAttribute<CMCallableAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_CMFloatControl:
     handleCMFloatControlAttr(S, D, AL);
@@ -7093,7 +7038,7 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
     handleCMGenxNoSIMDPredAttr(S, D, AL);
     break;
   case ParsedAttr::AT_CMEntry:
-    handleCMEntryAttr(S, D, AL);
+    handleSimpleAttribute<CMEntryAttr>(S, D, AL);
     break;
   case ParsedAttr::AT_CMOpenCLType:
     handleCMOpenCLTypeAttr(S, D, AL);
