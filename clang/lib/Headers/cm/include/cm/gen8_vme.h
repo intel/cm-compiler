@@ -773,7 +773,6 @@ static_assert(0, "CM:w:gen8_vme.h should not be included explicitly - only "
   (VME_Input_S1(p, uchar, 2, 29) =                                             \
        VME_Input_S1(p, uchar, 2, 29) & 0xF3 | (v << 2))
 #else
-// BSPEC Update Rev1.6
 // Format = U8
 #define VME_SET_SICInput_PenaltyIntra4x4NonDC(p, v)                            \
   (VME_Input_G1(p, uchar, 2, 30) = v)
@@ -1498,7 +1497,6 @@ static_assert(0, "CM:w:gen8_vme.h should not be included explicitly - only "
 #define VME_GET_SICInput_ScaleFactorIntra16x16NonDC(p)                         \
   ((VME_Input_G1(p, uchar, 2, 29) & 0xC) >> 2)
 #else
-// BSPEC Update Rev1.6
 // Format = U8
 #define VME_GET_SICInput_PenaltyIntra4x4NonDC(p) (VME_Input_G1(p, uchar, 2, 30))
 // Format = U8
