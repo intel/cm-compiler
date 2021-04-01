@@ -504,6 +504,7 @@ enum CmFloatControl {
 #define _CM_OUTPUT_       __declspec(cm_output)
 #define _CM_INPUT_OUTPUT_ __declspec(cm_input_output)
 #define _CM_OUTPUT_INPUT_ __declspec(cm_input_output)
+#define _CM_FIXED_        __declspec(cm_fixed)
 
 #define _GENX_ROUNDING_MODE_(x) __declspec(cm_float_control(x))
 #define _GENX_FLOAT_CONTROL_(x) __declspec(cm_float_control(x))
