@@ -7022,6 +7022,9 @@ static void ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D,
   case ParsedAttr::AT_CMInputOutput:
     handleSimpleAttribute<CMInputOutputAttr>(S, D, AL);
     break;
+  case ParsedAttr::AT_CMFixed:
+    handleSimpleAttribute<CMFixedAttr>(S, D, AL);
+    break;
   case ParsedAttr::AT_CMCallable:
     handleSimpleAttribute<CMCallableAttr>(S, D, AL);
     break;
@@ -7313,6 +7316,7 @@ void Sema::ProcessDeclAttributeList(Scope *S, Decl *D,
     checkAttr(D->getAttr<CMInputAttr>());
     checkAttr(D->getAttr<CMOutputAttr>());
     checkAttr(D->getAttr<CMInputOutputAttr>());
+    checkAttr(D->getAttr<CMFixedAttr>());
 
     // Only allow the following types to have input/output attributes.
     // - cm vector / reference  (what about vector of surfaceindex ?)
@@ -7353,6 +7357,7 @@ void Sema::ProcessDeclAttributeList(Scope *S, Decl *D,
       checkParamAttr(VD, VD->getAttr<CMInputAttr>());
       checkParamAttr(VD, VD->getAttr<CMOutputAttr>());
       checkParamAttr(VD, VD->getAttr<CMInputOutputAttr>());
+      checkParamAttr(VD, VD->getAttr<CMFixedAttr>());
     }
   }
 
