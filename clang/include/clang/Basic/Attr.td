@@ -2782,6 +2782,11 @@ def CMInputOutput : Attr {
   let Documentation = [Undocumented];
 }
 
+def CMFixed : Attr {
+  let Spellings = [Declspec<"cm_fixed">];
+  let Documentation = [Undocumented];
+}
+
 def CMCallable : Attr {
   let Spellings = [Declspec<"cm_callable">];
   let Documentation = [Undocumented];

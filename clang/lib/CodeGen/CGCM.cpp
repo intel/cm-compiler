@@ -1381,7 +1381,6 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
   llvm::SmallVector<llvm::Metadata *, 8> ArgInOutKinds;
   llvm::SmallVector<llvm::Metadata *, 8> ArgTypeDescs;
   enum { AK_NORMAL, AK_SAMPLER, AK_SURFACE, AK_VME };
-  enum { IK_NORMAL, IK_INPUT, IK_OUTPUT, IK_INPUT_OUTPUT };
   for (FunctionDecl::param_const_iterator i = FD->param_begin(), e = FD->param_end();
       i != e; ++i) {
     const ParmVarDecl *PVD = *i;
@@ -1410,6 +1409,7 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
       Kind = AK_VME;
     ArgKinds.push_back(getMD(llvm::ConstantInt::get(I32Ty, Kind)));
 
+    enum { IK_NORMAL, IK_INPUT, IK_OUTPUT, IK_INPUT_OUTPUT, IK_FIXED };
     // IN + OUT = IN_OUT
     // IN + IN_OUT = IN_OUT
     // OUT + IN_OUT = IN_OUT
@@ -1421,6 +1421,12 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
         IKind |= IK_INPUT;
       if (PVD->hasAttr<CMOutputAttr>())
         IKind |= IK_OUTPUT;
+    }
+    if (PVD->hasAttr<CMFixedAttr>()) {
+      if (IKind != IK_NORMAL)
+        Error(PVD->getLocation(),
+              "fixed attribute cannot be combined with other FC attributes");
+      IKind = IK_FIXED;
     }
     ArgInOutKinds.push_back(getMD(llvm::ConstantInt::get(I32Ty, IKind)));
   }
