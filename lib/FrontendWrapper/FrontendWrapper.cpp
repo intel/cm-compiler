@@ -221,6 +221,11 @@ parseCompilerOptions(const std::vector<const char *> &CArgs,
   return parseOptions(CArgs, clang::driver::options::CC1Option, Opts);
 }
 
+static int getRevId(const llvm::opt::InputArgList &Args) {
+  return clang::getLastArgIntValue(Args, clang::driver::options::OPT_Qxcm_revid,
+                                   0);
+}
+
 static IDriverInvocation::BinaryFormatT
 getBinaryFormat(const llvm::opt::InputArgList &Args) {
   auto *Arg = Args.getLastArg(clang::driver::options::OPT_binary_format);
@@ -252,6 +257,7 @@ struct OptionInfoT {
   IDriverInvocation::BinaryFormatT BinaryFormat;
   bool TimePasses;
   std::string VCApiOptions;
+  int RevId;
 };
 
 static OptionInfoT
@@ -266,6 +272,7 @@ makeAdditionalOptionParsing(const std::vector<const char *> &CArgs) {
   Info.BinaryFormat = getBinaryFormat(ParsedArgs);
   Info.TimePasses = getTimePasses(ParsedArgs);
   Info.VCApiOptions = getVCApiOptions(ParsedArgs);
+  Info.RevId = getRevId(ParsedArgs);
   return Info;
 }
 
@@ -350,6 +357,7 @@ createDriverInvocationFromCCArgs(const std::vector<const char*> &CArgs,
                           std::move(TargetArch), TO.FeaturesAsWritten,
                           OptionInfo.TimePasses);
   Result->setVCApiOptions(OptionInfo.VCApiOptions);
+  Result->setRevId(OptionInfo.RevId);
   return Result;
 }
 
@@ -400,6 +408,12 @@ makeDriverInvocationFromCompilation(clang::driver::Compilation &Compilation,
 }
 
 } // namespace
+
+extern "C" INTEL_CM_CLANGFE_DLL_DECL int IntelCMClangFEGetRevId(
+    Intel::CM::ClangFE::IDriverInvocation const *DriverInvocPtr) {
+  return static_cast<wrapper::IDriverInvocationImpl const *>(DriverInvocPtr)
+      ->getRevId();
+}
 
 extern "C" INTEL_CM_CLANGFE_DLL_DECL bool IntelCMClangFEIsShowVersionInvocation(
     Intel::CM::ClangFE::IDriverInvocation const *DriverInvocPtr) {

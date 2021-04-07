@@ -202,6 +202,11 @@ public:
     return isShowVersionInvocation(DriverInvoc);
   }
 
+  int getRevIdSymInvocation(IDriverInvocation *DriverInvoc) {
+    auto *RevIdSym = CMFE_WRAPPER_GET_SYMBOL(IntelCMClangFEGetRevId);
+    return RevIdSym(DriverInvoc);
+  }
+
   DyLibTy &LibInfo() { return Lib; }
 
   std::string getVCApiOptions(IDriverInvocation *DriverInvoc) {

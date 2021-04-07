@@ -92,6 +92,7 @@ class IDriverInvocationImpl final : public IDriverInvocation {
   bool IsShowVersionInvocation = false;
   bool TimePasses = false;
   StrT VCApiOptions = "";
+  int RevId = 0;
 
   IDriverInvocationImpl() {};
 
@@ -172,6 +173,9 @@ public:
 
   const StrT& getVCApiOptions() const { return VCApiOptions; }
   void setVCApiOptions(const StrT& vcApiOptions) { VCApiOptions = vcApiOptions; }
+
+  int getRevId() const { return RevId; }
+  void setRevId(int Id) { RevId = Id; }
 
 private:
   // Pass \p TargetFeaturesIn as it is easier to analyze it before join.
