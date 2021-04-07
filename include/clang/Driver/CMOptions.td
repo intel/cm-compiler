@@ -230,6 +230,10 @@ def mdump_asm : CMFlag<"mdump_asm">,
   HelpText<"Enable genx backend to dump visa and genisa assembly "
            "files corresponding to the processed kernels">;
 
+def Qxcm_revid: CMJoined<"Qxcm_revid=">,
+  HelpText<"Pass specified revision ID to libocloc "
+           "Valid only for some platforms">;
+
 def femulate_i64 : Flag<["-", "/"], "femulate_i64">, Group<cm_Group>,
   HelpText<"emulate all 64-bit operations">,
   Flags<[CMOption, CC1Option, CC1AsOption]>;

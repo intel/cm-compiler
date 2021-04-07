@@ -24,7 +24,8 @@ namespace tools {
 namespace GenX {
 
 // get CPU from args
-std::string getGenXTargetCPU(const llvm::opt::ArgList &Args);
+std::string getGenXTargetCPU(const llvm::opt::ArgList &Args,
+                             const DiagnosticsEngine *Diags = nullptr);
 
 
 // get features from args and triple

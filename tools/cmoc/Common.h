@@ -37,8 +37,8 @@ struct ILTranslationResult {
   std::vector<char> KernelBinary;
 };
 
-void translateIL(const std::string &CPUName, const std::string &BinaryFormat,
-                 const std::string &Features,
+void translateIL(const std::string &CPUName, int RevId,
+                 const std::string &BinaryFormat, const std::string &Features,
                  const std::string &APIOptions,
                  const std::vector<std::string> &BackendOptions,
                  const std::vector<char> &SPIRV_IR, InputKind IK,
