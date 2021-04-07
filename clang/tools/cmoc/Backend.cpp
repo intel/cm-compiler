@@ -257,8 +257,8 @@ composeInternalOptions(const std::string &BinFormat,
   return InternalOptions;
 }
 
-void translateIL(const std::string &CPUName, const std::string &BinaryFormat,
-                 const std::string &Features,
+void translateIL(const std::string &CPUName, int RevId,
+                 const std::string &BinaryFormat, const std::string &Features,
                  const std::string &APIOptions,
                  const std::vector<std::string> &BackendOptions,
                  const std::vector<char> &SPIRV_IR, InputKind IK,
@@ -282,8 +282,14 @@ void translateIL(const std::string &CPUName, const std::string &BinaryFormat,
   const std::string RequiredExtension =
       translateRequiredExtension(BinaryFormat);
   const std::string NeoCPU = translateCPU(CPUName);
-  const std::string RevId = translateStepping(CPUName);
 
-  invokeBE(SPIRV_IR, NeoCPU, RevId, RequiredExtension, Options, InternalOptions,
-           Result);
+  // translate revid from CPU name if available
+  std::string RevIdStr = translateStepping(CPUName);
+
+  // if revid passed as option, prefer it
+  if (RevId > 0)
+    RevIdStr = std::to_string(RevId);
+
+  invokeBE(SPIRV_IR, NeoCPU, RevIdStr, RequiredExtension, Options,
+           InternalOptions, Result);
 }
