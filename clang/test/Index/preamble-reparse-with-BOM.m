@@ -1,4 +1,4 @@
-﻿
+
 @interface I2
 @end
 
