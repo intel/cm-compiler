@@ -1,4 +1,4 @@
-﻿//===-- ClangFormatPackages.cs - VSPackage for clang-format ------*- C# -*-===//
+//===-- ClangFormatPackages.cs - VSPackage for clang-format ------*- C# -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
