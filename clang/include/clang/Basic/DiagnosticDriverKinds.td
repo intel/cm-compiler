@@ -327,6 +327,10 @@ def warn_cm_iga_enabled : Warning<
   "IGA has been enabled by the ENABLE_IGA environment variable">;
 def warn_cm_ignored_flag : Warning<
   "'%0' is ignored">, InGroup<OptionIgnored>;
+def warn_cm_debug_default_behavior_change : Warning<
+  "default behavior for debug info when -g is not passed will be "
+  "changed from '-g1' (line tables) to '-g0' (no debug info). "
+  "Please use '-g' (full debug info) or '-g1' flags to enable old behavior.">;
 
 def warn_slash_u_filename : Warning<"'/U%0' treated as the '/U' option">,
   InGroup<DiagGroup<"slash-u-filename">>;
