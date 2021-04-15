@@ -891,6 +891,7 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
     SPIRV::TranslatorOpts Opts;
     Opts.setSPIRVAllowUnknownIntrinsicsEnabled(true);
     Opts.setDebugInfoEIS(SPIRV::DebugInfoEIS::OpenCL_DebugInfo_100);
+    Opts.setAllowExtraDIExpressionsEnabled(true);
     PerModulePasses.add(createSPIRVWriterPass(OStr, Opts));
 
     break;
