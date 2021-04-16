@@ -3573,7 +3573,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-emit-llvm-bc");
     }
     else if (JA.getType() == types::TY_SPIRV) {
-      CmdArgs.push_back("-emit-spirv-bc");
+      CmdArgs.push_back("-emit-spirv");
     } else if (JA.getType() == types::TY_PP_Asm) {
       CmdArgs.push_back("-S");
     } else if (JA.getType() == types::TY_AST) {
