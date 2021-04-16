@@ -1683,7 +1683,7 @@ static InputKind ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
       Opts.ProgramAction = frontend::EmitCodeGenOnly; break;
     case OPT_emit_obj:
       Opts.ProgramAction = frontend::EmitObj; break;
-    case OPT_emit_spirv_bc:
+    case OPT_emit_spirv:
       Opts.ProgramAction = frontend::EmitSPIRV; break;
     case OPT_fixit_EQ:
       Opts.FixItSuffix = A->getValue();
