@@ -48,23 +48,6 @@ bool isCmocDebugEnabled() {
   return DebugEnabled;
 }
 
-using StringStorage = std::unordered_set<std::string>;
-const char *getStableCStr(llvm::StringRef S, StringStorage &StableStrings) {
-  return StableStrings.insert(S.str()).first->c_str();
-}
-
-template<typename InputIter>
-std::vector<const char*> convertToCStrings(InputIter Begin, InputIter End,
-                                           StringStorage &SavedStrings) {
-  std::vector<const char*> CStrings;
-  using InputType = typename std::iterator_traits<InputIter>::value_type;
-  std::transform(Begin, End, std::back_inserter(CStrings),
-                 [&SavedStrings](const InputType &S) {
-                   return getStableCStr(S, SavedStrings);
-                 });
-  return CStrings;
-}
-
 enum class OutputKind {
   LLVM_IR_BC,
   LLVM_IR,
@@ -86,10 +69,8 @@ class CmocContext {
 
   FEWrapper FE;
   IDriverInvocationPtr DriverInvocation = {nullptr, [](IDriverInvocation *) {}};
-  std::unordered_set<std::string> StableStrings;
-  std::vector<std::string> OriginalArgs;
 
-  IDriverInvocationPtr createInvocation(std::vector<const char *> &Args);
+  IDriverInvocationPtr createInvocation(int Argc, const char **Argv);
 
   // Maps input file types reported by Frontend Wrapper
   // to the internal type supported by offline compiler
@@ -100,7 +81,7 @@ class CmocContext {
   static OutputKind
   translateOutputType(IDriverInvocation::OutputTypeT OutputType);
 
-  BinaryData runFeForInvocation(const IDriverInvocation &Invocation);
+  BinaryData runFeForInvocation(const std::vector<std::string> &FEArgs);
 
 public:
   bool isHelp() const {
@@ -143,24 +124,18 @@ public:
                 ILTranslationResult &Result);
 };
 
-CmocContext::CmocContext(int argc, const char **argv)
+CmocContext::CmocContext(int Argc, const char **Argv)
     : FE{IGC::AdaptorCM::Frontend::makeFEWrapper(FatalError).getValue()} {
 
-  std::copy(argv, argv + argc, std::back_inserter(OriginalArgs));
-
   if (DebugEnabled) {
-    llvm::errs() << "creating initial invocation : " <<
-      llvm::join(OriginalArgs, " ") << "\n---\n";
+    std::vector<llvm::StringRef> Args(Argv, Argv + Argc);
+    llvm::errs() << "creating initial invocation : " << llvm::join(Args, " ")
+                 << "\n---\n";
   }
 
-  StringStorage SavedStrings;
-  auto Args = convertToCStrings(OriginalArgs.begin(), OriginalArgs.end(),
-                                SavedStrings);
-
-  DriverInvocation = createInvocation(Args);
-  if (!DriverInvocation) {
+  DriverInvocation = createInvocation(Argc, Argv);
+  if (!DriverInvocation)
     FatalError("could not create compiler invocaton\n");
-  }
 
   if (DebugEnabled) {
     const auto& FeArgs = DriverInvocation->getFEArgs();
@@ -171,9 +146,9 @@ CmocContext::CmocContext(int argc, const char **argv)
   }
 }
 
-IDriverInvocationPtr
-CmocContext::createInvocation(std::vector<const char *> &Args) {
-  return FE.buildDriverInvocation(Args);
+IDriverInvocationPtr CmocContext::createInvocation(int Argc,
+                                                   const char **Argv) {
+  return FE.buildDriverInvocation(Argc, Argv);
 }
 
 // Maps input file types reported by Frontend Wrapper
@@ -219,9 +194,9 @@ CmocContext::translateOutputType(IDriverInvocation::OutputTypeT OutputType) {
 }
 
 BinaryData
-CmocContext::runFeForInvocation(const IDriverInvocation &Invocation) {
+CmocContext::runFeForInvocation(const std::vector<std::string> &FEArgs) {
   InputArgs InputArgs;
-  InputArgs.CompilationOpts = Invocation.getFEArgs();
+  InputArgs.CompilationOpts = FEArgs;
 
   auto FEOutput = FE.translate(InputArgs);
 
@@ -241,38 +216,23 @@ CmocContext::runFeForInvocation(const IDriverInvocation &Invocation) {
 }
 
 BinaryData CmocContext::runFE(llvm::StringRef Adjuster) {
+  auto &OriginalCC1Args = DriverInvocation->getFEArgs();
 
   if (Adjuster.empty()) {
-
     if (DebugEnabled)
       llvm::errs() << "Running original FE invocation" << "\n---\n";
 
-    return runFeForInvocation(*DriverInvocation);
+    return runFeForInvocation(OriginalCC1Args);
   }
 
-  std::vector<const char*> NewArgs = convertToCStrings(OriginalArgs.begin(),
-                                                       OriginalArgs.end(),
-                                                       StableStrings);
-  auto DashDashIt = std::find_if(NewArgs.begin(), NewArgs.end(),
-                    [](const char* Arg) { return strcmp(Arg, "--") == 0; });
-  NewArgs.insert(DashDashIt, getStableCStr(Adjuster, StableStrings));
+  std::vector<std::string> NewArgs = OriginalCC1Args;
+  NewArgs.push_back(Adjuster.str());
 
-  if (DebugEnabled) {
-    std::vector<std::string> DebugStr;
-    std::copy(NewArgs.begin(), NewArgs.end(), std::back_inserter(DebugStr));
-    llvm::errs() << "Adjusting FE args with user args: " <<
-      llvm::join(DebugStr, " ") << "\n---\n";
-  }
+  if (DebugEnabled)
+    llvm::errs() << "Adjusting CC1 FE args with user args: "
+                 << llvm::join(NewArgs, " ") << "\n---\n";
 
-  auto ProxyInvocation = createInvocation(NewArgs);
-  if (!ProxyInvocation)
-    FatalError("could not create frontend invocation!\n");
-
-  if (DebugEnabled) {
-    llvm::errs() << "Adjusted FE args: " <<
-        llvm::join(ProxyInvocation->getFEArgs(), " ") << "\n---\n";
-  }
-  return runFeForInvocation(*ProxyInvocation);
+  return runFeForInvocation(NewArgs);
 }
 
 void CmocContext::runVCOpt(const BinaryData &In, InputKind IK,
