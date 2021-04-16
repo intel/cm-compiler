@@ -65,9 +65,8 @@ bool mayDisableIGA(const std::string &CPU) {
 }
 
 ArgStringList constructCompatibilityFinalizerOptions(const ArgList &Args,
-                                                     const Driver &DR) {
+                                                     const Driver &Drv) {
   ArgStringList CompatibilityArgs;
-  auto &Diags = DR.getDiags();
 
   if (Args.getLastArg(options::OPT_mdump_asm) ||
       llvm::sys::Process::GetEnv("CM_FORCE_ASSEMBLY_DUMP")) {
@@ -108,7 +107,7 @@ ArgStringList constructCompatibilityFinalizerOptions(const ArgList &Args,
     }
   }
 
-  auto CPU = tools::GenX::getGenXTargetCPU(Args, &Diags);
+  auto CPU = tools::GenX::getGenXTargetCPU(Args, &Drv);
   std::string Stepping = "";
   auto Platform = getFinalizerPlatform(CPU, Stepping);
   CompatibilityArgs.push_back("-platform");
@@ -126,7 +125,7 @@ ArgStringList constructCompatibilityFinalizerOptions(const ArgList &Args,
     auto enableIGA = llvm::sys::Process::GetEnv("ENABLE_IGA");
     if (enableIGA && (std::atol(enableIGA.getValue().c_str()) > 0)) {
       if (mayDisableIGA(Platform)) {
-        DR.Diag(diag::warn_cm_iga_enabled);
+        Drv.Diag(diag::warn_cm_iga_enabled);
       }
     }
     else if (mayDisableIGA(Platform))

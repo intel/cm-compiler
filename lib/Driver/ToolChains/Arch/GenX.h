@@ -25,7 +25,7 @@ namespace GenX {
 
 // get CPU from args
 std::string getGenXTargetCPU(const llvm::opt::ArgList &Args,
-                             const DiagnosticsEngine *Diags = nullptr);
+                             const Driver *Drv = nullptr);
 
 
 // get features from args and triple
