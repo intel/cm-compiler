@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "GenX.h"
+#include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Options.h"
 #include "clang/Frontend/Utils.h"
@@ -24,7 +25,7 @@ using namespace llvm::opt;
 
 static std::string getCanonicalGenXTargetCPU(const std::string &CPU,
                                              const ArgList &Args,
-                                             const DiagnosticsEngine *Diags) {
+                                             const Driver *Drv) {
   // As side-effect of the way we accept the CM command line options for
   // backwards compatiblity, the CPU string may be prefixed by '=' or ':'.
   // If so, remove the prefix character.
@@ -51,22 +52,21 @@ static std::string getCanonicalGenXTargetCPU(const std::string &CPU,
   return CanonicalCPU;
 }
 
-std::string GenX::getGenXTargetCPU(const ArgList &Args,
-                                   const DiagnosticsEngine *Diags) {
+std::string GenX::getGenXTargetCPU(const ArgList &Args, const Driver *Drv) {
   // GenX target CPU may be specified using one of /Qxcm_jit_target=xxx,
   // -mcpu=xxx, or -march=xxx.
   if (const Arg *A = Args.getLastArg(options::OPT_Qxcm_jit_target)) {
-    auto Jit_CPU = getCanonicalGenXTargetCPU(A->getValue(), Args, Diags);
+    auto Jit_CPU = getCanonicalGenXTargetCPU(A->getValue(), Args, Drv);
     if (!Jit_CPU.empty())
       return std::move(Jit_CPU);
   }
   if (const Arg *A = Args.getLastArg(options::OPT_mcpu_EQ)) {
-    auto Mcpu_CPU = getCanonicalGenXTargetCPU(A->getValue(), Args, Diags);
+    auto Mcpu_CPU = getCanonicalGenXTargetCPU(A->getValue(), Args, Drv);
     if (!Mcpu_CPU.empty())
       return std::move(Mcpu_CPU);
   }
   if (const Arg *A = Args.getLastArg(options::OPT_march_EQ)) {
-    auto March_CPU = getCanonicalGenXTargetCPU(A->getValue(), Args, Diags);
+    auto March_CPU = getCanonicalGenXTargetCPU(A->getValue(), Args, Drv);
     if (!March_CPU.empty())
       return std::move(March_CPU);
   }
