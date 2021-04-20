@@ -155,20 +155,17 @@ class PassManagerBuilderWrapper : public PassManagerBuilder {
 public:
   PassManagerBuilderWrapper(const Triple &TargetTriple,
                             const CodeGenOptions &CGOpts,
-                            const LangOptions &LangOpts,
-                            const clang::TargetOptions &TargetOpts)
+                            const LangOptions &LangOpts)
       : PassManagerBuilder(), TargetTriple(TargetTriple), CGOpts(CGOpts),
-        LangOpts(LangOpts), TargetOpts(TargetOpts) {}
+        LangOpts(LangOpts) {}
   const Triple &getTargetTriple() const { return TargetTriple; }
   const CodeGenOptions &getCGOpts() const { return CGOpts; }
   const LangOptions &getLangOpts() const { return LangOpts; }
-  const clang::TargetOptions &getTargetOpts() const { return TargetOpts; }
 
 private:
   const Triple &TargetTriple;
   const CodeGenOptions &CGOpts;
   const LangOptions &LangOpts;
-  const clang::TargetOptions &TargetOpts;
 };
 }
 
@@ -542,7 +539,7 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
       createTLII(TargetTriple, CodeGenOpts));
 
-  PassManagerBuilderWrapper PMBuilder(TargetTriple, CodeGenOpts, LangOpts, TargetOpts);
+  PassManagerBuilderWrapper PMBuilder(TargetTriple, CodeGenOpts, LangOpts);
 
   // At O0 and O1 we only run the always inliner which is more efficient. At
   // higher optimization levels we run the normal inliner.
@@ -720,9 +717,7 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
   PMBuilder.populateModulePassManager(MPM);
 }
 
-static void setCommandLineOpts(BackendAction Action,
-                               const CodeGenOptions &CodeGenOpts,
-                               const LangOptions &LangOpts) {
+static void setCommandLineOpts(const CodeGenOptions &CodeGenOpts) {
   SmallVector<const char *, 16> BackendArgs;
   BackendArgs.push_back("clang"); // Fake program name.
   if (!CodeGenOpts.DebugPass.empty()) {
@@ -733,15 +728,6 @@ static void setCommandLineOpts(BackendAction Action,
     BackendArgs.push_back("-limit-float-precision");
     BackendArgs.push_back(CodeGenOpts.LimitFloatPrecision.c_str());
   }
-
-  if (CodeGenOpts.NoUnrollPragmalessLoops)
-    BackendArgs.push_back("-unroll-threshold=1");
-  if (LangOpts.MdfCM) {
-    BackendArgs.push_back("-pragma-unroll-threshold=0xffffffff");
-    BackendArgs.push_back("-enable-pre=false");
-    BackendArgs.push_back("-instcombine-code-sinking=false");
-  }
-
   BackendArgs.push_back(nullptr);
   llvm::cl::ParseCommandLineOptions(BackendArgs.size() - 1,
                                     BackendArgs.data());
@@ -751,16 +737,7 @@ void EmitAssemblyHelper::CreateTargetMachine(bool MustCreateTM) {
   // Create the TargetMachine for generating code.
   std::string Error;
   std::string Triple = TheModule->getTargetTriple();
-  StringRef TripleStr(Triple);
-  const llvm::Target *TheTarget;
-  // genx in not a real triple. In case of genx triple use lookup
-  // that compares by arch names, not arch enums.
-  if (TripleStr.startswith("genx")) {
-    const std::string Arch = TripleStr.startswith("genx32") ? "genx32" : "genx64";
-    llvm::Triple T;
-    TheTarget = TargetRegistry::lookupTarget(Arch, T, Error);
-  } else
-    TheTarget = TargetRegistry::lookupTarget(Triple, Error);
+  const llvm::Target *TheTarget = TargetRegistry::lookupTarget(Triple, Error);
   if (!TheTarget) {
     if (MustCreateTM)
       Diags.Report(diag::err_fe_unable_to_create_target) << Error;
@@ -812,7 +789,7 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
                                       std::unique_ptr<raw_pwrite_stream> OS) {
   TimeRegion Region(FrontendTimesIsEnabled ? &CodeGenerationTime : nullptr);
 
-  setCommandLineOpts(Action, CodeGenOpts, LangOpts);
+  setCommandLineOpts(CodeGenOpts);
 
   bool UsesCodeGen = (Action != Backend_EmitNothing &&
                       Action != Backend_EmitBC &&
@@ -984,7 +961,7 @@ static PassBuilder::OptimizationLevel mapToLevel(const CodeGenOptions &Opts) {
 void EmitAssemblyHelper::EmitAssemblyWithNewPassManager(
     BackendAction Action, std::unique_ptr<raw_pwrite_stream> OS) {
   TimeRegion Region(FrontendTimesIsEnabled ? &CodeGenerationTime : nullptr);
-  setCommandLineOpts(Action, CodeGenOpts, LangOpts);
+  setCommandLineOpts(CodeGenOpts);
 
   // The new pass manager always makes a target machine available to passes
   // during construction.
@@ -1223,7 +1200,7 @@ static void runThinLTOBackend(ModuleSummaryIndex *CombinedIndex, Module *M,
       ModuleToDefinedGVSummaries;
   CombinedIndex->collectDefinedGVSummariesPerModule(ModuleToDefinedGVSummaries);
 
-  setCommandLineOpts(Action, CGOpts, LOpts);
+  setCommandLineOpts(CGOpts);
 
   // We can simply import the values mentioned in the combined index, since
   // we should only invoke this using the individual indexes written out
