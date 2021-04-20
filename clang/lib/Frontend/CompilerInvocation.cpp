@@ -773,22 +773,6 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
       Args.hasFlag(OPT_funroll_loops, OPT_fno_unroll_loops,
                    (Opts.OptimizationLevel > 1));
 
-  Opts.NoUnrollPragmalessLoops = false;
-  if (IK.getLanguage() == InputKind::CM) {
-    // For CM only, unrolling of pragma-less loops is by default disabled,
-    // and only enabled by -funroll-loops.  Thus, assuming >= -O2 and not -Os,
-    // loop unrolling has three states on CM:
-    //    default: unroll pragma loops but not pragma-less loops
-    //    -funroll-loops: attempt to unroll all loops
-    //    -fno-unroll-loops: do not unroll any loops
-    // Opts.NoUnrollPragmalessLoops is set only for the first (default) case,
-    // not for the !UnrollLoops case, in which the unroller is not running
-    // anyway.
-    // Setting Opts.NoUnrollPragmalessLoops causes BackendUtil to send
-    // a -unroll-threshold=0 to llvm.
-    Opts.NoUnrollPragmalessLoops = Opts.UnrollLoops
-        && !Args.hasArg(OPT_funroll_loops);
-  }
   // For CM only, set as noinline for functions without inline attribute.
   Opts.ForceNoInline = !Args.hasArg(OPT_fno_force_noinline);
   if (Args.hasArg(OPT_mCM_import_bif))
