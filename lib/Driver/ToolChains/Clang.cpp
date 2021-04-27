@@ -4117,10 +4117,10 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-fcm-pointer");
     if (Args.getLastArg(options::OPT_mCM_enable_stackcalls))
       CmdArgs.push_back("-mCM_enable_stackcalls");
-    if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
-      if (A->getOption().matches(options::OPT_O0))
-        CmdArgs.push_back("-mCM_optimize_none");
-    }
+  }
+  if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
+    if (A->getOption().matches(options::OPT_O0))
+      CmdArgs.push_back("-mCM_optimize_none");
   }
   // As backend depends on this option, it is passed even if the input is not
   // CM text (e.g. the input is spir-v).
