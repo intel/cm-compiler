@@ -648,6 +648,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
       .Default("");
       Builder.defineMacro("CM_GENX", GenXValue);
     }
+    Builder.defineMacro("CM_GENX_REVID", std::to_string(TOpts.RevId));
   }
 
   // Standard conforming mode?

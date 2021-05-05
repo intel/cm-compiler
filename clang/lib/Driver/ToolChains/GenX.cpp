@@ -20,6 +20,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include <cstdlib>
+#include <sstream>
 
 using namespace clang::driver;
 using namespace clang::driver::toolchains;
@@ -222,8 +223,18 @@ void GenX::addClangTargetOptions(const llvm::opt::ArgList &  DriverArgs,
     return;
   }
 
+  // if we have no Qxcm_revid here, lets push option to CC1
+  const Driver &Drv = getDriver();
+  auto CPU = tools::GenX::getGenXTargetCPU(DriverArgs, &Drv);
+  int RevId = tools::GenX::getGenXRevId(CPU, DriverArgs, &Drv);
+  if (RevId != 0) {
+    std::ostringstream os;
+    os << "-Qxcm_revid=" << RevId;
+    CC1Args.push_back(DriverArgs.MakeArgString(os.str()));
+  }
+
   ArgStringList CompatibilityArgs =
-    constructCompatibilityFinalizerOptions(DriverArgs, getDriver());
+    constructCompatibilityFinalizerOptions(DriverArgs, Drv);
   if (CompatibilityArgs.empty())
     return;
 

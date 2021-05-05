@@ -23,6 +23,24 @@ using namespace clang::driver::tools;
 using namespace clang;
 using namespace llvm::opt;
 
+int GenX::getGenXRevId(const std::string &CPU,
+                       const ArgList &Args,
+                       const Driver *Drv) {
+  int RevId = 0;
+  if (Arg *A = Args.getLastArg(options::OPT_Qxcm_revid)) {
+    if (StringRef(A->getValue()).getAsInteger(0, RevId) && Drv)
+      Drv->Diag(diag::err_drv_invalid_int_value)
+          << A->getAsString(Args) << A->getValue();
+    return RevId;
+  }
+
+  // if no option, try to deduce from CPU
+  RevId = llvm::StringSwitch<int>(CPU)
+            .Default(0);
+
+  return RevId;
+}
+
 static std::string getCanonicalGenXTargetCPU(const std::string &CPU,
                                              const ArgList &Args,
                                              const Driver *Drv) {
