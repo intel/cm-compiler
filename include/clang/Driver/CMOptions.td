@@ -58,6 +58,9 @@ class CMIgnoredJoined<string name> : Option<["-", "/"], name, KIND_JOINED>,
 class CMCC1<string name> : Option<["-"], name, KIND_JOINED_OR_SEPARATE>,
   Group<cm_Group>, Flags<[DriverOption, CC1Option]>;
 
+class CMCC1Joined<string name> : Option<["-", "/"], name, KIND_JOINED>,
+  Group<cm_Group>, Flags<[CMOption, CC1Option, DriverOption, NoArgumentUnused]>;
+
 // CM specific options
 
 def mCM_emit_common_isa : CMCompileFlag<"mCM_emit_common_isa">,
@@ -230,7 +233,7 @@ def mdump_asm : CMFlag<"mdump_asm">,
   HelpText<"Enable genx backend to dump visa and genisa assembly "
            "files corresponding to the processed kernels">;
 
-def Qxcm_revid: CMJoined<"Qxcm_revid=">,
+def Qxcm_revid: CMCC1Joined<"Qxcm_revid=">,
   HelpText<"Pass specified revision ID to libocloc "
            "Valid only for some platforms">;
 

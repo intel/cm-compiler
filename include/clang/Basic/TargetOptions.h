@@ -36,6 +36,8 @@ public:
   /// If given, the name of the target CPU to generate code for.
   std::string CPU;
 
+  // If given, revision id to pass to ocloc
+  int RevId;
 
   /// If given, the unit to use for floating point math.
   std::string FPMath;

@@ -27,6 +27,11 @@ namespace GenX {
 std::string getGenXTargetCPU(const llvm::opt::ArgList &Args,
                              const Driver *Drv = nullptr);
 
+// get RevId from CPU and args
+int getGenXRevId(const std::string &CPU,
+                 const llvm::opt::ArgList &Args,
+                 const Driver *Drv = nullptr);
+
 
 // get features from args and triple
 void getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,

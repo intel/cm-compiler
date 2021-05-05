@@ -3282,6 +3282,8 @@ static void ParseTargetArgs(TargetOptions &Opts, ArgList &Args,
       Opts.EABIVersion = EABIVersion;
   }
   Opts.CPU = Args.getLastArgValue(OPT_target_cpu);
+  Args.getLastArgValue(OPT_Qxcm_revid, "0").getAsInteger(0, Opts.RevId);
+
   Opts.FPMath = Args.getLastArgValue(OPT_mfpmath);
   Opts.FeaturesAsWritten = Args.getAllArgValues(OPT_target_feature);
   Opts.LinkerVersion = Args.getLastArgValue(OPT_target_linker_version);
