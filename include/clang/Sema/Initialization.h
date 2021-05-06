@@ -118,6 +118,9 @@ public:
     /// is member of group of audited CF APIs.
     EK_Parameter_CF_Audited,
 
+    /// The entity being initialized is an element of a CM vector
+    EK_CMVectorElement,
+
     /// The entity being initialized is a structured binding of a
     /// decomposition declaration.
     EK_Binding,
@@ -198,9 +201,9 @@ private:
     /// virtual base.
     uintptr_t Base;
 
-    /// When Kind == EK_ArrayElement, EK_VectorElement, or
-    /// EK_ComplexElement, the index of the array or vector element being
-    /// initialized.
+    /// When Kind == EK_ArrayElement, EK_VectorElement,
+    /// EK_ComplexElement or EK_CMVectorElement,
+    /// the index of the array or vector element being initialized.
     unsigned Index;
 
     struct C Capture;
@@ -491,19 +494,19 @@ public:
     return SourceLocation::getFromRawEncoding(LocAndNRVO.Location);
   }
 
-  /// If this is an array, vector, or complex number element, get the
+  /// If this is an array, vector, complex number or CM vector element, get the
   /// element's index.
   unsigned getElementIndex() const {
     assert(getKind() == EK_ArrayElement || getKind() == EK_VectorElement ||
-           getKind() == EK_ComplexElement);
+           getKind() == EK_ComplexElement || getKind() == EK_CMVectorElement);
     return Index;
   }
 
-  /// If this is already the initializer for an array or vector
-  /// element, sets the element index.
+  /// If this is already the initializer for an array, vector,
+  /// complex number or CM vector element, sets the element index.
   void setElementIndex(unsigned Index) {
     assert(getKind() == EK_ArrayElement || getKind() == EK_VectorElement ||
-           getKind() == EK_ComplexElement);
+           getKind() == EK_ComplexElement || getKind() == EK_CMVectorElement);
     this->Index = Index;
   }
 
