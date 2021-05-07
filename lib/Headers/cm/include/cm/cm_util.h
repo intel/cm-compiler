@@ -45,9 +45,15 @@ enum {
   GRF = 32
 };
 
+/// Round up N to be multiple of M
+static constexpr unsigned int roundUpNextMultiple(unsigned int N,
+                                                  unsigned int M) {
+  return ((N + M - 1) / M) * M;
+}
+
 /// Compute the next power of 2 at compile time.
-static inline constexpr unsigned int getNextPowerOf2(unsigned int n,
-                                                     unsigned int k = 1) {
+static constexpr unsigned int getNextPowerOf2(unsigned int n,
+                                              unsigned int k = 1) {
   return (k >= n) ? k : getNextPowerOf2(n, k * 2);
 }
 
