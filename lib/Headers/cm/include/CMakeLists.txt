@@ -3,7 +3,6 @@ set(CM_HEADERS
   cm/cm_atomic.h
   cm/cm_common.h
   cm/cm_dataport.h
-  cm/cm_emu.h
   cm/cm_gateway.h
   cm/cm.h
   cm/cm_internal.h
