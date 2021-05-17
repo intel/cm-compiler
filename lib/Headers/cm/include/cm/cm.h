@@ -31,7 +31,6 @@
 #include "cm_send.h"
 #include "cm_atomic.h"
 #include "cm_dataport.h"
-#include "cm_emu.h"
 #include "cm_internal.h"
 #include "cm_sampler.h"
 #include "cm_traits.h"
