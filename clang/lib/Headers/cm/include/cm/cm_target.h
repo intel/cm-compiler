@@ -40,21 +40,6 @@ static_assert(0, "CM:w:cm_target.h should not be included explicitly - only "
 #define CM_HAS_VA_PLUS 1
 #endif
 
-// CM_HAS_LONG_LONG is defined if long long is available
-#define CM_HAS_LONG_LONG 1
-#if (CM_GENX == 1150 || CM_GENX == 1200)
-// __CM_INTEGER_EMULATION_ENABLED__ is set by FE when -femulate_i64 is used
-#  ifndef __CM_INTEGER_EMULATION_ENABLED__
-#    undef CM_HAS_LONG_LONG
-#  endif
-#endif
-
-// CM_HAS_DOUBLE is defined if double is available
-#define CM_HAS_DOUBLE 1
-#if (CM_GENX == 1150 || CM_GENX == 1200)
-#  undef CM_HAS_DOUBLE
-#endif
-
 
 
 // Make Gen target specific warnings into errors
