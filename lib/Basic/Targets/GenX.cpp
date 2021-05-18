@@ -56,7 +56,9 @@ bool GenXTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
                          .Cases("ICLLP", "TGLLP", false)
                          .Default(true);
 
-  NativeDoubleSupport = NativeI64Support;
+  NativeDoubleSupport = llvm::StringSwitch<bool>(CPU)
+                            .Cases("ICLLP", "TGLLP", false)
+                            .Default(true);
 
   // OCL runtime specific headers support
   OCLRuntime = std::any_of(
