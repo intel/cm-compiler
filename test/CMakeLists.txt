@@ -138,6 +138,12 @@ add_lit_testsuite(check-clang "Running the Clang regression tests"
   )
 set_target_properties(check-clang PROPERTIES FOLDER "Clang tests")
 
+add_lit_testsuite(check-cmc "Running the cmc regression tests"
+  ${CMAKE_CURRENT_BINARY_DIR}/CM_diagnostics
+  DEPENDS ${CLANG_TEST_DEPS} cmc
+  )
+set_target_properties(check-cmc PROPERTIES FOLDER "Clang tests")
+
 if (CLANG_ENABLE_STATIC_ANALYZER)
   # check-all would launch those tests via check-clang.
   set(EXCLUDE_FROM_ALL ON)
