@@ -2455,6 +2455,9 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   if (Args.hasArg(OPT_fcm_pointer))
     Opts.CMPointer = 1;
 
+  if (Args.hasArg(OPT_mCM_no_emulate_i64))
+    Opts.CMEmulateI64 = 0;
+
   if (Args.hasArg(OPT_fcuda_is_device))
     Opts.CUDAIsDevice = 1;
 
