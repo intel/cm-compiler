@@ -97,8 +97,6 @@ void GenX::getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,
     Features.push_back("+disable_vec_decomp");
   if (Args.getLastArg(options::OPT_mCM_translate_legacy))
     Features.push_back("+translate_legacy_message");
-  if (Args.getLastArg(options::OPT_femulate_i64))
-    Features.push_back("+emulate_i64");
 
   if (!isCMBinaryFormat(Args))
     Features.push_back("+ocl_runtime");
