@@ -1771,7 +1771,8 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
   if (Ty->isBuiltinType() && Ty->isIntegerType())
     IsI64 = Context.getTypeSize(Ty) >= 64;
 
-  if (IsI64 && !S.Context.getTargetInfo().hasFeature("longlong")) {
+  if (IsI64 && !S.Context.getTargetInfo().hasFeature("longlong") &&
+      !S.Context.getLangOpts().CMEmulateI64) {
     const SourceManager &SM = S.getSourceManager();
     if (!SM.isInSystemHeader(DeclLoc) &&
         // skip typedefs and using declarations
@@ -7517,7 +7518,7 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
             state.getDeclarator().isPrototypeContext() &&
             !hasOuterPointerLikeChunk(state.getDeclarator(), endIndex);
         if (checkNullabilityTypeSpecifier(
-              state, 
+              state,
               type,
               attr,
               allowOnArrayType)) {

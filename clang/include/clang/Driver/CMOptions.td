@@ -234,8 +234,11 @@ def Qxcm_revid: CMJoined<"Qxcm_revid=">,
   HelpText<"Pass specified revision ID to libocloc "
            "Valid only for some platforms">;
 
-def femulate_i64 : Flag<["-", "/"], "femulate_i64">, Group<cm_Group>,
-  HelpText<"emulate all 64-bit operations">,
+def femulate_i64 : CMIgnoredFlag<"femulate_i64">,
+  HelpText<"emulate all 64-bit operations on *lp devices (enabled)">;
+
+def mCM_no_emulate_i64 : Flag<["-", "/"], "mCM_no_emulate_i64">, Group<cm_Group>,
+  HelpText<"disable 64-bit operations emulation">,
   Flags<[CMOption, CC1Option, CC1AsOption]>;
 
 // Catch-alls for a range of options - options starting with these strings will
