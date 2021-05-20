@@ -1,3 +1,5 @@
+// XFAIL: *
+
 #include <cm/cm.h>
 
 typedef enum { 

@@ -1,3 +1,5 @@
+// XFAIL: *
+
 #include <cm/cm.h>
 
 const short init_v_B[2][4] = {1, 9, 17, 25, 33, 41, 49, 57};

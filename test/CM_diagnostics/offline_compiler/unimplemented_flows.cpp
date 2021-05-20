@@ -1,3 +1,5 @@
+// XFAIL: *
+
 // RUN: %cmc -mcpu=SKL %s -o output 2>&1 \
 // RUN:     | FileCheck %s
 // RUN: %cmc -mcpu=SKL %s -o output 2>&1 \

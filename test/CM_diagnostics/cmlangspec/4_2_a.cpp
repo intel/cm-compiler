@@ -1,3 +1,5 @@
+// XFAIL: *
+
 #include <cm/cm.h>
 
 _GENX_ matrix<float, 2, 2> M;                        // global data declaration

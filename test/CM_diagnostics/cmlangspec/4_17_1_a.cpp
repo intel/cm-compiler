@@ -1,3 +1,5 @@
+// XFAIL: *
+
 #include <cm/cm.h>
 
 _GENX_MAIN_ void printf_demo_genx()

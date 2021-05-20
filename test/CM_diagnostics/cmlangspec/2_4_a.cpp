@@ -1,3 +1,5 @@
+// XFAIL: *
+
 #include <cm/cm.h>
 
                 matrix<float, 2, 2> M;      // global variable declaration
