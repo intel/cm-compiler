@@ -1,3 +1,5 @@
+// XFAIL: *
+
 // The Finalizer should not be called as we haven't specified a target
 // The -Qxcm_emu option is ignored
 // RUN: %cmc -emit-llvm -Qxcm_emu %s 2>&1 | FileCheck %s

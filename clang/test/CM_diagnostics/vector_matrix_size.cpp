@@ -1,3 +1,5 @@
+// XFAIL: *
+
 #include <cm/cm.h>
 
 _GENX_MAIN_ void foo(SurfaceIndex idx)

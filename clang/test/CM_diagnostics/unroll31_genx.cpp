@@ -1,3 +1,5 @@
+// XFAIL: *
+
 // This test originally formed part of the CM unroll test suite, but is 
 // intended to check that the compiler notices a static out-of-bounds
 // access within an unrolled loop.

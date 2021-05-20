@@ -1,3 +1,5 @@
+// XFAIL: *
+
 // We check that the specified path is used to build the invocation of the finalizer
 // RUN: %cmc -emit-llvm -### -march=gen11 /mCM_genx_assembler=path/to/genx/finalizer %s 2>&1 | FileCheck %s
 

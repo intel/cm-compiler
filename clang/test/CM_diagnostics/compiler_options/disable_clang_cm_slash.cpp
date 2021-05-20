@@ -1,3 +1,5 @@
+// XFAIL: *
+
 // The Finalizer should not be called as we haven't specified a target
 // The /Qxdisable_clang_cm option is ignored
 // RUN: %cmc -emit-llvm /Qxdisable_clang_cm %s 2>&1 | FileCheck %s
