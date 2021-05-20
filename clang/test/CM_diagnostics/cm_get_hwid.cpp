@@ -7,7 +7,7 @@ _GENX_MAIN_ void foo(SurfaceIndex S)
 }
 
 
-// RUN: %cmc -mCM_printfargs -mCM_old_asm_name -mdump_asm -Qxcm_jit_target=BDW %w | FileCheck %w
+// RUN: %cmc -emit-llvm -march=BDW %s | FileCheck %s
 //
 // CHECK: -platform BDW
 // CHECK-NOT: error
@@ -16,7 +16,7 @@ _GENX_MAIN_ void foo(SurfaceIndex S)
 // We check that the generated asm contains an AND to mask the
 // 10 bits from the r0.5 register that contain the hwid.
 //
-// RUN: FileCheck -input-file=%W_0.asm -check-prefix=ASM %w
+// RUN: FileCheck -input-file=%W_0.asm -check-prefix=ASM %s
 // XFAIL: *
 //
 // ASM: and
@@ -24,4 +24,3 @@ _GENX_MAIN_ void foo(SurfaceIndex S)
 // ASM-SAME: 0x3ff:ud
 
 // tidy up the generated files
-// RUN: rm %W_0.dat %W_0.visaasm %W_0.asm %W.isa

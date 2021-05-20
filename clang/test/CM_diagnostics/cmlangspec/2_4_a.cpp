@@ -39,6 +39,5 @@ _GENX_MAIN_ void kernel(SurfaceIndex inbuf, SurfaceIndex outbuf,
 // output a warning just to have some output from the compiler to check
 #warning 2_4_a.cpp
 
-// RUN: %cmc -mCM_old_asm_name %w 2>&1 | FileCheck --implicit-check-not error %w
-// RUN: rm %W.isa
+// RUN: %cmc -emit-llvm %s 2>&1 | FileCheck --implicit-check-not error %s
 // CHECK: 1 warning generated

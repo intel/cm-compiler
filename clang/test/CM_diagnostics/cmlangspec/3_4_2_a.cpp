@@ -1,7 +1,6 @@
 // For some reason this test fails if the RUN lines are at the
 // end of the file - why?
-// RUN: %cmc -mCM_old_asm_name %w 2>&1 | FileCheck -allow-empty --implicit-check-not error %w
-// RUN: rm %W.isa
+// RUN: %cmc -emit-llvm %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
 
 #include <cm/cm.h>
 

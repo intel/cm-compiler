@@ -18,5 +18,4 @@ kern(matrix<int, 4, 2> p)
 // output a warning just to have some output from the compiler to check
 #warning 3_2_9_g.cpp
 
-// RUN: %cmc -mCM_old_asm_name %w 2>&1 | FileCheck -allow-empty --implicit-check-not error %w
-// RUN: rm %W.isa
+// RUN: %cmc -emit-llvm %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s

@@ -1,6 +1,6 @@
 // XFAIL: *
-// RUN: %cmoc -mcpu=UNKNOWN %w -I%cm_headers -emit-spirv -o output 2>&1 \
-// RUN:     | FileCheck %w
+// RUN: %cmc -mcpu=UNKNOWN %s -emit-spirv -o output 2>&1 \
+// RUN:     | FileCheck %s
 // CHECK: unknown target
 
 #include <cm/cm.h>

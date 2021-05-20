@@ -5,5 +5,4 @@ _GENX_ void f() {
   vector_ref<short, 8> r(m.row(2)); // row() returns the reference to a row
 }
 
-// RUN: %cmc -mCM_old_asm_name %w 2>&1 | FileCheck -allow-empty --implicit-check-not error %w
-// RUN: rm %W.isa
+// RUN: %cmc -emit-llvm %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s

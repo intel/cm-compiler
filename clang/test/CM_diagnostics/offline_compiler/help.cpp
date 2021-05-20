@@ -1,7 +1,7 @@
-// RUN: %cmoc --help | FileCheck --check-prefix=CHECK-HELP  %w
-// RUN: %cmoc -help | FileCheck --check-prefix=CHECK-HELP  %w
-// RUN: %cmoc --help123123 2>&1 | FileCheck --check-prefix=CHECK-NO-HELP %w
-// RUN: %cmoc -help123123 2>&1 | FileCheck --check-prefix=CHECK-NO-HELP-SHORT %w
+// RUN: %cmc --help | FileCheck --check-prefix=CHECK-HELP  %s
+// RUN: %cmc -help | FileCheck --check-prefix=CHECK-HELP  %s
+// RUN: %cmc --help123123 2>&1 | FileCheck --check-prefix=CHECK-NO-HELP %s
+// RUN: %cmc -help123123 2>&1 | FileCheck --check-prefix=CHECK-NO-HELP-SHORT %s
 // CHECK-HELP: CMOC-specific help
 // CHECK-NO-HELP: error:
 // CHECK-NO-HELP-NOT: CMOC-specific help

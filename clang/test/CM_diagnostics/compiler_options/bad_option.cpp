@@ -1,4 +1,4 @@
-// RUN: %cmc -mCM_old_asm_name -mdump_asm -bad-option %w 2>&1 | FileCheck %w
+// RUN: %cmc -emit-llvm -bad-option %s 2>&1 | FileCheck %s
 
 #include <cm/cm.h>
 
