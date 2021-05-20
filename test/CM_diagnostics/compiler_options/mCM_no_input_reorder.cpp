@@ -27,7 +27,7 @@ _GENX_MAIN_ void foo(SurfaceIndex ibuf, SurfaceIndex obuf, char val, uint h_pos,
     write(obuf, h_pos*24, v_pos*6, out); 
 }
 
-// RUN: %cmc -mCM_printfargs -mCM_old_asm_name -mdump_asm -Qxcm_jit_target=BDW -mCM_no_input_reorder %w | FileCheck %w
+// RUN: %cmc -emit-llvm -march=BDW -mCM_no_input_reorder %s | FileCheck %s
 //
 // CHECK: -platform BDW
 // CHECK-NOT: error
@@ -36,7 +36,7 @@ _GENX_MAIN_ void foo(SurfaceIndex ibuf, SurfaceIndex obuf, char val, uint h_pos,
 // We check that the generated asm contains arg reorder information that indicates
 // no reordering has taken place (default would be to reorder)
 //
-// RUN: FileCheck -input-file=%W_0.asm -check-prefix=ASM %w
+// RUN: FileCheck -input-file=%W_0.asm -check-prefix=ASM %s
 // XFAIL: *
 //
 // ASM: //.kernel_reordering_info_start
@@ -49,4 +49,3 @@ _GENX_MAIN_ void foo(SurfaceIndex ibuf, SurfaceIndex obuf, char val, uint h_pos,
 // ASM-NEXT: //.kernel_reordering_info_end
 
 // tidy up the generated files
-// RUN: rm %W_0.dat %W_0.visaasm %W_0.asm %W.isa

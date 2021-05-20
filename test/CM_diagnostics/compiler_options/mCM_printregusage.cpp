@@ -50,11 +50,9 @@ void test2(SurfaceIndex S) {
 // XFAIL: *
 // The Finalizer is called as we have specified a target so the -mCM_printregusage
 // option causes the gen asm instruction counts to be printed
-// RUN: %cmc -mCM_printfargs -mCM_old_asm_name -mdump_asm -Qxcm_jit_target=BDW -mCM_printregusage %w 2>&1 | FileCheck --check-prefix=CHECK-BDW %w
-// RUN: rm %W.isa %W_0.visaasm %W_0.asm %W_0.dat %W_1.visaasm %W_1.asm %W_1.dat
+// RUN: %cmc -emit-llvm -march=BDW -mCM_printregusage %s 2>&1 | FileCheck --check-prefix=CHECK-BDW %s
 //
-// RUN: %cmc -mCM_printfargs -mCM_old_asm_name -mdump_asm /Qxcm_jit_target=BDW /mCM_printregusage %w 2>&1 | FileCheck --check-prefix=CHECK-BDW %w 
-// RUN: rm %W.isa %W_0.visaasm %W_0.asm %W_0.dat %W_1.visaasm %W_1.asm %W_1.dat
+// RUN: %cmc -emit-llvm -march=BDW /mCM_printregusage %s 2>&1 | FileCheck --check-prefix=CHECK-BDW %s
 
 // CHECK-BDW: mCM_printregusage.cpp(4,2):  warning: CM_GENX defined [-W#warnings]
 // CHECK-BDW: mCM_printregusage.cpp(14,2):  warning: CM_GEN8 defined [-W#warnings]

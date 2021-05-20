@@ -1,7 +1,6 @@
 // The Finalizer should not be called as we haven't specified a target
 // The /Qxdisable_clang_cm option is ignored
-// RUN: %cmc -mCM_old_asm_name /Qxdisable_clang_cm %w 2>&1 | FileCheck %w 
-// RUN: rm %W.isa
+// RUN: %cmc -emit-llvm /Qxdisable_clang_cm %s 2>&1 | FileCheck %s
 
 #include <cm/cm.h>
 

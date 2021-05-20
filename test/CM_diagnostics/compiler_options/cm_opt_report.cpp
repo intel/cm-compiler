@@ -49,13 +49,9 @@ void test2() {
 
 // The Finalizer is called as we have specified a target so the -Qxcm_opt_report
 // option causes the Finalizer optimization report to be printed
-// RUN: %cmc -mCM_printfargs -mCM_old_asm_name -mdump_asm -Qxcm_jit_target=BDW -Qxcm_opt_report %w 2>&1 | FileCheck --check-prefix=CHECK-BDW %w
-// RUN: rm %W_0.visaasm %W_0.asm %W_0.dat %W.isa
-// RUN: rm %W_1.visaasm %W_1.asm %W_1.dat %W_1_optreport.txt
+// RUN: %cmc -emit-llvm -march=BDW -Qxcm_opt_report %s 2>&1 | FileCheck --check-prefix=CHECK-BDW %s
 //
-// RUN: %cmc -mCM_printfargs -mCM_old_asm_name -mdump_asm /Qxcm_jit_target=BDW /Qxcm_opt_report %w 2>&1 | FileCheck --check-prefix=CHECK-BDW %w 
-// RUN: rm %W_0.visaasm %W_0.asm %W_0.dat %W.isa
-// RUN: rm %W_1.visaasm %W_1.asm %W_1.dat %W_1_optreport.txt
+// RUN: %cmc -emit-llvm -march=BDW /Qxcm_opt_report %s 2>&1 | FileCheck --check-prefix=CHECK-BDW %s
 
 // CHECK-BDW: cm_opt_report.cpp(4,2):  warning: CM_GENX defined [-W#warnings]
 // CHECK-BDW: cm_opt_report.cpp(14,2):  warning: CM_GEN8 defined [-W#warnings]

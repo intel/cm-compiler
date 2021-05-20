@@ -1,8 +1,7 @@
 // The Finalizer should not be called as we haven't specified a target
 // The /Qxcm_S option is ignored
 // XFAIL: *
-// RUN: %cmc -mCM_printfargs -mCM_old_asm_name /Qxcm_S %w 2>&1 | FileCheck %w 
-// RUN: rm %W.isa
+// RUN: %cmc -emit-llvm /Qxcm_S %s 2>&1 | FileCheck %s
 
 #include <cm/cm.h>
 
