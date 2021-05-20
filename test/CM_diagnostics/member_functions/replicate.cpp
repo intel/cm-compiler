@@ -1,4 +1,4 @@
-// RUN: %cmc -mCM_old_asm_name -mdump_asm -ferror-limit=999 %w 2>&1 | FileCheck %w
+// RUN: %cmc -emit-llvm -ferror-limit=999 %s 2>&1 | FileCheck %s
 
 #include <cm/cm.h>
 

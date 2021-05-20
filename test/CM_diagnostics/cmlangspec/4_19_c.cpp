@@ -11,6 +11,5 @@ _GENX_ void test()
   r = t >> 1 ;
 }
 
-// RUN: %cmc -mCM_old_asm_name %w 2>&1 | FileCheck --implicit-check-not error %w
-// RUN: rm %W.isa
+// RUN: %cmc -emit-llvm %s 2>&1 | FileCheck --implicit-check-not error %s
 // CHECK: warning: cm_nonstrict is deprecated

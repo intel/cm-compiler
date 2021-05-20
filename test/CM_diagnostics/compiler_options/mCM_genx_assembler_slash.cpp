@@ -1,5 +1,5 @@
 // We check that the specified path is used to build the invocation of the finalizer
-// RUN: %cmc -mCM_old_asm_name -mdump_asm -### /Qxcm_jit_target=gen11 /mCM_genx_assembler=path/to/genx/finalizer %w 2>&1 | FileCheck %w
+// RUN: %cmc -emit-llvm -### -march=gen11 /mCM_genx_assembler=path/to/genx/finalizer %s 2>&1 | FileCheck %s
 
 #include <cm/cm.h>
 

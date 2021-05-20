@@ -4,13 +4,9 @@
 // -mllvm -finalizer-opts should result in appending "TGL" platform to the
 // finalizer options
 
-// RUN: %cmc -mCM_printfargs -mcpu=SKL -mCM_genx_assembler="%genxir" -mdump_asm -mCM_old_asm_name -mllvm -finalizer-opts="-nocompaction" %w
-// RUN: FileCheck --input-file %W_0.asm %w
+// RUN: %cmc -emit-llvm -mcpu=SKL -mCM_genx_assembler="%genxir" -mllvm -finalizer-opts="-nocompaction" %s
+// RUN: FileCheck --input-file %W_0.asm %s
 // CHECK: -nocompaction
-// RUN: rm %W.isa
-// RUN: rm %W_0.asm
-// RUN: rm %W_0.dat
-// RUN: rm %W_0.visaasm
 
 #include <cm/cm.h>
 

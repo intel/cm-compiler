@@ -42,8 +42,7 @@ void test() {
 #endif
 
 // The Finalizer should not be called as we haven't specified a target
-// RUN: %cmc -mCM_old_asm_name -Qxcm_jit_target %w 2>&1 | FileCheck %w 
-// RUN: rm %W.isa
+// RUN: %cmc -emit-llvm -Qxcm_jit_target %s 2>&1 | FileCheck %s
 
 // CHECK: cm_jit_target.cpp(13,2):  warning: CM_GENX not defined [-W#warnings]
 // CHECK: 1 warning generated.

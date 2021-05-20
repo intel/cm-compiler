@@ -1,10 +1,9 @@
-// RUN: %cmoc -mcpu=PVC %w -I%cm_headers -emit-llvm -S -o %W.text.ll
-// RUN: FileCheck -input-file=%W.text.ll --check-prefix=CHECK-PVC %w
-// RUN: %cmoc -mcpu=SKL %w -I%cm_headers -emit-llvm -S -o %W.text.ll
-// RUN: FileCheck -input-file=%W.text.ll --check-prefix=CHECK-SKL %w
-// RUN: %cmoc -mcpu=TGL %w -I%cm_headers -emit-llvm -S -o %W.text.ll
-// RUN: FileCheck -input-file=%W.text.ll --check-prefix=CHECK-TGL %w
-// RUN: rm %W.text.ll
+// RUN: %cmc -mcpu=PVC %s -emit-llvm -S -o %t.text.ll
+// RUN: FileCheck -input-file=%t.text.ll --check-prefix=CHECK-PVC %s
+// RUN: %cmc -mcpu=SKL %s -emit-llvm -S -o %t.text.ll
+// RUN: FileCheck -input-file=%t.text.ll --check-prefix=CHECK-SKL %s
+// RUN: %cmc -mcpu=TGL %s -emit-llvm -S -o %t.text.ll
+// RUN: FileCheck -input-file=%t.text.ll --check-prefix=CHECK-TGL %s
 // CHECK-PVC: "target-cpu"="PVC"
 // CHECK-SKL: "target-cpu"="SKL"
 // CHECK-TGL: "target-cpu"="TGL"

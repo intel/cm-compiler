@@ -18,7 +18,6 @@ _GENX_MAIN_ void test(SurfaceIndex ibuf)
 // output a warning just to have some output from the compiler to check
 #warning 5_1_3_a.cpp
 
-// RUN: %cmc -mCM_old_asm_name %w -Wno-pass-failed 2>&1 | FileCheck --implicit-check-not error %w
-// RUN: rm %W.isa
+// RUN: %cmc -emit-llvm %s -Wno-pass-failed 2>&1 | FileCheck --implicit-check-not error %s
 // CHECK: warning: 5_1_3_a.cpp
 // CHECK: 1 warning generated

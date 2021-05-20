@@ -1,7 +1,7 @@
-// RUN: %cmoc -mcpu=SKL %w -I%cm_headers -o output 2>&1 \
-// RUN:     | FileCheck %w
-// RUN: %cmoc -mcpu=SKL %w -I%cm_headers -o output 2>&1 \
-// RUN:     | FileCheck %w
+// RUN: %cmc -mcpu=SKL %s -o output 2>&1 \
+// RUN:     | FileCheck %s
+// RUN: %cmc -mcpu=SKL %s -o output 2>&1 \
+// RUN:     | FileCheck %s
 // CHECK: not implemented
 
 #include <cm/cm.h>

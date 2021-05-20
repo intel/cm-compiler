@@ -1,6 +1,5 @@
 // The /mCM_emit_common_isa option is accepted but ignored
-// RUN: %cmc -mCM_printfargs -mCM_old_asm_name -mdump_asm /mCM_emit_common_isa /Qxcm_jit_target=skl %w 2>&1 | FileCheck %w 
-// RUN: rm %W.isa %W_0.asm %W_0.dat %W_0.visaasm
+// RUN: %cmc -emit-llvm /mCM_emit_common_isa -march=skl %s 2>&1 | FileCheck %s
 
 #include <cm/cm.h>
 
