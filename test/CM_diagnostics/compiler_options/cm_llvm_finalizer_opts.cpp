@@ -1,3 +1,5 @@
+// XFAIL: *
+
 // The test expects that the resulting assembly file should mention all the
 // platforms passed to the finalizer.
 // "SKL" is passed as a result of -mcpu argument,

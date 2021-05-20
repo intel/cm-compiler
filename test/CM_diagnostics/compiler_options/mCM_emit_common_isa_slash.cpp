@@ -1,3 +1,5 @@
+// XFAIL: *
+
 // The /mCM_emit_common_isa option is accepted but ignored
 // RUN: %cmc -emit-llvm /mCM_emit_common_isa -march=skl %s 2>&1 | FileCheck %s
 
