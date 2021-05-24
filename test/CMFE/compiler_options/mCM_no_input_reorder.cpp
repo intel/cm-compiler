@@ -27,7 +27,7 @@ _GENX_MAIN_ void foo(SurfaceIndex ibuf, SurfaceIndex obuf, char val, uint h_pos,
     write(obuf, h_pos*24, v_pos*6, out); 
 }
 
-// RUN: %cmc -emit-llvm -march=BDW -mCM_no_input_reorder %s | FileCheck %s
+// RUN: %cmc -emit-llvm -march=BDW -mCM_no_input_reorder -- %s | FileCheck %s
 //
 // CHECK: -platform BDW
 // CHECK-NOT: error

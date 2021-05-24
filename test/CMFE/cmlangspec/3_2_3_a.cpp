@@ -18,5 +18,5 @@ _GENX_MAIN_ void test1(SurfaceIndex OUT, int index)
 // output a warning just to have some output from the compiler to check
 #warning 3_2_3.cpp
 
-// RUN: %cmc -emit-llvm %s 2>&1 | FileCheck --implicit-check-not error %s
+// RUN: %cmc -emit-llvm -- %s 2>&1 | FileCheck --implicit-check-not error %s
 // CHECK: 1 warning generated

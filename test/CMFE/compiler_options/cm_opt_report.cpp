@@ -51,9 +51,9 @@ void test2() {
 
 // The Finalizer is called as we have specified a target so the -Qxcm_opt_report
 // option causes the Finalizer optimization report to be printed
-// RUN: %cmc -emit-llvm -march=BDW -Qxcm_opt_report %s 2>&1 | FileCheck --check-prefix=CHECK-BDW %s
+// RUN: %cmc -emit-llvm -march=BDW -Qxcm_opt_report -- %s 2>&1 | FileCheck --check-prefix=CHECK-BDW %s
 //
-// RUN: %cmc -emit-llvm -march=BDW /Qxcm_opt_report %s 2>&1 | FileCheck --check-prefix=CHECK-BDW %s
+// RUN: %cmc -emit-llvm -march=BDW /Qxcm_opt_report -- %s 2>&1 | FileCheck --check-prefix=CHECK-BDW %s
 
 // CHECK-BDW: cm_opt_report.cpp(4,2):  warning: CM_GENX defined [-W#warnings]
 // CHECK-BDW: cm_opt_report.cpp(14,2):  warning: CM_GEN8 defined [-W#warnings]

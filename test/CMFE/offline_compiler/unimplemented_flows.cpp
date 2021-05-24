@@ -1,8 +1,8 @@
 // XFAIL: *
 
-// RUN: %cmc -mcpu=SKL %s -o output 2>&1 \
+// RUN: %cmc -mcpu=SKL -o output -- %s 2>&1 \
 // RUN:     | FileCheck %s
-// RUN: %cmc -mcpu=SKL %s -o output 2>&1 \
+// RUN: %cmc -mcpu=SKL -o output -- %s 2>&1 \
 // RUN:     | FileCheck %s
 // CHECK: not implemented
 

@@ -9,4 +9,4 @@ _GENX_ void test1()
                           // a(3), a(5) and a(7) are copied to b)
 }
 
-// RUN: %cmc -emit-llvm %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
+// RUN: %cmc -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s

@@ -16,5 +16,5 @@ _GENX_ void test()
   (PAARM_LEVEL2 * bot );
 }
 
-// RUN: %cmc -emit-llvm %s 2>&1 | FileCheck --implicit-check-not error %s
+// RUN: %cmc -emit-llvm -- %s 2>&1 | FileCheck --implicit-check-not error %s
 // CHECK: warning: cm_nonstrict is deprecated
