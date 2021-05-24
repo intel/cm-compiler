@@ -399,6 +399,15 @@ if( CLANG_BUILT_STANDALONE )
   message(STATUS "found LLVM GenX Intrinsics: ${LLVMGenXIntrinsics_DIR}")
   include_directories("${LLVMGenXIntrinsics_DIR}/../../../include")
   link_directories("${LLVMGenXIntrinsics_DIR}/../../../lib")
+
+  if(CLANG_INCLUDE_TESTS)
+    # Help llvm cmakes to find lit from packages.
+    find_file(LLVM_EXTERNAL_LIT
+      NAMES llvm-lit llvm-lit.py lit lit.py
+      HINTS ${LLVM_LIT_ADDITIONAL_PATHS}
+      DOC "Path to lit utility"
+      )
+  endif()
 else()
   include_directories(${LLVM_MAIN_SRC_DIR}/projects/vc-intrinsics/GenXIntrinsics/include)
   include_directories(${LLVM_BINARY_DIR}/projects/vc-intrinsics/GenXIntrinsics/include)
