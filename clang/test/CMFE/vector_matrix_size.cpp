@@ -122,7 +122,7 @@ _GENX_ void func4(matrix<char, 64, 64> m) {	// Size exceeds maximum
 
 // CM vector and matrix types are (currently) limited to less than 8192 bytes - we generate a 
 // helpful front-end error in order to avoid a more obscure error from the finalizer.
-// RUN: %cmc -emit-llvm -ferror-limit=999 %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm -ferror-limit=999 -- %s 2>&1 | FileCheck %s
 
 // CHECK: vector_matrix_size.cpp(27,5): error: size of vector (16384 bytes) exceeds maximum supported size (must be less than 16384 bytes)
 // CHECK: vector_matrix_size.cpp(30,5): error: size of vector (16384 bytes) exceeds maximum supported size (must be less than 16384 bytes)

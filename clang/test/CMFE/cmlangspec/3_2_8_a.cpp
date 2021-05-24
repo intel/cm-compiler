@@ -11,4 +11,4 @@ _GENX_ void test1()
   v_mask = ( v != 0 );
 }
 
-// RUN: %cmc -emit-llvm %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
+// RUN: %cmc -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s

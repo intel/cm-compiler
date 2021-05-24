@@ -1,6 +1,6 @@
 // XFAIL: *
 
-// RUN: %cmc -emit-llvm -ferror-limit=999 %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm -ferror-limit=999 -- %s 2>&1 | FileCheck %s
 
 #include <cm/cm.h>
 

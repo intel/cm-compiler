@@ -7,4 +7,4 @@ void foo() {
   // ...
 }
 
-// RUN: %cmc -emit-llvm %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
+// RUN: %cmc -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s

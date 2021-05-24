@@ -1,7 +1,7 @@
 // The Finalizer should not be called as we haven't specified a target
 // The /QXcm_B option should be ignored
 // XFAIL: *
-// RUN: %cmc -emit-llvm /Qxcm_B %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm /Qxcm_B -- %s 2>&1 | FileCheck %s
 
 #include <cm/cm.h>
 

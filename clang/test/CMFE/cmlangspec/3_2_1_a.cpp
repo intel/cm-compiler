@@ -16,4 +16,4 @@ _GENX_ void f() {
   m2 = m3;  // elements of m1 are copied to m2
 }
 
-// RUN: %cmc -emit-llvm %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
+// RUN: %cmc -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
