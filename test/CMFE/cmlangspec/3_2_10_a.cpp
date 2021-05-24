@@ -21,4 +21,4 @@ _GENX_ void test1()
   // interpreted as a vector of 16 floats.
 }
 
-// RUN: %cmc -emit-llvm %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
+// RUN: %cmc -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s

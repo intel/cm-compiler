@@ -1,5 +1,5 @@
 // XFAIL: *
-// RUN: %cmc -mcpu=UNKNOWN %s -emit-spirv -o output 2>&1 \
+// RUN: %cmc -mcpu=UNKNOWN -emit-spirv -o output -- %s 2>&1 \
 // RUN:     | FileCheck %s
 // CHECK: unknown target
 

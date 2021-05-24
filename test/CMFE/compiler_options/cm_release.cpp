@@ -47,7 +47,7 @@ void test1(SurfaceIndex S, vector<uchar,64> i) {
 
 // The Finalizer is called so we generate an .asm file, which should 
 // contain some debug information as we haven't specified -Qxcm_release.
-// RUN: %cmc -emit-llvm -march=BDW %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm -march=BDW -- %s 2>&1 | FileCheck %s
 // RUN: FileCheck --check-prefix=ASM %s -input-file=%W_0.asm
 
 // CHECK: cm_release.cpp(4,2):  warning: CM_GENX defined [-W#warnings]
@@ -61,10 +61,10 @@ void test1(SurfaceIndex S, vector<uchar,64> i) {
 
 // The Finalizer is called so we generate an .asm file, which should not
 // contain any debug information as we also specified -Qxcm_release.
-// RUN: %cmc -emit-llvm -march=BDW -Qxcm_release %s 2>&1 | FileCheck --check-prefix=CHECK-RELEASE %s
+// RUN: %cmc -emit-llvm -march=BDW -Qxcm_release -- %s 2>&1 | FileCheck --check-prefix=CHECK-RELEASE %s
 // RUN: FileCheck --check-prefix=ASM-RELEASE %s -input-file=%W_0.asm
 //
-// RUN: %cmc -emit-llvm -march=BDW /Qxcm_release %s 2>&1 | FileCheck --check-prefix=CHECK-RELEASE %s
+// RUN: %cmc -emit-llvm -march=BDW /Qxcm_release -- %s 2>&1 | FileCheck --check-prefix=CHECK-RELEASE %s
 // RUN: FileCheck --check-prefix=ASM-RELEASE %s -input-file=%W_0.asm
 
 // CHECK-RELEASE: cm_release.cpp(4,2):  warning: CM_GENX defined [-W#warnings]

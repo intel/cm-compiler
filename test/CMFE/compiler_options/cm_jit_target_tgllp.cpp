@@ -65,9 +65,9 @@ void test() {
 // which also leaves things tidy for the next test.
 
 // XFAIL: *
-// RUN: %cmc -emit-llvm -march=GEN12LP %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm -march=GEN12LP -- %s 2>&1 | FileCheck %s
 
-// RUN: %cmc -emit-llvm -march=TGLLP %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm -march=TGLLP -- %s 2>&1 | FileCheck %s
 
 
 // CHECK: cm_jit_target_tgllp.cpp(12,9):  warning: CM_GENX defined with value 1250 [-W#pragma-messages]

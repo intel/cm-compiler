@@ -7,7 +7,7 @@ _GENX_MAIN_ void foo(SurfaceIndex S)
 }
 
 
-// RUN: %cmc -emit-llvm -march=BDW %s | FileCheck %s
+// RUN: %cmc -emit-llvm -march=BDW -- %s | FileCheck %s
 //
 // CHECK: -platform BDW
 // CHECK-NOT: error

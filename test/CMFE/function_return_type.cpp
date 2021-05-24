@@ -139,7 +139,7 @@ _GENX_MAIN_ void foo(SurfaceIndex idx)
 
 // CM vector and matrix types are (currently) limited to less than 4096 bytes - we generate a 
 // helpful front-end error in order to avoid a more obscure error from the finalizer.
-// RUN: %cmc -emit-llvm -ferror-limit=999 %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm -ferror-limit=999 -- %s 2>&1 | FileCheck %s
 
 // CHECK: function_return_type.cpp(58,21):  error: unsupported function return type 'SamplerIndex'
 // CHECK: function_return_type.cpp(60,21):  error: unsupported function return type 'SurfaceIndex'

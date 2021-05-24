@@ -2,7 +2,7 @@
 
 // The Finalizer should not be called as we haven't specified a target
 // The -Qxcm_inst_compaction option is ignored
-// RUN: %cmc -emit-llvm -Qxcm_inst_compaction %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm -Qxcm_inst_compaction -- %s 2>&1 | FileCheck %s
 
 #include <cm/cm.h>
 

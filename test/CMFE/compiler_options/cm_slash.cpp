@@ -1,6 +1,6 @@
 // The Finalizer should not be called as we haven't specified a target
 // XFAIL: *
-// RUN: %cmc -emit-llvm /Qxcm %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm /Qxcm -- %s 2>&1 | FileCheck %s
 
 #include <cm/cm.h>
 

@@ -6,7 +6,7 @@
 // The icl-cm compiler generated a warning for this, but cmc generates
 // an error - so the test has been move to the CM diagnostics suite.
 //
-// RUN: %cmc -emit-llvm %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm -- %s 2>&1 | FileCheck %s
 
 #include <cm/cm.h>
 

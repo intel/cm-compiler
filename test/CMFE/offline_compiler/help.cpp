@@ -1,5 +1,5 @@
-// RUN: %cmc --help | FileCheck --check-prefix=CHECK-HELP  %s
-// RUN: %cmc -help | FileCheck --check-prefix=CHECK-HELP  %s
+// RUN: %cmc --help | FileCheck --check-prefix=CHECK-HELP %s
+// RUN: %cmc -help | FileCheck --check-prefix=CHECK-HELP %s
 // RUN: %cmc --help123123 2>&1 | FileCheck --check-prefix=CHECK-NO-HELP %s
 // RUN: %cmc -help123123 2>&1 | FileCheck --check-prefix=CHECK-NO-HELP-SHORT %s
 // CHECK-HELP: CMOC-specific help
