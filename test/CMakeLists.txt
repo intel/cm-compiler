@@ -41,8 +41,8 @@ configure_lit_site_cfg(
   )
 
 configure_lit_site_cfg(
-  ${CMAKE_CURRENT_SOURCE_DIR}/CM_diagnostics/lit.site.cfg.in
-  ${CMAKE_CURRENT_BINARY_DIR}/CM_diagnostics/lit.site.cfg
+  ${CMAKE_CURRENT_SOURCE_DIR}/CMFE/lit.site.cfg.in
+  ${CMAKE_CURRENT_BINARY_DIR}/CMFE/lit.site.cfg
   )
 
 option(CLANG_TEST_USE_VG "Run Clang tests under Valgrind" OFF)
@@ -137,6 +137,12 @@ add_lit_testsuite(check-clang "Running the Clang regression tests"
   ARGS ${CLANG_TEST_EXTRA_ARGS}
   )
 set_target_properties(check-clang PROPERTIES FOLDER "Clang tests")
+
+add_lit_testsuite(check-cmc "Running the cmc regression tests"
+  ${CMAKE_CURRENT_BINARY_DIR}/CMFE
+  DEPENDS ${CLANG_TEST_DEPS} cmc
+  )
+set_target_properties(check-cmc PROPERTIES FOLDER "Clang tests")
 
 if (CLANG_ENABLE_STATIC_ANALYZER)
   # check-all would launch those tests via check-clang.

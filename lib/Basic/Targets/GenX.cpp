@@ -55,15 +55,15 @@ bool GenXTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
   NativeI64Support = llvm::StringSwitch<bool>(CPU)
                          .Cases("ICLLP", "TGLLP", false)
                          .Default(true);
-  NativeDoubleSupport = NativeI64Support;
+
+  NativeDoubleSupport = llvm::StringSwitch<bool>(CPU)
+                            .Cases("ICLLP", "TGLLP", false)
+                            .Default(true);
 
   // OCL runtime specific headers support
   OCLRuntime = std::any_of(
       Features.begin(), Features.end(),
       [](const std::string &Feature) { return Feature == "+ocl_runtime"; });
-  I64Emulation = std::any_of(
-      Features.begin(), Features.end(),
-      [](const std::string &Feature) { return Feature == "+emulate_i64"; });
   return true;
 }
 
@@ -93,15 +93,24 @@ void GenXTargetInfo::getTargetDefines(const LangOptions &Opts,
   Builder.defineMacro("_X86_");
   Builder.defineMacro("__MSVCRT__");
   Builder.defineMacro("_HAS_EXCEPTIONS", "0");
+
+  bool I64Emulation = !NativeI64Support && Opts.CMEmulateI64;
   if (I64Emulation)
     Builder.defineMacro("__CM_INTEGER_EMULATION_ENABLED__");
+
+  if (NativeI64Support || I64Emulation)
+    Builder.defineMacro("CM_HAS_LONG_LONG", "1");
+
+  if (NativeDoubleSupport)
+    Builder.defineMacro("CM_HAS_DOUBLE", "1");
+
   // OCL runtime specific headers support
   if (OCLRuntime)
     Builder.defineMacro("__CM_OCL_RUNTIME");
 }
 bool GenXTargetInfo::hasFeature(StringRef Feature) const {
   return llvm::StringSwitch<bool>(Feature)
-      .Case("longlong", NativeI64Support || I64Emulation)
+      .Case("longlong", NativeI64Support)
       .Case("double", NativeDoubleSupport)
       .Default(true);
 }

@@ -33,7 +33,6 @@ class LLVM_LIBRARY_VISIBILITY GenXTargetInfo : public TargetInfo {
   static const Builtin::Info BuiltinInfo[];
   std::string CPU;
   bool OCLRuntime = false;
-  bool I64Emulation = false;
   bool NativeI64Support = false;
   bool NativeDoubleSupport = false;
 

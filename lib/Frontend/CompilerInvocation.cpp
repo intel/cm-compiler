@@ -2455,6 +2455,9 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   if (Args.hasArg(OPT_fcm_pointer))
     Opts.CMPointer = 1;
 
+  if (Args.hasArg(OPT_mCM_no_emulate_i64))
+    Opts.CMEmulateI64 = 0;
+
   if (Args.hasArg(OPT_fcuda_is_device))
     Opts.CUDAIsDevice = 1;
 
@@ -3279,6 +3282,8 @@ static void ParseTargetArgs(TargetOptions &Opts, ArgList &Args,
       Opts.EABIVersion = EABIVersion;
   }
   Opts.CPU = Args.getLastArgValue(OPT_target_cpu);
+  Args.getLastArgValue(OPT_Qxcm_revid, "0").getAsInteger(0, Opts.RevId);
+
   Opts.FPMath = Args.getLastArgValue(OPT_mfpmath);
   Opts.FeaturesAsWritten = Args.getAllArgValues(OPT_target_feature);
   Opts.LinkerVersion = Args.getLastArgValue(OPT_target_linker_version);
