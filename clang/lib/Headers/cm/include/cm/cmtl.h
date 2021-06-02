@@ -22,6 +22,20 @@
  OTHER DEALINGS IN THE SOFTWARE.
 ======================= end_copyright_notice ==================================*/
 
+/* -----------------------------------------------------------------------------
+ *
+ *  Authors:              Somnath Ghosh, Dori Eldar, David Stuttard
+ *
+ *  Description:
+ *     A selection of template functions designed to provide optimized
+ *     functions for use in CM.
+ *     These functions use optimized code idioms that have been found to provide
+ *     the optimal performance on GenX for the desired functionality in much the
+ *     same way as intrinsic functions
+ * ---------------------------------------------------------------------------*/
+
+/* Make this file idempotent - use pragma and standard macro guards in case
+ * pragma not recognised */
 #pragma once
 #ifndef _CMTL_H_
 #define _CMTL_H_
