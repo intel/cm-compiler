@@ -22,6 +22,9 @@
  OTHER DEALINGS IN THE SOFTWARE.
 ======================= end_copyright_notice ==================================*/
 
+// this file is added to make the old compiler happy when the include path
+// is renamed 
+ 
 #ifndef CM_VS2013_H
 #define CM_VS2013_H
 
