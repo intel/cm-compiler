@@ -268,6 +268,8 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
               .StartsWith("__cm_intrinsic_impl_svm_scatter_write", CMBK_svm_scatter_write_impl)
               .StartsWith("__cm_intrinsic_impl_sat", CMBK_cm_sat_impl)
               .StartsWith("__cm_intrinsic_impl_abs", CMBK_cm_abs_impl)
+              .StartsWith("__cm_intrinsic_impl_addc", CMBK_cm_addc_impl)
+              .StartsWith("__cm_intrinsic_impl_subb", CMBK_cm_subb_impl)
               .StartsWith("__cm_intrinsic_impl_add", CMBK_cm_add_impl)
               .StartsWith("__cm_intrinsic_impl_mul", CMBK_cm_mul_impl)
               .StartsWith("__cm_intrinsic_impl_div_ieee", CMBK_cm_div_ieee_impl)
@@ -1170,6 +1172,9 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(0);
   case CMBK_cm_abs_impl:
     return RValue::get(HandleBuiltinAbsImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_addc_impl:
+  case CMBK_cm_subb_impl:
+    return RValue::get(HandleBuiltinAddcSubbImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_add_impl:
   case CMBK_cm_mul_impl:
     return RValue::get(HandleBuiltinMulAddImpl(getCurCMCallInfo(), Kind));
@@ -1863,6 +1868,55 @@ llvm::Value *CGCMRuntime::HandleBuiltinMulAddImpl(CMCallInfo &CallInfo,
 
   CI->eraseFromParent();
   return Result;
+}
+
+/// \brief Postprocess builtin cm_addc and cm_subb.
+///
+/// template <int SZ>
+/// __cm_intrinsic_impl_addc(vector<unsigned, SZ> src0,
+///                          vector<unsigned, SZ> src1,
+///                          vector_ref<unsigned, SZ> carry);
+///
+/// template <int SZ>
+/// __cm_intrinsic_impl_subb(vector<unsigned, SZ> src0,
+///                          vector<unsigned, SZ> src1,
+///                          vector_ref<unsigned, SZ> carry);
+///
+llvm::Value *CGCMRuntime::HandleBuiltinAddcSubbImpl(CMCallInfo &CallInfo,
+                                                    CMBuiltinKind Kind) {
+  assert((Kind == CMBK_cm_addc_impl || Kind == CMBK_cm_subb_impl) &&
+         "addc or subb builtin is expected");
+  assert(CallInfo.CE->getNumArgs() == 3 &&
+         "addc and subb must have 3 arguments");
+
+  QualType VecType = CallInfo.CE->getType();
+  assert(VecType->isCMIntegerVectorMatrixType() &&
+         "addc and subb are defined for only integer types");
+
+  llvm::CallInst *CI = CallInfo.CI;
+  llvm::Type *Ty = CI->getType();
+  assert(Ty->isVectorTy() && Ty->isIntOrIntVectorTy(32) &&
+         "addc and subb support only 32bit integers");
+
+  llvm::Value *Arg0 = CI->getArgOperand(0);
+  llvm::Value *Arg1 = CI->getArgOperand(1);
+  llvm::Value *Carry = CI->getArgOperand(2);
+
+  CGBuilderTy Builder{*CallInfo.CGF, CI};
+
+  unsigned ID = Kind == CMBK_cm_addc_impl ? llvm::GenXIntrinsic::genx_addc
+                                          : llvm::GenXIntrinsic::genx_subb;
+  llvm::Type *Tys[] = {Arg0->getType(), Arg0->getType()};
+  llvm::Value *Args[] = {Arg0, Arg1};
+  llvm::Function *F = getGenXIntrinsic(ID, Tys);
+  llvm::Value *Result = Builder.CreateCall(F, Args, CI->getName());
+
+  llvm::Value *CarryValue = Builder.CreateExtractValue(Result, 0);
+  Builder.CreateDefaultAlignedStore(CarryValue, Carry);
+  llvm::Value *R = Builder.CreateExtractValue(Result, 1);
+
+  CI->eraseFromParent();
+  return R;
 }
 
 /// \brief Postprocess builtin cm_avg.

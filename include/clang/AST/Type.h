@@ -1994,6 +1994,7 @@ public:
   bool isCMVectorType() const;                  // CM vector/vector_ref type.
   bool isCMMatrixType() const;                  // CM matrix/matrix_ref type.
   bool isCMVectorMatrixType() const;            // CM vector/matrix/_ref/_ref type.
+  bool isCMIntegerVectorMatrixType() const;     // CM vector/matrix/_ref/_ref type with integer elements.
   bool isDependentCMVectorMatrixType() const;   // CM vector/matrix/_ref/_ref type with vary sizes.
   bool isCMBaseType() const;                    // CM vector or matrix type.
   bool isCMReferenceType() const;               // CM vector_ref or matrix_ref type.
@@ -6632,6 +6633,10 @@ inline bool Type::isCMMatrixType() const {
 }
 inline bool Type::isCMVectorMatrixType() const {
   return isCMVectorType() || isCMMatrixType();
+}
+inline bool Type::isCMIntegerVectorMatrixType() const {
+  return (isCMVectorType() || isCMMatrixType()) &&
+         CanonicalType->getCMVectorMatrixElementType()->isIntegerType();
 }
 inline bool Type::isDependentCMVectorMatrixType() const {
   return isa<DependentCMVectorType>(CanonicalType) ||
