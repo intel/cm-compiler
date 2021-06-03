@@ -514,6 +514,9 @@ private:
   llvm::Value *HandleBuiltinMulAddImpl(CMCallInfo &CallInfo,
                                        CMBuiltinKind Kind);
 
+  /// \brief Postprocess builtin cm_addc and subb.
+  llvm::Value *HandleBuiltinAddcSubbImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+
   /// \brief Postprocess builtin cm_avg.
   llvm::Value *HandleBuiltinAvgImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
 
