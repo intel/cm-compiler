@@ -48,6 +48,8 @@ enum CMBuiltinKind {
   CMBK_cm_abs, CMBK_cm_abs_impl,
   CMBK_cm_add, CMBK_cm_add_impl,
   CMBK_cm_mul, CMBK_cm_mul_impl,
+  CMBK_cm_addc, CMBK_cm_addc_impl,
+  CMBK_cm_subb, CMBK_cm_subb_impl,
   CMBK_cm_avg, CMBK_cm_avg_impl,
   CMBK_cm_dp2, CMBK_cm_dp2_impl,
   CMBK_cm_dp3, CMBK_cm_dp3_impl,

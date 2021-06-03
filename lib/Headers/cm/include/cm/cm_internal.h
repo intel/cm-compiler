@@ -49,6 +49,16 @@ template <typename T0, typename T1, int SZ>
 vector<T0, SZ> __cm_intrinsic_impl_add(vector<T1, SZ> src0, vector<T1, SZ> src1,
                                        int flag);
 
+template <int SZ>
+vector<unsigned, SZ> __cm_intrinsic_impl_addc(vector<unsigned, SZ> src0,
+                                              vector<unsigned, SZ> src1,
+                                              vector_ref<unsigned, SZ> carry);
+
+template <int SZ>
+vector<unsigned, SZ> __cm_intrinsic_impl_subb(vector<unsigned, SZ> src0,
+                                              vector<unsigned, SZ> src1,
+                                              vector_ref<unsigned, SZ> borrow);
+
 template <typename T0, typename T1, int SZ>
 vector<T0, SZ> __cm_intrinsic_impl_mul(vector<T1, SZ> src0, vector<T1, SZ> src1,
                                        int flag);
