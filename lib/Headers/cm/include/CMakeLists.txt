@@ -46,13 +46,24 @@ set(CM_HEADERS
   opencl-c-common.h
   )
 
-set(LLVM_LINK_COMPONENTS
-  Support
+set(CM_RESOURCE_EMBEDDER "" CACHE FILEPATH
+  "Path to resource embedder. If empty, it will be built with clang."
   )
 
-add_llvm_utility(ResourceEmbedder
-  ResourceEmbedder.cpp
-  )
+if(CM_RESOURCE_EMBEDDER)
+  add_executable(ResourceEmbedder IMPORTED)
+  set_target_properties(ResourceEmbedder PROPERTIES
+    IMPORTED_LOCATION ${CM_RESOURCE_EMBEDDER}
+    )
+else()
+  set(LLVM_LINK_COMPONENTS
+    Support
+    )
+
+  add_llvm_utility(ResourceEmbedder
+    ResourceEmbedder.cpp
+    )
+endif()
 
 set(OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedHeaders.inc")
 add_custom_command(OUTPUT ${OUTPUT_FILE}
