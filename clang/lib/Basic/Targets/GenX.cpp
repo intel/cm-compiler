@@ -53,11 +53,15 @@ bool GenXTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
                                           DiagnosticsEngine &Diags) {
 
   NativeI64Support = llvm::StringSwitch<bool>(CPU)
-                         .Cases("ICLLP", "TGLLP", false)
+                         .Case("ICLLP", false)
+                         .Case("TGLLP", false)
+                         .Case("DG1", false)
                          .Default(true);
 
   NativeDoubleSupport = llvm::StringSwitch<bool>(CPU)
-                            .Cases("ICLLP", "TGLLP", false)
+                            .Case("ICLLP", false)
+                            .Case("TGLLP", false)
+                            .Case("DG1", false)
                             .Default(true);
 
   // OCL runtime specific headers support
@@ -79,6 +83,7 @@ bool GenXTargetInfo::setCPU(const std::string &Name) {
                       .Case("ICL", true)
                       .Case("ICLLP", true)
                       .Case("TGLLP", true)
+                      .Case("DG1", true)
                       .Default(false);
 
   if (CPUKnown)
