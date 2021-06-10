@@ -103,11 +103,7 @@ std::string getClangFullRepositoryVersion() {
   std::string Revision = getClangRevision();
   if (!Path.empty() || !Revision.empty()) {
     OS << "(Clang sources: ";
-    if (!Path.empty())
-      OS << Path;
     if (!Revision.empty()) {
-      if (!Path.empty())
-        OS << ' ';
       OS << Revision;
     }
     OS << ')';
@@ -116,18 +112,12 @@ std::string getClangFullRepositoryVersion() {
   std::string LLVMRev = getLLVMRevision();
   if (!LLVMRev.empty() && LLVMRev != Revision) {
     OS << "(LLVM sources: ";
-    std::string LLVMRepo = getLLVMRepositoryPath();
-    if (!LLVMRepo.empty())
-      OS << LLVMRepo << ' ';
     OS << LLVMRev << ')';
   }
 
   std::string VCIRev = getVCIntrinsicsRevision();
   if (!VCIRev.empty()) {
     OS << "(VC-Intrinsics sources: ";
-    std::string VCIRepo = getVCIntrinsicsRepositoryPath();
-    if (!VCIRepo.empty())
-      OS << VCIRepo << ' ';
     OS << VCIRev << ')';
   }
 
