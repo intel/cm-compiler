@@ -801,6 +801,7 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   else {
     Opts.IEFByPass = llvm::StringSwitch<bool>(TargetOpts.CPU)
       .Case("TGLLP", false)
+      .Case("DG1", false)
       .Default(true);
   }
 

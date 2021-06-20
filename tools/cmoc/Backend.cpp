@@ -97,6 +97,7 @@ const std::unordered_map<std::string, std::string> CmToNeoCPU{
     {"SKL", "skl"},
     {"ICLLP", "icllp"},
     {"TGLLP", "tgllp"},
+    {"DG1", "dg1"},
 };
 // clang-format on
 

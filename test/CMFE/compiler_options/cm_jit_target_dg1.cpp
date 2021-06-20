@@ -56,7 +56,7 @@ void test() {
 
 
 
-// We test a number of different ways to specify a tgl jit target option.
+// We test a number of different ways to specify a dg1 jit target option.
 // All are equivalent, and should produce the same results, so we only need
 // one set of CHECK values for all of these tests.
 // We check the expected Gen variant macros are defined (and no others), and
@@ -65,10 +65,9 @@ void test() {
 // which also leaves things tidy for the next test.
 
 // XFAIL: *
-// RUN: %cmc -emit-llvm -march=GEN12LP -- %s 2>&1 | FileCheck %s
-// RUN: %cmc -emit-llvm -march=TGLLP -- %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm -march=DG1 -- %s 2>&1 | FileCheck %s
 
-// CHECK: cm_jit_target_tgllp.cpp(12,9):  warning: CM_GENX defined with value 1200 [-W#pragma-messages]
-// CHECK: cm_jit_target_tgllp.cpp(54,2):  warning: CM_GEN12 defined [-W#warnings]
+// CHECK: cm_jit_target_dg1.cpp(12,9):  warning: CM_GENX defined with value 1210 [-W#pragma-messages]
+// CHECK: cm_jit_target_dg1.cpp(54,2):  warning: CM_GEN12 defined [-W#warnings]
 // CHECK: 2 warnings generated.
 // CHECK: -platform TGLLP
