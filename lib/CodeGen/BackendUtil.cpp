@@ -868,8 +868,8 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
 
   case Backend_EmitSPIRV: {
     // GENX BEGIN
-    PerModulePasses.add(
-        createGenXSPIRVWriterAdaptorPass(/*RewriteTypes=*/true));
+    PerModulePasses.add(createGenXSPIRVWriterAdaptorPass(
+        /*RewriteTypes=*/true, /*RewriteSingleElementVectors=*/true));
     // GENX END
     SPIRV::TranslatorOpts Opts;
     Opts.setSPIRVAllowUnknownIntrinsicsEnabled(true);
