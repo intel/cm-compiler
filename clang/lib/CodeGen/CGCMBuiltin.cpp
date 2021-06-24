@@ -443,6 +443,15 @@ static llvm::Value *setHeaderHiValue(CodeGenFunction &CGF,
       llvm::ConstantInt::get(CGF.Int32Ty, CMPHF_DataHiValIndex));
 }
 
+static llvm::Value *getCMPrintfReturnValue(int BytesWritten,
+                                           CodeGenFunction &CGF) {
+  if (!CGF.getLangOpts().CMUseOCLSpecPrintf)
+    return llvm::ConstantInt::get(CGF.Int32Ty, BytesWritten);
+  if (BytesWritten == 0)
+    return llvm::ConstantInt::get(CGF.Int32Ty, ~0ul);
+  return llvm::ConstantInt::get(CGF.Int32Ty, 0);
+}
+
 // __cm_builtin_cm_printf
 //
 // The following constraints have already been enforced by Sema:
@@ -491,7 +500,7 @@ static llvm::Value *EmitCMPrintf(CodeGenFunction &CGF,
   }
   // return early if an error occured processing the args
   if (ArgError)
-    return llvm::ConstantInt::get(CGF.Int32Ty, 0);
+    return getCMPrintfReturnValue(0, CGF);
 
   // Vector type used by header etc.
   llvm::Type *HdrVecTy = llvm::VectorType::get(CGF.Int32Ty, 1);
@@ -695,7 +704,7 @@ static llvm::Value *EmitCMPrintf(CodeGenFunction &CGF,
     }
   }
 
-  return llvm::ConstantInt::get(CGF.Int32Ty, BytesWritten);
+  return getCMPrintfReturnValue(BytesWritten, CGF);
 }
 
 /// Return the MDNode that has the SLM size attribute.
