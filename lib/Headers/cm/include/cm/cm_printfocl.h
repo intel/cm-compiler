@@ -32,6 +32,26 @@ static_assert(0, "CM:w:cm_printfocl.h should not be included explicitly - only "
 #ifndef _CM_PRINTFOCL_H_
 #define _CM_PRINTFOCL_H_
 
+#ifdef __CM_OCL_RUNTIME
+#ifdef __CM_USE_OCL_SPEC_PRINTF
+
+// Results into 'OpExtInst printf' instruction in SPIR-V.
+int __spirv_ocl_printf(const char *, ...);
+
+template <typename... Targs> CM_INLINE auto printf(Targs &&... Fargs) {
+  return __spirv_ocl_printf(std::forward<Targs>(Fargs)...);
+}
+
+template <typename... Targs> CM_INLINE auto cm_printf(Targs &&... Fargs) {
+  return __spirv_ocl_printf(std::forward<Targs>(Fargs)...);
+}
+
+template <typename... Targs> CM_INLINE auto cmprint(Targs &&... Fargs) {
+  return __spirv_ocl_printf(std::forward<Targs>(Fargs)...);
+}
+
+#else // __CM_USE_OCL_SPEC_PRINTF
+
 #define CMPHFOCL_VEC_ISZ  2
 #define CMPHFOCL_STR_SZ 4
 
@@ -255,7 +275,6 @@ OffsetT _cm_print_init_offset_ocl(PBuff PBP, OffsetT total_len)
 
 } //details
 
-#ifdef __CM_OCL_RUNTIME
 template<int N>
 CM_NODEBUG CM_INLINE
 typename std::enable_if<(N<=256), int>::type
@@ -325,5 +344,6 @@ CM_INLINE auto cm_printf(Targs&&... Fargs)
 {
   return cmprint(std::forward<Targs>(Fargs)...);
 }
-#endif /* __CM_OCL_RUNTIME */
-#endif /* _CM_PRINTFOCL_H_ */
+#endif // __CM_USE_OCL_SPEC_PRINTF
+#endif // __CM_OCL_RUNTIME
+#endif // _CM_PRINTFOCL_H_

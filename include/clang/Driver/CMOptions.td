@@ -242,6 +242,15 @@ def mCM_no_emulate_i64 : Flag<["-", "/"], "mCM_no_emulate_i64">, Group<cm_Group>
   HelpText<"disable 64-bit operations emulation">,
   Flags<[CMOption, CC1Option, CC1AsOption]>;
 
+def cm_printf_spec : Separate<["-"], "cm-printf-spec">, Group<cm_Group>,
+  HelpText<"Defines which spec should printf implementation follow, possible "
+           "values are: legacy, ocl">,
+  Flags<[CMOption, CC1Option]>;
+
+def cm_printf_spec_eq : Joined<["-"], "cm-printf-spec=">, Group<cm_Group>,
+  HelpText<"Alias for -cm-printf-spec <value>">, Alias<cm_printf_spec>,
+  Flags<[CMOption, CC1Option]>;
+
 // Catch-alls for a range of options - options starting with these strings will
 // be silently ignored, whether preceded by '-' or '/'.
 // Note: as options starting with a '/' could be a Linux file path we need to

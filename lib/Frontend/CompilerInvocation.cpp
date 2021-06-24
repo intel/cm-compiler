@@ -2483,6 +2483,19 @@ static void ParseLangArgs(LangOptions &Opts, ArgList &Args, InputKind IK,
   if (Args.hasArg(OPT_mCM_no_emulate_i64))
     Opts.CMEmulateI64 = 0;
 
+  if (auto *Arg = Args.getLastArg(OPT_cm_printf_spec)) {
+    auto MaybePrintfSpec =
+        llvm::StringSwitch<llvm::Optional<bool>>(Arg->getValue())
+            .Case("ocl", true)
+            .Case("legacy", false)
+            .Default({});
+    if (MaybePrintfSpec.hasValue())
+      Opts.CMUseOCLSpecPrintf = MaybePrintfSpec.getValue();
+    else
+      Diags.Report(diag::err_drv_invalid_value)
+          << Arg->getAsString(Args) << Arg->getValue();
+  }
+
   if (Args.hasArg(OPT_fcuda_is_device))
     Opts.CUDAIsDevice = 1;
 

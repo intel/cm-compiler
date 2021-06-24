@@ -242,6 +242,7 @@ LANGOPT(GPURelocatableDeviceCode, 1, 0, "generate relocatable device code")
 LANGOPT(MdfCM             , 1, 0, "MDF CM support")
 LANGOPT(CMPointer         , 1, 0, "MDF CM pointer support")
 LANGOPT(CMEmulateI64      , 1, 1, "MDF CM 64-bit integer arithmetic emulation for *lp devices")
+LANGOPT(CMUseOCLSpecPrintf, 1, 0, "Make printf follow OpenCL Specification")
 
 LANGOPT(SizedDeallocation , 1, 0, "sized deallocation")
 LANGOPT(AlignedAllocation , 1, 0, "aligned allocation")
