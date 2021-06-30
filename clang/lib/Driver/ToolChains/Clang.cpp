@@ -3204,15 +3204,6 @@ static void RenderDebugOptions(const ToolChain &TC, const Driver &D,
     } else {
       DebugInfoKind = codegenoptions::LimitedDebugInfo;
     }
-  } else if (D.CCCIsCM()) {
-    if (!Args.hasArg(options::OPT_mCM_no_debug) && !Args.hasArg(options::OPT_Qxcm_release)) {
-      // For CM we implicitly specify -gline-tables-only if no "-g" group
-      // options were specified unless it's requested explicitly in the other
-      // direction. This is deprecated behavior that will be changed to no
-      // debug info as default.
-      DebugInfoKind = codegenoptions::DebugLineTablesOnly;
-      D.Diag(diag::warn_cm_debug_default_behavior_change);
-    }
   }
 
   // If a debugger tuning argument appeared, remember it.
