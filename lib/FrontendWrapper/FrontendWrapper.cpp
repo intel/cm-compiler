@@ -269,13 +269,17 @@ static bool getTimePasses(const llvm::opt::InputArgList &Args) {
   return Args.hasArg(clang::driver::options::OPT_ftime_report);
 }
 
-static std::string getVCApiOptions(const llvm::opt::InputArgList &Args) {
+static std::string getVCApiOptions(const llvm::opt::InputArgList &Args,
+                                   clang::CompilerInstance &Clang) {
   std::string VCApiOptions = "";
-  if (Args.hasArg(clang::driver::options::OPT_mCM_optimize_none)) {
-    if (!VCApiOptions.empty())
-      VCApiOptions += " ";
-    VCApiOptions += "-optimize=none";
-  }
+  if (Args.hasArg(clang::driver::options::OPT_mCM_optimize_none))
+    VCApiOptions += " -optimize=none";
+
+  const auto &Invocation = Clang.getInvocation();
+  if (Invocation.getCodeGenOpts().getDebugInfo() !=
+      clang::codegenoptions::NoDebugInfo)
+    VCApiOptions += " -g";
+
   return VCApiOptions;
 }
 
@@ -287,7 +291,8 @@ struct OptionInfoT {
 };
 
 static OptionInfoT
-makeAdditionalOptionParsing(const std::vector<const char *> &CArgs) {
+makeAdditionalOptionParsing(const std::vector<const char *> &CArgs,
+                            clang::CompilerInstance &Clang) {
   // Opts create info table which will be set up in parseCompilerOptions and
   // used in getBinaryFormat.
   std::unique_ptr<llvm::opt::OptTable> Opts =
@@ -297,7 +302,7 @@ makeAdditionalOptionParsing(const std::vector<const char *> &CArgs) {
   OptionInfoT Info;
   Info.BinaryFormat = getBinaryFormat(ParsedArgs);
   Info.TimePasses = getTimePasses(ParsedArgs);
-  Info.VCApiOptions = getVCApiOptions(ParsedArgs);
+  Info.VCApiOptions = getVCApiOptions(ParsedArgs, Clang);
   Info.RevId = getRevId(ParsedArgs);
   return Info;
 }
@@ -319,7 +324,7 @@ createDriverInvocationFromCCArgs(const std::vector<const char*> &CArgs,
     return nullptr;
   }
 
-  auto OptionInfo = makeAdditionalOptionParsing(CArgs);
+  auto OptionInfo = makeAdditionalOptionParsing(CArgs, Clang);
 
   OutputTypeT OutputType =
     deriveOutputFromActionKind(Clang.getFrontendOpts().ProgramAction);
