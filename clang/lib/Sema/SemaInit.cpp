@@ -339,6 +339,10 @@ class InitListChecker {
                                   unsigned &StructuredIndex,
                                   bool FinishSubobjectInit,
                                   bool TopLevelObject);
+  void CheckCMVectorType(const InitializedEntity &Entity,
+                       InitListExpr *IList, QualType DeclType, unsigned &Index,
+                       InitListExpr *StructuredList,
+                       unsigned &StructuredIndex);
   InitListExpr *getStructuredSubobjectInit(InitListExpr *IList, unsigned Index,
                                            QualType CurrentObjectType,
                                            InitListExpr *StructuredList,
@@ -772,7 +776,8 @@ InitListChecker::FillInEmptyInitializations(const InitializedEntity &Entity,
       return;
 
     if (ElementEntity.getKind() == InitializedEntity::EK_ArrayElement ||
-        ElementEntity.getKind() == InitializedEntity::EK_VectorElement)
+        ElementEntity.getKind() == InitializedEntity::EK_VectorElement ||
+        ElementEntity.getKind() == InitializedEntity::EK_CMVectorElement)
       ElementEntity.setElementIndex(Init);
 
     if (Init >= NumInits && ILE->hasArrayFiller())
@@ -1011,6 +1016,7 @@ static void warnBracedScalarInit(Sema &S, const InitializedEntity &Entity,
 
   switch (Entity.getKind()) {
   case InitializedEntity::EK_VectorElement:
+  case InitializedEntity::EK_CMVectorElement:
   case InitializedEntity::EK_ComplexElement:
   case InitializedEntity::EK_ArrayElement:
   case InitializedEntity::EK_Parameter:
@@ -1117,9 +1123,10 @@ void InitListChecker::CheckExplicitInitList(const InitializedEntity &Entity,
       int initKind =
         CurrentObjectType->isArrayType()? 0 :
         CurrentObjectType->isVectorType()? 1 :
-        CurrentObjectType->isScalarType()? 2 :
-        CurrentObjectType->isUnionType()? 3 :
-        4;
+        CurrentObjectType->isCMVectorType()? 2:
+        CurrentObjectType->isScalarType()? 3 :
+        CurrentObjectType->isUnionType()? 4 :
+        5;
 
       unsigned DK = diag::ext_excess_initializers;
       if (SemaRef.getLangOpts().CPlusPlus) {
@@ -1180,6 +1187,9 @@ void InitListChecker::CheckListElementTypes(const InitializedEntity &Entity,
                     StructuredList, StructuredIndex);
   } else if (DeclType->isVectorType()) {
     CheckVectorType(Entity, IList, DeclType, Index,
+                    StructuredList, StructuredIndex);
+  } else if (DeclType->isCMVectorType()) {
+    CheckCMVectorType(Entity, IList, DeclType, Index,
                     StructuredList, StructuredIndex);
   } else if (DeclType->isRecordType()) {
     assert(DeclType->isAggregateType() &&
@@ -2804,6 +2814,31 @@ InitListChecker::CheckDesignatedInitializer(const InitializedEntity &Entity,
   return hadError && !prevHadError;
 }
 
+void InitListChecker::CheckCMVectorType(const InitializedEntity &Entity,
+                                      InitListExpr *IList, QualType DeclType,
+                                      unsigned &Index,
+                                      InitListExpr *StructuredList,
+                                      unsigned &StructuredIndex) {
+  const CMVectorType *VT = DeclType->getAs<CMVectorType>();
+  unsigned maxElements = VT->getNumElements();
+  QualType elementType = VT->getElementType();
+
+  InitializedEntity ElementEntity =
+    InitializedEntity::InitializeElement(SemaRef.Context, 0, Entity);
+
+  for (unsigned i = 0; i < maxElements; ++i) {
+    // Don't attempt to go past the end of the init list
+    if (Index >= IList->getNumInits())
+      break;
+
+    ElementEntity.setElementIndex(Index);
+
+    CheckSubElementType(ElementEntity, IList, elementType, Index,
+                        StructuredList, StructuredIndex);
+  }
+}
+
+
 // Get the structured initializer list for a subobject of type
 // @p CurrentObjectType.
 InitListExpr *
@@ -3076,6 +3111,9 @@ InitializedEntity::InitializedEntity(ASTContext &Context, unsigned Index,
   } else if (const VectorType *VT = Parent.getType()->getAs<VectorType>()) {
     Kind = EK_VectorElement;
     Type = VT->getElementType();
+  } else if (const CMVectorType *VT = Parent.getType()->getAs<CMVectorType>()) {
+    Kind = EK_CMVectorElement;
+    Type = VT->getElementType();
   } else {
     const ComplexType *CT = Parent.getType()->getAs<ComplexType>();
     assert(CT && "Unexpected type");
@@ -3125,6 +3163,7 @@ DeclarationName InitializedEntity::getName() const {
   case EK_Delegating:
   case EK_ArrayElement:
   case EK_VectorElement:
+  case EK_CMVectorElement:
   case EK_ComplexElement:
   case EK_BlockElement:
   case EK_LambdaToBlockConversionBlockElement:
@@ -3156,6 +3195,7 @@ ValueDecl *InitializedEntity::getDecl() const {
   case EK_Delegating:
   case EK_ArrayElement:
   case EK_VectorElement:
+  case EK_CMVectorElement:
   case EK_ComplexElement:
   case EK_BlockElement:
   case EK_LambdaToBlockConversionBlockElement:
@@ -3187,6 +3227,7 @@ bool InitializedEntity::allowsNRVO() const {
   case EK_Delegating:
   case EK_ArrayElement:
   case EK_VectorElement:
+  case EK_CMVectorElement:
   case EK_ComplexElement:
   case EK_BlockElement:
   case EK_LambdaToBlockConversionBlockElement:
@@ -3222,6 +3263,7 @@ unsigned InitializedEntity::dumpImpl(raw_ostream &OS) const {
   case EK_Delegating: OS << "Delegating"; break;
   case EK_ArrayElement: OS << "ArrayElement " << Index; break;
   case EK_VectorElement: OS << "VectorElement " << Index; break;
+  case EK_CMVectorElement: OS << "CMVectorElement " << Index; break;
   case EK_ComplexElement: OS << "ComplexElement " << Index; break;
   case EK_BlockElement: OS << "Block"; break;
   case EK_LambdaToBlockConversionBlockElement:
@@ -5822,6 +5864,7 @@ getAssignmentAction(const InitializedEntity &Entity, bool Diagnose = false) {
   case InitializedEntity::EK_Binding:
   case InitializedEntity::EK_ArrayElement:
   case InitializedEntity::EK_VectorElement:
+  case InitializedEntity::EK_CMVectorElement:
   case InitializedEntity::EK_ComplexElement:
   case InitializedEntity::EK_BlockElement:
   case InitializedEntity::EK_LambdaToBlockConversionBlockElement:
@@ -5846,6 +5889,7 @@ static bool shouldBindAsTemporary(const InitializedEntity &Entity) {
   case InitializedEntity::EK_Base:
   case InitializedEntity::EK_Delegating:
   case InitializedEntity::EK_VectorElement:
+  case InitializedEntity::EK_CMVectorElement:
   case InitializedEntity::EK_ComplexElement:
   case InitializedEntity::EK_Exception:
   case InitializedEntity::EK_BlockElement:
@@ -5875,6 +5919,7 @@ static bool shouldDestroyEntity(const InitializedEntity &Entity) {
     case InitializedEntity::EK_Base:
     case InitializedEntity::EK_Delegating:
     case InitializedEntity::EK_VectorElement:
+    case InitializedEntity::EK_CMVectorElement:
     case InitializedEntity::EK_ComplexElement:
     case InitializedEntity::EK_BlockElement:
     case InitializedEntity::EK_LambdaToBlockConversionBlockElement:
@@ -5924,6 +5969,7 @@ static SourceLocation getInitializationLoc(const InitializedEntity &Entity,
   case InitializedEntity::EK_Base:
   case InitializedEntity::EK_Delegating:
   case InitializedEntity::EK_VectorElement:
+  case InitializedEntity::EK_CMVectorElement:
   case InitializedEntity::EK_ComplexElement:
   case InitializedEntity::EK_BlockElement:
   case InitializedEntity::EK_LambdaToBlockConversionBlockElement:
@@ -6461,6 +6507,7 @@ static LifetimeResult getEntityLifetime(
   case InitializedEntity::EK_LambdaToBlockConversionBlockElement:
   case InitializedEntity::EK_LambdaCapture:
   case InitializedEntity::EK_VectorElement:
+  case InitializedEntity::EK_CMVectorElement:
   case InitializedEntity::EK_ComplexElement:
     return {nullptr, LK_FullExpression};
 
