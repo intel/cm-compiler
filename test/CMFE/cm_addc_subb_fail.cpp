@@ -1,3 +1,5 @@
+// XFAIL: *
+
 // RUN: not %cmc -emit-llvm -- %s 2>&1 | FileCheck %s
 
 #include <cm/cm.h>
