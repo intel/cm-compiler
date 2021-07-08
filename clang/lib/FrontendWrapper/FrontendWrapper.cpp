@@ -561,7 +561,11 @@ IntelCMClangFECompile(const Intel::CM::ClangFE::IInputArgs *InArgs) {
   auto MemFS = createFileSystem(InArgs, getTheOnlyInputFileName(Clang));
   Clang.setVirtualFileSystem(MemFS);
 
-  Clang.setDiagnostics(&*DS.Diags);
+  Clang.createDiagnostics();
+  if (!Clang.hasDiagnostics()) {
+    llvm::errs() << "FEWrapper fatal error: could not create diagnostics\n";
+    return nullptr;
+  }
 
   llvm::cl::ResetAllOptionOccurrences();
   auto success = clang::ExecuteCompilerInvocation(&Clang);
