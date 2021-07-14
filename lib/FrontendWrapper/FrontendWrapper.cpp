@@ -131,8 +131,7 @@ llvm::IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> getHeadersFileSystem() {
 // These code is deceptive. It extracts filename from command line
 // but uses InArgs->InputText as its content. So actually if someone (FCL)
 // just generated real file but has not copied it to input, compiler
-// will compile empty source. This layer will be temporarily disabled.
-// Additionally, for debugger support reasons.
+// will compile empty source.
 llvm::IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem>
 createInputsFileSystem(const wrapper::IInputArgs *InArgs,
                        llvm::StringRef InputFileName) {
@@ -156,6 +155,23 @@ createFileSystem(const wrapper::IInputArgs *InArgs,
       wrapper::MakeIntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem>(
           llvm::vfs::getRealFileSystem());
   OverlayMemFS->pushOverlay(getHeadersFileSystem());
+
+  // User can specify source file to be compiled in 2 ways:
+  // 1) by passing file name in real FS (InputFileName gets it;
+  // in this case wrapper::getSrc<llvm::StringRef>(InArgs)
+  // aka InArgs->InputText is empty string);
+  //
+  // 2) by passing content of source file in memory buffer
+  // (wrapper::getSrc<llvm::StringRef>(InArgs)
+  // aka InArgs->InputText gets it),
+  // optionally providing file name for debug info through cm-src option
+  // (in this case InputFileName gets it, or default "src.cm");
+  //
+  // Check which of these 2 variants is in this case, and if 2-nd,
+  // then add source file from memory FS,
+  // created by createInputsFileSystem(), to overlay
+  if (!wrapper::getSrc<llvm::StringRef>(InArgs).empty())
+    OverlayMemFS->pushOverlay(createInputsFileSystem(InArgs, InputFileName));
 
   return OverlayMemFS;
 }
