@@ -147,20 +147,34 @@ cm_add(T1 src0, T2 src1, int flag = _GENX_NOSAT) {
 }
 
 // cm_addc
-template <int SZ, typename U>
-CM_NODEBUG CM_INLINE typename std::enable_if<
-    details::is_one_of<U, unsigned, vector<unsigned, SZ> >::value,
-    vector<unsigned, SZ> >::type
-cm_addc(vector<unsigned, SZ> src0, U src1, vector_ref<unsigned, SZ> carry) {
-  vector<unsigned, SZ> Src1 = src1;
-  return details::__cm_intrinsic_impl_addc(src0, Src1, carry);
+template <int SZ>
+CM_NODEBUG CM_INLINE vector<unsigned, SZ>
+cm_addc(vector<unsigned, SZ> src0, vector<unsigned, SZ> src1,
+        vector_ref<unsigned, SZ> carry) {
+  return details::__cm_intrinsic_impl_addc(src0, src1, carry);
 }
 
-template <int N1, int N2, typename U>
-CM_NODEBUG CM_INLINE typename std::enable_if<
-    details::is_one_of<U, unsigned, matrix<unsigned, N1, N2> >::value,
-    matrix<unsigned, N1, N2> >::type
-cm_addc(matrix<unsigned, N1, N2> src0, U src1,
+template <int SZ>
+CM_NODEBUG CM_INLINE vector<unsigned, SZ>
+cm_addc(vector<unsigned, SZ> src0, unsigned src1,
+        vector_ref<unsigned, SZ> carry) {
+  vector<unsigned, SZ> Src1 = src1;
+  return cm_addc(src0, Src1, carry);
+}
+
+template <int N1, int N2>
+CM_NODEBUG CM_INLINE matrix<unsigned, N1, N2>
+cm_addc(matrix<unsigned, N1, N2> src0, matrix<unsigned, N1, N2> src1,
+        matrix_ref<unsigned, N1, N2> carry) {
+  vector<unsigned, N1 *N2> Src0 = src0;
+  vector<unsigned, N1 *N2> Src1 = src1;
+  vector_ref<unsigned, N1 *N2> Carry = carry.format<unsigned>();
+  return cm_addc(Src0, Src1, Carry);
+}
+
+template <int N1, int N2>
+CM_NODEBUG CM_INLINE matrix<unsigned, N1, N2>
+cm_addc(matrix<unsigned, N1, N2> src0, unsigned src1,
         matrix_ref<unsigned, N1, N2> carry) {
   vector<unsigned, N1 *N2> Src0 = src0;
   vector<unsigned, N1 *N2> Src1 = src1;
@@ -193,21 +207,34 @@ cm_addc(unsigned src0, matrix<unsigned, N1, N2> src1,
 }
 
 // cm_subb
-template <int SZ, typename U>
-CM_NODEBUG CM_INLINE typename std::enable_if<
-    details::is_one_of<U, unsigned, vector<unsigned, SZ> >::value,
-    vector<unsigned, SZ> >::type
-cm_subb(vector<unsigned, SZ> minuend, U subtrahend,
+template <int SZ>
+CM_NODEBUG CM_INLINE vector<unsigned, SZ>
+cm_subb(vector<unsigned, SZ> minuend, vector<unsigned, SZ> subtrahend,
         vector_ref<unsigned, SZ> borrow) {
-  vector<unsigned, SZ> Subtrahend = subtrahend;
-  return details::__cm_intrinsic_impl_subb(minuend, Subtrahend, borrow);
+  return details::__cm_intrinsic_impl_subb(minuend, subtrahend, borrow);
 }
 
-template <int N1, int N2, typename U>
-CM_NODEBUG CM_INLINE typename std::enable_if<
-    details::is_one_of<U, unsigned, matrix<unsigned, N1, N2> >::value,
-    matrix<unsigned, N1, N2> >::type
-cm_subb(matrix<unsigned, N1, N2> minuend, U subtrahend,
+template <int SZ>
+CM_NODEBUG CM_INLINE vector<unsigned, SZ>
+cm_subb(vector<unsigned, SZ> minuend, unsigned subtrahend,
+        vector_ref<unsigned, SZ> borrow) {
+  vector<unsigned, SZ> Subtrahend = subtrahend;
+  return cm_subb(minuend, Subtrahend, borrow);
+}
+
+template <int N1, int N2>
+CM_NODEBUG CM_INLINE matrix<unsigned, N1, N2>
+cm_subb(matrix<unsigned, N1, N2> minuend, matrix<unsigned, N1, N2> subtrahend,
+        matrix_ref<unsigned, N1, N2> borrow) {
+  vector<unsigned, N1 *N2> Minuend = minuend;
+  vector<unsigned, N1 *N2> Subtrahend = subtrahend;
+  vector_ref<unsigned, N1 *N2> Borrow = borrow.format<unsigned>();
+  return cm_subb(Minuend, Subtrahend, Borrow);
+}
+
+template <int N1, int N2>
+CM_NODEBUG CM_INLINE matrix<unsigned, N1, N2>
+cm_subb(matrix<unsigned, N1, N2> minuend, unsigned subtrahend,
         matrix_ref<unsigned, N1, N2> borrow) {
   vector<unsigned, N1 *N2> Minuend = minuend;
   vector<unsigned, N1 *N2> Subtrahend = subtrahend;
