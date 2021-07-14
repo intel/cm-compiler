@@ -4,39 +4,119 @@
 #include <cm/cm.h>
 
 _GENX_MAIN_ void test() {
-  vector<unsigned, 16> a1;
-  vector<unsigned, 16> b1;
-  vector<unsigned, 16> carry1;
-  vector<unsigned, 16> sum1 = cm_addc(a1, b1, carry1);
-  // CHECK: [[ADDC_RES1:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.addc.v16i32.v16i32(<16 x i32> [[ADDC_A1:%[^ ]+]], <16 x i32> [[ADDC_B1:%[^ ]+]])
-  // CHECK: [[RET_CARRY1:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES1]], 0
-  // CHECK: store <16 x i32> [[RET_CARRY1]], <16 x i32>* [[CARRY1:%[^ ]+]]
-  // CHECK: [[RET_SUM1:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES1]], 1
-  // CHECK: store <16 x i32> [[RET_SUM1]], <16 x i32>* [[SUM1:%[^ ]+]]
-  vector<unsigned, 16> borrow1;
-  vector<unsigned, 16> sub1 = cm_subb(a1, b1, borrow1);
-  // CHECK: [[SUBB_RES1:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.subb.v16i32.v16i32(<16 x i32> [[SUBB_A1:%[^ ]+]], <16 x i32> [[SUBB_B1:%[^ ]+]])
-  // CHECK: [[RET_BORROW1:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES1]], 0
-  // CHECK: store <16 x i32> [[RET_BORROW1]], <16 x i32>* [[BORROW1:%[^ ]+]]
-  // CHECK: [[RET_SUB1:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES1]], 1
-  // CHECK: store <16 x i32> [[RET_SUB1]], <16 x i32>* [[SUB1:%[^ ]+]]
+  vector<unsigned, 16> a_v16;
+  vector<unsigned, 16> b_v16;
+  vector_ref<unsigned, 16> a_vr16 = a_v16;
+  vector_ref<unsigned, 16> b_vr16 = b_v16;
+  vector<unsigned, 16> carry_v16;
+  vector<unsigned, 16> borrow_v16;
 
-  matrix<unsigned, 4, 4> a2;
-  matrix<unsigned, 4, 4> b2;
-  matrix<unsigned, 4, 4> carry2;
-  matrix<unsigned, 4, 4> sum2 = cm_addc(a2, b2, carry2);
-  // CHECK: [[ADDC_RES2:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.addc.v16i32.v16i32(<16 x i32> [[ADDC_A2:%[^ ]+]], <16 x i32> [[ADDC_B2:%[^ ]+]])
-  // CHECK: [[RET_CARRY2:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES2]], 0
-  // CHECK: store <16 x i32> [[RET_CARRY2]], <16 x i32>* [[CARRY2:%[^ ]+]]
-  // CHECK: [[RET_SUM2:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES2]], 1
-  // CHECK: store <16 x i32> [[RET_SUM2]], <16 x i32>* [[SUM2:%[^ ]+]]
-  matrix<unsigned, 4, 4> borrow2;
-  matrix<unsigned, 4, 4> sub2 = cm_subb(a2, b2, borrow2);
-  // CHECK: [[SUBB_RES2:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.subb.v16i32.v16i32(<16 x i32> [[SUBB_A2:%[^ ]+]], <16 x i32> [[SUBB_B2:%[^ ]+]])
-  // CHECK: [[RET_BORROW2:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES2]], 0
-  // CHECK: store <16 x i32> [[RET_BORROW2]], <16 x i32>* [[BORROW2:%[^ ]+]]
-  // CHECK: [[RET_SUB2:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES2]], 1
-  // CHECK: store <16 x i32> [[RET_SUB2]], <16 x i32>* [[SUB2:%[^ ]+]]
+  vector<unsigned, 16> sum_v16_v16 = cm_addc(a_v16, b_v16, carry_v16);
+  // CHECK: [[ADDC_RES_V_V:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.addc.v16i32.v16i32(<16 x i32> [[ADDC_A_V_V:%[^ ]+]], <16 x i32> [[ADDC_B_V_V:%[^ ]+]])
+  // CHECK: [[RET_CARRY_V_V:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_V_V]], 0
+  // CHECK: store <16 x i32> [[RET_CARRY_V_V]], <16 x i32>* [[CARRY_V_V:%[^ ]+]]
+  // CHECK: [[RET_SUM_V_V:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_V_V]], 1
+  // CHECK: store <16 x i32> [[RET_SUM_V_V]], <16 x i32>* [[SUM_V_V:%[^ ]+]]
+  vector<unsigned, 16> sum_vr16_vr16 = cm_addc(a_vr16, b_vr16, carry_v16);
+  // CHECK: [[ADDC_RES_VR_VR:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.addc.v16i32.v16i32(<16 x i32> [[ADDC_A_VR_VR:%[^ ]+]], <16 x i32> [[ADDC_B_VR_VR:%[^ ]+]])
+  // CHECK: [[RET_CARRY_VR_VR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_VR_VR]], 0
+  // CHECK: store <16 x i32> [[RET_CARRY_VR_VR]], <16 x i32>* [[CARRY_VR_VR:%[^ ]+]]
+  // CHECK: [[RET_SUM_VR_VR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_VR_VR]], 1
+  // CHECK: store <16 x i32> [[RET_SUM_VR_VR]], <16 x i32>* [[SUM_VR_VR:%[^ ]+]]
+  vector<unsigned, 16> sum_vr16_v16 = cm_addc(a_vr16, b_v16, carry_v16);
+  // CHECK: [[ADDC_RES_VR_V:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.addc.v16i32.v16i32(<16 x i32> [[ADDC_A_VR_V:%[^ ]+]], <16 x i32> [[ADDC_B_VR_V:%[^ ]+]])
+  // CHECK: [[RET_CARRY_VR_V:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_VR_V]], 0
+  // CHECK: store <16 x i32> [[RET_CARRY_VR_V]], <16 x i32>* [[CARRY_VR_V:%[^ ]+]]
+  // CHECK: [[RET_SUM_VR_V:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_VR_V]], 1
+  // CHECK: store <16 x i32> [[RET_SUM_VR_V]], <16 x i32>* [[SUM_VR_V:%[^ ]+]]
+  vector<unsigned, 16> sum_v16_vr16 = cm_addc(a_v16, b_vr16, carry_v16);
+  // CHECK: [[ADDC_RES_V_VR:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.addc.v16i32.v16i32(<16 x i32> [[ADDC_A_V_VR:%[^ ]+]], <16 x i32> [[ADDC_B_V_VR:%[^ ]+]])
+  // CHECK: [[RET_CARRY_V_VR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_V_VR]], 0
+  // CHECK: store <16 x i32> [[RET_CARRY_V_VR]], <16 x i32>* [[CARRY_V_VR:%[^ ]+]]
+  // CHECK: [[RET_SUM_V_VR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_V_VR]], 1
+  // CHECK: store <16 x i32> [[RET_SUM_V_VR]], <16 x i32>* [[SUM_V_VR:%[^ ]+]]
+
+  vector<unsigned, 16> sub_v16_v16 = cm_subb(a_v16, b_v16, borrow_v16);
+  // CHECK: [[SUBB_RES_V_V:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.subb.v16i32.v16i32(<16 x i32> [[SUBB_A_V_V:%[^ ]+]], <16 x i32> [[SUBB_B_V_V:%[^ ]+]])
+  // CHECK: [[RET_BORROW_V_V:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_V_V]], 0
+  // CHECK: store <16 x i32> [[RET_BORROW_V_V]], <16 x i32>* [[BORROW_V_V:%[^ ]+]]
+  // CHECK: [[RET_SUB_V_V:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_V_V]], 1
+  // CHECK: store <16 x i32> [[RET_SUB_V_V]], <16 x i32>* [[SUB_V_V:%[^ ]+]]
+  vector<unsigned, 16> sub_vr16_vr16 = cm_subb(a_vr16, b_vr16, borrow_v16);
+  // CHECK: [[SUBB_RES_VR_VR:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.subb.v16i32.v16i32(<16 x i32> [[SUBB_A_VR_VR:%[^ ]+]], <16 x i32> [[SUBB_B_VR_VR:%[^ ]+]])
+  // CHECK: [[RET_BORROW_VR_VR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_VR_VR]], 0
+  // CHECK: store <16 x i32> [[RET_BORROW_VR_VR]], <16 x i32>* [[BORROW_VR_VR:%[^ ]+]]
+  // CHECK: [[RET_SUB_VR_VR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_VR_VR]], 1
+  // CHECK: store <16 x i32> [[RET_SUB_VR_VR]], <16 x i32>* [[SUB_VR_VR:%[^ ]+]]
+  vector<unsigned, 16> sub_vr16_v16 = cm_subb(a_vr16, b_v16, borrow_v16);
+  // CHECK: [[SUBB_RES_VR_V:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.subb.v16i32.v16i32(<16 x i32> [[SUBB_A_VR_V:%[^ ]+]], <16 x i32> [[SUBB_B_VR_V:%[^ ]+]])
+  // CHECK: [[RET_BORROW_VR_V:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_VR_V]], 0
+  // CHECK: store <16 x i32> [[RET_BORROW_VR_V]], <16 x i32>* [[BORROW_VR_V:%[^ ]+]]
+  // CHECK: [[RET_SUB_VR_V:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_VR_V]], 1
+  // CHECK: store <16 x i32> [[RET_SUB_VR_V]], <16 x i32>* [[SUB_VR_V:%[^ ]+]]
+  vector<unsigned, 16> sub_v16_vr16 = cm_subb(a_v16, b_vr16, borrow_v16);
+  // CHECK: [[SUBB_RES_V_VR:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.subb.v16i32.v16i32(<16 x i32> [[SUBB_A_V_VR:%[^ ]+]], <16 x i32> [[SUBB_B_V_VR:%[^ ]+]])
+  // CHECK: [[RET_BORROW_V_VR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_V_VR]], 0
+  // CHECK: store <16 x i32> [[RET_BORROW_V_VR]], <16 x i32>* [[BORROW_V_VR:%[^ ]+]]
+  // CHECK: [[RET_SUB_V_VR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_V_VR]], 1
+  // CHECK: store <16 x i32> [[RET_SUB_V_VR]], <16 x i32>* [[SUB_V_VR:%[^ ]+]]
+
+  matrix<unsigned, 4, 4> a_m4x4;
+  matrix<unsigned, 4, 4> b_m4x4;
+  matrix_ref<unsigned, 4, 4> a_mr4x4 = a_m4x4;
+  matrix_ref<unsigned, 4, 4> b_mr4x4 = b_m4x4;
+  matrix<unsigned, 4, 4> carry_m4x4;
+  matrix<unsigned, 4, 4> borrow_m4x4;
+
+  matrix<unsigned, 4, 4> sum_m4x4_m4x4 = cm_addc(a_m4x4, b_m4x4, carry_m4x4);
+  // CHECK: [[ADDC_RES_M_M:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.addc.v16i32.v16i32(<16 x i32> [[ADDC_A_M_M:%[^ ]+]], <16 x i32> [[ADDC_B_M_M:%[^ ]+]])
+  // CHECK: [[RET_CARRY_M_M:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_M_M]], 0
+  // CHECK: store <16 x i32> [[RET_CARRY_M_M]], <16 x i32>* [[CARRY_M_M:%[^ ]+]]
+  // CHECK: [[RET_SUM_M_M:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_M_M]], 1
+  // CHECK: store <16 x i32> [[RET_SUM_M_M]], <16 x i32>* [[SUM_M_M:%[^ ]+]]
+  matrix<unsigned, 4, 4> sum_mr4x4_mr4x4 = cm_addc(a_mr4x4, b_mr4x4, carry_m4x4);
+  // CHECK: [[ADDC_RES_MR_MR:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.addc.v16i32.v16i32(<16 x i32> [[ADDC_A_MR_MR:%[^ ]+]], <16 x i32> [[ADDC_B_MR_MR:%[^ ]+]])
+  // CHECK: [[RET_CARRY_MR_MR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_MR_MR]], 0
+  // CHECK: store <16 x i32> [[RET_CARRY_MR_MR]], <16 x i32>* [[CARRY_MR_MR:%[^ ]+]]
+  // CHECK: [[RET_SUM_MR_MR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_MR_MR]], 1
+  // CHECK: store <16 x i32> [[RET_SUM_MR_MR]], <16 x i32>* [[SUM_MR_MR:%[^ ]+]]
+  matrix<unsigned, 4, 4> sum_mr4x4_m4x4 = cm_addc(a_mr4x4, b_m4x4, carry_m4x4);
+  // CHECK: [[ADDC_RES_MR_M:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.addc.v16i32.v16i32(<16 x i32> [[ADDC_A_MR_M:%[^ ]+]], <16 x i32> [[ADDC_B_MR_M:%[^ ]+]])
+  // CHECK: [[RET_CARRY_MR_M:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_MR_M]], 0
+  // CHECK: store <16 x i32> [[RET_CARRY_MR_M]], <16 x i32>* [[CARRY_MR_M:%[^ ]+]]
+  // CHECK: [[RET_SUM_MR_M:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_MR_M]], 1
+  // CHECK: store <16 x i32> [[RET_SUM_MR_M]], <16 x i32>* [[SUM_MR_M:%[^ ]+]]
+  matrix<unsigned, 4, 4> sum_m4x4_mr4x4 = cm_addc(a_m4x4, b_mr4x4, carry_m4x4);
+  // CHECK: [[ADDC_RES_M_MR:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.addc.v16i32.v16i32(<16 x i32> [[ADDC_A_M_MR:%[^ ]+]], <16 x i32> [[ADDC_B_M_MR:%[^ ]+]])
+  // CHECK: [[RET_CARRY_M_MR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_M_MR]], 0
+  // CHECK: store <16 x i32> [[RET_CARRY_M_MR]], <16 x i32>* [[CARRY_M_MR:%[^ ]+]]
+  // CHECK: [[RET_SUM_M_MR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[ADDC_RES_M_MR]], 1
+  // CHECK: store <16 x i32> [[RET_SUM_M_MR]], <16 x i32>* [[SUM_M_MR:%[^ ]+]]
+
+  matrix<unsigned, 4, 4> sub_m4x4_m4x4 = cm_subb(a_m4x4, b_m4x4, borrow_m4x4);
+  // CHECK: [[SUBB_RES_M_M:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.subb.v16i32.v16i32(<16 x i32> [[SUBB_A_M_M:%[^ ]+]], <16 x i32> [[SUBB_B_M_M:%[^ ]+]])
+  // CHECK: [[RET_BORROW_M_M:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_M_M]], 0
+  // CHECK: store <16 x i32> [[RET_BORROW_M_M]], <16 x i32>* [[BORROW_M_M:%[^ ]+]]
+  // CHECK: [[RET_SUB_M_M:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_M_M]], 1
+  // CHECK: store <16 x i32> [[RET_SUB_M_M]], <16 x i32>* [[SUB_M_M:%[^ ]+]]
+  matrix<unsigned, 4, 4> sub_mr4x4_mr4x4 = cm_subb(a_mr4x4, b_mr4x4, borrow_m4x4);
+  // CHECK: [[SUBB_RES_MR_MR:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.subb.v16i32.v16i32(<16 x i32> [[SUBB_A_MR_MR:%[^ ]+]], <16 x i32> [[SUBB_B_MR_MR:%[^ ]+]])
+  // CHECK: [[RET_BORROW_MR_MR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_MR_MR]], 0
+  // CHECK: store <16 x i32> [[RET_BORROW_MR_MR]], <16 x i32>* [[BORROW_MR_MR:%[^ ]+]]
+  // CHECK: [[RET_SUB_MR_MR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_MR_MR]], 1
+  // CHECK: store <16 x i32> [[RET_SUB_MR_MR]], <16 x i32>* [[SUB_MR_MR:%[^ ]+]]
+  matrix<unsigned, 4, 4> sub_mr4x4_m4x4 = cm_subb(a_mr4x4, b_m4x4, borrow_m4x4);
+  // CHECK: [[SUBB_RES_MR_M:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.subb.v16i32.v16i32(<16 x i32> [[SUBB_A_MR_M:%[^ ]+]], <16 x i32> [[SUBB_B_MR_M:%[^ ]+]])
+  // CHECK: [[RET_BORROW_MR_M:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_MR_M]], 0
+  // CHECK: store <16 x i32> [[RET_BORROW_MR_M]], <16 x i32>* [[BORROW_MR_M:%[^ ]+]]
+  // CHECK: [[RET_SUB_MR_M:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_MR_M]], 1
+  // CHECK: store <16 x i32> [[RET_SUB_MR_M]], <16 x i32>* [[SUB_MR_M:%[^ ]+]]
+  matrix<unsigned, 4, 4> sub_m4x4_mr4x4 = cm_subb(a_m4x4, b_mr4x4, borrow_m4x4);
+  // CHECK: [[SUBB_RES_M_MR:%[^ ]+]] = call { <16 x i32>, <16 x i32> } @llvm.genx.subb.v16i32.v16i32(<16 x i32> [[SUBB_A_M_MR:%[^ ]+]], <16 x i32> [[SUBB_B_M_MR:%[^ ]+]])
+  // CHECK: [[RET_BORROW_M_MR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_M_MR]], 0
+  // CHECK: store <16 x i32> [[RET_BORROW_M_MR]], <16 x i32>* [[BORROW_M_MR:%[^ ]+]]
+  // CHECK: [[RET_SUB_M_MR:%[^ ]+]] = extractvalue { <16 x i32>, <16 x i32> } [[SUBB_RES_M_MR]], 1
+  // CHECK: store <16 x i32> [[RET_SUB_M_MR]], <16 x i32>* [[SUB_M_MR:%[^ ]+]]
 
   matrix<unsigned, 4, 4> a3;
   unsigned b3;
