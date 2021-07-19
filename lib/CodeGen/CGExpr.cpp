@@ -1433,7 +1433,12 @@ CodeGenFunction::tryEmitAsConstant(DeclRefExpr *refExpr) {
 
   // The value needs to be an enum constant or a constant variable.
   ConstantEmissionKind CEK;
-  if (isa<ParmVarDecl>(value)) {
+
+  // Avoid Abstact methods for constant CMVectorMatrixType.
+  // CMTypes aren't supported there. Handle them in ConstantEmission. 
+  if (refExpr->getType()->isCMVectorMatrixType()) { 
+    CEK = CEK_None;
+  } else if (isa<ParmVarDecl>(value)) {
     CEK = CEK_None;
   } else if (auto *var = dyn_cast<VarDecl>(value)) {
     CEK = checkVarTypeForConstantEmission(var->getType());
@@ -1442,6 +1447,7 @@ CodeGenFunction::tryEmitAsConstant(DeclRefExpr *refExpr) {
   } else {
     CEK = CEK_None;
   }
+
   if (CEK == CEK_None) return ConstantEmission();
 
   Expr::EvalResult result;
