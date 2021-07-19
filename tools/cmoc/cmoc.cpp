@@ -274,6 +274,10 @@ static void checkInputOutputCompatibility(InputKind IK, OutputKind OK) {
   if (IK == InputKind::TEXT)
     return;
 
+  if (IK == InputKind::IR && OK == OutputKind::SPIRV) {
+    return;
+  }
+
   if (IK == InputKind::Unsupported)
     FatalError("could not determine input type (fatal)\n");
 
@@ -319,8 +323,9 @@ int main(int argc, const char **argv) {
   checkInputOutputCompatibility(Ctx.getInputKind(), Ctx.getOutputKind());
 
   BinaryData VCOptInput;
-  // If input is text, run CM Frontend
-  if (Ctx.getInputKind() == InputKind::TEXT) {
+  // If input is text or LLVM IR, run CM Frontend
+  if (Ctx.getInputKind() == InputKind::TEXT ||
+      Ctx.getInputKind() == InputKind::IR) {
     VCOptInput = Ctx.runFE(
         (Ctx.getOutputKind() == OutputKind::VISA) ? "-emit-spirv" : "");
   } else {
