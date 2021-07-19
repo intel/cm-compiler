@@ -1105,8 +1105,15 @@ void CodeGenAction::ExecuteAction() {
   if (getCurrentFileKind().getLanguage() == InputKind::LLVM_IR) {
     BackendAction BA = static_cast<BackendAction>(Act);
     CompilerInstance &CI = getCompilerInstance();
-    std::unique_ptr<raw_pwrite_stream> OS =
-        GetOutputStream(CI, getCurrentFile(), BA);
+    // cmc uses custom CompilerInstance output streams to store
+    // the output that the frontend produces in a string.
+    // The string is later used as input to the backend.
+    // Custom output streams in clang are only used in the AST path.
+    // Enable their usage in the IR path as well.
+    // Otherwise, compilation from IR produces an empty buffer.
+    std::unique_ptr<raw_pwrite_stream> OS = CI.takeOutputStream();
+    if (!OS)
+      OS = GetOutputStream(CI, getCurrentFile(), BA);
     if (BA != Backend_EmitNothing && !OS)
       return;
 
