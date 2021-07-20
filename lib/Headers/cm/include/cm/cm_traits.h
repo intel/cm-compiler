@@ -562,6 +562,10 @@ template <typename U, typename T, typename... Ts> constexpr bool is_type() {
   return std::is_same<_U, _T>::value || is_type<_U, Ts...>();
 }
 
+template <typename T> constexpr bool check_when_instantiated(bool check) {
+  return check;
+}
+
 } // details
 
 #endif // _CLANG_CM_TRAITS_H_
