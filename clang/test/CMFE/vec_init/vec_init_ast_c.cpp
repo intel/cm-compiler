@@ -1,3 +1,11 @@
+/*========================== begin_copyright_notice ============================
+
+Copyright (C) 2021 Intel Corporation
+
+SPDX-License-Identifier: MIT
+
+============================= end_copyright_notice ===========================*/
+
 // RUN: %cmc %dump-ast-for test_func -- %s 2>&1 | FileCheck %s
 
 #include <cm/cm.h>
