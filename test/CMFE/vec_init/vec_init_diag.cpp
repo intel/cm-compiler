@@ -1,3 +1,11 @@
+/*========================== begin_copyright_notice ============================
+
+Copyright (C) 2021 Intel Corporation
+
+SPDX-License-Identifier: MIT
+
+============================= end_copyright_notice ===========================*/
+
 // XFAIL: *
 
 // RUN: not %cmc -emit-llvm -- %s 2>&1 | FileCheck %s
