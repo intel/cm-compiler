@@ -15,6 +15,7 @@ SPDX-License-Identifier: MIT
 #include "cm_send.h"
 #include "cm_atomic.h"
 #include "cm_dataport.h"
+#include "cm_has_instr.h"
 #include "cm_internal.h"
 #include "cm_sampler.h"
 #include "cm_traits.h"
@@ -2118,6 +2119,8 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
     vector<T1, N> >::type
 cm_dp4a(vector<T2, N> src0, vector<T3, N> src1, vector<T4, N> src2,
         int flag = _GENX_NOSAT) {
+  CM_HAS_DP4A_CONTROL;
+
   vector<T2, N> _Src0 = src0;
   vector<T3, N> _Src1 = src1;
   vector<T4, N> _Src2 = src2;
