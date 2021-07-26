@@ -1053,6 +1053,15 @@ CM_DEPRECATED(
     CM_NODEBUG typename std::enable_if<
         (N == 8 || N == 16 || N == 32) &&
         (sizeof(T) == 4)>::type cm_slm_read4(uint slmBuffer,
+                                             vector<uint, N> vAddr,
+                                             vector_ref<T, M> vDst, int mask);
+
+template <typename T, int N, int M>
+CM_DEPRECATED(
+    "please use 'cm_slm_read4' with 'SLM_ChannelMaskType' as the mask type!")
+    CM_NODEBUG typename std::enable_if<
+        (N == 8 || N == 16 || N == 32) &&
+        (sizeof(T) == 4)>::type cm_slm_read4(uint slmBuffer,
                                              vector<ushort, N> vAddr,
                                              vector_ref<T, M> vDst, int mask);
 
@@ -1125,6 +1134,15 @@ CM_DEPRECATED(
                                               vector<ushort, N> vAddr,
                                               vector<T, M> vSrc,
                                               SLM_ChannelMaskType mask);
+
+template <typename T, int N, int M>
+CM_DEPRECATED(
+    "please use 'cm_slm_write4' with 'SLM_ChannelMaskType' as the mask type!")
+    CM_NODEBUG typename std::enable_if<
+        (N == 8 || N == 16 || N == 32) &&
+        (sizeof(T) == 4)>::type cm_slm_write4(uint slmBuffer,
+                                              vector<uint, N> vAddr,
+                                              vector<T, M> vSrc, int mask);
 
 template <typename T, int N, int M>
 CM_DEPRECATED(
