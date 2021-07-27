@@ -21,6 +21,7 @@ set(CM_HEADERS
   cm/cm_printfocl.h
   cm/cm_sampler.h
   cm/cm_send.h
+  cm/cm_spec_constant.h
   cm/cm_svm.h
   cm/cm_target.h
   cm/cmtl/global.h

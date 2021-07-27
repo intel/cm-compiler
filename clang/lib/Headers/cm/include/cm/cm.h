@@ -24,6 +24,7 @@ SPDX-License-Identifier: MIT
 #include "cm_printf.h"
 #include "cm_mask.h"
 #include "cm_printfocl.h"
+#include "cm_spec_constant.h"
 
 // cm_abs
 namespace details {
