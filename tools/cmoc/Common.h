@@ -33,4 +33,7 @@ bool isCmocDebugEnabled();
   llvm::report_fatal_error(Err, false);
 }
 
+std::string getOclocDriverVersion();
+std::string getOclocRevision();
+
 #endif
