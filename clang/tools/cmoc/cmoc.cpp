@@ -291,6 +291,12 @@ static void printCmocHelp() {
   llvm::outs() << "   CM_INCLUDE_DIR - directory with the include files";
   llvm::outs() << "\n";
 }
+
+static void printBackendVersion() {
+  llvm::outs() << "Ocloc version: " << getOclocDriverVersion() << ' '
+               << getOclocRevision() << "\n";
+}
+
 static std::error_code WriteBinaryToFile(llvm::StringRef Filename,
                                          const BinaryData &BinData) {
   std::ofstream Output(Filename, std::ios::binary | std::ios::out);
@@ -317,9 +323,10 @@ int main(int argc, const char **argv) {
     return EXIT_SUCCESS;
   }
 
-  if (Ctx.isShowVersion())
+  if (Ctx.isShowVersion()) {
+    printBackendVersion();
     return EXIT_SUCCESS;
-
+  }
   checkInputOutputCompatibility(Ctx.getInputKind(), Ctx.getOutputKind());
 
   BinaryData VCOptInput;
