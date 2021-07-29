@@ -151,13 +151,21 @@ static void saveOutputs(uint32_t NumOutputs, uint8_t **DataOutputs,
   Result.KernelBinary.assign(BinRef.begin(), BinRef.end());
 }
 
+static LibOclocWrapper const& getLibOclocWrapper(){
+  static std::unique_ptr<const LibOclocWrapper> LibOcloc = nullptr;
+  if (!LibOcloc)
+    LibOcloc.reset(new LibOclocWrapper());
+
+  return *LibOcloc;
+}
+
 static void invokeBE(const std::vector<char> &SPIRV, const std::string &NeoCPU,
                      const std::string &RevId,
                      const std::string &RequiredExtension,
                      const std::string &Options,
                      const std::string &InternalOptions,
                      ILTranslationResult &Result) {
-  const LibOclocWrapper LibOcloc;
+  auto& LibOcloc = getLibOclocWrapper();
 
   const char *SpvFileName = "cmoc_spirv";
 
@@ -277,3 +285,33 @@ void translateIL(const std::string &CPUName, int RevId,
   invokeBE(SPIRV_IR, NeoCPU, RevIdStr, RequiredExtension, Options,
            InternalOptions, Result);
 }
+
+std::string oclocQuery(const char *request) {
+  auto& LibOcloc = getLibOclocWrapper();
+
+  std::vector<const char *> OclocArgs;
+  OclocArgs.push_back("ocloc");
+  OclocArgs.push_back("query");
+  OclocArgs.push_back(request);
+
+  uint32_t NumOutputs = 0;
+  uint8_t **DataOutputs = nullptr;
+  uint64_t *LenOutputs = nullptr;
+  char **NameOutputs = nullptr;
+
+  if (LibOcloc.invoke(OclocArgs.size(), OclocArgs.data(), 0, nullptr, nullptr,
+                      nullptr, 0, nullptr, nullptr, nullptr, &NumOutputs,
+                      &DataOutputs, &LenOutputs, &NameOutputs)) {
+    FatalError("Call to oclocInvoke failed");
+  }
+
+  assert(NumOutputs == 1);
+  std::string ret(*DataOutputs, *DataOutputs + *LenOutputs);
+
+  if (LibOcloc.freeOutput(&NumOutputs, &DataOutputs, &LenOutputs, &NameOutputs))
+    FatalError("Call to oclocFreeOutput failed");
+
+  return ret;
+}
+std::string getOclocDriverVersion() { return oclocQuery("OCL_DRIVER_VERSION"); }
+std::string getOclocRevision() { return oclocQuery("NEO_REVISION"); }
