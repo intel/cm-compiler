@@ -632,6 +632,14 @@ private:
   /// \brief Postprocess dp4a implementation builtin.
   llvm::Value *HandleBuiltinDP4AImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
 
+  /// \brief Postprocess cm_bfn implementation builtin
+  llvm::Value *HandleBuiltinBFNImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+  /// \brief Postprocess dpas implementation builtin.
+  llvm::Value *HandleBuiltinDPASImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+  /// \brief Postprocess dpas2 implementation builtin.
+  llvm::Value *HandleBuiltinDPAS2Impl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+  /// \brief Postprocess builtin cm_bf_cvt.
+  llvm::Value *HandleBuiltinBFCVTImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
 
   /// \brief Emit 1D/2D select expression.
   LValue EmitSelect(CodeGenFunction &CGF, const CMSelectExpr *E, LValue Base);
