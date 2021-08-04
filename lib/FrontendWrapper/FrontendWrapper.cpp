@@ -273,6 +273,13 @@ static std::string getVCApiOptions(const llvm::opt::InputArgList &Args,
   if (Args.hasArg(clang::driver::options::OPT_mCM_optimize_none))
     VCApiOptions += " -optimize=none";
 
+  // pass -fp-contract option
+  if (const llvm::opt::Arg *A =
+          Args.getLastArg(clang::driver::options::OPT_ffp_contract)) {
+    llvm::StringRef Val = A->getValue();
+    VCApiOptions += "-ffp-contract=";
+    VCApiOptions += Val;
+  }
   const auto &Invocation = Clang.getInvocation();
   if (Invocation.getCodeGenOpts().getDebugInfo() !=
       clang::codegenoptions::NoDebugInfo)
