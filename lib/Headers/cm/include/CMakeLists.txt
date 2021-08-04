@@ -10,6 +10,7 @@
 set(CM_HEADERS
   cm/cm_atomic.h
   cm/cm_has_instr.h
+  cm/cm_bfn.h
   cm/cm_common.h
   cm/cm_dataport.h
   cm/cm_gateway.h

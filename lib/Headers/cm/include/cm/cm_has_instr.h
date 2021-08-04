@@ -49,6 +49,47 @@ namespace CheckVersion {
 #endif
 
 
+//BFN
+#if (CM_GENX >= 1270) //>= XEHP_SDV
+  #define CM_HAS_BFN 1
+  #define CM_HAS_BFN_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_BFN_CONTROL CM_HAS_CONTROL(false)
+#endif
+
+//BF16
+#if (CM_GENX >= 1200) //>= TGLLP
+  #define CM_HAS_BF16 1
+  #define CM_HAS_BF16_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_BF16_CONTROL CM_HAS_CONTROL(false)
+#endif
+
+//DPAS
+#if (CM_GENX >= 1270) //>= XEHP_SDV
+  #define CM_HAS_DPAS 1
+  #define CM_HAS_DPAS_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_DPAS_CONTROL CM_HAS_CONTROL(false)
+#endif
+
+//DPAS_ODD
+#if (CM_GENX >= 1270) //>= XEHP_SDV
+  #define CM_HAS_DPAS_ODD 1
+  #define CM_HAS_DPAS_ODD_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_DPAS_ODD_CONTROL CM_HAS_CONTROL(false)
+#endif
+
+//DPASW
+#if (CM_GENX >= 1270) //>= XEHP_SDV
+  #define CM_HAS_DPASW 1
+  #define CM_HAS_DPASW_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_DPASW_CONTROL CM_HAS_CONTROL(false)
+#endif
+
+
 #else  // CM_HAS_CONTROL
   CM_STATIC_ERROR(0, "Redeclaration of CM_HAS_CONTROL! It's used for control version of features!");
 #endif // CM_HAS_CONTROL

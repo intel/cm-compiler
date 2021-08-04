@@ -81,6 +81,13 @@ enum CMBuiltinKind {
   CMBK_cm_bfins, CMBK_cm_bfins_impl,
   CMBK_cm_bfext, CMBK_cm_bfext_impl,
   CMBK_cm_dp4a, CMBK_cm_dp4a_impl,
+  CMBK_cm_bfn, CMBK_cm_bfn_impl,
+  CMBK_cm_dpas, CMBK_cm_dpas_impl,
+  CMBK_cm_dpas2, CMBK_cm_dpas2_impl,
+  CMBK_cm_dpas_nosrc0, CMBK_cm_dpas_nosrc0_impl,
+  CMBK_cm_dpasw, CMBK_cm_dpasw_impl,
+  CMBK_cm_dpasw_nosrc0, CMBK_cm_dpasw_nosrc0_impl,
+  CMBK_cm_bf_cvt, CMBK_cm_bf_cvt_impl,
   // Data port interface.
   CMBK_oword_read_impl,
   CMBK_oword_read_dwaligned_impl,

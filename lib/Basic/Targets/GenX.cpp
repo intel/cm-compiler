@@ -88,6 +88,7 @@ bool GenXTargetInfo::setCPU(const std::string &Name) {
                       .Case("ICLLP", true)
                       .Case("TGLLP", true)
                       .Case("DG1", true)
+                      .Case("XEHP_SDV", true)
                       .Default(false);
 
   if (CPUKnown)

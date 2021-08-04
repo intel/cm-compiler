@@ -214,6 +214,9 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
                            .StartsWith("_Z13cm_svm_atomic", CMBK_cm_svm_atomic)
                            .StartsWith("_Z6cm_shl", CMBK_cm_shl)
                            .StartsWith("_Z7cm_dp4a", CMBK_cm_dp4a)
+                           .StartsWith("_Z6cm_bfn", CMBK_cm_bfn)
+                           .StartsWith("_Z7cm_dpas", CMBK_cm_dpas)
+                           .StartsWith("_Z9cm_bf_cvt", CMBK_cm_bf_cvt)
                            .Default(CMBK_none);
 
   // Handle implementation intrinsics.
@@ -225,6 +228,12 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
     // Order matters here. If there are two strings to check for and one is a
     // prefix of the other, the longer one must be checked for first.
     Kind = StringSwitch<CMBuiltinKind>(MangledImplName)
+              .StartsWith("__cm_intrinsic_impl_bfn", CMBK_cm_bfn_impl)
+              .StartsWith("__cm_intrinsic_impl_dpasw_nosrc0", CMBK_cm_dpasw_nosrc0_impl)
+              .StartsWith("__cm_intrinsic_impl_dpasw", CMBK_cm_dpasw_impl)
+              .StartsWith("__cm_intrinsic_impl_dpas_nosrc0", CMBK_cm_dpas_nosrc0_impl)
+              .StartsWith("__cm_intrinsic_impl_dpas", CMBK_cm_dpas2_impl)
+              .StartsWith("__cm_intrinsic_impl_bf_cvt", CMBK_cm_bf_cvt_impl)
             .StartsWith("__cm_intrinsic_impl_dp4a", CMBK_cm_dp4a_impl)
             .StartsWith("__cm_intrinsic_impl_oword_read_dwaligned",
                         CMBK_oword_read_dwaligned_impl)
@@ -1096,6 +1105,10 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_cm_slm_read:
   case CMBK_cm_slm_write:
   case CMBK_cm_dp4a:
+  case CMBK_cm_bfn:
+  case CMBK_cm_dpas:// old variant
+  case CMBK_cm_dpas2:
+  case CMBK_cm_bf_cvt:
     HandleBuiltinInterface(getCurCMCallInfo());
     return RV;
   case CMBK_oword_read_impl:
@@ -1351,6 +1364,17 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(HandleBuiltinWrregionImpl(getCurCMCallInfo()));
   case CMBK_cm_dp4a_impl:
     return RValue::get(HandleBuiltinDP4AImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_bfn_impl:
+    return RValue::get(HandleBuiltinBFNImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_dpas_impl:
+  case CMBK_cm_dpas_nosrc0_impl:
+  case CMBK_cm_dpasw_impl:
+  case CMBK_cm_dpasw_nosrc0_impl:
+    return RValue::get(HandleBuiltinDPASImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_dpas2_impl:
+    return RValue::get(HandleBuiltinDPAS2Impl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_bf_cvt_impl:
+    return RValue::get(HandleBuiltinBFCVTImpl(getCurCMCallInfo(), Kind));
   }
 
   // Returns the normal call rvalue.
@@ -2649,6 +2673,27 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
     ID = Dp4aIDs[Dp4aOffset + Dp4aSubOffset];
     break;
   }
+  case CMBK_cm_bfn_impl:
+    ID = llvm::GenXIntrinsic::genx_bfn;
+    break;
+  case CMBK_cm_dpas_impl:
+    ID = llvm::GenXIntrinsic::genx_dpas;
+    break;
+  case CMBK_cm_dpas2_impl:
+    ID = llvm::GenXIntrinsic::genx_dpas2;
+    break;
+  case CMBK_cm_dpas_nosrc0_impl:
+    ID = llvm::GenXIntrinsic::genx_dpas_nosrc0;
+    break;
+  case CMBK_cm_dpasw_impl:
+    ID = llvm::GenXIntrinsic::genx_dpasw;
+    break;
+  case CMBK_cm_dpasw_nosrc0_impl:
+    ID = llvm::GenXIntrinsic::genx_dpasw_nosrc0;
+    break;
+  case CMBK_cm_bf_cvt:
+    ID = llvm::GenXIntrinsic::genx_bf_cvt;
+    break;
   case CMBK_sample16_impl:
     ID = llvm::GenXIntrinsic::genx_sample;
     break;
@@ -7173,6 +7218,207 @@ llvm::Value *CGCMRuntime::HandleBuiltinDP4AImpl(CMCallInfo &CallInfo,
   return Result;
 }
 
+/// \brief Postprocess builtin cm_bfn
+///
+/// template <typename T>
+/// T __cm_intrinsic_impl_bfn(T s0, T s1, T s2, char bfval);
+///
+llvm::Value *CGCMRuntime::HandleBuiltinBFNImpl(CMCallInfo &CallInfo,
+                                                CMBuiltinKind Kind) {
+  assert(Kind = CMBK_cm_bfn_impl);
+
+  const CallExpr *CE = CallInfo.CE;
+  llvm::CallInst *CI = CallInfo.CI;
+  CodeGenFunction &CGF = *CallInfo.CGF;
+  CGBuilderTy Builder(CGF, CI);
+  unsigned IntrinsicID = GetGenxIntrinsicID(CallInfo, Kind);
+
+  assert(CE->getNumArgs() == 4);
+
+  llvm::Value *Arg0 = CI->getArgOperand(0);
+  llvm::Value *Arg1 = CI->getArgOperand(1);
+  llvm::Value *Arg2 = CI->getArgOperand(2);
+  llvm::Value *BFVAL = CI->getArgOperand(3);
+
+  SmallVector<llvm::Type *, 8> Tys;
+  Tys.push_back(CI->getType());
+  Tys.push_back(Arg0->getType());
+
+  SmallVector<llvm::Value *, 8> Args;
+
+  Args.push_back(Arg0);
+  Args.push_back(Arg1);
+  Args.push_back(Arg2);
+  Args.push_back(BFVAL);
+
+  llvm::Function *F = getGenXIntrinsic(IntrinsicID, Tys);
+  llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
+  Result->setDebugLoc(CI->getDebugLoc());
+  CallInfo.CI->eraseFromParent();
+  return Result;
+}
+// special case for dpas2
+llvm::Value *CGCMRuntime::HandleBuiltinDPAS2Impl(CMCallInfo &CallInfo,
+                                                 CMBuiltinKind Kind) {
+  const CallExpr *CE = CallInfo.CE;
+  CodeGenFunction &CGF = *CallInfo.CGF;
+
+  assert(CE->getType()->isCMVectorType());
+  assert(CE->getNumArgs() == 3);
+
+  llvm::CallInst *CI = CallInfo.CI;
+
+  llvm::SmallVector<llvm::Value*, 4> arguments;
+
+  arguments.push_back(CI->getArgOperand(0));
+  arguments.push_back(CI->getArgOperand(1));
+  arguments.push_back(CI->getArgOperand(2));
+
+
+  unsigned Src1Precision = getIntegralValue(CE->getDirectCallee(), 0);
+  unsigned Src2Precision = getIntegralValue(CE->getDirectCallee(), 1);
+  unsigned SystolicDepth = getIntegralValue(CE->getDirectCallee(), 2);
+  unsigned RepeatCount = getIntegralValue(CE->getDirectCallee(), 3);
+
+  // magic as in visa presisions are moved one upper...
+  llvm::Value *ValSrc1Precision =
+      llvm::ConstantInt::get(CGF.Int32Ty, Src1Precision + 1);
+  llvm::Value *ValSrc2Precision =
+      llvm::ConstantInt::get(CGF.Int32Ty, Src2Precision + 1);
+  llvm::Value *ValSystolicDepth =
+      llvm::ConstantInt::get(CGF.Int32Ty, SystolicDepth);
+  llvm::Value *ValRepeatCount =
+      llvm::ConstantInt::get(CGF.Int32Ty, RepeatCount);
+
+  const clang::Type *dstTy = CE->getType().getTypePtr();
+  const clang::Type *src0Ty = CE->getArg(0)->getType().getTypePtr();
+  unsigned DstSign = dstTy->hasSignedIntegerRepresentation();
+  unsigned Src0Sign = src0Ty->hasSignedIntegerRepresentation();
+  llvm::Value *ValDstSign = llvm::ConstantInt::get(CGF.Int32Ty, DstSign);
+  llvm::Value *ValSrc0Sign = llvm::ConstantInt::get(CGF.Int32Ty, Src0Sign);
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+  unsigned IntrinsicID = GetGenxIntrinsicID(CallInfo, Kind);
+  assert(IntrinsicID == llvm::GenXIntrinsic::genx_dpas2); // error if return
+
+  SmallVector<llvm::Type *, 8> Tys;
+  Tys.push_back(CI->getType());
+  // add as in dpas2 intrinsic type(dst) != type(src0)
+  Tys.push_back(arguments[0]->getType());
+  Tys.push_back(arguments[1]->getType());
+  Tys.push_back(arguments[2]->getType());
+  SmallVector<llvm::Value *, 8> Args;
+  for(auto* arg : arguments)
+    Args.push_back(arg);
+  Args.push_back(ValSrc1Precision);
+  Args.push_back(ValSrc2Precision);
+  Args.push_back(ValSystolicDepth);
+  Args.push_back(ValRepeatCount);
+  Args.push_back(ValDstSign);
+  Args.push_back(ValSrc0Sign);
+
+  llvm::Function *F = getGenXIntrinsic(IntrinsicID, Tys);
+  llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
+  Result->setDebugLoc(CI->getDebugLoc());
+  CallInfo.CI->eraseFromParent();
+  return Result;
+}
+
+// template <CmPrecisionType src1_precision, CmPrecisionType src2_precision, int systolic_depth,
+//            typename T, typename T1, typename T2, int N, int N1, int N2,
+//            typename T0>
+// vector<T0, N> __cm_intrinsic_impl_dpas(vector<T, N> src0, vector<T1, N1> src1, vector<T2, N2> src2)
+llvm::Value *CGCMRuntime::HandleBuiltinDPASImpl(CMCallInfo &CallInfo,
+                                                CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_dpas_impl || Kind == CMBK_cm_dpasw_impl ||
+    Kind == CMBK_cm_dpas2_impl ||
+    Kind == CMBK_cm_dpas_nosrc0_impl || Kind == CMBK_cm_dpasw_nosrc0_impl);
+  if(Kind == CMBK_cm_dpas2_impl)
+    return HandleBuiltinDPAS2Impl(CallInfo, Kind);
+
+  const CallExpr *CE = CallInfo.CE;
+  CodeGenFunction &CGF = *CallInfo.CGF;
+
+  assert(CE->getType()->isCMVectorType());
+  assert(CE->getNumArgs() == 3);
+
+  llvm::CallInst *CI = CallInfo.CI;
+
+  llvm::Value *Arg0 = CI->getArgOperand(0);
+  llvm::Value *Arg1 = CI->getArgOperand(1);
+  llvm::Value *Arg2 = CI->getArgOperand(2);
+
+  unsigned Src1Precision = getIntegralValue(CE->getDirectCallee(), 0);
+  unsigned Src2Precision = getIntegralValue(CE->getDirectCallee(), 1);
+  unsigned SystolicDepth = getIntegralValue(CE->getDirectCallee(), 2);
+  unsigned RepeatCount = getIntegralValue(CE->getDirectCallee(), 3);
+
+  auto fitsInByte = [&](StringRef Name, unsigned V) {
+
+    if ((V & 0xff) == V)
+      return true;
+
+    Error(CallInfo.CE->getArg(0)->getExprLoc(),
+          (Name + ": (" + std::to_string(V) +
+           ") is out of the expected range").str());
+    return false;
+  };
+
+  if (!fitsInByte("Src1Precision", Src1Precision) ||
+      !fitsInByte("Src2Precision", Src2Precision) ||
+      !fitsInByte("SystolicDepth", SystolicDepth) ||
+      !fitsInByte("RepeatCount", RepeatCount))
+    return nullptr;
+
+  uint32_t NewArgValue = (RepeatCount << 24) + (SystolicDepth << 16) +
+                         ((++Src2Precision) << 8) + (++Src1Precision);
+  llvm::Value *NewArg = llvm::ConstantInt::get(CGF.Int32Ty, NewArgValue);
+
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+  unsigned IntrinsicID = GetGenxIntrinsicID(CallInfo, Kind);
+
+  SmallVector<llvm::Type *, 8> Tys;
+  Tys.push_back(CI->getType());
+  Tys.push_back(Arg1->getType());
+  Tys.push_back(Arg2->getType());
+
+  SmallVector<llvm::Value *, 8> Args;
+  if (IntrinsicID == llvm::GenXIntrinsic::genx_dpas ||
+     IntrinsicID == llvm::GenXIntrinsic::genx_dpasw) {
+    Args.push_back(Arg0);
+  }
+  Args.push_back(Arg1);
+  Args.push_back(Arg2);
+  Args.push_back(NewArg);
+
+  llvm::Function *F = getGenXIntrinsic(IntrinsicID, Tys);
+  llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
+  Result->setDebugLoc(CI->getDebugLoc());
+  CallInfo.CI->eraseFromParent();
+  return Result;
+}
+
+/// \brief Postprocess builtin cm_bf_cvt.
+///
+/// template <typename T, typename T0, int N>
+/// vector<T, N>
+/// __cm_intrinsic_impl_bf_cvt(vector<T0, N> src0)
+///
+llvm::Value *CGCMRuntime::HandleBuiltinBFCVTImpl(CMCallInfo &CallInfo,
+                                                 CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_bf_cvt_impl);
+
+  llvm::CallInst *CI = CallInfo.CI;
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  llvm::Type *Tys[] = {CI->getType(), CI->getOperand(0)->getType()};
+  llvm::Function *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_bf_cvt, Tys);
+  llvm::CallInst *Result =
+      Builder.CreateCall(F, CI->getOperand(0), CI->getName());
+  Result->setDebugLoc(CI->getDebugLoc());
+
+  CI->eraseFromParent();
+  return Result;
+}
 
 /// \brief Emit one of scatter_scaled, scatter4_scaled.
 ///

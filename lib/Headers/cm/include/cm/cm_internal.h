@@ -382,9 +382,40 @@ template <typename T1, typename T2, typename T3, typename T4, int N>
 vector<T1, N> __cm_intrinsic_impl_dp4a(vector<T2, N> src0, vector<T3, N> src1, vector<T4, N> src2,
                                        int flag);
 
+template <typename T>
+T __cm_intrinsic_impl_bfn(T s0, T s1, T s2, unsigned char bfval);
+
+template <CmPrecisionType src1_precision, CmPrecisionType src2_precision,
+          int systolic_depth, int repeat_count, typename T0, typename T,
+          typename T1, typename T2, int N, int N1, int N2>
+vector<T0, N> __cm_intrinsic_impl_dpas(vector<T, N> src0, vector<T1, N1> src1,
+                                       vector<T2, N2> src2);
+
+template <CmPrecisionType src1_precision, CmPrecisionType src2_precision,
+          int systolic_depth, int repeat_count,
+          typename T, typename T1, typename T2, int N, int N1, int N2>
+vector<T, N> __cm_intrinsic_impl_dpas_nosrc0(int dummy,
+                                             vector<T1, N1> src1,
+                                             vector<T2, N2> src2);
+
+template <CmPrecisionType src1_precision, CmPrecisionType src2_precision,
+          int systolic_depth, int repeat_count,
+          typename T, typename T1, typename T2, int N, int N1, int N2>
+vector<T, N> __cm_intrinsic_impl_dpasw(vector<T, N> src0,
+                                       vector<T1, N1> src1,
+                                       vector<T2, N2> src2);
+
+template <CmPrecisionType src1_precision, CmPrecisionType src2_precision,
+          int systolic_depth, int repeat_count,
+          typename T, typename T1, typename T2,
+          int N, int N1, int N2>
+vector<T, N> __cm_intrinsic_impl_dpasw_nosrc0(int dummy,
+                                              vector<T1, N1> src1,
+                                              vector<T2, N2> src2);
 
 
-
+template <typename T, typename T0, int N>
+vector<T, N> __cm_intrinsic_impl_bf_cvt(vector<T0, N> src0);
 
 
 template <typename T, int n> struct simd_type {
