@@ -792,6 +792,7 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
     Opts.MaxSLMSize = getLastArgIntValue(Args, OPT_mCM_max_slm, 0);
   else {
     Opts.MaxSLMSize = llvm::StringSwitch<unsigned>(TargetOpts.CPU)
+      .Case("XEHP_SDV", 128)
       .Default(64);
   }
 
@@ -799,6 +800,7 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
     Opts.MaxOBRWSize = getLastArgIntValue(Args, OPT_mCM_max_obr, 0);
   else {
     Opts.MaxOBRWSize = llvm::StringSwitch<unsigned>(TargetOpts.CPU)
+      .Case("XEHP_SDV", 16)
       .Default(8);
   }
 
@@ -808,6 +810,7 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
     Opts.IEFByPass = llvm::StringSwitch<bool>(TargetOpts.CPU)
       .Case("TGLLP", false)
       .Case("DG1", false)
+      .Case("XEHP_SDV", false)
       .Default(true);
   }
 

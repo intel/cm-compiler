@@ -460,6 +460,91 @@ enum CmFloatControl {
 #define CM_FLOAT_MODE_IEEE  CmFloatControl::_CM_FLOAT_MODE_IEEE
 #define CM_FLOAT_MODE_ALT   CmFloatControl::_CM_FLOAT_MODE_ALT
 
+// dpas helpers
+enum class CmPrecisionType {
+  CM_Precision_U1 = 0,      // unsigned 1 bit
+  CM_Precision_S1 = 1,      // signed 1 bit
+  CM_Precision_U2 = 2,      // unsigned 2 bits
+  CM_Precision_S2 = 3,      // signed 2 bits
+  CM_Precision_U4 = 4,      // unsigned 4 bits
+  CM_Precision_S4 = 5,      // signed 4 bits
+  CM_Precision_U8 = 6,      //unsigned 8 bits
+  CM_Precision_S8 = 7,      // signed 8 bits
+  CM_Precision_BF16 = 8,    // bfloat 16
+  CM_Precision_FP16 = 9,    // half float
+};
+
+#define CM_PRECISION_U1 CmPrecisionType::CM_Precision_U1
+#define CM_PRECISION_U2 CmPrecisionType::CM_Precision_U2
+#define CM_PRECISION_U4 CmPrecisionType::CM_Precision_U4
+#define CM_PRECISION_U8 CmPrecisionType::CM_Precision_U8
+#define CM_PRECISION_S1 CmPrecisionType::CM_Precision_S1
+#define CM_PRECISION_S2 CmPrecisionType::CM_Precision_S2
+#define CM_PRECISION_S4 CmPrecisionType::CM_Precision_S4
+#define CM_PRECISION_S8 CmPrecisionType::CM_Precision_S8
+#define CM_PRECISION_BF CmPrecisionType::CM_Precision_BF16
+#define CM_PRECISION_HF CmPrecisionType::CM_Precision_FP16
+constexpr unsigned get_ops_per_channel(CmPrecisionType src1_precision,
+                                       CmPrecisionType src2_precision) {
+  if ((src1_precision == CM_PRECISION_U8) ||
+      (src1_precision == CM_PRECISION_S8)) {
+    if ((src2_precision == CM_PRECISION_U8) ||
+      (src2_precision == CM_PRECISION_S8) ||
+      (src2_precision == CM_PRECISION_U4) ||
+      (src2_precision == CM_PRECISION_S4) ||
+      (src2_precision == CM_PRECISION_U2) ||
+      (src2_precision == CM_PRECISION_S2)) {
+      return 4;
+    }
+  }
+  else if ((src1_precision == CM_PRECISION_U4) ||
+           (src1_precision == CM_PRECISION_S4) ||
+           (src1_precision == CM_PRECISION_U2) ||
+           (src1_precision == CM_PRECISION_S2)) {
+    if ((src2_precision == CM_PRECISION_U8) ||
+      (src2_precision == CM_PRECISION_S8)) {
+      return 4;
+    }
+    else if ((src2_precision == CM_PRECISION_U4) ||
+      (src2_precision == CM_PRECISION_S4) ||
+      (src2_precision == CM_PRECISION_U2) ||
+      (src2_precision == CM_PRECISION_S2)) {
+      return 8;
+    }
+  }
+  else if ((src1_precision == CM_PRECISION_BF) &&
+           (src2_precision == CM_PRECISION_BF)) {
+    return 2;
+  }
+  else if ((src1_precision == CM_PRECISION_HF) &&
+           (src2_precision == CM_PRECISION_HF)) {
+    return 2;
+  }
+  return 0xFFFFFFFF;
+}
+
+constexpr unsigned get_precision_bits(CmPrecisionType src_precision) {
+  if (src_precision == CM_PRECISION_U8
+      || src_precision == CM_PRECISION_S8) {
+    return 8;
+  }
+  if (src_precision == CM_PRECISION_U4
+      || src_precision == CM_PRECISION_S4
+     ) {
+    return 4;
+  }
+  if (src_precision == CM_PRECISION_U2
+      || src_precision == CM_PRECISION_S2
+     ) {
+    return 2;
+  }
+  if (src_precision == CM_PRECISION_BF
+      || src_precision == CM_PRECISION_HF
+     ) {
+    return 16;
+  }
+  return 0;
+}
 
 // Macros
 #define NULL 0
