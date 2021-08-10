@@ -403,7 +403,7 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
         std::is_integral<U>::value,
     vector<T0, SZ> >::type
 cm_shr(vector<T1, SZ> src0, U src1, int flag = _GENX_NOSAT) {
-  vector<T0, SZ> _Result = src0 >> src1;
+  vector<T1, SZ> _Result = src0 >> src1;
 
   if (flag != _GENX_SAT)
     return _Result;
