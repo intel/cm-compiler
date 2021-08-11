@@ -99,6 +99,8 @@ class IDriverInvocationImpl final : public IDriverInvocation {
   bool IsHelpInvocation = false;
   bool IsShowVersionInvocation = false;
   bool TimePasses = false;
+  bool PrintStats = false;
+  StrT StatsFile = "";
   StrT VCApiOptions = "";
   int RevId = 0;
 
@@ -147,13 +149,16 @@ public:
                        TargetRuntimeT TargetRuntimeIn,
                        TargetArchT &&TargetArchIn,
                        const std::vector<std::string> &TargetFeaturesIn,
-                       bool TimePassesIn) {
+                       bool TimePassesIn, bool PrintStatsIn,
+                       const StrT &StatsFileIn) {
     BinaryFormat = BinaryFormatIn;
     TargetRuntime = TargetRuntimeIn;
     TargetArch = std::forward<TargetArchT>(TargetArchIn);
     TargetFeaturesStr = llvm::join(TargetFeaturesIn, ",");
     validateTargetParams(TargetFeaturesIn);
     TimePasses = TimePassesIn;
+    PrintStats = PrintStatsIn;
+    StatsFile = StatsFileIn;
   }
 
   void discard() override {
@@ -178,6 +183,9 @@ public:
 
   bool isHelp() const override { return IsHelpInvocation; }
   bool isShowVersion() const { return IsShowVersionInvocation; }
+
+  bool getPrintStats() const { return PrintStats; }
+  const StrT& getStatsFile() const { return StatsFile; }
 
   const StrT& getVCApiOptions() const { return VCApiOptions; }
   void setVCApiOptions(const StrT& vcApiOptions) { VCApiOptions = vcApiOptions; }
