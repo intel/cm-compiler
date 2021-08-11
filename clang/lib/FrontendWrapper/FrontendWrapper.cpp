@@ -267,6 +267,14 @@ static bool getTimePasses(const llvm::opt::InputArgList &Args) {
   return Args.hasArg(clang::driver::options::OPT_ftime_report);
 }
 
+static bool getPrintStats(const llvm::opt::InputArgList &Args) {
+  return Args.hasArg(clang::driver::options::OPT_show_stats);
+}
+
+static std::string getStatsFile(const llvm::opt::InputArgList &Args) {
+  return Args.getLastArgValue(clang::driver::options::OPT_dump_stats);
+}
+
 static std::string getVCApiOptions(const llvm::opt::InputArgList &Args,
                                    clang::CompilerInstance &Clang) {
   std::string VCApiOptions = "";
@@ -291,6 +299,8 @@ static std::string getVCApiOptions(const llvm::opt::InputArgList &Args,
 struct OptionInfoT {
   IDriverInvocation::BinaryFormatT BinaryFormat;
   bool TimePasses;
+  bool PrintStats;
+  std::string StatsFile;
   std::string VCApiOptions;
   int RevId;
 };
@@ -307,6 +317,8 @@ makeAdditionalOptionParsing(const std::vector<const char *> &CArgs,
   OptionInfoT Info;
   Info.BinaryFormat = getBinaryFormat(ParsedArgs);
   Info.TimePasses = getTimePasses(ParsedArgs);
+  Info.PrintStats = getPrintStats(ParsedArgs);
+  Info.StatsFile = getStatsFile(ParsedArgs);
   Info.VCApiOptions = getVCApiOptions(ParsedArgs, Clang);
   Info.RevId = getRevId(ParsedArgs);
   return Info;
@@ -391,7 +403,8 @@ createDriverInvocationFromCCArgs(const std::vector<const char*> &CArgs,
                       std::move(OutputFilename), OutputType);
   Result->setTargetParams(OptionInfo.BinaryFormat, TargetRuntime,
                           std::move(TargetArch), TO.FeaturesAsWritten,
-                          OptionInfo.TimePasses);
+                          OptionInfo.TimePasses, OptionInfo.PrintStats,
+                          OptionInfo.StatsFile);
   Result->setVCApiOptions(OptionInfo.VCApiOptions);
   Result->setRevId(OptionInfo.RevId);
   return Result;
@@ -455,6 +468,18 @@ extern "C" INTEL_CM_CLANGFE_DLL_DECL bool IntelCMClangFEIsShowVersionInvocation(
     Intel::CM::ClangFE::IDriverInvocation const *DriverInvocPtr) {
   return static_cast<wrapper::IDriverInvocationImpl const *>(DriverInvocPtr)
       ->isShowVersion();
+}
+
+extern "C" INTEL_CM_CLANGFE_DLL_DECL bool IntelCMClangFEGetPrintStats(
+    Intel::CM::ClangFE::IDriverInvocation const *DriverInvocPtr) {
+  return static_cast<wrapper::IDriverInvocationImpl const *>(DriverInvocPtr)
+      ->getPrintStats();
+}
+
+extern "C" INTEL_CM_CLANGFE_DLL_DECL const char *IntelCMClangFEGetStatsFile(
+    Intel::CM::ClangFE::IDriverInvocation const *DriverInvocPtr) {
+  return static_cast<wrapper::IDriverInvocationImpl const *>(DriverInvocPtr)
+      ->getStatsFile().c_str();
 }
 
 extern "C" INTEL_CM_CLANGFE_DLL_DECL const char *IntelCMClangFEGetVCApiOptions(

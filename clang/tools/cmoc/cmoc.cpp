@@ -75,6 +75,14 @@ public:
     assert(DriverInvocation);
     return FE.isDriverShowVersionInvocation(DriverInvocation.get());
   }
+  bool getPrintStats() {
+    assert(DriverInvocation);
+    return FE.getPrintStats(DriverInvocation.get());
+  }
+  std::string getStatsFile() {
+    assert(DriverInvocation);
+    return FE.getStatsFile(DriverInvocation.get());
+  }
   std::string getVCApiOptions() {
     assert(DriverInvocation);
     return FE.getVCApiOptions(DriverInvocation.get());
@@ -249,8 +257,11 @@ void CmocContext::runVCOpt(const BinaryData &In, InputKind IK,
   std::string APIOptions = getVCApiOptions();
   int RevId = getRevId();
 
+  bool PrintStats = getPrintStats();
+  std::string StatsFile = getStatsFile();
+
   translateIL(CPU, RevId, BinFormat, TargetFeatures, APIOptions, VcOpts, In, IK,
-              DriverInvocation->getTimePasses(), Result);
+              DriverInvocation->getTimePasses(), PrintStats, StatsFile, Result);
 }
 
 static std::string makeDefaultFilename(OutputKind Kind) {
