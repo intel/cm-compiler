@@ -4137,6 +4137,20 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   if (Args.getLastArg(options::OPT_fno_force_noinline))
     CmdArgs.push_back("-fno-force-noinline");
 
+  if (Args.getLastArg(options::OPT_show_stats))
+    CmdArgs.push_back("-show-stats");
+
+  if (Arg *A = Args.getLastArg(options::OPT_dump_stats)) {
+    StringRef DumpStats = A->getValue();
+    SmallString<128> StatsFile;
+    if (DumpStats == "cwd") {
+      StatsFile.assign(llvm::sys::path::filename(Input.getBaseInput()));
+      llvm::sys::path::replace_extension(StatsFile, "stats");
+      DumpStats = StatsFile;
+    }
+    CmdArgs.push_back(Args.MakeArgString("-dump-stats=" + DumpStats));
+  }
+
   // Explicitly error on some things we know we don't support and can't just
   // ignore.
   if (!Args.hasArg(options::OPT_fallow_unsupported)) {

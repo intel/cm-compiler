@@ -25,7 +25,8 @@ void translateIL(const std::string &CPUName, int RevId,
                  const std::string &APIOptions,
                  const std::vector<std::string> &BackendOptions,
                  const std::vector<char> &SPIRV_IR, InputKind IK,
-                 bool TimePasses, ILTranslationResult &Result);
+                 bool TimePasses, bool PrintStats,
+                 const std::string &StatsFile, ILTranslationResult &Result);
 
 bool isCmocDebugEnabled();
 

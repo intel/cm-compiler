@@ -213,6 +213,18 @@ def mdump_asm : CMFlag<"mdump_asm">,
   HelpText<"Enable genx backend to dump visa and genisa assembly "
            "files corresponding to the processed kernels">;
 
+def show_stats : Flag<["-"], "show-stats">, Group<cm_Group>,
+  HelpText<"Show LLVM statistics counters">,
+  Flags<[CMOption, CC1Option, CC1AsOption]>;
+
+def dump_stats : Joined<["-"], "dump-stats=">, Group<cm_Group>,
+  HelpText<"Dump LLVM statistics in JSON file">,
+  Flags<[CMOption, CC1Option, CC1AsOption]>;
+
+def dump_stats_cwd : Flag<["-"], "dump-stats">, Group<cm_Group>,
+  HelpText<"Alias for -dump-stats=cwd">, Alias<dump_stats>, AliasArgs<["cwd"]>,
+  Flags<[CMOption, CC1Option, CC1AsOption]>;
+
 def Qxcm_revid: CMCC1Joined<"Qxcm_revid=">,
   HelpText<"Pass specified revision ID to libocloc "
            "Valid only for some platforms">;

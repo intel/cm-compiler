@@ -229,7 +229,8 @@ static std::string composeOptions(const std::string &APIOptions) {
 static std::string
 composeInternalOptions(const std::string &BinFormat,
                        const std::vector<std::string> &BackendOptions,
-                       const std::string &Features, bool TimePasses) {
+                       const std::string &Features, bool TimePasses,
+                       bool PrintStats, const std::string &StatsFile) {
   std::string InternalOptions;
   InternalOptions.append(" -binary-format=").append(BinFormat);
 
@@ -247,6 +248,12 @@ composeInternalOptions(const std::string &BinFormat,
   if (TimePasses)
     InternalOptions.append(" -ftime-report");
 
+  if (PrintStats)
+    InternalOptions.append(" -print-stats");
+
+  if (!StatsFile.empty())
+    InternalOptions.append(" -stats-file=" + StatsFile);
+
   return InternalOptions;
 }
 
@@ -255,7 +262,8 @@ void translateIL(const std::string &CPUName, int RevId,
                  const std::string &APIOptions,
                  const std::vector<std::string> &BackendOptions,
                  const std::vector<char> &SPIRV_IR, InputKind IK,
-                 bool TimePasses, ILTranslationResult &Result) {
+                 bool TimePasses, bool PrintStats,
+                 const std::string &StatsFile, ILTranslationResult &Result) {
 
   if (isCmocDebugEnabled()) {
     llvm::errs() << "requested platform for translateIL: " << CPUName << "\n";
@@ -265,7 +273,7 @@ void translateIL(const std::string &CPUName, int RevId,
 
   const std::string Options = composeOptions(APIOptions);
   const std::string InternalOptions = composeInternalOptions(
-      BinaryFormat, BackendOptions, Features, TimePasses);
+      BinaryFormat, BackendOptions, Features, TimePasses, PrintStats, StatsFile);
 
   if (isCmocDebugEnabled()) {
     llvm::errs() << "IGC Translation Options: " << Options << "\n";
