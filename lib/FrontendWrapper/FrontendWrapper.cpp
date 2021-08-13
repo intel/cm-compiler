@@ -277,7 +277,7 @@ static std::string getVCApiOptions(const llvm::opt::InputArgList &Args,
   if (const llvm::opt::Arg *A =
           Args.getLastArg(clang::driver::options::OPT_ffp_contract)) {
     llvm::StringRef Val = A->getValue();
-    VCApiOptions += "-ffp-contract=";
+    VCApiOptions += " -ffp-contract=";
     VCApiOptions += Val;
   }
   const auto &Invocation = Clang.getInvocation();
