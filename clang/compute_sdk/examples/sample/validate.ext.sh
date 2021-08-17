@@ -2,7 +2,7 @@
 
 #=========================== begin_copyright_notice ============================
 #
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2020-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 #
@@ -120,9 +120,9 @@ then
 
     echo "Checking running on HW(L0) using ocloc"
     g++ -m64 -DKERNEL=\"kernel.$PLATFORM_EXTENSION.spv\" \
-        -I${CSDK_DIR}/usr/local/include \
-        -L${CSDK_DIR}/usr/local/lib -Wl,-rpath \
-        -Wl,${CSDK_DIR}/usr/local/lib  \
+        -I${CSDK_DIR}/usr/include \
+        -L${CSDK_DIR}/usr/lib/x86_64-linux-gnu -Wl,-rpath \
+        -Wl,${CSDK_DIR}/usr/lib/x86_64-linux-gnu  \
         host_l0.cpp -lze_loader -o vector.l0.$PLATFORM_EXTENSION
     if [ $? -ne 0 ];
     then
@@ -235,7 +235,7 @@ then
 fi
 
 g++ -std=gnu++17 -DKERNEL=\"kernel.l0.shim\" \
-    -I${CSDK_DIR}/usr/include/libcm -I${CSDK_DIR}/usr/local/include \
+    -I${CSDK_DIR}/usr/include/libcm -I${CSDK_DIR}/usr/include \
     -L${CSDK_DIR}/usr/lib -Wl,-rpath -Wl,${CSDK_DIR}/usr/lib \
     host_l0.cpp -lshim_l0 -ligfxcmrt_emu -lcm -Wl,--disable-new-dtags -o vector.l0.shim
 if [ $? -ne 0 ];
