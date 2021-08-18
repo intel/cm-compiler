@@ -202,6 +202,10 @@ def fcm_pointer : Flag<["-", "/"], "fcm-pointer">, Group<cm_Group>,
   HelpText<"enable experimental pointer support in CM">,
   Flags<[CMOption, CC1Option]>;
 
+def mCM_enforce_disable_free : Flag<["-", "/"], "mCM_enforce_disable_free">, Group<cm_Group>,
+  HelpText<"Force -disable-free to take effect, unless this is passed, the -disable-free is ignored.">,
+  Flags<[CC1Option]>;
+
 def fvldst : CMIgnoredFlag<"fvldst">;
 def fno_vldst : CMIgnoredFlag<"fno-vldst">;
 

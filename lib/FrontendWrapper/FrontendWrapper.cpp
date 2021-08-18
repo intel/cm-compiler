@@ -228,11 +228,10 @@ InputTypeT deriveInputTypeFromInputLanguage(clang::InputKind::Language T) {
 }
 
 static llvm::opt::InputArgList
-parseOptions(const std::vector<const char *> &CArgs, unsigned Flag,
+parseOptions(llvm::ArrayRef<const char *> CArgs, unsigned Flag,
              llvm::opt::OptTable *Opts) {
   unsigned MissingArgIndex, MissingArgCount;
-  llvm::opt::InputArgList Args = Opts->ParseArgs(
-      llvm::makeArrayRef(CArgs.data(), CArgs.data() + CArgs.size()),
+  llvm::opt::InputArgList Args = Opts->ParseArgs(CArgs,
       MissingArgIndex, MissingArgCount, Flag);
   assert(MissingArgCount == 0 &&
          "must have been covered in CompilerInvocation::CreateFromArgs");
@@ -240,7 +239,7 @@ parseOptions(const std::vector<const char *> &CArgs, unsigned Flag,
 }
 
 static llvm::opt::InputArgList
-parseCompilerOptions(const std::vector<const char *> &CArgs,
+parseCompilerOptions(llvm::ArrayRef<const char *> CArgs,
                      llvm::opt::OptTable *Opts) {
   return parseOptions(CArgs, clang::driver::options::CC1Option, Opts);
 }
@@ -323,6 +322,25 @@ makeAdditionalOptionParsing(const std::vector<const char *> &CArgs,
   Info.RevId = getRevId(ParsedArgs);
   return Info;
 }
+
+class Cc1ExtraOptionInfoT {
+  bool OPT_mCM_enforce_disable_free;
+public:
+  Cc1ExtraOptionInfoT(llvm::ArrayRef<const char *> Args) {
+    std::unique_ptr<llvm::opt::OptTable> Opts =
+        clang::driver::createDriverOptTable();
+    auto ParsedArgs = parseCompilerOptions(Args, Opts.get());
+    OPT_mCM_enforce_disable_free =
+      ParsedArgs.hasArg(clang::driver::options::OPT_mCM_enforce_disable_free);
+  }
+  bool hasOPT_mCM_enforce_disable_free() {
+    return OPT_mCM_enforce_disable_free;
+  }
+  void applyTo(clang::CompilerInstance &Clang) {
+    if (!hasOPT_mCM_enforce_disable_free())
+      Clang.getFrontendOpts().DisableFree = 0;
+  }
+};
 
 // TODO: all non-debug llvm::errs() output should be moved to diagnostics
 wrapper::IDriverInvocationImpl*
@@ -590,6 +608,10 @@ IntelCMClangFECompile(const Intel::CM::ClangFE::IInputArgs *InArgs) {
 
   auto MemFS = createFileSystem(InArgs, getTheOnlyInputFileName(Clang));
   Clang.setVirtualFileSystem(MemFS);
+
+  auto Cc1ExtraOptionInfo = Cc1ExtraOptionInfoT{
+    llvm::makeArrayRef(CStrCompOpts.data(), CStrCompOpts.size())};
+  Cc1ExtraOptionInfo.applyTo(Clang);
 
   Clang.createDiagnostics();
   if (!Clang.hasDiagnostics()) {
