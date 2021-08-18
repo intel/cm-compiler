@@ -110,7 +110,8 @@ public:
 
   CmocContext(int argc, const char **argv);
 
-  BinaryData runFE(llvm::StringRef Adjuster);
+  template <typename Container>
+  BinaryData runFE(Container Adjuster);
   void runVCOpt(const BinaryData &Input, InputKind IK,
                 ILTranslationResult &Result);
 };
@@ -206,7 +207,8 @@ CmocContext::runFeForInvocation(const std::vector<std::string> &FEArgs) {
   return FEOutput->getIR();
 }
 
-BinaryData CmocContext::runFE(llvm::StringRef Adjuster) {
+template <typename Container>
+BinaryData CmocContext::runFE(Container Adjuster) {
   auto &OriginalCC1Args = DriverInvocation->getFEArgs();
 
   if (Adjuster.empty()) {
@@ -217,7 +219,9 @@ BinaryData CmocContext::runFE(llvm::StringRef Adjuster) {
   }
 
   std::vector<std::string> NewArgs = OriginalCC1Args;
-  NewArgs.push_back(Adjuster.str());
+  NewArgs.insert(NewArgs.end(),
+      std::make_move_iterator(Adjuster.begin()),
+      std::make_move_iterator(Adjuster.end()));
 
   if (DebugEnabled)
     llvm::errs() << "Adjusting CC1 FE args with user args: "
@@ -344,8 +348,10 @@ int main(int argc, const char **argv) {
   // If input is text or LLVM IR, run CM Frontend
   if (Ctx.getInputKind() == InputKind::TEXT ||
       Ctx.getInputKind() == InputKind::IR) {
-    VCOptInput = Ctx.runFE(
-        (Ctx.getOutputKind() == OutputKind::VISA) ? "-emit-spirv" : "");
+    llvm::SmallVector<std::string, 2> AdditionalOpts{"-mCM_enforce_disable_free"};
+    if (Ctx.getOutputKind() == OutputKind::VISA)
+      AdditionalOpts.emplace_back("-emit-spirv");
+    VCOptInput = Ctx.runFE(std::move(AdditionalOpts));
   } else {
     std::ifstream InputFile(Ctx.getInputFilename(), std::ios::binary);
     if (!InputFile.is_open())
