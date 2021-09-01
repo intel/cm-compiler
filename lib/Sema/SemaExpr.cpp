@@ -762,11 +762,13 @@ ExprResult Sema::DefaultArgumentPromotion(Expr *E) {
   const BuiltinType *BTy = Ty->getAs<BuiltinType>();
   if (BTy && (BTy->getKind() == BuiltinType::Half ||
               BTy->getKind() == BuiltinType::Float)) {
-    if (getLangOpts().OpenCL &&
-        !getOpenCLOptions().isEnabled("cl_khr_fp64")) {
-        if (BTy->getKind() == BuiltinType::Half) {
-            E = ImpCastExprToType(E, Context.FloatTy, CK_FloatingCast).get();
-        }
+    if ((getLangOpts().OpenCL &&
+         !getOpenCLOptions().isEnabled("cl_khr_fp64")) ||
+        (getLangOpts().MdfCM &&
+         !getASTContext().getTargetInfo().hasFeature("double"))) {
+      if (BTy->getKind() == BuiltinType::Half) {
+        E = ImpCastExprToType(E, Context.FloatTy, CK_FloatingCast).get();
+      }
     } else {
       E = ImpCastExprToType(E, Context.DoubleTy, CK_FloatingCast).get();
     }
