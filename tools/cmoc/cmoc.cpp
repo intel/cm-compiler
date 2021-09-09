@@ -253,12 +253,17 @@ void CmocContext::runVCOpt(const BinaryData &In, InputKind IK,
   }
   assert(!BinFormat.empty());
 
-  std::vector<std::string> VcOpts =
-      IGC::AdaptorCM::Frontend::convertBackendArgsToVcOpts(DriverInvocation->getBEArgs());
+  std::vector<std::string> VcOpts;
+  std::vector<std::string> FinalizerOpts;
+  std::tie(VcOpts, FinalizerOpts) =
+      IGC::AdaptorCM::Frontend::convertBackendArgsToVcAndFinalizerOpts(
+          DriverInvocation->getBEArgs());
 
   const auto &TargetFeatures = DriverInvocation->getTargetFeaturesStr();
 
   std::string APIOptions = getVCApiOptions();
+  if (!FinalizerOpts.empty())
+    APIOptions += " -Xfinalizer '" + llvm::join(FinalizerOpts, " ") + "'";
   int RevId = getRevId();
 
   bool PrintStats = getPrintStats();
