@@ -17,8 +17,8 @@ See LICENSE.TXT for details.
 
 #include "clang/Basic/Version.h"
 #include "clang/Basic/LLVM.h"
-#include "llvm/GenXIntrinsics/GenXIntrinsics.h"
 #include "clang/Config/config.h"
+#include "llvm/GenXIntrinsics/GenXVersion.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cstdlib>
 #include <cstring>
