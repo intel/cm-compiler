@@ -2596,7 +2596,6 @@ def no_system_header_prefix : Joined<["--"], "no-system-header-prefix=">,
   HelpText<"Treat all #include paths starting with <prefix> as not including a "
            "system header.">;
 def : Separate<["--"], "no-system-header-prefix">, Alias<no_system_header_prefix>;
-def s : Flag<["-"], "s">, Group<Link_Group>;
 def target : Joined<["--"], "target=">, Flags<[DriverOption, CoreOption]>,
   HelpText<"Generate code for the given target">;
 def gcc_toolchain : Joined<["--"], "gcc-toolchain=">, Flags<[DriverOption]>,
