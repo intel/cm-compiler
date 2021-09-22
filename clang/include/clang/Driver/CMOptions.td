@@ -191,6 +191,19 @@ def mCM_enable_stackcalls : Flag<["-", "/"], "mCM_enable_stackcalls">, Group<cm_
 def mCM_optimize_none : Flag<["-", "/"], "mCM_optimize_none">, Group<cm_Group>,
   Flags<[CC1Option]>;
 
+def s : Separate<["-"], "s">, Group<cm_Group>,
+  HelpText<"Set (override) internal temporary source code file name 'src.cm' for online compilation">,
+  Flags<[CMOption]>;
+
+def s_eq : Joined<["-"], "s=">, Group<cm_Group>,
+  HelpText<"Alias for -s <value>">, Alias<s>, Flags<[CMOption]>;
+
+def cm_src : Separate<["-"], "cm-src">, Group<cm_Group>,
+  HelpText<"Alias for -s <value>">, Alias<s>, Flags<[CMOption]>;
+
+def cm_src_eq : Joined<["-"], "cm-src=">, Group<cm_Group>,
+  HelpText<"Alias for -cm-src <value>">, Alias<s>, Flags<[CMOption]>;
+
 // Passed to cc1 to specify the GenX assembly file base name
 def cm_asm_name : CMCC1<"cm-asm-name">;
 
