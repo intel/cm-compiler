@@ -114,10 +114,12 @@ llvm::IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> getHeadersFileSystem() {
 // but uses InArgs->InputText as its content. So actually if someone (FCL)
 // just generated real file but has not copied it to input, compiler
 // will compile empty source.
-llvm::IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem>
-createInputsFileSystem(const wrapper::IInputArgs *InArgs,
-                       llvm::StringRef InputFileName) {
+void createInputsFileSystem(
+    const wrapper::IInputArgs *InArgs, llvm::StringRef InputFileName,
+    const llvm::IntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem>
+        &OverlayMemFS) {
   auto MemFS = wrapper::MakeIntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem>();
+  OverlayMemFS->pushOverlay(MemFS);
 
   auto Src = wrapper::getSrc<llvm::StringRef>(InArgs);
   MemFS->addFile(InputFileName, 0,
@@ -127,7 +129,6 @@ createInputsFileSystem(const wrapper::IInputArgs *InArgs,
     MemFS->addFile(File.Name, 0,
                    llvm::MemoryBuffer::getMemBuffer(File.Src, File.Name));
   }
-  return MemFS;
 }
 
 llvm::IntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem>
@@ -150,10 +151,10 @@ createFileSystem(const wrapper::IInputArgs *InArgs,
   // (in this case InputFileName gets it, or default "src.cm");
   //
   // Check which of these 2 variants is in this case, and if 2-nd,
-  // then add source file from memory FS,
-  // created by createInputsFileSystem(), to overlay
+  // then createInputsFileSystem() adds source file from memory FS
+  // to overlay
   if (!wrapper::getSrc<llvm::StringRef>(InArgs).empty())
-    OverlayMemFS->pushOverlay(createInputsFileSystem(InArgs, InputFileName));
+    createInputsFileSystem(InArgs, InputFileName, OverlayMemFS);
 
   return OverlayMemFS;
 }

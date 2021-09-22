@@ -3760,7 +3760,10 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // Set the main file name, so that debug info works even with
   // -save-temps.
   CmdArgs.push_back("-main-file-name");
-  CmdArgs.push_back(getBaseInputName(Args, Input));
+  if (auto *Arg = Args.getLastArg(options::OPT_s))
+    CmdArgs.push_back(Arg->getValue());
+  else
+    CmdArgs.push_back(getBaseInputName(Args, Input));
 
   // Some flags which affect the language (via preprocessor
   // defines).
@@ -5236,12 +5239,15 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   else if (Input.isNothing())
     FrontendInputs = {};
 
-  for (const InputInfo &Input : FrontendInputs) {
-    if (Input.isFilename())
-      CmdArgs.push_back(Input.getFilename());
-    else
-      Input.getInputArg().renderAsInput(Args, CmdArgs);
-  }
+  if (auto *Arg = Args.getLastArg(options::OPT_s))
+    CmdArgs.push_back(Arg->getValue());
+  else
+    for (const InputInfo &Input : FrontendInputs) {
+      if (Input.isFilename())
+        CmdArgs.push_back(Input.getFilename());
+      else
+        Input.getInputArg().renderAsInput(Args, CmdArgs);
+    }
 
   Args.AddAllArgs(CmdArgs, options::OPT_undef);
 
