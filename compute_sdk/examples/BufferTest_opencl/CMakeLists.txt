@@ -32,10 +32,10 @@ set(KERNEL_SOURCE
 )
 
 find_package(OpenCL REQUIRED)
-find_program(CMC cmc PATHS $ENV{CSDK_IGC}/usr/bin NO_DEFAULT_PATH)
+find_program(CMC cmc PATHS $ENV{CSDK_DIR}/usr/bin NO_DEFAULT_PATH)
 
 if(NOT CMC)
-    message(FATAL_ERROR "Couldn't find cmc, make sure you setup environment with `source setenv.sh`")
+    message(FATAL_ERROR "Couldn't find cmc, make sure you setup environment with `source setupenv.sh`")
 endif()
 
 set(CPU "SKL" CACHE STRING "Platform name")
@@ -57,7 +57,7 @@ add_custom_command(
 add_compile_options(-Wno-write-strings -Wno-deprecated-declarations -Wno-narrowing -Wno-format -Wno-format-extra-args)
 add_link_options(-Wl,--disable-new-dtag)
 add_definitions(-D__linux__=1 -D_LINUX=1 -DLINUX=1 -DCL_TARGET_OPENCL_VERSION=220)
-include_directories($ENV{CSDK_IGC}/usr/include $ENV{CSDK_IGC}/opt/intel/opencl/include)
+include_directories($ENV{CSDK_DIR}/usr/include $ENV{CSDK_DIR}/usr/local/include)
 
 add_executable(${APP}_bin ${ALL_SOURCES} "${KERNEL}.bin")
 target_compile_definitions(${APP}_bin PRIVATE BIN=1)
@@ -78,3 +78,4 @@ set_property(TARGET ${APP}_src PROPERTY INSTALL_RPATH_USE_LINK_PATH TRUE)
 install(TARGETS ${APP}_bin ${APP}_src ${APP}_spv DESTINATION ${INSTALL_DIR})
 
 install(FILES ${KERNEL_SOURCE} ${CMAKE_BINARY_DIR}/${KERNEL}.bin ${CMAKE_BINARY_DIR}/${KERNEL}.spv DESTINATION ${INSTALL_DIR})
+
