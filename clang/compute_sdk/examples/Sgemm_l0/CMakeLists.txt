@@ -5,7 +5,6 @@
 # SPDX-License-Identifier: MIT
 #
 #============================ end_copyright_notice =============================
-
 cmake_minimum_required(VERSION 3.10)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -13,8 +12,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 project(l0_example)
 
-if(NOT DEFINED ENV{CSDK_IGC})
-	message(FATAL_ERROR "CSDK_IGC environment variable is not set - did you run 'source setupenv.sh' ?")
+if(NOT DEFINED ENV{CSDK_DIR})
+	message(FATAL_ERROR "CSDK_DIR environment variable is not set - did you run 'source setupenv.sh' ?")
 endif()
 
 set(APP "Sgemm")
@@ -30,13 +29,13 @@ file(COPY
 	DESTINATION ./
 )
 
-find_program(CMC cmc PATHS $ENV{CSDK_IGC}/usr/bin NO_DEFAULT_PATH)
+find_program(CMC cmc PATHS $ENV{CSDK_DIR}/usr/bin NO_DEFAULT_PATH)
 if(NOT CMC)
-    message(FATAL_ERROR "Couldn't find cmoc, make sure you setup environment with `source setenv.sh`")
+    message(FATAL_ERROR "Couldn't find cmoc, make sure you setup environment with `source setupenv.sh`")
 endif()
 
-find_library(LIBOCLOC ocloc PATHS $ENV{CSDK_IGC}/usr/lib/x86_64-linux-gnu NO_DEFAULT_PATH REQUIRED)
-find_library(ZE_LOADER ze_loader PATHS $ENV{CSDK_IGC}/usr/lib/x86_64-linux-gnu NO_DEFAULT_PATH REQUIRED)
+find_library(LIBOCLOC ocloc PATHS $ENV{CSDK_DIR}/usr/local/lib/ NO_DEFAULT_PATH REQUIRED)
+find_library(ZE_LOADER ze_loader PATHS $ENV{CSDK_DIR}/usr/lib/x86_64-linux-gnu NO_DEFAULT_PATH REQUIRED)
 
 
 add_custom_command(
@@ -48,8 +47,8 @@ add_custom_command(
 
 set(CPU "SKL" CACHE STRING "Platform name")
 
-include_directories($ENV{CSDK_IGC}/usr/include)
-link_directories($ENV{CSDK_IGC}/usr/lib/x86_64-linux-gnu)
+include_directories($ENV{CSDK_DIR}/usr/include $ENV{CSDK_DIR}/usr/local/include)
+link_directories($ENV{CSDK_DIR}/usr/lib/x86_64-linux-gnu)
 
 add_executable(${APP}_src ${ALL_SOURCES} )
 target_compile_definitions(${APP}_src PRIVATE BINNAME="${KERNEL}.cpp" BINDIR="None" L0 CM_COMPILE_ONLINE)
@@ -64,3 +63,4 @@ set_property(TARGET ${APP}_bin PROPERTY INSTALL_RPATH_USE_LINK_PATH TRUE)
 install(TARGETS ${APP}_bin ${APP}_src DESTINATION ${INSTALL_DIR})
 
 install(FILES ${KERNEL_SOURCE} ${SRC_DIR}/share.h ${CMAKE_BINARY_DIR}/${KERNEL}.bin DESTINATION ${INSTALL_DIR})
+
