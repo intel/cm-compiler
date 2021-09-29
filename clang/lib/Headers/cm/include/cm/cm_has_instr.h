@@ -6,6 +6,8 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
+#include "cm_common.h"
+
 // This file provide CM_HAS_<Feature> flag
 // It's used for checking platform to support <Feature> 
 // 
@@ -31,7 +33,7 @@ namespace CheckVersion {
   };
 
   template <typename T>
-  void Check() {
+  CM_INLINE CM_NODEBUG void Check() {
     CM_STATIC_ERROR(T::check, "Not supported feature for this platform");
   }
 }
