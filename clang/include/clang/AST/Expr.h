@@ -3032,6 +3032,11 @@ public:
   bool isColumnSelect() const { return SelectKind == SK_column; }
   bool isReplicate() const { return SelectKind == SK_replicate; }
 
+  bool isElementOrVectorSubscriptSelect() const {
+    return isElementSelect() ||
+           (isSubscriptSelect() && getBase()->getType()->isCMVectorType());
+  }
+
   const char *getSelectKindName() const {
     switch (SelectKind) {
     case SK_select:
