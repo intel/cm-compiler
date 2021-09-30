@@ -862,34 +862,15 @@ void CodeGenFunction::StartFunction(GlobalDecl GD,
   assert(CurFn->isDeclaration() && "Function already has body?");
 
   // Pass inline keyword to optimizer if it appears explicitly on any
-  // declaration. Also, in the case of -fno-inline attach NoInline
-  // attribute to all function that are not marked AlwaysInline.
+  // declaration.
   if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D)) {
-    if (!CGM.getCodeGenOpts().NoInline) {
-      for (auto RI : FD->redecls())
-        if (RI->isInlineSpecified()) {
-          // For MDF CM, emit inline attribute as alwaysinline.
-          if (getLangOpts().MdfCM)
-            Fn->addFnAttr(llvm::Attribute::AlwaysInline);
-          else
-            Fn->addFnAttr(llvm::Attribute::InlineHint);
-          break;
-        }
-    } else if (!FD->hasAttr<AlwaysInlineAttr>())
-      Fn->addFnAttr(llvm::Attribute::NoInline);
-
-    // For a GenX function if it is not alwaysinline, it will be noinline to
-    // match the old compiler's behavior. This behavior can be overwritten
-    // with option -fno-force-noinline.
-    //
-    // For C++ members, make them always inline to optimize away this pointer.
-    if (getLangOpts().MdfCM && FD->isCXXInstanceMember())
-      Fn->addFnAttr(llvm::Attribute::AlwaysInline);
-
-    if (getLangOpts().MdfCM &&
-        CGM.getCodeGenOpts().ForceNoInline &&
-        !Fn->getAttributes().hasAttrSomewhere(llvm::Attribute::AlwaysInline))
-      Fn->addFnAttr(llvm::Attribute::NoInline);
+    for (auto RI : FD->redecls()) {
+      if (RI->isInlineSpecified()) {
+        // For MDF CM, emit inline attribute as alwaysinline.
+        if (getLangOpts().MdfCM)
+          Fn->addFnAttr(llvm::Attribute::AlwaysInline);
+      }
+    }
   }
 
   // Finer control on the loop info for MDF cm.

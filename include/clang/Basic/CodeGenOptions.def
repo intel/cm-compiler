@@ -152,9 +152,6 @@ CODEGENOPT(FatalWarnings     , 1, 0) ///< Set when -Wa,--fatal-warnings is
 CODEGENOPT(EnableSegmentedStacks , 1, 0) ///< Set when -fsplit-stack is enabled.
 CODEGENOPT(NoImplicitFloat   , 1, 0) ///< Set when -mno-implicit-float is enabled.
 CODEGENOPT(NoInfsFPMath      , 1, 0) ///< Assume FP arguments, results not +-Inf.
-CODEGENOPT(NoInline          , 1, 0) ///< Set when -fno-inline is enabled. 
-                                     ///< Disables use of the inline keyword.
-CODEGENOPT(ForceNoInline, 1, 1) ///< Set noinline as the default attribute
 CODEGENOPT(NoSignedZeros     , 1, 0) ///< Allow ignoring the signedness of FP zero
 CODEGENOPT(NullPointerIsValid , 1, 0) ///< Assume Null pointer deference is defined.
 CODEGENOPT(Reassociate       , 1, 0) ///< Allow reassociation of FP math ops
