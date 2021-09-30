@@ -779,8 +779,6 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
       Args.hasFlag(OPT_funroll_loops, OPT_fno_unroll_loops,
                    (Opts.OptimizationLevel > 1));
 
-  // For CM only, set as noinline for functions without inline attribute.
-  Opts.ForceNoInline = !Args.hasArg(OPT_fno_force_noinline);
   if (Args.hasArg(OPT_mCM_import_bif))
     Opts.GenXBiFName = Args.getLastArgValue(OPT_mCM_import_bif);
   // By default, CM global variables are not default initialized, this option
