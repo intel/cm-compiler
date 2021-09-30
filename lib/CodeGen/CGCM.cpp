@@ -1547,7 +1547,7 @@ void CGCMRuntime::EmitCMRefStore(CodeGenFunction &CGF, llvm::Value *Val,
 /// \brief Emit single select element as pointer to vector element using GEP
 llvm::Value *CGCMRuntime::EmitElementSelectAsPointer(CodeGenFunction &CGF,
                                                      const CMSelectExpr *SE) {
-  assert(SE->isElementSelect() && "Single element select expected");
+  assert(SE->isElementOrVectorSubscriptSelect() && "Single element select expected");
 
   LValue LV = EmitCMSelectExprLValue(CGF, SE);
   assert(LV.isCMRegion());
