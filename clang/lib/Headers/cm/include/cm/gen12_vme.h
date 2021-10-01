@@ -27,7 +27,7 @@ typedef enum _VMEMsgTypeHEVC_ {
   __VME_HEVC_MACRO_MSG = 5,
 } __VMEMsgTypeHEVC;
 
-// Gen12HP HEVC-specific functions
+// XEHP HEVC-specific functions
 
 // Macros for forming descriptor values for cm_send() and cm_sends()
 // The macros use a functional style - they take a descriptor value and any
@@ -123,7 +123,7 @@ run_vme_idm(matrix<uchar, 4, 32> UNIInput,
 /////////////////////////////////////////////////////////////////////////////////////
 
 //skip_rde_implicit
-// rdeoutput = 4 (Common HEVC interface to Gen11 and Gen12hp)
+// rdeoutput = 4 (Common HEVC interface to Gen11 and XeHP)
 template <typename Dummy = void> CM_INLINE void
 cm_vme_hevc_skip_rde_implicit(/*const*/ matrix_ref<uchar, 10, 32> RDEInput, SurfaceIndex curSurfIndex,
     matrix_ref<uchar, 4, 32> RDEOutput)
@@ -258,7 +258,7 @@ cm_vme_hevc_skip_rde_explicit(/*const*/ matrix_ref<uchar, 6, 32> RDEInput,
     cm_send(RDEOutput.selrows(7), RDEInput.selrows(6), __SFID_CRE, Descriptor, 0);
 }
 
-// rdeoutput = 12 (Common HEVC interface to Gen11 and Gen12hp)
+// rdeoutput = 12 (Common HEVC interface to Gen11 and XEHP)
 template <typename Dummy = void> CM_INLINE void
 cm_vme_hevc_skip_rde_explicit(/*const*/ matrix_ref<uchar, 6, 32> RDEInput,
     SurfaceIndex curSurfIndex, matrix_ref<uchar, 12, 32> RDEOutput)
@@ -278,7 +278,7 @@ cm_vme_hevc_skip_rde_explicit(/*const*/ matrix_ref<uchar, 6, 32> RDEInput,
 /////////////////////////////////////////////////////////////////////////////////////
 
 
-//hevc_ime (Common HEVC interface to Gen11 and Gen12hp)
+//hevc_ime (Common HEVC interface to Gen11 and XEHP)
 template <typename Dummy = void> CM_INLINE void
 cm_vme_hevc_ime(/*const*/ matrix_ref<uchar, 5, 32> IMEInput, /*const*/ matrix_ref<uchar, 10, 32> StreamInput,
     int LengthStreamInput, SurfaceIndex curSurfIndex, matrix_ref<uchar, 11, 32> StreamOutput)
@@ -305,7 +305,7 @@ cm_vme_hevc_ime(/*const*/ matrix_ref<uchar, 5, 32> IMEInput, /*const*/ matrix_re
 /////////////////////////////////////////////////////////////////////////////////////
 
 //Inter_rde_implicit
-// rdeoutput = 4 (Common HEVC interface to Gen11 and Gen12hp)
+// rdeoutput = 4 (Common HEVC interface to Gen11 and XEHP)
 template <typename Dummy = void> CM_INLINE void
 cm_vme_hevc_inter_rde_implicit(/*const*/ matrix_ref<uchar, 10, 32> RDEInput,
     SurfaceIndex curSurfIndex, matrix_ref<uchar, 4, 32> RDEOutput)
@@ -376,7 +376,7 @@ cm_vme_hevc_inter_rde_implicit(/*const*/ matrix_ref<uchar, 10, 32> RDEInput,
 
 
 //Inter_rde_explicit
-// rdeoutput = 4 (Common HEVC interface to Gen11 and Gen12hp)
+// rdeoutput = 4 (Common HEVC interface to Gen11 and XEHP)
 template <typename Dummy = void> CM_INLINE void
 cm_vme_hevc_inter_rde_explicit(/*const*/ matrix_ref<uchar, 5, 32> RDEInput,
     SurfaceIndex curSurfIndex, matrix_ref<uchar, 4, 32> RDEOutput)
@@ -448,7 +448,7 @@ cm_vme_hevc_inter_rde_explicit(/*const*/ matrix_ref<uchar, 5, 32> RDEInput,
 
 
 //Intra_rde
-//rdeoutput = 4 (Common HEVC interface to Gen11 and Gen12hp)
+//rdeoutput = 4 (Common HEVC interface to Gen11 and XEHP)
 template <typename Dummy = void> CM_INLINE void
 cm_vme_hevc_intra_rde(/*const*/ matrix_ref<uchar, 14, 32> RDEInput, int LengthLCNPInput,
     SurfaceIndex curSurfIndex, matrix_ref<uchar, 4, 32> RDEOutput)
@@ -518,7 +518,7 @@ cm_vme_hevc_intra_rde(/*const*/ matrix_ref<uchar, 14, 32> RDEInput, int LengthLC
 /////////////////////////////////////////////////////////////////////////////////////
 
 
-template <typename Dummy = void> // (Common HEVC interface to Gen11 and Gen12hp)
+template <typename Dummy = void> // (Common HEVC interface to Gen11 and XEHP)
 CM_INLINE void cm_vme_hevc_fme_mesh(/*const*/ matrix_ref<uchar, 4, 32> FMEInput,
                                     SurfaceIndex curSurfIndex,
                                     matrix_ref<uchar, 3, 32> FMEOutput) {
