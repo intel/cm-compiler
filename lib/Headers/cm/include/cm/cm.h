@@ -440,6 +440,7 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
     std::is_integral<T0>::value && std::is_integral<T1>::value,
     vector<T0, SZ> >::type
 cm_rol(vector<T1, SZ> src0, vector<T1, SZ> src1) {
+  CM_HAS_BIT_ROTATE_CONTROL;
   return details::__cm_intrinsic_impl_rol<T0, T1, SZ>(src0, src1);
 }
 
@@ -453,6 +454,7 @@ cm_rol(vector<T1, SZ> src0, U src1) {
   ComputationTy;
   typename details::vector_type<ComputationTy>::type _Src0 = src0;
   typename details::vector_type<ComputationTy>::type _Src1 = src1;
+  CM_HAS_BIT_ROTATE_CONTROL;
   return details::__cm_intrinsic_impl_rol<T0>(_Src0, _Src1);
 }
 
@@ -486,6 +488,7 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
     std::is_integral<T0>::value && std::is_integral<T1>::value,
     vector<T0, SZ> >::type
 cm_ror(vector<T1, SZ> src0, vector<T1, SZ> src1) {
+  CM_HAS_BIT_ROTATE_CONTROL;
   return details::__cm_intrinsic_impl_ror<T0, T1, SZ>(src0, src1);
 }
 
@@ -499,6 +502,7 @@ cm_ror(vector<T1, SZ> src0, U src1) {
   ComputationTy;
   typename details::vector_type<ComputationTy>::type _Src0 = src0;
   typename details::vector_type<ComputationTy>::type _Src1 = src1;
+  CM_HAS_BIT_ROTATE_CONTROL;
   return details::__cm_intrinsic_impl_ror<T0>(_Src0, _Src1);
 }
 
