@@ -58,6 +58,7 @@ bool GenXTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
 
   NativeI64Support = llvm::StringSwitch<bool>(CPU)
                          .Case("ICLLP", false)
+                         .Case("RKL", false)
                          .Case("TGLLP", false)
                          .Case("DG1", false)
                          .Default(true);
@@ -65,6 +66,7 @@ bool GenXTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
   NativeDoubleSupport = llvm::StringSwitch<bool>(CPU)
                             .Case("ICLLP", false)
                             .Case("TGLLP", false)
+                            .Case("RKL", false)
                             .Case("DG1", false)
                             .Default(true);
 
@@ -87,6 +89,7 @@ bool GenXTargetInfo::setCPU(const std::string &Name) {
                       .Case("ICL", true)
                       .Case("ICLLP", true)
                       .Case("TGLLP", true)
+                      .Case("RKL", true)
                       .Case("DG1", true)
                       .Case("XEHP_SDV", true)
                       .Default(false);

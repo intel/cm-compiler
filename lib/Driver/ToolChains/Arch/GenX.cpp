@@ -71,6 +71,7 @@ static std::string getCanonicalGenXTargetCPU(const std::string &CPU,
                            .Cases("GEN11", "ICL", "ICL")
                            .Cases("GEN11LP", "ICLLP", "ICLLP")
                            .Cases("GEN12LP", "TGLLP", "TGLLP")
+                           .Case("RKL", "RKL")
                            .Case("DG1", "DG1")
                            .Case("XEHP_SDV", "XEHP_SDV")
                            .Default("");

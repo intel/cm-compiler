@@ -80,6 +80,7 @@ const std::unordered_map<std::string, std::string> CmToNeoCPU{
     {"SKL", "skl"},
     {"ICLLP", "icllp"},
     {"TGLLP", "tgllp"},
+    {"RKL", "rkl"},
     {"DG1", "dg1"},
     {"XEHP_SDV", "xe_hp_sdv"},
 };

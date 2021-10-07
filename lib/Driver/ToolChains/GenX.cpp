@@ -48,6 +48,7 @@ std::string getFinalizerPlatform(StringRef CPU, StringRef Stepping) {
   auto FinalizerPlatform = llvm::StringSwitch<StringRef>(CPU)
                                .Case("KBL", "SKL")
                                .Case("GLK", "BXT")
+                               .Case("RKL", "TGLLP")
                                .Case("XEHP_SDV", "XeHP_SDV")
                                .Case("", "SKL")
                                .Default(CPU);
