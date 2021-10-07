@@ -8,15 +8,11 @@ SPDX-License-Identifier: MIT
 
 #include "cm_common.h"
 
-// This file provide CM_HAS_<Feature> flag
-// It's used for checking platform to support <Feature> 
-// 
-// USAGE:
-//   #if defined(CM_HAS_feature)
-//     w = cm_feature<...>(...);
-//   #else
-//     w = ...; //without feature
-//   #endif
+/// CM_HAS_<Feature> maros
+/// ----------------------
+/// Check platform to support <Feature>.
+/// Return true if Feature is supported. 
+//===----------------------------------------------------------------------===//
 
 #ifndef _CLANG_CM_HAS_INSTR_H_
 #define _CLANG_CM_HAS_INSTR_H_
@@ -25,8 +21,8 @@ SPDX-License-Identifier: MIT
  
 namespace CheckVersion {
 
-  //used for creating static_assert only on 2nd stage of
-  //substitution - when user tries to get blocked instruction
+  // Use structure to create static_assert only on 2nd stage of
+  // substitution - when user tries to get blocked instruction.
   template <bool checking>
   struct VersionWrapper final {
     static constexpr bool check = checking;
@@ -48,6 +44,12 @@ namespace CheckVersion {
   #define CM_HAS_DP4A_CONTROL CM_HAS_CONTROL(true)
 #else
   #define CM_HAS_DP4A_CONTROL CM_HAS_CONTROL(false)
+#endif
+#if (CM_GENX >= 1150) //>= ICLLP
+  #define CM_HAS_BIT_ROTATE 1
+  #define CM_HAS_BIT_ROTATE_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_BIT_ROTATE_CONTROL CM_HAS_CONTROL(false)
 #endif
 
 
