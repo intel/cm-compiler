@@ -240,6 +240,9 @@ void GenX::addClangTargetOptions(const llvm::opt::ArgList &  DriverArgs,
     CC1Args.push_back(DriverArgs.MakeArgString(os.str()));
   }
 
+  if (DriverArgs.hasArg(options::OPT_vc_use_plain_2d_images))
+    CC1Args.push_back("-vc-use-plain-2d-images");
+
   ArgStringList CompatibilityArgs =
     constructCompatibilityFinalizerOptions(DriverArgs, Drv);
   if (CompatibilityArgs.empty())
