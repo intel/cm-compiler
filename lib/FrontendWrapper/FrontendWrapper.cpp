@@ -428,33 +428,25 @@ createDriverInvocationFromCCArgs(const std::vector<const char*> &CArgs,
   return Result;
 }
 
-wrapper::IDriverInvocationImpl*
-makeDriverInvocationFromCompilation(clang::driver::Compilation &Compilation,
+wrapper::IDriverInvocationImpl *
+makeDriverInvocationFromCompilation(clang::driver::Compilation &C,
                                     llvm::SmallVectorImpl<const char *> &Args,
                                     DiagnosticSubsystem &DS) {
 
-  const auto &Jobs = Compilation.getJobs();
+  const auto &Jobs = C.getJobs();
 
   if (DebugEnabled)
     Jobs.Print(llvm::errs(), "\n", true);
 
   if (Jobs.empty()) {
-    bool HelpIsMissing = std::none_of(Args.begin(), Args.end(), [](const char* p) {
-                                        return (strcmp(p, "-help") == 0) ||
-                                               (strcmp(p, "--help") == 0);
-                                     });
-    bool ShowVersionIsMissing =
-        std::none_of(Args.begin(), Args.end(), [](const char *p) {
-          return (strcmp(p, "-v") == 0) || (strcmp(p, "--version") == 0);
-        });
-
-    if (HelpIsMissing && ShowVersionIsMissing) {
-      llvm::errs() << "FEWrapper fatal error: no Jobs created\n";
-      return nullptr;
-    }
-    if (!HelpIsMissing)
+    if (C.getArgs().hasArg(clang::driver::options::OPT_help))
       return wrapper::IDriverInvocationImpl::createHelp();
-    return wrapper::IDriverInvocationImpl::createShowVersion();
+
+    if (C.getArgs().hasArg(clang::driver::options::OPT__version))
+      return wrapper::IDriverInvocationImpl::createShowVersion();
+
+    llvm::errs() << "FEWrapper fatal error: no Jobs created\n";
+    return nullptr;
   }
   if (Jobs.size() != 1) {
     llvm::errs() << "FEWrapper unexpected number of jobs were created\n";
