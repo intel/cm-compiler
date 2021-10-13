@@ -80,7 +80,7 @@ fi
 pushd ${OUT} >/dev/null
 
 echo -n "Building tests... "
-cmake .. -DINSTALL_DIR=${OUT}/test_bin -DCMAKE_CONFIG_TYPE=Release >cmake.out 2>&1
+cmake .. -DINSTALL_DIR=${OUT}/test_bin -DCMAKE_CONFIG_TYPE=Release -DCPU=${PLATFORM} >cmake.out 2>&1
 if [ $? -ne 0 ];
 then
   echo "FAILED on cmake execution"
