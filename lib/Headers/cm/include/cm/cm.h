@@ -2291,14 +2291,6 @@ template <CmPrecisionType src1_precision,
 //////////////////////////////////////////
 // DPASW intrinsic begin
 //////////////////////////////////////////
-#ifndef CM_DPASW_ENABLED
-#ifdef  CM_GENX
-#define CM_DPASW_ENABLED (CM_GENX == 1270)
-#else  //CM_GENX not defined
-#define CM_DPASW_ENABLED 0
-#endif // CM_GENX
-#endif // CM_DPASW_ENABLED
-
 template <CmPrecisionType src1_precision,
           CmPrecisionType src2_precision,
           int systolic_depth,
@@ -2311,8 +2303,7 @@ cm_dpasw(vector<T, N> src0,
     vector<T2, N2> src2,
     int flag = _GENX_NOSAT)
 {
-  CM_STATIC_ERROR(details::check_when_instantiated<T>(CM_DPASW_ENABLED),
-    "Target is not supported");
+  CM_HAS_DPASW_CONTROL;
 
   CM_STATIC_ERROR(details::is_fp_or_dword_type<T>::value,
     "Dst and Src0 must be FP or DWORD type");
@@ -2366,8 +2357,7 @@ template <CmPrecisionType src1_precision,
     vector<T2, N2> src2,
     int flag = _GENX_NOSAT)
 {
-  CM_STATIC_ERROR(details::check_when_instantiated<T>(CM_DPASW_ENABLED),
-    "Target is not supported");
+  CM_HAS_DPASW_CONTROL;
 
   CM_STATIC_ERROR(details::is_fp_or_dword_type<T>::value,
     "Dst and Src0 must be FP or DWORD type");
