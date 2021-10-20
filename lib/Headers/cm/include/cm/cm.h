@@ -634,57 +634,55 @@ cm_asr(T1 src0, T2 src1, int flag = _GENX_NOSAT) {
   return cm_asr<T0>(src1, src0, flag);
 }
 
-// vector cm_imul
-template <typename T0, typename T, int SZ>
-CM_NODEBUG CM_INLINE
-    typename std::enable_if<details::is_dword_type<T0>::value &&
-                                details::is_dword_type<T>::value && SZ != 1,
-                            vector<T0, SZ> >::type
-cm_imul(vector_ref<T, SZ> lo, vector<T, SZ> src0, vector<T, SZ> src1) {
-  return details::__cm_intrinsic_impl_imad(lo, src0, src1,
-                                           static_cast<vector<T, SZ> >(0));
-}
-
-// scalar cm_imul
-template <typename T0, typename T>
+// cm_imul
+#ifndef CM_HAS_LONG_LONG
+// use mulh instruction for high half
+template <typename T0, typename T1, typename U, int SZ>
 CM_NODEBUG CM_INLINE typename std::enable_if<
-    details::is_cm_scalar<T0>::value && details::is_dword_type<T0>::value &&
-        details::is_cm_scalar<T>::value && details::is_dword_type<T>::value,
-    T0>::type
-cm_imul(T &lo, T src0, T src1) {
-  return details::__cm_intrinsic_impl_imad(lo, src0, src1, static_cast<T>(0));
+    details::is_dword_type<T0>::value &&details::is_dword_type<T1>::value &&
+        details::is_dword_type<U>::value,
+    vector<T0, SZ> >::type
+cm_imul(vector_ref<T0, SZ> rmd, vector<T1, SZ> src0, U src1) {
+  typedef typename details::computation_type<decltype(src0), U>::type
+  ComputationTy;
+  typename details::vector_type<ComputationTy>::type _Src0 = src0;
+  typename details::vector_type<ComputationTy>::type _Src1 = src1;
+  rmd = _Src0 * _Src1;
+  return details::__cm_intrinsic_impl_imul(_Src0, _Src1);
 }
 
-// cm_imul wrappers
-template <typename T0, typename T>
-CM_NODEBUG CM_INLINE
-    typename std::enable_if<details::is_dword_type<T0>::value &&
-                                details::is_dword_type<T>::value,
-                            vector<T0, 1> >::type
-cm_imul(vector_ref<T, 1> lo, vector<T, 1> src0, vector<T, 1> src1) {
-  T Src0 = src0(0);
-  T Src1 = src1(0);
-  T Lo;
-  T0 Res = cm_imul<T0>(Lo, Src0, Src1);
-  lo(0) = Lo;
-  return Res;
+#else
+// cm_imul bdw+ version: use qw=dw*dw multiply.
+// We need to special case SZ==1 to avoid "error: when select size is 1, the
+// stride must also be 1" on the selects.
+template <typename T0, typename T1, typename U, int SZ>
+CM_NODEBUG CM_INLINE typename std::enable_if<
+    details::is_dword_type<T0>::value &&details::is_dword_type<T1>::value &&
+            details::is_dword_type<U>::value &&SZ == 1,
+    vector<T0, SZ> >::type
+cm_imul(vector_ref<T0, SZ> rmd, vector<T1, SZ> src0, U src1) {
+  typedef typename details::computation_type<decltype(rmd), long long>::type
+  ComputationTy;
+  ComputationTy _Product = cm_mul<long long>(src0, src1);
+  rmd = _Product.format<T0>().select<1, 1>(0);
+  return _Product.format<T0>().select<1, 1>(1);
 }
 
 template <typename T0, typename T1, typename U, int SZ>
-CM_NODEBUG CM_INLINE
-    typename std::enable_if<details::is_dword_type<T0>::value &&
-                                details::is_dword_type<T1>::value &&
-                                details::is_dword_type<U>::value,
-                            vector<T0, SZ> >::type
-cm_imul(vector_ref<T0, SZ> lo, vector<T1, SZ> src0, U src1) {
-  typedef typename details::computation_type<decltype(src0), U>::type
+CM_NODEBUG CM_INLINE typename std::enable_if<
+    details::is_dword_type<T0>::value &&details::is_dword_type<T1>::value &&
+            details::is_dword_type<U>::value &&SZ != 1,
+    vector<T0, SZ> >::type
+cm_imul(vector_ref<T0, SZ> rmd, vector<T1, SZ> src0, U src1) {
+  typedef typename details::computation_type<decltype(rmd), long long>::type
   ComputationTy;
-  typename details::vector_type<ComputationTy>::type Src0 = src0;
-  typename details::vector_type<ComputationTy>::type Src1 = src1;
-  typename details::vector_ref_type<ComputationTy>::type Lo = lo;
-  return cm_imul<T0>(Lo, Src0, Src1);
+  ComputationTy _Product = cm_mul<long long>(src0, src1);
+  rmd = _Product.format<T0>().select<SZ, 2>(0);
+  return _Product.format<T0>().select<SZ, 2>(1);
 }
+#endif
 
+// cm_imul wrappers
 template <typename T0, typename T1, typename U, int N1, int N2>
 CM_NODEBUG CM_INLINE vector<T0, N1 *N2>
 cm_imul(vector_ref<T0, N1 *N2> rmd, matrix<T1, N1, N2> src0, U src1) {

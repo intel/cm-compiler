@@ -65,7 +65,7 @@ enum CMBuiltinKind {
   CMBK_cm_atan2,
   CMBK_cm_atan2_fast,
   CMBK_cm_div_ieee, CMBK_cm_div_ieee_impl,
-  CMBK_cm_imad_impl,
+  CMBK_cm_imul, CMBK_cm_imul_impl,
   CMBK_cm_pack_mask,
   CMBK_cm_unpack_mask,
   CMBK_cm_fbl, CMBK_cm_fbl_impl,
