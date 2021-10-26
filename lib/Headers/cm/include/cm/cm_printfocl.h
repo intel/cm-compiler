@@ -20,16 +20,16 @@ static_assert(0, "CM:w:cm_printfocl.h should not be included explicitly - only "
 // Results into 'OpExtInst printf' instruction in SPIR-V.
 int __spirv_ocl_printf(const char *, ...);
 
-template <typename... Targs> CM_INLINE auto printf(Targs &&... Fargs) {
-  return __spirv_ocl_printf(std::forward<Targs>(Fargs)...);
+template <typename... Targs> CM_INLINE auto printf(Targs... Fargs) {
+  return __spirv_ocl_printf(Fargs...);
 }
 
-template <typename... Targs> CM_INLINE auto cm_printf(Targs &&... Fargs) {
-  return __spirv_ocl_printf(std::forward<Targs>(Fargs)...);
+template <typename... Targs> CM_INLINE auto cm_printf(Targs... Fargs) {
+  return __spirv_ocl_printf(Fargs...);
 }
 
-template <typename... Targs> CM_INLINE auto cmprint(Targs &&... Fargs) {
-  return __spirv_ocl_printf(std::forward<Targs>(Fargs)...);
+template <typename... Targs> CM_INLINE auto cmprint(Targs... Fargs) {
+  return __spirv_ocl_printf(Fargs...);
 }
 
 #else // __CM_USE_OCL_SPEC_PRINTF
