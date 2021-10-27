@@ -42,21 +42,6 @@ StringRef fixupComplexArgument(StringRef Input) {
   return Input;
 }
 
-std::string getFinalizerPlatform(StringRef CPU, StringRef Stepping) {
-  // Unfortunately, the finalizer doesn't support all platforms, so we map
-  // any unsupported platforms to the most appropriate supported one.
-  auto FinalizerPlatform = llvm::StringSwitch<StringRef>(CPU)
-                               .Case("KBL", "SKL")
-                               .Case("GLK", "BXT")
-                               .Case("RKL", "TGLLP")
-                               .Case("XEHP_SDV", "XeHP_SDV")
-                               .Case("", "SKL")
-                               .Default(CPU);
-
-
-  return FinalizerPlatform.str();
-}
-
 bool mayDisableIGA(const std::string &CPU) {
   // IGA may be disabled for targets before ICL.
   // CPU is expected to be a canonical Genx target name.
@@ -116,28 +101,23 @@ ArgStringList constructCompatibilityFinalizerOptions(const ArgList &Args,
     }
   }
 
-  auto CPU = tools::GenX::getGenXTargetCPU(Args, &Drv);
-  std::string Stepping = "";
-  auto Platform = getFinalizerPlatform(CPU, Stepping);
-  CompatibilityArgs.push_back("-platform");
-  CompatibilityArgs.push_back(Args.MakeArgString(Platform));
-
   // For GenX variants below Gen11 we disable IGA by default, by passing the
   // -disableIGASyntax option to the finalizer.
   // IGA syntax may be enabled (or more accurately not disabled) either by
   // the -cm_enableiga option, or by the ENABLE_IGA environment variable
   // having a non-zero value. If IGA is enabled by the environment variable
   // we issue a warning to advise the user of this.
+  auto CPU = tools::GenX::getGenXTargetCPU(Args, &Drv);
   if (!Args.hasArg(options::OPT_menableiga) &&
       !Args.hasArg(options::OPT_mCM_enableiga)) {
 
     auto enableIGA = llvm::sys::Process::GetEnv("ENABLE_IGA");
     if (enableIGA && (std::atol(enableIGA.getValue().c_str()) > 0)) {
-      if (mayDisableIGA(Platform)) {
+      if (mayDisableIGA(CPU)) {
         Drv.Diag(diag::warn_cm_iga_enabled);
       }
     }
-    else if (mayDisableIGA(Platform))
+    else if (mayDisableIGA(CPU))
       CompatibilityArgs.push_back("-disableIGASyntax");
   }
 
