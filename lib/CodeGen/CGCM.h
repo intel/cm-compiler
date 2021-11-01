@@ -503,7 +503,7 @@ private:
   llvm::Value *HandleBuiltinAvgImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
 
   /// \brief Postprocess builtin cm_imul.
-  llvm::Value *HandleBuiltinIMulImpl(CMCallInfo &CallInfo);
+  llvm::Value *HandleBuiltinIMadImpl(CMCallInfo &CallInfo);
 
   /// \brief Postprocess builtin cm_shl.
   llvm::Value *HandleBuiltinShlImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);

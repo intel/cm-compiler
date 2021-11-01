@@ -164,7 +164,6 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
                            .StartsWith("_Z6cm_pow", CMBK_cm_pow)
                            .StartsWith("_Z6cm_sin", CMBK_cm_sin)
                            .StartsWith("_Z6cm_cos", CMBK_cm_cos)
-                           .StartsWith("_Z7cm_imul", CMBK_cm_imul)
                            .StartsWith("_Z7cm_rndd", CMBK_cm_rndd)
                            .StartsWith("_Z7cm_rndu", CMBK_cm_rndu)
                            .StartsWith("_Z7cm_rnde", CMBK_cm_rnde)
@@ -286,7 +285,7 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
               .StartsWith("__cm_intrinsic_impl_pow", CMBK_cm_pow_impl)
               .StartsWith("__cm_intrinsic_impl_sin", CMBK_cm_sin_impl)
               .StartsWith("__cm_intrinsic_impl_cos", CMBK_cm_cos_impl)
-              .StartsWith("__cm_intrinsic_impl_imul", CMBK_cm_imul_impl)
+              .StartsWith("__cm_intrinsic_impl_imad", CMBK_cm_imad_impl)
               .StartsWith("__cm_intrinsic_impl_rndd", CMBK_cm_rndd_impl)
               .StartsWith("__cm_intrinsic_impl_rndu", CMBK_cm_rndu_impl)
               .StartsWith("__cm_intrinsic_impl_rnde", CMBK_cm_rnde_impl)
@@ -1225,8 +1224,8 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_cm_sin_impl:
   case CMBK_cm_cos_impl:
     return RValue::get(HandleBuiltinExtendedMathImpl(getCurCMCallInfo(), Kind));
-  case CMBK_cm_imul_impl:
-    return RValue::get(HandleBuiltinIMulImpl(getCurCMCallInfo()));
+  case CMBK_cm_imad_impl:
+    return RValue::get(HandleBuiltinIMadImpl(getCurCMCallInfo()));
   case CMBK_cm_rndd_impl:
   case CMBK_cm_rndu_impl:
   case CMBK_cm_rnde_impl:
@@ -1980,33 +1979,46 @@ llvm::Value *CGCMRuntime::HandleBuiltinAvgImpl(CMCallInfo &CallInfo,
   return Result;
 }
 
-/// \brief Postprocess builtin cm_imul.
+/// \brief Postprocess builtin cm_imad.
 ///
 /// template <typename T, int SZ>
-/// vector<T, SZ> __cm_intrinsic_impl_imul(vector<T, SZ> src0,
-/// vector<T, SZ> src1);
-llvm::Value *CGCMRuntime::HandleBuiltinIMulImpl(CMCallInfo &CallInfo) {
-
-  QualType T = CallInfo.CE->getType();
-  assert(T->isCMVectorMatrixType());
-  T = T->getCMVectorMatrixElementType();
-
-  // int (int, int);
-  // unsigned (unsigned, unsigned);
-  unsigned ID = T->isUnsignedIntegerType() ? llvm::GenXIntrinsic::genx_umulh
-                                           : llvm::GenXIntrinsic::genx_smulh;
-
+/// vector<T, SZ> __cm_intrinsic_impl_imad(vector_ref<T, SZ> lo,
+/// vector<T, SZ> src0, vector<T, SZ> src1, vector<T, SZ> src2);
+///
+/// template <typename T>
+/// T __cm_intrinsic_impl_imad(T& lo, T src0, T src1, T src2);
+///
+llvm::Value *CGCMRuntime::HandleBuiltinIMadImpl(CMCallInfo &CallInfo) {
+  assert(CallInfo.CE->getNumArgs() == 4 && "builtin must have 4 arguments");
+  QualType QTy = CallInfo.CE->getType();
   llvm::CallInst *CI = CallInfo.CI;
+  llvm::Type *Ty = CI->getType();
+  assert(Ty->isIntOrIntVectorTy(32) && "imad support only 32bit integers");
 
-  llvm::Value *Args[] = {CI->getArgOperand(0), CI->getArgOperand(1)};
-  CGBuilderTy Builder(*CallInfo.CGF, CI);
-  llvm::Type *Tys[] = {CI->getType(), CI->getType()};
-  llvm::Function *F = getGenXIntrinsic(ID, Tys);
-  llvm::CallInst *NewCI = Builder.CreateCall(F, Args, CI->getName());
-  NewCI->setDebugLoc(CI->getDebugLoc());
+  llvm::Value *LoPtr = CI->getArgOperand(0);
+  llvm::Value *Src0 = CI->getArgOperand(1);
+  llvm::Value *Src1 = CI->getArgOperand(2);
+  llvm::Value *Src2 = CI->getArgOperand(3);
+  assert(LoPtr->getType()->isPointerTy());
 
+  CGBuilderTy Builder{*CallInfo.CGF, CI};
+
+  clang::QualType ElType =
+      QTy->isCMVectorMatrixType() ? QTy->getCMVectorMatrixElementType() : QTy;
+  unsigned ID = ElType->isUnsignedIntegerType()
+                    ? llvm::GenXIntrinsic::genx_uimad
+                    : llvm::GenXIntrinsic::genx_simad;
+  llvm::Type *Tys[] = {Src0->getType(), Src0->getType()};
+  llvm::Value *Args[] = {Src0, Src1, Src2};
+  llvm::Function *IMadFunc = getGenXIntrinsic(ID, Tys);
+  llvm::Value *IMad = Builder.CreateCall(IMadFunc, Args, CI->getName());
+
+  llvm::Value *LoValue = Builder.CreateExtractValue(IMad, 1);
+  llvm::Value *HiValue = Builder.CreateExtractValue(IMad, 0);
+
+  Builder.CreateDefaultAlignedStore(LoValue, LoPtr);
   CI->eraseFromParent();
-  return NewCI;
+  return HiValue;
 }
 
 /// \brief Postprocess builtin cm_shl.

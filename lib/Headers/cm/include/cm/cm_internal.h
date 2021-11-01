@@ -59,7 +59,9 @@ template <typename T0, typename T1, int SZ>
 vector<T0, SZ> __cm_intrinsic_impl_ror(vector<T1, SZ> src0, vector<T1, SZ> src1);
 
 template <typename T, int SZ>
-vector<T, SZ> __cm_intrinsic_impl_imul(vector<T, SZ> src0, vector<T, SZ> src1);
+vector<T, SZ> __cm_intrinsic_impl_imad(vector_ref<T, SZ> lo, vector<T, SZ> src0,
+                                       vector<T, SZ> src1, vector<T, SZ> src2);
+template <typename T> T __cm_intrinsic_impl_imad(T &lo, T src0, T src1, T src2);
 
 template <int SZ>
 vector<float, SZ> __cm_intrinsic_impl_dp2(vector<float, SZ> src0,

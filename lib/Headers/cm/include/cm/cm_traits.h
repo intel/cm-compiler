@@ -516,6 +516,31 @@ template <typename T, int N, int M> struct remove_ref<matrix_ref<T, N, M> > {
 };
 template <typename T> using remove_ref_t = typename remove_ref<T>::type;
 
+/// Convert types into vector_ref types
+template <typename T> struct vector_ref_type { typedef vector_ref<T, 1> type; };
+template <typename T, int N> struct vector_ref_type<vector<T, N> > {
+  typedef vector_ref<T, N> type;
+};
+template <typename T, int N> struct vector_ref_type<vector_ref<T, N> > {
+  typedef vector_ref<T, N> type;
+};
+template <typename T, int N, int M> struct vector_ref_type<matrix<T, N, M> > {
+  typedef vector_ref<T, N * M> type;
+};
+template <typename T, int N, int M>
+struct vector_ref_type<matrix_ref<T, N, M> > {
+  typedef vector_ref<T, N * M> type;
+};
+template <typename T> struct vector_ref_type<T &> {
+  typedef typename vector_ref_type<T>::type type;
+};
+template <typename T> struct vector_ref_type<T &&> {
+  typedef typename vector_ref_type<T>::type type;
+};
+template <typename T> struct vector_ref_type<const T> {
+  typedef typename vector_ref_type<T>::type type;
+};
+
 /// Convert types into vector types
 template <typename T> struct vector_type {
   typedef vector<T, 1> type;
