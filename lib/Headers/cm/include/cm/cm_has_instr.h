@@ -93,6 +93,18 @@ namespace CheckVersion {
   #define CM_HAS_DPASW_CONTROL CM_HAS_CONTROL(false)
 #endif
 
+//IEEE
+#if (CM_GENX == 800  || /*BWD*/         \
+     CM_GENX == 900  || /*SKL*/         \
+     CM_GENX == 950  || /*KBL*/         \
+     CM_GENX == 1150 || /*ICLLP*/       \
+     CM_GENX == 1270    /*XeHP_SDV*/    )
+  #define CM_HAS_IEEE_DIV_SQRT 1
+  #define CM_HAS_IEEE_DIV_SQRT_CONTROL CM_HAS_CONTROL(true)
+#else  //IEEE
+  #define CM_HAS_IEEE_DIV_SQRT_CONTROL CM_HAS_CONTROL(false)
+#endif //IEEE
+
 
 #else  // CM_HAS_CONTROL
   CM_STATIC_ERROR(0, "Redeclaration of CM_HAS_CONTROL! It's used for control version of features!");
