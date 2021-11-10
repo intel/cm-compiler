@@ -4516,9 +4516,19 @@ static void handleCMOpenCLTypeAttr(Sema &S, Decl *D,
         S.Diag(D->getLocation(), diag::warn_attribute_wrong_annoation)
             << PVD->getNameAsString() << desc0 << "sampler_t";
     } else if (T->isCMSurfaceIndexType()) {
-      if (!desc0.equals("buffer_t") && !desc0.equals("image2d_t"))
+      const bool IsCorrectAnnotation = llvm::StringSwitch<bool>(desc0)
+        .Case("buffer_t", true)
+        .Case("image1d_t", true)
+        .Case("image1d_array_t", true)
+        .Case("image1d_buffer_t", true)
+        .Case("image2d_t", true)
+        .Case("image2d_array_t", true)
+        .Case("image2d_media_block_t", true)
+        .Case("image3d_t", true)
+        .Default(false);
+      if (!IsCorrectAnnotation)
         S.Diag(D->getLocation(), diag::warn_attribute_wrong_annoation)
-            << PVD->getNameAsString() << desc0 << "buffer_t or image2d_t";
+            << PVD->getNameAsString() << desc0 << "surface-related";
     } else if (T->isPointerType()) {
       if (!desc0.equals("svmptr_t"))
         S.Diag(D->getLocation(), diag::warn_attribute_wrong_annoation)
