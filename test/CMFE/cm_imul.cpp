@@ -43,14 +43,6 @@ _GENX_MAIN_ void test_int_SZ16(vector<int, 16> a, vector<int, 16> b, vector<int,
   // CHECK:   store <16 x i32> [[LO_S16]], <16 x i32>* [[LO_ADDR_S16:%.*]]
 }
 
-_GENX_MAIN_ void test_int_SZ1(vector<int, 1> a, vector<int, 1> b, vector<int, 1> lo, vector<int, 1> hi) {
-  hi = cm_imul<int>(lo, a, b);
-  // CHECK: [[IMAD_S1:%.*]] = call { i32, i32 } @llvm.genx.simad.i32.i32(i32 [[SRC0_S1:%.*]], i32 [[SRC0_S1:%.*]], i32 0)
-  // CHECK: [[LO_S1:%.*]] = extractvalue { i32, i32 } [[IMAD_S1]], 1
-  // CHECK: [[HI_S1:%.*]] = extractvalue { i32, i32 } [[IMAD_S1]], 0
-  // CHECK: store i32 [[LO_S1]], i32* [[LO_ADDR_S1:%.*]]
-}
-
 _GENX_MAIN_ void test_int_scalar(int a, int b, int lo, int hi) {
   hi = cm_imul<int>(lo, a, b);
   // CHECK: [[IMAD_SCALAR:%.*]] = call { i32, i32 } @llvm.genx.simad.i32.i32(i32 [[SRC0_SCALAR:%.*]], i32 [[SRC0_SCALAR:%.*]], i32 0)

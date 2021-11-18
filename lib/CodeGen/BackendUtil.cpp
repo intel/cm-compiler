@@ -377,11 +377,6 @@ static void addSymbolRewriterPass(const CodeGenOptions &Opts,
   MPM->add(createRewriteSymbolsPass(DL));
 }
 
-static void addCMSimdCFLoweringPass(const PassManagerBuilder &Builder,
-                                    legacy::PassManagerBase &PM) {
-  PM.add(createCMSimdCFLoweringPass());
-}
-
 static CodeGenOpt::Level getCGOptLevel(const CodeGenOptions &CodeGenOpts) {
   switch (CodeGenOpts.OptimizationLevel) {
   default:
@@ -583,10 +578,6 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
       !CodeGenOpts.SampleProfileFile.empty())
     PMBuilder.addExtension(PassManagerBuilder::EP_EarlyAsPossible,
                            addAddDiscriminatorsPass);
-
-  if (LangOpts.MdfCM)
-    PMBuilder.addExtension(PassManagerBuilder::EP_EarlyAsPossible,
-                           addCMSimdCFLoweringPass);
 
   // In ObjC ARC mode, add the main ARC optimization passes.
   if (LangOpts.ObjCAutoRefCount) {
@@ -808,6 +799,12 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
   if (TM)
     TheModule->setDataLayout(TM->createDataLayout());
 
+  // TODO: This is a temporary change, these passes will have 
+  // to be taken out in the CMFE library 
+  legacy::PassManager CMFEModulePasses;
+  if (LangOpts.MdfCM)
+    CMFEModulePasses.add(createCMSimdCFLoweringPass());
+
   legacy::PassManager PerModulePasses;
   PerModulePasses.add(
       createTargetTransformInfoWrapperPass(getTargetIRAnalysis()));
@@ -897,6 +894,11 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
 
   // Run passes. For now we do all passes at once, but eventually we
   // would like to have the option of streaming code generation.
+
+  {
+    PrettyStackTraceString CrashInfo("CMFE passes");
+    CMFEModulePasses.run(*TheModule);
+  }
 
   {
     PrettyStackTraceString CrashInfo("Per-function optimization");
