@@ -550,8 +550,7 @@ IntelCMClangFECompile(const Intel::CM::ClangFE::IInputArgs *InArgs) {
   DiagnosticSubsystem DS(*error_stream);
 
   auto CStrCompOpts = wrapper::getCompOpts<const char *>(InArgs);
-  // TODO: consider moving O0 enforcement to AdaptorCM
-  CStrCompOpts.push_back("-O0");
+  CStrCompOpts.push_back("-disable-llvm-passes");
 
   // Facilities to pass extra -cc1 options for debug purposes.
   // Options are expected to be separated by ';'.
