@@ -15,13 +15,22 @@ SPDX-License-Identifier: MIT
 // MODE_O2_NO_OPTNONE-NOT: optnone
 // MODE_O2-SAME: }
 
-// RUN: %cmc -fcmocl -march=skl -emit-llvm -S -o %t.ll -- %s
+// RUN: IGC_CMFE_CC1_EXTRA="-O0" %cmc -fcmocl -march=skl -emit-llvm -S -o %t.ll -- %s
 // RUN: FileCheck --input-file=%t.ll %s --check-prefixes=MODE_O0,MODE_O0_NOINLINE
 // RUN: FileCheck --input-file=%t.ll %s --check-prefixes=MODE_O0,MODE_O0_OPTNONE
 // MODE_O0: subgroup_8{{.*}}#[[SUBGROUP_ATTR:[0-9]+]]
 // MODE_O0: attributes #[[SUBGROUP_ATTR]] = {
 // MODE_O0_NOINLINE-SAME: noinline
 // MODE_O0_OPTNONE-SAME: optnone
+
+// RUN: %cmc -fcmocl -march=skl -emit-llvm -S -o %t.ll -- %s
+// RUN: FileCheck --input-file=%t.ll %s --check-prefixes=MODE_DEFAULT,MODE_DEFAULT_NO_NOINLINE
+// RUN: FileCheck --input-file=%t.ll %s --check-prefixes=MODE_DEFAULT,MODE_DEFAULT_NO_OPTNONE
+// MODE_DEFAULT: subgroup_8{{.*}}#[[SUBGROUP_ATTR:[0-9]+]]
+// MODE_DEFAULT: attributes #[[SUBGROUP_ATTR]] = {
+// MODE_DEFAULT_NO_NOINLINE-NOT: noinline
+// MODE_DEFAULT_NO_OPTNONE-NOT: optnone
+// MODE_DEFAULT-SAME: }
 
 #include <cm/cm.h>
 
