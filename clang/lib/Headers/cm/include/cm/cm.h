@@ -34,7 +34,8 @@ namespace details {
 template <typename T0, typename T1, int SZ>
 CM_NODEBUG CM_INLINE vector<T0, SZ>
 __cm_abs_common_internal(vector<T1, SZ> src0, int flag = _GENX_NOSAT) {
-  vector<T1, SZ> _Result = __cm_intrinsic_impl_abs(src0);
+  vector<T1, SZ> _Result =
+      std::is_unsigned<T1>::value ? src0 : __cm_intrinsic_impl_abs(src0);
   if (flag != _GENX_SAT)
     return _Result;
 
