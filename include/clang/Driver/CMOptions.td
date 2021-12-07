@@ -238,6 +238,13 @@ def dump_stats_cwd : Flag<["-"], "dump-stats">, Group<cm_Group>,
   HelpText<"Alias for -dump-stats=cwd">, Alias<dump_stats>, AliasArgs<["cwd"]>,
   Flags<[CMOption, CC1Option, CC1AsOption]>;
 
+def Qxcm_doubleGRF : CMIgnoredFlag<"Qxcm_doubleGRF">,
+  HelpText<"increase total GRF number to 256">;
+
+def Qxcm_stepping: CMJoined<"Qxcm_stepping">,
+  HelpText<"Generate code taking platform stepping into account. "
+           "Valid only for some platforms">;
+
 def Qxcm_revid: CMCC1Joined<"Qxcm_revid=">,
   HelpText<"Pass specified revision ID to libocloc "
            "Valid only for some platforms">;

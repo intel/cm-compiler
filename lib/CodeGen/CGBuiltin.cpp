@@ -2295,6 +2295,8 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BIcm_scoreboard_deltas:
   case Builtin::BIcm_scoreboard_depcnt:
   case Builtin::BIcm_sbarrier:
+  case Builtin::BIcm_nbarrier_init:
+  case Builtin::BIcm_nbarrier_wait:
   case Builtin::BIcm_yield :
   case Builtin::BIcm_print_buffer :
   case Builtin::BIcm_print_format_index:

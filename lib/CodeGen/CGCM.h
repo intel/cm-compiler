@@ -634,12 +634,31 @@ private:
 
   /// \brief Postprocess cm_bfn implementation builtin
   llvm::Value *HandleBuiltinBFNImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+
+  /// \brief Postprocess cm_srnd implementation builtin
+  llvm::Value *HandleBuiltinSRNDImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
   /// \brief Postprocess dpas implementation builtin.
   llvm::Value *HandleBuiltinDPASImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
   /// \brief Postprocess dpas2 implementation builtin.
   llvm::Value *HandleBuiltinDPAS2Impl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
   /// \brief Postprocess builtin cm_bf_cvt.
   llvm::Value *HandleBuiltinBFCVTImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+  /// \brief Postprocess builtin cm_qf_cvt.
+  llvm::Value *HandleBuiltinQFCVTImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+  /// \brief Postprocess builtin cm_tf32_cvt.
+  llvm::Value *HandleBuiltinTF32CVTImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+  /// \brief Postprocess block 2d builtins load/store/prefetch.
+  llvm::Value *HandleBuiltinLSC2dImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+
+  /// \brief Postprocess wave 2.5 load/store
+  llvm::Value *HandleBuiltinLSCWaveImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+
+  /// \brief Postprocess BTI-based load/store/prefetch
+  llvm::Value *HandleBuiltinLSCImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+
+  /// \brief Postprocess cm_lsc_fence implementation builtins.
+  llvm::Value *HandleBuiltinLscFenceImpl(CMCallInfo &CallInfo,
+                                         CMBuiltinKind Kind);
 
   /// \brief Emit 1D/2D select expression.
   LValue EmitSelect(CodeGenFunction &CGF, const CMSelectExpr *E, LValue Base);
@@ -712,6 +731,8 @@ private:
   /// Emit cm_slm_free builtin call.
   llvm::Value *EmitBuiltinSLMFree(CodeGenFunction &CGF, const CallExpr *E);
 
+  /// Emit cm_nbarrier_init builtin call.
+  void EmitBuiltinNBarrierInit(CodeGenFunction &CGF, const CallExpr *E);
 
   /// \brief Emit one of scatter_scaled, scatter4_scaled.
   llvm::CallInst *EmitScatterScaled(CodeGenFunction &CGF, unsigned IntrinsicID,

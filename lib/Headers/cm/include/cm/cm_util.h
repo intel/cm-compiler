@@ -119,7 +119,8 @@ write_region(vector_ref<T, size> vec, vector<T, width> insertion, int offset) {
 }
 
 static inline constexpr unsigned getMaxNumOfOWordSLM() {
-#if defined(CM_GEN12)
+#if defined(CM_GEN12) || defined(CM_GEN12_2) || defined(CM_XEHP) || defined(CM_XEHPC) \
+ || defined(CM_XEHPG)
   return 16;
 #else
   return 8;
@@ -132,6 +133,251 @@ constexpr bool always_false() {
   return false;
 }
 
+template <VectorSize VS> constexpr unsigned lsc_vector_size() {
+  constexpr unsigned NElts[] = {0, 1, 2, 3, 4, 8, 16, 32, 64};
+  return NElts[static_cast<unsigned>(VS)];
+}
+
+template <unsigned N> constexpr VectorSize lsc_vector_size() {
+  switch (N) {
+  case 1:
+    return VectorSize::N1;
+  case 2:
+    return VectorSize::N2;
+  case 3:
+    return VectorSize::N3;
+  case 4:
+    return VectorSize::N4;
+  case 8:
+    return VectorSize::N8;
+  case 16:
+    return VectorSize::N16;
+  case 32:
+    return VectorSize::N32;
+  case 64:
+    return VectorSize::N64;
+  default:
+    break;
+  }
+  return VectorSize::N0;
+}
+
+template <typename T, DataSize DS> constexpr DataSize lsc_data_size() {
+  if constexpr (DS != DataSize::Default)
+    return DS;
+  else if constexpr (sizeof(T) == 1)
+    return DataSize::U8;
+  else if constexpr (sizeof(T) == 2)
+    return DataSize::U16;
+  else if constexpr (sizeof(T) == 4)
+    return DataSize::U32;
+  else if constexpr (sizeof(T) == 8)
+    return DataSize::U64;
+  else if constexpr (DS == DataSize::Default)
+    static_assert(DS != DataSize::Default && "unsupported data type");
+  return DS;
+}
+
+template <typename T, int N, VectorSize VS> auto lsc_data_type_ext() {
+  constexpr unsigned NumElts = lsc_vector_size<VS>() * N;
+  static_assert(NumElts > 0 && "unexpected number of elements");
+  if constexpr (sizeof(T) < 4)
+    return vector<uint32_t, NumElts>();
+  else
+    return vector<T, NumElts>();
+}
+
+template <typename T, int N, VectorSize VS> auto lsc_data_type() {
+  constexpr unsigned NumElts = lsc_vector_size<VS>() * N;
+  static_assert(NumElts > 0 && "unexpected number of elements");
+  return vector<T, NumElts>();
+}
+// U8 and U16 types  are not supported
+// use U8U32 and U16U32 instead
+constexpr DataSize lsc_expand_ds(DataSize ds) {
+  if (ds == DataSize::U8)
+    return DataSize::U8U32;
+  if (ds == DataSize::U16)
+    return DataSize::U16U32;
+  return ds;
+}
+
+template <typename T> struct lsc_expand_type {
+  typedef typename std::conditional<sizeof(T) < 4, uint32_t, T>::type type;
+};
+
+// fp has to be bitcsted to uint before zextention
+template <typename T> struct lsc_bitcast_type {
+private:
+  typedef typename std::conditional<sizeof(T) == 2, uint16_t, T>::type _type1;
+  typedef typename std::conditional<sizeof(T) == 1, uint8_t, T>::type _type2;
+
+public:
+  typedef
+      typename std::conditional<sizeof(_type2) == 1, _type2, _type1>::type type;
+};
+// format U8U32 and U16U32 back to U8 and U16
+template <typename T, typename From, typename To> To lsc_format_ret(From from) {
+  auto _Formatted = from.format<T>();
+  constexpr int stride = _Formatted.n_elems() / from.n_elems();
+  To _Res = _Formatted.select<from.n_elems(), stride>(0);
+  return _Res;
+};
+
+template <AtomicOp Op> constexpr int lsc_atomic_nsrcs() {
+  switch (Op) {
+  case AtomicOp::IINC:
+  case AtomicOp::IDEC:
+  case AtomicOp::LOAD:
+    return 0;
+  case AtomicOp::STORE:
+  case AtomicOp::IADD:
+  case AtomicOp::ISUB:
+  case AtomicOp::SMIN:
+  case AtomicOp::SMAX:
+  case AtomicOp::UMIN:
+  case AtomicOp::UMAX:
+  case AtomicOp::FSUB:
+  case AtomicOp::FMIN:
+  case AtomicOp::FMAX:
+  case AtomicOp::FADD:
+  case AtomicOp::AND:
+  case AtomicOp::OR:
+  case AtomicOp::XOR:
+    return 1;
+  case AtomicOp::ICAS:
+  case AtomicOp::FCAS:
+    return 2;
+  default:
+    break;
+  }
+  return 0;
+}
+
+// Compute the data size for 2d block load or store.
+template <typename T, int NBlocks, int Height, int Width, bool Transposed,
+          bool Transformed>
+constexpr int getBlock2dDataSize() {
+  if (Transformed)
+    return roundUpNextMultiple(Height, 4 / sizeof(T)) * getNextPowerOf2(Width) *
+           NBlocks;
+  return Width * Height * NBlocks;
+}
+
+constexpr int getRoundedWidthFor2dTypedLSC(int Width) {
+  return Width < 4 ? 4 : details::getNextPowerOf2(Width);
+}
+
+// Return the default SIMT width.
+template <typename T = void> constexpr int lsc_default_simt() {
+#if CM_GENX >= 1280
+  return 32; // SIMD32: PVC and later
+#else // CM_GENX < 1280
+  return 16; // SIMD16: DG2
+#endif // CM_GENX >= 1280
+}
+
+// Check for valid SIMT width.
+template <int N>
+constexpr bool lsc_check_simt() {
+#if CM_GENX >= 1280
+  return ((N == 32) || (N == 16)); // SIMD32: PVC
+#else // CM_GENX < 1280
+  return ((N == 16) || (N == 8)); // SIMD16: DG2
+#endif // CM_GENX >= 1280
+}
+
+template <CacheHint mHint> class CacheHintWrap {
+  template <CacheHint...> class is_one_of_t;
+  template <CacheHint Last>
+  struct is_one_of_t<Last>
+      : std::conditional<Last == mHint, std::true_type, std::false_type>::type {
+  };
+  template <CacheHint Head, CacheHint... Tail>
+  struct is_one_of_t<Head, Tail...>
+      : std::conditional<Head == mHint, std::true_type,
+                         is_one_of_t<Tail...>>::type {};
+
+public:
+  constexpr operator CacheHint() const { return mHint; }
+  template <CacheHint... Hints> constexpr bool is_one_of() const {
+    return is_one_of_t<Hints...>::value;
+  }
+};
+
+constexpr bool are_both(CacheHint First, CacheHint Second, CacheHint Val) {
+  return First == Val && Second == Val;
+}
+
+enum class LSCAction {
+  Prefetch,
+  Load,
+  Store,
+  Atomic
+};
+
+template <LSCAction Act, CacheHint L1, CacheHint L3>
+constexpr bool lsc_check_cache_hint() {
+  constexpr auto L1H = CacheHintWrap<L1>{};
+  constexpr auto L3H = CacheHintWrap<L3>{};
+  switch (Act) {
+  case LSCAction::Prefetch:
+    return L1H.is_one_of<CacheHint::Cached, CacheHint::Uncached, CacheHint::Streaming>() &&
+           L3H.is_one_of<CacheHint::Cached, CacheHint::Uncached>() &&
+           !are_both(L1H, L3H, CacheHint::Uncached);
+  case LSCAction::Load:
+    return are_both(L1H, L3H, CacheHint::Default) ||
+           (L1H.is_one_of<CacheHint::Uncached, CacheHint::Cached,
+                          CacheHint::Streaming>() &&
+            L3H.is_one_of<CacheHint::Uncached, CacheHint::Cached>()) ||
+           (L1H == CacheHint::ReadInvalidate && L3H == CacheHint::Cached);
+  case LSCAction::Store:
+    return are_both(L1H, L3H, CacheHint::Default) ||
+           are_both(L1H, L3H, CacheHint::WriteBack) ||
+           (L1H.is_one_of<CacheHint::Uncached, CacheHint::WriteThrough,
+                          CacheHint::Streaming>() &&
+            L3H.is_one_of<CacheHint::Uncached, CacheHint::WriteBack>());
+
+  case LSCAction::Atomic:
+    return are_both(L1H, L3H, CacheHint::Default) ||
+           (L1H == CacheHint::Uncached &&
+            L3H.is_one_of<CacheHint::Uncached, CacheHint::WriteBack>());
+  }
+}
+
+template <ChannelMaskType Mask>
+constexpr VectorSize lsc_get_vector_size_from_channel_mask() {
+  switch (Mask) {
+  case ChannelMaskType::_CM_R_ENABLE:
+  case ChannelMaskType::_CM_G_ENABLE:
+  case ChannelMaskType::_CM_B_ENABLE:
+  case ChannelMaskType::_CM_A_ENABLE:
+    return VectorSize::N1;
+  case ChannelMaskType::_CM_GR_ENABLE:
+  case ChannelMaskType::_CM_BR_ENABLE:
+  case ChannelMaskType::_CM_BG_ENABLE:
+  case ChannelMaskType::_CM_AR_ENABLE:
+  case ChannelMaskType::_CM_AG_ENABLE:
+  case ChannelMaskType::_CM_AB_ENABLE:
+    return VectorSize::N2;
+  case ChannelMaskType::_CM_BGR_ENABLE:
+  case ChannelMaskType::_CM_AGR_ENABLE:
+  case ChannelMaskType::_CM_ABR_ENABLE:
+  case ChannelMaskType::_CM_ABG_ENABLE:
+    return VectorSize::N3;
+  case ChannelMaskType::_CM_ABGR_ENABLE:
+    return VectorSize::N4;
+  default:
+    break;
+  }
+  return VectorSize::N0;
+}
+
+template <ChannelMaskType Mask>
+constexpr unsigned lsc_get_num_elements_from_channel_mask() {
+  constexpr auto _VS = lsc_get_vector_size_from_channel_mask<Mask>();
+  return lsc_vector_size<_VS>();
+}
 
 } // namespace details
 

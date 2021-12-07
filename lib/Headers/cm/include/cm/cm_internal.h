@@ -416,9 +416,222 @@ vector<T, N> __cm_intrinsic_impl_dpasw_nosrc0(int dummy,
                                               vector<T2, N2> src2);
 
 
+template <typename T0, int N, typename T1>
+vector<T0, N> __cm_intrinsic_impl_srnd(vector<T1, N> src1, vector<T1, N> src2);
+
+// ----------------------------------------------------------------------------
+//
+// Conversions to special types (BF, etc)
+//
+// ----------------------------------------------------------------------------
 template <typename T, typename T0, int N>
 vector<T, N> __cm_intrinsic_impl_bf_cvt(vector<T0, N> src0);
 
+
+template <typename T, typename T0, int N>
+vector<T, N> __cm_intrinsic_impl_tf32_cvt(vector<T0, N> src0);
+
+// ----------------------------------------------------------------------------
+//
+// LSC intrinsics
+//
+// ----------------------------------------------------------------------------
+
+template <DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H,
+          CacheHint L3H, int N>
+void __cm_intrinsic_impl_prefetch_bti(SurfaceIndex Idx, vector<uint, N> Offset,
+                                      vector<ushort, N> Pred);
+
+template <DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H, CacheHint L3H, int N>
+void __cm_intrinsic_impl_prefetch_flat(uint64_t Addr, vector<uint, N> Offset,
+                                       vector<ushort, N> Pred);
+
+template <DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H, CacheHint L3H, int N>
+void __cm_intrinsic_impl_prefetch_bindless(uint64_t Addr, vector<uint, N> Offset,
+                                           vector<ushort, N> Pred);
+
+template <DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H,
+          CacheHint L3H>
+void __cm_intrinsic_impl_block_prefetch_bti(SurfaceIndex Idx, unsigned Offset);
+
+template <DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H,
+          CacheHint L3H>
+void __cm_intrinsic_impl_block_prefetch_flat(uint64_t Addr, unsigned Offset);
+
+template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
+          CacheHint L1H, CacheHint L3H, bool Transposed, int N>
+RetTy __cm_intrinsic_impl_load_bti(SurfaceIndex Idx, vector<uint, N> Offset,
+                                   vector<ushort, N> Pred);
+
+template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
+          CacheHint L1H, CacheHint L3H, bool Transposed, int N>
+RetTy __cm_intrinsic_impl_load_flat(uint64_t Addr, vector<uint, N> Offset,
+                                   vector<ushort, N> Pred);
+
+template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
+          CacheHint L1H, CacheHint L3H, bool Transposed, int N>
+RetTy __cm_intrinsic_impl_load_bindless(uint64_t Addr, vector<uint, N> Offset,
+                                   vector<ushort, N> Pred);
+
+template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
+          CacheHint L1H, CacheHint L3H, bool Transposed, int N>
+RetTy __cm_intrinsic_impl_load4_bti(SurfaceIndex Idx, vector<uint, N> Offset,
+                                    vector<ushort, N> Pred,
+                                    ChannelMaskType mask);
+
+template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
+          CacheHint L1H, CacheHint L3H, bool Transposed, int N>
+RetTy __cm_intrinsic_impl_load4_flat(uint64_t Addr, vector<uint, N> Offset,
+                                     vector<ushort, N> Pred,
+                                     ChannelMaskType mask);
+
+template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
+          CacheHint L1H, CacheHint L3H, bool Transposed, int N>
+RetTy __cm_intrinsic_impl_load4_bindless(uint64_t Addr, vector<uint, N> Offset,
+                                         vector<ushort, N> Pred,
+                                         ChannelMaskType mask);
+
+template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
+          CacheHint L1H, CacheHint L3H, bool Transposed>
+RetTy __cm_intrinsic_impl_block_load_bti(SurfaceIndex Idx, unsigned Offset);
+
+template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
+          CacheHint L1H, CacheHint L3H, bool Transposed>
+RetTy __cm_intrinsic_impl_block_load_flat(uint64_t Addr, unsigned Offset);
+
+template <typename T, DataSize DS, VectorSize VS, int ImmOffset,
+          CacheHint L1H, CacheHint L3H, bool Transposed, int N>
+void __cm_intrinsic_impl_store_bti(
+    SurfaceIndex Idx, vector<uint, N> Offset,
+    vector<T, N * details::lsc_vector_size<VS>()> Data, vector<ushort, N> Pred);
+
+template <typename T, DataSize DS, VectorSize VS, int ImmOffset,
+          CacheHint L1H, CacheHint L3H, bool Transposed, int N>
+void __cm_intrinsic_impl_store_flat(
+    uint64_t Addr, vector<uint, N> Offset,
+    vector<T, N * details::lsc_vector_size<VS>()> Data, vector<ushort, N> Pred);
+
+template <typename T, DataSize DS, VectorSize VS, int ImmOffset,
+          CacheHint L1H, CacheHint L3H, bool Transposed, int N>
+void __cm_intrinsic_impl_store_bindless(
+    uint64_t Addr, vector<uint, N> Offset,
+    vector<T, N * details::lsc_vector_size<VS>()> Data, vector<ushort, N> Pred);
+
+template <typename T, DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H,
+          CacheHint L3H, bool Transposed, int N>
+void __cm_intrinsic_impl_store4_bti(
+    SurfaceIndex Idx, vector<uint, N> Offset,
+    vector<T, N * details::lsc_vector_size<VS>()> Data, vector<ushort, N> Pred,
+    ChannelMaskType mask);
+
+template <typename T, DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H,
+          CacheHint L3H, bool Transposed, int N>
+void __cm_intrinsic_impl_store4_flat(
+    uint64_t Addr, vector<uint, N> Offset,
+    vector<T, N * details::lsc_vector_size<VS>()> Data, vector<ushort, N> Pred,
+    ChannelMaskType mask);
+
+template <typename T, DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H,
+          CacheHint L3H, bool Transposed, int N>
+void __cm_intrinsic_impl_store4_bindless(
+    uint64_t Addr, vector<uint, N> Offset,
+    vector<T, N * details::lsc_vector_size<VS>()> Data, vector<ushort, N> Pred,
+    ChannelMaskType mask);
+
+template <typename T, DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H,
+          CacheHint L3H, bool Transposed>
+void __cm_intrinsic_impl_block_store_bti(
+    SurfaceIndex Idx, unsigned Offset,
+    vector<T, details::lsc_vector_size<VS>()> Data);
+
+template <typename T, DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H,
+          CacheHint L3H, bool Transposed>
+void __cm_intrinsic_impl_block_store_flat(
+    uint64_t Addr, unsigned Offset,
+    vector<T, details::lsc_vector_size<VS>()> Data);
+
+template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
+          bool Transposed, int N>
+RetTy __cm_intrinsic_impl_load_slm(vector<unsigned, N> Offset,
+                                   vector<ushort, N> Pred);
+
+template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
+          bool Transposed, int N>
+RetTy __cm_intrinsic_impl_load4_slm(vector<unsigned, N> Offset,
+                                    vector<ushort, N> Pred,
+                                    ChannelMaskType mask);
+
+template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
+          bool Transposed>
+RetTy __cm_intrinsic_impl_block_load_slm(unsigned Offset);
+
+template <typename T, DataSize DS, VectorSize VS, int ImmOffset,
+          bool Transposed, int N>
+void __cm_intrinsic_impl_store_slm(
+    vector<unsigned, N> Offset,
+    vector<T, N * details::lsc_vector_size<VS>()> Data,
+    vector<ushort, N> Pred);
+
+template <typename T, DataSize DS, VectorSize VS, int ImmOffset,
+          bool Transposed, int N>
+void __cm_intrinsic_impl_store4_slm(
+    vector<unsigned, N> Offset,
+    vector<T, N * details::lsc_vector_size<VS>()> Data, vector<ushort, N> Pred,
+    ChannelMaskType mask);
+
+template <typename T, DataSize DS, VectorSize VS, int ImmOffset,
+          bool Transposed>
+void __cm_intrinsic_impl_block_store_slm(
+    unsigned Offset, vector<T, details::lsc_vector_size<VS>()> Data);
+
+template <typename T, int NBlocks, int Width, int Height, bool Transposed,
+          bool Transformed, CacheHint L1H, CacheHint L3H, int N>
+vector<T, N> __cm_intrinsic_impl_block_load2d_flat(uintptr_t BaseAddr,
+    unsigned SurfaceWidth, unsigned SurfaceHeight, unsigned SurfacePitch,
+    int X, int Y);
+
+template <typename T, int NBlocks, int Width, int Height, CacheHint L1H,
+          CacheHint L3H, int N>
+void __cm_intrinsic_impl_block_store2d_flat(uintptr_t BaseAddr,
+    unsigned SurfaceWidth, unsigned SurfaceHeight, unsigned SurfacePitch,
+    int X, int Y, vector<T, N> Data);
+
+template <typename T, int NBlocks, int Width, int Height, CacheHint L1H,
+          CacheHint L3H>
+void __cm_intrinsic_impl_block_prefetch2d_flat(uintptr_t BaseAddr,
+    unsigned SurfaceWidth, unsigned SurfaceHeight, unsigned SurfacePitch,
+    int X, int Y);
+
+
+template <AtomicOp Op, DataSize DS, VectorSize VS, bool Transposed,
+          CacheHint L1H, CacheHint L3H, typename RetTy, int N, typename... Args>
+RetTy __cm_intrinsic_impl_lsc_atomic_bti(vector<ushort, N> Pred,
+                                         SurfaceIndex Idx,
+                                         vector<unsigned, N> Offset,
+                                         Args... args);
+
+template <AtomicOp Op, DataSize DS, VectorSize VS, bool Transposed,
+          CacheHint L1H, CacheHint L3H, typename RetTy, int N, typename... Args>
+RetTy __cm_intrinsic_impl_lsc_atomic_flat(vector<ushort, N> Pred,
+                                          uint64_t Addr,
+                                          vector<unsigned, N> Offset,
+                                          Args... args);
+
+template <AtomicOp Op, DataSize DS, VectorSize VS, bool Transposed,
+          CacheHint L1H, CacheHint L3H, typename RetTy, int N, typename... Args>
+RetTy __cm_intrinsic_impl_lsc_atomic_bindless(vector<ushort, N> Pred,
+                                          uint64_t Addr,
+                                          vector<unsigned, N> Offset,
+                                          Args... args);
+
+template <AtomicOp Op, DataSize DS, VectorSize VS, bool Transposed,
+          CacheHint L1H, CacheHint L3H, typename RetTy, int N, typename... Args>
+RetTy __cm_intrinsic_impl_lsc_atomic_slm(vector<ushort, N> Pred,
+                                         vector<unsigned, N> Offset,
+                                         Args... args);
+
+template <LSC_SFID Sfid, LSC_FENCE_OP FenceOp, LSC_SCOPE Scope, int N>
+void __cm_intrinsic_impl_lsc_fence(vector<ushort, N> Pred);
 
 template <typename T, int n> struct simd_type {
   static constexpr int length = n;

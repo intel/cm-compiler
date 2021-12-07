@@ -86,6 +86,10 @@ ArgStringList constructCompatibilityFinalizerOptions(const ArgList &Args,
       CompatibilityArgs.push_back(LabelName.data());
     }
   }
+  if (Args.hasArg(options::OPT_Qxcm_doubleGRF)) {
+    CompatibilityArgs.push_back("-TotalGRFNum");
+    CompatibilityArgs.push_back("256");
+  }
 
   // Add any finalizer options specified using -mCM_jit_option.
   // Options may be single options or multiple options within quotes.

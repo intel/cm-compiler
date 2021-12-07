@@ -145,6 +145,22 @@ CM_INLINE void monitor_no_event(void) {
 /// timer_value passed in as the timeout. Only the bottom 10 bits are valid.
 /// Only one event may be monitored/waited on at a time
 ///
+#define CM_WAIT_EVENT (defined(CM_XEHPG) || defined(CM_XEHPC))
+
+#ifdef CM_WAIT_EVENT
+CM_INLINE void wait_event(unsigned short timer_value) {
+  matrix<ushort, 1, 16> payload = 0;
+  unsigned msgLength = 1;
+  unsigned rspLength = 0;
+  uint msgDesc = (SUBID_GW_WAIT_EVENT & 0x7ffff) + (1 << 19) +
+                 ((rspLength & 0x1f) << 20) + ((msgLength & 0xf) << 25);
+
+  payload.format<unsigned short>()[0] = timer_value;
+
+  cm_send(NULL, payload, SFID_GATEWAY, msgDesc, 0u /* sendc */);
+  cm_sbarrier(0);
+}
+#else
 CM_INLINE unsigned int wait_event(unsigned short timer_value) {
   matrix<ushort, 1, 16> payload = 0;
   matrix<ushort, 1, 16> response = 0;
@@ -162,6 +178,7 @@ CM_INLINE unsigned int wait_event(unsigned short timer_value) {
 
   return lock;
 }
+#endif
 
 /// \brief Wrapper function for cm_wait builtin
 ///
@@ -252,5 +269,36 @@ CM_INLINE void cm_signal() {
 }
 #endif
 
+template <typename T>
+CM_NODEBUG CM_INLINE
+typename std::enable_if<details::is_dword_type<T>::value,
+  void>::type
+cm_nbarrier_signal(
+  T barrierId,
+  T producerConsumerMode,
+  T numProducers,
+  T numConsumers)
+{
+  constexpr unsigned gateway = 3;
+  constexpr unsigned barrier = 4;
+
+  constexpr unsigned descriptor =
+    1 << 25 |  // Message length: 1 register
+    0 << 12 |  // Fence Data Ports: No fence
+    barrier;   // Barrier subfunction
+
+  vector<unsigned, 8> payload = 0;
+#ifndef CMRT_EMU
+  payload = cm_get_r0<unsigned>();
+#endif // CMRT_EMU
+
+  payload(2) =
+    (numConsumers & 0xff) << 24 |
+    (numProducers & 0xff) << 16 |
+    producerConsumerMode << 14 |
+    (barrierId & 0b11111) << 0;
+
+  cm_send(NULL, payload, gateway, descriptor, /* sendc = */ 0);
+}
 
 #endif /* _CLANG_CM_GATEWAY_H */

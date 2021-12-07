@@ -17,6 +17,9 @@ SPDX-License-Identifier: MIT
 #include "cm_dataport.h"
 #include "cm_has_instr.h"
 #include "cm_bfn.h"
+#include "cm_cvt.h"
+#include "cm_lsc.h"
+#include "cm_srnd.h"
 #include "cm_internal.h"
 #include "cm_sampler.h"
 #include "cm_traits.h"
@@ -442,6 +445,8 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
     vector<T0, SZ> >::type
 cm_rol(vector<T1, SZ> src0, vector<T1, SZ> src1) {
   CM_HAS_BIT_ROTATE_CONTROL;
+  if constexpr (sizeof(T0) == sizeof(long long) || sizeof(T1) == sizeof(long long))
+    CM_HAS_BIT_ROTATE_64BIT_CONTROL;
   return details::__cm_intrinsic_impl_rol<T0, T1, SZ>(src0, src1);
 }
 
@@ -456,6 +461,8 @@ cm_rol(vector<T1, SZ> src0, U src1) {
   typename details::vector_type<ComputationTy>::type _Src0 = src0;
   typename details::vector_type<ComputationTy>::type _Src1 = src1;
   CM_HAS_BIT_ROTATE_CONTROL;
+  if constexpr (sizeof(T0) == sizeof(long long) || sizeof(T1) == sizeof(long long))
+    CM_HAS_BIT_ROTATE_64BIT_CONTROL;
   return details::__cm_intrinsic_impl_rol<T0>(_Src0, _Src1);
 }
 
@@ -490,6 +497,8 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
     vector<T0, SZ> >::type
 cm_ror(vector<T1, SZ> src0, vector<T1, SZ> src1) {
   CM_HAS_BIT_ROTATE_CONTROL;
+  if constexpr (sizeof(T0) == sizeof(long long) || sizeof(T1) == sizeof(long long))
+    CM_HAS_BIT_ROTATE_64BIT_CONTROL;
   return details::__cm_intrinsic_impl_ror<T0, T1, SZ>(src0, src1);
 }
 
@@ -504,6 +513,8 @@ cm_ror(vector<T1, SZ> src0, U src1) {
   typename details::vector_type<ComputationTy>::type _Src0 = src0;
   typename details::vector_type<ComputationTy>::type _Src1 = src1;
   CM_HAS_BIT_ROTATE_CONTROL;
+  if constexpr (sizeof(T0) == sizeof(long long) || sizeof(T1) == sizeof(long long))
+    CM_HAS_BIT_ROTATE_64BIT_CONTROL;
   return details::__cm_intrinsic_impl_ror<T0>(_Src0, _Src1);
 }
 
@@ -2134,11 +2145,18 @@ CM_NODEBUG CM_INLINE void cm_dpas_check_common() {
   CM_STATIC_ERROR(details::is_dword_type<T2>::value,
     "Src2 must be DWORD type");
 
-  CM_STATIC_ERROR((systolic_depth == 8), "systolic_depth must be 8");
+  CM_STATIC_ERROR((systolic_depth == 8) || (systolic_depth == 4),
+    "systolic_depth must be 8 or 4");
 
   CM_STATIC_ERROR((repeat_count >= 1) && (repeat_count <= 8),
                   "repeat_count must be within 1 to 8");
+#if !defined(CM_GENX)
+  CM_STATIC_WARNING(0, "GEN not specified so cm_dpas() code may not be optimal");
   constexpr int DPAS_EXECUTION_SIZE = 8;
+#else // !defined(CM_GENX)
+  constexpr int DPAS_EXECUTION_SIZE = (CM_GENX >= 1280) ? 16 : 8;
+#endif // !defined(CM_GENX)
+
   CM_STATIC_ERROR((N == DPAS_EXECUTION_SIZE * repeat_count),
                   "Unsupported execution size in dpas");
 
@@ -2207,7 +2225,26 @@ CM_NODEBUG CM_INLINE void cm_dpas_check_types() {
       details::is_one_of_enum_v<CmPrecisionType, src2_precision,
                                 CmPrecisionType::CM_Precision_BF16>;
 
-  constexpr bool is_right = (check_int || check_hf || check_bf16);
+  //////////////////////////////////////////////////////////////////////////////
+  // TF32 //////////////////////////////////////////////////////////////////////
+#ifdef CM_HAS_TF32
+  // f | f | tf32 | tf32
+  constexpr bool check_tf32 = 
+      details::is_one_of_v<T0, float> && details::is_one_of_v<T, float> &&
+      details::is_one_of_enum_v<CmPrecisionType, src1_precision,
+                                CmPrecisionType::CM_Precision_TF32> &&
+      details::is_one_of_enum_v<CmPrecisionType, src2_precision,
+                                CmPrecisionType::CM_Precision_TF32>;
+#else  // CM_HAS_TF32
+  constexpr bool check_tf32 = false;
+#endif // CM_HAS_TF32
+  if constexpr (check_hf && (std::is_same<T0, half>::value || std::is_same<T, half>::value))
+    CM_HAS_DPAS_ACC_HALF_CONTROL;
+  if constexpr (check_bf16 && (std::is_same<T0, short>::value || std::is_same<T, short>::value))
+    CM_HAS_DPAS_ACC_BF16_CONTROL;
+
+  constexpr bool is_right = (check_int || check_hf || check_bf16 || check_tf32);
+
 
   if (!is_right) {
     CM_STATIC_WARNING(is_right, "types: dst | src0 | src1(from template "
@@ -2215,6 +2252,9 @@ CM_NODEBUG CM_INLINE void cm_dpas_check_types() {
     CM_STATIC_WARNING(is_right, "ud, d | ud, d | ub, b, u4, s4, u2, s2 | ub, b, u4, s4, u2, s2");
     CM_STATIC_WARNING(is_right, "f, bf | f, bf | bf | bf");
     CM_STATIC_WARNING(is_right, "f, hf | f, hf | hf | hf");
+#if defined(CM_HAS_TF32)
+      CM_STATIC_WARNING(is_right, "f | f | tf32 | tf32");
+#endif // defined(CM_HAS_TF32)
 
     CM_STATIC_ERROR(is_right, "unsupported dpas type");
   }
@@ -2317,7 +2357,8 @@ cm_dpasw(vector<T, N> src0,
 
   CM_STATIC_ERROR((N == 8 * repeat_count), "Execution size must be 8");
 
-  CM_STATIC_ERROR((systolic_depth == 8), "systolic_depth must be 8");
+  CM_STATIC_ERROR((systolic_depth == 8) || (systolic_depth == 4),
+    "systolic_depth must be 8 or 4");
 
   CM_STATIC_ERROR((repeat_count >= 1) && (repeat_count <= 8),
     "repeat_count must be within 1 to 8");
@@ -2371,7 +2412,8 @@ template <CmPrecisionType src1_precision,
 
   CM_STATIC_ERROR(N == 8 * repeat_count,
     "Execution size must be 8");
-  CM_STATIC_ERROR((systolic_depth == 8), "systolic_depth must be 8");
+  CM_STATIC_ERROR((systolic_depth == 8) || (systolic_depth == 4),
+    "systolic_depth must be 8 or 4");
 
   CM_STATIC_ERROR((repeat_count >= 1) && (repeat_count <= 8),
     "repeat_count must be within 1 to 8");

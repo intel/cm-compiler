@@ -83,6 +83,11 @@ const std::unordered_map<std::string, std::string> CmToNeoCPU{
     {"RKL", "rkl"},
     {"DG1", "dg1"},
     {"XEHP_SDV", "xe_hp_sdv"},
+    {"DG2", "dg2"},
+    {"ADLS", "adls"},
+    {"ADLP", "adlp"},
+    {"PVC", "pvc"},
+    {"PVCXT", "pvc"},
 };
 // clang-format on
 
