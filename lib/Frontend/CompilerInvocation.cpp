@@ -791,6 +791,9 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   else {
     Opts.MaxSLMSize = llvm::StringSwitch<unsigned>(TargetOpts.CPU)
       .Case("XEHP_SDV", 128)
+      .Case("DG2", 128)
+      .Case("PVC", 128)
+      .Case("PVCXT", 128)
       .Default(64);
   }
 
@@ -799,6 +802,9 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   else {
     Opts.MaxOBRWSize = llvm::StringSwitch<unsigned>(TargetOpts.CPU)
       .Case("XEHP_SDV", 16)
+      .Case("DG2", 16)
+      .Case("PVC", 16)
+      .Case("PVCXT", 16)
       .Default(8);
   }
 
@@ -810,6 +816,11 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
       .Case("RKL", false)
       .Case("DG1", false)
       .Case("XEHP_SDV", false)
+      .Case("ADLP", false)
+      .Case("ADLS", false)
+      .Case("DG2", false)
+      .Case("PVC", false)
+      .Case("PVCXT", false)
       .Default(true);
   }
 
@@ -3304,6 +3315,7 @@ static void ParseTargetArgs(TargetOptions &Opts, ArgList &Args,
       Opts.EABIVersion = EABIVersion;
   }
   Opts.CPU = Args.getLastArgValue(OPT_target_cpu);
+  Opts.Stepping = Args.getLastArgValue(OPT_Qxcm_stepping);
   Args.getLastArgValue(OPT_Qxcm_revid, "0").getAsInteger(0, Opts.RevId);
 
   Opts.FPMath = Args.getLastArgValue(OPT_mfpmath);

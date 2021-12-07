@@ -60,6 +60,8 @@ _ATOMIC_CHECK_TYPES(ATOMIC_MAXSINT, uint, int);
 _ATOMIC_CHECK(ATOMIC_FMAX, float);
 _ATOMIC_CHECK(ATOMIC_FMIN, float);
 _ATOMIC_CHECK(ATOMIC_FCMPWR, float);
+_ATOMIC_CHECK(ATOMIC_FADD, float);
+_ATOMIC_CHECK(ATOMIC_FSUB, float);
 _ATOMIC_CHECK_TYPES(ATOMIC_PREDEC, uint, int);
 
 #undef _ATOMIC_CHECK
@@ -227,6 +229,12 @@ write(SurfaceIndex index, CmAtomicOpType op, uint globalOffset,
     break;
   case ATOMIC_FCMPWR:
     _ATOMIC_WRITE(ATOMIC_FCMPWR, 8, float);
+    break;
+  case ATOMIC_FADD:
+    _ATOMIC_WRITE(ATOMIC_FADD, 8, float);
+    break;
+  case ATOMIC_FSUB:
+    _ATOMIC_WRITE(ATOMIC_FSUB, 8, float);
     break;
   }
 

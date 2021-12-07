@@ -12,18 +12,21 @@ set(CM_HEADERS
   cm/cm_has_instr.h
   cm/cm_bfn.h
   cm/cm_common.h
+  cm/cm_cvt.h
   cm/cm_dataport.h
   cm/cm_gateway.h
   cm/cm.h
   cm/cm_internal.h
   cm/cm_library.h
   cm/cm_linear.h
+  cm/cm_lsc.h
   cm/cm_mask.h
   cm/cm_printf.h
   cm/cm_printfocl.h
   cm/cm_sampler.h
   cm/cm_send.h
   cm/cm_spec_constant.h
+  cm/cm_srnd.h
   cm/cm_svm.h
   cm/cm_target.h
   cm/cmtl/global.h

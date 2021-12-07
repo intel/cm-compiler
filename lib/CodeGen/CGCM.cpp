@@ -1423,7 +1423,9 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
       getMD(llvm::ConstantInt::getNullValue(I32Ty)),
       getMD(llvm::ConstantInt::getNullValue(I32Ty)), // placeholder for arg offsets
       IOKinds,
-      ArgDescs
+      ArgDescs,
+      getMD(llvm::ConstantInt::getNullValue(I32Ty)),
+      getMD(llvm::ConstantInt::getNullValue(I32Ty))
   };
 
   // Add this kernel to the root.

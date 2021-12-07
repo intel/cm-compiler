@@ -233,6 +233,40 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
               .StartsWith("__cm_intrinsic_impl_dpas_nosrc0", CMBK_cm_dpas_nosrc0_impl)
               .StartsWith("__cm_intrinsic_impl_dpas", CMBK_cm_dpas2_impl)
               .StartsWith("__cm_intrinsic_impl_bf_cvt", CMBK_cm_bf_cvt_impl)
+              .StartsWith("__cm_intrinsic_impl_tf32_cvt", CMBK_cm_tf32_cvt_impl)
+              .StartsWith("__cm_intrinsic_impl_srnd", CMBK_cm_srnd_impl)
+              .StartsWith("__cm_intrinsic_impl_prefetch_bti", CMBK_cm_prefetch_impl)
+              .StartsWith("__cm_intrinsic_impl_block_prefetch_bti", CMBK_cm_block_prefetch_impl)
+              .StartsWith("__cm_intrinsic_impl_prefetch_flat", CMBK_cm_prefetch_flat_impl)
+              .StartsWith("__cm_intrinsic_impl_block_prefetch_flat", CMBK_cm_block_prefetch_flat_impl)
+              .StartsWith("__cm_intrinsic_impl_load_bti", CMBK_cm_load_impl)
+              .StartsWith("__cm_intrinsic_impl_load4_bti", CMBK_cm_load4_impl)
+              .StartsWith("__cm_intrinsic_impl_block_load_bti", CMBK_cm_block_load_impl)
+              .StartsWith("__cm_intrinsic_impl_store_bti", CMBK_cm_store_impl)
+              .StartsWith("__cm_intrinsic_impl_store4_bti", CMBK_cm_store4_impl)
+              .StartsWith("__cm_intrinsic_impl_block_store_bti", CMBK_cm_block_store_impl)
+              .StartsWith("__cm_intrinsic_impl_load_flat", CMBK_cm_load_flat_impl)
+              .StartsWith("__cm_intrinsic_impl_load4_flat", CMBK_cm_load4_flat_impl)
+              .StartsWith("__cm_intrinsic_impl_block_load_flat", CMBK_cm_block_load_flat_impl)
+              .StartsWith("__cm_intrinsic_impl_load_bindless", CMBK_cm_load_bindless_impl)
+              .StartsWith("__cm_intrinsic_impl_store_flat", CMBK_cm_store_flat_impl)
+              .StartsWith("__cm_intrinsic_impl_store4_flat", CMBK_cm_store4_flat_impl)
+              .StartsWith("__cm_intrinsic_impl_block_store_flat", CMBK_cm_block_store_flat_impl)
+              .StartsWith("__cm_intrinsic_impl_store_bindless", CMBK_cm_store_bindless_impl)
+              .StartsWith("__cm_intrinsic_impl_load_slm", CMBK_cm_load_slm_impl)
+              .StartsWith("__cm_intrinsic_impl_load4_slm", CMBK_cm_load4_slm_impl)
+              .StartsWith("__cm_intrinsic_impl_block_load_slm", CMBK_cm_block_load_slm_impl)
+              .StartsWith("__cm_intrinsic_impl_store_slm", CMBK_cm_store_slm_impl)
+              .StartsWith("__cm_intrinsic_impl_store4_slm", CMBK_cm_store4_slm_impl)
+              .StartsWith("__cm_intrinsic_impl_block_store_slm", CMBK_cm_block_store_slm_impl)
+              .StartsWith("__cm_intrinsic_impl_block_prefetch2d_flat", CMBK_cm_block_prefetch2d_flat_impl)
+              .StartsWith("__cm_intrinsic_impl_block_load2d_flat", CMBK_cm_block_load2d_flat_impl)
+              .StartsWith("__cm_intrinsic_impl_block_store2d_flat", CMBK_cm_block_store2d_flat_impl)
+              .StartsWith("__cm_intrinsic_impl_lsc_atomic_bti", CMBK_cm_atomic_bti_impl)
+              .StartsWith("__cm_intrinsic_impl_lsc_atomic_slm", CMBK_cm_atomic_slm_impl)
+              .StartsWith("__cm_intrinsic_impl_lsc_atomic_flat", CMBK_cm_atomic_flat_impl)
+              .StartsWith("__cm_intrinsic_impl_lsc_fence", CMBK_cm_lsc_fence_impl)
+              .StartsWith("__cm_intrinsic_impl_lsc_atomic_bindless", CMBK_cm_atomic_bindless_impl)
             .StartsWith("__cm_intrinsic_impl_dp4a", CMBK_cm_dp4a_impl)
             .StartsWith("__cm_intrinsic_impl_oword_read_dwaligned",
                         CMBK_oword_read_dwaligned_impl)
@@ -872,6 +906,17 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
       // Clear reserved bits and only use first 1 bit
       MaskVal &= 0x1;
 
+      // Update regular barrier count in kernel metadata.
+      if (llvm::MDNode *Node = getSLMSizeMDNode(CGF.CurFn)) {
+          if (llvm::Value *OldSz = getVal(Node->getOperand(llvm::genx::KernelMDOp::BarrierCnt))) {
+              assert(isa<llvm::ConstantInt>(OldSz) && "integer constant expected");
+              uint64_t OldVal = cast<llvm::ConstantInt>(OldSz)->getZExtValue();
+              if (OldVal == 0) {
+                  llvm::Value *NewSz = llvm::ConstantInt::get(OldSz->getType(), 1);
+                  Node->replaceOperandWith(llvm::genx::KernelMDOp::BarrierCnt, getMD(NewSz));
+              }
+          }
+      }
 
       return RValue::get(CGF.Builder.CreateCall(
         Fn, llvm::ConstantInt::get(Fn->getFunctionType()->getParamType(0), MaskVal),
@@ -880,6 +925,26 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
     else {
       Error(E->getExprLoc(), "One signal flag argument expected");
       return RValue::get(0);
+    }
+  case Builtin::BIcm_nbarrier_init:
+    EmitBuiltinNBarrierInit(CGF, E);
+    return RValue::get(0);
+  case Builtin::BIcm_nbarrier_wait:
+    {
+      Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_nbarrier);
+      if (E->getNumArgs() == 1) {
+        SmallVector<llvm::Value *, 8> Args;
+        Args.push_back(llvm::ConstantInt::get(CGF.Int8Ty, 0));
+        const Expr *ArgE = E->getArg(0);
+        llvm::Value *Id = CGF.EmitAnyExpr(ArgE).getScalarVal();
+        Args.push_back(Id);
+        Args.push_back(llvm::ConstantInt::get(CGF.Int8Ty, 0));
+        return RValue::get(CGF.Builder.CreateCall(Fn, Args, ""));
+      }
+      else {
+        Error(E->getExprLoc(), "One barrier id argument expected");
+        return RValue::get(0);
+      }
     }
   case Builtin::BIcm_slm_init:
     EmitBuiltinSLMInit(CGF, E);
@@ -892,6 +957,17 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
     {
       Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_barrier);
 
+      // Update regular barrier count in kernel metadata.
+      if (llvm::MDNode *Node = getSLMSizeMDNode(CGF.CurFn)) {
+          if (llvm::Value *OldSz = getVal(Node->getOperand(llvm::genx::KernelMDOp::BarrierCnt))) {
+              assert(isa<llvm::ConstantInt>(OldSz) && "integer constant expected");
+              uint64_t OldVal = cast<llvm::ConstantInt>(OldSz)->getZExtValue();
+              if (OldVal == 0) {
+                  llvm::Value *NewSz = llvm::ConstantInt::get(OldSz->getType(), 1);
+                  Node->replaceOperandWith(llvm::genx::KernelMDOp::BarrierCnt, getMD(NewSz));
+              }
+          }
+      }
 
       CGF.Builder.CreateCall(Fn);
       return RValue::get(0);
@@ -1034,6 +1110,40 @@ llvm::Value *CGCMRuntime::EmitBuiltinSLMFree(CodeGenFunction &CGF,
   return NextIndex;
 }
 
+void CGCMRuntime::EmitBuiltinNBarrierInit(CodeGenFunction &CGF, const CallExpr *E) {
+  // We check whether this call is inside a kernel function.
+  if (!CGF.CurFuncDecl->hasAttr<CMGenxMainAttr>()) {
+    Error(E->getExprLoc(), "cm_nbarrier_init shall only be called in a kernel");
+    return;
+  }
+
+  const Expr *Arg = E->getArg(0);
+  llvm::APSInt Size(8);
+  Expr::EvalResult SizeResult;
+  if (!Arg->EvaluateAsInt(SizeResult, CGF.getContext())) {
+    Error(Arg->getExprLoc(), "integral constant expected for nbarrier count");
+    return;
+  }
+  Size = SizeResult.Val.getInt();
+
+  // Size in bytes being requested.
+  uint32_t NewVal = Size.getZExtValue();
+  if (NewVal == 0) {
+    Error(Arg->getExprLoc(), "zero nbarrier count being requested");
+    return;
+  }
+
+  // Update named barrier count in kernel metadata.
+  if (llvm::MDNode *Node = getSLMSizeMDNode(CGF.CurFn)) {
+    if (llvm::Value *OldSz = getVal(Node->getOperand(llvm::genx::KernelMDOp::NBarrierCnt))) {
+      assert(isa<llvm::ConstantInt>(OldSz) && "integer constant expected");
+      llvm::Value *NewSz = llvm::ConstantInt::get(OldSz->getType(), NewVal);
+      uint64_t OldVal = cast<llvm::ConstantInt>(OldSz)->getZExtValue();
+      if (OldVal < NewVal)
+        Node->replaceOperandWith(llvm::genx::KernelMDOp::NBarrierCnt, getMD(NewSz));
+    }
+  }
+}
 
 RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
                                    ReturnValueSlot ReturnValue) {
@@ -1374,6 +1484,50 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(HandleBuiltinDPAS2Impl(getCurCMCallInfo(), Kind));
   case CMBK_cm_bf_cvt_impl:
     return RValue::get(HandleBuiltinBFCVTImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_tf32_cvt_impl:
+    return RValue::get(HandleBuiltinTF32CVTImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_srnd_impl:
+    return RValue::get(HandleBuiltinSRNDImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_load_impl:
+  case CMBK_cm_load4_impl:
+  case CMBK_cm_block_load_impl:
+  case CMBK_cm_load_flat_impl:
+  case CMBK_cm_load4_flat_impl:
+  case CMBK_cm_block_load_flat_impl:
+  case CMBK_cm_load_bindless_impl:
+  case CMBK_cm_load_slm_impl:
+  case CMBK_cm_load4_slm_impl:
+  case CMBK_cm_block_load_slm_impl:
+  case CMBK_cm_atomic_bti_impl:
+  case CMBK_cm_atomic_slm_impl:
+  case CMBK_cm_atomic_flat_impl:
+  case CMBK_cm_atomic_bindless_impl:
+    return RValue::get(HandleBuiltinLSCImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_store_impl:
+  case CMBK_cm_store4_impl:
+  case CMBK_cm_block_store_impl:
+  case CMBK_cm_store_flat_impl:
+  case CMBK_cm_store4_flat_impl:
+  case CMBK_cm_block_store_flat_impl:
+  case CMBK_cm_prefetch_impl:
+  case CMBK_cm_block_prefetch_impl:
+  case CMBK_cm_prefetch_flat_impl:
+  case CMBK_cm_block_prefetch_flat_impl:
+  case CMBK_cm_store_bindless_impl:
+  case CMBK_cm_store_slm_impl:
+  case CMBK_cm_store4_slm_impl:
+  case CMBK_cm_block_store_slm_impl:
+    HandleBuiltinLSCImpl(getCurCMCallInfo(), Kind);
+    return RValue::get(0);
+  case CMBK_cm_block_load2d_flat_impl:
+    return RValue::get(HandleBuiltinLSC2dImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_block_store2d_flat_impl:
+  case CMBK_cm_block_prefetch2d_flat_impl:
+    HandleBuiltinLSC2dImpl(getCurCMCallInfo(), Kind);
+    return RValue::get(0);
+  case CMBK_cm_lsc_fence_impl:
+    HandleBuiltinLscFenceImpl(getCurCMCallInfo(), Kind);
+    return RValue::get(0);
   }
 
   // Returns the normal call rvalue.
@@ -2706,6 +2860,12 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
   case CMBK_cm_bf_cvt:
     ID = llvm::GenXIntrinsic::genx_bf_cvt;
     break;
+  case CMBK_cm_tf32_cvt:
+    ID = llvm::GenXIntrinsic::genx_tf32_cvt;
+    break;
+  case CMBK_cm_srnd:
+    ID = llvm::GenXIntrinsic::genx_srnd;
+    break;
   case CMBK_sample16_impl:
     ID = llvm::GenXIntrinsic::genx_sample;
     break;
@@ -3947,6 +4107,8 @@ typedef enum _CmAtomicOpType_ {
   ATOMIC_FMAX = 0x10,
   ATOMIC_FMIN = 0x11,
   ATOMIC_FCMPWR = 0x12,
+  ATOMIC_FADD = 0x13,
+  ATOMIC_FSUB = 0x14
 } CmAtomicOpType;
 
 unsigned getAtomicIntrinsicID(CmAtomicOpType Op) {
@@ -3983,6 +4145,10 @@ unsigned getAtomicIntrinsicID(CmAtomicOpType Op) {
     return llvm::GenXIntrinsic::genx_dword_atomic2_fmin;
   case ATOMIC_FCMPWR:
     return llvm::GenXIntrinsic::genx_dword_atomic2_fcmpwr;
+  case ATOMIC_FADD:
+    return llvm::GenXIntrinsic::genx_dword_atomic2_fadd;
+  case ATOMIC_FSUB:
+    return llvm::GenXIntrinsic::genx_dword_atomic2_fsub;
   }
 
   llvm_unreachable("invalid atomic operation");
@@ -4022,6 +4188,10 @@ unsigned getAtomicTypedIntrinsicID(CmAtomicOpType Op) {
     return llvm::GenXIntrinsic::genx_typed_atomic_fmin;
   case ATOMIC_FCMPWR:
     return llvm::GenXIntrinsic::genx_typed_atomic_fcmpwr;
+  case ATOMIC_FADD:
+    return llvm::GenXIntrinsic::genx_typed_atomic_fadd;
+  case ATOMIC_FSUB:
+    return llvm::GenXIntrinsic::genx_typed_atomic_fsub;
   }
 
   llvm_unreachable("invalid atomic operation");
@@ -5157,6 +5327,8 @@ AtomicCheckResult checkSLMAtomicOp(CmAtomicOpType Op, unsigned NumSrc) {
   case ATOMIC_MAXSINT:
   case ATOMIC_FMAX:
   case ATOMIC_FMIN:
+  case ATOMIC_FADD:
+  case ATOMIC_FSUB:
     return (NumSrc == 1) ? AR_Valid : AR_NotOneSrc;
   }
 
@@ -5183,6 +5355,8 @@ AtomicCheckResult checkSLMAtomicOperands(CmAtomicOpType Op, QualType Ty) {
   case ATOMIC_FMAX:
   case ATOMIC_FMIN:
   case ATOMIC_FCMPWR:
+  case ATOMIC_FADD:
+  case ATOMIC_FSUB:
     return Ty->isFloatingType() ?  AR_Valid : AR_NotFloat;
   }
 
@@ -5295,6 +5469,10 @@ void CGCMRuntime::HandleBuiltinSLMAtomic(CMCallInfo &CallInfo) {
       ID == llvm::GenXIntrinsic::genx_dword_atomic_fmax ||
       ID == llvm::GenXIntrinsic::genx_dword_atomic2_fmin ||
       ID == llvm::GenXIntrinsic::genx_dword_atomic2_fmax ||
+      ID == llvm::GenXIntrinsic::genx_dword_atomic_fadd ||
+      ID == llvm::GenXIntrinsic::genx_dword_atomic_fsub ||
+      ID == llvm::GenXIntrinsic::genx_dword_atomic2_fadd ||
+      ID == llvm::GenXIntrinsic::genx_dword_atomic2_fsub ||
       ID == llvm::GenXIntrinsic::genx_dword_atomic_fcmpwr ||
       ID == llvm::GenXIntrinsic::genx_dword_atomic2_fcmpwr)
     Tys.push_back(llvm::VectorType::get(CGF.FloatTy, N));
@@ -5722,6 +5900,9 @@ unsigned getAtomicSVMIntrinsicID(CmAtomicOpType Op) {
     return llvm::GenXIntrinsic::genx_svm_atomic_fmin;
   case ATOMIC_FCMPWR:
     return llvm::GenXIntrinsic::genx_svm_atomic_fcmpwr;
+  case ATOMIC_FADD:
+  case ATOMIC_FSUB:
+    return llvm::GenXIntrinsic::not_genx_intrinsic;
   }
 
   llvm_unreachable("invalid atomic operation");
@@ -5748,6 +5929,8 @@ AtomicCheckResult checkSVMAtomicOp(CmAtomicOpType Op, unsigned NumSrc) {
   case ATOMIC_FMAX:
   case ATOMIC_FMIN:
   case ATOMIC_FCMPWR:
+  case ATOMIC_FADD:
+  case ATOMIC_FSUB:
     return AR_Invalid;
   }
 
@@ -5780,6 +5963,10 @@ QualType checkSVMAtomicOperands(CmAtomicOpType Op, ASTContext &CTX, QualType Ori
   case ATOMIC_FMAX:
   case ATOMIC_FMIN:
   case ATOMIC_FCMPWR:
+    return OrigElType;
+  case ATOMIC_FADD:
+  case ATOMIC_FSUB:
+    assert(false && "floating point operands not support for SVM atomic operation.");
     return OrigElType;
   }
 
@@ -7428,6 +7615,407 @@ llvm::Value *CGCMRuntime::HandleBuiltinBFCVTImpl(CMCallInfo &CallInfo,
       Builder.CreateCall(F, CI->getOperand(0), CI->getName());
   Result->setDebugLoc(CI->getDebugLoc());
 
+  CI->eraseFromParent();
+  return Result;
+}
+
+/// \brief Postprocess builtin cm_tf32_cvt.
+///
+/// template <typename T, typename T0, int N>
+/// vector<T, N>
+/// __cm_intrinsic_impl_tf32_cvt(vector<T0, N> src0)
+///
+llvm::Value *CGCMRuntime::HandleBuiltinTF32CVTImpl(CMCallInfo &CallInfo,
+                                                 CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_tf32_cvt_impl);
+
+  const CallExpr *CE = CallInfo.CE;
+  assert(CE->getType()->isCMVectorMatrixType());
+  assert(CE->getNumArgs() == 1);
+
+  llvm::CallInst *CI = CallInfo.CI;
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  llvm::Type *Tys[] = {CI->getType(), CI->getOperand(0)->getType()};
+  llvm::Function *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_tf32_cvt, Tys);
+  llvm::CallInst *Result =
+      Builder.CreateCall(F, CI->getOperand(0), CI->getName());
+  Result->setDebugLoc(CI->getDebugLoc());
+
+  CI->eraseFromParent();
+  return Result;
+}
+
+/// \brief Postprocess builtin cm_srnd.
+///
+/// template <typename T, typename T0, int N>
+/// vector<T, N>
+/// __cm_intrinsic_impl_srnd(vector<T0, N> src0, vector<T0,N> src1)
+///
+llvm::Value *CGCMRuntime::HandleBuiltinSRNDImpl(CMCallInfo &CallInfo,
+                                                CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_srnd_impl);
+
+  const CallExpr *CE = CallInfo.CE;
+
+  assert(CE->getType()->isCMVectorMatrixType());
+  assert(CE->getNumArgs() == 2);
+
+  llvm::CallInst *CI = CallInfo.CI;
+  llvm::Value *Arg0 = CI->getArgOperand(0);
+  llvm::Value *Arg1 = CI->getArgOperand(1);
+
+  SmallVector<llvm::Type *, 8> Tys;
+  Tys.push_back(CI->getType());
+  Tys.push_back(Arg0->getType());
+  Tys.push_back(Arg1->getType());
+
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  SmallVector<llvm::Value *, 8> Args;
+  Args.push_back(Arg0);
+  Args.push_back(Arg1);
+
+  llvm::Function *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_srnd, Tys);
+  llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
+  Result->setDebugLoc(CI->getDebugLoc());
+  CallInfo.CI->eraseFromParent();
+  return Result;
+}
+
+
+#define LSCINC
+#include "CMLSCDef.h"
+#undef LSCINC
+
+/// \brief Postprocess block 2d builtins load/store/prefetch.
+///
+/// template <typename T, int NBlocks, int Width, int Height, bool Transposed,
+///           bool Transformed, CacheHint L1H, CacheHint L3H, int N>
+/// vector<T, N>
+/// __cm_intrinsic_impl_load2d(uint64_t Base, unsigned SurfaceWidth,
+///                            unsigned SurfaceHeight, unsigned SurfacePitch,
+///                            int X, int Y);
+///
+/// template <typename T, int NBlocks, int Width, int Height,
+///           CacheHint L1H, CacheHint L3H, int N>
+/// void __cm_intrinsic_impl_store2d(uint64_t Base, unsigned SurfaceWidth,
+///                                  unsigned SurfaceHeight, unsigned SurfacePitch,
+///                                  int X, int Y, vector<T, N> Data);
+///
+/// template <typename T, int NBlocks, int Width, int Height, CacheHint L1H,
+///           CacheHint L3H>
+/// void __cm_intrinsic_impl_prefetch2d(uint64_t Base, unsigned SurfaceWidth,
+///                                     unsigned SurfaceHeight, unsigned SurfacePitch,
+///                                     int X, int Y);
+///
+llvm::Value *CGCMRuntime::HandleBuiltinLSC2dImpl(CMCallInfo &CallInfo,
+                                                 CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_block_load2d_flat_impl ||
+         Kind == CMBK_cm_block_prefetch2d_flat_impl ||
+         Kind == CMBK_cm_block_store2d_flat_impl);
+
+  auto &CGF = *CallInfo.CGF;
+  const FunctionDecl *FD = CallInfo.CE->getDirectCallee();
+  assert(FD && FD->isTemplateInstantiation());
+  unsigned NBlocks = getIntegralValue(FD, 1);
+  unsigned Width = getIntegralValue(FD, 2);
+  unsigned Height = getIntegralValue(FD, 3);
+  auto L1H = CacheHint::Default;
+  auto L3H = CacheHint::Default;
+  auto Tranposed = LSC_DATA_ORDER::LSC_DATA_ORDER_NONTRANSPOSE;
+  uint8_t Transformed = 0;
+
+  switch (Kind) {
+  default:
+    break;
+  case CMBK_cm_block_load2d_flat_impl:
+    Tranposed = getIntegralValue(FD, 4)
+                    ? LSC_DATA_ORDER::LSC_DATA_ORDER_TRANSPOSE
+                    : LSC_DATA_ORDER::LSC_DATA_ORDER_NONTRANSPOSE;
+    Transformed = getIntegralValue<uint8_t>(FD, 5);
+    L1H = static_cast<CacheHint>(getIntegralValue(FD, 6));
+    L3H = static_cast<CacheHint>(getIntegralValue(FD, 7));
+    break;
+  case CMBK_cm_block_prefetch2d_flat_impl:
+  case CMBK_cm_block_store2d_flat_impl:
+    L1H = static_cast<CacheHint>(getIntegralValue(FD, 4));
+    L3H = static_cast<CacheHint>(getIntegralValue(FD, 5));
+    break;
+  }
+
+  DataSize DS = DataSize::U8;
+  {
+    const TemplateArgumentList *TempArgs = FD->getTemplateSpecializationArgs();
+    QualType T = TempArgs->get(0).getAsType();
+    size_t SizeInBits = CGM.getContext().getTypeSize(T);
+    switch (SizeInBits) {
+    default:
+      CGM.ErrorUnsupported(FD, "unsupported template type");
+      break;
+    case 8:
+      DS = DataSize::U8;
+      break;
+    case 16:
+      DS = DataSize::U16;
+      break;
+    case 32:
+      DS = DataSize::U32;
+      break;
+    case 64:
+      DS = DataSize::U64;
+      break;
+    }
+  }
+
+  llvm::CallInst *CI = CallInfo.CI;
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  llvm::Value *Pred = Builder.getTrue();
+  llvm::Value *Addr = CI->getArgOperand(0);
+
+  std::vector<llvm::Value *> Args = {
+      Pred,
+      Builder.getInt8(static_cast<uint8_t>(L1H)),
+      Builder.getInt8(static_cast<uint8_t>(L3H)),
+      Builder.getInt8(static_cast<uint8_t>(DS)),
+      Builder.getInt8(static_cast<uint8_t>(Tranposed)),
+      Builder.getInt8(static_cast<uint8_t>(NBlocks)),
+      Builder.getInt16(static_cast<uint16_t>(Width)),
+      Builder.getInt16(static_cast<uint16_t>(Height)),
+      Builder.getInt8(static_cast<uint8_t>(Transformed)), // VNNI
+      Addr,                                               // Surface base
+      CI->getArgOperand(1),                               // Surface width
+      CI->getArgOperand(2),                               // Surface height
+      CI->getArgOperand(3),                               // Surface pitch
+      CI->getArgOperand(4),                               // X
+      CI->getArgOperand(5)                                // Y
+  };
+
+  assert((Addr->getType() == CGF.Int32Ty) || (Addr->getType() == CGF.Int64Ty));
+
+  auto ID = llvm::GenXIntrinsic::genx_lsc_load2d_stateless;
+  std::vector<llvm::Type *> Tys;
+  if (Kind == CMBK_cm_block_load2d_flat_impl) {
+    Tys.push_back(CI->getType());   // return type
+    Tys.push_back(Pred->getType()); // predicate
+    Tys.push_back(Addr->getType()); // address type (i32/i64)
+  } else if (Kind == CMBK_cm_block_prefetch2d_flat_impl) {
+    Tys.push_back(Pred->getType()); // predicate
+    Tys.push_back(Addr->getType()); // address type (i32/i64)
+    ID = llvm::GenXIntrinsic::genx_lsc_prefetch2d_stateless;
+  } else {
+    Tys.push_back(Pred->getType());                 // predicate
+    Tys.push_back(Addr->getType()); // address type (i32/i64)
+    Tys.push_back(CI->getArgOperand(6)->getType()); // data type
+    ID = llvm::GenXIntrinsic::genx_lsc_store2d_stateless;
+    Args.push_back(CI->getArgOperand(6)); // Data to write
+  }
+
+  llvm::Function *F = getGenXIntrinsic(ID, Tys);
+  auto NewCI = Builder.CreateCall(F, Args);
+  NewCI->setDebugLoc(CI->getDebugLoc());
+  if (!CI->getType()->isVoidTy())
+    CI->replaceAllUsesWith(NewCI);
+  CI->eraseFromParent();
+  return NewCI;
+}
+
+/// \brief Postprocess basic LSC messages
+llvm::Value *CGCMRuntime::HandleBuiltinLSCImpl(CMCallInfo &CallInfo,
+                                               CMBuiltinKind Kind) {
+  // main config from builtin kind
+  const int *Config = getConfig(Kind);
+  LDTYPE Ldt = getOpType(Kind);
+  SFTYPE Sft = getSFType(Kind);
+  bool IsBlock = getBlock(Kind);
+
+  // params from function decl
+  LSCParams Params{CallInfo, Config, Kind};
+  CGBuilderTy Builder(*CallInfo.CGF, Params.CI_);
+
+  // special logic for subopcode for atomics
+  if (Ldt != ATOMIC) {
+    LSC_SubOpcode Op;
+    Op = getSubOp(Kind);
+    Params.setOp(Op);
+  }
+
+  // special logic for SLM Idx
+  if (Sft == SLM)
+    Params.Idx_ = Builder.getInt32(0);
+
+  // special logic for pred
+  if (IsBlock)
+    Params.Pred_ = Builder.getTrue();
+  else {
+    assert(Params.Pred_ && Params.Pred_->getType()->isVectorTy() &&
+           "We expect vector Pred if exists");
+    auto VTy = llvm::VectorType::get(
+        Builder.getInt1Ty(), Params.Pred_->getType()->getVectorNumElements());
+    Params.Pred_ = Builder.CreateTruncOrBitCast(Params.Pred_, VTy);
+  }
+
+  // special logic for transpose
+  // LSC_DATA_ORDER_TRANSPOSE requires ExecSize of 1
+  if (!IsBlock)
+    Params.setNonTranspose();
+
+  // LSC_DATA_ELEMS_1 illegal on transposed operation
+  if  (Params.VS_ == static_cast<unsigned char>(VectorSize::N1))
+    Params.setNonTranspose();
+
+  // Special logic for flat addresses
+  if ((Sft == FLAT) || (Sft == BINDLESS)) {
+    llvm::Value *BaseAddr = Params.Idx_;
+    llvm::Value *Offsets = Params.Offset_;
+    assert(BaseAddr && Offsets);
+    // Base Addr shall be int64 in all cases
+    auto Int64Ty = CallInfo.CGF->Int64Ty;
+    if (BaseAddr->getType() != Int64Ty) {
+      if (BaseAddr->getType()->isPointerTy())
+        BaseAddr = Builder.CreatePtrToInt(BaseAddr, Int64Ty);
+      else
+        BaseAddr = Builder.CreateZExt(BaseAddr, Int64Ty);
+    }
+
+    // Creating add off = off + baseaddr with possible extend to vectors
+    if (IsBlock) {
+      if (Offsets->getType() != Int64Ty)
+        Offsets = Builder.CreateZExt(Offsets, Int64Ty);
+      Offsets = Builder.CreateAdd(Offsets, Params.Idx_);
+    } else {
+      assert(Offsets->getType()->isVectorTy());
+      auto N = Offsets->getType()->getVectorNumElements();
+
+      // Convert the offest type to UD if it is not.
+      if (Offsets->getType()->getVectorElementType() != Int64Ty) {
+        llvm::Type *Ty = llvm::VectorType::get(Int64Ty, N);
+        Offsets = Builder.CreateZExt(Offsets, Ty);
+      }
+      // workaround, hw does not really have a global-address, add
+      // base-address and the offset
+      llvm::Value *Splat = Builder.CreateVectorSplat(N, BaseAddr);
+      Offsets = Builder.CreateAdd(Offsets, Splat);
+    }
+
+    // in both flat and bindless base addr ignored after used
+    Params.Idx_ = Builder.getInt32(0);
+    Params.Offset_ = Offsets;
+  }
+
+  // undef value for atomic oldval
+  llvm::Value *OldVal = llvm::UndefValue::get(Params.CI_->getType());
+
+  // undef sources if null
+  if (Ldt == ATOMIC) {
+    if (Params.Data_ == nullptr)
+      Params.Data_ = OldVal;
+    if (Params.Data1_ == nullptr)
+      Params.Data1_ = OldVal;
+  }
+
+  SmallVector<llvm::Type *, 3> Tys;
+
+  if (Ldt == LOAD || Ldt == ATOMIC)
+    Tys.push_back(Params.CI_->getType());
+
+  assert(Params.Pred_ && Params.Offset_);
+  Tys.push_back(Params.Pred_->getType());
+  Tys.push_back(Params.Offset_->getType());
+
+  if (Ldt == STORE) {
+    assert(Params.Data_);
+    Tys.push_back(Params.Data_->getType());
+  }
+
+  // if channel mask not specified, it is constant zero
+  if (Params.ChM_ == nullptr)
+    Params.ChM_ = Builder.getInt8(0);
+  else {
+    // making char from enum
+    auto Int8Ty = CallInfo.CGF->Int8Ty;
+    if (Params.ChM_->getType() != Int8Ty)
+      Params.ChM_ = Builder.CreateTruncOrBitCast(Params.ChM_, Int8Ty);
+  }
+
+  llvm::Function *F = getGenXIntrinsic(getLSCIntrinsic(Kind), Tys);
+
+  SmallVector<llvm::Value *, 12> Args;
+  Args.push_back(Params.Pred_);                        // Pred
+  Args.push_back(Builder.getInt8(Params.Op_));         // Subop
+  Args.push_back(Builder.getInt8(Params.L1H_));        // L1H
+  Args.push_back(Builder.getInt8(Params.L3H_));        // L3H
+  Args.push_back(Builder.getInt16(1));                 // Addr scale
+  Args.push_back(Builder.getInt32(Params.ImmOffset_)); // imm offset
+  Args.push_back(Builder.getInt8(Params.DS_));         // Datum size
+  Args.push_back(Builder.getInt8(Params.VS_));         // Vector size
+  Args.push_back(Builder.getInt8(Params.Transposed_)); // transposed
+  Args.push_back(Params.ChM_);          // channel mask
+  Args.push_back(Params.Offset_);       // offsets
+  if (Ldt == STORE)
+    Args.push_back(Params.Data_);       // data
+  if (Ldt == ATOMIC) {
+    Args.push_back(Params.Data_);       // src0 or undef
+    Args.push_back(Params.Data1_);      // src1 or undef
+  }
+  Args.push_back(Params.Idx_);          // surface
+  if (Ldt == ATOMIC)
+    Args.push_back(OldVal);             // oldval
+
+  auto NewCI = Builder.CreateCall(F, Args);
+  NewCI->setDebugLoc(Params.CI_->getDebugLoc());
+  Params.CI_->replaceAllUsesWith(NewCI);
+  Params.CI_->eraseFromParent();
+  return NewCI;
+}
+
+
+/// \brief Postprocess cm_fence implementation builtins.
+//
+// template <LSC_SFID Sfid,
+//           LSC_FENCE_OP FenceOp,
+//           LSC_SCOPE Scope>
+// RetTy __cm_intrinsic_impl_lsc_fence(vector<ushort, 32> Pred);
+//
+
+llvm::Value *
+CGCMRuntime::HandleBuiltinLscFenceImpl(CMCallInfo &CallInfo,
+                                       CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_lsc_fence_impl);
+  const FunctionDecl *FD = CallInfo.CE->getDirectCallee();
+  auto Sfid = static_cast<LSC_SFID>(getIntegralValue(FD, 0));
+  auto FenceOp = static_cast<LSC_FENCE_OP>(getIntegralValue(FD, 1));
+  auto Scope = static_cast<LSC_SCOPE>(getIntegralValue(FD, 2));
+  llvm::CallInst *CI = CallInfo.CI;
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+  // Convert predicate from N x i16 to N x i1
+  llvm::Value *Pred = CI->getArgOperand(0);
+  {
+    assert(Pred->getType()->isVectorTy());
+    auto VTy = llvm::VectorType::get(Builder.getInt1Ty(),
+                                     Pred->getType()->getVectorNumElements());
+    Pred = Builder.CreateTruncOrBitCast(Pred, VTy);
+  }
+  llvm::Type *Tys[] = {
+      Pred->getType() // predicate
+  };
+
+  llvm::Function *F =
+      getGenXIntrinsic(llvm::GenXIntrinsic::genx_lsc_fence, Tys);
+  SmallVector<llvm::Value *, 4> Args;
+  Args.push_back(Pred); // predicate
+  Args.push_back(Builder.getInt8(static_cast<uint8_t>(Sfid)));    // SFID
+  Args.push_back(Builder.getInt8(static_cast<uint8_t>(FenceOp))); // FenceOp
+  Args.push_back(Builder.getInt8(static_cast<uint8_t>(Scope)));   // Scope
+
+  auto NewCI = Builder.CreateCall(F, Args);
+  NewCI->setDebugLoc(CI->getDebugLoc());
+  llvm::Value *Result = nullptr;
+  if (!CI->getType()->isVoidTy()) {
+    Result = NewCI;
+    CI->replaceAllUsesWith(NewCI);
+  }
   CI->eraseFromParent();
   return Result;
 }

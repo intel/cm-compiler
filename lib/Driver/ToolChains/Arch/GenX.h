@@ -38,6 +38,10 @@ int getGenXRevId(const std::string &CPU,
                  const llvm::opt::ArgList &Args,
                  const Driver *Drv = nullptr);
 
+// get stepping from args
+std::string getGenXTargetStepping(const std::string &CPU,
+                                  const llvm::opt::ArgList &Args,
+                                  const Driver *Drv = nullptr);
 
 // get features from args and triple
 void getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,

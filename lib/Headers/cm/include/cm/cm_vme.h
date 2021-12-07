@@ -28,8 +28,6 @@ static_assert(0, "CM:w:cm_vme.h should not be included explicitly - only "
 #elif defined(CM_GEN12)
 #include "gen12_vme.h"
 #else
-
-
 #endif
 
 #endif /* _CLANG_CM_VME_H_ */
