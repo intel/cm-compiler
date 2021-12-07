@@ -343,6 +343,8 @@ enum class CmAtomicOpType {
   _ATOMIC_FMAX = 0x10,
   _ATOMIC_FMIN = 0x11,
   _ATOMIC_FCMPWR = 0x12,
+  _ATOMIC_FADD = 0x13,
+  _ATOMIC_FSUB = 0x14,
   _ATOMIC_PREDEC = 0xff
 };
 
@@ -362,6 +364,8 @@ enum class CmAtomicOpType {
 #define ATOMIC_FMAX CmAtomicOpType::_ATOMIC_FMAX
 #define ATOMIC_FMIN CmAtomicOpType::_ATOMIC_FMIN
 #define ATOMIC_FCMPWR CmAtomicOpType::_ATOMIC_FCMPWR
+#define ATOMIC_FADD CmAtomicOpType::_ATOMIC_FADD
+#define ATOMIC_FSUB CmAtomicOpType::_ATOMIC_FSUB
 #define ATOMIC_PREDEC CmAtomicOpType::_ATOMIC_PREDEC
 
 enum class CM3DSampleOp : int {
@@ -472,6 +476,7 @@ enum class CmPrecisionType {
   CM_Precision_S8 = 7,      // signed 8 bits
   CM_Precision_BF16 = 8,    // bfloat 16
   CM_Precision_FP16 = 9,    // half float
+  CM_Precision_TF32 = 11,   // tensorfloat 32
 };
 
 #define CM_PRECISION_U1 CmPrecisionType::CM_Precision_U1
@@ -484,6 +489,7 @@ enum class CmPrecisionType {
 #define CM_PRECISION_S8 CmPrecisionType::CM_Precision_S8
 #define CM_PRECISION_BF CmPrecisionType::CM_Precision_BF16
 #define CM_PRECISION_HF CmPrecisionType::CM_Precision_FP16
+#define CM_PRECISION_TF32 CmPrecisionType::CM_Precision_TF32
 constexpr unsigned get_ops_per_channel(CmPrecisionType src1_precision,
                                        CmPrecisionType src2_precision) {
   if ((src1_precision == CM_PRECISION_U8) ||
@@ -520,6 +526,10 @@ constexpr unsigned get_ops_per_channel(CmPrecisionType src1_precision,
            (src2_precision == CM_PRECISION_HF)) {
     return 2;
   }
+  else if ((src1_precision == CM_PRECISION_TF32) &&
+             (src2_precision == CM_PRECISION_TF32)) {
+    return 1;
+  }
   return 0xFFFFFFFF;
 }
 
@@ -542,6 +552,9 @@ constexpr unsigned get_precision_bits(CmPrecisionType src_precision) {
       || src_precision == CM_PRECISION_HF
      ) {
     return 16;
+  }
+  if (src_precision == CM_PRECISION_TF32) {
+    return 32;
   }
   return 0;
 }
@@ -597,5 +610,89 @@ constexpr unsigned get_precision_bits(CmPrecisionType src_precision) {
 // cm_label() is deprecated
 #define cm_label(...) CM_STATIC_WARNING(0, "cm_label() is deprecated")
 
+// L1 or L3 cache hint kinds.
+enum class CacheHint : uint8_t {
+  Default = 0,
+  Uncached = 1,
+  Cached = 2,
+  WriteBack = 3,
+  WriteThrough = 4,
+  Streaming = 5,
+  ReadInvalidate = 6
+};
+
+// Data size or format to read or store.
+enum class DataSize : uint8_t {
+  Default = 0,
+  U8 = 1,
+  U16 = 2,
+  U32 = 3,
+  U64 = 4,
+  U8U32 = 5,  // load 8b, zero extend to 32b; store the opposite
+  U16U32 = 6, // load 16b, zero extend to 32b; store the opposite
+  U16U32H = 7 // load 16b into high 16 of each 32b; store the high 16
+};
+
+// The number of elements to load per address (vector size)
+enum class VectorSize : uint8_t {
+  N0 = 0,
+  N1 = 1,  // 1 element
+  N2 = 2,  // 2 element
+  N3 = 3,  // 3 element
+  N4 = 4,  // 4 element
+  N8 = 5,  // 8 element
+  N16 = 6, // 16 element
+  N32 = 7, // 32 element
+  N64 = 8  // 64 element
+};
+
+// LSC atomic op kind and encoding.
+enum class AtomicOp : uint8_t {
+  IINC = 0x08,
+  IDEC = 0x09,
+  LOAD = 0x0A,
+  STORE = 0x0B,
+  IADD = 0x0C,
+  ISUB = 0x0D,
+  SMIN = 0x0E,
+  SMAX = 0x0F,
+  UMIN = 0x10,
+  UMAX = 0x11,
+  ICAS = 0x12,
+  FADD = 0x13,
+  FSUB = 0x14,
+  FMIN = 0x15,
+  FMAX = 0x16,
+  FCAS = 0x17,
+  AND = 0x18,
+  OR = 0x19,
+  XOR = 0x1A
+};
+
+enum class LSC_SCOPE : uint8_t {
+  LSC_SCOPE_GROUP,
+  LSC_SCOPE_LOCAL,
+  LSC_SCOPE_TILE,
+  LSC_SCOPE_GPU,
+  LSC_SCOPE_GPUS,
+  LSC_SCOPE_SYSTEM,
+  LSC_SCOPE_SYSACQ
+};
+
+enum class LSC_FENCE_OP : uint8_t {
+  LSC_FENCE_OP_NONE,
+  LSC_FENCE_OP_EVICT,
+  LSC_FENCE_OP_INVALIDATE,
+  LSC_FENCE_OP_DISCARD,
+  LSC_FENCE_OP_CLEAN,
+  LSC_FENCE_OP_FLUSHL3
+};
+
+enum class LSC_SFID : uint8_t {
+  LSC_UGM,
+  LSC_UGML,
+  LSC_TGM,
+  LSC_SLM
+};
 
 #endif /* _CLANG_CM_COMMON_H_ */

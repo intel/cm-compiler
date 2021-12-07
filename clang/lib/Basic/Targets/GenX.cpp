@@ -61,6 +61,9 @@ bool GenXTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
                          .Case("RKL", false)
                          .Case("TGLLP", false)
                          .Case("DG1", false)
+                         .Case("ADLS", false)
+                         .Case("ADLP", false)
+                         .Case("DG2", false)
                          .Default(true);
 
   NativeDoubleSupport = llvm::StringSwitch<bool>(CPU)
@@ -68,6 +71,9 @@ bool GenXTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
                             .Case("TGLLP", false)
                             .Case("RKL", false)
                             .Case("DG1", false)
+                            .Case("ADLS", false)
+                            .Case("ADLP", false)
+                            .Case("DG2", false)
                             .Default(true);
 
   // OCL runtime specific headers support
@@ -92,6 +98,11 @@ bool GenXTargetInfo::setCPU(const std::string &Name) {
                       .Case("RKL", true)
                       .Case("DG1", true)
                       .Case("XEHP_SDV", true)
+                      .Case("ADLP", true)
+                      .Case("ADLS", true)
+                      .Case("DG2", true)
+                      .Case("PVC", true)
+                      .Case("PVCXT", true)
                       .Default(false);
 
   if (CPUKnown)

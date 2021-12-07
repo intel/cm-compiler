@@ -52,6 +52,13 @@ namespace CheckVersion {
   #define CM_HAS_BIT_ROTATE_CONTROL CM_HAS_CONTROL(false)
 #endif
 
+/// CM_HAS_<Feature>_CONTROL macors
+/// -------------------------------  
+/// Create static_assert if feature isn't supported for this platform.
+/// Otherwise, do nothing.
+/// 
+/// CM_GENX value of platforms sets according to Frontend/InitPreprocessor.cpp.
+//===----------------------------------------------------------------------===//
 
 //BFN
 #if (CM_GENX >= 1270) //>= XEHP_SDV
@@ -59,6 +66,18 @@ namespace CheckVersion {
   #define CM_HAS_BFN_CONTROL CM_HAS_CONTROL(true)
 #else
   #define CM_HAS_BFN_CONTROL CM_HAS_CONTROL(false)
+#endif
+
+
+//ACC_BF16 and ACC_HALF
+#if (CM_GENX >= 1280) //>= PVC
+  #define CM_HAS_DPAS_ACC_HALF 1
+  #define CM_HAS_DPAS_ACC_BF16 1
+  #define CM_HAS_DPAS_ACC_HALF_CONTROL CM_HAS_CONTROL(true)
+  #define CM_HAS_DPAS_ACC_BF16_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_DPAS_ACC_HALF_CONTROL CM_HAS_CONTROL(false)
+  #define CM_HAS_DPAS_ACC_BF16_CONTROL CM_HAS_CONTROL(false)
 #endif
 
 //BF16
@@ -77,8 +96,9 @@ namespace CheckVersion {
   #define CM_HAS_DPAS_CONTROL CM_HAS_CONTROL(false)
 #endif
 
+
 //DPAS_ODD
-#if (CM_GENX >= 1270) //>= XEHP_SDV
+#if (CM_GENX >= 1270 && CM_GENX <= 1280) //>= XEHP_SDV && <= PVC
   #define CM_HAS_DPAS_ODD 1
   #define CM_HAS_DPAS_ODD_CONTROL CM_HAS_CONTROL(true)
 #else
@@ -98,13 +118,54 @@ namespace CheckVersion {
      CM_GENX == 900  || /*SKL*/         \
      CM_GENX == 950  || /*KBL*/         \
      CM_GENX == 1150 || /*ICLLP*/       \
-     CM_GENX == 1270    /*XeHP_SDV*/    )
+     CM_GENX == 1270 || /*XeHP_SDV*/    \
+     CM_GENX == 1280    /*PVC*/         )
   #define CM_HAS_IEEE_DIV_SQRT 1
   #define CM_HAS_IEEE_DIV_SQRT_CONTROL CM_HAS_CONTROL(true)
 #else  //IEEE
   #define CM_HAS_IEEE_DIV_SQRT_CONTROL CM_HAS_CONTROL(false)
 #endif //IEEE
 
+//LSC 
+#if (CM_GENX >= 1271) //>= DG2
+  #define CM_HAS_LSC 1
+  #define CM_HAS_LSC_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_LSC_CONTROL CM_HAS_CONTROL(false)
+#endif
+
+
+//LSC_UNTYPED_2D
+#if (CM_GENX >= 1280) //>= PVC
+  #define CM_HAS_LSC_UNTYPED_2D 1
+  #define CM_HAS_LSC_UNTYPED_2D_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_LSC_UNTYPED_2D_CONTROL CM_HAS_CONTROL(false)
+#endif
+
+
+//TF32
+#if ((CM_GENX == 1280 && CM_GENX_REVID >= 5) || CM_GENX > 1280) //>= PVCXT
+  #define CM_HAS_TF32 1
+  #define CM_HAS_TF32_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_TF32_CONTROL CM_HAS_CONTROL(false)
+#endif
+
+//BitRotate64
+#if (CM_GENX >= 1280) //>= PVC
+  #define CM_HAS_BIT_ROTATE_64BIT 1
+  #define CM_HAS_BIT_ROTATE_64BIT_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_BIT_ROTATE_64BIT_CONTROL CM_HAS_CONTROL(false)
+#endif
+
+#if (CM_GENX >= 1280) // >= PVC
+  #define CM_HAS_STOCHASTIC_ROUNDING 1
+  #define CM_HAS_STOCHASTIC_ROUNDING_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_STOCHASTIC_ROUNDING_CONTROL CM_HAS_CONTROL(false)
+#endif
 
 #else  // CM_HAS_CONTROL
   CM_STATIC_ERROR(0, "Redeclaration of CM_HAS_CONTROL! It's used for control version of features!");

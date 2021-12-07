@@ -406,7 +406,8 @@ constexpr bool checkSVMAtomic() {
   }
 
   // One source float operand.
-  if constexpr (Op == ATOMIC_FMAX || Op == ATOMIC_FMIN) {
+  if constexpr (Op == ATOMIC_FMAX || Op == ATOMIC_FMIN || Op == ATOMIC_FADD ||
+                Op == ATOMIC_FSUB) {
     if constexpr (NumSrc != 1) {
       CM_STATIC_ERROR(NumSrc == 1, "One source operand is expected");
       return false;

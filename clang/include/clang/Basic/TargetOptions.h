@@ -39,6 +39,9 @@ public:
   /// If given, the name of the target CPU to generate code for.
   std::string CPU;
 
+  /// If given, the name of the stepping to generate code for.
+  std::string Stepping;
+
   // If given, revision id to pass to ocloc
   int RevId;
 

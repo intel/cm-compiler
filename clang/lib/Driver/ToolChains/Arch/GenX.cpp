@@ -42,9 +42,40 @@ int GenX::getGenXRevId(const std::string &CPU,
 
   // if no option, try to deduce from CPU
   RevId = llvm::StringSwitch<int>(CPU)
+            .Case("PVC", 0)
+            .Case("PVCXT", 5)
             .Default(0);
 
   return RevId;
+}
+
+
+static void reportUnsupportedStepping(const std::string &CPU,
+                                      const std::string &Stepping) {
+  std::string Err = std::string(
+      (Twine("stepping <") + Stepping + "> is not supported for <" + CPU + ">")
+          .str());
+  llvm::report_fatal_error(Err);
+}
+
+static std::string deriveFinalCpuNameFromStepping(const std::string &CPU,
+                                                  const std::string &Stepping) {
+  if (Stepping.empty()) {
+    return CPU;
+  }
+
+  if (Stepping == "A" && CPU == "PVC")
+    return "PVC";
+
+  if (Stepping == "B" && CPU == "PVC")
+    return "PVCXT";
+
+
+  if (CPU == "DG2")
+    return CPU;
+
+  reportUnsupportedStepping(CPU, Stepping);
+  return CPU;
 }
 
 static std::string getCanonicalGenXTargetCPU(const std::string &CPU,
@@ -74,8 +105,16 @@ static std::string getCanonicalGenXTargetCPU(const std::string &CPU,
                            .Case("RKL", "RKL")
                            .Case("DG1", "DG1")
                            .Case("XEHP_SDV", "XEHP_SDV")
+                           .Case("DG2", "DG2")
+                           .Case("ADLP", "ADLP")
+                           .Case("ADLS", "ADLS")
+                           .Case("PVC", "PVC")
+                           .Case("PVCXT", "PVCXT")
                            .Default("");
 
+  int RevId = GenX::getGenXRevId(CPU, Args, Drv);
+  if (CPUName == "PVC" && RevId >= 3)
+    return "PVCXT";
   return CanonicalCPU;
 }
 
