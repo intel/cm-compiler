@@ -114,8 +114,6 @@ bool GenX::isCMBinaryFormat(const ArgList &Args) {
 void GenX::getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,
                                  const ArgList &Args,
                                  std::vector<StringRef> &Features) {
-  if (Args.getLastArg(options::OPT_mdump_regalloc))
-    Features.push_back("+dump_regalloc");
   if (Args.getLastArg(options::OPT_mCM_disable_jmpi))
     Features.push_back("+disable_jmpi");
   if (Args.getLastArg(options::OPT_mCM_warn_callable))
