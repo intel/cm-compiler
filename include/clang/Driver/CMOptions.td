@@ -222,10 +222,6 @@ def mCM_enforce_disable_free : Flag<["-", "/"], "mCM_enforce_disable_free">, Gro
 def fvldst : CMIgnoredFlag<"fvldst">;
 def fno_vldst : CMIgnoredFlag<"fno-vldst">;
 
-// Options passed to GenX backend.
-def mdump_regalloc : CMFlag<"mdump_regalloc">,
-  HelpText<"dump register allocation information from the genx backend">;
-
 def mdump_asm : CMFlag<"mdump_asm">,
   HelpText<"Enable genx backend to dump visa and genisa assembly "
            "files corresponding to the processed kernels">;
