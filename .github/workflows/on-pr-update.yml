@@ -10,10 +10,13 @@ name: Notify
 on:
   status:
   pull_request_review:
+env:
+  NOTIFY: ${{ secrets.NOTIFY }}
 
 jobs:
   notify:
     runs-on: self-hosted
+    if: ${{ env.NOTIFY }}
     steps:
       - name: Get branch name if status changed
         if: github.event_name == 'status'
