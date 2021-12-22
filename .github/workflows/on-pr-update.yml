@@ -15,7 +15,7 @@ env:
 
 jobs:
   notify:
-    runs-on: self-hosted
+    runs-on: [self-hosted, linux, small]
     if: ${{ env.NOTIFY }}
     steps:
       - name: Get branch name if status changed
