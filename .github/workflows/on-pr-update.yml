@@ -16,7 +16,6 @@ env:
 jobs:
   notify:
     runs-on: [self-hosted, linux, small]
-    if: ${{ env.NOTIFY }}
     steps:
       - name: Get branch name if status changed
         if: github.event_name == 'status'
@@ -27,4 +26,5 @@ jobs:
         run: >
           echo "os_branch=${{ github.event.pull_request.head.ref }}" >> $GITHUB_ENV
       - name: Notify
+        if: ${{ env.NOTIFY != '' }}
         run: ${{ secrets.NOTIFY }}
