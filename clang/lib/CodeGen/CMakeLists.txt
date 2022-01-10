@@ -117,6 +117,7 @@ add_clang_library(clangCodeGen
   clangFrontend
   clangLex
   clangSerialization
+  clangPasses
   )
 
 target_link_libraries(clangCodeGen PUBLIC LLVMSPIRVLib)
