@@ -145,9 +145,11 @@ CM_INLINE void monitor_no_event(void) {
 /// timer_value passed in as the timeout. Only the bottom 10 bits are valid.
 /// Only one event may be monitored/waited on at a time
 ///
-#define CM_WAIT_EVENT (defined(CM_XEHPG) || defined(CM_XEHPC))
+#if defined(CM_XEHPG) || defined(CM_XEHPC)
+#define CM_WAIT_EVENT_SBARRIER
+#endif
 
-#ifdef CM_WAIT_EVENT
+#ifdef CM_WAIT_EVENT_SBARRIER
 CM_INLINE void wait_event(unsigned short timer_value) {
   matrix<ushort, 1, 16> payload = 0;
   unsigned msgLength = 1;
