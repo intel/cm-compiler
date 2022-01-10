@@ -14,12 +14,14 @@ See LICENSE.TXT for details.
 ============================= end_copyright_notice ===========================*/
 
 #include "clang/CodeGen/BackendUtil.h"
+#include "LLVMSPIRVLib.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TargetOptions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/Utils.h"
+#include "clang/FrontendPasses/OptFenceLowering.h"
 #include "clang/Lex/HeaderSearchOptions.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringExtras.h"
@@ -72,7 +74,6 @@ See LICENSE.TXT for details.
 #include "llvm/Transforms/Utils/CanonicalizeAliases.h"
 #include "llvm/Transforms/Utils/NameAnonGlobals.h"
 #include "llvm/Transforms/Utils/SymbolRewriter.h"
-#include "LLVMSPIRVLib.h"
 #include <memory>
 #include <sstream>
 using namespace clang;
@@ -575,6 +576,7 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
   PMBuilder.RerollLoops = CodeGenOpts.RerollLoops;
 
   MPM.add(new TargetLibraryInfoWrapperPass(*TLII));
+  MPM.add(createOptFenceLoweringPass());
 
   if (TM)
     TM->adjustPassManager(PMBuilder);

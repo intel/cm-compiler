@@ -2545,4 +2545,29 @@ cm_dp4a(vector<T2, N> src0, vector<T3, N> src1, vector<T4, N> src2,
 
 #endif // _SIMD_CF_
 
+////////////////////////////////////////////////////////////////////////////////
+// Opimizations fence object.
+////////////////////////////////////////////////////////////////////////////////
+namespace cm {
+
+class CMOptimizationsFence final {
+public:
+  [[gnu::abi_tag("__cm_optfence_begin__")]] CMOptimizationsFence();
+  [[gnu::abi_tag("__cm_optfence_end__")]] ~CMOptimizationsFence();
+
+  CMOptimizationsFence(CMOptimizationsFence &) = delete;
+  CMOptimizationsFence &operator=(CMOptimizationsFence &) = delete;
+  CMOptimizationsFence(CMOptimizationsFence &&) = delete;
+  CMOptimizationsFence &operator=(CMOptimizationsFence &&) = delete;
+
+  CMOptimizationsFence *operator&() = delete;
+};
+
+} // namespace cm
+
+#define _CM_OPTFENCE_GET_NAME_(pref, ID) pref##ID
+#define _CM_OPTFENCE_UNIQ_DECL_(ID)                                            \
+  cm::CMOptimizationsFence _CM_OPTFENCE_GET_NAME_(__cm_optimizations_fence__, ID);
+#define CM_OPTIMIZATIONS_FENCE CM_STATIC_ERROR(sizeof(__func__) != 1, "Fence must be used at function scope!"); _CM_OPTFENCE_UNIQ_DECL_(__COUNTER__);
+
 #endif // _CLANG_CM_H_
