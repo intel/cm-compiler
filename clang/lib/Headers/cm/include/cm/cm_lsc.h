@@ -1112,12 +1112,12 @@ CM_NODEBUG CM_INLINE auto cm_atomic(SurfaceIndex Idx,
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   constexpr bool _Transposed = false;
-  using _MessTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
   auto _TmpRes =
       __cm_intrinsic_impl_lsc_atomic_bti<Op, _DS, VS, _Transposed, L1H, L3H,
-                                         _MessTy, N>(Pred, Idx, Offset);
-  return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
+                                         _IntRetTy, N>(Pred, Idx, Offset);
+  return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
 }
 
 template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
@@ -1138,12 +1138,15 @@ cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   constexpr bool _Transposed = false;
-  using _MessTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _SrcTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _CastTy = typename lsc_bitcast_type<T>::type;
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
-  auto _TmpRes =
-      __cm_intrinsic_impl_lsc_atomic_bti<Op, _DS, VS, _Transposed, L1H, L3H,
-                                         _MessTy, N>(Pred, Idx, Offset, Src0);
-  return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
+  _SrcTy _TmpSrc0 = Src0.format<_CastTy>();
+  auto _TmpRes = __cm_intrinsic_impl_lsc_atomic_bti<Op, _DS, VS, _Transposed,
+                                                    L1H, L3H, _IntRetTy, N>(
+      Pred, Idx, Offset, _TmpSrc0);
+  return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
 }
 
 template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
@@ -1164,13 +1167,17 @@ cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
-  using _MessTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _SrcTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
+  using _CastTy = typename lsc_bitcast_type<T>::type;
+  _SrcTy _TmpSrc0 = Src0.format<_CastTy>();
+  _SrcTy _TmpSrc1 = Src1.format<_CastTy>();
   constexpr bool _Transposed = false;
   auto _TmpRes = __cm_intrinsic_impl_lsc_atomic_bti<Op, _DS, VS, _Transposed,
-                                                    L1H, L3H, _MessTy, N>(
-      Pred, Idx, Offset, Src0, Src1);
-  return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
+                                                    L1H, L3H, _IntRetTy, N>(
+      Pred, Idx, Offset, _TmpSrc0, _TmpSrc1);
+  return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
 }
 
 // flat-address atomic
@@ -1192,12 +1199,12 @@ CM_NODEBUG CM_INLINE auto cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   constexpr bool _Transposed = false;
   uint64_t _Addr = (uint64_t)Ptr;
-  using _MessTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
   auto _TmpRes =
       __cm_intrinsic_impl_lsc_atomic_flat<Op, _DS, VS, _Transposed, L1H, L3H,
-                                          _MessTy, N>(Pred, _Addr, Offset);
-  return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
+                                          _IntRetTy, N>(Pred, _Addr, Offset);
+  return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
 }
 
 template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
@@ -1219,12 +1226,15 @@ cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   constexpr bool _Transposed = false;
   uint64_t _Addr = (uint64_t)Ptr;
-  using _MessTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _SrcTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
+  using _CastTy = typename lsc_bitcast_type<T>::type;
+  _SrcTy _TmpSrc0 = Src0.format<_CastTy>();
   auto _TmpRes = __cm_intrinsic_impl_lsc_atomic_flat<Op, _DS, VS, _Transposed,
-                                                     L1H, L3H, _MessTy, N>(
-      Pred, _Addr, Offset, Src0);
-  return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
+                                                     L1H, L3H, _IntRetTy, N>(
+      Pred, _Addr, Offset, _TmpSrc0);
+  return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
 }
 
 template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
@@ -1245,14 +1255,18 @@ cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
-  using _MessTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _SrcTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
+  using _CastTy = typename lsc_bitcast_type<T>::type;
+  _SrcTy _TmpSrc0 = Src0.format<_CastTy>();
+  _SrcTy _TmpSrc1 = Src1.format<_CastTy>();
   constexpr bool _Transposed = false;
   uint64_t _Addr = (uint64_t)Ptr;
   auto _TmpRes = __cm_intrinsic_impl_lsc_atomic_flat<Op, _DS, VS, _Transposed,
-                                                     L1H, L3H, _MessTy, N>(
-      Pred, _Addr, Offset, Src0, Src1);
-  return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
+                                                     L1H, L3H, _IntRetTy, N>(
+      Pred, _Addr, Offset, _TmpSrc0, _TmpSrc1);
+  return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
 }
 
 // bindless-address atomic
@@ -1298,12 +1312,12 @@ CM_NODEBUG CM_INLINE auto cm_atomic_slm(vector<unsigned, N> Offset,
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   constexpr bool _Transposed = false;
-  using _MessTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
   auto _TmpRes =
       __cm_intrinsic_impl_lsc_atomic_slm<Op, _DS, VS, _Transposed, L1H, L3H,
-                                         _MessTy, N>(Pred, Offset);
-  return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
+                                         _IntRetTy, N>(Pred, Offset);
+  return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
 }
 
 template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
@@ -1324,12 +1338,15 @@ cm_atomic_slm(vector<unsigned, N> Offset,
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   constexpr bool _Transposed = false;
-  using _MessTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _SrcTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
+  using _CastTy = typename lsc_bitcast_type<T>::type;
+  _SrcTy _TmpSrc0 = Src0.format<_CastTy>();
   auto _TmpRes =
       __cm_intrinsic_impl_lsc_atomic_slm<Op, _DS, VS, _Transposed, L1H, L3H,
-                                         _MessTy, N>(Pred, Offset, Src0);
-  return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
+                                         _IntRetTy, N>(Pred, Offset, _TmpSrc0);
+  return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
 }
 
 template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
@@ -1350,13 +1367,17 @@ cm_atomic_slm(vector<unsigned, N> Offset,
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
-  using _MessTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
+  using _SrcTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
+  using _CastTy = typename lsc_bitcast_type<T>::type;
+  _SrcTy _TmpSrc0 = Src0.format<_CastTy>();
+  _SrcTy _TmpSrc1 = Src1.format<_CastTy>();
   constexpr bool _Transposed = false;
-  auto _TmpRes =
-      __cm_intrinsic_impl_lsc_atomic_slm<Op, _DS, VS, _Transposed, L1H, L3H,
-                                         _MessTy, N>(Pred, Offset, Src0, Src1);
-  return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
+  auto _TmpRes = __cm_intrinsic_impl_lsc_atomic_slm<Op, _DS, VS, _Transposed,
+                                                    L1H, L3H, _IntRetTy, N>(
+      Pred, Offset, _TmpSrc0, _TmpSrc1);
+  return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
 }
 
 ///
