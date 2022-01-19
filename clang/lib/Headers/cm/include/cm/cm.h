@@ -1709,11 +1709,12 @@ cm_bf_extract(T1 src0, T2 src1, T3 src2) {
 // a "typename T". Since the type can only be float, we hack it
 // by defining T=void without instantiating it to be float.
 
-#define _CM_INTRINSIC_DEF(type, name)                                          \
+#define _CM_INTRINSIC_WITH_CONTROL_DEF(type, name, control)                    \
   template <int SZ>                                                            \
   CM_NODEBUG CM_INLINE                                                         \
   vector<type, SZ> cm_##name(vector<type, SZ> src0, int flag = _GENX_NOSAT) {  \
     vector<type, SZ> _Result = details::__cm_intrinsic_impl_##name(src0);      \
+    control;                                                                   \
     if (flag != _GENX_SAT)                                                     \
       return _Result;                                                          \
     return details::__cm_intrinsic_impl_sat<type>(_Result);                    \
@@ -1730,6 +1731,7 @@ cm_bf_extract(T1 src0, T2 src1, T3 src2) {
     vector<type, 1> _Result = cm_##name(_Src0, flag);                          \
     return _Result(0);                                                         \
   }
+#define _CM_INTRINSIC_DEF(type, name) _CM_INTRINSIC_WITH_CONTROL_DEF(type, name, 0);
 
 _CM_INTRINSIC_DEF(half, inv)
 _CM_INTRINSIC_DEF(half, log)
@@ -1743,19 +1745,21 @@ _CM_INTRINSIC_DEF(float, inv)
 _CM_INTRINSIC_DEF(float, log)
 _CM_INTRINSIC_DEF(float, exp)
 _CM_INTRINSIC_DEF(float, sqrt)
-_CM_INTRINSIC_DEF(float, sqrt_ieee)
+_CM_INTRINSIC_WITH_CONTROL_DEF(float, sqrt_ieee, CM_HAS_IEEE_DIV_SQRT_CONTROL)
 _CM_INTRINSIC_DEF(float, rsqrt)
 _CM_INTRINSIC_DEF(float, sin)
 _CM_INTRINSIC_DEF(float, cos)
 
-_CM_INTRINSIC_DEF(double, sqrt_ieee)
+_CM_INTRINSIC_WITH_CONTROL_DEF(double, sqrt_ieee, CM_HAS_IEEE_DIV_SQRT_CONTROL)
 
 #undef _CM_INTRINSIC_DEF
+#undef _CM_INTRINSIC_WITH_CONTROL_DEF
 
-#define _CM_INTRINSIC_DEF(ftype, name)                                         \
+#define _CM_INTRINSIC_WITH_CONTROL_DEF(ftype, name, control)                   \
   template <int SZ, typename U>                                                \
   CM_NODEBUG CM_INLINE vector<ftype, SZ> cm_##name(                            \
       vector<ftype, SZ> src0, U src1, int flag = _GENX_NOSAT) {                \
+    control;                                                                   \
     vector<ftype, SZ> _Src1 = src1;                                            \
     vector<ftype, SZ> _Result =                                                \
         details::__cm_intrinsic_impl_##name(src0, _Src1);                      \
@@ -1786,6 +1790,7 @@ _CM_INTRINSIC_DEF(double, sqrt_ieee)
     vector<ftype, N1 *N2> _Src1 = src1;                                        \
     return cm_##name(_Src0, _Src1, flag);                                      \
   }                                                                            \
+  template <typename T = void>                                                 \
   CM_NODEBUG CM_INLINE ftype                                                   \
   cm_##name(ftype src0, ftype src1, int flag = _GENX_NOSAT) {                  \
     vector<ftype, 1> _Src0 = src0;                                             \
@@ -1793,14 +1798,17 @@ _CM_INTRINSIC_DEF(double, sqrt_ieee)
     vector<ftype, 1> _Result = cm_##name(_Src0, _Src1, flag);                  \
     return _Result(0);                                                         \
   }
+#define _CM_INTRINSIC_DEF(ftype, name) _CM_INTRINSIC_WITH_CONTROL_DEF(ftype, name, 0)
+
 
 _CM_INTRINSIC_DEF(half, pow)
 _CM_INTRINSIC_DEF(float, pow)
 
-_CM_INTRINSIC_DEF(float, div_ieee)
-_CM_INTRINSIC_DEF(double, div_ieee)
+_CM_INTRINSIC_WITH_CONTROL_DEF(float, div_ieee, CM_HAS_IEEE_DIV_SQRT_CONTROL)
+_CM_INTRINSIC_WITH_CONTROL_DEF(double, div_ieee, CM_HAS_IEEE_DIV_SQRT_CONTROL)
 
 #undef _CM_INTRINSIC_DEF
+#undef _CM_INTRINSIC_WITH_CONTROL_DEF
 
 // cm_sincos
 template <int SZ, typename U>
