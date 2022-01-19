@@ -1136,6 +1136,8 @@ cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
+  CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
+                  "unsupported type for lsc atomic source or dest arguments");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   constexpr bool _Transposed = false;
   using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
@@ -1166,6 +1168,8 @@ cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
+  CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
+                  "unsupported type for lsc atomic source or dest arguments");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _SrcTy = decltype(lsc_data_type_ext<T, N, VS>());
@@ -1223,6 +1227,8 @@ cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
+  CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
+                  "unsupported type for lsc atomic source or dest arguments");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   constexpr bool _Transposed = false;
   uint64_t _Addr = (uint64_t)Ptr;
@@ -1254,6 +1260,8 @@ cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
+  CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
+                  "unsupported type for lsc atomic source or dest arguments");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _SrcTy = decltype(lsc_data_type_ext<T, N, VS>());
@@ -1336,6 +1344,8 @@ cm_atomic_slm(vector<unsigned, N> Offset,
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
+  CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
+                  "unsupported type for lsc atomic source or dest arguments");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   constexpr bool _Transposed = false;
   using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
@@ -1366,6 +1376,8 @@ cm_atomic_slm(vector<unsigned, N> Offset,
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
+  CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
+                  "unsupported type for lsc atomic source or dest arguments");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _SrcTy = decltype(lsc_data_type_ext<T, N, VS>());
