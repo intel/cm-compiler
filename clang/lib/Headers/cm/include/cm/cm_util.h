@@ -290,6 +290,13 @@ constexpr bool lsc_check_simt() {
 #endif // CM_GENX >= 1280
 }
 
+// Check for valid type for atomic source and dest arguments
+template <typename T>
+constexpr bool lsc_check_atomic_src() {
+  // 8-bit atomics are unsupported
+  return sizeof(T) >= 2;
+}
+
 template <CacheHint mHint> class CacheHintWrap {
   template <CacheHint...> class is_one_of_t;
   template <CacheHint Last>
