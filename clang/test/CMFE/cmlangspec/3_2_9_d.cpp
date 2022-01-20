@@ -18,4 +18,4 @@ _GENX_ void test1()
                           // copied to elements a(0), a(2), a(4), a(6))
 }
 
-// RUN: %cmc -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
+// RUN: %cmc -march=SKL -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s

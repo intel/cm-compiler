@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: not %cmc -emit-llvm -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
+// RUN: not %cmc -march=SKL -emit-llvm -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
 
 #include <cm/cm.h>
 

@@ -237,7 +237,7 @@ void CmocContext::runVCOpt(const BinaryData &In, InputKind IK,
 
   std::string CPU = DriverInvocation->getTargetArch();
   if (CPU.empty())
-    CPU = "SKL"; // TODO: consider reporting an error
+    FatalError("CPU is empty: specify -march=<CPU>");
 
   std::string BinFormat;
   switch(DriverInvocation->getBinaryFormat()) {
