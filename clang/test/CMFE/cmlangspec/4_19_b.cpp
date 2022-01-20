@@ -23,5 +23,5 @@ _GENX_ void test()
 
 }
 
-// RUN: %cmc -emit-llvm -- %s 2>&1 | FileCheck --implicit-check-not error %s
+// RUN: %cmc -march=SKL -emit-llvm -- %s 2>&1 | FileCheck --implicit-check-not error %s
 // CHECK: warning: cm_nonstrict is deprecated

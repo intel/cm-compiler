@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: %cmc -S -emit-llvm -o %t.ll -- %s
+// RUN: %cmc -march=SKL -S -emit-llvm -o %t.ll -- %s
 // RUN: FileCheck %s --input-file %t.ll
 
 // CHECK-NOT: __cm_optfence_begin__

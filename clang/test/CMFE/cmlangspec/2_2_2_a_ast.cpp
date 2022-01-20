@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: %cmc %dump-ast-for test_func -- %s 2>&1 | FileCheck %s
+// RUN: %cmc -march=SKL %dump-ast-for test_func -- %s 2>&1 | FileCheck %s
 
 // Check that row() returns vector_ref to matrix row.
 
