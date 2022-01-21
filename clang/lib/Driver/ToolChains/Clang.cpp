@@ -4121,10 +4121,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-mCM_enable_stackcalls");
     if (Args.getLastArg(options::OPT_mCM_no_emulate_i64))
       CmdArgs.push_back("-mCM_no_emulate_i64");
-    if (Arg *A = Args.getLastArg(options::OPT_cm_printf_spec)) {
-      CmdArgs.push_back("-cm-printf-spec");
-      CmdArgs.push_back(A->getValue());
-    }
   }
   if (Arg *A = Args.getLastArg(options::OPT_O_Group)) {
     if (A->getOption().matches(options::OPT_O0))

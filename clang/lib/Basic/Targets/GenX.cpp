@@ -131,8 +131,6 @@ void GenXTargetInfo::getTargetDefines(const LangOptions &Opts,
   // OCL runtime specific headers support
   if (OCLRuntime)
     Builder.defineMacro("__CM_OCL_RUNTIME");
-  if (Opts.CMUseOCLSpecPrintf)
-    Builder.defineMacro("__CM_USE_OCL_SPEC_PRINTF");
 }
 bool GenXTargetInfo::hasFeature(StringRef Feature) const {
   return llvm::StringSwitch<bool>(Feature)
