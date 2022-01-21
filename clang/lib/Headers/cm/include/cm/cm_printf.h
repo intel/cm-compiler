@@ -273,22 +273,12 @@ cmfprint(SurfaceIndex BTI, const char (&format)[N])
   details::_cm_print_format(BTI, offset, format);
 }
 
-#ifdef __CM_USE_OCL_SPEC_PRINTF
-using ReturnType = int;
-#else  // __CM_USE_OCL_SPEC_PRINTF
-using ReturnType = void;
-#endif // __CM_USE_OCL_SPEC_PRINTF
-
-template<int N>
-CM_NODEBUG CM_INLINE
-typename std::enable_if<(N<=128), ReturnType>::type
-cmprint(const char (&format)[N])
-{
+template <int N>
+CM_NODEBUG CM_INLINE typename std::enable_if<(N <= 128), int>::type
+cmprint(const char (&format)[N]) {
   SurfaceIndex BTI = details::__cm_intrinsic_impl_predefined_surface(details::PRINT_SURF_IDX);
   cmfprint(BTI, format);
-#ifdef __CM_USE_OCL_SPEC_PRINTF
   return 0;
-#endif // __CM_USE_OCL_SPEC_PRINTF
 }
 
 template<int N, typename T, typename... Targs>
@@ -309,16 +299,12 @@ cmfprint(SurfaceIndex BTI, const char (&format)[N], T value, Targs... Fargs)
   details::_cm_print_args(BTI, offset, value, Fargs...);
 }
 
-template<unsigned N, typename T, typename... Targs>
-CM_NODEBUG CM_INLINE
-typename std::enable_if<(N<=128), ReturnType>::type
-cmprint(const char (&format)[N], T value, Targs... Fargs)
-{
+template <unsigned N, typename T, typename... Targs>
+CM_NODEBUG CM_INLINE typename std::enable_if<(N <= 128), int>::type
+cmprint(const char (&format)[N], T value, Targs... Fargs) {
   SurfaceIndex BTI = details::__cm_intrinsic_impl_predefined_surface(details::PRINT_SURF_IDX);
   cmfprint(BTI, format, value, Fargs...);
-#ifdef __CM_USE_OCL_SPEC_PRINTF
   return 0;
-#endif // __CM_USE_OCL_SPEC_PRINTF
 }
 
 #endif /* __CM_OCL_RUNTIME */
