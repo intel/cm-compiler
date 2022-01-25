@@ -95,7 +95,7 @@ static std::string getCanonicalGenXTargetCPU(const std::string &CPU,
                            .Cases("GEN7_5", "HSW", "HSW")
                            .Cases("GEN8", "BDW", "BDW")
                            .Cases("GEN8LP", "GEN8_5", "CHV", "CHV")
-                           .Cases("GEN9", "SKL", "SKL")
+                           .Cases("GEN9", "CFL", "SKL", "SKL")
                            .Cases("GEN9LP", "BXT", "BXT")
                            .Cases("GEN9_5", "GEN9P5", "KBL", "KBL")
                            .Cases("GEN9_5LP", "GEN9P5LP", "GLK", "GLK")
