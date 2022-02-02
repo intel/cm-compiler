@@ -609,15 +609,20 @@ IntelCMClangFECompile(const Intel::CM::ClangFE::IInputArgs *InArgs) {
     llvm::makeArrayRef(CStrCompOpts.data(), CStrCompOpts.size())};
   Cc1ExtraOptionInfo.applyTo(Clang);
 
-  Clang.createDiagnostics();
+  clang::TextDiagnosticPrinter Consumer(*error_stream,
+                                        &Clang.getDiagnosticOpts(), false);
+  Clang.createDiagnostics(&Consumer, false);
   if (!Clang.hasDiagnostics()) {
     llvm::errs() << "FEWrapper fatal error: could not create diagnostics\n";
     return nullptr;
   }
 
   llvm::cl::ResetAllOptionOccurrences();
+  Clang.setVerboseOutputStream(*error_stream);
   auto success = clang::ExecuteCompilerInvocation(&Clang);
   OutArgsBuilder.setStatus(success);
+  // stream is buffered, so update underlying string
+  error_stream->flush();
   auto OutArgs = wrapper::OutputArgsImpl::create(OutArgsBuilder);
 
   return OutArgs;
