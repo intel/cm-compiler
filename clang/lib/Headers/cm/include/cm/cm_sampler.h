@@ -247,6 +247,7 @@ CM_NODEBUG CM_INLINE void
 sample32(matrix_ref<ushort, N, 32> m, ChannelMaskType channelMask,
          SurfaceIndex surfIndex, SamplerIndex sampIndex, float u, float v,
          float deltaU, float deltaV, OutputFormatControl ofc = CM_16_FULL) {
+  CM_HAS_SAMPLE_UNORM_CONTROL;
 
 #define SAMPLE32(mask)                                                         \
   switch (ofc) {                                                               \
