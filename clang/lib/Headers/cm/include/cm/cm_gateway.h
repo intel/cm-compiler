@@ -35,22 +35,16 @@ typedef enum _SubFuncID {
   SUBID_RSVD_3 = 0x07
 } SubFuncID;
 
-#if defined(CM_GEN7_5) || defined(CM_GEN8) || defined(CM_GEN8_5) ||            \
-    defined(CM_GEN9) || defined(CM_GEN9_5) || defined(CM_GEN10) ||             \
-    !defined(CM_GENX)
+#ifndef CM_HAS_GATEWAY_EVENT
 
 #define signal_event(...)                                                      \
-  CM_STATIC_ERROR(0, "signal_event is only supported for ICL+. Ensure "        \
-                     "compile flags reflect this.");
+  CM_STATIC_ERROR(0, "Not supported feature for this platform");
 #define monitor_event(...)                                                     \
-  CM_STATIC_ERROR(0, "monitor_event is only supported for ICL+. Ensure "       \
-                     "compile flags reflect this.");
+  CM_STATIC_ERROR(0, "Not supported feature for this platform");
 #define monitor_no_event(...)                                                  \
-  CM_STATIC_ERROR(0, "monitor_no_event is only supported for ICL+. Ensure "    \
-                     "compile flags reflect this.");
+  CM_STATIC_ERROR(0, "Not supported feature for this platform");
 #define wait_event(...)                                                        \
-  CM_STATIC_ERROR(0, "wait_event is only supported for ICL+. Ensure compile "  \
-                     "flags reflect this.");
+  CM_STATIC_ERROR(0, "Not supported feature for this platform");
 
 /// \brief Wrapper function for cm_wait builtin
 ///
@@ -72,7 +66,7 @@ CM_INLINE void cm_signal() {
   CM_STATIC_ERROR(N <= 8, "the maximal number dependencies cannot exceed 8");
 }
 
-#else
+#else // CM_HAS_GATEWAY_EVENT
 
 /// \brief Hardware Thread Monitor signal event
 ///
@@ -145,9 +139,9 @@ CM_INLINE void monitor_no_event(void) {
 /// timer_value passed in as the timeout. Only the bottom 10 bits are valid.
 /// Only one event may be monitored/waited on at a time
 ///
-#if defined(CM_XEHPG) || defined(CM_XEHPC)
+#if (CM_GENX >= 1270) // >= XeHP_SDV
 #define CM_WAIT_EVENT_SBARRIER
-#endif
+#endif // >= XeHP_SDV
 
 #ifdef CM_WAIT_EVENT_SBARRIER
 CM_INLINE void wait_event(unsigned short timer_value) {
@@ -162,7 +156,7 @@ CM_INLINE void wait_event(unsigned short timer_value) {
   cm_send(NULL, payload, SFID_GATEWAY, msgDesc, 0u /* sendc */);
   cm_sbarrier(0);
 }
-#else
+#else // CM_WAIT_EVENT_SBARRIER
 CM_INLINE unsigned int wait_event(unsigned short timer_value) {
   matrix<ushort, 1, 16> payload = 0;
   matrix<ushort, 1, 16> response = 0;
@@ -180,7 +174,7 @@ CM_INLINE unsigned int wait_event(unsigned short timer_value) {
 
   return lock;
 }
-#endif
+#endif // CM_WAIT_EVENT_SBARRIER
 
 /// \brief Wrapper function for cm_wait builtin
 ///
@@ -269,7 +263,7 @@ CM_INLINE void cm_signal() {
     signal_event(EventID);
   }
 }
-#endif
+#endif // CM_HAS_GATEWAY_EVENT
 
 template <typename T>
 CM_NODEBUG CM_INLINE
