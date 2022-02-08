@@ -113,6 +113,14 @@ namespace CheckVersion {
   #define CM_HAS_DPASW_CONTROL CM_HAS_CONTROL(false)
 #endif
 
+//Gateway event
+#if (CM_GENX >= 1150 && CM_GENX <= 1280) //>= ICLLP && <= PVC
+  #define CM_HAS_GATEWAY_EVENT
+  #define CM_HAS_GATEWAY_EVENT_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_GATEWAY_EVENT_CONTROL CM_HAS_CONTROL(false)
+#endif
+
 //IEEE
 #if (CM_GENX == 800  || /*BWD*/         \
      CM_GENX == 900  || /*SKL*/         \
