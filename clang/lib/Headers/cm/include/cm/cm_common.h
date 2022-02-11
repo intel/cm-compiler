@@ -591,14 +591,42 @@ constexpr unsigned get_precision_bits(CmPrecisionType src_precision) {
 #define _GENX_ROUNDING_MODE_(x) __declspec(cm_float_control(x))
 #define _GENX_FLOAT_CONTROL_(x) __declspec(cm_float_control(x))
 
+// Mark a function with always_inline attribute
+#define __CM_ALWAYS_INLINE_INTERNAL inline __attribute__((always_inline))
+
 // Mark a function being deprecated.
 #define CM_DEPRECATED(Msg) __attribute__((deprecated(Msg)))
 // Mark a function being nodebug.
 #define CM_NODEBUG __attribute__((nodebug))
 // Mark a function being noinline
 #define CM_NOINLINE __attribute__((noinline))
-// Mark a function to be inlined
+// Mark a function with inline attribute (CM-specific inline)
 #define CM_INLINE inline
+
+#ifdef __DISABLE_INLINING_ON_CM_LIBRARY_CALLS
+// TODO: probably CM library calls should have something like _CM_INLINE
+// instead of CM_INLINE, to separate internal defines from the ones used by
+// the client code.
+// Original CM_INLINE should be deprecated (excluded from the spec).
+#undef CM_INLINE
+#define CM_INLINE
+#endif // __DISABLE_INLINING_ON_CM_LIBRARY_CALLS
+
+// Currently SPIRV adapter is unable to translate aggregate-related ops
+// properly, so we enforce always_inline for addc/subb
+#define __SPIRV_WRITER_INLINE_WA __CM_ALWAYS_INLINE_INTERNAL
+#ifdef __DISABLE_SPIRV_WRITER_INLINE_WA
+#undef __SPIRV_WRITER_INLINE_WA
+#define __SPIRV_WRITER_INLINE_WA CM_INLINE
+#endif // __DISABLE_SPIRV_WRITER_INLINE_WA
+
+// Currently CM print implementation requires it's library functions
+// to have always_inline attribute
+#define __CM_PRINT_INLINE_WA __CM_ALWAYS_INLINE_INTERNAL
+#ifdef __DISABLE_CM_PRINT_INLINE_WA
+#undef __CM_PRINT_INLINE_WA
+#define __CM_PRINT_INLINE_WA CM_INLINE
+#endif // __DISABLE_CM_PRINT_INLINE_WA
 
 // CM_STATIC_ERROR() and CM_STATIC_WARNING() are wrappers around the C++
 // static_assert mechanism that can be used to produce CM style diagnostics

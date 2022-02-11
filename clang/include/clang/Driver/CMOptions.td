@@ -266,6 +266,11 @@ def vc_use_plain_2d_images : Flag<["-"], "vc-use-plain-2d-images">,
   Group<cm_Group>, HelpText<"Treat image2d_t annotations as non-media images">,
   Flags<[CMOption, CC1Option]>;
 
+def cm_disable_strong_inline : Flag<["-"], "cm_disable_strong_inline">,
+  Group<cm_Group>, HelpText<"Disable treating of <inline> directives as "
+                            "<always_inline>">,
+  Flags<[CMOption, CC1Option, HelpHidden]>;
+
 // Catch-alls for a range of options - options starting with these strings will
 // be silently ignored, whether preceded by '-' or '/'.
 // Note: as options starting with a '/' could be a Linux file path we need to

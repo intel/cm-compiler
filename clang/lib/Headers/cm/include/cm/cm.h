@@ -155,14 +155,14 @@ cm_add(T1 src0, T2 src1, int flag = _GENX_NOSAT) {
 
 // cm_addc
 template <int SZ>
-CM_NODEBUG CM_INLINE vector<unsigned, SZ>
+CM_NODEBUG __SPIRV_WRITER_INLINE_WA vector<unsigned, SZ>
 cm_addc(vector<unsigned, SZ> src0, vector<unsigned, SZ> src1,
         vector_ref<unsigned, SZ> carry) {
   return details::__cm_intrinsic_impl_addc(src0, src1, carry);
 }
 
 template <int SZ>
-CM_NODEBUG CM_INLINE vector<unsigned, SZ>
+CM_NODEBUG __SPIRV_WRITER_INLINE_WA vector<unsigned, SZ>
 cm_addc(vector<unsigned, SZ> src0, unsigned src1,
         vector_ref<unsigned, SZ> carry) {
   vector<unsigned, SZ> Src1 = src1;
@@ -170,7 +170,7 @@ cm_addc(vector<unsigned, SZ> src0, unsigned src1,
 }
 
 template <int N1, int N2>
-CM_NODEBUG CM_INLINE matrix<unsigned, N1, N2>
+CM_NODEBUG __SPIRV_WRITER_INLINE_WA matrix<unsigned, N1, N2>
 cm_addc(matrix<unsigned, N1, N2> src0, matrix<unsigned, N1, N2> src1,
         matrix_ref<unsigned, N1, N2> carry) {
   vector<unsigned, N1 *N2> Src0 = src0;
@@ -180,7 +180,7 @@ cm_addc(matrix<unsigned, N1, N2> src0, matrix<unsigned, N1, N2> src1,
 }
 
 template <int N1, int N2>
-CM_NODEBUG CM_INLINE matrix<unsigned, N1, N2>
+CM_NODEBUG __SPIRV_WRITER_INLINE_WA matrix<unsigned, N1, N2>
 cm_addc(matrix<unsigned, N1, N2> src0, unsigned src1,
         matrix_ref<unsigned, N1, N2> carry) {
   vector<unsigned, N1 *N2> Src0 = src0;
@@ -189,8 +189,8 @@ cm_addc(matrix<unsigned, N1, N2> src0, unsigned src1,
   return cm_addc(Src0, Src1, Carry);
 }
 
-CM_NODEBUG CM_INLINE unsigned cm_addc(unsigned src0, unsigned src1,
-                                      unsigned &carry) {
+CM_NODEBUG __SPIRV_WRITER_INLINE_WA
+unsigned cm_addc(unsigned src0, unsigned src1, unsigned &carry) {
   vector<unsigned, 1> Src0 = src0;
   vector<unsigned, 1> Src1 = src1;
   vector<unsigned, 1> Carry;
@@ -200,14 +200,14 @@ CM_NODEBUG CM_INLINE unsigned cm_addc(unsigned src0, unsigned src1,
 }
 
 template <int SZ>
-CM_NODEBUG CM_INLINE vector<unsigned, SZ>
+CM_NODEBUG __SPIRV_WRITER_INLINE_WA vector<unsigned, SZ>
 cm_addc(unsigned src0, vector<unsigned, SZ> src1,
         vector_ref<unsigned, SZ> carry) {
   return cm_addc(src1, src0, carry);
 }
 
 template <int N1, int N2>
-CM_NODEBUG CM_INLINE matrix<unsigned, N1, N2>
+CM_NODEBUG __SPIRV_WRITER_INLINE_WA matrix<unsigned, N1, N2>
 cm_addc(unsigned src0, matrix<unsigned, N1, N2> src1,
         matrix_ref<unsigned, N1, N2> carry) {
   return cm_addc(src1, src0, carry);
@@ -215,14 +215,14 @@ cm_addc(unsigned src0, matrix<unsigned, N1, N2> src1,
 
 // cm_subb
 template <int SZ>
-CM_NODEBUG CM_INLINE vector<unsigned, SZ>
+CM_NODEBUG __SPIRV_WRITER_INLINE_WA vector<unsigned, SZ>
 cm_subb(vector<unsigned, SZ> minuend, vector<unsigned, SZ> subtrahend,
         vector_ref<unsigned, SZ> borrow) {
   return details::__cm_intrinsic_impl_subb(minuend, subtrahend, borrow);
 }
 
 template <int SZ>
-CM_NODEBUG CM_INLINE vector<unsigned, SZ>
+CM_NODEBUG __SPIRV_WRITER_INLINE_WA vector<unsigned, SZ>
 cm_subb(vector<unsigned, SZ> minuend, unsigned subtrahend,
         vector_ref<unsigned, SZ> borrow) {
   vector<unsigned, SZ> Subtrahend = subtrahend;
@@ -230,7 +230,7 @@ cm_subb(vector<unsigned, SZ> minuend, unsigned subtrahend,
 }
 
 template <int N1, int N2>
-CM_NODEBUG CM_INLINE matrix<unsigned, N1, N2>
+CM_NODEBUG __SPIRV_WRITER_INLINE_WA matrix<unsigned, N1, N2>
 cm_subb(matrix<unsigned, N1, N2> minuend, matrix<unsigned, N1, N2> subtrahend,
         matrix_ref<unsigned, N1, N2> borrow) {
   vector<unsigned, N1 *N2> Minuend = minuend;
@@ -240,7 +240,7 @@ cm_subb(matrix<unsigned, N1, N2> minuend, matrix<unsigned, N1, N2> subtrahend,
 }
 
 template <int N1, int N2>
-CM_NODEBUG CM_INLINE matrix<unsigned, N1, N2>
+CM_NODEBUG __SPIRV_WRITER_INLINE_WA matrix<unsigned, N1, N2>
 cm_subb(matrix<unsigned, N1, N2> minuend, unsigned subtrahend,
         matrix_ref<unsigned, N1, N2> borrow) {
   vector<unsigned, N1 *N2> Minuend = minuend;
@@ -249,8 +249,8 @@ cm_subb(matrix<unsigned, N1, N2> minuend, unsigned subtrahend,
   return cm_subb(Minuend, Subtrahend, Borrow);
 }
 
-CM_NODEBUG CM_INLINE unsigned cm_subb(unsigned minuend, unsigned subtrahend,
-                                      unsigned &borrow) {
+CM_NODEBUG __SPIRV_WRITER_INLINE_WA
+unsigned cm_subb(unsigned minuend, unsigned subtrahend, unsigned &borrow) {
   vector<unsigned, 1> Minuend = minuend;
   vector<unsigned, 1> Subtrahend = subtrahend;
   vector<unsigned, 1> Borrow;
@@ -260,7 +260,7 @@ CM_NODEBUG CM_INLINE unsigned cm_subb(unsigned minuend, unsigned subtrahend,
 }
 
 template <int SZ>
-CM_NODEBUG CM_INLINE vector<unsigned, SZ>
+CM_NODEBUG __SPIRV_WRITER_INLINE_WA vector<unsigned, SZ>
 cm_subb(unsigned minuend, vector<unsigned, SZ> subtrahend,
         vector_ref<unsigned, SZ> borrow) {
   vector<unsigned, SZ> Minuend = minuend;
@@ -268,7 +268,7 @@ cm_subb(unsigned minuend, vector<unsigned, SZ> subtrahend,
 }
 
 template <int N1, int N2>
-CM_NODEBUG CM_INLINE matrix<unsigned, N1, N2>
+CM_NODEBUG __SPIRV_WRITER_INLINE_WA matrix<unsigned, N1, N2>
 cm_subb(unsigned minuend, matrix<unsigned, N1, N2> subtrahend,
         matrix_ref<unsigned, N1, N2> borrow) {
   matrix<unsigned, N1, N2> Minuend = minuend;

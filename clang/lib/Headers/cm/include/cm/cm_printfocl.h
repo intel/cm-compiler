@@ -14,20 +14,23 @@ static_assert(0, "CM:w:cm_printfocl.h should not be included explicitly - only "
 #ifndef _CM_PRINTFOCL_H_
 #define _CM_PRINTFOCL_H_
 
+#include "cm_common.h"
+
 #ifdef __CM_OCL_RUNTIME
 
 // Results into 'OpExtInst printf' instruction in SPIR-V.
 int __spirv_ocl_printf(const char *, ...);
 
-template <typename... Targs> CM_INLINE auto printf(Targs... Fargs) {
+template <typename... Targs> __CM_PRINT_INLINE_WA auto printf(Targs... Fargs) {
   return __spirv_ocl_printf(Fargs...);
 }
 
-template <typename... Targs> CM_INLINE auto cm_printf(Targs... Fargs) {
+template <typename... Targs>
+__CM_PRINT_INLINE_WA auto cm_printf(Targs... Fargs) {
   return __spirv_ocl_printf(Fargs...);
 }
 
-template <typename... Targs> CM_INLINE auto cmprint(Targs... Fargs) {
+template <typename... Targs> __CM_PRINT_INLINE_WA auto cmprint(Targs... Fargs) {
   return __spirv_ocl_printf(Fargs...);
 }
 

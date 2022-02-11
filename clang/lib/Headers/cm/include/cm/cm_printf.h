@@ -14,6 +14,8 @@ static_assert(0, "CM:w:cm_printf.h should not be included explicitly - only "
 #ifndef _CM_PRINTF_H_
 #define _CM_PRINTF_H_
 
+#include "cm_common.h"
+
 #ifndef __CM_OCL_RUNTIME
 #define printf(...) __cm_builtin_cm_printf(details::__cm_intrinsic_impl_predefined_surface(2), __VA_ARGS__)
 #define cm_printf(...) __cm_builtin_cm_printf(details::__cm_intrinsic_impl_predefined_surface(2), __VA_ARGS__)
@@ -67,10 +69,8 @@ using OffsetT = DataElemT; // as offset is returned in data vector
 constexpr unsigned PRINT_SURF_IDX = 2;
 
 // base function
-template<typename T>
-CM_NODEBUG CM_INLINE
-OffsetT _cm_pr_len(T value)
-{
+template <typename T>
+CM_NODEBUG __CM_PRINT_INLINE_WA OffsetT _cm_pr_len(T value) {
   OffsetT elem_len = 0;
   if constexpr(details::is_cm_scalar<T>::value)
      elem_len = CMPHF_VEC_BSZ;
@@ -78,10 +78,8 @@ OffsetT _cm_pr_len(T value)
 }
 
 // recursive size-measure function
-template<typename T, typename... Targs>
-CM_NODEBUG CM_INLINE
-OffsetT _cm_pr_len(T value, Targs... Fargs)
-{
+template <typename T, typename... Targs>
+CM_NODEBUG __CM_PRINT_INLINE_WA OffsetT _cm_pr_len(T value, Targs... Fargs) {
   OffsetT elem_len = 0;
   if constexpr(details::is_cm_scalar<T>::value)
      elem_len = CMPHF_VEC_BSZ;
@@ -92,10 +90,10 @@ OffsetT _cm_pr_len(T value, Targs... Fargs)
 }
 
 // NOTE: is used in ISPC print
-template<typename T>
-CM_NODEBUG CM_INLINE
-void _cm_print_args_raw(SurfaceIndex BTI, OffsetT offset, DataElemT low, DataElemT high = 0)
-{
+template <typename T>
+CM_NODEBUG __CM_PRINT_INLINE_WA void
+_cm_print_args_raw(SurfaceIndex BTI, OffsetT offset, DataElemT low,
+                   DataElemT high = 0) {
   vector<DataElemT, CMPHF_VEC_ISZ> data_vec = 0;
   data_vec(CMPHF_ObjectTypeIndex) = CMPOT_Scalar;
   if constexpr(details::is_byte_type<T>::value) {
@@ -139,11 +137,10 @@ void _cm_print_args_raw(SurfaceIndex BTI, OffsetT offset, DataElemT low, DataEle
   write(BTI, offset, data_vec);
 }
 
-// recursive buffer-write function 
-template<typename T>
-CM_NODEBUG CM_INLINE
-void _cm_print_args(SurfaceIndex BTI, OffsetT offset, T value)
-{
+// recursive buffer-write function
+template <typename T>
+CM_NODEBUG __CM_PRINT_INLINE_WA void _cm_print_args(SurfaceIndex BTI,
+                                                    OffsetT offset, T value) {
   vector<DataElemT, CMPHF_VEC_ISZ> data_vec = 0;
   data_vec(CMPHF_ObjectTypeIndex) = CMPOT_Scalar;
   if constexpr(details::is_byte_type<T>::value) {
@@ -207,10 +204,9 @@ void _cm_print_args(SurfaceIndex BTI, OffsetT offset, T value)
   write(BTI, offset, data_vec);
 }
 
-template<typename T, typename... Targs>
-CM_NODEBUG CM_INLINE
-void _cm_print_args(SurfaceIndex BTI, OffsetT offset, T value, Targs... Fargs)
-{
+template <typename T, typename... Targs>
+CM_NODEBUG __CM_PRINT_INLINE_WA void
+_cm_print_args(SurfaceIndex BTI, OffsetT offset, T value, Targs... Fargs) {
   _cm_print_args(BTI, offset, value);
   offset += CMPHF_VEC_BSZ;
   _cm_print_args(BTI, offset, Fargs...);
@@ -219,9 +215,8 @@ void _cm_print_args(SurfaceIndex BTI, OffsetT offset, T value, Targs... Fargs)
 const ushort _addr_init[8] = {0, 4, 8, 12, 16, 20, 24, 28};
 
 // NOTE: is used in ISPC print
-CM_NODEBUG CM_INLINE
-OffsetT _cm_print_init_offset(SurfaceIndex BTI, OffsetT total_len)
-{
+CM_NODEBUG __CM_PRINT_INLINE_WA OffsetT
+_cm_print_init_offset(SurfaceIndex BTI, OffsetT total_len) {
   vector<DataElemT, CMPHF_VEC_ISZ> addrs(details::_addr_init);
   vector<DataElemT, CMPHF_VEC_ISZ> in = 0;
   in(0) = total_len;
@@ -232,10 +227,9 @@ OffsetT _cm_print_init_offset(SurfaceIndex BTI, OffsetT total_len)
 
 // stores format string
 // NOTE: is used in ISPC print
-template<int N>
-CM_NODEBUG CM_INLINE
-void _cm_print_format(SurfaceIndex BTI, OffsetT offset, vector<char, N> str_vec)
-{
+template <int N>
+CM_NODEBUG __CM_PRINT_INLINE_WA void
+_cm_print_format(SurfaceIndex BTI, OffsetT offset, vector<char, N> str_vec) {
   vector<DataElemT, CMPHF_VEC_ISZ> data_vec = 0;
   data_vec(details::CMPHF_ObjectTypeIndex) = details::CMPOT_Format;
   data_vec(details::CMPHF_DataTypeIndex) = details::CMPDT_Char;
@@ -245,10 +239,9 @@ void _cm_print_format(SurfaceIndex BTI, OffsetT offset, vector<char, N> str_vec)
   write(BTI, offset, str_vec);
 }
 
-template<int N>
-CM_NODEBUG CM_INLINE
-void _cm_print_format(SurfaceIndex BTI, OffsetT offset, const char (&format)[N])
-{
+template <int N>
+CM_NODEBUG __CM_PRINT_INLINE_WA void
+_cm_print_format(SurfaceIndex BTI, OffsetT offset, const char (&format)[N]) {
   vector<char, CMPHF_STR_SZ> str_vec = 0;
 #pragma unroll
   for (int i = 0; i < N; ++i) {
@@ -260,12 +253,10 @@ void _cm_print_format(SurfaceIndex BTI, OffsetT offset, const char (&format)[N])
 } //details
 
 #ifndef __CM_OCL_RUNTIME
-template<int N>
-CM_NODEBUG CM_INLINE
-typename std::enable_if<(N<=128), void>::type
-cmfprint(SurfaceIndex BTI, const char (&format)[N])
-{
-    details::OffsetT total_len = CMPHF_VEC_BSZ + CMPHF_STR_SZ;
+template <int N>
+CM_NODEBUG __CM_PRINT_INLINE_WA typename std::enable_if<(N <= 128), void>::type
+cmfprint(SurfaceIndex BTI, const char (&format)[N]) {
+  details::OffsetT total_len = CMPHF_VEC_BSZ + CMPHF_STR_SZ;
 
   auto offset = details::_cm_print_init_offset(BTI, total_len);
 
@@ -274,20 +265,18 @@ cmfprint(SurfaceIndex BTI, const char (&format)[N])
 }
 
 template <int N>
-CM_NODEBUG CM_INLINE typename std::enable_if<(N <= 128), int>::type
+CM_NODEBUG __CM_PRINT_INLINE_WA typename std::enable_if<(N <= 128), int>::type
 cmprint(const char (&format)[N]) {
   SurfaceIndex BTI = details::__cm_intrinsic_impl_predefined_surface(details::PRINT_SURF_IDX);
   cmfprint(BTI, format);
   return 0;
 }
 
-template<int N, typename T, typename... Targs>
-CM_NODEBUG CM_INLINE
-typename std::enable_if<(N<=128), void>::type
-cmfprint(SurfaceIndex BTI, const char (&format)[N], T value, Targs... Fargs)
-{
-    details::OffsetT total_len = CMPHF_VEC_BSZ +
-                       CMPHF_STR_SZ + details::_cm_pr_len(value, Fargs...);
+template <int N, typename T, typename... Targs>
+CM_NODEBUG __CM_PRINT_INLINE_WA typename std::enable_if<(N <= 128), void>::type
+cmfprint(SurfaceIndex BTI, const char (&format)[N], T value, Targs... Fargs) {
+  details::OffsetT total_len =
+      CMPHF_VEC_BSZ + CMPHF_STR_SZ + details::_cm_pr_len(value, Fargs...);
 
   auto offset = details::_cm_print_init_offset(BTI, total_len);
 
@@ -300,7 +289,7 @@ cmfprint(SurfaceIndex BTI, const char (&format)[N], T value, Targs... Fargs)
 }
 
 template <unsigned N, typename T, typename... Targs>
-CM_NODEBUG CM_INLINE typename std::enable_if<(N <= 128), int>::type
+CM_NODEBUG __CM_PRINT_INLINE_WA typename std::enable_if<(N <= 128), int>::type
 cmprint(const char (&format)[N], T value, Targs... Fargs) {
   SurfaceIndex BTI = details::__cm_intrinsic_impl_predefined_surface(details::PRINT_SURF_IDX);
   cmfprint(BTI, format, value, Fargs...);
