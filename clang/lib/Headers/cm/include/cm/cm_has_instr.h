@@ -144,9 +144,9 @@ namespace CheckVersion {
 #endif
 
 // Sample unorm
-#if (CM_GENX != 1280) //!= PVC
+#if (CM_GENX < 1270) // < XEHP_SDV
   #define CM_HAS_SAMPLE_UNORM 1
-  #define CM_HAS_SAMPLE_UNORM_CONTROL  CM_HAS_CONTROL(true)
+  #define CM_HAS_SAMPLE_UNORM_CONTROL CM_HAS_CONTROL(true)
 #else
   #define CM_HAS_SAMPLE_UNORM_CONTROL  CM_HAS_CONTROL(false)
 #endif
