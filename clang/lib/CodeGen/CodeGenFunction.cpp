@@ -863,15 +863,13 @@ void CodeGenFunction::StartFunction(GlobalDecl GD,
 
   // Pass inline keyword to optimizer if it appears explicitly on any
   // declaration.
-  if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D)) {
-    for (auto RI : FD->redecls()) {
-      if (RI->isInlineSpecified()) {
-        // For MDF CM, emit inline attribute as alwaysinline.
-        if (getLangOpts().MdfCM)
+
+  // For MDF CM, emit if inline attribute is specified - emit alwaysinline too.
+  if (getLangOpts().MdfCM && getLangOpts().CMStrongInline)
+    if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D))
+      for (auto RI : FD->redecls())
+        if (RI->isInlineSpecified())
           Fn->addFnAttr(llvm::Attribute::AlwaysInline);
-      }
-    }
-  }
 
   // Finer control on the loop info for MDF cm.
   LoopStack.isMdfCM = getLangOpts().MdfCM;
