@@ -77,26 +77,6 @@ CM_NODEBUG CM_INLINE void cm_ptr_prefetch(const unsigned *const Ptr,
       Addr, Offset, Pred);
 }
 
-/// bindless-address prefetch
-template <VectorSize VS = VectorSize::N1, DataSize DS = DataSize::U32,
-          CacheHint L1H = CacheHint::Cached,
-          CacheHint L3H = CacheHint::Cached,
-          int N = details::lsc_default_simt()>
-CM_NODEBUG CM_INLINE void cm_offset_prefetch(unsigned SurfaceOffset,
-                                             vector<unsigned, N> Offset,
-                                             vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
-
-  using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
-  CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Prefetch, L1H, L3H>()),
-                  "unsupported cache hint");
-  constexpr int ImmOffset = 0;
-  uint64_t Addr = (uint64_t)SurfaceOffset;
-  __cm_intrinsic_impl_prefetch_bindless<DS, VS, ImmOffset, L1H, L3H, N>(
-      Addr, Offset, Pred);
-}
-
 /// Surface-based Block prefetch.
 template <VectorSize VS, DataSize DS = DataSize::U32,
           CacheHint L1H = CacheHint::Cached,
@@ -243,63 +223,6 @@ CM_NODEBUG CM_INLINE auto cm_ptr_load(const T *const Ptr,
       __cm_intrinsic_impl_load_flat<_MessTy, _DS, VS, _ImmOffset, L1H, L3H,
                                     _Transposed, N>(_Addr, Offset, Pred);
   return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
-}
-
-/// Flat-address non-transposed load (NElts interface)
-template <typename T, int NElts, DataSize DS = DataSize::Default,
-          CacheHint L1H = CacheHint::Default,
-          CacheHint L3H = CacheHint::Default,
-          int N = details::lsc_default_simt()>
-CM_NODEBUG CM_INLINE auto cm_ptr_load(const T *const Ptr,
-                                      vector<unsigned, N> Offset,
-                                      vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
-  using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
-  CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Load, L1H, L3H>()),
-                  "unsupported cache hint");
-  constexpr VectorSize VS = details::lsc_vector_size<NElts>();
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
-  CM_STATIC_WARNING(details::always_false<T>(),
-                    " DEPRECATION WARNING!"
-                    " Please for non transposed use interface with explicit VS."
-                    " NElts are for transposed only."
-                    " This one is deprecated and to be removed soon.");
-  using _MessTy = decltype(lsc_data_type_ext<T, N, VS>());
-  using _RetTy = decltype(lsc_data_type<T, N, VS>());
-  constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
-  constexpr int _ImmOffset = 0;
-  constexpr bool _Transposed = false;
-  uint64_t _Addr = (uint64_t)Ptr;
-  auto _TmpRes =
-      __cm_intrinsic_impl_load_flat<_MessTy, _DS, VS, _ImmOffset, L1H, L3H,
-                                    _Transposed, N>(_Addr, Offset, Pred);
-  return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
-}
-
-// bindless-address version using a base-pointer to a buffer
-template <typename T, VectorSize VS = VectorSize::N1,
-          DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
-          CacheHint L3H = CacheHint::Default,
-          int N = details::lsc_default_simt()>
-CM_NODEBUG CM_INLINE auto cm_offset_load(unsigned SurfaceOffset,
-                                         vector<unsigned, N> Offset,
-                                         vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
-
-  using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
-  CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Load, L1H, L3H>()),
-                  "unsupported cache hint");
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
-  using _RetTy = decltype(lsc_data_type_ext<T, N, VS>());
-  constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
-  constexpr int _ImmOffset = 0;
-  constexpr bool _Transposed = false;
-  uint64_t _Addr = (uint64_t)SurfaceOffset;
-  return __cm_intrinsic_impl_load_bindless<_RetTy, _DS, VS, _ImmOffset, L1H,
-                                           L3H, _Transposed, N>(_Addr, Offset,
-                                                                Pred);
 }
 
 // Block-load with a SurfaceIndex
@@ -528,31 +451,6 @@ cm_ptr_store(T *Ptr, vector<unsigned, N> Offset,
                                           _DS, VS, _ImmOffset, L1H, L3H,
                                           _Transposed, N>(_Addr, Offset,
                                                           _TmpData, Pred);
-}
-
-/// bindless-address store using a base-address to a buffer
-template <typename T, VectorSize VS = VectorSize::N1,
-          DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
-          CacheHint L3H = CacheHint::Default,
-          int N = details::lsc_default_simt()>
-CM_NODEBUG CM_INLINE void
-cm_offset_store(unsigned SurfaceOffset, vector<unsigned, N> Offset,
-                vector<T, N * details::lsc_vector_size<VS>()> Data,
-                vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
-  
-  using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
-  CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Store, L1H, L3H>()),
-                  "unsupported cache hint");
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
-  constexpr DataSize _DS = details::lsc_data_size<T, DS>();
-  constexpr int _ImmOffset = 0;
-  constexpr bool _Transposed = false;
-  uint64_t _Addr = (uint64_t)SurfaceOffset;
-  details::__cm_intrinsic_impl_store_bindless<T, _DS, VS, _ImmOffset, L1H, L3H,
-                                              _Transposed, N>(_Addr, Offset,
-                                                              Data, Pred);
 }
 
 /// Quad version of BTI store:
@@ -1275,32 +1173,6 @@ cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
                                                      L1H, L3H, _IntRetTy, N>(
       Pred, _Addr, Offset, _TmpSrc0, _TmpSrc1);
   return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
-}
-
-// bindless-address atomic
-template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
-          DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
-          CacheHint L3H = CacheHint::Default,
-          int N = details::lsc_default_simt()>
-CM_NODEBUG CM_INLINE auto cm_offset_atomic(unsigned SurfaceOffset,
-                                           vector<unsigned, N> Offset,
-                                           vector<ushort, N> Pred = 1) ->
-    typename std::enable_if<
-        details::lsc_atomic_nsrcs<Op>() == 0,
-        vector<T, N * details::lsc_vector_size<VS>()> >::type {
-  CM_HAS_LSC_CONTROL; 
-
-  using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
-  CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
-                  "unsupported cache hint");
-  constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
-  constexpr bool _Transposed = false;
-  uint64_t _Addr = (uint64_t)SurfaceOffset;
-  using RetType = vector<T, N * details::lsc_vector_size<VS>()>;
-  return __cm_intrinsic_impl_lsc_atomic_bindless<Op, _DS, VS, _Transposed, L1H,
-                                                 L3H, RetType, N>(Pred, _Addr,
-                                                                  Offset);
 }
 
 template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,

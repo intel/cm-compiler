@@ -248,11 +248,9 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
               .StartsWith("__cm_intrinsic_impl_load_flat", CMBK_cm_load_flat_impl)
               .StartsWith("__cm_intrinsic_impl_load4_flat", CMBK_cm_load4_flat_impl)
               .StartsWith("__cm_intrinsic_impl_block_load_flat", CMBK_cm_block_load_flat_impl)
-              .StartsWith("__cm_intrinsic_impl_load_bindless", CMBK_cm_load_bindless_impl)
               .StartsWith("__cm_intrinsic_impl_store_flat", CMBK_cm_store_flat_impl)
               .StartsWith("__cm_intrinsic_impl_store4_flat", CMBK_cm_store4_flat_impl)
               .StartsWith("__cm_intrinsic_impl_block_store_flat", CMBK_cm_block_store_flat_impl)
-              .StartsWith("__cm_intrinsic_impl_store_bindless", CMBK_cm_store_bindless_impl)
               .StartsWith("__cm_intrinsic_impl_load_slm", CMBK_cm_load_slm_impl)
               .StartsWith("__cm_intrinsic_impl_load4_slm", CMBK_cm_load4_slm_impl)
               .StartsWith("__cm_intrinsic_impl_block_load_slm", CMBK_cm_block_load_slm_impl)
@@ -266,9 +264,8 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
               .StartsWith("__cm_intrinsic_impl_lsc_atomic_slm", CMBK_cm_atomic_slm_impl)
               .StartsWith("__cm_intrinsic_impl_lsc_atomic_flat", CMBK_cm_atomic_flat_impl)
               .StartsWith("__cm_intrinsic_impl_lsc_fence", CMBK_cm_lsc_fence_impl)
-              .StartsWith("__cm_intrinsic_impl_lsc_atomic_bindless", CMBK_cm_atomic_bindless_impl)
-            .StartsWith("__cm_intrinsic_impl_dp4a", CMBK_cm_dp4a_impl)
-            .StartsWith("__cm_intrinsic_impl_oword_read_dwaligned",
+              .StartsWith("__cm_intrinsic_impl_dp4a", CMBK_cm_dp4a_impl)
+              .StartsWith("__cm_intrinsic_impl_oword_read_dwaligned",
                         CMBK_oword_read_dwaligned_impl)
               .StartsWith("__cm_intrinsic_impl_oword_read", CMBK_oword_read_impl)
               .StartsWith("__cm_intrinsic_impl_oword_write", CMBK_oword_write_impl)
@@ -1485,14 +1482,12 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_cm_load_flat_impl:
   case CMBK_cm_load4_flat_impl:
   case CMBK_cm_block_load_flat_impl:
-  case CMBK_cm_load_bindless_impl:
   case CMBK_cm_load_slm_impl:
   case CMBK_cm_load4_slm_impl:
   case CMBK_cm_block_load_slm_impl:
   case CMBK_cm_atomic_bti_impl:
   case CMBK_cm_atomic_slm_impl:
   case CMBK_cm_atomic_flat_impl:
-  case CMBK_cm_atomic_bindless_impl:
     return RValue::get(HandleBuiltinLSCImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_store_impl:
   case CMBK_cm_store4_impl:
@@ -1504,7 +1499,6 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_cm_block_prefetch_impl:
   case CMBK_cm_prefetch_flat_impl:
   case CMBK_cm_block_prefetch_flat_impl:
-  case CMBK_cm_store_bindless_impl:
   case CMBK_cm_store_slm_impl:
   case CMBK_cm_store4_slm_impl:
   case CMBK_cm_block_store_slm_impl:
@@ -7857,7 +7851,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinLSCImpl(CMCallInfo &CallInfo,
     Params.setNonTranspose();
 
   // Special logic for flat addresses
-  if ((Sft == FLAT) || (Sft == BINDLESS)) {
+  if (Sft == FLAT) {
     llvm::Value *BaseAddr = Params.Idx_;
     llvm::Value *Offsets = Params.Offset_;
     assert(BaseAddr && Offsets);
@@ -7890,7 +7884,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinLSCImpl(CMCallInfo &CallInfo,
       Offsets = Builder.CreateAdd(Offsets, Splat);
     }
 
-    // in both flat and bindless base addr ignored after used
+    // in flat base addr ignored after used
     Params.Idx_ = Builder.getInt32(0);
     Params.Offset_ = Offsets;
   }

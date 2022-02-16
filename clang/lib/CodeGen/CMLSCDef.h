@@ -247,7 +247,7 @@ struct LSCParams {
 enum LDTYPE { LOAD, STORE, PREFETCH, ATOMIC };
 
 // type of surface
-enum SFTYPE { BTI, FLAT, BINDLESS, SLM };
+enum SFTYPE { BTI, FLAT, SLM };
 
 /// \brief Emit LSC load, store and prefetch (BTI-based)
 ///
@@ -266,12 +266,10 @@ enum SFTYPE { BTI, FLAT, BINDLESS, SLM };
 /* TY, DS, VS, IMOFF, L1, L3, TRANS, N, OP, IDX, OFF, DATA, DATA1, PRED, CHMASK */
 constexpr int Lsc_load_bti[] = {0, 1, 2, 3, 4, 5, 6, 7, -1, 0, 1, -1, -1, 2, -1};
 constexpr int Lsc_load_flat[] = {0, 1, 2, 3, 4, 5, 6, 7, -1, 0, 1, -1, -1, 2, -1};
-constexpr int Lsc_load_bindless[] = {0, 1, 2, 3, 4, 5, 6, 7, -1, 0, 1, -1, -1, 2, -1};
 constexpr int Lsc_load_slm[] = {0, 1, 2, 3, -1, -1, 4, 5, -1, -1, 0, -1, -1, 1, -1};
 
 constexpr int Lsc_load4_bti[] = {0, 1, 2, 3, 4, 5, 6, 7, -1, 0, 1, -1, -1, 2, 3};
 constexpr int Lsc_load4_flat[] = {0, 1, 2, 3, 4, 5, 6, 7, -1, 0, 1, -1, -1, 2, 3};
-constexpr int Lsc_load4_bindless[] = {0, 1, 2, 3, 4, 5, 6, 7, -1, 0, 1, -1, -1, 2, 3};
 constexpr int Lsc_load4_slm[] = {0, 1, 2, 3, -1, -1, 4, 5, -1, -1, 0, -1, -1, 1, 2};
 
 /// template <typename RetTy,
@@ -302,7 +300,6 @@ constexpr int Lsc_block_load_slm[] = {0, 1, 2, 3, -1, -1, 4, -1, -1, -1, 0, -1, 
 /* TY, DS, VS, IMOFF, L1, L3, TRANS, N, OP, IDX, OFF, DATA, DATA1, PRED, CHMASK */
 constexpr int Lsc_prefetch_bti[] = {-1, 0, 1, 2, 3, 4, -1, 5, -1, 0, 1, -1, -1, 2, -1};
 constexpr int Lsc_prefetch_flat[] = {-1, 0, 1, 2, 3, 4, -1, 5, -1, 0, 1, -1, -1, 2, -1};
-constexpr int Lsc_prefetch_bindless[] = {-1, 0, 1, 2, 3, 4, -1, 5, -1, 0, 1, -1, -1, 2, -1};
 
 ///
 /// template <DataSize DS,
@@ -333,12 +330,10 @@ constexpr int Lsc_block_prefetch_flat[] = {-1, 0,  1, 2, 3,  4, -1, -1, -1, 0, 1
 /* TY, DS, VS, IMOFF, L1, L3, TRANS, N, OP, IDX, OFF, DATA, DATA1, PRED, CHMASK */
 constexpr int Lsc_store_bti[] = {0, 1, 2, 3, 4, 5, 6, 7, -1, 0, 1, 2, -1, 3, -1};
 constexpr int Lsc_store_flat[] = {0, 1, 2, 3, 4, 5, 6, 7, -1, 0, 1, 2, -1, 3, -1};
-constexpr int Lsc_store_bindless[] = {0, 1, 2, 3, 4, 5, 6, 7, -1, 0, 1, 2, -1, 3, -1};
 constexpr int Lsc_store_slm[] = {0, 1, 2, 3, -1, -1, 4, 5, -1, -1, 0, 1, -1, 2, -1};
 
 constexpr int Lsc_store4_bti[] = {0, 1, 2, 3, 4, 5, 6, 7, -1, 0, 1, 2, -1, 3, 4};
 constexpr int Lsc_store4_flat[] = {0, 1, 2, 3, 4, 5, 6, 7, -1, 0, 1, 2, -1, 3, 4};
-constexpr int Lsc_store4_bindless[] = {0, 1, 2, 3, 4, 5, 6, 7, -1, 0, 1, 2, -1, 3, 4};
 constexpr int Lsc_store4_slm[] = {0, 1, 2, 3, -1, -1, 4, 5, -1, -1, 0, 1, -1, 2, 3};
 
 /// template <typename T,
@@ -373,7 +368,6 @@ constexpr int Lsc_block_store_slm[] = {0, 1, 2, 3, -1, -1, 4, -1, -1, -1, 0, 1, 
 /* TY, DS, VS, IMOFF, L1, L3, TRANS, N, OP, IDX, OFF, DATA, DATA1, PRED, CHMASK */
 constexpr int Lsc_atomic_bti[] = {6, 1, 2, -1, 4, 5, 3, -1, 0, 1, 2, 3, 4, 0, -1};
 constexpr int Lsc_atomic_flat[] = {6, 1, 2, -1, 4, 5, 3, -1, 0, 1, 2, 3, 4, 0, -1};
-constexpr int Lsc_atomic_bindless[] = {6, 1, 2, -1, 4, 5, 3, -1, 0, 1, 2, 3, 4, 0, -1};
 constexpr int Lsc_atomic_slm[] = {6, 1, 2, -1, 4, 5, 3, -1, 0, -1, 1, 2, 3, 0, -1};
 
 // intrinsics from kind
@@ -389,8 +383,6 @@ static int getLSCIntrinsic(CMBuiltinKind Kind) {
     return llvm::GenXIntrinsic::genx_lsc_load_stateless;
   case CMBK_cm_load4_flat_impl:
     return llvm::GenXIntrinsic::genx_lsc_load_quad_stateless;
-  case CMBK_cm_load_bindless_impl:
-    return llvm::GenXIntrinsic::genx_lsc_load_bindless;
   case CMBK_cm_load_slm_impl:
   case CMBK_cm_block_load_slm_impl:
     return llvm::GenXIntrinsic::genx_lsc_load_slm;
@@ -406,8 +398,6 @@ static int getLSCIntrinsic(CMBuiltinKind Kind) {
     return llvm::GenXIntrinsic::genx_lsc_store_stateless;
   case CMBK_cm_store4_flat_impl:
     return llvm::GenXIntrinsic::genx_lsc_store_quad_stateless;
-  case CMBK_cm_store_bindless_impl:
-    return llvm::GenXIntrinsic::genx_lsc_store_bindless;
   case CMBK_cm_store_slm_impl:
   case CMBK_cm_block_store_slm_impl:
     return llvm::GenXIntrinsic::genx_lsc_store_slm;
@@ -419,14 +409,10 @@ static int getLSCIntrinsic(CMBuiltinKind Kind) {
   case CMBK_cm_prefetch_flat_impl:
   case CMBK_cm_block_prefetch_flat_impl:
     return llvm::GenXIntrinsic::genx_lsc_prefetch_stateless;
-  case CMBK_cm_prefetch_bindless_impl:
-    return llvm::GenXIntrinsic::genx_lsc_prefetch_bindless;
   case CMBK_cm_atomic_bti_impl:
     return llvm::GenXIntrinsic::genx_lsc_xatomic_bti;
   case CMBK_cm_atomic_flat_impl:
     return llvm::GenXIntrinsic::genx_lsc_xatomic_stateless;
-  case CMBK_cm_atomic_bindless_impl:
-    return llvm::GenXIntrinsic::genx_lsc_xatomic_bindless;
   case CMBK_cm_atomic_slm_impl:
     return llvm::GenXIntrinsic::genx_lsc_xatomic_slm;
   default:
@@ -441,14 +427,12 @@ static const int *getConfig(CMBuiltinKind Kind) {
   case CMBK_cm_block_prefetch_impl: return Lsc_block_prefetch_bti;
   case CMBK_cm_prefetch_flat_impl: return Lsc_prefetch_flat;
   case CMBK_cm_block_prefetch_flat_impl: return Lsc_block_prefetch_flat;
-  case CMBK_cm_prefetch_bindless_impl: return Lsc_prefetch_bindless;
   case CMBK_cm_load_impl: return Lsc_load_bti;
   case CMBK_cm_load4_impl: return Lsc_load4_bti;
   case CMBK_cm_block_load_impl: return Lsc_block_load_bti;
   case CMBK_cm_load_flat_impl: return Lsc_load_flat;
   case CMBK_cm_load4_flat_impl: return Lsc_load4_flat;
   case CMBK_cm_block_load_flat_impl: return Lsc_block_load_flat;
-  case CMBK_cm_load_bindless_impl: return Lsc_load_bindless;
   case CMBK_cm_load_slm_impl: return Lsc_load_slm;
   case CMBK_cm_load4_slm_impl: return Lsc_load4_slm;
   case CMBK_cm_block_load_slm_impl: return Lsc_block_load_slm;
@@ -458,13 +442,11 @@ static const int *getConfig(CMBuiltinKind Kind) {
   case CMBK_cm_store_flat_impl: return Lsc_store_flat;
   case CMBK_cm_store4_flat_impl: return Lsc_store4_flat;
   case CMBK_cm_block_store_flat_impl: return Lsc_block_store_flat;
-  case CMBK_cm_store_bindless_impl: return Lsc_store_bindless;
   case CMBK_cm_store_slm_impl: return Lsc_store_slm;
   case CMBK_cm_store4_slm_impl: return Lsc_store4_slm;
   case CMBK_cm_block_store_slm_impl: return Lsc_block_store_slm;
   case CMBK_cm_atomic_bti_impl: return Lsc_atomic_bti;
   case CMBK_cm_atomic_flat_impl: return Lsc_atomic_flat;
-  case CMBK_cm_atomic_bindless_impl: return Lsc_atomic_bindless;
   case CMBK_cm_atomic_slm_impl: return Lsc_atomic_slm;
   default:
     assert(0 && "Not a valid builtin");
@@ -478,12 +460,10 @@ static LSC_SubOpcode getSubOp(CMBuiltinKind Kind) {
   case CMBK_cm_block_prefetch_impl:
   case CMBK_cm_prefetch_flat_impl:
   case CMBK_cm_block_prefetch_flat_impl:
-  case CMBK_cm_prefetch_bindless_impl:
   case CMBK_cm_load_impl:
   case CMBK_cm_block_load_impl:
   case CMBK_cm_load_flat_impl:
   case CMBK_cm_block_load_flat_impl:
-  case CMBK_cm_load_bindless_impl:
   case CMBK_cm_load_slm_impl:
   case CMBK_cm_block_load_slm_impl:
      return LSC_SubOpcode::LSC_LOAD;
@@ -495,7 +475,6 @@ static LSC_SubOpcode getSubOp(CMBuiltinKind Kind) {
   case CMBK_cm_block_store_impl:
   case CMBK_cm_store_flat_impl:
   case CMBK_cm_block_store_flat_impl:
-  case CMBK_cm_store_bindless_impl:
   case CMBK_cm_store_slm_impl:
   case CMBK_cm_block_store_slm_impl:
      return LSC_SubOpcode::LSC_STORE;
@@ -515,13 +494,11 @@ static LDTYPE getOpType(CMBuiltinKind Kind) {
   case CMBK_cm_block_prefetch_impl:
   case CMBK_cm_prefetch_flat_impl:
   case CMBK_cm_block_prefetch_flat_impl:
-  case CMBK_cm_prefetch_bindless_impl:
     return PREFETCH;
   case CMBK_cm_load_impl:
   case CMBK_cm_block_load_impl:
   case CMBK_cm_load_flat_impl:
   case CMBK_cm_block_load_flat_impl:
-  case CMBK_cm_load_bindless_impl:
   case CMBK_cm_load_slm_impl:
   case CMBK_cm_block_load_slm_impl:
   case CMBK_cm_load4_impl:
@@ -532,7 +509,6 @@ static LDTYPE getOpType(CMBuiltinKind Kind) {
   case CMBK_cm_block_store_impl:
   case CMBK_cm_store_flat_impl:
   case CMBK_cm_block_store_flat_impl:
-  case CMBK_cm_store_bindless_impl:
   case CMBK_cm_store_slm_impl:
   case CMBK_cm_block_store_slm_impl:
   case CMBK_cm_store4_impl:
@@ -541,7 +517,6 @@ static LDTYPE getOpType(CMBuiltinKind Kind) {
      return STORE;
   case CMBK_cm_atomic_bti_impl:
   case CMBK_cm_atomic_flat_impl:
-  case CMBK_cm_atomic_bindless_impl:
   case CMBK_cm_atomic_slm_impl:
     return ATOMIC;
   default:
@@ -572,11 +547,6 @@ static SFTYPE getSFType(CMBuiltinKind Kind) {
   case CMBK_cm_load4_flat_impl:
   case CMBK_cm_store4_flat_impl:
     return FLAT;
-  case CMBK_cm_prefetch_bindless_impl:
-  case CMBK_cm_load_bindless_impl:
-  case CMBK_cm_store_bindless_impl:
-  case CMBK_cm_atomic_bindless_impl:
-    return BINDLESS;
   case CMBK_cm_load_slm_impl:
   case CMBK_cm_block_load_slm_impl:
   case CMBK_cm_store_slm_impl:
@@ -595,18 +565,14 @@ static bool getBlock(CMBuiltinKind Kind) {
   switch (Kind) {
   case CMBK_cm_prefetch_impl:
   case CMBK_cm_prefetch_flat_impl:
-  case CMBK_cm_prefetch_bindless_impl:
   case CMBK_cm_load_impl:
   case CMBK_cm_load_flat_impl:
-  case CMBK_cm_load_bindless_impl:
   case CMBK_cm_store_impl:
   case CMBK_cm_store_flat_impl:
-  case CMBK_cm_store_bindless_impl:
   case CMBK_cm_load_slm_impl:
   case CMBK_cm_store_slm_impl:
   case CMBK_cm_atomic_bti_impl:
   case CMBK_cm_atomic_flat_impl:
-  case CMBK_cm_atomic_bindless_impl:
   case CMBK_cm_atomic_slm_impl:
   case CMBK_cm_load4_impl:
   case CMBK_cm_load4_flat_impl:
