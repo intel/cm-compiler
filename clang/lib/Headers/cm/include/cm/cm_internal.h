@@ -446,10 +446,6 @@ template <DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H, CacheHint L3
 void __cm_intrinsic_impl_prefetch_flat(uint64_t Addr, vector<uint, N> Offset,
                                        vector<ushort, N> Pred);
 
-template <DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H, CacheHint L3H, int N>
-void __cm_intrinsic_impl_prefetch_bindless(uint64_t Addr, vector<uint, N> Offset,
-                                           vector<ushort, N> Pred);
-
 template <DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H,
           CacheHint L3H>
 void __cm_intrinsic_impl_block_prefetch_bti(SurfaceIndex Idx, unsigned Offset);
@@ -470,11 +466,6 @@ RetTy __cm_intrinsic_impl_load_flat(uint64_t Addr, vector<uint, N> Offset,
 
 template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
           CacheHint L1H, CacheHint L3H, bool Transposed, int N>
-RetTy __cm_intrinsic_impl_load_bindless(uint64_t Addr, vector<uint, N> Offset,
-                                   vector<ushort, N> Pred);
-
-template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
-          CacheHint L1H, CacheHint L3H, bool Transposed, int N>
 RetTy __cm_intrinsic_impl_load4_bti(SurfaceIndex Idx, vector<uint, N> Offset,
                                     vector<ushort, N> Pred,
                                     ChannelMaskType mask);
@@ -484,12 +475,6 @@ template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
 RetTy __cm_intrinsic_impl_load4_flat(uint64_t Addr, vector<uint, N> Offset,
                                      vector<ushort, N> Pred,
                                      ChannelMaskType mask);
-
-template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
-          CacheHint L1H, CacheHint L3H, bool Transposed, int N>
-RetTy __cm_intrinsic_impl_load4_bindless(uint64_t Addr, vector<uint, N> Offset,
-                                         vector<ushort, N> Pred,
-                                         ChannelMaskType mask);
 
 template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
           CacheHint L1H, CacheHint L3H, bool Transposed>
@@ -511,12 +496,6 @@ void __cm_intrinsic_impl_store_flat(
     uint64_t Addr, vector<uint, N> Offset,
     vector<T, N * details::lsc_vector_size<VS>()> Data, vector<ushort, N> Pred);
 
-template <typename T, DataSize DS, VectorSize VS, int ImmOffset,
-          CacheHint L1H, CacheHint L3H, bool Transposed, int N>
-void __cm_intrinsic_impl_store_bindless(
-    uint64_t Addr, vector<uint, N> Offset,
-    vector<T, N * details::lsc_vector_size<VS>()> Data, vector<ushort, N> Pred);
-
 template <typename T, DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H,
           CacheHint L3H, bool Transposed, int N>
 void __cm_intrinsic_impl_store4_bti(
@@ -527,13 +506,6 @@ void __cm_intrinsic_impl_store4_bti(
 template <typename T, DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H,
           CacheHint L3H, bool Transposed, int N>
 void __cm_intrinsic_impl_store4_flat(
-    uint64_t Addr, vector<uint, N> Offset,
-    vector<T, N * details::lsc_vector_size<VS>()> Data, vector<ushort, N> Pred,
-    ChannelMaskType mask);
-
-template <typename T, DataSize DS, VectorSize VS, int ImmOffset, CacheHint L1H,
-          CacheHint L3H, bool Transposed, int N>
-void __cm_intrinsic_impl_store4_bindless(
     uint64_t Addr, vector<uint, N> Offset,
     vector<T, N * details::lsc_vector_size<VS>()> Data, vector<ushort, N> Pred,
     ChannelMaskType mask);
@@ -613,13 +585,6 @@ RetTy __cm_intrinsic_impl_lsc_atomic_bti(vector<ushort, N> Pred,
 template <AtomicOp Op, DataSize DS, VectorSize VS, bool Transposed,
           CacheHint L1H, CacheHint L3H, typename RetTy, int N, typename... Args>
 RetTy __cm_intrinsic_impl_lsc_atomic_flat(vector<ushort, N> Pred,
-                                          uint64_t Addr,
-                                          vector<unsigned, N> Offset,
-                                          Args... args);
-
-template <AtomicOp Op, DataSize DS, VectorSize VS, bool Transposed,
-          CacheHint L1H, CacheHint L3H, typename RetTy, int N, typename... Args>
-RetTy __cm_intrinsic_impl_lsc_atomic_bindless(vector<ushort, N> Pred,
                                           uint64_t Addr,
                                           vector<unsigned, N> Offset,
                                           Args... args);
