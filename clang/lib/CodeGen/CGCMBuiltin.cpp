@@ -725,6 +725,7 @@ static llvm::Value *EmitCMPrintf(CodeGenFunction &CGF,
 static llvm::MDNode *getSLMSizeMDNode(llvm::Function *F) {
   llvm::NamedMDNode *Nodes =
       F->getParent()->getNamedMetadata(llvm::genx::FunctionMD::GenXKernels);
+  assert(Nodes);
   for (auto Node : Nodes->operands()) {
     if (Node->getNumOperands() > llvm::genx::KernelMDOp::SLMSize &&
         getVal(Node->getOperand(llvm::genx::KernelMDOp::FunctionRef)) == F)
@@ -894,8 +895,9 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
       // Clear reserved bits and only use first 1 bit
       MaskVal &= 0x1;
 
-      // Update regular barrier count in kernel metadata.
-      if (llvm::MDNode *Node = getSLMSizeMDNode(CGF.CurFn)) {
+      if (CGF.CurFuncDecl->hasAttr<CMGenxMainAttr>()) {
+        // Update regular barrier count in kernel metadata.
+        if (llvm::MDNode *Node = getSLMSizeMDNode(CGF.CurFn)) {
           if (llvm::Value *OldSz = getVal(Node->getOperand(llvm::genx::KernelMDOp::BarrierCnt))) {
               assert(isa<llvm::ConstantInt>(OldSz) && "integer constant expected");
               uint64_t OldVal = cast<llvm::ConstantInt>(OldSz)->getZExtValue();
@@ -904,6 +906,7 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
                   Node->replaceOperandWith(llvm::genx::KernelMDOp::BarrierCnt, getMD(NewSz));
               }
           }
+        }
       }
 
       return RValue::get(CGF.Builder.CreateCall(
