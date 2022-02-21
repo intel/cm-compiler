@@ -6,8 +6,6 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// XFAIL: *
-
 #include <cm/cm.h>
 
 typedef enum { 
@@ -65,19 +63,19 @@ _GENX_ bool func_bool(int a) { return a; }
 
 _GENX_ MyEnum func_enum(int a) { return MyEnum(a); }
 
-_GENX_ SamplerIndex func_SamplerIndex(int a) { return a; }  // Unsupported return type
+_GENX_ SamplerIndex func_SamplerIndex(int a) { return a; }  // Unsupported return type // expected-error{{unsupported function return type 'SamplerIndex'}}
 
-_GENX_ SurfaceIndex func_SurfaceIndex(int a) { return a; }  // Unsupported return type
+_GENX_ SurfaceIndex func_SurfaceIndex(int a) { return a; }  // Unsupported return type // expected-error{{unsupported function return type 'SurfaceIndex'}}
 
-_GENX_ VmeIndex func_VmeIndex(int a) { VmeIndex vi; return vi; }  // Unsupported return type
+_GENX_ VmeIndex func_VmeIndex(int a) { VmeIndex vi; return vi; }  // Unsupported return type // expected-error{{unsupported function return type 'VmeIndex'}}
 
 _GENX_ matrix<int,4,4> func_matrix(int a) { return a; }
 
-_GENX_ matrix_ref<int,4,4> func_matrix_ref(int a) { matrix<int,4,4> r = a; return r; }  // Unsupported return type
+_GENX_ matrix_ref<int,4,4> func_matrix_ref(int a) { matrix<int,4,4> r = a; return r; }  // Unsupported return type // expected-error{{unsupported function return type 'matrix_ref<int,4,4>'}}
 
 _GENX_ vector<int,4> func_vector(int a) { return a; }
 
-_GENX_ vector_ref<int,4> func_vector_ref(int a) { vector<int,4> r = a; return r; }  // Unsupported return type
+_GENX_ vector_ref<int,4> func_vector_ref(int a) { vector<int,4> r = a; return r; }  // Unsupported return type // expected-error{{unsupported function return type 'vector_ref<int,4>'}}
 
 
 _GENX_MAIN_ void foo(SurfaceIndex idx)
@@ -147,11 +145,5 @@ _GENX_MAIN_ void foo(SurfaceIndex idx)
 
 // CM vector and matrix types are (currently) limited to less than 4096 bytes - we generate a 
 // helpful front-end error in order to avoid a more obscure error from the finalizer.
-// RUN: %cmc -emit-llvm -ferror-limit=999 -- %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm -ferror-limit=999 -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
 
-// CHECK: function_return_type.cpp(58,21):  error: unsupported function return type 'SamplerIndex'
-// CHECK: function_return_type.cpp(60,21):  error: unsupported function return type 'SurfaceIndex'
-// CHECK: function_return_type.cpp(62,17):  error: unsupported function return type 'VmeIndex'
-// CHECK: function_return_type.cpp(66,28):  error: unsupported function return type 'matrix_ref<int,4,4>'
-// CHECK: function_return_type.cpp(70,26):  error: unsupported function return type 'vector_ref<int,4>'
-// CHECK: 5 errors generated.

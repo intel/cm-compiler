@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 #include <cm/cm.h>
 
 #ifdef CM_GENX
-#warning CM_GENX defined
+#warning CM_GENX defined // expected-warning{{CM_GENX defined}}
 #else
 #warning CM_GENX not defined
 #endif
@@ -21,7 +21,7 @@ SPDX-License-Identifier: MIT
 #endif
 
 #ifdef CM_GEN8
-#warning CM_GEN8 defined
+#warning CM_GEN8 defined // expected-warning{{CM_GEN8 defined}}
 #endif
 
 #ifdef CM_GEN8_5
@@ -55,30 +55,14 @@ void test1(SurfaceIndex S, vector<uchar,64> i) {
 
 // The Finalizer is called so we generate an .asm file, which should 
 // contain some debug information as we haven't specified -Qxcm_release.
-// RUN: %cmc -emit-llvm -march=BDW -- %s 2>&1 | FileCheck %s
-// RUN: FileCheck --check-prefix=ASM %s -input-file=%W_0.asm
+// RUN: %cmc -emit-llvm -march=BDW -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
 
-// CHECK: cm_release.cpp(4,2):  warning: CM_GENX defined [-W#warnings]
-// CHECK: cm_release.cpp(14,2):  warning: CM_GEN8 defined [-W#warnings]
-// CHECK: 2 warnings generated.
-// CHECK: -platform BDW
-// CHECK-NOT: -stripcomment
 
-// ASM: .kernel
-// ASM: .declare
 
 // The Finalizer is called so we generate an .asm file, which should not
 // contain any debug information as we also specified -Qxcm_release.
-// RUN: %cmc -emit-llvm -march=BDW -Qxcm_release -- %s 2>&1 | FileCheck --check-prefix=CHECK-RELEASE %s
-// RUN: FileCheck --check-prefix=ASM-RELEASE %s -input-file=%W_0.asm
+// RUN: %cmc -emit-llvm -march=BDW -Qxcm_release -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
 //
-// RUN: %cmc -emit-llvm -march=BDW /Qxcm_release -- %s 2>&1 | FileCheck --check-prefix=CHECK-RELEASE %s
-// RUN: FileCheck --check-prefix=ASM-RELEASE %s -input-file=%W_0.asm
+// RUN: %cmc -emit-llvm -march=BDW /Qxcm_release -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
 
-// CHECK-RELEASE: cm_release.cpp(4,2):  warning: CM_GENX defined [-W#warnings]
-// CHECK-RELEASE: cm_release.cpp(14,2):  warning: CM_GEN8 defined [-W#warnings]
-// CHECK-RELEASE: 2 warnings generated.
-// CHECK-RELEASE: -platform BDW
 
-// ASM-RELEASE-NOT: .kernel
-// ASM-RELEASE-NOT: .declare

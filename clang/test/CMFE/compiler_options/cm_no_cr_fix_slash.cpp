@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 
 // The Finalizer should not be called as we haven't specified a target
 // The /Qxcm_no_cr_fix option is ignored
-// RUN: %cmc -emit-llvm /Qxcm_no_cr_fix -- %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm /Qxcm_no_cr_fix -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
 
 #include <cm/cm.h>
 
@@ -21,7 +21,7 @@ void test() {
 #ifdef CM_GENX
 #warning CM_GENX defined
 #else
-#warning CM_GENX not defined
+#warning CM_GENX not defined // expected-warning{{CM_GENX not defined}}
 #endif
 
 #ifdef CM_GEN7_5
@@ -48,6 +48,3 @@ void test() {
 #warning CM_GEN10 defined
 #endif
 
-// CHECK: cm_no_cr_fix_slash.cpp(15,2):  warning: CM_GENX not defined [-W#warnings]
-// CHECK: 1 warning generated.
-// CHECK-NOT: -platform

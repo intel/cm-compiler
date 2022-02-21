@@ -6,8 +6,6 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// XFAIL: *
-
 #include <cm/cm.h>
 
 _GENX_MAIN_ void
@@ -17,8 +15,7 @@ linear(vector<SurfaceIndex, 2> surf_ids, uint h_pos, uint v_pos, int i, int j)
   // ...
   read(surf_ids(i), h_pos*24, v_pos*6, in);
   //  ...
-  write(surf_ids(j), h_pos*24, v_pos*6, out);
+  write(surf_ids(j), h_pos*24, v_pos*6, out); // expected-warning{{variable 'out' is uninitialized when used here}}
 }
 
-// RUN: %cmc -emit-llvm -- %s 2>&1 | FileCheck --implicit-check-not error %s
-// CHECK: 2_3_a.cpp(10,41):  warning: variable 'out' is uninitialized when used here [-Wuninitialized]
+// RUN: %cmc -emit-llvm -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
