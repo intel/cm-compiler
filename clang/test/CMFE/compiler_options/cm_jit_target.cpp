@@ -20,7 +20,7 @@ void test() {
 #ifdef CM_GENX
 #pragma message ( "CM_GENX defined with value " STRING(CM_GENX) )
 #else
-#warning CM_GENX not defined
+#warning CM_GENX not defined // expected-warning{{CM_GENX not defined}}
 #endif
 
 #ifdef CM_GEN7_5
@@ -52,8 +52,5 @@ void test() {
 #endif
 
 // The Finalizer should not be called as we haven't specified a target
-// RUN: %cmc -emit-llvm -Qxcm_jit_target -- %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm -Qxcm_jit_target -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
 
-// CHECK: cm_jit_target.cpp(13,2):  warning: CM_GENX not defined [-W#warnings]
-// CHECK: 1 warning generated.
-// CHECK-NOT: -platform

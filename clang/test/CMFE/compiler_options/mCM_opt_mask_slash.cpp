@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 // XFAIL: *
 
 // The Finalizer should not be called as we haven't specified a target
-// RUN: %cmc -emit-llvm /mCM_opt_mask0 -- %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm /mCM_opt_mask0 -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
 
 #include <cm/cm.h>
 
@@ -20,7 +20,7 @@ void test() {
 #ifdef CM_GENX
 #warning CM_GENX defined
 #else
-#warning CM_GENX not defined
+#warning CM_GENX not defined // expected-warning{{CM_GENX not defined}}
 #endif
 
 #ifdef CM_GEN7_5
@@ -47,6 +47,3 @@ void test() {
 #warning CM_GEN10 defined
 #endif
 
-// CHECK: mCM_opt_mask_slash.cpp(14,2):  warning: CM_GENX not defined [-W#warnings]
-// CHECK: 1 warning generated.
-// CHECK-NOT: -platform

@@ -6,8 +6,6 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// XFAIL: *
-
 #include <cm/cm.h>
 
 _GENX_MAIN_ void foo(SurfaceIndex idx)
@@ -34,15 +32,15 @@ _GENX_MAIN_ void foo(SurfaceIndex idx)
 
     vector<uint, 1023> v33;			// OK
     vector<uint, 1024> v34;			// Size exceeds maximum
-    vector<uint, 4096> v35;			// Size exceeds maximum
+    vector<uint, 4096> v35;			// Size exceeds maximum // expected-error{{size of vector (16384 bytes) exceeds maximum supported size (must be less than 16384 bytes)}}
 
     vector<long, 1023> v40;			// OK
-    vector<long, 2048> v41;			// Size exceeds maximum
-    vector<long, 2200> v42;			// Size exceeds maximum
+    vector<long, 2048> v41;			// Size exceeds maximum // expected-error{{size of vector (16384 bytes) exceeds maximum supported size (must be less than 16384 bytes)}}
+    vector<long, 2200> v42;			// Size exceeds maximum // expected-error{{size of vector (17600 bytes) exceeds maximum supported size (must be less than 16384 bytes)}}
 
     vector<unsigned long, 1023> v43;		// OK
     vector<unsigned long, 1024> v44;		// Size exceeds maximum
-    vector<unsigned long, 2050> v45;		// Size exceeds maximum
+    vector<unsigned long, 2050> v45;		// Size exceeds maximum // expected-error{{size of vector (16400 bytes) exceeds maximum supported size (must be less than 16384 bytes)}}
 
     vector<long long, 511> v50;			// OK
     vector<long long, 512> v51;			// Size exceeds maximum
@@ -86,11 +84,11 @@ _GENX_MAIN_ void foo(SurfaceIndex idx)
     matrix<uint, 20, 100> m35;			// Size exceeds maximum
 
     matrix<long, 1023, 1> m40;			// OK
-    matrix<long, 2048, 1> m41;			// Size exceeds maximum
+    matrix<long, 2048, 1> m41;			// Size exceeds maximum // expected-error{{size of matrix (16384 bytes) exceeds maximum supported size (must be less than 16384 bytes)}}
     matrix<long, 2, 512> m42;			// Size exceeds maximum
 
     matrix<unsigned long, 1023, 1> m43;		// OK
-    matrix<unsigned long, 2048, 1> m44;		// Size exceeds maximum
+    matrix<unsigned long, 2048, 1> m44;		// Size exceeds maximum // expected-error{{size of matrix (16384 bytes) exceeds maximum supported size (must be less than 16384 bytes)}}
     matrix<unsigned long, 1025, 1> m45;		// Size exceeds maximum
 
     matrix<long long, 1, 511> m50;		// OK
@@ -130,12 +128,5 @@ _GENX_ void func4(matrix<char, 64, 64> m) {	// Size exceeds maximum
 
 // CM vector and matrix types are (currently) limited to less than 8192 bytes - we generate a 
 // helpful front-end error in order to avoid a more obscure error from the finalizer.
-// RUN: %cmc -emit-llvm -ferror-limit=999 -- %s 2>&1 | FileCheck %s
+// RUN: %cmc -emit-llvm -ferror-limit=999 -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
 
-// CHECK: vector_matrix_size.cpp(27,5): error: size of vector (16384 bytes) exceeds maximum supported size (must be less than 16384 bytes)
-// CHECK: vector_matrix_size.cpp(30,5): error: size of vector (16384 bytes) exceeds maximum supported size (must be less than 16384 bytes)
-// CHECK: vector_matrix_size.cpp(31,5): error: size of vector (17600 bytes) exceeds maximum supported size (must be less than 16384 bytes)
-// CHECK: vector_matrix_size.cpp(35,5): error: size of vector (16400 bytes) exceeds maximum supported size (must be less than 16384 bytes)
-// CHECK: vector_matrix_size.cpp(79,5): error: size of matrix (16384 bytes) exceeds maximum supported size (must be less than 16384 bytes)
-// CHECK: vector_matrix_size.cpp(83,5): error: size of matrix (16384 bytes) exceeds maximum supported size (must be less than 16384 bytes)
-// CHECK: 6 errors generated.
