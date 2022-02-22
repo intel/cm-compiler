@@ -52,10 +52,11 @@ enum class LSC_SubOpcode : uint8_t {
 enum class CacheHint : uint8_t {
   Default = 0,
   Uncached = 1,
-  WriteBack = 2,
-  WriteThrough = 3,
-  Streaming = 4,
-  ReadInvalidate = 5
+  Cached = 2,
+  WriteBack = 3,
+  WriteThrough = 4,
+  Streaming = 5,
+  ReadInvalidate = 6
 };
 
 // Data size or format to read or store.
