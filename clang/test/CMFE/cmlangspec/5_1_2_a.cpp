@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// XFAIL: *
+// expected-no-diagnostics
 
 #include <cm/cm.h>
 #include <cm/cmtl.h>
@@ -30,9 +30,4 @@ _GENX_MAIN_ void test(SurfaceIndex obuf)
   cmtl::WriteBlock(obuf, x, y, block.select_all());
 }
 
-// output a warning just to have some output from the compiler to check
-#warning 5_1_2_a.cpp
-
-// RUN: %cmc -emit-llvm -- %s 2>&1 | FileCheck --implicit-check-not error %s
-// CHECK: warning: 5_1_2_a.cpp
-// CHECK: 1 warning generated
+// RUN: %cmc -emit-llvm -march=SKL -Xclang -verify -- %s

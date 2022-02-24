@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// XFAIL: *
+// expected-no-diagnostics
 
 #include <cm/cm.h>
 
@@ -46,8 +46,4 @@ _GENX_MAIN_ void kernel(SurfaceIndex inbuf, SurfaceIndex outbuf,
   write(outbuf, x_pos, y_pos, G);
 }
 
-// output a warning just to have some output from the compiler to check
-#warning 2_4_a.cpp
-
-// RUN: %cmc -emit-llvm -- %s 2>&1 | FileCheck --implicit-check-not error %s
-// CHECK: 1 warning generated
+// RUN: %cmc -emit-llvm -march=SKL -Xclang -verify -- %s
