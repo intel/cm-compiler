@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// XFAIL: *
+// expected-no-diagnostics
 
 #include <cm/cm.h>
 
@@ -28,9 +28,4 @@ _GENX_MAIN_ void printf_demo_genx()
   }
 }
 
-// output a warning just to have some output from the compiler to check
-#warning 4_17_1_a.cpp
-
-// RUN: %cmc -emit-llvm -- %s 2>&1 | FileCheck --implicit-check-not error %s
-// CHECK: warning: 4_17_1_a.cpp
-// CHECK: 1 warning generated
+// RUN: %cmc -emit-llvm -march=SKL -Xclang -verify -- %s

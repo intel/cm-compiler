@@ -6,6 +6,8 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
+// expected-no-diagnostics
+
 #include <cm/cm.h>
 
 //A template function that multiplies an arbitrary matrix by 3
@@ -23,7 +25,4 @@ kern(matrix<int, 4, 2> p)
   mult3(m.select_all());  // m = p * 3;
 }
 
-// output a warning just to have some output from the compiler to check
-#warning 3_2_9_g.cpp
-
-// RUN: %cmc -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
+// RUN: %cmc -emit-llvm -march=SKL -Xclang -verify -- %s
