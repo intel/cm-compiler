@@ -14,8 +14,9 @@ static_assert(0, "CM:w:cm_util.h should not be included explicitly - only "
 #ifndef _CLANG_CM_UTIL_H_
 #define _CLANG_CM_UTIL_H_
 
-#include "cm_traits.h"
 #include "cm_common.h"
+#include "cm_has_instr.h"
+#include "cm_traits.h"
 
 namespace details {
 
@@ -332,15 +333,20 @@ constexpr bool lsc_check_cache_hint() {
   constexpr auto L3H = CacheHintWrap<L3>{};
   switch (Act) {
   case LSCAction::Prefetch:
-    return L1H.is_one_of<CacheHint::Cached, CacheHint::Uncached, CacheHint::Streaming>() &&
-           L3H.is_one_of<CacheHint::Cached, CacheHint::Uncached>() &&
-           !are_both(L1H, L3H, CacheHint::Uncached);
+    return L1H.is_one_of<CacheHint::Cached, CacheHint::Uncached,
+                         CacheHint::Streaming>() &&
+               L3H.is_one_of<CacheHint::Cached, CacheHint::Uncached>() &&
+               !are_both(L1H, L3H, CacheHint::Uncached)
+        ;
   case LSCAction::Load:
     return are_both(L1H, L3H, CacheHint::Default) ||
            (L1H.is_one_of<CacheHint::Uncached, CacheHint::Cached,
                           CacheHint::Streaming>() &&
-            L3H.is_one_of<CacheHint::Uncached, CacheHint::Cached>()) ||
-           (L1H == CacheHint::ReadInvalidate && L3H == CacheHint::Cached);
+            L3H.is_one_of<CacheHint::Uncached, CacheHint::Cached>())
+#ifdef CM_HAS_LSC_LOAD_L1RI_L3CA_HINT
+           || (L1H == CacheHint::ReadInvalidate && L3H == CacheHint::Cached)
+#endif // CM_HAS_LSC_LOAD_L1RI_L3CA_HINT
+        ;
   case LSCAction::Store:
     return are_both(L1H, L3H, CacheHint::Default) ||
            are_both(L1H, L3H, CacheHint::WriteBack) ||
