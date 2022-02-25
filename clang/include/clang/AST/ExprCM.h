@@ -142,6 +142,8 @@ public:
                      C.IntTy, VK_RValue),
         Kind(SK), RParenLoc(RPLoc) {}
 
+  CMSizeExprKind getCMSizeKind() const { return Kind; }
+
   bool isNElems() const { return Kind == SK_n_elems; }
   bool isNRows() const { return Kind == SK_n_rows; }
   bool isNCols() const { return Kind == SK_n_cols; }

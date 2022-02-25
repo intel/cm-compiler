@@ -2976,6 +2976,10 @@ public:
   child_range children() {
     return child_range(SubExprs, SubExprs + NumSubExprs);
   }
+
+  const_child_range children() const {
+    return const_child_range(SubExprs, SubExprs + NumSubExprs);
+  }
 };
 
 /// \brief Represent CM select member functions.

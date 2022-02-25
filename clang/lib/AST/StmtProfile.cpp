@@ -1131,23 +1131,28 @@ void StmtProfiler::VisitMemberExpr(const MemberExpr *S) {
 }
 
 void StmtProfiler::VisitCMSelectExpr(const CMSelectExpr *S) {
-  llvm_unreachable("not implemented yet");
+  VisitExpr(S);
+  ID.AddInteger(S->getSelectKind());
+  ID.AddInteger(S->getNumConstArgs());
 }
 
 void StmtProfiler::VisitCMBoolReductionExpr(const CMBoolReductionExpr *S) {
-  llvm_unreachable("not implemented yet");
+  VisitExpr(S);
+  ID.AddInteger(S->getBoolReductionKind());
 }
 
 void StmtProfiler::VisitCMFormatExpr(const CMFormatExpr *S) {
-  llvm_unreachable("not implemented yet");
+  VisitExpr(S);
+  VisitType(S->getElementType());
 }
 
 void StmtProfiler::VisitCMMergeExpr(const CMMergeExpr *S) {
-  llvm_unreachable("not implemented yet");
+  VisitExpr(S);
 }
 
 void StmtProfiler::VisitCMSizeExpr(const CMSizeExpr *S) {
-  llvm_unreachable("not implemented yet");
+  VisitExpr(S);
+  ID.AddInteger(S->getCMSizeKind());
 }
 
 void StmtProfiler::VisitCompoundLiteralExpr(const CompoundLiteralExpr *S) {
