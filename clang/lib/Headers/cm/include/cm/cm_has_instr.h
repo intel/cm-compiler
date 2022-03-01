@@ -182,6 +182,9 @@ namespace CheckVersion {
 #else
   #define CM_HAS_STOCHASTIC_ROUNDING_CONTROL CM_HAS_CONTROL(false)
 #endif
+#if (CM_GENX <= 1280)
+  #define CM_HAS_LSC_LOAD_L1RI_L3CA_HINT 1
+#endif
 
 #else  // CM_HAS_CONTROL
   CM_STATIC_ERROR(0, "Redeclaration of CM_HAS_CONTROL! It's used for control version of features!");
