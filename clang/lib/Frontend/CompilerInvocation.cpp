@@ -787,7 +787,7 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.EmitCMGlobalsAsVolatile = Args.hasArg(OPT_fvolatile_global);
 
   if (Args.hasArg(OPT_mCM_max_slm))
-    Opts.MaxSLMSize = getLastArgIntValue(Args, OPT_mCM_max_slm, 0);
+    Opts.MaxSLMSize = getLastArgIntValue(Args, OPT_mCM_max_slm, 0);  
   else {
     Opts.MaxSLMSize = llvm::StringSwitch<unsigned>(TargetOpts.CPU)
       .Case("XEHP_SDV", 128)

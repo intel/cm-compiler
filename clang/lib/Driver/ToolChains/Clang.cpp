@@ -3386,6 +3386,18 @@ static void RenderDebugOptions(const ToolChain &TC, const Driver &D,
   RenderDebugInfoCompressionArgs(Args, CmdArgs, D, TC);
 }
 
+// pass CMCC1 parameter
+// such params are the same but like joined for driver
+static void passCMCC1Param(Arg *A, const char *Name, ArgStringList &CmdArgs) {
+  StringRef Val = A->getValue();
+  if (Val.startswith("=") || Val.startswith(":"))
+    Val = Val.drop_front(1);
+  if (!Val.empty()) {
+    CmdArgs.push_back(Name);
+    CmdArgs.push_back(Val.data());
+  }
+}
+
 void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                          const InputInfo &Output, const InputInfoList &Inputs,
                          const ArgList &Args, const char *LinkingOutput) const {
@@ -4100,15 +4112,14 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     CmdArgs.push_back("-Wshadow");
     CmdArgs.push_back("-Wuninitialized");
     CmdArgs.push_back("-fdeclspec");
-    if (Arg *A = Args.getLastArg(options::OPT_mCM_import_bif)) {
-      const char *BiFName = A->getValue();
-      if ((BiFName[0] == '=') || (BiFName[0] == ':'))
-        BiFName = &BiFName[1];
-      if (strlen(BiFName)) {
-        CmdArgs.push_back("-mCM_import_bif");
-        CmdArgs.push_back(BiFName);
-      }
-    }
+    if (Arg *A = Args.getLastArg(options::OPT_mCM_import_bif))
+      passCMCC1Param(A, "-mCM_import_bif", CmdArgs);
+    if (Arg *A = Args.getLastArg(options::OPT_mCM_max_slm))
+      passCMCC1Param(A, "-mCM_max_slm", CmdArgs);
+    if (Arg *A = Args.getLastArg(options::OPT_mCM_max_obr))
+      passCMCC1Param(A, "-mCM_max_obr", CmdArgs); 
+    if (Args.getLastArg(options::OPT_mCM_iefbypass))
+      CmdArgs.push_back("-mCM_iefbypass");
     if (Args.getLastArg(options::OPT_mCM_init_global))
       CmdArgs.push_back("-mCM_init_global");
     if (Args.getLastArg(options::OPT_fvolatile_global))
