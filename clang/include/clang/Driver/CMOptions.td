@@ -168,17 +168,15 @@ def mCM_init_global : Flag<["-", "/"], "mCM_init_global">, Group<cm_Group>,
   HelpText<"Always initialize CM global variables">,
   Flags<[CMOption, CC1Option, CC1AsOption]>;
 
-def mCM_max_slm : Flag<["-", "/"], "mCM_max_slm">, Group<cm_Group>,
-  HelpText<"Maximum SLM size in kilobytes (base is target dependent)">,
-  Flags<[CMOption, CC1Option, CC1AsOption]>;
+def mCM_max_slm : CMCC1<"mCM_max_slm">,
+  HelpText<"Maximum SLM size in kilobytes (base is target dependent)">;
 
-def mCM_max_obr : Flag<["-", "/"], "mCM_max_obr">, Group<cm_Group>,
-  HelpText<"Maximum owords per vector (base is target dependent)">,
-  Flags<[CMOption, CC1Option, CC1AsOption]>;
+def mCM_max_obr : CMCC1<"mCM_max_obr">, 
+  HelpText<"Maximum owords per vector (base is target dependent)">;
 
 def mCM_iefbypass : Flag<["-", "/"], "mCM_iefbypass">, Group<cm_Group>,
   HelpText<"Switch on IEF bypass (base is target dependent)">,
-  Flags<[CMOption, CC1Option, CC1AsOption]>;
+  Flags<[CMOption, CC1Option]>;
 
 def mCM_reverse_kernels : Flag<["-", "/"], "mCM_reverse_kernels">, Group<cm_Group>,
   HelpText<"Emit the kernel asm name in reversed order">,
