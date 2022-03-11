@@ -1218,19 +1218,42 @@ cm_abs<T>
 
 Absolute value. The behavior is undefined if the result cannot fit in T.
 
-* Parameter 1: matrix(_ref), vector(_ref) or scalar
-* Parameter 2: flags (default is 0; use SAT for saturation)
-* Return: vector or scalar
+.. code-block:: c++
+  RetTy cm_abs(FstTy src0, int flag = _GENX_NOSAT)
+
+There are several overloads for different types:
+
+* Parameter 1: matrix(_ref), vector(_ref) or scalar;
+* Parameter 2: flags (default is 0; use SAT for saturation);
+* Return: vector or scalar;
+
+Semantics:
+
+#. Calculates absolute value of operand in infinite precision;
+#. Saturates to destination type if flag is SAT;
+#. Without saturation, for minimal signed value, result is minimal signed value.
 
 cm_add<T>
 ^^^^^^^^^
 
-Add.
+cm_add currently is implemented in quite a strange way taking the worst parts from both C++ and our HW:
 
-* Parameter 1: matrix(_ref), vector(_ref) or scalar
-* Parameter 2: matrix(_ref), vector(_ref) or scalar
-* Parameter 3: flags (default is 0; use SAT for saturation)
-* Return: vector or scalar
+.. code-block:: c++
+  RetTy cm_add(FstTy src0, SndTy src1, int flag = _GENX_NOSAT)
+
+There are several overloads for different types:
+
+* Parameter 1: matrix(_ref), vector(_ref) or scalar;
+* Parameter 2: matrix(_ref), vector(_ref) or scalar;
+* Parameter 3: flags (default is 0; use SAT for saturation);
+* Return: vector or scalar.
+
+Semantics:
+
+#. Applies C++ integral promotions on its operands;
+#. Extends operands to infinite precision;
+#. Adds promoted operands;
+#. Saturates to destination type if flag is SAT.
 
 cm_addc
 ^^^^^^^
