@@ -49,7 +49,7 @@ void getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,
                            std::vector<llvm::StringRef> &Features);
 
 // binary format for CMRT is required according to options
-bool isCMBinaryFormat(const llvm::opt::ArgList &Args);
+bool isCMBinaryFormat(const Driver &Drv, const llvm::opt::ArgList &Args);
 
 } // end namespace GenX
 } // namespace tools
