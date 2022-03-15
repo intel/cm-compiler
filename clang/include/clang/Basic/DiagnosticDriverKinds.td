@@ -333,6 +333,13 @@ def warn_cm_iga_enabled : Warning<
   "IGA has been enabled by the ENABLE_IGA environment variable">;
 def warn_cm_ignored_flag : Warning<
   "'%0' is ignored">, InGroup<OptionIgnored>;
+def warn_cm_deprecated_cmrt : Warning<
+  "\n=============================================\n"
+  "CMRT support is deprecated!\n"
+  "please specify binary format to be OCL or ZE \n"
+  "this warning will become an error in next SDK\n"
+  "=============================================\n"
+>;
 
 def warn_slash_u_filename : Warning<"'/U%0' treated as the '/U' option">,
   InGroup<DiagGroup<"slash-u-filename">>;

@@ -141,14 +141,14 @@ std::string GenX::getGenXTargetCPU(const ArgList &Args, const Driver *Drv) {
   return "";
 }
 
-bool GenX::isCMBinaryFormat(const ArgList &Args) {
+bool GenX::isCMBinaryFormat(const Driver &Drv, const ArgList &Args) {
   auto *Arg = Args.getLastArg(options::OPT_binary_format);
-  if (!Arg)
+  if (!Arg || std::string(Arg->getValue()) == "cm") {
     // CMRT binary is default
+    Drv.Diag(clang::diag::warn_cm_deprecated_cmrt);
     return true;
-  return llvm::StringSwitch<bool>(Arg->getValue())
-      .Case("cm", true)
-      .Default(false);
+  }
+  return false;
 }
 
 void GenX::getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,
@@ -163,6 +163,6 @@ void GenX::getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,
   if (Args.getLastArg(options::OPT_mCM_translate_legacy))
     Features.push_back("+translate_legacy_message");
 
-  if (!isCMBinaryFormat(Args))
+  if (!isCMBinaryFormat(D, Args))
     Features.push_back("+ocl_runtime");
 }

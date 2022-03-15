@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 
 // For some reason this test fails if the RUN lines are at the
 // end of the file - why?
-// RUN: %cmc -march=SKL -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
+// RUN: %cmc -fcmocl -march=SKL -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
 
 #include <cm/cm.h>
 
