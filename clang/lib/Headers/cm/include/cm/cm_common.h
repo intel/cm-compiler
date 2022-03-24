@@ -527,7 +527,7 @@ constexpr unsigned get_ops_per_channel(CmPrecisionType src1_precision,
     return 2;
   }
   else if ((src1_precision == CM_PRECISION_TF32) &&
-             (src2_precision == CM_PRECISION_TF32)) {
+           (src2_precision == CM_PRECISION_TF32)) {
     return 1;
   }
   return 0xFFFFFFFF;
