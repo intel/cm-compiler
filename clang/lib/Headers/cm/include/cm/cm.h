@@ -2140,6 +2140,24 @@ cm_f32tof16(const matrix<T, N1, N2> src) {
 // DPAS intrinsic begin
 //////////////////////////////////////////
 
+inline constexpr int get_dpas_execution_size(CmPrecisionType src1_precision) {
+  (void) src1_precision;
+#if !defined(CM_GENX)
+  CM_STATIC_WARNING(0, "GEN not specified so cm_dpas() code may not be optimal");
+  return 8;
+#endif // !defined(CM_GENX)
+  if (CM_GENX >= 1280)
+    return 16;
+  return 8;
+}
+
+template <typename T>
+inline constexpr bool check_type(CmPrecisionType src1_precision) {
+  (void) src1_precision;
+
+  return details::is_dword_type<T>::value;
+}
+
 template <CmPrecisionType src1_precision, CmPrecisionType src2_precision,
           int systolic_depth, int repeat_count, typename T,
           typename T1, typename T2, int N, int N1, int N2>
@@ -2147,23 +2165,17 @@ CM_NODEBUG CM_INLINE void cm_dpas_check_common() {
 
   CM_HAS_DPAS_CONTROL;
  
-  CM_STATIC_ERROR(details::is_dword_type<T1>::value,
-    "Src1 must be DWORD type");
- 
-  CM_STATIC_ERROR(details::is_dword_type<T2>::value,
-    "Src2 must be DWORD type");
+  CM_STATIC_ERROR(check_type<T1>(src1_precision), "Src1 type is incorrect");
 
+  CM_STATIC_ERROR(check_type<T2>(src2_precision), "Src2 type is incorrect");
+ 
   CM_STATIC_ERROR((systolic_depth == 8) || (systolic_depth == 4),
     "systolic_depth must be 8 or 4");
 
   CM_STATIC_ERROR((repeat_count >= 1) && (repeat_count <= 8),
                   "repeat_count must be within 1 to 8");
-#if !defined(CM_GENX)
-  CM_STATIC_WARNING(0, "GEN not specified so cm_dpas() code may not be optimal");
-  constexpr int DPAS_EXECUTION_SIZE = 8;
-#else // !defined(CM_GENX)
-  constexpr int DPAS_EXECUTION_SIZE = (CM_GENX >= 1280) ? 16 : 8;
-#endif // !defined(CM_GENX)
+
+  constexpr int DPAS_EXECUTION_SIZE = get_dpas_execution_size(src1_precision);
 
   CM_STATIC_ERROR((N == DPAS_EXECUTION_SIZE * repeat_count),
                   "Unsupported execution size in dpas");
@@ -2246,6 +2258,8 @@ CM_NODEBUG CM_INLINE void cm_dpas_check_types() {
 #else  // CM_HAS_TF32
   constexpr bool check_tf32 = false;
 #endif // CM_HAS_TF32
+
+
   if constexpr (check_hf && (std::is_same<T0, half>::value || std::is_same<T, half>::value))
     CM_HAS_DPAS_ACC_HALF_CONTROL;
   if constexpr (check_bf16 && (std::is_same<T0, short>::value || std::is_same<T, short>::value))
