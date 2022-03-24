@@ -340,6 +340,8 @@ def warn_cm_deprecated_cmrt : Warning<
   "this warning will become an error in next SDK\n"
   "=============================================\n"
 >;
+def err_cm_unknown_arch : Error<
+  "Unknown target achitecture, please use -march=<T> with correct target">;
 
 def warn_slash_u_filename : Warning<"'/U%0' treated as the '/U' option">,
   InGroup<DiagGroup<"slash-u-filename">>;

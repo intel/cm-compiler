@@ -137,7 +137,8 @@ std::string GenX::getGenXTargetCPU(const ArgList &Args, const Driver *Drv) {
       return std::move(March_CPU);
   }
   // no GenX target CPU specified
-  Drv->Diag(clang::diag::err_drv_unsupported_opt) << "no arch specified";
+  if (Drv)
+    Drv->Diag(clang::diag::err_cm_unknown_arch);
   return "";
 }
 
