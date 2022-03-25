@@ -78,6 +78,14 @@ static std::string deriveFinalCpuNameFromStepping(const std::string &CPU,
   return CPU;
 }
 
+static bool isDeprecatedTarget(StringRef CanonicalCPU) {
+  return llvm::StringSwitch<bool>(CanonicalCPU)
+      .Case("BDW", true)
+      .Case("BXT", true)
+      .Case("GLK", true)
+      .Default(false);
+}
+
 static std::string getCanonicalGenXTargetCPU(const std::string &CPU,
                                              const ArgList &Args,
                                              const Driver *Drv) {
@@ -111,6 +119,10 @@ static std::string getCanonicalGenXTargetCPU(const std::string &CPU,
                            .Case("PVC", "PVC")
                            .Case("PVCXT", "PVCXT")
                            .Default("");
+
+  // Check canonical name but report original argument.
+  if (Drv && isDeprecatedTarget(CanonicalCPU))
+    Drv->Diag(clang::diag::warn_cm_deprecated_target) << CPU;
 
   int RevId = GenX::getGenXRevId(CPU, Args, Drv);
   if (CPUName == "PVC" && RevId >= 3)

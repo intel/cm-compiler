@@ -329,6 +329,8 @@ def err_test_module_file_extension_format : Error<
 def warn_drv_invoking_fallback : Warning<"falling back to %0">,
   InGroup<Fallback>;
 
+def warn_cm_deprecated_target : Warning<
+  "Target '%0' is deprecated and will be removed in next SDK">;
 def warn_cm_iga_enabled : Warning<
   "IGA has been enabled by the ENABLE_IGA environment variable">;
 def warn_cm_ignored_flag : Warning<
