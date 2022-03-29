@@ -14,6 +14,7 @@ set(CM_HEADERS
   cm/cm_common.h
   cm/cm_cvt.h
   cm/cm_dataport.h
+  cm/cm_dpas.h
   cm/cm_gateway.h
   cm/cm.h
   cm/cm_internal.h
