@@ -179,7 +179,7 @@ struct DiagnosticSubsystem {
         DiagOpts(wrapper::MakeIntrusiveRefCntPtr<clang::DiagnosticOptions>()),
         DiagsPrinter(DiagStream, &*DiagOpts),
         Diags(wrapper::MakeIntrusiveRefCntPtr<clang::DiagnosticsEngine>(
-            DiagID, &*DiagOpts, &DiagsPrinter, /* ShouldOwnClien = */ false)) {
+            DiagID, &*DiagOpts, &DiagsPrinter, /* ShouldOwnClient = */ false)) {
   }
 };
 
