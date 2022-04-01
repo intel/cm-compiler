@@ -167,6 +167,15 @@ public:
   // will be used to store the global offset in bytes for SLM.
   llvm::DenseMap<const llvm::Function *, llvm::AllocaInst *> SLMAllocas;
 
+  /// \brief Map from reference-variable declaration to memory location(alloca).
+  /// Used to make debug location undefined, when memory will updated.
+  /// Many declaration may be reference to one mem-location.
+  std::multimap<llvm::Value *, const VarDecl *> undefList;
+
+  /// \brief Holds current parsed format expression tree.
+  ///  Used in debug info generation.
+  const CMFormatExpr *CurrentFormatExpr = nullptr;
+
 public:
   explicit CGCMRuntime(CodeGenModule &CGM) : CGM(CGM) {
     // Push a dummy one as the bottom.
@@ -229,10 +238,12 @@ public:
   void EmitCMOutput(CodeGenFunction &CGF);
 
   /// \brief Returns the value loaded from a CM region.
-  RValue EmitCMReadRegion(CodeGenFunction &CGF, LValue LV);
+  RValue EmitCMReadRegion(CodeGenFunction &CGF, LValue LV,
+                          const CMFormatExpr *E = nullptr);
 
   /// \brief Write into a CM region LValue.
-  void EmitCMWriteRegion(CodeGenFunction &CGF, RValue Src, LValue LV);
+  void EmitCMWriteRegion(CodeGenFunction &CGF, RValue Src, LValue LV,
+                         const Expr *E = nullptr);
 
   /// \brief Returns a LValue that describes how to access a CM base object.
   LValue EmitCMSelectExprLValue(CodeGenFunction &CGF, const CMSelectExpr *E);
@@ -284,7 +295,8 @@ public:
   ///
   /// This function emits the initialization of t and returns the address of t.
   /// The writeback region write will be inserted after the call.
-  llvm::Value *EmitCMReferenceArg(CodeGenFunction &CGF, LValue LV);
+  llvm::Value *EmitCMReferenceArg(CodeGenFunction &CGF, LValue LV,
+                                  const Expr *E);
 
   // helper functions for emitting vector load/store intrinsic calls.
   static llvm::Value *EmitCMRefLoad(CodeGenFunction &CGF, llvm::Value *Addr);
@@ -751,7 +763,20 @@ private:
                                    llvm::Value *Data,
                                    llvm::Value *Mask = nullptr);
 
+  /// \brief Helper for emit debug information. Used for emitting debug data
+  // (dbg.value and dbg.declare).
+  /// Returns tuple of variable declaration, line, column and scope
+  /// of declared variable.
+  std::tuple<llvm::DILocalVariable *, unsigned, unsigned, llvm::DIScope *>
+  GetVarDebugData(const VarDecl *Decl, llvm::Value *AI, CodeGenFunction &CGF);
+
 public:
+  /// \brief Return range of declaration, referenced to current memory location.
+  auto GetUndefListForValue(llvm::Value *data)
+      -> decltype(undefList.equal_range(data)) {
+    return undefList.equal_range(data);
+  }
+
   /// \brief Returns the corresponding genx intrinsic ID for this call.
   unsigned GetGenxIntrinsicID(CMCallInfo &CallInfo, CMBuiltinKind Kind,
                               bool IsSaturated = false);
@@ -773,6 +798,22 @@ public:
 
   /// \brief Emit single select element as pointer to vector element
   llvm::Value *EmitElementSelectAsPointer(CodeGenFunction &CGF, const CMSelectExpr *SE);
+
+  /// \brief Emit call to \c llvm.dbg.value for an automatic variable
+  /// declaration. Special debug-method, basically repeats
+  /// EmitDeclareOfAutoVariable method from CGDebugInfo, except emitted
+  /// instruction. This implementation emit value, origin one - declare. Used
+  /// for generate debug info for reference-variables.
+  void EmitDebugValueOfAutoVariable(const VarDecl *Decl, llvm::Value *AI,
+                                    CodeGenFunction &CGF);
+
+  /// \brief Emit sequence of debug-instructions if it possible, or nothing.
+  /// Special debug-method, basically repeats EmitDeclareOfAutoVariable method
+  /// from CGDebugInfo, but has special logic for emit fragments of
+  /// reference-variables.
+  void EmitDebugDeclareOfCMRefVariable(const VarDecl *Decl, llvm::Value *AI,
+                                       const CGCMRegionInfo &Info,
+                                       CodeGenFunction &CGF);
 };
 
 // Returns the llvm type for masks (<32 x i1> etc.).

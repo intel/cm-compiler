@@ -13,10 +13,11 @@ SPDX-License-Identifier: MIT
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCM.h"
-#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Transforms/Utils/Local.h"
 
 #include "llvm/GenXIntrinsics/GenXIntrinsics.h"
 #include "llvm/GenXIntrinsics/GenXMetadata.h"
@@ -369,6 +370,8 @@ llvm::Value *CGCMRuntime::EmitCMFormatExpr(CodeGenFunction &CGF,
 
   assert(E->isLValue());
   LValue LV = EmitCMFormatExprLValue(CGF, E);
+  assert(!CurrentFormatExpr);
+  CurrentFormatExpr = E;
   return CGF.EmitLoadOfLValue(LV, E->getExprLoc()).getScalarVal();
 }
 
@@ -870,9 +873,96 @@ llvm::Value *CGCMRuntime::EmitWriteRegion1D(CGBuilderTy &Builder,
   return Builder.CreateCall(Fn, Args, "wrregion");
 }
 
-RValue CGCMRuntime::EmitCMReadRegion(CodeGenFunction &CGF, LValue LV) {
-  assert(LV.isCMRegion() && "not a region");
+// Debug-info functions for cm-ref handling
 
+bool emitDebugInfo(CodeGenFunction &CGF, CodeGenModule &CGM) {
+  auto *DI = CGF.getDebugInfo();
+  return DI && CGM.getCodeGenOpts().getDebugInfo() >=
+                   codegenoptions::LimitedDebugInfo;
+}
+
+static void emitDebugDeclareOfCMRefVariable(CodeGenFunction &CGF,
+                                            CodeGenModule &CGM,
+                                            const ValueDecl *D, LValue LV) {
+  if (!emitDebugInfo(CGF, CGM) || !isa<VarDecl>(D) || !LV.isCMRegion())
+    return;
+  CGF.getDebugInfo()->setLocation(D->getLocation());
+  CGM.getCMRuntime().EmitDebugDeclareOfCMRefVariable(
+      cast<VarDecl>(D), LV.getCMRegionAddr(), LV.getCMRegionInfo(), CGF);
+}
+
+static void emitDebugValueOfAutoVariable(CodeGenFunction &CGF,
+                                         CodeGenModule &CGM,
+                                         llvm::Value *Region,
+                                         const CMFormatExpr *E) {
+  if (!emitDebugInfo(CGF, CGM) || !E)
+    return;
+  // Emit debug info for materialized value
+  auto *DD =
+      dyn_cast_or_null<VarDecl>(E->getBase()->getReferencedDeclOfCallee());
+  if (!DD)
+    return;
+  CGF.getDebugInfo()->setLocation(DD->getLocation());
+  // In this case generate dbg.value, not dbg.declare,
+  // because we got value, not reference
+  CGM.getCMRuntime().EmitDebugValueOfAutoVariable(DD, Region, CGF);
+}
+
+static void emitDebugUndefRefs(CodeGenFunction &CGF, CodeGenModule &CGM,
+                               LValue LV) {
+  if (!emitDebugInfo(CGF, CGM))
+    return;
+  // Emit undef to debug-data if we store any data to original location
+  llvm::Value *Address = LV.getCMRegionAddr();
+  auto UndefVarDecls = CGM.getCMRuntime().GetUndefListForValue(Address);
+  if (UndefVarDecls.first == UndefVarDecls.second)
+    return;
+
+  for (auto UndefVar = UndefVarDecls.first; UndefVar != UndefVarDecls.second;
+       ++UndefVar) {
+    const VarDecl *OrigDecl = UndefVar->second;
+    CGF.getDebugInfo()->setLocation(OrigDecl->getLocation());
+    // Make deref type
+    assert(Address->getType()->isPointerTy());
+    auto *Undef =
+        llvm::UndefValue::get(Address->getType()->getPointerElementType());
+    CGM.getCMRuntime().EmitDebugValueOfAutoVariable(OrigDecl, Undef, CGF);
+  }
+}
+
+static const VarDecl *getVarDeclReferencedFor(const Expr *E) {
+  if (!E)
+    return nullptr;
+  auto *InitCast = dyn_cast<CastExpr>(E);
+  if (!InitCast)
+    return nullptr;
+  const auto *DRE = dyn_cast<DeclRefExpr>(InitCast->getSubExpr());
+  if (!DRE)
+    return nullptr;
+  return cast<VarDecl>(DRE->getDecl());
+}
+
+static void emitDebugInfoForCMMaterializedReference(CodeGenFunction &CGF,
+                                                    CodeGenModule &CGM,
+                                                    llvm::Value *Address,
+                                                    const Expr *E) {
+  if (!emitDebugInfo(CGF, CGM) || !E)
+    return;
+  // Here reference-argument was materialized in Address. For more details
+  // take a look "User-defined functions" specification page.
+  const VarDecl *RefVarDecl = getVarDeclReferencedFor(E);
+  if (!RefVarDecl)
+    return;
+  auto *DI = CGF.getDebugInfo();
+  DI->setLocation(RefVarDecl->getLocation());
+  (void)DI->EmitDeclareOfAutoVariable(RefVarDecl, Address, CGF.Builder);
+}
+
+// End of Debug-info functions for cm-ref handling
+
+RValue CGCMRuntime::EmitCMReadRegion(CodeGenFunction &CGF, LValue LV,
+                                     const CMFormatExpr *E) {
+  assert(LV.isCMRegion() && "not a region");
   const CGCMRegionInfo &RI = LV.getCMRegionInfo();
   LValue Base = RI.getBase();
 
@@ -894,6 +984,7 @@ RValue CGCMRuntime::EmitCMReadRegion(CodeGenFunction &CGF, LValue LV) {
       Result = CGF.Builder.CreateBitCast(Result, Ty, "cast");
     }
     // format is no-op if type matches.
+    CurrentFormatExpr = nullptr;
     return RValue::get(Result);
   }
 
@@ -906,7 +997,7 @@ RValue CGCMRuntime::EmitCMReadRegion(CodeGenFunction &CGF, LValue LV) {
   } else {
     assert(Base.isCMRegion() && "not a CM region");
     // recursively read its base.
-    Region = EmitCMReadRegion(CGF, Base).getScalarVal();
+    Region = EmitCMReadRegion(CGF, Base, E).getScalarVal();
   }
 
   if (RI.is1DRegion()) {
@@ -918,6 +1009,7 @@ RValue CGCMRuntime::EmitCMReadRegion(CodeGenFunction &CGF, LValue LV) {
       Region = CGF.Builder.CreateExtractElement(
           Region, llvm::ConstantInt::get(CGF.Int32Ty, 0));
 
+    CurrentFormatExpr = nullptr;
     return RValue::get(Region);
   }
 
@@ -941,6 +1033,9 @@ RValue CGCMRuntime::EmitCMReadRegion(CodeGenFunction &CGF, LValue LV) {
     Region = CGF.Builder.CreateExtractElement(
         Region, llvm::ConstantInt::get(CGF.Int32Ty, 0));
 
+  if (LV.getType()->isCMReferenceType())
+    emitDebugValueOfAutoVariable(CGF, CGM, Region, CurrentFormatExpr);
+  CurrentFormatExpr = nullptr;
   // The final region value.
   return RValue::get(Region);
 }
@@ -990,11 +1085,12 @@ llvm::Value *CGCMRuntime::EmitWriteRegion2D(
   return Builder.CreateCall(Fn, Args, "wrregion");
 }
 
-void CGCMRuntime::EmitCMWriteRegion(CodeGenFunction &CGF, RValue Src,
-                                    LValue LV) {
+void CGCMRuntime::EmitCMWriteRegion(CodeGenFunction &CGF, RValue Src, LValue LV,
+                                    const Expr *E) {
   assert(LV.isCMRegion() && "not a region");
+  // Update debug info
+  emitDebugUndefRefs(CGF, CGM, LV);
   const CGCMRegionInfo &RI = LV.getCMRegionInfo();
-
   // For a format, convert Src to the expected base type and write to base.
   if (RI.isFormat()) {
     llvm::Value *SrcVal = Src.getScalarVal();
@@ -1097,6 +1193,7 @@ LValue CGCMRuntime::EmitCMDeclRefLValue(CodeGenFunction &CGF,
 
 void CGCMRuntime::EmitCMRefDeclInit(CodeGenFunction &CGF, const ValueDecl *VD,
                                     LValue LV) {
+  emitDebugDeclareOfCMRefVariable(CGF, CGM, VD, LV);
   assert(!ReferenceDecls.count(VD) && "already emitted");
   ReferenceDecls.insert(std::make_pair(VD, LV));
 }
@@ -1497,7 +1594,8 @@ public:
 
 } // namespace
 
-llvm::Value *CGCMRuntime::EmitCMReferenceArg(CodeGenFunction &CGF, LValue LV) {
+llvm::Value *CGCMRuntime::EmitCMReferenceArg(CodeGenFunction &CGF, LValue LV,
+                                             const Expr *E) {
   assert(LV.isCMRegion());
   QualType VarType = CGF.getContext().getCMVectorMatrixBaseType(LV.getType());
   llvm::Value *Address = CGF.CreateMemTemp(VarType, "argref").getPointer();
@@ -1507,7 +1605,7 @@ llvm::Value *CGCMRuntime::EmitCMReferenceArg(CodeGenFunction &CGF, LValue LV) {
   // Reference argument writeback is implemented as a cleanup, using the
   // existing C++ cleanup mechanism.
   CGF.EHStack.pushCleanup<ReferenceArgWriteback>(NormalAndEHCleanup, Address, LV);
-
+  emitDebugInfoForCMMaterializedReference(CGF, CGM, Address, E);
   return Address;
 }
 
@@ -1574,4 +1672,176 @@ llvm::Value *CGCMRuntime::EmitElementSelectAsPointer(CodeGenFunction &CGF,
   auto *Zero = llvm::ConstantInt::get(Index->getType(), 0);
   auto *GEP = CGF.Builder.CreateGEP(getBaseAddr(Base), {Zero, Index});
   return GEP;
+}
+
+static uint32_t getDeclAlignIfRequired(const Decl *D, const ASTContext &Ctx) {
+  return D->hasAttr<AlignedAttr>() ? D->getMaxAlignment() : 0;
+}
+
+std::tuple<llvm::DILocalVariable *, unsigned, unsigned, llvm::DIScope *>
+CGCMRuntime::GetVarDebugData(const VarDecl *VD, llvm::Value *AI,
+                             CodeGenFunction &CGF) {
+  auto *DI = CGF.getDebugInfo();
+  assert(DI->DebugKind >= codegenoptions::LimitedDebugInfo);
+  assert(!DI->LexicalBlockStack.empty() &&
+         "Region stack mismatch, stack empty!");
+  if (VD->hasAttr<NoDebugAttr>())
+    return std::make_tuple(nullptr, 0, 0, nullptr);
+  llvm::DIFile *Unit = DI->getOrCreateFile(VD->getLocation());
+  llvm::DIType *Ty;
+  uint64_t XOffset = 0;
+  if (VD->hasAttr<BlocksAttr>())
+    Ty = DI->EmitTypeForVarWithBlocksAttr(VD, &XOffset).WrappedType;
+  else
+    Ty = DI->getOrCreateType(VD->getType(), Unit);
+
+  // If there is no debug info for this type then do not emit debug info
+  // for this variable.
+  if (!Ty)
+    return std::make_tuple(nullptr, 0, 0, nullptr);
+  // Get location information.
+  unsigned Line = DI->getLineNumber(VD->getLocation());
+  unsigned Column = DI->getColumnNumber(VD->getLocation());
+  auto Align = getDeclAlignIfRequired(VD, CGM.getContext());
+
+  // Note: Older versions of clang used to emit byval references with an extra
+  // DW_OP_deref, because they referenced the IR arg directly instead of
+  // referencing an alloca. Newer versions of LLVM don't treat allocas
+  // differently from other function arguments when used in a dbg.declare.
+  auto *Scope = cast<llvm::DIScope>(DI->LexicalBlockStack.back());
+  StringRef Name = VD->getName();
+  // Create the descriptor for the variable.
+  auto *D = DI->DBuilder.createAutoVariable(Scope, Name, Unit, Line, Ty,
+                                            CGM.getLangOpts().Optimize,
+                                            llvm::DINode::FlagZero, Align);
+  return std::make_tuple(D, Line, Column, Scope);
+}
+
+void CGCMRuntime::EmitDebugValueOfAutoVariable(const VarDecl *VD,
+                                               llvm::Value *Storage,
+                                               CodeGenFunction &CGF) {
+
+  auto *DI = CGF.getDebugInfo();
+  llvm::DILocalVariable *D;
+  unsigned Line, Column;
+  llvm::DIScope *Scope;
+  std::tie(D, Line, Column, Scope) = GetVarDebugData(VD, Storage, CGF);
+  if (!D)
+    return;
+
+  SmallVector<int64_t, 0> Expr;
+  // Insert an llvm.dbg.value into the current block.
+  DI->DBuilder.insertDbgValueIntrinsic(
+      Storage, D, DI->DBuilder.createExpression(Expr),
+      llvm::DebugLoc::get(Line, Column, Scope, DI->CurInlinedAt),
+      CGF.Builder.GetInsertBlock());
+}
+
+// Get Reference Declaration for underlying cm matrix-ref definition
+static DeclRefExpr *GetRefDeclForMatrixRef(const VarDecl *VD,
+                                           clang::QualType VDTy) {
+  // TODO support CMVectorType
+  if (!isa<CMMatrixType>(VDTy.getTypePtr()))
+    return nullptr;
+  // TODO simplify the way to get Decl
+  auto *Cast = dyn_cast<CastExpr>(VD->getInit());
+  if (!Cast)
+    return nullptr;
+  auto *Select = dyn_cast<CMSelectExpr>(Cast->getSubExpr());
+  if (!Select)
+    return nullptr;
+  auto *Decl = dyn_cast<DeclRefExpr>(Select->getBase());
+  if (!Decl)
+    return nullptr;
+  return Decl;
+}
+
+void CGCMRuntime::EmitDebugDeclareOfCMRefVariable(const VarDecl *VD,
+                                                  llvm::Value *Storage,
+                                                  const CGCMRegionInfo &Info,
+                                                  CodeGenFunction &CGF) {
+  auto *DI = CGF.getDebugInfo();
+  // If we can emit dbg-value - will remove from list
+  auto UndefIt = undefList.insert(std::make_pair(Storage, VD));
+  llvm::DILocalVariable *D;
+  unsigned Line, Column;
+  llvm::DIScope *Scope;
+  clang::QualType VDTy = VD->getType();
+  std::tie(D, Line, Column, Scope) = GetVarDebugData(VD, Storage, CGF);
+  if (!D)
+    return;
+
+  // TODO support variables in offsets with DIArgList and DW_OP_LLVM_arg - to
+  // calculate variable offset with ifdef llvm-13. In current implementation
+  // only constant offsets are supported.
+  if (!Info.getVOffset() || !Info.getHOffset() ||
+      !isa<llvm::Constant>(Info.getVOffset()) ||
+      !isa<llvm::Constant>(Info.getHOffset()))
+    return;
+  // original alloca-size
+  if (!Storage->getType()->isPointerTy() ||
+      !Storage->getType()->getPointerElementType()->isVectorTy())
+    return;
+
+  auto *Decl = GetRefDeclForMatrixRef(VD, VDTy);
+  if (!Decl)
+    return;
+  // Src-type TODO support vector-src
+  auto *SrcTy = dyn_cast<CMMatrixType>(Decl->getType());
+  if (!SrcTy)
+    return;
+  // Remove from undfined list - we can emit dbg-data for this variable
+  undefList.erase(UndefIt);
+
+  // Src (matrix) sizes
+  auto SrcColSize = SrcTy->getNumColumns();
+  // TODO : Is it easier way to get element size?
+  auto ElSize = Storage->getType()
+                    ->getPointerElementType()
+                    ->getVectorElementType()
+                    ->getIntegerBitWidth();
+
+  // Dst (matrix) sizes
+  const CMMatrixType *MTy = cast<CMMatrixType>(VDTy.getTypePtr());
+  auto ColSize = MTy->getNumColumns();
+  auto RowSize = MTy->getNumRows();
+  auto ElementsCount = MTy->getNumElements();
+
+  // Select data:
+  // horisontal offset and size
+  auto Hoff = cast<llvm::Constant>(Info.getHOffset())
+                  ->getUniqueInteger()
+                  .getZExtValue();
+  auto Hsize = Info.getHSize();
+  // vertical offset and size
+  auto Voff = cast<llvm::Constant>(Info.getVOffset())
+                  ->getUniqueInteger()
+                  .getZExtValue();
+  auto Vsize = Info.getVSize();
+
+  int Offset = 0;
+  // Emit fragments for each piece of code
+  for (decltype(ColSize) i = 0; i < ColSize; ++i)
+    for (decltype(RowSize) j = 0; j < RowSize; ++j) {
+      auto VarOffset =
+          ((Voff + i * Vsize) * SrcColSize + Hoff + j * Hsize) * ElSize;
+      SmallVector<int64_t, 7> Expr;
+      Expr.push_back(llvm::dwarf::DW_OP_constu);
+      Expr.push_back(VarOffset);
+      // Increment address for original matrix to pointer to current element
+      Expr.push_back(llvm::dwarf::DW_OP_plus);
+      // Dereference current element
+      Expr.push_back(llvm::dwarf::DW_OP_deref);
+      // It is fragment of current matrix
+      Expr.push_back(llvm::dwarf::DW_OP_LLVM_fragment);
+      Expr.push_back(Offset);
+      Expr.push_back(ElSize);
+      DI->DBuilder.insertDbgValueIntrinsic(
+          Storage, D, DI->DBuilder.createExpression(Expr),
+          llvm::DebugLoc::get(Line, Column, Scope, DI->CurInlinedAt),
+          CGF.Builder.GetInsertBlock());
+      Offset += ElSize;
+      --ElementsCount;
+    }
+  assert(ElementsCount == 0);
 }

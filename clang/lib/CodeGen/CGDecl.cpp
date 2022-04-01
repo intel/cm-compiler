@@ -1504,7 +1504,8 @@ CodeGenFunction::EmitAutoVarAlloca(const VarDecl &D) {
   emission.AllocaAddr = AllocaAddr;
 
   // Emit debug info for local var declaration.
-  if (EmitDebugInfo && HaveInsertPoint()) {
+  // Special case for ref-s - will be emmited on materialization.
+  if (EmitDebugInfo && HaveInsertPoint() && !Ty->isCMReferenceType()) {
     DI->setLocation(D.getLocation());
     (void)DI->EmitDeclareOfAutoVariable(&D, address.getPointer(), Builder);
   }
