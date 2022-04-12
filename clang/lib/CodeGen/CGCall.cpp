@@ -3624,7 +3624,7 @@ void CodeGenFunction::EmitCallArg(CallArgList &args, const Expr *E,
     else {
       // this is CM region reference.
       assert(LV.isCMRegion());
-      Address = CGM.getCMRuntime().EmitCMReferenceArg(*this, LV, E);
+      Address = CGM.getCMRuntime().EmitCMReferenceArg(*this, LV);
     }
     return args.add(RValue::get(Address), type);
   }

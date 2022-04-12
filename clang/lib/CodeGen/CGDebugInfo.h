@@ -58,7 +58,6 @@ class CGBlockInfo;
 class CGDebugInfo {
   friend class ApplyDebugLocation;
   friend class SaveAndRestoreLocation;
-  friend class CGCMRuntime;
   CodeGenModule &CGM;
   const codegenoptions::DebugInfoKind DebugKind;
   bool DebugTypeExtRefs;
