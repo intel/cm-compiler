@@ -27,10 +27,14 @@ SPDX-License-Identifier: MIT
 #include "cm_vme.h"
 #include "cm_gateway.h"
 #include "cm_svm.h"
-#include "cm_printf.h"
 #include "cm_mask.h"
-#include "cm_printfocl.h"
 #include "cm_spec_constant.h"
+
+#if defined(__CM_OCL_RUNTIME)
+#include "cm_printfocl.h"
+#else // defined(__CM_OCL_RUNTIME)
+#include "cm_printf.h"
+#endif // defined(__CM_OCL_RUNTIME)
 
 // cm_abs
 namespace details {
@@ -1516,7 +1520,7 @@ CM_NODEBUG CM_INLINE vector<float, SZ> cm_lrp(vector<float, SZ> src0, U src1,
 
 // The old implementation is to generate vISA IRs for lrp.
 // Now We change to use direct mul/add, and hope to generate mad instructions
-// at the end, to still get the performance as good as HW solution. 
+// at the end, to still get the performance as good as HW solution.
 // The only input and return types for these APIs are floats.
 // In order to be able to use the old emu code, we keep the template argument
 // for the type, although the type "T" can only be float.
