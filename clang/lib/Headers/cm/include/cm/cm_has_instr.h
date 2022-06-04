@@ -11,14 +11,14 @@ SPDX-License-Identifier: MIT
 /// CM_HAS_<Feature> maros
 /// ----------------------
 /// Check platform to support <Feature>.
-/// Return true if Feature is supported. 
+/// Return true if Feature is supported.
 //===----------------------------------------------------------------------===//
 
 #ifndef _CLANG_CM_HAS_INSTR_H_
 #define _CLANG_CM_HAS_INSTR_H_
 
 #ifndef CM_HAS_CONTROL
- 
+
 namespace CheckVersion {
 
   // Use structure to create static_assert only on 2nd stage of
@@ -39,7 +39,7 @@ namespace CheckVersion {
 //-----------------------------------------------
 //-----------------------------------------------
 
-#if (CM_GENX >= 1200) 
+#if (CM_GENX >= 1200)
   #define CM_HAS_DP4A 1
   #define CM_HAS_DP4A_CONTROL CM_HAS_CONTROL(true)
 #else
@@ -53,10 +53,10 @@ namespace CheckVersion {
 #endif
 
 /// CM_HAS_<Feature>_CONTROL macors
-/// -------------------------------  
+/// -------------------------------
 /// Create static_assert if feature isn't supported for this platform.
 /// Otherwise, do nothing.
-/// 
+///
 /// CM_GENX value of platforms sets according to Frontend/InitPreprocessor.cpp.
 //===----------------------------------------------------------------------===//
 
@@ -106,7 +106,7 @@ namespace CheckVersion {
 #endif
 
 //DPASW
-#if (CM_GENX >= 1270) //>= XEHP_SDV
+#if (CM_GENX >= 1270 && CM_GENX <= 1271) //>= XEHP_SDV && <= DG2
   #define CM_HAS_DPASW 1
   #define CM_HAS_DPASW_CONTROL CM_HAS_CONTROL(true)
 #else
@@ -134,7 +134,7 @@ namespace CheckVersion {
   #define CM_HAS_IEEE_DIV_SQRT_CONTROL CM_HAS_CONTROL(false)
 #endif //IEEE
 
-//LSC 
+//LSC
 #if (CM_GENX >= 1271) //>= DG2
   #define CM_HAS_LSC 1
   #define CM_HAS_LSC_CONTROL CM_HAS_CONTROL(true)
