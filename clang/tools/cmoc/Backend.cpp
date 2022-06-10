@@ -193,6 +193,9 @@ static void invokeBE(const std::vector<char> &SPIRV, const std::string &NeoCPU,
   OclocArgs.push_back("-internal_options");
   OclocArgs.push_back(InternalOptions.c_str());
 
+  // we make ocloc always return gen file in list of outputs
+  OclocArgs.push_back("-gen_file");
+
   if (isCmocDebugEnabled()) {
     llvm::errs() << "oclocInvoke options: ";
     printEscapedArgs(llvm::errs(), OclocArgs, '"');
