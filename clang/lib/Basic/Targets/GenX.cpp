@@ -63,6 +63,7 @@ bool GenXTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
                          .Case("DG1", false)
                          .Case("ADLS", false)
                          .Case("ADLP", false)
+                         .Case("ADLN", false)
                          .Case("DG2", false)
                          .Default(true);
 
@@ -73,6 +74,7 @@ bool GenXTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
                             .Case("DG1", false)
                             .Case("ADLS", false)
                             .Case("ADLP", false)
+                            .Case("ADLN", false)
                             .Case("DG2", false)
                             .Default(true);
 
@@ -100,6 +102,7 @@ bool GenXTargetInfo::setCPU(const std::string &Name) {
                       .Case("XEHP_SDV", true)
                       .Case("ADLP", true)
                       .Case("ADLS", true)
+                      .Case("ADLN", true)
                       .Case("DG2", true)
                       .Case("PVC", true)
                       .Case("PVCXT", true)

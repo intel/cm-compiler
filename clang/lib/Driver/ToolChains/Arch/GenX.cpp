@@ -116,6 +116,7 @@ static std::string getCanonicalGenXTargetCPU(const std::string &CPU,
                            .Case("DG2", "DG2")
                            .Case("ADLP", "ADLP")
                            .Case("ADLS", "ADLS")
+                           .Case("ADLN", "ADLN")
                            .Case("PVC", "PVC")
                            .Case("PVCXT", "PVCXT")
                            .Default("");
