@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2021 Intel Corporation
+Copyright (C) 2014-2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -1755,7 +1755,7 @@ _CM_INTRINSIC_DEF(float, rsqrt)
 _CM_INTRINSIC_DEF(float, sin)
 _CM_INTRINSIC_DEF(float, cos)
 
-_CM_INTRINSIC_WITH_CONTROL_DEF(double, sqrt_ieee, CM_HAS_IEEE_DIV_SQRT_CONTROL)
+_CM_INTRINSIC_DEF(double, sqrt_ieee)
 
 #undef _CM_INTRINSIC_DEF
 #undef _CM_INTRINSIC_WITH_CONTROL_DEF
@@ -1810,7 +1810,7 @@ _CM_INTRINSIC_DEF(half, pow)
 _CM_INTRINSIC_DEF(float, pow)
 
 _CM_INTRINSIC_WITH_CONTROL_DEF(float, div_ieee, CM_HAS_IEEE_DIV_SQRT_CONTROL)
-_CM_INTRINSIC_WITH_CONTROL_DEF(double, div_ieee, CM_HAS_IEEE_DIV_SQRT_CONTROL)
+_CM_INTRINSIC_DEF(double, div_ieee)
 
 #undef _CM_INTRINSIC_DEF
 #undef _CM_INTRINSIC_WITH_CONTROL_DEF
