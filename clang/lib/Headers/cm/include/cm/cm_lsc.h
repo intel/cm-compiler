@@ -46,7 +46,7 @@ template <VectorSize VS = VectorSize::N1, DataSize DS = DataSize::U32,
 CM_NODEBUG CM_INLINE void cm_prefetch(SurfaceIndex Idx,
                                       vector<unsigned, N> Offset,
                                       vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
@@ -65,7 +65,7 @@ template <VectorSize VS = VectorSize::N1, DataSize DS = DataSize::U32,
 CM_NODEBUG CM_INLINE void cm_ptr_prefetch(const unsigned *const Ptr,
                                           vector<unsigned, N> Offset,
                                           vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
@@ -82,7 +82,7 @@ template <VectorSize VS, DataSize DS = DataSize::U32,
           CacheHint L1H = CacheHint::Cached,
           CacheHint L3H = CacheHint::Cached>
 CM_NODEBUG CM_INLINE void cm_prefetch(SurfaceIndex Idx, unsigned Offset) {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   CM_STATIC_WARNING(details::always_false<decltype(VS)>(),
                     "Please use new interface with explicit NElts");
@@ -100,7 +100,7 @@ CM_NODEBUG CM_INLINE void cm_prefetch(SurfaceIndex Idx, unsigned Offset) {
 template <int NElts, DataSize DS = DataSize::U32,
           CacheHint L1H = CacheHint::Cached, CacheHint L3H = CacheHint::Cached>
 CM_NODEBUG CM_INLINE void cm_prefetch(SurfaceIndex Idx, unsigned Offset) {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   CM_STATIC_ERROR(DS == DataSize::U32 || DS == DataSize::U64,
                   "Transposed prefetch can work only with U32 and U64 data sizes");
@@ -119,7 +119,7 @@ template <VectorSize VS, DataSize DS = DataSize::U32,
           CacheHint L3H = CacheHint::Cached>
 CM_NODEBUG CM_INLINE void cm_ptr_prefetch(const unsigned *const Ptr,
                                           unsigned Offset) {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   CM_STATIC_WARNING(details::always_false<decltype(VS)>(),
                     "Please use new interface with explicit NElts");
@@ -139,7 +139,7 @@ template <int NElts, DataSize DS = DataSize::U32,
           CacheHint L1H = CacheHint::Cached, CacheHint L3H = CacheHint::Cached>
 CM_NODEBUG CM_INLINE void cm_ptr_prefetch(const unsigned *const Ptr,
                                           unsigned Offset) {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   CM_STATIC_ERROR(DS == DataSize::U32 || DS == DataSize::U64,
                   "Transposed prefetch can work only with U32 and U64 data sizes");
@@ -180,7 +180,7 @@ template <typename T, VectorSize VS = VectorSize::N1,
           int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE CM_LSC_REPLICATE_MASK(VS) auto cm_load(
     SurfaceIndex Idx, vector<unsigned, N> Offset, vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
@@ -206,7 +206,7 @@ template <typename T, VectorSize VS = VectorSize::N1,
 CM_NODEBUG CM_INLINE auto cm_ptr_load(const T *const Ptr,
                                       vector<unsigned, N> Offset,
                                       vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
@@ -230,7 +230,7 @@ template <typename T, VectorSize VS, DataSize DS = DataSize::Default,
           CacheHint L1H = CacheHint::Default,
           CacheHint L3H = CacheHint::Default>
 CM_NODEBUG CM_INLINE auto cm_load(SurfaceIndex Idx, unsigned Offset) {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   CM_STATIC_WARNING(details::always_false<decltype(VS)>(),
                     "Please use new interface with explicit NElts");
@@ -325,8 +325,8 @@ template <typename T, ChannelMaskType Mask, DataSize DS = DataSize::Default,
           int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE auto cm_load4(SurfaceIndex Idx, vector<unsigned, N> Offset,
                                    vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
-  
+  CM_HAS_LSC_CONTROL;
+
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Load, L1H, L3H>()),
@@ -354,8 +354,8 @@ template <typename T, ChannelMaskType Mask, DataSize DS = DataSize::Default,
 CM_NODEBUG CM_INLINE auto cm_ptr_load4(const T *const Ptr,
                                        vector<unsigned, N> Offset,
                                        vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
-  
+  CM_HAS_LSC_CONTROL;
+
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Load, L1H, L3H>()),
@@ -407,8 +407,8 @@ CM_NODEBUG CM_INLINE void
 cm_store(SurfaceIndex Idx, vector<unsigned, N> Offset,
          vector<T, N * details::lsc_vector_size<VS>()> Data,
          vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
-  
+  CM_HAS_LSC_CONTROL;
+
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Store, L1H, L3H>()),
@@ -433,8 +433,8 @@ CM_NODEBUG CM_INLINE void
 cm_ptr_store(T *Ptr, vector<unsigned, N> Offset,
              vector<T, N * details::lsc_vector_size<VS>()> Data,
              vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
-  
+  CM_HAS_LSC_CONTROL;
+
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Store, L1H, L3H>()),
@@ -464,8 +464,8 @@ CM_NODEBUG CM_INLINE void cm_store4(
     SurfaceIndex Idx, vector<unsigned, N> Offset,
     vector<T, N * details::lsc_get_num_elements_from_channel_mask<Mask>()> Data,
     vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
-  
+  CM_HAS_LSC_CONTROL;
+
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Store, L1H, L3H>()),
@@ -494,8 +494,8 @@ CM_NODEBUG CM_INLINE void cm_ptr_store4(
     T *Ptr, vector<unsigned, N> Offset,
     vector<T, N * details::lsc_get_num_elements_from_channel_mask<Mask>()> Data,
     vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
-  
+  CM_HAS_LSC_CONTROL;
+
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Store, L1H, L3H>()),
@@ -522,8 +522,8 @@ template <typename T, int NElts, DataSize DS = DataSize::Default,
           CacheHint L3H = CacheHint::Default>
 CM_NODEBUG CM_INLINE void cm_store(SurfaceIndex Idx, unsigned Offset,
                                    vector<T, NElts> Data) {
-  CM_HAS_LSC_CONTROL; 
-  
+  CM_HAS_LSC_CONTROL;
+
   using namespace details;
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Store, L1H, L3H>()),
                   "unsupported cache hint");
@@ -544,8 +544,8 @@ template <typename T, int NElts, DataSize DS = DataSize::Default,
           CacheHint L3H = CacheHint::Default>
 CM_NODEBUG CM_INLINE void cm_ptr_store(T *ptr, unsigned Offset,
                                        vector<T, NElts> Data) {
-  CM_HAS_LSC_CONTROL; 
-  
+  CM_HAS_LSC_CONTROL;
+
   using namespace details;
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Store, L1H, L3H>()),
                   "unsupported cache hint");
@@ -581,8 +581,8 @@ template <typename T, VectorSize VS = VectorSize::N1,
           DataSize DS = DataSize::Default, int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE auto cm_load_slm(vector<unsigned, N> Offset,
                                       vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
-  
+  CM_HAS_LSC_CONTROL;
+
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
@@ -600,8 +600,8 @@ CM_NODEBUG CM_INLINE auto cm_load_slm(vector<unsigned, N> Offset,
 // Block-load with a base-pointer to the SLM
 template <typename T, VectorSize VS, DataSize DS = DataSize::Default>
 CM_NODEBUG CM_INLINE auto cm_load_slm(unsigned Offset) {
-  CM_HAS_LSC_CONTROL; 
-  
+  CM_HAS_LSC_CONTROL;
+
   CM_STATIC_WARNING(details::always_false<decltype(VS)>(),
                     "Please use new interface with explicit NElts");
   using namespace details;
@@ -619,8 +619,8 @@ CM_NODEBUG CM_INLINE auto cm_load_slm(unsigned Offset) {
 // Block-load with a base-pointer to the SLM, new interface
 template <typename T, int NElts, DataSize DS = DataSize::Default>
 CM_NODEBUG CM_INLINE auto cm_load_slm(unsigned Offset) {
-  CM_HAS_LSC_CONTROL; 
-  
+  CM_HAS_LSC_CONTROL;
+
   using namespace details;
   constexpr VectorSize VS = details::lsc_vector_size<NElts>();
   using _RetTy = decltype(lsc_data_type<T, 1, VS>());
@@ -639,7 +639,7 @@ template <typename T, ChannelMaskType Mask, DataSize DS = DataSize::Default,
           int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE auto cm_load4_slm(vector<unsigned, N> Offset,
                                        vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
@@ -685,8 +685,8 @@ CM_NODEBUG CM_INLINE void
 cm_store_slm(vector<unsigned, N> Offset,
              vector<T, N * details::lsc_vector_size<VS>()> Data,
              vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
-  
+  CM_HAS_LSC_CONTROL;
+
   CM_STATIC_WARNING(details::always_false<decltype(VS)>(),
                     "Please use new interface with explicit NElts");
   using namespace details;
@@ -710,8 +710,8 @@ CM_NODEBUG CM_INLINE void
 cm_store_slm(vector<unsigned, N> Offset,
              vector<T, N * details::lsc_vector_size<NElts>()> Data,
              vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
-  
+  CM_HAS_LSC_CONTROL;
+
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(
@@ -731,8 +731,8 @@ cm_store_slm(vector<unsigned, N> Offset,
 // Block version.
 template <typename T, int NElts, DataSize DS = DataSize::Default>
 CM_NODEBUG CM_INLINE void cm_store_slm(unsigned Offset, vector<T, NElts> Data) {
-  CM_HAS_LSC_CONTROL; 
-  
+  CM_HAS_LSC_CONTROL;
+
   constexpr DataSize _DS = details::lsc_data_size<T, DS>();
   CM_STATIC_ERROR(_DS == DataSize::U32 || _DS == DataSize::U64,
                   "Transposed store can work only with U32 and U64 data sizes");
@@ -751,8 +751,8 @@ CM_NODEBUG CM_INLINE void cm_store4_slm(
     vector<unsigned, N> Offset,
     vector<T, N * details::lsc_get_num_elements_from_channel_mask<Mask>()> Data,
     vector<ushort, N> Pred = 1) {
-  CM_HAS_LSC_CONTROL; 
-  
+  CM_HAS_LSC_CONTROL;
+
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   constexpr DataSize _DS = lsc_expand_ds(details::lsc_data_size<T, DS>());
@@ -1002,7 +1002,7 @@ CM_NODEBUG CM_INLINE auto cm_atomic(SurfaceIndex Idx,
     typename std::enable_if<
         details::lsc_atomic_nsrcs<Op>() == 0,
         vector<T, N * details::lsc_vector_size<VS>()> >::type {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
@@ -1028,7 +1028,7 @@ cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
           vector<ushort, N> Pred = 1) ->
     typename std::enable_if<details::lsc_atomic_nsrcs<Op>() == 1,
                             decltype(Src0)>::type {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
@@ -1060,7 +1060,7 @@ cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
           vector<ushort, N> Pred = 1) ->
     typename std::enable_if<details::lsc_atomic_nsrcs<Op>() == 2,
                             decltype(Src0)>::type {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
@@ -1092,7 +1092,7 @@ CM_NODEBUG CM_INLINE auto cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
     typename std::enable_if<
         details::lsc_atomic_nsrcs<Op>() == 0,
         vector<T, N * details::lsc_vector_size<VS>()> >::type {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
@@ -1119,7 +1119,7 @@ cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
               vector<ushort, N> Pred = 1) ->
     typename std::enable_if<details::lsc_atomic_nsrcs<Op>() == 1,
                             decltype(Src0)>::type {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
@@ -1152,7 +1152,7 @@ cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
               vector<ushort, N> Pred = 1) ->
     typename std::enable_if<details::lsc_atomic_nsrcs<Op>() == 2,
                             decltype(Src0)>::type {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
@@ -1184,7 +1184,7 @@ CM_NODEBUG CM_INLINE auto cm_atomic_slm(vector<unsigned, N> Offset,
     typename std::enable_if<
         details::lsc_atomic_nsrcs<Op>() == 0,
         vector<T, N * details::lsc_vector_size<VS>()> >::type {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
@@ -1210,7 +1210,7 @@ cm_atomic_slm(vector<unsigned, N> Offset,
               vector<ushort, N> Pred = 1) ->
     typename std::enable_if<details::lsc_atomic_nsrcs<Op>() == 1,
                             decltype(Src0)>::type {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
@@ -1242,7 +1242,7 @@ cm_atomic_slm(vector<unsigned, N> Offset,
               vector<ushort, N> Pred = 1) ->
     typename std::enable_if<details::lsc_atomic_nsrcs<Op>() == 2,
                             decltype(Src0)>::type {
-  CM_HAS_LSC_CONTROL; 
+  CM_HAS_LSC_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
