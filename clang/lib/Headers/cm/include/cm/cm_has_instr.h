@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -81,7 +81,7 @@ namespace CheckVersion {
 #endif
 
 //BF16
-#if (CM_GENX >= 1200) //>= TGLLP
+#if (CM_GENX >= 1270) //>= XEHP_SDV
   #define CM_HAS_BF16 1
   #define CM_HAS_BF16_CONTROL CM_HAS_CONTROL(true)
 #else
