@@ -330,6 +330,26 @@ typename std::enable_if<(N == 8 || N == 16 || N == 32) && (sizeof(T) == 4)>::typ
 cm_ptr_write4(T* ptr, vector<ptrdiff_t, N> vOffset, vector<T, M> vSrc,
               ChannelMaskType mask);
 
+// Defined here separate from other cm_svm_gather/scatter definitions
+// due to dependency on 'cm_ptr_read/write4'
+template <typename T, int N, int M>
+typename std::enable_if<(N == 8 || N == 16 || N == 32) &&
+                        (sizeof(T) == 4)>::type
+cm_svm_gather4_scaled(vector<svmptr_t, N> vOffset, vector_ref<T, M> vDst,
+                      ChannelMaskType mask) {
+  vector<ptrdiff_t, N> _OffsetArg = vOffset;
+  cm_ptr_read4<T, N, M>((uint64_t)0, _OffsetArg, vDst, mask);
+}
+
+template <typename T, int N, int M>
+typename std::enable_if<(N == 8 || N == 16 || N == 32) &&
+                        (sizeof(T) == 4)>::type
+cm_svm_scatter4_scaled(vector<svmptr_t, N> vOffset, vector<T, M> vSrc,
+                       ChannelMaskType mask) {
+  vector<ptrdiff_t, N> _OffsetArg = vOffset;
+  cm_ptr_write4<T, N, M>((uint64_t)0, _OffsetArg, vSrc, mask);
+}
+
 // svmptr_t interface
 template <typename T0, int SZ>
 void cm_svm_atomic(CmAtomicOpType op, vector<svmptr_t, SZ> vAddr,

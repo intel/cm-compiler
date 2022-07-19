@@ -5621,6 +5621,11 @@ void CGCMRuntime::HandleBuiltinSVMBlockWriteImpl(CMCallInfo &Info) {
 /// cm_ptr_read4(T* ptr, vector<ptrdiff_t, N> vOffset, vector_ref<T, M> vDst,
 ///              ChannelMaskType mask);
 ///
+/// template <typename T, int N, int M>
+/// typename std::enable_if<(N == 8 || N == 16 || N == 32) && (sizeof(T) == 4)>::type
+/// cm_svm_gather4_scaled(vector<uint, N> vOffset,
+///                       vector_ref<T, M> vDst,
+///                       ChannelMaskType mask)
 void CGCMRuntime::HandleBuiltinSVMRead4Impl(CMCallInfo &CallInfo) {
   CodeGenFunction &CGF = *CallInfo.CGF;
 
@@ -5665,6 +5670,7 @@ void CGCMRuntime::HandleBuiltinSVMRead4Impl(CMCallInfo &CallInfo) {
   }
   // workaround, hw does not really have a global-address, add
   // base-address and the offset
+  // For cm_svm_gather4_scaled, BaseAddr = 0
   llvm::Value *Splat = CGF.Builder.CreateVectorSplat(N, BaseAddr);
   Offset = CGF.Builder.CreateAdd(Offset, Splat);
 
@@ -5699,6 +5705,11 @@ void CGCMRuntime::HandleBuiltinSVMRead4Impl(CMCallInfo &CallInfo) {
 /// cm_ptr_write4(T* basePtr, vector<ptrdiff_t, N> vOffset, vector<T, M> vSrc,
 ///               ChannelMaskType mask);
 ///
+/// template <typename T, int N, int M>
+/// typename std::enable_if<(N == 8 || N == 16 || N == 32) && (sizeof(T) == 4)>::type
+/// cm_svm_scatter4_scaled(vector<uint, N> vOffset,
+///                        vector<T, M> pSrc,
+///                        ChannelMaskType mask)
 void CGCMRuntime::HandleBuiltinSVMWrite4Impl(CMCallInfo &CallInfo) {
   CodeGenFunction &CGF = *CallInfo.CGF;
 
@@ -5740,6 +5751,7 @@ void CGCMRuntime::HandleBuiltinSVMWrite4Impl(CMCallInfo &CallInfo) {
   }
   // workaround, hw does not really have a global-address, add
   // base-address and the offset
+  // For cm_svm_scatter4_scaled, BaseAddr = 0
   llvm::Value *Splat =
       CGF.Builder.CreateVectorSplat(N, BaseAddr);
   Offset = CGF.Builder.CreateAdd(Offset, Splat);
