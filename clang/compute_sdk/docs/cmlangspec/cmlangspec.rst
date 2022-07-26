@@ -19,7 +19,7 @@ George, Weiyu Chen, Alexander Yermolovich, Puyan Lotfi, Gang Chen,
 Julia Gould, Wei Pan, David Stuttard, Tim Renouf, Tim Corringham,
 Stephen Thomas, Vladimirov Konstantin, Us Alexander, Parshintsev
 Anatoly, Sidorenko Anton, Zabaznov Anton, Bezzubikov Alexader,
-Ryabtsev Dmitry, Rudenko Nikita.
+Ryabtsev Dmitry, Rudenko Nikita, Mustya Victor.
 
 Legal Notices and Disclaimers
 =============================
@@ -6752,21 +6752,21 @@ modes) and the results in this case may be undefined.
 
 Valid values for the float control setting are as follows:
 
-=====================  ============================================================
-Attribute Name         Description
-=====================  ============================================================
-CM_RTE                 Set round to nearest even (default)
-CM_RTP                 Set round towards +ve infinity
-CM_RTN                 Set round towards -ve infinity
-CM_RTZ                 Set round towards zero
-CM_DENORM_RTZ          Set all denorm setting to Flush To Zero (no denorms) (default)
-CM_DENORM_D_ALLOW      Set double to allow denorms
-CM_DENORM_F_ALLOW      Set float to allow denorms
-CM_DENORM_HF_ALLOW     Set half to allow denorms
-CM_DENORM_ALLOW        Set all float types (double, float, half) to allow denorms
-CM_FLOAT_MODE_IEEE     Set single float mode to IEEE (default)
-CM_FLOAT_MODE_ALT      Set single float mode to ALT
-=====================  ============================================================
+======================== ============================================================
+Attribute Name           Description
+======================== ============================================================
+CM_RTE                   Set round to nearest even (default)
+CM_RTP                   Set round towards +ve infinity
+CM_RTN                   Set round towards -ve infinity
+CM_RTZ                   Set round towards zero
+CM_DENORM_RTZ            Set all denorm setting to Flush To Zero (no denorms) (default)
+CM_DENORM_D_ALLOW        Set double to allow denorms
+CM_DENORM_F_ALLOW        Set float to allow denorms
+CM_DENORM_HF_ALLOW       Set half to allow denorms
+CM_DENORM_ALLOW          Set all float types (double, float, half) to allow denorms
+CM_FLOAT_MODE_IEEE       Set single float mode to IEEE (default)
+CM_FLOAT_MODE_ALT        Set single float mode to ALT
+======================== ============================================================
 
 
 Round to even (RTE) (default)

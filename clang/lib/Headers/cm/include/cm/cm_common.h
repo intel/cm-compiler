@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2021 Intel Corporation
+Copyright (C) 2014-2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -455,11 +455,14 @@ enum CmFloatControl {
 #define CM_RTN CmFloatControl::_CM_RTN
 #define CM_RTZ CmFloatControl::_CM_RTZ
 
-#define CM_DENORM_FTZ       CmFloatControl::_CM_DENORM_FTZ
-#define CM_DENORM_D_ALLOW   CmFloatControl::_CM_DENORM_D_ALLOW
-#define CM_DENORM_F_ALLOW   CmFloatControl::_CM_DENORM_F_ALLOW
-#define CM_DENORM_HF_ALLOW  CmFloatControl::_CM_DENORM_HF_ALLOW
-#define CM_DENORM_ALLOW     (CmFloatControl::_CM_DENORM_D_ALLOW | CmFloatControl::_CM_DENORM_F_ALLOW | CmFloatControl::_CM_DENORM_HF_ALLOW)
+#define CM_DENORM_FTZ      CmFloatControl::_CM_DENORM_FTZ
+#define CM_DENORM_D_ALLOW  CmFloatControl::_CM_DENORM_D_ALLOW
+#define CM_DENORM_F_ALLOW  CmFloatControl::_CM_DENORM_F_ALLOW
+#define CM_DENORM_HF_ALLOW CmFloatControl::_CM_DENORM_HF_ALLOW
+
+#define CM_DENORM_ALLOW                                                        \
+  (CmFloatControl::_CM_DENORM_D_ALLOW | CmFloatControl::_CM_DENORM_F_ALLOW |   \
+   CmFloatControl::_CM_DENORM_HF_ALLOW)
 
 #define CM_FLOAT_MODE_IEEE  CmFloatControl::_CM_FLOAT_MODE_IEEE
 #define CM_FLOAT_MODE_ALT   CmFloatControl::_CM_FLOAT_MODE_ALT
