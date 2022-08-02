@@ -1,9 +1,9 @@
 .. ========================= begin_copyright_notice ============================
-  
-  Copyright (C) 2021 Intel Corporation
-  
+
+  Copyright (C) 2021-2022 Intel Corporation
+
   SPDX-License-Identifier: MIT
-  
+
   =========================== end_copyright_notice =============================
 
 ===============================================
@@ -219,25 +219,27 @@ Additional options for "-cmc" mode can be found in CMC User Guide.
 
 "-vc-codegen" mode has the following additional options:
 
-+-------------------------------------+----------------------------------------------------------+
-|-Xfinalizer <arg>                    | options passed through to the vISA compiler              |
-+-------------------------------------+----------------------------------------------------------+
-|-g                                   | enable debug info generation                             |
-+-------------------------------------+----------------------------------------------------------+
-|-no-vector-decomposition             | disable splitting of big vectors                         |
-+-------------------------------------+----------------------------------------------------------+
-|-ze-no-vector-decomposion            | L0 alias for "-no-vector-decomposition"                  |
-+-------------------------------------+----------------------------------------------------------+
-|-fno-jump-tables                     | disable generation of jump tables (SWITCHJMP)            |
-+-------------------------------------+----------------------------------------------------------+
-|-ftranslate-legacy-memory-intrinsics | translate legacy dataport messages for newer platforms   |
-+-------------------------------------+----------------------------------------------------------+
-|-double-GRF                          | twice number of GRF allowed to use in kernel             |
-+-------------------------------------+----------------------------------------------------------+
-|-ze-opt-large-register-file          | L0 alias for "-double-GRF"                               |
-+-------------------------------------+----------------------------------------------------------+
-|-vc-use-plain-2d-images              | Treat "image2d_t" annotated surfaces as non-media images |
-+-------------------------------------+----------------------------------------------------------+
++----------------------------------------+----------------------------------------------------------+
+|-Xfinalizer <arg>                       | options passed through to the vISA compiler              |
++----------------------------------------+----------------------------------------------------------+
+|-g                                      | enable debug info generation                             |
++----------------------------------------+----------------------------------------------------------+
+|-no-vector-decomposition                | disable splitting of big vectors                         |
++----------------------------------------+----------------------------------------------------------+
+|-ze-no-vector-decomposion               | L0 alias for "-no-vector-decomposition"                  |
++----------------------------------------+----------------------------------------------------------+
+|-fno-jump-tables                        | disable generation of jump tables (SWITCHJMP)            |
++----------------------------------------+----------------------------------------------------------+
+|-ftranslate-legacy-memory-intrinsics    | translate legacy dataport messages for newer platforms   |
++----------------------------------------+----------------------------------------------------------+
+|-double-GRF                             | twice number of GRF allowed to use in kernel             |
++----------------------------------------+----------------------------------------------------------+
+|-ze-opt-large-register-file             | L0 alias for "-double-GRF"                               |
++----------------------------------------+----------------------------------------------------------+
+|-vc-use-plain-2d-images                 | Treat "image2d_t" annotated surfaces as non-media images |
++----------------------------------------+----------------------------------------------------------+
+|-vc-disable-non-overlapping-region-opt  | Disable non-overlapping region optimization              |
++----------------------------------------+----------------------------------------------------------+
 
 
 For example, user could use the following option string to override
