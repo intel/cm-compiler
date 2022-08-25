@@ -873,7 +873,15 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
     PerModulePasses.add(createGenXSPIRVWriterAdaptorPass(
         /*RewriteTypes=*/true, /*RewriteSingleElementVectors=*/true));
     // GENX END
-    SPIRV::TranslatorOpts Opts;
+    SPIRV::TranslatorOpts Opts{
+        SPIRV::VersionNumber::SPIRV_1_0,
+        {
+            {SPIRV::ExtensionID::SPV_INTEL_fast_composite, true},
+            {SPIRV::ExtensionID::SPV_INTEL_float_controls2, true},
+            {SPIRV::ExtensionID::SPV_INTEL_inline_assembly, true},
+            {SPIRV::ExtensionID::SPV_INTEL_vector_compute, true},
+            {SPIRV::ExtensionID::SPV_KHR_float_controls, true},
+        }};
     Opts.setSPIRVAllowUnknownIntrinsicsEnabled(true);
     Opts.setDebugInfoEIS(SPIRV::DebugInfoEIS::OpenCL_DebugInfo_100);
     Opts.setAllowExtraDIExpressionsEnabled(true);
