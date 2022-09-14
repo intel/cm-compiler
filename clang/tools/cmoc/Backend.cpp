@@ -87,6 +87,7 @@ const std::unordered_map<std::string, std::string> CmToNeoCPU{
     {"ADLS", "adls"},
     {"ADLP", "adlp"},
     {"ADLN", "adln"},
+    {"MTL", "mtl"},
     {"PVC", "pvc"},
     {"PVCXT", "pvc"},
 };

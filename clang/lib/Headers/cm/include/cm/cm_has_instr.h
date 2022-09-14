@@ -81,7 +81,7 @@ namespace CheckVersion {
 #endif
 
 //BF16
-#if (CM_GENX >= 1270) //>= XEHP_SDV
+#if (CM_GENX >= 1270) && (CM_GENX != 1275) //>= XEHP_SDV && != MTL
   #define CM_HAS_BF16 1
   #define CM_HAS_BF16_CONTROL CM_HAS_CONTROL(true)
 #else
@@ -89,7 +89,7 @@ namespace CheckVersion {
 #endif
 
 //DPAS
-#if (CM_GENX >= 1270) //>= XEHP_SDV
+#if (CM_GENX >= 1270 && CM_GENX != 1275) //>= XEHP_SDV && != MTL
   #define CM_HAS_DPAS 1
   #define CM_HAS_DPAS_CONTROL CM_HAS_CONTROL(true)
 #else
@@ -106,7 +106,8 @@ namespace CheckVersion {
 #endif
 
 //DPASW
-#if (CM_GENX >= 1270 && CM_GENX <= 1271) //>= XEHP_SDV && <= DG2
+//>= XEHP_SDV && < PVC, except MTL
+#if ((CM_GENX >= 1270 && CM_GENX < 1280) && (CM_GENX != 1275))
   #define CM_HAS_DPASW 1
   #define CM_HAS_DPASW_CONTROL CM_HAS_CONTROL(true)
 #else

@@ -643,6 +643,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
       .Case("ADLN", "CM_GEN12")
       .Case("XEHP_SDV", "CM_XEHP")
       .Case("DG2", "CM_XEHPG")
+      .Case("MTL", "CM_XELPG")
       .Case("PVC", "CM_XEHPC")
       .Case("PVCXT", "CM_XEHPC")
       .Default("");
@@ -665,6 +666,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
       .Case("ADLS", "1230")
       .Case("ADLN", "1240")
       .Case("DG2", "1271")
+      .Case("MTL", "1275")
       .Case("PVC", "1280")
       .Case("PVCXT", "1280")
       .Default("");

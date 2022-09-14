@@ -79,6 +79,7 @@ GEN12     TGLLP    CM_GEN12    1200          0
 ...       ADLN     CM_GEN12    1240          0
 XEHP_SDV  XEHP_SDV CM_XEHP     1270          0
 XeHPG     DG2      CM_XEHPG    1271          0
+XeLPG     MTL      CM_XELPG    1275          0
 XeHPC     PVC      CM_XEHPC    1280          0
 ...       PVCXT    CM_XEHPC    1280          5
 ========= ======== =========== ============= ===================

@@ -792,6 +792,7 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
     Opts.MaxSLMSize = llvm::StringSwitch<unsigned>(TargetOpts.CPU)
       .Case("XEHP_SDV", 128)
       .Case("DG2", 128)
+      .Case("MTL", 128)
       .Case("PVC", 128)
       .Case("PVCXT", 128)
       .Default(64);
@@ -803,6 +804,7 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
     Opts.MaxOBRWSize = llvm::StringSwitch<unsigned>(TargetOpts.CPU)
       .Case("XEHP_SDV", 16)
       .Case("DG2", 16)
+      .Case("MTL", 16)
       .Case("PVC", 16)
       .Case("PVCXT", 16)
       .Default(8);
@@ -820,6 +822,7 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
       .Case("ADLS", false)
       .Case("ADLN", false)
       .Case("DG2", false)
+      .Case("MTL", false)
       .Case("PVC", false)
       .Case("PVCXT", false)
       .Default(true);

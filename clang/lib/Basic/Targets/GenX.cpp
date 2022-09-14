@@ -64,6 +64,7 @@ bool GenXTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
                          .Case("ADLS", false)
                          .Case("ADLP", false)
                          .Case("ADLN", false)
+                         .Case("MTL", false)
                          .Case("DG2", false)
                          .Default(true);
 
@@ -106,6 +107,7 @@ bool GenXTargetInfo::setCPU(const std::string &Name) {
                       .Case("DG2", true)
                       .Case("PVC", true)
                       .Case("PVCXT", true)
+                      .Case("MTL", true)
                       .Default(false);
 
   if (CPUKnown)
