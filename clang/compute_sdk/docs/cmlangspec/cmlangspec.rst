@@ -1,9 +1,9 @@
 .. ========================= begin_copyright_notice ============================
-  
-  Copyright (C) 2021 Intel Corporation
-  
+
+  Copyright (C) 2021-2022 Intel Corporation
+
   SPDX-License-Identifier: MIT
-  
+
   =========================== end_copyright_notice =============================
 
 ==================================
