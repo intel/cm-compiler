@@ -281,17 +281,17 @@ CM_NODEBUG CM_INLINE void cm_ptr_scatter_write(T0 *const p,
 /// Read 8, 16, or 32 4-element vectors, say {R,G,B,A}, where each element is
 /// of size dword also referred to as a channel. The elements read from mem are
 /// written back to the vector ::vDst and organized channel-wise, i.e. all R's
-/// followed by all G's, and so on. Offset of each 4-element vector 
+/// followed by all G's, and so on. Offset of each 4-element vector
 /// must be specified in ::vOffset. Note that the offsets are byte-based.
 /// One or more channels in the 4-element vector could be masked, and
 /// ::vDst contains only the unmasked elements. Only the lower 4 bits of
-/// ::mask specify the elements masked. A '1' implies that the corresponding 
+/// ::mask specify the elements masked. A '1' implies that the corresponding
 /// element of each vector will not be read from memory.
 /// e.g. if mask = BR_ENABLE, ::vDst would contain
 /// B7B6B5B4B3B2B1B0
 /// R7R6R5R4R3R2R1R0
 /// where the data elements correspond to the 8 vectors
-/// (x B7 x R7), (x B6 x R6),... (x B0 x R0) read from memory at the offsets 
+/// (x B7 x R7), (x B6 x R6),... (x B0 x R0) read from memory at the offsets
 /// specified in ::vOffset, where 'x' means the value is not read.
 ///
 /// ::M must equal ::N * C where C is the number of channels enabled in ::mask.
@@ -306,11 +306,11 @@ cm_ptr_read4(const T* const ptr, vector<ptrdiff_t, N> vOffset,
 /// \brief pointer-based SVM or stateless memory write.
 ///
 /// Write 8, 16, or 32 4-element vectors, say {R,G,B,A}, where each element is
-/// of size dword and is also referred to as a channel. The elements to be 
+/// of size dword and is also referred to as a channel. The elements to be
 /// written must be in the vector ::vSrc and organized channel-wise,
-/// i.e. all R's followed by all G's, and so on. Offset of each 4-element 
+/// i.e. all R's followed by all G's, and so on. Offset of each 4-element
 /// vector must be specified in ::vOffset. Note that the offsets are in bytes.
-/// One or more channels in the 4-element vector could be masked, and 
+/// One or more channels in the 4-element vector could be masked, and
 /// ::vSrc must contain only the unmasked or enabled elements. The argument
 /// ::mask specifies the channels that are enabled. Only the enabled channels
 /// are written to memory. E.g. if mask = BR_ENABLE
@@ -581,6 +581,60 @@ svm_atomic(matrix<svmptr_t, N, M> vAddr, matrix_ref<T, N, M> dst,
   vector<T, N * M> _Src0 = src0;
   vector<T, N * M> _Src1 = src1;
   svm_atomic<Op, T, N * M>(_VAddr, _Dst, _Src0, _Src1);
+}
+
+/// \brief Shared local memory stateless read.
+///
+/// Load ::size bytes from memory address ::addr starting at ::offset to the
+/// SLM buffer ::slmBuffer. ::size must be a multiple of 256.
+///
+template <typename T = void>
+CM_INLINE void cm_slm_load(uint slmBuffer, svmptr_t addr, uint offset,
+                           uint size) {
+  vector<uint, 16> vOffset(__cm_init_seq);
+  vOffset.select<8, 1>(8) = vOffset.select<8, 1>(0) + 8;
+
+  uint numTotalBlocks = size / 256;
+  uint numGroups = cm_linear_local_size();
+  uint numBlocks = numTotalBlocks / numGroups;
+  uint numLeftOver = numTotalBlocks % numGroups;
+  numBlocks += (cm_linear_local_id() < numLeftOver) ? 1 : 0;
+
+  // We just need numBlocks and numGroups
+  uint elemSize = sizeof(float);
+  uint threadOffsetInSLM = cm_linear_local_id() * 256;
+  // in bytes
+  uint threadOffsetInMemory = offset + threadOffsetInSLM;
+  // in unit of elements
+  vector<uint, 16> vOffsets = (threadOffsetInSLM / elemSize) + vOffset * 4;
+
+  for (uint block = 0; block < numBlocks; block++) {
+    vector<uint, 32> row0; // 32 floats or 128 Bytes or 4 GRF-registers
+    vector<uint, 32> row1;
+    vector<uint, 64> rowTrans;
+    cm_svm_block_read(addr + threadOffsetInMemory, row0);
+    cm_svm_block_read(addr + threadOffsetInMemory + 128, row1);
+
+    // Transpose
+    rowTrans.select<8, 1>(0) = row0.select<8, 4>(0);
+    rowTrans.select<8, 1>(16) = row0.select<8, 4>(1);
+    rowTrans.select<8, 1>(32) = row0.select<8, 4>(2);
+    rowTrans.select<8, 1>(48) = row0.select<8, 4>(3);
+
+    rowTrans.select<8, 1>(8) = row1.select<8, 4>(0);
+    rowTrans.select<8, 1>(24) = row1.select<8, 4>(1);
+    rowTrans.select<8, 1>(40) = row1.select<8, 4>(2);
+    rowTrans.select<8, 1>(56) = row1.select<8, 4>(3);
+
+    cm_slm_write4(slmBuffer, vOffsets, rowTrans, SLM_ABGR_ENABLE);
+    threadOffsetInMemory += numGroups * 256;
+    vOffsets += numGroups * 64;
+  }
+
+#if CM_GENX > 900
+  cm_slm_fence(CM_GLOBAL_COHERENT_FENCE);
+#endif
+  cm_barrier();
 }
 
 #endif /* _CLANG_CM_SVM_H */

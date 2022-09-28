@@ -3348,12 +3348,19 @@ cm_slm_load
 
 .. code-block:: c++
 
+  // statefull read
   void cm_slm_load(uint slmBuffer,
                    SurfaceIndex memSurfIndex,
                    uint memOffset,
                    uint loadSize);
 
-Load 'loadSize' bytes from memory surface 'memSurfIndex'
+  // stateless read
+  void cm_slm_load(uint slmBuffer,
+                   svmptr_t addr,
+                   uint memOffset,
+                   uint loadSize);
+
+Load 'loadSize' bytes from memory surface 'memSurfIndex' or address 'addr'
 starting at 'memOffset' to the SLM buffer 'slmBuffer'.
 'loadSize' must be a multiple of 256.
 

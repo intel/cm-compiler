@@ -988,7 +988,7 @@ write_untyped(SurfaceIndex surfIndex, ChannelMaskType channelMask,
 ///
 /// Read 8, 16, or 32 data elements (byte, word, or dword) from the SLM buffer
 /// ::slmBuffer at the element-offsets specified in ::vAddr, and write back into
-/// the vector ::vDst. 32-wide may not be hardware-native. 
+/// the vector ::vDst. 32-wide may not be hardware-native.
 ///
 
 template <typename T, int N>
@@ -1317,7 +1317,7 @@ CM_DEPRECATED(
 
 static const uint __cm_init_seq[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 
-/// \brief Shared local memory read.
+/// \brief Shared local memory statefull read.
 ///
 /// Load ::size bytes from memory surface ::index starting at ::offset to the
 /// SLM buffer ::slmBuffer. ::size must be a multiple of 256.
@@ -1370,6 +1370,7 @@ CM_INLINE void cm_slm_load(uint slmBuffer, SurfaceIndex index, uint offset,
 #endif
   cm_barrier();
 }
+
 
 /// cm_slm_atomic
 ///
