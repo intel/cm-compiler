@@ -216,8 +216,8 @@ CM_NODEBUG CM_INLINE vector<T, N> cm_dpas(int dummy, vector<T1, N1> src1,
   cm_dpas_check_common<src1_precision, src2_precision, systolic_depth,
                        repeat_count, T, T1, T2, N, N1, N2>();
 
-  CM_STATIC_ERROR(details::is_fp_or_dword_type<T>::value,
-                  "Dst and Src0 must be FP or DWORD type");
+  cm_dpas_check_types<src1_precision, src2_precision, T, systolic_depth,
+                      repeat_count, T, T1, T2, N, N1, N2>();
 
   vector<T1, N1> _Src1 = src1;
   vector<T2, N2> _Src2 = src2;
