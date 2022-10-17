@@ -11,7 +11,9 @@ SPDX-License-Identifier: MIT
 
 #include "cm_target.h"
 #include "cm_common.h"
-#include "cm_linear.h"
+
+#include "cm_threads.h"
+
 #include "cm_send.h"
 #include "cm_atomic.h"
 #include "cm_dataport.h"

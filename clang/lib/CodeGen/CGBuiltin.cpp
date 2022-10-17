@@ -2277,10 +2277,6 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BIget_color:
   case Builtin::BIcm_get_hwid:
   case Builtin::BIcm_lane_id:
-  case Builtin::BIcm_local_id:
-  case Builtin::BIcm_local_size:
-  case Builtin::BIcm_group_id:
-  case Builtin::BIcm_group_count:
   case Builtin::BI__cm_builtin_cm_printf:
   case Builtin::BIcm_slm_init:
   case Builtin::BIcm_slm_alloc:

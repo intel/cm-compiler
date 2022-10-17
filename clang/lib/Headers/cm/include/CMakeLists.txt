@@ -19,7 +19,6 @@ set(CM_HEADERS
   cm/cm.h
   cm/cm_internal.h
   cm/cm_library.h
-  cm/cm_linear.h
   cm/cm_lsc.h
   cm/cm_mask.h
   cm/cm_printf.h
@@ -30,6 +29,7 @@ set(CM_HEADERS
   cm/cm_srnd.h
   cm/cm_svm.h
   cm/cm_target.h
+  cm/cm_threads.h
   cm/cmtl/global.h
   cm/cmtl.h
   cm/cmtl/hint.h
@@ -57,6 +57,7 @@ set(CM_HEADERS
   cm/gen7_5_vme.h
   cm/gen8_vme.h
   cm/gen9_vme.h
+  cm/spirv/builtins.h
 
   opencl-c-common.h
   )

@@ -848,36 +848,9 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
       llvm::Value *Arg = CGF.EmitAnyExpr(ArgE).getScalarVal();
       return RValue::get(CGF.Builder.CreateCall(Fn, Arg, ""));
     }
-  case Builtin::BIcm_local_id:
-    {
-      SmallVector<llvm::Type *, 8> Tys;
-      Tys.push_back(llvm::VectorType::get(CGF.Int32Ty, 3));
-      llvm::Function *LocalIdFn =
-      CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_local_id, Tys);
-      return EmitIntrinsicCallIndexed(CGF, E, LocalIdFn);
-    }
-  case Builtin::BIcm_local_size:
-    {
-      SmallVector<llvm::Type *, 8> Tys;
-      Tys.push_back(llvm::VectorType::get(CGF.Int32Ty, 3));
-      llvm::Function *LocalSizeFn =
-      CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_local_size, Tys);
-      return EmitIntrinsicCallIndexed(CGF, E, LocalSizeFn);
-    }
-  case Builtin::BIcm_group_count:
-    {
-      SmallVector<llvm::Type *, 8> Tys;
-      Tys.push_back(llvm::VectorType::get(CGF.Int32Ty, 3));
-      llvm::Function *GroupCountFn =
-      CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_group_count, Tys);
-      return EmitIntrinsicCallIndexed(CGF, E, GroupCountFn);
-    }
-  case Builtin::BIcm_group_id:
-    return EmitGenXIntrinsicCall(CGF, E, llvm::GenXIntrinsic::genx_group_id_x,
-                             llvm::GenXIntrinsic::genx_group_id_y,
-                             llvm::GenXIntrinsic::genx_group_id_z);
-  // cm_fence(), cm_slm_fence() and __cm_builtin_cm_wait() have variable number of arguments: 0 or 1.
-  // Therefore we can't specify the arg type (unsigned char) in Builtins.def.
+  // cm_fence(), cm_slm_fence() and __cm_builtin_cm_wait() have variable
+  // number of arguments: 0 or 1. Therefore we can't specify the arg type
+  // (unsigned char) in Builtins.def.
   case Builtin::BIcm_fence:
   case Builtin::BIcm_slm_fence:
     Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_fence);
@@ -896,8 +869,9 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
         MaskVal |= 0x20; // Enable SLM mode
 
       return RValue::get(CGF.Builder.CreateCall(
-          Fn, llvm::ConstantInt::get(Fn->getFunctionType()->getParamType(0),
-                                     MaskVal | CM_FLUSH_GLOBAL_BIT_MASK),
+          Fn,
+          llvm::ConstantInt::get(Fn->getFunctionType()->getParamType(0),
+                                 MaskVal | CM_FLUSH_GLOBAL_BIT_MASK),
           ""));
     } else if (E->getNumArgs() == 0) {
       return RValue::get(CGF.Builder.CreateCall(
