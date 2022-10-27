@@ -22,7 +22,7 @@ static_assert(0, "CM:w:cm_target.h should not be included explicitly - only "
   #define CM_HAS_VA_PLUS 1
 #endif //(CM_GENX >= 900 && CM_GENX <= 1150)
 
-#if !(CM_GENX == 1280 && CM_GENX_REVID <= 2) //PVC
+#if 1 // !(CM_GENX == 1280 && CM_GENX_REVID <= 2) //PVC
 #define CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT
 #endif // !(CM_GENX == 1280 && CM_GENX_REVID <= 2)
 
