@@ -769,54 +769,6 @@ CM_NODEBUG CM_INLINE void cm_store4_slm(
       Offset, _TmpData, Pred, Mask);
 }
 
-// HW restrictions force data which is read to contain padding filled with
-// zeroes for 2d lsc loads. This function eliminates such padding. For details
-// see documentation for LSC_UNTYPED (LOAD_BLOCK2D).
-template <typename T, int NumElementsWithoutPad, int NumELementsWithPad,
-          int ElemsPerDword, int Height, int Width, int NumBlocks,
-          int GRFRowPitch, int GRFBlockPitch, bool Transposed, bool Transformed>
-CM_NODEBUG CM_INLINE vector<T, NumElementsWithoutPad>
-unpad_untyped_2d_lsc_load(vector<T, NumELementsWithPad> _PaddedV) {
-  CM_STATIC_ERROR(!Transposed || !Transformed,
-                  "Transposed and transformed is not supported");
-  CM_STATIC_ERROR(!Transposed || (Transposed && NumBlocks == 1),
-                  "Transposed expected to be 1 block only");
-  vector<T, NumElementsWithoutPad> _UnpaddedV = 0;
-
-#pragma unroll
-  for (unsigned i = 0; i < NumBlocks; i++) {
-
-    if constexpr (!Transposed && !Transformed) {
-#pragma unroll
-      for (unsigned j = 0; j < Height; j++) {
-        unsigned UnpaddedBlockNumElements = i * (Width * Height);
-        _UnpaddedV.select<Width, 1>(UnpaddedBlockNumElements + j * Width) =
-            _PaddedV.select<Width, 1>(i * GRFBlockPitch + j * GRFRowPitch);
-      }
-    }
-
-    else if constexpr (Transposed && !Transformed) {
-#pragma unroll
-      for (unsigned j = 0; j < Width; j++)
-        _UnpaddedV.select<Height, 1>(j * Height) =
-            _PaddedV.select<Height, 1>(j * GRFRowPitch);
-    }
-
-    else if constexpr (!Transposed && Transformed) {
-#pragma unroll
-      for (unsigned j = 0; j < Height; j += ElemsPerDword) {
-        unsigned UnpaddedBlockNumElements = i * (Width * Height);
-        _UnpaddedV.select<ElemsPerDword * Width, 1>(UnpaddedBlockNumElements +
-                                                    j * Width) =
-            _PaddedV.select<ElemsPerDword * Width, 1>(i * GRFBlockPitch +
-                                                      j * GRFRowPitch);
-      }
-    }
-  }
-
-  return _UnpaddedV;
-}
-
 /// \brief 2D Block Read (flat)
 ///
 /// @param T The element data type.
@@ -869,31 +821,59 @@ cm_ptr_load(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
                   "Transposed and transformed is not supported");
   CM_STATIC_ERROR(!Transposed || (Transposed && NBlks == 1),
                   "Transposed expected to be 1 block only");
-  using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Load, L1H, L3H>()),
-                  "unsupported cache hint");
+  CM_STATIC_ERROR(
+      (details::lsc_check_cache_hint<details::LSCAction::Load, L1H, L3H>()),
+      "unsupported cache hint");
   uintptr_t Base = reinterpret_cast<uintptr_t>(Ptr);
-  // Calculate number of elements with padding
-  constexpr int ElemsPerDword = 4 / sizeof(T);
-  constexpr int GRFRowSize = Transposed ? Height : Width;
-  constexpr int GRFRowPitch = details::getNextPowerOf2(GRFRowSize);
-  constexpr int GRFBlockSize = GRFRowPitch * (Transposed ? Width : Height);
-  constexpr int GRFBlockPitch =
-      details::roundUpNextMultiple(64 / sizeof(T), GRFBlockSize);
-  constexpr int ActualN = NBlks * GRFBlockPitch;
 
-  vector<T, ActualN> _ActualRet =
-      __cm_intrinsic_impl_block_load2d_flat<T, NBlks, Width, Height, Transposed,
-                                            Transformed, L1H, L3H, ActualN>(
-          Base, SurfaceWidth, SurfaceHeight, SurfacePitch, X, Y);
+  // Calculate number of elements with padding
+  constexpr int vnni_elements = sizeof(uint32_t) / sizeof(T);
+  constexpr int grf_width = Transposed    ? Height
+                            : Transformed ? Width * vnni_elements
+                                          : Width;
+  constexpr int grf_row_pitch = details::getNextPowerOf2(grf_width);
+  constexpr int grf_height =
+      Transposed ? Width
+                 : (Transformed ? (Height + vnni_elements - 1) / vnni_elements
+                                : Height);
+  constexpr int grf_block_elements = grf_row_pitch * grf_height;
+  constexpr int grf_block_pitch =
+      details::roundUpNextMultiple(grf_block_elements, 64 / sizeof(T));
+  constexpr int grf_elements = grf_block_pitch * NBlks;
+
+  constexpr int dst_block_elements = grf_width * grf_height;
+  constexpr int dst_elements = dst_block_elements * NBlks;
+
+  CM_STATIC_ERROR(N == grf_elements || N == dst_elements,
+                  "Incorrect element count");
+
+  vector<T, grf_elements> raw = details::__cm_intrinsic_impl_block_load2d_flat<
+      T, NBlks, Width, Height, Transposed, Transformed, L1H, L3H, grf_elements>(
+      Base, SurfaceWidth, SurfaceHeight, SurfacePitch, X, Y);
 
   // If no padding is observed, then return as read
-  if constexpr (ActualN == N)
-    return _ActualRet;
+  if constexpr (grf_elements == N)
+    return raw;
 
-  return unpad_untyped_2d_lsc_load<T, N, ActualN, ElemsPerDword, Height, Width,
-                                   NBlks, GRFRowPitch, GRFBlockPitch,
-                                   Transposed, Transformed>(_ActualRet);
+  // HW restrictions force data which is read to contain padding filled with
+  // garbage for 2d lsc loads. This code eliminates such padding. For details
+  // see documentation for LSC_UNTYPED (LOAD_BLOCK2D).
+  vector<T, dst_elements> dst;
+
+#pragma unroll
+  for (int i = 0; i < NBlks; i++) {
+    auto dst_block =
+        dst.template select<dst_block_elements, 1>(i * dst_block_elements);
+
+    auto raw_block =
+        raw.template select<grf_block_elements, 1>(i * grf_block_pitch);
+    auto raw_block_2d =
+        raw_block.template format<T, grf_height, grf_row_pitch>();
+
+    dst_block = raw_block_2d.template select<grf_height, 1, grf_width, 1>(0, 0);
+  }
+
+  return dst;
 }
 
 // convenient overload to not break legacy
@@ -955,8 +935,21 @@ cm_ptr_store(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
                   "unsupported cache hint");
   constexpr int NBlks = 1;
   uintptr_t Base = reinterpret_cast<uintptr_t>(Ptr);
-  __cm_intrinsic_impl_block_store2d_flat<T, NBlks, Width, Height, L1H, L3H, N>(
-      Base, SurfaceWidth, SurfaceHeight, SurfacePitch, X, Y, Data);
+
+  constexpr int Pitch = details::getNextPowerOf2(Width);
+  matrix<T, Height, Pitch> raw;
+
+  if constexpr (raw.n_elems() == Data.n_elems())
+    raw = Data;
+  else {
+    auto data_2d = Data.template format<T, Height, Width>();
+    raw.template select<Height, 1, Width, 1>(0, 0) = data_2d;
+  }
+
+  __cm_intrinsic_impl_block_store2d_flat<T, NBlks, Width, Height, L1H, L3H,
+                                         raw.n_elems()>(
+      Base, SurfaceWidth, SurfaceHeight, SurfacePitch, X, Y,
+      raw.template format<T>());
 }
 
 /// convenient overload to not break legacy

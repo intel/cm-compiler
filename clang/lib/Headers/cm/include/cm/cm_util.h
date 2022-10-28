@@ -179,8 +179,7 @@ template <typename T, DataSize DS> constexpr DataSize lsc_data_size() {
   return DS;
 }
 
-template <typename T, int N, VectorSize VS> 
-CM_INLINE auto lsc_data_type_ext() {
+template <typename T, int N, VectorSize VS> CM_INLINE auto lsc_data_type_ext() {
   constexpr unsigned NumElts = lsc_vector_size<VS>() * N;
   static_assert(NumElts > 0 && "unexpected number of elements");
   if constexpr (sizeof(T) < 4)
@@ -189,8 +188,7 @@ CM_INLINE auto lsc_data_type_ext() {
     return vector<T, NumElts>();
 }
 
-template <typename T, int N, VectorSize VS> 
-CM_INLINE auto lsc_data_type() {
+template <typename T, int N, VectorSize VS> CM_INLINE auto lsc_data_type() {
   constexpr unsigned NumElts = lsc_vector_size<VS>() * N;
   static_assert(NumElts > 0 && "unexpected number of elements");
   return vector<T, NumElts>();
@@ -220,7 +218,7 @@ public:
       typename std::conditional<sizeof(_type2) == 1, _type2, _type1>::type type;
 };
 // format U8U32 and U16U32 back to U8 and U16
-template <typename T, typename From, typename To>  
+template <typename T, typename From, typename To>
 CM_INLINE To lsc_format_ret(From from) {
   auto _Formatted = from.format<T>();
   constexpr int stride = _Formatted.n_elems() / from.n_elems();
@@ -263,8 +261,7 @@ template <typename T, int NBlocks, int Height, int Width, bool Transposed,
           bool Transformed>
 constexpr int getBlock2dDataSize() {
   if (Transformed)
-    return roundUpNextMultiple(Height, 4 / sizeof(T)) * getNextPowerOf2(Width) *
-           NBlocks;
+    return roundUpNextMultiple(Height, 4 / sizeof(T)) * Width * NBlocks;
   return Width * Height * NBlocks;
 }
 
