@@ -338,7 +338,7 @@ typename std::enable_if<(N == 8 || N == 16 || N == 32) &&
 cm_svm_gather4_scaled(vector<svmptr_t, N> vOffset, vector_ref<T, M> vDst,
                       ChannelMaskType mask) {
   vector<ptrdiff_t, N> _OffsetArg = vOffset;
-  cm_ptr_read4<T, N, M>((uint64_t)0, _OffsetArg, vDst, mask);
+  cm_ptr_read4<T, N, M>(static_cast<T*>(nullptr), _OffsetArg, vDst, mask);
 }
 
 template <typename T, int N, int M>
@@ -347,7 +347,7 @@ typename std::enable_if<(N == 8 || N == 16 || N == 32) &&
 cm_svm_scatter4_scaled(vector<svmptr_t, N> vOffset, vector<T, M> vSrc,
                        ChannelMaskType mask) {
   vector<ptrdiff_t, N> _OffsetArg = vOffset;
-  cm_ptr_write4<T, N, M>((uint64_t)0, _OffsetArg, vSrc, mask);
+  cm_ptr_write4<T, N, M>(static_cast<T*>(nullptr), _OffsetArg, vSrc, mask);
 }
 
 // svmptr_t interface
