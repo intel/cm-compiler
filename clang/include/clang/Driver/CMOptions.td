@@ -144,8 +144,8 @@ def binary_format_eq : Joined<["-"], "binary-format=">, Group<cm_Group>,
   HelpText<"Alias for -binary-format <value>">, Alias<binary_format>, Flags<[CMOption, CC1Option]>;
 
 def fcmocl : Flag<["-", "/"], "fcmocl">, Group<cm_Group>,
-  HelpText<"Alias for -binary-format=ocl">,
-  Alias<binary_format>, AliasArgs<["ocl"]>, Flags<[CMOption, CC1Option]>;
+  HelpText<"Alias for -binary-format=ze">,
+  Alias<binary_format>, AliasArgs<["ze"]>, Flags<[CMOption, CC1Option]>;
 
 def mCM_no_vector_decomposition : CMCompileFlag<"mCM_no_vector_decomposition">, HelpText<"Disable vector decomposition optimization">;
 
@@ -171,7 +171,7 @@ def mCM_init_global : Flag<["-", "/"], "mCM_init_global">, Group<cm_Group>,
 def mCM_max_slm : CMCC1<"mCM_max_slm">,
   HelpText<"Maximum SLM size in kilobytes (base is target dependent)">;
 
-def mCM_max_obr : CMCC1<"mCM_max_obr">, 
+def mCM_max_obr : CMCC1<"mCM_max_obr">,
   HelpText<"Maximum owords per vector (base is target dependent)">;
 
 def mCM_iefbypass : Flag<["-", "/"], "mCM_iefbypass">, Group<cm_Group>,

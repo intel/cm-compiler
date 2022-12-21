@@ -150,7 +150,7 @@ Option                        Description
 
 -fcm-pointer                  Enables experimental pointer support in CM.
 
--fcmocl                       Alias for -binary-format=ocl.
+-fcmocl                       Alias for -binary-format=ze.
 
 -femulate_i64                 Emulates all 64-bit integer operations.
 
