@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2018-2021 Intel Corporation
+Copyright (C) 2018-2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -47,12 +47,8 @@ std::string getGenXTargetStepping(const std::string &CPU,
 void getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,
                            const llvm::opt::ArgList &Args,
                            std::vector<llvm::StringRef> &Features);
-
-// binary format for CMRT is required according to options
-bool isCMBinaryFormat(const Driver &Drv, const llvm::opt::ArgList &Args);
-
 } // end namespace GenX
-} // namespace tools
+} // end namespace tools
 } // end namespace driver
 } // end namespace clang
 

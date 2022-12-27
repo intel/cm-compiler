@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2020-2021 Intel Corporation
+Copyright (C) 2020-2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -9,6 +9,7 @@ SPDX-License-Identifier: MIT
 #ifndef LLVM_CLANG_TOOLS_CLANG_CMOC_COMMON_H
 #define LLVM_CLANG_TOOLS_CLANG_CMOC_COMMON_H
 
+#include "llvm/ADT/Optional.h"
 #include "llvm/Support/ErrorHandling.h"
 
 #include <string>
@@ -21,12 +22,12 @@ struct ILTranslationResult {
 };
 
 void translateIL(const std::string &CPUName, int RevId,
-                 const std::string &BinaryFormat, const std::string &Features,
-                 const std::string &APIOptions,
+                 const llvm::Optional<std::string> &BinaryFormat,
+                 const std::string &Features, const std::string &APIOptions,
                  const std::vector<std::string> &BackendOptions,
                  const std::vector<char> &SPIRV_IR, InputKind IK,
-                 bool TimePasses, bool PrintStats,
-                 const std::string &StatsFile, ILTranslationResult &Result);
+                 bool TimePasses, bool PrintStats, const std::string &StatsFile,
+                 ILTranslationResult &Result);
 
 bool isCmocDebugEnabled();
 

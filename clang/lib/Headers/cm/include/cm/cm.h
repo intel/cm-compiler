@@ -32,11 +32,7 @@ SPDX-License-Identifier: MIT
 #include "cm_mask.h"
 #include "cm_spec_constant.h"
 
-#if defined(__CM_OCL_RUNTIME)
 #include "cm_printfocl.h"
-#else // defined(__CM_OCL_RUNTIME)
-#include "cm_printf.h"
-#endif // defined(__CM_OCL_RUNTIME)
 
 // cm_abs
 namespace details {

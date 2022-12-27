@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2021 Intel Corporation
+Copyright (C) 2015-2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -137,15 +137,13 @@ def mCM_enableiga : CMCompileFlag<"mCM_enableiga">;
 def mCM_no_input_reorder : CMCompileFlag<"mCM_no_input_reorder">, HelpText<"Stop the compiler from reordering kernel arguments">;
 
 def binary_format : Separate<["-"], "binary-format">, Group<cm_Group>,
-  HelpText<"Set in which format should be generated binary; values: 'cm', 'ocl' or 'ze'">,
+  HelpText<"Set in which format should be generated binary; values: 'ocl' or 'ze'">,
   Flags<[CMOption, CC1Option]>;
 
 def binary_format_eq : Joined<["-"], "binary-format=">, Group<cm_Group>,
   HelpText<"Alias for -binary-format <value>">, Alias<binary_format>, Flags<[CMOption, CC1Option]>;
 
-def fcmocl : Flag<["-", "/"], "fcmocl">, Group<cm_Group>,
-  HelpText<"Alias for -binary-format=ze">,
-  Alias<binary_format>, AliasArgs<["ze"]>, Flags<[CMOption, CC1Option]>;
+def fcmocl : CMIgnoredFlag<"fcmocl">;
 
 def mCM_no_vector_decomposition : CMCompileFlag<"mCM_no_vector_decomposition">, HelpText<"Disable vector decomposition optimization">;
 

@@ -9,11 +9,11 @@ SPDX-License-Identifier: MIT
 // Tests that option -mCM_max_slm works
 
 // check that test have too much SLM
-// RUN: not %cmc -emit-llvm -S -march=pvc -fcmocl -g0 -- %s >& %t.err
+// RUN: not %cmc -emit-llvm -S -march=pvc -g0 -- %s >& %t.err
 // RUN: FileCheck --check-prefix=ERRX -allow-empty %s < %t.err
 
 // check that option works:
-// RUN: %cmc -emit-llvm -S -march=pvc -mCM_max_slm=1024 -fcmocl -g0 -- %s >& %t.ok
+// RUN: %cmc -emit-llvm -S -march=pvc -mCM_max_slm=1024 -g0 -- %s >& %t.ok
 // RUN: FileCheck --check-prefix=GOODX -allow-empty %s < %t.ok
 
 // ERRX: use slm, but slm size is too large

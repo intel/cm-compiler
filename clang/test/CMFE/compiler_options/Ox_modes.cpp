@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: IGC_CMFE_CC1_EXTRA="-O2;-disable-llvm-passes" %cmc -fcmocl -march=skl -emit-llvm -S -o %t.ll -- %s
+// RUN: IGC_CMFE_CC1_EXTRA="-O2;-disable-llvm-passes" %cmc -march=skl -emit-llvm -S -o %t.ll -- %s
 // RUN: FileCheck --input-file=%t.ll %s --check-prefixes=MODE_O2,MODE_O2_NO_NOINLINE
 // RUN: FileCheck --input-file=%t.ll %s --check-prefixes=MODE_O2,MODE_O2_NO_OPTNONE
 // MODE_O2: subgroup_8{{.*}}#[[SUBGROUP_ATTR:[0-9]+]]
@@ -15,7 +15,7 @@ SPDX-License-Identifier: MIT
 // MODE_O2_NO_OPTNONE-NOT: optnone
 // MODE_O2-SAME: }
 
-// RUN: %cmc -fcmocl -march=skl -emit-llvm -S -o %t.ll -- %s
+// RUN: %cmc -march=skl -emit-llvm -S -o %t.ll -- %s
 // RUN: FileCheck --input-file=%t.ll %s --check-prefixes=MODE_O0,MODE_O0_NOINLINE
 // RUN: FileCheck --input-file=%t.ll %s --check-prefixes=MODE_O0,MODE_O0_OPTNONE
 // MODE_O0: subgroup_8{{.*}}#[[SUBGROUP_ATTR:[0-9]+]]

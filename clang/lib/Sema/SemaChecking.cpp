@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2021 Intel Corporation
+Copyright (C) 2015-2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -1306,9 +1306,6 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
     TheCall->setType(Context.IntTy);
     break;
   }
-  case Builtin::BI__cm_builtin_cm_printf:
-    if (CheckCmPrintfCall(TheCall))
-      return ExprError();
 
   // check secure string manipulation functions where overflows
   // are detectable at compile time

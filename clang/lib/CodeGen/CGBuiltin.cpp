@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2013-2021 Intel Corporation
+Copyright (C) 2013-2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -2277,7 +2277,6 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BIget_color:
   case Builtin::BIcm_get_hwid:
   case Builtin::BIcm_lane_id:
-  case Builtin::BI__cm_builtin_cm_printf:
   case Builtin::BIcm_slm_init:
   case Builtin::BIcm_slm_alloc:
   case Builtin::BIcm_slm_free:
@@ -2293,9 +2292,7 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BIcm_sbarrier:
   case Builtin::BIcm_nbarrier_init:
   case Builtin::BIcm_nbarrier_wait:
-  case Builtin::BIcm_yield :
-  case Builtin::BIcm_print_buffer :
-  case Builtin::BIcm_print_format_index:
+  case Builtin::BIcm_yield:
     return CGM.getCMRuntime().EmitCMBuiltin(*this, BuiltinID, E);
 
   case Builtin::BI__builtin___memmove_chk: {

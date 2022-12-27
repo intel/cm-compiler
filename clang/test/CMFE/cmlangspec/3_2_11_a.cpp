@@ -26,4 +26,4 @@ _GENX_ void test1()
   // 2 2 2 2     4 4 4 4     0xA: 1010       2 4 2 4
 }
 
-// RUN: %cmc -fcmocl -march=SKL -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
+// RUN: %cmc -march=SKL -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s

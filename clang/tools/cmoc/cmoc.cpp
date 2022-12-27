@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2020-2021 Intel Corporation
+Copyright (C) 2020-2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -239,11 +239,8 @@ void CmocContext::runVCOpt(const BinaryData &In, InputKind IK,
   if (CPU.empty())
     FatalError("CPU is empty: specify -march=<CPU>");
 
-  std::string BinFormat;
-  switch(DriverInvocation->getBinaryFormat()) {
-  case IDriverInvocation::BinaryFormatT::CM:
-    BinFormat = "cm";
-    break;
+  llvm::Optional<std::string> BinFormat = llvm::None;
+  switch (DriverInvocation->getBinaryFormat()) {
   case IDriverInvocation::BinaryFormatT::OCL:
     BinFormat = "ocl";
     break;
@@ -251,7 +248,6 @@ void CmocContext::runVCOpt(const BinaryData &In, InputKind IK,
     BinFormat = "ze";
     break;
   }
-  assert(!BinFormat.empty());
 
   std::vector<std::string> VcOpts;
   std::vector<std::string> FinalizerOpts;

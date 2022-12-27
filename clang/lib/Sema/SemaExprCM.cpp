@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2021 Intel Corporation
+Copyright (C) 2014-2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -1851,107 +1851,4 @@ ExprResult Sema::BuildCMFunctionalCastExpr(TypeSourceInfo *TInfo,
     }
   }
   return Result;
-}
-
-// CheckCmPrintfCall
-//
-// - first param is the surface index BTI number
-// - second param is expected to be the format string
-// - string args can only use 8-bit wide characters (i.e. ASCII Or UTF-8)
-// - string args must be less than 128 chars
-// - format conversion specifiers p and n are not supported
-// - matrix, vector, and sampler values are not supported
-// - maximum of 64 arguments
-//
-bool Sema::CheckCmPrintfCall(CallExpr *TheCall) {
-  bool ErrorFound = false;
-  unsigned NumArgs = TheCall->getNumArgs();
-  Expr **Args = TheCall->getArgs();
-  // fix up the CallExpr type
-  TheCall->setType(TheCall->getCallReturnType(getASTContext()));
-
-  if (NumArgs < 2) {
-    Diag(TheCall->getRParenLoc(), diag::err_cm_format_string_expected);
-    return true;
-  }
-  if (StringLiteral *FS = dyn_cast<StringLiteral>(Args[1])) {
-    // The format string literal can't use wide characters
-    // or UTF-8)
-    if (FS->getCharByteWidth() > 1) {
-      Diag(Args[1]->getExprLoc(),
-             diag::err_cm_printf_wide_chars_not_supported);
-      ErrorFound = true;
-    }
-    // The format string must be less than 128 bytes
-    if (FS->getByteLength() > 127) {
-      Diag(Args[1]->getExprLoc(), diag::err_cm_printf_string_too_long)
-          << 0 << FS->getByteLength();
-      ErrorFound = true;
-    }
-#if 0
-// FIXME TODO
-    // Check the format string
-    llvm::SmallBitVector CheckedVarArgs;
-    CheckedVarArgs.resize(NumArgs);
-    CheckFormatString(FS, Args[1],
-                        llvm::makeArrayRef<const Expr *>(Args, NumArgs),
-                        /*hasVAListArg*/ true,
-                        /*format_idx*/ 0U,
-                        /*data_idx*/ 1U,
-                        /*formatType*/ Sema::FST_Printf,
-                        /*InFunctionCall*/ true,
-                        /*CallType*/ Sema::VariadicFunction, CheckedVarArgs);
-#endif
-  } else {
-    Diag(Args[1]->getExprLoc(), diag::err_cm_format_string_expected)
-        << Args[1]->getSourceRange();
-    ErrorFound = true;
-  }
-
-  for (unsigned i = 2; i < NumArgs; ++i) {
-    // check each argument is acceptable type
-    if (StringLiteral *FS = dyn_cast<StringLiteral>(Args[i])) {
-      // String literals can't use wide characters
-      if (FS->getCharByteWidth() > 1) {
-        Diag(Args[i]->getExprLoc(),
-               diag::err_cm_printf_wide_chars_not_supported);
-        ErrorFound = true;
-      }
-      // Strings must be less than 128 bytes
-      if (FS->getByteLength() > 127) {
-        Diag(Args[0]->getExprLoc(), diag::err_cm_printf_string_too_long)
-            << 1 << FS->getByteLength();
-        ErrorFound = true;
-      }
-    }
-    if (Args[i]->getType()->isCMSamplerIndexType()) {
-      Diag(Args[i]->getExprLoc(), diag::err_cm_printf_unsupported_type) << 0;
-      ErrorFound = true;
-    }
-    if (Args[i]->getType()->isCMSurfaceIndexType()) {
-      Diag(Args[i]->getExprLoc(), diag::err_cm_printf_unsupported_type) << 1;
-      ErrorFound = true;
-    }
-    if (Args[i]->getType()->isCMVmeIndexType()) {
-      Diag(Args[i]->getExprLoc(), diag::err_cm_printf_unsupported_type) << 2;
-      ErrorFound = true;
-    }
-    if (Args[i]->getType()->isCMVectorType()) {
-      Diag(Args[i]->getExprLoc(), diag::err_cm_printf_unsupported_type) << 3;
-      ErrorFound = true;
-    }
-    if (Args[i]->getType()->isCMMatrixType()) {
-      Diag(Args[i]->getExprLoc(), diag::err_cm_printf_unsupported_type) << 4;
-      ErrorFound = true;
-    }
-  }
-
-  if (NumArgs > 65) {
-    // cm_printf accepts a maximum of 64 arguments
-    Diag(Args[64]->getExprLoc(), diag::err_cm_printf_too_many_args)
-        << NumArgs << SourceRange(Args[64]->getExprLoc(),
-                                  Args[NumArgs - 1]->getSourceRange().getEnd());
-    ErrorFound = true;
-  }
-  return ErrorFound;
 }

@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2013-2021 Intel Corporation
+Copyright (C) 2013-2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -9445,16 +9445,6 @@ def err_cm_invalid_float_control_use: Error<
 def note_ovl_candidate_bad_cm_reference : Note<
   "candidate function not viable: expects a CM reference argument"
   " for %ordinal0 argument">;
-def err_cm_format_string_expected: Error<
-  "format string expected">;
-def err_cm_printf_string_too_long: Error<
-  "%select{format |}0string length cannot exceed 127 bytes - length is %0 bytes">;
-def err_cm_printf_wide_chars_not_supported: Error<
-  "printf() does not support wide characters">;
-def err_cm_printf_too_many_args: Error<
-  "printf() accepts a maximum of 64 arguments - %0 supplied">;
-def err_cm_printf_unsupported_type: Error<
-  "%select{SamplerIndex|SurfaceIndex|VmeIndex|vector|matrix}0 values are not supported by printf()">;
 def err_cm_ref_init_from_rvalue: Error<
   "%0 initialization value must be an lvalue">;
 def err_cm_uninitialized_array: Error<

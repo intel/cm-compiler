@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2018-2021 Intel Corporation
+Copyright (C) 2018-2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -156,19 +156,11 @@ std::string GenX::getGenXTargetCPU(const ArgList &Args, const Driver *Drv) {
   return "";
 }
 
-bool GenX::isCMBinaryFormat(const Driver &Drv, const ArgList &Args) {
-  auto *Arg = Args.getLastArg(options::OPT_binary_format);
-  if (!Arg || std::string(Arg->getValue()) == "cm") {
-    // CMRT binary is default
-    Drv.Diag(clang::diag::warn_cm_deprecated_cmrt);
-    return true;
-  }
-  return false;
-}
-
 void GenX::getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,
                                  const ArgList &Args,
                                  std::vector<StringRef> &Features) {
+  Features.push_back("+ocl_runtime");
+
   if (Args.getLastArg(options::OPT_mCM_disable_jmpi))
     Features.push_back("+disable_jmpi");
   if (Args.getLastArg(options::OPT_mCM_warn_callable))
@@ -177,7 +169,4 @@ void GenX::getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,
     Features.push_back("+disable_vec_decomp");
   if (Args.getLastArg(options::OPT_mCM_translate_legacy))
     Features.push_back("+translate_legacy_message");
-
-  if (!isCMBinaryFormat(D, Args))
-    Features.push_back("+ocl_runtime");
 }

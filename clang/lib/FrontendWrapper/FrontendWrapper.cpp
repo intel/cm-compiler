@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2019-2021 Intel Corporation
+Copyright (C) 2019-2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -254,13 +254,11 @@ static IDriverInvocation::BinaryFormatT
 getBinaryFormat(const llvm::opt::InputArgList &Args) {
   auto *Arg = Args.getLastArg(clang::driver::options::OPT_binary_format);
   if (!Arg)
-    // CMRT binary is default
-    return IDriverInvocation::BinaryFormatT::CM;
+    return IDriverInvocation::BinaryFormatT::DEFAULT;
   return llvm::StringSwitch<IDriverInvocation::BinaryFormatT>(Arg->getValue())
-      .Case("cm", IDriverInvocation::BinaryFormatT::CM)
       .Case("ocl", IDriverInvocation::BinaryFormatT::OCL)
       .Case("ze", IDriverInvocation::BinaryFormatT::ZE)
-      .Default(IDriverInvocation::BinaryFormatT::CM);
+      .Default(IDriverInvocation::BinaryFormatT::DEFAULT);
 }
 
 static bool getTimePasses(const llvm::opt::InputArgList &Args) {
@@ -388,7 +386,7 @@ createDriverInvocationFromCCArgs(const std::vector<const char*> &CArgs,
   const auto& TO = Clang.getTargetOpts();
 
   using TargetRuntimeT = IDriverInvocation::TargetRuntimeT;
-  TargetRuntimeT TargetRuntime = TargetRuntimeT::CM;
+  TargetRuntimeT TargetRuntime = TargetRuntimeT::L0;
   if (std::any_of(TO.FeaturesAsWritten.begin(), TO.FeaturesAsWritten.end(),
       [](const std::string& Feature) { return Feature == "+ocl_runtime"; }))
     TargetRuntime = TargetRuntimeT::OCL;

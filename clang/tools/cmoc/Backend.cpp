@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2020-2021 Intel Corporation
+Copyright (C) 2020-2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -105,16 +105,6 @@ static std::string translateCPU(const std::string &CPU) {
 // ocloc accepts these numeric values instead of letter codes
 static std::string translateStepping(const std::string &CPU) {
   return "";
-}
-
-// Get correct file extension to search for in ocloc outputs.
-// CM requires plain binary from IGC (isa binary) -- .gen.
-// OCL and ZE should work with binary prepared by NEO -- .bin.
-// .bin wraps things like .gen, .dbg and others.
-static std::string translateRequiredExtension(const std::string &BinaryFormat) {
-  return llvm::StringSwitch<std::string>(BinaryFormat)
-      .Case("cm", ".gen")
-      .Cases("ocl", "ze", ".bin");
 }
 
 template <typename OsT>
@@ -238,12 +228,14 @@ static std::string composeOptions(const std::string &APIOptions) {
 }
 
 static std::string
-composeInternalOptions(const std::string &BinFormat,
+composeInternalOptions(const llvm::Optional<std::string> &BinFormat,
                        const std::vector<std::string> &BackendOptions,
                        const std::string &Features, bool TimePasses,
                        bool PrintStats, const std::string &StatsFile) {
   std::string InternalOptions;
-  InternalOptions.append(" -binary-format=").append(BinFormat);
+
+  if (BinFormat)
+    InternalOptions.append(" -binary-format=").append(BinFormat.getValue());
 
   if (!BackendOptions.empty())
     InternalOptions +=
@@ -269,17 +261,16 @@ composeInternalOptions(const std::string &BinFormat,
 }
 
 void translateIL(const std::string &CPUName, int RevId,
-                 const std::string &BinaryFormat, const std::string &Features,
-                 const std::string &APIOptions,
+                 const llvm::Optional<std::string> &BinaryFormat,
+                 const std::string &Features, const std::string &APIOptions,
                  const std::vector<std::string> &BackendOptions,
                  const std::vector<char> &SPIRV_IR, InputKind IK,
-                 bool TimePasses, bool PrintStats,
-                 const std::string &StatsFile, ILTranslationResult &Result) {
-
+                 bool TimePasses, bool PrintStats, const std::string &StatsFile,
+                 ILTranslationResult &Result) {
   if (isCmocDebugEnabled()) {
     llvm::errs() << "requested platform for translateIL: " << CPUName << "\n";
-    llvm::errs() << "requested runtime for translateIL: " << BinaryFormat
-                 << "\n";
+    llvm::errs() << "requested runtime for translateIL: "
+                 << BinaryFormat.getValueOr("default") << "\n";
   }
 
   const std::string Options = composeOptions(APIOptions);
@@ -291,8 +282,7 @@ void translateIL(const std::string &CPUName, int RevId,
     llvm::errs() << "IGC Translation Internal: " << InternalOptions << "\n";
   }
 
-  const std::string RequiredExtension =
-      translateRequiredExtension(BinaryFormat);
+  const std::string RequiredExtension = ".bin";
   const std::string NeoCPU = translateCPU(CPUName);
 
   // translate revid from CPU name if available

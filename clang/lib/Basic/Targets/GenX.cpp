@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2018-2021 Intel Corporation
+Copyright (C) 2018-2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -79,10 +79,6 @@ bool GenXTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
                             .Case("DG2", false)
                             .Default(true);
 
-  // OCL runtime specific headers support
-  OCLRuntime = std::any_of(
-      Features.begin(), Features.end(),
-      [](const std::string &Feature) { return Feature == "+ocl_runtime"; });
   return true;
 }
 
@@ -132,10 +128,6 @@ void GenXTargetInfo::getTargetDefines(const LangOptions &Opts,
 
   if (NativeDoubleSupport)
     Builder.defineMacro("CM_HAS_DOUBLE", "1");
-
-  // OCL runtime specific headers support
-  if (OCLRuntime)
-    Builder.defineMacro("__CM_OCL_RUNTIME");
 }
 bool GenXTargetInfo::hasFeature(StringRef Feature) const {
   return llvm::StringSwitch<bool>(Feature)

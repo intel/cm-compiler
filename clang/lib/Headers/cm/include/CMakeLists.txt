@@ -1,6 +1,6 @@
 #=========================== begin_copyright_notice ============================
 #
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 #
@@ -21,7 +21,6 @@ set(CM_HEADERS
   cm/cm_library.h
   cm/cm_lsc.h
   cm/cm_mask.h
-  cm/cm_printf.h
   cm/cm_printfocl.h
   cm/cm_sampler.h
   cm/cm_send.h

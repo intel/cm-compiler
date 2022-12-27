@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2019-2021 Intel Corporation
+Copyright (C) 2019-2022 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -87,8 +87,8 @@ class IDriverInvocationImpl final : public IDriverInvocation {
   InputTypeT InputType = InputTypeT::OTHER;
   OutputTypeT OutputType = OutputTypeT::OTHER;
 
-  TargetRuntimeT TargetRuntime = TargetRuntimeT::CM;
-  BinaryFormatT BinaryFormat = BinaryFormatT::CM;
+  TargetRuntimeT TargetRuntime = TargetRuntimeT::L0;
+  BinaryFormatT BinaryFormat = BinaryFormatT::DEFAULT;
   StrT TargetArch;
 
   StrT InputFilename;
@@ -155,7 +155,6 @@ public:
     TargetRuntime = TargetRuntimeIn;
     TargetArch = std::forward<TargetArchT>(TargetArchIn);
     TargetFeaturesStr = llvm::join(TargetFeaturesIn, ",");
-    validateTargetParams(TargetFeaturesIn);
     TimePasses = TimePassesIn;
     PrintStats = PrintStatsIn;
     StatsFile = StatsFileIn;
@@ -192,23 +191,6 @@ public:
 
   int getRevId() const { return RevId; }
   void setRevId(int Id) { RevId = Id; }
-
-private:
-  // Pass \p TargetFeaturesIn as it is easier to analyze it before join.
-  void validateTargetParams(const std::vector<std::string> &TargetFeaturesIn) {
-    bool HasOCLRuntimeFeature = std::any_of(
-        TargetFeaturesIn.begin(), TargetFeaturesIn.end(),
-        [](const std::string &Feature) { return Feature == "+ocl_runtime"; });
-    if (HasOCLRuntimeFeature)
-      assert((BinaryFormat == BinaryFormatT::OCL ||
-              BinaryFormat == BinaryFormatT::ZE) &&
-             "+ocl_runtime feature must be set for ocl or ze binary outputs "
-             "and unset for cm binary output");
-    else
-      assert(BinaryFormat == BinaryFormatT::CM &&
-             "+ocl_runtime feature must be set for ocl or ze binary outputs "
-             "and unset for cm binary output");
-  }
 };
 
 template <typename T> using SeqT = std::vector<T>;
