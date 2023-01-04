@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2022 Intel Corporation
+Copyright (C) 2022-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -52,8 +52,7 @@ CM_NODEBUG CM_INLINE void cm_dpas_check_common() {
 
   CM_STATIC_ERROR(check_type<T2>(src2_precision), "Src2 type is incorrect");
 
-  CM_STATIC_ERROR((systolic_depth == 8) || (systolic_depth == 4),
-                  "systolic_depth must be 8 or 4");
+  CM_STATIC_ERROR((systolic_depth == 8), "systolic_depth must be 8");
 
   CM_STATIC_ERROR((repeat_count >= 1) && (repeat_count <= 8),
                   "repeat_count must be within 1 to 8");
@@ -255,8 +254,7 @@ cm_dpasw(vector<T, N> src0, vector<T1, N1> src1, vector<T2, N2> src2,
 
   CM_STATIC_ERROR((N == 8 * repeat_count), "Execution size must be 8");
 
-  CM_STATIC_ERROR((systolic_depth == 8) || (systolic_depth == 4),
-                  "systolic_depth must be 8 or 4");
+  CM_STATIC_ERROR((systolic_depth == 8), "systolic_depth must be 8");
 
   CM_STATIC_ERROR((repeat_count >= 1) && (repeat_count <= 8),
                   "repeat_count must be within 1 to 8");
@@ -307,8 +305,7 @@ CM_NODEBUG CM_INLINE vector<T, N> cm_dpasw(int dummy, vector<T1, N1> src1,
   CM_STATIC_ERROR(details::is_dword_type<T2>::value, "Src2 must be DWORD type");
 
   CM_STATIC_ERROR(N == 8 * repeat_count, "Execution size must be 8");
-  CM_STATIC_ERROR((systolic_depth == 8) || (systolic_depth == 4),
-                  "systolic_depth must be 8 or 4");
+  CM_STATIC_ERROR((systolic_depth == 8), "systolic_depth must be 8");
 
   CM_STATIC_ERROR((repeat_count >= 1) && (repeat_count <= 8),
                   "repeat_count must be within 1 to 8");
