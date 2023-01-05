@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2022 Intel Corporation
+Copyright (C) 2014-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -40,7 +40,11 @@ namespace details {
 template <typename T0, typename T1, int SZ>
 CM_NODEBUG CM_INLINE vector<T0, SZ>
 __cm_abs_common_internal(vector<T1, SZ> src0, int flag = _GENX_NOSAT) {
-  vector<T1, SZ> _Result =
+  using T1U =
+      typename std::conditional<std::is_integral<T1>::value,
+                                typename make_unsigned<T1>::type, T1>::type;
+
+  vector<T1U, SZ> _Result =
       std::is_unsigned<T1>::value ? src0 : __cm_intrinsic_impl_abs(src0);
   if (flag != _GENX_SAT)
     return _Result;
