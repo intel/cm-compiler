@@ -393,7 +393,7 @@ constexpr bool checkSVMAtomic() {
       CM_STATIC_ERROR(NumSrc == 0, "No source operands are expected");
       return false;
     }
-    if constexpr (details::is_type<T, uint16_t, uint32_t, uint64_t>()) {
+    if constexpr (!details::is_type<T, uint16_t, uint32_t, uint64_t>()) {
       CM_STATIC_ERROR((details::is_type<T, uint16_t, uint32_t, uint64_t>()),
                       "Type UW, UD or UQ is expected");
       return false;
