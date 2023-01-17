@@ -643,19 +643,6 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
   case Builtin::BIcm_barrier:
     {
       Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_barrier);
-
-      // Update regular barrier count in kernel metadata.
-      if (llvm::MDNode *Node = getSLMSizeMDNode(CGF.CurFn)) {
-          if (llvm::Value *OldSz = getVal(Node->getOperand(llvm::genx::KernelMDOp::BarrierCnt))) {
-              assert(isa<llvm::ConstantInt>(OldSz) && "integer constant expected");
-              uint64_t OldVal = cast<llvm::ConstantInt>(OldSz)->getZExtValue();
-              if (OldVal == 0) {
-                  llvm::Value *NewSz = llvm::ConstantInt::get(OldSz->getType(), 1);
-                  Node->replaceOperandWith(llvm::genx::KernelMDOp::BarrierCnt, getMD(NewSz));
-              }
-          }
-      }
-
       CGF.Builder.CreateCall(Fn);
       return RValue::get(0);
     }
