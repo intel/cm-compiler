@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2022 Intel Corporation
+Copyright (C) 2022-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -28,5 +28,19 @@ unsigned int __spirv_BuiltInNumSubgroups();
 unsigned int __spirv_BuiltInNumEnqueuedSubgroups();
 unsigned int __spirv_BuiltInSubgroupId();
 unsigned int __spirv_BuiltInSubgroupLocalInvocationId();
+
+namespace detail {
+namespace spirv {
+enum scope {
+  cross_device = 0,
+  device = 1,
+  workgroup = 2,
+  subgroup = 3,
+  invocation = 4
+};
+} // namespace spirv
+} // namespace detail
+
+void __spirv_ControlBarrier(int scope, int memory_scope, int memory_semantics);
 
 #endif // _CLANG_CM_SPIRV_BUILTINS_H_

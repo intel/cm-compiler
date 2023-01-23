@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2013-2022 Intel Corporation
+Copyright (C) 2013-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -2280,7 +2280,6 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BIcm_slm_init:
   case Builtin::BIcm_slm_alloc:
   case Builtin::BIcm_slm_free:
-  case Builtin::BIcm_barrier:
   case Builtin::BIcm_fence:
   case Builtin::BIcm_slm_fence:
   case Builtin::BI__cm_builtin_cm_wait:

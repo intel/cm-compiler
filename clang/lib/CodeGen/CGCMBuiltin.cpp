@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2022 Intel Corporation
+Copyright (C) 2014-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -640,12 +640,6 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
     return RValue::get(EmitBuiltinSLMAlloc(CGF, E));
   case Builtin::BIcm_slm_free:
     return RValue::get(EmitBuiltinSLMFree(CGF, E));
-  case Builtin::BIcm_barrier:
-    {
-      Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_barrier);
-      CGF.Builder.CreateCall(Fn);
-      return RValue::get(0);
-    }
   case Builtin::BIcm_yield:
     Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_yield);
     CGF.Builder.CreateCall(Fn);

@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2021 Intel Corporation
+Copyright (C) 2014-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -1316,6 +1316,15 @@ CM_DEPRECATED(
     vector<T, M> vSrc, int mask);
 
 static const uint __cm_init_seq[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+
+/// \brief CM barrier workgroup synchronization
+///
+/// Inserts a barrier to ensure all writes to SLM before this point would be henceforth visible to
+/// other threads in the same group.
+///
+CM_INLINE CM_NODEBUG void cm_barrier() {
+  __spirv_ControlBarrier(detail::spirv::scope::workgroup, 0, 0);
+}
 
 /// \brief Shared local memory statefull read.
 ///

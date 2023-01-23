@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2022 Intel Corporation
+Copyright (C) 2014-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -857,7 +857,6 @@ BUILTIN(cm_lane_id, "Ui", "ni")
 BUILTIN(cm_slm_init, "vIUi", "ni")
 BUILTIN(cm_slm_alloc, "UiUi", "ni")
 BUILTIN(cm_slm_free, "UiUi", "ni")
-BUILTIN(cm_barrier, "v", "ni")
 BUILTIN(__cm_builtin_cm_wait, "v.", "ni")
 BUILTIN(cm_fence, "v.", "ni")
 BUILTIN(cm_slm_fence, "v.", "ni")
