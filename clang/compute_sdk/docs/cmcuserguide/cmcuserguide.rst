@@ -1,6 +1,6 @@
 .. ========================= begin_copyright_notice ============================
 
-  Copyright (C) 2021-2022 Intel Corporation
+  Copyright (C) 2021-2023 Intel Corporation
 
   SPDX-License-Identifier: MIT
 
@@ -324,6 +324,10 @@ CM_HAS_GATEWAY_EVENT           Defined (with value 1) if the specifed target sup
 CM_HAS_LSC_LOAD_L1RI_L3CA_HINT Defined (with value 1) if the specified target supports
                                L1 "read invalidate" and L3 "cached" cache hints
                                combination.
+
+CM_HAS_LSC_SYS_FENCE           Defined (with value 1) if the specified target supports
+                               system fence messages.
+
 ============================== =======================================================
 
 

@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2022 Intel Corporation
+Copyright (C) 2022-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -183,6 +183,9 @@ namespace CheckVersion {
   #define CM_HAS_STOCHASTIC_ROUNDING_CONTROL CM_HAS_CONTROL(true)
 #else
   #define CM_HAS_STOCHASTIC_ROUNDING_CONTROL CM_HAS_CONTROL(false)
+#endif
+#if (CM_GENX >= 1280) // >= PVC
+  #define CM_HAS_LSC_SYS_FENCE 1
 #endif
 #if (CM_GENX <= 1280)
   #define CM_HAS_LSC_LOAD_L1RI_L3CA_HINT 1

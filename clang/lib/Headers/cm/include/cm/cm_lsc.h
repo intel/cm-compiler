@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2019-2021 Intel Corporation
+Copyright (C) 2019-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -1278,6 +1278,10 @@ CM_NODEBUG CM_INLINE void cm_fence(vector<ushort, N> Pred = 1) {
   CM_HAS_LSC_CONTROL;//control platform version
 
   using namespace details;
+#ifndef CM_HAS_LSC_SYS_FENCE
+  CM_STATIC_ERROR(Scope != LSC_SCOPE::LSC_SCOPE_SYSTEM &&
+  Scope != LSC_SCOPE::LSC_SCOPE_SYSACQ, "unsupported system fence type");
+#endif
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   __cm_intrinsic_impl_lsc_fence<Sfid, FenceOp, Scope, N>(Pred);
 }
