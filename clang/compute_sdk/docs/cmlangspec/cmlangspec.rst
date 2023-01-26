@@ -6720,6 +6720,70 @@ atomic operation is specified as 'aop'. The value returned in
 optional sources, 'v_Src0' and 'v_Src1', are needed also
 depends on the atomic operation.
 
+cm_svm_gather4_scaled
+""""""""""""""""""""""
+
+.. code-block:: c++
+
+template <typename T, int N, int M>
+cm_svm_gather4_scaled(vector<svmptr_t, N> vOffset, vector<T, M> vDst,
+                      ChannelMaskType mask)
+
+Where:
+
+* N = 8, 16, or 32;
+* M = N*C where C is the number of channels enabled in 'mask';
+* TYPE must be of size dword (so, could be int, uint, or float);
+* 'mask' specifies the channels that are enabled -- it has to be a
+  compile-time constant of the enum type SLM_ChannelMaskType that can
+  have one of channel mask values below:
+
+  * CM_R_ENABLE
+  * CM_G_ENABLE
+  * CM_GR_ENABLE
+  * CM_B_ENABLE
+  * CM_BR_ENABLE
+  * CM_BG_ENABLE
+  * CM_BGR_ENABLE
+  * CM_A_ENABLE
+  * CM_AR_ENABLE
+  * CM_AG_ENABLE
+  * CM_AGR_ENABLE
+  * CM_AB_ENABLE
+  * CM_ABR_ENABLE
+  * CM_ABG_ENABLE
+  * CM_ABGR_ENABLE
+
+Read N 4-element vectors, say {R,G,B,A}, where each element is of size
+dword and is also referred to as a channel, from shared virtual memory
+into 'v_Dst'. 'v_Dst' must be aligned.
+
+cm_svm_scatter4_scaled
+""""""""""""""""""""""
+
+.. code-block:: c++
+
+template <typename T, int N, int M>
+cm_svm_scatter4_scaled(vector<svmptr_t, N> vOffset, vector<T, M> vSrc,
+                       ChannelMaskType mask)
+
+Where:
+
+* N = 8, 16, or 32;
+* M = N*C where C is the number of channels enabled in 'mask';
+* TYPE must be of size dword (so, could be int, uint, or float);
+* 'mask' specifies the channels that are enabled -- it has to be a
+  compile-time constant of the enum type SLM_ChannelMaskType that can
+  have one of four contiguous channel masks below:
+
+  * CM_R_ENABLE
+  * CM_GR_ENABLE
+  * CM_BGR_ENABLE
+  * CM_ABGR_ENABLE
+
+Write N 4-element vectors, say {R,G,B,A}, where each element is of
+size dword and is also referred to as a channel, from 'v_Src' into
+shared virtual memory. 'v_Src' must be aligned.
 
 4.19 Preprocessor Directives
 ----------------------------

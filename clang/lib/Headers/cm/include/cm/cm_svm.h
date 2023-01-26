@@ -333,21 +333,106 @@ cm_ptr_write4(T* ptr, vector<ptrdiff_t, N> vOffset, vector<T, M> vSrc,
 // Defined here separate from other cm_svm_gather/scatter definitions
 // due to dependency on 'cm_ptr_read/write4'
 template <typename T, int N, int M>
+CM_NODEBUG CM_INLINE
 typename std::enable_if<(N == 8 || N == 16 || N == 32) &&
                         (sizeof(T) == 4)>::type
 cm_svm_gather4_scaled(vector<svmptr_t, N> vOffset, vector_ref<T, M> vDst,
                       ChannelMaskType mask) {
   vector<ptrdiff_t, N> _OffsetArg = vOffset;
-  cm_ptr_read4<T, N, M>(static_cast<T*>(nullptr), _OffsetArg, vDst, mask);
+  // cm_ptr_read4 accepts 'mask' value with compile-time-constant type.
+#define TMPL_CASE_PTR_READ4(chanmask)                                   \
+  case CM_##chanmask##_ENABLE:                                          \
+    cm_ptr_read4<T, N, M>(static_cast<T*>(nullptr), _OffsetArg, vDst,   \
+                          CM_##chanmask##_ENABLE);                      \
+    break;
+
+  if constexpr (M == N) {
+    // Single-channel cases
+    switch(mask) {
+      TMPL_CASE_PTR_READ4(R);
+      TMPL_CASE_PTR_READ4(G);
+      TMPL_CASE_PTR_READ4(B);
+      TMPL_CASE_PTR_READ4(A);
+    }
+  }
+  else if constexpr (M == N * 2) {
+    // 2-channel cases
+    switch(mask) {
+      TMPL_CASE_PTR_READ4(GR);
+      TMPL_CASE_PTR_READ4(BR);
+      TMPL_CASE_PTR_READ4(BG);
+      TMPL_CASE_PTR_READ4(AR);
+      TMPL_CASE_PTR_READ4(AG);
+      TMPL_CASE_PTR_READ4(AB);
+    }
+  }
+  else if constexpr (M == N * 3) {
+    // 3-channel cases
+    switch(mask) {
+      TMPL_CASE_PTR_READ4(BGR);
+      TMPL_CASE_PTR_READ4(AGR);
+      TMPL_CASE_PTR_READ4(ABR);
+      TMPL_CASE_PTR_READ4(ABG);
+    }
+  }
+  else if constexpr (M == N * 4) {
+    // Only 4-channel case : ABGR
+    cm_ptr_read4<T, N, M>(static_cast<T*>(nullptr), _OffsetArg, vDst,
+                          CM_ABGR_ENABLE);
+  }
+#undef TMPL_CASE_PTR_READ4
 }
 
 template <typename T, int N, int M>
+CM_NODEBUG CM_INLINE
 typename std::enable_if<(N == 8 || N == 16 || N == 32) &&
                         (sizeof(T) == 4)>::type
 cm_svm_scatter4_scaled(vector<svmptr_t, N> vOffset, vector<T, M> vSrc,
                        ChannelMaskType mask) {
   vector<ptrdiff_t, N> _OffsetArg = vOffset;
-  cm_ptr_write4<T, N, M>(static_cast<T*>(nullptr), _OffsetArg, vSrc, mask);
+  // cm_ptr_write4 accepts 'mask' value with compile-time-constant type.
+#define TMPL_CASE_PTR_WRITE4(chanmask)                                  \
+  case CM_##chanmask##_ENABLE:                                          \
+    cm_ptr_write4<T, N, M>(static_cast<T*>(nullptr), _OffsetArg, vSrc,  \
+                           CM_##chanmask##_ENABLE);                     \
+    break;
+
+  if constexpr (M == N) {
+    // Single-channel cases
+    switch(mask) {
+      TMPL_CASE_PTR_WRITE4(R);
+      TMPL_CASE_PTR_WRITE4(G);
+      TMPL_CASE_PTR_WRITE4(B);
+      TMPL_CASE_PTR_WRITE4(A);
+    }
+  }
+  else if constexpr (M == N * 2) {
+    // 2-channel cases
+    switch(mask) {
+      TMPL_CASE_PTR_WRITE4(GR);
+      TMPL_CASE_PTR_WRITE4(BR);
+      TMPL_CASE_PTR_WRITE4(BG);
+      TMPL_CASE_PTR_WRITE4(AR);
+      TMPL_CASE_PTR_WRITE4(AG);
+      TMPL_CASE_PTR_WRITE4(AB);
+    }
+  }
+  else if constexpr (M == N * 3) {
+    // 3-channel cases
+    switch(mask) {
+      TMPL_CASE_PTR_WRITE4(BGR);
+      TMPL_CASE_PTR_WRITE4(AGR);
+      TMPL_CASE_PTR_WRITE4(ABR);
+      TMPL_CASE_PTR_WRITE4(ABG);
+    }
+  }
+  else if constexpr (M == N * 4) {
+    // Only 4-channel case : ABGR
+    cm_ptr_write4<T, N, M>(static_cast<T*>(nullptr), _OffsetArg, vSrc,
+                           CM_ABGR_ENABLE);
+  }
+
+#undef TMPL_CASE_PTR_WRITE4
 }
 
 // svmptr_t interface
