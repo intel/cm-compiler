@@ -1,6 +1,6 @@
 .. ========================= begin_copyright_notice ============================
 
-  Copyright (C) 2021-2022 Intel Corporation
+  Copyright (C) 2021-2023 Intel Corporation
 
   SPDX-License-Identifier: MIT
 
@@ -19,7 +19,7 @@ George, Weiyu Chen, Alexander Yermolovich, Puyan Lotfi, Gang Chen,
 Julia Gould, Wei Pan, David Stuttard, Tim Renouf, Tim Corringham,
 Stephen Thomas, Vladimirov Konstantin, Us Alexander, Parshintsev
 Anatoly, Sidorenko Anton, Zabaznov Anton, Bezzubikov Alexader,
-Ryabtsev Dmitry, Rudenko Nikita, Mustya Victor.
+Ryabtsev Dmitry, Rudenko Nikita, Mustya Victor, Shelegov Maksim.
 
 Legal Notices and Disclaimers
 =============================
@@ -59,7 +59,7 @@ OverDrive, PDCharm, Pentium, Pentium Inside, skoool, Sound Mark, The Journey Ins
 Inside, VTune, Xeon, and Xeon Inside are trademarks of Intel Corporation in the U.S. and other countries.
 * Other names and brands may be claimed as the property of others.
 
-Copyright (C) 2009-2019, Intel Corporation. All rights reserved.
+Copyright (C) 2009-2023, Intel Corporation. All rights reserved.
 
 .. contents:: Table of Contents
    :depth: 3
