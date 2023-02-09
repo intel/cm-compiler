@@ -487,9 +487,6 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
   case Builtin::BIget_color:
     IID = llvm::GenXIntrinsic::genx_get_color;
     break;
-  case Builtin::BIcm_get_hwid:
-    IID = llvm::GenXIntrinsic::genx_get_hwid;
-    break;
   case Builtin::BIcm_lane_id:
     IID = llvm::GenXIntrinsic::genx_lane_id;
     break;

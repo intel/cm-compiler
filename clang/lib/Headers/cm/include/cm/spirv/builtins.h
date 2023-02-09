@@ -29,6 +29,10 @@ unsigned int __spirv_BuiltInNumEnqueuedSubgroups();
 unsigned int __spirv_BuiltInSubgroupId();
 unsigned int __spirv_BuiltInSubgroupLocalInvocationId();
 
+// SPV_INTEL_hw_thread_queries extension
+int __spirv_BuiltInSubDeviceIDINTEL();
+int __spirv_BuiltInGlobalHWThreadIDINTEL();
+
 namespace detail {
 namespace spirv {
 enum scope {

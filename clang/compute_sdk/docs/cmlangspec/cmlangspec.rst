@@ -6916,7 +6916,16 @@ cm_get_hwid
 
   uint cm_get_hwid();
 
-This intrinsic can be used to access the hardware thread id from register R0.
+This intrinsic can be used to access the hardware global thread id.
+
+cm_get_tileid
+^^^^^^^^^^^^^
+.. code-block:: c++
+
+  uint cm_get_tileid();
+
+This intrinsic can be used to access the device tile id.
+
 
 .. _CMInlineAssembly:
 

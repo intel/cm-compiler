@@ -57,4 +57,12 @@ CM_NODEBUG CM_INLINE uint cm_linear_global_size() {
   return cm_linear_group_count() * cm_linear_local_size();
 }
 
+CM_NODEBUG CM_INLINE uint cm_get_hwid() {
+  return __spirv_BuiltInGlobalHWThreadIDINTEL();
+}
+
+CM_NODEBUG CM_INLINE uint cm_get_tileid() {
+  return __spirv_BuiltInSubDeviceIDINTEL();
+}
+
 #endif // _CLANG_CM_THREADS_H_

@@ -2275,7 +2275,6 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   case Builtin::BIget_thread_origin_x:
   case Builtin::BIget_thread_origin_y:
   case Builtin::BIget_color:
-  case Builtin::BIcm_get_hwid:
   case Builtin::BIcm_lane_id:
   case Builtin::BIcm_slm_init:
   case Builtin::BIcm_slm_alloc:
