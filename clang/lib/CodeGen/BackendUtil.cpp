@@ -876,6 +876,8 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
     SPIRV::TranslatorOpts Opts{
         SPIRV::VersionNumber::SPIRV_1_2,
         {
+            {SPIRV::ExtensionID::SPV_EXT_relaxed_printf_string_address_space,
+             true},
             {SPIRV::ExtensionID::SPV_INTEL_fast_composite, true},
             {SPIRV::ExtensionID::SPV_INTEL_float_controls2, true},
             {SPIRV::ExtensionID::SPV_INTEL_inline_assembly, true},
