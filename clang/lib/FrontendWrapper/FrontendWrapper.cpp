@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2019-2022 Intel Corporation
+Copyright (C) 2019-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -281,6 +281,13 @@ static std::string getVCApiOptions(const llvm::opt::InputArgList &Args,
 
   if (Args.hasArg(clang::driver::options::OPT_vc_use_plain_2d_images))
     VCApiOptions += " -vc-use-plain-2d-images";
+
+  if (auto *Arg = Args.getLastArg(
+          clang::driver::options::OPT_Qxcm_register_file_size)) {
+    auto Val = Arg->getValue();
+    VCApiOptions += " -ze-exp-register-file-size=";
+    VCApiOptions += Val;
+  }
 
   // pass -fp-contract option
   if (const llvm::opt::Arg *A =

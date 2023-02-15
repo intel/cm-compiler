@@ -219,6 +219,14 @@ Option                        Description
 -Qxcm_revid                   Specifies revision id inside given target (use with march=)
                               Valid only for some platforms.
 
+-Qxcm_register_file_size=<N>  Specifies number of registers to use for register allocation.
+                              The values allowed with this option are 128 and 256 for XeHP
+                              and further platforms. For pre-XeHP platforms 128 is the only
+                              allowed value.
+
+
+-Qxcm_doubleGRF               Alias for ``-Qxcm_register_file_size=256``.
+
 -vc-use-plain-2d-images       Treat "image2d_t" annotated surfaces as non-media 2D images.
 
 -###                          This option causes the cmc driver to print the commands

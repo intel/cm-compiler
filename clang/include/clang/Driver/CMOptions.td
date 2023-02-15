@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2022 Intel Corporation
+Copyright (C) 2015-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -234,8 +234,14 @@ def dump_stats_cwd : Flag<["-"], "dump-stats">, Group<cm_Group>,
   HelpText<"Alias for -dump-stats=cwd">, Alias<dump_stats>, AliasArgs<["cwd"]>,
   Flags<[CMOption, CC1Option, CC1AsOption]>;
 
-def Qxcm_doubleGRF : CMIgnoredFlag<"Qxcm_doubleGRF">,
-  HelpText<"increase total GRF number to 256">;
+def Qxcm_register_file_size : CMCC1Joined<"Qxcm_register_file_size=">,
+  HelpText<"Specifies number of registers to use for regalloc in backend. "
+           "Allowed values are 128 and 256 for XeHP and further platforms. "
+           "For pre-XeHP platforms the only supported value is 128.">;
+
+def Qxcm_doubleGRF : CMFlag<"Qxcm_doubleGRF">,
+  Alias<Qxcm_register_file_size>, AliasArgs<["256"]>,
+  HelpText<"Alias for -Qxcm_register_file_size=256">;
 
 def Qxcm_stepping: CMJoined<"Qxcm_stepping">,
   HelpText<"Generate code taking platform stepping into account. "

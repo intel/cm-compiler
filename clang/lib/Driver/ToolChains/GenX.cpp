@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2018-2021 Intel Corporation
+Copyright (C) 2018-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -85,10 +85,6 @@ ArgStringList constructCompatibilityFinalizerOptions(const ArgList &Args,
       CompatibilityArgs.push_back("-uniqueLabels");
       CompatibilityArgs.push_back(LabelName.data());
     }
-  }
-  if (Args.hasArg(options::OPT_Qxcm_doubleGRF)) {
-    CompatibilityArgs.push_back("-TotalGRFNum");
-    CompatibilityArgs.push_back("256");
   }
 
   // Add any finalizer options specified using -mCM_jit_option.
@@ -225,11 +221,17 @@ void GenX::addClangTargetOptions(const llvm::opt::ArgList &  DriverArgs,
     CC1Args.push_back(DriverArgs.MakeArgString(os.str()));
   }
 
+  if (auto *Arg = DriverArgs.getLastArg(options::OPT_Qxcm_register_file_size)) {
+    std::string Opt = "-Qxcm_register_file_size=";
+    Opt += Arg->getValue();
+    CC1Args.push_back(DriverArgs.MakeArgString(Opt));
+  }
+
   if (DriverArgs.hasArg(options::OPT_vc_use_plain_2d_images))
     CC1Args.push_back("-vc-use-plain-2d-images");
 
   ArgStringList CompatibilityArgs =
-    constructCompatibilityFinalizerOptions(DriverArgs, Drv);
+      constructCompatibilityFinalizerOptions(DriverArgs, Drv);
   if (CompatibilityArgs.empty())
     return;
 
