@@ -6824,35 +6824,19 @@ llvm::Value *CGCMRuntime::HandleBuiltinSimdcfAnyImpl(CMCallInfo &CallInfo) {
   return NewCI;
 }
 
-// template<typename T0, typename T1, int N>
-// vector<T0, N> __cm_intrinsic_impl_simdcf_predgen(vector<T0, N> arg0, T1 arg1)
+// template<typename T0, int N>
+// vector<T0, N> __cm_intrinsic_impl_simdcf_predgen(vector<T0, N> arg0)
 llvm::Value *CGCMRuntime::HandleBuiltinSimdcfGenericPredicationImpl(CMCallInfo &CallInfo) {
   const CallExpr *CE = CallInfo.CE;
-  assert(CE->getNumArgs() == 2);
+  assert(CE->getNumArgs() == 1);
   assert(CE->getType()->isCMVectorMatrixType());
   assert(CE->getArg(0)->getType()->isCMVectorMatrixType());
 
   llvm::CallInst *CI = CallInfo.CI;
   llvm::Value *Arg0 = CI->getArgOperand(0);
   llvm::Type *Arg0Ty = Arg0->getType();
-  llvm::Value *Arg1;
+  llvm::Value *Arg1 = llvm::UndefValue::get(Arg0Ty);
   bool SrcSigned = CE->getArg(0)->getType()->getCMVectorMatrixElementType()->isSignedIntegerType();
-
-  // The builtin call's second argument must be a compiler-time constant int.
-  // The lowered intrinsic call's second argument will be a vector splat of this
-  // value.
-
-  if (auto Arg1ConstInt = dyn_cast<llvm::ConstantInt>(CI->getArgOperand(1))) {
-    uint64_t Arg1Value = Arg1ConstInt->getZExtValue();
-
-    if (CE->getArg(0)->getType()->getCMVectorMatrixElementType()->isFloatingType())
-      Arg1 = llvm::ConstantFP::get(Arg0Ty, (double) Arg1Value);
-    else
-      Arg1 = llvm::ConstantInt::get(Arg0Ty, Arg1Value, SrcSigned);
-  } else {
-    CallInfo.CGF->CGM.Error(CE->getArg(1)->getExprLoc(), "integer constant expected for predication default");
-    return nullptr;
-  }
 
   llvm::Function *Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_simdcf_predicate, Arg0Ty);
   llvm::Value *Args[] = {Arg0, Arg1};

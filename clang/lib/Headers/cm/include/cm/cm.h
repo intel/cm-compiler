@@ -1345,7 +1345,8 @@ cm_lzd(T0 src0, int flag = _GENX_NOSAT) {
 ////////////////////////////////////////////////////////////////////////////////
 template <typename T0, typename T1, int SZ>
 CM_NODEBUG CM_INLINE T0 cm_sum(vector<T1, SZ> src, int flag = _GENX_NOSAT) {
-  vector<T1, SZ> _PredSrc = details::__cm_intrinsic_impl_simdcf_predgen(src, 0);
+  vector<T1, SZ> _PredSrc = 0;
+  _PredSrc = details::__cm_intrinsic_impl_simdcf_predgen(src);
 
   if (flag != _GENX_SAT)
     return details::__cm_intrinsic_impl_sum<T0>(_PredSrc);
@@ -1359,7 +1360,8 @@ CM_NODEBUG CM_INLINE T0 cm_sum(matrix<T1, N1, N2> src, int flag = _GENX_NOSAT) {
 
 template <typename T0, typename T1, int SZ>
 CM_NODEBUG CM_INLINE T0 cm_prod(vector<T1, SZ> src, int flag = _GENX_NOSAT) {
-  vector<T1, SZ> _PredSrc = details::__cm_intrinsic_impl_simdcf_predgen(src, 1);
+  vector<T1, SZ> _PredSrc = 1;
+  _PredSrc = details::__cm_intrinsic_impl_simdcf_predgen(src);
 
   if (flag != _GENX_SAT)
     return details::__cm_intrinsic_impl_prod<T0>(_PredSrc);

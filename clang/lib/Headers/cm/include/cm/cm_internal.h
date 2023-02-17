@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2022 Intel Corporation
+Copyright (C) 2014-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -355,8 +355,8 @@ bool __cm_intrinsic_impl_simdcf_any(matrix<T, R, C> t, const char *filename,
 template <typename T = void>
 bool __cm_intrinsic_impl_simdcf_any(int t, const char *filename, unsigned line);
 
-template <typename T0, typename T1, int N>
-vector<T0, N> __cm_intrinsic_impl_simdcf_predgen(vector<T0, N> arg0, T1 arg1);
+template <typename T0, int N>
+vector<T0, N> __cm_intrinsic_impl_simdcf_predgen(vector<T0, N> arg0);
 
 template <typename T0, int N>
 vector<T0, N> __cm_intrinsic_impl_simdcf_predmin(vector<T0, N> arg0);
