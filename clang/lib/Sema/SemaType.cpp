@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2012-2021 Intel Corporation
+Copyright (C) 2012-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -1766,27 +1766,6 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
   }
 
   assert(!Result.isNull() && "This function should not return a null type");
-
-  auto Ty = Result.getCanonicalType();
-  bool IsI64 = false;
-  if (Ty->isCMVectorMatrixType()) {
-    Ty = Ty->getCMVectorMatrixElementType();
-  }
-  if (Ty->isBuiltinType() && Ty->isIntegerType())
-    IsI64 = Context.getTypeSize(Ty) >= 64;
-
-  if (IsI64 && !S.Context.getTargetInfo().hasFeature("longlong") &&
-      !S.Context.getLangOpts().CMEmulateI64) {
-    const SourceManager &SM = S.getSourceManager();
-    if (!SM.isInSystemHeader(DeclLoc) &&
-        // skip typedefs and using declarations
-        (DS.getStorageClassSpec() != DeclSpec::SCS_typedef &&
-         declarator.getContext() != DeclaratorContext::AliasDeclContext)) {
-      S.Diag(DeclLoc, diag::warn_cm_target_doesnt_support_type)
-          << "64-bit integer types" << S.Context.getTargetInfo().getCPU();
-    }
-  }
-
   return Result;
 }
 

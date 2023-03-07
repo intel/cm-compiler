@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2017-2021 Intel Corporation
+Copyright (C) 2017-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -4117,7 +4117,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     if (Arg *A = Args.getLastArg(options::OPT_mCM_max_slm))
       passCMCC1Param(A, "-mCM_max_slm", CmdArgs);
     if (Arg *A = Args.getLastArg(options::OPT_mCM_max_obr))
-      passCMCC1Param(A, "-mCM_max_obr", CmdArgs); 
+      passCMCC1Param(A, "-mCM_max_obr", CmdArgs);
     if (Args.getLastArg(options::OPT_mCM_iefbypass))
       CmdArgs.push_back("-mCM_iefbypass");
     if (Args.getLastArg(options::OPT_mCM_init_global))

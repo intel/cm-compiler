@@ -10,6 +10,7 @@ SPDX-License-Identifier: MIT
 
 #include "CGCM.h"
 #include "CodeGenFunction.h"
+
 #include "clang/AST/DeclTemplate.h"
 #include "clang/Basic/Builtins.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -687,12 +688,12 @@ static void checkSLMSize(CGCMRuntime &CMRT, SourceLocation Loc,
   }
 
   // The maximal size is determined by platform
-  auto &COpts = CMRT.CGM.getCodeGenOpts();
-  auto MAX_SLM_SIZE_IN_BYTES = COpts.MaxSLMSize << 10;
+  auto &TOpts = CMRT.CGM.getTarget().getTargetOpts();
+  unsigned MaxSLMSize = TOpts.CMMaxSLMSize * 1024; // in bytes
 
   if (SLMSize == 0)
     CMRT.Error(Loc, "use slm, but slm is not initialized");
-  else if (SLMSize > MAX_SLM_SIZE_IN_BYTES)
+  else if (SLMSize > MaxSLMSize)
     CMRT.Error(Loc, "use slm, but slm size is too large");
 }
 
@@ -3176,8 +3177,9 @@ void CGCMRuntime::HandleBuiltinOWordWriteImpl(CMCallInfo &Info,
   assert(llvm::isPowerOf2_32(VecTy->getVectorNumElements()));
   assert(VecTy->getPrimitiveSizeInBits() / 8 >= OWORD);
 
-  auto &COpts = CGM.getCodeGenOpts();
-  unsigned MaxOBRWSize = COpts.MaxOBRWSize;
+  auto &TOpts = CGM.getTarget().getTargetOpts();
+  unsigned MaxOBRWSize = TOpts.CMMaxOWordBlock;
+
   if (VecTy->getPrimitiveSizeInBits() / 8 > MaxOBRWSize * OWORD) {
     CGM.getDiags().Report(diag::warn_cm_oword_size) << MaxOBRWSize;
     assert(0 && "OWords assertion for debug build");
@@ -5861,13 +5863,14 @@ void CGCMRuntime::HandleBuiltinAVSSampler(CMCallInfo &Info) {
   llvm::Value *VerticalBlockNumber = Info.CGF->Builder.CreateSExtOrBitCast(
       Info.CI->getArgOperand(10), FTy->getParamType(9));
 
-  auto &COpts = CGM.getCodeGenOpts();
+  auto &TOpts = CGM.getTarget().getTargetOpts();
 
-  // IEFBypass is removed on some platforms (like TGLLP, etc) and should be always set to 0
+  // IEFBypass is removed on some platforms (like TGLLP, etc) and should be
+  // always set to 0
   llvm::Value *IEFBypass = llvm::Constant::getNullValue(FTy->getParamType(13));
-  if (COpts.IEFByPass)
+  if (TOpts.CMIEFByPass)
     IEFBypass = Info.CGF->Builder.CreateZExtOrBitCast(
-      Info.CI->getArgOperand(14), FTy->getParamType(13));
+        Info.CI->getArgOperand(14), FTy->getParamType(13));
 
   // Arguments.
   llvm::Value *Args[] = {

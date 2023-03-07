@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2020-2022 Intel Corporation
+Copyright (C) 2020-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -71,42 +71,6 @@ private:
 };
 } // namespace
 
-// clang-format off
-const std::unordered_map<std::string, std::string> CmToNeoCPU{
-    {"BDW", "bdw"},
-    {"BXT", "bxt"},
-    {"GLK", "glk"},
-    {"KBL", "kbl"},
-    {"SKL", "skl"},
-    {"ICLLP", "icllp"},
-    {"TGLLP", "tgllp"},
-    {"RKL", "rkl"},
-    {"DG1", "dg1"},
-    {"XEHP_SDV", "xe_hp_sdv"},
-    {"DG2", "dg2"},
-    {"ADLS", "adls"},
-    {"ADLP", "adlp"},
-    {"ADLN", "adln"},
-    {"MTL", "mtl"},
-    {"PVC", "pvc"},
-    {"PVCXT", "pvc"},
-};
-// clang-format on
-
-static std::string translateCPU(const std::string &CPU) {
-  auto It = CmToNeoCPU.find(CPU);
-  if (It == CmToNeoCPU.end())
-    FatalError("Unexpected CPU model: " + CPU);
-  return It->second;
-}
-
-// Try to guess revision id for given stepping.
-// Relies on enumeration values inside driver since
-// ocloc accepts these numeric values instead of letter codes
-static std::string translateStepping(const std::string &CPU) {
-  return "";
-}
-
 template <typename OsT>
 static void printEscapedString(OsT &OS, const char *Str, const char Escape) {
   OS << Escape;
@@ -159,7 +123,6 @@ static LibOclocWrapper const& getLibOclocWrapper(){
 }
 
 static void invokeBE(const std::vector<char> &SPIRV, const std::string &NeoCPU,
-                     const std::string &RevId,
                      const std::string &RequiredExtension,
                      const std::string &Options,
                      const std::string &InternalOptions,
@@ -173,10 +136,6 @@ static void invokeBE(const std::vector<char> &SPIRV, const std::string &NeoCPU,
   OclocArgs.push_back("compile");
   OclocArgs.push_back("-device");
   OclocArgs.push_back(NeoCPU.c_str());
-  if (!RevId.empty()) {
-    OclocArgs.push_back("-revision_id");
-    OclocArgs.push_back(RevId.c_str());
-  }
   OclocArgs.push_back("-spirv_input");
   OclocArgs.push_back("-file");
   OclocArgs.push_back(SpvFileName);
@@ -283,17 +242,9 @@ void translateIL(const std::string &CPUName, int RevId,
   }
 
   const std::string RequiredExtension = ".bin";
-  const std::string NeoCPU = translateCPU(CPUName);
 
-  // translate revid from CPU name if available
-  std::string RevIdStr = translateStepping(CPUName);
-
-  // if revid passed as option, prefer it
-  if (RevId > 0)
-    RevIdStr = std::to_string(RevId);
-
-  invokeBE(SPIRV_IR, NeoCPU, RevIdStr, RequiredExtension, Options,
-           InternalOptions, Result);
+  invokeBE(SPIRV_IR, CPUName, RequiredExtension, Options, InternalOptions,
+           Result);
 }
 
 std::string oclocQuery(const char *request) {

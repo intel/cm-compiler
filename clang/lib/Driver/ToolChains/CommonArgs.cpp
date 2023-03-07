@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2018-2021 Intel Corporation
+Copyright (C) 2018-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -255,8 +255,20 @@ static StringRef getWebAssemblyTargetCPU(const ArgList &Args) {
 
 std::string tools::getCPUName(const ArgList &Args, const llvm::Triple &T,
                               bool FromAs) {
-  if (T.getArchName().startswith("genx"))
-    return GenX::getGenXTargetCPU(Args);
+  if (T.getArchName().startswith("genx")) {
+    uint32_t CPUId = GenX::getGenXTargetCPU(Args);
+    uint32_t Major = CPUId >> 22;
+    uint32_t Minor = (CPUId >> 14) & 0xff;
+    uint32_t Revision = CPUId & 0x3f;
+
+    std::string CPUName = std::to_string(Major);
+    CPUName += '.';
+    CPUName += std::to_string(Minor);
+    CPUName += '.';
+    CPUName += std::to_string(Revision);
+
+    return CPUName;
+  }
 
   Arg *A;
 

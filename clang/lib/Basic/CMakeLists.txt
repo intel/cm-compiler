@@ -1,6 +1,6 @@
 #=========================== begin_copyright_notice ============================
 #
-# Copyright (C) 2017-2021 Intel Corporation
+# Copyright (C) 2017-2023 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 #
@@ -94,6 +94,7 @@ add_clang_library(clangBasic
   Targets/AVR.cpp
   Targets/BPF.cpp
   Targets/GenX.cpp
+  Targets/GenXPlatforms.cpp
   Targets/Hexagon.cpp
   Targets/Lanai.cpp
   Targets/Le64.cpp
@@ -118,4 +119,3 @@ add_clang_library(clangBasic
   XRayLists.cpp
   ${version_inc}
   )
-

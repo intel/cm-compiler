@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2021 Intel Corporation
+Copyright (C) 2015-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -41,9 +41,9 @@ CODEGENOPT(EmitCmOCLL0, 1, 0)              /// CM: emit CM kernels to run on Ope
 CODEGENOPT(EnableCMStackcalls, 1, 0)       /// CM: enable CM stack calls by default.
 
 // those options are deduced from arch
-VALUE_CODEGENOPT(MaxSLMSize, 32, 64)       /// CM: maximum amount of SLM available
-VALUE_CODEGENOPT(MaxOBRWSize, 32, 8)       /// CM: maximum OBRW size
-CODEGENOPT(IEFByPass, 1, 0)                /// CM: if IEFByPass supported
+VALUE_CODEGENOPT(MaxSLMSize, 32, 0)  /// CM: maximum amount of SLM available
+VALUE_CODEGENOPT(MaxOBRWSize, 32, 0) /// CM: maximum OBRW size
+CODEGENOPT(IEFByPass, 1, 0)          /// CM: if IEFByPass supported
 
 CODEGENOPT(DisableIntegratedAS, 1, 0) ///< -no-integrated-as
 ENUM_CODEGENOPT(CompressDebugSections, llvm::DebugCompressionType, 2,
@@ -384,4 +384,3 @@ CODEGENOPT(KeepStaticConsts, 1, 0)
 #undef CODEGENOPT
 #undef ENUM_CODEGENOPT
 #undef VALUE_CODEGENOPT
-

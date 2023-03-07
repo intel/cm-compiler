@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2021 Intel Corporation
+Copyright (C) 2014-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -786,57 +786,14 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.InitializeCMGlobals = Args.hasArg(OPT_mCM_init_global);
   Opts.EmitCMGlobalsAsVolatile = Args.hasArg(OPT_fvolatile_global);
 
-  if (Args.hasArg(OPT_mCM_max_slm))
-    Opts.MaxSLMSize = getLastArgIntValue(Args, OPT_mCM_max_slm, 0);
-  else {
-    Opts.MaxSLMSize = llvm::StringSwitch<unsigned>(TargetOpts.CPU)
-      .Case("XEHP_SDV", 128)
-      .Case("DG2", 128)
-      .Case("MTL", 128)
-      .Case("PVC", 128)
-      .Case("PVCXT", 128)
-      .Default(64);
-  }
-
-  if (Args.hasArg(OPT_mCM_max_obr))
-    Opts.MaxOBRWSize = getLastArgIntValue(Args, OPT_mCM_max_obr, 0);
-  else {
-    Opts.MaxOBRWSize = llvm::StringSwitch<unsigned>(TargetOpts.CPU)
-      .Case("XEHP_SDV", 16)
-      .Case("DG2", 16)
-      .Case("MTL", 16)
-      .Case("PVC", 16)
-      .Case("PVCXT", 16)
-      .Default(8);
-  }
-
-  if (Args.hasArg(OPT_mCM_iefbypass))
-    Opts.IEFByPass = true;
-  else {
-    Opts.IEFByPass = llvm::StringSwitch<bool>(TargetOpts.CPU)
-      .Case("TGLLP", false)
-      .Case("RKL", false)
-      .Case("DG1", false)
-      .Case("XEHP_SDV", false)
-      .Case("ADLP", false)
-      .Case("ADLS", false)
-      .Case("ADLN", false)
-      .Case("DG2", false)
-      .Case("MTL", false)
-      .Case("PVC", false)
-      .Case("PVCXT", false)
-      .Default(true);
-  }
+  Opts.MaxSLMSize = getLastArgIntValue(Args, OPT_mCM_max_slm, 0);
+  Opts.MaxOBRWSize = getLastArgIntValue(Args, OPT_mCM_max_obr, 0);
+  Opts.IEFByPass = Args.hasArg(OPT_mCM_iefbypass);
 
   Opts.ReverseCMKernelList = Args.hasArg(OPT_mCM_reverse_kernels);
   Opts.EnableCMStackcalls = Args.hasArg(OPT_mCM_enable_stackcalls);
   Opts.RerollLoops = Args.hasArg(OPT_freroll_loops);
-  if (auto *Arg = Args.getLastArg(OPT_binary_format)) {
-    bool IsOCLOrZEBinary = llvm::StringSwitch<bool>(Arg->getValue())
-                               .Cases("ocl", "ze", true)
-                               .Default(false);
-    Opts.EmitCmOCLL0 = IsOCLOrZEBinary;
-  }
+  Opts.EmitCmOCLL0 = true;
 
   Opts.DisableIntegratedAS = Args.hasArg(OPT_fno_integrated_as);
   Opts.Autolink = !Args.hasArg(OPT_fno_autolink);
@@ -1226,7 +1183,6 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
         static_cast<CodeGenOptions::ObjCDispatchMethodKind>(Method));
     }
   }
-
 
   if (Args.hasArg(OPT_fno_objc_convert_messages_to_runtime_calls))
     Opts.ObjCConvertMessagesToRuntimeCalls = 0;
@@ -3309,8 +3265,6 @@ static void ParseTargetArgs(TargetOptions &Opts, ArgList &Args,
       Opts.EABIVersion = EABIVersion;
   }
   Opts.CPU = Args.getLastArgValue(OPT_target_cpu);
-  Opts.Stepping = Args.getLastArgValue(OPT_Qxcm_stepping);
-  Args.getLastArgValue(OPT_Qxcm_revid, "0").getAsInteger(0, Opts.RevId);
 
   Opts.FPMath = Args.getLastArgValue(OPT_mfpmath);
   Opts.FeaturesAsWritten = Args.getAllArgValues(OPT_target_feature);

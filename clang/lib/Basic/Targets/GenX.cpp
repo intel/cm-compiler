@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2018-2022 Intel Corporation
+Copyright (C) 2018-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -16,6 +16,8 @@ See LICENSE.TXT for details.
 // This file implements Intel GenX TargetInfo objects.
 
 #include "GenX.h"
+
+#include "clang/Basic/CodeGenOptions.h"
 
 using namespace clang;
 using namespace clang::targets;
@@ -51,66 +53,37 @@ GenXTargetInfo::GenXTargetInfo(const llvm::Triple &Triple,
   }
 }
 
+void GenXTargetInfo::adjustTargetOptions(const CodeGenOptions &CGOpts,
+                                         TargetOptions &TargetOpts) const {
+  TargetOpts.CMMaxSLMSize =
+      CGOpts.MaxSLMSize == 0 ? MaxSLMSize : CGOpts.MaxSLMSize;
+  TargetOpts.CMMaxOWordBlock =
+      CGOpts.MaxOBRWSize == 0 ? MaxOWordBlock : CGOpts.MaxOBRWSize;
+  TargetOpts.CMIEFByPass = CGOpts.IEFByPass || HasIEFByPass;
+}
+
 /// handleTargetFeatures - Perform initialization based on the user
 /// configured set of features.
 bool GenXTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
                                           DiagnosticsEngine &Diags) {
-
-  NativeI64Support = llvm::StringSwitch<bool>(CPU)
-                         .Case("ICLLP", false)
-                         .Case("RKL", false)
-                         .Case("TGLLP", false)
-                         .Case("DG1", false)
-                         .Case("ADLS", false)
-                         .Case("ADLP", false)
-                         .Case("ADLN", false)
-                         .Case("MTL", false)
-                         .Case("DG2", false)
-                         .Default(true);
-
-  NativeDoubleSupport = llvm::StringSwitch<bool>(CPU)
-                            .Case("ICLLP", false)
-                            .Case("TGLLP", false)
-                            .Case("RKL", false)
-                            .Case("DG1", false)
-                            .Case("ADLS", false)
-                            .Case("ADLP", false)
-                            .Case("ADLN", false)
-                            .Case("DG2", false)
-                            .Default(true);
-
   return true;
 }
 
 bool GenXTargetInfo::setCPU(const std::string &Name) {
-  bool CPUKnown = llvm::StringSwitch<bool>(Name)
-                      .Case("HSW", true)
-                      .Case("BDW", true)
-                      .Case("CHV", true)
-                      .Case("SKL", true)
-                      .Case("BXT", true)
-                      .Case("GLK", true)
-                      .Case("KBL", true)
-                      .Case("ICL", true)
-                      .Case("ICLLP", true)
-                      .Case("TGLLP", true)
-                      .Case("RKL", true)
-                      .Case("DG1", true)
-                      .Case("XEHP_SDV", true)
-                      .Case("ADLP", true)
-                      .Case("ADLS", true)
-                      .Case("ADLN", true)
-                      .Case("DG2", true)
-                      .Case("PVC", true)
-                      .Case("PVCXT", true)
-                      .Case("MTL", true)
-                      .Default(false);
+  CPU = Name;
+  if (std::sscanf(CPU.c_str(), "%u.%u.%u", &Major, &Minor, &Revision) != 3)
+    return false;
+  setCPUProperties();
 
-  if (CPUKnown)
-    CPU = Name;
+  // FIXME: get rid of this stuff
+  if (Major < 12)
+    HasIEFByPass = false;
+  if (Major >= 12)
+    MaxOWordBlock = 16;
 
-  return CPUKnown;
+  return true;
 }
+
 void GenXTargetInfo::getTargetDefines(const LangOptions &Opts,
                                       MacroBuilder &Builder) const {
   Builder.defineMacro("_WIN32");
@@ -119,19 +92,20 @@ void GenXTargetInfo::getTargetDefines(const LangOptions &Opts,
   Builder.defineMacro("__MSVCRT__");
   Builder.defineMacro("_HAS_EXCEPTIONS", "0");
 
-  bool I64Emulation = !NativeI64Support && Opts.CMEmulateI64;
-  if (I64Emulation)
-    Builder.defineMacro("__CM_INTEGER_EMULATION_ENABLED__");
+  Builder.defineMacro("__CLANG_CM");
+  Builder.defineMacro("__CM");
+  Builder.defineMacro("__CMC");
+  Builder.defineMacro("__VARIADIC_TEMPLATES");
 
-  if (NativeI64Support || I64Emulation)
-    Builder.defineMacro("CM_HAS_LONG_LONG", "1");
+  Builder.defineMacro("__CM_INTEL_TARGET_MAJOR", std::to_string(Major));
+  Builder.defineMacro("__CM_INTEL_TARGET_MINOR", std::to_string(Minor));
+  Builder.defineMacro("__CM_INTEL_TARGET_REVISION", std::to_string(Revision));
 
-  if (NativeDoubleSupport)
+  if (HasFP64)
     Builder.defineMacro("CM_HAS_DOUBLE", "1");
 }
 bool GenXTargetInfo::hasFeature(StringRef Feature) const {
   return llvm::StringSwitch<bool>(Feature)
-      .Case("longlong", NativeI64Support)
-      .Case("double", NativeDoubleSupport)
+      .Case("double", HasFP64)
       .Default(true);
 }

@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -22,16 +22,8 @@ void test() {
 #warning CM_GENX not defined
 #endif
 
-#ifdef CM_GEN7_5
-#warning CM_GEN7_5 defined
-#endif
-
 #ifdef CM_GEN8
 #warning CM_GEN8 defined
-#endif
-
-#ifdef CM_GEN8_5
-#warning CM_GEN8_5 defined
 #endif
 
 #ifdef CM_GEN9
@@ -42,27 +34,17 @@ void test() {
 #warning CM_GEN9_5 defined
 #endif
 
-#ifdef CM_GEN10
-#warning CM_GEN10 defined
-#endif
-
-#ifdef CM_GEN10_5
-#warning CM_GEN10_5 defined
-#endif
-
 #ifdef CM_GEN11
 #warning CM_GEN11 defined
-#endif
-
-#ifdef CM_GEN11LP
-#warning CM_GEN11LP defined
 #endif
 
 #ifdef CM_GEN12
 #warning CM_GEN12 defined // expected-warning{{CM_GEN12 defined}}
 #endif
 
-
+#ifdef CM_XEHP
+#warning CM_XEHP defined
+#endif
 
 // We test a number of different ways to specify a dg1 jit target option.
 // All are equivalent, and should produce the same results, so we only need
@@ -73,4 +55,3 @@ void test() {
 // which also leaves things tidy for the next test.
 
 // RUN: %cmc -emit-llvm -march=DG1 -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
-

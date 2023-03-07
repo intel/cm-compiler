@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2020-2021 Intel Corporation
+Copyright (C) 2020-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -39,12 +39,6 @@ public:
   /// If given, the name of the target CPU to generate code for.
   std::string CPU;
 
-  /// If given, the name of the stepping to generate code for.
-  std::string Stepping;
-
-  // If given, revision id to pass to ocloc
-  int RevId;
-
   /// If given, the unit to use for floating point math.
   std::string FPMath;
 
@@ -77,6 +71,15 @@ public:
   /// \brief If enabled, use 32-bit pointers for accessing const/local/shared
   /// address space.
   bool NVPTXUseShortPointers = false;
+
+  /// For CM, maximum SLM size in kbytes
+  unsigned CMMaxSLMSize = 0;
+
+  /// For CM, maximum OWords per block operation
+  unsigned CMMaxOWordBlock = 0;
+
+  /// For CM
+  bool CMIEFByPass = false;
 
   // The code model to be used as specified by the user. Corresponds to
   // CodeModel::Model enum defined in include/llvm/Support/CodeGen.h, plus

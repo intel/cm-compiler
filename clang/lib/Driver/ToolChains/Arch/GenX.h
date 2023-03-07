@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2018-2022 Intel Corporation
+Copyright (C) 2018-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -30,23 +30,21 @@ namespace tools {
 namespace GenX {
 
 // get CPU from args
-std::string getGenXTargetCPU(const llvm::opt::ArgList &Args,
-                             const Driver *Drv = nullptr);
-
-// get RevId from CPU and args
-int getGenXRevId(const std::string &CPU,
-                 const llvm::opt::ArgList &Args,
-                 const Driver *Drv = nullptr);
-
-// get stepping from args
-std::string getGenXTargetStepping(const std::string &CPU,
-                                  const llvm::opt::ArgList &Args,
-                                  const Driver *Drv = nullptr);
+uint32_t getGenXTargetCPU(const llvm::opt::ArgList &Args,
+                          const Driver *Drv = nullptr);
 
 // get features from args and triple
 void getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,
                            const llvm::opt::ArgList &Args,
                            std::vector<llvm::StringRef> &Features);
+
+uint32_t getDeviceId(const std::string &Name);
+
+inline constexpr uint32_t encodeGmdId(uint32_t Major, uint32_t Minor,
+                                      uint32_t Revision) {
+  return ((Major & 0x3ff) << 22 | (Minor & 0xff) << 14 | (Revision & 0x3f));
+}
+
 } // end namespace GenX
 } // end namespace tools
 } // end namespace driver

@@ -7,6 +7,7 @@ SPDX-License-Identifier: MIT
 ============================= end_copyright_notice ===========================*/
 
 #include "cm_common.h"
+#include "cm_target.h"
 
 /// CM_HAS_<Feature> maros
 /// ----------------------
@@ -38,20 +39,6 @@ namespace CheckVersion {
 
 //-----------------------------------------------
 //-----------------------------------------------
-
-#if (CM_GENX >= 1200)
-  #define CM_HAS_DP4A 1
-  #define CM_HAS_DP4A_CONTROL CM_HAS_CONTROL(true)
-#else
-  #define CM_HAS_DP4A_CONTROL CM_HAS_CONTROL(false)
-#endif
-#if (CM_GENX >= 1150) //>= ICLLP
-  #define CM_HAS_BIT_ROTATE 1
-  #define CM_HAS_BIT_ROTATE_CONTROL CM_HAS_CONTROL(true)
-#else
-  #define CM_HAS_BIT_ROTATE_CONTROL CM_HAS_CONTROL(false)
-#endif
-
 /// CM_HAS_<Feature>_CONTROL macors
 /// -------------------------------
 /// Create static_assert if feature isn't supported for this platform.
@@ -59,6 +46,23 @@ namespace CheckVersion {
 ///
 /// CM_GENX value of platforms sets according to Frontend/InitPreprocessor.cpp.
 //===----------------------------------------------------------------------===//
+
+#define CM_HAS_LONG_LONG 1
+
+#if (CM_GENX >= 1200)
+  #define CM_HAS_DP4A 1
+  #define CM_HAS_DP4A_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_DP4A_CONTROL CM_HAS_CONTROL(false)
+#endif
+
+#if (CM_GENX >= 1150) //>= ICLLP
+  #define CM_HAS_BIT_ROTATE 1
+  #define CM_HAS_BIT_ROTATE_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_BIT_ROTATE_CONTROL CM_HAS_CONTROL(false)
+#endif
+
 
 //BFN
 #if (CM_GENX >= 1270) //>= XEHP_SDV

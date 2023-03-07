@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2021 Intel Corporation
+Copyright (C) 2014-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -615,65 +615,6 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
                       Twine(getClangFullCPPVersion()) + "\"");
 
   // Initialize language-specific preprocessor defines.
-
-  // MDF CM language specific macros
-  if (LangOpts.MdfCM) {
-    Builder.defineMacro("__CM");
-    Builder.defineMacro("__VARIADIC_TEMPLATES");
-    // We define __CLANG_CM and __CMC for use in cm header files
-    Builder.defineMacro("__CLANG_CM");
-    Builder.defineMacro("__CMC");
-    // If a GenX target CPU was specified define the appropriate value
-    if (!TOpts.CPU.empty()) {
-      const char *CmTarget = llvm::StringSwitch<const char *>(TOpts.CPU)
-      .Case("HSW", "CM_GEN7_5")
-      .Case("BDW", "CM_GEN8")
-      .Case("CHV", "CM_GEN8_5")
-      .Case("SKL", "CM_GEN9")
-      .Case("BXT", "CM_GEN9")
-      .Case("KBL", "CM_GEN9_5")
-      .Case("GLK", "CM_GEN9_5")
-      .Case("ICL", "CM_GEN11")
-      .Case("ICLLP", "CM_GEN11")
-      .Case("TGLLP", "CM_GEN12")
-      .Case("RKL", "CM_GEN12")
-      .Case("DG1", "CM_GEN12")
-      .Case("ADLP", "CM_GEN12")
-      .Case("ADLS", "CM_GEN12")
-      .Case("ADLN", "CM_GEN12")
-      .Case("XEHP_SDV", "CM_XEHP")
-      .Case("DG2", "CM_XEHPG")
-      .Case("MTL", "CM_XELPG")
-      .Case("PVC", "CM_XEHPC")
-      .Case("PVCXT", "CM_XEHPC")
-      .Default("");
-      Builder.defineMacro(CmTarget);
-      const char *GenXValue = llvm::StringSwitch<const char *>(TOpts.CPU)
-      .Case("HSW", "750")
-      .Case("BDW", "800")
-      .Case("CHV", "850")
-      .Case("SKL", "900")
-      .Case("BXT", "920")
-      .Case("KBL", "950")
-      .Case("GLK", "970")
-      .Case("ICL", "1100")
-      .Case("ICLLP", "1150")
-      .Case("TGLLP", "1200")
-      .Case("RKL", "1201")
-      .Case("DG1", "1210")
-      .Case("XEHP_SDV", "1270")
-      .Case("ADLP", "1220")
-      .Case("ADLS", "1230")
-      .Case("ADLN", "1240")
-      .Case("DG2", "1271")
-      .Case("MTL", "1275")
-      .Case("PVC", "1280")
-      .Case("PVCXT", "1280")
-      .Default("");
-      Builder.defineMacro("CM_GENX", GenXValue);
-    }
-    Builder.defineMacro("CM_GENX_REVID", std::to_string(TOpts.RevId));
-  }
 
   // Standard conforming mode?
   if (!LangOpts.GNUMode && !LangOpts.MSVCCompat)

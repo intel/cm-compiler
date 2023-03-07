@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2018-2022 Intel Corporation
+Copyright (C) 2018-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -34,11 +34,6 @@ namespace targets {
 // variant.
 //
 class LLVM_LIBRARY_VISIBILITY GenXTargetInfo : public TargetInfo {
-  static const Builtin::Info BuiltinInfo[];
-  std::string CPU;
-  bool NativeI64Support = false;
-  bool NativeDoubleSupport = false;
-
 public:
   GenXTargetInfo(const llvm::Triple &Triple, unsigned PointerWidth);
 
@@ -60,6 +55,8 @@ public:
     return TargetInfo::VoidPtrBuiltinVaList;
   }
 
+  void adjustTargetOptions(const CodeGenOptions &CGOpts,
+                           TargetOptions &TargetOpts) const override;
   void getTargetDefines(const LangOptions &Opts,
                         MacroBuilder &Builder) const override;
 
@@ -68,7 +65,7 @@ public:
 
   bool hasFeature(StringRef Feature) const override;
 
-  virtual const char *getClobbers() const { return ""; }
+  const char *getClobbers() const override { return ""; }
 
   ArrayRef<const char *> getGCCRegNames() const override {
     return ArrayRef<const char *>();
@@ -109,6 +106,24 @@ public:
       return true;
     }
   }
+
+private:
+  void setCPUProperties();
+
+  static const Builtin::Info BuiltinInfo[];
+
+  uint32_t Major;
+  uint32_t Minor;
+  uint32_t Revision;
+
+  std::string CPU;
+
+  bool HasFP64 = false;
+  unsigned MaxSLMSize = 64;
+
+  // FIXME: get rid of this stuff
+  bool HasIEFByPass = false;
+  unsigned MaxOWordBlock = 8;
 };
 
 } // namespace targets

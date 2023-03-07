@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2018-2022 Intel Corporation
+Copyright (C) 2018-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -29,66 +29,7 @@ using namespace clang::driver::tools;
 using namespace clang;
 using namespace llvm::opt;
 
-int GenX::getGenXRevId(const std::string &CPU,
-                       const ArgList &Args,
-                       const Driver *Drv) {
-  int RevId = 0;
-  if (Arg *A = Args.getLastArg(options::OPT_Qxcm_revid)) {
-    if (StringRef(A->getValue()).getAsInteger(0, RevId) && Drv)
-      Drv->Diag(diag::err_drv_invalid_int_value)
-          << A->getAsString(Args) << A->getValue();
-    return RevId;
-  }
-
-  // if no option, try to deduce from CPU
-  RevId = llvm::StringSwitch<int>(CPU)
-            .Case("PVC", 0)
-            .Case("PVCXT", 5)
-            .Default(0);
-
-  return RevId;
-}
-
-
-static void reportUnsupportedStepping(const std::string &CPU,
-                                      const std::string &Stepping) {
-  std::string Err = std::string(
-      (Twine("stepping <") + Stepping + "> is not supported for <" + CPU + ">")
-          .str());
-  llvm::report_fatal_error(Err);
-}
-
-static std::string deriveFinalCpuNameFromStepping(const std::string &CPU,
-                                                  const std::string &Stepping) {
-  if (Stepping.empty()) {
-    return CPU;
-  }
-
-  if (Stepping == "A" && CPU == "PVC")
-    return "PVC";
-
-  if (Stepping == "B" && CPU == "PVC")
-    return "PVCXT";
-
-
-  if (CPU == "DG2")
-    return CPU;
-
-  reportUnsupportedStepping(CPU, Stepping);
-  return CPU;
-}
-
-static bool isDeprecatedTarget(StringRef CanonicalCPU) {
-  return llvm::StringSwitch<bool>(CanonicalCPU)
-      .Case("BDW", true)
-      .Case("BXT", true)
-      .Case("GLK", true)
-      .Default(false);
-}
-
-static std::string getCanonicalGenXTargetCPU(const std::string &CPU,
-                                             const ArgList &Args,
-                                             const Driver *Drv) {
+static uint32_t getGenXTargetCPUId(const std::string &CPU, int RevId) {
   // As side-effect of the way we accept the CM command line options for
   // backwards compatiblity, the CPU string may be prefixed by '=' or ':'.
   // If so, remove the prefix character.
@@ -96,64 +37,53 @@ static std::string getCanonicalGenXTargetCPU(const std::string &CPU,
   if (CPUNameStart == std::string::npos)
     CPUNameStart = 0;
   std::string CPUName = CPU.substr(CPUNameStart);
-  std::transform(CPUName.begin(), CPUName.end(), CPUName.begin(), ::toupper);
+  std::transform(CPUName.begin(), CPUName.end(), CPUName.begin(), ::tolower);
 
-  // Ensure the CPU name is in canonical form
-  auto *CanonicalCPU = llvm::StringSwitch<const char *>(CPUName)
-                           .Cases("GEN7_5", "HSW", "HSW")
-                           .Cases("GEN8", "BDW", "BDW")
-                           .Cases("GEN8LP", "GEN8_5", "CHV", "CHV")
-                           .Cases("GEN9", "CFL", "SKL", "SKL")
-                           .Cases("GEN9LP", "BXT", "BXT")
-                           .Cases("GEN9_5", "GEN9P5", "KBL", "KBL")
-                           .Cases("GEN9_5LP", "GEN9P5LP", "GLK", "GLK")
-                           .Cases("GEN11", "ICL", "ICL")
-                           .Cases("GEN11LP", "ICLLP", "ICLLP")
-                           .Cases("GEN12LP", "TGLLP", "TGLLP")
-                           .Case("RKL", "RKL")
-                           .Case("DG1", "DG1")
-                           .Cases("XEHP", "XEHP_SDV", "XEHP_SDV")
-                           .Case("DG2", "DG2")
-                           .Case("ADLP", "ADLP")
-                           .Case("ADLS", "ADLS")
-                           .Case("ADLN", "ADLN")
-                           .Case("MTL", "MTL")
-                           .Case("PVC", "PVC")
-                           .Case("PVCXT", "PVCXT")
-                           .Default("");
+  CPUName = llvm::StringSwitch<std::string>(CPUName)
+                .Case("gen9lp", "bxt")
+                .Cases("gen9_5", "gen9p5", "kbl")
+                .Cases("gen9_5lp", "gen9p5lp", "glk")
+                .Case("gen11lp", "gen11")
+                .Case("tgl", "tgllp")
+                .Case("adls", "adl-s")
+                .Case("adlp", "adl-p")
+                .Case("adln", "adl-n")
+                .Cases("xehp", "xehp_sdv", "xe_hp_sdv", "xehp-sdv", "xe-hp-sdv",
+                       "xe-hp")
+                .Case("dg2", "acm-g10")
+                .Case("mtl", "xe-lpg")
+                .Case("pvcxt", "pvc")
+                .Default(CPUName);
 
-  // Check canonical name but report original argument.
-  if (Drv && isDeprecatedTarget(CanonicalCPU))
-    Drv->Diag(clang::diag::warn_cm_deprecated_target) << CPU;
+  uint32_t CPUId = GenX::getDeviceId(CPUName);
 
-  int RevId = GenX::getGenXRevId(CPU, Args, Drv);
-  if (CPUName == "PVC" && RevId >= 3)
-    return "PVCXT";
-  return CanonicalCPU;
+  if (CPUId != 0 && RevId >= 0) {
+    CPUId &= ~0x3f;
+    CPUId |= RevId & 0x3f;
+  }
+
+  return CPUId;
 }
 
-std::string GenX::getGenXTargetCPU(const ArgList &Args, const Driver *Drv) {
+uint32_t GenX::getGenXTargetCPU(const ArgList &Args, const Driver *Drv) {
   // GenX target CPU may be specified using one of /Qxcm_jit_target=xxx,
-  // -mcpu=xxx, or -march=xxx.
-  if (const Arg *A = Args.getLastArg(options::OPT_Qxcm_jit_target)) {
-    auto Jit_CPU = getCanonicalGenXTargetCPU(A->getValue(), Args, Drv);
-    if (!Jit_CPU.empty())
-      return std::move(Jit_CPU);
-  }
-  if (const Arg *A = Args.getLastArg(options::OPT_mcpu_EQ)) {
-    auto Mcpu_CPU = getCanonicalGenXTargetCPU(A->getValue(), Args, Drv);
-    if (!Mcpu_CPU.empty())
-      return std::move(Mcpu_CPU);
-  }
-  if (const Arg *A = Args.getLastArg(options::OPT_march_EQ)) {
-    auto March_CPU = getCanonicalGenXTargetCPU(A->getValue(), Args, Drv);
-    if (!March_CPU.empty())
-      return std::move(March_CPU);
-  }
-  // no GenX target CPU specified
-  if (Drv)
-    Drv->Diag(clang::diag::err_cm_unknown_arch);
-  return "";
+  // -mcpu=xxx or -march=xxx.
+  const Arg *ArchArg =
+      Args.getLastArg(options::OPT_Qxcm_jit_target, options::OPT_mcpu_EQ,
+                      options::OPT_march_EQ);
+  const char *CPUName = ArchArg ? ArchArg->getValue() : "unknown";
+
+  const Arg *RevArg = Args.getLastArg(options::OPT_Qxcm_revid);
+  int RevId = -1;
+  if (RevArg && StringRef(RevArg->getValue()).getAsInteger(0, RevId) && Drv)
+    Drv->Diag(diag::err_drv_invalid_int_value)
+        << RevArg->getAsString(Args) << RevArg->getValue();
+
+  uint32_t CPUId = getGenXTargetCPUId(CPUName, RevId);
+  if (Drv && CPUId == 0)
+    Drv->Diag(clang::diag::err_drv_invalid_arch_name) << CPUName;
+
+  return CPUId;
 }
 
 void GenX::getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,

@@ -1,6 +1,6 @@
 #=========================== begin_copyright_notice ============================
 #
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 #
@@ -33,6 +33,7 @@ add_clang_library(clangDriver
   ToolChains/Arch/AArch64.cpp
   ToolChains/Arch/ARM.cpp
   ToolChains/Arch/GenX.cpp
+  ToolChains/Arch/GenXPlatforms.cpp
   ToolChains/Arch/Mips.cpp
   ToolChains/Arch/PPC.cpp
   ToolChains/Arch/RISCV.cpp

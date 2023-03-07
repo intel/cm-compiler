@@ -42,20 +42,10 @@ StringRef fixupComplexArgument(StringRef Input) {
   return Input;
 }
 
-bool mayDisableIGA(const std::string &CPU) {
+bool mayDisableIGA(const uint32_t CPU) {
   // IGA may be disabled for targets before ICL.
   // CPU is expected to be a canonical Genx target name.
-  bool mayDisable = llvm::StringSwitch<bool>(CPU)
-                        .Case("HSW", true)
-                        .Case("BDW", true)
-                        .Case("CHV", true)
-                        .Case("SKL", true)
-                        .Case("BXT", true)
-                        .Case("KBL", true)
-                        .Case("GLK", true)
-                        .Default(false);
-
-  return mayDisable;
+  return CPU < tools::GenX::encodeGmdId(11, 0, 0);
 }
 
 ArgStringList constructCompatibilityFinalizerOptions(const ArgList &Args,
@@ -112,13 +102,14 @@ ArgStringList constructCompatibilityFinalizerOptions(const ArgList &Args,
       !Args.hasArg(options::OPT_mCM_enableiga)) {
 
     auto enableIGA = llvm::sys::Process::GetEnv("ENABLE_IGA");
+    auto MayDisableIGA = mayDisableIGA(CPU);
     if (enableIGA && (std::atol(enableIGA.getValue().c_str()) > 0)) {
-      if (mayDisableIGA(CPU)) {
+      if (MayDisableIGA) {
         Drv.Diag(diag::warn_cm_iga_enabled);
       }
-    }
-    else if (mayDisableIGA(CPU))
+    } else if (MayDisableIGA) {
       CompatibilityArgs.push_back("-disableIGASyntax");
+    }
   }
 
   // Scalar jmp instructions will be translated into goto's
@@ -156,8 +147,8 @@ bool GenX::isPICDefault() const { return false; }
 
 bool GenX::isPIEDefault() const { return false; }
 
-void GenX::addClangTargetOptions(const llvm::opt::ArgList &  DriverArgs,
-                                 llvm::opt::ArgStringList &  CC1Args,
+void GenX::addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
+                                 llvm::opt::ArgStringList &CC1Args,
                                  Action::OffloadKind DeviceOffloadKind) const {
 
   // Enforce backend to print parameters used to invoke finalizer
@@ -211,15 +202,7 @@ void GenX::addClangTargetOptions(const llvm::opt::ArgList &  DriverArgs,
     return;
   }
 
-  // if we have no Qxcm_revid here, lets push option to CC1
   const Driver &Drv = getDriver();
-  auto CPU = tools::GenX::getGenXTargetCPU(DriverArgs, &Drv);
-  int RevId = tools::GenX::getGenXRevId(CPU, DriverArgs, &Drv);
-  if (RevId != 0) {
-    std::ostringstream os;
-    os << "-Qxcm_revid=" << RevId;
-    CC1Args.push_back(DriverArgs.MakeArgString(os.str()));
-  }
 
   if (auto *Arg = DriverArgs.getLastArg(options::OPT_Qxcm_register_file_size)) {
     std::string Opt = "-Qxcm_register_file_size=";

@@ -9,8 +9,8 @@ SPDX-License-Identifier: MIT
 #ifndef _CLANG_CM_H_
 #define _CLANG_CM_H_
 
-#include "cm_target.h"
 #include "cm_common.h"
+#include "cm_target.h"
 
 #include "cm_threads.h"
 

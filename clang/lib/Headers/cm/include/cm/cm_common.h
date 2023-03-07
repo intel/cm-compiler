@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2022 Intel Corporation
+Copyright (C) 2014-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -13,6 +13,8 @@ static_assert(0, "CM:w:cm_common.h should not be included explicitly - only "
 
 #ifndef _CLANG_CM_COMMON_H_
 #define _CLANG_CM_COMMON_H_
+
+#include "cm_target.h"
 
 // Define MDF version
 #ifndef CM_1_0
