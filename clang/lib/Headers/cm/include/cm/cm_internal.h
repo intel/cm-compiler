@@ -475,7 +475,6 @@ template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
 RetTy __cm_intrinsic_impl_load4_flat(uint64_t Addr, vector<uint, N> Offset,
                                      vector<ushort, N> Pred,
                                      ChannelMaskType mask);
-
 template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
           CacheHint L1H, CacheHint L3H, bool Transposed>
 RetTy __cm_intrinsic_impl_block_load_bti(SurfaceIndex Idx, unsigned Offset);

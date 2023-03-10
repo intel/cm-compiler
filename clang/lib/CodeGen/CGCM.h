@@ -647,10 +647,6 @@ private:
   llvm::Value *HandleBuiltinTF32CVTImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
   /// \brief Postprocess block 2d builtins load/store/prefetch.
   llvm::Value *HandleBuiltinLSC2dImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
-
-  /// \brief Postprocess wave 2.5 load/store
-  llvm::Value *HandleBuiltinLSCWaveImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
-
   /// \brief Postprocess BTI-based load/store/prefetch
   llvm::Value *HandleBuiltinLSCImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
 
