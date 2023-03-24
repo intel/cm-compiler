@@ -882,6 +882,7 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
             {SPIRV::ExtensionID::SPV_INTEL_float_controls2, true},
             {SPIRV::ExtensionID::SPV_INTEL_hw_thread_queries, true},
             {SPIRV::ExtensionID::SPV_INTEL_inline_assembly, true},
+            {SPIRV::ExtensionID::SPV_INTEL_split_barrier, true},
             {SPIRV::ExtensionID::SPV_INTEL_vector_compute, true},
             {SPIRV::ExtensionID::SPV_KHR_float_controls, true},
         }};

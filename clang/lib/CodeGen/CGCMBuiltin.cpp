@@ -575,42 +575,6 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
       Error(E->getExprLoc(), "One or zero mask argument expected");
       return RValue::get(0);
     }
-  case Builtin::BIcm_sbarrier:
-    Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_sbarrier);
-    if (E->getNumArgs() == 1) {
-      const Expr *Arg = E->getArg(0);
-      Expr::EvalResult MaskResult;
-      if (!Arg->EvaluateAsInt(MaskResult, CGF.getContext())) {
-        Error(Arg->getExprLoc(), "integeral constant expected for masks");
-        return RValue::get(0);
-      }
-      llvm::APSInt Mask = MaskResult.Val.getInt();
-      unsigned char MaskVal = static_cast<unsigned char>(Mask.getZExtValue());
-      // Clear reserved bits and only use first 1 bit
-      MaskVal &= 0x1;
-
-      if (CGF.CurFuncDecl->hasAttr<CMGenxMainAttr>()) {
-        // Update regular barrier count in kernel metadata.
-        if (llvm::MDNode *Node = getSLMSizeMDNode(CGF.CurFn)) {
-          if (llvm::Value *OldSz = getVal(Node->getOperand(llvm::genx::KernelMDOp::BarrierCnt))) {
-              assert(isa<llvm::ConstantInt>(OldSz) && "integer constant expected");
-              uint64_t OldVal = cast<llvm::ConstantInt>(OldSz)->getZExtValue();
-              if (OldVal == 0) {
-                  llvm::Value *NewSz = llvm::ConstantInt::get(OldSz->getType(), 1);
-                  Node->replaceOperandWith(llvm::genx::KernelMDOp::BarrierCnt, getMD(NewSz));
-              }
-          }
-        }
-      }
-
-      return RValue::get(CGF.Builder.CreateCall(
-        Fn, llvm::ConstantInt::get(Fn->getFunctionType()->getParamType(0), MaskVal),
-        ""));
-    }
-    else {
-      Error(E->getExprLoc(), "One signal flag argument expected");
-      return RValue::get(0);
-    }
   case Builtin::BIcm_nbarrier_init:
     EmitBuiltinNBarrierInit(CGF, E);
     return RValue::get(0);

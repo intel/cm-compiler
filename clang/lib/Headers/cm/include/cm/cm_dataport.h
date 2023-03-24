@@ -1319,11 +1319,25 @@ static const uint __cm_init_seq[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 
 /// \brief CM barrier workgroup synchronization
 ///
-/// Inserts a barrier to ensure all writes to SLM before this point would be henceforth visible to
-/// other threads in the same group.
+/// Inserts a barrier to ensure all writes to SLM before this point would be
+/// henceforth visible to other threads in the same group.
 ///
 CM_INLINE CM_NODEBUG void cm_barrier() {
   __spirv_ControlBarrier(detail::spirv::scope::workgroup, 0, 0);
+}
+
+/// \brief CM split barrier workgroup synchronization
+///
+/// Inserts a barrier to ensure all writes to SLM before this point would be
+/// henceforth visible to other threads in the same group.
+///
+CM_INLINE CM_NODEBUG void cm_sbarrier(uint flag) {
+  enum { Wait = 0, Arrive = 1 };
+
+  if (flag == Arrive)
+    __spirv_ControlBarrierArriveINTEL(detail::spirv::scope::workgroup, 0, 0);
+  else
+    __spirv_ControlBarrierWaitINTEL(detail::spirv::scope::workgroup, 0, 0);
 }
 
 /// \brief Shared local memory statefull read.
