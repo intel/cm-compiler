@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2022 Intel Corporation
+Copyright (C) 2014-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -143,8 +143,6 @@ enum CMBuiltinKind {
   CMBK_cm_dpasw_impl,
   CMBK_cm_dpasw_nosrc0,
   CMBK_cm_dpasw_nosrc0_impl,
-  CMBK_cm_bf_cvt,
-  CMBK_cm_bf_cvt_impl,
   CMBK_cm_tf32_cvt,
   CMBK_cm_tf32_cvt_impl,
   CMBK_cm_srnd,

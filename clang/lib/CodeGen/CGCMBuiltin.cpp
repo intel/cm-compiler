@@ -222,7 +222,6 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
           .StartsWith("_Z7cm_dp4a", CMBK_cm_dp4a)
           .StartsWith("_Z6cm_bfn", CMBK_cm_bfn)
           .StartsWith("_Z7cm_dpas", CMBK_cm_dpas)
-          .StartsWith("_Z9cm_bf_cvt", CMBK_cm_bf_cvt)
           .Default(CMBK_none);
 
   // Handle implementation intrinsics.
@@ -242,7 +241,6 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
             .StartsWith("__cm_intrinsic_impl_dpas_nosrc0",
                         CMBK_cm_dpas_nosrc0_impl)
             .StartsWith("__cm_intrinsic_impl_dpas", CMBK_cm_dpas2_impl)
-            .StartsWith("__cm_intrinsic_impl_bf_cvt", CMBK_cm_bf_cvt_impl)
             .StartsWith("__cm_intrinsic_impl_tf32_cvt", CMBK_cm_tf32_cvt_impl)
             .StartsWith("__cm_intrinsic_impl_srnd", CMBK_cm_srnd_impl)
             .StartsWith("__cm_intrinsic_impl_prefetch_bti",
@@ -845,7 +843,6 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_cm_bfn:
   case CMBK_cm_dpas:// old variant
   case CMBK_cm_dpas2:
-  case CMBK_cm_bf_cvt:
     HandleBuiltinInterface(getCurCMCallInfo());
     return RV;
   case CMBK_oword_read_impl:
@@ -1110,8 +1107,6 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(HandleBuiltinDPASImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_dpas2_impl:
     return RValue::get(HandleBuiltinDPAS2Impl(getCurCMCallInfo(), Kind));
-  case CMBK_cm_bf_cvt_impl:
-    return RValue::get(HandleBuiltinBFCVTImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_tf32_cvt_impl:
     return RValue::get(HandleBuiltinTF32CVTImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_srnd_impl:
@@ -2481,9 +2476,6 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
     break;
   case CMBK_cm_dpasw_nosrc0_impl:
     ID = llvm::GenXIntrinsic::genx_dpasw_nosrc0;
-    break;
-  case CMBK_cm_bf_cvt:
-    ID = llvm::GenXIntrinsic::genx_bf_cvt;
     break;
   case CMBK_cm_tf32_cvt:
     ID = llvm::GenXIntrinsic::genx_tf32_cvt;
@@ -7216,29 +7208,6 @@ llvm::Value *CGCMRuntime::HandleBuiltinDPASImpl(CMCallInfo &CallInfo,
   llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
   Result->setDebugLoc(CI->getDebugLoc());
   CallInfo.CI->eraseFromParent();
-  return Result;
-}
-
-/// \brief Postprocess builtin cm_bf_cvt.
-///
-/// template <typename T, typename T0, int N>
-/// vector<T, N>
-/// __cm_intrinsic_impl_bf_cvt(vector<T0, N> src0)
-///
-llvm::Value *CGCMRuntime::HandleBuiltinBFCVTImpl(CMCallInfo &CallInfo,
-                                                 CMBuiltinKind Kind) {
-  assert(Kind == CMBK_cm_bf_cvt_impl);
-
-  llvm::CallInst *CI = CallInfo.CI;
-  CGBuilderTy Builder(*CallInfo.CGF, CI);
-
-  llvm::Type *Tys[] = {CI->getType(), CI->getOperand(0)->getType()};
-  llvm::Function *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_bf_cvt, Tys);
-  llvm::CallInst *Result =
-      Builder.CreateCall(F, CI->getOperand(0), CI->getName());
-  Result->setDebugLoc(CI->getDebugLoc());
-
-  CI->eraseFromParent();
   return Result;
 }
 

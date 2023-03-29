@@ -421,12 +421,9 @@ vector<T0, N> __cm_intrinsic_impl_srnd(vector<T1, N> src1, vector<T1, N> src2);
 
 // ----------------------------------------------------------------------------
 //
-// Conversions to special types (BF, etc)
+// Conversions to special types
 //
 // ----------------------------------------------------------------------------
-template <typename T, typename T0, int N>
-vector<T, N> __cm_intrinsic_impl_bf_cvt(vector<T0, N> src0);
-
 
 template <typename T, typename T0, int N>
 vector<T, N> __cm_intrinsic_impl_tf32_cvt(vector<T0, N> src0);

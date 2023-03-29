@@ -2145,48 +2145,6 @@ cm_f32tof16(const matrix<T, N1, N2> src) {
   return _ret.format<ushort>();
 }
 
-#if (CM_HAS_BF16)
-
-//////////////////////////////////////////
-// bf_cvt intrinsic begin
-//////////////////////////////////////////
-
-template <typename T, typename T0, int N>
-CM_NODEBUG CM_INLINE
-vector<T, N>
-cm_bf_cvt(vector<T0, N> src0) {
-  CM_STATIC_ERROR(
-    (std::is_same<half, typename std::remove_const<T>::type>::value &&
-     std::is_same<float, typename std::remove_const<T0>::type>::value) ||
-    (std::is_same<float, typename std::remove_const<T>::type>::value &&
-     std::is_same<half, typename std::remove_const<T0>::type>::value),
-    "Invalid type for cm_bf_cvt: src->dst must be half->float or float->half");
-  return details::__cm_intrinsic_impl_bf_cvt<T>(src0);
-}
-
-template <typename T, typename T0, int N1, int N2>
-CM_NODEBUG CM_INLINE
-vector<T, N1*N2>
-cm_bf_cvt(matrix<T0, N1, N2> src) {
-  vector<T0, N1 *N2> _Src = src;
-  return cm_bf_cvt<T>(_Src);
-}
-
-template <typename T, typename T0>
-CM_NODEBUG CM_INLINE
-typename std::enable_if<
-  details::is_cm_scalar<T>::value &&details::is_cm_scalar<T0>::value,
-  typename std::remove_const<T>::type>::type
-cm_bf_cvt(T0 src) {
-  vector<T0, 1> _Src = src;
-  vector<T, 1> _Result = cm_bf_cvt<T>(_Src);
-  return _Result(0);
-}
-//////////////////////////////////////////
-// bf_cvt intrinsic end
-//////////////////////////////////////////
-#endif // CM_HAS_BF16
-
 template <typename T1, typename T2, typename T3, typename T4, int N>
 CM_NODEBUG CM_INLINE typename std::enable_if<
     details::is_dword_type<T1>::value &&

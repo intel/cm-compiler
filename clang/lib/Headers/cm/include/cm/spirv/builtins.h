@@ -53,4 +53,13 @@ void __spirv_ControlBarrierArriveINTEL(int scope, int memory_scope,
 void __spirv_ControlBarrierWaitINTEL(int scope, int memory_scope,
                                      int memory_semantics);
 
+// SPV_INTEL_bfloat16_conversion extension
+float __spirv_ConvertBF16ToFINTEL(short);
+short __spirv_ConvertFToBF16INTEL(float);
+
+template <int Width>
+vector<float, Width> __spirv_ConvertBF16ToFINTEL(vector<short, Width>);
+template <int Width>
+vector<short, Width> __spirv_ConvertFToBF16INTEL(vector<float, Width>);
+
 #endif // _CLANG_CM_SPIRV_BUILTINS_H_

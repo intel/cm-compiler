@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2021 Intel Corporation
+Copyright (C) 2016-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -878,6 +878,7 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
         {
             {SPIRV::ExtensionID::SPV_EXT_relaxed_printf_string_address_space,
              true},
+            {SPIRV::ExtensionID::SPV_INTEL_bfloat16_conversion, true},
             {SPIRV::ExtensionID::SPV_INTEL_fast_composite, true},
             {SPIRV::ExtensionID::SPV_INTEL_float_controls2, true},
             {SPIRV::ExtensionID::SPV_INTEL_hw_thread_queries, true},

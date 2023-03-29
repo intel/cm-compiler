@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2022 Intel Corporation
+Copyright (C) 2014-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -641,8 +641,6 @@ private:
   llvm::Value *HandleBuiltinDPASImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
   /// \brief Postprocess dpas2 implementation builtin.
   llvm::Value *HandleBuiltinDPAS2Impl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
-  /// \brief Postprocess builtin cm_bf_cvt.
-  llvm::Value *HandleBuiltinBFCVTImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
   /// \brief Postprocess builtin cm_tf32_cvt.
   llvm::Value *HandleBuiltinTF32CVTImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
   /// \brief Postprocess block 2d builtins load/store/prefetch.

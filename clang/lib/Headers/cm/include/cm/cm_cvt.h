@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2020-2022 Intel Corporation
+Copyright (C) 2020-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -19,6 +19,47 @@ static_assert(0, "CM:w:cm_cvt.h should not be included explicitly - only "
 #include "cm_traits.h"
 #include "cm_has_instr.h"
 
+
+// float<->bfloat16 conversion
+template <typename DstTy, typename SrcTy, int Width>
+CM_NODEBUG CM_INLINE vector<DstTy, Width> cm_bf_cvt(vector<SrcTy, Width> Src) {
+  using namespace details;
+  CM_HAS_BF16_CONTROL;
+  CM_STATIC_ERROR(
+      (is_float_type<DstTy>::value &&
+       (is_half_type<SrcTy>::value || is_word_type<SrcTy>::value)) ||
+          (is_float_type<SrcTy>::value &&
+           (is_half_type<DstTy>::value || is_word_type<DstTy>::value)),
+      "Invalid type for cm_bf_cvt: src->dst must be {half,short,ushort}->float "
+      "or float->{half,short,ushort}");
+
+  if constexpr (is_float_type<SrcTy>::value) {
+    vector<short, Width> Dst;
+    if constexpr (Width == 1) {
+      Dst = __spirv_ConvertFToBF16INTEL(Src[0]);
+    } else {
+      Dst = __spirv_ConvertFToBF16INTEL(Src);
+    }
+    return Dst.template format<DstTy>();
+  } else if constexpr (Width == 1) {
+    return __spirv_ConvertBF16ToFINTEL(Src.template format<short>()[0]);
+  } else {
+    return __spirv_ConvertBF16ToFINTEL(Src.template format<short>());
+  }
+}
+
+template <typename DstTy, typename SrcTy, int Height, int Width>
+CM_NODEBUG CM_INLINE vector<DstTy, Height * Width>
+cm_bf_cvt(matrix<SrcTy, Height, Width> Src) {
+  return cm_bf_cvt<DstTy>(Src.template format<SrcTy>());
+}
+
+template <typename DstTy, typename SrcTy>
+CM_NODEBUG CM_INLINE DstTy cm_bf_cvt(SrcTy Src) {
+  vector<SrcTy, 1> _Src = Src;
+  vector<DstTy, 1> _Result = cm_bf_cvt<DstTy>(_Src);
+  return _Result[0];
+}
 
 // float32 to tf32 convertion one direction
 template <typename T, typename T0, int N>
