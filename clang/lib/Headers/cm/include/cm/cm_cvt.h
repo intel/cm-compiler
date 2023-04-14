@@ -55,7 +55,11 @@ cm_bf_cvt(matrix<SrcTy, Height, Width> Src) {
 }
 
 template <typename DstTy, typename SrcTy>
-CM_NODEBUG CM_INLINE DstTy cm_bf_cvt(SrcTy Src) {
+CM_NODEBUG CM_INLINE
+typename std::enable_if<details::is_cm_scalar<DstTy>::value &&
+                        details::is_cm_scalar<SrcTy>::value,
+                        typename std::remove_const<DstTy>::type>::type
+cm_bf_cvt(SrcTy Src) {
   vector<SrcTy, 1> _Src = Src;
   vector<DstTy, 1> _Result = cm_bf_cvt<DstTy>(_Src);
   return _Result[0];
