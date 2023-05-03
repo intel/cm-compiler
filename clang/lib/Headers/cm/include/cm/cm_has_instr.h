@@ -102,12 +102,7 @@ namespace CheckVersion {
 
 
 //DPAS_ODD
-#if (CM_GENX >= 1270 && CM_GENX <= 1280) //>= XEHP_SDV && <= PVC
-  #define CM_HAS_DPAS_ODD 1
-  #define CM_HAS_DPAS_ODD_CONTROL CM_HAS_CONTROL(true)
-#else
-  #define CM_HAS_DPAS_ODD_CONTROL CM_HAS_CONTROL(false)
-#endif
+#define CM_HAS_DPAS_ODD 1
 
 //DPASW
 //>= XEHP_SDV && < PVC, except MTL

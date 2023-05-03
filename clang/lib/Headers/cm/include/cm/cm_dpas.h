@@ -62,10 +62,6 @@ CM_NODEBUG CM_INLINE void cm_dpas_check_common() {
   CM_STATIC_ERROR((N == DPAS_EXECUTION_SIZE * repeat_count),
                   "Unsupported execution size in dpas");
 
-  // DPAS RepeatCount is restricted to event counts except 8x1
-  if constexpr (repeat_count > 1 && repeat_count % 2 == 1)
-    CM_HAS_DPAS_ODD_CONTROL;
-
   constexpr unsigned ops_per_channel =
       get_ops_per_channel(src1_precision, src2_precision);
   CM_STATIC_ERROR(ops_per_channel != 0xFFFFFFFF,

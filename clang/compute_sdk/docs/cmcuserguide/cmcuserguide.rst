@@ -307,9 +307,9 @@ CM_HAS_DPAS_ACC_BF16           Defined (with value 1) if the specifed target sup
                                the BFloat16 data type as an accumulator for the
                                ``cm_dpas`` built-in function.
 
-CM_HAS_DPAS_ODD                Defined (with value 1) if the specifed target supports
-                               odd values for as RepeatCount the ``cm_dpas`` built-in
-                               function.
+CM_HAS_DPAS_ODD                DEPRECATED. Defined (with value 1) if the specifed
+                               target supports odd values for as RepeatCount the
+                               ``cm_dpas`` built-in function.
 
 CM_HAS_DPASW                   Defined (with value 1) if the specifed target supports
                                the ``cm_dpasw`` built-in function.
