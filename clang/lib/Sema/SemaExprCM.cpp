@@ -1852,3 +1852,21 @@ ExprResult Sema::BuildCMFunctionalCastExpr(TypeSourceInfo *TInfo,
   }
   return Result;
 }
+
+void Sema::CheckCMAddressSpaceCast(QualType DestType, Expr *CastExpr) {
+  QualType SrcType = CastExpr->getType();
+
+  auto SrcPtrType = SrcType->getAs<PointerType>();
+  if (!SrcPtrType)
+    return;
+  auto DestPtrType = DestType->getAs<PointerType>();
+  if (!DestPtrType)
+    return;
+
+  if (!DestPtrType->isAddressSpaceOverlapping(*SrcPtrType)) {
+    Diag(CastExpr->getBeginLoc(),
+         diag::err_typecheck_incompatible_address_space)
+        << SrcType << DestType << Sema::AA_Casting
+        << CastExpr->getSourceRange();
+  }
+}

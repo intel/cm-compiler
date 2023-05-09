@@ -27,6 +27,18 @@ static std::string getDL(bool Is64Bit) {
   return Is64Bit ? "e-p:64:64-i64:64-n8:16:32" : "e-p:32:32-i64:64-n8:16:32";
 }
 
+static const unsigned GenXAddrSpaceMap[] = {
+    0, // Default
+    1, // opencl_global
+    3, // opencl_local
+    2, // opencl_constant
+    0, // opencl_private
+    4, // opencl_generic
+    0, // cuda_device
+    0, // cuda_constant
+    0  // cuda_shared
+};
+
 GenXTargetInfo::GenXTargetInfo(const llvm::Triple &Triple,
                                unsigned TargetPointerWidth)
     : TargetInfo(Triple) {
@@ -37,6 +49,7 @@ GenXTargetInfo::GenXTargetInfo(const llvm::Triple &Triple,
   TheCXXABI.set(TargetCXXABI::GenericItanium);
   LongWidth = LongAlign = TargetPointerWidth;
   PointerWidth = PointerAlign = TargetPointerWidth;
+  AddrSpaceMap = &GenXAddrSpaceMap;
   switch (TargetPointerWidth) {
   case 32:
     SizeType = TargetInfo::UnsignedInt;

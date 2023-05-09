@@ -6473,6 +6473,8 @@ Sema::ActOnCastExpr(Scope *S, SourceLocation LParenLoc,
 
   DiscardMisalignedMemberAddress(castType.getTypePtr(), CastExpr);
 
+  CheckCMAddressSpaceCast(castType, CastExpr);
+
   return BuildCStyleCastExpr(LParenLoc, castTInfo, RParenLoc, CastExpr);
 }
 

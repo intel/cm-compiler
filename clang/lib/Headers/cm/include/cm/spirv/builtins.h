@@ -42,10 +42,45 @@ enum scope {
   subgroup = 3,
   invocation = 4
 };
+
+enum storage {
+  UniformConstant = 0,
+  Input = 1,
+  Uniform = 2,
+  Output = 3,
+  Workgroup = 4,
+  CrossWorkgroup = 5,
+  Private = 6,
+  Function = 7,
+  Generic = 8,
+  PushConstant = 9,
+  AtomicCounter = 10,
+  Image = 11,
+  StorageBuffer = 12
+};
 } // namespace spirv
 } // namespace detail
 
 void __spirv_ControlBarrier(int scope, int memory_scope, int memory_semantics);
+
+__attribute__((opencl_private)) void *
+__spirv_GenericCastToPtrExplicit_ToPrivate(
+    __attribute__((opencl_generic)) void *ptr, int storage);
+const __attribute__((opencl_private)) void *
+__spirv_GenericCastToPtrExplicit_ToPrivate(
+    const __attribute__((opencl_generic)) void *ptr, int storage);
+
+__attribute__((opencl_global)) void *__spirv_GenericCastToPtrExplicit_ToGlobal(
+    __attribute__((opencl_generic)) void *ptr, int storage);
+const __attribute__((opencl_global)) void *
+__spirv_GenericCastToPtrExplicit_ToGlobal(
+    const __attribute__((opencl_generic)) void *ptr, int storage);
+
+__attribute__((opencl_local)) void *__spirv_GenericCastToPtrExplicit_ToLocal(
+    __attribute__((opencl_generic)) void *ptr, int storage);
+const __attribute__((opencl_local)) void *
+__spirv_GenericCastToPtrExplicit_ToLocal(
+    const __attribute__((opencl_generic)) void *ptr, int storage);
 
 // SPV_INTEL_split_barrier extension
 void __spirv_ControlBarrierArriveINTEL(int scope, int memory_scope,

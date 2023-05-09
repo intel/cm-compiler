@@ -183,8 +183,11 @@ void CodeGenFunction::EmitVarDecl(const VarDecl &D) {
     return EmitStaticVarDecl(D, Linkage);
   }
 
-  if (D.getType().getAddressSpace() == LangAS::opencl_local)
+  if (D.getType().getAddressSpace() == LangAS::opencl_local) {
+    if (getLangOpts().MdfCM)
+      return EmitStaticVarDecl(D, llvm::GlobalValue::InternalLinkage);
     return CGM.getOpenCLRuntime().EmitWorkGroupLocalVarDecl(*this, D);
+  }
 
   assert(D.hasLocalStorage());
   return EmitAutoVarDecl(D);
@@ -1321,9 +1324,9 @@ void CodeGenFunction::EmitAndRegisterVariableArrayDimensions(
 CodeGenFunction::AutoVarEmission
 CodeGenFunction::EmitAutoVarAlloca(const VarDecl &D) {
   QualType Ty = D.getType();
-  assert(
-      Ty.getAddressSpace() == LangAS::Default ||
-      (Ty.getAddressSpace() == LangAS::opencl_private && getLangOpts().OpenCL));
+  assert(Ty.getAddressSpace() == LangAS::Default ||
+         (Ty.getAddressSpace() == LangAS::opencl_private &&
+          (getLangOpts().OpenCL || getLangOpts().MdfCM)));
 
   AutoVarEmission emission(D);
 

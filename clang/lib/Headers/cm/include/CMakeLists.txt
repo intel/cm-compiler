@@ -57,6 +57,7 @@ set(CM_HEADERS
   cm/gen8_vme.h
   cm/gen9_vme.h
   cm/spirv/builtins.h
+  cm/cm_addrspace.h
 
   opencl-c-common.h
   )

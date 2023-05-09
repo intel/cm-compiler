@@ -1444,6 +1444,8 @@ public:
   /// \brief Check whether vector/matrix initializer is valid.
   void DiagnoseCMVectorMatrixInitializer(QualType VarType, Expr *E);
 
+  void CheckCMAddressSpaceCast(QualType DestType, Expr *CastExpr);
+
   bool CheckFunctionReturnType(QualType T, SourceLocation Loc);
 
   /// Build a function type.

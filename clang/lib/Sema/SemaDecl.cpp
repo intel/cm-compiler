@@ -7312,8 +7312,8 @@ void Sema::CheckVariableDeclarationType(VarDecl *NewVD) {
   // This includes arrays of objects with address space qualifiers, but not
   // automatic variables that point to other address spaces.
   // ISO/IEC TR 18037 S5.1.2
-  if (!getLangOpts().OpenCL && NewVD->hasLocalStorage() &&
-      T.getAddressSpace() != LangAS::Default) {
+  if (!(getLangOpts().OpenCL || getLangOpts().MdfCM) &&
+      NewVD->hasLocalStorage() && T.getAddressSpace() != LangAS::Default) {
     Diag(NewVD->getLocation(), diag::err_as_qualified_auto_decl) << 0;
     NewVD->setInvalidDecl();
     return;
@@ -7329,14 +7329,14 @@ void Sema::CheckVariableDeclarationType(VarDecl *NewVD) {
     return;
   }
 
-  if (getLangOpts().OpenCL) {
+  if (getLangOpts().OpenCL || getLangOpts().MdfCM) {
     // OpenCL v2.0 s6.12.5 - The __block storage type is not supported.
-    if (NewVD->hasAttr<BlocksAttr>()) {
+    if (NewVD->hasAttr<BlocksAttr>() && getLangOpts().OpenCL) {
       Diag(NewVD->getLocation(), diag::err_opencl_block_storage_type);
       return;
     }
 
-    if (T->isBlockPointerType()) {
+    if (T->isBlockPointerType() && getLangOpts().OpenCL) {
       // OpenCL v2.0 s6.12.5 - Any block declaration must be const qualified and
       // can't use 'extern' storage class.
       if (!T.isConstQualified()) {
@@ -7361,11 +7361,25 @@ void Sema::CheckVariableDeclarationType(VarDecl *NewVD) {
     // FIXME: Add local AS for OpenCL C++.
     if (NewVD->isFileVarDecl() || NewVD->isStaticLocal() ||
         NewVD->hasExternalStorage()) {
-      if (!T->isSamplerT() &&
-          !(T.getAddressSpace() == LangAS::opencl_constant ||
-            (T.getAddressSpace() == LangAS::opencl_global &&
-             (getLangOpts().OpenCLVersion == 200 ||
-              getLangOpts().OpenCLCPlusPlus)))) {
+      // In CM variables defined at program scope and static
+      // variables inside a function can also be declared in the
+      // global/constant/private address space.
+      if (getLangOpts().MdfCM) {
+        if (!(T.getAddressSpace() == LangAS::opencl_constant ||
+              T.getAddressSpace() == LangAS::opencl_global ||
+              T.getAddressSpace() == LangAS::opencl_private ||
+              T.getAddressSpace() == LangAS::Default)) {
+          int Scope = NewVD->isStaticLocal() | NewVD->hasExternalStorage() << 1;
+          Diag(NewVD->getLocation(), diag::err_opencl_global_invalid_addr_space)
+              << Scope << "global, constant or private";
+          NewVD->setInvalidDecl();
+          return;
+        }
+      } else if (!T->isSamplerT() &&
+                 !(T.getAddressSpace() == LangAS::opencl_constant ||
+                   (T.getAddressSpace() == LangAS::opencl_global &&
+                    (getLangOpts().OpenCLVersion == 200 ||
+                     getLangOpts().OpenCLCPlusPlus)))) {
         int Scope = NewVD->isStaticLocal() | NewVD->hasExternalStorage() << 1;
         if (getLangOpts().OpenCLVersion == 200 || getLangOpts().OpenCLCPlusPlus)
           Diag(NewVD->getLocation(), diag::err_opencl_global_invalid_addr_space)
@@ -7388,7 +7402,8 @@ void Sema::CheckVariableDeclarationType(VarDecl *NewVD) {
         FunctionDecl *FD = getCurFunctionDecl();
         // OpenCL v1.1 s6.5.2 and s6.5.3: no local or constant variables
         // in functions.
-        if (FD && !FD->hasAttr<OpenCLKernelAttr>()) {
+        if (FD && ((!FD->hasAttr<OpenCLKernelAttr>() && getLangOpts().OpenCL) ||
+                   (!FD->hasAttr<CMGenxMainAttr>() && getLangOpts().MdfCM))) {
           if (T.getAddressSpace() == LangAS::opencl_constant)
             Diag(NewVD->getLocation(), diag::err_opencl_function_variable)
                 << 0 /*non-kernel only*/ << "constant";
@@ -7400,7 +7415,8 @@ void Sema::CheckVariableDeclarationType(VarDecl *NewVD) {
         }
         // OpenCL v2.0 s6.5.2 and s6.5.3: local and constant variables must be
         // in the outermost scope of a kernel function.
-        if (FD && FD->hasAttr<OpenCLKernelAttr>()) {
+        if (FD && ((FD->hasAttr<OpenCLKernelAttr>() && getLangOpts().OpenCL) ||
+                   (FD->hasAttr<CMGenxMainAttr>() && getLangOpts().MdfCM))) {
           if (!getCurScope()->isFunctionScope()) {
             if (T.getAddressSpace() == LangAS::opencl_constant)
               Diag(NewVD->getLocation(), diag::err_opencl_addrspace_scope)
@@ -7412,7 +7428,11 @@ void Sema::CheckVariableDeclarationType(VarDecl *NewVD) {
             return;
           }
         }
-      } else if (T.getAddressSpace() != LangAS::opencl_private) {
+      } else if ((T.getAddressSpace() != LangAS::opencl_private &&
+                  getLangOpts().OpenCL) ||
+                 (T.getAddressSpace() != LangAS::opencl_private &&
+                  T.getAddressSpace() != LangAS::Default &&
+                  getLangOpts().MdfCM)) {
         // Do not allow other address spaces on automatic variable.
         Diag(NewVD->getLocation(), diag::err_as_qualified_auto_decl) << 1;
         NewVD->setInvalidDecl();
@@ -9247,8 +9267,21 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
 
           // Allow pointer arguments.
           // TODO, only allow certain pointers?
-          if (getLangOpts().CMPointer && ParamTy->isPointerType())
-            continue;
+          if (getLangOpts().CMPointer && ParamTy->isPointerType()) {
+            if(!IsGenxMain)
+              continue;
+            // A kernel function argument cannot be declared as a
+            // pointer to a pointer type.
+            QualType PointeeType = ParamTy->getPointeeType();
+            if (!PointeeType->isPointerType())
+              // Allow a pointer argument to reside in default address space
+              // for backwards compatibility for now.
+              if (PointeeType.getAddressSpace() == LangAS::Default ||
+                  PointeeType.getAddressSpace() == LangAS::opencl_global ||
+                  PointeeType.getAddressSpace() == LangAS::opencl_constant ||
+                  PointeeType.getAddressSpace() == LangAS::opencl_local)
+                continue;
+          }
 
           Diag(Param->getLocation(), diag::err_cm_invalid_param_type)
               << Param->getType();
