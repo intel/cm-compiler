@@ -299,6 +299,22 @@ CM_HAS_TF32                    Defined (with value 1) if the specifed target sup
 CM_HAS_DPAS                    Defined (with value 1) if the specifed target supports
                                the ``cm_dpas`` built-in function.
 
+CM_HAS_DPAS_INT2               Defined (with value 1) if the specifed target supports
+                               the 2-bit integer data as sources for ``cm_dpas``
+                               built-in function.
+
+CM_HAS_DPAS_INT4               Defined (with value 1) if the specifed target supports
+                               the 4-bit integer data as sources for ``cm_dpas``
+                               built-in function.
+
+CM_HAS_DPAS_INT8               Defined (with value 1) if the specifed target supports
+                               the 8-bit integer data as sources for ``cm_dpas``
+                               built-in function.
+
+CM_HAS_DPAS_INT_MIX            Defined (with value 1) if the specifed target supports
+                               the mix of integer data types as sources for
+                               ``cm_dpas`` built-in function.
+
 CM_HAS_DPAS_ACC_HALF           Defined (with value 1) if the specifed target supports
                                the ``half`` data type as an accumulator for the
                                ``cm_dpas`` built-in function.

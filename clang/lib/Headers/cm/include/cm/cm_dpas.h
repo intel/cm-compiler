@@ -24,11 +24,6 @@ static_assert(0, "CM:w:cm_dpas.h should not be included explicitly - only "
 
 inline constexpr int get_dpas_execution_size(CmPrecisionType src1_precision) {
   (void)src1_precision;
-#if !defined(CM_GENX)
-  CM_STATIC_WARNING(0,
-                    "GEN not specified so cm_dpas() code may not be optimal");
-  return 8;
-#endif // !defined(CM_GENX)
   if (CM_GENX >= 1280)
     return 16;
   return 8;
@@ -52,10 +47,10 @@ CM_NODEBUG CM_INLINE void cm_dpas_check_common() {
 
   CM_STATIC_ERROR(check_type<T2>(src2_precision), "Src2 type is incorrect");
 
-  CM_STATIC_ERROR((systolic_depth == 8), "systolic_depth must be 8");
+  CM_STATIC_ERROR(systolic_depth == 8, "Systolic depth must be 8");
 
-  CM_STATIC_ERROR((repeat_count >= 1) && (repeat_count <= 8),
-                  "repeat_count must be within 1 to 8");
+  CM_STATIC_ERROR(repeat_count >= 1 && repeat_count <= 8,
+                  "Repeat count must be within 1 to 8");
 
   constexpr int DPAS_EXECUTION_SIZE = get_dpas_execution_size(src1_precision);
 
@@ -65,45 +60,67 @@ CM_NODEBUG CM_INLINE void cm_dpas_check_common() {
   constexpr unsigned ops_per_channel =
       get_ops_per_channel(src1_precision, src2_precision);
   CM_STATIC_ERROR(ops_per_channel != 0xFFFFFFFF,
-                  "invalid combination of Src1/Src2 precision");
+                  "Invalid combination of Src1/Src2 precision");
   constexpr unsigned src1_precision_bits = get_precision_bits(src1_precision);
 
   CM_STATIC_ERROR(
       N1 == ((src1_precision_bits * systolic_depth * ops_per_channel * N) /
              (repeat_count * sizeof(T1) * 8)),
-      "invalid size for Src1");
+      "Invalid size for Src1");
 
   constexpr unsigned src2_precision_bits = get_precision_bits(src2_precision);
   CM_STATIC_ERROR(N2 == ((src2_precision_bits * systolic_depth *
                           ops_per_channel * repeat_count) /
                          (sizeof(T2) * 8)),
-                  "invalid size for Src2");
+                  "Invalid size for Src2");
+}
+
+constexpr bool cm_dpas_check_src_integer_type(CmPrecisionType Ty) {
+#if defined(CM_HAS_DPAS_INT2)
+  if (Ty == CmPrecisionType::CM_Precision_U2 ||
+      Ty == CmPrecisionType::CM_Precision_S2)
+    return true;
+#endif // defined(CM_HAS_DPAS_INT2)
+#if defined(CM_HAS_DPAS_INT4)
+  if (Ty == CmPrecisionType::CM_Precision_U4 ||
+      Ty == CmPrecisionType::CM_Precision_S4)
+    return true;
+#endif // defined(CM_HAS_DPAS_INT4)
+#if defined(CM_HAS_DPAS_INT8)
+  if (Ty == CmPrecisionType::CM_Precision_U8 ||
+      Ty == CmPrecisionType::CM_Precision_S8)
+    return true;
+#endif // defined(CM_HAS_DPAS_INT8)
+  return false;
 }
 
 template <CmPrecisionType src1_precision, CmPrecisionType src2_precision,
           typename T0, int systolic_depth, int repeat_count, typename T,
           typename T1, typename T2, int N, int N1, int N2>
 CM_NODEBUG CM_INLINE void cm_dpas_check_types() {
-
   // INT //////////////////////////////////////////////////////////////////////
   // types: dst, src0, src1, src2
   // ud, d | ud, d | ub, b | ub, b
   // ud, d | ud, d | u4, s4, u2, s2 | ub, b
   // ud, d | ud, d | ub, b | u4, s4, u2, s2
   // ud, d | ud, d | u4, s4, u2, s2 | u4, s4, u2, s2
+  constexpr bool check_int_acc =
+      details::is_dword_type<T0>::value && details::is_dword_type<T>::value;
+  constexpr bool check_int_src1 =
+      cm_dpas_check_src_integer_type(src1_precision);
+  constexpr bool check_int_src2 =
+      cm_dpas_check_src_integer_type(src2_precision);
+
+  constexpr bool check_int_mix =
+#if defined(CM_HAS_DPAS_INT_MIX)
+      true;
+#else  // defined(CM_HAS_DPAS_INT_MIX)
+      get_precision_bits(src1_precision) == get_precision_bits(src2);
+#endif // defined(CM_HAS_DPAS_INT_MIX)
+
   constexpr bool check_int =
-      details::is_one_of_v<T0, unsigned int, int> &&
-      details::is_one_of_v<T, unsigned int, int> &&
-      details::is_one_of_enum_v<
-          CmPrecisionType, src1_precision, CmPrecisionType::CM_Precision_S8,
-          CmPrecisionType::CM_Precision_U8, CmPrecisionType::CM_Precision_U4,
-          CmPrecisionType::CM_Precision_S4, CmPrecisionType::CM_Precision_U2,
-          CmPrecisionType::CM_Precision_S2> &&
-      details::is_one_of_enum_v<
-          CmPrecisionType, src2_precision, CmPrecisionType::CM_Precision_S8,
-          CmPrecisionType::CM_Precision_U8, CmPrecisionType::CM_Precision_U4,
-          CmPrecisionType::CM_Precision_S4, CmPrecisionType::CM_Precision_U2,
-          CmPrecisionType::CM_Precision_S2>;
+      check_int_acc && check_int_src1 && check_int_src2 && check_int_mix;
+
   //////////////////////////////////////////////////////////////////////////////
   // HF ////////////////////////////////////////////////////////////////////////
   // f,hf | f, hf | hf | hf
@@ -149,22 +166,10 @@ CM_NODEBUG CM_INLINE void cm_dpas_check_types() {
                                std::is_same<T, short>::value))
     CM_HAS_DPAS_ACC_BF16_CONTROL;
 
-  constexpr bool is_right = (check_int || check_hf || check_bf16 || check_tf32);
+  constexpr bool is_supported =
+      check_int || check_hf || check_bf16 || check_tf32;
 
-  if (!is_right) {
-    CM_STATIC_WARNING(is_right, "types: dst | src0 | src1(from template "
-                                "parameter) | src2(from template parameter)");
-    CM_STATIC_WARNING(
-        is_right,
-        "ud, d | ud, d | ub, b, u4, s4, u2, s2 | ub, b, u4, s4, u2, s2");
-    CM_STATIC_WARNING(is_right, "f, bf | f, bf | bf | bf");
-    CM_STATIC_WARNING(is_right, "f, hf | f, hf | hf | hf");
-#if defined(CM_HAS_TF32)
-    CM_STATIC_WARNING(is_right, "f | f | tf32 | tf32");
-#endif // defined(CM_HAS_TF32)
-
-    CM_STATIC_ERROR(is_right, "unsupported dpas type");
-  }
+  CM_STATIC_ERROR(is_supported, "unsupported dpas type");
 }
 
 template <CmPrecisionType src1_precision, CmPrecisionType src2_precision,

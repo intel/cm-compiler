@@ -100,6 +100,18 @@ namespace CheckVersion {
   #define CM_HAS_DPAS_CONTROL CM_HAS_CONTROL(false)
 #endif
 
+#define CM_HAS_DPAS_INT_MIX 1
+#define CM_HAS_DPAS_INT_MIX_CONTROL CM_HAS_CONTROL(true)
+
+#define CM_HAS_DPAS_INT2 1
+#define CM_HAS_DPAS_INT2_CONTROL CM_HAS_CONTROL(true)
+
+#define CM_HAS_DPAS_INT4 1
+#define CM_HAS_DPAS_INT4_CONTROL CM_HAS_CONTROL(true)
+
+#define CM_HAS_DPAS_INT8 1
+#define CM_HAS_DPAS_INT8_CONTROL CM_HAS_CONTROL(true)
+
 
 //DPAS_ODD
 #define CM_HAS_DPAS_ODD 1
