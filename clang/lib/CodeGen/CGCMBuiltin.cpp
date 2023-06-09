@@ -406,7 +406,17 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
             .StartsWith("__cm_intrinsic_impl_wrregion", CMBK_wrregion)
             .Default(CMBK_none);
   }
-
+  // Handle other builtin implementations.
+  if (Kind == CMBK_none) {
+    size_t Start = MangledName.find("__cm_builtin_impl");
+    StringRef MangledImplName = MangledName.substr(Start);
+    Kind = StringSwitch<CMBuiltinKind>(MangledImplName)
+               .StartsWith("__cm_builtin_impl_load", CMBK_load_impl)
+               .StartsWith("__cm_builtin_impl_store", CMBK_store_impl)
+               .StartsWith("__cm_builtin_impl_gather", CMBK_gather_impl)
+               .StartsWith("__cm_builtin_impl_scatter", CMBK_scatter_impl)
+               .Default(CMBK_none);
+  }
   return Kind;
 }
 
@@ -1148,6 +1158,16 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_cm_lsc_fence_impl:
     HandleBuiltinLscFenceImpl(getCurCMCallInfo(), Kind);
     return RValue::get(0);
+  case CMBK_scatter_impl:
+    HandleBuiltinScatterImpl(getCurCMCallInfo(), Kind);
+    return RValue::get(0);
+  case CMBK_gather_impl:
+    return RValue::get(HandleBuiltinGatherImpl(getCurCMCallInfo(), Kind));
+  case CMBK_store_impl:
+    HandleBuiltinStoreImpl(getCurCMCallInfo(), Kind);
+    return RValue::get(0);
+  case CMBK_load_impl:
+    return RValue::get(HandleBuiltinLoadImpl(getCurCMCallInfo(), Kind));
   }
 
   // Returns the normal call rvalue.
@@ -7610,6 +7630,143 @@ CGCMRuntime::HandleBuiltinLscFenceImpl(CMCallInfo &CallInfo,
   }
   CI->eraseFromParent();
   return Result;
+}
+
+/// \brief Postprocess scatter implementation.
+//
+// template <typename T, int N, int A>
+// void __cm_builtin_impl_scatter(vector<T, N> data, vector<T*, N> ptrs,
+//                                vector<ushort, N> mask);
+//
+void CGCMRuntime::HandleBuiltinScatterImpl(CMCallInfo &CallInfo,
+                                           CMBuiltinKind Kind) {
+  assert(Kind == CMBK_scatter_impl);
+
+  llvm::CallInst *CI = CallInfo.CI;
+
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  llvm::Value *Val = CI->getArgOperand(0);
+  llvm::Value *Addr = CI->getArgOperand(1);
+  llvm::Value *Mask = CI->getArgOperand(2);
+  {
+    assert(Mask->getType()->isVectorTy());
+    auto VTy = llvm::VectorType::get(Builder.getInt1Ty(),
+                                     Mask->getType()->getVectorNumElements());
+    Mask = Builder.CreateTruncOrBitCast(Mask, VTy);
+  }
+
+  uint32_t Alignment = getIntegralValue(CallInfo.CE->getDirectCallee(), 2);
+  // We reserved zero for element size alignment.
+  if (!Alignment)
+    Alignment = cast<llvm::VectorType>(Val->getType())
+                    ->getElementType()
+                    ->getPrimitiveSizeInBits() / 8;
+
+  auto NewCI = Builder.CreateMaskedScatter(Val, Addr, Alignment, Mask);
+  NewCI->setDebugLoc(CI->getDebugLoc());
+  CI->eraseFromParent();
+}
+
+/// \brief Postprocess gather implementation.
+//
+// template <typename T, int N, int A>
+// vector<T, N> __cm_builtin_impl_gather(vector<T*, N> ptrs, vector<ushort, N> mask,
+//                                       vector<T, N> passthru);
+//
+llvm::Value *CGCMRuntime::HandleBuiltinGatherImpl(CMCallInfo &CallInfo,
+                                                  CMBuiltinKind Kind) {
+  assert(Kind == CMBK_gather_impl);
+
+  llvm::CallInst *CI = CallInfo.CI;
+
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  llvm::Value *Addr = CI->getArgOperand(0);
+  llvm::Value *Passthru = CI->getArgOperand(2);
+  llvm::Value *Mask = CI->getArgOperand(1);
+  {
+    assert(Mask->getType()->isVectorTy());
+    auto VTy = llvm::VectorType::get(Builder.getInt1Ty(),
+                                     Mask->getType()->getVectorNumElements());
+    Mask = Builder.CreateTruncOrBitCast(Mask, VTy);
+  }
+
+  uint32_t Alignment = getIntegralValue(CallInfo.CE->getDirectCallee(), 2);
+  // We reserved zero for element size alignment.
+  if (!Alignment)
+    Alignment = cast<llvm::VectorType>(Passthru->getType())
+                    ->getElementType()
+                    ->getPrimitiveSizeInBits() / 8;
+
+  auto NewCI = Builder.CreateMaskedGather(Addr, Alignment, Mask, Passthru);
+  NewCI->setDebugLoc(CI->getDebugLoc());
+  CI->replaceAllUsesWith(NewCI);
+  CI->eraseFromParent();
+  return NewCI;
+}
+
+/// \brief Postprocess store implementation.
+//
+// template <typename T, int A>
+// void __cm_builtin_impl_store(T val, T *ptr);
+//
+void CGCMRuntime::HandleBuiltinStoreImpl(CMCallInfo &CallInfo,
+                                         CMBuiltinKind Kind) {
+  assert(Kind == CMBK_store_impl);
+
+  llvm::CallInst *CI = CallInfo.CI;
+
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  llvm::Value *Val = CI->getArgOperand(0);
+  llvm::Value *Addr = CI->getArgOperand(1);
+
+  uint32_t Alignment = getIntegralValue(CallInfo.CE->getDirectCallee(), 1);
+  // We reserved zero for element size alignment.
+  if (!Alignment) {
+    llvm::Type *ValTy = Val->getType();
+    llvm::Type *ElemTy = ValTy->isVectorTy()
+                             ? cast<llvm::VectorType>(ValTy)->getElementType()
+                             : ValTy;
+    Alignment = ElemTy->getPrimitiveSizeInBits() / 8;
+  }
+
+  auto NewCI = Builder.CreateAlignedStore(Val, Addr, Alignment);
+  NewCI->setDebugLoc(CI->getDebugLoc());
+  CI->eraseFromParent();
+}
+
+/// \brief Postprocess load implementation.
+//
+// template <typename T, int A>
+// T __cm_builtin_impl_load(T *ptr);
+//
+llvm::Value *CGCMRuntime::HandleBuiltinLoadImpl(CMCallInfo &CallInfo,
+                                                CMBuiltinKind Kind) {
+  assert(Kind == CMBK_load_impl);
+
+  llvm::CallInst *CI = CallInfo.CI;
+
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  llvm::Value *Addr = CI->getArgOperand(0);
+
+  uint32_t Alignment = getIntegralValue(CallInfo.CE->getDirectCallee(), 1);
+  // We reserved zero for element size alignment.
+  if (!Alignment) {
+    llvm::Type *ValTy = CI->getType();
+    llvm::Type *ElemTy = ValTy->isVectorTy()
+                             ? cast<llvm::VectorType>(ValTy)->getElementType()
+                             : ValTy;
+    Alignment = ElemTy->getPrimitiveSizeInBits() / 8;
+  }
+
+  auto NewCI = Builder.CreateAlignedLoad(CI->getType(), Addr, Alignment);
+  NewCI->setDebugLoc(CI->getDebugLoc());
+  CI->replaceAllUsesWith(NewCI);
+  CI->eraseFromParent();
+  return NewCI;
 }
 
 /// \brief Emit one of scatter_scaled, scatter4_scaled.

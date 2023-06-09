@@ -4198,10 +4198,19 @@ Sema::PerformImplicitConversion(Expr *From, QualType ToType,
     break;
   }
 
-  case ICK_CMVectorMatrix_Conversion:
-    From = ImpCastExprToType(From, ToType, CK_BitCast, From->getValueKind(),
-                             /*BasePath*/0, CCK).get();
+  case ICK_CMVectorMatrix_Conversion: {
+    CastKind CK = CK_BitCast;
+    // Check for addrspace cast.
+    QualType FromElType = From->getType()->getCMVectorMatrixElementType();
+    QualType ToElType = ToType->getCMVectorMatrixElementType();
+    if (ToElType->isPointerType() && FromElType->isPointerType())
+      if (ToElType->getPointeeType().getAddressSpace() !=
+          FromElType->getPointeeType().getAddressSpace())
+        CK = CK_AddressSpaceConversion;
+    From = ImpCastExprToType(From, ToType, CK, From->getValueKind(),
+                             /*BasePath*/ 0, CCK).get();
     break;
+  }
   case ICK_CMBaseToReference:
     From = ImpCastExprToType(From, ToType, CK_CMBaseToReference,
                              From->getValueKind(), /*BasePath*/ 0, CCK).get();

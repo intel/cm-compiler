@@ -848,8 +848,7 @@ llvm::Value *CGCMRuntime::EmitWriteRegion1D(CGBuilderTy &Builder,
   llvm::Type *OffsetTy = Offset->getType();
   int OffsetTySize = Tys[0]->getScalarSizeInBits() / 8;
   if (!OffsetTySize) {
-    assert(Tys[0]->getScalarType()->isPointerTy() &&
-           Tys[0]->getScalarType()->getPointerElementType()->isFunctionTy());
+    assert(Tys[0]->getScalarType()->isPointerTy());
     OffsetTySize = DL.getTypeSizeInBits(Tys[0]) / 8;
   }
   Offset = Builder.CreateMul(

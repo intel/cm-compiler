@@ -1856,8 +1856,6 @@ bool CastExpr::CastConsistency() const {
       Ty = Ty->getPointeeType();
       SETy = SETy->getPointeeType();
     }
-    assert(!Ty.isNull() && !SETy.isNull() &&
-           Ty.getAddressSpace() != SETy.getAddressSpace());
     goto CheckNoBasePath;
   }
   // These should not have an inheritance path.

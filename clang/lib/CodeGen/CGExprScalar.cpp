@@ -2181,11 +2181,21 @@ Value *ScalarExprEmitter::VisitCastExpr(CastExpr *CE) {
       return CGF.CGM.getNullPointer(cast<llvm::PointerType>(
           ConvertType(DestTy)), DestTy);
     }
+    const QualType SrcType = E->getType();
+    QualType SrcPointeeTy = SrcType->getPointeeType();
+    QualType DestPointeeTy = DestTy->getPointeeType();
+    // CM vector/matrix address space conversions
+    // with pointer elements types.
+    if (SrcType->isCMVectorMatrixType() &&
+        DestTy->isCMVectorMatrixType()) {
+      SrcPointeeTy = SrcType->getCMVectorMatrixElementType()->getPointeeType();
+      DestPointeeTy = DestTy->getCMVectorMatrixElementType();
+    }
     // Since target may map different address spaces in AST to the same address
     // space, an address space conversion may end up as a bitcast.
     return CGF.CGM.getTargetCodeGenInfo().performAddrSpaceCast(
-        CGF, Visit(E), E->getType()->getPointeeType().getAddressSpace(),
-        DestTy->getPointeeType().getAddressSpace(), ConvertType(DestTy));
+        CGF, Visit(E), SrcPointeeTy.getAddressSpace(),
+        DestPointeeTy.getAddressSpace(), ConvertType(DestTy));
   }
   case CK_AtomicToNonAtomic:
   case CK_NonAtomicToAtomic:

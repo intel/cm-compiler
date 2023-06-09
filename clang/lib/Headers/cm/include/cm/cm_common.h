@@ -608,6 +608,13 @@ constexpr unsigned get_precision_bits(CmPrecisionType src_precision) {
 // Mark a function with inline attribute (CM-specific inline)
 #define CM_INLINE inline
 
+// CM address-space qualifiers
+#define __private __attribute__((opencl_private))
+#define __global __attribute__((opencl_global))
+#define __constant __attribute__((opencl_constant))
+#define __local __attribute__((opencl_local))
+#define __generic __attribute__((opencl_generic))
+
 #ifdef __DISABLE_INLINING_ON_CM_LIBRARY_CALLS
 // TODO: probably CM library calls should have something like _CM_INLINE
 // instead of CM_INLINE, to separate internal defines from the ones used by

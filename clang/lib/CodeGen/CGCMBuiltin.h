@@ -231,6 +231,11 @@ enum CMBuiltinKind {
   CMBK_cm_svm_write4_impl,
   CMBK_cm_svm_atomic,
   CMBK_cm_svm_atomic_impl,
+  // new API for CM memory reads/writes.
+  CMBK_load_impl,
+  CMBK_store_impl,
+  CMBK_gather_impl,
+  CMBK_scatter_impl,
   // Adaptie video scaling.
   CMBK_cm_avs_sampler,
   CMBK_cm_va_2d_convolve,

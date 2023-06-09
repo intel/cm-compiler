@@ -878,6 +878,7 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
         {
             {SPIRV::ExtensionID::SPV_EXT_relaxed_printf_string_address_space,
              true},
+            {SPIRV::ExtensionID::SPV_INTEL_masked_gather_scatter, true},
             {SPIRV::ExtensionID::SPV_INTEL_bfloat16_conversion, true},
             {SPIRV::ExtensionID::SPV_INTEL_fast_composite, true},
             {SPIRV::ExtensionID::SPV_INTEL_float_controls2, true},

@@ -14,13 +14,8 @@ static_assert(0, "CM:w:cm_addrspace.h should not be included explicitly - only "
 #ifndef _CM_ADDRSPACE_H_
 #define _CM_ADDRSPACE_H_
 
+#include "cm_common.h"
 #include "spirv/builtins.h"
-
-#define __private __attribute__((opencl_private))
-#define __global __attribute__((opencl_global))
-#define __constant __attribute__((opencl_constant))
-#define __local __attribute__((opencl_local))
-#define __generic __attribute__((opencl_generic))
 
 template <typename T>
 CM_INLINE CM_NODEBUG __private T *cm_to_private(__generic T *ptr) {

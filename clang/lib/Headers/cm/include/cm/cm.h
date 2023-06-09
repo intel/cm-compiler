@@ -33,6 +33,7 @@ SPDX-License-Identifier: MIT
 #include "cm_spec_constant.h"
 
 #include "cm_addrspace.h"
+#include "cm_memory.h"
 #include "cm_printfocl.h"
 
 // cm_abs

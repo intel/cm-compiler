@@ -36,11 +36,6 @@ static bool checkCMElementType(Sema &S, CMTypeKind Kind, QualType EltTy,
     return false;
   }
 
-  if (EltTy->isPointerType() && !EltTy->isFunctionPointerType()) {
-    S.Diag(VMLoc, diag::err_cm_element_type_no_ptr) << Kind << EltTy;
-    return false;
-  }
-
   if (EltTy->isIncompleteType()) {
     S.Diag(VMLoc, diag::err_cm_element_type_incomplete) << Kind << EltTy;
     return false;
@@ -54,6 +49,8 @@ static bool checkCMElementType(Sema &S, CMTypeKind Kind, QualType EltTy,
 
   // Defer other type checking if it is dependent.
   if (EltTy->isDependentType())
+    return true;
+  if (EltTy->isPointerType())
     return true;
 
   // Finally, check if the element type is a supported type and emit a general

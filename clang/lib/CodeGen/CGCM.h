@@ -317,6 +317,7 @@ public:
   };
 
   void Error(SourceLocation Loc, StringRef Msg);
+
   llvm::Function *getGenXIntrinsic(unsigned ID,
                                    ArrayRef<llvm::Type *> Tys = None);
 
@@ -651,6 +652,19 @@ private:
   /// \brief Postprocess cm_lsc_fence implementation builtins.
   llvm::Value *HandleBuiltinLscFenceImpl(CMCallInfo &CallInfo,
                                          CMBuiltinKind Kind);
+
+  /// \brief Postprocess scatter implementation.
+  void HandleBuiltinScatterImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+
+  /// \brief Postprocess gather implementation.
+  llvm::Value *HandleBuiltinGatherImpl(CMCallInfo &CallInfo,
+                                       CMBuiltinKind Kind);
+
+  /// \brief Postprocess store implementation.
+  void HandleBuiltinStoreImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+
+  /// \brief Postprocess load implementation.
+  llvm::Value *HandleBuiltinLoadImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
 
   /// \brief Emit 1D/2D select expression.
   LValue EmitSelect(CodeGenFunction &CGF, const CMSelectExpr *E, LValue Base);

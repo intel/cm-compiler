@@ -9367,8 +9367,6 @@ def err_cm_positive_dim_expected : Error<
   "positive %select{size|number of rows|number of columns}0 expected">;
 def err_cm_element_type_no_ref : Error<
   "%select{vector|matrix|vector_ref|matrix_ref}0 element type should not be a reference, %1">;
-def err_cm_element_type_no_ptr : Error<
-  "%select{vector|matrix|vector_ref|matrix_ref}0 element type should not be a pointer, %1">;
 def err_cm_element_type_incomplete : Error<
   "%select{vector|matrix|vector_ref|matrix_ref}0 element type should not be incomplete, %1">;
 def err_cm_element_type_no_qualifier : Error<

@@ -3572,7 +3572,7 @@ QualType ASTContext::getCMVectorType(bool IsReference, QualType EltType,
                                      SourceLocation LessLoc,
                                      SourceLocation GreaterLoc) const {
   assert(EltType->isBuiltinType() || EltType->isDependentType() ||
-         EltType->isFunctionPointerType());
+         EltType->isFunctionPointerType() || EltType->isPointerType());
 
   // Check if we've already instantiated a vector of this type.
   llvm::FoldingSetNodeID ID;
@@ -3606,7 +3606,8 @@ QualType ASTContext::getCMMatrixType(bool IsReference, QualType EltType,
                                      SourceLocation VMLoc,
                                      SourceLocation LessLoc,
                                      SourceLocation GreaterLoc) const {
-  assert(EltType->isBuiltinType() || EltType->isDependentType());
+  assert(EltType->isBuiltinType() || EltType->isDependentType() ||
+         EltType->isPointerType());
 
   // Check if we've already instantiated a vector of this type.
   llvm::FoldingSetNodeID ID;
