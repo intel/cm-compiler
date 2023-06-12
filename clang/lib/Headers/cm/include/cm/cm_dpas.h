@@ -115,7 +115,7 @@ CM_NODEBUG CM_INLINE void cm_dpas_check_types() {
 #if defined(CM_HAS_DPAS_INT_MIX)
       true;
 #else  // defined(CM_HAS_DPAS_INT_MIX)
-      get_precision_bits(src1_precision) == get_precision_bits(src2);
+      get_precision_bits(src1_precision) == get_precision_bits(src2_precision);
 #endif // defined(CM_HAS_DPAS_INT_MIX)
 
   constexpr bool check_int =
