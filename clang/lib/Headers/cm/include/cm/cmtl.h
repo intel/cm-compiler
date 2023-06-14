@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2021 Intel Corporation
+Copyright (C) 2014-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -452,11 +452,13 @@ CM_INLINE void cm_vector_assign(vector_ref<T, Size> v, int InitValue, int Step);
  * are macros! */
 #define cm_matrix(M, T, R, C, I, S)                                            \
   matrix<T, R, C> M(cmtl::__CM_init_array_0_7);                                \
-  cmtl::__CM_vector_init<T, R *C, I, S>(M.format<T>());
+  cmtl::__VectorInit<(R * C / 8) * 8, T, R * C, I, S> Init;                    \
+  Init.__CM_vector_init(M.format<T>());
 
 #define cm_vector(V, T, N, I, S)                                               \
   vector<T, N> V(cmtl::__CM_init_array_0_7);                                   \
-  cmtl::__CM_vector_init<T, N, I, S>(V);
+  cmtl::__VectorInit<(N / 8) * 8, T, N, I, S> Init;                            \
+  Init.__CM_vector_init(V);
 
 /* ------------------------- Extended Math Routines
  * ----------------------------------------------*/
@@ -642,8 +644,8 @@ template <typename T, int SZ> void cm_assert_range(vector<T, SZ>, float, float);
 
 const ushort __CM_init_array_0_7[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 template <uint RemSize, typename T, uint Size> struct __RemainderInit;
-template <typename T, uint Size, int InitValue, int Step>
-void __CM_vector_init(vector_ref<T, Size> v);
+template <uint Size8x, typename T, uint Size, int InitValue, int Step>
+struct __VectorInit;
 
 /* ---------------------------------------------------------------------------*/
 /* ------------------------- Implementation
@@ -685,16 +687,12 @@ CM_INLINE void vectorMaskFirstZerosThenOnes(vector_ref<T, SZ> v,
   v = 1;
   const uint numFullZeroBlocks = numZeros >> 3;
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (uint blockIdx = 0; blockIdx < numFullZeroBlocks; blockIdx++) {
     v.template select<8, 1>(blockIdx * 8) = 0;
   }
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (uint remIdx = numFullZeroBlocks * 8; remIdx < numZeros; remIdx++) {
     v(remIdx) = 0;
   }
@@ -840,14 +838,10 @@ CM_INLINE void IoFixedStrideBlock(SurfaceIndex iobuf, CmBufferAttrib buf_attrib,
   int vblock, hblock;
   int h_pos_abs = sizeof(T) * h_pos;
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (vblock = 0; vblock < (int)HEIGHT - (MAX_V_STRIDE - 1);
        vblock += MAX_V_STRIDE) {
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
     for (hblock = 0; hblock < (int)WIDTH - (H_STRIDE - 1); hblock += H_STRIDE) {
       _ioOp<T, MAX_V_STRIDE, H_STRIDE, OP_TYPE>(
           iobuf, buf_attrib, sizeof(T) * hblock + h_pos_abs, v_pos + vblock,
@@ -864,9 +858,7 @@ CM_INLINE void IoFixedStrideBlock(SurfaceIndex iobuf, CmBufferAttrib buf_attrib,
     }
   }
   if (HEIGHT % MAX_V_STRIDE) {
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
     for (hblock = 0; hblock < (int)WIDTH - (H_STRIDE - 1); hblock += H_STRIDE) {
       _ioOp<T, _CMTL_SAFE_SIZE(HEIGHT % MAX_V_STRIDE), H_STRIDE, OP_TYPE>(
           iobuf, buf_attrib, sizeof(T) * hblock + h_pos_abs, v_pos + vblock,
@@ -986,9 +978,7 @@ CM_INLINE void IOLinear(SurfaceIndex iobuf, int pix_pos,
   int h_pos_abs = sizeof(T) * pix_pos;
 
   if constexpr (WIDTH >= PIX_STRD) {
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
     for (hblock = 0; hblock < (int)WIDTH - (PIX_STRD - 1); hblock += PIX_STRD) {
       _ioLinearOp<T, PIX_STRD, OP_TYPE>(
           iobuf, sizeof(T) * hblock + h_pos_abs,
@@ -1029,9 +1019,7 @@ Vectorize2DKRNLRow(vector_ref<Tsrc, SIMD_SZ + KRNL_SZ - 1> src,
   cm_assert(dstRow < KRNL_SZ * KRNL_SZ);
   int radius = KRNL_SZ / 2;
   int anchor = KRNL_SZ / 2;
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int clmn = -radius; clmn < radius + 1; clmn++) {
     dst.row(_2Dto1D<KRNL_SZ>(dstRow, clmn + anchor)) =
         src.template select<SIMD_SZ, 1>(clmn + anchor);
@@ -1063,9 +1051,7 @@ Vectorize2DKRNLRow(/*vector_ref<Tsrc, SIMD_SZ> src,
   int radius = KRNL_SZ / 2;
   int anchor = KRNL_SZ / 2;
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int clmn = -radius; clmn < radius + 1; clmn++) {
     // vector<Tsrc, SIMD_SZ + KRNL_SZ -1> glue;
     vector<Tsrc, _CMTL_ROWS_P_LINE(Tsrc, SIMD_SZ + KRNL_SZ -
@@ -1097,14 +1083,10 @@ Vectorize2DKRNL(matrix_ref<Tsrc, KRNL_SZ, SIMD_SZ + KRNL_SZ - 1> src,
   int radius = KRNL_SZ / 2;
   int anchor = KRNL_SZ / 2;
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int row = -radius; row < radius + 1; row++) {
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
     for (int clmn = -radius; clmn < radius + 1; clmn++) {
       dst.row(_2Dto1D<KRNL_SZ>(row + anchor, clmn + anchor)) =
           src.template select<1, 1, SIMD_SZ, 1>(row + anchor, clmn + anchor);
@@ -1121,9 +1103,7 @@ CM_INLINE void Vectorize2DKRNLRow(vector_ref<Tsrc, SIMD_SZ + KRNL_SZ - 1> src,
   int radius = KRNL_SZ / 2;
   int anchor = KRNL_SZ / 2;
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int clmn = -radius; clmn < radius + 1; clmn++) {
     dst.row(_2Dto1D<KRNL_SZ>(dstRow, clmn + anchor)) =
         src.template select<SIMD_SZ, 1>(clmn + anchor);
@@ -1153,9 +1133,7 @@ CM_INLINE void TransposeFromSLM(vector_ref<uint, N * 4> dst,
                                 vector_ref<uint, N * 4> src) {
   cm_assert(N == 8 || N == 16);
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int i = 0; i < 4; i++)
     dst.template select<N, 4>(i) = src.template select<N, 1>(i * N);
 }
@@ -1168,9 +1146,7 @@ CM_INLINE void TransposeToSLM(vector_ref<uint, N * 4> dst,
                               vector_ref<uint, N * 4> src) {
   cm_assert(N == 8 || N == 16);
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int i = 0; i < 4; i++)
     dst.template select<N, 1>(N *i) = src.template select<N, 4>(i);
 }
@@ -1287,9 +1263,7 @@ _CSTK_setOffsets(matrix_ref<short, _CMTL_CNTXT_SIZE> context,
   _CMTL_CSTK_DECIPHER_CONTEXT(context);
   surf_offset.row(0) = surf_pos;
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int offset = 1; offset < (int)_CMTL_NUM_IO(T); offset++) {
     surf_offset.row(offset) =
         surf_offset.row(offset - 1) + _CMTL_MAXIOLINEAR(T) * sizeof(T);
@@ -1317,14 +1291,10 @@ _CSTKWriteBuffers(SurfaceIndex surf,
 
   _CSTK_setOffsets<T, W, CACHESIZE, STACKCOUNT>(context, surf_pos, surf_offset);
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int chnl = 0; chnl < W; chnl++) {
     if (k(chnl) == CACHESIZE) {
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
       for (int s = 0; s < (int)_CMTL_NUM_IO(T); s++) {
         vector_ref<T, _CMTL_MAXIOLINEAR(T)> temp =
             stack.row(chnl).template select<_CMTL_MAXIOLINEAR(T), 1>(
@@ -1352,14 +1322,10 @@ CM_INLINE void _CSTKReadBuffers(SurfaceIndex surf,
   matrix<int, _CMTL_NUM_IO(T), W> surf_offset;
   _CSTK_setOffsets<T, W, CACHESIZE, STACKCOUNT>(context, surf_pos, surf_offset);
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int chnl = 0; chnl < W; chnl++) {
     if (k(chnl) == -1) {
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
       for (int s = 0; s < (int)_CMTL_NUM_IO(T); s++) {
         vector_ref<T, _CMTL_MAXIOLINEAR(T)> temp =
             stack.row(chnl).template select<_CMTL_MAXIOLINEAR(T), 1>(
@@ -1384,9 +1350,7 @@ CM_INLINE void CachedStackInit(matrix_ref<short, _CMTL_CNTXT_SIZE> context,
 
   vector<short, 16> _chnls(_CSTK_c_channels);
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int s = 0; s < (int)STACKCOUNT; s++) {
     chnls_.template select<W, 1>(s *W) = _chnls.template select<W, 1>(0);
   }
@@ -1412,9 +1376,7 @@ CM_INLINE void CachedStackTop(SurfaceIndex surf,
   _CMTL_CSTK_DECIPHER_CONTEXT(context);
   cm_assert_range<short, W>(k, 0, CACHESIZE - 1);
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int s = W; s < (int)W * STACKCOUNT; s += W) {
     k_dup.template select<W, 1>(s) =
         k_dup.template select<W, 1>(s - W) + CACHESIZE;
@@ -1491,9 +1453,7 @@ CM_INLINE void CachedStackPush(SurfaceIndex surf,
   }
   vector<short, W *STACKCOUNT> k_sat;
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int s = 0; s < (int)STACKCOUNT; s++) {
     k_sat.template select<W, 1>(s *W) =
         k_dup.template select<W, 1>(0) + CACHESIZE * s;
@@ -1558,9 +1518,7 @@ CM_INLINE void CachedStackEmpty(matrix_ref<short, 2, W> context,
  * ----------------------------------------------*/
 template <typename T, int H, int W>
 CM_INLINE void MirrorVertical(matrix_ref<T, H, W> in, matrix_ref<T, H, W> out) {
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int i = 0; i < (int)H; i++) {
     out.row(i) = in.row(H - i);
   }
@@ -1577,9 +1535,7 @@ CM_INLINE void mirror_horizontal_16x16(matrix_ref<uchar, 16, 16> in,
   matrix_ref<uchar, 8, 32> out_temp2 = out_temp.format<uchar, 8, 32>();
 // matrix_ref <uint, 8, 8> out_temp = out_temp1.format<uint, 8, 8>();;
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int i = 0; i < 8; i++) {
     out_temp.row(i).template select<4, 2>(0).merge(
         in_temp2.row(i).replicate<2, 4, 2, 0>(1),
@@ -1589,9 +1545,7 @@ CM_INLINE void mirror_horizontal_16x16(matrix_ref<uchar, 16, 16> in,
         in_temp2.row(i).replicate<2, 4, 2, 0>(2), 0xAAAA);
   }
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int i = 0; i < 8; i++) {
     out_temp1.row(i).template select<16, 2>(0).merge(
         out_temp2.row(i).replicate<8, 4, 2, 0>(1),
@@ -1757,9 +1711,7 @@ CM_INLINE void cm_vector_assign(vector_ref<T, Size> v, int InitValue,
     Size8x = (Size / 8) * 8
   };
 
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
   for (int i = 0; i < (Size8x - 8); i += 8) {
     v.template select<8, 1>(i + 8) = v.template select<8, 1>(i) + nextInitValue;
   }
@@ -2541,42 +2493,48 @@ CM_INLINE void cm_assert_range(vector<T, SZ> tst, float min_val,
 }
 
 template <uint RemSize, typename T, uint Size> struct __RemainderInit {
-  enum {
-    Size8x = (Size / 8) * 8
-  };
   CM_INLINE void __CM_remainder_init(vector_ref<T, Size> v, int Value) {
-    v.template select<(RemSize), 1>(Size8x) =
-        v.template select<(RemSize), 1>(Size8x - 8) + Value;
+    v.template select<(RemSize), 1>(Size - RemSize) =
+        v.template select<(RemSize), 1>(Size - RemSize - 8) + Value;
   }
 };
 
 template <typename T, uint Size> struct __RemainderInit<0, T, Size> {
-  CM_INLINE void __CM_remainder_init(vector_ref<T, Size> v, int Value) {};
+  CM_INLINE void __CM_remainder_init(vector_ref<T, Size> v, int Value){};
 };
 
-template <typename T, uint Size, int InitValue, int Step>
-CM_INLINE void __CM_vector_init(vector_ref<T, Size> v) {
-  T nextInitValue;
-  v.template select<8, 1>(0) *= Step;
-  v.template select<8, 1>(0) += InitValue;
-  nextInitValue = 8 * Step;
+template <uint Size8x, typename T, uint Size, int InitValue, int Step>
+struct __VectorInit {
+  static_assert(Size8x / 8 == Size / 8);
+  CM_INLINE void __CM_vector_init(vector_ref<T, Size> v) {
+    T nextInitValue;
+    v.template select<8, 1>(0) *= Step;
+    v.template select<8, 1>(0) += InitValue;
+    nextInitValue = 8 * Step;
 
-  enum {
-    Size8x = (Size / 8) * 8
-  };
-
-#if defined(__ICL) || defined(__CMC)
 #pragma unroll
-#endif
-  for (int i = 0; i < (Size8x - 8); i += 8) {
-    v.template select<8, 1>(i + 8) = v.template select<8, 1>(i) + nextInitValue;
-  }
+    for (int i = 0; i < (Size8x - 8); i += 8) {
+      v.template select<8, 1>(i + 8) =
+          v.template select<8, 1>(i) + nextInitValue;
+    }
 
-  // Remainder elements
-  __RemainderInit<(Size - Size8x), T, Size> rInit;
-  rInit.__CM_remainder_init(v, nextInitValue);
-}
+    // Remainder elements
+    __RemainderInit<(Size - Size8x), T, Size> rInit;
+    rInit.__CM_remainder_init(v, nextInitValue);
+  }
 };
+
+// Vectors with less than 8 elements
+template <typename T, uint Size, int InitValue, int Step>
+struct __VectorInit<0, T, Size, InitValue, Step> {
+  static_assert(Size < 8);
+  CM_INLINE void __CM_vector_init(vector_ref<T, Size> v) {
+    v *= Step;
+    v += InitValue;
+  }
+};
+
+}; // namespace cmtl
 
 #pragma clang diagnostic pop
 
