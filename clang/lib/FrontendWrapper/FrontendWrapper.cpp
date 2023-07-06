@@ -284,9 +284,13 @@ static std::string getVCApiOptions(const llvm::opt::InputArgList &Args,
 
   if (auto *Arg = Args.getLastArg(
           clang::driver::options::OPT_Qxcm_register_file_size)) {
-    auto Val = Arg->getValue();
-    VCApiOptions += " -ze-exp-register-file-size=";
-    VCApiOptions += Val;
+    llvm::StringRef Val = Arg->getValue();
+    if (Val == "auto") {
+      VCApiOptions += " -ze-intel-enable-auto-large-GRF-mode";
+    } else {
+      VCApiOptions += " -ze-exp-register-file-size=";
+      VCApiOptions += Val;
+    }
   }
 
   // pass -fp-contract option

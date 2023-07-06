@@ -236,12 +236,16 @@ def dump_stats_cwd : Flag<["-"], "dump-stats">, Group<cm_Group>,
 
 def Qxcm_register_file_size : CMCC1Joined<"Qxcm_register_file_size=">,
   HelpText<"Specifies number of registers to use for regalloc in backend. "
-           "Allowed values are 128 and 256 for XeHP and further platforms. "
+           "Allowed values are 128, 256 and auto for XeHP and further platforms. "
            "For pre-XeHP platforms the only supported value is 128.">;
 
 def Qxcm_doubleGRF : CMFlag<"Qxcm_doubleGRF">,
   Alias<Qxcm_register_file_size>, AliasArgs<["256"]>,
   HelpText<"Alias for -Qxcm_register_file_size=256">;
+
+def Qxcm_autoGRF : CMFlag<"Qxcm_autoGRF">,
+  Alias<Qxcm_register_file_size>, AliasArgs<["auto"]>,
+  HelpText<"Alias for -Qxcm_register_file_size=auto">;
 
 def Qxcm_stepping: CMJoined<"Qxcm_stepping">,
   HelpText<"Generate code taking platform stepping into account. "
