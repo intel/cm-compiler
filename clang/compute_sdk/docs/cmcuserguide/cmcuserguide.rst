@@ -353,6 +353,8 @@ CM_HAS_LSC_LOAD_L1RI_L3CA_HINT Defined (with value 1) if the specified target su
 CM_HAS_LSC_SYS_FENCE           Defined (with value 1) if the specified target supports
                                system fence messages.
 
+CM_MAX_SLM_SIZE                Maximum shared local memory per group.
+
 ============================== =======================================================
 
 
