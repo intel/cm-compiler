@@ -97,4 +97,32 @@ vector<float, Width> __spirv_ConvertBF16ToFINTEL(vector<short, Width>);
 template <int Width>
 vector<short, Width> __spirv_ConvertFToBF16INTEL(vector<float, Width>);
 
+#define _SPIRV_OCL_OP1_INSTR_DECL(name)                                        \
+  float __spirv_ocl_native_##name(float);                                      \
+  half __spirv_ocl_native_##name(half);                                        \
+  template <int Width>                                                         \
+  vector<float, Width> __spirv_ocl_native_##name(vector<float, Width>);        \
+  template <int Width>                                                         \
+  vector<half, Width> __spirv_ocl_native_##name(vector<half, Width>);
+
+_SPIRV_OCL_OP1_INSTR_DECL(recip)
+_SPIRV_OCL_OP1_INSTR_DECL(log2)
+_SPIRV_OCL_OP1_INSTR_DECL(exp2)
+_SPIRV_OCL_OP1_INSTR_DECL(sqrt)
+_SPIRV_OCL_OP1_INSTR_DECL(rsqrt)
+_SPIRV_OCL_OP1_INSTR_DECL(sin)
+_SPIRV_OCL_OP1_INSTR_DECL(cos)
+
+#define _SPIRV_OCL_OP2_INSTR_DECL(name)                                        \
+  float __spirv_ocl_native_##name(float, float);                               \
+  half __spirv_ocl_native_##name(half, half);                                  \
+  template <int Width>                                                         \
+  vector<float, Width> __spirv_ocl_native_##name(vector<float, Width>,         \
+                                                 vector<float, Width>);        \
+  template <int Width>                                                         \
+  vector<half, Width> __spirv_ocl_native_##name(vector<half, Width>,           \
+                                                vector<half, Width>);
+
+_SPIRV_OCL_OP2_INSTR_DECL(powr)
+
 #endif // _CLANG_CM_SPIRV_BUILTINS_H_

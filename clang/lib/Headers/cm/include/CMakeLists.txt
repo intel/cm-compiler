@@ -8,6 +8,7 @@
 
 
 set(CM_HEADERS
+  cm/cm_abs.h
   cm/cm_atomic.h
   cm/cm_has_instr.h
   cm/cm_bfn.h
@@ -21,6 +22,7 @@ set(CM_HEADERS
   cm/cm_library.h
   cm/cm_lsc.h
   cm/cm_mask.h
+  cm/cm_math.h
   cm/cm_printfocl.h
   cm/cm_sampler.h
   cm/cm_send.h
