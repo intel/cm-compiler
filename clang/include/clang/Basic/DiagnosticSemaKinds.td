@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2013-2022 Intel Corporation
+Copyright (C) 2013-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -9445,8 +9445,6 @@ def note_ovl_candidate_bad_cm_reference : Note<
   " for %ordinal0 argument">;
 def err_cm_ref_init_from_rvalue: Error<
   "%0 initialization value must be an lvalue">;
-def err_cm_uninitialized_array: Error<
-  "array %0 is not constant initialized">;
 def err_cm_max_data_size_exceeded: Error<
   "size of %select{vector|matrix}0 (%1 bytes) exceeds maximum supported size (must be less than 16384 bytes)">;
 def err_cm_matrix_vector_reference: Error<

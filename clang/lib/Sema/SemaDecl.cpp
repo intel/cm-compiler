@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2013-2021 Intel Corporation
+Copyright (C) 2013-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -12408,7 +12408,6 @@ Sema::BuildDeclaratorGroup(MutableArrayRef<Decl *> Group) {
     }
   }
 
-  // CM: do not support arrays without a constant initializer.
   // CM: do not support nonconstant vector-matrix initialization in global
   // scope.
   if (getLangOpts().MdfCM) {
@@ -12416,14 +12415,6 @@ Sema::BuildDeclaratorGroup(MutableArrayRef<Decl *> Group) {
       if (VarDecl *D = dyn_cast<VarDecl>(Group[i])) {
         if (D->isInvalidDecl())
           break;
-        if (D->getType()->isArrayType()) {
-          Expr *Init = D->getInit();
-          if (!Init || !Init->isConstantInitializer(Context, false)) {
-            Diag(D->getLocation(), diag::err_cm_uninitialized_array) << D;
-            D->setInvalidDecl();
-            break;
-          }
-        }
         const QualType &T = D->getType();
         const Type *Tp = T.getTypePtr();
         if (Tp->isCMVectorMatrixType()) {
