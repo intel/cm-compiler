@@ -119,7 +119,7 @@ if_split_init(vector_ref<T, N1> v0, vector_ref<T, N1> v1, vector<T, N2> v2) {
 ///
 /// \param op the atomic operation kind. It must be a compile time constant.
 ///
-/// \param globalOffset zero based global offset to be added to 
+/// \param globalOffset zero based global offset to be added to
 /// the scattered addresses to the surface. This offset is in units of DWords.
 ///
 /// \param elementOffset zero based offset of each DWord (relative to the
@@ -514,7 +514,7 @@ write_atomic(vector<ushort, N> mask, SurfaceIndex index,
 ///
 /// \param u the x coordinates of the data elements to be read from surface,
 /// which must be in unit of pixels. The size N must be 8, 16, or 32. however,
-/// 16 and 32 may not be supported natively.   
+/// 16 and 32 may not be supported natively.
 ///
 /// \param v (optional, default = 0) the y coordinates of the data elements to
 /// be read from non-1D surface types; ignored otherwise.
@@ -527,16 +527,6 @@ write_atomic(vector<ushort, N> mask, SurfaceIndex index,
 /// out-of-bound writes are dropped.
 ///
 
-#if defined(CM_GEN7_5) || defined(CM_GEN8) || defined(CM_GEN8_5)
-// Define a function to produce and error on unsupported architectures
-// If no CM_GENn is defined (and possibly only CM_GENX) then the function will
-// just appear to be unimplemented.
-#define write_typed_atomic(...)                                                \
-  CM_STATIC_ERROR(0, "write_typed_atomic is only supported for SKL+. Ensure "  \
-                     "compile flags reflect this.");
-
-#else
-
 // Typed atomic {u}.
 template <CmAtomicOpType Op, typename T, int N>
 CM_NODEBUG CM_INLINE
@@ -546,6 +536,7 @@ typename std::enable_if<(Op == ATOMIC_INC || Op == ATOMIC_DEC) &&
                         void>::type
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
                    vector<uint, N> u) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
@@ -560,6 +551,7 @@ typename std::enable_if<(Op == ATOMIC_PREDEC) &&
   void>::type
   write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
     vector<uint, N> u) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
@@ -576,6 +568,7 @@ typename std::enable_if<(Op == ATOMIC_INC || Op == ATOMIC_DEC) &&
                         void>::type
 write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
                    vector_ref<T, N> ret, vector<uint, N> u) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
       mask, surfIndex, dummy.select_all(), dummy.select_all(), u);
@@ -589,6 +582,7 @@ typename std::enable_if<(Op == ATOMIC_PREDEC) &&
   void>::type
   write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
     vector_ref<T, N> ret, vector<uint, N> u) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
     mask, surfIndex, dummy.select_all(), dummy.select_all(), u) - 1;
@@ -603,6 +597,7 @@ typename std::enable_if<(Op == ATOMIC_INC || Op == ATOMIC_DEC) &&
                         void>::type
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
                    vector<uint, N> u, vector<uint, N> v) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
@@ -617,6 +612,7 @@ typename std::enable_if<(Op == ATOMIC_PREDEC) &&
   void>::type
   write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
     vector<uint, N> u, vector<uint, N> v) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
@@ -632,6 +628,7 @@ typename std::enable_if<(Op == ATOMIC_INC || Op == ATOMIC_DEC) &&
                         void>::type
 write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
                    vector_ref<T, N> ret, vector<uint, N> u, vector<uint, N> v) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
       mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v);
@@ -645,6 +642,7 @@ typename std::enable_if<(Op == ATOMIC_PREDEC) &&
   void>::type
   write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
     vector_ref<T, N> ret, vector<uint, N> u, vector<uint, N> v) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
     mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v) - 1;
@@ -659,6 +657,7 @@ typename std::enable_if<(Op == ATOMIC_INC || Op == ATOMIC_DEC) &&
                         void>::type
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
                    vector<uint, N> u, vector<uint, N> v, vector<uint, N> r) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
@@ -673,6 +672,7 @@ typename std::enable_if<(Op == ATOMIC_PREDEC) &&
   void>::type
   write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
     vector<uint, N> u, vector<uint, N> v, vector<uint, N> r) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
@@ -689,6 +689,7 @@ typename std::enable_if<(Op == ATOMIC_INC || Op == ATOMIC_DEC) &&
 write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
                    vector_ref<T, N> ret, vector<uint, N> u, vector<uint, N> v,
                    vector<uint, N> r) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
       mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v, r);
@@ -703,6 +704,7 @@ typename std::enable_if<(Op == ATOMIC_PREDEC) &&
   write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
     vector_ref<T, N> ret, vector<uint, N> u, vector<uint, N> v,
     vector<uint, N> r) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
     mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v, r) - 1;
@@ -718,6 +720,7 @@ typename std::enable_if<(Op == ATOMIC_INC || Op == ATOMIC_DEC) &&
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
                    vector<uint, N> u, vector<uint, N> v, vector<uint, N> r,
                    vector<uint, N> lod) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
@@ -733,6 +736,7 @@ typename std::enable_if<(Op == ATOMIC_PREDEC) &&
   write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
     vector<uint, N> u, vector<uint, N> v, vector<uint, N> r,
     vector<uint, N> lod) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
@@ -749,6 +753,7 @@ typename std::enable_if<(Op == ATOMIC_INC || Op == ATOMIC_DEC) &&
 write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
                    vector_ref<T, N> ret, vector<uint, N> u, vector<uint, N> v,
                    vector<uint, N> r, vector<uint, N> lod) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
       mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v, r, lod);
@@ -763,6 +768,7 @@ typename std::enable_if<(Op == ATOMIC_PREDEC) &&
   write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
     vector_ref<T, N> ret, vector<uint, N> u, vector<uint, N> v,
     vector<uint, N> r, vector<uint, N> lod) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<ATOMIC_DEC>(
     mask, surfIndex, dummy.select_all(), dummy.select_all(), u, v, r, lod) - 1;
@@ -777,6 +783,7 @@ typename std::enable_if<
     void>::type
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
                    vector<T, N> src0, vector<uint, N> u) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
@@ -792,6 +799,7 @@ typename std::enable_if<
     void>::type
 write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
                    vector_ref<T, N> ret, vector<T, N> src0, vector<uint, N> u) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
       mask, surfIndex, src0, dummy.select_all(), u);
@@ -806,6 +814,7 @@ typename std::enable_if<
     void>::type
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
                    vector<T, N> src0, vector<uint, N> u, vector<uint, N> v) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
@@ -822,6 +831,7 @@ typename std::enable_if<
 write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
                    vector_ref<T, N> ret, vector<T, N> src0, vector<uint, N> u,
                    vector<uint, N> v) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
       mask, surfIndex, src0, dummy.select_all(), u, v);
@@ -837,6 +847,7 @@ typename std::enable_if<
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
                    vector<T, N> src0, vector<uint, N> u, vector<uint, N> v,
                    vector<uint, N> r) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
@@ -853,6 +864,7 @@ typename std::enable_if<
 write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
                    vector_ref<T, N> ret, vector<T, N> src0, vector<uint, N> u,
                    vector<uint, N> v, vector<uint, N> r) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
       mask, surfIndex, src0, dummy.select_all(), u, v, r);
@@ -868,6 +880,7 @@ typename std::enable_if<
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
                    vector<T, N> src0, vector<uint, N> u, vector<uint, N> v,
                    vector<uint, N> r, vector<uint, N> lod) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
@@ -884,6 +897,7 @@ typename std::enable_if<
 write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
                    vector_ref<T, N> ret, vector<T, N> src0, vector<uint, N> u,
                    vector<uint, N> v, vector<uint, N> r, vector<uint, N> lod) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<T, N> dummy;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
       mask, surfIndex, src0, dummy.select_all(), u, v, r, lod);
@@ -897,6 +911,7 @@ typename std::enable_if<(Op == ATOMIC_CMPXCHG) && details::isPowerOf2(N, 32) &&
                         void>::type
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
                    vector<T, N> src0, vector<T, N> src1, vector<uint, N> u) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(mask, surfIndex,
                                                             src0, src1, u);
@@ -911,6 +926,7 @@ typename std::enable_if<(Op == ATOMIC_CMPXCHG) && details::isPowerOf2(N, 32) &&
 write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
                    vector_ref<T, N> ret, vector<T, N> src0, vector<T, N> src1,
                    vector<uint, N> u) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(mask, surfIndex,
                                                             src0, src1, u);
 }
@@ -924,6 +940,7 @@ typename std::enable_if<(Op == ATOMIC_CMPXCHG) && details::isPowerOf2(N, 32) &&
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
                    vector<T, N> src0, vector<T, N> src1, vector<uint, N> u,
                    vector<uint, N> v) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(mask, surfIndex,
                                                             src0, src1, u, v);
@@ -938,6 +955,7 @@ typename std::enable_if<(Op == ATOMIC_CMPXCHG) && details::isPowerOf2(N, 32) &&
 write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
                    vector_ref<T, N> ret, vector<T, N> src0, vector<T, N> src1,
                    vector<uint, N> u, vector<uint, N> v) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(mask, surfIndex,
                                                             src0, src1, u, v);
 }
@@ -951,6 +969,7 @@ typename std::enable_if<(Op == ATOMIC_CMPXCHG) && details::isPowerOf2(N, 32) &&
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
                    vector<T, N> src0, vector<T, N> src1, vector<uint, N> u,
                    vector<uint, N> v, vector<uint, N> r) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
       mask, surfIndex, src0, src1, u, v, r);
@@ -965,6 +984,7 @@ typename std::enable_if<(Op == ATOMIC_CMPXCHG) && details::isPowerOf2(N, 32) &&
 write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
                    vector_ref<T, N> ret, vector<T, N> src0, vector<T, N> src1,
                    vector<uint, N> u, vector<uint, N> v, vector<uint, N> r) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
       mask, surfIndex, src0, src1, u, v, r);
 }
@@ -978,6 +998,7 @@ typename std::enable_if<(Op == ATOMIC_CMPXCHG) && details::isPowerOf2(N, 32) &&
 write_typed_atomic(SurfaceIndex surfIndex, vector_ref<T, N> ret,
                    vector<T, N> src0, vector<T, N> src1, vector<uint, N> u,
                    vector<uint, N> v, vector<uint, N> r, vector<uint, N> lod) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   vector<ushort, N> mask = 1;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
       mask, surfIndex, src0, src1, u, v, r, lod);
@@ -993,9 +1014,9 @@ write_typed_atomic(vector<ushort, N> mask, SurfaceIndex surfIndex,
                    vector_ref<T, N> ret, vector<T, N> src0, vector<T, N> src1,
                    vector<uint, N> u, vector<uint, N> v, vector<uint, N> r,
                    vector<uint, N> lod) {
+  CM_HAS_TYPED_ATOMIC_CONTROL;
   ret = details::__cm_intrinsic_impl_atomic_write_typed<Op>(
       mask, surfIndex, src0, src1, u, v, r, lod);
 }
-#endif
 
 #endif

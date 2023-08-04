@@ -121,6 +121,8 @@ private:
   bool HasFP64 = false;
   unsigned MaxSLMSize = 64;
 
+  bool HasSLMCasInt64 = false;
+
   // FIXME: get rid of this stuff
   bool HasIEFByPass = false;
   unsigned MaxOWordBlock = 8;

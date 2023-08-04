@@ -202,6 +202,20 @@ namespace CheckVersion {
   #define CM_HAS_LSC_LOAD_L1RI_L3CA_HINT 1
 #endif
 
+#ifdef CM_HAS_SLM_CAS_INT64
+#define CM_HAS_SLM_CAS_INT64_CONTROL CM_HAS_CONTROL(true)
+#else
+#define CM_HAS_SLM_CAS_INT64_CONTROL CM_HAS_CONTROL(false)
+#endif // CM_HAS_SLM_CAS_INT64
+
+#if (CM_GENX >= 900) // >=SKL
+#define CM_HAS_TYPED_ATOMIC 1
+#define CM_HAS_TYPED_ATOMIC_CONTROL CM_HAS_CONTROL(true)
+#else
+#define CM_HAS_TYPED_ATOMIC_CONTROL CM_HAS_CONTROL(false)
+#endif
+
+
 #else  // CM_HAS_CONTROL
   CM_STATIC_ERROR(0, "Redeclaration of CM_HAS_CONTROL! It's used for control version of features!");
 #endif // CM_HAS_CONTROL

@@ -117,6 +117,9 @@ void GenXTargetInfo::getTargetDefines(const LangOptions &Opts,
   if (HasFP64)
     Builder.defineMacro("CM_HAS_DOUBLE", "1");
 
+  if (HasSLMCasInt64)
+    Builder.defineMacro("CM_HAS_SLM_CAS_INT64", "1");
+
   Builder.defineMacro("CM_MAX_SLM_SIZE", std::to_string(MaxSLMSize));
 }
 bool GenXTargetInfo::hasFeature(StringRef Feature) const {

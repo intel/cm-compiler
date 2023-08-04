@@ -1179,6 +1179,9 @@ CM_NODEBUG CM_INLINE auto cm_atomic_slm(vector<unsigned, N> Offset,
         vector<T, N * details::lsc_vector_size<VS>()> >::type {
   CM_HAS_LSC_CONTROL;
 
+  if constexpr (sizeof(T) == sizeof(long long) || sizeof(T) == sizeof(double))
+    CM_HAS_SLM_CAS_INT64_CONTROL;
+
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
@@ -1204,6 +1207,9 @@ cm_atomic_slm(vector<unsigned, N> Offset,
     typename std::enable_if<details::lsc_atomic_nsrcs<Op>() == 1,
                             decltype(Src0)>::type {
   CM_HAS_LSC_CONTROL;
+
+  if constexpr (sizeof(T) == sizeof(long long) || sizeof(T) == sizeof(double))
+    CM_HAS_SLM_CAS_INT64_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
@@ -1236,6 +1242,9 @@ cm_atomic_slm(vector<unsigned, N> Offset,
     typename std::enable_if<details::lsc_atomic_nsrcs<Op>() == 2,
                             decltype(Src0)>::type {
   CM_HAS_LSC_CONTROL;
+
+  if constexpr (sizeof(T) == sizeof(long long) || sizeof(T) == sizeof(double))
+    CM_HAS_SLM_CAS_INT64_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
