@@ -14,6 +14,8 @@ static_assert(0, "CM:w:cm_traits.h should not be included explicitly - only "
 #ifndef _CLANG_CM_TRAITS_H_
 #define _CLANG_CM_TRAITS_H_
 
+#include "cm_common.h"
+
 namespace std {
 
 template<bool B, typename T, typename F>
@@ -590,6 +592,26 @@ template <typename U, typename T, typename... Ts> constexpr bool is_type() {
 template <typename T> constexpr bool check_when_instantiated(bool check) {
   return check;
 }
+
+template <typename _Tp> struct remove_address_space { using type = _Tp; };
+template <typename _Tp> struct remove_address_space<__generic _Tp> {
+  using type = _Tp;
+};
+template <typename _Tp> struct remove_address_space<__global _Tp> {
+  using type = _Tp;
+};
+template <typename _Tp> struct remove_address_space<__private _Tp> {
+  using type = _Tp;
+};
+template <typename _Tp> struct remove_address_space<__local _Tp> {
+  using type = _Tp;
+};
+template <typename _Tp> struct remove_address_space<__constant _Tp> {
+  using type = _Tp;
+};
+
+template <typename T>
+using remove_address_space_t = typename remove_address_space<T>::type;
 
 } // details
 

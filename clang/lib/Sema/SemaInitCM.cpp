@@ -40,8 +40,8 @@ using namespace clang;
 //     vector<ushort, 8> v(init);
 //
 //     Initializer array could be bigger or smaller than the initialized
-//     array–initialization would be done up to the minimum of their sizes.
-//     Initializer array can have more than one dimension – this gives more
+//     array-initialization would be done up to the minimum of their sizes.
+//     Initializer array can have more than one dimension - this gives more
 //     flexibility to users allowing them to skip initialization of some
 //     segments of the matrix or vector.
 //
@@ -122,6 +122,33 @@ bool Sema::IsCMVectorConversion(QualType FromType, QualType ToType,
     // Check if this is elmentalwise implicit conversion.
     QualType FromEltType = FromType->getCMVectorMatrixElementType();
     QualType ToEltType = ToType->getCMVectorMatrixElementType();
+
+    if (FromEltType->isPointerType() && ToEltType->isPointerType()) {
+      const PointerType *FromEltPtrType = FromEltType->getAs<PointerType>();
+      const PointerType *ToEltPtrType = ToEltType->getAs<PointerType>();
+
+      QualType FromEltPointeeTy =
+          FromEltPtrType->getPointeeType().getCanonicalType();
+      QualType ToEltPointeeTy = ToEltType->getPointeeType().getCanonicalType();
+
+      // OpenCL s6.5.5: A pointer to generic address space cannot be implicitly
+      // converted to a pointer to a named address space.
+      if (FromEltPointeeTy.getQualifiers().getAddressSpace() ==
+          LangAS::opencl_generic)
+        if (ToEltPointeeTy.getQualifiers().getAddressSpace() !=
+            LangAS::opencl_generic)
+          return false;
+
+      // No conversion for disjoint address spaces.
+      if (!FromEltPtrType->isAddressSpaceOverlapping(*ToEltPtrType))
+        return false;
+      ICK = ICK_CMVectorMatrix_Conversion;
+      return true;
+    }
+
+    // Implicit ptrtoint or inttoptr conversions are not supported.
+    if (FromEltType->isPointerType() || ToEltType->isPointerType())
+      return false;
 
     if (Context.hasSameUnqualifiedType(FromEltType, ToEltType)) {
       if (ToType->isCMReferenceType() && FromType->isCMBaseType())

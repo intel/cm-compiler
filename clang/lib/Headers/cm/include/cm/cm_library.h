@@ -362,10 +362,12 @@ load(T* p, simd_vector<unsigned, n> offsets) {
     simd_vector<uint64_t, N> addrs(reinterpret_cast<uint64_t>(p));
     simd_vector<uint64_t, N> offsets_i1 = convert<uint64_t>(offsets_i);
     addrs = addrs + offsets_i1;
-    simd_vector<T, N> Undef;
+
+    simd_vector<ushort, N> mask = 1;
+    simd_vector<T, N> undef;
     result.template sel<N, 1>(i).write(
-        details::__cm_intrinsic_impl_svm_read<T, N>(addrs.data(),
-                                                    Undef.data()));
+        details::__cm_builtin_impl_svm_gather<T, N>(addrs.data(), mask.data(),
+                                                    undef.data()));
   }
   return result;
 }
@@ -381,8 +383,10 @@ static inline CM_NODEBUG void store(T* p, simd_vector<T, n> vals,
     simd_vector<uint64_t, N> addrs(reinterpret_cast<uint64_t>(p));
     simd_vector<uint64_t, N> offsets_i1 = convert<uint64_t>(offsets_i);
     addrs = addrs + offsets_i1;
-    details::__cm_intrinsic_impl_svm_write<T, N>(
-        addrs.data(), vals.template sel<N, 1>(i).read().data());
+
+    simd_vector<ushort, N> mask = 1;
+    details::__cm_builtin_impl_svm_scatter<T, N>(
+        vals.template sel<N, 1>(i).read().data(), addrs.data(), mask.data());
   }
 }
 

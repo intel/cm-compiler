@@ -272,13 +272,9 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
                         CMBK_cm_block_store_flat_impl)
             .StartsWith("__cm_intrinsic_impl_load_slm", CMBK_cm_load_slm_impl)
             .StartsWith("__cm_intrinsic_impl_load4_slm", CMBK_cm_load4_slm_impl)
-            .StartsWith("__cm_intrinsic_impl_block_load_slm",
-                        CMBK_cm_block_load_slm_impl)
             .StartsWith("__cm_intrinsic_impl_store_slm", CMBK_cm_store_slm_impl)
             .StartsWith("__cm_intrinsic_impl_store4_slm",
                         CMBK_cm_store4_slm_impl)
-            .StartsWith("__cm_intrinsic_impl_block_store_slm",
-                        CMBK_cm_block_store_slm_impl)
             .StartsWith("__cm_intrinsic_impl_block_prefetch2d_flat",
                         CMBK_cm_block_prefetch2d_flat_impl)
             .StartsWith("__cm_intrinsic_impl_block_load2d_flat",
@@ -307,28 +303,6 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
                         CMBK_scatter_read_impl)
             .StartsWith("__cm_intrinsic_impl_scatter_write",
                         CMBK_scatter_write_impl)
-            .StartsWith("__cm_intrinsic_impl_slm_read", CMBK_cm_slm_read_impl)
-            .StartsWith("__cm_intrinsic_impl_slm_write", CMBK_cm_slm_write_impl)
-            .StartsWith("__cm_intrinsic_impl_slm_oword_read_dwaligned",
-                        CMBK_slm_oword_read_dwaligned_impl)
-            .StartsWith("__cm_intrinsic_impl_slm_oword_read",
-                        CMBK_slm_oword_read_impl)
-            .StartsWith("__cm_intrinsic_impl_slm_oword_write",
-                        CMBK_slm_oword_write_impl)
-            .StartsWith("__cm_intrinsic_impl_svm_block_read_unaligned",
-                        CMBK_svm_block_read_unaligned_impl)
-            .StartsWith("__cm_intrinsic_impl_svm_block_read",
-                        CMBK_svm_block_read_impl)
-            .StartsWith("__cm_intrinsic_impl_svm_block_write",
-                        CMBK_svm_block_write_impl)
-            .StartsWith("__cm_intrinsic_impl_svm_read",
-                        CMBK_svm_scatter_read_impl)
-            .StartsWith("__cm_intrinsic_impl_svm_write",
-                        CMBK_svm_scatter_write_impl)
-            .StartsWith("__cm_intrinsic_impl_svm_scatter_read",
-                        CMBK_svm_scatter_read_impl)
-            .StartsWith("__cm_intrinsic_impl_svm_scatter_write",
-                        CMBK_svm_scatter_write_impl)
             .StartsWith("__cm_intrinsic_impl_sat", CMBK_cm_sat_impl)
             .StartsWith("__cm_intrinsic_impl_abs", CMBK_cm_abs_impl)
             .StartsWith("__cm_intrinsic_impl_addc", CMBK_cm_addc_impl)
@@ -415,6 +389,9 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
                .StartsWith("__cm_builtin_impl_store", CMBK_store_impl)
                .StartsWith("__cm_builtin_impl_gather", CMBK_gather_impl)
                .StartsWith("__cm_builtin_impl_scatter", CMBK_scatter_impl)
+               // For cm_library support.
+               .StartsWith("__cm_builtin_impl_svm_gather", CMBK_gather_svm_impl)
+               .StartsWith("__cm_builtin_impl_svm_scatter", CMBK_scatter_svm_impl)
                .Default(CMBK_none);
   }
   return Kind;
@@ -857,11 +834,8 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RV;
   case CMBK_oword_read_impl:
   case CMBK_oword_read_dwaligned_impl:
-  case CMBK_slm_oword_read_impl:
-  case CMBK_slm_oword_read_dwaligned_impl:
     return RValue::get(HandleBuiltinOWordReadImpl(getCurCMCallInfo(), Kind));
   case CMBK_oword_write_impl:
-  case CMBK_slm_oword_write_impl:
     HandleBuiltinOWordWriteImpl(getCurCMCallInfo(), Kind);
     return RValue::get(0);
   case CMBK_media_read_impl:
@@ -888,17 +862,6 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(HandleBuiltinScatterReadWriteImpl(getCurCMCallInfo()));
   case CMBK_scatter_write_impl:
     HandleBuiltinScatterReadWriteImpl(getCurCMCallInfo(), /*IsWrite*/true);
-    return RValue::get(0);
-  case CMBK_svm_block_read_impl:
-  case CMBK_svm_block_read_unaligned_impl:
-    return RValue::get(HandleBuiltinSVMBlockReadImpl(getCurCMCallInfo(), Kind));
-  case CMBK_svm_block_write_impl:
-    HandleBuiltinSVMBlockWriteImpl(getCurCMCallInfo());
-    return RValue::get(0);
-  case CMBK_svm_scatter_read_impl:
-    return RValue::get(HandleBuiltinSVMScatterReadImpl(getCurCMCallInfo()));
-  case CMBK_svm_scatter_write_impl:
-    HandleBuiltinSVMScatterWriteImpl(getCurCMCallInfo());
     return RValue::get(0);
   case CMBK_cm_svm_read4_impl:
     HandleBuiltinSVMRead4Impl(getCurCMCallInfo());
@@ -1017,11 +980,6 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(HandleBuiltinUnmaskEndImpl(getCurCMCallInfo()));
   case CMBK_cm_get_value:
     return RValue::get(HandleBuiltinGetValueImpl(getCurCMCallInfo()));
-  case CMBK_cm_slm_read_impl:
-    return RValue::get(HandleBuiltinSLMReadImpl(getCurCMCallInfo()));
-  case CMBK_cm_slm_write_impl:
-    HandleBuiltinSLMWriteImpl(getCurCMCallInfo());
-    return RValue::get(0);
   case CMBK_cm_slm_read4:
     HandleBuiltinSLMRead4(getCurCMCallInfo(), true);
     return RValue::get(0);
@@ -1129,7 +1087,6 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_cm_block_load_flat_impl:
   case CMBK_cm_load_slm_impl:
   case CMBK_cm_load4_slm_impl:
-  case CMBK_cm_block_load_slm_impl:
   case CMBK_cm_atomic_bti_impl:
   case CMBK_cm_atomic_slm_impl:
   case CMBK_cm_atomic_flat_impl:
@@ -1146,7 +1103,6 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_cm_block_prefetch_flat_impl:
   case CMBK_cm_store_slm_impl:
   case CMBK_cm_store4_slm_impl:
-  case CMBK_cm_block_store_slm_impl:
     HandleBuiltinLSCImpl(getCurCMCallInfo(), Kind);
     return RValue::get(0);
   case CMBK_cm_block_load2d_flat_impl:
@@ -1159,9 +1115,11 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     HandleBuiltinLscFenceImpl(getCurCMCallInfo(), Kind);
     return RValue::get(0);
   case CMBK_scatter_impl:
+  case CMBK_scatter_svm_impl:
     HandleBuiltinScatterImpl(getCurCMCallInfo(), Kind);
     return RValue::get(0);
   case CMBK_gather_impl:
+  case CMBK_gather_svm_impl:
     return RValue::get(HandleBuiltinGatherImpl(getCurCMCallInfo(), Kind));
   case CMBK_store_impl:
     HandleBuiltinStoreImpl(getCurCMCallInfo(), Kind);
@@ -3098,12 +3056,9 @@ llvm::Value *getSLMSurfaceIndex(CodeGenFunction &CGF) {
 ///
 llvm::Value *CGCMRuntime::HandleBuiltinOWordReadImpl(CMCallInfo &Info,
                                                      CMBuiltinKind Kind) {
-  unsigned ID = (Kind == CMBK_oword_read_impl ||
-                 Kind == CMBK_slm_oword_read_impl)
+  unsigned ID = (Kind == CMBK_oword_read_impl)
                     ? llvm::GenXIntrinsic::genx_oword_ld
                     : llvm::GenXIntrinsic::genx_oword_ld_unaligned;
-  bool SLM = (Kind == CMBK_slm_oword_read_impl ||
-              Kind == CMBK_slm_oword_read_dwaligned_impl);
   llvm::Type *RetTy = Info.CI->getType();
   assert(isa<llvm::VectorType>(RetTy));
   assert(llvm::isPowerOf2_32(RetTy->getVectorNumElements()));
@@ -3117,8 +3072,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinOWordReadImpl(CMCallInfo &Info,
   // Modifiers, always null value.
   Args.push_back(llvm::Constant::getNullValue(LoadFnTy->getParamType(0)));
   // SurfaceIndex.
-  Args.push_back(SLM ? getSLMSurfaceIndex(*Info.CGF)
-                     : Info.CI->getArgOperand(0));
+  Args.push_back(Info.CI->getArgOperand(0));
   // Offset in owords for oword_ld but in bytes for oword_ld_unaligned.
   llvm::Value *Offset = Info.CI->getArgOperand(1);
   if (ID == llvm::GenXIntrinsic::genx_oword_ld) {
@@ -3145,7 +3099,6 @@ void CGCMRuntime::HandleBuiltinOWordWriteImpl(CMCallInfo &Info,
   assert(Info.CI->getNumArgOperands() == 3);
   llvm::Type *VecTy = Info.CI->getArgOperand(2)->getType();
   unsigned ID = llvm::GenXIntrinsic::genx_oword_st;
-  bool SLM = (Kind == CMBK_slm_oword_write_impl);
   llvm::Function *StoreFn = getGenXIntrinsic(ID, VecTy);
 
   // The data size in OWords is in {1, 2, 4, 8, 16}.
@@ -3165,7 +3118,7 @@ void CGCMRuntime::HandleBuiltinOWordWriteImpl(CMCallInfo &Info,
   SmallVector<llvm::Value *, 4> Args;
 
   // SurfaceIndex.
-  Args.push_back(SLM ? getSLMSurfaceIndex(*Info.CGF) : Info.CI->getArgOperand(0));
+  Args.push_back(Info.CI->getArgOperand(0));
   // Offset in owords.
   llvm::Constant *V16 =
       llvm::ConstantInt::get(Info.CI->getArgOperand(1)->getType(), OWORD);
@@ -4699,74 +4652,6 @@ void CGCMRuntime::HandleBuiltinWriteTypedImpl(CMCallInfo &CallInfo) {
   CallInfo.CI->eraseFromParent();
 }
 
-/// template <typename T, int N, int NBlocks>
-/// vector<T, N>
-/// __cm_intrinsic_impl_slm_read(uint globalOffsetInBytes,
-///                              vector<uint, N> elementOffsetInBytes,
-///                              vector<T, N> data);
-llvm::Value *CGCMRuntime::HandleBuiltinSLMReadImpl(CMCallInfo &CallInfo) {
-  CodeGenFunction &CGF = *CallInfo.CGF;
-
-  // NBlocks equals # of bytes for this intrinsic.
-  unsigned NBlocks = getIntegralValue(CallInfo.CE->getDirectCallee(), 2);
-  unsigned NBlocksLog2 = 0;
-  switch (NBlocks) {
-  case 1: NBlocksLog2 = 0; break;
-  case 2: NBlocksLog2 = 1; break;
-  case 4: NBlocksLog2 = 2; break;
-  default:
-    Error(CallInfo.CE->getExprLoc(), "element size not supported");
-  }
-
-  // Use scaled message for any platform since scale is 0.
-  auto NewCI = EmitGatherScaled(CGF,
-      llvm::GenXIntrinsic::genx_gather_masked_scaled2,
-      llvm::APInt(32, NBlocksLog2), // NBlocks
-      0, // scale
-      getSLMSurfaceIndex(CGF), // SLM surface index
-      CallInfo.CI->getArgOperand(0), // global offset in bytes
-      CallInfo.CI->getArgOperand(1), // element offset in bytes
-      CallInfo.CI->getArgOperand(2)  // old value of data read
-  );
-  NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
-  CallInfo.CI->eraseFromParent();
-
-  return NewCI;
-}
-
-
-/// template <typename T, int N, int NBlocks>
-/// void __cm_intrinsic_impl_slm_write(uint globalOffsetInBytes,
-///                                    vector<uint, N> elementOffsetInBytes,
-///                                    vector<T, N> data);
-void CGCMRuntime::HandleBuiltinSLMWriteImpl(CMCallInfo &CallInfo) {
-  CodeGenFunction &CGF = *CallInfo.CGF;
-
-  // NBlocks equals # of bytes for this intrinsic.
-  unsigned NBlocks = getIntegralValue(CallInfo.CE->getDirectCallee(), 2);
-  unsigned NBlocksLog2 = 0;
-  switch (NBlocks) {
-  case 1: NBlocksLog2 = 0; break;
-  case 2: NBlocksLog2 = 1; break;
-  case 4: NBlocksLog2 = 2; break;
-  default:
-    Error(CallInfo.CE->getExprLoc(), "element size not supported");
-  }
-
-  // Use scaled message for any platform since scale is 0.
-  auto NewCI = EmitScatterScaled(CGF,
-      llvm::GenXIntrinsic::genx_scatter_scaled,
-      llvm::APInt(32, NBlocksLog2), // NBlocks
-      0, // scale
-      getSLMSurfaceIndex(CGF), // SLM surface index
-      CallInfo.CI->getArgOperand(0), // global offset in bytes
-      CallInfo.CI->getArgOperand(1), // element offset in bytes
-      CallInfo.CI->getArgOperand(2)  // old value of data read
-  );
-  NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
-  CallInfo.CI->eraseFromParent();
-}
-
 namespace {
 
 // DO NOT MODIFY THE FOLLOWING ENCODING.
@@ -5184,88 +5069,6 @@ void CGCMRuntime::HandleBuiltinSLMAtomic(CMCallInfo &CallInfo) {
   CallInfo.CI->eraseFromParent();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-///
-/// SVM interface
-///
-////////////////////////////////////////////////////////////////////////////////
-
-/// template <typename T, int SZ>
-/// vector<T, SZ>
-/// __cm_intrinsic_impl_svm_block_read(uint64_t addr);
-/// __cm_intrinsic_impl_svm_block_read_unaligned(uint64_t addr);
-llvm::Value *CGCMRuntime::HandleBuiltinSVMBlockReadImpl(CMCallInfo &Info,
-                                                        CMBuiltinKind Kind) {
-  unsigned ID = (Kind == CMBK_svm_block_read_impl)
-                    ? llvm::GenXIntrinsic::genx_svm_block_ld
-                    : llvm::GenXIntrinsic::genx_svm_block_ld_unaligned;
-
-  llvm::Type *RetTy = Info.CI->getType();
-  llvm::Value *Addr = Info.CI->getArgOperand(0);
-
-  // The data size in OWords is in {1, 2, 4, 8}.
-  assert(isa<llvm::VectorType>(RetTy));
-  assert(llvm::isPowerOf2_32(RetTy->getVectorNumElements()));
-  assert(RetTy->getPrimitiveSizeInBits() / 8 <= 8 * OWORD);
-
-  std::vector<llvm::Type *> Tys;
-  Tys.push_back(RetTy);
-  Tys.push_back(Addr->getType());
-
-  llvm::Function *LoadFn = getGenXIntrinsic(ID, Tys);
-
-  CGBuilderTy Builder(*Info.CGF, Info.CI);
-
-  llvm::CallInst *NewCI = Builder.CreateCall(LoadFn, Addr);
-  NewCI->setDebugLoc(Info.CI->getDebugLoc());
-  NewCI->setName(Info.CI->getName());
-
-  Info.CI->eraseFromParent();
-  return NewCI;
-}
-
-/// template <typename T, int SZ>
-/// void __cm_intrinsic_impl_svm_block_write(uint64_tr, vector<T, SZ>);
-void CGCMRuntime::HandleBuiltinSVMBlockWriteImpl(CMCallInfo &Info) {
-  // Overload this intrinsic with its input vector type which is the last
-  // argument type.
-  assert(Info.CI->getNumArgOperands() == 2);
-  auto &CGF = *Info.CGF;
-  llvm::Value *Addr = Info.CI->getArgOperand(0);
-  llvm::Value *Vec = Info.CI->getArgOperand(1);
-
-  llvm::Type *AddrTy = Addr->getType();
-  llvm::Type *VecTy = Vec->getType();
-  unsigned ID = llvm::GenXIntrinsic::genx_svm_block_st;
-
-  assert((AddrTy == CGF.Int32Ty) || (AddrTy == CGF.Int64Ty));
-
-  std::vector<llvm::Type *> Tys;
-  Tys.push_back(AddrTy);
-  Tys.push_back(VecTy);
-
-  llvm::Function *StoreFn = getGenXIntrinsic(ID, Tys);
-
-  // The data size in OWords is in {1, 2, 4, 8}.
-  assert(isa<llvm::VectorType>(VecTy));
-  assert(llvm::isPowerOf2_32(VecTy->getVectorNumElements()));
-  assert(VecTy->getPrimitiveSizeInBits() / CHAR_BIT <= 8 * OWORD);
-  assert(VecTy->getPrimitiveSizeInBits() / CHAR_BIT >= OWORD);
-
-  CGBuilderTy Builder(*Info.CGF, Info.CI);
-  SmallVector<llvm::Value *, 3> Args;
-
-  // Address
-  Args.push_back(Addr);
-  // Data to write
-  Args.push_back(Vec);
-
-  llvm::CallInst *NewCI = Builder.CreateCall(StoreFn, Args);
-  NewCI->setDebugLoc(Info.CI->getDebugLoc());
-
-  Info.CI->eraseFromParent();
-}
-
 /// template <typename T, int N, int M>
 /// typename std::enable_if<(N == 8 || N == 16) && (sizeof(T) == 4)>::type
 /// cm_ptr_read4(T* ptr, vector<ptrdiff_t, N> vOffset, vector_ref<T, M> vDst,
@@ -5431,88 +5234,6 @@ void CGCMRuntime::HandleBuiltinSVMWrite4Impl(CMCallInfo &CallInfo) {
 
   CallInfo.CI->eraseFromParent();
 }
-
-/// template <typename T1, int N*numblk>
-/// vector<T1, N> __cm_intrinsic_impl_svm_scatter_read(vector<uint64_t, N> vAddr,
-///                                                    vector<T1, N*numblk> oldVal);
-///
-/// template <typename T, int n>
-/// typename simd_type<T, n*numblk>::type
-/// __cm_intrinsic_impl_svm_read(typename simd_type<uint64_t, n>::type addrs,
-///                              typename simd_type<T, n*numblk>::type oldVal);
-///
-llvm::Value *CGCMRuntime::HandleBuiltinSVMScatterReadImpl(CMCallInfo &Info) {
-  CodeGenFunction &CGF = *Info.CGF;
-  assert(Info.CE->getNumArgs() == 2);
-  // Overload with return type, predicate type and address vector type
-  llvm::Type *DstTy = Info.CI->getType();
-  llvm::Type *AddrTy = Info.CI->getArgOperand(0)->getType();
-  unsigned N = AddrTy->getVectorNumElements();
-  auto PredTy = getMaskType(CGF.getLLVMContext(), N);
-  llvm::Type *Tys[] = {DstTy, PredTy, AddrTy};
-  llvm::Function *GenxFn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_svm_gather, Tys);
-  llvm::FunctionType *GenxFnTy = GenxFn->getFunctionType();
-  SmallVector<llvm::Value *, 8> Args;
-  // Predicate
-  Args.push_back(llvm::Constant::getAllOnesValue(PredTy));
-  // Number of blocks.
-  // For   1,4,8 => block size 1,4,8; block count 1
-  //       2     => block size 1;     block count 2
-  // FIXME: encode the block count and size explicitly.
-  if (Info.CI->getArgOperand(1)->getType()->getScalarSizeInBits() == 16)
-    Args.push_back(llvm::ConstantInt::get(GenxFnTy->getParamType(1), 0x01));
-  else
-    Args.push_back(llvm::ConstantInt::get(GenxFnTy->getParamType(1), 0x00));
-  // Address vector
-  Args.push_back(Info.CI->getArgOperand(0));
-  // old value of the data read
-  Args.push_back(Info.CI->getArgOperand(1));
-  llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(GenxFn, Args);
-  NewCI->setName(Info.CI->getName());
-  NewCI->setDebugLoc(Info.CI->getDebugLoc());
-  Info.CI->eraseFromParent();
-  return NewCI;
-}
-/// template <typename T1, int N>
-/// void __cm_intrinsic_impl_svm_scatter_write(vector<uint64_t, N> vAddr,
-///                                            vector<T1, N*NumBlk> src);
-///
-///  template <typename T, int n>
-///  void __cm_intrinsic_impl_svm_write(typename simd_type<uint64_t, n>::type addrs,
-///                                     typename simd_type<T, n*NumBlk>::type vals);
-///
-void CGCMRuntime::HandleBuiltinSVMScatterWriteImpl(CMCallInfo &Info) {
-  CodeGenFunction &CGF = *Info.CGF;
-  assert(Info.CE->getNumArgs() == 2);
-  // Overload with return type, predicate type and address vector type
-  llvm::Type *SrcTy = Info.CI->getArgOperand(1)->getType();
-  llvm::Type *AddrTy = Info.CI->getArgOperand(0)->getType();
-  unsigned N = AddrTy->getVectorNumElements();
-  auto PredTy = getMaskType(CGF.getLLVMContext(), N);
-  llvm::Type *Tys[] = {PredTy, AddrTy, SrcTy};
-  llvm::Function *GenxFn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_svm_scatter, Tys);
-  llvm::FunctionType *GenxFnTy = GenxFn->getFunctionType();
-  SmallVector<llvm::Value *, 8> Args;
-  // Predicate
-  Args.push_back(llvm::Constant::getAllOnesValue(PredTy));
-  // Number of blocks.
-  // For   1,4,8 => block size 1,4,8; block count 1
-  //       2     => block size 1;     block count 2
-  // FIXME: encode the block count and size explicitly.
-  if (Info.CI->getArgOperand(1)->getType()->getScalarSizeInBits() == 16)
-    Args.push_back(llvm::ConstantInt::get(GenxFnTy->getParamType(1), 0x01));
-  else
-    Args.push_back(llvm::ConstantInt::get(GenxFnTy->getParamType(1), 0x00));
-  // Address vector
-  Args.push_back(Info.CI->getArgOperand(0));
-  // values to write
-  Args.push_back(Info.CI->getArgOperand(1));
-  llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(GenxFn, Args);
-  NewCI->setName(Info.CI->getName());
-  NewCI->setDebugLoc(Info.CI->getDebugLoc());
-  Info.CI->eraseFromParent();
-}
-
 
 namespace {
 
@@ -7059,7 +6780,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinDP4AImpl(CMCallInfo &CallInfo,
 ///
 llvm::Value *CGCMRuntime::HandleBuiltinBFNImpl(CMCallInfo &CallInfo,
                                                 CMBuiltinKind Kind) {
-  assert(Kind = CMBK_cm_bfn_impl);
+  assert(Kind == CMBK_cm_bfn_impl);
 
   const CallExpr *CE = CallInfo.CE;
   llvm::CallInst *CI = CallInfo.CI;
@@ -7640,7 +7361,7 @@ CGCMRuntime::HandleBuiltinLscFenceImpl(CMCallInfo &CallInfo,
 //
 void CGCMRuntime::HandleBuiltinScatterImpl(CMCallInfo &CallInfo,
                                            CMBuiltinKind Kind) {
-  assert(Kind == CMBK_scatter_impl);
+  assert(Kind == CMBK_scatter_impl || Kind == CMBK_scatter_svm_impl);
 
   llvm::CallInst *CI = CallInfo.CI;
 
@@ -7663,6 +7384,13 @@ void CGCMRuntime::HandleBuiltinScatterImpl(CMCallInfo &CallInfo,
                     ->getElementType()
                     ->getPrimitiveSizeInBits() / 8;
 
+  if(Kind == CMBK_scatter_svm_impl) {
+    llvm::Type *ElemTy = cast<llvm::VectorType>(Val->getType())->getElementType();
+    llvm::Type *VPtrTy = llvm::VectorType::get(llvm::PointerType::get(ElemTy, 1),
+                                        Addr->getType()->getVectorNumElements());
+    Addr = Builder.CreateIntToPtr(Addr, VPtrTy);
+  }
+
   auto NewCI = Builder.CreateMaskedScatter(Val, Addr, Alignment, Mask);
   NewCI->setDebugLoc(CI->getDebugLoc());
   CI->eraseFromParent();
@@ -7676,7 +7404,7 @@ void CGCMRuntime::HandleBuiltinScatterImpl(CMCallInfo &CallInfo,
 //
 llvm::Value *CGCMRuntime::HandleBuiltinGatherImpl(CMCallInfo &CallInfo,
                                                   CMBuiltinKind Kind) {
-  assert(Kind == CMBK_gather_impl);
+  assert(Kind == CMBK_gather_impl || Kind == CMBK_gather_svm_impl);
 
   llvm::CallInst *CI = CallInfo.CI;
 
@@ -7698,6 +7426,13 @@ llvm::Value *CGCMRuntime::HandleBuiltinGatherImpl(CMCallInfo &CallInfo,
     Alignment = cast<llvm::VectorType>(Passthru->getType())
                     ->getElementType()
                     ->getPrimitiveSizeInBits() / 8;
+
+  if(Kind == CMBK_gather_svm_impl) {
+    llvm::Type *ElemTy = cast<llvm::VectorType>(Passthru->getType())->getElementType();
+    llvm::Type *VPtrTy = llvm::VectorType::get(llvm::PointerType::get(ElemTy, 1),
+                                        Addr->getType()->getVectorNumElements());
+    Addr = Builder.CreateIntToPtr(Addr, VPtrTy);
+  }
 
   auto NewCI = Builder.CreateMaskedGather(Addr, Alignment, Mask, Passthru);
   NewCI->setDebugLoc(CI->getDebugLoc());

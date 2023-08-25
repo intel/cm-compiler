@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2021 Intel Corporation
+Copyright (C) 2015-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -16,264 +16,107 @@ static_assert(0, "CM:w:cm_svm.h should not be included explicitly - only "
 
 #include "cm_common.h"
 #include "cm_internal.h"
+#include "cm_memory.h"
 
-namespace details {
-template <typename T0, int SZ>
-CM_NODEBUG CM_INLINE void cm_svm_block_read_impl(uintptr_t addr,
-                                                 vector_ref<T0, SZ> dst) {
-  constexpr unsigned _Sz = sizeof(T0) * SZ;
-  uint64_t _Addr = addr;
-
-  CM_STATIC_ERROR(_Sz >= details::OWORD, "block size must be at least 1 oword");
-  CM_STATIC_ERROR(_Sz % details::OWORD == 0,
-                  "block size must be whole number of owords");
-  CM_STATIC_ERROR(details::isPowerOf2(_Sz / details::OWORD),
-                  "block must be 1, 2, 4 or 8 owords long");
-  CM_STATIC_ERROR(_Sz <= 8 * details::OWORD,
-                  "block size must be at most 8 owords");
-  dst = details::__cm_intrinsic_impl_svm_block_read<T0, SZ>(_Addr);
-}
-
-template <typename T0, int SZ>
-CM_NODEBUG CM_INLINE void
-cm_svm_block_read_unaligned_impl(uintptr_t addr, vector_ref<T0, SZ> dst) {
-  constexpr unsigned _Sz = sizeof(T0) * SZ;
-  uint64_t _Addr = addr;
-
-  CM_STATIC_ERROR(_Sz >= details::OWORD, "block size must be at least 1 oword");
-  CM_STATIC_ERROR(_Sz % details::OWORD == 0,
-                  "block size must be whole number of owords");
-  CM_STATIC_ERROR(details::isPowerOf2(_Sz / details::OWORD),
-                  "block must be 1, 2, 4 or 8 owords long");
-  CM_STATIC_ERROR(_Sz <= 8 * details::OWORD,
-                  "block size must be at most 8 owords");
-  dst = details::__cm_intrinsic_impl_svm_block_read_unaligned<T0, SZ>(_Addr);
-}
-
-template <typename T0, int SZ>
-CM_NODEBUG CM_INLINE void cm_svm_block_write_impl(uintptr_t addr,
-                                                  vector<T0, SZ> src) {
-  constexpr unsigned _Sz = sizeof(T0) * SZ;
-  uint64_t _Addr = addr;
-
-  CM_STATIC_ERROR(_Sz >= details::OWORD, "block size must be at least 1 oword");
-  CM_STATIC_ERROR(_Sz % details::OWORD == 0,
-                  "block size must be whole number of owords");
-  CM_STATIC_ERROR(details::isPowerOf2(_Sz / details::OWORD),
-                  "block must be 1, 2, 4 or 8 owords long");
-  CM_STATIC_ERROR(_Sz <= 8 * details::OWORD,
-                  "block size must be at most 8 owords");
-
-  details::__cm_intrinsic_impl_svm_block_write<T0>(_Addr, src);
-}
-
-} // namespace details
-
-// API for SVM block read and write
-
-// svmptr_t interface.
-template <typename T0, int SZ>
-CM_NODEBUG CM_INLINE void cm_svm_block_read(svmptr_t addr,
-                                            vector_ref<T0, SZ> dst) {
-  details::cm_svm_block_read_impl(uintptr_t(addr), dst);
-}
-
-template <typename T0, int N, int M>
-CM_NODEBUG CM_INLINE void cm_svm_block_read(svmptr_t addr,
-                                            matrix_ref<T0, N, M> dst) {
-  vector<T0, N * M> _Dst;
-  cm_svm_block_read(addr, _Dst);
-  dst = _Dst.format<T0, N, M>();
-}
-
-template <typename T0, int N>
-CM_NODEBUG CM_INLINE void cm_svm_block_read_unaligned(svmptr_t addr,
-                                                      vector_ref<T0, N> dst) {
-  details::cm_svm_block_read_unaligned_impl(uintptr_t(addr), dst);
-}
-
-template <typename T0, int N, int M>
-CM_NODEBUG CM_INLINE void
-cm_svm_block_read_unaligned(svmptr_t addr, matrix_ref<T0, N, M> dst) {
-  vector<T0, N * M> _Dst;
-  cm_svm_block_read_unaligned(addr, _Dst);
-  dst = _Dst.format<T0, N, M>();
-}
-
-template <typename T0, int SZ>
-CM_NODEBUG CM_INLINE void cm_svm_block_write(svmptr_t addr,
-                                             vector<T0, SZ> src) {
-  details::cm_svm_block_write_impl(uintptr_t(addr), src);
-}
-
-template <typename T0, int N, int M>
-CM_NODEBUG CM_INLINE void cm_svm_block_write(svmptr_t addr,
-                                             matrix<T0, N, M> src) {
-  vector<T0, N * M> _Src = src;
-  cm_svm_block_write(addr, _Src);
-}
-
-// pointer interface.
-template <typename T0, int N>
-CM_NODEBUG CM_INLINE void cm_ptr_block_read(const T0 *const addr,
-                                            vector_ref<T0, N> dst) {
-  uintptr_t _Addr = reinterpret_cast<uintptr_t>(addr);
-  details::cm_svm_block_read_impl(_Addr, dst);
-}
-
-template <typename T0, int N, int M>
-CM_NODEBUG CM_INLINE void cm_ptr_block_read(const T0 *const addr,
-                                            matrix_ref<T0, N, M> dst) {
-  vector<T0, N * M> _Dst;
-  cm_svm_block_read(addr, _Dst);
-  dst = _Dst.format<T0, N, M>();
-}
-
-template <typename T0, int N>
-CM_NODEBUG CM_INLINE void
-cm_ptr_block_read_unaligned(const T0 *const addr, vector_ref<T0, N> dst) {
-  uintptr_t _Addr = reinterpret_cast<uintptr_t>(addr);
-  details::cm_svm_block_read_unaligned_impl(_Addr, dst);
-}
-
-template <typename T0, int N, int M>
-CM_NODEBUG CM_INLINE void
-cm_ptr_block_read_unaligned(const T0 *const addr, matrix_ref<T0, N, M> dst) {
-  vector<T0, N * M> _Dst;
-  cm_svm_block_read_unaligned(addr, _Dst);
-  dst = _Dst.format<T0, N, M>();
-}
-
-template <typename T0, int SZ>
-CM_NODEBUG CM_INLINE void cm_ptr_block_write(T0 *const addr,
-                                             vector<T0, SZ> src) {
-  uintptr_t _Addr = reinterpret_cast<uintptr_t>(addr);
-  details::cm_svm_block_write_impl(_Addr, src);
-}
-
-template <typename T0, int N, int M>
-CM_NODEBUG CM_INLINE void cm_ptr_block_write(T0 *const addr,
-                                             matrix<T0, N, M> src) {
-  vector<T0, N * M> _Src = src;
-  cm_svm_block_write(addr, _Src);
-}
-
-namespace details {
-
-template <typename T0, int N>
-CM_NODEBUG CM_INLINE
-typename std::enable_if<details::isPowerOf2(N, 32), void>::type
-cm_svm_scatter_read_impl(vector<uintptr_t, N> vAddr, vector_ref<T0, N> dst) {
-  vector<uint64_t, N> _VAddr64(vAddr);
-  if constexpr(sizeof(T0) == 1) {
-    vector<T0, N*4> _Ret;
-    _Ret =
-      details::__cm_intrinsic_impl_svm_scatter_read<T0,N,4>(_VAddr64, _Ret);
-    dst = _Ret.select<N, 4>(0);
-  }
-  else if constexpr(sizeof(T0) == 2) {
-    vector<T0, N*2> _Ret;
-    _Ret =
-      details::__cm_intrinsic_impl_svm_scatter_read<T0,N,2>(_VAddr64, _Ret);
-    dst = _Ret.select<N, 2>(0);
-  }
-  else {
-    vector<T0, N> _Ret;
-    _Ret =
-      details::__cm_intrinsic_impl_svm_scatter_read<T0,N,1>(_VAddr64, _Ret);
-    dst = _Ret;
-  }
-}
-
-template <typename T0, int N>
-CM_NODEBUG CM_INLINE
-typename std::enable_if<details::isPowerOf2(N, 32), void>::type
-cm_svm_scatter_write_impl(vector<uintptr_t, N> vAddr, vector<T0, N> src) {
-  vector<uint64_t, N> _VAddr64(vAddr);
-  if constexpr(sizeof(T0) == 1) {
-    vector<T0, N*4> _Data;
-    _Data.select<N, 4>(0) = src;
-    details::__cm_intrinsic_impl_svm_scatter_write<T0, N, 4>(_VAddr64, _Data);
-  }
-  else if constexpr(sizeof(T0) == 2) {
-    vector<T0, N*2> _Data;
-    _Data.select<N, 2>(0) = src;
-    details::__cm_intrinsic_impl_svm_scatter_write<T0, N, 2>(_VAddr64, _Data);
-  }
-  else
-    details::__cm_intrinsic_impl_svm_scatter_write<T0, N, 1>(_VAddr64, src);
-}
-
-} // namespace details
-
-// API for SVM scatter read and write
-
-// svmptr_t interface.
+// API for SVM scatter read and write.
 template <typename T0, int N>
 CM_NODEBUG CM_INLINE void cm_svm_scatter_read(vector<svmptr_t, N> vAddr,
                                               vector_ref<T0, N> dst) {
-  details::cm_svm_scatter_read_impl(vector<uintptr_t, N>(vAddr), dst);
+  if constexpr (N == 1) {
+    __global T0 *ptr = reinterpret_cast<__global T0 *>(vAddr(0));
+    dst(0) = load(ptr);
+  } else {
+    vector<__global T0 *, N> vPtrs =
+        reinterpret_cast<vector<__global T0 *, N> >(vAddr);
+    dst = gather(vPtrs);
+  }
 }
 
 template <typename T0, int N, int M>
 CM_NODEBUG CM_INLINE void cm_svm_scatter_read(matrix<svmptr_t, N, M> vAddr,
                                               matrix_ref<T0, N, M> dst) {
-  vector<svmptr_t, N * M> _VAddr = vAddr;
-  vector<T0, N * M> _Ret;
-  cm_svm_scatter_read(_VAddr, _Ret);
-  dst = _Ret.format<T0, N, M>();
+  if constexpr ((N == 1) && (M == 1)) {
+    __global T0 *ptr = reinterpret_cast<__global T0 *>(vAddr(0, 0));
+    dst(0, 0) = load(ptr);
+  } else {
+    matrix<__global T0 *, N, M> vPtrs =
+        reinterpret_cast<matrix<__global T0 *, N, M> >(vAddr);
+    dst = gather(vPtrs);
+  }
 }
 
 template <typename T0, int N>
 CM_NODEBUG CM_INLINE void cm_svm_scatter_write(vector<svmptr_t, N> vAddr,
                                                vector<T0, N> src) {
-  details::cm_svm_scatter_write_impl(vector<uintptr_t, N>(vAddr), src);
+  if constexpr (N == 1) {
+    __global T0 *ptr = reinterpret_cast<__global T0 *>(vAddr(0));
+    store(src(0), ptr);
+  } else {
+    vector<__global T0 *, N> vPtrs =
+        reinterpret_cast<vector<__global T0 *, N> >(vAddr);
+    scatter(src, vPtrs);
+  }
 }
 
 template <typename T0, int N, int M>
 CM_NODEBUG CM_INLINE void cm_svm_scatter_write(matrix<svmptr_t, N, M> vAddr,
                                                matrix<T0, N, M> src) {
-  vector<svmptr_t, N * M> _VAddr = vAddr;
-  vector<T0, N * M> _Src = src;
-  cm_svm_scatter_write(_VAddr, _Src);
+  if constexpr ((N == 1) && (M == 1)) {
+    __global T0 *ptr = reinterpret_cast<__global T0 *>(vAddr(0, 0));
+    store(src(0, 0), ptr);
+  } else {
+    matrix<__global T0 *, N, M> vPtrs =
+        reinterpret_cast<matrix<__global T0 *, N, M> >(vAddr);
+    scatter(src, vPtrs);
+  }
 }
 
-// pointer interface.
+// API for SVM block read and write.
 template <typename T0, int N>
-CM_NODEBUG CM_INLINE void cm_ptr_scatter_read(const T0 * const p,
-                                              vector<ptrdiff_t, N> offset,
-                                              vector_ref<T0, N> dst) {
-  uintptr_t base = reinterpret_cast<uintptr_t>(p);
-  vector<uintptr_t, N> vAddr = base + offset;
-  details::cm_svm_scatter_read_impl(vAddr, dst);
-}
-
-template <typename T0, int N, int M>
-CM_NODEBUG CM_INLINE void cm_ptr_scatter_read(const T0 * const p,
-                                              matrix<ptrdiff_t, N, M> offset,
-                                              matrix_ref<T0, N, M> dst) {
-  vector<ptrdiff_t, N * M> _Offset = offset;
-  vector<T0, N * M> _Ret;
-  cm_svm_scatter_read(p, _Offset, _Ret);
-  dst = _Ret.format<T0, N, M>();
+CM_NODEBUG CM_INLINE void cm_svm_block_read(svmptr_t addr,
+                                            vector_ref<T0, N> dst) {
+  const __global vector<T0, N> *const vPtr =
+      reinterpret_cast<const __global vector<T0, N> *const>(addr);
+  dst = load<vector<T0, N>, Align::OWORD>(vPtr);
 }
 
 template <typename T0, int N>
-CM_NODEBUG CM_INLINE void cm_ptr_scatter_write(T0 const *p,
-                                               vector<ptrdiff_t, N> offset,
-                                               vector<T0, N> src) {
-  uintptr_t base = reinterpret_cast<uintptr_t>(p);
-  vector<uintptr_t, N> vAddr = base + offset;
-  details::cm_svm_scatter_write_impl(vAddr, src);
+CM_NODEBUG CM_INLINE void cm_svm_block_read_unaligned(svmptr_t addr,
+                                                      vector_ref<T0, N> dst) {
+  const __global vector<T0, N> *const vPtr =
+      reinterpret_cast<const __global vector<T0, N> *const>(addr);
+  dst = load<vector<T0, N>, Align::DWORD>(vPtr);
 }
 
 template <typename T0, int N, int M>
-CM_NODEBUG CM_INLINE void cm_ptr_scatter_write(T0 *const p,
-                                               matrix<ptrdiff_t, N, M> offset,
-                                               matrix<T0, N, M> src) {
-  vector<ptrdiff_t, N * M> _Offset = offset;
-  vector<T0, N * M> _Src = src;
-  cm_svm_scatter_write(p, _Offset, _Src);
+CM_NODEBUG CM_INLINE void cm_svm_block_read(svmptr_t addr,
+                                            matrix_ref<T0, N, M> dst) {
+  const __global matrix<T0, N, M> *const vPtr =
+      reinterpret_cast<const __global matrix<T0, N, M> *const>(addr);
+  dst = load<matrix<T0, N, M>, Align::OWORD>(vPtr);
+}
+
+template <typename T0, int N, int M>
+CM_NODEBUG CM_INLINE void
+cm_svm_block_read_unaligned(svmptr_t addr, matrix_ref<T0, N, M> dst) {
+  const __global matrix<T0, N, M> *const vPtr =
+      reinterpret_cast<const __global matrix<T0, N, M> *const>(addr);
+  dst = load<matrix<T0, N, M>, Align::DWORD>(vPtr);
+}
+
+template <typename T0, int N>
+CM_NODEBUG CM_INLINE void cm_svm_block_write(svmptr_t addr, vector<T0, N> src) {
+  __global vector<T0, N> *const vPtr =
+      reinterpret_cast<__global vector<T0, N> *const>(addr);
+  store(src, vPtr);
+}
+
+template <typename T0, int N, int M>
+CM_NODEBUG CM_INLINE void cm_svm_block_write(svmptr_t addr,
+                                             matrix<T0, N, M> src) {
+  __global matrix<T0, N, M> *const vPtr =
+      reinterpret_cast<__global matrix<T0, N, M> *const>(addr);
+  store(src, vPtr);
 }
 
 /// \brief ptr-base svm or stateless memmory read4.
@@ -666,60 +509,6 @@ svm_atomic(matrix<svmptr_t, N, M> vAddr, matrix_ref<T, N, M> dst,
   vector<T, N * M> _Src0 = src0;
   vector<T, N * M> _Src1 = src1;
   svm_atomic<Op, T, N * M>(_VAddr, _Dst, _Src0, _Src1);
-}
-
-/// \brief Shared local memory stateless read.
-///
-/// Load ::size bytes from memory address ::addr starting at ::offset to the
-/// SLM buffer ::slmBuffer. ::size must be a multiple of 256.
-///
-template <typename T = void>
-CM_INLINE void cm_slm_load(uint slmBuffer, svmptr_t addr, uint offset,
-                           uint size) {
-  vector<uint, 16> vOffset(__cm_init_seq);
-  vOffset.select<8, 1>(8) = vOffset.select<8, 1>(0) + 8;
-
-  uint numTotalBlocks = size / 256;
-  uint numGroups = cm_linear_local_size();
-  uint numBlocks = numTotalBlocks / numGroups;
-  uint numLeftOver = numTotalBlocks % numGroups;
-  numBlocks += (cm_linear_local_id() < numLeftOver) ? 1 : 0;
-
-  // We just need numBlocks and numGroups
-  uint elemSize = sizeof(float);
-  uint threadOffsetInSLM = cm_linear_local_id() * 256;
-  // in bytes
-  uint threadOffsetInMemory = offset + threadOffsetInSLM;
-  // in unit of elements
-  vector<uint, 16> vOffsets = (threadOffsetInSLM / elemSize) + vOffset * 4;
-
-  for (uint block = 0; block < numBlocks; block++) {
-    vector<uint, 32> row0; // 32 floats or 128 Bytes or 4 GRF-registers
-    vector<uint, 32> row1;
-    vector<uint, 64> rowTrans;
-    cm_svm_block_read(addr + threadOffsetInMemory, row0);
-    cm_svm_block_read(addr + threadOffsetInMemory + 128, row1);
-
-    // Transpose
-    rowTrans.select<8, 1>(0) = row0.select<8, 4>(0);
-    rowTrans.select<8, 1>(16) = row0.select<8, 4>(1);
-    rowTrans.select<8, 1>(32) = row0.select<8, 4>(2);
-    rowTrans.select<8, 1>(48) = row0.select<8, 4>(3);
-
-    rowTrans.select<8, 1>(8) = row1.select<8, 4>(0);
-    rowTrans.select<8, 1>(24) = row1.select<8, 4>(1);
-    rowTrans.select<8, 1>(40) = row1.select<8, 4>(2);
-    rowTrans.select<8, 1>(56) = row1.select<8, 4>(3);
-
-    cm_slm_write4(slmBuffer, vOffsets, rowTrans, SLM_ABGR_ENABLE);
-    threadOffsetInMemory += numGroups * 256;
-    vOffsets += numGroups * 64;
-  }
-
-#if CM_GENX > 900
-  cm_slm_fence(CM_GLOBAL_COHERENT_FENCE);
-#endif
-  cm_barrier();
 }
 
 #endif /* _CLANG_CM_SVM_H */

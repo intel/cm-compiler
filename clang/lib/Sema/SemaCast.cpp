@@ -2155,6 +2155,28 @@ static TryCastResult TryReinterpretCast(Sema &Self, ExprResult &SrcExpr,
     return Result;
   }
 
+  bool destIsCMType = DestType->isCMVectorMatrixType();
+  bool srcIsCMType = SrcType->isCMVectorMatrixType();
+
+  if (destIsCMType && srcIsCMType) {
+    if (DestType->getCMVectorMatrixSize() == SrcType->getCMVectorMatrixSize()) {
+      QualType DestEltType = DestType->getCMVectorMatrixElementType();
+      QualType SrcEltType = SrcType->getCMVectorMatrixElementType();
+
+      if (DestEltType->isIntegralType(Self.Context) &&
+          SrcEltType->isAnyPointerType()) {
+        Kind = CK_PointerToIntegral;
+        return TC_Success;
+      }
+      if (DestEltType->isAnyPointerType() &&
+          SrcEltType->isIntegralType(Self.Context)) {
+        Kind = CK_IntegralToPointer;
+        return TC_Success;
+      }
+    }
+    return TC_NotApplicable;
+  }
+
   bool destIsPtr = DestType->isAnyPointerType() ||
                    DestType->isBlockPointerType();
   bool srcIsPtr = SrcType->isAnyPointerType() ||

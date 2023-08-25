@@ -286,7 +286,6 @@ constexpr int Lsc_load4_slm[] = {0, 1, 2, 3, -1, -1, 4, 5, -1, -1, 0, -1, -1, 1,
 /* TY, DS, VS, IMOFF, L1, L3, TRANS, N, OP, IDX, OFF, DATA, DATA1, PRED, CHMASK */
 constexpr int Lsc_block_load_bti[] = {0, 1, 2, 3, 4, 5, 6, -1, -1, 0, 1, -1, -1, -1, -1};
 constexpr int Lsc_block_load_flat[] = {0, 1, 2, 3, 4, 5, 6, -1, -1, 0, 1, -1, -1, -1, -1};
-constexpr int Lsc_block_load_slm[] = {0, 1, 2, 3, -1, -1, 4, -1, -1, -1, 0, -1, -1, -1, -1};
 
 /// template <DataSize DS,
 ///           VectorSize VS,
@@ -351,7 +350,6 @@ constexpr int Lsc_store4_slm[] = {0, 1, 2, 3, -1, -1, 4, 5, -1, -1, 0, 1, -1, 2,
 /* TY, DS, VS, IMOFF, L1, L3, TRANS, N, OP, IDX, OFF, DATA, DATA1, PRED, CHMASK */
 constexpr int Lsc_block_store_bti[] = {0, 1, 2, 3, 4, 5, 6, -1, -1, 0, 1, 2, -1, -1, -1};
 constexpr int Lsc_block_store_flat[] = {0, 1, 2, 3, 4, 5, 6, -1, -1, 0, 1, 2, -1, -1, -1};
-constexpr int Lsc_block_store_slm[] = {0, 1, 2, 3, -1, -1, 4, -1, -1, -1, 0, 1, -1, -1, -1};
 
 // template <AtomicOp Op,
 //           DataSize DS,
@@ -385,7 +383,6 @@ static int getLSCIntrinsic(CMBuiltinKind Kind) {
   case CMBK_cm_load4_flat_impl:
     return llvm::GenXIntrinsic::genx_lsc_load_quad_stateless;
   case CMBK_cm_load_slm_impl:
-  case CMBK_cm_block_load_slm_impl:
     return llvm::GenXIntrinsic::genx_lsc_load_slm;
   case CMBK_cm_load4_slm_impl:
     return llvm::GenXIntrinsic::genx_lsc_load_quad_slm;
@@ -400,7 +397,6 @@ static int getLSCIntrinsic(CMBuiltinKind Kind) {
   case CMBK_cm_store4_flat_impl:
     return llvm::GenXIntrinsic::genx_lsc_store_quad_stateless;
   case CMBK_cm_store_slm_impl:
-  case CMBK_cm_block_store_slm_impl:
     return llvm::GenXIntrinsic::genx_lsc_store_slm;
   case CMBK_cm_store4_slm_impl:
     return llvm::GenXIntrinsic::genx_lsc_store_quad_slm;
@@ -436,7 +432,6 @@ static const int *getConfig(CMBuiltinKind Kind) {
   case CMBK_cm_block_load_flat_impl: return Lsc_block_load_flat;
   case CMBK_cm_load_slm_impl: return Lsc_load_slm;
   case CMBK_cm_load4_slm_impl: return Lsc_load4_slm;
-  case CMBK_cm_block_load_slm_impl: return Lsc_block_load_slm;
   case CMBK_cm_store_impl: return Lsc_store_bti;
   case CMBK_cm_store4_impl: return Lsc_store4_bti;
   case CMBK_cm_block_store_impl: return Lsc_block_store_bti;
@@ -445,7 +440,6 @@ static const int *getConfig(CMBuiltinKind Kind) {
   case CMBK_cm_block_store_flat_impl: return Lsc_block_store_flat;
   case CMBK_cm_store_slm_impl: return Lsc_store_slm;
   case CMBK_cm_store4_slm_impl: return Lsc_store4_slm;
-  case CMBK_cm_block_store_slm_impl: return Lsc_block_store_slm;
   case CMBK_cm_atomic_bti_impl: return Lsc_atomic_bti;
   case CMBK_cm_atomic_flat_impl: return Lsc_atomic_flat;
   case CMBK_cm_atomic_slm_impl: return Lsc_atomic_slm;
@@ -466,7 +460,6 @@ static LSC_SubOpcode getSubOp(CMBuiltinKind Kind) {
   case CMBK_cm_load_flat_impl:
   case CMBK_cm_block_load_flat_impl:
   case CMBK_cm_load_slm_impl:
-  case CMBK_cm_block_load_slm_impl:
      return LSC_SubOpcode::LSC_LOAD;
   case CMBK_cm_load4_impl:
   case CMBK_cm_load4_flat_impl:
@@ -477,7 +470,6 @@ static LSC_SubOpcode getSubOp(CMBuiltinKind Kind) {
   case CMBK_cm_store_flat_impl:
   case CMBK_cm_block_store_flat_impl:
   case CMBK_cm_store_slm_impl:
-  case CMBK_cm_block_store_slm_impl:
      return LSC_SubOpcode::LSC_STORE;
   case CMBK_cm_store4_impl:
   case CMBK_cm_store4_flat_impl:
@@ -501,7 +493,6 @@ static LDTYPE getOpType(CMBuiltinKind Kind) {
   case CMBK_cm_load_flat_impl:
   case CMBK_cm_block_load_flat_impl:
   case CMBK_cm_load_slm_impl:
-  case CMBK_cm_block_load_slm_impl:
   case CMBK_cm_load4_impl:
   case CMBK_cm_load4_flat_impl:
   case CMBK_cm_load4_slm_impl:
@@ -511,7 +502,6 @@ static LDTYPE getOpType(CMBuiltinKind Kind) {
   case CMBK_cm_store_flat_impl:
   case CMBK_cm_block_store_flat_impl:
   case CMBK_cm_store_slm_impl:
-  case CMBK_cm_block_store_slm_impl:
   case CMBK_cm_store4_impl:
   case CMBK_cm_store4_flat_impl:
   case CMBK_cm_store4_slm_impl:
@@ -549,9 +539,7 @@ static SFTYPE getSFType(CMBuiltinKind Kind) {
   case CMBK_cm_store4_flat_impl:
     return FLAT;
   case CMBK_cm_load_slm_impl:
-  case CMBK_cm_block_load_slm_impl:
   case CMBK_cm_store_slm_impl:
-  case CMBK_cm_block_store_slm_impl:
   case CMBK_cm_atomic_slm_impl:
   case CMBK_cm_store4_slm_impl:
   case CMBK_cm_load4_slm_impl:
@@ -588,8 +576,6 @@ static bool getBlock(CMBuiltinKind Kind) {
   case CMBK_cm_block_load_flat_impl:
   case CMBK_cm_block_store_impl:
   case CMBK_cm_block_store_flat_impl:
-  case CMBK_cm_block_load_slm_impl:
-  case CMBK_cm_block_store_slm_impl:
     return true;
   default:
     assert(0 && "Not a valid builtin");

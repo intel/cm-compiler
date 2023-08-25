@@ -61,7 +61,9 @@ set(CM_HEADERS
   cm/spirv/builtins.h
   cm/cm_addrspace.h
   cm/cm_memory.h
-
+  cm/cm_slm.h
+  cm/cm_pointer.h
+   
   opencl-c-common.h
   )
 

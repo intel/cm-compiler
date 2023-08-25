@@ -442,13 +442,6 @@ private:
   /// \brief Postprocess write_typed implementation.
   void HandleBuiltinWriteTypedImpl(CMCallInfo &Info);
 
-  /// \brief Postprocess svm block read implementations.
-  llvm::Value *HandleBuiltinSVMBlockReadImpl(CMCallInfo &Info,
-                                             CMBuiltinKind Kind);
-
-  /// \brief Postprocess svm block write implementation.
-  void HandleBuiltinSVMBlockWriteImpl(CMCallInfo &Info);
-
   /// \brief Postprocess svm scatter read implementation.
   llvm::Value *HandleBuiltinSVMScatterReadImpl(CMCallInfo &Info);
 

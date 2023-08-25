@@ -34,6 +34,10 @@ SPDX-License-Identifier: MIT
 
 #include "cm_addrspace.h"
 #include "cm_memory.h"
+#include "cm_pointer.h"
+#include "cm_slm.h"
+#include "cm_svm.h"
+
 #include "cm_printfocl.h"
 
 #include "cm_abs.h"

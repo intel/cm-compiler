@@ -12,19 +12,19 @@ SPDX-License-Identifier: MIT
 #include <cm/cm.h>
 
 void check_sg_vector(vector<__local int *, 4> fromVec, vector<__global int *, 4> toVec) {
-  // CHECK: call <4 x i32> @llvm.masked.gather.v4i32.v4p4i32(<4 x i32 addrspace(4)*> %{{[^,]+}}, i32 8
+  // CHECK: call <4 x i32> @llvm.masked.gather.v4i32.v4p3i32(<4 x i32 addrspace(3)*> %{{[^,]+}}, i32 8
   vector<int, 4> res1 = gather<int, 4, Align::QWORD>(fromVec);
 
   vector<ushort, 4> mask{1, 0, 1, 0};
   vector<int, 4> passthru{42, 42, 42, 42};
   vector<int, 4> res2 = gather<int, 4, Align::QWORD>(fromVec, mask, passthru);
 
-  // CHECK: call void @llvm.masked.scatter.v4i32.v4p4i32(<4 x i32> %{{[^,]+}}, <4 x i32 addrspace(4)*> %{{[^,]+}}, i32 8
+  // CHECK: call void @llvm.masked.scatter.v4i32.v4p1i32(<4 x i32> %{{[^,]+}}, <4 x i32 addrspace(1)*> %{{[^,]+}}, i32 8
   scatter<int, 4, Align::QWORD>(res1 + res2, toVec);
 }
 
 void check_sg_matrix(matrix<__local int *, 2, 2> fromMatrix, matrix<__global int *, 2, 2> toMatrix) {
-  // CHECK: call <4 x i32> @llvm.masked.gather.v4i32.v4p4i32(<4 x i32 addrspace(4)*> %{{[^,]+}}, i32 4
+  // CHECK: call <4 x i32> @llvm.masked.gather.v4i32.v4p3i32(<4 x i32 addrspace(3)*> %{{[^,]+}}, i32 4
   matrix<int, 2, 2> res1 = gather<int, 2, 2>(fromMatrix);
 
   matrix<ushort, 2, 2> mask;
@@ -36,7 +36,7 @@ void check_sg_matrix(matrix<__local int *, 2, 2> fromMatrix, matrix<__global int
   passthru.row(1) = 42;
 
   matrix<int, 2, 2> res2 = gather<int, 2, 2>(fromMatrix, mask, passthru);
-  // CHECK: call void @llvm.masked.scatter.v4i32.v4p4i32(<4 x i32> %{{[^,]+}}, <4 x i32 addrspace(4)*> %{{[^,]+}}, i32 4
+  // CHECK: call void @llvm.masked.scatter.v4i32.v4p1i32(<4 x i32> %{{[^,]+}}, <4 x i32 addrspace(1)*> %{{[^,]+}}, i32 4
   scatter<int, 2, 2>(res1 + res2, toMatrix);
 }
 

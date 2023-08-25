@@ -219,17 +219,6 @@ template <typename T, int SZ>
 void __cm_intrinsic_impl_oword_write(SurfaceIndex index, int offset,
                                      vector<T, SZ> src);
 
-template <typename T, int SZ>
-vector<T, SZ> __cm_intrinsic_impl_slm_oword_read(uint slmBuffer, int offset);
-
-template <typename T, int SZ>
-vector<T, SZ> __cm_intrinsic_impl_slm_oword_read_dwaligned(uint slmBuffer,
-                                                       int offset);
-
-template <typename T, int SZ>
-void __cm_intrinsic_impl_slm_oword_write(uint slmBuffer, int offset,
-                                     vector<T, SZ> src);
-
 template <typename T, int N, int M, int _M, CmBufferAttrib attr>
 matrix<T, N, _M> __cm_intrinsic_impl_media_read(SurfaceIndex index, int X,
                                                 int Y);
@@ -289,37 +278,6 @@ template <typename T0, typename T1, int N>
 void __cm_intrinsic_impl_scatter_write(SurfaceIndex index, uint globalOffset,
                                        vector<uint, N> elementOffset,
                                        vector<T1, N> data, T0 dummy);
-
-// This is gather_scaled intrinsic and with surface index T0 and scale 0.
-template <typename T, int N, int NBlocks>
-vector<T, N> __cm_intrinsic_impl_slm_read(uint globalOffsetInBytes,
-                                          vector<uint, N> elementOffsetInBytes,
-                                          vector<T, N> data);
-
-// This is scatter_scaled intrinsic with surface index T0 and scale 0.
-template <typename T, int N, int NBlocks>
-void __cm_intrinsic_impl_slm_write(uint globalOffsetInBytes,
-                                   vector<uint, N> elementOffsetInBytes,
-                                   vector<T, N> data);
-
-// SVM support
-template <typename T, int SZ>
-vector<T, SZ> __cm_intrinsic_impl_svm_block_read(uint64_t addr);
-
-template <typename T, int SZ>
-vector<T, SZ> __cm_intrinsic_impl_svm_block_read_unaligned(uint64_t addr);
-
-template <typename T, int SZ>
-void __cm_intrinsic_impl_svm_block_write(uint64_t addr, vector<T, SZ> src);
-
-template <typename T, int N, int NumBlk>
-vector<T, N*NumBlk>
-__cm_intrinsic_impl_svm_scatter_read(vector<uint64_t, N> vAddr,
-                                     vector<T, N*NumBlk> oldVal);
-
-template <typename T, int N, int NumBlk>
-void __cm_intrinsic_impl_svm_scatter_write(vector<uint64_t, N> vAddr,
-                                           vector<T, N*NumBlk> src);
 
 template <CmAtomicOpType Op, typename T, int N>
 vector<T, N> __cm_intrinsic_impl_svm_atomic(vector<uint64_t, N> vAddr,
@@ -529,10 +487,6 @@ RetTy __cm_intrinsic_impl_load4_slm(vector<unsigned, N> Offset,
                                     vector<ushort, N> Pred,
                                     ChannelMaskType mask);
 
-template <typename RetTy, DataSize DS, VectorSize VS, int ImmOffset,
-          bool Transposed>
-RetTy __cm_intrinsic_impl_block_load_slm(unsigned Offset);
-
 template <typename T, DataSize DS, VectorSize VS, int ImmOffset,
           bool Transposed, int N>
 void __cm_intrinsic_impl_store_slm(
@@ -546,11 +500,6 @@ void __cm_intrinsic_impl_store4_slm(
     vector<unsigned, N> Offset,
     vector<T, N * details::lsc_vector_size<VS>()> Data, vector<ushort, N> Pred,
     ChannelMaskType mask);
-
-template <typename T, DataSize DS, VectorSize VS, int ImmOffset,
-          bool Transposed>
-void __cm_intrinsic_impl_block_store_slm(
-    unsigned Offset, vector<T, details::lsc_vector_size<VS>()> Data);
 
 template <typename T, int NBlocks, int Width, int Height, bool Transposed,
           bool Transformed, CacheHint L1H, CacheHint L3H, int N>
@@ -615,14 +564,16 @@ __cm_intrinsic_impl_wrregion(typename simd_type<T, n>::type oldVal,
                              typename simd_type<T, m>::type newVal, int offset,
                              typename mask_type<n>::type mask = 1);
 
-template <typename T, int n>
+template <typename T, int n, int A = 0>
 typename simd_type<T, n>::type
-__cm_intrinsic_impl_svm_read(typename simd_type<uint64_t, n>::type addrs,
+__cm_builtin_impl_svm_gather(typename simd_type<uint64_t, n>::type addrs,
+                             typename simd_type<ushort, n>::type mask,
                              typename simd_type<T, n>::type oldVal);
 
-template <typename T, int n>
-void __cm_intrinsic_impl_svm_write(typename simd_type<uint64_t, n>::type addrs,
-                                   typename simd_type<T, n>::type vals);
+template <typename T, int n, int A = 0>
+void __cm_builtin_impl_svm_scatter(typename simd_type<T, n>::type src,
+                                   typename simd_type<uint64_t, n>::type addrs,
+                                   typename simd_type<ushort, n>::type mask);
 
 } // namespace details
 

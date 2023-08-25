@@ -597,43 +597,6 @@ CM_NODEBUG CM_INLINE auto cm_load_slm(vector<unsigned, N> Offset,
   return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
 }
 
-// Block-load with a base-pointer to the SLM
-template <typename T, VectorSize VS, DataSize DS = DataSize::Default>
-CM_NODEBUG CM_INLINE auto cm_load_slm(unsigned Offset) {
-  CM_HAS_LSC_CONTROL;
-
-  CM_STATIC_WARNING(details::always_false<decltype(VS)>(),
-                    "Please use new interface with explicit NElts");
-  using namespace details;
-  using _RetTy = decltype(lsc_data_type<T, 1, VS>());
-  static_assert(VS != VectorSize::N0, "invalid vector size");
-  constexpr DataSize _DS = lsc_data_size<T, DS>();
-  CM_STATIC_ERROR(_DS == DataSize::U32 || _DS == DataSize::U64,
-                  "Transposed load can work only with U32 and U64 data sizes");
-  constexpr int _ImmOffset = 0;
-  constexpr bool _Transposed = true;
-  return __cm_intrinsic_impl_block_load_slm<_RetTy, _DS, VS, _ImmOffset,
-                                            _Transposed>(Offset);
-}
-
-// Block-load with a base-pointer to the SLM, new interface
-template <typename T, int NElts, DataSize DS = DataSize::Default>
-CM_NODEBUG CM_INLINE auto cm_load_slm(unsigned Offset) {
-  CM_HAS_LSC_CONTROL;
-
-  using namespace details;
-  constexpr VectorSize VS = details::lsc_vector_size<NElts>();
-  using _RetTy = decltype(lsc_data_type<T, 1, VS>());
-  static_assert(VS != VectorSize::N0, "invalid vector size");
-  constexpr DataSize _DS = lsc_data_size<T, DS>();
-  CM_STATIC_ERROR(_DS == DataSize::U32 || _DS == DataSize::U64,
-                  "Transposed load can work only with U32 and U64 data sizes");
-  constexpr int _ImmOffset = 0;
-  constexpr bool _Transposed = true;
-  return __cm_intrinsic_impl_block_load_slm<_RetTy, _DS, VS, _ImmOffset,
-                                            _Transposed>(Offset);
-}
-
 // Non-transposed SLM quad load
 template <typename T, ChannelMaskType Mask, DataSize DS = DataSize::Default,
           int N = details::lsc_default_simt()>
@@ -726,22 +689,6 @@ cm_store_slm(vector<unsigned, N> Offset,
   details::__cm_intrinsic_impl_store_slm<typename lsc_expand_type<T>::type, DS_,
                                          VS, ImmOffset, Transposed, N>(
       Offset, _TmpData, Pred);
-}
-
-// Block version.
-template <typename T, int NElts, DataSize DS = DataSize::Default>
-CM_NODEBUG CM_INLINE void cm_store_slm(unsigned Offset, vector<T, NElts> Data) {
-  CM_HAS_LSC_CONTROL;
-
-  constexpr DataSize _DS = details::lsc_data_size<T, DS>();
-  CM_STATIC_ERROR(_DS == DataSize::U32 || _DS == DataSize::U64,
-                  "Transposed store can work only with U32 and U64 data sizes");
-  constexpr VectorSize _VS = details::lsc_vector_size<NElts>();
-  static_assert(_VS != VectorSize::N0, "invalid vector size");
-  constexpr int _ImmOffset = 0;
-  constexpr bool _Transposed = true;
-  details::__cm_intrinsic_impl_block_store_slm<T, _DS, _VS, _ImmOffset,
-                                               _Transposed>(Offset, Data);
 }
 
 // Quad version
