@@ -9446,7 +9446,7 @@ def note_ovl_candidate_bad_cm_reference : Note<
 def err_cm_ref_init_from_rvalue: Error<
   "%0 initialization value must be an lvalue">;
 def err_cm_max_data_size_exceeded: Error<
-  "size of %select{vector|matrix}0 (%1 bytes) exceeds maximum supported size (must be less than 16384 bytes)">;
+  "size of %select{vector|matrix}0 (%1 bytes) exceeds maximum supported size (must be less than %2 bytes)">;
 def err_cm_matrix_vector_reference: Error<
   "C++ reference parameter may not refer to a %select{vector|matrix|vector_ref|matrix_ref}0">;
 def warn_cm_target_doesnt_support_type: Warning<

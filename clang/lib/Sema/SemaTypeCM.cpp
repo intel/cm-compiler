@@ -63,6 +63,10 @@ static bool checkCMElementType(Sema &S, CMTypeKind Kind, QualType EltTy,
   return true;
 }
 
+static unsigned getGrfSizeInBytes(const TargetOptions &Opts) {
+  return Opts.CMNumGrf * Opts.CMGrfWidth / 8;
+}
+
 QualType Sema::BuildCMVectorType(bool IsReference, QualType T, Expr *SizeExpr,
                                  SourceLocation VLoc, SourceLocation LessLoc,
                                  SourceLocation GreaterLoc) {
@@ -91,12 +95,15 @@ QualType Sema::BuildCMVectorType(bool IsReference, QualType T, Expr *SizeExpr,
       return QualType();
     }
 
-    // Vector size must be less than 8kb
+    // Vector size must be less than the register file size
     if (!T->isDependentType()) {
-      int VectorSizeInBytes = (VS * Context.getTypeSize(T)) / 8;
-      if (VectorSizeInBytes >= 16384) {
+      unsigned GrfSizeInBytes =
+          getGrfSizeInBytes(Context.getTargetInfo().getTargetOpts());
+      unsigned VectorSizeInBytes = VS * Context.getTypeSize(T) / 8;
+      if (VectorSizeInBytes >= GrfSizeInBytes) {
         Diag(VLoc, diag::err_cm_max_data_size_exceeded)
-          << 0 << VectorSizeInBytes << SourceRange(VLoc, GreaterLoc);
+            << 0 << VectorSizeInBytes << GrfSizeInBytes
+            << SourceRange(VLoc, GreaterLoc);
         return QualType();
       }
     }
@@ -152,12 +159,16 @@ QualType Sema::BuildCMMatrixType(bool IsReference, QualType T, Expr *NRowExpr,
       return QualType();
     }
 
-    // Matrix size must be less than 8kb
+    // Matrix size must be less than the register file size
     if (!T->isDependentType()) {
-      int MatrixSizeInBytes = (NumRows * NumCols * Context.getTypeSize(T)) / 8;
-      if (MatrixSizeInBytes >= 16384) {
+      unsigned GrfSizeInBytes =
+          getGrfSizeInBytes(Context.getTargetInfo().getTargetOpts());
+      unsigned MatrixSizeInBytes =
+          NumRows * NumCols * Context.getTypeSize(T) / 8;
+      if (MatrixSizeInBytes >= GrfSizeInBytes) {
         Diag(MLoc, diag::err_cm_max_data_size_exceeded)
-          << 1 << MatrixSizeInBytes << SourceRange(MLoc, GreaterLoc);
+            << 1 << MatrixSizeInBytes << GrfSizeInBytes
+            << SourceRange(MLoc, GreaterLoc);
         return QualType();
       }
     }

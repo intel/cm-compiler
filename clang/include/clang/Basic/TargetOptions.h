@@ -72,6 +72,12 @@ public:
   /// address space.
   bool NVPTXUseShortPointers = false;
 
+  /// For CM, platform-dependent register width in bits
+  unsigned CMGrfWidth = 0;
+
+  /// For CM, requested GRF size
+  unsigned CMNumGrf = 128;
+
   /// For CM, maximum SLM size in kbytes
   unsigned CMMaxSLMSize = 0;
 

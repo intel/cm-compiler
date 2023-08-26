@@ -41,6 +41,7 @@ CODEGENOPT(EmitCmOCLL0, 1, 0)              /// CM: emit CM kernels to run on Ope
 CODEGENOPT(EnableCMStackcalls, 1, 0)       /// CM: enable CM stack calls by default.
 
 // those options are deduced from arch
+VALUE_CODEGENOPT(NumGrf, 32, 128)    /// CM: requested number of registers per thread
 VALUE_CODEGENOPT(MaxSLMSize, 32, 0)  /// CM: maximum amount of SLM available
 VALUE_CODEGENOPT(MaxOBRWSize, 32, 0) /// CM: maximum OBRW size
 CODEGENOPT(IEFByPass, 1, 0)          /// CM: if IEFByPass supported

@@ -220,10 +220,10 @@ Option                        Description
                               Valid only for some platforms.
 
 -Qxcm_register_file_size=<N>  Specifies number of registers to use for register allocation.
-                              The values allowed with this option are 128, 256 and auto for
-                              XeHP and further platforms. For pre-XeHP platforms 128 is the
-                              only allowed value. Auto value enables compiler heuristics to
-                              determine the number of registers.
+                              The values allowed with this option are `128`, `256` and `auto`
+                              for XeHP and further platforms. For pre-XeHP platforms `128`
+                              is the only allowed value. Auto value enables compiler heuristics
+                              to determine the number of registers.
 
 
 -Qxcm_doubleGRF               Alias for ``-Qxcm_register_file_size=256``.

@@ -786,6 +786,14 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
   Opts.InitializeCMGlobals = Args.hasArg(OPT_mCM_init_global);
   Opts.EmitCMGlobalsAsVolatile = Args.hasArg(OPT_fvolatile_global);
 
+  if (Args.hasArg(OPT_Qxcm_register_file_size)) {
+    StringRef Value = Args.getLastArgValue(OPT_Qxcm_register_file_size);
+    Opts.NumGrf = 128;
+    unsigned NumGrf = 0;
+    if (Value != "auto" && !Value.getAsInteger(10, NumGrf))
+      Opts.NumGrf = NumGrf;
+  }
+
   Opts.MaxSLMSize = getLastArgIntValue(Args, OPT_mCM_max_slm, 0);
   Opts.MaxOBRWSize = getLastArgIntValue(Args, OPT_mCM_max_obr, 0);
   Opts.IEFByPass = Args.hasArg(OPT_mCM_iefbypass);

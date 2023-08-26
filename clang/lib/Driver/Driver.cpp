@@ -112,15 +112,7 @@ static const char *getCMTypeTempSuffix(types::ID FileType,
                                        const ArgList &Args) {
   if (FileType != types::TY_PP_Asm && FileType != types::TY_Object)
     return nullptr;
-  if (!Args.hasArg(options::OPT_binary_format))
-    // default binary format is "cm", generating isa file
-    return "isa";
-  StringRef BFStr = Args.getLastArg(options::OPT_binary_format)->getValue();
-  auto *Format = llvm::StringSwitch<const char *>(BFStr)
-                     .Case("cm", "isa")
-                     .Cases("ocl", "ze", "bin")
-                     .Default(nullptr);
-  return Format;
+  return "bin";
 }
 
 Driver::Driver(StringRef ClangExecutable, StringRef TargetTriple,

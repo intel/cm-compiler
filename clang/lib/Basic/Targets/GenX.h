@@ -25,6 +25,8 @@ See LICENSE.TXT for details.
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/Compiler.h"
 
+#include <unordered_set>
+
 namespace clang {
 namespace targets {
 
@@ -119,9 +121,12 @@ private:
   std::string CPU;
 
   bool HasFP64 = false;
-  unsigned MaxSLMSize = 64;
-
   bool HasSLMCasInt64 = false;
+
+  unsigned GrfWidth = 256;
+  std::unordered_set<unsigned> SupportedGrfNums;
+
+  unsigned MaxSLMSize = 64;
 
   // FIXME: get rid of this stuff
   bool HasIEFByPass = false;

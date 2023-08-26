@@ -73,6 +73,9 @@ void GenXTargetInfo::adjustTargetOptions(const CodeGenOptions &CGOpts,
   TargetOpts.CMMaxOWordBlock =
       CGOpts.MaxOBRWSize == 0 ? MaxOWordBlock : CGOpts.MaxOBRWSize;
   TargetOpts.CMIEFByPass = CGOpts.IEFByPass || HasIEFByPass;
+  TargetOpts.CMGrfWidth = GrfWidth;
+  if (SupportedGrfNums.count(CGOpts.NumGrf))
+    TargetOpts.CMNumGrf = CGOpts.NumGrf;
 }
 
 /// handleTargetFeatures - Perform initialization based on the user
@@ -120,6 +123,7 @@ void GenXTargetInfo::getTargetDefines(const LangOptions &Opts,
   if (HasSLMCasInt64)
     Builder.defineMacro("CM_HAS_SLM_CAS_INT64", "1");
 
+  Builder.defineMacro("CM_GRF_WIDTH", std::to_string(GrfWidth));
   Builder.defineMacro("CM_MAX_SLM_SIZE", std::to_string(MaxSLMSize));
 }
 bool GenXTargetInfo::hasFeature(StringRef Feature) const {
