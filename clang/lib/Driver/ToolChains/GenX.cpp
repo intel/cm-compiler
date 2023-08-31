@@ -212,6 +212,12 @@ void GenX::addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
 
   if (DriverArgs.hasArg(options::OPT_vc_use_plain_2d_images))
     CC1Args.push_back("-vc-use-plain-2d-images");
+  if (DriverArgs.hasArg(options::OPT_mCM_disable_jmpi))
+    CC1Args.push_back("-mCM_disable_jmpi");
+  if (DriverArgs.hasArg(options::OPT_mCM_no_vector_decomposition))
+    CC1Args.push_back("-mCM_no_vector_decomposition");
+  if (DriverArgs.hasArg(options::OPT_mCM_translate_legacy))
+    CC1Args.push_back("-mCM_translate_legacy");
 
   ArgStringList CompatibilityArgs =
       constructCompatibilityFinalizerOptions(DriverArgs, Drv);

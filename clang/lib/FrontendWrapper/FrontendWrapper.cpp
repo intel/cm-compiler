@@ -281,6 +281,12 @@ static std::string getVCApiOptions(const llvm::opt::InputArgList &Args,
 
   if (Args.hasArg(clang::driver::options::OPT_vc_use_plain_2d_images))
     VCApiOptions += " -vc-use-plain-2d-images";
+  if (Args.hasArg(clang::driver::options::OPT_mCM_disable_jmpi))
+    VCApiOptions += " -fno-jump-tables";
+  if (Args.hasArg(clang::driver::options::OPT_mCM_no_vector_decomposition))
+    VCApiOptions += " -ze-no-vector-decomposition";
+  if (Args.hasArg(clang::driver::options::OPT_mCM_translate_legacy))
+    VCApiOptions += " -ftranslate-legacy-memory-intrinsics";
 
   if (auto *Arg = Args.getLastArg(
           clang::driver::options::OPT_Qxcm_register_file_size)) {

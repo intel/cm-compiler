@@ -91,12 +91,6 @@ void GenX::getGenXTargetFeatures(const Driver &D, const llvm::Triple &Triple,
                                  std::vector<StringRef> &Features) {
   Features.push_back("+ocl_runtime");
 
-  if (Args.getLastArg(options::OPT_mCM_disable_jmpi))
-    Features.push_back("+disable_jmpi");
   if (Args.getLastArg(options::OPT_mCM_warn_callable))
     Features.push_back("+warn_callable");
-  if (Args.getLastArg(options::OPT_mCM_no_vector_decomposition))
-    Features.push_back("+disable_vec_decomp");
-  if (Args.getLastArg(options::OPT_mCM_translate_legacy))
-    Features.push_back("+translate_legacy_message");
 }

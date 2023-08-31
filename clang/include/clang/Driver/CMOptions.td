@@ -20,9 +20,16 @@ def cm_ignored_Group : OptionGroup<"<cmc ignored options>">,
 class CMFlag<string name> : Option<["-", "/"], name, KIND_FLAG>,
   Group<cm_Group>, Flags<[CMOption, DriverOption, NoArgumentUnused]>;
 
+class CMCC1Flag<string name> : Option<["-", "/"], name, KIND_FLAG>,
+  Group<cm_Group>, Flags<[CMOption, CC1Option, DriverOption, NoArgumentUnused]>;
+
 class CMCompileFlag<string name> : Option<["-", "/"], name, KIND_FLAG>,
   Group<cm_compile_Group>,
   Flags<[CMOption, DriverOption, NoArgumentUnused]>;
+
+class CMCC1CompileFlag<string name> : Option<["-", "/"], name, KIND_FLAG>,
+  Group<cm_compile_Group>,
+  Flags<[CMOption, CC1Option, DriverOption, NoArgumentUnused]>;
 
 class CMIgnoredFlag<string name> : Option<["-", "/"], name, KIND_FLAG>,
   Group<cm_ignored_Group>,
@@ -145,15 +152,15 @@ def binary_format_eq : Joined<["-"], "binary-format=">, Group<cm_Group>,
 
 def fcmocl : CMIgnoredFlag<"fcmocl">;
 
-def mCM_no_vector_decomposition : CMCompileFlag<"mCM_no_vector_decomposition">, HelpText<"Disable vector decomposition optimization">;
+def mCM_no_vector_decomposition : CMCC1CompileFlag<"mCM_no_vector_decomposition">, HelpText<"Disable vector decomposition optimization">;
 
-def mCM_disable_jmpi : CMCompileFlag<"mCM_disable_jmpi">, HelpText<"disable jmpi (only available if -Qxcm_jit_target=... is also specified)">;
+def mCM_disable_jmpi : CMCC1CompileFlag<"mCM_disable_jmpi">, HelpText<"disable jmpi (only available if -Qxcm_jit_target=... is also specified)">;
 
 def mCM_no_debug : CMCompileFlag<"mCM_no_debug">, HelpText<"Disable debug info (line tables) when -g is not specified.">;
 
 def mCM_warn_callable : CMCompileFlag<"mCM_warn_callable">, HelpText<"Generate warning instead of error if callable is called in the middle.">;
 
-def mCM_translate_legacy : CMCompileFlag<"mCM_translate_legacy">, HelpText<"Translate legacy intrinsics.">;
+def mCM_translate_legacy : CMCC1CompileFlag<"mCM_translate_legacy">, HelpText<"Translate legacy intrinsics.">;
 
 // Passed to cc1 to specify the file name for importing builtin-function module
 def mCM_import_bif : CMCC1<"mCM_import_bif">;
