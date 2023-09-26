@@ -49,7 +49,6 @@ CM_NODEBUG CM_INLINE void cm_prefetch(SurfaceIndex Idx,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Prefetch, L1H, L3H>()),
                   "unsupported cache hint");
   constexpr int ImmOffset = 0;
@@ -68,7 +67,6 @@ CM_NODEBUG CM_INLINE void cm_ptr_prefetch(const unsigned *const Ptr,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Prefetch, L1H, L3H>()),
                   "unsupported cache hint");
   constexpr int ImmOffset = 0;
@@ -183,7 +181,6 @@ CM_NODEBUG CM_INLINE CM_LSC_REPLICATE_MASK(VS) auto cm_load(
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Load, L1H, L3H>()),
                   "unsupported cache hint");
   CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
@@ -209,7 +206,6 @@ CM_NODEBUG CM_INLINE auto cm_ptr_load(const T *const Ptr,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Load, L1H, L3H>()),
                   "unsupported cache hint");
   CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
@@ -328,7 +324,6 @@ CM_NODEBUG CM_INLINE auto cm_load4(SurfaceIndex Idx, vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Load, L1H, L3H>()),
                   "unsupported cache hint");
   constexpr VectorSize _VS =
@@ -357,7 +352,6 @@ CM_NODEBUG CM_INLINE auto cm_ptr_load4(const T *const Ptr,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Load, L1H, L3H>()),
                   "unsupported cache hint");
   constexpr VectorSize _VS =
@@ -410,7 +404,6 @@ cm_store(SurfaceIndex Idx, vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Store, L1H, L3H>()),
                   "unsupported cache hint");
   CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
@@ -436,7 +429,6 @@ cm_ptr_store(T *Ptr, vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Store, L1H, L3H>()),
                   "unsupported cache hint");
   CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
@@ -467,7 +459,6 @@ CM_NODEBUG CM_INLINE void cm_store4(
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Store, L1H, L3H>()),
                   "unsupported cache hint");
   constexpr VectorSize _VS =
@@ -497,7 +488,6 @@ CM_NODEBUG CM_INLINE void cm_ptr_store4(
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Store, L1H, L3H>()),
                   "unsupported cache hint");
   constexpr VectorSize _VS =
@@ -584,7 +574,6 @@ CM_NODEBUG CM_INLINE auto cm_load_slm(vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
   using _MessTy = decltype(details::lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
@@ -605,7 +594,6 @@ CM_NODEBUG CM_INLINE auto cm_load4_slm(vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   constexpr VectorSize _VS =
       details::lsc_get_vector_size_from_channel_mask<Mask>();
   CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, _VS);
@@ -653,7 +641,6 @@ cm_store_slm(vector<unsigned, N> Offset,
   CM_STATIC_WARNING(details::always_false<decltype(VS)>(),
                     "Please use new interface with explicit NElts");
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
   constexpr DataSize _DS = lsc_expand_ds(details::lsc_data_size<T, DS>());
   constexpr int _ImmOffset = 0;
@@ -676,7 +663,6 @@ cm_store_slm(vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(
       N, details::lsc_vector_size<NElts>());
   constexpr DataSize DS_ = lsc_expand_ds(details::lsc_data_size<T, DS>());
@@ -701,7 +687,6 @@ CM_NODEBUG CM_INLINE void cm_store4_slm(
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   constexpr DataSize _DS = lsc_expand_ds(details::lsc_data_size<T, DS>());
   constexpr VectorSize _VS =
       details::lsc_get_vector_size_from_channel_mask<Mask>();
@@ -945,7 +930,6 @@ CM_NODEBUG CM_INLINE auto cm_atomic(SurfaceIndex Idx,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
@@ -971,7 +955,6 @@ cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
   CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
@@ -1003,7 +986,6 @@ cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
   CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
@@ -1035,7 +1017,6 @@ CM_NODEBUG CM_INLINE auto cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
@@ -1062,7 +1043,6 @@ cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
   CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
@@ -1095,7 +1075,6 @@ cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
   CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
@@ -1130,7 +1109,6 @@ CM_NODEBUG CM_INLINE auto cm_atomic_slm(vector<unsigned, N> Offset,
     CM_HAS_SLM_CAS_INT64_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
@@ -1159,7 +1137,6 @@ cm_atomic_slm(vector<unsigned, N> Offset,
     CM_HAS_SLM_CAS_INT64_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
   CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
@@ -1194,7 +1171,6 @@ cm_atomic_slm(vector<unsigned, N> Offset,
     CM_HAS_SLM_CAS_INT64_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   CM_STATIC_ERROR((lsc_check_cache_hint<LSCAction::Atomic, L1H, L3H>()),
                   "unsupported cache hint");
   CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
@@ -1238,7 +1214,6 @@ CM_NODEBUG CM_INLINE void cm_fence(vector<ushort, N> Pred = 1) {
   CM_STATIC_ERROR(Scope != LSC_SCOPE::LSC_SCOPE_SYSTEM &&
   Scope != LSC_SCOPE::LSC_SCOPE_SYSACQ, "unsupported system fence type");
 #endif
-  CM_STATIC_ERROR(lsc_check_simt<N>(), "unexpected number of channels");
   __cm_intrinsic_impl_lsc_fence<Sfid, FenceOp, Scope, N>(Pred);
 }
 

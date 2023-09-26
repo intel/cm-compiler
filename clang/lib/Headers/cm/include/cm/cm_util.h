@@ -278,16 +278,6 @@ template <typename T = void> constexpr int lsc_default_simt() {
 #endif // CM_GENX >= 1280
 }
 
-// Check for valid SIMT width.
-template <int N>
-constexpr bool lsc_check_simt() {
-#if CM_GENX >= 1280
-  return ((N == 32) || (N == 16)); // SIMD32: PVC
-#else // CM_GENX < 1280
-  return ((N == 16) || (N == 8)); // SIMD16: DG2
-#endif // CM_GENX >= 1280
-}
-
 // Check for valid type for atomic source and dest arguments
 template <typename T>
 constexpr bool lsc_check_atomic_src() {
