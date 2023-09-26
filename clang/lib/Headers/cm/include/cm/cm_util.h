@@ -21,14 +21,7 @@ static_assert(0, "CM:w:cm_util.h should not be included explicitly - only "
 namespace details {
 
 /// Constant in number of bytes.
-enum {
-  BYTE = 1,
-  WORD = 2,
-  DWORD = 4,
-  QWORD = 8,
-  OWORD = 16,
-  GRF = 32
-};
+enum { BYTE = 1, WORD = 2, DWORD = 4, QWORD = 8, OWORD = 16, GRF = 32 };
 
 /// Round up N to be multiple of M
 static constexpr unsigned int roundUpNextMultiple(unsigned int N,
@@ -90,12 +83,12 @@ if_assign(matrix_ref<T, N, M1> m1, matrix<T, N, M2> m2) {}
 // Unlike select this fucntion ignores stride when width is 1,
 // so it is easier to use in generic code.
 // The functionality of select is reduced to only reading the region.
-template<int width, int stride, typename T, int size>
-CM_NODEBUG CM_INLINE vector<T, width>
-read_region(vector<T, size> vec, int offset) {
+template <int width, int stride, typename T, int size>
+CM_NODEBUG CM_INLINE vector<T, width> read_region(vector<T, size> vec,
+                                                  int offset) {
   static_assert(width > 0 && width < size, "invalid width");
   static_assert(stride > 0 && (width - 1) * stride < size,
-      "invalid invalid stride");
+                "invalid invalid stride");
   vector<T, width> selection;
   if constexpr (width == 1)
     selection = vec[offset];
@@ -108,11 +101,11 @@ read_region(vector<T, size> vec, int offset) {
 // Unlike select this fucntion ignores stride when width is 1,
 // so it is easier to use in generic code.
 // The functionality of select is reduced to only writing the region.
-template<int stride, typename T, int size, int width>
-CM_NODEBUG CM_INLINE void
-write_region(vector_ref<T, size> vec, vector<T, width> insertion, int offset) {
+template <int stride, typename T, int size, int width>
+CM_NODEBUG CM_INLINE void write_region(vector_ref<T, size> vec,
+                                       vector<T, width> insertion, int offset) {
   static_assert(stride > 0 && (width - 1) * stride < size,
-      "invalid invalid stride");
+                "invalid invalid stride");
   if constexpr (width == 1)
     vec[offset] = insertion[0];
   else
@@ -120,8 +113,8 @@ write_region(vector_ref<T, size> vec, vector<T, width> insertion, int offset) {
 }
 
 static inline constexpr unsigned getMaxNumOfOWordSLM() {
-#if defined(CM_GEN12) || defined(CM_GEN12_2) || defined(CM_XEHP) || defined(CM_XEHPC) \
- || defined(CM_XEHPG)
+#if defined(CM_GEN12) || defined(CM_GEN12_2) || defined(CM_XEHP) ||            \
+    defined(CM_XEHPC) || defined(CM_XEHPG)
   return 16;
 #else
   return 8;
@@ -129,10 +122,7 @@ static inline constexpr unsigned getMaxNumOfOWordSLM() {
 }
 
 // to emit warnings, dependent on if function actually called
-template <typename T = void>
-constexpr bool always_false() {
-  return false;
-}
+template <typename T = void> constexpr bool always_false() { return false; }
 
 template <VectorSize VS> constexpr unsigned lsc_vector_size() {
   constexpr unsigned NElts[] = {0, 1, 2, 3, 4, 8, 16, 32, 64};
@@ -221,7 +211,8 @@ public:
 template <typename T, typename From, typename To>
 CM_INLINE To lsc_format_ret(From from) {
   auto _Formatted = from.format<T>();
-  constexpr int stride = _Formatted.n_elems() / from.n_elems();
+  constexpr int stride =
+      from.n_elems() == 1 ? 1 : _Formatted.n_elems() / from.n_elems();
   To _Res = _Formatted.select<from.n_elems(), stride>(0);
   return _Res;
 };
@@ -273,14 +264,13 @@ constexpr int getRoundedWidthFor2dTypedLSC(int Width) {
 template <typename T = void> constexpr int lsc_default_simt() {
 #if CM_GENX >= 1280
   return 32; // SIMD32: PVC and later
-#else // CM_GENX < 1280
+#else        // CM_GENX < 1280
   return 16; // SIMD16: DG2
-#endif // CM_GENX >= 1280
+#endif       // CM_GENX >= 1280
 }
 
 // Check for valid type for atomic source and dest arguments
-template <typename T>
-constexpr bool lsc_check_atomic_src() {
+template <typename T> constexpr bool lsc_check_atomic_src() {
   // 8-bit atomics are unsupported
   return sizeof(T) >= 2;
 }
@@ -307,12 +297,7 @@ constexpr bool are_both(CacheHint First, CacheHint Second, CacheHint Val) {
   return First == Val && Second == Val;
 }
 
-enum class LSCAction {
-  Prefetch,
-  Load,
-  Store,
-  Atomic
-};
+enum class LSCAction { Prefetch, Load, Store, Atomic };
 
 template <LSCAction Act, CacheHint L1, CacheHint L3>
 constexpr bool lsc_check_cache_hint() {
