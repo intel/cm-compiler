@@ -15,7 +15,8 @@ using clang::driver::tools::GenX::encodeGmdId;
 
 // clang-format off
 static const std::unordered_map<std::string, uint32_t> ReleaseId = {
-  {"xe-lpg", encodeGmdId(12, 71, 4)},
+  {"xe-lpg-lg", encodeGmdId(12, 71, 4)},
+  {"xe-lpg-md", encodeGmdId(12, 70, 4)},
   {"xe-hpc", encodeGmdId(12, 60, 7)},
   {"xe-hpg", encodeGmdId(12, 57, 0)},
   {"xe-hp", encodeGmdId(12, 50, 4)},

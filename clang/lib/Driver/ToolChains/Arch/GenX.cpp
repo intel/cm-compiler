@@ -51,7 +51,7 @@ static uint32_t getGenXTargetCPUId(const std::string &CPU, int RevId) {
                 .Cases("xehp", "xehp_sdv", "xe_hp_sdv", "xehp-sdv", "xe-hp-sdv",
                        "xe-hp")
                 .Case("dg2", "acm-g10")
-                .Case("mtl", "xe-lpg")
+                .Case("mtl", "mtl-p")
                 .Case("pvcxt", "pvc")
                 .Default(CPUName);
 
