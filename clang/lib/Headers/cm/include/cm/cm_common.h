@@ -706,7 +706,7 @@ enum class AtomicOp : uint8_t {
   FCAS = 0x17,
   AND = 0x18,
   OR = 0x19,
-  XOR = 0x1A
+  XOR = 0x1A,
 };
 
 enum class LSC_SCOPE : uint8_t {
