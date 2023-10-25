@@ -1,20 +1,15 @@
-/*========================== begin_copyright_notice ============================
-
-Copyright (C) 2016-2021 Intel Corporation
-
-SPDX-License-Identifier: MIT
-
-============================= end_copyright_notice ===========================*/
-
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
+//===--- UndefinedAssignmentChecker.h ---------------------------*- C++ -*--==//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
 // This defines UndefinedAssignmentChecker, a builtin check in ExprEngine that
 // checks for assigning undefined values.
+//
+//===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
@@ -110,11 +105,6 @@ void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
     break;
   }
 
-  // CM vector/matrix values may be aliased, so we can't currently be certain
-  // whether one is actually undefined or not. Ignore them for now.
-  if (ex->getType()->isCMVectorMatrixType())
-    return;
-
   if (OS.str().empty())
     OS << DefaultMsg;
 
@@ -128,4 +118,8 @@ void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
 
 void ento::registerUndefinedAssignmentChecker(CheckerManager &mgr) {
   mgr.registerChecker<UndefinedAssignmentChecker>();
+}
+
+bool ento::shouldRegisterUndefinedAssignmentChecker(const LangOptions &LO) {
+  return true;
 }

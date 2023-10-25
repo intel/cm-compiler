@@ -6,15 +6,19 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
+//===--- SemaStmt.cpp - Semantic Analysis for Statements ------------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+//  This file implements semantic analysis for statements.
+//
+//===----------------------------------------------------------------------===//
 
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
-// This file implements semantic analysis for statements.
-
+#include "clang/Sema/Ownership.h"
 #include "clang/Sema/SemaInternal.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
@@ -46,12 +50,11 @@ See LICENSE.TXT for details.
 using namespace clang;
 using namespace sema;
 
-StmtResult Sema::ActOnExprStmt(ExprResult FE) {
+StmtResult Sema::ActOnExprStmt(ExprResult FE, bool DiscardedValue) {
   if (FE.isInvalid())
     return StmtError();
 
-  FE = ActOnFinishFullExpr(FE.get(), FE.get()->getExprLoc(),
-                           /*DiscardedValue*/ true);
+  FE = ActOnFinishFullExpr(FE.get(), FE.get()->getExprLoc(), DiscardedValue);
   if (FE.isInvalid())
     return StmtError();
 
@@ -374,14 +377,6 @@ StmtResult Sema::ActOnCompoundStmt(SourceLocation L, SourceLocation R,
       Diag(D->getLocation(), diag::ext_mixed_decls_code);
     }
   }
-  // Warn about unused expressions in statements.
-  for (unsigned i = 0; i != NumElts; ++i) {
-    // Ignore statements that are last in a statement expression.
-    if (isStmtExpr && i == NumElts - 1)
-      continue;
-
-    DiagnoseUnusedExprResult(Elts[i]);
-  }
 
   // Check for suspicious empty body (null statement) in `for' and `while'
   // statements.  Don't do anything for template instantiations, this just adds
@@ -473,15 +468,12 @@ Sema::ActOnCaseStmt(SourceLocation CaseLoc, ExprResult LHSVal,
 
 /// ActOnCaseStmtBody - This installs a statement as the body of a case.
 void Sema::ActOnCaseStmtBody(Stmt *S, Stmt *SubStmt) {
-  DiagnoseUnusedExprResult(SubStmt);
   cast<CaseStmt>(S)->setSubStmt(SubStmt);
 }
 
 StmtResult
 Sema::ActOnDefaultStmt(SourceLocation DefaultLoc, SourceLocation ColonLoc,
                        Stmt *SubStmt, Scope *CurScope) {
-  DiagnoseUnusedExprResult(SubStmt);
-
   if (getCurFunction()->SwitchStack.empty()) {
     Diag(DefaultLoc, diag::err_default_not_in_switch);
     return SubStmt;
@@ -574,9 +566,6 @@ StmtResult Sema::BuildIfStmt(SourceLocation IfLoc, bool IsConstexpr,
 
   if (IsConstexpr || isa<ObjCAvailabilityCheckExpr>(Cond.get().second))
     setFunctionHasBranchProtectedScope();
-
-  DiagnoseUnusedExprResult(thenStmt);
-  DiagnoseUnusedExprResult(elseStmt);
 
   return IfStmt::Create(Context, IfLoc, IsConstexpr, InitStmt, Cond.get().first,
                         Cond.get().second, thenStmt, ElseLoc, elseStmt);
@@ -958,7 +947,7 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
     bool ShouldCheckConstantCond = HasConstantCond;
 
     // Sort all the scalar case values so we can easily detect duplicates.
-    std::stable_sort(CaseVals.begin(), CaseVals.end(), CmpCaseVals);
+    llvm::stable_sort(CaseVals, CmpCaseVals);
 
     if (!CaseVals.empty()) {
       for (unsigned i = 0, e = CaseVals.size(); i != e; ++i) {
@@ -1006,7 +995,7 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
     if (!CaseRanges.empty()) {
       // Sort all the case ranges by their low value so we can easily detect
       // overlaps between ranges.
-      std::stable_sort(CaseRanges.begin(), CaseRanges.end());
+      llvm::stable_sort(CaseRanges);
 
       // Scan the ranges, computing the high values and removing empty ranges.
       std::vector<llvm::APSInt> HiVals;
@@ -1060,9 +1049,8 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
 
         // Find the smallest value >= the lower bound.  If I is in the
         // case range, then we have overlap.
-        CaseValsTy::iterator I = std::lower_bound(CaseVals.begin(),
-                                                  CaseVals.end(), CRLo,
-                                                  CaseCompareFunctor());
+        CaseValsTy::iterator I =
+            llvm::lower_bound(CaseVals, CRLo, CaseCompareFunctor());
         if (I != CaseVals.end() && I->first < CRHi) {
           OverlapVal  = I->first;   // Found overlap with scalar.
           OverlapStmt = I->second;
@@ -1125,7 +1113,7 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
         AdjustAPSInt(Val, CondWidth, CondIsSigned);
         EnumVals.push_back(std::make_pair(Val, EDI));
       }
-      std::stable_sort(EnumVals.begin(), EnumVals.end(), CmpEnumVals);
+      llvm::stable_sort(EnumVals, CmpEnumVals);
       auto EI = EnumVals.begin(), EIEnd =
         std::unique(EnumVals.begin(), EnumVals.end(), EqEnumVals);
 
@@ -1181,6 +1169,9 @@ Sema::ActOnFinishSwitchStmt(SourceLocation SwitchLoc, Stmt *Switch,
         case AR_Available:
           break;
         }
+
+        if (EI->second->hasAttr<UnusedAttr>())
+          continue;
 
         // Drop unneeded case values
         while (CI != CaseVals.end() && CI->first < EI->first)
@@ -1276,7 +1267,7 @@ Sema::DiagnoseAssignmentEnum(QualType DstType, QualType SrcType,
           }
           if (EnumVals.empty())
             return;
-          std::stable_sort(EnumVals.begin(), EnumVals.end(), CmpEnumVals);
+          llvm::stable_sort(EnumVals, CmpEnumVals);
           EnumValsTy::iterator EIend =
               std::unique(EnumVals.begin(), EnumVals.end(), EqEnumVals);
 
@@ -1305,8 +1296,6 @@ StmtResult Sema::ActOnWhileStmt(SourceLocation WhileLoc, ConditionResult Cond,
       !Diags.isIgnored(diag::warn_comma_operator, CondVal.second->getExprLoc()))
     CommaVisitor(*this).Visit(CondVal.second);
 
-  DiagnoseUnusedExprResult(Body);
-
   if (isa<NullStmt>(Body))
     getCurCompoundScope().setHasEmptyLoopBodies();
 
@@ -1326,7 +1315,7 @@ Sema::ActOnDoStmt(SourceLocation DoLoc, Stmt *Body,
     return StmtError();
   Cond = CondResult.get();
 
-  CondResult = ActOnFinishFullExpr(Cond, DoLoc);
+  CondResult = ActOnFinishFullExpr(Cond, DoLoc, /*DiscardedValue*/ false);
   if (CondResult.isInvalid())
     return StmtError();
   Cond = CondResult.get();
@@ -1335,8 +1324,6 @@ Sema::ActOnDoStmt(SourceLocation DoLoc, Stmt *Body,
   if (Cond && !getLangOpts().C99 && !getLangOpts().CPlusPlus &&
       !Diags.isIgnored(diag::warn_comma_operator, Cond->getExprLoc()))
     CommaVisitor(*this).Visit(Cond);
-
-  DiagnoseUnusedExprResult(Body);
 
   return new (Context) DoStmt(Body, Cond, DoLoc, WhileLoc, CondRParen);
 }
@@ -1782,11 +1769,6 @@ StmtResult Sema::ActOnForStmt(SourceLocation ForLoc, SourceLocation LParenLoc,
     CommaVisitor(*this).Visit(Second.get().second);
 
   Expr *Third  = third.release().getAs<Expr>();
-
-  DiagnoseUnusedExprResult(First);
-  DiagnoseUnusedExprResult(Third);
-  DiagnoseUnusedExprResult(Body);
-
   if (isa<NullStmt>(Body))
     getCurCompoundScope().setHasEmptyLoopBodies();
 
@@ -1806,7 +1788,7 @@ StmtResult Sema::ActOnForEachLValueExpr(Expr *E) {
   if (result.isInvalid()) return StmtError();
   E = result.get();
 
-  ExprResult FullExpr = ActOnFinishFullExpr(E);
+  ExprResult FullExpr = ActOnFinishFullExpr(E, /*DiscardedValue*/ false);
   if (FullExpr.isInvalid())
     return StmtError();
   return StmtResult(static_cast<Stmt*>(FullExpr.get()));
@@ -1960,7 +1942,8 @@ Sema::ActOnObjCForCollectionStmt(SourceLocation ForLoc,
   if (CollectionExprResult.isInvalid())
     return StmtError();
 
-  CollectionExprResult = ActOnFinishFullExpr(CollectionExprResult.get());
+  CollectionExprResult =
+      ActOnFinishFullExpr(CollectionExprResult.get(), /*DiscardedValue*/ false);
   if (CollectionExprResult.isInvalid())
     return StmtError();
 
@@ -2252,9 +2235,11 @@ BuildNonArrayForRange(Sema &SemaRef, Expr *BeginRange, Expr *EndRange,
           return Sema::FRS_Success;
 
         case Sema::FRS_NoViableFunction:
-          SemaRef.Diag(BeginRange->getBeginLoc(), diag::err_for_range_invalid)
-              << BeginRange->getType() << BEFFound;
-          CandidateSet->NoteCandidates(SemaRef, OCD_AllCandidates, BeginRange);
+          CandidateSet->NoteCandidates(
+              PartialDiagnosticAt(BeginRange->getBeginLoc(),
+                                  SemaRef.PDiag(diag::err_for_range_invalid)
+                                      << BeginRange->getType() << BEFFound),
+              SemaRef, OCD_AllCandidates, BeginRange);
           LLVM_FALLTHROUGH;
 
         case Sema::FRS_DiagnosticIssued:
@@ -2470,7 +2455,7 @@ StmtResult Sema::BuildCXXForRangeStmt(SourceLocation ForLoc,
 
         ExprResult SizeOfVLAExprR = ActOnUnaryExprOrTypeTraitExpr(
             EndVar->getLocation(), UETT_SizeOf,
-            /*isType=*/true,
+            /*IsType=*/true,
             CreateParsedType(VAT->desugar(), Context.getTrivialTypeSourceInfo(
                                                  VAT->desugar(), RangeLoc))
                 .getAsOpaquePtr(),
@@ -2480,7 +2465,7 @@ StmtResult Sema::BuildCXXForRangeStmt(SourceLocation ForLoc,
 
         ExprResult SizeOfEachElementExprR = ActOnUnaryExprOrTypeTraitExpr(
             EndVar->getLocation(), UETT_SizeOf,
-            /*isType=*/true,
+            /*IsType=*/true,
             CreateParsedType(VAT->desugar(),
                              Context.getTrivialTypeSourceInfo(
                                  VAT->getElementType(), RangeLoc))
@@ -2551,9 +2536,12 @@ StmtResult Sema::BuildCXXForRangeStmt(SourceLocation ForLoc,
       // Otherwise, emit diagnostics if we haven't already.
       if (RangeStatus == FRS_NoViableFunction) {
         Expr *Range = BEFFailure ? EndRangeRef.get() : BeginRangeRef.get();
-        Diag(Range->getBeginLoc(), diag::err_for_range_invalid)
-            << RangeLoc << Range->getType() << BEFFailure;
-        CandidateSet.NoteCandidates(*this, OCD_AllCandidates, Range);
+        CandidateSet.NoteCandidates(
+            PartialDiagnosticAt(Range->getBeginLoc(),
+                                PDiag(diag::err_for_range_invalid)
+                                    << RangeLoc << Range->getType()
+                                    << BEFFailure),
+            *this, OCD_AllCandidates, Range);
       }
       // Return an error if no fix was discovered.
       if (RangeStatus != FRS_Success)
@@ -2597,7 +2585,8 @@ StmtResult Sema::BuildCXXForRangeStmt(SourceLocation ForLoc,
     if (!NotEqExpr.isInvalid())
       NotEqExpr = CheckBooleanCondition(ColonLoc, NotEqExpr.get());
     if (!NotEqExpr.isInvalid())
-      NotEqExpr = ActOnFinishFullExpr(NotEqExpr.get());
+      NotEqExpr =
+          ActOnFinishFullExpr(NotEqExpr.get(), /*DiscardedValue*/ false);
     if (NotEqExpr.isInvalid()) {
       Diag(RangeLoc, diag::note_for_range_invalid_iterator)
         << RangeLoc << 0 << BeginRangeRef.get()->getType();
@@ -2620,7 +2609,7 @@ StmtResult Sema::BuildCXXForRangeStmt(SourceLocation ForLoc,
       // co_await during the initial parse.
       IncrExpr = ActOnCoawaitExpr(S, CoawaitLoc, IncrExpr.get());
     if (!IncrExpr.isInvalid())
-      IncrExpr = ActOnFinishFullExpr(IncrExpr.get());
+      IncrExpr = ActOnFinishFullExpr(IncrExpr.get(), /*DiscardedValue*/ false);
     if (IncrExpr.isInvalid()) {
       Diag(RangeLoc, diag::note_for_range_invalid_iterator)
         << RangeLoc << 2 << BeginRangeRef.get()->getType() ;
@@ -2875,7 +2864,7 @@ Sema::ActOnIndirectGotoStmt(SourceLocation GotoLoc, SourceLocation StarLoc,
       return StmtError();
   }
 
-  ExprResult ExprRes = ActOnFinishFullExpr(E);
+  ExprResult ExprRes = ActOnFinishFullExpr(E, /*DiscardedValue*/ false);
   if (ExprRes.isInvalid())
     return StmtError();
   E = ExprRes.get();
@@ -3225,7 +3214,8 @@ Sema::ActOnCapScopeReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
           ExpressionEvaluationContext::DiscardedStatement &&
       (HasDeducedReturnType || CurCap->HasImplicitReturnType)) {
     if (RetValExp) {
-      ExprResult ER = ActOnFinishFullExpr(RetValExp, ReturnLoc);
+      ExprResult ER =
+          ActOnFinishFullExpr(RetValExp, ReturnLoc, /*DiscardedValue*/ false);
       if (ER.isInvalid())
         return StmtError();
       RetValExp = ER.get();
@@ -3352,7 +3342,8 @@ Sema::ActOnCapScopeReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
   }
 
   if (RetValExp) {
-    ExprResult ER = ActOnFinishFullExpr(RetValExp, ReturnLoc);
+    ExprResult ER =
+        ActOnFinishFullExpr(RetValExp, ReturnLoc, /*DiscardedValue*/ false);
     if (ER.isInvalid())
       return StmtError();
     RetValExp = ER.get();
@@ -3407,10 +3398,10 @@ bool LocalTypedefNameReferencer::VisitRecordType(const RecordType *RT) {
 }
 
 TypeLoc Sema::getReturnTypeLoc(FunctionDecl *FD) const {
-  TypeLoc TL = FD->getTypeSourceInfo()->getTypeLoc().IgnoreParens();
-  while (auto ATL = TL.getAs<AttributedTypeLoc>())
-    TL = ATL.getModifiedLoc().IgnoreParens();
-  return TL.castAs<FunctionProtoTypeLoc>().getReturnLoc();
+  return FD->getTypeSourceInfo()
+      ->getTypeLoc()
+      .getAsAdjusted<FunctionProtoTypeLoc>()
+      .getReturnLoc();
 }
 
 /// Deduce the return type for a function from a returned expression, per
@@ -3520,7 +3511,12 @@ bool Sema::DeduceFunctionTypeFromReturnExpr(FunctionDecl *FD,
 StmtResult
 Sema::ActOnReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp,
                       Scope *CurScope) {
-  StmtResult R = BuildReturnStmt(ReturnLoc, RetValExp);
+  // Correct typos, in case the containing function returns 'auto' and
+  // RetValExp should determine the deduced type.
+  ExprResult RetVal = CorrectDelayedTyposInExpr(RetValExp);
+  if (RetVal.isInvalid())
+    return StmtError();
+  StmtResult R = BuildReturnStmt(ReturnLoc, RetVal.get());
   if (R.isInvalid() || ExprEvalContexts.back().Context ==
                            ExpressionEvaluationContext::DiscardedStatement)
     return R;
@@ -3582,7 +3578,8 @@ StmtResult Sema::BuildReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
           ExpressionEvaluationContext::DiscardedStatement &&
       FnRetType->getContainedAutoType()) {
     if (RetValExp) {
-      ExprResult ER = ActOnFinishFullExpr(RetValExp, ReturnLoc);
+      ExprResult ER =
+          ActOnFinishFullExpr(RetValExp, ReturnLoc, /*DiscardedValue*/ false);
       if (ER.isInvalid())
         return StmtError();
       RetValExp = ER.get();
@@ -3676,7 +3673,8 @@ StmtResult Sema::BuildReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
       }
 
       if (RetValExp) {
-        ExprResult ER = ActOnFinishFullExpr(RetValExp, ReturnLoc);
+        ExprResult ER =
+            ActOnFinishFullExpr(RetValExp, ReturnLoc, /*DiscardedValue*/ false);
         if (ER.isInvalid())
           return StmtError();
         RetValExp = ER.get();
@@ -3702,7 +3700,8 @@ StmtResult Sema::BuildReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
     }
 
     if (FD)
-      Diag(ReturnLoc, DiagID) << FD->getIdentifier() << 0/*fn*/;
+      Diag(ReturnLoc, DiagID)
+          << FD->getIdentifier() << 0 /*fn*/ << FD->isConsteval();
     else
       Diag(ReturnLoc, DiagID) << getCurMethodDecl()->getDeclName() << 1/*meth*/;
 
@@ -3755,7 +3754,8 @@ StmtResult Sema::BuildReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp) {
     }
 
     if (RetValExp) {
-      ExprResult ER = ActOnFinishFullExpr(RetValExp, ReturnLoc);
+      ExprResult ER =
+          ActOnFinishFullExpr(RetValExp, ReturnLoc, /*DiscardedValue*/ false);
       if (ER.isInvalid())
         return StmtError();
       RetValExp = ER.get();
@@ -3808,7 +3808,7 @@ StmtResult Sema::BuildObjCAtThrowStmt(SourceLocation AtLoc, Expr *Throw) {
     if (Result.isInvalid())
       return StmtError();
 
-    Result = ActOnFinishFullExpr(Result.get());
+    Result = ActOnFinishFullExpr(Result.get(), /*DiscardedValue*/ false);
     if (Result.isInvalid())
       return StmtError();
     Throw = Result.get();
@@ -3880,7 +3880,7 @@ Sema::ActOnObjCAtSynchronizedOperand(SourceLocation atLoc, Expr *operand) {
   }
 
   // The operand to @synchronized is a full-expression.
-  return ActOnFinishFullExpr(operand);
+  return ActOnFinishFullExpr(operand, /*DiscardedValue*/ false);
 }
 
 StmtResult
@@ -4015,14 +4015,14 @@ StmtResult Sema::ActOnCXXTryBlock(SourceLocation TryLoc, Stmt *TryBlock,
                                   ArrayRef<Stmt *> Handlers) {
   // Don't report an error if 'try' is used in system headers.
   if (!getLangOpts().CXXExceptions &&
-      !getSourceManager().isInSystemHeader(TryLoc))
-    if (getLangOpts().MdfCM)
-      Diag(TryLoc, diag::err_cm_exceptions_not_supported) << "try";
-    else if (!getLangOpts().OpenMPIsDevice ||
-       !getLangOpts().OpenMPHostCXXExceptions ||
-       isInOpenMPTargetExecutionDirective() ||
-       isInOpenMPDeclareTargetContext())
-      Diag(TryLoc, diag::err_exceptions_disabled) << "try";
+      !getSourceManager().isInSystemHeader(TryLoc) && !getLangOpts().CUDA) {
+    // Delay error emission for the OpenMP device code.
+    targetDiag(TryLoc, diag::err_exceptions_disabled) << "try";
+  }
+
+  // CM doesn't support exceptions
+  if (getLangOpts().MdfCM)
+    Diag(TryLoc, diag::err_cm_exceptions_not_supported) << "try";
 
   // Exceptions aren't allowed in CUDA device code.
   if (getLangOpts().CUDA)
@@ -4235,30 +4235,46 @@ Sema::CreateCapturedStmtRecordDecl(CapturedDecl *&CD, SourceLocation Loc,
   return RD;
 }
 
-static void
-buildCapturedStmtCaptureList(SmallVectorImpl<CapturedStmt::Capture> &Captures,
-                             SmallVectorImpl<Expr *> &CaptureInits,
-                             ArrayRef<sema::Capture> Candidates) {
-  for (const sema::Capture &Cap : Candidates) {
+static bool
+buildCapturedStmtCaptureList(Sema &S, CapturedRegionScopeInfo *RSI,
+                             SmallVectorImpl<CapturedStmt::Capture> &Captures,
+                             SmallVectorImpl<Expr *> &CaptureInits) {
+  for (const sema::Capture &Cap : RSI->Captures) {
+    if (Cap.isInvalid())
+      continue;
+
+    // Form the initializer for the capture.
+    ExprResult Init = S.BuildCaptureInit(Cap, Cap.getLocation(),
+                                         RSI->CapRegionKind == CR_OpenMP);
+
+    // FIXME: Bail out now if the capture is not used and the initializer has
+    // no side-effects.
+
+    // Create a field for this capture.
+    FieldDecl *Field = S.BuildCaptureField(RSI->TheRecordDecl, Cap);
+
+    // Add the capture to our list of captures.
     if (Cap.isThisCapture()) {
       Captures.push_back(CapturedStmt::Capture(Cap.getLocation(),
                                                CapturedStmt::VCK_This));
-      CaptureInits.push_back(Cap.getInitExpr());
-      continue;
     } else if (Cap.isVLATypeCapture()) {
       Captures.push_back(
           CapturedStmt::Capture(Cap.getLocation(), CapturedStmt::VCK_VLAType));
-      CaptureInits.push_back(nullptr);
-      continue;
-    }
+    } else {
+      assert(Cap.isVariableCapture() && "unknown kind of capture");
 
-    Captures.push_back(CapturedStmt::Capture(Cap.getLocation(),
-                                             Cap.isReferenceCapture()
-                                                 ? CapturedStmt::VCK_ByRef
-                                                 : CapturedStmt::VCK_ByCopy,
-                                             Cap.getVariable()));
-    CaptureInits.push_back(Cap.getInitExpr());
+      if (S.getLangOpts().OpenMP && RSI->CapRegionKind == CR_OpenMP)
+        S.setOpenMPCaptureKind(Field, Cap.getVariable(), RSI->OpenMPLevel);
+
+      Captures.push_back(CapturedStmt::Capture(Cap.getLocation(),
+                                               Cap.isReferenceCapture()
+                                                   ? CapturedStmt::VCK_ByRef
+                                                   : CapturedStmt::VCK_ByCopy,
+                                               Cap.getVariable()));
+    }
+    CaptureInits.push_back(Init.get());
   }
+  return false;
 }
 
 void Sema::ActOnCapturedRegionStart(SourceLocation Loc, Scope *CurScope,
@@ -4351,25 +4367,31 @@ void Sema::ActOnCapturedRegionStart(SourceLocation Loc, Scope *CurScope,
 void Sema::ActOnCapturedRegionError() {
   DiscardCleanupsInEvaluationContext();
   PopExpressionEvaluationContext();
+  PopDeclContext();
+  PoppedFunctionScopePtr ScopeRAII = PopFunctionScopeInfo();
+  CapturedRegionScopeInfo *RSI = cast<CapturedRegionScopeInfo>(ScopeRAII.get());
 
-  CapturedRegionScopeInfo *RSI = getCurCapturedRegion();
   RecordDecl *Record = RSI->TheRecordDecl;
   Record->setInvalidDecl();
 
   SmallVector<Decl*, 4> Fields(Record->fields());
   ActOnFields(/*Scope=*/nullptr, Record->getLocation(), Record, Fields,
               SourceLocation(), SourceLocation(), ParsedAttributesView());
-
-  PopDeclContext();
-  PopFunctionScopeInfo();
 }
 
 StmtResult Sema::ActOnCapturedRegionEnd(Stmt *S) {
-  CapturedRegionScopeInfo *RSI = getCurCapturedRegion();
+  // Leave the captured scope before we start creating captures in the
+  // enclosing scope.
+  DiscardCleanupsInEvaluationContext();
+  PopExpressionEvaluationContext();
+  PopDeclContext();
+  PoppedFunctionScopePtr ScopeRAII = PopFunctionScopeInfo();
+  CapturedRegionScopeInfo *RSI = cast<CapturedRegionScopeInfo>(ScopeRAII.get());
 
   SmallVector<CapturedStmt::Capture, 4> Captures;
   SmallVector<Expr *, 4> CaptureInits;
-  buildCapturedStmtCaptureList(Captures, CaptureInits, RSI->Captures);
+  if (buildCapturedStmtCaptureList(*this, RSI, Captures, CaptureInits))
+    return StmtError();
 
   CapturedDecl *CD = RSI->TheCapturedDecl;
   RecordDecl *RD = RSI->TheRecordDecl;
@@ -4380,12 +4402,6 @@ StmtResult Sema::ActOnCapturedRegionEnd(Stmt *S) {
 
   CD->setBody(Res->getCapturedStmt());
   RD->completeDefinition();
-
-  DiscardCleanupsInEvaluationContext();
-  PopExpressionEvaluationContext();
-
-  PopDeclContext();
-  PopFunctionScopeInfo();
 
   return Res;
 }

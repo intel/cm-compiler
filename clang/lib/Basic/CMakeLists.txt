@@ -13,53 +13,37 @@ set(LLVM_LINK_COMPONENTS
   GenXIntrinsics
   )
 
-find_first_existing_vc_file(llvm_vc "${LLVM_MAIN_SRC_DIR}")
-find_first_existing_vc_file(clang_vc "${CLANG_SOURCE_DIR}")
+find_first_existing_vc_file("${LLVM_MAIN_SRC_DIR}" llvm_vc)
+find_first_existing_vc_file("${CLANG_SOURCE_DIR}" clang_vc)
 
 # The VC revision include that we want to generate.
-set(version_inc "${CMAKE_CURRENT_BINARY_DIR}/SVNVersion.inc")
+set(version_inc "${CMAKE_CURRENT_BINARY_DIR}/VCSVersion.inc")
 
-set(get_svn_script "${LLVM_CMAKE_PATH}/GetSVN.cmake")
+set(generate_vcs_version_script "${LLVM_CMAKE_PATH}/GenerateVersionFromVCS.cmake")
 
-if(DEFINED clang_vc)
-  set(SRC_DIRS ${CLANG_SOURCE_DIR})
-  set(SRC_NAMES SVN)
+if(llvm_vc)
+  set(llvm_source_dir ${LLVM_MAIN_SRC_DIR})
+endif()
+if(clang_vc)
+  set(clang_source_dir ${CLANG_SOURCE_DIR})
 endif()
 
-if(DEFINED llvm_vc)
-  set(SRC_DIRS ${SRC_DIRS} ${LLVM_MAIN_SRC_DIR})
-  set(SRC_NAMES ${SRC_NAMES} LLVM)
-endIf()
+# Create custom target to generate the VC revision include.
+add_custom_command(OUTPUT "${version_inc}"
+  DEPENDS "${llvm_vc}" "${clang_vc}" "${generate_vcs_version_script}"
+  COMMAND ${CMAKE_COMMAND} "-DNAMES=\"LLVM;CLANG\""
+                           "-DLLVM_SOURCE_DIR=${llvm_source_dir}"
+                           "-DCLANG_SOURCE_DIR=${clang_source_dir}"
+                           "-DHEADER_FILE=${version_inc}"
+                           -P "${generate_vcs_version_script}")
 
-if(DEFINED SRC_DIRS)
-  # Create custom target to generate the VC revision include.
-  add_custom_command(OUTPUT "${version_inc}"
-    DEPENDS "${llvm_vc}" "${clang_vc}" "${get_svn_script}"
-    COMMAND
-    ${CMAKE_COMMAND} "-DSOURCE_DIRS=\"${SRC_DIRS}\""
-                     "-DNAMES=\"${SRC_NAMES}\""
-                     "-DHEADER_FILE=${version_inc}"
-                     -P "${get_svn_script}")
+# Mark the generated header as being generated.
+set_source_files_properties("${version_inc}"
+  PROPERTIES GENERATED TRUE
+             HEADER_FILE_ONLY TRUE)
 
-  # Mark the generated header as being generated.
-  set_source_files_properties("${version_inc}"
-    PROPERTIES GENERATED TRUE
-               HEADER_FILE_ONLY TRUE)
-
-  # Tell Version.cpp that it needs to build with -DHAVE_SVN_VERSION_INC.
-  set_source_files_properties(Version.cpp
-    PROPERTIES COMPILE_DEFINITIONS "HAVE_SVN_VERSION_INC")
-else()
-  # Not producing a VC revision include.
-  set(version_inc)
-
-  # Being able to force-set the SVN revision in cases where it isn't available
-  # is useful for performance tracking, and matches compatibility from autoconf.
-  if(SVN_REVISION)
-    set_source_files_properties(Version.cpp
-      PROPERTIES COMPILE_DEFINITIONS "SVN_REVISION=\"${SVN_REVISION}\"")
-  endif()
-endif()
+set_property(SOURCE Version.cpp APPEND PROPERTY
+             COMPILE_DEFINITIONS "HAVE_VCS_VERSION_INC")
 
 add_clang_library(clangBasic
   Attributes.cpp
@@ -75,7 +59,6 @@ add_clang_library(clangBasic
   FixedPoint.cpp
   IdentifierTable.cpp
   LangOptions.cpp
-  MemoryBufferCache.cpp
   Module.cpp
   ObjCRuntime.cpp
   OpenMPKinds.cpp

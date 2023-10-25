@@ -1,19 +1,14 @@
-/*========================== begin_copyright_notice ============================
-
-Copyright (C) 2012-2021 Intel Corporation
-
-SPDX-License-Identifier: MIT
-
-============================= end_copyright_notice ===========================*/
-
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
-// This file defines common functions that both ASTReader and ASTWriter use.
+//===--- ASTCommon.cpp - Common stuff for ASTReader/ASTWriter----*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+//  This file defines common functions that both ASTReader and ASTWriter use.
+//
+//===----------------------------------------------------------------------===//
 
 #include "ASTCommon.h"
 #include "clang/AST/DeclCXX.h"
@@ -401,12 +396,15 @@ bool serialization::isRedeclarableDeclKind(unsigned Kind) {
   case Decl::ClassScopeFunctionSpecialization:
   case Decl::Import:
   case Decl::OMPThreadPrivate:
+  case Decl::OMPAllocate:
   case Decl::OMPRequires:
   case Decl::OMPCapturedExpr:
   case Decl::OMPDeclareReduction:
+  case Decl::OMPDeclareMapper:
   case Decl::BuiltinTemplate:
   case Decl::Decomposition:
   case Decl::Binding:
+  case Decl::Concept:
     return false;
 
   // These indirectly derive from Redeclarable<T> but are not actually

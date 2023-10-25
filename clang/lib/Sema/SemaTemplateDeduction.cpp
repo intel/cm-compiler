@@ -6,14 +6,17 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
+//===- SemaTemplateDeduction.cpp - Template Argument Deduction ------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
 // This file implements C++ template argument deduction.
+//
+//===----------------------------------------------------------------------===//
 
 #include "clang/Sema/TemplateDeduction.h"
 #include "TreeTransform.h"
@@ -1675,8 +1678,8 @@ DeduceTemplateArgumentsByTypeMatch(Sema &S,
       const FunctionProtoType *FunctionProtoParam =
         cast<FunctionProtoType>(Param);
 
-      if (FunctionProtoParam->getTypeQuals()
-            != FunctionProtoArg->getTypeQuals() ||
+      if (FunctionProtoParam->getMethodQuals()
+            != FunctionProtoArg->getMethodQuals() ||
           FunctionProtoParam->getRefQualifier()
             != FunctionProtoArg->getRefQualifier() ||
           FunctionProtoParam->isVariadic() != FunctionProtoArg->isVariadic())
@@ -3067,7 +3070,7 @@ Sema::DeduceTemplateArguments(ClassTemplatePartialSpecializationDecl *Partial,
     return Sema::TDK_SubstitutionFailure;
 
   return ::FinishTemplateArgumentDeduction(
-      *this, Partial, /*PartialOrdering=*/false, TemplateArgs, Deduced, Info);
+      *this, Partial, /*IsPartialOrdering=*/false, TemplateArgs, Deduced, Info);
 }
 
 /// Perform template argument deduction to determine whether
@@ -3108,7 +3111,7 @@ Sema::DeduceTemplateArguments(VarTemplatePartialSpecializationDecl *Partial,
     return Sema::TDK_SubstitutionFailure;
 
   return ::FinishTemplateArgumentDeduction(
-      *this, Partial, /*PartialOrdering=*/false, TemplateArgs, Deduced, Info);
+      *this, Partial, /*IsPartialOrdering=*/false, TemplateArgs, Deduced, Info);
 }
 
 /// Determine whether the given type T is a simple-template-id type.
@@ -3276,7 +3279,7 @@ Sema::SubstituteExplicitTemplateArguments(
     CXXRecordDecl *ThisContext = nullptr;
     if (CXXMethodDecl *Method = dyn_cast<CXXMethodDecl>(Function)) {
       ThisContext = Method->getParent();
-      ThisTypeQuals = Method->getTypeQualifiers();
+      ThisTypeQuals = Method->getMethodQualifiers();
     }
 
     CXXThisScopeRAII ThisScope(*this, ThisContext, ThisTypeQuals,
@@ -4499,19 +4502,26 @@ Sema::TemplateDeductionResult Sema::DeduceTemplateArguments(
 }
 
 namespace {
+  struct DependentAuto { bool IsPack; };
 
   /// Substitute the 'auto' specifier or deduced template specialization type
   /// specifier within a type for a given replacement type.
   class SubstituteDeducedTypeTransform :
       public TreeTransform<SubstituteDeducedTypeTransform> {
     QualType Replacement;
+    bool ReplacementIsPack;
     bool UseTypeSugar;
 
   public:
+    SubstituteDeducedTypeTransform(Sema &SemaRef, DependentAuto DA)
+        : TreeTransform<SubstituteDeducedTypeTransform>(SemaRef), Replacement(),
+          ReplacementIsPack(DA.IsPack), UseTypeSugar(true) {}
+
     SubstituteDeducedTypeTransform(Sema &SemaRef, QualType Replacement,
-                            bool UseTypeSugar = true)
+                                   bool UseTypeSugar = true)
         : TreeTransform<SubstituteDeducedTypeTransform>(SemaRef),
-          Replacement(Replacement), UseTypeSugar(UseTypeSugar) {}
+          Replacement(Replacement), ReplacementIsPack(false),
+          UseTypeSugar(UseTypeSugar) {}
 
     QualType TransformDesugared(TypeLocBuilder &TLB, DeducedTypeLoc TL) {
       assert(isa<TemplateTypeParmType>(Replacement) &&
@@ -4536,7 +4546,8 @@ namespace {
         return TransformDesugared(TLB, TL);
 
       QualType Result = SemaRef.Context.getAutoType(
-          Replacement, TL.getTypePtr()->getKeyword(), Replacement.isNull());
+          Replacement, TL.getTypePtr()->getKeyword(), Replacement.isNull(),
+          ReplacementIsPack);
       auto NewTL = TLB.push<AutoTypeLoc>(Result);
       NewTL.setNameLoc(TL.getNameLoc());
       return Result;
@@ -4627,9 +4638,12 @@ Sema::DeduceAutoType(TypeLoc Type, Expr *&Init, QualType &Result,
     Init = NonPlaceholder.get();
   }
 
+  DependentAuto DependentResult = {
+      /*.IsPack = */ (bool)Type.getAs<PackExpansionTypeLoc>()};
+
   if (!DependentDeductionDepth &&
       (Type.getType()->isDependentType() || Init->isTypeDependent())) {
-    Result = SubstituteDeducedTypeTransform(*this, QualType()).Apply(Type);
+    Result = SubstituteDeducedTypeTransform(*this, DependentResult).Apply(Type);
     assert(!Result.isNull() && "substituting DependentTy can't fail");
     return DAR_Succeeded;
   }
@@ -4697,7 +4711,8 @@ Sema::DeduceAutoType(TypeLoc Type, Expr *&Init, QualType &Result,
   auto DeductionFailed = [&](TemplateDeductionResult TDK,
                              ArrayRef<SourceRange> Ranges) -> DeduceAutoResult {
     if (Init->isTypeDependent()) {
-      Result = SubstituteDeducedTypeTransform(*this, QualType()).Apply(Type);
+      Result =
+          SubstituteDeducedTypeTransform(*this, DependentResult).Apply(Type);
       assert(!Result.isNull() && "substituting DependentTy can't fail");
       return DAR_Succeeded;
     }
@@ -4778,7 +4793,10 @@ Sema::DeduceAutoType(TypeLoc Type, Expr *&Init, QualType &Result,
 QualType Sema::SubstAutoType(QualType TypeWithAuto,
                              QualType TypeToReplaceAuto) {
   if (TypeToReplaceAuto->isDependentType())
-    TypeToReplaceAuto = QualType();
+    return SubstituteDeducedTypeTransform(
+               *this, DependentAuto{
+                          TypeToReplaceAuto->containsUnexpandedParameterPack()})
+        .TransformType(TypeWithAuto);
   return SubstituteDeducedTypeTransform(*this, TypeToReplaceAuto)
       .TransformType(TypeWithAuto);
 }
@@ -4786,7 +4804,11 @@ QualType Sema::SubstAutoType(QualType TypeWithAuto,
 TypeSourceInfo *Sema::SubstAutoTypeSourceInfo(TypeSourceInfo *TypeWithAuto,
                                               QualType TypeToReplaceAuto) {
   if (TypeToReplaceAuto->isDependentType())
-    TypeToReplaceAuto = QualType();
+    return SubstituteDeducedTypeTransform(
+               *this,
+               DependentAuto{
+                   TypeToReplaceAuto->containsUnexpandedParameterPack()})
+        .TransformType(TypeWithAuto);
   return SubstituteDeducedTypeTransform(*this, TypeToReplaceAuto)
       .TransformType(TypeWithAuto);
 }
@@ -4879,7 +4901,7 @@ AddImplicitObjectParameterType(ASTContext &Context,
   // The standard doesn't say explicitly, but we pick the appropriate kind of
   // reference type based on [over.match.funcs]p4.
   QualType ArgTy = Context.getTypeDeclType(Method->getParent());
-  ArgTy = Context.getQualifiedType(ArgTy, Method->getTypeQualifiers());
+  ArgTy = Context.getQualifiedType(ArgTy, Method->getMethodQualifiers());
   if (Method->getRefQualifier() == RQ_RValue)
     ArgTy = Context.getRValueReferenceType(ArgTy);
   else
@@ -5267,7 +5289,7 @@ static bool isAtLeastAsSpecializedAs(Sema &S, QualType T1, QualType T2,
                                    Info);
   auto *TST1 = T1->castAs<TemplateSpecializationType>();
   if (FinishTemplateArgumentDeduction(
-          S, P2, /*PartialOrdering=*/true,
+          S, P2, /*IsPartialOrdering=*/true,
           TemplateArgumentList(TemplateArgumentList::OnStack,
                                TST1->template_arguments()),
           Deduced, Info))

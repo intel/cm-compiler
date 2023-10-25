@@ -6,14 +6,17 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
+//===--- RewriteObjCFoundationAPI.cpp - Foundation API Rewriter -----------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
 // Rewrites legacy method calls to modern syntax.
+//
+//===----------------------------------------------------------------------===//
 
 #include "clang/Edit/Rewriters.h"
 #include "clang/AST/ASTContext.h"
@@ -1047,6 +1050,7 @@ static bool rewriteToNumericBoxedExpression(const ObjCMessageExpr *Msg,
     case CK_Dependent:
     case CK_BitCast:
     case CK_LValueBitCast:
+    case CK_LValueToRValueBitCast:
     case CK_BaseToDerived:
     case CK_DerivedToBase:
     case CK_UncheckedDerivedToBase:
@@ -1094,6 +1098,8 @@ static bool rewriteToNumericBoxedExpression(const ObjCMessageExpr *Msg,
 
     case CK_FixedPointCast:
     case CK_FixedPointToBoolean:
+    case CK_FixedPointToIntegral:
+    case CK_IntegralToFixedPoint:
       llvm_unreachable("Fixed point types are disabled for Objective-C");
     }
   }

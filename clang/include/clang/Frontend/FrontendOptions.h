@@ -6,16 +6,18 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
+//===- FrontendOptions.h ----------------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_FRONTEND_FRONTENDOPTIONS_H
 #define LLVM_CLANG_FRONTEND_FRONTENDOPTIONS_H
 
+#include "clang/AST/ASTDumperUtils.h"
 #include "clang/Frontend/CommandLineSourceLoc.h"
 #include "clang/Serialization/ModuleFileExtension.h"
 #include "clang/Sema/CodeCompleteOptions.h"
@@ -97,6 +99,10 @@ enum ActionKind {
   /// Generate pre-compiled header.
   GeneratePCH,
 
+  /// Generate Interface Stub Files.
+  GenerateInterfaceYAMLExpV1,
+  GenerateInterfaceTBEExpV1,
+
   /// Only execute frontend initialization.
   InitOnly,
 
@@ -137,7 +143,10 @@ enum ActionKind {
   MigrateSource,
 
   /// Just lex, no output.
-  RunPreprocessorOnly
+  RunPreprocessorOnly,
+
+  /// Print the output of the dependency directives source minimizer.
+  PrintDependencyDirectivesSourceMinimizerOutput
 };
 
 } // namespace frontend
@@ -214,7 +223,7 @@ class FrontendInputFile {
   /// The input, if it comes from a buffer rather than a file. This object
   /// does not own the buffer, and the caller is responsible for ensuring
   /// that it outlives any users.
-  llvm::MemoryBuffer *Buffer = nullptr;
+  const llvm::MemoryBuffer *Buffer = nullptr;
 
   /// The kind of input, e.g., C source, AST file, LLVM IR.
   InputKind Kind;
@@ -226,7 +235,7 @@ public:
   FrontendInputFile() = default;
   FrontendInputFile(StringRef File, InputKind Kind, bool IsSystem = false)
       : File(File.str()), Kind(Kind), IsSystem(IsSystem) {}
-  FrontendInputFile(llvm::MemoryBuffer *Buffer, InputKind Kind,
+  FrontendInputFile(const llvm::MemoryBuffer *Buffer, InputKind Kind,
                     bool IsSystem = false)
       : Buffer(Buffer), Kind(Kind), IsSystem(IsSystem) {}
 
@@ -243,7 +252,7 @@ public:
     return File;
   }
 
-  llvm::MemoryBuffer *getBuffer() const {
+  const llvm::MemoryBuffer *getBuffer() const {
     assert(isBuffer());
     return Buffer;
   }
@@ -267,6 +276,12 @@ public:
 
   /// Show timers for individual actions.
   unsigned ShowTimers : 1;
+
+  /// print the supported cpus for the current target
+  unsigned PrintSupportedCPUs : 1;
+
+  /// Output time trace profile.
+  unsigned TimeTrace : 1;
 
   /// Show the -version text.
   unsigned ShowVersion : 1;
@@ -315,6 +330,9 @@ public:
   unsigned IncludeTimestamps : 1;
 
   CodeCompleteOptions CodeCompleteOpts;
+
+  /// Specifies the output format of the AST.
+  ASTDumpOutputFormat ASTDumpFormat = ADOF_Default;
 
   enum {
     ARCMT_None,
@@ -449,13 +467,14 @@ public:
 public:
   FrontendOptions()
       : DisableFree(false), RelocatablePCH(false), ShowHelp(false),
-        ShowStats(false), ShowTimers(false), ShowVersion(false),
-        FixWhatYouCan(false), FixOnlyWarnings(false), FixAndRecompile(false),
-        FixToTemporaries(false), ARCMTMigrateEmitARCErrors(false),
-        SkipFunctionBodies(false), UseGlobalModuleIndex(true),
-        GenerateGlobalModuleIndex(true), ASTDumpDecls(false),
-        ASTDumpLookups(false), BuildingImplicitModule(false),
-        ModulesEmbedAllFiles(false), IncludeTimestamps(true) {}
+        ShowStats(false), ShowTimers(false), TimeTrace(false),
+        ShowVersion(false), FixWhatYouCan(false), FixOnlyWarnings(false),
+        FixAndRecompile(false), FixToTemporaries(false),
+        ARCMTMigrateEmitARCErrors(false), SkipFunctionBodies(false),
+        UseGlobalModuleIndex(true), GenerateGlobalModuleIndex(true),
+        ASTDumpDecls(false), ASTDumpLookups(false),
+        BuildingImplicitModule(false), ModulesEmbedAllFiles(false),
+        IncludeTimestamps(true) {}
 
   /// getInputKindForExtension - Return the appropriate input kind for a file
   /// extension. For example, "c" would return InputKind::C.

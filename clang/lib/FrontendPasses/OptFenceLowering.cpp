@@ -200,7 +200,7 @@ OptFenceLower::getExtractedFunctions(const WorkListBBTy &WL) {
                    std::vector<BasicBlock *> ExtractArea =
                        getAreaToExtract(Work.first, Work.second);
                    return CodeExtractor(ExtractArea, nullptr, false, nullptr,
-                                        nullptr, false, false,
+                                        nullptr, nullptr, false, false,
                                         SNewFunctionIdentifier)
                        .extractCodeRegion();
                  });

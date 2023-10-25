@@ -6,14 +6,18 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
-// Defines the clang::TypeLoc interface and its subclasses.
+//===- TypeLoc.h - Type Source Info Wrapper ---------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+/// \file
+/// Defines the clang::TypeLoc interface and its subclasses.
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_AST_TYPELOC_H
 #define LLVM_CLANG_AST_TYPELOC_H
@@ -176,6 +180,9 @@ public:
   UnqualTypeLoc getUnqualifiedLoc() const; // implemented in this header
 
   TypeLoc IgnoreParens() const;
+
+  /// Strips MacroDefinitionTypeLocs from a type location.
+  TypeLoc IgnoreMacroDefinitions() const;
 
   /// Find a type with the location of an explicit type qualifier.
   ///
@@ -1081,6 +1088,39 @@ public:
   void initializeLocal(ASTContext &Context, SourceLocation Loc) {
     setNameLoc(Loc);
     setNameEndLoc(Loc);
+  }
+};
+
+struct MacroQualifiedLocInfo {
+  SourceLocation ExpansionLoc;
+};
+
+class MacroQualifiedTypeLoc
+    : public ConcreteTypeLoc<UnqualTypeLoc, MacroQualifiedTypeLoc,
+                             MacroQualifiedType, MacroQualifiedLocInfo> {
+public:
+  void initializeLocal(ASTContext &Context, SourceLocation Loc) {
+    setExpansionLoc(Loc);
+  }
+
+  TypeLoc getInnerLoc() const { return getInnerTypeLoc(); }
+
+  const IdentifierInfo *getMacroIdentifier() const {
+    return getTypePtr()->getMacroIdentifier();
+  }
+
+  SourceLocation getExpansionLoc() const {
+    return this->getLocalData()->ExpansionLoc;
+  }
+
+  void setExpansionLoc(SourceLocation Loc) {
+    this->getLocalData()->ExpansionLoc = Loc;
+  }
+
+  QualType getInnerType() const { return getTypePtr()->getUnderlyingType(); }
+
+  SourceRange getLocalSourceRange() const {
+    return getInnerLoc().getLocalSourceRange();
   }
 };
 
@@ -2315,6 +2355,8 @@ inline T TypeLoc::getAsAdjusted() const {
       Cur = ETL.getNamedTypeLoc();
     else if (auto ATL = Cur.getAs<AdjustedTypeLoc>())
       Cur = ATL.getOriginalLoc();
+    else if (auto MQL = Cur.getAs<MacroQualifiedTypeLoc>())
+      Cur = MQL.getInnerLoc();
     else
       break;
   }

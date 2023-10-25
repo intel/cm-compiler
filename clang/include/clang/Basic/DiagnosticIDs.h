@@ -6,14 +6,18 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
-// Defines the Diagnostic IDs-related interfaces.
+//===--- DiagnosticIDs.h - Diagnostic IDs Handling --------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Defines the Diagnostic IDs-related interfaces.
+///
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_BASIC_DIAGNOSTICIDS_H
 #define LLVM_CLANG_BASIC_DIAGNOSTICIDS_H
@@ -36,8 +40,8 @@ namespace clang {
       DIAG_SIZE_FRONTEND      =  150,
       DIAG_SIZE_SERIALIZATION =  120,
       DIAG_SIZE_LEX           =  400,
-      DIAG_SIZE_PARSE         =  500,
-      DIAG_SIZE_AST           =  150,
+      DIAG_SIZE_PARSE         =  600,
+      DIAG_SIZE_AST           =  200,
       DIAG_SIZE_COMMENT       =  100,
       DIAG_SIZE_CROSSTU       =  100,
       DIAG_SIZE_SEMA          = 4000,
@@ -54,8 +58,8 @@ namespace clang {
       DIAG_START_PARSE         = DIAG_START_LEX           + DIAG_SIZE_LEX,
       DIAG_START_AST           = DIAG_START_PARSE         + DIAG_SIZE_PARSE,
       DIAG_START_COMMENT       = DIAG_START_AST           + DIAG_SIZE_AST,
-      DIAG_START_CROSSTU       = DIAG_START_COMMENT       + DIAG_SIZE_CROSSTU,
-      DIAG_START_SEMA          = DIAG_START_CROSSTU       + DIAG_SIZE_COMMENT,
+      DIAG_START_CROSSTU       = DIAG_START_COMMENT       + DIAG_SIZE_COMMENT,
+      DIAG_START_SEMA          = DIAG_START_CROSSTU       + DIAG_SIZE_CROSSTU,
       DIAG_START_ANALYSIS      = DIAG_START_SEMA          + DIAG_SIZE_SEMA,
       DIAG_START_REFACTORING   = DIAG_START_ANALYSIS      + DIAG_SIZE_ANALYSIS,
       DIAG_UPPER_LIMIT         = DIAG_START_REFACTORING   + DIAG_SIZE_REFACTORING
@@ -173,7 +177,7 @@ public:
 
 private:
   /// Information for uniquing and looking up custom diags.
-  diag::CustomDiagInfo *CustomDiagInfo;
+  std::unique_ptr<diag::CustomDiagInfo> CustomDiagInfo;
 
 public:
   DiagnosticIDs();

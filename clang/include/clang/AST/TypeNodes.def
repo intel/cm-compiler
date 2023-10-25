@@ -6,13 +6,14 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
+//===-- TypeNodes.def - Metadata about Type AST nodes -----------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
 //  This file defines the AST type info database. Each type node is
 //  enumerated by providing its name (e.g., "Builtin" or "Enum") and
 //  base class (e.g., "Type" or "TagType"). Depending on where in the
@@ -91,6 +92,7 @@ TYPE(FunctionNoProto, FunctionType)
 DEPENDENT_TYPE(UnresolvedUsing, Type)
 NON_CANONICAL_TYPE(Paren, Type)
 NON_CANONICAL_TYPE(Typedef, Type)
+NON_CANONICAL_TYPE(MacroQualified, Type)
 NON_CANONICAL_TYPE(Adjusted, Type)
 NON_CANONICAL_TYPE(Decayed, AdjustedType)
 NON_CANONICAL_UNLESS_DEPENDENT_TYPE(TypeOfExpr, Type)

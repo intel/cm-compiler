@@ -6,15 +6,18 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
+//===-- CGValue.h - LLVM CodeGen wrappers for llvm::Value* ------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
 // These classes implement wrappers around llvm::Value in order to
 // fully represent the range of values for C L- and R- values.
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_LIB_CODEGEN_CGVALUE_H
 #define LLVM_CLANG_LIB_CODEGEN_CGVALUE_H

@@ -6,13 +6,14 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
+//===- Initialization.h - Semantic Analysis for Initializers ----*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
 // This file provides supporting data types for initialization of objects.
 
 #ifndef LLVM_CLANG_SEMA_INITIALIZATION_H
@@ -394,6 +395,8 @@ public:
   }
 
   /// Create the initialization entity for a lambda capture.
+  ///
+  /// \p VarID The name of the entity being captured, or nullptr for 'this'.
   static InitializedEntity InitializeLambdaCapture(IdentifierInfo *VarID,
                                                    QualType FieldType,
                                                    SourceLocation Loc) {
@@ -517,7 +520,7 @@ public:
   /// For a lambda capture, return the capture's name.
   StringRef getCapturedVarName() const {
     assert(getKind() == EK_LambdaCapture && "Not a lambda capture!");
-    return Capture.VarID->getName();
+    return Capture.VarID ? Capture.VarID->getName() : "this";
   }
 
   /// Determine the location of the capture when initializing
@@ -827,9 +830,6 @@ public:
     /// Perform a conversion adding _Atomic to a type.
     SK_AtomicConversion,
 
-    /// Perform a load from a glvalue, producing an rvalue.
-    SK_LValueToRValue,
-
     /// Perform an implicit conversion sequence.
     SK_ConversionSequence,
 
@@ -1024,6 +1024,9 @@ public:
 
     /// Reference binding drops qualifiers.
     FK_ReferenceInitDropsQualifiers,
+
+    /// Reference with mismatching address space binding to temporary.
+    FK_ReferenceAddrspaceMismatchTemporary,
 
     /// Reference binding failed.
     FK_ReferenceInitFailed,
@@ -1279,12 +1282,6 @@ public:
   /// Add a new step that performs conversion from non-atomic to atomic
   /// type.
   void AddAtomicConversionStep(QualType Ty);
-
-  /// Add a new step that performs a load of the given type.
-  ///
-  /// Although the term "LValueToRValue" is conventional, this applies to both
-  /// lvalues and xvalues.
-  void AddLValueToRValueStep(QualType Ty);
 
   /// Add a new step that applies an implicit conversion sequence.
   void AddConversionSequenceStep(const ImplicitConversionSequence &ICS,

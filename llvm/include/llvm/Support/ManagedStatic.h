@@ -1,9 +1,8 @@
 //===-- llvm/Support/ManagedStatic.h - Static Global wrapper ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -17,9 +16,6 @@
 #include <atomic>
 #include <cstddef>
 
-#if !defined(_MSC_VER) || (_MSC_VER >= 1925) || defined(__clang__)
-#define LLVM_USE_CONSTEXPR_CTOR
-#endif
 namespace llvm {
 
 /// object_creator - Helper method for ManagedStatic.
@@ -36,6 +32,18 @@ template <typename T, size_t N> struct object_deleter<T[N]> {
   static void call(void *Ptr) { delete[](T *)Ptr; }
 };
 
+// ManagedStatic must be initialized to zero, and it must *not* have a dynamic
+// initializer because managed statics are often created while running other
+// dynamic initializers. In standard C++11, the best way to accomplish this is
+// with a constexpr default constructor. However, different versions of the
+// Visual C++ compiler have had bugs where, even though the constructor may be
+// constexpr, a dynamic initializer may be emitted depending on optimization
+// settings. For the affected versions of MSVC, use the old linker
+// initialization pattern of not providing a constructor and leaving the fields
+// uninitialized.
+#if !defined(_MSC_VER) || defined(__clang__)
+#define LLVM_USE_CONSTEXPR_CTOR
+#endif
 
 /// ManagedStaticBase - Common base class for ManagedStatic instances.
 class ManagedStaticBase {

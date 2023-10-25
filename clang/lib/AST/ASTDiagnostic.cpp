@@ -6,14 +6,17 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
+//===--- ASTDiagnostic.cpp - Diagnostic Printing Hooks for AST Nodes ------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
 // This file implements a diagnostic formatting hook for AST elements.
+//
+//===----------------------------------------------------------------------===//
 
 #include "clang/AST/ASTDiagnostic.h"
 #include "clang/AST/ASTContext.h"
@@ -44,6 +47,11 @@ static QualType Desugar(ASTContext &Context, QualType QT, bool &ShouldAKA) {
     // ... or a paren type ...
     if (const ParenType *PT = dyn_cast<ParenType>(Ty)) {
       QT = PT->desugar();
+      continue;
+    }
+    // ... or a macro defined type ...
+    if (const MacroQualifiedType *MDT = dyn_cast<MacroQualifiedType>(Ty)) {
+      QT = MDT->desugar();
       continue;
     }
     // ...or a substituted template type parameter ...

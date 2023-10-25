@@ -6,15 +6,19 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
-// Defines various enumerations that describe declaration and
-// type specifiers.
+//===--- Specifiers.h - Declaration and Type Specifiers ---------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Defines various enumerations that describe declaration and
+/// type specifiers.
+///
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_BASIC_SPECIFIERS_H
 #define LLVM_CLANG_BASIC_SPECIFIERS_H
@@ -24,6 +28,21 @@ See LICENSE.TXT for details.
 #include "llvm/Support/ErrorHandling.h"
 
 namespace clang {
+
+  /// Define the meaning of possible values of the kind in ExplicitSpecifier.
+  enum class ExplicitSpecKind : unsigned {
+    ResolvedFalse,
+    ResolvedTrue,
+    Unresolved,
+  };
+
+  /// Define the kind of constexpr specifier.
+  enum ConstexprSpecKind {
+    CSK_unspecified,
+    CSK_constexpr,
+    CSK_consteval
+  };
+
   /// Specifies the width of a type, e.g., short, long, or long long.
   enum TypeSpecifierWidth {
     TSW_unspecified,
@@ -147,6 +166,20 @@ namespace clang {
     /// object or writes at the subscripted array/dictionary element via
     /// Objective-C method calls.
     OK_ObjCSubscript
+  };
+
+  /// The reason why a DeclRefExpr does not constitute an odr-use.
+  enum NonOdrUseReason {
+    /// This is an odr-use.
+    NOUR_None = 0,
+    /// This name appears in an unevaluated operand.
+    NOUR_Unevaluated,
+    /// This name appears as a potential result of an lvalue-to-rvalue
+    /// conversion that is a constant expression.
+    NOUR_Constant,
+    /// This name appears as a potential result of a discarded value
+    /// expression.
+    NOUR_Discarded,
   };
 
   /// Describes the kind of template specialization that a

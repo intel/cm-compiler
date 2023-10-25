@@ -6,13 +6,14 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
+//===--- Types.def - Driver Type info ---------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
 // This file defines the driver type information. Users of this file
 // must define the TYPE macro to make use of this information.
 
@@ -95,6 +96,7 @@ TYPE("spv",                      SPIRV,        INVALID,         "spv",   "u")
 
 // Misc.
 TYPE("ast",                      AST,          INVALID,         "ast",   "u")
+TYPE("ifs",                      IFS,          INVALID,         "ifs",   "u")
 TYPE("pcm",                      ModuleFile,   INVALID,         "pcm",   "u")
 TYPE("plist",                    Plist,        INVALID,         "plist", "")
 TYPE("rewritten-objc",           RewrittenObjC,INVALID,         "cpp",   "")

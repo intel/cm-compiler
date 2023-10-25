@@ -6,14 +6,18 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
-// Defines the clang::TargetOptions class.
+//===--- TargetOptions.h ----------------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Defines the clang::TargetOptions class.
+///
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_BASIC_TARGETOPTIONS_H
 #define LLVM_CLANG_BASIC_TARGETOPTIONS_H
@@ -94,6 +98,11 @@ public:
   std::string CodeModel;
 
   /// The version of the SDK which was used during the compilation.
+  /// The option is used for two different purposes:
+  /// * on darwin the version is propagated to LLVM where it's used
+  ///   to support SDK Version metadata (See D55673).
+  /// * CUDA compilation uses it to control parts of CUDA compilation
+  ///   in clang that depend on specific version of the CUDA SDK.
   llvm::VersionTuple SDKVersion;
 };
 

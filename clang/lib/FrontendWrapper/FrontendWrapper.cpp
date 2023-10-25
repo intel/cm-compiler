@@ -618,7 +618,8 @@ IntelCMClangFECompile(const Intel::CM::ClangFE::IInputArgs *InArgs) {
   Clang.setOutputStream(std::move(IRStream));
 
   auto MemFS = createFileSystem(InArgs, getTheOnlyInputFileName(Clang));
-  Clang.setVirtualFileSystem(MemFS);
+  auto *FileManager = new clang::FileManager{{}, MemFS};
+  Clang.setFileManager(FileManager);
 
   auto Cc1ExtraOptionInfo = Cc1ExtraOptionInfoT{
     llvm::makeArrayRef(CStrCompOpts.data(), CStrCompOpts.size())};

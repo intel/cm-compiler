@@ -1,20 +1,15 @@
-/*========================== begin_copyright_notice ============================
-
-Copyright (C) 2016-2021 Intel Corporation
-
-SPDX-License-Identifier: MIT
-
-============================= end_copyright_notice ===========================*/
-
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
+//===--- CallAndMessageChecker.cpp ------------------------------*- C++ -*--==//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
 // This defines CallAndMessageChecker, a builtin checker that checks for various
 // errors of call and objc message expressions.
+//
+//===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/AST/ParentMap.h"
@@ -32,14 +27,6 @@ using namespace clang;
 using namespace ento;
 
 namespace {
-
-struct ChecksFilter {
-  DefaultBool Check_CallAndMessageUnInitRefArg;
-  DefaultBool Check_CallAndMessageChecker;
-
-  CheckName CheckName_CallAndMessageUnInitRefArg;
-  CheckName CheckName_CallAndMessageChecker;
-};
 
 class CallAndMessageChecker
   : public Checker< check::PreStmt<CallExpr>,
@@ -61,7 +48,8 @@ class CallAndMessageChecker
   mutable std::unique_ptr<BugType> BT_call_few_args;
 
 public:
-  ChecksFilter Filter;
+  DefaultBool Check_CallAndMessageUnInitRefArg;
+  CheckName CheckName_CallAndMessageUnInitRefArg;
 
   void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
   void checkPreStmt(const CXXDeleteExpr *DE, CheckerContext &C) const;
@@ -156,7 +144,7 @@ bool CallAndMessageChecker::uninitRefOrPointer(
     CheckerContext &C, const SVal &V, SourceRange ArgRange, const Expr *ArgEx,
     std::unique_ptr<BugType> &BT, const ParmVarDecl *ParamDecl, const char *BD,
     int ArgumentNumber) const {
-  if (!Filter.Check_CallAndMessageUnInitRefArg)
+  if (!Check_CallAndMessageUnInitRefArg)
     return false;
 
   // No parameter declaration available, i.e. variadic function argument.
@@ -255,10 +243,6 @@ bool CallAndMessageChecker::PreVisitProcessArg(CheckerContext &C,
 
   if (uninitRefOrPointer(C, V, ArgRange, ArgEx, BT, ParamDecl, BD,
                          ArgumentNumber))
-    return true;
-
-  // CM vector/matrix args are currently too hard to check, so we'll skip them.
-  if (ArgEx->getType()->isCMVectorMatrixType())
     return true;
 
   if (V.isUndef()) {
@@ -616,13 +600,20 @@ void CallAndMessageChecker::HandleNilReceiver(CheckerContext &C,
   C.addTransition(state);
 }
 
-#define REGISTER_CHECKER(name)                                                 \
-  void ento::register##name(CheckerManager &mgr) {                             \
-    CallAndMessageChecker *Checker =                                           \
-        mgr.registerChecker<CallAndMessageChecker>();                          \
-    Checker->Filter.Check_##name = true;                                       \
-    Checker->Filter.CheckName_##name = mgr.getCurrentCheckName();              \
-  }
+void ento::registerCallAndMessageChecker(CheckerManager &mgr) {
+  mgr.registerChecker<CallAndMessageChecker>();
+}
 
-REGISTER_CHECKER(CallAndMessageUnInitRefArg)
-REGISTER_CHECKER(CallAndMessageChecker)
+bool ento::shouldRegisterCallAndMessageChecker(const LangOptions &LO) {
+  return true;
+}
+
+void ento::registerCallAndMessageUnInitRefArg(CheckerManager &mgr) {
+  CallAndMessageChecker *Checker = mgr.getChecker<CallAndMessageChecker>();
+  Checker->Check_CallAndMessageUnInitRefArg = true;
+  Checker->CheckName_CallAndMessageUnInitRefArg = mgr.getCurrentCheckName();
+}
+
+bool ento::shouldRegisterCallAndMessageUnInitRefArg(const LangOptions &LO) {
+  return true;
+}

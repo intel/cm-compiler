@@ -6,12 +6,13 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
+//===--- Clang.h - Clang Tool and ToolChain Implementations ====-*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_Clang_H
 #define LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_Clang_H
@@ -128,6 +129,8 @@ public:
                          llvm::opt::ArgStringList &CmdArgs) const;
   void AddX86TargetArgs(const llvm::opt::ArgList &Args,
                         llvm::opt::ArgStringList &CmdArgs) const;
+  void AddRISCVTargetArgs(const llvm::opt::ArgList &Args,
+                          llvm::opt::ArgStringList &CmdArgs) const;
   bool hasGoodDiagnostics() const override { return true; }
   bool hasIntegratedAssembler() const override { return false; }
   bool hasIntegratedCPP() const override { return false; }

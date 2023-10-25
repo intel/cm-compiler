@@ -6,14 +6,17 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
-// This file implements semantic analysis for declaration specifiers.
+//===--- DeclSpec.cpp - Declaration Specifier Semantic Analysis -----------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+//  This file implements semantic analysis for declaration specifiers.
+//
+//===----------------------------------------------------------------------===//
 
 #include "clang/Sema/DeclSpec.h"
 #include "clang/AST/ASTContext.h"
@@ -455,7 +458,7 @@ unsigned DeclSpec::getParsedSpecifiers() const {
   if (hasTypeSpecifier())
     Res |= PQ_TypeSpecifier;
 
-  if (FS_inline_specified || FS_virtual_specified || FS_explicit_specified ||
+  if (FS_inline_specified || FS_virtual_specified || hasExplicitSpecifier() ||
       FS_noreturn_specified || FS_forceinline_specified)
     Res |= PQ_FunctionSpecifier;
   return Res;
@@ -579,6 +582,15 @@ const char *DeclSpec::getSpecifierName(DeclSpec::TST T,
   llvm_unreachable("Unknown typespec!");
 }
 
+const char *DeclSpec::getSpecifierName(ConstexprSpecKind C) {
+  switch (C) {
+  case CSK_unspecified: return "unspecified";
+  case CSK_constexpr:   return "constexpr";
+  case CSK_consteval:   return "consteval";
+  }
+  llvm_unreachable("Unknown ConstexprSpecKind");
+}
+
 const char *DeclSpec::getSpecifierName(TQ T) {
   switch (T) {
   case DeclSpec::TQ_unspecified: return "unspecified";
@@ -602,7 +614,6 @@ bool DeclSpec::SetStorageClassSpec(Sema &S, SCS SC, SourceLocation Loc,
   // these storage-class specifiers.
   // OpenCL v1.2 s6.8 changes this to "The auto and register storage-class
   // specifiers are not supported."
-  // OpenCL C++ v1.0 s2.9 restricts register.
   if (S.getLangOpts().OpenCL &&
       !S.getOpenCLOptions().isEnabled("cl_clang_storage_class_specifiers")) {
     switch (SC) {
@@ -721,6 +732,8 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation TagKwLoc,
                                const PrintingPolicy &Policy) {
   assert(isTypeRep(T) && "T does not store a type");
   assert(Rep && "no type provided!");
+  if (TypeSpecType == TST_error)
+    return false;
   if (TypeSpecType != TST_unspecified) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
     DiagID = diag::err_invalid_decl_spec_combination;
@@ -741,6 +754,8 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation Loc,
                                const PrintingPolicy &Policy) {
   assert(isExprRep(T) && "T does not store an expr");
   assert(Rep && "no expression provided!");
+  if (TypeSpecType == TST_error)
+    return false;
   if (TypeSpecType != TST_unspecified) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
     DiagID = diag::err_invalid_decl_spec_combination;
@@ -771,6 +786,8 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation TagKwLoc,
   assert(isDeclRep(T) && "T does not store a decl");
   // Unlike the other cases, we don't assert that we actually get a decl.
 
+  if (TypeSpecType == TST_error)
+    return false;
   if (TypeSpecType != TST_unspecified) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
     DiagID = diag::err_invalid_decl_spec_combination;
@@ -790,6 +807,8 @@ bool DeclSpec::SetTypeSpecType(TST T, SourceLocation Loc,
                                const PrintingPolicy &Policy) {
   assert(!isDeclRep(T) && !isTypeRep(T) && !isExprRep(T) &&
          "rep required for these type-spec kinds!");
+  if (TypeSpecType == TST_error)
+    return false;
   if (TypeSpecType != TST_unspecified) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
     DiagID = diag::err_invalid_decl_spec_combination;
@@ -822,6 +841,8 @@ bool DeclSpec::SetTypeSpecSat(SourceLocation Loc, const char *&PrevSpec,
 bool DeclSpec::SetTypeAltiVecVector(bool isAltiVecVector, SourceLocation Loc,
                           const char *&PrevSpec, unsigned &DiagID,
                           const PrintingPolicy &Policy) {
+  if (TypeSpecType == TST_error)
+    return false;
   if (TypeSpecType != TST_unspecified) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
     DiagID = diag::err_invalid_vector_decl_spec_combination;
@@ -835,7 +856,8 @@ bool DeclSpec::SetTypeAltiVecVector(bool isAltiVecVector, SourceLocation Loc,
 bool DeclSpec::SetTypePipe(bool isPipe, SourceLocation Loc,
                            const char *&PrevSpec, unsigned &DiagID,
                            const PrintingPolicy &Policy) {
-
+  if (TypeSpecType == TST_error)
+    return false;
   if (TypeSpecType != TST_unspecified) {
     PrevSpec = DeclSpec::getSpecifierName((TST)TypeSpecType, Policy);
     DiagID = diag::err_invalid_decl_spec_combination;
@@ -851,6 +873,8 @@ bool DeclSpec::SetTypePipe(bool isPipe, SourceLocation Loc,
 bool DeclSpec::SetTypeAltiVecPixel(bool isAltiVecPixel, SourceLocation Loc,
                           const char *&PrevSpec, unsigned &DiagID,
                           const PrintingPolicy &Policy) {
+  if (TypeSpecType == TST_error)
+    return false;
   if (!TypeAltiVecVector || TypeAltiVecPixel ||
       (TypeSpecType != TST_unspecified)) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
@@ -866,6 +890,8 @@ bool DeclSpec::SetTypeAltiVecPixel(bool isAltiVecPixel, SourceLocation Loc,
 bool DeclSpec::SetTypeAltiVecBool(bool isAltiVecBool, SourceLocation Loc,
                                   const char *&PrevSpec, unsigned &DiagID,
                                   const PrintingPolicy &Policy) {
+  if (TypeSpecType == TST_error)
+    return false;
   if (!TypeAltiVecVector || TypeAltiVecBool ||
       (TypeSpecType != TST_unspecified)) {
     PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
@@ -966,17 +992,24 @@ bool DeclSpec::setFunctionSpecVirtual(SourceLocation Loc,
 }
 
 bool DeclSpec::setFunctionSpecExplicit(SourceLocation Loc,
-                                       const char *&PrevSpec,
-                                       unsigned &DiagID) {
+                                       const char *&PrevSpec, unsigned &DiagID,
+                                       ExplicitSpecifier ExplicitSpec,
+                                       SourceLocation CloseParenLoc) {
+  assert((ExplicitSpec.getKind() == ExplicitSpecKind::ResolvedTrue ||
+          ExplicitSpec.getExpr()) &&
+         "invalid ExplicitSpecifier");
   // 'explicit explicit' is ok, but warn as this is likely not what the user
   // intended.
-  if (FS_explicit_specified) {
-    DiagID = diag::warn_duplicate_declspec;
+  if (hasExplicitSpecifier()) {
+    DiagID = (ExplicitSpec.getExpr() || FS_explicit_specifier.getExpr())
+                 ? diag::err_duplicate_declspec
+                 : diag::ext_warn_duplicate_declspec;
     PrevSpec = "explicit";
     return true;
   }
-  FS_explicit_specified = true;
+  FS_explicit_specifier = ExplicitSpec;
   FS_explicitLoc = Loc;
+  FS_explicitCloseParenLoc = CloseParenLoc;
   return false;
 }
 
@@ -1025,16 +1058,17 @@ bool DeclSpec::setModulePrivateSpec(SourceLocation Loc, const char *&PrevSpec,
   return false;
 }
 
-bool DeclSpec::SetConstexprSpec(SourceLocation Loc, const char *&PrevSpec,
+bool DeclSpec::SetConstexprSpec(ConstexprSpecKind ConstexprKind,
+                                SourceLocation Loc, const char *&PrevSpec,
                                 unsigned &DiagID) {
-  // 'constexpr constexpr' is ok, but warn as this is likely not what the user
-  // intended.
-  if (Constexpr_specified) {
+  if (getConstexprSpecifier() != CSK_unspecified) {
+    if (getConstexprSpecifier() == CSK_consteval || ConstexprKind == CSK_consteval)
+      return BadSpecifier(ConstexprKind, getConstexprSpecifier(), PrevSpec, DiagID);
     DiagID = diag::warn_duplicate_declspec;
     PrevSpec = "constexpr";
     return true;
   }
-  Constexpr_specified = true;
+  ConstexprSpecifier = ConstexprKind;
   ConstexprLoc = Loc;
   return false;
 }
@@ -1055,7 +1089,10 @@ void DeclSpec::Finish(Sema &S, const PrintingPolicy &Policy) {
   // Before possibly changing their values, save specs as written.
   SaveWrittenBuiltinSpecs();
 
-  // Check the type specifier components first.
+  // Check the type specifier components first. No checking for an invalid
+  // type.
+  if (TypeSpecType == TST_error)
+    return;
 
   // If decltype(auto) is used, no other type specifiers are permitted.
   if (TypeSpecType == TST_decltype_auto &&
@@ -1277,9 +1314,10 @@ void DeclSpec::Finish(Sema &S, const PrintingPolicy &Policy) {
   else if (TypeSpecType == TST_char16 || TypeSpecType == TST_char32)
     S.Diag(TSTLoc, diag::warn_cxx98_compat_unicode_type)
       << (TypeSpecType == TST_char16 ? "char16_t" : "char32_t");
-  if (Constexpr_specified)
+  if (getConstexprSpecifier() == CSK_constexpr)
     S.Diag(ConstexprLoc, diag::warn_cxx98_compat_constexpr);
-
+  if (getConstexprSpecifier() == CSK_consteval)
+    S.Diag(ConstexprLoc, diag::warn_cxx20_compat_consteval);
   // C++ [class.friend]p6:
   //   No storage-class-specifier shall appear in the decl-specifier-seq
   //   of a friend declaration.
@@ -1315,23 +1353,26 @@ void DeclSpec::Finish(Sema &S, const PrintingPolicy &Policy) {
   //   The explicit specifier shall be used only in the declaration of
   //   a constructor or conversion function within its class
   //   definition;
-  if (isFriendSpecified() && (isVirtualSpecified() || isExplicitSpecified())) {
+  if (isFriendSpecified() && (isVirtualSpecified() || hasExplicitSpecifier())) {
     StringRef Keyword;
+    FixItHint Hint;
     SourceLocation SCLoc;
 
     if (isVirtualSpecified()) {
       Keyword = "virtual";
       SCLoc = getVirtualSpecLoc();
+      Hint = FixItHint::CreateRemoval(SCLoc);
     } else {
       Keyword = "explicit";
       SCLoc = getExplicitSpecLoc();
+      Hint = FixItHint::CreateRemoval(getExplicitSpecRange());
     }
 
-    FixItHint Hint = FixItHint::CreateRemoval(SCLoc);
     S.Diag(SCLoc, diag::err_friend_decl_spec)
       << Keyword << Hint;
 
-    FS_virtual_specified = FS_explicit_specified = false;
+    FS_virtual_specified = false;
+    FS_explicit_specifier = ExplicitSpecifier();
     FS_virtualLoc = FS_explicitLoc = SourceLocation();
   }
 

@@ -1,20 +1,15 @@
-/*========================== begin_copyright_notice ============================
-
-Copyright (C) 2016-2021 Intel Corporation
-
-SPDX-License-Identifier: MIT
-
-============================= end_copyright_notice ===========================*/
-
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
+//=== UndefResultChecker.cpp ------------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
 // This defines UndefResultChecker, a builtin check in ExprEngine that
 // performs checks for undefined results of non-assignment binary operators.
+//
+//===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
@@ -79,10 +74,6 @@ static bool isLeftShiftResultUnrepresentable(const BinaryOperator *B,
 
 void UndefResultChecker::checkPostStmt(const BinaryOperator *B,
                                        CheckerContext &C) const {
-  // CM vector/matrix types are too hard to track for now.
-  if (B->getType()->isCMVectorMatrixType())
-    return;
-
   if (C.getSVal(B).isUndef()) {
 
     // Do not report assignments of uninitialized values inside swap functions.
@@ -193,4 +184,8 @@ void UndefResultChecker::checkPostStmt(const BinaryOperator *B,
 
 void ento::registerUndefResultChecker(CheckerManager &mgr) {
   mgr.registerChecker<UndefResultChecker>();
+}
+
+bool ento::shouldRegisterUndefResultChecker(const LangOptions &LO) {
+  return true;
 }

@@ -6,13 +6,14 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
+//======- ParsedAttr.h - Parsed attribute sets ------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
 // This file defines the ParsedAttr class, which is used to collect
 // parsed attributes.
 
@@ -172,6 +173,8 @@ public:
 private:
   IdentifierInfo *AttrName;
   IdentifierInfo *ScopeName;
+  IdentifierInfo *MacroII = nullptr;
+  SourceLocation MacroExpansionLoc;
   SourceRange AttrRange;
   SourceLocation ScopeLoc;
   SourceLocation EllipsisLoc;
@@ -212,6 +215,9 @@ private:
   /// A cached value.
   mutable unsigned ProcessingCache : 8;
 
+  /// True if the attribute is specified using '#pragma clang attribute'.
+  mutable unsigned IsPragmaClangAttribute : 1;
+
   /// The location of the 'unavailable' keyword in an
   /// availability attribute.
   SourceLocation UnavailableLoc;
@@ -243,7 +249,8 @@ private:
         ScopeLoc(scopeLoc), EllipsisLoc(ellipsisLoc), NumArgs(numArgs),
         SyntaxUsed(syntaxUsed), Invalid(false), UsedAsTypeAttr(false),
         IsAvailability(false), IsTypeTagForDatatype(false), IsProperty(false),
-        HasParsedType(false), HasProcessingCache(false) {
+        HasParsedType(false), HasProcessingCache(false),
+        IsPragmaClangAttribute(false) {
     if (numArgs) memcpy(getArgsBuffer(), args, numArgs * sizeof(ArgsUnion));
     AttrKind = getKind(getName(), getScopeName(), syntaxUsed);
   }
@@ -260,8 +267,8 @@ private:
         ScopeLoc(scopeLoc), NumArgs(1), SyntaxUsed(syntaxUsed), Invalid(false),
         UsedAsTypeAttr(false), IsAvailability(true),
         IsTypeTagForDatatype(false), IsProperty(false), HasParsedType(false),
-        HasProcessingCache(false), UnavailableLoc(unavailable),
-        MessageExpr(messageExpr) {
+        HasProcessingCache(false), IsPragmaClangAttribute(false),
+        UnavailableLoc(unavailable), MessageExpr(messageExpr) {
     ArgsUnion PVal(Parm);
     memcpy(getArgsBuffer(), &PVal, sizeof(ArgsUnion));
     new (getAvailabilityData()) detail::AvailabilityData(
@@ -278,7 +285,7 @@ private:
         ScopeLoc(scopeLoc), NumArgs(3), SyntaxUsed(syntaxUsed), Invalid(false),
         UsedAsTypeAttr(false), IsAvailability(false),
         IsTypeTagForDatatype(false), IsProperty(false), HasParsedType(false),
-        HasProcessingCache(false) {
+        HasProcessingCache(false), IsPragmaClangAttribute(false) {
     ArgsUnion *Args = getArgsBuffer();
     Args[0] = Parm1;
     Args[1] = Parm2;
@@ -295,7 +302,7 @@ private:
         ScopeLoc(scopeLoc), NumArgs(1), SyntaxUsed(syntaxUsed), Invalid(false),
         UsedAsTypeAttr(false), IsAvailability(false),
         IsTypeTagForDatatype(true), IsProperty(false), HasParsedType(false),
-        HasProcessingCache(false) {
+        HasProcessingCache(false), IsPragmaClangAttribute(false) {
     ArgsUnion PVal(ArgKind);
     memcpy(getArgsBuffer(), &PVal, sizeof(ArgsUnion));
     detail::TypeTagForDatatypeData &ExtraData = getTypeTagForDatatypeDataSlot();
@@ -313,7 +320,7 @@ private:
         ScopeLoc(scopeLoc), NumArgs(0), SyntaxUsed(syntaxUsed), Invalid(false),
         UsedAsTypeAttr(false), IsAvailability(false),
         IsTypeTagForDatatype(false), IsProperty(false), HasParsedType(true),
-        HasProcessingCache(false) {
+        HasProcessingCache(false), IsPragmaClangAttribute(false) {
     new (&getTypeBuffer()) ParsedType(typeArg);
     AttrKind = getKind(getName(), getScopeName(), syntaxUsed);
   }
@@ -327,7 +334,7 @@ private:
         ScopeLoc(scopeLoc), NumArgs(0), SyntaxUsed(syntaxUsed), Invalid(false),
         UsedAsTypeAttr(false), IsAvailability(false),
         IsTypeTagForDatatype(false), IsProperty(true), HasParsedType(false),
-        HasProcessingCache(false) {
+        HasProcessingCache(false), IsPragmaClangAttribute(false) {
     new (&getPropertyDataBuffer()) detail::PropertyData(getterId, setterId);
     AttrKind = getKind(getName(), getScopeName(), syntaxUsed);
   }
@@ -447,7 +454,12 @@ public:
   }
 
   bool isUsedAsTypeAttr() const { return UsedAsTypeAttr; }
-  void setUsedAsTypeAttr() { UsedAsTypeAttr = true; }
+  void setUsedAsTypeAttr(bool Used = true) { UsedAsTypeAttr = Used; }
+
+  /// True if the attribute is specified using '#pragma clang attribute'.
+  bool isPragmaClangAttribute() const { return IsPragmaClangAttribute; }
+
+  void setIsPragmaClangAttribute() { IsPragmaClangAttribute = true; }
 
   bool isPackExpansion() const { return EllipsisLoc.isValid(); }
   SourceLocation getEllipsisLoc() const { return EllipsisLoc; }
@@ -551,6 +563,27 @@ public:
     return getPropertyDataBuffer().SetterId;
   }
 
+  /// Set the macro identifier info object that this parsed attribute was
+  /// declared in if it was declared in a macro. Also set the expansion location
+  /// of the macro.
+  void setMacroIdentifier(IdentifierInfo *MacroName, SourceLocation Loc) {
+    MacroII = MacroName;
+    MacroExpansionLoc = Loc;
+  }
+
+  /// Returns true if this attribute was declared in a macro.
+  bool hasMacroIdentifier() const { return MacroII != nullptr; }
+
+  /// Return the macro identifier if this attribute was declared in a macro.
+  /// nullptr is returned if it was not declared in a macro.
+  IdentifierInfo *getMacroIdentifier() const { return MacroII; }
+
+  SourceLocation getMacroExpansionLoc() const {
+    assert(hasMacroIdentifier() && "Can only get the macro expansion location "
+                                   "if this attribute has a macro identifier.");
+    return MacroExpansionLoc;
+  }
+
   /// Get an index into the attribute spelling list
   /// defined in Attr.td. This index is used by an attribute
   /// to pretty print itself.
@@ -580,6 +613,25 @@ public:
   /// parsed attribute does not have a semantic equivalent, or would not have
   /// a Spelling enumeration, the value UINT_MAX is returned.
   unsigned getSemanticSpelling() const;
+
+  /// If this is an OpenCL addr space attribute returns its representation
+  /// in LangAS, otherwise returns default addr space.
+  LangAS asOpenCLLangAS() const {
+    switch (getKind()) {
+    case ParsedAttr::AT_OpenCLConstantAddressSpace:
+      return LangAS::opencl_constant;
+    case ParsedAttr::AT_OpenCLGlobalAddressSpace:
+      return LangAS::opencl_global;
+    case ParsedAttr::AT_OpenCLLocalAddressSpace:
+      return LangAS::opencl_local;
+    case ParsedAttr::AT_OpenCLPrivateAddressSpace:
+      return LangAS::opencl_private;
+    case ParsedAttr::AT_OpenCLGenericAddressSpace:
+      return LangAS::opencl_generic;
+    default:
+      return LangAS::Default;
+    }
+  }
 };
 
 class AttributePool;
@@ -644,6 +696,7 @@ public:
 
 class AttributePool {
   friend class AttributeFactory;
+  friend class ParsedAttributes;
   AttributeFactory &Factory;
   llvm::TinyPtrVector<ParsedAttr *> Attrs;
 
@@ -875,6 +928,13 @@ public:
     addAll(attrs.begin(), attrs.end());
     attrs.clearListOnly();
     pool.takeAllFrom(attrs.pool);
+  }
+
+  void takeOneFrom(ParsedAttributes &Attrs, ParsedAttr *PA) {
+    Attrs.getPool().remove(PA);
+    Attrs.remove(PA);
+    getPool().add(PA);
+    addAtEnd(PA);
   }
 
   void clear() {

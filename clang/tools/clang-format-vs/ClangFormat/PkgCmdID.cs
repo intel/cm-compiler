@@ -1,4 +1,4 @@
-namespace LLVM.ClangFormat
+﻿namespace LLVM.ClangFormat
 {
     static class PkgCmdIDList
     {

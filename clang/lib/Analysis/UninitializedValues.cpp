@@ -6,14 +6,17 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-/*========================== begin_copyright_notice ============================
-
-This file is distributed under the University of Illinois Open Source License.
-See LICENSE.TXT for details.
-
-============================= end_copyright_notice ===========================*/
-
+//===- UninitializedValues.cpp - Find Uninitialized Values ----------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
 // This file implements uninitialized values analysis for source-level CFGs.
+//
+//===----------------------------------------------------------------------===//
 
 #include "clang/Analysis/Analyses/UninitializedValues.h"
 #include "clang/AST/Attr.h"
@@ -362,6 +365,7 @@ public:
   void VisitBinaryOperator(BinaryOperator *BO);
   void VisitCallExpr(CallExpr *CE);
   void VisitCastExpr(CastExpr *CE);
+  void VisitOMPExecutableDirective(OMPExecutableDirective *ED);
 
   void operator()(Stmt *S) { Visit(S); }
 
@@ -488,6 +492,11 @@ void ClassifyRefs::VisitUnaryOperator(UnaryOperator *UO) {
     classify(UO->getSubExpr(), Use);
 }
 
+void ClassifyRefs::VisitOMPExecutableDirective(OMPExecutableDirective *ED) {
+  for (Stmt *S : OMPExecutableDirective::used_clauses_children(ED->clauses()))
+    classify(cast<Expr>(S), Use);
+}
+
 static bool isPointerToConst(const QualType &QT) {
   return QT->isAnyPointerType() && QT->getPointeeType().isConstQualified();
 }
@@ -568,6 +577,7 @@ public:
   void VisitDeclStmt(DeclStmt *ds);
   void VisitObjCForCollectionStmt(ObjCForCollectionStmt *FS);
   void VisitObjCMessageExpr(ObjCMessageExpr *ME);
+  void VisitOMPExecutableDirective(OMPExecutableDirective *ED);
 
   bool isTrackedVar(const VarDecl *vd) {
     return ::isTrackedVar(vd, cast<DeclContext>(ac.getDecl()));
@@ -687,7 +697,7 @@ public:
     // uninitialized.
     for (const auto *Block : cfg) {
       unsigned BlockID = Block->getBlockID();
-      const Stmt *Term = Block->getTerminator();
+      const Stmt *Term = Block->getTerminatorStmt();
       if (SuccsVisited[BlockID] && SuccsVisited[BlockID] < Block->succ_size() &&
           Term) {
         // This block inevitably leads to the use. If we have an edge from here
@@ -741,6 +751,16 @@ void TransferFunctions::VisitObjCForCollectionStmt(ObjCForCollectionStmt *FS) {
     if (isTrackedVar(VD))
       vals[VD] = Initialized;
   }
+}
+
+void TransferFunctions::VisitOMPExecutableDirective(
+    OMPExecutableDirective *ED) {
+  for (Stmt *S : OMPExecutableDirective::used_clauses_children(ED->clauses())) {
+    assert(S && "Expected non-null used-in-clause child.");
+    Visit(S);
+  }
+  if (!ED->isStandaloneDirective())
+    Visit(ED->getStructuredBlock());
 }
 
 void TransferFunctions::VisitBlockExpr(BlockExpr *be) {
