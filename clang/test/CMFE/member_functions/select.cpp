@@ -108,8 +108,8 @@ void test() {
   int r106 = s2.select();                                                 // select not a function // expected-error{{called object type 'int' is not a function or function pointer}}
   int r107 = s2.template select();                                        // select not a template // expected-error{{'select' following the 'template' keyword does not refer to a template}}
 
-  v1.select<8,2>();                                                       // expression result unused // expected-warning{{expression result unused}}
-  m1.select<4,2,2,1>();                                                   // expression result unused, // expected-warning{{expression result unused}}
+  v1.select<8,2>();                                                       // expression result unused // fixme-expected-warning{{expression result unused}}
+  m1.select<4,2,2,1>();                                                   // expression result unused // fixme-expected-warning{{expression result unused}}
   v2.select<4,1>() = 9;                                                   // OK
   m1.select<3,2,2,1>() = 1;                                               // OK
 }

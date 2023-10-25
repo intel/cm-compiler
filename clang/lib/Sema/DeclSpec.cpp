@@ -25,6 +25,7 @@ SPDX-License-Identifier: MIT
 #include "clang/AST/LocInfoType.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/Sema/Sema.h"
@@ -37,6 +38,9 @@ using namespace clang;
 
 void UnqualifiedId::setTemplateId(TemplateIdAnnotation *TemplateId) {
   assert(TemplateId && "NULL template-id annotation?");
+  assert(!TemplateId->isInvalid() &&
+         "should not convert invalid template-ids to unqualified-ids");
+
   Kind = UnqualifiedIdKind::IK_TemplateId;
   this->TemplateId = TemplateId;
   StartLocation = TemplateId->TemplateNameLoc;
@@ -45,6 +49,9 @@ void UnqualifiedId::setTemplateId(TemplateIdAnnotation *TemplateId) {
 
 void UnqualifiedId::setConstructorTemplateId(TemplateIdAnnotation *TemplateId) {
   assert(TemplateId && "NULL template-id annotation?");
+  assert(!TemplateId->isInvalid() &&
+         "should not convert invalid template-ids to unqualified-ids");
+
   Kind = UnqualifiedIdKind::IK_ConstructorTemplateId;
   this->TemplateId = TemplateId;
   StartLocation = TemplateId->TemplateNameLoc;
@@ -138,6 +145,8 @@ void CXXScopeSpec::Adopt(NestedNameSpecifierLoc Other) {
 
   Range = Other.getSourceRange();
   Builder.Adopt(Other);
+  assert(Range == Builder.getSourceRange() &&
+         "NestedNameSpecifierLoc range computation incorrect");
 }
 
 SourceLocation CXXScopeSpec::getLastQualifierNameLoc() const {
@@ -359,6 +368,7 @@ bool Declarator::isDeclarationOfFunction() const {
     case TST_half:
     case TST_int:
     case TST_int128:
+    case TST_extint:
     case TST_struct:
     case TST_interface:
     case TST_union:
@@ -366,6 +376,7 @@ bool Declarator::isDeclarationOfFunction() const {
     case TST_unspecified:
     case TST_void:
     case TST_wchar:
+    case TST_BFloat16:
     case TST_cm_vector:
     case TST_cm_matrix:
     case TST_SurfaceIndex:
@@ -542,6 +553,7 @@ const char *DeclSpec::getSpecifierName(DeclSpec::TST T,
   case DeclSpec::TST_char32:      return "char32_t";
   case DeclSpec::TST_int:         return "int";
   case DeclSpec::TST_int128:      return "__int128";
+  case DeclSpec::TST_extint:      return "_ExtInt";
   case DeclSpec::TST_half:        return "half";
   case DeclSpec::TST_float:       return "float";
   case DeclSpec::TST_double:      return "double";
@@ -568,6 +580,7 @@ const char *DeclSpec::getSpecifierName(DeclSpec::TST T,
   case DeclSpec::TST_underlyingType: return "__underlying_type";
   case DeclSpec::TST_unknown_anytype: return "__unknown_anytype";
   case DeclSpec::TST_atomic: return "_Atomic";
+  case DeclSpec::TST_BFloat16: return "__bf16";
   case DeclSpec::TST_cm_vector: return "vector";
   case DeclSpec::TST_cm_matrix: return "matrix";
   case DeclSpec::TST_SurfaceIndex: return "SurfaceIndex";
@@ -922,6 +935,27 @@ bool DeclSpec::SetTypeSpecError() {
   return false;
 }
 
+bool DeclSpec::SetExtIntType(SourceLocation KWLoc, Expr *BitsExpr,
+                             const char *&PrevSpec, unsigned &DiagID,
+                             const PrintingPolicy &Policy) {
+  assert(BitsExpr && "no expression provided!");
+  if (TypeSpecType == TST_error)
+    return false;
+
+  if (TypeSpecType != TST_unspecified) {
+    PrevSpec = DeclSpec::getSpecifierName((TST) TypeSpecType, Policy);
+    DiagID = diag::err_invalid_decl_spec_combination;
+    return true;
+  }
+
+  TypeSpecType = TST_extint;
+  ExprRep = BitsExpr;
+  TSTLoc = KWLoc;
+  TSTNameLoc = KWLoc;
+  TypeSpecOwned = false;
+  return false;
+}
+
 bool DeclSpec::SetTypeQual(TQ T, SourceLocation Loc, const char *&PrevSpec,
                            unsigned &DiagID, const LangOptions &Lang) {
   // Duplicates are permitted in C99 onwards, but are not permitted in C89 or
@@ -1141,14 +1175,20 @@ void DeclSpec::Finish(Sema &S, const PrintingPolicy &Policy) {
         S.Diag(TSSLoc, diag::err_invalid_vector_bool_decl_spec)
           << getSpecifierName((TSS)TypeSpecSign);
       }
-
-      // Only char/int are valid with vector bool. (PIM 2.1)
+      // Only char/int are valid with vector bool prior to Power10.
+      // Power10 adds instructions that produce vector bool data
+      // for quadwords as well so allow vector bool __int128.
       if (((TypeSpecType != TST_unspecified) && (TypeSpecType != TST_char) &&
-           (TypeSpecType != TST_int)) || TypeAltiVecPixel) {
+           (TypeSpecType != TST_int) && (TypeSpecType != TST_int128)) ||
+          TypeAltiVecPixel) {
         S.Diag(TSTLoc, diag::err_invalid_vector_bool_decl_spec)
           << (TypeAltiVecPixel ? "__pixel" :
                                  getSpecifierName((TST)TypeSpecType, Policy));
       }
+      // vector bool __int128 requires Power10.
+      if ((TypeSpecType == TST_int128) &&
+          (!S.Context.getTargetInfo().hasFeature("power10-vector")))
+        S.Diag(TSTLoc, diag::err_invalid_vector_bool_int128_decl_spec);
 
       // Only 'short' and 'long long' are valid with vector bool. (PIM 2.1)
       if ((TypeSpecWidth != TSW_unspecified) && (TypeSpecWidth != TSW_short) &&
@@ -1165,7 +1205,7 @@ void DeclSpec::Finish(Sema &S, const PrintingPolicy &Policy) {
 
       // Elements of vector bool are interpreted as unsigned. (PIM 2.1)
       if ((TypeSpecType == TST_char) || (TypeSpecType == TST_int) ||
-          (TypeSpecWidth != TSW_unspecified))
+          (TypeSpecType == TST_int128) || (TypeSpecWidth != TSW_unspecified))
         TypeSpecSign = TSS_unsigned;
     } else if (TypeSpecType == TST_double) {
       // vector long double and vector long long double are never allowed.
@@ -1210,7 +1250,7 @@ void DeclSpec::Finish(Sema &S, const PrintingPolicy &Policy) {
       TypeSpecType = TST_int; // unsigned -> unsigned int, signed -> signed int.
     else if (TypeSpecType != TST_int && TypeSpecType != TST_int128 &&
              TypeSpecType != TST_char && TypeSpecType != TST_wchar &&
-             !IsFixedPointType) {
+             !IsFixedPointType && TypeSpecType != TST_extint) {
       S.Diag(TSSLoc, diag::err_invalid_sign_spec)
         << getSpecifierName((TST)TypeSpecType, Policy);
       // signed double -> double.
@@ -1257,11 +1297,13 @@ void DeclSpec::Finish(Sema &S, const PrintingPolicy &Policy) {
                               S.getLocForEndOfToken(getTypeSpecComplexLoc()),
                                                  " double");
       TypeSpecType = TST_double;   // _Complex -> _Complex double.
-    } else if (TypeSpecType == TST_int || TypeSpecType == TST_char) {
+    } else if (TypeSpecType == TST_int || TypeSpecType == TST_char ||
+               TypeSpecType == TST_extint) {
       // Note that this intentionally doesn't include _Complex _Bool.
       if (!S.getLangOpts().CPlusPlus)
         S.Diag(TSTLoc, diag::ext_integer_complex);
-    } else if (TypeSpecType != TST_float && TypeSpecType != TST_double) {
+    } else if (TypeSpecType != TST_float && TypeSpecType != TST_double &&
+               TypeSpecType != TST_float128) {
       S.Diag(TSCLoc, diag::err_invalid_complex_spec)
         << getSpecifierName((TST)TypeSpecType, Policy);
       TypeSpecComplex = TSC_unspecified;

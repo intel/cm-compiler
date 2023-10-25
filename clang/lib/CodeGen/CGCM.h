@@ -75,12 +75,12 @@ private:
   CGCMRegionInfo(CGCMRegionInfo &) = delete;
 
 public:
-  CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CGF, unsigned vSize, unsigned vStride,
-                 unsigned hSize, unsigned hStride, llvm::Value *vOffset,
-                 llvm::Value *hOffset);
+  CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CGF,
+                 unsigned vSize, unsigned vStride, unsigned hSize,
+                 unsigned hStride, llvm::Value *vOffset, llvm::Value *hOffset);
 
-  CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CGF, unsigned Size, unsigned Stride,
-                 llvm::Value *Offset);
+  CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CGF,
+                 unsigned Size, unsigned Stride, llvm::Value *Offset);
 
   CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CGF);
 
@@ -494,7 +494,8 @@ private:
                                        CMBuiltinKind Kind);
 
   /// \brief Postprocess builtin cm_addc and subb.
-  llvm::Value *HandleBuiltinAddcSubbImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+  llvm::Value *HandleBuiltinAddcSubbImpl(CMCallInfo &CallInfo,
+                                         CMBuiltinKind Kind);
 
   /// \brief Postprocess builtin cm_avg.
   llvm::Value *HandleBuiltinAvgImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
@@ -506,7 +507,8 @@ private:
   llvm::Value *HandleBuiltinShlImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
 
   /// \brief Postprocess builtin cm_rol and cm_ror.
-  llvm::Value *HandleBuiltinRolRorImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+  llvm::Value *HandleBuiltinRolRorImpl(CMCallInfo &CallInfo,
+                                       CMBuiltinKind Kind);
 
   /// \brief Postprocess builtin cm_sad2.
   llvm::Value *HandleBuiltinSad2Impl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
@@ -639,7 +641,8 @@ private:
   /// \brief Postprocess dpas2 implementation builtin.
   llvm::Value *HandleBuiltinDPAS2Impl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
   /// \brief Postprocess builtin cm_tf32_cvt.
-  llvm::Value *HandleBuiltinTF32CVTImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+  llvm::Value *HandleBuiltinTF32CVTImpl(CMCallInfo &CallInfo,
+                                        CMBuiltinKind Kind);
   /// \brief Postprocess block 2d builtins load/store/prefetch.
   llvm::Value *HandleBuiltinLSC2dImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
   /// \brief Postprocess BTI-based load/store/prefetch
@@ -745,13 +748,11 @@ private:
                                     llvm::Value *Data);
 
   /// \brief Emit one of gather_scaled, gather4_scaled.
-  llvm::CallInst *EmitGatherScaled(CodeGenFunction &CGF, unsigned IntrinsicID,
-                                   llvm::APInt Selector, unsigned Scale,
-                                   llvm::Value *Surface,
-                                   llvm::Value *GlobalOffset,
-                                   llvm::Value *ElementOffset,
-                                   llvm::Value *Data,
-                                   llvm::Value *Mask = nullptr);
+  llvm::CallInst *
+  EmitGatherScaled(CodeGenFunction &CGF, unsigned IntrinsicID,
+                   llvm::APInt Selector, unsigned Scale, llvm::Value *Surface,
+                   llvm::Value *GlobalOffset, llvm::Value *ElementOffset,
+                   llvm::Value *Data, llvm::Value *Mask = nullptr);
 
 public:
   /// \brief Returns the corresponding genx intrinsic ID for this call.
@@ -774,13 +775,14 @@ public:
   }
 
   /// \brief Emit single select element as pointer to vector element
-  llvm::Value *EmitElementSelectAsPointer(CodeGenFunction &CGF, const CMSelectExpr *SE);
+  llvm::Value *EmitElementSelectAsPointer(CodeGenFunction &CGF,
+                                          const CMSelectExpr *SE);
 };
 
 // Returns the llvm type for masks (<32 x i1> etc.).
-static inline llvm::VectorType *getMaskType(llvm::LLVMContext &Context,
-                                            unsigned NumElts = 32u) {
-  return llvm::VectorType::get(llvm::Type::getInt1Ty(Context), NumElts);
+static inline llvm::FixedVectorType *getMaskType(llvm::LLVMContext &Context,
+                                                 unsigned NumElts = 32u) {
+  return llvm::FixedVectorType::get(llvm::Type::getInt1Ty(Context), NumElts);
 }
 
 // Turn a MDNode into llvm::value or its subclass.

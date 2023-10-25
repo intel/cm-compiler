@@ -129,6 +129,8 @@ categorize(const index::SymbolInfo &D) {
   case index::SymbolKind::Extension:
   case index::SymbolKind::Union:
   case index::SymbolKind::TypeAlias:
+  case index::SymbolKind::TemplateTypeParm:
+  case index::SymbolKind::TemplateTemplateParm:
     return SymbolQualitySignals::Type;
   case index::SymbolKind::Function:
   case index::SymbolKind::ClassMethod:
@@ -147,6 +149,7 @@ categorize(const index::SymbolInfo &D) {
   case index::SymbolKind::Field:
   case index::SymbolKind::EnumConstant:
   case index::SymbolKind::Parameter:
+  case index::SymbolKind::NonTypeTemplateParm:
     return SymbolQualitySignals::Variable;
   case index::SymbolKind::Using:
   case index::SymbolKind::Module:
@@ -204,7 +207,7 @@ float SymbolQualitySignals::evaluate() const {
   // question of whether 0 references means a bad symbol or missing data.
   if (References >= 10) {
     // Use a sigmoid style boosting function, which flats out nicely for large
-    // numbers (e.g. 2.58 for 1M refererences).
+    // numbers (e.g. 2.58 for 1M references).
     // The following boosting function is equivalent to:
     //   m = 0.06
     //   f = 12.0

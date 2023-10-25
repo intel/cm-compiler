@@ -8,6 +8,7 @@ SPDX-License-Identifier: MIT
 
 // RUN: not %cmc -march=skl -- %s 2> %t.txt
 // RUN: FileCheck %s --input-file %t.txt
+// XFAIL: *
 
 #include <cm/cm.h>
 

@@ -45,9 +45,27 @@ end:
   ret void
 }
 
-; In case there's an epilog, we shouldn't have to do this.
+; test the case where there's only a kill in an infinite loop
+; CHECK-LABEL: only_kill
+; CHECK: exp null off, off, off, off done vm
+; CHECK-NEXT: s_endpgm
+; SIInsertSkips inserts an extra null export here, but it should be harmless.
+; CHECK: exp null off, off, off, off done vm
+; CHECK-NEXT: s_endpgm
+define amdgpu_ps void @only_kill() #0 {
+main_body:
+  br label %loop
+
+loop:
+  call void @llvm.amdgcn.kill(i1 false) #3
+  br label %loop
+}
+
+; Check that the epilog is the final block
 ; CHECK-LABEL: return_nonvoid
-; CHECK-NOT: exp null off, off, off, off done vm
+; CHECK: exp null off, off, off, off done vm
+; CHECK-NEXT: s_endpgm
+; CHECK-NEXT: BB{{[0-9]+}}_{{[0-9]+}}:
 define amdgpu_ps float @return_nonvoid(float %0) #0 {
 main_body:
   %cmp = fcmp olt float %0, 1.000000e+01

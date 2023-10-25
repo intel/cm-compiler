@@ -32,8 +32,8 @@
 # RUN: ld.lld -T %t2.lds %t.o -o %t2
 # RUN: llvm-readelf -S -x .rodata %t2 | FileCheck --check-prefix=CHECK2 %s
 
-# CHECK2:      [ 1] .rodata   {{.*}} AL 3
-# CHECK2:      [ 3] .text     {{.*}} AX 0
+# CHECK2:      [ 1] .rodata   {{.*}} AL 4
+# CHECK2:      [ 4] .text.bar {{.*}} AX 0
 # CHECK2:      Hex dump of section '.rodata':
 # CHECK2-NEXT: 0201
 

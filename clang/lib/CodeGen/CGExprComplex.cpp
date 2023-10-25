@@ -21,6 +21,7 @@ SPDX-License-Identifier: MIT
 #include "CGOpenMPRuntime.h"
 #include "CodeGenFunction.h"
 #include "CodeGenModule.h"
+#include "ConstantEmitter.h"
 #include "clang/AST/StmtVisitor.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/Constants.h"
@@ -105,11 +106,14 @@ public:
   }
 
   ComplexPairTy VisitStmt(Stmt *S) {
-    S->dump(CGF.getContext().getSourceManager());
+    S->dump(llvm::errs(), CGF.getContext());
     llvm_unreachable("Stmt can't have complex result type!");
   }
   ComplexPairTy VisitExpr(Expr *S);
   ComplexPairTy VisitConstantExpr(ConstantExpr *E) {
+    if (llvm::Constant *Result = ConstantEmitter(CGF).tryEmitConstantExpr(E))
+      return ComplexPairTy(Result->getAggregateElement(0U),
+                           Result->getAggregateElement(1U));
     return Visit(E->getSubExpr());
   }
   ComplexPairTy VisitParenExpr(ParenExpr *PE) { return Visit(PE->getSubExpr());}
@@ -230,7 +234,6 @@ public:
     return Visit(DIE->getExpr());
   }
   ComplexPairTy VisitExprWithCleanups(ExprWithCleanups *E) {
-    CGF.enterFullExpression(E);
     CodeGenFunction::RunCleanupsScope Scope(CGF);
     ComplexPairTy Vals = Visit(E->getSubExpr());
     // Defend against dominance problems caused by jumps out of expression
@@ -439,8 +442,10 @@ ComplexPairTy ComplexExprEmitter::EmitComplexToComplexCast(ComplexPairTy Val,
   // C99 6.3.1.6: When a value of complex type is converted to another
   // complex type, both the real and imaginary parts follow the conversion
   // rules for the corresponding real types.
-  Val.first = CGF.EmitScalarConversion(Val.first, SrcType, DestType, Loc);
-  Val.second = CGF.EmitScalarConversion(Val.second, SrcType, DestType, Loc);
+  if (Val.first)
+    Val.first = CGF.EmitScalarConversion(Val.first, SrcType, DestType, Loc);
+  if (Val.second)
+    Val.second = CGF.EmitScalarConversion(Val.second, SrcType, DestType, Loc);
   return Val;
 }
 

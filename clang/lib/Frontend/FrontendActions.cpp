@@ -17,6 +17,7 @@ SPDX-License-Identifier: MIT
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/Basic/FileManager.h"
+#include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/LangStandard.h"
 #include "clang/Frontend/ASTConsumers.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -86,7 +87,8 @@ ASTDumpAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
   const FrontendOptions &Opts = CI.getFrontendOpts();
   return CreateASTDumper(nullptr /*Dump to stdout.*/, Opts.ASTDumpFilter,
                          Opts.ASTDumpDecls, Opts.ASTDumpAll,
-                         Opts.ASTDumpLookups, Opts.ASTDumpFormat);
+                         Opts.ASTDumpLookups, Opts.ASTDumpDeclTypes,
+                         Opts.ASTDumpFormat);
 }
 
 std::unique_ptr<ASTConsumer>
@@ -123,7 +125,7 @@ GeneratePCHAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
       CI.getPreprocessorOpts().AllowPCHWithCompilerErrors,
       FrontendOpts.IncludeTimestamps, +CI.getLangOpts().CacheGeneratedPCH));
   Consumers.push_back(CI.getPCHContainerWriter().CreatePCHContainerGenerator(
-      CI, InFile, OutputFile, std::move(OS), Buffer));
+      CI, std::string(InFile), OutputFile, std::move(OS), Buffer));
 
   return std::make_unique<MultiplexConsumer>(std::move(Consumers));
 }
@@ -189,7 +191,7 @@ GenerateModuleAction::CreateASTConsumer(CompilerInstance &CI,
       /*ShouldCacheASTInMemory=*/
       +CI.getFrontendOpts().BuildingImplicitModule));
   Consumers.push_back(CI.getPCHContainerWriter().CreatePCHContainerGenerator(
-      CI, InFile, OutputFile, std::move(OS), Buffer));
+      CI, std::string(InFile), OutputFile, std::move(OS), Buffer));
   return std::make_unique<MultiplexConsumer>(std::move(Consumers));
 }
 
@@ -274,7 +276,7 @@ bool GenerateHeaderModuleAction::PrepareToExecuteAction(
     HeaderContents += "#include \"";
     HeaderContents += FIF.getFile();
     HeaderContents += "\"\n";
-    ModuleHeaders.push_back(FIF.getFile());
+    ModuleHeaders.push_back(std::string(FIF.getFile()));
   }
   Buffer = llvm::MemoryBuffer::getMemBufferCopy(
       HeaderContents, Module::getModuleInputBufferName());
@@ -303,7 +305,7 @@ bool GenerateHeaderModuleAction::BeginSourceFileAction(
         << Name;
       continue;
     }
-    Headers.push_back({Name, &FE->getFileEntry()});
+    Headers.push_back({std::string(Name), &FE->getFileEntry()});
   }
   HS.getModuleMap().createHeaderModule(CI.getLangOpts().CurrentModule, Headers);
 
@@ -441,6 +443,10 @@ private:
       return "RequirementInstantiation";
     case CodeSynthesisContext::NestedRequirementConstraintsCheck:
       return "NestedRequirementConstraintsCheck";
+    case CodeSynthesisContext::InitializingStructuredBinding:
+      return "InitializingStructuredBinding";
+    case CodeSynthesisContext::MarkingClassDllexported:
+      return "MarkingClassDllexported";
     }
     return "";
   }
@@ -864,6 +870,7 @@ void PrintPreambleAction::ExecuteAction() {
   case Language::OpenCL:
   case Language::CUDA:
   case Language::HIP:
+  case Language::CM:
     break;
 
   case Language::Unknown:

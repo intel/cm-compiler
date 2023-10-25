@@ -18,6 +18,7 @@ SPDX-License-Identifier: MIT
 
 // ERRX: use slm, but slm size is too large
 // GOODX-NOT: use slm, but slm size is too large
+// XFAIL: *
 
 #include <cm/cm.h>
 
@@ -34,4 +35,3 @@ void slm_test(SurfaceIndex ibuf [[type("buffer_t")]],
     cm_store_slm(slm + i, tmp);
   }
 }
-

@@ -638,30 +638,38 @@ entry:
 define <16 x float> @test11(float* %base, i32 %ind) {
 ; KNL_64-LABEL: test11:
 ; KNL_64:       # %bb.0:
-; KNL_64-NEXT:    vpbroadcastd %esi, %zmm1
+; KNL_64-NEXT:    movslq %esi, %rax
+; KNL_64-NEXT:    leaq (%rdi,%rax,4), %rax
+; KNL_64-NEXT:    vxorps %xmm1, %xmm1, %xmm1
 ; KNL_64-NEXT:    kxnorw %k0, %k0, %k1
-; KNL_64-NEXT:    vgatherdps (%rdi,%zmm1,4), %zmm0 {%k1}
+; KNL_64-NEXT:    vgatherdps (%rax,%zmm1,4), %zmm0 {%k1}
 ; KNL_64-NEXT:    retq
 ;
 ; KNL_32-LABEL: test11:
 ; KNL_32:       # %bb.0:
 ; KNL_32-NEXT:    movl {{[0-9]+}}(%esp), %eax
-; KNL_32-NEXT:    vbroadcastss {{[0-9]+}}(%esp), %zmm1
+; KNL_32-NEXT:    shll $2, %eax
+; KNL_32-NEXT:    addl {{[0-9]+}}(%esp), %eax
+; KNL_32-NEXT:    vxorps %xmm1, %xmm1, %xmm1
 ; KNL_32-NEXT:    kxnorw %k0, %k0, %k1
 ; KNL_32-NEXT:    vgatherdps (%eax,%zmm1,4), %zmm0 {%k1}
 ; KNL_32-NEXT:    retl
 ;
 ; SKX-LABEL: test11:
 ; SKX:       # %bb.0:
-; SKX-NEXT:    vpbroadcastd %esi, %zmm1
+; SKX-NEXT:    movslq %esi, %rax
+; SKX-NEXT:    leaq (%rdi,%rax,4), %rax
+; SKX-NEXT:    vxorps %xmm1, %xmm1, %xmm1
 ; SKX-NEXT:    kxnorw %k0, %k0, %k1
-; SKX-NEXT:    vgatherdps (%rdi,%zmm1,4), %zmm0 {%k1}
+; SKX-NEXT:    vgatherdps (%rax,%zmm1,4), %zmm0 {%k1}
 ; SKX-NEXT:    retq
 ;
 ; SKX_32-LABEL: test11:
 ; SKX_32:       # %bb.0:
 ; SKX_32-NEXT:    movl {{[0-9]+}}(%esp), %eax
-; SKX_32-NEXT:    vbroadcastss {{[0-9]+}}(%esp), %zmm1
+; SKX_32-NEXT:    shll $2, %eax
+; SKX_32-NEXT:    addl {{[0-9]+}}(%esp), %eax
+; SKX_32-NEXT:    vxorps %xmm1, %xmm1, %xmm1
 ; SKX_32-NEXT:    kxnorw %k0, %k0, %k1
 ; SKX_32-NEXT:    vgatherdps (%eax,%zmm1,4), %zmm0 {%k1}
 ; SKX_32-NEXT:    retl
@@ -3311,3 +3319,51 @@ define void @scatter_16i64_constant_indices(i32* %ptr, <16 x i1> %mask, <16 x i3
   call void @llvm.masked.scatter.v16i32.v16p0i32(<16 x i32> %src0, <16 x i32*> %gep, i32 4, <16 x i1> %mask)
   ret void
 }
+
+%struct.foo = type { i8*, i64, i16, i16, i32 }
+
+; This used to cause fast-isel to generate bad copy instructions that would
+; cause an error in copyPhysReg.
+define <8 x i64> @pr45906(<8 x %struct.foo*> %ptr) {
+; KNL_64-LABEL: pr45906:
+; KNL_64:       # %bb.0: # %bb
+; KNL_64-NEXT:    vpaddq {{.*}}(%rip){1to8}, %zmm0, %zmm1
+; KNL_64-NEXT:    kxnorw %k0, %k0, %k1
+; KNL_64-NEXT:    vpgatherqq (,%zmm1), %zmm0 {%k1}
+; KNL_64-NEXT:    retq
+;
+; KNL_32-LABEL: pr45906:
+; KNL_32:       # %bb.0: # %bb
+; KNL_32-NEXT:    vpbroadcastd {{.*#+}} ymm1 = [4,4,4,4,4,4,4,4]
+; KNL_32-NEXT:    vpaddd %ymm1, %ymm0, %ymm1
+; KNL_32-NEXT:    kxnorw %k0, %k0, %k1
+; KNL_32-NEXT:    vpgatherdq (,%ymm1), %zmm0 {%k1}
+; KNL_32-NEXT:    retl
+;
+; SKX_SMALL-LABEL: pr45906:
+; SKX_SMALL:       # %bb.0: # %bb
+; SKX_SMALL-NEXT:    vpaddq {{.*}}(%rip){1to8}, %zmm0, %zmm1
+; SKX_SMALL-NEXT:    kxnorw %k0, %k0, %k1
+; SKX_SMALL-NEXT:    vpgatherqq (,%zmm1), %zmm0 {%k1}
+; SKX_SMALL-NEXT:    retq
+;
+; SKX_LARGE-LABEL: pr45906:
+; SKX_LARGE:       # %bb.0: # %bb
+; SKX_LARGE-NEXT:    movabsq ${{\.LCPI.*}}, %rax
+; SKX_LARGE-NEXT:    vpaddq (%rax){1to8}, %zmm0, %zmm1
+; SKX_LARGE-NEXT:    kxnorw %k0, %k0, %k1
+; SKX_LARGE-NEXT:    vpgatherqq (,%zmm1), %zmm0 {%k1}
+; SKX_LARGE-NEXT:    retq
+;
+; SKX_32-LABEL: pr45906:
+; SKX_32:       # %bb.0: # %bb
+; SKX_32-NEXT:    vpaddd {{\.LCPI.*}}{1to8}, %ymm0, %ymm1
+; SKX_32-NEXT:    kxnorw %k0, %k0, %k1
+; SKX_32-NEXT:    vpgatherdq (,%ymm1), %zmm0 {%k1}
+; SKX_32-NEXT:    retl
+bb:
+  %tmp = getelementptr inbounds %struct.foo, <8 x %struct.foo*> %ptr, i64 0, i32 1
+  %tmp1 = call <8 x i64> @llvm.masked.gather.v8i64.v8p0i64(<8 x i64*> %tmp, i32 8, <8 x i1> <i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true>, <8 x i64> undef)
+  ret <8 x i64> %tmp1
+}
+declare <8 x i64> @llvm.masked.gather.v8i64.v8p0i64(<8 x i64*>, i32, <8 x i1>, <8 x i64>)

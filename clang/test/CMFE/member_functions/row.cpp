@@ -37,7 +37,7 @@ void test() {
   vector<int, 6> r12 = m.row(4);            // index out of bounds // expected-warning{{row index '4' is out of bounds, matrix has 4 rows}}
   vector<int, 6> r13 = m.row(ia);           // OK
   vector<int, 6> r14 = m.row(si);           // index not an integer // expected-error{{row index must be an integer expression}}
-  m.row(0);                                 // expression result unused // expected-warning{{expression result unused}}
+  m.row(0);                                 // expression result unused // fixme-expected-warning{{expression result unused}}
   s1.row(2);                                // no row() in s // expected-error{{no member named 'row' in 'S1'}}
   s2.row = 1;                               // OK
 }

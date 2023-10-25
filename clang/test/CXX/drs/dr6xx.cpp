@@ -551,9 +551,9 @@ namespace dr648 { // dr648: yes
 
 #if __cplusplus >= 201103L
 namespace dr649 { // dr649: yes
-  alignas(0x20000000) int n; // expected-error {{requested alignment}}
-  struct alignas(0x20000000) X {}; // expected-error {{requested alignment}}
-  struct Y { int n alignas(0x20000000); }; // expected-error {{requested alignment}}
+  alignas(0x40000000) int n; // expected-error {{requested alignment}}1
+  struct alignas(0x40000000) X {}; // expected-error {{requested alignment}}
+  struct Y { int n alignas(0x40000000); }; // expected-error {{requested alignment}}
   struct alignas(256) Z {};
   // This part is superseded by dr2130 and eventually by aligned allocation support.
   auto *p = new Z;
@@ -585,10 +585,10 @@ namespace dr652 { // dr652: yes
 // dr653 FIXME: add codegen test
 
 #if __cplusplus >= 201103L
-namespace dr654 { // dr654: yes
+namespace dr654 { // dr654: sup 1423
   void f() {
     if (nullptr) {} // expected-warning {{implicit conversion of nullptr constant to 'bool'}}
-    bool b = nullptr; // expected-warning {{implicit conversion of nullptr constant to 'bool'}}
+    bool b = nullptr; // expected-error {{cannot initialize a variable of type 'bool' with an rvalue of type 'nullptr_t'}}
     if (nullptr == 0) {}
     if (nullptr != 0) {}
     if (nullptr <= 0) {} // expected-error {{invalid operands}}

@@ -15,8 +15,9 @@ See LICENSE.TXT for details.
 
 // This file implements type-related semantic analysis for CM.
 
-#include "clang/Sema/SemaInternal.h"
 #include "clang/AST/Expr.h"
+#include "clang/Basic/TargetInfo.h"
+#include "clang/Sema/SemaInternal.h"
 
 using namespace clang;
 

@@ -282,7 +282,6 @@ SourceRange Stmt::getSourceRange() const {
 }
 
 SourceLocation Stmt::getBeginLoc() const {
-  //  llvm::errs() << "getBeginLoc() for " << getStmtClassName() << "\n";
   switch (getStmtClass()) {
   case Stmt::NoStmtClass: llvm_unreachable("statement without class");
 #define ABSTRACT_STMT(type)
@@ -466,7 +465,7 @@ void GCCAsmStmt::setInputExpr(unsigned i, Expr *E) {
 }
 
 AddrLabelExpr *GCCAsmStmt::getLabelExpr(unsigned i) const {
-  return cast<AddrLabelExpr>(Exprs[i + NumInputs]);
+  return cast<AddrLabelExpr>(Exprs[i + NumOutputs + NumInputs]);
 }
 
 StringRef GCCAsmStmt::getLabelName(unsigned i) const {
@@ -532,7 +531,7 @@ int GCCAsmStmt::getNamedOperand(StringRef SymbolicName) const {
 
   for (unsigned i = 0, e = getNumLabels(); i != e; ++i)
     if (getLabelName(i) == SymbolicName)
-      return i + getNumInputs();
+      return i + getNumOutputs() + getNumInputs();
 
   // Not found.
   return -1;
@@ -741,7 +740,7 @@ std::string GCCAsmStmt::generateAsmString(const ASTContext &C) const {
 /// Assemble final IR asm string (MS-style).
 std::string MSAsmStmt::generateAsmString(const ASTContext &C) const {
   // FIXME: This needs to be translated into the IR string representation.
-  return AsmStr;
+  return std::string(AsmStr);
 }
 
 Expr *MSAsmStmt::getOutputExpr(unsigned i) {
@@ -1022,7 +1021,8 @@ void SwitchStmt::setConditionVariable(const ASTContext &Ctx, VarDecl *V) {
 }
 
 WhileStmt::WhileStmt(const ASTContext &Ctx, VarDecl *Var, Expr *Cond,
-                     Stmt *Body, SourceLocation WL)
+                     Stmt *Body, SourceLocation WL, SourceLocation LParenLoc,
+                     SourceLocation RParenLoc)
     : Stmt(WhileStmtClass) {
   bool HasVar = Var != nullptr;
   WhileStmtBits.HasVar = HasVar;
@@ -1033,6 +1033,8 @@ WhileStmt::WhileStmt(const ASTContext &Ctx, VarDecl *Var, Expr *Cond,
     setConditionVariable(Ctx, Var);
 
   setWhileLoc(WL);
+  setLParenLoc(LParenLoc);
+  setRParenLoc(RParenLoc);
 }
 
 WhileStmt::WhileStmt(EmptyShell Empty, bool HasVar)
@@ -1041,12 +1043,14 @@ WhileStmt::WhileStmt(EmptyShell Empty, bool HasVar)
 }
 
 WhileStmt *WhileStmt::Create(const ASTContext &Ctx, VarDecl *Var, Expr *Cond,
-                             Stmt *Body, SourceLocation WL) {
+                             Stmt *Body, SourceLocation WL,
+                             SourceLocation LParenLoc,
+                             SourceLocation RParenLoc) {
   bool HasVar = Var != nullptr;
   void *Mem =
       Ctx.Allocate(totalSizeToAlloc<Stmt *>(NumMandatoryStmtPtr + HasVar),
                    alignof(WhileStmt));
-  return new (Mem) WhileStmt(Ctx, Var, Cond, Body, WL);
+  return new (Mem) WhileStmt(Ctx, Var, Cond, Body, WL, LParenLoc, RParenLoc);
 }
 
 WhileStmt *WhileStmt::CreateEmpty(const ASTContext &Ctx, bool HasVar) {

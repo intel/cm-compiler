@@ -319,16 +319,14 @@ static bool materialized_use_empty(const Value *v) {
   return v->materialized_use_begin() == v->use_end();
 }
 
-static void GetCalledFunctions(const Function *pFunc,
-                               TFunctionsVec &calledFuncs) {
+static void GetCalledFunctions(Function *pFunc, TFunctionsVec &calledFuncs) {
   SmallPtrSet<Function *, 8> visitedSet;
   // Iterate over function instructions and look for call instructions
-  for (const_inst_iterator it = inst_begin(pFunc), e = inst_end(pFunc); it != e;
-       ++it) {
-    const CallInst *pInstCall = dyn_cast<CallInst>(&*it);
+  for (auto it = inst_begin(pFunc), e = inst_end(pFunc); it != e; ++it) {
+    CallInst *pInstCall = dyn_cast<CallInst>(&*it);
     if (!pInstCall)
       continue;
-    ((CallInst *)pInstCall)->setCallingConv(pFunc->getCallingConv());
+    pInstCall->setCallingConv(pFunc->getCallingConv());
     Function *pCalledFunc = pInstCall->getCalledFunction();
     if (!pCalledFunc) {
       // This case can occur only if CallInst is calling something other than
@@ -354,7 +352,7 @@ static void removeFunctionBitcasts(llvm::Module &M) {
         if (!pInstCall || pInstCall->getCalledFunction())
           continue;
         if (auto constExpr =
-                dyn_cast<llvm::ConstantExpr>(pInstCall->getCalledValue())) {
+                dyn_cast<llvm::ConstantExpr>(pInstCall->getCalledOperand())) {
           if (auto funcTobeChanged =
                   dyn_cast<llvm::Function>(constExpr->stripPointerCasts())) {
             if (funcTobeChanged->isDeclaration())

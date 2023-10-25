@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2021 Intel Corporation
+Copyright (C) 2014-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -13,9 +13,9 @@ SPDX-License-Identifier: MIT
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCM.h"
-#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/Path.h"
 
 #include "llvm/GenXIntrinsics/GenXIntrinsics.h"
@@ -24,7 +24,8 @@ SPDX-License-Identifier: MIT
 using namespace clang;
 using namespace CodeGen;
 
-CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CGF, unsigned vSize,
+CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base,
+                               CodeGenFunction &CGF, unsigned vSize,
                                unsigned vStride, unsigned hSize,
                                unsigned hStride, llvm::Value *vOffset,
                                llvm::Value *hOffset)
@@ -37,7 +38,8 @@ CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CG
   setHOffset(hOffset);
 }
 
-CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CGF, unsigned Size,
+CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base,
+                               CodeGenFunction &CGF, unsigned Size,
                                unsigned Stride, llvm::Value *Offset)
     : Kind(Kind), CGF(CGF), Base(Base) {
   setSize(Size);
@@ -49,7 +51,8 @@ CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CG
   Indices[1] = 0;
 }
 
-CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CGF)
+CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base,
+                               CodeGenFunction &CGF)
     : Kind(Kind), CGF(CGF), Base(Base) {
   // fill zeros for other fields.
   Dims[0] = Dims[1] = Dims[2] = Dims[3] = 0;
@@ -86,7 +89,7 @@ void CGCMRegionInfo::print(raw_ostream &OS) const {
 
   OS << "{ ";
   if (Base.isSimple())
-    OS << Base.getPointer(CGF)  << "(base)";
+    OS << Base.getPointer(CGF) << "(base)";
   else if (Base.isCMRegion())
     OS << Base.getCMRegionAddr() << "(nested)";
 
@@ -374,11 +377,11 @@ llvm::Value *CGCMRuntime::EmitCMFormatExpr(CodeGenFunction &CGF,
 
 static llvm::Value *GetMergeMaskValue(CGCMRuntime &CMRT, CodeGenFunction &CGF,
                                       llvm::Value *Mask, unsigned NumElts) {
-  llvm::VectorType *MaskTy = getMaskType(Mask->getContext(), NumElts);
+  llvm::FixedVectorType *MaskTy = getMaskType(Mask->getContext(), NumElts);
 
   // Mask is a vector.
-  if (isa<llvm::VectorType>(Mask->getType())) {
-    assert(Mask->getType()->getVectorNumElements() == NumElts);
+  if (auto *MaskVTy = dyn_cast<llvm::FixedVectorType>(Mask->getType())) {
+    assert(MaskVTy->getNumElements() == NumElts);
     // trunc to the mask type.
     return CGF.Builder.CreateTrunc(Mask, MaskTy);
   }
@@ -390,7 +393,7 @@ static llvm::Value *GetMergeMaskValue(CGCMRuntime &CMRT, CodeGenFunction &CGF,
   // Mask is a constant integer.
   if (llvm::ConstantInt *CI = dyn_cast<llvm::ConstantInt>(Mask)) {
     llvm::APInt MaskValue = CI->getValue();
-    llvm::SmallVector<llvm::Constant*, 32> Bits;
+    llvm::SmallVector<llvm::Constant *, 32> Bits;
 
     llvm::Type *MaskEltTy = MaskTy->getElementType();
     llvm::Constant *False = llvm::ConstantInt::getFalse(MaskEltTy);
@@ -410,29 +413,33 @@ static llvm::Value *GetMergeMaskValue(CGCMRuntime &CMRT, CodeGenFunction &CGF,
   auto I32Ty = llvm::Type::getInt32Ty(CGF.getLLVMContext());
   if (BitWidth < NumElts) {
     // First bitcast to a 1-vector.
-    Mask = CGF.Builder.CreateBitCast(Mask,
-        llvm::VectorType::get(Mask->getType(), 1), "replicatemask");
+    Mask = CGF.Builder.CreateBitCast(
+        Mask, llvm::FixedVectorType::get(Mask->getType(), 1), "replicatemask");
     // Then replicate.
     unsigned NumReplications = (NumElts + BitWidth - 1) / BitWidth;
     auto I16Ty = llvm::Type::getInt16Ty(CGF.getLLVMContext());
     auto Zero = llvm::ConstantInt::get(I32Ty, 0);
     auto Width = llvm::ConstantInt::get(I32Ty, NumReplications);
     auto I16Zero = llvm::ConstantInt::get(I16Ty, 0);
-    llvm::Value *Args[] = { Mask,
-        Zero/*vstride*/, Width, Zero/*stride*/, I16Zero/*index*/,
-        llvm::UndefValue::get(I32Ty)/*parentwidth*/ };
+    llvm::Value *Args[] = {Mask,
+                           Zero /*vstride*/,
+                           Width,
+                           Zero /*stride*/,
+                           I16Zero /*index*/,
+                           llvm::UndefValue::get(I32Ty) /*parentwidth*/};
     llvm::Type *Tys[] = {
-        llvm::VectorType::get(Mask->getType(), NumReplications), // rdregion return type
-        Mask->getType(), // input type
-        I16Ty // index type
+        llvm::FixedVectorType::get(Mask->getType(),
+                                   NumReplications), // rdregion return type
+        Mask->getType(),                             // input type
+        I16Ty                                        // index type
     };
-    llvm::Function *Fn = CMRT.getGenXIntrinsic(
-        llvm::GenXIntrinsic::genx_rdregioni, Tys);
+    llvm::Function *Fn =
+        CMRT.getGenXIntrinsic(llvm::GenXIntrinsic::genx_rdregioni, Tys);
     Mask = CGF.Builder.CreateCall(Fn, Args, "replicatemask");
     BitWidth *= NumReplications;
   }
   // Bitcast the (vector of) int to vector of i1.
-  llvm::Type *VecTy = llvm::VectorType::get(
+  llvm::Type *VecTy = llvm::FixedVectorType::get(
       llvm::Type::getInt1Ty(CGF.getLLVMContext()), BitWidth);
   auto Res = CGF.Builder.CreateBitCast(Mask, VecTy, "cast");
   // If that is now too wide, narrow it with a shufflevector.
@@ -441,8 +448,8 @@ static llvm::Value *GetMergeMaskValue(CGCMRuntime &CMRT, CodeGenFunction &CGF,
     for (unsigned i = 0; i != NumElts; ++i)
       Indices.push_back(llvm::ConstantInt::get(I32Ty, i));
     auto SV = llvm::ConstantVector::get(Indices);
-    Res = CGF.Builder.CreateShuffleVector(Res,
-        llvm::UndefValue::get(Res->getType()), SV, "narrowmask");
+    Res = CGF.Builder.CreateShuffleVector(
+        Res, llvm::UndefValue::get(Res->getType()), SV, "narrowmask");
   }
   return Res;
 }
@@ -465,12 +472,13 @@ void CGCMRuntime::EmitCMMergeExpr(CodeGenFunction &CGF, const CMMergeExpr *E) {
 
   // Emit mask, the final mask has type <NumElts x i1> or <32 x i1>.
   llvm::Value *Mask = CGF.EmitAnyExpr(E->getMask()).getScalarVal();
-  unsigned NumElts = Src1->getType()->getVectorNumElements();
+  unsigned NumElts =
+      cast<llvm::FixedVectorType>(Src1->getType())->getNumElements();
   Mask = GetMergeMaskValue(*this, CGF, Mask, NumElts);
 
   // Form the merged value.
   llvm::Value *MergedVal = 0;
-  if (Mask->getType()->getVectorNumElements() == NumElts)
+  if (cast<llvm::FixedVectorType>(Mask->getType())->getNumElements() == NumElts)
     MergedVal = CGF.Builder.CreateSelect(Mask, Src1, Src2, "merge");
   else
     MergedVal = EmitWriteRegion(CGF, Src2, Src1, NumElts, 1, 0, Mask);
@@ -484,7 +492,7 @@ llvm::Value *
 CGCMRuntime::EmitCMBoolReductionExpr(CodeGenFunction &CGF,
                                      const CMBoolReductionExpr *E) {
   llvm::Value *Base = CGF.EmitAnyExpr(E->getBase()).getScalarVal();
-  assert(isa<llvm::VectorType>(Base->getType()));
+  assert(isa<llvm::FixedVectorType>(Base->getType()));
 
   CGBuilderTy &Builder = CGF.Builder;
   llvm::Type *RetTy = CGF.ConvertType(E->getType());
@@ -492,15 +500,15 @@ CGCMRuntime::EmitCMBoolReductionExpr(CodeGenFunction &CGF,
   // Convert input to predicate by comparing not equal to all 0 value.
   llvm::Value *Cmp;
   if (Base->getType()->getScalarType()->isFloatingPointTy())
-    Cmp = Builder.CreateFCmpONE(Base,
-        llvm::Constant::getNullValue(Base->getType()), "cmp");
+    Cmp = Builder.CreateFCmpONE(
+        Base, llvm::Constant::getNullValue(Base->getType()), "cmp");
   else
-    Cmp = Builder.CreateICmpNE(Base,
-        llvm::Constant::getNullValue(Base->getType()), "cmp");
+    Cmp = Builder.CreateICmpNE(
+        Base, llvm::Constant::getNullValue(Base->getType()), "cmp");
 
   // Add the SIMD CF predication of the result.
-  llvm::Function *PredFn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_simdcf_predicate,
-      Cmp->getType());
+  llvm::Function *PredFn = getGenXIntrinsic(
+      llvm::GenXIntrinsic::genx_simdcf_predicate, Cmp->getType());
 
   llvm::Value *Vals[] = {
       Cmp, E->isAny() ? llvm::Constant::getNullValue(Cmp->getType())
@@ -508,9 +516,10 @@ CGCMRuntime::EmitCMBoolReductionExpr(CodeGenFunction &CGF,
   llvm::Value *CmpPred = CGF.Builder.CreateCall(PredFn, Vals, "cmppred");
 
   // Build all/any intrinsic call.
-  llvm::Function *Fn = getGenXIntrinsic(
-      E->isAny() ? llvm::GenXIntrinsic::genx_any : llvm::GenXIntrinsic::genx_all,
-      Cmp->getType());
+  llvm::Function *Fn =
+      getGenXIntrinsic(E->isAny() ? llvm::GenXIntrinsic::genx_any
+                                  : llvm::GenXIntrinsic::genx_all,
+                       Cmp->getType());
   llvm::Value *AllAny = CGF.Builder.CreateCall(Fn, CmpPred, "allany");
 
   // Zero extend to required type.
@@ -528,16 +537,19 @@ llvm::Value *CGCMRuntime::EmitReplicateSelect(CodeGenFunction &CGF,
   // Types for overloading.
   llvm::LLVMContext &C = CGF.getLLVMContext();
   llvm::Type *Tys[] = {CGF.ConvertType(E->getType()), Ty,
-      llvm::Type::getIntNTy(C, 16)};
+                       llvm::Type::getIntNTy(C, 16)};
   unsigned ID = Tys[0]->isFPOrFPVectorTy()
-      ? llvm::GenXIntrinsic::genx_rdregionf : llvm::GenXIntrinsic::genx_rdregioni;
+                    ? llvm::GenXIntrinsic::genx_rdregionf
+                    : llvm::GenXIntrinsic::genx_rdregioni;
   llvm::Function *Fn = getGenXIntrinsic(ID, Tys);
   llvm::FunctionType *FnTy = Fn->getFunctionType();
 
   // Default values: <InRegion>, <VS>, <Width>, <HS>, <Offset>, <ParentWidth>.
   llvm::Value *Args[6] = {
-      Region, llvm::ConstantInt::get(FnTy->getParamType(1), 0u),
-      llvm::ConstantInt::get(FnTy->getParamType(2), Ty->getVectorNumElements()),
+      Region,
+      llvm::ConstantInt::get(FnTy->getParamType(1), 0u),
+      llvm::ConstantInt::get(FnTy->getParamType(2),
+                             cast<llvm::FixedVectorType>(Ty)->getNumElements()),
       llvm::ConstantInt::get(FnTy->getParamType(3), 1u),
       llvm::ConstantInt::get(FnTy->getParamType(4), 0u),
       llvm::UndefValue::get(FnTy->getParamType(5))};
@@ -560,9 +572,9 @@ llvm::Value *CGCMRuntime::EmitReplicateSelect(CodeGenFunction &CGF,
   if (E->is1D()) {
     // Offset = Offset * sizeof(EltType)
     llvm::Value *Offset = CGF.EmitAnyExpr(E->getRepOffset()).getScalarVal();
-    Args[4] = CGF.Builder.CreateMul(Offset,
-        llvm::ConstantInt::get(Args[4]->getType(),
-                               Ty->getScalarSizeInBits() / 8));
+    Args[4] = CGF.Builder.CreateMul(
+        Offset, llvm::ConstantInt::get(Args[4]->getType(),
+                                       Ty->getScalarSizeInBits() / 8));
   } else {
     assert(E->is2D());
     // Offset = (VOffset * <BaseWidth> + HOffset ) * sizeof(EltType)
@@ -616,25 +628,26 @@ llvm::Value *CGCMRuntime::EmitISelect(CodeGenFunction &CGF,
   // Emit the base region.
   llvm::Value *Base = CGF.EmitAnyExpr(E->getBase()).getScalarVal();
   llvm::Type *BaseTy = Base->getType();
-  assert(isa<llvm::VectorType>(BaseTy));
+  assert(isa<llvm::FixedVectorType>(BaseTy));
 
   // Emit the first vector argument.
   llvm::Value *A0 = CGF.EmitAnyExpr(E->getISelectIndexExpr(0)).getScalarVal();
-  llvm::Type *OffsetTy = A0->getType();
-  assert(isa<llvm::VectorType>(OffsetTy));
-  assert(OffsetTy->getVectorElementType() == CGF.Int16Ty);
+  auto *OffsetTy = dyn_cast<llvm::FixedVectorType>(A0->getType());
+  assert(OffsetTy);
+  assert(OffsetTy->getElementType() == CGF.Int16Ty);
 
   // Types for overloading: return type, base region type, and offset type.
-  llvm::Type *Tys[] = { CGF.ConvertType(E->getType()), BaseTy, OffsetTy };
+  llvm::Type *Tys[] = {CGF.ConvertType(E->getType()), BaseTy, OffsetTy};
   unsigned ID = Tys[0]->isFPOrFPVectorTy()
-      ? llvm::GenXIntrinsic::genx_rdregionf : llvm::GenXIntrinsic::genx_rdregioni;
+                    ? llvm::GenXIntrinsic::genx_rdregionf
+                    : llvm::GenXIntrinsic::genx_rdregioni;
   llvm::Function *Fn = getGenXIntrinsic(ID, Tys);
   llvm::FunctionType *FnTy = Fn->getFunctionType();
 
   // Transform offset from in elements to in bytes.
   llvm::Value *Scale = llvm::ConstantVector::getSplat(
-      OffsetTy->getVectorNumElements(),
-      llvm::ConstantInt::get(OffsetTy->getVectorElementType(),
+      OffsetTy->getElementCount(),
+      llvm::ConstantInt::get(OffsetTy->getElementType(),
                              BaseTy->getScalarSizeInBits() / 8));
 
   // Compute the vector of offsets.
@@ -662,8 +675,8 @@ llvm::Value *CGCMRuntime::EmitISelect(CodeGenFunction &CGF,
     unsigned Width = MT->getNumColumns();
 
     llvm::Value *WidthVal = llvm::ConstantVector::getSplat(
-        OffsetTy->getVectorNumElements(),
-        llvm::ConstantInt::get(OffsetTy->getVectorElementType(), Width));
+        OffsetTy->getElementCount(),
+        llvm::ConstantInt::get(OffsetTy->getElementType(), Width));
 
     Offset = CGF.Builder.CreateMul(A0, WidthVal);
     Offset = CGF.Builder.CreateAdd(Offset, A1);
@@ -690,16 +703,17 @@ llvm::Value *CGCMRuntime::EmitReadRegionInRows(CGBuilderTy &Builder,
                                                unsigned BaseWidth,
                                                unsigned VSize, unsigned VStride,
                                                llvm::Value *VOffset) {
-  llvm::Type *Ty = Region->getType();
+  auto *Ty = cast<llvm::FixedVectorType>(Region->getType());
 
   // Types for overloading.
   llvm::LLVMContext &C = Region->getContext();
   llvm::Type *Tys[] = {
-      llvm::VectorType::get(Ty->getVectorElementType(), VSize * BaseWidth),
-      Ty, llvm::Type::getIntNTy(C, 16)};
+      llvm::FixedVectorType::get(Ty->getElementType(), VSize * BaseWidth), Ty,
+      llvm::Type::getIntNTy(C, 16)};
 
   unsigned ID = Tys[0]->isFPOrFPVectorTy()
-      ? llvm::GenXIntrinsic::genx_rdregionf : llvm::GenXIntrinsic::genx_rdregioni;
+                    ? llvm::GenXIntrinsic::genx_rdregionf
+                    : llvm::GenXIntrinsic::genx_rdregioni;
   llvm::Function *Fn = getGenXIntrinsic(ID, Tys);
   llvm::FunctionType *FnTy = Fn->getFunctionType();
 
@@ -717,7 +731,8 @@ llvm::Value *CGCMRuntime::EmitReadRegionInRows(CGBuilderTy &Builder,
       Region,
       llvm::ConstantInt::get(FnTy->getParamType(1), VStride * BaseWidth),
       llvm::ConstantInt::get(FnTy->getParamType(2), BaseWidth),
-      llvm::ConstantInt::get(FnTy->getParamType(3), 1u), OffsetVal,
+      llvm::ConstantInt::get(FnTy->getParamType(3), 1u),
+      OffsetVal,
       llvm::ConstantInt::get(FnTy->getParamType(5), BaseWidth), // parent width
   };
 
@@ -726,23 +741,24 @@ llvm::Value *CGCMRuntime::EmitReadRegionInRows(CGBuilderTy &Builder,
 
 llvm::Value *CGCMRuntime::EmitReadRegionInCols(CGBuilderTy &Builder,
                                                llvm::Value *Region,
-                                               unsigned Height,
-                                               unsigned HSize, unsigned HStride,
+                                               unsigned Height, unsigned HSize,
+                                               unsigned HStride,
                                                llvm::Value *HOffset) {
-  llvm::Type *Ty = Region->getType();
+  auto *Ty = cast<llvm::FixedVectorType>(Region->getType());
 
   // Types for overloading.
   llvm::LLVMContext &C = Region->getContext();
   llvm::Type *Tys[] = {
-      llvm::VectorType::get(Ty->getVectorElementType(), Height * HSize),
-      Ty, llvm::Type::getIntNTy(C, 16)};
+      llvm::FixedVectorType::get(Ty->getElementType(), Height * HSize), Ty,
+      llvm::Type::getIntNTy(C, 16)};
 
   unsigned ID = Tys[0]->isFPOrFPVectorTy()
-      ? llvm::GenXIntrinsic::genx_rdregionf : llvm::GenXIntrinsic::genx_rdregioni;
+                    ? llvm::GenXIntrinsic::genx_rdregionf
+                    : llvm::GenXIntrinsic::genx_rdregioni;
   llvm::Function *Fn = getGenXIntrinsic(ID, Tys);
   llvm::FunctionType *FnTy = Fn->getFunctionType();
 
-  unsigned Width = Ty->getVectorNumElements() / Height;
+  unsigned Width = Ty->getNumElements() / Height;
 
   // Offset = HOffset * sizeof(EltTy)
   llvm::Type *OffsetTy = HOffset->getType();
@@ -752,9 +768,11 @@ llvm::Value *CGCMRuntime::EmitReadRegionInCols(CGBuilderTy &Builder,
       HOffset, llvm::ConstantInt::get(OffsetTy, Ty->getScalarSizeInBits() / 8));
 
   llvm::Value *Args[6] = {
-      Region, llvm::ConstantInt::get(FnTy->getParamType(1), Width),
+      Region,
+      llvm::ConstantInt::get(FnTy->getParamType(1), Width),
       llvm::ConstantInt::get(FnTy->getParamType(2), HSize),
-      llvm::ConstantInt::get(FnTy->getParamType(3), HStride), OffsetVal,
+      llvm::ConstantInt::get(FnTy->getParamType(3), HStride),
+      OffsetVal,
       llvm::ConstantInt::get(FnTy->getParamType(5), Width) // parent width
   };
 
@@ -765,16 +783,17 @@ llvm::Value *CGCMRuntime::EmitReadRegion1D(CGBuilderTy &Builder,
                                            llvm::Value *Region, unsigned Size,
                                            unsigned Stride,
                                            llvm::Value *Offset) {
-  llvm::Type *Ty = Region->getType();
+  auto *Ty = cast<llvm::FixedVectorType>(Region->getType());
 
   // Types for overloading.
   llvm::LLVMContext &C = Region->getContext();
   const llvm::DataLayout &DL = CGM.getDataLayout();
-  llvm::Type *Tys[] = {llvm::VectorType::get(Ty->getVectorElementType(), Size),
-                        Ty, llvm::Type::getIntNTy(C, 16)};
+  llvm::Type *Tys[] = {llvm::FixedVectorType::get(Ty->getElementType(), Size),
+                       Ty, llvm::Type::getIntNTy(C, 16)};
 
   unsigned ID = Tys[0]->isFPOrFPVectorTy()
-      ? llvm::GenXIntrinsic::genx_rdregionf : llvm::GenXIntrinsic::genx_rdregioni;
+                    ? llvm::GenXIntrinsic::genx_rdregionf
+                    : llvm::GenXIntrinsic::genx_rdregioni;
   llvm::Function *Fn = getGenXIntrinsic(ID, Tys);
   llvm::FunctionType *FnTy = Fn->getFunctionType();
 
@@ -782,19 +801,22 @@ llvm::Value *CGCMRuntime::EmitReadRegion1D(CGBuilderTy &Builder,
   llvm::Type *OffsetTy = Offset->getType();
   unsigned OffsetTySize = Ty->getScalarSizeInBits() / 8;
   if (!OffsetTySize) {
-    assert(Ty->getScalarType()->isPointerTy() && Ty->getScalarType()->getPointerElementType()->isFunctionTy());
+    assert(Ty->getScalarType()->isPointerTy() &&
+           Ty->getScalarType()->getPointerElementType()->isFunctionTy());
     OffsetTySize = DL.getTypeSizeInBits(Ty) / 8;
   }
-  llvm::Value *OffsetVal = Builder.CreateMul(
-      Offset, llvm::ConstantInt::get(OffsetTy, OffsetTySize));
+  llvm::Value *OffsetVal =
+      Builder.CreateMul(Offset, llvm::ConstantInt::get(OffsetTy, OffsetTySize));
 
   if (OffsetVal->getType() != FnTy->getParamType(4))
     OffsetVal = Builder.CreateZExtOrTrunc(OffsetVal, FnTy->getParamType(4));
 
   llvm::Value *Args[6] = {
-      Region, llvm::ConstantInt::get(FnTy->getParamType(1), 0),
+      Region,
+      llvm::ConstantInt::get(FnTy->getParamType(1), 0),
       llvm::ConstantInt::get(FnTy->getParamType(2), Size),
-      llvm::ConstantInt::get(FnTy->getParamType(3), Stride), OffsetVal,
+      llvm::ConstantInt::get(FnTy->getParamType(3), Stride),
+      OffsetVal,
       llvm::UndefValue::get(FnTy->getParamType(5)) // parent width
   };
 
@@ -809,11 +831,11 @@ llvm::Value *CGCMRuntime::EmitReadRegion1D(CGBuilderTy &Builder,
 // When V is constant, IR builder will fold it right away.
 llvm::Value *getSingleElementVector(CGBuilderTy &Builder, llvm::Value *V) {
   // noop for a vector.
-  if (isa<llvm::VectorType>(V->getType()))
+  if (isa<llvm::FixedVectorType>(V->getType()))
     return V;
 
   llvm::LLVMContext &C = V->getContext();
-  llvm::Type *VTy = llvm::VectorType::get(V->getType(), 1);
+  llvm::Type *VTy = llvm::FixedVectorType::get(V->getType(), 1);
   return Builder.CreateInsertElement(
       llvm::UndefValue::get(VTy), V,
       llvm::ConstantInt::get(llvm::Type::getInt32Ty(C), 0));
@@ -840,7 +862,8 @@ llvm::Value *CGCMRuntime::EmitWriteRegion1D(CGBuilderTy &Builder,
                        llvm::Type::getIntNTy(C, 16), Mask->getType()};
 
   unsigned ID = Tys[1]->isFPOrFPVectorTy()
-      ? llvm::GenXIntrinsic::genx_wrregionf : llvm::GenXIntrinsic::genx_wrregioni;
+                    ? llvm::GenXIntrinsic::genx_wrregionf
+                    : llvm::GenXIntrinsic::genx_wrregioni;
   llvm::Function *Fn = getGenXIntrinsic(ID, Tys);
   llvm::FunctionType *FnTy = Fn->getFunctionType();
 
@@ -851,20 +874,20 @@ llvm::Value *CGCMRuntime::EmitWriteRegion1D(CGBuilderTy &Builder,
     assert(Tys[0]->getScalarType()->isPointerTy());
     OffsetTySize = DL.getTypeSizeInBits(Tys[0]) / 8;
   }
-  Offset = Builder.CreateMul(
-      Offset,
-      llvm::ConstantInt::get(OffsetTy, OffsetTySize));
+  Offset =
+      Builder.CreateMul(Offset, llvm::ConstantInt::get(OffsetTy, OffsetTySize));
   if (OffsetTy != FnTy->getParamType(5))
     Offset = Builder.CreateZExtOrTrunc(Offset, FnTy->getParamType(5));
 
-  llvm::Value *Args[] = {Dst,
-                         Src,
-                         llvm::ConstantInt::get(FnTy->getParamType(2), 0),
-                         llvm::ConstantInt::get(FnTy->getParamType(3), Size),
-                         llvm::ConstantInt::get(FnTy->getParamType(4), Stride),
-                         Offset,
-                         llvm::UndefValue::get(FnTy->getParamType(6)), // parent width
-                         Mask};
+  llvm::Value *Args[] = {
+      Dst,
+      Src,
+      llvm::ConstantInt::get(FnTy->getParamType(2), 0),
+      llvm::ConstantInt::get(FnTy->getParamType(3), Size),
+      llvm::ConstantInt::get(FnTy->getParamType(4), Stride),
+      Offset,
+      llvm::UndefValue::get(FnTy->getParamType(6)), // parent width
+      Mask};
 
   return Builder.CreateCall(Fn, Args, "wrregion");
 }
@@ -956,10 +979,11 @@ llvm::Value *CGCMRuntime::EmitWriteRegion2D(
   llvm::Type *MaskTy = llvm::Type::getInt1Ty(Dst->getContext());
   llvm::LLVMContext &C = Src->getContext();
   llvm::Type *Tys[] = {Dst->getType(), Src->getType(),
-      llvm::Type::getIntNTy(C, 16), MaskTy};
+                       llvm::Type::getIntNTy(C, 16), MaskTy};
 
   unsigned ID = Tys[1]->isFPOrFPVectorTy()
-      ? llvm::GenXIntrinsic::genx_wrregionf : llvm::GenXIntrinsic::genx_wrregioni;
+                    ? llvm::GenXIntrinsic::genx_wrregionf
+                    : llvm::GenXIntrinsic::genx_wrregioni;
   llvm::Function *Fn = getGenXIntrinsic(ID, Tys);
   llvm::FunctionType *FnTy = Fn->getFunctionType();
 
@@ -997,7 +1021,7 @@ void CGCMRuntime::EmitCMWriteRegion(CodeGenFunction &CGF, RValue Src,
   // For a format, convert Src to the expected base type and write to base.
   if (RI.isFormat()) {
     llvm::Value *SrcVal = Src.getScalarVal();
-    assert(isa<llvm::VectorType>(SrcVal->getType()));
+    assert(isa<llvm::FixedVectorType>(SrcVal->getType()));
     assert(LV.getType()->isCMReferenceType());
     llvm::Type *Ty = CGF.ConvertType(LV.getType());
     Ty = cast<llvm::PointerType>(Ty)->getElementType();
@@ -1015,8 +1039,8 @@ void CGCMRuntime::EmitCMWriteRegion(CodeGenFunction &CGF, RValue Src,
 
       llvm::Value *Cast;
 
-      // in case of direct constant we need additional wrregion in between to not be optimized away
-      // say for vf.format<uint>() = 0:
+      // in case of direct constant we need additional wrregion in between to
+      // not be optimized away say for vf.format<uint>() = 0:
       //
       //   %oldval = load original float
       //   %fwcast = cast %oldval to uint
@@ -1024,7 +1048,8 @@ void CGCMRuntime::EmitCMWriteRegion(CodeGenFunction &CGF, RValue Src,
       //   %cast = bitcast %newval to float
       if (dyn_cast<llvm::Constant>(SrcVal)) {
         RValue OldVal = CGF.EmitLoadOfLValue(RI.getBase(), SourceLocation());
-        llvm::Value *FwCast = CGF.Builder.CreateBitCast(OldVal.getScalarVal(), Ty, "fwcast");
+        llvm::Value *FwCast =
+            CGF.Builder.CreateBitCast(OldVal.getScalarVal(), Ty, "fwcast");
         llvm::Value *Off = RI.getOffset();
         if (!Off)
           Off = llvm::ConstantInt::get(CGF.Int32Ty, 0);
@@ -1032,10 +1057,12 @@ void CGCMRuntime::EmitCMWriteRegion(CodeGenFunction &CGF, RValue Src,
         // This region was filled with zeros by default. Change stride to 1
         if (Stride == 0)
           Stride = 1;
-        llvm::Value *NewVal = EmitWriteRegion1D(CGF.Builder, FwCast, SrcVal, RI.getSize(), Stride, Off);
+        llvm::Value *NewVal = EmitWriteRegion1D(CGF.Builder, FwCast, SrcVal,
+                                                RI.getSize(), Stride, Off);
         Cast = CGF.Builder.CreateBitCast(NewVal, BaseTy, "cast");
       }
-      // if it is some complex RHS, we are praying for not optimizing away to keep visaasm cleaner
+      // if it is some complex RHS, we are praying for not optimizing away to
+      // keep visaasm cleaner
       //
       //   %cast bitcast srcval to float
       else
@@ -1220,7 +1247,7 @@ void CGCMRuntime::EmitCMConstantInitializer(
   const VarDecl *VD = E.Variable;
   QualType VarType = VD->getType();
   assert(VarType->isCMBaseType());
-  llvm::Type *DstTy = CGF.ConvertType(VarType);
+  auto *DstTy = cast<llvm::FixedVectorType>(CGF.ConvertType(VarType));
 
   const Expr *Init = VD->getInit()->IgnoreParenImpCasts();
   assert(isa<DeclRefExpr>(Init));
@@ -1242,16 +1269,17 @@ void CGCMRuntime::EmitCMConstantInitializer(
   llvm::Instruction::CastOps CastOp;
   if (getCastOpKind(CastOp, CGF, VarType->getCMVectorMatrixElementType(),
                     getArrayInitElementType(Init->getType()))) {
-    llvm::Type *NewSrcTy = llvm::VectorType::get(
-        DstTy->getVectorElementType(), std::min(DstNumElts, SrcNumElts));
-    if ((CastOp == llvm::Instruction::FPToUI
-         && NewSrcTy->getScalarType()->getPrimitiveSizeInBits() <= 32)
-        || (CastOp == llvm::Instruction::FPToSI
-         && NewSrcTy->getScalarType()->getPrimitiveSizeInBits() < 32)) {
+    auto *NewSrcTy = llvm::FixedVectorType::get(
+        DstTy->getElementType(), std::min(DstNumElts, SrcNumElts));
+    if ((CastOp == llvm::Instruction::FPToUI &&
+         NewSrcTy->getScalarType()->getPrimitiveSizeInBits() <= 32) ||
+        (CastOp == llvm::Instruction::FPToSI &&
+         NewSrcTy->getScalarType()->getPrimitiveSizeInBits() < 32)) {
       // CM: float->any int goes via signed int unless destination type
       // is signed int.
-      auto InterTy = llvm::VectorType::get(llvm::Type::getInt32Ty(
-            DstTy->getContext()), NewSrcTy->getVectorNumElements());
+      auto InterTy = llvm::FixedVectorType::get(
+          llvm::Type::getInt32Ty(DstTy->getContext()),
+          NewSrcTy->getNumElements());
       Src = CGF.Builder.CreateFPToSI(Src, InterTy);
       CastOp = llvm::Instruction::Trunc;
     }
@@ -1272,8 +1300,9 @@ void CGCMRuntime::EmitCMConstantInitializer(
 // CM kernel metadata is organized as follows:
 //
 // !genx.kernels = !{ !0, !1 }
-// !0 = metadata !{ @func0, <kernel-name>, <asm-name>, <arg-kinds>, <slm-size>, ... }
-// !1 = metadata !{ @func1, <kernel-name>, <asm-name>, <arg-kinds>, <slm-size>, ... }
+// !0 = metadata !{ @func0, <kernel-name>, <asm-name>, <arg-kinds>, <slm-size>,
+// ... } !1 = metadata !{ @func1, <kernel-name>, <asm-name>, <arg-kinds>,
+// <slm-size>, ... }
 //
 // where:
 //  * <kernel-name> is an MDString metadata, describing the kernel name;
@@ -1335,7 +1364,8 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
 
         // Append 'U' if this parameter is unsigned. Note that bool type is
         // treated as unsigned in clang but the old compiler treats as signed!
-        if (NTT->getType()->isBooleanType() || NTT->getType()->isSignedIntegerType())
+        if (NTT->getType()->isBooleanType() ||
+            NTT->getType()->isSignedIntegerType())
           KernelName << TA.getAsIntegral().getSExtValue();
         else
           KernelName << TA.getAsIntegral().getZExtValue() << 'U';
@@ -1362,8 +1392,9 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
   llvm::SmallVector<llvm::Metadata *, 8> ArgInOutKinds;
   llvm::SmallVector<llvm::Metadata *, 8> ArgTypeDescs;
   enum { AK_NORMAL, AK_SAMPLER, AK_SURFACE, AK_VME };
-  for (FunctionDecl::param_const_iterator i = FD->param_begin(), e = FD->param_end();
-      i != e; ++i) {
+  for (FunctionDecl::param_const_iterator i = FD->param_begin(),
+                                          e = FD->param_end();
+       i != e; ++i) {
     const ParmVarDecl *PVD = *i;
 
     // Generate argument type descriptor if any.
@@ -1381,7 +1412,8 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
     else if (T->isCMVectorType()) {
       // If this is a vector of SurfaceIndex then we need to set Kind
       // appropriately (to get correct metadata)
-      const CMVectorType *VT = cast<CMVectorType>(T->getCanonicalTypeInternal());
+      const CMVectorType *VT =
+          cast<CMVectorType>(T->getCanonicalTypeInternal());
       if (VT->getElementType()->isCMSurfaceIndexType())
         Kind = AK_SURFACE;
       else if (VT->getElementType()->isCMSamplerIndexType())
@@ -1415,17 +1447,16 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
   llvm::MDNode *Kinds = llvm::MDNode::get(Context, ArgKinds);
   llvm::MDNode *IOKinds = llvm::MDNode::get(Context, ArgInOutKinds);
   llvm::MDNode *ArgDescs = llvm::MDNode::get(Context, ArgTypeDescs);
-  llvm::Metadata *MDArgs[] = {
-      getMD(Fn),
-      llvm::MDString::get(Context, KernelName.str()),
-      Kinds,
-      getMD(llvm::ConstantInt::getNullValue(I32Ty)),
-      getMD(llvm::ConstantInt::getNullValue(I32Ty)), // placeholder for arg offsets
-      IOKinds,
-      ArgDescs,
-      getMD(llvm::ConstantInt::getNullValue(I32Ty)),
-      getMD(llvm::ConstantInt::getNullValue(I32Ty))
-  };
+  llvm::Metadata *MDArgs[] = {getMD(Fn),
+                              llvm::MDString::get(Context, KernelName.str()),
+                              Kinds,
+                              getMD(llvm::ConstantInt::getNullValue(I32Ty)),
+                              getMD(llvm::ConstantInt::getNullValue(
+                                  I32Ty)), // placeholder for arg offsets
+                              IOKinds,
+                              ArgDescs,
+                              getMD(llvm::ConstantInt::getNullValue(I32Ty)),
+                              getMD(llvm::ConstantInt::getNullValue(I32Ty))};
 
   // Add this kernel to the root.
   Kernels->addOperand(llvm::MDNode::get(Context, MDArgs));
@@ -1440,7 +1471,8 @@ void CGCMRuntime::finalize() {
     StringRef Attr;
     if (CGM.getCodeGenOpts().EmitCmOCLL0)
       Attr = "1";
-    llvm::Metadata *M = K->getOperand(llvm::genx::KernelMDOp::FunctionRef).get();
+    llvm::Metadata *M =
+        K->getOperand(llvm::genx::KernelMDOp::FunctionRef).get();
     if (auto F = dyn_cast_or_null<llvm::Function>(getVal(M)))
       if (!Attr.empty())
         F->addFnAttr(llvm::genx::FunctionMD::OCLRuntime, Attr);
@@ -1466,8 +1498,9 @@ void CGCMRuntime::EmitCMOutput(CodeGenFunction &CGF) {
   for (auto VD : FD->parameters()) {
     if (VD->hasAttr<CMOutputAttr>() || VD->hasAttr<CMInputOutputAttr>()) {
       Address Addr = CGF.GetAddrOfLocalVar(VD);
-      auto* ArgTy = CGM.getTypes().ConvertType(VD->getOriginalType());
-      auto OutFn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_output_1, {ArgTy});
+      auto *ArgTy = CGM.getTypes().ConvertType(VD->getOriginalType());
+      auto OutFn =
+          getGenXIntrinsic(llvm::GenXIntrinsic::genx_output_1, {ArgTy});
       Builder.CreateCall(OutFn, {Builder.CreateLoad(Addr)});
     }
   }
@@ -1505,19 +1538,21 @@ llvm::Value *CGCMRuntime::EmitCMReferenceArg(CodeGenFunction &CGF, LValue LV) {
 
   // Reference argument writeback is implemented as a cleanup, using the
   // existing C++ cleanup mechanism.
-  CGF.EHStack.pushCleanup<ReferenceArgWriteback>(NormalAndEHCleanup, Address, LV);
+  CGF.EHStack.pushCleanup<ReferenceArgWriteback>(NormalAndEHCleanup, Address,
+                                                 LV);
 
   return Address;
 }
 
 static bool isScalar(llvm::Value *Addr) {
-  auto EltTy = Addr->getType()->getPointerElementType();
-  if (EltTy->isVectorTy())
-    return EltTy->getVectorNumElements() == 1;
+  auto *EltTy = Addr->getType()->getPointerElementType();
+  if (auto *VTy = dyn_cast<llvm::FixedVectorType>(EltTy))
+    return VTy->getNumElements() == 1;
   return true;
 }
 
-llvm::Value *CGCMRuntime::EmitCMRefLoad(CodeGenFunction &CGF, llvm::Value *Addr) {
+llvm::Value *CGCMRuntime::EmitCMRefLoad(CodeGenFunction &CGF,
+                                        llvm::Value *Addr) {
 
   if (isScalar(Addr))
     return CGF.Builder.CreateDefaultAlignedLoad(Addr);
@@ -1548,7 +1583,8 @@ void CGCMRuntime::EmitCMRefStore(CodeGenFunction &CGF, llvm::Value *Val,
 /// \brief Emit single select element as pointer to vector element using GEP
 llvm::Value *CGCMRuntime::EmitElementSelectAsPointer(CodeGenFunction &CGF,
                                                      const CMSelectExpr *SE) {
-  assert(SE->isElementOrVectorSubscriptSelect() && "Single element select expected");
+  assert(SE->isElementOrVectorSubscriptSelect() &&
+         "Single element select expected");
 
   LValue LV = EmitCMSelectExprLValue(CGF, SE);
   assert(LV.isCMRegion());

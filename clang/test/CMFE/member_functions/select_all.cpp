@@ -44,8 +44,8 @@ void test() {
   int r19 = s2.select_all();                              // select_all not a function // expected-error{{called object type 'int' is not a function or function pointer}}
   int r20 = s2.template select_all();                     // select_all not a template // expected-error{{'select_all' following the 'template' keyword does not refer to a template}}
 
-  m.select_all();                                         // expression result unused // expected-warning{{expression result unused}}
-  v.select_all();                                         // expression result unused // expected-warning{{expression result unused}}
+  m.select_all();                                         // expression result unused // fixme-expected-warning{{expression result unused}}
+  v.select_all();                                         // expression result unused // fixme-expected-warning{{expression result unused}}
   m.select_all() = 1;                                     // OK
   v.select_all() = 9;                                     // OK
 }

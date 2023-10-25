@@ -130,7 +130,7 @@ if (GPU_CODEGEN)
   target_link_libraries(Polly PUBLIC PollyPPCG)
 endif ()
 
-if (NOT LLVM_LINK_LLVM_DYLIB)
+if (NOT LLVM_LINK_LLVM_DYLIB AND NOT LLVM_POLLY_LINK_INTO_TOOLS)
     # Polly-ACC requires the NVPTX target to be present in the executable it is linked to
     set_property(TARGET bugpoint APPEND PROPERTY LINK_LIBRARIES LLVMTarget)
 endif ()

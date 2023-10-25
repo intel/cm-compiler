@@ -36,4 +36,7 @@ add_clang_library(clangParse
   clangBasic
   clangLex
   clangSema
+
+  DEPENDS
+  omp_gen
   )

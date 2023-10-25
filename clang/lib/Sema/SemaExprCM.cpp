@@ -1863,7 +1863,10 @@ void Sema::CheckCMAddressSpaceCast(QualType DestType, Expr *CastExpr) {
   if (!DestPtrType)
     return;
 
-  if (!DestPtrType->isAddressSpaceOverlapping(*SrcPtrType)) {
+  auto DstPointeeTy = DestPtrType->getPointeeType();
+  auto SrcPointeeTy = SrcPtrType->getPointeeType();
+
+  if (!DstPointeeTy.isAddressSpaceOverlapping(SrcPointeeTy)) {
     Diag(CastExpr->getBeginLoc(),
          diag::err_typecheck_incompatible_address_space)
         << SrcType << DestType << Sema::AA_Casting

@@ -1,6 +1,6 @@
 //===- Utils.cpp ---- Misc utilities for code and data transformation -----===//
 //
-// Part of the MLIR Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
@@ -13,35 +13,32 @@
 
 #include "mlir/Transforms/Utils.h"
 
-#include "mlir/ADT/TypeSwitch.h"
 #include "mlir/Analysis/AffineAnalysis.h"
 #include "mlir/Analysis/AffineStructures.h"
-#include "mlir/Analysis/Dominance.h"
 #include "mlir/Analysis/Utils.h"
-#include "mlir/Dialect/AffineOps/AffineOps.h"
-#include "mlir/Dialect/StandardOps/Ops.h"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/Dominance.h"
 #include "mlir/IR/Function.h"
 #include "mlir/IR/Module.h"
 #include "mlir/Support/MathExtras.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/TypeSwitch.h"
 using namespace mlir;
 
 /// Return true if this operation dereferences one or more memref's.
 // Temporary utility: will be replaced when this is modeled through
-// side-effects/op traits. TODO(b/117228571)
+// side-effects/op traits. TODO
 static bool isMemRefDereferencingOp(Operation &op) {
-  if (isa<AffineLoadOp>(op) || isa<AffineStoreOp>(op) ||
-      isa<AffineDmaStartOp>(op) || isa<AffineDmaWaitOp>(op))
-    return true;
-  return false;
+  return isa<AffineReadOpInterface, AffineWriteOpInterface, AffineDmaStartOp,
+             AffineDmaWaitOp>(op);
 }
 
 /// Return the AffineMapAttr associated with memory 'op' on 'memref'.
 static NamedAttribute getAffineMapAttrForMemRef(Operation *op, Value memref) {
   return TypeSwitch<Operation *, NamedAttribute>(op)
-      .Case<AffineDmaStartOp, AffineLoadOp, AffinePrefetchOp, AffineStoreOp,
-            AffineDmaWaitOp>(
+      .Case<AffineDmaStartOp, AffineReadOpInterface, AffinePrefetchOp,
+            AffineWriteOpInterface, AffineDmaWaitOp>(
           [=](auto op) { return op.getAffineMapAttrForMemRef(memref); });
 }
 
@@ -86,7 +83,7 @@ LogicalResult mlir::replaceAllMemRefUsesWith(Value oldMemRef, Value newMemRef,
     return success();
 
   if (usePositions.size() > 1) {
-    // TODO(mlir-team): extend it for this case when needed (rare).
+    // TODO: extend it for this case when needed (rare).
     assert(false && "multiple dereferencing uses in a single op not supported");
     return failure();
   }
@@ -165,7 +162,7 @@ LogicalResult mlir::replaceAllMemRefUsesWith(Value oldMemRef, Value newMemRef,
   // Create new fully composed AffineMap for new op to be created.
   assert(newMapOperands.size() == newMemRefRank);
   auto newMap = builder.getMultiDimIdentityMap(newMemRefRank);
-  // TODO(b/136262594) Avoid creating/deleting temporary AffineApplyOps here.
+  // TODO: Avoid creating/deleting temporary AffineApplyOps here.
   fullyComposeAffineMapAndOperands(&newMap, &newMapOperands);
   newMap = simplifyAffineMap(newMap);
   canonicalizeMapAndOperands(&newMap, &newMapOperands);
@@ -176,7 +173,6 @@ LogicalResult mlir::replaceAllMemRefUsesWith(Value oldMemRef, Value newMemRef,
 
   // Construct the new operation using this memref.
   OperationState state(op->getLoc(), op->getName());
-  state.setOperandListToResizable(op->hasResizableOperandsList());
   state.operands.reserve(op->getNumOperands() + extraIndices.size());
   // Insert the non-memref operands.
   state.operands.append(op->operand_begin(),
@@ -445,8 +441,10 @@ LogicalResult mlir::normalizeMemRef(AllocOp allocOp) {
   auto oldMemRef = allocOp.getResult();
   SmallVector<Value, 4> symbolOperands(allocOp.getSymbolicOperands());
 
-  auto newMemRefType = MemRefType::get(newShape, memrefType.getElementType(),
-                                       b.getMultiDimIdentityMap(newRank));
+  MemRefType newMemRefType =
+      MemRefType::Builder(memrefType)
+          .setShape(newShape)
+          .setAffineMaps(b.getMultiDimIdentityMap(newRank));
   auto newAlloc = b.create<AllocOp>(allocOp.getLoc(), newMemRefType);
 
   // Replace all uses of the old memref.

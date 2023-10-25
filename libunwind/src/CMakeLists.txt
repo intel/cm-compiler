@@ -24,9 +24,11 @@ set(LIBUNWIND_ASM_SOURCES
     UnwindRegistersRestore.S
     UnwindRegistersSave.S
     )
-set_source_files_properties(${LIBUNWIND_ASM_SOURCES}
-                            PROPERTIES
-                              LANGUAGE C)
+
+# See add_asm_sources() in compiler-rt for explanation of this workaround.
+if((APPLE AND CMAKE_VERSION VERSION_LESS 3.19) OR (MINGW AND CMAKE_VERSION VERSION_LESS 3.17))
+  set_source_files_properties(${LIBUNWIND_ASM_SOURCES} PROPERTIES LANGUAGE C)
+endif()
 
 set(LIBUNWIND_HEADERS
     AddressSpace.hpp

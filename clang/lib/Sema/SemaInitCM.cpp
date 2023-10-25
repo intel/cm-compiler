@@ -129,7 +129,7 @@ bool Sema::IsCMVectorConversion(QualType FromType, QualType ToType,
 
       QualType FromEltPointeeTy =
           FromEltPtrType->getPointeeType().getCanonicalType();
-      QualType ToEltPointeeTy = ToEltType->getPointeeType().getCanonicalType();
+      QualType ToEltPointeeTy = ToEltPtrType->getPointeeType().getCanonicalType();
 
       // OpenCL s6.5.5: A pointer to generic address space cannot be implicitly
       // converted to a pointer to a named address space.
@@ -140,7 +140,7 @@ bool Sema::IsCMVectorConversion(QualType FromType, QualType ToType,
           return false;
 
       // No conversion for disjoint address spaces.
-      if (!FromEltPtrType->isAddressSpaceOverlapping(*ToEltPtrType))
+      if (!FromEltPointeeTy.isAddressSpaceOverlapping(ToEltPointeeTy))
         return false;
       ICK = ICK_CMVectorMatrix_Conversion;
       return true;

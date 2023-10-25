@@ -180,7 +180,8 @@ class LValue {
     BitField,     // This is a bitfield l-value, use getBitfield*.
     ExtVectorElt, // This is an extended vector subset, use getExtVectorComp
     GlobalReg,    // This is a register l-value, use getGlobalReg()
-    CMRegion      // This is a CM region.
+    CMRegion,     // This is a CM region.
+    MatrixElt     // This is a matrix element, use getVector*
   } LVType;
 
   llvm::Value *V;
@@ -268,6 +269,7 @@ public:
   bool isExtVectorElt() const { return LVType == ExtVectorElt; }
   bool isGlobalReg() const { return LVType == GlobalReg; }
   bool isCMRegion() const { return LVType == CMRegion; }
+  bool isMatrixElt() const { return LVType == MatrixElt; }
 
   bool isVolatileQualified() const { return Quals.hasVolatile(); }
   bool isRestrictQualified() const { return Quals.hasRestrict(); }
@@ -351,8 +353,26 @@ public:
   Address getVectorAddress() const {
     return Address(getVectorPointer(), getAlignment());
   }
-  llvm::Value *getVectorPointer() const { assert(isVectorElt()); return V; }
-  llvm::Value *getVectorIdx() const { assert(isVectorElt()); return VectorIdx; }
+  llvm::Value *getVectorPointer() const {
+    assert(isVectorElt());
+    return V;
+  }
+  llvm::Value *getVectorIdx() const {
+    assert(isVectorElt());
+    return VectorIdx;
+  }
+
+  Address getMatrixAddress() const {
+    return Address(getMatrixPointer(), getAlignment());
+  }
+  llvm::Value *getMatrixPointer() const {
+    assert(isMatrixElt());
+    return V;
+  }
+  llvm::Value *getMatrixIdx() const {
+    assert(isMatrixElt());
+    return VectorIdx;
+  }
 
   // extended vector elements.
   Address getExtVectorAddress() const {
@@ -472,6 +492,18 @@ public:
     R.CMRegionInfo = &Info;
     R.Initialize(T, T.getQualifiers(), Alignment, LValueBaseInfo(),
                  TBAAAccessInfo());
+    return R;
+  }
+
+  static LValue MakeMatrixElt(Address matAddress, llvm::Value *Idx,
+                              QualType type, LValueBaseInfo BaseInfo,
+                              TBAAAccessInfo TBAAInfo) {
+    LValue R;
+    R.LVType = MatrixElt;
+    R.V = matAddress.getPointer();
+    R.VectorIdx = Idx;
+    R.Initialize(type, type.getQualifiers(), matAddress.getAlignment(),
+                 BaseInfo, TBAAInfo);
     return R;
   }
 

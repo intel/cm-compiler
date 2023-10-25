@@ -315,7 +315,7 @@ static void printBackendVersion() {
 
 static std::error_code WriteBinaryToFile(llvm::StringRef Filename,
                                          const BinaryData &BinData) {
-  std::ofstream Output(Filename, std::ios::binary | std::ios::out);
+  std::ofstream Output(Filename.str(), std::ios::binary | std::ios::out);
   if (!Output.is_open())
     return std::make_error_code(std::errc::io_error);
   Output.write(BinData.data(), BinData.size());

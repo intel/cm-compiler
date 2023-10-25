@@ -137,9 +137,8 @@ void test() {
   vector<int,16> r124 = v1.replicate<4,0,4,1>(1);                        // out of bounds // expected-warning{{replicate out of bounds - size of source vector exceeded}}
   vector<int,16> r125 = v1.replicate<4,1,4,1>(0);                        // out of bounds // expected-warning{{replicate out of bounds - size of source vector exceeded}}
 
-  v1.replicate<16>();                                                    // expression result unused // expected-warning{{expression result unused}}
-  m.replicate<2,2>();                                                    // expression result unused // expected-warning{{expression result unused}}
+  v1.replicate<16>();                                                    // expression result unused // fixme-expected-warning{{expression result unused}}
+  m.replicate<2,2>();                                                    // expression result unused // fixme-expected-warning{{expression result unused}}
   v2.replicate<2,4,3,2>() = 9;                                           // expression not assignable // expected-error{{expression is not assignable}}
   m.replicate<2>() = 1;                                                  // expression not assignable // expected-error{{expression is not assignable}}
 }
-

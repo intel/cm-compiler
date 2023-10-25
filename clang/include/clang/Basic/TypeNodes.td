@@ -3,7 +3,7 @@ include "clang/Basic/ASTNode.td"
 class TypeNode<TypeNode base, bit abstract = 0> : ASTNode {
 	TypeNode Base = base;
   bit Abstract = abstract;
-} 
+}
 
 /// A type node that is only used to represent dependent types in C++.  For
 /// example, DependentTemplateSpecializationType is used to represent types
@@ -69,6 +69,9 @@ def DependentAddressSpaceType : TypeNode<Type>, AlwaysDependent;
 def VectorType : TypeNode<Type>;
 def DependentVectorType : TypeNode<Type>, AlwaysDependent;
 def ExtVectorType : TypeNode<VectorType>;
+def MatrixType : TypeNode<Type, 1>;
+def ConstantMatrixType : TypeNode<MatrixType>;
+def DependentSizedMatrixType : TypeNode<MatrixType>, AlwaysDependent;
 def FunctionType : TypeNode<Type, 1>;
 def FunctionProtoType : TypeNode<FunctionType>;
 def FunctionNoProtoType : TypeNode<FunctionType>;
@@ -110,3 +113,6 @@ def DependentCMVectorType : TypeNode<CMVectorType>, AlwaysDependent;
 
 def CMMatrixType : TypeNode<Type>;
 def DependentCMMatrixType : TypeNode<CMMatrixType>, AlwaysDependent;
+
+def ExtIntType : TypeNode<Type>;
+def DependentExtIntType : TypeNode<Type>, AlwaysDependent;

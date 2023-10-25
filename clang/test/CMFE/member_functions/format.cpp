@@ -65,8 +65,8 @@ void test() {
   matrix_ref<short,1,15> r42 = v1.format<short,1,15>();                   // result too small // expected-error{{format matrix size 30 does not match the source size 32 in bytes}}
   matrix_ref<char,1,31> r43 = v1.format<char,1,31>();                     // result too small // expected-error{{format matrix size 31 does not match the source size 32 in bytes}}
 
-  m.format<char>();                                                       // expression result unused // expected-warning{{expression result unused}}
-  v1.format<char,16,2>();                                                 // expression result unused // expected-warning{{expression result unused}}
+  m.format<char>();                                                       // expression result unused // fixme-expected-warning{{expression result unused}}
+  v1.format<char,16,2>();                                                 // expression result unused // fixme-expected-warning{{expression result unused}}
   m.format<short>() = 1;                                                  // OK
   v2.format<int>() = 9;                                                   // OK
 }

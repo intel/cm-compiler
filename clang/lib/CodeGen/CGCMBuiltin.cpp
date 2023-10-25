@@ -384,15 +384,16 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
   if (Kind == CMBK_none) {
     size_t Start = MangledName.find("__cm_builtin_impl");
     StringRef MangledImplName = MangledName.substr(Start);
-    Kind = StringSwitch<CMBuiltinKind>(MangledImplName)
-               .StartsWith("__cm_builtin_impl_load", CMBK_load_impl)
-               .StartsWith("__cm_builtin_impl_store", CMBK_store_impl)
-               .StartsWith("__cm_builtin_impl_gather", CMBK_gather_impl)
-               .StartsWith("__cm_builtin_impl_scatter", CMBK_scatter_impl)
-               // For cm_library support.
-               .StartsWith("__cm_builtin_impl_svm_gather", CMBK_gather_svm_impl)
-               .StartsWith("__cm_builtin_impl_svm_scatter", CMBK_scatter_svm_impl)
-               .Default(CMBK_none);
+    Kind =
+        StringSwitch<CMBuiltinKind>(MangledImplName)
+            .StartsWith("__cm_builtin_impl_load", CMBK_load_impl)
+            .StartsWith("__cm_builtin_impl_store", CMBK_store_impl)
+            .StartsWith("__cm_builtin_impl_gather", CMBK_gather_impl)
+            .StartsWith("__cm_builtin_impl_scatter", CMBK_scatter_impl)
+            // For cm_library support.
+            .StartsWith("__cm_builtin_impl_svm_gather", CMBK_gather_svm_impl)
+            .StartsWith("__cm_builtin_impl_svm_scatter", CMBK_scatter_svm_impl)
+            .Default(CMBK_none);
   }
   return Kind;
 }
@@ -415,15 +416,17 @@ static RValue EmitGenXIntrinsicCall(CodeGenFunction &CGF, const CallExpr *E,
     else if (Dim == 2)
       return RValue::get(EmitGenXIntrinsicCall(CGF, ID2));
 
-    CGF.CGM.Error(Arg->getExprLoc(), "0, 1 or 2 expected for dimension argument");
+    CGF.CGM.Error(Arg->getExprLoc(),
+                  "0, 1 or 2 expected for dimension argument");
     return RValue::get(0);
   }
 
   // For variable dim argument, compare it with 0 and 1 (all others get 2)
   llvm::Value *C0 = CGF.Builder.CreateICmpEQ(
-    Val, llvm::Constant::getNullValue(Val->getType()), "cmp0");
+      Val, llvm::Constant::getNullValue(Val->getType()), "cmp0");
   llvm::Value *C1 = CGF.Builder.CreateICmpEQ(
-    Val, llvm::Constant::getIntegerValue(Val->getType(), llvm::APInt(32, 1)), "cmp1");
+      Val, llvm::Constant::getIntegerValue(Val->getType(), llvm::APInt(32, 1)),
+      "cmp1");
   llvm::Value *V0 = EmitGenXIntrinsicCall(CGF, ID0);
   llvm::Value *V1 = EmitGenXIntrinsicCall(CGF, ID1);
   llvm::Value *V2 = EmitGenXIntrinsicCall(CGF, ID2);
@@ -432,8 +435,7 @@ static RValue EmitGenXIntrinsicCall(CodeGenFunction &CGF, const CallExpr *E,
   return RValue::get(CGF.Builder.CreateSelect(C0, V0, res1));
 }
 
-static RValue EmitIntrinsicCallIndexed(CodeGenFunction &CGF,
-                                       const CallExpr *E,
+static RValue EmitIntrinsicCallIndexed(CodeGenFunction &CGF, const CallExpr *E,
                                        llvm::Function *Fn) {
   const Expr *Arg = E->getArg(0);
   llvm::Value *Val = CGF.EmitAnyExpr(Arg).getScalarVal();
@@ -485,22 +487,20 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
   case Builtin::BIcm_scoreboard_depcnt:
     IID = llvm::GenXIntrinsic::genx_get_scoreboard_depcnt;
     break;
-  case Builtin::BIcm_pause:
-    {
-      // cm_pause has a single argument - generate the call here
-      Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_set_pause );
-      const Expr *ArgE = E->getArg(0);
-      llvm::Value *Arg = CGF.EmitAnyExpr(ArgE).getScalarVal();
-      return RValue::get(CGF.Builder.CreateCall(Fn, Arg, ""));
-    }
-  case Builtin::BI__cm_builtin_dummy_mov:
-    {
-      // intrinsic has a single argument - generate the call here
-      Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_dummy_mov );
-      const Expr *ArgE = E->getArg(0);
-      llvm::Value *Arg = CGF.EmitAnyExpr(ArgE).getScalarVal();
-      return RValue::get(CGF.Builder.CreateCall(Fn, Arg, ""));
-    }
+  case Builtin::BIcm_pause: {
+    // cm_pause has a single argument - generate the call here
+    Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_set_pause);
+    const Expr *ArgE = E->getArg(0);
+    llvm::Value *Arg = CGF.EmitAnyExpr(ArgE).getScalarVal();
+    return RValue::get(CGF.Builder.CreateCall(Fn, Arg, ""));
+  }
+  case Builtin::BI__cm_builtin_dummy_mov: {
+    // intrinsic has a single argument - generate the call here
+    Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_dummy_mov);
+    const Expr *ArgE = E->getArg(0);
+    llvm::Value *Arg = CGF.EmitAnyExpr(ArgE).getScalarVal();
+    return RValue::get(CGF.Builder.CreateCall(Fn, Arg, ""));
+  }
   // cm_fence(), cm_slm_fence() and __cm_builtin_cm_wait() have variable
   // number of arguments: 0 or 1. Therefore we can't specify the arg type
   // (unsigned char) in Builtins.def.
@@ -563,23 +563,21 @@ RValue CGCMRuntime::EmitCMBuiltin(CodeGenFunction &CGF, unsigned ID,
   case Builtin::BIcm_nbarrier_init:
     EmitBuiltinNBarrierInit(CGF, E);
     return RValue::get(0);
-  case Builtin::BIcm_nbarrier_wait:
-    {
-      Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_nbarrier);
-      if (E->getNumArgs() == 1) {
-        SmallVector<llvm::Value *, 8> Args;
-        Args.push_back(llvm::ConstantInt::get(CGF.Int8Ty, 0));
-        const Expr *ArgE = E->getArg(0);
-        llvm::Value *Id = CGF.EmitAnyExpr(ArgE).getScalarVal();
-        Args.push_back(Id);
-        Args.push_back(llvm::ConstantInt::get(CGF.Int8Ty, 0));
-        return RValue::get(CGF.Builder.CreateCall(Fn, Args, ""));
-      }
-      else {
-        Error(E->getExprLoc(), "One barrier id argument expected");
-        return RValue::get(0);
-      }
+  case Builtin::BIcm_nbarrier_wait: {
+    Fn = CGF.CGM.getGenXIntrinsic(llvm::GenXIntrinsic::genx_nbarrier);
+    if (E->getNumArgs() == 1) {
+      SmallVector<llvm::Value *, 8> Args;
+      Args.push_back(llvm::ConstantInt::get(CGF.Int8Ty, 0));
+      const Expr *ArgE = E->getArg(0);
+      llvm::Value *Id = CGF.EmitAnyExpr(ArgE).getScalarVal();
+      Args.push_back(Id);
+      Args.push_back(llvm::ConstantInt::get(CGF.Int8Ty, 0));
+      return RValue::get(CGF.Builder.CreateCall(Fn, Args, ""));
+    } else {
+      Error(E->getExprLoc(), "One barrier id argument expected");
+      return RValue::get(0);
     }
+  }
   case Builtin::BIcm_slm_init:
     EmitBuiltinSLMInit(CGF, E);
     return RValue::get(0);
@@ -608,7 +606,7 @@ llvm::AllocaInst *CGCMRuntime::getOrCreateSLMIndexVar(CodeGenFunction &CGF) {
   auto IndexVar = new llvm::AllocaInst(CGF.Int32Ty, /*AddrSpace*/ 0, nullptr,
                                        "slm.index", CGF.AllocaInsertPt);
   uint64_t BitWidth = CGF.Int32Ty->getIntegerBitWidth();
-  llvm::MaybeAlign Alignment{BitWidth / 8ull};
+  llvm::Align Alignment{BitWidth / 8ull};
   IndexVar->setAlignment(Alignment);
   SLMAllocas.insert(std::make_pair(CGF.CurFn, IndexVar));
 
@@ -623,7 +621,8 @@ llvm::AllocaInst *CGCMRuntime::getOrCreateSLMIndexVar(CodeGenFunction &CGF) {
     // We intentionally emit the initialization code in the first basic block.
     // That is, initialization will always be performed and it should be.
     CGBuilderTy Builder(CGF, CGF.AllocaInsertPt);
-    Builder.CreateDefaultAlignedStore(llvm::Constant::getNullValue(CGF.Int32Ty), IndexVar);
+    Builder.CreateDefaultAlignedStore(llvm::Constant::getNullValue(CGF.Int32Ty),
+                                      IndexVar);
   }
 
   return IndexVar;
@@ -633,7 +632,8 @@ static void checkSLMSize(CGCMRuntime &CMRT, SourceLocation Loc,
                          llvm::Function *F) {
   uint64_t SLMSize = 0;
   if (llvm::MDNode *Node = getSLMSizeMDNode(F)) {
-    llvm::Value *SzVal = getVal(Node->getOperand(llvm::genx::KernelMDOp::SLMSize));
+    llvm::Value *SzVal =
+        getVal(Node->getOperand(llvm::genx::KernelMDOp::SLMSize));
     if (auto *CI = dyn_cast_or_null<llvm::ConstantInt>(SzVal))
       SLMSize = CI->getZExtValue();
   }
@@ -671,7 +671,8 @@ void CGCMRuntime::EmitBuiltinSLMInit(CodeGenFunction &CGF, const CallExpr *E) {
 
   // find the corresponding kernel metadata and set the SLM size.
   if (llvm::MDNode *Node = getSLMSizeMDNode(CGF.CurFn)) {
-    if (llvm::Value *OldSz = getVal(Node->getOperand(llvm::genx::KernelMDOp::SLMSize))) {
+    if (llvm::Value *OldSz =
+            getVal(Node->getOperand(llvm::genx::KernelMDOp::SLMSize))) {
       assert(isa<llvm::ConstantInt>(OldSz) && "integer constant expected");
       llvm::Value *NewSz = llvm::ConstantInt::get(OldSz->getType(), NewVal);
       uint64_t OldVal = cast<llvm::ConstantInt>(OldSz)->getZExtValue();
@@ -683,7 +684,6 @@ void CGCMRuntime::EmitBuiltinSLMInit(CodeGenFunction &CGF, const CallExpr *E) {
   // Initialize the index variable.
   getOrCreateSLMIndexVar(CGF);
 }
-
 
 llvm::Value *CGCMRuntime::EmitBuiltinSLMAlloc(CodeGenFunction &CGF,
                                               const CallExpr *E) {
@@ -725,7 +725,8 @@ llvm::Value *CGCMRuntime::EmitBuiltinSLMFree(CodeGenFunction &CGF,
   return NextIndex;
 }
 
-void CGCMRuntime::EmitBuiltinNBarrierInit(CodeGenFunction &CGF, const CallExpr *E) {
+void CGCMRuntime::EmitBuiltinNBarrierInit(CodeGenFunction &CGF,
+                                          const CallExpr *E) {
   // We check whether this call is inside a kernel function.
   if (!CGF.CurFuncDecl->hasAttr<CMGenxMainAttr>()) {
     Error(E->getExprLoc(), "cm_nbarrier_init shall only be called in a kernel");
@@ -750,12 +751,14 @@ void CGCMRuntime::EmitBuiltinNBarrierInit(CodeGenFunction &CGF, const CallExpr *
 
   // Update named barrier count in kernel metadata.
   if (llvm::MDNode *Node = getSLMSizeMDNode(CGF.CurFn)) {
-    if (llvm::Value *OldSz = getVal(Node->getOperand(llvm::genx::KernelMDOp::NBarrierCnt))) {
+    if (llvm::Value *OldSz =
+            getVal(Node->getOperand(llvm::genx::KernelMDOp::NBarrierCnt))) {
       assert(isa<llvm::ConstantInt>(OldSz) && "integer constant expected");
       llvm::Value *NewSz = llvm::ConstantInt::get(OldSz->getType(), NewVal);
       uint64_t OldVal = cast<llvm::ConstantInt>(OldSz)->getZExtValue();
       if (OldVal < NewVal)
-        Node->replaceOperandWith(llvm::genx::KernelMDOp::NBarrierCnt, getMD(NewSz));
+        Node->replaceOperandWith(llvm::genx::KernelMDOp::NBarrierCnt,
+                                 getMD(NewSz));
     }
   }
 }
@@ -830,7 +833,7 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_cm_slm_write:
   case CMBK_cm_dp4a:
   case CMBK_cm_bfn:
-  case CMBK_cm_dpas:// old variant
+  case CMBK_cm_dpas: // old variant
   case CMBK_cm_dpas2:
     HandleBuiltinInterface(getCurCMCallInfo());
     return RV;
@@ -863,7 +866,7 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_scatter_read_impl:
     return RValue::get(HandleBuiltinScatterReadWriteImpl(getCurCMCallInfo()));
   case CMBK_scatter_write_impl:
-    HandleBuiltinScatterReadWriteImpl(getCurCMCallInfo(), /*IsWrite*/true);
+    HandleBuiltinScatterReadWriteImpl(getCurCMCallInfo(), /*IsWrite*/ true);
     return RValue::get(0);
   case CMBK_cm_svm_read4_impl:
     HandleBuiltinSVMRead4Impl(getCurCMCallInfo());
@@ -896,13 +899,16 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_cm_pln_impl:
     return RValue::get(HandleBuiltinPlnImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_bfrev_impl:
-    return RValue::get(HandleBuiltinBitFieldReverseImpl(getCurCMCallInfo(), Kind));
+    return RValue::get(
+        HandleBuiltinBitFieldReverseImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_cbit_impl:
     return RValue::get(HandleBuiltinCountBitsImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_bfins_impl:
-    return RValue::get(HandleBuiltinBitFieldInsertImpl(getCurCMCallInfo(), Kind));
+    return RValue::get(
+        HandleBuiltinBitFieldInsertImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_bfext_impl:
-    return RValue::get(HandleBuiltinBitFieldExtractImpl(getCurCMCallInfo(), Kind));
+    return RValue::get(
+        HandleBuiltinBitFieldExtractImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_avg_impl:
     return RValue::get(HandleBuiltinAvgImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_dp2_impl:
@@ -961,7 +967,8 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_write_atomic_impl:
     return RValue::get(HandleBuiltinWriteAtomicImpl(getCurCMCallInfo(), Kind));
   case CMBK_write_atomic_typed_impl:
-    return RValue::get(HandleBuiltinWriteAtomicTypedImpl(getCurCMCallInfo(), Kind));
+    return RValue::get(
+        HandleBuiltinWriteAtomicTypedImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_pack_mask:
     return RValue::get(HandleBuiltinPackMaskImpl(getCurCMCallInfo()));
   case CMBK_cm_unpack_mask:
@@ -1054,10 +1061,12 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_simdcf_any_impl:
     return RValue::get(HandleBuiltinSimdcfAnyImpl(getCurCMCallInfo()));
   case CMBK_simdcf_predgen_impl:
-    return RValue::get(HandleBuiltinSimdcfGenericPredicationImpl(getCurCMCallInfo()));
+    return RValue::get(
+        HandleBuiltinSimdcfGenericPredicationImpl(getCurCMCallInfo()));
   case CMBK_simdcf_predmin_impl:
   case CMBK_simdcf_predmax_impl:
-    return RValue::get(HandleBuiltinSimdcfMinMaxPredicationImpl(getCurCMCallInfo(), Kind));
+    return RValue::get(
+        HandleBuiltinSimdcfMinMaxPredicationImpl(getCurCMCallInfo(), Kind));
   case CMBK_predefined_surface:
     return RValue::get(HandlePredefinedSurface(getCurCMCallInfo()));
   case CMBK_cm_svm_atomic_impl:
@@ -1159,19 +1168,22 @@ static bool getSatIntrinsicID(unsigned &ID, QualType DstType,
 
   // float->int etc.
   if (DstType->isIntegerType() && SrcType->isFloatingType()) {
-    ID = DstType->isUnsignedIntegerType() ? llvm::GenXIntrinsic::genx_fptoui_sat
-                                          : llvm::GenXIntrinsic::genx_fptosi_sat;
+    ID = DstType->isUnsignedIntegerType()
+             ? llvm::GenXIntrinsic::genx_fptoui_sat
+             : llvm::GenXIntrinsic::genx_fptosi_sat;
     return true;
   }
 
   // any int->any int (including same types)
   if (DstType->isIntegerType() && SrcType->isIntegerType()) {
     if (DstType->isUnsignedIntegerType())
-      ID = SrcType->isUnsignedIntegerType() ? llvm::GenXIntrinsic::genx_uutrunc_sat
-                                            : llvm::GenXIntrinsic::genx_ustrunc_sat;
+      ID = SrcType->isUnsignedIntegerType()
+               ? llvm::GenXIntrinsic::genx_uutrunc_sat
+               : llvm::GenXIntrinsic::genx_ustrunc_sat;
     else
-      ID = SrcType->isUnsignedIntegerType() ? llvm::GenXIntrinsic::genx_sutrunc_sat
-                                            : llvm::GenXIntrinsic::genx_sstrunc_sat;
+      ID = SrcType->isUnsignedIntegerType()
+               ? llvm::GenXIntrinsic::genx_sutrunc_sat
+               : llvm::GenXIntrinsic::genx_sstrunc_sat;
     return true;
   }
 
@@ -1218,7 +1230,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinSaturateImpl(CMCallInfo &CallInfo,
   unsigned ID = llvm::GenXIntrinsic::not_genx_intrinsic;
   CGBuilderTy &Builder = CallInfo.CGF->Builder;
   if (ToType->isFloatingType()) {
-    llvm::Function *Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_sat, CI->getType());
+    llvm::Function *Fn =
+        getGenXIntrinsic(llvm::GenXIntrinsic::genx_sat, CI->getType());
 
     llvm::Instruction::CastOps OpKind;
     if (getCastOpKind(OpKind, *CallInfo.CGF, ToType, FromType)) {
@@ -1230,7 +1243,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinSaturateImpl(CMCallInfo &CallInfo,
     NewCI->setDebugLoc(CI->getDebugLoc());
     Result = NewCI;
   } else if (getSatIntrinsicID(ID, ToType, FromType)) {
-    llvm::Type *Tys[2] = { CI->getType(), Arg->getType() };
+    llvm::Type *Tys[2] = {CI->getType(), Arg->getType()};
     llvm::Function *Fn = getGenXIntrinsic(ID, Tys);
     llvm::CallInst *NewCI = Builder.CreateCall(Fn, Arg, CI->getName());
     NewCI->setDebugLoc(CI->getDebugLoc());
@@ -1280,7 +1293,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinLineImpl(CMCallInfo &CallInfo,
   llvm::Type *RetTy = CalledFn->getReturnType();
   assert(RetTy->isFPOrFPVectorTy());
 
-  llvm::Function *GenxFn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_line, RetTy);
+  llvm::Function *GenxFn =
+      getGenXIntrinsic(llvm::GenXIntrinsic::genx_line, RetTy);
 
   assert(CallInfo.CI->getNumArgOperands() == 2);
   llvm::CallInst *CI = CallInfo.CI;
@@ -1316,18 +1330,18 @@ llvm::Value *CGCMRuntime::HandleBuiltinFblFbhImpl(CMCallInfo &CallInfo,
   assert(CallInfo.CE->getNumArgs() == 1);
 
   unsigned ID = 0;
-  switch(Kind) {
-    default:
-      llvm_unreachable("unexpected kind for HandleBuiltinFblFbhImpl");
-    case CMBK_cm_fbl_impl:
-      ID = llvm::GenXIntrinsic::genx_fbl;
-      break;
-    case CMBK_cm_sfbh_impl:
-      ID = llvm::GenXIntrinsic::genx_sfbh;
-      break;
-    case CMBK_cm_ufbh_impl:
-      ID = llvm::GenXIntrinsic::genx_ufbh;
-      break;
+  switch (Kind) {
+  default:
+    llvm_unreachable("unexpected kind for HandleBuiltinFblFbhImpl");
+  case CMBK_cm_fbl_impl:
+    ID = llvm::GenXIntrinsic::genx_fbl;
+    break;
+  case CMBK_cm_sfbh_impl:
+    ID = llvm::GenXIntrinsic::genx_sfbh;
+    break;
+  case CMBK_cm_ufbh_impl:
+    ID = llvm::GenXIntrinsic::genx_ufbh;
+    break;
   }
 
   llvm::CallInst *CI = CallInfo.CI;
@@ -1335,7 +1349,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinFblFbhImpl(CMCallInfo &CallInfo,
   CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   llvm::Function *F = getGenXIntrinsic(ID, CI->getType());
-  llvm::CallInst *Result = Builder.CreateCall(F, CI->getArgOperand(0), CI->getName());
+  llvm::CallInst *Result =
+      Builder.CreateCall(F, CI->getArgOperand(0), CI->getName());
   Result->setDebugLoc(CI->getDebugLoc());
 
   CI->eraseFromParent();
@@ -1358,8 +1373,10 @@ llvm::Value *CGCMRuntime::HandleBuiltinFrcImpl(CMCallInfo &CallInfo,
 
   CGBuilderTy Builder(*CallInfo.CGF, CI);
 
-  llvm::Function *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_frc, CI->getType());
-  llvm::CallInst *Result = Builder.CreateCall(F, CI->getArgOperand(0), CI->getName());
+  llvm::Function *F =
+      getGenXIntrinsic(llvm::GenXIntrinsic::genx_frc, CI->getType());
+  llvm::CallInst *Result =
+      Builder.CreateCall(F, CI->getArgOperand(0), CI->getName());
   Result->setDebugLoc(CI->getDebugLoc());
 
   CI->eraseFromParent();
@@ -1385,7 +1402,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinLzdImpl(CMCallInfo &CallInfo,
   llvm::Type *Tys[] = {CI->getType()};
 
   llvm::Function *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_lzd, Tys);
-  llvm::CallInst *Result = Builder.CreateCall(F, CI->getArgOperand(0), CI->getName());
+  llvm::CallInst *Result =
+      Builder.CreateCall(F, CI->getArgOperand(0), CI->getName());
   Result->setDebugLoc(CI->getDebugLoc());
 
   CI->eraseFromParent();
@@ -1554,12 +1572,12 @@ llvm::Value *CGCMRuntime::HandleBuiltinMulAddImpl(CMCallInfo &CallInfo,
       // from the above float case, where there is no conversion saturation.
       assert(NeedsConv);
       llvm::Value *NonSatVal =
-        Builder.CreateCast(CastOp, Result, CI->getType(), "conv");
+          Builder.CreateCast(CastOp, Result, CI->getType(), "conv");
 
       unsigned ID = llvm::GenXIntrinsic::not_genx_intrinsic;
       getSatIntrinsicID(ID, T0, T1);
       assert(ID != llvm::GenXIntrinsic::not_genx_intrinsic);
-      llvm::Type *Tys[] = {CI->getType(), Arg0->getType() };
+      llvm::Type *Tys[] = {CI->getType(), Arg0->getType()};
       SatFn = getGenXIntrinsic(ID, Tys);
       llvm::Instruction *SatVal = Builder.CreateCall(SatFn, Result, "sat");
       Result = Builder.CreateSelect(CMP, NonSatVal, SatVal);
@@ -1572,8 +1590,9 @@ llvm::Value *CGCMRuntime::HandleBuiltinMulAddImpl(CMCallInfo &CallInfo,
     unsigned ID1 = GetGenxIntrinsicID(CallInfo, Kind, true);
 
     if (T0->isFloatingType()) {
-      // cm_add<float>(int, int, SAT) => genx.sat(sitofp(genx.ssadd.sat(int, int))
-      llvm::Type *Tys[] = {Arg0->getType(), Arg0->getType() };
+      // cm_add<float>(int, int, SAT) => genx.sat(sitofp(genx.ssadd.sat(int,
+      // int))
+      llvm::Type *Tys[] = {Arg0->getType(), Arg0->getType()};
 
       // The non-saturating case does not need an intrinsic. Just use a normal
       // add/mul.
@@ -1585,13 +1604,15 @@ llvm::Value *CGCMRuntime::HandleBuiltinMulAddImpl(CMCallInfo &CallInfo,
       cast<llvm::Instruction>(R0)->setDebugLoc(CI->getDebugLoc());
       // We definitely need an int-to-fp conversin here.
       assert(NeedsConv);
-      llvm::Value *Conv0 = Builder.CreateCast(CastOp, R0, CI->getType(), "conv");
+      llvm::Value *Conv0 =
+          Builder.CreateCast(CastOp, R0, CI->getType(), "conv");
 
       llvm::Value *Args[] = {Arg0, Arg1};
       llvm::Function *F1 = getGenXIntrinsic(ID1, Tys);
       llvm::CallInst *R1 = Builder.CreateCall(F1, Args, CI->getName());
       R1->setDebugLoc(CI->getDebugLoc());
-      llvm::Value *Conv1 = Builder.CreateCast(CastOp, R1, CI->getType(), "conv");
+      llvm::Value *Conv1 =
+          Builder.CreateCast(CastOp, R1, CI->getType(), "conv");
 
       SatFn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_sat, CI->getType());
       llvm::Instruction *SatVal = Builder.CreateCall(SatFn, Conv1, "sat");
@@ -1603,9 +1624,11 @@ llvm::Value *CGCMRuntime::HandleBuiltinMulAddImpl(CMCallInfo &CallInfo,
       assert(T0->isIntegerType());
       // The non-saturating case does not need an intrinsic. Just promote/demote
       // the args to the destination type and use a normal add/mul.
-      auto ConvertedArg0 = Builder.CreateCast(CastOp, Arg0, CI->getType(), "conv");
+      auto ConvertedArg0 =
+          Builder.CreateCast(CastOp, Arg0, CI->getType(), "conv");
       cast<llvm::Instruction>(ConvertedArg0)->setDebugLoc(CI->getDebugLoc());
-      auto ConvertedArg1 = Builder.CreateCast(CastOp, Arg1, CI->getType(), "conv");
+      auto ConvertedArg1 =
+          Builder.CreateCast(CastOp, Arg1, CI->getType(), "conv");
       cast<llvm::Instruction>(ConvertedArg1)->setDebugLoc(CI->getDebugLoc());
       llvm::Value *R0 = nullptr;
       if (Kind == CMBK_cm_add_impl)
@@ -1614,7 +1637,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinMulAddImpl(CMCallInfo &CallInfo,
         R0 = Builder.CreateMul(ConvertedArg0, ConvertedArg1, CI->getName());
       cast<llvm::Instruction>(R0)->setDebugLoc(CI->getDebugLoc());
 
-      llvm::Type *Tys[] = {CI->getType(), Arg0->getType() };
+      llvm::Type *Tys[] = {CI->getType(), Arg0->getType()};
       llvm::Value *Args[] = {Arg0, Arg1};
       llvm::Function *F1 = getGenXIntrinsic(ID1, Tys);
       llvm::CallInst *R1 = Builder.CreateCall(F1, Args, CI->getName());
@@ -1716,7 +1739,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinAvgImpl(CMCallInfo &CallInfo,
 
   // cm_avg<int>(int, int, SAT) => genx.ssavg.sat(int, int)
   llvm::Type *Tys[] = {CI->getType(), Arg0->getType()};
-  llvm::Value *Args[] = { Arg0, Arg1 };
+  llvm::Value *Args[] = {Arg0, Arg1};
 
   llvm::Function *F0 = getGenXIntrinsic(ID0, Tys);
   llvm::CallInst *R0 = Builder.CreateCall(F0, Args, CI->getName());
@@ -1813,7 +1836,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinShlImpl(CMCallInfo &CallInfo,
 
   // cm_shl<int>(int, int, SAT) => genx.ssshl.sat(int, int)
   llvm::Type *Tys[] = {CI->getType(), Arg0->getType()};
-  llvm::Value *Args[] = { Arg0, Arg1 };
+  llvm::Value *Args[] = {Arg0, Arg1};
 
   llvm::Function *F0 = getGenXIntrinsic(ID0, Tys);
   llvm::CallInst *R0 = Builder.CreateCall(F0, Args, CI->getName());
@@ -1844,10 +1867,10 @@ llvm::Value *CGCMRuntime::HandleBuiltinRolRorImpl(CMCallInfo &CallInfo,
                                                   CMBuiltinKind Kind) {
   assert(Kind == CMBK_cm_rol_impl || Kind == CMBK_cm_ror_impl);
 
-  assert(CallInfo.CE->getType()->isCMVectorMatrixType()); //T0
+  assert(CallInfo.CE->getType()->isCMVectorMatrixType()); // T0
 
   assert(CallInfo.CE->getNumArgs() == 2);
-  assert(CallInfo.CE->getArg(0)->getType()->isCMVectorMatrixType()); //T1
+  assert(CallInfo.CE->getArg(0)->getType()->isCMVectorMatrixType()); // T1
 
   llvm::CallInst *CI = CallInfo.CI;
   llvm::Value *Arg0 = CI->getArgOperand(0);
@@ -1860,7 +1883,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinRolRorImpl(CMCallInfo &CallInfo,
   // cm_rol<int>(int, int) => genx.rol(int, int)
   // cm_ror<int>(int, int) => genx.ror(int, int)
   llvm::Type *Tys[] = {CI->getType(), Arg0->getType()};
-  llvm::Value *Args[] = { Arg0, Arg1 };
+  llvm::Value *Args[] = {Arg0, Arg1};
 
   llvm::Function *F = getGenXIntrinsic(ID, Tys);
   llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
@@ -1898,8 +1921,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinSad2Impl(CMCallInfo &CallInfo,
   unsigned ID = GetGenxIntrinsicID(CallInfo, Kind, false);
 
   // cm_sad2<int>(int, int, SAT) => genx.*sad2(int, int)
-  llvm::Type *Tys[] = { CI->getType(), Arg0->getType() };
-  llvm::Value *Args[] = { Arg0, Arg1 };
+  llvm::Type *Tys[] = {CI->getType(), Arg0->getType()};
+  llvm::Value *Args[] = {Arg0, Arg1};
 
   llvm::Function *F = getGenXIntrinsic(ID, Tys);
   llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
@@ -1913,7 +1936,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinSad2Impl(CMCallInfo &CallInfo,
 ///
 /// template <typename T0, typename T1, int SZ>
 /// vector<T0, SZ>
-/// __cm_intrinsic_impl_sada2(vector<T1, SZ> src0, vector<T1, SZ> src1, vector<T0, SZ>, int flag);
+/// __cm_intrinsic_impl_sada2(vector<T1, SZ> src0, vector<T1, SZ> src1,
+/// vector<T0, SZ>, int flag);
 ///
 llvm::Value *CGCMRuntime::HandleBuiltinSad2AddImpl(CMCallInfo &CallInfo,
                                                    CMBuiltinKind Kind) {
@@ -1948,7 +1972,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinSad2AddImpl(CMCallInfo &CallInfo,
 
   // cm_sada2<int>(int, int, SAT) => genx.ssad2add.sat(int, int)
   llvm::Type *Tys[] = {CI->getType(), Arg0->getType()};
-  llvm::Value *Args[] = { Arg0, Arg1, Arg2 };
+  llvm::Value *Args[] = {Arg0, Arg1, Arg2};
 
   llvm::Function *F0 = getGenXIntrinsic(ID0, Tys);
   llvm::CallInst *R0 = Builder.CreateCall(F0, Args, CI->getName());
@@ -1969,13 +1993,15 @@ llvm::Value *CGCMRuntime::HandleBuiltinSad2AddImpl(CMCallInfo &CallInfo,
 ///
 /// template <int SZ>
 /// vector<float, SZ>
-/// __cm_intrinsic_impl_lrp(vector<float, SZ> src0, vector<float, SZ> src1, vector<float, SZ> src2);
+/// __cm_intrinsic_impl_lrp(vector<float, SZ> src0, vector<float, SZ> src1,
+/// vector<float, SZ> src2);
 ///
 llvm::Value *CGCMRuntime::HandleBuiltinLrpImpl(CMCallInfo &CallInfo,
                                                CMBuiltinKind Kind) {
   assert(Kind == CMBK_cm_lrp_impl);
   assert(CallInfo.CE->getType()->isCMVectorMatrixType());
-  assert(CallInfo.CE->getType()->getCMVectorMatrixElementType()->isFloatingType());
+  assert(
+      CallInfo.CE->getType()->getCMVectorMatrixElementType()->isFloatingType());
   assert(CallInfo.CE->getNumArgs() == 3);
 
   llvm::CallInst *CI = CallInfo.CI;
@@ -2005,7 +2031,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinPlnImpl(CMCallInfo &CallInfo,
                                                CMBuiltinKind Kind) {
   assert(Kind == CMBK_cm_pln_impl);
   assert(CallInfo.CE->getType()->isCMVectorMatrixType());
-  assert(CallInfo.CE->getType()->getCMVectorMatrixElementType()->isFloatingType());
+  assert(
+      CallInfo.CE->getType()->getCMVectorMatrixElementType()->isFloatingType());
   assert(CallInfo.CE->getNumArgs() == 2);
 
   llvm::CallInst *CI = CallInfo.CI;
@@ -2021,8 +2048,10 @@ llvm::Value *CGCMRuntime::HandleBuiltinPlnImpl(CMCallInfo &CallInfo,
   assert(T0->getAs<CMVectorType>()->getNumElements() == 4);
   assert(T1->isCMVectorMatrixType());
   assert(T1->getCMVectorMatrixElementType()->isFloatingType());
-  assert(T1->getAs<CMVectorType>()->getNumElements() >= 16 && T1->getAs<CMVectorType>()->getNumElements() % 16 == 0);
-  assert(CallInfo.CE->getType()->getAs<CMVectorType>()->getNumElements() == T1->getAs<CMVectorType>()->getNumElements() / 2);
+  assert(T1->getAs<CMVectorType>()->getNumElements() >= 16 &&
+         T1->getAs<CMVectorType>()->getNumElements() % 16 == 0);
+  assert(CallInfo.CE->getType()->getAs<CMVectorType>()->getNumElements() ==
+         T1->getAs<CMVectorType>()->getNumElements() / 2);
 #endif
 
   CGBuilderTy Builder(*CallInfo.CGF, CI);
@@ -2056,9 +2085,10 @@ llvm::Value *CGCMRuntime::HandleBuiltinCountBitsImpl(CMCallInfo &CallInfo,
   CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   // cm_cbit<uint>(anyint) => genx.cbit(anyint)
-  llvm::Type *Tys[] = { CI->getType(), CI->getOperand(0)->getType() };
+  llvm::Type *Tys[] = {CI->getType(), CI->getOperand(0)->getType()};
   llvm::Function *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_cbit, Tys);
-  llvm::CallInst *Result = Builder.CreateCall(F, CI->getOperand(0), CI->getName());
+  llvm::CallInst *Result =
+      Builder.CreateCall(F, CI->getOperand(0), CI->getName());
   Result->setDebugLoc(CI->getDebugLoc());
 
   CI->eraseFromParent();
@@ -2083,8 +2113,10 @@ llvm::Value *CGCMRuntime::HandleBuiltinBitFieldReverseImpl(CMCallInfo &CallInfo,
   CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   // cm_bfrev<int>(int) => genx.bfrev(int)
-  llvm::Function *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_bfrev, CI->getType());
-  llvm::CallInst *Result = Builder.CreateCall(F, CI->getOperand(0), CI->getName());
+  llvm::Function *F =
+      getGenXIntrinsic(llvm::GenXIntrinsic::genx_bfrev, CI->getType());
+  llvm::CallInst *Result =
+      Builder.CreateCall(F, CI->getOperand(0), CI->getName());
   Result->setDebugLoc(CI->getDebugLoc());
 
   CI->eraseFromParent();
@@ -2095,7 +2127,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinBitFieldReverseImpl(CMCallInfo &CallInfo,
 ///
 /// template <typename T0, int SZ>
 /// vector<T0, SZ>
-/// _cm_intrinsic_impl_bfins(vector<T0, SZ> src0, vector<T0, SZ> src1, vector<T0, SZ> src2, vector<T0, SZ> src3);
+/// _cm_intrinsic_impl_bfins(vector<T0, SZ> src0, vector<T0, SZ> src1,
+/// vector<T0, SZ> src2, vector<T0, SZ> src3);
 ///
 llvm::Value *CGCMRuntime::HandleBuiltinBitFieldInsertImpl(CMCallInfo &CallInfo,
                                                           CMBuiltinKind Kind) {
@@ -2111,7 +2144,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinBitFieldInsertImpl(CMCallInfo &CallInfo,
   CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   // cm_bf_insert<int>(int,int,int,int) => genx.bfi(int,int,int,int)
-  llvm::Function *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_bfi, CI->getType());
+  llvm::Function *F =
+      getGenXIntrinsic(llvm::GenXIntrinsic::genx_bfi, CI->getType());
   llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
   Result->setDebugLoc(CI->getDebugLoc());
 
@@ -2123,7 +2157,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinBitFieldInsertImpl(CMCallInfo &CallInfo,
 ///
 /// template <typename T0, int SZ>
 /// vector<T0, SZ>
-/// _cm_intrinsic_impl_bfext(vector<T0, SZ> src0, vector<T0, SZ> src1, vector<T0, SZ> src2);
+/// _cm_intrinsic_impl_bfext(vector<T0, SZ> src0, vector<T0, SZ> src1,
+/// vector<T0, SZ> src2);
 ///
 llvm::Value *CGCMRuntime::HandleBuiltinBitFieldExtractImpl(CMCallInfo &CallInfo,
                                                            CMBuiltinKind Kind) {
@@ -2139,7 +2174,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinBitFieldExtractImpl(CMCallInfo &CallInfo,
   CGBuilderTy Builder(*CallInfo.CGF, CI);
 
   // cm_bf_extract<int>(int,int,int) => genx.sbfe(int,int,int)
-  llvm::Function *F = getGenXIntrinsic(GetGenxIntrinsicID(CallInfo, Kind, false), CI->getType());
+  llvm::Function *F = getGenXIntrinsic(
+      GetGenxIntrinsicID(CallInfo, Kind, false), CI->getType());
   llvm::CallInst *Result = Builder.CreateCall(F, Args, CI->getName());
   Result->setDebugLoc(CI->getDebugLoc());
 
@@ -2149,8 +2185,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinBitFieldExtractImpl(CMCallInfo &CallInfo,
 
 /// \brief Returns the corresponding genx intrinsic ID for this call.
 unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
-                                         CMBuiltinKind Kind,
-                                         bool IsSaturated) {
+                                         CMBuiltinKind Kind, bool IsSaturated) {
   // The return element type.
   QualType T0 = CallInfo.CE->getType();
   if (T0->isCMVectorMatrixType())
@@ -2173,11 +2208,14 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
     // Both source and destination must have integral type.
     assert(T1->isIntegerType() && T0->isIntegerType());
 
-    unsigned IDs[] = {
-        llvm::GenXIntrinsic::genx_ssavg,     llvm::GenXIntrinsic::genx_suavg,
-        llvm::GenXIntrinsic::genx_usavg,     llvm::GenXIntrinsic::genx_uuavg,
-        llvm::GenXIntrinsic::genx_ssavg_sat, llvm::GenXIntrinsic::genx_suavg_sat,
-        llvm::GenXIntrinsic::genx_usavg_sat, llvm::GenXIntrinsic::genx_uuavg_sat};
+    unsigned IDs[] = {llvm::GenXIntrinsic::genx_ssavg,
+                      llvm::GenXIntrinsic::genx_suavg,
+                      llvm::GenXIntrinsic::genx_usavg,
+                      llvm::GenXIntrinsic::genx_uuavg,
+                      llvm::GenXIntrinsic::genx_ssavg_sat,
+                      llvm::GenXIntrinsic::genx_suavg_sat,
+                      llvm::GenXIntrinsic::genx_usavg_sat,
+                      llvm::GenXIntrinsic::genx_uuavg_sat};
     // int (int, int);
     // int (unsigned, unsigned);
     // unsigned (int, int);
@@ -2198,14 +2236,14 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
       break;
     }
     unsigned IDs[] = {
-      llvm::GenXIntrinsic::genx_ssadd_sat,
-      llvm::GenXIntrinsic::genx_suadd_sat,
-      llvm::GenXIntrinsic::genx_usadd_sat,
-      llvm::GenXIntrinsic::genx_uuadd_sat,
-      llvm::GenXIntrinsic::genx_ssmul_sat,
-      llvm::GenXIntrinsic::genx_sumul_sat,
-      llvm::GenXIntrinsic::genx_usmul_sat,
-      llvm::GenXIntrinsic::genx_uumul_sat,
+        llvm::GenXIntrinsic::genx_ssadd_sat,
+        llvm::GenXIntrinsic::genx_suadd_sat,
+        llvm::GenXIntrinsic::genx_usadd_sat,
+        llvm::GenXIntrinsic::genx_uuadd_sat,
+        llvm::GenXIntrinsic::genx_ssmul_sat,
+        llvm::GenXIntrinsic::genx_sumul_sat,
+        llvm::GenXIntrinsic::genx_usmul_sat,
+        llvm::GenXIntrinsic::genx_uumul_sat,
     };
 
     // Intrinsic ID offset
@@ -2247,14 +2285,14 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
   }
   case CMBK_cm_shl_impl: {
     unsigned IDs[] = {
-      llvm::GenXIntrinsic::genx_ssshl,
-      llvm::GenXIntrinsic::genx_sushl,
-      llvm::GenXIntrinsic::genx_usshl,
-      llvm::GenXIntrinsic::genx_uushl,
-      llvm::GenXIntrinsic::genx_ssshl_sat,
-      llvm::GenXIntrinsic::genx_sushl_sat,
-      llvm::GenXIntrinsic::genx_usshl_sat,
-      llvm::GenXIntrinsic::genx_uushl_sat,
+        llvm::GenXIntrinsic::genx_ssshl,
+        llvm::GenXIntrinsic::genx_sushl,
+        llvm::GenXIntrinsic::genx_usshl,
+        llvm::GenXIntrinsic::genx_uushl,
+        llvm::GenXIntrinsic::genx_ssshl_sat,
+        llvm::GenXIntrinsic::genx_sushl_sat,
+        llvm::GenXIntrinsic::genx_usshl_sat,
+        llvm::GenXIntrinsic::genx_uushl_sat,
     };
 
     // Initialize ID offset for the saturated version
@@ -2289,8 +2327,8 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
     if (T1->isCMVectorMatrixType())
       T1 = T1->getCMVectorMatrixElementType();
 
-    ID = T1->isSignedIntegerType() ? llvm::GenXIntrinsic::genx_ssad2 :
-                                     llvm::GenXIntrinsic::genx_usad2;
+    ID = T1->isSignedIntegerType() ? llvm::GenXIntrinsic::genx_ssad2
+                                   : llvm::GenXIntrinsic::genx_usad2;
     break;
   }
   case CMBK_cm_sada2_impl: {
@@ -2303,20 +2341,17 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
       T1 = T1->getCMVectorMatrixElementType();
 
     if (TR->isSignedIntegerType() && T1->isSignedIntegerType()) {
-      ID = IsSaturated ? llvm::GenXIntrinsic::genx_sssad2add_sat :
-                         llvm::GenXIntrinsic::genx_sssad2add;
-    }
-    else if (TR->isSignedIntegerType() && !T1->isSignedIntegerType()) {
-      ID = IsSaturated ? llvm::GenXIntrinsic::genx_susad2add_sat :
-                         llvm::GenXIntrinsic::genx_susad2add;
-    }
-    else if (!TR->isSignedIntegerType() && T1->isSignedIntegerType()) {
-      ID = IsSaturated ? llvm::GenXIntrinsic::genx_ussad2add_sat :
-                         llvm::GenXIntrinsic::genx_ussad2add;
-    }
-    else {
-      ID = IsSaturated ? llvm::GenXIntrinsic::genx_uusad2add_sat :
-                         llvm::GenXIntrinsic::genx_uusad2add;
+      ID = IsSaturated ? llvm::GenXIntrinsic::genx_sssad2add_sat
+                       : llvm::GenXIntrinsic::genx_sssad2add;
+    } else if (TR->isSignedIntegerType() && !T1->isSignedIntegerType()) {
+      ID = IsSaturated ? llvm::GenXIntrinsic::genx_susad2add_sat
+                       : llvm::GenXIntrinsic::genx_susad2add;
+    } else if (!TR->isSignedIntegerType() && T1->isSignedIntegerType()) {
+      ID = IsSaturated ? llvm::GenXIntrinsic::genx_ussad2add_sat
+                       : llvm::GenXIntrinsic::genx_ussad2add;
+    } else {
+      ID = IsSaturated ? llvm::GenXIntrinsic::genx_uusad2add_sat
+                       : llvm::GenXIntrinsic::genx_uusad2add;
     }
     break;
   }
@@ -2325,8 +2360,8 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
     if (TR->isCMVectorMatrixType())
       TR = TR->getCMVectorMatrixElementType();
 
-    ID = TR->isSignedIntegerType() ? llvm::GenXIntrinsic::genx_sbfe :
-                                     llvm::GenXIntrinsic::genx_ubfe;
+    ID = TR->isSignedIntegerType() ? llvm::GenXIntrinsic::genx_sbfe
+                                   : llvm::GenXIntrinsic::genx_ubfe;
     break;
   }
   case CMBK_cm_sum_impl:
@@ -2412,14 +2447,14 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
     break;
   case CMBK_cm_dp4a_impl: {
     unsigned Dp4aIDs[] = {
-      llvm::GenXIntrinsic::genx_ssdp4a,
-      llvm::GenXIntrinsic::genx_sudp4a,
-      llvm::GenXIntrinsic::genx_usdp4a,
-      llvm::GenXIntrinsic::genx_uudp4a,
-      llvm::GenXIntrinsic::genx_ssdp4a_sat,
-      llvm::GenXIntrinsic::genx_sudp4a_sat,
-      llvm::GenXIntrinsic::genx_usdp4a_sat,
-      llvm::GenXIntrinsic::genx_uudp4a_sat,
+        llvm::GenXIntrinsic::genx_ssdp4a,
+        llvm::GenXIntrinsic::genx_sudp4a,
+        llvm::GenXIntrinsic::genx_usdp4a,
+        llvm::GenXIntrinsic::genx_uudp4a,
+        llvm::GenXIntrinsic::genx_ssdp4a_sat,
+        llvm::GenXIntrinsic::genx_sudp4a_sat,
+        llvm::GenXIntrinsic::genx_usdp4a_sat,
+        llvm::GenXIntrinsic::genx_uudp4a_sat,
     };
 
     // Initialize ID offset for the saturated version
@@ -2601,8 +2636,8 @@ private:
   void init();
 
   unsigned getV1Size() const {
-    if (V1->getType()->isVectorTy()) {
-      unsigned N1 = V1->getType()->getVectorNumElements();
+    if (auto *VTy = dyn_cast<llvm::FixedVectorType>(V1->getType())) {
+      unsigned N1 = VTy->getNumElements();
       assert(llvm::isPowerOf2_32(N1) && "not a power of 2");
       return N1;
     }
@@ -2610,9 +2645,11 @@ private:
   }
 
   unsigned getV2Size() const {
-    if (V2)
-      return (V2->getType()->isVectorTy() ? V2->getType()->getVectorNumElements() : 1);
-    return 0;
+    if (!V2)
+      return 0;
+    if (auto *VTy = dyn_cast<llvm::FixedVectorType>(V2->getType()))
+      return VTy->getNumElements();
+    return 1;
   }
 
   bool isSaturated() const {
@@ -2652,9 +2689,8 @@ private:
 void CMReductionEmitter::init() {
   // Initialize the reduction data.
   llvm::Value *OpVal = CallInfo.CI->getArgOperand(0);
-  llvm::Type *OpTy = OpVal->getType();
-  assert(OpTy->isVectorTy());
-  unsigned N = OpTy->getVectorNumElements();
+  auto *OpTy = cast<llvm::FixedVectorType>(OpVal->getType());
+  unsigned N = OpTy->getNumElements();
   if (llvm::isPowerOf2_32(N)) {
     V1 = OpVal;
     V2 = 0;
@@ -2678,7 +2714,8 @@ void CMReductionEmitter::init() {
       ToEltType = (N <= Threshold) ? Ctx.ShortTy : Ctx.IntTy;
       FromEltType = EltType;
     } else if (SizeInBytes == 2) {
-      ToEltType = EltType->isSignedIntegerType() ? Ctx.IntTy : Ctx.UnsignedIntTy;
+      ToEltType =
+          EltType->isSignedIntegerType() ? Ctx.IntTy : Ctx.UnsignedIntTy;
       FromEltType = EltType;
     }
   }
@@ -2728,7 +2765,9 @@ llvm::Value *CMReductionEmitter::Emit() {
     // Compute the cast kind.
     llvm::Instruction::CastOps CastOp;
     // For size-1 vector, didn't do the reduction. So remain as original type.
-    if (CallInfo.CI->getArgOperand(0)->getType()->getVectorNumElements() == 1)
+    auto *VTy = dyn_cast<llvm::FixedVectorType>(
+        CallInfo.CI->getArgOperand(0)->getType());
+    if (VTy && VTy->getNumElements() == 1)
       ToEltType = FromEltType;
     QualType F =
         ToEltType.isNull() ? CallInfo.CE->getArg(0)->getType() : ToEltType;
@@ -2803,11 +2842,12 @@ llvm::Value *CMReductionEmitter::reduce(llvm::Value *LHS, llvm::Value *RHS) {
       llvm::Instruction::CastOps CastOp;
       bool NeedsCast =
           CGCMRuntime::getCastOpKind(CastOp, CGF, ToEltType, FromEltType);
-      (void)NeedsCast;  assert(NeedsCast);
+      (void)NeedsCast;
+      assert(NeedsCast);
 
       llvm::Type *NewTy = ToEltTy;
-      if (LHS->getType()->isVectorTy())
-        NewTy = llvm::VectorType::get(ToEltTy, LHS->getType()->getVectorNumElements());
+      if (auto *VTy = dyn_cast<llvm::FixedVectorType>(LHS->getType()))
+        NewTy = llvm::FixedVectorType::get(ToEltTy, VTy->getNumElements());
 
       if (LHS->getType()->getScalarType() != ToEltTy)
         LHS = CGF.Builder.CreateCast(CastOp, LHS, NewTy);
@@ -2827,8 +2867,8 @@ llvm::Value *CMReductionEmitter::reduce(llvm::Value *LHS, llvm::Value *RHS) {
     assert(LHS->getType() == RHS->getType());
     assert(LHS->getType()->getScalarType() == CallInfo.CI->getType());
 
-    llvm::Type *Tys[2] = { LHS->getType(), LHS->getType() };
-    llvm::Value *Args[] = { LHS, RHS };
+    llvm::Type *Tys[2] = {LHS->getType(), LHS->getType()};
+    llvm::Value *Args[] = {LHS, RHS};
     llvm::Function *GenxFn = CMRT.getGenXIntrinsic(ID, Tys);
     LHS = CGF.Builder.CreateCall(GenxFn, Args);
     cast<llvm::Instruction>(LHS)->setDebugLoc(CallInfo.CI->getDebugLoc());
@@ -2879,7 +2919,7 @@ llvm::Value *CMReductionEmitter::reduceAddMul(llvm::Value *LHS,
   bool NeedsConv = CMRT.getCastOpKind(CastOp, CGF, T0, T1);
   llvm::Type *DstTy = CallInfo.CI->getType();
   if (LHS->getType()->isVectorTy())
-    DstTy = llvm::VectorType::get(CallInfo.CI->getType(), 1u);
+    DstTy = llvm::FixedVectorType::get(CallInfo.CI->getType(), 1u);
 
   if (T1->isFloatingType()) {
     // No genx intrinsic needed. For example
@@ -2896,7 +2936,8 @@ llvm::Value *CMReductionEmitter::reduceAddMul(llvm::Value *LHS,
       if (NeedsConv)
         LHS = CGF.Builder.CreateCast(CastOp, LHS, DstTy, "conv");
       if (isSaturated()) {
-        llvm::Function *Fn = CMRT.getGenXIntrinsic(llvm::GenXIntrinsic::genx_sat, DstTy);
+        llvm::Function *Fn =
+            CMRT.getGenXIntrinsic(llvm::GenXIntrinsic::genx_sat, DstTy);
         LHS = CGF.Builder.CreateCall(Fn, LHS, "sat");
       }
       return LHS;
@@ -2918,14 +2959,10 @@ llvm::Value *CMReductionEmitter::reduceAddMul(llvm::Value *LHS,
   // Src type is integer.
   assert(T1->isIntegerType());
   unsigned IDs[] = {
-    llvm::GenXIntrinsic::genx_ssadd_sat,
-    llvm::GenXIntrinsic::genx_suadd_sat,
-    llvm::GenXIntrinsic::genx_usadd_sat,
-    llvm::GenXIntrinsic::genx_uuadd_sat,
-    llvm::GenXIntrinsic::genx_ssmul_sat,
-    llvm::GenXIntrinsic::genx_sumul_sat,
-    llvm::GenXIntrinsic::genx_usmul_sat,
-    llvm::GenXIntrinsic::genx_uumul_sat,
+      llvm::GenXIntrinsic::genx_ssadd_sat, llvm::GenXIntrinsic::genx_suadd_sat,
+      llvm::GenXIntrinsic::genx_usadd_sat, llvm::GenXIntrinsic::genx_uuadd_sat,
+      llvm::GenXIntrinsic::genx_ssmul_sat, llvm::GenXIntrinsic::genx_sumul_sat,
+      llvm::GenXIntrinsic::genx_usmul_sat, llvm::GenXIntrinsic::genx_uumul_sat,
   };
   unsigned Offset = isAdd() ? 0 : 4;
 
@@ -2946,7 +2983,7 @@ llvm::Value *CMReductionEmitter::reduceAddMul(llvm::Value *LHS,
     } else {
       // Saturating case.
       llvm::Type *Tys[] = {LHS->getType(), LHS->getType()};
-      llvm::Value *Args[] = { LHS, RHS };
+      llvm::Value *Args[] = {LHS, RHS};
       llvm::Function *Fn = CMRT.getGenXIntrinsic(IDs[Offset], Tys);
       R0 = CGF.Builder.CreateCall(Fn, Args);
       cast<llvm::Instruction>(R0)->setDebugLoc(CallInfo.CI->getDebugLoc());
@@ -2969,13 +3006,17 @@ llvm::Value *CMReductionEmitter::reduceAddMul(llvm::Value *LHS,
       // The non-saturating case does not need an intrinsic. Just promote/demote
       // the args to the destination type and use a normal add/mul.
       auto ConvertedLHS = CGF.Builder.CreateCast(CastOp, LHS, DstTy, "conv");
-      cast<llvm::Instruction>(ConvertedLHS)->setDebugLoc(CallInfo.CI->getDebugLoc());
+      cast<llvm::Instruction>(ConvertedLHS)
+          ->setDebugLoc(CallInfo.CI->getDebugLoc());
       auto ConvertedRHS = CGF.Builder.CreateCast(CastOp, RHS, DstTy, "conv");
-      cast<llvm::Instruction>(ConvertedRHS)->setDebugLoc(CallInfo.CI->getDebugLoc());
+      cast<llvm::Instruction>(ConvertedRHS)
+          ->setDebugLoc(CallInfo.CI->getDebugLoc());
       if (isAdd())
-        R0 = CGF.Builder.CreateAdd(ConvertedLHS, ConvertedRHS, CallInfo.CI->getName());
+        R0 = CGF.Builder.CreateAdd(ConvertedLHS, ConvertedRHS,
+                                   CallInfo.CI->getName());
       else
-        R0 = CGF.Builder.CreateMul(ConvertedLHS, ConvertedRHS, CallInfo.CI->getName());
+        R0 = CGF.Builder.CreateMul(ConvertedLHS, ConvertedRHS,
+                                   CallInfo.CI->getName());
       cast<llvm::Instruction>(R0)->setDebugLoc(CallInfo.CI->getDebugLoc());
       LHS = R0;
     } else {
@@ -2984,7 +3025,7 @@ llvm::Value *CMReductionEmitter::reduceAddMul(llvm::Value *LHS,
       Offset += T1->isSignedIntegerType() ? 0 : 1;
 
       llvm::Type *Tys[] = {DstTy, LHS->getType()};
-      llvm::Value *Args[] = { LHS, RHS };
+      llvm::Value *Args[] = {LHS, RHS};
       llvm::Function *Fn = CMRT.getGenXIntrinsic(IDs[Offset], Tys);
       LHS = CGF.Builder.CreateCall(Fn, Args);
       cast<llvm::Instruction>(LHS)->setDebugLoc(CallInfo.CI->getDebugLoc());
@@ -2996,10 +3037,10 @@ llvm::Value *CMReductionEmitter::reduceAddMul(llvm::Value *LHS,
 
 llvm::Value *CMReductionEmitter::readRegion(llvm::Value *V, unsigned Sz,
                                             unsigned Offset) {
-  llvm::Type *Ty = V->getType();
-  if (!V->getType()->isVectorTy())
+  auto *Ty = dyn_cast<llvm::FixedVectorType>(V->getType());
+  if (!Ty)
     return V;
-  unsigned N = Ty->getVectorNumElements();
+  unsigned N = Ty->getNumElements();
   assert(Sz > 0 && "read at least one element?");
 
   // Single element access.
@@ -3007,7 +3048,7 @@ llvm::Value *CMReductionEmitter::readRegion(llvm::Value *V, unsigned Sz,
     llvm::Value *Index = llvm::ConstantInt::get(CGF.Int32Ty, 0);
     return CGF.Builder.CreateExtractElement(V, Index);
   }
-  else if (Sz == 1) {
+  if (Sz == 1) {
     llvm::Value *Index = llvm::ConstantInt::get(CGF.Int32Ty, Offset);
     return CGF.Builder.CreateExtractElement(V, Index);
   }
@@ -3061,9 +3102,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinOWordReadImpl(CMCallInfo &Info,
   unsigned ID = (Kind == CMBK_oword_read_impl)
                     ? llvm::GenXIntrinsic::genx_oword_ld
                     : llvm::GenXIntrinsic::genx_oword_ld_unaligned;
-  llvm::Type *RetTy = Info.CI->getType();
-  assert(isa<llvm::VectorType>(RetTy));
-  assert(llvm::isPowerOf2_32(RetTy->getVectorNumElements()));
+  auto *RetTy = cast<llvm::FixedVectorType>(Info.CI->getType());
+  assert(llvm::isPowerOf2_32(RetTy->getNumElements()));
 
   llvm::Function *LoadFn = getGenXIntrinsic(ID, RetTy);
   llvm::FunctionType *LoadFnTy = LoadFn->getFunctionType();
@@ -3099,13 +3139,12 @@ void CGCMRuntime::HandleBuiltinOWordWriteImpl(CMCallInfo &Info,
   // Overload this intrinsic with its input vector type which is the last
   // argument type.
   assert(Info.CI->getNumArgOperands() == 3);
-  llvm::Type *VecTy = Info.CI->getArgOperand(2)->getType();
+  auto *VecTy = cast<llvm::FixedVectorType>(Info.CI->getArgOperand(2)->getType());
   unsigned ID = llvm::GenXIntrinsic::genx_oword_st;
   llvm::Function *StoreFn = getGenXIntrinsic(ID, VecTy);
 
   // The data size in OWords is in {1, 2, 4, 8, 16}.
-  assert(isa<llvm::VectorType>(VecTy));
-  assert(llvm::isPowerOf2_32(VecTy->getVectorNumElements()));
+  assert(llvm::isPowerOf2_32(VecTy->getNumElements()));
   assert(VecTy->getPrimitiveSizeInBits() / 8 >= OWORD);
 
   auto &TOpts = CGM.getTarget().getTargetOpts();
@@ -3190,8 +3229,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinMediaReadImpl(CMCallInfo &Info) {
   // Plane
   Args.push_back(llvm::Constant::getNullValue(LoadFnTy->getParamType(2)));
   // Block width in bytes.
-  Args.push_back(llvm::ConstantInt::get(LoadFnTy->getParamType(3),
-    WidthInBytes));
+  Args.push_back(
+      llvm::ConstantInt::get(LoadFnTy->getParamType(3), WidthInBytes));
   // x byte offset, the input is already in bytes.
   Args.push_back(Info.CI->getArgOperand(1));
   // y byte offset, the input is already in bytes.
@@ -3318,8 +3357,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinMediaReadPlane(CMCallInfo &Info) {
   // Plane
   Args.push_back(llvm::ConstantInt::get(PlaneType, Plane));
   // Block width in bytes.
-  Args.push_back(llvm::ConstantInt::get(LoadFnTy->getParamType(3),
-    BlockWidthInBytes));
+  Args.push_back(
+      llvm::ConstantInt::get(LoadFnTy->getParamType(3), BlockWidthInBytes));
   // x byte offset, the input is already in bytes.
   Args.push_back(Info.CI->getArgOperand(1));
   // y byte offset, the input is already in bytes.
@@ -3380,9 +3419,9 @@ llvm::Value *CGCMRuntime::HandleBuiltinScatterReadWriteImpl(CMCallInfo &Info,
                           llvm::APInt(32, NBlocksLog2), // NBlocks
                           0,                            // scale
                           Info.CI->getArgOperand(0),    // surface index
-                          Info.CI->getArgOperand(1),    // global offset in bytes
-                          Info.CI->getArgOperand(2),    // element offset in bytes
-                          Info.CI->getArgOperand(3)     // data to write
+                          Info.CI->getArgOperand(1), // global offset in bytes
+                          Info.CI->getArgOperand(2), // element offset in bytes
+                          Info.CI->getArgOperand(3)  // data to write
         );
   else
     NewCI =
@@ -3391,8 +3430,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinScatterReadWriteImpl(CMCallInfo &Info,
                          0,                            // scale
                          Info.CI->getArgOperand(0),    // surface index
                          Info.CI->getArgOperand(1),    // global offset in bytes
-                         Info.CI->getArgOperand(2),    // element offset in bytes
-                         Info.CI->getArgOperand(3)     // old value data
+                         Info.CI->getArgOperand(2), // element offset in bytes
+                         Info.CI->getArgOperand(3)  // old value data
         );
   NewCI->setDebugLoc(Info.CI->getDebugLoc());
   Info.CI->eraseFromParent();
@@ -3543,12 +3582,15 @@ llvm::Value *CGCMRuntime::HandleBuiltinSample32Impl(CMCallInfo &CallInfo,
 }
 
 /// \brief Postprocess builtin cm_3d_sample, cm_3d_load.
-/// template <CM3DSampleOp Op, ChannelMaskType Ch, typename T, int N, typename... Args>
-/// void cm_3d_sample(vector_ref<T, N> dst, ushort Aoffimmi, SamplerIndex sampIndex, SurfaceIndex surfIndex, Args... args);
-/// template <CM3DLoadOp Op, ChannelMaskType Ch, typename T, int N, typename... Args>
-/// void cm_3d_load(vector_ref<T, N> dst, ushort Aofimmi, SurfaceIndex surfIndex, Args... args);
+/// template <CM3DSampleOp Op, ChannelMaskType Ch, typename T, int N,
+/// typename... Args> void cm_3d_sample(vector_ref<T, N> dst, ushort Aoffimmi,
+/// SamplerIndex sampIndex, SurfaceIndex surfIndex, Args... args); template
+/// <CM3DLoadOp Op, ChannelMaskType Ch, typename T, int N, typename... Args>
+/// void cm_3d_load(vector_ref<T, N> dst, ushort Aofimmi, SurfaceIndex
+/// surfIndex, Args... args);
 ///
-void CGCMRuntime::HandleBuiltin3dOperationImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind) {
+void CGCMRuntime::HandleBuiltin3dOperationImpl(CMCallInfo &CallInfo,
+                                               CMBuiltinKind Kind) {
   assert(Kind == CMBK_cm_3d_sample || Kind == CMBK_cm_3d_load);
   CodeGenFunction &CGF = *CallInfo.CGF;
 
@@ -3578,7 +3620,8 @@ void CGCMRuntime::HandleBuiltin3dOperationImpl(CMCallInfo &CallInfo, CMBuiltinKi
   // So, if they appear to have more, do not fault it, just make
   // sure the closest valid SIMD width is chosen.
   if (SimdWidth < 8)
-    CGF.CGM.Error(CallInfo.CE->getArg(3)->getExprLoc(), "cm_3d_sample argument must have at least 8 elements");
+    CGF.CGM.Error(CallInfo.CE->getArg(3)->getExprLoc(),
+                  "cm_3d_sample argument must have at least 8 elements");
   else if (SimdWidth < 16)
     SimdWidth = 8;
   else
@@ -3588,43 +3631,52 @@ void CGCMRuntime::HandleBuiltin3dOperationImpl(CMCallInfo &CallInfo, CMBuiltinKi
 
   llvm::Value *Dst = CallInfo.CI->getArgOperand(0);
   llvm::Type *DstTy = Dst->getType();
-  assert(DstTy->isPointerTy() && "pointer type expected for destination argument");
+  assert(DstTy->isPointerTy() &&
+         "pointer type expected for destination argument");
   Tys.push_back(DstTy->getPointerElementType());
   Tys.push_back(MaskType);
 
-  Args.push_back(llvm::ConstantInt::get(CGF.Int32Ty, getIntegralValue(FD, 0))); // Opcode
-  Args.push_back(llvm::Constant::getAllOnesValue(MaskType)); // Predicate, used to determine execution size
-  Args.push_back(llvm::ConstantInt::get(CGF.Int32Ty, getIntegralValue(FD, 1))); // Channel mask
-  for (unsigned SI = 1; SI < VariantArgStart; ++ SI)
-    Args.push_back(CallInfo.CI->getArgOperand(SI)); // Any required Aofimmi value, and sampler and surface indices
-  Tys.push_back(CallInfo.CI->getArgOperand(VariantArgStart)->getType()); // First argument type
+  Args.push_back(
+      llvm::ConstantInt::get(CGF.Int32Ty, getIntegralValue(FD, 0))); // Opcode
+  Args.push_back(llvm::Constant::getAllOnesValue(
+      MaskType)); // Predicate, used to determine execution size
+  Args.push_back(llvm::ConstantInt::get(
+      CGF.Int32Ty, getIntegralValue(FD, 1))); // Channel mask
+  for (unsigned SI = 1; SI < VariantArgStart; ++SI)
+    Args.push_back(CallInfo.CI->getArgOperand(
+        SI)); // Any required Aofimmi value, and sampler and surface indices
+  Tys.push_back(CallInfo.CI->getArgOperand(VariantArgStart)
+                    ->getType()); // First argument type
   Args.push_back(CallInfo.CI->getArgOperand(VariantArgStart)); // First argument
 
   // Remaining optional arguments
   unsigned I;
-  for (I = VariantArgStart + 1; I < NumArgs; ++ I) {
+  for (I = VariantArgStart + 1; I < NumArgs; ++I) {
     // Validate that each of the variadic arguments is a vector or matrix with
     // at least the number of elements as required by the execution size.
 
     QualType AT = CallInfo.CE->getArg(I)->getType();
     unsigned NumElements = 0;
     if (AT->isCMMatrixType())
-      NumElements = AT->castAs<CMMatrixType>()->getNumRows() * AT->castAs<CMMatrixType>()->getNumColumns();
+      NumElements = AT->castAs<CMMatrixType>()->getNumRows() *
+                    AT->castAs<CMMatrixType>()->getNumColumns();
     else if (AT->isCMVectorType())
       NumElements = AT->castAs<CMVectorType>()->getNumElements();
     else
-      CGF.CGM.Error(CallInfo.CE->getArg(I)->getExprLoc(), "must be a matrix or vector type");
+      CGF.CGM.Error(CallInfo.CE->getArg(I)->getExprLoc(),
+                    "must be a matrix or vector type");
     if (NumElements < SimdWidth)
-      CGF.CGM.Error(CallInfo.CE->getArg(I)->getExprLoc(), "matrix or vector contains too few elements");
+      CGF.CGM.Error(CallInfo.CE->getArg(I)->getExprLoc(),
+                    "matrix or vector contains too few elements");
 
     Tys.push_back(CallInfo.CI->getArgOperand(I)->getType());
     Args.push_back(CallInfo.CI->getArgOperand(I));
   }
 
   // Pad out remaining intrinsic operands with zero
-  llvm::Type *PadTy = llvm::VectorType::get(CGF.FloatTy, SimdWidth);
+  llvm::Type *PadTy = llvm::FixedVectorType::get(CGF.FloatTy, SimdWidth);
   llvm::Value *PadVal = llvm::Constant::getNullValue(PadTy);
-  for (; I < VariantArgStart + 15; ++ I) {
+  for (; I < VariantArgStart + 15; ++I) {
     Tys.push_back(PadTy);
     Args.push_back(PadVal);
   }
@@ -3656,8 +3708,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinLoad16Impl(CMCallInfo &CallInfo,
 
   // Overload with its return type and the vector offset type.
   llvm::Function *Fn = CallInfo.CI->getCalledFunction();
-  llvm::Type *Tys[] = { Fn->getReturnType(),
-    Fn->getFunctionType()->getParamType(1) };
+  llvm::Type *Tys[] = {Fn->getReturnType(),
+                       Fn->getFunctionType()->getParamType(1)};
   llvm::Function *GenxFn = getGenXIntrinsic(ID, Tys);
 
   assert(CallInfo.CI->getNumArgOperands() == 4);
@@ -3814,8 +3866,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinWriteAtomicImpl(CMCallInfo &CallInfo,
   // Return type
   Tys.push_back(CallInfo.CI->getType());
   // Predicate type
-  llvm::VectorType *MaskTy = getMaskType(C,
-      CallInfo.CI->getType()->getVectorNumElements());
+  auto *VTy = cast<llvm::FixedVectorType>(CallInfo.CI->getType());
+  auto *MaskTy = getMaskType(C, VTy->getNumElements());
   Tys.push_back(MaskTy);
   // Offset type (selectively mangled)
   if (ID != llvm::GenXIntrinsic::genx_dword_atomic_cmpxchg &&
@@ -3824,7 +3876,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinWriteAtomicImpl(CMCallInfo &CallInfo,
       ID != llvm::GenXIntrinsic::genx_dword_atomic2_cmpxchg &&
       ID != llvm::GenXIntrinsic::genx_dword_atomic2_inc &&
       ID != llvm::GenXIntrinsic::genx_dword_atomic2_dec)
-     Tys.push_back(CallInfo.CI->getArgOperand(2)->getType());
+    Tys.push_back(CallInfo.CI->getArgOperand(2)->getType());
 
   llvm::Function *GenxFn = getGenXIntrinsic(ID, Tys);
 
@@ -3883,8 +3935,9 @@ llvm::Value *CGCMRuntime::HandleBuiltinWriteAtomicImpl(CMCallInfo &CallInfo,
 ///                                        vector<T, N> src0, vector<T, N> src1,
 ///                                        vector<uint, N> u, Args... args);
 ///
-llvm::Value *CGCMRuntime::HandleBuiltinWriteAtomicTypedImpl(CMCallInfo &CallInfo,
-                                                            CMBuiltinKind Kind) {
+llvm::Value *
+CGCMRuntime::HandleBuiltinWriteAtomicTypedImpl(CMCallInfo &CallInfo,
+                                               CMBuiltinKind Kind) {
   llvm::LLVMContext &C = CallInfo.CGF->getLLVMContext();
 
   CmAtomicOpType Op = static_cast<CmAtomicOpType>(
@@ -3896,7 +3949,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinWriteAtomicTypedImpl(CMCallInfo &CallInfo
   // Return type
   Tys.push_back(CallInfo.CI->getType());
   // Predicate type
-  llvm::Type *MaskTy = getMaskType(C, CallInfo.CI->getType()->getVectorNumElements());
+  auto *VTy = cast<llvm::FixedVectorType>(CallInfo.CI->getType());
+  auto *MaskTy = getMaskType(C, VTy->getNumElements());
   Tys.push_back(MaskTy);
   // Coordinate type
   Tys.push_back(CallInfo.CI->getArgOperand(4)->getType());
@@ -3939,7 +3993,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinWriteAtomicTypedImpl(CMCallInfo &CallInfo
     } else {
       unsigned parm_to_fill = Args.size();
       Args.push_back(llvm::UndefValue::get(
-                     GenxFn->getFunctionType()->getParamType(parm_to_fill)));
+          GenxFn->getFunctionType()->getParamType(parm_to_fill)));
     }
   }
 
@@ -3983,7 +4037,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinPackMaskImpl(CMCallInfo &CallInfo) {
 
   llvm::Value *Trunc = Builder.CreateTrunc(
       CI->getArgOperand(0),
-      llvm::VectorType::get(llvm::Type::getInt1Ty(Context), N));
+      llvm::FixedVectorType::get(llvm::Type::getInt1Ty(Context), N));
   llvm::Type *Ty = llvm::Type::getIntNTy(Context, N);
 
   llvm::Value *BitCast = Builder.CreateBitCast(Trunc, Ty);
@@ -4032,11 +4086,11 @@ llvm::Value *CGCMRuntime::HandleBuiltinUnPackMaskImpl(CMCallInfo &CallInfo) {
   }
   assert(Arg0->getType()->getPrimitiveSizeInBits() == N);
   Arg0 = Builder.CreateBitCast(
-      Arg0, llvm::VectorType::get(llvm::Type::getInt1Ty(Context), N));
+      Arg0, llvm::FixedVectorType::get(llvm::Type::getInt1Ty(Context), N));
 
   // get N x i16
   llvm::Value *NewCI = Builder.CreateZExt(
-      Arg0, llvm::VectorType::get(llvm::Type::getInt16Ty(Context), N));
+      Arg0, llvm::FixedVectorType::get(llvm::Type::getInt16Ty(Context), N));
   NewCI->takeName(CI);
   cast<llvm::Instruction>(NewCI)->setDebugLoc(CI->getDebugLoc());
 
@@ -4160,7 +4214,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinSendsImpl(CMCallInfo &CallInfo) {
 
   uint32_t ExDescVal = 0;
   getConstantValue(*this, CGF, ExDescVal, CallInfo.CI->getArgOperand(3),
-    CallInfo.CE->getArg(3));
+                   CallInfo.CE->getArg(3));
   uint8_t SFID = ExDescVal & 0xF;
 
   // Types for overloading.
@@ -4187,11 +4241,11 @@ llvm::Value *CGCMRuntime::HandleBuiltinSendsImpl(CMCallInfo &CallInfo) {
   Args.push_back(
       llvm::ConstantInt::get(FTy->getParamType(0), IsSendc & 0x1)); // modifier
   Args.push_back(llvm::ConstantInt::getTrue(FTy->getParamType(1))); // predicate
-  Args.push_back(llvm::ConstantInt::get(CGF.Int8Ty, SFID)); // SFID
-  Args.push_back(CallInfo.CI->getArgOperand(3)); // ExMsgDesc
-  Args.push_back(CallInfo.CI->getArgOperand(4)); // msgDesc
-  Args.push_back(CallInfo.CI->getArgOperand(1)); // msgVar
-  Args.push_back(CallInfo.CI->getArgOperand(2)); // msgVar
+  Args.push_back(llvm::ConstantInt::get(CGF.Int8Ty, SFID));         // SFID
+  Args.push_back(CallInfo.CI->getArgOperand(3));                    // ExMsgDesc
+  Args.push_back(CallInfo.CI->getArgOperand(4));                    // msgDesc
+  Args.push_back(CallInfo.CI->getArgOperand(1));                    // msgVar
+  Args.push_back(CallInfo.CI->getArgOperand(2));                    // msgVar
   if (HasDst)
     Args.push_back(CGF.Builder.CreateDefaultAlignedLoad(Arg0)); // oldDst
 
@@ -4208,7 +4262,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinSendsImpl(CMCallInfo &CallInfo) {
 
 /// template <typename U1, int N1, typename U2, int N2,
 ///           typename U3, int N3, int N = 16>
-/// void cm_raw_send(vector_ref<U1, N1> rspVar, vector<U2, N2> msgVar, vector<U3, N3> msgVar2,
+/// void cm_raw_send(vector_ref<U1, N1> rspVar, vector<U2, N2> msgVar,
+/// vector<U3, N3> msgVar2,
 ///                  uint exDesc, uint msgDesc, uchar execSize, uchar sfid,
 ///                  uchar numSrc0, uchar numSrc1, uchar numDst,
 ///                  uchar isEOT = 0, uchar isSendc = 0,
@@ -4218,31 +4273,31 @@ llvm::Value *CGCMRuntime::HandleBuiltinRawSendImpl(CMCallInfo &CallInfo) {
 
   uint32_t ExecSize = 0;
   getConstantValue(*this, CGF, ExecSize, CallInfo.CI->getArgOperand(5),
-    CallInfo.CE->getArg(5));
+                   CallInfo.CE->getArg(5));
 
   uint32_t SFID = 0;
   getConstantValue(*this, CGF, SFID, CallInfo.CI->getArgOperand(6),
-    CallInfo.CE->getArg(6));
+                   CallInfo.CE->getArg(6));
 
   uint32_t NumSrc0 = 0;
   getConstantValue(*this, CGF, NumSrc0, CallInfo.CI->getArgOperand(7),
-    CallInfo.CE->getArg(7));
+                   CallInfo.CE->getArg(7));
 
   uint32_t NumSrc1 = 0;
   getConstantValue(*this, CGF, NumSrc1, CallInfo.CI->getArgOperand(8),
-    CallInfo.CE->getArg(8));
+                   CallInfo.CE->getArg(8));
 
   uint32_t NumDst = 0;
   getConstantValue(*this, CGF, NumDst, CallInfo.CI->getArgOperand(9),
-    CallInfo.CE->getArg(9));
+                   CallInfo.CE->getArg(9));
 
   uint32_t IsEOT = 0;
   getConstantValue(*this, CGF, IsEOT, CallInfo.CI->getArgOperand(10),
-    CallInfo.CE->getArg(10));
+                   CallInfo.CE->getArg(10));
 
   uint32_t IsSendc = 0;
   getConstantValue(*this, CGF, IsSendc, CallInfo.CI->getArgOperand(11),
-    CallInfo.CE->getArg(11));
+                   CallInfo.CE->getArg(11));
 
   // Types for overloading.
   llvm::Value *Dst = CallInfo.CI->getArgOperand(0);
@@ -4264,11 +4319,13 @@ llvm::Value *CGCMRuntime::HandleBuiltinRawSendImpl(CMCallInfo &CallInfo) {
   llvm::FunctionType *FTy = nullptr;
   SmallVector<llvm::Type *, 8> Tys;
   SmallVector<llvm::Value *, 12> Args;
+  auto *PredTy = cast<llvm::FixedVectorType>(Pred->getType());
 
   if (HasDst && HasSrc1) {
-    Tys.push_back(Dst->getType()->getPointerElementType());  // rspVar
-    llvm::Type *MaskTy = getMaskType(CallInfo.CGF->getLLVMContext(), Pred->getType()->getVectorNumElements());
-    Tys.push_back(MaskTy); // Predicate
+    Tys.push_back(Dst->getType()->getPointerElementType()); // rspVar
+    auto *MaskTy =
+        getMaskType(CallInfo.CGF->getLLVMContext(), PredTy->getNumElements());
+    Tys.push_back(MaskTy);          // Predicate
     Tys.push_back(Src0->getType()); // msgVar1
     Tys.push_back(Src1->getType()); // msgVar2
 
@@ -4276,26 +4333,31 @@ llvm::Value *CGCMRuntime::HandleBuiltinRawSendImpl(CMCallInfo &CallInfo) {
     Fn = getGenXIntrinsic(ID, Tys);
     FTy = Fn->getFunctionType();
 
+    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(0),
+                                          ((IsEOT & 0x1) << 1) |
+                                              (IsSendc & 0x1))); // modifier
     Args.push_back(
-      llvm::ConstantInt::get(FTy->getParamType(0), ((IsEOT & 0x1) << 1) | (IsSendc & 0x1))); // modifier
-    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(1), ExecSize)); // execSize
+        llvm::ConstantInt::get(FTy->getParamType(1), ExecSize)); // execSize
     Pred = CallInfo.CGF->Builder.CreateTrunc(Pred, MaskTy);
     if (auto Inst = dyn_cast<llvm::Instruction>(Pred))
       Inst->setDebugLoc(CallInfo.CI->getDebugLoc());
     Args.push_back(Pred); // Predicate
-    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(3), NumSrc0)); // numSrc0
-    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(4), NumSrc1)); // numSrc1
-    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(5), NumDst)); // numDst
+    Args.push_back(
+        llvm::ConstantInt::get(FTy->getParamType(3), NumSrc0)); // numSrc0
+    Args.push_back(
+        llvm::ConstantInt::get(FTy->getParamType(4), NumSrc1)); // numSrc1
+    Args.push_back(
+        llvm::ConstantInt::get(FTy->getParamType(5), NumDst)); // numDst
     Args.push_back(llvm::ConstantInt::get(FTy->getParamType(6), SFID)); // SFID
-    Args.push_back(CallInfo.CI->getArgOperand(3)); // ExMsgDesc
-    Args.push_back(CallInfo.CI->getArgOperand(4)); // msgDesc
-    Args.push_back(CallInfo.CI->getArgOperand(1)); // msgVar
-    Args.push_back(CallInfo.CI->getArgOperand(2)); // msgVar
+    Args.push_back(CallInfo.CI->getArgOperand(3));             // ExMsgDesc
+    Args.push_back(CallInfo.CI->getArgOperand(4));             // msgDesc
+    Args.push_back(CallInfo.CI->getArgOperand(1));             // msgVar
+    Args.push_back(CallInfo.CI->getArgOperand(2));             // msgVar
     Args.push_back(CGF.Builder.CreateDefaultAlignedLoad(Dst)); // dst
-  }
-  else if (!HasDst && HasSrc1) {
-    llvm::Type *MaskTy = getMaskType(CallInfo.CGF->getLLVMContext(), Pred->getType()->getVectorNumElements());
-    Tys.push_back(MaskTy); // Predicate
+  } else if (!HasDst && HasSrc1) {
+    llvm::Type *MaskTy = getMaskType(CallInfo.CGF->getLLVMContext(),
+                                     PredTy->getNumElements());
+    Tys.push_back(MaskTy);          // Predicate
     Tys.push_back(Src0->getType()); // msgVar1
     Tys.push_back(Src1->getType()); // msgVar2
 
@@ -4303,63 +4365,74 @@ llvm::Value *CGCMRuntime::HandleBuiltinRawSendImpl(CMCallInfo &CallInfo) {
     Fn = getGenXIntrinsic(ID, Tys);
     FTy = Fn->getFunctionType();
 
+    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(0),
+                                          ((IsEOT & 0x1) << 1) |
+                                              (IsSendc & 0x1))); // modifier
     Args.push_back(
-      llvm::ConstantInt::get(FTy->getParamType(0), ((IsEOT & 0x1) << 1) | (IsSendc & 0x1))); // modifier
-    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(1), ExecSize)); // execSize
+        llvm::ConstantInt::get(FTy->getParamType(1), ExecSize)); // execSize
     Pred = CallInfo.CGF->Builder.CreateTrunc(Pred, MaskTy);
     if (auto Inst = dyn_cast<llvm::Instruction>(Pred))
       Inst->setDebugLoc(CallInfo.CI->getDebugLoc());
     Args.push_back(Pred); // Predicate
-    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(3), NumSrc0)); // numSrc0
-    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(4), NumSrc1)); // numSrc1
+    Args.push_back(
+        llvm::ConstantInt::get(FTy->getParamType(3), NumSrc0)); // numSrc0
+    Args.push_back(
+        llvm::ConstantInt::get(FTy->getParamType(4), NumSrc1)); // numSrc1
     Args.push_back(llvm::ConstantInt::get(FTy->getParamType(5), SFID)); // SFID
     Args.push_back(CallInfo.CI->getArgOperand(3)); // ExMsgDesc
     Args.push_back(CallInfo.CI->getArgOperand(4)); // msgDesc
     Args.push_back(CallInfo.CI->getArgOperand(1)); // msgVar
     Args.push_back(CallInfo.CI->getArgOperand(2)); // msgVar
-  }
-  else if (HasDst && !HasSrc1) {
-    Tys.push_back(Dst->getType()->getPointerElementType());  // rspVar
-    llvm::Type *MaskTy = getMaskType(CallInfo.CGF->getLLVMContext(), Pred->getType()->getVectorNumElements());
-    Tys.push_back(MaskTy); // Predicate
+  } else if (HasDst && !HasSrc1) {
+    Tys.push_back(Dst->getType()->getPointerElementType()); // rspVar
+    llvm::Type *MaskTy = getMaskType(CallInfo.CGF->getLLVMContext(),
+                                     PredTy->getNumElements());
+    Tys.push_back(MaskTy);          // Predicate
     Tys.push_back(Src0->getType()); // msgVar1
 
     unsigned ID = llvm::GenXIntrinsic::genx_raw_send2;
     Fn = getGenXIntrinsic(ID, Tys);
     FTy = Fn->getFunctionType();
 
+    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(0),
+                                          ((IsEOT & 0x1) << 1) |
+                                              (IsSendc & 0x1))); // modifier
     Args.push_back(
-      llvm::ConstantInt::get(FTy->getParamType(0), ((IsEOT & 0x1) << 1) | (IsSendc & 0x1))); // modifier
-    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(1), ExecSize)); // execSize
+        llvm::ConstantInt::get(FTy->getParamType(1), ExecSize)); // execSize
     Pred = CallInfo.CGF->Builder.CreateTrunc(Pred, MaskTy);
     if (auto Inst = dyn_cast<llvm::Instruction>(Pred))
       Inst->setDebugLoc(CallInfo.CI->getDebugLoc());
     Args.push_back(Pred); // Predicate
-    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(3), NumSrc0)); // numSrc0
-    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(4), NumDst)); // numDst
+    Args.push_back(
+        llvm::ConstantInt::get(FTy->getParamType(3), NumSrc0)); // numSrc0
+    Args.push_back(
+        llvm::ConstantInt::get(FTy->getParamType(4), NumDst)); // numDst
     Args.push_back(llvm::ConstantInt::get(FTy->getParamType(5), SFID)); // SFID
-    Args.push_back(CallInfo.CI->getArgOperand(3)); // ExMsgDesc
-    Args.push_back(CallInfo.CI->getArgOperand(4)); // msgDesc
-    Args.push_back(CallInfo.CI->getArgOperand(1)); // msgVar
+    Args.push_back(CallInfo.CI->getArgOperand(3));             // ExMsgDesc
+    Args.push_back(CallInfo.CI->getArgOperand(4));             // msgDesc
+    Args.push_back(CallInfo.CI->getArgOperand(1));             // msgVar
     Args.push_back(CGF.Builder.CreateDefaultAlignedLoad(Dst)); // dst
-  }
-  else {
-    llvm::Type *MaskTy = getMaskType(CallInfo.CGF->getLLVMContext(), Pred->getType()->getVectorNumElements());
-    Tys.push_back(MaskTy); // Predicate
+  } else {
+    llvm::Type *MaskTy = getMaskType(CallInfo.CGF->getLLVMContext(),
+                                     PredTy->getNumElements());
+    Tys.push_back(MaskTy);          // Predicate
     Tys.push_back(Src0->getType()); // msgVar1
 
     unsigned ID = llvm::GenXIntrinsic::genx_raw_send2_noresult;
     Fn = getGenXIntrinsic(ID, Tys);
     FTy = Fn->getFunctionType();
 
+    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(0),
+                                          ((IsEOT & 0x1) << 1) |
+                                              (IsSendc & 0x1))); // modifier
     Args.push_back(
-      llvm::ConstantInt::get(FTy->getParamType(0), ((IsEOT & 0x1) << 1) | (IsSendc & 0x1))); // modifier
-    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(1), ExecSize)); // execSize
+        llvm::ConstantInt::get(FTy->getParamType(1), ExecSize)); // execSize
     Pred = CallInfo.CGF->Builder.CreateTrunc(Pred, MaskTy);
     if (auto Inst = dyn_cast<llvm::Instruction>(Pred))
       Inst->setDebugLoc(CallInfo.CI->getDebugLoc());
     Args.push_back(Pred); // Predicate
-    Args.push_back(llvm::ConstantInt::get(FTy->getParamType(3), NumSrc0)); // numSrc0
+    Args.push_back(
+        llvm::ConstantInt::get(FTy->getParamType(3), NumSrc0)); // numSrc0
     Args.push_back(llvm::ConstantInt::get(FTy->getParamType(4), SFID)); // SFID
     Args.push_back(CallInfo.CI->getArgOperand(3)); // ExMsgDesc
     Args.push_back(CallInfo.CI->getArgOperand(4)); // msgDesc
@@ -4429,7 +4502,6 @@ llvm::Value *CGCMRuntime::HandleBuiltinUnmaskEndImpl(CMCallInfo &CallInfo) {
   return NewCI;
 }
 
-
 /// template <typename T> T cm_get_value(T index);
 ///
 llvm::Value *CGCMRuntime::HandleBuiltinGetValueImpl(CMCallInfo &CallInfo) {
@@ -4497,8 +4569,7 @@ void CGCMRuntime::HandleBuiltinReadWriteUntypedImpl(CMCallInfo &CallInfo,
 
   if (IsRead) {
     auto NewCI = EmitGatherScaled(
-        CGF,
-        llvm::GenXIntrinsic::genx_gather4_masked_scaled2,
+        CGF, llvm::GenXIntrinsic::genx_gather4_masked_scaled2,
         llvm::APInt(32, Mask),                     // channel mask
         0,                                         // scale
         CallInfo.CI->getArgOperand(0),             // surface index
@@ -4510,16 +4581,15 @@ void CGCMRuntime::HandleBuiltinReadWriteUntypedImpl(CMCallInfo &CallInfo,
     CallInfo.CI->eraseFromParent();
     CGF.Builder.CreateDefaultAlignedStore(NewCI, Arg2);
   } else {
-    auto NewCI = EmitScatterScaled(
-        CGF,
-        llvm::GenXIntrinsic::genx_scatter4_scaled,
-        llvm::APInt(32, Mask),         // channel mask
-        0,                             // scale
-        CallInfo.CI->getArgOperand(0), // surface index
-        CGF.Builder.getInt32(0),       // global offset in bytes
-        EltOffset,                     // element offset in bytes
-        Arg2                           // data to write
-    );
+    auto NewCI =
+        EmitScatterScaled(CGF, llvm::GenXIntrinsic::genx_scatter4_scaled,
+                          llvm::APInt(32, Mask),         // channel mask
+                          0,                             // scale
+                          CallInfo.CI->getArgOperand(0), // surface index
+                          CGF.Builder.getInt32(0), // global offset in bytes
+                          EltOffset,               // element offset in bytes
+                          Arg2                     // data to write
+        );
     NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
     CallInfo.CI->eraseFromParent();
   }
@@ -4548,15 +4618,13 @@ void CGCMRuntime::HandleBuiltinReadTypedImpl(CMCallInfo &CallInfo) {
     return Error(CallInfo.CE->getArg(1)->getExprLoc(),
                  "invalid channel mask kind");
 
-
   // Check whether matrix height is no less than the number of colors enabled.
   QualType MT = CallInfo.CE->getArg(2)->getType();
-  unsigned N1=0, N2=0;
+  unsigned N1 = 0, N2 = 0;
   if (MT->isCMMatrixType()) {
     N1 = MT->castAs<CMMatrixType>()->getNumRows();
     N2 = MT->castAs<CMMatrixType>()->getNumColumns();
-  }
-  else if (MT->isCMVectorType()) {
+  } else if (MT->isCMVectorType()) {
     N1 = 1;
     N2 = MT->castAs<CMVectorType>()->getNumElements();
   }
@@ -4571,12 +4639,13 @@ void CGCMRuntime::HandleBuiltinReadTypedImpl(CMCallInfo &CallInfo) {
 
   // Types for overloading.
   llvm::Type *Tys[] = {
-      Arg2Ty,                                      // data type
-      getMaskType(CGF.getLLVMContext(), N2),       // predicate
-      CallInfo.CI->getArgOperand(3)->getType()     // U pixel
+      Arg2Ty,                                  // data type
+      getMaskType(CGF.getLLVMContext(), N2),   // predicate
+      CallInfo.CI->getArgOperand(3)->getType() // U pixel
   };
 
-  llvm::Function *Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_gather4_typed, Tys);
+  llvm::Function *Fn =
+      getGenXIntrinsic(llvm::GenXIntrinsic::genx_gather4_typed, Tys);
   llvm::FunctionType *FTy = Fn->getFunctionType();
   llvm::Value *Args[] = {
       llvm::ConstantInt::get(FTy->getParamType(0),
@@ -4617,7 +4686,6 @@ void CGCMRuntime::HandleBuiltinWriteTypedImpl(CMCallInfo &CallInfo) {
     return Error(CallInfo.CE->getArg(1)->getExprLoc(),
                  "invalid channel mask kind");
 
-
   // Check whether matrix height is no less than the number of colors enabled.
   QualType MT = CallInfo.CE->getArg(2)->getType();
   unsigned N1 = MT->castAs<CMMatrixType>()->getNumRows();
@@ -4631,21 +4699,22 @@ void CGCMRuntime::HandleBuiltinWriteTypedImpl(CMCallInfo &CallInfo) {
   // Types for overloading.
   llvm::Value *Arg2 = CallInfo.CI->getArgOperand(2);
   llvm::Type *Tys[] = {
-      getMaskType(CGF.getLLVMContext(), N2),       // predicate
-      CallInfo.CI->getArgOperand(3)->getType(),    // U pixel
-      Arg2->getType()                              // data type
+      getMaskType(CGF.getLLVMContext(), N2),    // predicate
+      CallInfo.CI->getArgOperand(3)->getType(), // U pixel
+      Arg2->getType()                           // data type
   };
-  llvm::Function *Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_scatter4_typed, Tys);
+  llvm::Function *Fn =
+      getGenXIntrinsic(llvm::GenXIntrinsic::genx_scatter4_typed, Tys);
   llvm::FunctionType *FTy = Fn->getFunctionType();
   llvm::Value *Args[] = {
       llvm::ConstantInt::get(FTy->getParamType(0),
                              Mask & 0xF), // channel mask, DO NOT INVERT.
       llvm::Constant::getAllOnesValue(FTy->getParamType(1)), // predicate
-      CallInfo.CI->getArgOperand(0),                    // surface index
-      CallInfo.CI->getArgOperand(3),                    // U pixel
-      CallInfo.CI->getArgOperand(4),                    // V pixel
-      CallInfo.CI->getArgOperand(5),                    // V pixel
-      Arg2                                              // value to write
+      CallInfo.CI->getArgOperand(0),                         // surface index
+      CallInfo.CI->getArgOperand(3),                         // U pixel
+      CallInfo.CI->getArgOperand(4),                         // V pixel
+      CallInfo.CI->getArgOperand(5),                         // V pixel
+      Arg2                                                   // value to write
   };
 
   llvm::CallInst *NewCI = CGF.Builder.CreateCall(Fn, Args);
@@ -4677,7 +4746,8 @@ typedef enum _SLM_ChannelMaskType_ {
 
 /// Compute the number of enabled SLM mask channels.
 inline unsigned getNumOfChannels(uint64_t m) {
-  return 4 - (((m >> 3) & 0x1) + ((m >> 2) & 0x1) + ((m >> 1) & 0x1) + (m & 0x1));
+  return 4 -
+         (((m >> 3) & 0x1) + ((m >> 2) & 0x1) + ((m >> 1) & 0x1) + (m & 0x1));
 }
 
 inline bool isValidSLMChannelMask(int64_t Val) {
@@ -4694,7 +4764,8 @@ inline bool isValidSLMChannelMask(int64_t Val) {
 /// cm_slm_read4(uint slmBuffer, vector<ushort, N> vAddr, vector_ref<T, M> vDst,
 ///              SLM_ChannelMaskType mask);
 ///
-void CGCMRuntime::HandleBuiltinSLMRead4(CMCallInfo &CallInfo, bool IsDwordAddr) {
+void CGCMRuntime::HandleBuiltinSLMRead4(CMCallInfo &CallInfo,
+                                        bool IsDwordAddr) {
   CodeGenFunction &CGF = *CallInfo.CGF;
 
   const Expr *Arg3 = CallInfo.CE->getArg(3);
@@ -4726,8 +4797,9 @@ void CGCMRuntime::HandleBuiltinSLMRead4(CMCallInfo &CallInfo, bool IsDwordAddr) 
   llvm::Value *Offset = CallInfo.CI->getArgOperand(1);
 
   // Convert the offest type to UD if it is not.
-  if (Offset->getType()->getVectorElementType() != CGF.Int32Ty) {
-    llvm::Type *Ty = llvm::VectorType::get(CGF.Int32Ty, N);
+  auto *OffsetTy = cast<llvm::FixedVectorType>(Offset->getType());
+  if (OffsetTy->getElementType() != CGF.Int32Ty) {
+    llvm::Type *Ty = llvm::FixedVectorType::get(CGF.Int32Ty, N);
     Offset = CGF.Builder.CreateZExt(Offset, Ty);
   }
 
@@ -4735,19 +4807,19 @@ void CGCMRuntime::HandleBuiltinSLMRead4(CMCallInfo &CallInfo, bool IsDwordAddr) 
     // Convert element offset from by elements to by bytes.
     unsigned TySizeInBytes = OldValue->getType()->getScalarSizeInBits() / 8;
     Offset = CGF.Builder.CreateMul(
-      Offset, llvm::ConstantInt::get(Offset->getType(), TySizeInBytes));
+        Offset, llvm::ConstantInt::get(Offset->getType(), TySizeInBytes));
   }
 
   // Use scaled message for any platform since scale is 0.
-  auto NewCI = EmitGatherScaled(CGF,
-      llvm::GenXIntrinsic::genx_gather4_masked_scaled2,
-      Mask, // channel mask
-      0, // scale
-      getSLMSurfaceIndex(CGF), // SLM surface index
-      CallInfo.CI->getArgOperand(0), // global offset in bytes
-      Offset, // element offset in bytes
-      OldValue  // old value of data read
-  );
+  auto NewCI =
+      EmitGatherScaled(CGF, llvm::GenXIntrinsic::genx_gather4_masked_scaled2,
+                       Mask,                          // channel mask
+                       0,                             // scale
+                       getSLMSurfaceIndex(CGF),       // SLM surface index
+                       CallInfo.CI->getArgOperand(0), // global offset in bytes
+                       Offset,                        // element offset in bytes
+                       OldValue                       // old value of data read
+      );
   NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
   CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
@@ -4762,7 +4834,8 @@ void CGCMRuntime::HandleBuiltinSLMRead4(CMCallInfo &CallInfo, bool IsDwordAddr) 
 /// cm_slm_write4(uint slmBuffer, vector<ushort, N> vAddr, vector<T, M> vSrc,
 ///               SLM_ChannelMaskType mask);
 ///
-void CGCMRuntime::HandleBuiltinSLMWrite4(CMCallInfo &CallInfo, bool IsDwordAddr) {
+void CGCMRuntime::HandleBuiltinSLMWrite4(CMCallInfo &CallInfo,
+                                         bool IsDwordAddr) {
   CodeGenFunction &CGF = *CallInfo.CGF;
 
   const Expr *Arg3 = CallInfo.CE->getArg(3);
@@ -4792,8 +4865,9 @@ void CGCMRuntime::HandleBuiltinSLMWrite4(CMCallInfo &CallInfo, bool IsDwordAddr)
   llvm::Value *Src = CallInfo.CI->getArgOperand(2);
 
   // Convert the offest type to UD if it is not.
-  if (Offset->getType()->getVectorElementType() != CGF.Int32Ty) {
-    llvm::Type *Ty = llvm::VectorType::get(CGF.Int32Ty, N);
+  auto *OffsetTy = cast<llvm::FixedVectorType>(Offset->getType());
+  if (OffsetTy->getElementType() != CGF.Int32Ty) {
+    llvm::Type *Ty = llvm::FixedVectorType::get(CGF.Int32Ty, N);
     Offset = CGF.Builder.CreateZExt(Offset, Ty);
   }
 
@@ -4801,19 +4875,18 @@ void CGCMRuntime::HandleBuiltinSLMWrite4(CMCallInfo &CallInfo, bool IsDwordAddr)
     // Convert element offset from by elements to by bytes.
     unsigned TySizeInBytes = Src->getType()->getScalarSizeInBits() / 8;
     Offset = CGF.Builder.CreateMul(
-      Offset, llvm::ConstantInt::get(Offset->getType(), TySizeInBytes));
+        Offset, llvm::ConstantInt::get(Offset->getType(), TySizeInBytes));
   }
 
   // Use scaled message for any platform since scale is 0.
-  auto NewCI = EmitScatterScaled(CGF,
-      llvm::GenXIntrinsic::genx_scatter4_scaled,
-      Mask, // channel mask
-      0, // scale
-      getSLMSurfaceIndex(CGF), // SLM surface index
-      CallInfo.CI->getArgOperand(0), // global offset in bytes
-      Offset, // element offset in bytes
-      Src
-  );
+  auto NewCI =
+      EmitScatterScaled(CGF, llvm::GenXIntrinsic::genx_scatter4_scaled,
+                        Mask,                          // channel mask
+                        0,                             // scale
+                        getSLMSurfaceIndex(CGF),       // SLM surface index
+                        CallInfo.CI->getArgOperand(0), // global offset in bytes
+                        Offset, // element offset in bytes
+                        Src);
   NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
 
   CallInfo.CI->eraseFromParent();
@@ -4882,7 +4955,7 @@ AtomicCheckResult checkSLMAtomicOperands(CmAtomicOpType Op, QualType Ty) {
   case ATOMIC_FCMPWR:
   case ATOMIC_FADD:
   case ATOMIC_FSUB:
-    return Ty->isFloatingType() ?  AR_Valid : AR_NotFloat;
+    return Ty->isFloatingType() ? AR_Valid : AR_NotFloat;
   }
 
   return AR_Invalid;
@@ -4893,7 +4966,8 @@ AtomicCheckResult checkSLMAtomicOperands(CmAtomicOpType Op, QualType Ty) {
 /// template <typename T, int N>
 /// typename std::enable_if<(N == 8 || N == 16) && sizeof(T) = 4, void>::type
 /// cm_slm_atomic(uint slmBuffer, CmAtomicOpType op, vector<ushort, N> vAddr,
-///               vector_ref<T, N> vDst, vector<T, N> vSrc0, vector<T, N> vSrc1);
+///               vector_ref<T, N> vDst, vector<T, N> vSrc0, vector<T, N>
+///               vSrc1);
 ///
 /// template <int N>
 /// typename std::enable_if<(N == 8 || N == 16) && sizeof(T) = 4, void>::type
@@ -4983,7 +5057,8 @@ void CGCMRuntime::HandleBuiltinSLMAtomic(CMCallInfo &CallInfo) {
   unsigned ID = getAtomicIntrinsicID(OpKind);
 
   llvm::Value *Arg2 = CallInfo.CI->getArgOperand(2);
-  unsigned N = Arg2->getType()->getVectorNumElements();
+  auto *Arg2Ty = cast<llvm::FixedVectorType>(Arg2->getType());
+  unsigned N = Arg2Ty->getNumElements();
 
   // Types for overloading
   SmallVector<llvm::Type *, 8> Tys;
@@ -5000,15 +5075,15 @@ void CGCMRuntime::HandleBuiltinSLMAtomic(CMCallInfo &CallInfo) {
       ID == llvm::GenXIntrinsic::genx_dword_atomic2_fsub ||
       ID == llvm::GenXIntrinsic::genx_dword_atomic_fcmpwr ||
       ID == llvm::GenXIntrinsic::genx_dword_atomic2_fcmpwr)
-    Tys.push_back(llvm::VectorType::get(CGF.FloatTy, N));
+    Tys.push_back(llvm::FixedVectorType::get(CGF.FloatTy, N));
   else
-    Tys.push_back(llvm::VectorType::get(CGF.Int32Ty, N));
+    Tys.push_back(llvm::FixedVectorType::get(CGF.Int32Ty, N));
 
   // Predicate type
   Tys.push_back(getMaskType(C, N));
 
   // Offset type (selectively mangled)
-  llvm::Type *OffsetTy = llvm::VectorType::get(CGF.Int32Ty, N);
+  llvm::Type *OffsetTy = llvm::FixedVectorType::get(CGF.Int32Ty, N);
   if (ID != llvm::GenXIntrinsic::genx_dword_atomic_cmpxchg &&
       ID != llvm::GenXIntrinsic::genx_dword_atomic_inc &&
       ID != llvm::GenXIntrinsic::genx_dword_atomic_dec &&
@@ -5051,14 +5126,14 @@ void CGCMRuntime::HandleBuiltinSLMAtomic(CMCallInfo &CallInfo) {
       ID != llvm::GenXIntrinsic::genx_dword_atomic_dec &&
       ID != llvm::GenXIntrinsic::genx_dword_atomic2_inc &&
       ID != llvm::GenXIntrinsic::genx_dword_atomic2_dec)
-     Args.push_back(CallInfo.CI->getArgOperand(4));
+    Args.push_back(CallInfo.CI->getArgOperand(4));
 
   // cmpxchg or fcmpwr takes one extra source.
   if (ID == llvm::GenXIntrinsic::genx_dword_atomic_cmpxchg ||
       ID == llvm::GenXIntrinsic::genx_dword_atomic_fcmpwr ||
       ID == llvm::GenXIntrinsic::genx_dword_atomic2_cmpxchg ||
       ID == llvm::GenXIntrinsic::genx_dword_atomic2_fcmpwr)
-     Args.push_back(CallInfo.CI->getArgOperand(5));
+    Args.push_back(CallInfo.CI->getArgOperand(5));
 
   // Call genx intrinsic.
   llvm::CallInst *NewCI = Builder.CreateCall(Fn, Args);
@@ -5077,8 +5152,8 @@ void CGCMRuntime::HandleBuiltinSLMAtomic(CMCallInfo &CallInfo) {
 ///              ChannelMaskType mask);
 ///
 /// template <typename T, int N, int M>
-/// typename std::enable_if<(N == 8 || N == 16 || N == 32) && (sizeof(T) == 4)>::type
-/// cm_svm_gather4_scaled(vector<uint, N> vOffset,
+/// typename std::enable_if<(N == 8 || N == 16 || N == 32) && (sizeof(T) ==
+/// 4)>::type cm_svm_gather4_scaled(vector<uint, N> vOffset,
 ///                       vector_ref<T, M> vDst,
 ///                       ChannelMaskType mask)
 void CGCMRuntime::HandleBuiltinSVMRead4Impl(CMCallInfo &CallInfo) {
@@ -5110,10 +5185,11 @@ void CGCMRuntime::HandleBuiltinSVMRead4Impl(CMCallInfo &CallInfo) {
   assert(isa<llvm::PointerType>(Dst->getType()));
   llvm::Value *OldValue = CGF.Builder.CreateDefaultAlignedLoad(Dst);
   llvm::Value *Offset = CallInfo.CI->getArgOperand(1);
+  auto *OffsetTy = cast<llvm::FixedVectorType>(Offset->getType());
 
   // Convert the offest type to UD if it is not.
-  if (Offset->getType()->getVectorElementType() != CGF.Int64Ty) {
-    llvm::Type *Ty = llvm::VectorType::get(CGF.Int64Ty, N);
+  if (OffsetTy->getElementType() != CGF.Int64Ty) {
+    llvm::Type *Ty = llvm::FixedVectorType::get(CGF.Int64Ty, N);
     Offset = CGF.Builder.CreateZExt(Offset, Ty);
   }
   llvm::Value *BaseAddr = CallInfo.CI->getArgOperand(0);
@@ -5129,14 +5205,15 @@ void CGCMRuntime::HandleBuiltinSVMRead4Impl(CMCallInfo &CallInfo) {
   llvm::Value *Splat = CGF.Builder.CreateVectorSplat(N, BaseAddr);
   Offset = CGF.Builder.CreateAdd(Offset, Splat);
 
-  // create intrinsic call: use scaled message for any platform since scale is 0.
-  // Types for overloading.
+  // create intrinsic call: use scaled message for any platform since scale is
+  // 0. Types for overloading.
   SmallVector<llvm::Type *, 3> Tys;
   Tys.push_back(OldValue->getType()); // return type for gather
   Tys.push_back(getMaskType(Offset->getContext(),
-        Offset->getType()->getVectorNumElements())); // predicate
-  Tys.push_back(Offset->getType());   // element offset
-  llvm::Function *Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_svm_gather4_scaled, Tys);
+                            OffsetTy->getNumElements())); // predicate
+  Tys.push_back(OffsetTy); // element offset
+  llvm::Function *Fn =
+      getGenXIntrinsic(llvm::GenXIntrinsic::genx_svm_gather4_scaled, Tys);
   llvm::FunctionType *FTy = Fn->getFunctionType();
 
   // Arguments.
@@ -5146,8 +5223,7 @@ void CGCMRuntime::HandleBuiltinSVMRead4Impl(CMCallInfo &CallInfo) {
       llvm::ConstantInt::get(CGF.Int16Ty, 0),
       llvm::ConstantInt::get(CGF.Int64Ty, 0),
       Offset,
-      OldValue
-  };
+      OldValue};
   auto NewCI = CGF.Builder.CreateCall(Fn, Args);
   NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
   CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
@@ -5161,8 +5237,8 @@ void CGCMRuntime::HandleBuiltinSVMRead4Impl(CMCallInfo &CallInfo) {
 ///               ChannelMaskType mask);
 ///
 /// template <typename T, int N, int M>
-/// typename std::enable_if<(N == 8 || N == 16 || N == 32) && (sizeof(T) == 4)>::type
-/// cm_svm_scatter4_scaled(vector<uint, N> vOffset,
+/// typename std::enable_if<(N == 8 || N == 16 || N == 32) && (sizeof(T) ==
+/// 4)>::type cm_svm_scatter4_scaled(vector<uint, N> vOffset,
 ///                        vector<T, M> pSrc,
 ///                        ChannelMaskType mask)
 void CGCMRuntime::HandleBuiltinSVMWrite4Impl(CMCallInfo &CallInfo) {
@@ -5191,10 +5267,11 @@ void CGCMRuntime::HandleBuiltinSVMWrite4Impl(CMCallInfo &CallInfo) {
   }
   llvm::Value *Offset = CallInfo.CI->getArgOperand(1);
   llvm::Value *Src = CallInfo.CI->getArgOperand(2);
+  auto *OffsetTy = cast<llvm::FixedVectorType>(Offset->getType());
 
   // Convert the offest type to UD if it is not.
-  if (Offset->getType()->getVectorElementType() != CGF.Int64Ty) {
-    llvm::Type *Ty = llvm::VectorType::get(CGF.Int64Ty, N);
+  if (OffsetTy->getElementType() != CGF.Int64Ty) {
+    llvm::Type *Ty = llvm::FixedVectorType::get(CGF.Int64Ty, N);
     Offset = CGF.Builder.CreateZExt(Offset, Ty);
   }
   llvm::Value *BaseAddr = CallInfo.CI->getArgOperand(0);
@@ -5207,19 +5284,18 @@ void CGCMRuntime::HandleBuiltinSVMWrite4Impl(CMCallInfo &CallInfo) {
   // workaround, hw does not really have a global-address, add
   // base-address and the offset
   // For cm_svm_scatter4_scaled, BaseAddr = 0
-  llvm::Value *Splat =
-      CGF.Builder.CreateVectorSplat(N, BaseAddr);
+  llvm::Value *Splat = CGF.Builder.CreateVectorSplat(N, BaseAddr);
   Offset = CGF.Builder.CreateAdd(Offset, Splat);
 
   // Types for overloading.
   SmallVector<llvm::Type *, 3> Tys;
-  Tys.push_back(getMaskType(
-      Offset->getContext(),
-      Offset->getType()->getVectorNumElements())); // predicate
-  Tys.push_back(Offset->getType()); // element offset
+  Tys.push_back(getMaskType(Offset->getContext(),
+                            OffsetTy->getNumElements())); // predicate
+  Tys.push_back(OffsetTy);                                // element offset
   Tys.push_back(Src->getType()); // data type for scatter
 
-  llvm::Function *Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_svm_scatter4_scaled, Tys);
+  llvm::Function *Fn =
+      getGenXIntrinsic(llvm::GenXIntrinsic::genx_svm_scatter4_scaled, Tys);
   llvm::FunctionType *FTy = Fn->getFunctionType();
 
   // Arguments.
@@ -5227,8 +5303,8 @@ void CGCMRuntime::HandleBuiltinSVMWrite4Impl(CMCallInfo &CallInfo) {
       llvm::Constant::getAllOnesValue(FTy->getParamType(0)), // predicate
       llvm::ConstantInt::get(CGF.Int32Ty, Mask),
       llvm::ConstantInt::get(CGF.Int16Ty, 0),
-      llvm::ConstantInt::get(CGF.Int64Ty, 0),  // hw BaseAddr,
-      Offset,                                  // address vector
+      llvm::ConstantInt::get(CGF.Int64Ty, 0), // hw BaseAddr,
+      Offset,                                 // address vector
       Src};
   auto NewCI = CGF.Builder.CreateCall(Fn, Args);
 
@@ -5312,7 +5388,8 @@ AtomicCheckResult checkSVMAtomicOp(CmAtomicOpType Op, unsigned NumSrc) {
 
 /// Determine what type OrigElType needs to be converted to in order for it
 // to be appropriate to use with the specified SVM atomic operation.
-QualType checkSVMAtomicOperands(CmAtomicOpType Op, ASTContext &CTX, QualType OrigElType) {
+QualType checkSVMAtomicOperands(CmAtomicOpType Op, ASTContext &CTX,
+                                QualType OrigElType) {
   bool NeedSigned = false;
 
   switch (Op) {
@@ -5339,7 +5416,8 @@ QualType checkSVMAtomicOperands(CmAtomicOpType Op, ASTContext &CTX, QualType Ori
     return OrigElType;
   case ATOMIC_FADD:
   case ATOMIC_FSUB:
-    assert(false && "floating point operands not support for SVM atomic operation.");
+    assert(false &&
+           "floating point operands not support for SVM atomic operation.");
     return OrigElType;
   }
 
@@ -5443,19 +5521,22 @@ void CGCMRuntime::HandleBuiltinSVMAtomicOpImpl(CMCallInfo &CallInfo) {
   // ConvType will be the most appropriate type to convert the destination
   // element type to, based on the operation being performed and the
   // incoming type, and may well be same as that type.
-  QualType ConvType = checkSVMAtomicOperands(OpKind, CGF.getContext(),
-      DstType->getCMVectorMatrixElementType());
+  QualType ConvType = checkSVMAtomicOperands(
+      OpKind, CGF.getContext(), DstType->getCMVectorMatrixElementType());
 
-  llvm::Type *ConvTy = llvm::VectorType::get(CGF.ConvertType(ConvType), NumElems);
+  llvm::Type *ConvTy =
+      llvm::FixedVectorType::get(CGF.ConvertType(ConvType), NumElems);
   llvm::Instruction::CastOps CastOp;
-  bool NeedsCast = getCastOpKind(CastOp, CGF, ConvType, DstType->getCMVectorMatrixElementType());
+  bool NeedsCast = getCastOpKind(CastOp, CGF, ConvType,
+                                 DstType->getCMVectorMatrixElementType());
 
   CGBuilderTy &Builder = CallInfo.CGF->Builder;
 
   // Determine the precise intrinsic needed.
   unsigned ID = getAtomicSVMIntrinsicID(OpKind);
   llvm::Value *AddrVec = CallInfo.CI->getArgOperand(1);
-  unsigned N = AddrVec->getType()->getVectorNumElements();
+  auto *AddrVecTy = cast<llvm::FixedVectorType>(AddrVec->getType());
+  unsigned N = AddrVecTy->getNumElements();
 
   // Types for overloading
   SmallVector<llvm::Type *, 8> Tys;
@@ -5521,11 +5602,12 @@ void CGCMRuntime::HandleBuiltinSVMAtomicOpImpl(CMCallInfo &CallInfo) {
 
 /// template <typename T, int N, int M>
 /// void cm_avs_sampler(matrix_ref<T, N, M> m, ChannelMaskType channelMask,
-///                     SurfaceIndex surfIndex, SamplerIndex samplerIndex, float u,
-///                     float v, float deltaU, float deltaV, float u2d,
-///                     int groupID = -1, int verticalBlockNumber = -1,
-///                     OutputFormatControl outControl = CM_16_FULL, float v2d = 0,
-///                     AVSExecMode execMode = CM_AVS_16x4, bool IEFBypass = false);
+///                     SurfaceIndex surfIndex, SamplerIndex samplerIndex, float
+///                     u, float v, float deltaU, float deltaV, float u2d, int
+///                     groupID = -1, int verticalBlockNumber = -1,
+///                     OutputFormatControl outControl = CM_16_FULL, float v2d =
+///                     0, AVSExecMode execMode = CM_AVS_16x4, bool IEFBypass =
+///                     false);
 ///
 void CGCMRuntime::HandleBuiltinAVSSampler(CMCallInfo &Info) {
   CodeGenFunction &CGF = *Info.CGF;
@@ -5600,17 +5682,19 @@ void CGCMRuntime::HandleBuiltinAVSSampler(CMCallInfo &Info) {
 /// template <int N>
 /// void cm_va_2d_convolve(matrix_ref<short, N, 16> m, SurfaceIndex surfIndex,
 ///                        SamplerIndex sampIndex, float u, float v,
-///                        CONVExecMode execMode = CM_CONV_16x4, bool big_kernel = false);
+///                        CONVExecMode execMode = CM_CONV_16x4, bool big_kernel
+///                        = false);
 /// void cm_va_2d_convolve_hdc(SurfaceIndex surfIndex, SamplerIndex sampIndex,
-///   float u, float v, bool big_kernel, CM_FORMAT_SIZE size, SurfaceIndex destIndex,
-///   ushort x_offset, ushort y_offset);
-void CGCMRuntime::HandleBuiltinVA2dConvolve(CMCallInfo &Info, CMBuiltinKind Kind) {
+///   float u, float v, bool big_kernel, CM_FORMAT_SIZE size, SurfaceIndex
+///   destIndex, ushort x_offset, ushort y_offset);
+void CGCMRuntime::HandleBuiltinVA2dConvolve(CMCallInfo &Info,
+                                            CMBuiltinKind Kind) {
   CodeGenFunction &CGF = *Info.CGF;
 
   assert(Kind == CMBK_cm_va_2d_convolve || Kind == CMBK_cm_va_2d_convolve_hdc);
 
-  assert(Info.CE->getNumArgs() == (Kind == CMBK_cm_va_2d_convolve ? 7 : 9)
-         && "incorrect number of arguments");
+  assert(Info.CE->getNumArgs() == (Kind == CMBK_cm_va_2d_convolve ? 7 : 9) &&
+         "incorrect number of arguments");
 
   uint32_t ExecMode = 0;
   if (!getConstantValue(*this, CGF, ExecMode, Info.CI->getArgOperand(5),
@@ -5619,7 +5703,8 @@ void CGCMRuntime::HandleBuiltinVA2dConvolve(CMCallInfo &Info, CMBuiltinKind Kind
 
   uint32_t BigKernelArgNum = Kind == CMBK_cm_va_2d_convolve ? 6 : 4;
   uint32_t BigKernel = 0;
-  if (!getConstantValue(*this, CGF, BigKernel, Info.CI->getArgOperand(BigKernelArgNum),
+  if (!getConstantValue(*this, CGF, BigKernel,
+                        Info.CI->getArgOperand(BigKernelArgNum),
                         Info.CE->getArg(BigKernelArgNum)))
     return;
 
@@ -5629,22 +5714,27 @@ void CGCMRuntime::HandleBuiltinVA2dConvolve(CMCallInfo &Info, CMBuiltinKind Kind
   if (Kind == CMBK_cm_va_2d_convolve) {
     const Expr *DstEx = Info.CE->getArg(0);
     QualType DstType = DstEx->getType();
-    assert(DstType->isCMMatrixType() && "destination argument must be a matrix");
+    assert(DstType->isCMMatrixType() &&
+           "destination argument must be a matrix");
 
-    assert(DstType->castAs<CMMatrixType>()->getNumColumns() == 16 && "destination matrix must have 16 columns");
+    assert(DstType->castAs<CMMatrixType>()->getNumColumns() == 16 &&
+           "destination matrix must have 16 columns");
 
     uint32_t NumRows = DstType->castAs<CMMatrixType>()->getNumRows();
     if (!((ExecMode == 0 && NumRows == 4) || (ExecMode == 2 && NumRows == 1))) {
-      Error(DstEx->getExprLoc(), "number of rows in cm_va_2d_convolve() destination "
-                                 "matrix does not match the execution mode");
+      Error(DstEx->getExprLoc(),
+            "number of rows in cm_va_2d_convolve() destination "
+            "matrix does not match the execution mode");
       return;
     }
 
     Dst = Info.CI->getArgOperand(0);
     llvm::Type *DstTy = Dst->getType();
-    assert(DstTy->isPointerTy() && "pointer type expected for destination argument");
+    assert(DstTy->isPointerTy() &&
+           "pointer type expected for destination argument");
 
-    Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_va_convolve2d, DstTy->getPointerElementType());
+    Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_va_convolve2d,
+                          DstTy->getPointerElementType());
     ArgsBase = 1;
   } else {
     Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_va_hdc_convolve2d);
@@ -5662,17 +5752,18 @@ void CGCMRuntime::HandleBuiltinVA2dConvolve(CMCallInfo &Info, CMBuiltinKind Kind
 
   // The back-end intrinsic needs the input surface and sampler indices
   // in the opposite order to the Cm builtin.
-  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase + 1));                     // samplerIndex
-  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase));                         // surfaceIndex
-  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase + 2));                     // u
-  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase + 3));                     // v
-  ConvArgs.push_back(llvm::ConstantInt::get(FTy->getParamType(4), ExecMode));   // ExecMode and size
+  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase + 1)); // samplerIndex
+  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase));     // surfaceIndex
+  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase + 2)); // u
+  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase + 3)); // v
+  ConvArgs.push_back(llvm::ConstantInt::get(FTy->getParamType(4),
+                                            ExecMode)); // ExecMode and size
 
   if (Kind == CMBK_cm_va_2d_convolve_hdc) {
     assert(ArgsBase == 0);
-    ConvArgs.push_back(Info.CI->getArgOperand(6));                              // destIndex
-    ConvArgs.push_back(Info.CI->getArgOperand(7));                              // x-offset
-    ConvArgs.push_back(Info.CI->getArgOperand(8));                              // y-offset
+    ConvArgs.push_back(Info.CI->getArgOperand(6)); // destIndex
+    ConvArgs.push_back(Info.CI->getArgOperand(7)); // x-offset
+    ConvArgs.push_back(Info.CI->getArgOperand(8)); // y-offset
   }
 
   llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(Fn, ConvArgs);
@@ -5692,7 +5783,8 @@ void CGCMRuntime::HandleBuiltinVA2dConvolve(CMCallInfo &Info, CMBuiltinKind Kind
 /// void cm_va_dilate(vector_ref<uint, N> m, SurfaceIndex surfIndex,
 ///                   SamplerIndex sampIndex, float u, float v,
 ///                   EDExecMode execMode = CM_ED_16x4);
-void CGCMRuntime::HandleBuiltinVAErodeDilate(CMCallInfo &Info, CMBuiltinKind Kind) {
+void CGCMRuntime::HandleBuiltinVAErodeDilate(CMCallInfo &Info,
+                                             CMBuiltinKind Kind) {
   CodeGenFunction &CGF = *Info.CGF;
 
   assert(Kind == CMBK_cm_va_dilate || Kind == CMBK_cm_va_erode);
@@ -5712,21 +5804,22 @@ void CGCMRuntime::HandleBuiltinVAErodeDilate(CMCallInfo &Info, CMBuiltinKind Kin
 
   llvm::Value *Dst = Info.CI->getArgOperand(0);
   llvm::Type *DstTy = Dst->getType();
-  assert(DstTy->isPointerTy() && "pointer type expected for destination argument");
+  assert(DstTy->isPointerTy() &&
+         "pointer type expected for destination argument");
 
-  unsigned ID = Kind == CMBK_cm_va_erode ? llvm::GenXIntrinsic::genx_va_erode :
-                                           llvm::GenXIntrinsic::genx_va_dilate;
+  unsigned ID = Kind == CMBK_cm_va_erode ? llvm::GenXIntrinsic::genx_va_erode
+                                         : llvm::GenXIntrinsic::genx_va_dilate;
   llvm::Function *Fn = getGenXIntrinsic(ID, DstTy->getPointerElementType());
   llvm::FunctionType *FTy = Fn->getFunctionType();
 
   // Arguments.
 
   llvm::Value *Args[] = {
-    Info.CI->getArgOperand(2),                                      // samplerIndex
-    Info.CI->getArgOperand(1),                                      // surfaceIndex
-    Info.CI->getArgOperand(3),                                      // u
-    Info.CI->getArgOperand(4),                                      // v
-    llvm::ConstantInt::get(FTy->getParamType(4), ExecMode & 0x3),   // ExecMode
+      Info.CI->getArgOperand(2), // samplerIndex
+      Info.CI->getArgOperand(1), // surfaceIndex
+      Info.CI->getArgOperand(3), // u
+      Info.CI->getArgOperand(4), // v
+      llvm::ConstantInt::get(FTy->getParamType(4), ExecMode & 0x3), // ExecMode
   };
 
   llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(Fn, Args);
@@ -5739,33 +5832,37 @@ void CGCMRuntime::HandleBuiltinVAErodeDilate(CMCallInfo &Info, CMBuiltinKind Kin
 
 /// void cm_va_erode_hdc(SurfaceIndex surfIndex, SamplerIndex sampIndex,
 ///                      float u, float v,
-///                      SurfaceIndex destIndex, ushort x_offset, ushort y_offset);
+///                      SurfaceIndex destIndex, ushort x_offset, ushort
+///                      y_offset);
 /// void cm_va_dilate_hdc(SurfaceIndex surfIndex, SamplerIndex sampIndex,
 ///                       float u, float v,
-///                       SurfaceIndex destIndex, ushort x_offset, ushort y_offset);
-void CGCMRuntime::HandleBuiltinVAErodeDilateHdc(CMCallInfo &Info, CMBuiltinKind Kind) {
+///                       SurfaceIndex destIndex, ushort x_offset, ushort
+///                       y_offset);
+void CGCMRuntime::HandleBuiltinVAErodeDilateHdc(CMCallInfo &Info,
+                                                CMBuiltinKind Kind) {
   CodeGenFunction &CGF = *Info.CGF;
 
   assert(Kind == CMBK_cm_va_dilate_hdc || Kind == CMBK_cm_va_erode_hdc);
 
   assert(Info.CE->getNumArgs() == 7 && "incorrect number of arguments");
 
-  unsigned ID = Kind == CMBK_cm_va_erode_hdc ? llvm::GenXIntrinsic::genx_va_hdc_erode :
-                                               llvm::GenXIntrinsic::genx_va_hdc_dilate;
+  unsigned ID = Kind == CMBK_cm_va_erode_hdc
+                    ? llvm::GenXIntrinsic::genx_va_hdc_erode
+                    : llvm::GenXIntrinsic::genx_va_hdc_dilate;
   llvm::Function *Fn = getGenXIntrinsic(ID);
 
   // Arguments.
 
   llvm::Value *Args[] = {
-    // The low-level intrinsic requires its source sampler and surface
-    // index parameter in the opposite order to the builtin's parameters.
-    Info.CI->getArgOperand(1),                                      // samplerIndex
-    Info.CI->getArgOperand(0),                                      // surfaceIndex
-    Info.CI->getArgOperand(2),                                      // u
-    Info.CI->getArgOperand(3),                                      // v
-    Info.CI->getArgOperand(4),                                      // destIndex
-    Info.CI->getArgOperand(5),                                      // x_offset
-    Info.CI->getArgOperand(6)                                       // y_offset
+      // The low-level intrinsic requires its source sampler and surface
+      // index parameter in the opposite order to the builtin's parameters.
+      Info.CI->getArgOperand(1), // samplerIndex
+      Info.CI->getArgOperand(0), // surfaceIndex
+      Info.CI->getArgOperand(2), // u
+      Info.CI->getArgOperand(3), // v
+      Info.CI->getArgOperand(4), // destIndex
+      Info.CI->getArgOperand(5), // x_offset
+      Info.CI->getArgOperand(6)  // y_offset
   };
 
   llvm::CallInst *NewCI = CGF.Builder.CreateCall(Fn, Args);
@@ -5789,12 +5886,15 @@ void CGCMRuntime::HandleBuiltinVAMinMax(CMCallInfo &Info) {
 
   llvm::Value *Dst = Info.CI->getArgOperand(0);
   llvm::Type *DstTy = Dst->getType();
-  assert(DstTy->isPointerTy() && "pointer type expected for destination argument");
+  assert(DstTy->isPointerTy() &&
+         "pointer type expected for destination argument");
 
   DstTy = DstTy->getPointerElementType();
 
   uint32_t NumElementsNeeded = 0;
-  uint32_t ElementSize = cast<llvm::VectorType>(DstTy)->getElementType()->getPrimitiveSizeInBits();
+  uint32_t ElementSize = cast<llvm::FixedVectorType>(DstTy)
+                             ->getElementType()
+                             ->getPrimitiveSizeInBits();
 
   if (ElementSize == 8)
     NumElementsNeeded = 32;
@@ -5806,7 +5906,8 @@ void CGCMRuntime::HandleBuiltinVAMinMax(CMCallInfo &Info) {
   }
 
   if (DstType->castAs<CMVectorType>()->getNumElements() != NumElementsNeeded) {
-    Error(DstEx->getExprLoc(), "invalid vector size for the vector element type");
+    Error(DstEx->getExprLoc(),
+          "invalid vector size for the vector element type");
     return;
   }
 
@@ -5816,10 +5917,10 @@ void CGCMRuntime::HandleBuiltinVAMinMax(CMCallInfo &Info) {
   // Arguments.
 
   llvm::Value *Args[] = {
-    Info.CI->getArgOperand(1),                                // surfaceIndex
-    Info.CI->getArgOperand(2),                                // u
-    Info.CI->getArgOperand(3),                                // v
-    Info.CI->getArgOperand(4)                                 // Min Max Enabled
+      Info.CI->getArgOperand(1), // surfaceIndex
+      Info.CI->getArgOperand(2), // u
+      Info.CI->getArgOperand(3), // v
+      Info.CI->getArgOperand(4)  // Min Max Enabled
   };
 
   llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(Fn, Args);
@@ -5856,12 +5957,16 @@ void CGCMRuntime::HandleBuiltinVAMinMaxFilter(CMCallInfo &Info) {
 
   llvm::Value *Dst = Info.CI->getArgOperand(0);
   llvm::Type *DstTy = Dst->getType();
-  assert(DstTy->isPointerTy() && "pointer type expected for destination argument");
+  assert(DstTy->isPointerTy() &&
+         "pointer type expected for destination argument");
 
   DstTy = DstTy->getPointerElementType();
 
-  if (cast<llvm::VectorType>(DstTy)->getElementType()->getPrimitiveSizeInBits() != (FormCntrl < 2 ? 16 : 8)) {
-    Error(DstEx->getExprLoc(), "destination matrix element type not compatible with specified output format");
+  if (cast<llvm::FixedVectorType>(DstTy)
+          ->getElementType()
+          ->getPrimitiveSizeInBits() != (FormCntrl < 2 ? 16 : 8)) {
+    Error(DstEx->getExprLoc(), "destination matrix element type not compatible "
+                               "with specified output format");
     return;
   }
 
@@ -5890,7 +5995,9 @@ void CGCMRuntime::HandleBuiltinVAMinMaxFilter(CMCallInfo &Info) {
   uint32_t NumCols = DstType->castAs<CMMatrixType>()->getNumColumns();
 
   if (NumRows != NumRowsNeeded || NumCols != NumColsNeeded) {
-    Error(DstEx->getExprLoc(), "destination matrix dimenions not compatible with return data format");
+    Error(
+        DstEx->getExprLoc(),
+        "destination matrix dimenions not compatible with return data format");
     return;
   }
 
@@ -5901,13 +6008,13 @@ void CGCMRuntime::HandleBuiltinVAMinMaxFilter(CMCallInfo &Info) {
   // Arguments.
 
   llvm::Value *Args[] = {
-    Info.CI->getArgOperand(2),                                // samplerIndex
-    Info.CI->getArgOperand(1),                                // surfaceIndex
-    Info.CI->getArgOperand(3),                                // u
-    Info.CI->getArgOperand(4),                                // v
-    llvm::ConstantInt::get(FTy->getParamType(4), FormCntrl),  // Output format
-    llvm::ConstantInt::get(FTy->getParamType(5), ExecMode),   // ExecMode
-    Info.CI->getArgOperand(7)                                 // Min Max Enabled
+      Info.CI->getArgOperand(2),                               // samplerIndex
+      Info.CI->getArgOperand(1),                               // surfaceIndex
+      Info.CI->getArgOperand(3),                               // u
+      Info.CI->getArgOperand(4),                               // v
+      llvm::ConstantInt::get(FTy->getParamType(4), FormCntrl), // Output format
+      llvm::ConstantInt::get(FTy->getParamType(5), ExecMode),  // ExecMode
+      Info.CI->getArgOperand(7) // Min Max Enabled
   };
 
   llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(Fn, Args);
@@ -5918,7 +6025,8 @@ void CGCMRuntime::HandleBuiltinVAMinMaxFilter(CMCallInfo &Info) {
   Info.CI->eraseFromParent();
 }
 
-/// void cm_va_min_max_filter_hdc(SurfaceIndex surfIndex, SamplerIndex sampIndex,
+/// void cm_va_min_max_filter_hdc(SurfaceIndex surfIndex, SamplerIndex
+/// sampIndex,
 ///                               float u, float v, MMFEnableMode mmfMode,
 ///                               CM_FORMAT_SIZE size, SurfaceIndex destIndex,
 ///                               ushort x_offset, ushort y_offset);
@@ -5947,15 +6055,15 @@ void CGCMRuntime::HandleBuiltinVAMinMaxFilterHdc(CMCallInfo &Info) {
   // Arguments.
 
   llvm::Value *Args[] = {
-    Info.CI->getArgOperand(1),                                // samplerIndex
-    Info.CI->getArgOperand(0),                                // surfaceIndex
-    Info.CI->getArgOperand(2),                                // u
-    Info.CI->getArgOperand(3),                                // v
-    llvm::ConstantInt::get(FTy->getParamType(4), FormCntrl),  // Output format
-    llvm::ConstantInt::get(FTy->getParamType(5), MmfMode),    // Min Max Enabled
-    Info.CI->getArgOperand(6),                                // destIndex
-    Info.CI->getArgOperand(7),                                // x_offset
-    Info.CI->getArgOperand(8)                                 // y_offset
+      Info.CI->getArgOperand(1),                               // samplerIndex
+      Info.CI->getArgOperand(0),                               // surfaceIndex
+      Info.CI->getArgOperand(2),                               // u
+      Info.CI->getArgOperand(3),                               // v
+      llvm::ConstantInt::get(FTy->getParamType(4), FormCntrl), // Output format
+      llvm::ConstantInt::get(FTy->getParamType(5), MmfMode), // Min Max Enabled
+      Info.CI->getArgOperand(6),                             // destIndex
+      Info.CI->getArgOperand(7),                             // x_offset
+      Info.CI->getArgOperand(8)                              // y_offset
   };
 
   llvm::CallInst *NewCI = CGF.Builder.CreateCall(Fn, Args);
@@ -5971,11 +6079,12 @@ void CGCMRuntime::HandleBuiltinVAMinMaxFilterHdc(CMCallInfo &Info) {
 /// template <typename T, int N, int M>
 /// void cm_va_centroid(matrix_ref<T, N, M> m, SurfaceIndex surfIndex,
 ///                     float u, float v, uchar vSize);
-void CGCMRuntime::HandleBuiltinVACentroid(CMCallInfo &Info, CMBuiltinKind Kind) {
+void CGCMRuntime::HandleBuiltinVACentroid(CMCallInfo &Info,
+                                          CMBuiltinKind Kind) {
   assert(Kind == CMBK_cm_va_centroid || Kind == CMBK_cm_va_boolean_centroid);
 
-  assert(Info.CE->getNumArgs() == (Kind == CMBK_cm_va_centroid ? 5 : 6)
-         && "incorrect number of arguments");
+  assert(Info.CE->getNumArgs() == (Kind == CMBK_cm_va_centroid ? 5 : 6) &&
+         "incorrect number of arguments");
 
   const Expr *DstEx = Info.CE->getArg(0);
   QualType DstType = DstEx->getType();
@@ -5983,33 +6092,39 @@ void CGCMRuntime::HandleBuiltinVACentroid(CMCallInfo &Info, CMBuiltinKind Kind) 
 
   llvm::Value *Dst = Info.CI->getArgOperand(0);
   llvm::Type *DstTy = Dst->getType();
-  assert(DstTy->isPointerTy() && "pointer type expected for destination argument");
+  assert(DstTy->isPointerTy() &&
+         "pointer type expected for destination argument");
   DstTy = DstTy->getPointerElementType();
 
-  if (cast<llvm::VectorType>(DstTy)->getElementType()->getPrimitiveSizeInBits() != 32) {
-    Error(DstEx->getExprLoc(), "destination matrix element type must be an int");
+  if (cast<llvm::FixedVectorType>(DstTy)
+          ->getElementType()
+          ->getPrimitiveSizeInBits() != 32) {
+    Error(DstEx->getExprLoc(),
+          "destination matrix element type must be an int");
     return;
   }
 
-  if (DstType->castAs<CMMatrixType>()->getNumRows() != (Kind == CMBK_cm_va_centroid ? 4 : 2)
-      || DstType->castAs<CMMatrixType>()->getNumColumns() != 8) {
+  if (DstType->castAs<CMMatrixType>()->getNumRows() !=
+          (Kind == CMBK_cm_va_centroid ? 4 : 2) ||
+      DstType->castAs<CMMatrixType>()->getNumColumns() != 8) {
     Error(DstEx->getExprLoc(), "incorrect destination matrix dimenions");
     return;
   }
 
-  unsigned ID = Kind == CMBK_cm_va_centroid ? llvm::GenXIntrinsic::genx_va_centroid :
-                                              llvm::GenXIntrinsic::genx_va_bool_centroid;
+  unsigned ID = Kind == CMBK_cm_va_centroid
+                    ? llvm::GenXIntrinsic::genx_va_centroid
+                    : llvm::GenXIntrinsic::genx_va_bool_centroid;
   llvm::Function *Fn = getGenXIntrinsic(ID, DstTy);
 
   // Arguments.
   SmallVector<llvm::Value *, 8> CentroidArgs;
 
-  CentroidArgs.push_back(Info.CI->getArgOperand(1));                // Surface index
-  CentroidArgs.push_back(Info.CI->getArgOperand(2));                // u
-  CentroidArgs.push_back(Info.CI->getArgOperand(3));                // v
-  CentroidArgs.push_back(Info.CI->getArgOperand(4));                // vSize
+  CentroidArgs.push_back(Info.CI->getArgOperand(1)); // Surface index
+  CentroidArgs.push_back(Info.CI->getArgOperand(2)); // u
+  CentroidArgs.push_back(Info.CI->getArgOperand(3)); // v
+  CentroidArgs.push_back(Info.CI->getArgOperand(4)); // vSize
   if (Kind == CMBK_cm_va_boolean_centroid)
-    CentroidArgs.push_back(Info.CI->getArgOperand(5));              // hSize
+    CentroidArgs.push_back(Info.CI->getArgOperand(5)); // hSize
 
   llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(Fn, CentroidArgs);
   NewCI->takeName(Info.CI);
@@ -6020,22 +6135,29 @@ void CGCMRuntime::HandleBuiltinVACentroid(CMCallInfo &Info, CMBuiltinKind Kind) 
 }
 
 /// template <int N>
-/// void cm_va_1d_convolution(matrix_ref<short, N, 16> m, SurfaceIndex surfIndex,
+/// void cm_va_1d_convolution(matrix_ref<short, N, 16> m, SurfaceIndex
+/// surfIndex,
 ///                           SamplerIndex sampIndex, bool isHdirection,
-///                           float u, float v, CONVExecMode execMode = CM_CONV_16x4);
-/// void cm_va_1d_convolution_hdc(SurfaceIndex surfIndex, SamplerIndex sampIndex,
+///                           float u, float v, CONVExecMode execMode =
+///                           CM_CONV_16x4);
+/// void cm_va_1d_convolution_hdc(SurfaceIndex surfIndex, SamplerIndex
+/// sampIndex,
 ///    bool isHdirection, float u, float v, CM_FORMAT_SIZE size,
 ///    SurfaceIndex destIndex, ushort x_offset, ushort y_offset);
-void CGCMRuntime::HandleBuiltinVA1dConvolution(CMCallInfo &Info, CMBuiltinKind Kind) {
+void CGCMRuntime::HandleBuiltinVA1dConvolution(CMCallInfo &Info,
+                                               CMBuiltinKind Kind) {
   CodeGenFunction &CGF = *Info.CGF;
 
-  assert(Kind == CMBK_cm_va_1d_convolution || Kind == CMBK_cm_va_1d_convolution_hdc);
+  assert(Kind == CMBK_cm_va_1d_convolution ||
+         Kind == CMBK_cm_va_1d_convolution_hdc);
 
-  assert(Info.CE->getNumArgs() == (Kind == CMBK_cm_va_1d_convolution ? 7 : 9) && "incorrect number of arguments");
+  assert(Info.CE->getNumArgs() == (Kind == CMBK_cm_va_1d_convolution ? 7 : 9) &&
+         "incorrect number of arguments");
 
   uint32_t IsHArgNum = (Kind == CMBK_cm_va_1d_convolution ? 3 : 2);
   uint32_t IsHorizontal = 0;
-  if (!getConstantValue(*this, CGF, IsHorizontal, Info.CI->getArgOperand(IsHArgNum),
+  if (!getConstantValue(*this, CGF, IsHorizontal,
+                        Info.CI->getArgOperand(IsHArgNum),
                         Info.CE->getArg(IsHArgNum)))
     return;
 
@@ -6053,35 +6175,40 @@ void CGCMRuntime::HandleBuiltinVA1dConvolution(CMCallInfo &Info, CMBuiltinKind K
   if (Kind == CMBK_cm_va_1d_convolution) {
     const Expr *DstEx = Info.CE->getArg(0);
     QualType DstType = DstEx->getType();
-    assert(DstType->isCMMatrixType() && "destination argument must be a matrix");
+    assert(DstType->isCMMatrixType() &&
+           "destination argument must be a matrix");
 
-    // The Cm language spec states that the destination must either be 1 or 4 rows
-    // by 16 columns. However, there are examples that are supplying 16 rows by
-    // 1 or 4 columns, and presumably expecting this to work. That could be
-    // outlawed, but it is probably more helpful to permit it, as the number
+    // The Cm language spec states that the destination must either be 1 or 4
+    // rows by 16 columns. However, there are examples that are supplying 16
+    // rows by 1 or 4 columns, and presumably expecting this to work. That could
+    // be outlawed, but it is probably more helpful to permit it, as the number
     // elements in the result is the same. So, just validate that the number
     // of overall elements matches what the execution mode is expecting.
 
     uint32_t NumElements = DstType->castAs<CMMatrixType>()->getNumRows() *
-        DstType->castAs<CMMatrixType>()->getNumColumns();
-    if (!((ExecMode == 0 && NumElements == 64)
-          || (ExecMode == 2 && NumElements == 16))) {
-      Error(DstEx->getExprLoc(), "cm_va_1d_convolution() destination "
-                                 "matrix's dimensions do not match the execution mode");
+                           DstType->castAs<CMMatrixType>()->getNumColumns();
+    if (!((ExecMode == 0 && NumElements == 64) ||
+          (ExecMode == 2 && NumElements == 16))) {
+      Error(DstEx->getExprLoc(),
+            "cm_va_1d_convolution() destination "
+            "matrix's dimensions do not match the execution mode");
       return;
     }
 
     Dst = Info.CI->getArgOperand(0);
     llvm::Type *DstTy = Dst->getType();
-    assert(DstTy->isPointerTy() && "pointer type expected for destination argument");
+    assert(DstTy->isPointerTy() &&
+           "pointer type expected for destination argument");
 
-    unsigned ID = IsHorizontal ? llvm::GenXIntrinsic::genx_va_1d_convolve_horizontal :
-                                 llvm::GenXIntrinsic::genx_va_1d_convolve_vertical;
+    unsigned ID = IsHorizontal
+                      ? llvm::GenXIntrinsic::genx_va_1d_convolve_horizontal
+                      : llvm::GenXIntrinsic::genx_va_1d_convolve_vertical;
     Fn = getGenXIntrinsic(ID, DstTy->getPointerElementType());
     ArgsBase = 1;
   } else {
-    unsigned ID = IsHorizontal ? llvm::GenXIntrinsic::genx_va_hdc_1d_convolve_horizontal :
-                                 llvm::GenXIntrinsic::genx_va_hdc_1d_convolve_vertical;
+    unsigned ID = IsHorizontal
+                      ? llvm::GenXIntrinsic::genx_va_hdc_1d_convolve_horizontal
+                      : llvm::GenXIntrinsic::genx_va_hdc_1d_convolve_vertical;
     Fn = getGenXIntrinsic(ID);
     ArgsBase = 0;
   }
@@ -6094,18 +6221,19 @@ void CGCMRuntime::HandleBuiltinVA1dConvolution(CMCallInfo &Info, CMBuiltinKind K
 
   SmallVector<llvm::Value *, 8> ConvArgs;
 
-  // The low-level intrinsic require the surface and sampler index parameter order
-  // to be swapped.
-  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase + 1));                     // samplerIndex
-  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase));                         // surfaceIndex
-  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase + 3));                     // u
-  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase + 4));                     // v
-  ConvArgs.push_back(llvm::ConstantInt::get(FTy->getParamType(4), ExecMode));   // ExecMode
+  // The low-level intrinsic require the surface and sampler index parameter
+  // order to be swapped.
+  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase + 1)); // samplerIndex
+  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase));     // surfaceIndex
+  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase + 3)); // u
+  ConvArgs.push_back(Info.CI->getArgOperand(ArgsBase + 4)); // v
+  ConvArgs.push_back(
+      llvm::ConstantInt::get(FTy->getParamType(4), ExecMode)); // ExecMode
   if (Kind == CMBK_cm_va_1d_convolution_hdc) {
     assert(ArgsBase == 0);
-    ConvArgs.push_back(Info.CI->getArgOperand(6));                              // destIndex
-    ConvArgs.push_back(Info.CI->getArgOperand(7));                              // x-offset
-    ConvArgs.push_back(Info.CI->getArgOperand(8));                              // y-offset
+    ConvArgs.push_back(Info.CI->getArgOperand(6)); // destIndex
+    ConvArgs.push_back(Info.CI->getArgOperand(7)); // x-offset
+    ConvArgs.push_back(Info.CI->getArgOperand(8)); // y-offset
   }
 
   llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(Fn, ConvArgs);
@@ -6118,13 +6246,15 @@ void CGCMRuntime::HandleBuiltinVA1dConvolution(CMCallInfo &Info, CMBuiltinKind K
 }
 
 /// template <int N, int M>
-/// void cm_va_1pixel_convolve(matrix_ref<short, N, M> m, SurfaceIndex surfIndex,
+/// void cm_va_1pixel_convolve(matrix_ref<short, N, M> m, SurfaceIndex
+/// surfIndex,
 ///   SamplerIndex sampIndex, float u, float v, CONVExecMode execMode,
 ///   matrix<short, 1, 32> offsets);
 void CGCMRuntime::HandleBuiltinVA1PixelConvolve(CMCallInfo &Info) {
   CodeGenFunction &CGF = *Info.CGF;
 
-  assert(Info.CE->getNumArgs() >= 6 && Info.CE->getNumArgs() <= 7 && "incorrect number of arguments");
+  assert(Info.CE->getNumArgs() >= 6 && Info.CE->getNumArgs() <= 7 &&
+         "incorrect number of arguments");
 
   uint32_t ExecMode = 0;
   if (!getConstantValue(*this, CGF, ExecMode, Info.CI->getArgOperand(5),
@@ -6133,7 +6263,8 @@ void CGCMRuntime::HandleBuiltinVA1PixelConvolve(CMCallInfo &Info) {
 
   ExecMode &= 3;
   if (ExecMode != 3 && Info.CE->getNumArgs() < 7) {
-    Error(Info.CE->getExprLoc(), "specified execution mode requires an offsets parameter");
+    Error(Info.CE->getExprLoc(),
+          "specified execution mode requires an offsets parameter");
     return;
   }
 
@@ -6146,7 +6277,8 @@ void CGCMRuntime::HandleBuiltinVA1PixelConvolve(CMCallInfo &Info) {
 
   if (ExecMode == 3) {
     if (NumRows != 1 || NumCols != 1) {
-      Error(DstEx->getExprLoc(), "destination must be a 1x1 matrix for 1x1 mode");
+      Error(DstEx->getExprLoc(),
+            "destination must be a 1x1 matrix for 1x1 mode");
       return;
     }
   } else {
@@ -6155,7 +6287,8 @@ void CGCMRuntime::HandleBuiltinVA1PixelConvolve(CMCallInfo &Info) {
       return;
     }
     if (!((ExecMode == 0 && NumRows == 4) || (ExecMode == 2 && NumRows == 1))) {
-      Error(DstEx->getExprLoc(), "destination matrix has the wrong number of rows for the specified execution mode");
+      Error(DstEx->getExprLoc(), "destination matrix has the wrong number of "
+                                 "rows for the specified execution mode");
       return;
     }
 
@@ -6179,7 +6312,8 @@ void CGCMRuntime::HandleBuiltinVA1PixelConvolve(CMCallInfo &Info) {
 
   llvm::Value *Dst = Info.CI->getArgOperand(0);
   llvm::Type *DstTy = Dst->getType();
-  assert(DstTy->isPointerTy() && "pointer type expected for destination argument");
+  assert(DstTy->isPointerTy() &&
+         "pointer type expected for destination argument");
 
   llvm::Function *Fn;
 
@@ -6189,7 +6323,8 @@ void CGCMRuntime::HandleBuiltinVA1PixelConvolve(CMCallInfo &Info) {
 
     Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_va_1pixel_convolve, Tys);
   } else
-    Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_va_1pixel_convolve_1x1mode, DstTy->getPointerElementType());
+    Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_va_1pixel_convolve_1x1mode,
+                          DstTy->getPointerElementType());
 
   llvm::FunctionType *FTy = Fn->getFunctionType();
 
@@ -6197,14 +6332,15 @@ void CGCMRuntime::HandleBuiltinVA1PixelConvolve(CMCallInfo &Info) {
 
   SmallVector<llvm::Value *, 8> ConvArgs;
 
-  ConvArgs.push_back(Info.CI->getArgOperand(2));              // samplerIndex
-  ConvArgs.push_back(Info.CI->getArgOperand(1));              // surfaceIndex
-  ConvArgs.push_back(Info.CI->getArgOperand(3));              // u
-  ConvArgs.push_back(Info.CI->getArgOperand(4));              // v
+  ConvArgs.push_back(Info.CI->getArgOperand(2)); // samplerIndex
+  ConvArgs.push_back(Info.CI->getArgOperand(1)); // surfaceIndex
+  ConvArgs.push_back(Info.CI->getArgOperand(3)); // u
+  ConvArgs.push_back(Info.CI->getArgOperand(4)); // v
 
   if (ExecMode != 3) {
-    ConvArgs.push_back(llvm::ConstantInt::get(FTy->getParamType(4), ExecMode)); // execMode
-    ConvArgs.push_back(Info.CI->getArgOperand(6));            // offsets
+    ConvArgs.push_back(
+        llvm::ConstantInt::get(FTy->getParamType(4), ExecMode)); // execMode
+    ConvArgs.push_back(Info.CI->getArgOperand(6));               // offsets
   }
 
   llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(Fn, ConvArgs);
@@ -6215,7 +6351,8 @@ void CGCMRuntime::HandleBuiltinVA1PixelConvolve(CMCallInfo &Info) {
   Info.CI->eraseFromParent();
 }
 
-/// void cm_va_1pixel_convolve_hdc(SurfaceIndex surfIndex, SamplerIndex sampIndex,
+/// void cm_va_1pixel_convolve_hdc(SurfaceIndex surfIndex, SamplerIndex
+/// sampIndex,
 ///   float u, float v, matrix<short, 1, 32> offsets, CM_FORMAT_SIZE size,
 ///   SurfaceIndex destIndex, ushort x_offset, ushort y_offset);
 void CGCMRuntime::HandleBuiltinVA1PixelConvolveHdc(CMCallInfo &Info) {
@@ -6230,26 +6367,27 @@ void CGCMRuntime::HandleBuiltinVA1PixelConvolveHdc(CMCallInfo &Info) {
 
   PixelSize &= 3;
 
-  llvm::Function *Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_va_hdc_1pixel_convolve,
-                                    Info.CI->getArgOperand(4)->getType());
+  llvm::Function *Fn =
+      getGenXIntrinsic(llvm::GenXIntrinsic::genx_va_hdc_1pixel_convolve,
+                       Info.CI->getArgOperand(4)->getType());
   llvm::FunctionType *FTy = Fn->getFunctionType();
 
   // Arguments.
 
   llvm::Value *Args[] = {
-    // Low-level intrinsic requires sampler and surface index parameter order
-    // to be swapped
-    Info.CI->getArgOperand(1),                                // samplerIndex
-    Info.CI->getArgOperand(0),                                // surfaceIndex
-    Info.CI->getArgOperand(2),                                // u
-    Info.CI->getArgOperand(3),                                // v
-    // Low-level intrinsic requires pixelSize and offsets parameter order
-    // to be swapped
-    llvm::ConstantInt::get(FTy->getParamType(4), PixelSize),  // pixelSize
-    Info.CI->getArgOperand(4),                                // offsets
-    Info.CI->getArgOperand(6),                                // destIndex
-    Info.CI->getArgOperand(7),                                // x_offset
-    Info.CI->getArgOperand(8)                                 // y_offset
+      // Low-level intrinsic requires sampler and surface index parameter order
+      // to be swapped
+      Info.CI->getArgOperand(1), // samplerIndex
+      Info.CI->getArgOperand(0), // surfaceIndex
+      Info.CI->getArgOperand(2), // u
+      Info.CI->getArgOperand(3), // v
+      // Low-level intrinsic requires pixelSize and offsets parameter order
+      // to be swapped
+      llvm::ConstantInt::get(FTy->getParamType(4), PixelSize), // pixelSize
+      Info.CI->getArgOperand(4),                               // offsets
+      Info.CI->getArgOperand(6),                               // destIndex
+      Info.CI->getArgOperand(7),                               // x_offset
+      Info.CI->getArgOperand(8)                                // y_offset
   };
 
   llvm::CallInst *NewCI = Info.CGF->Builder.CreateCall(Fn, Args);
@@ -6265,16 +6403,20 @@ void CGCMRuntime::HandleBuiltinVA1PixelConvolveHdc(CMCallInfo &Info) {
 /// void cm_va_lbp_creation_hdc(SurfaceIndex surfIndex, float u, float v,
 ///    LBPCreationExecMode execMode, SurfaceIndex destIndex,
 ///    ushort x_offset, ushort y_offset);
-void CGCMRuntime::HandleBuiltinVALbpCreation(CMCallInfo &Info, CMBuiltinKind Kind) {
+void CGCMRuntime::HandleBuiltinVALbpCreation(CMCallInfo &Info,
+                                             CMBuiltinKind Kind) {
   CodeGenFunction &CGF = *Info.CGF;
 
-  assert(Kind == CMBK_cm_va_lbp_creation || Kind == CMBK_cm_va_lbp_creation_hdc);
+  assert(Kind == CMBK_cm_va_lbp_creation ||
+         Kind == CMBK_cm_va_lbp_creation_hdc);
 
-  assert(Info.CE->getNumArgs() == (Kind == CMBK_cm_va_lbp_creation ? 5 : 7) && "incorrect number of arguments");
+  assert(Info.CE->getNumArgs() == (Kind == CMBK_cm_va_lbp_creation ? 5 : 7) &&
+         "incorrect number of arguments");
 
   uint32_t ExecModeArgNum = (Kind == CMBK_cm_va_lbp_creation ? 4 : 3);
   uint32_t ExecMode = 0;
-  if (!getConstantValue(*this, CGF, ExecMode, Info.CI->getArgOperand(ExecModeArgNum),
+  if (!getConstantValue(*this, CGF, ExecMode,
+                        Info.CI->getArgOperand(ExecModeArgNum),
                         Info.CE->getArg(ExecModeArgNum)))
     return;
 
@@ -6287,20 +6429,24 @@ void CGCMRuntime::HandleBuiltinVALbpCreation(CMCallInfo &Info, CMBuiltinKind Kin
   if (Kind == CMBK_cm_va_lbp_creation) {
     const Expr *DstEx = Info.CE->getArg(0);
     QualType DstType = DstEx->getType();
-    assert(DstType->isCMMatrixType() && "destination argument must be a matrix");
+    assert(DstType->isCMMatrixType() &&
+           "destination argument must be a matrix");
 
-    if (DstType->castAs<CMMatrixType>()->getNumColumns() != 16
-        || DstType->castAs<CMMatrixType>()->getNumRows() != (ExecMode == 0 ? 8 : 4)) {
-      Error(DstEx->getExprLoc(), "destination matrix's dimensions are incorrect for the specified execution mode");
+    if (DstType->castAs<CMMatrixType>()->getNumColumns() != 16 ||
+        DstType->castAs<CMMatrixType>()->getNumRows() !=
+            (ExecMode == 0 ? 8 : 4)) {
+      Error(DstEx->getExprLoc(), "destination matrix's dimensions are "
+                                 "incorrect for the specified execution mode");
       return;
     }
 
     Dst = Info.CI->getArgOperand(0);
     llvm::Type *DstTy = Dst->getType();
-    assert(DstTy->isPointerTy() && "pointer type expected for destination argument");
+    assert(DstTy->isPointerTy() &&
+           "pointer type expected for destination argument");
 
     Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_va_lbp_creation,
-        DstTy->getPointerElementType());
+                          DstTy->getPointerElementType());
 
     ArgsBase = 1;
   } else {
@@ -6314,15 +6460,16 @@ void CGCMRuntime::HandleBuiltinVALbpCreation(CMCallInfo &Info, CMBuiltinKind Kin
 
   SmallVector<llvm::Value *, 8> CreateArgs;
 
-  CreateArgs.push_back(Info.CI->getArgOperand(ArgsBase));                       // surfaceIndex
-  CreateArgs.push_back(Info.CI->getArgOperand(ArgsBase + 1));                   // u
-  CreateArgs.push_back(Info.CI->getArgOperand(ArgsBase + 2));                   // v
-  CreateArgs.push_back(llvm::ConstantInt::get(FTy->getParamType(3), ExecMode)); // ExecMode
+  CreateArgs.push_back(Info.CI->getArgOperand(ArgsBase));     // surfaceIndex
+  CreateArgs.push_back(Info.CI->getArgOperand(ArgsBase + 1)); // u
+  CreateArgs.push_back(Info.CI->getArgOperand(ArgsBase + 2)); // v
+  CreateArgs.push_back(
+      llvm::ConstantInt::get(FTy->getParamType(3), ExecMode)); // ExecMode
   if (Kind == CMBK_cm_va_lbp_creation_hdc) {
     assert(ArgsBase == 0);
-    CreateArgs.push_back(Info.CI->getArgOperand(4));                            // destIndex
-    CreateArgs.push_back(Info.CI->getArgOperand(5));                            // x-offset
-    CreateArgs.push_back(Info.CI->getArgOperand(6));                            // y-offset
+    CreateArgs.push_back(Info.CI->getArgOperand(4)); // destIndex
+    CreateArgs.push_back(Info.CI->getArgOperand(5)); // x-offset
+    CreateArgs.push_back(Info.CI->getArgOperand(6)); // y-offset
   }
 
   llvm::CallInst *NewCI = CGF.Builder.CreateCall(Fn, CreateArgs);
@@ -6335,17 +6482,22 @@ void CGCMRuntime::HandleBuiltinVALbpCreation(CMCallInfo &Info, CMBuiltinKind Kin
 }
 
 /// template <int N>
-/// void cm_va_lbp_correlation(matrix_ref<uchar, N, 16> m, SurfaceIndex surfIndex,
+/// void cm_va_lbp_correlation(matrix_ref<uchar, N, 16> m, SurfaceIndex
+/// surfIndex,
 ///   float u, float v, short x_offset_disparity);
 /// void cm_va_lbp_correlation_hdc(SurfaceIndex surfIndex,
 ///   float u, float v, short x_offset_disparity,
 ///   SurfaceIndex destIndex, ushort x_offset, ushort y_offset);
-void CGCMRuntime::HandleBuiltinVALbpCorrelation(CMCallInfo &Info, CMBuiltinKind Kind) {
+void CGCMRuntime::HandleBuiltinVALbpCorrelation(CMCallInfo &Info,
+                                                CMBuiltinKind Kind) {
   CodeGenFunction &CGF = *Info.CGF;
 
-  assert(Kind == CMBK_cm_va_lbp_correlation || Kind == CMBK_cm_va_lbp_correlation_hdc);
+  assert(Kind == CMBK_cm_va_lbp_correlation ||
+         Kind == CMBK_cm_va_lbp_correlation_hdc);
 
-  assert(Info.CE->getNumArgs() == (Kind == CMBK_cm_va_lbp_correlation ? 5 : 7)  && "incorrect number of arguments");
+  assert(Info.CE->getNumArgs() ==
+             (Kind == CMBK_cm_va_lbp_correlation ? 5 : 7) &&
+         "incorrect number of arguments");
 
   llvm::Value *Dst = NULL;
   llvm::Function *Fn;
@@ -6353,20 +6505,23 @@ void CGCMRuntime::HandleBuiltinVALbpCorrelation(CMCallInfo &Info, CMBuiltinKind 
   if (Kind == CMBK_cm_va_lbp_correlation) {
     const Expr *DstEx = Info.CE->getArg(0);
     QualType DstType = DstEx->getType();
-    assert(DstType->isCMMatrixType() && "destination argument must be a matrix");
+    assert(DstType->isCMMatrixType() &&
+           "destination argument must be a matrix");
 
-    if (DstType->castAs<CMMatrixType>()->getNumColumns() != 16
-        || DstType->castAs<CMMatrixType>()->getNumRows() != 4) {
-      Error(DstEx->getExprLoc(), "destination matrix's dimensions are incorrect");
+    if (DstType->castAs<CMMatrixType>()->getNumColumns() != 16 ||
+        DstType->castAs<CMMatrixType>()->getNumRows() != 4) {
+      Error(DstEx->getExprLoc(),
+            "destination matrix's dimensions are incorrect");
       return;
     }
 
     Dst = Info.CI->getArgOperand(0);
     llvm::Type *DstTy = Dst->getType();
-    assert(DstTy->isPointerTy() && "pointer type expected for destination argument");
+    assert(DstTy->isPointerTy() &&
+           "pointer type expected for destination argument");
 
     Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_va_lbp_correlation,
-        DstTy->getPointerElementType());
+                          DstTy->getPointerElementType());
 
     ArgsBase = 1;
   } else {
@@ -6378,15 +6533,15 @@ void CGCMRuntime::HandleBuiltinVALbpCorrelation(CMCallInfo &Info, CMBuiltinKind 
 
   SmallVector<llvm::Value *, 8> CorrArgs;
 
-  CorrArgs.push_back(Info.CI->getArgOperand(ArgsBase));           // surfaceIndex
-  CorrArgs.push_back(Info.CI->getArgOperand(ArgsBase + 1));       // u
-  CorrArgs.push_back(Info.CI->getArgOperand(ArgsBase + 2));       // v
-  CorrArgs.push_back(Info.CI->getArgOperand(ArgsBase + 3));       // disparity
+  CorrArgs.push_back(Info.CI->getArgOperand(ArgsBase));     // surfaceIndex
+  CorrArgs.push_back(Info.CI->getArgOperand(ArgsBase + 1)); // u
+  CorrArgs.push_back(Info.CI->getArgOperand(ArgsBase + 2)); // v
+  CorrArgs.push_back(Info.CI->getArgOperand(ArgsBase + 3)); // disparity
   if (Kind == CMBK_cm_va_lbp_correlation_hdc) {
     assert(ArgsBase == 0);
-    CorrArgs.push_back(Info.CI->getArgOperand(4));                // destIndex
-    CorrArgs.push_back(Info.CI->getArgOperand(5));                // x-offset
-    CorrArgs.push_back(Info.CI->getArgOperand(6));                // y-offset
+    CorrArgs.push_back(Info.CI->getArgOperand(4)); // destIndex
+    CorrArgs.push_back(Info.CI->getArgOperand(5)); // x-offset
+    CorrArgs.push_back(Info.CI->getArgOperand(6)); // y-offset
   }
 
   llvm::CallInst *NewCI = CGF.Builder.CreateCall(Fn, CorrArgs);
@@ -6399,7 +6554,8 @@ void CGCMRuntime::HandleBuiltinVALbpCorrelation(CMCallInfo &Info, CMBuiltinKind 
 }
 
 /// template <int N, int M>
-/// void cm_va_correlation_search(matrix_ref<int, N, M> m, SurfaceIndex surfIndex,
+/// void cm_va_correlation_search(matrix_ref<int, N, M> m, SurfaceIndex
+/// surfIndex,
 ///   float u, float v, float verticalOrigin, float horizontalOrigin,
 ///   uchar xDirectionSize, uchar yDirectionSize, uchar xDirectionSearchSize,
 ///   uchar yDirectionSearchSize);
@@ -6416,31 +6572,34 @@ void CGCMRuntime::HandleBuiltinVACorrelationSearch(CMCallInfo &Info) {
   // results isn't known until runtime, which means the precise shape of
   // return matrix cannot be validated. All that can be validated is that
   // that number of columns is a value that is valid according to the spec.
-  if (DstType->castAs<CMMatrixType>()->getNumColumns() != 16
-      && DstType->castAs<CMMatrixType>()->getNumColumns() != 8) {
-    Error(DstEx->getExprLoc(), "destination matrix must have either 8 or 16 columns");
+  if (DstType->castAs<CMMatrixType>()->getNumColumns() != 16 &&
+      DstType->castAs<CMMatrixType>()->getNumColumns() != 8) {
+    Error(DstEx->getExprLoc(),
+          "destination matrix must have either 8 or 16 columns");
     return;
   }
 
   llvm::Value *Dst = Info.CI->getArgOperand(0);
   llvm::Type *DstTy = Dst->getType();
-  assert(DstTy->isPointerTy() && "pointer type expected for destination argument");
+  assert(DstTy->isPointerTy() &&
+         "pointer type expected for destination argument");
 
-  llvm::Function *Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_va_correlation_search,
-      DstTy->getPointerElementType());
+  llvm::Function *Fn =
+      getGenXIntrinsic(llvm::GenXIntrinsic::genx_va_correlation_search,
+                       DstTy->getPointerElementType());
 
   // Arguments.
 
   llvm::Value *Args[] = {
-    Info.CI->getArgOperand(1),                                // surfaceIndex
-    Info.CI->getArgOperand(2),                                // u
-    Info.CI->getArgOperand(3),                                // v
-    Info.CI->getArgOperand(4),                                // verticalOrigin
-    Info.CI->getArgOperand(5),                                // horizontalOrigin
-    Info.CI->getArgOperand(6),                                // xDirectionSize
-    Info.CI->getArgOperand(7),                                // yDirectionSize
-    Info.CI->getArgOperand(8),                                // xDirectionSearchSize
-    Info.CI->getArgOperand(9),                                // yDirectionSearchSize
+      Info.CI->getArgOperand(1), // surfaceIndex
+      Info.CI->getArgOperand(2), // u
+      Info.CI->getArgOperand(3), // v
+      Info.CI->getArgOperand(4), // verticalOrigin
+      Info.CI->getArgOperand(5), // horizontalOrigin
+      Info.CI->getArgOperand(6), // xDirectionSize
+      Info.CI->getArgOperand(7), // yDirectionSize
+      Info.CI->getArgOperand(8), // xDirectionSearchSize
+      Info.CI->getArgOperand(9), // yDirectionSearchSize
   };
 
   llvm::CallInst *NewCI = CGF.Builder.CreateCall(Fn, Args);
@@ -6472,21 +6631,23 @@ void CGCMRuntime::HandleBuiltinVAFloodFill(CMCallInfo &Info) {
 
   llvm::Value *Dst = Info.CI->getArgOperand(0);
   llvm::Type *DstTy = Dst->getType();
-  assert(DstTy->isPointerTy() && "pointer type expected for destination argument");
+  assert(DstTy->isPointerTy() &&
+         "pointer type expected for destination argument");
 
   llvm::Value *PMHDir = Info.CI->getArgOperand(2);
   llvm::Type *Tys[] = {DstTy->getPointerElementType(), PMHDir->getType()};
-  llvm::Function *Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_va_flood_fill, Tys);
+  llvm::Function *Fn =
+      getGenXIntrinsic(llvm::GenXIntrinsic::genx_va_flood_fill, Tys);
   llvm::FunctionType *FTy = Fn->getFunctionType();
 
   // Arguments.
 
   llvm::Value *Args[] = {
-    llvm::ConstantInt::get(FTy->getParamType(0), Is8Connect),       // Is8Connect
-    Info.CI->getArgOperand(2),                                      // pixelMaskHDirection
-    Info.CI->getArgOperand(3),                                      // pixelMaskVDirectionLeft
-    Info.CI->getArgOperand(4),                                      // pixelMaskVDirectionRight
-    Info.CI->getArgOperand(5)                                       // loopCount
+      llvm::ConstantInt::get(FTy->getParamType(0), Is8Connect), // Is8Connect
+      Info.CI->getArgOperand(2), // pixelMaskHDirection
+      Info.CI->getArgOperand(3), // pixelMaskVDirectionLeft
+      Info.CI->getArgOperand(4), // pixelMaskVDirectionRight
+      Info.CI->getArgOperand(5)  // loopCount
   };
 
   llvm::CallInst *NewCI = CGF.Builder.CreateCall(Fn, Args);
@@ -6503,11 +6664,11 @@ llvm::Value *CGCMRuntime::HandleBuiltinSimdcfAnyImpl(CMCallInfo &CallInfo) {
 
   if (!Arg0->getType()->getScalarType()->isIntegerTy(1)) {
     if (Arg0->getType()->getScalarType()->isFloatingPointTy())
-      Arg0 = CallInfo.CGF->Builder.CreateFCmpONE(Arg0,
-          llvm::Constant::getNullValue(Arg0->getType()));
+      Arg0 = CallInfo.CGF->Builder.CreateFCmpONE(
+          Arg0, llvm::Constant::getNullValue(Arg0->getType()));
     else
-      Arg0 = CallInfo.CGF->Builder.CreateICmpNE(Arg0,
-          llvm::Constant::getNullValue(Arg0->getType()));
+      Arg0 = CallInfo.CGF->Builder.CreateICmpNE(
+          Arg0, llvm::Constant::getNullValue(Arg0->getType()));
   }
 
   if (!Arg0->getType()->isVectorTy()) {
@@ -6528,7 +6689,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinSimdcfAnyImpl(CMCallInfo &CallInfo) {
 
 // template<typename T0, int N>
 // vector<T0, N> __cm_intrinsic_impl_simdcf_predgen(vector<T0, N> arg0)
-llvm::Value *CGCMRuntime::HandleBuiltinSimdcfGenericPredicationImpl(CMCallInfo &CallInfo) {
+llvm::Value *
+CGCMRuntime::HandleBuiltinSimdcfGenericPredicationImpl(CMCallInfo &CallInfo) {
   const CallExpr *CE = CallInfo.CE;
   assert(CE->getNumArgs() == 1);
   assert(CE->getType()->isCMVectorMatrixType());
@@ -6538,11 +6700,16 @@ llvm::Value *CGCMRuntime::HandleBuiltinSimdcfGenericPredicationImpl(CMCallInfo &
   llvm::Value *Arg0 = CI->getArgOperand(0);
   llvm::Type *Arg0Ty = Arg0->getType();
   llvm::Value *Arg1 = llvm::UndefValue::get(Arg0Ty);
-  bool SrcSigned = CE->getArg(0)->getType()->getCMVectorMatrixElementType()->isSignedIntegerType();
+  bool SrcSigned = CE->getArg(0)
+                       ->getType()
+                       ->getCMVectorMatrixElementType()
+                       ->isSignedIntegerType();
 
-  llvm::Function *Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_simdcf_predicate, Arg0Ty);
+  llvm::Function *Fn =
+      getGenXIntrinsic(llvm::GenXIntrinsic::genx_simdcf_predicate, Arg0Ty);
   llvm::Value *Args[] = {Arg0, Arg1};
-  llvm::CallInst *NewCI = CallInfo.CGF->Builder.CreateCall(Fn, Args, "simdcfpref");
+  llvm::CallInst *NewCI =
+      CallInfo.CGF->Builder.CreateCall(Fn, Args, "simdcfpref");
   NewCI->takeName(CI);
   NewCI->setDebugLoc(CI->getDebugLoc());
   CI->eraseFromParent();
@@ -6554,8 +6721,9 @@ llvm::Value *CGCMRuntime::HandleBuiltinSimdcfGenericPredicationImpl(CMCallInfo &
 // vector<T0, N> __cm_intrinsic_impl_simdcf_predmin(vector<T0, N> arg0)
 // template<typename T0, int N>
 // vector<T0, N> __cm_intrinsic_impl_simdcf_predmax(vector<T0, N> arg0)
-llvm::Value *CGCMRuntime::HandleBuiltinSimdcfMinMaxPredicationImpl(CMCallInfo &CallInfo,
-                                                                   CMBuiltinKind Kind) {
+llvm::Value *
+CGCMRuntime::HandleBuiltinSimdcfMinMaxPredicationImpl(CMCallInfo &CallInfo,
+                                                      CMBuiltinKind Kind) {
   assert(Kind == CMBK_simdcf_predmin_impl || Kind == CMBK_simdcf_predmax_impl);
 
   const CallExpr *CE = CallInfo.CE;
@@ -6567,27 +6735,38 @@ llvm::Value *CGCMRuntime::HandleBuiltinSimdcfMinMaxPredicationImpl(CMCallInfo &C
   llvm::Value *Arg0 = CI->getArgOperand(0);
   llvm::Type *Arg0Ty = Arg0->getType();
   llvm::Value *Arg1;
-  bool SrcSigned = CE->getArg(0)->getType()->getCMVectorMatrixElementType()->isSignedIntegerType();
+  bool SrcSigned = CE->getArg(0)
+                       ->getType()
+                       ->getCMVectorMatrixElementType()
+                       ->isSignedIntegerType();
 
-  // Determine what the lowered intrinsic call's second parameter should be, the one
-  // that represents the defaults to choose for SIMDCF channels which aren't selected.
-  // This value will be a splat of either the maximum possible value of whatever the
-  // first (vector) parameter's element type is (for the minimum predication builtin)
-  // or the minimum possible value of that type (for the maximum predication builtin).
+  // Determine what the lowered intrinsic call's second parameter should be, the
+  // one that represents the defaults to choose for SIMDCF channels which aren't
+  // selected. This value will be a splat of either the maximum possible value
+  // of whatever the first (vector) parameter's element type is (for the minimum
+  // predication builtin) or the minimum possible value of that type (for the
+  // maximum predication builtin).
   //
-  // (The generic predication builtin could have been used, but it was just a lot
-  // easier to get clang to work out what these default values should be rather than
-  // trying to express this in Cm code for all possible valid types.)
+  // (The generic predication builtin could have been used, but it was just a
+  // lot easier to get clang to work out what these default values should be
+  // rather than trying to express this in Cm code for all possible valid
+  // types.)
 
-  if (CE->getArg(0)->getType()->getCMVectorMatrixElementType()->isFloatingType()) {
+  if (CE->getArg(0)
+          ->getType()
+          ->getCMVectorMatrixElementType()
+          ->isFloatingType()) {
     double Arg1Value = std::numeric_limits<float>::max();
 
     if (Kind == CMBK_simdcf_predmax_impl)
-      Arg1Value = - Arg1Value;
+      Arg1Value = -Arg1Value;
 
     Arg1 = llvm::ConstantFP::get(Arg0Ty, Arg1Value);
   } else {
-    uint64_t Arg1Value = cast<llvm::ConstantInt>(llvm::Constant::getAllOnesValue(Arg0Ty->getScalarType()))->getZExtValue();
+    uint64_t Arg1Value =
+        cast<llvm::ConstantInt>(
+            llvm::Constant::getAllOnesValue(Arg0Ty->getScalarType()))
+            ->getZExtValue();
 
     if (SrcSigned) {
       Arg1Value >>= 1;
@@ -6599,8 +6778,9 @@ llvm::Value *CGCMRuntime::HandleBuiltinSimdcfMinMaxPredicationImpl(CMCallInfo &C
     Arg1 = llvm::ConstantInt::get(Arg0Ty, Arg1Value, SrcSigned);
   }
 
-  llvm::Function *Fn = getGenXIntrinsic(llvm::GenXIntrinsic::genx_simdcf_predicate, Arg0Ty);
-  llvm::Value *Args[] = { Arg0, Arg1 };
+  llvm::Function *Fn =
+      getGenXIntrinsic(llvm::GenXIntrinsic::genx_simdcf_predicate, Arg0Ty);
+  llvm::Value *Args[] = {Arg0, Arg1};
   llvm::CallInst *NewCI = CallInfo.CGF->Builder.CreateCall(Fn, Args);
   NewCI->takeName(CI);
   NewCI->setDebugLoc(CI->getDebugLoc());
@@ -6626,8 +6806,9 @@ llvm::Value *CGCMRuntime::HandlePredefinedSurface(CMCallInfo &CallInfo) {
   }
 
   llvm::Function *Fn =
-    getGenXIntrinsic(llvm::GenXIntrinsic::genx_predefined_surface);
-  llvm::Value *Arg = llvm::ConstantInt::get(Fn->getFunctionType()->getParamType(0), SID);
+      getGenXIntrinsic(llvm::GenXIntrinsic::genx_predefined_surface);
+  llvm::Value *Arg =
+      llvm::ConstantInt::get(Fn->getFunctionType()->getParamType(0), SID);
   llvm::CallInst *NewCI = CallInfo.CGF->Builder.CreateCall(Fn, Arg);
   NewCI->takeName(CallInfo.CI);
   NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
@@ -6658,8 +6839,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinSVMAtomicImpl(CMCallInfo &CallInfo) {
   auto Op = static_cast<CmAtomicOpType>(getIntegralValue(FD, 0));
   unsigned ID = getAtomicSVMIntrinsicID(Op);
 
-  llvm::Type *CITy = CallInfo.CI->getType();;
-  unsigned N = CITy->getVectorNumElements();
+  auto *CITy = cast<llvm::FixedVectorType>(CallInfo.CI->getType());
+  unsigned N = CITy->getNumElements();
 
   // Types for overloading
   llvm::Type *Tys[] = {
@@ -6707,8 +6888,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinRdregionImpl(CMCallInfo &CallInfo) {
 // template <int width, int stride, typename T, int n, int m>
 // typename simd_type<T, n>::type
 // __cm_intrinsic_impl_wrregion(typename simd_type<T, n>::type oldVal,
-//                              typename simd_type<T, m>::type newVal, int offset,
-//                              typename mask_type<n>::type mask = 1);
+//                              typename simd_type<T, m>::type newVal, int
+//                              offset, typename mask_type<n>::type mask = 1);
 //
 llvm::Value *CGCMRuntime::HandleBuiltinWrregionImpl(CMCallInfo &CallInfo) {
   const CallExpr *CE = CallInfo.CE;
@@ -6717,7 +6898,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinWrregionImpl(CMCallInfo &CallInfo) {
   unsigned Stride = getIntegralValue(CE->getDirectCallee(), 1);
 
   llvm::Value *Mask = CI->getArgOperand(3);
-  unsigned N = Mask->getType()->getVectorNumElements();
+  auto *PredTy = cast<llvm::FixedVectorType>(Mask->getType());
+  unsigned N = PredTy->getNumElements();
   llvm::Type *MaskTy = getMaskType(Mask->getContext(), N);
   Mask = CallInfo.CGF->Builder.CreateTrunc(Mask, MaskTy, ".trunc");
   auto NewCI = EmitWriteRegion1D(CallInfo.CGF->Builder, CI->getArgOperand(0),
@@ -6748,7 +6930,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinDP4AImpl(CMCallInfo &CallInfo,
 
   // Check the saturation flag, compare it with 0.
   llvm::Value *CMP = Builder.CreateICmpEQ(
-    Flag, llvm::Constant::getNullValue(Flag->getType()), "cmp");
+      Flag, llvm::Constant::getNullValue(Flag->getType()), "cmp");
 
   // non-saturated ID
   unsigned ID0 = GetGenxIntrinsicID(CallInfo, Kind, false);
@@ -6781,7 +6963,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinDP4AImpl(CMCallInfo &CallInfo,
 /// T __cm_intrinsic_impl_bfn(T s0, T s1, T s2, char bfval);
 ///
 llvm::Value *CGCMRuntime::HandleBuiltinBFNImpl(CMCallInfo &CallInfo,
-                                                CMBuiltinKind Kind) {
+                                               CMBuiltinKind Kind) {
   assert(Kind == CMBK_cm_bfn_impl);
 
   const CallExpr *CE = CallInfo.CE;
@@ -6825,7 +7007,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinDPAS2Impl(CMCallInfo &CallInfo,
 
   llvm::CallInst *CI = CallInfo.CI;
 
-  llvm::SmallVector<llvm::Value*, 4> arguments;
+  llvm::SmallVector<llvm::Value *, 4> arguments;
 
   arguments.push_back(CI->getArgOperand(0));
   arguments.push_back(CI->getArgOperand(1));
@@ -6864,7 +7046,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinDPAS2Impl(CMCallInfo &CallInfo,
   Tys.push_back(arguments[1]->getType());
   Tys.push_back(arguments[2]->getType());
   SmallVector<llvm::Value *, 8> Args;
-  for(auto* arg : arguments)
+  for (auto *arg : arguments)
     Args.push_back(arg);
   Args.push_back(ValSrc1Precision);
   Args.push_back(ValSrc2Precision);
@@ -6880,16 +7062,18 @@ llvm::Value *CGCMRuntime::HandleBuiltinDPAS2Impl(CMCallInfo &CallInfo,
   return Result;
 }
 
-// template <CmPrecisionType src1_precision, CmPrecisionType src2_precision, int systolic_depth,
+// template <CmPrecisionType src1_precision, CmPrecisionType src2_precision, int
+// systolic_depth,
 //            typename T, typename T1, typename T2, int N, int N1, int N2,
 //            typename T0>
-// vector<T0, N> __cm_intrinsic_impl_dpas(vector<T, N> src0, vector<T1, N1> src1, vector<T2, N2> src2)
+// vector<T0, N> __cm_intrinsic_impl_dpas(vector<T, N> src0, vector<T1, N1>
+// src1, vector<T2, N2> src2)
 llvm::Value *CGCMRuntime::HandleBuiltinDPASImpl(CMCallInfo &CallInfo,
                                                 CMBuiltinKind Kind) {
   assert(Kind == CMBK_cm_dpas_impl || Kind == CMBK_cm_dpasw_impl ||
-    Kind == CMBK_cm_dpas2_impl ||
-    Kind == CMBK_cm_dpas_nosrc0_impl || Kind == CMBK_cm_dpasw_nosrc0_impl);
-  if(Kind == CMBK_cm_dpas2_impl)
+         Kind == CMBK_cm_dpas2_impl || Kind == CMBK_cm_dpas_nosrc0_impl ||
+         Kind == CMBK_cm_dpasw_nosrc0_impl);
+  if (Kind == CMBK_cm_dpas2_impl)
     return HandleBuiltinDPAS2Impl(CallInfo, Kind);
 
   const CallExpr *CE = CallInfo.CE;
@@ -6910,13 +7094,12 @@ llvm::Value *CGCMRuntime::HandleBuiltinDPASImpl(CMCallInfo &CallInfo,
   unsigned RepeatCount = getIntegralValue(CE->getDirectCallee(), 3);
 
   auto fitsInByte = [&](StringRef Name, unsigned V) {
-
     if ((V & 0xff) == V)
       return true;
 
     Error(CallInfo.CE->getArg(0)->getExprLoc(),
-          (Name + ": (" + std::to_string(V) +
-           ") is out of the expected range").str());
+          (Name + ": (" + std::to_string(V) + ") is out of the expected range")
+              .str());
     return false;
   };
 
@@ -6940,7 +7123,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinDPASImpl(CMCallInfo &CallInfo,
 
   SmallVector<llvm::Value *, 8> Args;
   if (IntrinsicID == llvm::GenXIntrinsic::genx_dpas ||
-     IntrinsicID == llvm::GenXIntrinsic::genx_dpasw) {
+      IntrinsicID == llvm::GenXIntrinsic::genx_dpasw) {
     Args.push_back(Arg0);
   }
   Args.push_back(Arg1);
@@ -6961,7 +7144,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinDPASImpl(CMCallInfo &CallInfo,
 /// __cm_intrinsic_impl_tf32_cvt(vector<T0, N> src0)
 ///
 llvm::Value *CGCMRuntime::HandleBuiltinTF32CVTImpl(CMCallInfo &CallInfo,
-                                                 CMBuiltinKind Kind) {
+                                                   CMBuiltinKind Kind) {
   assert(Kind == CMBK_cm_tf32_cvt_impl);
 
   const CallExpr *CE = CallInfo.CE;
@@ -7035,14 +7218,15 @@ llvm::Value *CGCMRuntime::HandleBuiltinSRNDImpl(CMCallInfo &CallInfo,
 /// template <typename T, int NBlocks, int Width, int Height,
 ///           CacheHint L1H, CacheHint L3H, int N>
 /// void __cm_intrinsic_impl_store2d(uint64_t Base, unsigned SurfaceWidth,
-///                                  unsigned SurfaceHeight, unsigned SurfacePitch,
-///                                  int X, int Y, vector<T, N> Data);
+///                                  unsigned SurfaceHeight, unsigned
+///                                  SurfacePitch, int X, int Y, vector<T, N>
+///                                  Data);
 ///
 /// template <typename T, int NBlocks, int Width, int Height, CacheHint L1H,
 ///           CacheHint L3H>
 /// void __cm_intrinsic_impl_prefetch2d(uint64_t Base, unsigned SurfaceWidth,
-///                                     unsigned SurfaceHeight, unsigned SurfacePitch,
-///                                     int X, int Y);
+///                                     unsigned SurfaceHeight, unsigned
+///                                     SurfacePitch, int X, int Y);
 ///
 llvm::Value *CGCMRuntime::HandleBuiltinLSC2dImpl(CMCallInfo &CallInfo,
                                                  CMBuiltinKind Kind) {
@@ -7141,7 +7325,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinLSC2dImpl(CMCallInfo &CallInfo,
     ID = llvm::GenXIntrinsic::genx_lsc_prefetch2d_stateless;
   } else {
     Tys.push_back(Pred->getType());                 // predicate
-    Tys.push_back(Addr->getType()); // address type (i32/i64)
+    Tys.push_back(Addr->getType());                 // address type (i32/i64)
     Tys.push_back(CI->getArgOperand(6)->getType()); // data type
     ID = llvm::GenXIntrinsic::genx_lsc_store2d_stateless;
     Args.push_back(CI->getArgOperand(6)); // Data to write
@@ -7186,8 +7370,9 @@ llvm::Value *CGCMRuntime::HandleBuiltinLSCImpl(CMCallInfo &CallInfo,
   else {
     assert(Params.Pred_ && Params.Pred_->getType()->isVectorTy() &&
            "We expect vector Pred if exists");
-    auto VTy = llvm::VectorType::get(
-        Builder.getInt1Ty(), Params.Pred_->getType()->getVectorNumElements());
+    auto *PredTy = cast<llvm::FixedVectorType>(Params.Pred_->getType());
+    auto *VTy = llvm::FixedVectorType::get(Builder.getInt1Ty(),
+                                           PredTy->getNumElements());
     Params.Pred_ = Builder.CreateTruncOrBitCast(Params.Pred_, VTy);
   }
 
@@ -7197,7 +7382,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinLSCImpl(CMCallInfo &CallInfo,
     Params.setNonTranspose();
 
   // LSC_DATA_ELEMS_1 illegal on transposed operation
-  if  (Params.VS_ == static_cast<unsigned char>(VectorSize::N1))
+  if (Params.VS_ == static_cast<unsigned char>(VectorSize::N1))
     Params.setNonTranspose();
 
   // Special logic for flat addresses
@@ -7220,12 +7405,12 @@ llvm::Value *CGCMRuntime::HandleBuiltinLSCImpl(CMCallInfo &CallInfo,
         Offsets = Builder.CreateZExt(Offsets, Int64Ty);
       Offsets = Builder.CreateAdd(Offsets, Params.Idx_);
     } else {
-      assert(Offsets->getType()->isVectorTy());
-      auto N = Offsets->getType()->getVectorNumElements();
+      auto *OffsetsTy = cast<llvm::FixedVectorType>(Offsets->getType());
+      auto N = OffsetsTy->getNumElements();
 
       // Convert the offest type to UD if it is not.
-      if (Offsets->getType()->getVectorElementType() != Int64Ty) {
-        llvm::Type *Ty = llvm::VectorType::get(Int64Ty, N);
+      if (OffsetsTy->getElementType() != Int64Ty) {
+        llvm::Type *Ty = llvm::FixedVectorType::get(Int64Ty, N);
         Offsets = Builder.CreateZExt(Offsets, Ty);
       }
       // workaround, hw does not really have a global-address, add
@@ -7286,17 +7471,17 @@ llvm::Value *CGCMRuntime::HandleBuiltinLSCImpl(CMCallInfo &CallInfo,
   Args.push_back(Builder.getInt8(Params.DS_));         // Datum size
   Args.push_back(Builder.getInt8(Params.VS_));         // Vector size
   Args.push_back(Builder.getInt8(Params.Transposed_)); // transposed
-  Args.push_back(Params.ChM_);          // channel mask
-  Args.push_back(Params.Offset_);       // offsets
+  Args.push_back(Params.ChM_);                         // channel mask
+  Args.push_back(Params.Offset_);                      // offsets
   if (Ldt == STORE)
-    Args.push_back(Params.Data_);       // data
+    Args.push_back(Params.Data_); // data
   if (Ldt == ATOMIC) {
-    Args.push_back(Params.Data_);       // src0 or undef
-    Args.push_back(Params.Data1_);      // src1 or undef
+    Args.push_back(Params.Data_);  // src0 or undef
+    Args.push_back(Params.Data1_); // src1 or undef
   }
-  Args.push_back(Params.Idx_);          // surface
+  Args.push_back(Params.Idx_); // surface
   if (Ldt == ATOMIC)
-    Args.push_back(OldVal);             // oldval
+    Args.push_back(OldVal); // oldval
 
   auto NewCI = Builder.CreateCall(F, Args);
   NewCI->setDebugLoc(Params.CI_->getDebugLoc());
@@ -7314,9 +7499,8 @@ llvm::Value *CGCMRuntime::HandleBuiltinLSCImpl(CMCallInfo &CallInfo,
 // RetTy __cm_intrinsic_impl_lsc_fence(vector<ushort, 32> Pred);
 //
 
-llvm::Value *
-CGCMRuntime::HandleBuiltinLscFenceImpl(CMCallInfo &CallInfo,
-                                       CMBuiltinKind Kind) {
+llvm::Value *CGCMRuntime::HandleBuiltinLscFenceImpl(CMCallInfo &CallInfo,
+                                                    CMBuiltinKind Kind) {
   assert(Kind == CMBK_cm_lsc_fence_impl);
   const FunctionDecl *FD = CallInfo.CE->getDirectCallee();
   auto Sfid = static_cast<LSC_SFID>(getIntegralValue(FD, 0));
@@ -7327,9 +7511,9 @@ CGCMRuntime::HandleBuiltinLscFenceImpl(CMCallInfo &CallInfo,
   // Convert predicate from N x i16 to N x i1
   llvm::Value *Pred = CI->getArgOperand(0);
   {
-    assert(Pred->getType()->isVectorTy());
-    auto VTy = llvm::VectorType::get(Builder.getInt1Ty(),
-                                     Pred->getType()->getVectorNumElements());
+    auto *PredTy = cast<llvm::FixedVectorType>(Pred->getType());
+    auto *VTy = llvm::FixedVectorType::get(Builder.getInt1Ty(),
+                                           PredTy->getNumElements());
     Pred = Builder.CreateTruncOrBitCast(Pred, VTy);
   }
   llvm::Type *Tys[] = {
@@ -7339,7 +7523,7 @@ CGCMRuntime::HandleBuiltinLscFenceImpl(CMCallInfo &CallInfo,
   llvm::Function *F =
       getGenXIntrinsic(llvm::GenXIntrinsic::genx_lsc_fence, Tys);
   SmallVector<llvm::Value *, 4> Args;
-  Args.push_back(Pred); // predicate
+  Args.push_back(Pred);                                           // predicate
   Args.push_back(Builder.getInt8(static_cast<uint8_t>(Sfid)));    // SFID
   Args.push_back(Builder.getInt8(static_cast<uint8_t>(FenceOp))); // FenceOp
   Args.push_back(Builder.getInt8(static_cast<uint8_t>(Scope)));   // Scope
@@ -7373,23 +7557,26 @@ void CGCMRuntime::HandleBuiltinScatterImpl(CMCallInfo &CallInfo,
   llvm::Value *Addr = CI->getArgOperand(1);
   llvm::Value *Mask = CI->getArgOperand(2);
   {
-    assert(Mask->getType()->isVectorTy());
-    auto VTy = llvm::VectorType::get(Builder.getInt1Ty(),
-                                     Mask->getType()->getVectorNumElements());
+    auto *MaskTy = cast<llvm::FixedVectorType>(Mask->getType());
+    auto *VTy = llvm::FixedVectorType::get(Builder.getInt1Ty(),
+                                           MaskTy->getNumElements());
     Mask = Builder.CreateTruncOrBitCast(Mask, VTy);
   }
 
   uint32_t Alignment = getIntegralValue(CallInfo.CE->getDirectCallee(), 2);
   // We reserved zero for element size alignment.
   if (!Alignment)
-    Alignment = cast<llvm::VectorType>(Val->getType())
+    Alignment = cast<llvm::FixedVectorType>(Val->getType())
                     ->getElementType()
-                    ->getPrimitiveSizeInBits() / 8;
+                    ->getPrimitiveSizeInBits() /
+                8;
 
-  if(Kind == CMBK_scatter_svm_impl) {
-    llvm::Type *ElemTy = cast<llvm::VectorType>(Val->getType())->getElementType();
-    llvm::Type *VPtrTy = llvm::VectorType::get(llvm::PointerType::get(ElemTy, 1),
-                                        Addr->getType()->getVectorNumElements());
+  if (Kind == CMBK_scatter_svm_impl) {
+    llvm::Type *ElemTy =
+        cast<llvm::FixedVectorType>(Val->getType())->getElementType();
+    auto *AddrTy = cast<llvm::FixedVectorType>(Addr->getType());
+    llvm::Type *VPtrTy = llvm::FixedVectorType::get(
+        llvm::PointerType::get(ElemTy, 1), AddrTy->getNumElements());
     Addr = Builder.CreateIntToPtr(Addr, VPtrTy);
   }
 
@@ -7401,7 +7588,8 @@ void CGCMRuntime::HandleBuiltinScatterImpl(CMCallInfo &CallInfo,
 /// \brief Postprocess gather implementation.
 //
 // template <typename T, int N, int A>
-// vector<T, N> __cm_builtin_impl_gather(vector<T*, N> ptrs, vector<ushort, N> mask,
+// vector<T, N> __cm_builtin_impl_gather(vector<T*, N> ptrs, vector<ushort, N>
+// mask,
 //                                       vector<T, N> passthru);
 //
 llvm::Value *CGCMRuntime::HandleBuiltinGatherImpl(CMCallInfo &CallInfo,
@@ -7416,23 +7604,26 @@ llvm::Value *CGCMRuntime::HandleBuiltinGatherImpl(CMCallInfo &CallInfo,
   llvm::Value *Passthru = CI->getArgOperand(2);
   llvm::Value *Mask = CI->getArgOperand(1);
   {
-    assert(Mask->getType()->isVectorTy());
-    auto VTy = llvm::VectorType::get(Builder.getInt1Ty(),
-                                     Mask->getType()->getVectorNumElements());
+    auto *MaskTy = cast<llvm::FixedVectorType>(Mask->getType());
+    auto *VTy = llvm::FixedVectorType::get(Builder.getInt1Ty(),
+                                           MaskTy->getNumElements());
     Mask = Builder.CreateTruncOrBitCast(Mask, VTy);
   }
 
   uint32_t Alignment = getIntegralValue(CallInfo.CE->getDirectCallee(), 2);
   // We reserved zero for element size alignment.
   if (!Alignment)
-    Alignment = cast<llvm::VectorType>(Passthru->getType())
+    Alignment = cast<llvm::FixedVectorType>(Passthru->getType())
                     ->getElementType()
-                    ->getPrimitiveSizeInBits() / 8;
+                    ->getPrimitiveSizeInBits() /
+                8;
 
-  if(Kind == CMBK_gather_svm_impl) {
-    llvm::Type *ElemTy = cast<llvm::VectorType>(Passthru->getType())->getElementType();
-    llvm::Type *VPtrTy = llvm::VectorType::get(llvm::PointerType::get(ElemTy, 1),
-                                        Addr->getType()->getVectorNumElements());
+  if (Kind == CMBK_gather_svm_impl) {
+    llvm::Type *ElemTy =
+        cast<llvm::FixedVectorType>(Passthru->getType())->getElementType();
+    auto *AddrTy = cast<llvm::FixedVectorType>(Addr->getType());
+    llvm::Type *VPtrTy = llvm::FixedVectorType::get(
+        llvm::PointerType::get(ElemTy, 1), AddrTy->getNumElements());
     Addr = Builder.CreateIntToPtr(Addr, VPtrTy);
   }
 
@@ -7463,9 +7654,10 @@ void CGCMRuntime::HandleBuiltinStoreImpl(CMCallInfo &CallInfo,
   // We reserved zero for element size alignment.
   if (!Alignment) {
     llvm::Type *ValTy = Val->getType();
-    llvm::Type *ElemTy = ValTy->isVectorTy()
-                             ? cast<llvm::VectorType>(ValTy)->getElementType()
-                             : ValTy;
+    llvm::Type *ElemTy =
+        ValTy->isVectorTy()
+            ? cast<llvm::FixedVectorType>(ValTy)->getElementType()
+            : ValTy;
     Alignment = ElemTy->getPrimitiveSizeInBits() / 8;
   }
 
@@ -7493,9 +7685,10 @@ llvm::Value *CGCMRuntime::HandleBuiltinLoadImpl(CMCallInfo &CallInfo,
   // We reserved zero for element size alignment.
   if (!Alignment) {
     llvm::Type *ValTy = CI->getType();
-    llvm::Type *ElemTy = ValTy->isVectorTy()
-                             ? cast<llvm::VectorType>(ValTy)->getElementType()
-                             : ValTy;
+    llvm::Type *ElemTy =
+        ValTy->isVectorTy()
+            ? cast<llvm::FixedVectorType>(ValTy)->getElementType()
+            : ValTy;
     Alignment = ElemTy->getPrimitiveSizeInBits() / 8;
   }
 
@@ -7521,11 +7714,11 @@ CGCMRuntime::EmitScatterScaled(CodeGenFunction &CGF, unsigned IntrinsicID,
          "Expected gather intrinsics");
   // Types for overloading.
   SmallVector<llvm::Type *, 3> Tys;
-  Tys.push_back(getMaskType(
-      ElementOffset->getContext(),
-      ElementOffset->getType()->getVectorNumElements())); // predicate
-  Tys.push_back(ElementOffset->getType());                // element offset
-  Tys.push_back(Data->getType()); // data type for scatter
+  auto *ElementOffsetTy = cast<llvm::FixedVectorType>(ElementOffset->getType());
+  Tys.push_back(getMaskType(ElementOffset->getContext(),
+                            ElementOffsetTy->getNumElements())); // predicate
+  Tys.push_back(ElementOffsetTy);          // element offset
+  Tys.push_back(Data->getType());          // data type for scatter
 
   llvm::Function *Fn = getGenXIntrinsic(IntrinsicID, Tys);
   llvm::FunctionType *FTy = Fn->getFunctionType();
@@ -7548,20 +7741,19 @@ CGCMRuntime::EmitScatterScaled(CodeGenFunction &CGF, unsigned IntrinsicID,
 /// \param Selector log2 number of blocks for gather_scaled
 ///                 or giving mask for gather4_scaled.
 ///
-llvm::CallInst *
-CGCMRuntime::EmitGatherScaled(CodeGenFunction &CGF, unsigned IntrinsicID,
-                              llvm::APInt Selector, unsigned Scale,
-                              llvm::Value *Surface, llvm::Value *GlobalOffset,
-                              llvm::Value *ElementOffset, llvm::Value *Data, llvm::Value *Mask) {
+llvm::CallInst *CGCMRuntime::EmitGatherScaled(
+    CodeGenFunction &CGF, unsigned IntrinsicID, llvm::APInt Selector,
+    unsigned Scale, llvm::Value *Surface, llvm::Value *GlobalOffset,
+    llvm::Value *ElementOffset, llvm::Value *Data, llvm::Value *Mask) {
   assert((IntrinsicID == llvm::GenXIntrinsic::genx_gather_masked_scaled2 ||
           IntrinsicID == llvm::GenXIntrinsic::genx_gather4_masked_scaled2) &&
          "Expected gather intrinsics");
 
   // By default Mask is all ones value, unless specified.
   if (Mask == nullptr) {
-    llvm::Type *MaskTy = getMaskType(
-       CGF.getLLVMContext(),
-       ElementOffset->getType()->getVectorNumElements());
+    auto *ElementOffsetTy = cast<llvm::FixedVectorType>(ElementOffset->getType());
+    llvm::Type *MaskTy =
+        getMaskType(CGF.getLLVMContext(), ElementOffsetTy->getNumElements());
     Mask = llvm::Constant::getAllOnesValue(MaskTy);
   }
 
@@ -7574,13 +7766,11 @@ CGCMRuntime::EmitGatherScaled(CodeGenFunction &CGF, unsigned IntrinsicID,
   llvm::Function *Fn = getGenXIntrinsic(IntrinsicID, Tys);
 
   // Arguments.
-  llvm::Value *Args[] = {
-      llvm::ConstantInt::get(CGF.Int32Ty, Selector),
-      llvm::ConstantInt::get(CGF.Int16Ty, Scale),
-      Surface,
-      GlobalOffset,
-      ElementOffset,
-      Mask
-  };
+  llvm::Value *Args[] = {llvm::ConstantInt::get(CGF.Int32Ty, Selector),
+                         llvm::ConstantInt::get(CGF.Int16Ty, Scale),
+                         Surface,
+                         GlobalOffset,
+                         ElementOffset,
+                         Mask};
   return CGF.Builder.CreateCall(Fn, Args);
 }

@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: not %cmc -march=SKL -emit-llvm -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
+// RUN: %cmc -march=SKL -emit-llvm -Xclang -verify -Xclang -verify-ignore-unexpected -ferror-limit=0 -- %s
 
 #include <cm/cm.h>
 
@@ -130,4 +130,3 @@ _GENX_MAIN_ void test1() {
   matrix<unsigned, 4, 4> borrow17;
   matrix<unsigned, 4, 4> sub17 = cm_subb(a17, b17, borrow17); // expected-error{{no matching function for call to 'cm_subb'}}
 }
-

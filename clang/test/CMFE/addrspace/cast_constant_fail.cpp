@@ -15,7 +15,7 @@ void from_const(__constant void *c_ptr) {
   __local void *l_ptr = (__local void *)c_ptr; // expected-error{{casting '__constant void *' to type '__local void *' changes address space of pointer}}
 
   __generic void *ptr = (__generic void *)c_ptr; // expected-error{{casting '__constant void *' to type '__generic void *' changes address space of pointer}}
-  ptr = c_ptr;                                   // expected-error{{assigning to '__generic void *' from incompatible type '__constant void *'}}
+  ptr = c_ptr;                                   // expected-error{{assigning '__constant void *' to '__generic void *' changes address space of pointer}}
 }
 
 void to_const(void *p_ptr, __local void *l_ptr, __generic void *ptr) {

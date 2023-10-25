@@ -50,7 +50,7 @@ configure_lit_site_cfg(
   ${CMAKE_CURRENT_BINARY_DIR}/Unit/lit.site.cfg.py
   MAIN_CONFIG
   ${CMAKE_CURRENT_SOURCE_DIR}/Unit/lit.cfg.py
-)
+  )
 
 configure_lit_site_cfg(
   ${CMAKE_CURRENT_SOURCE_DIR}/CMFE/lit.site.cfg.py.in
@@ -79,7 +79,7 @@ list(APPEND CLANG_TEST_DEPS
   diagtool
   hmaptool
   )
-  
+
 if(CLANG_ENABLE_STATIC_ANALYZER)
   list(APPEND CLANG_TEST_DEPS
     clang-check
@@ -96,6 +96,7 @@ endif ()
 
 if (CLANG_BUILD_EXAMPLES)
   list(APPEND CLANG_TEST_DEPS
+    Attribute
     AnnotateFunctions
     clang-interpreter
     PrintFunctionNames
@@ -103,15 +104,8 @@ if (CLANG_BUILD_EXAMPLES)
 endif ()
 
 set(CLANG_TEST_PARAMS
-  clang_site_config=${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg
   USE_Z3_SOLVER=0
   )
-
-set(ANALYZER_TEST_PARAMS
-  USE_Z3_SOLVER=0)
-
-set(ANALYZER_TEST_PARAMS_Z3
-  USE_Z3_SOLVER=1)
 
 if( NOT CLANG_BUILT_STANDALONE )
   list(APPEND CLANG_TEST_DEPS

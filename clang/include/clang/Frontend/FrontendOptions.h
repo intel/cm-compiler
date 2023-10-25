@@ -101,7 +101,7 @@ enum ActionKind {
   GeneratePCH,
 
   /// Generate Interface Stub Files.
-  GenerateInterfaceIfsExpV1,
+  GenerateInterfaceStubs,
 
   /// Only execute frontend initialization.
   InitOnly,
@@ -296,6 +296,9 @@ public:
   /// Whether we include lookup table dumps in AST dumps.
   unsigned ASTDumpLookups : 1;
 
+  /// Whether we include declaration type dumps in AST dumps.
+  unsigned ASTDumpDeclTypes : 1;
+
   /// Whether we are performing an implicit module build.
   unsigned BuildingImplicitModule : 1;
 
@@ -307,6 +310,9 @@ public:
 
   /// Should a temporary file be used during compilation.
   unsigned UseTemporary : 1;
+
+  /// When using -emit-module, treat the modulemap as a system module.
+  unsigned IsSystemModule : 1;
 
   CodeCompleteOptions CodeCompleteOpts;
 
@@ -437,8 +443,14 @@ public:
   /// (in the format produced by -fdump-record-layouts).
   std::string OverrideRecordLayoutsFile;
 
-  /// Auxiliary triple for CUDA compilation.
+  /// Auxiliary triple for CUDA/HIP compilation.
   std::string AuxTriple;
+
+  /// Auxiliary target CPU for CUDA/HIP compilation.
+  Optional<std::string> AuxTargetCPU;
+
+  /// Auxiliary target features for CUDA/HIP compilation.
+  Optional<std::vector<std::string>> AuxTargetFeatures;
 
   /// Filename to write statistics to.
   std::string StatsFile;

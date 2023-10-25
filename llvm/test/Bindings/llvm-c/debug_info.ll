@@ -24,7 +24,7 @@
 ; CHECK-NEXT: !FooType = !{!28}
 ; CHECK-NEXT: !EnumTest = !{!3}
 
-; CHECK:      !0 = distinct !DICompileUnit(language: DW_LANG_C, file: !1, producer: "llvm-c-test", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, enums: !2, globals: !11, imports: !19, macros: !23, splitDebugInlining: false)
+; CHECK:      !0 = distinct !DICompileUnit(language: DW_LANG_C, file: !1, producer: "llvm-c-test", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, enums: !2, globals: !11, imports: !19, macros: !23, splitDebugInlining: false, sysroot: "/")
 ; CHECK-NEXT: !1 = !DIFile(filename: "debuginfo.c", directory: ".")
 ; CHECK-NEXT: !2 = !{!3}
 ; CHECK-NEXT: !3 = !DICompositeType(tag: DW_TAG_enumeration_type, name: "EnumTest", scope: !4, file: !1, baseType: !6, size: 64, elements: !7)
@@ -60,7 +60,7 @@
 ; CHECK-NEXT: !33 = !{!6, !6, !34}
 ; CHECK-NEXT: !34 = !DICompositeType(tag: DW_TAG_array_type, baseType: !6, size: 640, flags: DIFlagVector, elements: !35)
 ; CHECK-NEXT: !35 = !{!36}
-; CHECK-NEXT: !36 = !DISubrange(count: 10)
+; CHECK-NEXT: !36 = !DISubrange(count: 10, lowerBound: 0)
 ; CHECK-NEXT: !37 = !{!38, !39, !40, !41}
 ; CHECK-NEXT: !38 = !DILocalVariable(name: "a", arg: 1, scope: !31, file: !1, line: 42, type: !6)
 ; CHECK-NEXT: !39 = !DILocalVariable(name: "b", arg: 2, scope: !31, file: !1, line: 42, type: !6)

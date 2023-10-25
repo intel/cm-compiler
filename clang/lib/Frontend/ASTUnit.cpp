@@ -232,7 +232,7 @@ struct ASTUnit::ASTWriterData {
 };
 
 void ASTUnit::clearFileLevelDecls() {
-  llvm::DeleteContainerSeconds(FileDecls);
+  FileDecls.clear();
 }
 
 /// After failing to build a precompiled preamble (due to
@@ -792,7 +792,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
                                      UserFilesAreVolatile);
   AST->ModuleCache = new InMemoryModuleCache;
   AST->HSOpts = std::make_shared<HeaderSearchOptions>();
-  AST->HSOpts->ModuleFormat = PCHContainerRdr.getFormat();
+  AST->HSOpts->ModuleFormat = std::string(PCHContainerRdr.getFormat());
   AST->HeaderInfo.reset(new HeaderSearch(AST->HSOpts,
                                          AST->getSourceManager(),
                                          AST->getDiagnostics(),
@@ -855,7 +855,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
     return nullptr;
   }
 
-  AST->OriginalSourceFile = AST->Reader->getOriginalSourceFile();
+  AST->OriginalSourceFile = std::string(AST->Reader->getOriginalSourceFile());
 
   PP.setCounterValue(Counter);
 
@@ -1139,7 +1139,8 @@ bool ASTUnit::Parse(std::shared_ptr<PCHContainerOperations> PCHContainerOps,
     CICleanup(Clang.get());
 
   Clang->setInvocation(CCInvocation);
-  OriginalSourceFile = Clang->getFrontendOpts().Inputs[0].getFile();
+  OriginalSourceFile =
+      std::string(Clang->getFrontendOpts().Inputs[0].getFile());
 
   // Set up diagnostics, capturing any diagnostics that would
   // otherwise be dropped.
@@ -1271,13 +1272,13 @@ makeStandaloneDiagnostic(const LangOptions &LangOpts,
   ASTUnit::StandaloneDiagnostic OutDiag;
   OutDiag.ID = InDiag.getID();
   OutDiag.Level = InDiag.getLevel();
-  OutDiag.Message = InDiag.getMessage();
+  OutDiag.Message = std::string(InDiag.getMessage());
   OutDiag.LocOffset = 0;
   if (InDiag.getLocation().isInvalid())
     return OutDiag;
   const SourceManager &SM = InDiag.getLocation().getManager();
   SourceLocation FileLoc = SM.getFileLoc(InDiag.getLocation());
-  OutDiag.Filename = SM.getFilename(FileLoc);
+  OutDiag.Filename = std::string(SM.getFilename(FileLoc));
   if (OutDiag.Filename.empty())
     return OutDiag;
   OutDiag.LocOffset = SM.getFileOffset(FileLoc);
@@ -1543,7 +1544,7 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocationAction(
 
   if (!ResourceFilesPath.empty()) {
     // Override the resources path.
-    CI->getHeaderSearchOpts().ResourceDir = ResourceFilesPath;
+    CI->getHeaderSearchOpts().ResourceDir = std::string(ResourceFilesPath);
   }
   AST->OnlyLocalDecls = OnlyLocalDecls;
   AST->CaptureDiagnostics = CaptureDiagnostics;
@@ -1575,7 +1576,8 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocationAction(
     CICleanup(Clang.get());
 
   Clang->setInvocation(std::move(CI));
-  AST->OriginalSourceFile = Clang->getFrontendOpts().Inputs[0].getFile();
+  AST->OriginalSourceFile =
+      std::string(Clang->getFrontendOpts().Inputs[0].getFile());
 
   // Set up diagnostics, capturing any diagnostics that would
   // otherwise be dropped.
@@ -1781,13 +1783,14 @@ ASTUnit *ASTUnit::LoadFromCommandLine(
   PPOpts.RetainExcludedConditionalBlocks = RetainExcludedConditionalBlocks;
 
   // Override the resources path.
-  CI->getHeaderSearchOpts().ResourceDir = ResourceFilesPath;
+  CI->getHeaderSearchOpts().ResourceDir = std::string(ResourceFilesPath);
 
   CI->getFrontendOpts().SkipFunctionBodies =
       SkipFunctionBodies == SkipFunctionBodiesScope::PreambleAndMainFile;
 
   if (ModuleFormat)
-    CI->getHeaderSearchOpts().ModuleFormat = ModuleFormat.getValue();
+    CI->getHeaderSearchOpts().ModuleFormat =
+        std::string(ModuleFormat.getValue());
 
   // Create the AST unit.
   std::unique_ptr<ASTUnit> AST;
@@ -2179,7 +2182,7 @@ void ASTUnit::CodeComplete(
 
   assert(IncludeBriefComments == this->IncludeBriefCommentsInCodeCompletion);
 
-  FrontendOpts.CodeCompletionAt.FileName = File;
+  FrontendOpts.CodeCompletionAt.FileName = std::string(File);
   FrontendOpts.CodeCompletionAt.Line = Line;
   FrontendOpts.CodeCompletionAt.Column = Column;
 
@@ -2199,7 +2202,8 @@ void ASTUnit::CodeComplete(
 
   auto &Inv = *CCInvocation;
   Clang->setInvocation(std::move(CCInvocation));
-  OriginalSourceFile = Clang->getFrontendOpts().Inputs[0].getFile();
+  OriginalSourceFile =
+      std::string(Clang->getFrontendOpts().Inputs[0].getFile());
 
   // Set up diagnostics, capturing any diagnostics produced.
   Clang->setDiagnostics(&Diag);
@@ -2449,9 +2453,9 @@ void ASTUnit::addFileLevelDecl(Decl *D) {
   if (FID.isInvalid())
     return;
 
-  LocDeclsTy *&Decls = FileDecls[FID];
+  std::unique_ptr<LocDeclsTy> &Decls = FileDecls[FID];
   if (!Decls)
-    Decls = new LocDeclsTy();
+    Decls = std::make_unique<LocDeclsTy>();
 
   std::pair<unsigned, Decl *> LocDecl(Offset, D);
 

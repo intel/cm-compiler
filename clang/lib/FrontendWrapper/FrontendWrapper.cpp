@@ -15,6 +15,7 @@ SPDX-License-Identifier: MIT
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/DiagnosticOptions.h"
+#include "clang/Basic/FileManager.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TargetOptions.h"
 #include "clang/Driver/Compilation.h"
@@ -270,7 +271,7 @@ static bool getPrintStats(const llvm::opt::InputArgList &Args) {
 }
 
 static std::string getStatsFile(const llvm::opt::InputArgList &Args) {
-  return Args.getLastArgValue(clang::driver::options::OPT_dump_stats);
+  return Args.getLastArgValue(clang::driver::options::OPT_dump_stats).str();
 }
 
 static std::string getVCApiOptions(const llvm::opt::InputArgList &Args,
@@ -390,7 +391,7 @@ createDriverInvocationFromCCArgs(const std::vector<const char*> &CArgs,
       llvm::errs() << "FEWrapper fatal error: we support only one input (for now)\n";
       return nullptr;
     }
-    InputFilename = Inputs[0].getFile();
+    InputFilename = Inputs[0].getFile().str();
   } else {
     llvm::errs() << "FEWrapper fatal error: no inputs were detected\n";
     return nullptr;

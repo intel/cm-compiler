@@ -11,7 +11,7 @@ include "clang/Basic/TypeNodes.td"
 
 let Class = ComplexType in {
   def : Property<"elementType", QualType> {
-    let Read = [{ node->getElementType() }];    
+    let Read = [{ node->getElementType() }];
   }
 
   def : Creator<[{ return ctx.getComplexType(elementType); }]>;
@@ -313,6 +313,40 @@ let Class = DependentCMMatrixType in {
   }]>;
 }
 
+let Class = MatrixType in {
+  def : Property<"elementType", QualType> {
+    let Read = [{ node->getElementType() }];
+  }
+}
+
+let Class = ConstantMatrixType in {
+  def : Property<"numRows", UInt32> {
+    let Read = [{ node->getNumRows() }];
+  }
+  def : Property<"numColumns", UInt32> {
+    let Read = [{ node->getNumColumns() }];
+  }
+
+  def : Creator<[{
+    return ctx.getConstantMatrixType(elementType, numRows, numColumns);
+  }]>;
+}
+
+let Class = DependentSizedMatrixType in {
+  def : Property<"rows", ExprRef> {
+    let Read = [{ node->getRowExpr() }];
+  }
+  def : Property<"columns", ExprRef> {
+    let Read = [{ node->getColumnExpr() }];
+  }
+  def : Property<"attributeLoc", SourceLocation> {
+    let Read = [{ node->getAttributeLoc() }];
+  }
+
+  def : Creator<[{
+    return ctx.getDependentSizedMatrixType(elementType, rows, columns, attributeLoc);
+  }]>;
+}
 
 let Class = FunctionType in {
   def : Property<"returnType", QualType> {
@@ -339,13 +373,17 @@ let Class = FunctionType in {
   def : Property<"noCfCheck", Bool> {
     let Read = [{ node->getExtInfo().getNoCfCheck() }];
   }
+  def : Property<"cmseNSCall", Bool> {
+    let Read = [{ node->getExtInfo().getCmseNSCall() }];
+  }
 }
 
 let Class = FunctionNoProtoType in {
   def : Creator<[{
     auto extInfo = FunctionType::ExtInfo(noReturn, hasRegParm, regParm,
                                          callingConvention, producesResult,
-                                         noCallerSavedRegs, noCfCheck);
+                                         noCallerSavedRegs, noCfCheck,
+                                         cmseNSCall);
     return ctx.getFunctionNoProtoType(returnType, extInfo);
   }]>;
 }
@@ -378,7 +416,8 @@ let Class = FunctionProtoType in {
   def : Creator<[{
     auto extInfo = FunctionType::ExtInfo(noReturn, hasRegParm, regParm,
                                          callingConvention, producesResult,
-                                         noCallerSavedRegs, noCfCheck);
+                                         noCallerSavedRegs, noCfCheck,
+                                         cmseNSCall);
     FunctionProtoType::ExtProtoInfo epi;
     epi.ExtInfo = extInfo;
     epi.Variadic = variadic;
@@ -543,7 +582,9 @@ let Class = TagType in {
 let Class = EnumType in {
   def : Creator<[{
     QualType result = ctx.getEnumType(cast<EnumDecl>(declaration));
-    const_cast<Type*>(result.getTypePtr())->setDependent(dependent);
+    if (dependent)
+      const_cast<Type *>(result.getTypePtr())
+          ->addDependence(TypeDependence::DependentInstantiation);
     return result;
   }]>;
 }
@@ -552,7 +593,9 @@ let Class = RecordType in {
   def : Creator<[{
     auto record = cast<RecordDecl>(declaration);
     QualType result = ctx.getRecordType(record);
-    const_cast<Type*>(result.getTypePtr())->setDependent(dependent);
+    if (dependent)
+      const_cast<Type *>(result.getTypePtr())
+          ->addDependence(TypeDependence::DependentInstantiation);
     return result;
   }]>;
 }
@@ -616,7 +659,7 @@ let Class = ParenType in {
 
   def : Creator<[{
     return ctx.getParenType(innerType);
-  }]>;  
+  }]>;
 }
 
 let Class = MacroQualifiedType in {
@@ -695,7 +738,9 @@ let Class = TemplateSpecializationType in {
                                                  templateArguments,
                                                  *underlyingType);
     }
-    const_cast<Type*>(result.getTypePtr())->setDependent(dependent);
+    if (dependent)
+      const_cast<Type *>(result.getTypePtr())
+          ->addDependence(TypeDependence::DependentInstantiation);
     return result;
   }]>;
 }
@@ -880,7 +925,7 @@ let Class = ObjCInterfaceType in {
 let Class = ObjCTypeParamType in {
   def : Property<"declaration", ObjCTypeParamDeclRef> {
     let Read = [{ node->getDecl() }];
-  }  
+  }
   def : Property<"qualifiers", Array<ObjCProtocolDeclRef>> {
     let Read = [{ node->getProtocols() }];
   }
@@ -910,5 +955,30 @@ let Class = PipeType in {
 
   def : Creator<[{
     return ctx.getPipeType(elementType, isReadOnly);
+  }]>;
+}
+
+let Class = ExtIntType in {
+  def : Property<"isUnsigned", Bool> {
+    let Read = [{ node->isUnsigned() }];
+  }
+  def : Property <"numBits", UInt32> {
+    let Read = [{ node->getNumBits() }];
+  }
+
+  def : Creator<[{
+    return ctx.getExtIntType(isUnsigned, numBits);
+  }]>;
+}
+
+let Class = DependentExtIntType in {
+  def : Property<"isUnsigned", Bool> {
+    let Read = [{ node->isUnsigned() }];
+  }
+  def : Property <"numBitsExpr", ExprRef> {
+    let Read = [{ node->getNumBitsExpr() }];
+  }
+  def : Creator<[{
+    return ctx.getDependentExtIntType(isUnsigned, numBitsExpr);
   }]>;
 }

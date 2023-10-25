@@ -1,6 +1,6 @@
 ; RUN: opt < %s -indvars -replexitval=always -S | FileCheck %s --check-prefix=ALWAYS
 ; RUN: opt < %s -indvars -replexitval=never -S | FileCheck %s --check-prefix=NEVER
-; RUN: opt < %s -indvars -replexitval=cheap -S | FileCheck %s --check-prefix=CHEAP
+; RUN: opt < %s -indvars -replexitval=cheap -scev-cheap-expansion-budget=1 -S | FileCheck %s --check-prefix=CHEAP
 
 ; rewriteLoopExitValues() must rewrite all or none of a PHI's values from a given block.
 

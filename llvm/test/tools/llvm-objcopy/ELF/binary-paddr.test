@@ -127,7 +127,6 @@ ProgramHeaders:
   - Type: PT_LOAD
     Flags: [ PF_R, PF_W ]
     VAddr: 0x3000
-    PAddr: 0x3000
     Sections:
       - Section: .data
 
