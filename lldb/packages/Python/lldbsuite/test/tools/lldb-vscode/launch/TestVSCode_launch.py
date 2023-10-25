@@ -2,9 +2,7 @@
 Test lldb-vscode setBreakpoints request
 """
 
-from __future__ import print_function
 
-import pprint
 import unittest2
 import vscode
 from lldbsuite.test.decorators import *
@@ -12,7 +10,6 @@ from lldbsuite.test.lldbtest import *
 from lldbsuite.test import lldbutil
 import lldbvscode_testcase
 import os
-import time
 
 
 class TestVSCode_launch(lldbvscode_testcase.VSCodeTestCaseBase):
@@ -20,8 +17,7 @@ class TestVSCode_launch(lldbvscode_testcase.VSCodeTestCaseBase):
     mydir = TestBase.compute_mydir(__file__)
 
     @skipIfWindows
-    @skipIfDarwin # Skip this test for now until we can figure out why tings aren't working on build bots
-    @no_debug_info_test
+    @skipIfDarwin # Flaky
     def test_default(self):
         '''
             Tests the default launch of a simple program. No arguments,
@@ -39,8 +35,6 @@ class TestVSCode_launch(lldbvscode_testcase.VSCodeTestCaseBase):
                         "make sure program path is in first argument")
 
     @skipIfWindows
-    @skipIfDarwin # Skip this test for now until we can figure out why tings aren't working on build bots
-    @no_debug_info_test
     def test_stopOnEntry(self):
         '''
             Tests the default launch of a simple program that stops at the
@@ -60,16 +54,14 @@ class TestVSCode_launch(lldbvscode_testcase.VSCodeTestCaseBase):
                         'verify stop isn\'t "main" breakpoint')
 
     @skipIfWindows
-    @skipIfDarwin # Skip this test for now until we can figure out why tings aren't working on build bots
-    @expectedFailureNetBSD
-    @no_debug_info_test
     def test_cwd(self):
         '''
             Tests the default launch of a simple program with a current working
             directory.
         '''
         program = self.getBuildArtifact("a.out")
-        program_parent_dir = os.path.split(os.path.split(program)[0])[0]
+        program_parent_dir = os.path.realpath(
+            os.path.dirname(os.path.dirname(program)))
         self.build_and_launch(program,
                               cwd=program_parent_dir)
         self.continue_to_exit()
@@ -89,16 +81,14 @@ class TestVSCode_launch(lldbvscode_testcase.VSCodeTestCaseBase):
         self.assertTrue(found, "verified program working directory")
 
     @skipIfWindows
-    @skipIfDarwin # Skip this test for now until we can figure out why tings aren't working on build bots
-    @expectedFailureNetBSD
-    @no_debug_info_test
     def test_debuggerRoot(self):
         '''
             Tests the "debuggerRoot" will change the working directory of
             the lldb-vscode debug adaptor.
         '''
         program = self.getBuildArtifact("a.out")
-        program_parent_dir = os.path.split(os.path.split(program)[0])[0]
+        program_parent_dir = os.path.realpath(
+            os.path.dirname(os.path.dirname(program)))
         commands = ['platform shell echo cwd = $PWD']
         self.build_and_launch(program,
                               debuggerRoot=program_parent_dir,
@@ -119,14 +109,12 @@ class TestVSCode_launch(lldbvscode_testcase.VSCodeTestCaseBase):
         self.continue_to_exit()
 
     @skipIfWindows
-    @skipIfDarwin # Skip this test for now until we can figure out why tings aren't working on build bots
-    @no_debug_info_test
     def test_sourcePath(self):
         '''
             Tests the "sourcePath" will set the target.source-map.
         '''
         program = self.getBuildArtifact("a.out")
-        program_dir = os.path.split(program)[0]
+        program_dir = os.path.dirname(program)
         self.build_and_launch(program,
                               sourcePath=program_dir)
         output = self.get_console()
@@ -146,8 +134,6 @@ class TestVSCode_launch(lldbvscode_testcase.VSCodeTestCaseBase):
         self.continue_to_exit()
 
     @skipIfWindows
-    @skipIfDarwin # Skip this test for now until we can figure out why tings aren't working on build bots
-    @no_debug_info_test
     def test_disableSTDIO(self):
         '''
             Tests the default launch of a simple program with STDIO disabled.
@@ -162,17 +148,15 @@ class TestVSCode_launch(lldbvscode_testcase.VSCodeTestCaseBase):
                         "expect no program output")
 
     @skipIfWindows
-    @skipIfDarwin # Skip this test for now until we can figure out why tings aren't working on build bots
     @skipIfLinux # shell argument expansion doesn't seem to work on Linux
     @expectedFailureNetBSD
-    @no_debug_info_test
     def test_shellExpandArguments_enabled(self):
         '''
             Tests the default launch of a simple program with shell expansion
             enabled.
         '''
         program = self.getBuildArtifact("a.out")
-        program_dir = os.path.split(program)[0]
+        program_dir = os.path.dirname(program)
         glob = os.path.join(program_dir, '*.out')
         self.build_and_launch(program, args=[glob], shellExpandArguments=True)
         self.continue_to_exit()
@@ -189,15 +173,13 @@ class TestVSCode_launch(lldbvscode_testcase.VSCodeTestCaseBase):
                                     glob, program))
 
     @skipIfWindows
-    @skipIfDarwin # Skip this test for now until we can figure out why tings aren't working on build bots
-    @no_debug_info_test
     def test_shellExpandArguments_disabled(self):
         '''
             Tests the default launch of a simple program with shell expansion
             disabled.
         '''
         program = self.getBuildArtifact("a.out")
-        program_dir = os.path.split(program)[0]
+        program_dir = os.path.dirname(program)
         glob = os.path.join(program_dir, '*.out')
         self.build_and_launch(program,
                               args=[glob],
@@ -216,8 +198,6 @@ class TestVSCode_launch(lldbvscode_testcase.VSCodeTestCaseBase):
                                     glob, glob))
 
     @skipIfWindows
-    @skipIfDarwin # Skip this test for now until we can figure out why tings aren't working on build bots
-    @no_debug_info_test
     def test_args(self):
         '''
             Tests launch of a simple program with arguments
@@ -243,8 +223,6 @@ class TestVSCode_launch(lldbvscode_testcase.VSCodeTestCaseBase):
                             'arg[%i] "%s" not in "%s"' % (i+1, quoted_arg, lines[i]))
 
     @skipIfWindows
-    @skipIfDarwin # Skip this test for now until we can figure out why tings aren't working on build bots
-    @no_debug_info_test
     def test_environment(self):
         '''
             Tests launch of a simple program with environment variables
@@ -277,8 +255,6 @@ class TestVSCode_launch(lldbvscode_testcase.VSCodeTestCaseBase):
                                 var, lines))
 
     @skipIfWindows
-    @skipIfDarwin # Skip this test for now until we can figure out why tings aren't working on build bots
-    @no_debug_info_test
     def test_commands(self):
         '''
             Tests the "initCommands", "preRunCommands", "stopCommands" and
@@ -334,6 +310,69 @@ class TestVSCode_launch(lldbvscode_testcase.VSCodeTestCaseBase):
         # Get output from the console. This should contain both the
         # "stopCommands" that were run after the second breakpoint was hit
         self.continue_to_breakpoints(breakpoint_ids)
+        output = self.get_console(timeout=1.0)
+        self.verify_commands('stopCommands', output, stopCommands)
+
+        # Continue until the program exits
+        self.continue_to_exit()
+        # Get output from the console. This should contain both the
+        # "exitCommands" that were run after the second breakpoint was hit
+        output = self.get_console(timeout=1.0)
+        self.verify_commands('exitCommands', output, exitCommands)
+
+    @skipIfWindows
+    def test_extra_launch_commands(self):
+        '''
+            Tests the "luanchCommands" with extra launching settings
+        '''
+        self.build_and_create_debug_adaptor()
+        program = self.getBuildArtifact("a.out")
+
+        source = 'main.c'
+        first_line = line_number(source, '// breakpoint 1')
+        second_line = line_number(source, '// breakpoint 2')
+        # Set target binary and 2 breakoints
+        # then we can varify the "launchCommands" get run
+        # also we can verify that "stopCommands" get run as the
+        # breakpoints get hit
+        launchCommands = [
+            'target create "%s"' % (program),
+            'br s -f main.c -l %d' % first_line,
+            'br s -f main.c -l %d' % second_line,
+            'process launch --stop-at-entry'
+        ]
+
+        initCommands = ['target list', 'platform list']
+        preRunCommands = ['image list a.out', 'image dump sections a.out']
+        stopCommands = ['frame variable', 'bt']
+        exitCommands = ['expr 2+3', 'expr 3+4']
+        self.launch(program,
+                    initCommands=initCommands,
+                    preRunCommands=preRunCommands,
+                    stopCommands=stopCommands,
+                    exitCommands=exitCommands,
+                    launchCommands=launchCommands)
+
+        # Get output from the console. This should contain both the
+        # "initCommands" and the "preRunCommands".
+        output = self.get_console()
+        # Verify all "initCommands" were found in console output
+        self.verify_commands('initCommands', output, initCommands)
+        # Verify all "preRunCommands" were found in console output
+        self.verify_commands('preRunCommands', output, preRunCommands)
+
+        # Verify all "launchCommands" were founc in console output
+        # After execution, program should launch
+        self.verify_commands('launchCommands', output, launchCommands)
+        # Verify the "stopCommands" here
+        self.continue_to_next_stop()
+        output = self.get_console(timeout=1.0)
+        self.verify_commands('stopCommands', output, stopCommands)
+
+        # Continue and hit the second breakpoint.
+        # Get output from the console. This should contain both the
+        # "stopCommands" that were run after the first breakpoint was hit
+        self.continue_to_next_stop()
         output = self.get_console(timeout=1.0)
         self.verify_commands('stopCommands', output, stopCommands)
 

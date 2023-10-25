@@ -7,6 +7,7 @@
 #============================ end_copyright_notice =============================
 
 set(LLVM_LINK_COMPONENTS
+  FrontendOpenMP
   Support
   )
 
@@ -40,6 +41,7 @@ add_clang_library(clangSema
   SemaCast.cpp
   SemaChecking.cpp
   SemaCodeComplete.cpp
+  SemaConcept.cpp
   SemaConsumer.cpp
   SemaCoroutine.cpp
   SemaCUDA.cpp

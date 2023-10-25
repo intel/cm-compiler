@@ -1,4 +1,3 @@
-from __future__ import print_function
 
 from lldbsuite.test.lldbtest import *
 import os
@@ -7,11 +6,14 @@ import vscode
 
 class VSCodeTestCaseBase(TestBase):
 
+    NO_DEBUG_INFO_TESTCASE = True
+
     def create_debug_adaptor(self):
         '''Create the Visual Studio Code debug adaptor'''
         self.assertTrue(os.path.exists(self.lldbVSCodeExec),
                         'lldb-vscode must exist')
-        self.vscode = vscode.DebugAdaptor(executable=self.lldbVSCodeExec)
+        self.vscode = vscode.DebugAdaptor(
+            executable=self.lldbVSCodeExec, init_commands=self.setUpCommands())
 
     def build_and_create_debug_adaptor(self):
         self.build()
@@ -131,15 +133,29 @@ class VSCodeTestCaseBase(TestBase):
                                     key, key_path, d))
         return value
 
-    def get_stackFrames(self, threadId=None, startFrame=None, levels=None,
-                        dump=False):
+    def get_stackFrames_and_totalFramesCount(self, threadId=None, startFrame=None, 
+                        levels=None, dump=False):
         response = self.vscode.request_stackTrace(threadId=threadId,
                                                   startFrame=startFrame,
                                                   levels=levels,
                                                   dump=dump)
         if response:
-            return self.get_dict_value(response, ['body', 'stackFrames'])
-        return None
+            stackFrames = self.get_dict_value(response, ['body', 'stackFrames'])
+            totalFrames = self.get_dict_value(response, ['body', 'totalFrames'])
+            self.assertTrue(totalFrames > 0,
+                    'verify totalFrames count is provided by extension that supports '
+                    'async frames loading')
+            return (stackFrames, totalFrames)
+        return (None, 0)
+
+    def get_stackFrames(self, threadId=None, startFrame=None, levels=None,
+                        dump=False):
+        (stackFrames, totalFrames) = self.get_stackFrames_and_totalFramesCount(
+                                                threadId=threadId,
+                                                startFrame=startFrame,
+                                                levels=levels,
+                                                dump=dump)
+        return stackFrames
 
     def get_source_and_line(self, threadId=None, frameIndex=0):
         stackFrames = self.get_stackFrames(threadId=threadId,
@@ -244,20 +260,17 @@ class VSCodeTestCaseBase(TestBase):
             self.assertTrue(response['success'],
                             'attach failed (%s)' % (response['message']))
 
-    def build_and_launch(self, program, args=None, cwd=None, env=None,
-                         stopOnEntry=False, disableASLR=True,
-                         disableSTDIO=False, shellExpandArguments=False,
-                         trace=False, initCommands=None, preRunCommands=None,
-                         stopCommands=None, exitCommands=None,
-                         sourcePath=None, debuggerRoot=None):
-        '''Build the default Makefile target, create the VSCode debug adaptor,
-           and launch the process.
+    def launch(self, program=None, args=None, cwd=None, env=None,
+               stopOnEntry=False, disableASLR=True,
+               disableSTDIO=False, shellExpandArguments=False,
+               trace=False, initCommands=None, preRunCommands=None,
+               stopCommands=None, exitCommands=None,sourcePath= None,
+               debuggerRoot=None, launchCommands=None):
+        '''Sending launch request to vscode
         '''
-        self.build_and_create_debug_adaptor()
-        self.assertTrue(os.path.exists(program), 'executable must exist')
 
-        # Make sure we disconnect and terminate the VSCode debug adaptor even
-        # if we throw an exception during the test case.
+        # Make sure we disconnect and terminate the VSCode debug adapter,
+        # if we throw an exception during the test case
         def cleanup():
             self.vscode.request_disconnect(terminateDebuggee=True)
             self.vscode.terminate()
@@ -282,7 +295,25 @@ class VSCodeTestCaseBase(TestBase):
             stopCommands=stopCommands,
             exitCommands=exitCommands,
             sourcePath=sourcePath,
-            debuggerRoot=debuggerRoot)
+            debuggerRoot=debuggerRoot,
+            launchCommands=launchCommands)
         if not (response and response['success']):
             self.assertTrue(response['success'],
                             'launch failed (%s)' % (response['message']))
+
+    def build_and_launch(self, program, args=None, cwd=None, env=None,
+                         stopOnEntry=False, disableASLR=True,
+                         disableSTDIO=False, shellExpandArguments=False,
+                         trace=False, initCommands=None, preRunCommands=None,
+                         stopCommands=None, exitCommands=None,
+                         sourcePath=None, debuggerRoot=None):
+        '''Build the default Makefile target, create the VSCode debug adaptor,
+           and launch the process.
+        '''
+        self.build_and_create_debug_adaptor()
+        self.assertTrue(os.path.exists(program), 'executable must exist')
+
+        self.launch(program, args, cwd, env, stopOnEntry, disableASLR,
+                    disableSTDIO, shellExpandArguments, trace,
+                    initCommands, preRunCommands, stopCommands, exitCommands,
+                    sourcePath, debuggerRoot)

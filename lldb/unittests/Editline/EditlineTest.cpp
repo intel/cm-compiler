@@ -6,7 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLDB_DISABLE_LIBEDIT
+#include "lldb/Host/Config.h"
+
+#if LLDB_ENABLE_LIBEDIT
 
 #define EDITLINE_TEST_DUMP_OUTPUT 0
 
@@ -18,6 +20,7 @@
 #include <memory>
 #include <thread>
 
+#include "TestingSupport/SubsystemRAII.h"
 #include "lldb/Host/Editline.h"
 #include "lldb/Host/FileSystem.h"
 #include "lldb/Host/Pipe.h"
@@ -196,8 +199,8 @@ bool EditlineAdapter::IsInputComplete(lldb_private::Editline *editline,
   int start_block_count = 0;
   int brace_balance = 0;
 
-  for (size_t i = 0; i < lines.GetSize(); ++i) {
-    for (auto ch : lines[i]) {
+  for (const std::string &line : lines) {
+    for (auto ch : line) {
       if (ch == '{') {
         ++start_block_count;
         ++brace_balance;
@@ -240,7 +243,7 @@ void EditlineAdapter::ConsumeAllOutput() {
 }
 
 class EditlineTestFixture : public ::testing::Test {
-private:
+  SubsystemRAII<FileSystem> subsystems;
   EditlineAdapter _el_adapter;
   std::shared_ptr<std::thread> _sp_output_thread;
 
@@ -251,8 +254,6 @@ public:
   }
 
   void SetUp() override {
-    FileSystem::Initialize();
-
     // Validate the editline adapter.
     EXPECT_TRUE(_el_adapter.IsValid());
     if (!_el_adapter.IsValid())
@@ -267,8 +268,6 @@ public:
     _el_adapter.CloseInput();
     if (_sp_output_thread)
       _sp_output_thread->join();
-
-    FileSystem::Terminate();
   }
 
   EditlineAdapter &GetEditlineAdapter() { return _el_adapter; }
@@ -312,8 +311,8 @@ TEST_F(EditlineTestFixture, EditlineReceivesMultiLineText) {
   // Without any auto indentation support, our output should directly match our
   // input.
   std::vector<std::string> reported_lines;
-  for (size_t i = 0; i < el_reported_lines.GetSize(); ++i)
-    reported_lines.push_back(el_reported_lines[i]);
+  for (const std::string &line : el_reported_lines)
+    reported_lines.push_back(line);
 
   EXPECT_THAT(reported_lines, testing::ContainerEq(input_lines));
 }

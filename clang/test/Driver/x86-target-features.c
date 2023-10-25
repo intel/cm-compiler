@@ -72,8 +72,8 @@
 
 // RUN: %clang -target i386-unknown-linux-gnu -march=i386 -mmpx %s -### -o %t.o 2>&1 | FileCheck -check-prefix=MPX %s
 // RUN: %clang -target i386-unknown-linux-gnu -march=i386 -mno-mpx %s -### -o %t.o 2>&1 | FileCheck -check-prefix=NO-MPX %s
-// MPX: "-target-feature" "+mpx"
-// NO-MPX: "-target-feature" "-mpx"
+// MPX: the flag '-mmpx' has been deprecated and will be ignored
+// NO-MPX: the flag '-mno-mpx' has been deprecated and will be ignored
 
 // RUN: %clang -target i386-unknown-linux-gnu -march=i386 -mshstk %s -### -o %t.o 2>&1 | FileCheck -check-prefix=CETSS %s
 // RUN: %clang -target i386-unknown-linux-gnu -march=i386 -mno-shstk %s -### -o %t.o 2>&1 | FileCheck -check-prefix=NO-CETSS %s
@@ -154,6 +154,30 @@
 // SLH: "-mspeculative-load-hardening"
 // NO-SLH-NOT: retpoline
 
+// RUN: %clang -target i386-linux-gnu -mlvi-cfi %s -### -o %t.o 2>&1 | FileCheck -check-prefix=LVICFI %s
+// RUN: %clang -target i386-linux-gnu -mno-lvi-cfi %s -### -o %t.o 2>&1 | FileCheck -check-prefix=NO-LVICFI %s
+// LVICFI: "-target-feature" "+lvi-cfi"
+// NO-LVICFI-NOT: lvi-cfi
+
+// RUN: %clang -target i386-linux-gnu -mlvi-cfi -mspeculative-load-hardening %s -### -o %t.o 2>&1 | FileCheck -check-prefix=LVICFI-SLH %s
+// LVICFI-SLH: error: invalid argument 'mspeculative-load-hardening' not allowed with 'mlvi-cfi'
+// RUN: %clang -target i386-linux-gnu -mlvi-cfi -mretpoline %s -### -o %t.o 2>&1 | FileCheck -check-prefix=LVICFI-RETPOLINE %s
+// LVICFI-RETPOLINE: error: invalid argument 'mretpoline' not allowed with 'mlvi-cfi'
+// RUN: %clang -target i386-linux-gnu -mlvi-cfi -mretpoline-external-thunk %s -### -o %t.o 2>&1 | FileCheck -check-prefix=LVICFI-RETPOLINE-EXTERNAL-THUNK %s
+// LVICFI-RETPOLINE-EXTERNAL-THUNK: error: invalid argument 'mretpoline-external-thunk' not allowed with 'mlvi-cfi'
+
+// RUN: %clang -target i386-linux-gnu -mlvi-hardening %s -### -o %t.o 2>&1 | FileCheck -check-prefix=LVIHARDENING %s
+// RUN: %clang -target i386-linux-gnu -mno-lvi-hardening %s -### -o %t.o 2>&1 | FileCheck -check-prefix=NO-LVIHARDENING %s
+// LVIHARDENING: "-target-feature" "+lvi-load-hardening" "-target-feature" "+lvi-cfi"
+// NO-LVIHARDENING-NOT: lvi
+
+// RUN: %clang -target i386-linux-gnu -mlvi-hardening -mspeculative-load-hardening %s -### -o %t.o 2>&1 | FileCheck -check-prefix=LVIHARDENING-SLH %s
+// LVIHARDENING-SLH: error: invalid argument 'mspeculative-load-hardening' not allowed with 'mlvi-hardening'
+// RUN: %clang -target i386-linux-gnu -mlvi-hardening -mretpoline %s -### -o %t.o 2>&1 | FileCheck -check-prefix=LVIHARDENING-RETPOLINE %s
+// LVIHARDENING-RETPOLINE: error: invalid argument 'mretpoline' not allowed with 'mlvi-hardening'
+// RUN: %clang -target i386-linux-gnu -mlvi-hardening -mretpoline-external-thunk %s -### -o %t.o 2>&1 | FileCheck -check-prefix=LVIHARDENING-RETPOLINE-EXTERNAL-THUNK %s
+// LVIHARDENING-RETPOLINE-EXTERNAL-THUNK: error: invalid argument 'mretpoline-external-thunk' not allowed with 'mlvi-hardening'
+
 // RUN: %clang -target i386-linux-gnu -mwaitpkg %s -### -o %t.o 2>&1 | FileCheck -check-prefix=WAITPKG %s
 // RUN: %clang -target i386-linux-gnu -mno-waitpkg %s -### -o %t.o 2>&1 | FileCheck -check-prefix=NO-WAITPKG %s
 // WAITPKG: "-target-feature" "+waitpkg"
@@ -193,3 +217,8 @@
 // RUN: %clang -target i386-unknown-linux-gnu -march=i386 -mno-enqcmd %s -### -o %t.o 2>&1 | FileCheck --check-prefix=NO-ENQCMD %s
 // ENQCMD: "-target-feature" "+enqcmd"
 // NO-ENQCMD: "-target-feature" "-enqcmd"
+
+// RUN: %clang -target i386-unknown-linux-gnu -march=i386 -mvzeroupper %s -### -o %t.o 2>&1 | FileCheck --check-prefix=VZEROUPPER %s
+// RUN: %clang -target i386-unknown-linux-gnu -march=i386 -mno-vzeroupper %s -### -o %t.o 2>&1 | FileCheck --check-prefix=NO-VZEROUPPER %s
+// VZEROUPPER: "-target-feature" "+vzeroupper"
+// NO-VZEROUPPER: "-target-feature" "-vzeroupper"

@@ -215,13 +215,13 @@ OutputTypeT deriveOutputFromActionKind(clang::frontend::ActionKind Action) {
     return OutputTypeT::OTHER;
   }
 }
-InputTypeT deriveInputTypeFromInputLanguage(clang::InputKind::Language T) {
+InputTypeT deriveInputTypeFromInputLanguage(clang::Language T) {
   switch(T) {
-  case clang::InputKind::CM:
+  case clang::Language::CM:
     return InputTypeT::SourceCM;
-  case clang::InputKind::LLVM_IR:
+  case clang::Language::LLVM_IR:
     return InputTypeT::LLVM_IR;
-  case clang::InputKind::SPIRV:
+  case clang::Language::SPIRV:
     return InputTypeT::SPIRV;
   default:
     return InputTypeT::OTHER;
@@ -230,7 +230,7 @@ InputTypeT deriveInputTypeFromInputLanguage(clang::InputKind::Language T) {
 
 static llvm::opt::InputArgList
 parseOptions(llvm::ArrayRef<const char *> CArgs, unsigned Flag,
-             llvm::opt::OptTable *Opts) {
+             const llvm::opt::OptTable *Opts) {
   unsigned MissingArgIndex, MissingArgCount;
   llvm::opt::InputArgList Args = Opts->ParseArgs(CArgs,
       MissingArgIndex, MissingArgCount, Flag);
@@ -241,7 +241,7 @@ parseOptions(llvm::ArrayRef<const char *> CArgs, unsigned Flag,
 
 static llvm::opt::InputArgList
 parseCompilerOptions(llvm::ArrayRef<const char *> CArgs,
-                     llvm::opt::OptTable *Opts) {
+                     const llvm::opt::OptTable *Opts) {
   return parseOptions(CArgs, clang::driver::options::CC1Option, Opts);
 }
 
@@ -328,10 +328,9 @@ makeAdditionalOptionParsing(const std::vector<const char *> &CArgs,
                             clang::CompilerInstance &Clang) {
   // Opts create info table which will be set up in parseCompilerOptions and
   // used in getBinaryFormat.
-  std::unique_ptr<llvm::opt::OptTable> Opts =
-      clang::driver::createDriverOptTable();
+  const auto &Opts = clang::driver::getDriverOptTable();
 
-  auto ParsedArgs = parseCompilerOptions(CArgs, Opts.get());
+  auto ParsedArgs = parseCompilerOptions(CArgs, &Opts);
   OptionInfoT Info;
   Info.BinaryFormat = getBinaryFormat(ParsedArgs);
   Info.TimePasses = getTimePasses(ParsedArgs);
@@ -346,9 +345,8 @@ class Cc1ExtraOptionInfoT {
   bool OPT_mCM_enforce_disable_free;
 public:
   Cc1ExtraOptionInfoT(llvm::ArrayRef<const char *> Args) {
-    std::unique_ptr<llvm::opt::OptTable> Opts =
-        clang::driver::createDriverOptTable();
-    auto ParsedArgs = parseCompilerOptions(Args, Opts.get());
+    const auto &Opts = clang::driver::getDriverOptTable();
+    auto ParsedArgs = parseCompilerOptions(Args, &Opts);
     OPT_mCM_enforce_disable_free =
       ParsedArgs.hasArg(clang::driver::options::OPT_mCM_enforce_disable_free);
   }
@@ -367,9 +365,8 @@ createDriverInvocationFromCCArgs(const std::vector<const char*> &CArgs,
                                  DiagnosticSubsystem &DS) {
   clang::CompilerInstance Clang;
 
-  if (!clang::CompilerInvocation::CreateFromArgs(
-        Clang.getInvocation(), CArgs.data(), CArgs.data() + CArgs.size(),
-        *DS.Diags)) {
+  if (!clang::CompilerInvocation::CreateFromArgs(Clang.getInvocation(), CArgs,
+                                                 *DS.Diags)) {
     llvm::errs() << "FEWrapper fatal error: could not create compilerInvocation\n";
     return nullptr;
   }
@@ -600,9 +597,8 @@ IntelCMClangFECompile(const Intel::CM::ClangFE::IInputArgs *InArgs) {
   if (auto IncludeDirOpt = llvm::sys::Process::GetEnv("CM_INCLUDE_DIR"))
     HS.AddPath(IncludeDirOpt.getValue(), clang::frontend::System, false, true);
 
-  if (!clang::CompilerInvocation::CreateFromArgs(
-        Clang.getInvocation(), CStrCompOpts.data(),
-        CStrCompOpts.data() + CStrCompOpts.size(), *DS.Diags)) {
+  if (!clang::CompilerInvocation::CreateFromArgs(Clang.getInvocation(),
+                                                 CStrCompOpts, *DS.Diags)) {
     llvm::errs() << "FEWrapper fatal error: could not create compilerInvocation\n";
     return nullptr;
   }

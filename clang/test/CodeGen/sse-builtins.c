@@ -503,7 +503,7 @@ __m128 test_mm_or_ps(__m128 A, __m128 B) {
 
 void test_mm_prefetch(char const* p) {
   // CHECK-LABEL: test_mm_prefetch
-  // CHECK: call void @llvm.prefetch(i8* {{.*}}, i32 0, i32 0, i32 1)
+  // CHECK: call void @llvm.prefetch.p0i8(i8* {{.*}}, i32 0, i32 0, i32 1)
   _mm_prefetch(p, 0);
 }
 
@@ -714,7 +714,7 @@ void test_mm_storeu_ps(float* x,  __m128 y) {
   _mm_storeu_ps(x, y);
 }
 
-void test_mm_stream_ps(float*A, __m128d B) {
+void test_mm_stream_ps(float*A, __m128 B) {
   // CHECK-LABEL: test_mm_stream_ps
   // CHECK: store <4 x float> %{{.*}}, <4 x float>* %{{.*}}, align 16, !nontemporal
   _mm_stream_ps(A, B);

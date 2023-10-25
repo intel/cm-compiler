@@ -154,7 +154,7 @@ class LibcxxTestFormat(object):
                 # We can't run ShTest tests with a executor yet.
                 # For now, bail on trying to run them
                 return lit.Test.UNSUPPORTED, 'ShTest format not yet supported'
-            test.config.environment = dict(self.exec_env)
+            test.config.environment = self.executor.merge_environments(os.environ, self.exec_env)
             return lit.TestRunner._runShTest(test, lit_config,
                                              self.execute_external, script,
                                              tmpBase)
@@ -255,9 +255,9 @@ class LibcxxTestFormat(object):
             if any(test_str in contents for test_str in test_str_list):
                 test_cxx.flags += ['-Werror=unused-result']
         cmd, out, err, rc = test_cxx.compile(source_path, out=os.devnull)
-        expected_rc = 0 if use_verify else 1
+        check_rc = lambda rc: rc == 0 if use_verify else rc != 0
         report = libcxx.util.makeReport(cmd, out, err, rc)
-        if rc == expected_rc:
+        if check_rc(rc):
             return lit.Test.Result(lit.Test.PASS, report)
         else:
             report += ('Expected compilation to fail!\n' if not use_verify else

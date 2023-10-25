@@ -197,7 +197,8 @@ if re.search('mthumb', config.target_cflags) is None:
 # Turn on leak detection on 64-bit Linux.
 leak_detection_linux = (config.host_os == 'Linux') and (not config.android) and (config.target_arch == 'x86_64' or config.target_arch == 'i386')
 leak_detection_mac = (config.host_os == 'Darwin') and (config.target_arch == 'x86_64')
-if leak_detection_linux or leak_detection_mac:
+leak_detection_netbsd = (config.host_os == 'NetBSD') and (config.target_arch in ['x86_64', 'i386'])
+if leak_detection_linux or leak_detection_mac or leak_detection_netbsd:
   config.available_features.add('leak-detection')
 
 # Set LD_LIBRARY_PATH to pick dynamic runtime up properly.
@@ -216,7 +217,7 @@ if config.host_os == 'Windows' and config.asan_dynamic:
                                              os.environ.get('PATH', '')])
 
 # Default test suffixes.
-config.suffixes = ['.c', '.cc', '.cpp']
+config.suffixes = ['.c', '.cpp']
 
 if config.host_os == 'Darwin':
   config.suffixes.append('.mm')
@@ -236,3 +237,6 @@ if config.host_os not in ['Linux', 'Darwin', 'FreeBSD', 'SunOS', 'Windows', 'Net
 
 if not config.parallelism_group:
   config.parallelism_group = 'shadow-memory'
+
+if config.host_os == 'NetBSD':
+  config.substitutions.insert(0, ('%run', config.netbsd_noaslr_prefix))

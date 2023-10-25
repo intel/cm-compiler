@@ -607,7 +607,9 @@ llvm::AllocaInst *CGCMRuntime::getOrCreateSLMIndexVar(CodeGenFunction &CGF) {
   // Create and initialize the slm index variable.
   auto IndexVar = new llvm::AllocaInst(CGF.Int32Ty, /*AddrSpace*/ 0, nullptr,
                                        "slm.index", CGF.AllocaInsertPt);
-  IndexVar->setAlignment(CGF.Int32Ty->getIntegerBitWidth() / 8);
+  uint64_t BitWidth = CGF.Int32Ty->getIntegerBitWidth();
+  llvm::MaybeAlign Alignment{BitWidth / 8ull};
+  IndexVar->setAlignment(Alignment);
   SLMAllocas.insert(std::make_pair(CGF.CurFn, IndexVar));
 
   // r0[27:24] Shared Local Memory Index.

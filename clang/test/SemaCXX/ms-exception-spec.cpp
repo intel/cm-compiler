@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -std=c++11 %s -fsyntax-only -verify -fms-extensions -fexceptions -fcxx-exceptions
-// RUN: %clang_cc1 -std=c++17 %s -fsyntax-only -verify -fms-extensions -fexceptions -fcxx-exceptions
+// RUN: %clang_cc1 -std=c++11 %s -fsyntax-only -verify -fms-compatibility -fexceptions -fcxx-exceptions
+// RUN: %clang_cc1 -std=c++17 %s -fsyntax-only -verify -fms-compatibility -fexceptions -fcxx-exceptions
 
 // FIXME: Should -fms-compatibility soften these errors into warnings to match
 // MSVC? In practice, MSVC never implemented dynamic exception specifiers, so

@@ -38,6 +38,18 @@ public:
                     const char *LinkingOutput) const override {}
 };
 
+// Stub for linker
+class LLVM_LIBRARY_VISIBILITY Linker : public Tool {
+public:
+  Linker(const ToolChain &TC) : Tool("GenX::Linker", "Gen Finalizer", TC) {}
+
+  bool hasIntegratedCPP() const override { return false; }
+  void ConstructJob(Compilation &C, const JobAction &JA,
+                    const InputInfo &Output, const InputInfoList &Inputs,
+                    const llvm::opt::ArgList &TCArgs,
+                    const char *LinkingOutput) const override {}
+};
+
 } // end namespace GenX
 } // end namespace tools
 
@@ -49,6 +61,7 @@ public:
 
 protected:
   Tool *buildAssembler() const override;
+  Tool *buildLinker() const override;
 
 public:
   void

@@ -97,6 +97,7 @@ set(GENERIC_SOURCES
   floatunsisf.c
   floatuntidf.c
   floatuntisf.c
+  fp_mode.c
   int_util.c
   lshrdi3.c
   lshrti3.c
@@ -241,6 +242,13 @@ set(x86_ARCH_SOURCES
 )
 
 if (NOT MSVC)
+  set(x86_ARCH_SOURCES
+    ${x86_ARCH_SOURCES}
+    i386/fp_mode.c
+  )
+endif ()
+
+if (NOT MSVC)
   set(x86_64_SOURCES
     ${GENERIC_TF_SOURCES}
     x86_64/floatdidf.c
@@ -306,6 +314,7 @@ set(i386_SOURCES ${i386_SOURCES} ${x86_ARCH_SOURCES})
 set(i686_SOURCES ${i686_SOURCES} ${x86_ARCH_SOURCES})
 
 set(arm_SOURCES
+  arm/fp_mode.c
   arm/bswapdi2.S
   arm/bswapsi2.S
   arm/clzdi2.S
@@ -431,25 +440,7 @@ if(MINGW)
     arm/aeabi_uidivmod.S
     arm/aeabi_uldivmod.S
     arm/chkstk.S
-    divmoddi4.c
-    divmodsi4.c
-    divdi3.c
-    divsi3.c
-    fixdfdi.c
-    fixsfdi.c
-    fixunsdfdi.c
-    fixunssfdi.c
-    floatdidf.c
-    floatdisf.c
-    floatundidf.c
-    floatundisf.c
     mingw_fixfloat.c
-    moddi3.c
-    udivmoddi4.c
-    udivmodsi4.c
-    udivsi3.c
-    umoddi3.c
-    emutls.c
   )
   filter_builtin_sources(arm_SOURCES EXCLUDE arm_SOURCES "${arm_SOURCES};${GENERIC_SOURCES}")
 elseif(NOT WIN32)
@@ -469,6 +460,7 @@ endif()
 set(aarch64_SOURCES
   ${GENERIC_TF_SOURCES}
   ${GENERIC_SOURCES}
+  aarch64/fp_mode.c
 )
 
 if (MINGW)
@@ -534,6 +526,7 @@ set(mips64el_SOURCES ${GENERIC_TF_SOURCES}
 
 set(powerpc64_SOURCES
   ppc/divtc3.c
+  ppc/fixtfti.c
   ppc/fixtfdi.c
   ppc/fixunstfti.c
   ppc/fixunstfdi.c
@@ -601,15 +594,6 @@ else ()
 
   foreach (arch ${BUILTIN_SUPPORTED_ARCH})
     if (CAN_TARGET_${arch})
-      # NOTE: some architectures (e.g. i386) have multiple names.  Ensure that
-      # we catch them all.
-      set(_arch ${arch})
-      if("${arch}" STREQUAL "armv6m")
-        set(_arch "arm|armv6m")
-      elseif("${arch}" MATCHES "^(armhf|armv7|armv7s|armv7k|armv7m|armv7em)$")
-        set(_arch "arm")
-      endif()
-
       # For ARM archs, exclude any VFP builtins if VFP is not supported
       if (${arch} MATCHES "^(arm|armhf|armv7|armv7s|armv7k|armv7m|armv7em)$")
         string(REPLACE ";" " " _TARGET_${arch}_CFLAGS "${TARGET_${arch}_CFLAGS}")
@@ -623,10 +607,19 @@ else ()
       # architecture specific manner.  This prevents multiple definitions of the
       # same symbols, making the symbol selection non-deterministic.
       foreach (_file ${${arch}_SOURCES})
-        if (${_file} MATCHES ${_arch}/*)
+        get_filename_component(_file_dir "${_file}" DIRECTORY)
+        if (NOT "${_file_dir}" STREQUAL "")
+          # Architecture specific file. We follow the convention that a source
+          # file that exists in a sub-directory (e.g. `ppc/divtc3.c`) is
+          # architecture specific and that if a generic implementation exists
+          # it will be a top-level source file with the same name modulo the
+          # file extension (e.g. `divtc3.c`).
           get_filename_component(_name ${_file} NAME)
           string(REPLACE ".S" ".c" _cname "${_name}")
-          list(REMOVE_ITEM ${arch}_SOURCES ${_cname})
+          if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_cname}")
+            message(STATUS "For ${arch} builtins preferring ${_file} to ${_cname}")
+            list(REMOVE_ITEM ${arch}_SOURCES ${_cname})
+          endif()
         endif ()
       endforeach ()
 

@@ -2,12 +2,9 @@
 Test that breakpoints correctly work in an thumb function in an arbitrary
 named codesection.
 """
-from __future__ import print_function
 
 
 import lldb
-import os
-import time
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test import lldbutil

@@ -56,7 +56,7 @@ enum ID {
   };
 }
 
-std::unique_ptr<llvm::opt::OptTable> createDriverOptTable();
+const llvm::opt::OptTable &getDriverOptTable();
 }
 }
 

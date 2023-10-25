@@ -17,7 +17,9 @@
 
 #include "ClangTidyDiagnosticConsumer.h"
 #include "ClangTidyOptions.h"
+#include "GlobList.h"
 #include "clang/AST/ASTDiagnostic.h"
+#include "clang/AST/Attr.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Frontend/DiagnosticRenderer.h"
@@ -118,47 +120,6 @@ ClangTidyError::ClangTidyError(StringRef CheckName,
     : tooling::Diagnostic(CheckName, DiagLevel, BuildDirectory),
       IsWarningAsError(IsWarningAsError) {}
 
-// Returns true if GlobList starts with the negative indicator ('-'), removes it
-// from the GlobList.
-static bool ConsumeNegativeIndicator(StringRef &GlobList) {
-  GlobList = GlobList.trim(" \r\n");
-  if (GlobList.startswith("-")) {
-    GlobList = GlobList.substr(1);
-    return true;
-  }
-  return false;
-}
-// Converts first glob from the comma-separated list of globs to Regex and
-// removes it and the trailing comma from the GlobList.
-static llvm::Regex ConsumeGlob(StringRef &GlobList) {
-  StringRef UntrimmedGlob = GlobList.substr(0, GlobList.find(','));
-  StringRef Glob = UntrimmedGlob.trim(' ');
-  GlobList = GlobList.substr(UntrimmedGlob.size() + 1);
-  SmallString<128> RegexText("^");
-  StringRef MetaChars("()^$|*+?.[]\\{}");
-  for (char C : Glob) {
-    if (C == '*')
-      RegexText.push_back('.');
-    else if (MetaChars.find(C) != StringRef::npos)
-      RegexText.push_back('\\');
-    RegexText.push_back(C);
-  }
-  RegexText.push_back('$');
-  return llvm::Regex(RegexText);
-}
-
-GlobList::GlobList(StringRef Globs)
-    : Positive(!ConsumeNegativeIndicator(Globs)), Regex(ConsumeGlob(Globs)),
-      NextGlob(Globs.empty() ? nullptr : new GlobList(Globs)) {}
-
-bool GlobList::contains(StringRef S, bool Contains) {
-  if (Regex.match(S))
-    Contains = Positive;
-
-  if (NextGlob)
-    Contains = NextGlob->contains(S, Contains);
-  return Contains;
-}
 
 class ClangTidyContext::CachedGlobList {
 public:
@@ -213,9 +174,9 @@ void ClangTidyContext::setSourceManager(SourceManager *SourceMgr) {
 void ClangTidyContext::setCurrentFile(StringRef File) {
   CurrentFile = File;
   CurrentOptions = getOptionsForFile(CurrentFile);
-  CheckFilter = llvm::make_unique<CachedGlobList>(*getOptions().Checks);
+  CheckFilter = std::make_unique<CachedGlobList>(*getOptions().Checks);
   WarningAsErrorFilter =
-      llvm::make_unique<CachedGlobList>(*getOptions().WarningsAsErrors);
+      std::make_unique<CachedGlobList>(*getOptions().WarningsAsErrors);
 }
 
 void ClangTidyContext::setASTContext(ASTContext *Context) {
@@ -394,7 +355,7 @@ static bool LineIsMarkedWithNOLINTinMacro(const SourceManager &SM,
 namespace clang {
 namespace tidy {
 
-bool ShouldSuppressDiagnostic(DiagnosticsEngine::Level DiagLevel,
+bool shouldSuppressDiagnostic(DiagnosticsEngine::Level DiagLevel,
                               const Diagnostic &Info, ClangTidyContext &Context,
                               bool CheckMacroExpansion) {
   return Info.getLocation().isValid() &&
@@ -414,7 +375,7 @@ void ClangTidyDiagnosticConsumer::HandleDiagnostic(
   if (LastErrorWasIgnored && DiagLevel == DiagnosticsEngine::Note)
     return;
 
-  if (ShouldSuppressDiagnostic(DiagLevel, Info, Context)) {
+  if (shouldSuppressDiagnostic(DiagLevel, Info, Context)) {
     ++Context.Stats.ErrorsIgnoredNOLINT;
     // Ignored a warning, should ignore related notes as well
     LastErrorWasIgnored = true;
@@ -510,55 +471,58 @@ void ClangTidyDiagnosticConsumer::forwardDiagnostic(const Diagnostic &Info) {
       DiagLevelAndFormatString.first, DiagLevelAndFormatString.second);
 
   // Forward the details.
-  auto builder = ExternalDiagEngine->Report(Info.getLocation(), ExternalID);
+  auto Builder = ExternalDiagEngine->Report(Info.getLocation(), ExternalID);
   for (auto Hint : Info.getFixItHints())
-    builder << Hint;
+    Builder << Hint;
   for (auto Range : Info.getRanges())
-    builder << Range;
+    Builder << Range;
   for (unsigned Index = 0; Index < Info.getNumArgs(); ++Index) {
-    DiagnosticsEngine::ArgumentKind kind = Info.getArgKind(Index);
-    switch (kind) {
+    DiagnosticsEngine::ArgumentKind Kind = Info.getArgKind(Index);
+    switch (Kind) {
     case clang::DiagnosticsEngine::ak_std_string:
-      builder << Info.getArgStdStr(Index);
+      Builder << Info.getArgStdStr(Index);
       break;
     case clang::DiagnosticsEngine::ak_c_string:
-      builder << Info.getArgCStr(Index);
+      Builder << Info.getArgCStr(Index);
       break;
     case clang::DiagnosticsEngine::ak_sint:
-      builder << Info.getArgSInt(Index);
+      Builder << Info.getArgSInt(Index);
       break;
     case clang::DiagnosticsEngine::ak_uint:
-      builder << Info.getArgUInt(Index);
+      Builder << Info.getArgUInt(Index);
       break;
     case clang::DiagnosticsEngine::ak_tokenkind:
-      builder << static_cast<tok::TokenKind>(Info.getRawArg(Index));
+      Builder << static_cast<tok::TokenKind>(Info.getRawArg(Index));
       break;
     case clang::DiagnosticsEngine::ak_identifierinfo:
-      builder << Info.getArgIdentifier(Index);
+      Builder << Info.getArgIdentifier(Index);
       break;
     case clang::DiagnosticsEngine::ak_qual:
-      builder << Qualifiers::fromOpaqueValue(Info.getRawArg(Index));
+      Builder << Qualifiers::fromOpaqueValue(Info.getRawArg(Index));
       break;
     case clang::DiagnosticsEngine::ak_qualtype:
-      builder << QualType::getFromOpaquePtr((void *)Info.getRawArg(Index));
+      Builder << QualType::getFromOpaquePtr((void *)Info.getRawArg(Index));
       break;
     case clang::DiagnosticsEngine::ak_declarationname:
-      builder << DeclarationName::getFromOpaqueInteger(Info.getRawArg(Index));
+      Builder << DeclarationName::getFromOpaqueInteger(Info.getRawArg(Index));
       break;
     case clang::DiagnosticsEngine::ak_nameddecl:
-      builder << reinterpret_cast<const NamedDecl *>(Info.getRawArg(Index));
+      Builder << reinterpret_cast<const NamedDecl *>(Info.getRawArg(Index));
       break;
     case clang::DiagnosticsEngine::ak_nestednamespec:
-      builder << reinterpret_cast<NestedNameSpecifier *>(Info.getRawArg(Index));
+      Builder << reinterpret_cast<NestedNameSpecifier *>(Info.getRawArg(Index));
       break;
     case clang::DiagnosticsEngine::ak_declcontext:
-      builder << reinterpret_cast<DeclContext *>(Info.getRawArg(Index));
+      Builder << reinterpret_cast<DeclContext *>(Info.getRawArg(Index));
       break;
     case clang::DiagnosticsEngine::ak_qualtype_pair:
       assert(false); // This one is not passed around.
       break;
     case clang::DiagnosticsEngine::ak_attr:
-      builder << reinterpret_cast<Attr *>(Info.getRawArg(Index));
+      Builder << reinterpret_cast<Attr *>(Info.getRawArg(Index));
+      break;
+    case clang::DiagnosticsEngine::ak_addrspace:
+      Builder << static_cast<LangAS>(Info.getRawArg(Index));
       break;
     }
   }
@@ -604,7 +568,7 @@ void ClangTidyDiagnosticConsumer::checkFilters(SourceLocation Location,
 llvm::Regex *ClangTidyDiagnosticConsumer::getHeaderFilter() {
   if (!HeaderFilter)
     HeaderFilter =
-        llvm::make_unique<llvm::Regex>(*Context.getOptions().HeaderFilterRegex);
+        std::make_unique<llvm::Regex>(*Context.getOptions().HeaderFilterRegex);
   return HeaderFilter.get();
 }
 
@@ -742,8 +706,9 @@ struct LessClangTidyError {
     const tooling::DiagnosticMessage &M1 = LHS.Message;
     const tooling::DiagnosticMessage &M2 = RHS.Message;
 
-    return std::tie(M1.FilePath, M1.FileOffset, M1.Message) <
-           std::tie(M2.FilePath, M2.FileOffset, M2.Message);
+    return
+      std::tie(M1.FilePath, M1.FileOffset, LHS.DiagnosticName, M1.Message) <
+      std::tie(M2.FilePath, M2.FileOffset, RHS.DiagnosticName, M2.Message);
   }
 };
 struct EqualClangTidyError {

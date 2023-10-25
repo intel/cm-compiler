@@ -2,6 +2,7 @@ add_lldb_unittest(SymbolTests
   LocateSymbolFileTest.cpp
   PostfixExpressionTest.cpp
   TestClangASTContext.cpp
+  TestClangASTImporter.cpp
   TestDWARFCallFrameInfo.cpp
   TestType.cpp
   TestLineEntry.cpp
@@ -13,11 +14,11 @@ add_lldb_unittest(SymbolTests
     lldbPluginObjectFileELF
     lldbPluginObjectFileMachO
     lldbPluginSymbolFileDWARF
+    lldbPluginSymbolFileSymtab
     LLVMTestingSupport
   )
 
 set(test_inputs
-  basic-call-frame-info.yaml
   inlined-functions.yaml
   )
 add_unittest_inputs(SymbolTests "${test_inputs}")

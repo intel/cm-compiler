@@ -15,6 +15,7 @@ SPDX-License-Identifier: MIT
 #include "CGCMBuiltin.h"
 #include "CGCall.h"
 #include "CodeGenFunction.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/Type.h"
 #include "llvm/IR/Type.h"
 
@@ -58,6 +59,8 @@ public:
 private:
   RegionKind Kind;
 
+  CodeGenFunction &CGF;
+
   /// \brief The base object. This base object could be another CM region
   /// LValue.
   LValue Base;
@@ -72,14 +75,14 @@ private:
   CGCMRegionInfo(CGCMRegionInfo &) = delete;
 
 public:
-  CGCMRegionInfo(RegionKind Kind, LValue Base, unsigned vSize, unsigned vStride,
+  CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CGF, unsigned vSize, unsigned vStride,
                  unsigned hSize, unsigned hStride, llvm::Value *vOffset,
                  llvm::Value *hOffset);
 
-  CGCMRegionInfo(RegionKind Kind, LValue Base, unsigned Size, unsigned Stride,
+  CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CGF, unsigned Size, unsigned Stride,
                  llvm::Value *Offset);
 
-  CGCMRegionInfo(RegionKind Kind, LValue Base);
+  CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CGF);
 
   RegionKind getRegionKind() const { return Kind; }
   bool isFormat() const { return getRegionKind() == RK_format; }

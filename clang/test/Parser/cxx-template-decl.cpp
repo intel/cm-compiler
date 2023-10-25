@@ -261,3 +261,21 @@ namespace PR42071 {
   template<int Q::N> struct C; // expected-error {{parameter declarator cannot be qualified}}
   template<int f(int a = 0)> struct D; // expected-error {{default arguments can only be specified for parameters in a function declaration}}
 }
+
+namespace AnnotateAfterInvalidTemplateId {
+  template<int I, int J> struct A { };
+  template<int J> struct A<0, J> { }; // expected-note {{J = 0}}
+  template<int I> struct A<I, 0> { }; // expected-note {{I = 0}}
+
+  void f() { A<0, 0>::f(); } // expected-error {{ambiguous partial specializations}}
+}
+
+namespace PR45063 {
+  template<class=class a::template b<>> struct X {}; // expected-error {{undeclared identifier 'a'}}
+}
+
+namespace NoCrashOnEmptyNestedNameSpecifier {
+  template <typename FnT,
+            typename T = typename ABC<FnT>::template arg_t<0>> // expected-error {{no template named 'ABC'}}
+  void foo(FnT) {}
+}

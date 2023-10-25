@@ -2,7 +2,7 @@
 // RUN: %clang_cc1 -std=c++11 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 // RUN: %clang_cc1 -std=c++14 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 // RUN: %clang_cc1 -std=c++17 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
-// RUN: %clang_cc1 -std=c++2a %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
+// RUN: %clang_cc1 -std=c++20 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 
 // PR13819 -- __SIZE_TYPE__ is incompatible.
 typedef __SIZE_TYPE__ size_t; // expected-error 0-1 {{extension}}
@@ -225,11 +225,17 @@ namespace dr222 { // dr222: dup 637
     void((a += b) += c);
     void((a += b) + (a += c)); // expected-warning {{multiple unsequenced modifications to 'a'}}
 
-    x[a++] = a; // expected-warning {{unsequenced modification and access to 'a'}}
+    x[a++] = a;
+#if __cplusplus < 201703L
+    // expected-warning@-2 {{unsequenced modification and access to 'a'}}
+#endif
 
     a = b = 0; // ok, read and write of 'b' are sequenced
 
-    a = (b = a++); // expected-warning {{multiple unsequenced modifications to 'a'}}
+    a = (b = a++);
+#if __cplusplus < 201703L
+    // expected-warning@-2 {{multiple unsequenced modifications to 'a'}}
+#endif
     a = (b = ++a);
 #pragma clang diagnostic pop
   }
@@ -443,8 +449,8 @@ namespace dr241 { // dr241: yes
     template <class T> void g(T t); // expected-note {{candidate}}
   }
   void h(A::B b) {
-    f<3>(b); // expected-error 0-1{{C++2a extension}} expected-error {{no matching}}
-    g<3>(b); // expected-error 0-1{{C++2a extension}}
+    f<3>(b); // expected-error 0-1{{C++20 extension}} expected-error {{no matching}}
+    g<3>(b); // expected-error 0-1{{C++20 extension}}
     A::f<3>(b); // expected-error {{no matching}}
     A::g<3>(b);
     C::f<3>(b); // expected-error {{no matching}}
@@ -751,9 +757,12 @@ namespace dr263 { // dr263: yes
 #if __cplusplus < 201103L
     friend X::X() throw();
     friend X::~X() throw();
-#else
+#elif __cplusplus <= 201703L
     friend constexpr X::X() noexcept;
     friend X::~X();
+#else
+    friend constexpr X::X() noexcept;
+    friend constexpr X::~X();
 #endif
     Y::Y(); // expected-error {{extra qualification}}
     Y::~Y(); // expected-error {{extra qualification}}

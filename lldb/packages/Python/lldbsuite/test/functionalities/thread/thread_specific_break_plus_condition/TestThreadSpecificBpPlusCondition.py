@@ -3,12 +3,8 @@ Test that we obey thread conditioned breakpoints and expression
 conditioned breakpoints simultaneously
 """
 
-from __future__ import print_function
 
 
-import os
-import time
-import re
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *

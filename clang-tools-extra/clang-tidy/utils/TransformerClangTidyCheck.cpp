@@ -12,7 +12,7 @@
 namespace clang {
 namespace tidy {
 namespace utils {
-using tooling::RewriteRule;
+using transformer::RewriteRule;
 
 #ifndef NDEBUG
 static bool hasExplanation(const RewriteRule::Case &C) {
@@ -53,7 +53,7 @@ void TransformerClangTidyCheck::registerPPCallbacks(
   if (Rule && llvm::any_of(Rule->Cases, [](const RewriteRule::Case &C) {
         return !C.AddedIncludes.empty();
       })) {
-    Inserter = llvm::make_unique<IncludeInserter>(
+    Inserter = std::make_unique<IncludeInserter>(
         SM, getLangOpts(), utils::IncludeSorter::IS_LLVM);
     PP->addPPCallbacks(Inserter->CreatePPCallbacks());
   }
@@ -62,7 +62,8 @@ void TransformerClangTidyCheck::registerPPCallbacks(
 void TransformerClangTidyCheck::registerMatchers(
     ast_matchers::MatchFinder *Finder) {
   if (Rule)
-    Finder->addDynamicMatcher(tooling::detail::buildMatcher(*Rule), this);
+    for (auto &Matcher : transformer::detail::buildMatchers(*Rule))
+      Finder->addDynamicMatcher(Matcher, this);
 }
 
 void TransformerClangTidyCheck::check(
@@ -70,18 +71,10 @@ void TransformerClangTidyCheck::check(
   if (Result.Context->getDiagnostics().hasErrorOccurred())
     return;
 
-  // Verify the existence and validity of the AST node that roots this rule.
-  const ast_matchers::BoundNodes::IDToNodeMap &NodesMap = Result.Nodes.getMap();
-  auto Root = NodesMap.find(RewriteRule::RootID);
-  assert(Root != NodesMap.end() && "Transformation failed: missing root node.");
-  SourceLocation RootLoc = Result.SourceManager->getExpansionLoc(
-      Root->second.getSourceRange().getBegin());
-  assert(RootLoc.isValid() && "Invalid location for Root node of match.");
-
   assert(Rule && "check() should not fire if Rule is None");
-  RewriteRule::Case Case = tooling::detail::findSelectedCase(Result, *Rule);
-  Expected<SmallVector<tooling::detail::Transformation, 1>> Transformations =
-      tooling::detail::translateEdits(Result, Case.Edits);
+  RewriteRule::Case Case = transformer::detail::findSelectedCase(Result, *Rule);
+  Expected<SmallVector<transformer::detail::Transformation, 1>>
+      Transformations = transformer::detail::translateEdits(Result, Case.Edits);
   if (!Transformations) {
     llvm::errs() << "Rewrite failed: "
                  << llvm::toString(Transformations.takeError()) << "\n";
@@ -92,22 +85,24 @@ void TransformerClangTidyCheck::check(
   if (Transformations->empty())
     return;
 
-  Expected<std::string> Explanation = Case.Explanation(Result);
+  Expected<std::string> Explanation = Case.Explanation->eval(Result);
   if (!Explanation) {
     llvm::errs() << "Error in explanation: "
                  << llvm::toString(Explanation.takeError()) << "\n";
     return;
   }
-  DiagnosticBuilder Diag = diag(RootLoc, *Explanation);
-  for (const auto &T : *Transformations) {
+
+  // Associate the diagnostic with the location of the first change.
+  DiagnosticBuilder Diag =
+      diag((*Transformations)[0].Range.getBegin(), *Explanation);
+  for (const auto &T : *Transformations)
     Diag << FixItHint::CreateReplacement(T.Range, T.Replacement);
-  }
 
   for (const auto &I : Case.AddedIncludes) {
     auto &Header = I.first;
     if (Optional<FixItHint> Fix = Inserter->CreateIncludeInsertion(
             Result.SourceManager->getMainFileID(), Header,
-            /*IsAngled=*/I.second == tooling::IncludeFormat::Angled)) {
+            /*IsAngled=*/I.second == transformer::IncludeFormat::Angled)) {
       Diag << *Fix;
     }
   }

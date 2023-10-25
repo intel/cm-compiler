@@ -9,7 +9,7 @@ This check will try to enforce coding guidelines on the identifiers naming. It
 supports one of the following casing types and tries to convert from one to
 another if a mismatch is detected
 
-Casing types inclde:
+Casing types include:
 
  - ``lower_case``,
  - ``UPPER_CASE``,
@@ -25,6 +25,10 @@ to the identifiers, regardless of the casing.
 Many configuration options are available, in order to be able to create
 different rules for different kinds of identifiers. In general, the rules are
 falling back to a more generic rule if the specific case is not configured.
+
+The naming of virtual methods is reported where they occur in the base class,
+but not where they are overridden, as it can't be fixed locally there.
+This also applies for pseudo-override patterns like CRTP.
 
 Options
 -------

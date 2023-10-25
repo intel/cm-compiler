@@ -234,6 +234,8 @@ void RTLsTy::RegisterLib(__tgt_bin_desc *desc) {
   // Attempt to load all plugins available in the system.
   std::call_once(initFlag, &RTLsTy::LoadRTLs, this);
 
+  if (desc->HostEntriesBegin == desc->HostEntriesEnd)
+    return;
   RTLsMtx.lock();
   // Register the images with the RTLs that understand them, if any.
   for (int32_t i = 0; i < desc->NumDeviceImages; ++i) {
@@ -266,8 +268,6 @@ void RTLsTy::RegisterLib(__tgt_bin_desc *desc) {
           Devices[start + device_id].DeviceID = start + device_id;
           // RTL local device ID
           Devices[start + device_id].RTLDeviceID = device_id;
-          // RTL requires flags
-          Devices[start + device_id].RTLRequiresFlags = RequiresFlags;
         }
 
         // Initialize the index of this RTL and save it in the used RTLs.
@@ -322,6 +322,8 @@ void RTLsTy::RegisterLib(__tgt_bin_desc *desc) {
 void RTLsTy::UnregisterLib(__tgt_bin_desc *desc) {
   DP("Unloading target library!\n");
 
+  if (desc->HostEntriesBegin == desc->HostEntriesEnd)
+    return;
   RTLsMtx.lock();
   // Find which RTL understands each image, if any.
   for (int32_t i = 0; i < desc->NumDeviceImages; ++i) {

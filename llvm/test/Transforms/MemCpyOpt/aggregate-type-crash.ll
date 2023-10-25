@@ -8,7 +8,7 @@ target triple = "x86_64-apple-macosx10.14.0"
 ; Function Attrs: inaccessiblemem_or_argmemonly
 declare noalias i8* @my_malloc(%my_struct*) #0
 
-define void @my_func(%my_struct*) {
+define void @my_func(%my_struct* %0) {
 entry:
 ; CHECK: entry:
   %1 = load %my_struct, %my_struct* %0

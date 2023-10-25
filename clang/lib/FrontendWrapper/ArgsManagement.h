@@ -43,10 +43,10 @@ public:
   ErrT getStatus() const { return Status; }
   // unfortunately llvm::raw_string_ostream has no move constructor
   std::unique_ptr<llvm::raw_string_ostream> getLogStream() {
-    return llvm::make_unique<llvm::raw_string_ostream>(Log);
+    return std::make_unique<llvm::raw_string_ostream>(Log);
   }
   std::unique_ptr<llvm::raw_svector_ostream> getIRStream() {
-    return llvm::make_unique<llvm::raw_svector_ostream>(IR);
+    return std::make_unique<llvm::raw_svector_ostream>(IR);
   }
   void setStatus(bool ClangSuccess) {
     Status = ClangSuccess ? ErrT::SUCCESS : ErrT::COMPILE_PROGRAM_FAILURE;

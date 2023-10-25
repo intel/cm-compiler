@@ -1,10 +1,7 @@
 """Test that lldb works correctly on compile units form different languages."""
 
-from __future__ import print_function
 
 
-import os
-import time
 import re
 import lldb
 from lldbsuite.test.lldbtest import *

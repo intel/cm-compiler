@@ -16,7 +16,9 @@
 
 #include "../ClangTidy.h"
 #include "../ClangTidyForceLinker.h"
+#include "../GlobList.h"
 #include "clang/Tooling/CommonOptionsParser.h"
+#include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/TargetSelect.h"
@@ -289,7 +291,7 @@ static std::unique_ptr<ClangTidyOptionsProvider> createOptionsProvider(
   if (!Config.empty()) {
     if (llvm::ErrorOr<ClangTidyOptions> ParsedConfig =
             parseConfiguration(Config)) {
-      return llvm::make_unique<ConfigOptionsProvider>(
+      return std::make_unique<ConfigOptionsProvider>(
           GlobalOptions,
           ClangTidyOptions::getDefaults().mergeWith(DefaultOptions),
           *ParsedConfig, OverrideOptions);
@@ -299,7 +301,7 @@ static std::unique_ptr<ClangTidyOptionsProvider> createOptionsProvider(
       return nullptr;
     }
   }
-  return llvm::make_unique<FileOptionsProvider>(GlobalOptions, DefaultOptions,
+  return std::make_unique<FileOptionsProvider>(GlobalOptions, DefaultOptions,
                                                 OverrideOptions, std::move(FS));
 }
 
@@ -326,7 +328,7 @@ getVfsFromFile(const std::string &OverlayFile,
 }
 
 static int clangTidyMain(int argc, const char **argv) {
-  llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
+  llvm::InitLLVM X(argc, argv);
   CommonOptionsParser OptionsParser(argc, argv, ClangTidyCategory,
                                     cl::ZeroOrMore);
   llvm::IntrusiveRefCntPtr<vfs::OverlayFileSystem> BaseFS(
@@ -443,7 +445,7 @@ static int clangTidyMain(int argc, const char **argv) {
 
   if (!ExportFixes.empty() && !Errors.empty()) {
     std::error_code EC;
-    llvm::raw_fd_ostream OS(ExportFixes, EC, llvm::sys::fs::F_None);
+    llvm::raw_fd_ostream OS(ExportFixes, EC, llvm::sys::fs::OF_None);
     if (EC) {
       llvm::errs() << "Error opening output file: " << EC.message() << '\n';
       return 1;

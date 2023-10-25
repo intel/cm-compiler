@@ -1,4 +1,3 @@
-from __future__ import print_function
 import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
@@ -6,6 +5,15 @@ from gdbclientutils import *
 
 
 class TestWriteMemory(GDBRemoteTestBase):
+
+    def setUp(self):
+        super(TestWriteMemory, self).setUp()
+        self._initial_platform = lldb.DBG.GetSelectedPlatform()
+
+    def tearDown(self):
+        lldb.DBG.SetSelectedPlatform(self._initial_platform)
+        super(TestWriteMemory, self).tearDown()
+
 
     def test(self):
 

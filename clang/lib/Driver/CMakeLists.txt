@@ -9,6 +9,7 @@
 set(LLVM_LINK_COMPONENTS
   BinaryFormat
   Option
+  ProfileData
   Support
   )
 
@@ -26,6 +27,7 @@ add_clang_library(clangDriver
   DriverOptions.cpp
   Job.cpp
   Multilib.cpp
+  OptionUtils.cpp
   Phases.cpp
   SanitizerArgs.cpp
   Tool.cpp
@@ -40,6 +42,7 @@ add_clang_library(clangDriver
   ToolChains/Arch/Sparc.cpp
   ToolChains/Arch/SystemZ.cpp
   ToolChains/Arch/X86.cpp
+  ToolChains/AIX.cpp
   ToolChains/Ananas.cpp
   ToolChains/AMDGPU.cpp
   ToolChains/AVR.cpp
@@ -52,6 +55,7 @@ add_clang_library(clangDriver
   ToolChains/Cuda.cpp
   ToolChains/Darwin.cpp
   ToolChains/DragonFly.cpp
+  ToolChains/Flang.cpp
   ToolChains/FreeBSD.cpp
   ToolChains/Fuchsia.cpp
   ToolChains/GenX.cpp
@@ -77,6 +81,7 @@ add_clang_library(clangDriver
   ToolChains/WebAssembly.cpp
   ToolChains/XCore.cpp
   ToolChains/PPCLinux.cpp
+  ToolChains/InterfaceStubs.cpp
   Types.cpp
   XRayArgs.cpp
 

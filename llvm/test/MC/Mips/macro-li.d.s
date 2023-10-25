@@ -9,16 +9,16 @@
 li.d	$4, 0
 # O32:     addiu   $4, $zero, 0                # encoding: [0x00,0x00,0x04,0x24]
 # O32:     addiu   $5, $zero, 0                # encoding: [0x00,0x00,0x05,0x24]
-# N32-N64: daddiu  $4, $zero, 0                # encoding: [0x00,0x00,0x04,0x64]
+# N32-N64: addiu   $4, $zero, 0                # encoding: [0x00,0x00,0x04,0x24]
 
 li.d	$4, 0.0
 # O32:     addiu   $4, $zero, 0                # encoding: [0x00,0x00,0x04,0x24]
 # O32:     addiu   $5, $zero, 0                # encoding: [0x00,0x00,0x05,0x24]
-# N32-N64: daddiu  $4, $zero, 0                # encoding: [0x00,0x00,0x04,0x64]
+# N32-N64: addiu   $4, $zero, 0                # encoding: [0x00,0x00,0x04,0x24]
 
 li.d	$4, 1.12345
 # ALL:      .section  .rodata,"a",@progbits
-# ALL-NEXT:  [[LABEL:\$tmp[0-9]+]]:
+# ALL-NEXT:  [[LABEL:((\$)|(\.L))tmp[0-9]+]]:
 # ALL-NEXT:	.p2align 3
 # ALL-NEXT:	.8byte 4607738388174016296
 # ALL-NEXT:	.text
@@ -62,7 +62,7 @@ li.d	$4, 1.0
 
 li.d	$4, 12345678910
 # ALL:      .section  .rodata,"a",@progbits
-# ALL-NEXT:  [[LABEL:\$tmp[0-9]+]]:
+# ALL-NEXT:  [[LABEL:((\$)|(\.L))tmp[0-9]+]]:
 # ALL-NEXT:	.p2align 3
 # ALL-NEXT:	.8byte 4757770298180239360
 # ALL-NEXT:	.text
@@ -94,7 +94,7 @@ li.d	$4, 12345678910
 
 li.d	$4, 12345678910.0
 # ALL:      .section  .rodata,"a",@progbits
-# ALL-NEXT:  [[LABEL:\$tmp[0-9]+]]:
+# ALL-NEXT:  [[LABEL:((\$)|(\.L))tmp[0-9]+]]:
 # ALL-NEXT:	.p2align 3
 # ALL-NEXT:	.8byte 4757770298180239360
 # ALL-NEXT:	.text
@@ -126,7 +126,7 @@ li.d	$4, 12345678910.0
 
 li.d	$4, 0.4
 # ALL:      .section  .rodata,"a",@progbits
-# ALL-NEXT:  [[LABEL:\$tmp[0-9]+]]:
+# ALL-NEXT:  [[LABEL:((\$)|(\.L))tmp[0-9]+]]:
 # ALL-NEXT:	.p2align 3
 # ALL-NEXT:	.8byte 4600877379321698714
 # ALL-NEXT:	.text
@@ -164,7 +164,7 @@ li.d	$4, 1.5
 
 li.d	$4, 12345678910.12345678910
 # ALL:      .section  .rodata,"a",@progbits
-# ALL-NEXT:  [[LABEL:\$tmp[0-9]+]]:
+# ALL-NEXT:  [[LABEL:((\$)|(\.L))tmp[0-9]+]]:
 # ALL-NEXT:	.p2align 3
 # ALL-NEXT:	.8byte 4757770298180304087
 # ALL-NEXT:	.text
@@ -197,7 +197,7 @@ li.d	$4, 12345678910.12345678910
 
 li.d	$4, 12345678910123456789.12345678910
 # ALL:      .section  .rodata,"a",@progbits
-# ALL-NEXT:  [[LABEL:\$tmp[0-9]+]]:
+# ALL-NEXT:  [[LABEL:((\$)|(\.L))tmp[0-9]+]]:
 # ALL-NEXT:	.p2align 3
 # ALL-NEXT:	.8byte 4892433759227321879
 # ALL-NEXT:	.text
@@ -228,28 +228,22 @@ li.d	$4, 12345678910123456789.12345678910
 # N32-N64:         ld      $4, 0($1)                  # encoding: [0x00,0x00,0x24,0xdc]
 
 li.d	$f4, 0
-# O32:            addiu   $1, $zero, 0       # encoding: [0x00,0x00,0x01,0x24]
-# O32:            mtc1    $1, $f5            # encoding: [0x00,0x28,0x81,0x44]
+# O32:            mtc1    $zero, $f5         # encoding: [0x00,0x28,0x80,0x44]
 # O32:            mtc1    $zero, $f4         # encoding: [0x00,0x20,0x80,0x44]
-# CHECK-MIPS32r2: addiu   $1, $zero, 0       # encoding: [0x00,0x00,0x01,0x24]
 # CHECK-MIPS32r2: mtc1    $zero, $f4         # encoding: [0x00,0x20,0x80,0x44]
-# CHECK-MIPS32r2: mthc1   $1, $f4            # encoding: [0x00,0x20,0xe1,0x44]
-# N32-N64:        addiu   $1, $zero, 0       # encoding: [0x00,0x00,0x01,0x24]
-# N32-N64:        dmtc1   $1, $f4            # encoding: [0x00,0x20,0xa1,0x44]
+# CHECK-MIPS32r2: mthc1   $zero, $f4         # encoding: [0x00,0x20,0xe0,0x44]
+# N32-N64:        dmtc1   $zero, $f4         # encoding: [0x00,0x20,0xa0,0x44]
 
 li.d	$f4, 0.0
-# O32:            addiu   $1, $zero, 0       # encoding: [0x00,0x00,0x01,0x24]
-# O32:            mtc1    $1, $f5            # encoding: [0x00,0x28,0x81,0x44]
+# O32:            mtc1    $zero, $f5         # encoding: [0x00,0x28,0x80,0x44]
 # O32:            mtc1    $zero, $f4         # encoding: [0x00,0x20,0x80,0x44]
-# CHECK-MIPS32r2: addiu   $1, $zero, 0       # encoding: [0x00,0x00,0x01,0x24]
 # CHECK-MIPS32r2: mtc1    $zero, $f4         # encoding: [0x00,0x20,0x80,0x44]
-# CHECK-MIPS32r2: mthc1   $1, $f4            # encoding: [0x00,0x20,0xe1,0x44]
-# N32-N64:        addiu   $1, $zero, 0       # encoding: [0x00,0x00,0x01,0x24]
-# N32-N64:        dmtc1   $1, $f4            # encoding: [0x00,0x20,0xa1,0x44]
+# CHECK-MIPS32r2: mthc1   $zero, $f4         # encoding: [0x00,0x20,0xe0,0x44]
+# N32-N64:        dmtc1   $zero, $f4         # encoding: [0x00,0x20,0xa0,0x44]
 
 li.d	$f4, 1.12345
 # ALL:      .section  .rodata,"a",@progbits
-# ALL-NEXT:  [[LABEL:\$tmp[0-9]+]]:
+# ALL-NEXT:  [[LABEL:((\$)|(\.L))tmp[0-9]+]]:
 # ALL-NEXT:	.p2align 3
 # ALL-NEXT:	.8byte 4607738388174016296
 # ALL-NEXT:	.text
@@ -294,7 +288,7 @@ li.d	$f4, 1.0
 
 li.d	$f4, 12345678910
 # ALL:      .section  .rodata,"a",@progbits
-# ALL-NEXT:  [[LABEL:\$tmp[0-9]+]]:
+# ALL-NEXT:  [[LABEL:((\$)|(\.L))tmp[0-9]+]]:
 # ALL-NEXT:	.p2align 3
 # ALL-NEXT:	.8byte 4757770298180239360
 # ALL-NEXT:	.text
@@ -317,7 +311,7 @@ li.d	$f4, 12345678910
 
 li.d	$f4, 12345678910.0
 # ALL:      .section  .rodata,"a",@progbits
-# ALL-NEXT:  [[LABEL:\$tmp[0-9]+]]:
+# ALL-NEXT:  [[LABEL:((\$)|(\.L))tmp[0-9]+]]:
 # ALL-NEXT:	.p2align 3
 # ALL-NEXT:	.8byte 4757770298180239360
 # ALL-NEXT:	.text
@@ -340,7 +334,7 @@ li.d	$f4, 12345678910.0
 
 li.d	$f4, 0.4
 # ALL:      .section  .rodata,"a",@progbits
-# ALL-NEXT:  [[LABEL:\$tmp[0-9]+]]:
+# ALL-NEXT:  [[LABEL:((\$)|(\.L))tmp[0-9]+]]:
 # ALL-NEXT:	.p2align 3
 # ALL-NEXT:	.8byte 4600877379321698714
 # ALL-NEXT:	.text
@@ -385,7 +379,7 @@ li.d	$f4, 2.5
 
 li.d	$f4, 2.515625
 # ALL:      .section  .rodata,"a",@progbits
-# ALL-NEXT:  [[LABEL:\$tmp[0-9]+]]:
+# ALL-NEXT:  [[LABEL:((\$)|(\.L))tmp[0-9]+]]:
 # ALL-NEXT:	.p2align 3
 # ALL-NEXT:	.8byte 4612847102706319360
 # ALL-NEXT:	.text
@@ -408,7 +402,7 @@ li.d	$f4, 2.515625
 
 li.d	$f4, 12345678910.12345678910
 # ALL:      .section  .rodata,"a",@progbits
-# ALL-NEXT:  [[LABEL:\$tmp[0-9]+]]:
+# ALL-NEXT:  [[LABEL:((\$)|(\.L))tmp[0-9]+]]:
 # ALL-NEXT:	.p2align 3
 # ALL-NEXT:	.8byte 4757770298180304087
 # ALL-NEXT:	.text
@@ -431,7 +425,7 @@ li.d	$f4, 12345678910.12345678910
 
 li.d	$f4, 12345678910123456789.12345678910
 # ALL:      .section  .rodata,"a",@progbits
-# ALL-NEXT:  [[LABEL:\$tmp[0-9]+]]:
+# ALL-NEXT:  [[LABEL:((\$)|(\.L))tmp[0-9]+]]:
 # ALL-NEXT:	.p2align 3
 # ALL-NEXT:	.8byte 4892433759227321879
 # ALL-NEXT:	.text

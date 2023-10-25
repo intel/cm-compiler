@@ -10,7 +10,7 @@
 #include "lldb/Host/Config.h"
 
 #include <stdio.h>
-#ifndef LLDB_DISABLE_POSIX
+#if LLDB_ENABLE_POSIX
 #include <sys/utsname.h>
 #endif
 
@@ -199,7 +199,7 @@ bool PlatformLinux::GetSupportedArchitectureAtIndex(uint32_t idx,
 void PlatformLinux::GetStatus(Stream &strm) {
   Platform::GetStatus(strm);
 
-#ifndef LLDB_DISABLE_POSIX
+#if LLDB_ENABLE_POSIX
   // Display local kernel information only when we are running in host mode.
   // Otherwise, we would end up printing non-Linux information (when running on
   // Mac OS for example).
@@ -257,25 +257,6 @@ bool PlatformLinux::CanDebugProcess() {
   } else {
     // If we're connected, we can debug.
     return IsConnected();
-  }
-}
-
-std::vector<std::string>
-PlatformLinux::GetSystemIncludeDirectories(lldb::LanguageType lang) {
-  std::string sys_root = GetSDKRootDirectory().AsCString("");
-  switch (lang) {
-  case lldb::eLanguageTypeC:
-  case lldb::eLanguageTypeC89:
-  case lldb::eLanguageTypeC99:
-  case lldb::eLanguageTypeC11:
-  case lldb::eLanguageTypeC_plus_plus:
-  case lldb::eLanguageTypeC_plus_plus_03:
-  case lldb::eLanguageTypeC_plus_plus_11:
-  case lldb::eLanguageTypeC_plus_plus_14:
-  case lldb::eLanguageTypeObjC_plus_plus:
-    return {sys_root + "/usr/include/"};
-  default:
-    return {};
   }
 }
 
@@ -396,6 +377,8 @@ PlatformLinux::DebugProcess(ProcessLaunchInfo &launch_info, Debugger &debugger,
 
 void PlatformLinux::CalculateTrapHandlerSymbolNames() {
   m_trap_handlers.push_back(ConstString("_sigtramp"));
+  m_trap_handlers.push_back(ConstString("__kernel_rt_sigreturn"));
+  m_trap_handlers.push_back(ConstString("__restore_rt"));
 }
 
 MmapArgList PlatformLinux::GetMmapArgumentList(const ArchSpec &arch,

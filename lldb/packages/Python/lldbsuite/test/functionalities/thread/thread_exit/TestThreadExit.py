@@ -2,11 +2,8 @@
 Test number of threads.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -27,7 +24,6 @@ class ThreadExitTestCase(TestBase):
         self.break_4 = line_number('main.cpp', '// Set fourth breakpoint here')
 
     @skipIfWindows # This is flakey on Windows: llvm.org/pr38373
-    @expectedFailureNetBSD
     def test(self):
         """Test thread exit handling."""
         self.build(dictionary=self.getBuildFlags())

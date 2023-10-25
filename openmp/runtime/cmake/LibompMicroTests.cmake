@@ -22,7 +22,7 @@
 #  - Available for Unix, Intel(R) MIC Architecture dynamic library builds. Not available otherwise.
 # (3) test-execstack
 #  - Tests if stack is executable
-#  - Fails if stack is executable. Should only be readable and writable. Not exectuable.
+#  - Fails if stack is executable. Should only be readable and writable. Not executable.
 #  - Program dependencies: perl, readelf
 #  - Available for Unix dynamic library builds. Not available otherwise.
 # (4) test-instr (Intel(R) MIC Architecutre only)
@@ -209,6 +209,9 @@ else()
       libomp_append(libomp_expected_library_deps libc.so.6)
       libomp_append(libomp_expected_library_deps ld64.so.1)
     elseif(${MIPS} OR ${MIPS64})
+      libomp_append(libomp_expected_library_deps libc.so.6)
+      libomp_append(libomp_expected_library_deps ld.so.1)
+    elseif(${RISCV64})
       libomp_append(libomp_expected_library_deps libc.so.6)
       libomp_append(libomp_expected_library_deps ld.so.1)
     endif()

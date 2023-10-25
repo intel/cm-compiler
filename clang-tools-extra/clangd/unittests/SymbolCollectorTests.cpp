@@ -14,6 +14,7 @@
 #include "clang/Basic/FileSystemOptions.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Index/IndexingAction.h"
+#include "clang/Index/IndexingOptions.h"
 #include "clang/Tooling/Tooling.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/STLExtras.h"
@@ -38,6 +39,7 @@ using ::testing::Contains;
 using ::testing::Each;
 using ::testing::ElementsAre;
 using ::testing::Field;
+using ::testing::IsEmpty;
 using ::testing::Not;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
@@ -200,31 +202,32 @@ public:
                            CommentHandler *PragmaHandler)
       : COpts(std::move(COpts)), PragmaHandler(PragmaHandler) {}
 
-  clang::FrontendAction *create() override {
-    class WrappedIndexAction : public WrapperFrontendAction {
+  std::unique_ptr<FrontendAction> create() override {
+    class IndexAction : public ASTFrontendAction {
     public:
-      WrappedIndexAction(std::shared_ptr<SymbolCollector> C,
-                         const index::IndexingOptions &Opts,
-                         CommentHandler *PragmaHandler)
-          : WrapperFrontendAction(
-                index::createIndexingAction(C, Opts, nullptr)),
+      IndexAction(std::shared_ptr<index::IndexDataConsumer> DataConsumer,
+                  const index::IndexingOptions &Opts,
+                  CommentHandler *PragmaHandler)
+          : DataConsumer(std::move(DataConsumer)), Opts(Opts),
             PragmaHandler(PragmaHandler) {}
 
       std::unique_ptr<ASTConsumer>
       CreateASTConsumer(CompilerInstance &CI, llvm::StringRef InFile) override {
         if (PragmaHandler)
           CI.getPreprocessor().addCommentHandler(PragmaHandler);
-        return WrapperFrontendAction::CreateASTConsumer(CI, InFile);
+        return createIndexingASTConsumer(DataConsumer, Opts,
+                                         CI.getPreprocessorPtr());
       }
 
       bool BeginInvocation(CompilerInstance &CI) override {
         // Make the compiler parse all comments.
         CI.getLangOpts().CommentOpts.ParseAllComments = true;
-        return WrapperFrontendAction::BeginInvocation(CI);
+        return true;
       }
 
     private:
-      index::IndexingOptions IndexOpts;
+      std::shared_ptr<index::IndexDataConsumer> DataConsumer;
+      index::IndexingOptions Opts;
       CommentHandler *PragmaHandler;
     };
     index::IndexingOptions IndexOpts;
@@ -232,8 +235,8 @@ public:
         index::IndexingOptions::SystemSymbolFilterKind::All;
     IndexOpts.IndexFunctionLocals = false;
     Collector = std::make_shared<SymbolCollector>(COpts);
-    return new WrappedIndexAction(Collector, std::move(IndexOpts),
-                                  PragmaHandler);
+    return std::make_unique<IndexAction>(Collector, std::move(IndexOpts),
+                                         PragmaHandler);
   }
 
   std::shared_ptr<SymbolCollector> Collector;
@@ -258,7 +261,7 @@ public:
     llvm::IntrusiveRefCntPtr<FileManager> Files(
         new FileManager(FileSystemOptions(), InMemoryFileSystem));
 
-    auto Factory = llvm::make_unique<SymbolIndexActionFactory>(
+    auto Factory = std::make_unique<SymbolIndexActionFactory>(
         CollectorOpts, PragmaHandler.get());
 
     std::vector<std::string> Args = {"symbol_collector", "-fsyntax-only",
@@ -576,15 +579,16 @@ o]]();
 
 TEST_F(SymbolCollectorTest, Refs) {
   Annotations Header(R"(
-  class $foo[[Foo]] {
+  #define MACRO(X) (X + 1)
+  class Foo {
   public:
-    $foo[[Foo]]() {}
-    $foo[[Foo]](int);
+    Foo() {}
+    Foo(int);
   };
-  class $bar[[Bar]];
-  void $func[[func]]();
+  class Bar;
+  void func();
 
-  namespace $ns[[NS]] {} // namespace ref is ignored
+  namespace NS {} // namespace ref is ignored
   )");
   Annotations Main(R"(
   class $bar[[Bar]] {};
@@ -597,19 +601,20 @@ TEST_F(SymbolCollectorTest, Refs) {
     $func[[func]]();
     int abc = 0;
     $foo[[Foo]] foo2 = abc;
+    abc = $macro[[MACRO]](1);
   }
   )");
   Annotations SymbolsOnlyInMainCode(R"(
+  #define FUNC(X) (X+1)
   int a;
   void b() {}
-  static const int c = 0;
+  static const int c = FUNC(1);
   class d {};
   )");
   CollectorOpts.RefFilter = RefKind::All;
+  CollectorOpts.CollectMacro = true;
   runSymbolCollector(Header.code(),
                      (Main.code() + SymbolsOnlyInMainCode.code()).str());
-  auto HeaderSymbols = TestTU::withHeaderCode(Header.code()).headerSymbols();
-
   EXPECT_THAT(Refs, Contains(Pair(findSymbol(Symbols, "Foo").ID,
                                   HaveRanges(Main.ranges("foo")))));
   EXPECT_THAT(Refs, Contains(Pair(findSymbol(Symbols, "Bar").ID,
@@ -617,14 +622,124 @@ TEST_F(SymbolCollectorTest, Refs) {
   EXPECT_THAT(Refs, Contains(Pair(findSymbol(Symbols, "func").ID,
                                   HaveRanges(Main.ranges("func")))));
   EXPECT_THAT(Refs, Not(Contains(Pair(findSymbol(Symbols, "NS").ID, _))));
-  // Symbols *only* in the main file (a, b, c) had no refs collected.
+  EXPECT_THAT(Refs, Contains(Pair(findSymbol(Symbols, "MACRO").ID,
+                                  HaveRanges(Main.ranges("macro")))));
+  // Symbols *only* in the main file (a, b, c, FUNC) had no refs collected.
   auto MainSymbols =
       TestTU::withHeaderCode(SymbolsOnlyInMainCode.code()).headerSymbols();
   EXPECT_THAT(Refs, Not(Contains(Pair(findSymbol(MainSymbols, "a").ID, _))));
   EXPECT_THAT(Refs, Not(Contains(Pair(findSymbol(MainSymbols, "b").ID, _))));
   EXPECT_THAT(Refs, Not(Contains(Pair(findSymbol(MainSymbols, "c").ID, _))));
+  EXPECT_THAT(Refs, Not(Contains(Pair(findSymbol(MainSymbols, "FUNC").ID, _))));
 }
 
+TEST_F(SymbolCollectorTest, MacroRefInHeader) {
+  Annotations Header(R"(
+  #define $foo[[FOO]](X) (X + 1)
+  #define $bar[[BAR]](X) (X + 2)
+
+  // Macro defined multiple times.
+  #define $ud1[[UD]] 1
+  int ud_1 = $ud1[[UD]];
+  #undef UD
+
+  #define $ud2[[UD]] 2
+  int ud_2 = $ud2[[UD]];
+  #undef UD
+
+  // Macros from token concatenations not included.
+  #define $concat[[CONCAT]](X) X##A()
+  #define $prepend[[PREPEND]](X) MACRO##X()
+  #define $macroa[[MACROA]]() 123
+  int B = $concat[[CONCAT]](MACRO);
+  int D = $prepend[[PREPEND]](A);
+
+  void fff() {
+    int abc = $foo[[FOO]](1) + $bar[[BAR]]($foo[[FOO]](1));
+  }
+  )");
+  CollectorOpts.RefFilter = RefKind::All;
+  CollectorOpts.RefsInHeaders = true;
+  // Need this to get the SymbolID for macros for tests.
+  CollectorOpts.CollectMacro = true;
+
+  runSymbolCollector(Header.code(), "");
+
+  EXPECT_THAT(Refs, Contains(Pair(findSymbol(Symbols, "FOO").ID,
+                                  HaveRanges(Header.ranges("foo")))));
+  EXPECT_THAT(Refs, Contains(Pair(findSymbol(Symbols, "BAR").ID,
+                                  HaveRanges(Header.ranges("bar")))));
+  // No unique ID for multiple symbols named UD. Check for ranges only.
+  EXPECT_THAT(Refs, Contains(Pair(_, HaveRanges(Header.ranges("ud1")))));
+  EXPECT_THAT(Refs, Contains(Pair(_, HaveRanges(Header.ranges("ud2")))));
+  EXPECT_THAT(Refs, Contains(Pair(findSymbol(Symbols, "CONCAT").ID,
+                                  HaveRanges(Header.ranges("concat")))));
+  EXPECT_THAT(Refs, Contains(Pair(findSymbol(Symbols, "PREPEND").ID,
+                                  HaveRanges(Header.ranges("prepend")))));
+  EXPECT_THAT(Refs, Contains(Pair(findSymbol(Symbols, "MACROA").ID,
+                                  HaveRanges(Header.ranges("macroa")))));
+}
+
+TEST_F(SymbolCollectorTest, MacroRefWithoutCollectingSymbol) {
+  Annotations Header(R"(
+  #define $foo[[FOO]](X) (X + 1)
+  int abc = $foo[[FOO]](1);
+  )");
+  CollectorOpts.RefFilter = RefKind::All;
+  CollectorOpts.RefsInHeaders = true;
+  CollectorOpts.CollectMacro = false;
+  runSymbolCollector(Header.code(), "");
+  EXPECT_THAT(Refs, Contains(Pair(_, HaveRanges(Header.ranges("foo")))));
+}
+
+TEST_F(SymbolCollectorTest, MacrosWithRefFilter) {
+  Annotations Header("#define $macro[[MACRO]](X) (X + 1)");
+  Annotations Main("void foo() { int x = $macro[[MACRO]](1); }");
+  CollectorOpts.RefFilter = RefKind::Unknown;
+  runSymbolCollector(Header.code(), Main.code());
+  EXPECT_THAT(Refs, IsEmpty());
+}
+
+TEST_F(SymbolCollectorTest, NameReferences) {
+  CollectorOpts.RefFilter = RefKind::All;
+  CollectorOpts.RefsInHeaders = true;
+  Annotations Header(R"(
+    class [[Foo]] {
+    public:
+      [[Foo]]() {}
+      ~[[Foo]]() {}
+    };
+  )");
+  CollectorOpts.RefFilter = RefKind::All;
+  runSymbolCollector(Header.code(), "");
+  // When we find references for class Foo, we expect to see all
+  // constructor/destructor references.
+  EXPECT_THAT(Refs, Contains(Pair(findSymbol(Symbols, "Foo").ID,
+                                  HaveRanges(Header.ranges()))));
+}
+
+TEST_F(SymbolCollectorTest, RefsOnMacros) {
+  // Refs collected from SymbolCollector behave in the same way as
+  // AST-based xrefs.
+  CollectorOpts.RefFilter = RefKind::All;
+  CollectorOpts.RefsInHeaders = true;
+  Annotations Header(R"(
+    #define TYPE(X) X
+    #define FOO Foo
+    #define CAT(X, Y) X##Y
+    class [[Foo]] {};
+    void test() {
+      TYPE([[Foo]]) foo;
+      [[FOO]] foo2;
+      TYPE(TYPE([[Foo]])) foo3;
+      [[CAT]](Fo, o) foo4;
+    }
+  )");
+  CollectorOpts.RefFilter = RefKind::All;
+  runSymbolCollector(Header.code(), "");
+  EXPECT_THAT(Refs, Contains(Pair(findSymbol(Symbols, "Foo").ID,
+                                  HaveRanges(Header.ranges()))));
+}
 
 TEST_F(SymbolCollectorTest, HeaderAsMainFile) {
   CollectorOpts.RefFilter = RefKind::All;
@@ -646,21 +761,37 @@ TEST_F(SymbolCollectorTest, HeaderAsMainFile) {
   runSymbolCollector("", Header.code(),
                      /*ExtraArgs=*/{"-xobjective-c++-header"});
   EXPECT_THAT(Symbols, UnorderedElementsAre(QName("Foo"), QName("Func")));
-  EXPECT_THAT(Refs, UnorderedElementsAre(Pair(findSymbol(Symbols, "Foo").ID,
-                                  HaveRanges(Header.ranges("Foo"))),
-                             Pair(findSymbol(Symbols, "Func").ID,
-                                  HaveRanges(Header.ranges("Func")))));
+  EXPECT_THAT(Refs,
+              UnorderedElementsAre(Pair(findSymbol(Symbols, "Foo").ID,
+                                        HaveRanges(Header.ranges("Foo"))),
+                                   Pair(findSymbol(Symbols, "Func").ID,
+                                        HaveRanges(Header.ranges("Func")))));
+
+  // Run the .hh file as main file (without "-x c++-header"), we should collect
+  // the refs as well.
+  TestFileName = testPath("foo.hh");
+  runSymbolCollector("", Header.code());
+  EXPECT_THAT(Symbols, UnorderedElementsAre(QName("Foo"), QName("Func")));
+  EXPECT_THAT(Refs,
+              UnorderedElementsAre(Pair(findSymbol(Symbols, "Foo").ID,
+                                        HaveRanges(Header.ranges("Foo"))),
+                                   Pair(findSymbol(Symbols, "Func").ID,
+                                        HaveRanges(Header.ranges("Func")))));
 }
 
 TEST_F(SymbolCollectorTest, RefsInHeaders) {
   CollectorOpts.RefFilter = RefKind::All;
   CollectorOpts.RefsInHeaders = true;
+  CollectorOpts.CollectMacro = true;
   Annotations Header(R"(
-  class [[Foo]] {};
+  #define $macro[[MACRO]](x) (x+1)
+  class $foo[[Foo]] {};
   )");
   runSymbolCollector(Header.code(), "");
   EXPECT_THAT(Refs, Contains(Pair(findSymbol(Symbols, "Foo").ID,
-                                  HaveRanges(Header.ranges()))));
+                                  HaveRanges(Header.ranges("foo")))));
+  EXPECT_THAT(Refs, Contains(Pair(findSymbol(Symbols, "MACRO").ID,
+                                  HaveRanges(Header.ranges("macro")))));
 }
 
 TEST_F(SymbolCollectorTest, Relations) {
@@ -672,11 +803,10 @@ TEST_F(SymbolCollectorTest, Relations) {
   const Symbol &Base = findSymbol(Symbols, "Base");
   const Symbol &Derived = findSymbol(Symbols, "Derived");
   EXPECT_THAT(Relations,
-              Contains(Relation{Base.ID, index::SymbolRole::RelationBaseOf,
-                                Derived.ID}));
+              Contains(Relation{Base.ID, RelationKind::BaseOf, Derived.ID}));
 }
 
-TEST_F(SymbolCollectorTest, References) {
+TEST_F(SymbolCollectorTest, CountReferences) {
   const std::string Header = R"(
     class W;
     class X {};
@@ -973,7 +1103,7 @@ TEST_F(SymbolCollectorTest, CanonicalSTLHeader) {
   CanonicalIncludes Includes;
   auto Language = LangOptions();
   Language.CPlusPlus = true;
-  addSystemHeadersMapping(&Includes, Language);
+  Includes.addSystemHeadersMapping(Language);
   CollectorOpts.Includes = &Includes;
   runSymbolCollector("namespace std { class string {}; }", /*Main=*/"");
   EXPECT_THAT(Symbols,

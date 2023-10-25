@@ -74,8 +74,12 @@ template <typename T, typename Ptr, typename Ref> struct __vector_iterator {
   difference_type operator-(const __vector_iterator<U, Ptr2, Ref2> &rhs);
 
   Ref operator*() const { return *ptr; }
-  Ptr operator->() const { return *ptr; }
+  Ptr operator->() const { return ptr; }
 
+  Ref operator[](difference_type n) {
+    return *(ptr+n);
+  }
+  
   bool operator==(const iterator &rhs) const { return ptr == rhs.ptr; }
   bool operator==(const const_iterator &rhs) const { return ptr == rhs.ptr; }
 
@@ -125,8 +129,12 @@ template <typename T, typename Ptr, typename Ref> struct __deque_iterator {
   }
 
   Ref operator*() const { return *ptr; }
-  Ptr operator->() const { return *ptr; }
+  Ptr operator->() const { return ptr; }
 
+  Ref operator[](difference_type n) {
+    return *(ptr+n);
+  }
+  
   bool operator==(const iterator &rhs) const { return ptr == rhs.ptr; }
   bool operator==(const const_iterator &rhs) const { return ptr == rhs.ptr; }
 
@@ -150,7 +158,7 @@ template <typename T, typename Ptr, typename Ref> struct __list_iterator {
   typedef std::bidirectional_iterator_tag iterator_category;
 
   __list_iterator(T* it = 0) : item(it) {}
-  __list_iterator(const iterator &rhs): item(rhs.base()) {}
+  __list_iterator(const iterator &rhs): item(rhs.item) {}
   __list_iterator<T, Ptr, Ref> operator++() { item = item->next; return *this; }
   __list_iterator<T, Ptr, Ref> operator++(int) {
     auto tmp = *this;
@@ -165,7 +173,7 @@ template <typename T, typename Ptr, typename Ref> struct __list_iterator {
   }
 
   Ref operator*() const { return item->data; }
-  Ptr operator->() const { return item->data; }
+  Ptr operator->() const { return &item->data; }
 
   bool operator==(const iterator &rhs) const { return item == rhs->item; }
   bool operator==(const const_iterator &rhs) const { return item == rhs->item; }
@@ -174,6 +182,9 @@ template <typename T, typename Ptr, typename Ref> struct __list_iterator {
   bool operator!=(const const_iterator &rhs) const { return item != rhs->item; }
 
   const T* &base() const { return item; }
+
+  template <typename UT, typename UPtr, typename URef>
+  friend struct __list_iterator;
 
 private:
   T* item;
@@ -190,7 +201,7 @@ template <typename T, typename Ptr, typename Ref> struct __fwdl_iterator {
   typedef std::forward_iterator_tag iterator_category;
 
   __fwdl_iterator(T* it = 0) : item(it) {}
-  __fwdl_iterator(const iterator &rhs): item(rhs.base()) {}
+  __fwdl_iterator(const iterator &rhs): item(rhs.item) {}
   __fwdl_iterator<T, Ptr, Ref> operator++() { item = item->next; return *this; }
   __fwdl_iterator<T, Ptr, Ref> operator++(int) {
     auto tmp = *this;
@@ -198,7 +209,7 @@ template <typename T, typename Ptr, typename Ref> struct __fwdl_iterator {
     return tmp;
   }
   Ref operator*() const { return item->data; }
-  Ptr operator->() const { return item->data; }
+  Ptr operator->() const { return &item->data; }
 
   bool operator==(const iterator &rhs) const { return item == rhs->item; }
   bool operator==(const const_iterator &rhs) const { return item == rhs->item; }
@@ -207,6 +218,9 @@ template <typename T, typename Ptr, typename Ref> struct __fwdl_iterator {
   bool operator!=(const const_iterator &rhs) const { return item != rhs->item; }
 
   const T* &base() const { return item; }
+
+  template <typename UT, typename UPtr, typename URef>
+  friend struct __fwdl_iterator;
 
 private:
   T* item;
@@ -249,15 +263,16 @@ namespace std {
 
   template<typename T>
   class vector {
+    T *_start;
+    T *_finish;
+    T *_end_of_storage;
+
+  public:
     typedef T value_type;
     typedef size_t size_type;
     typedef __vector_iterator<T, T *, T &> iterator;
     typedef __vector_iterator<T, const T *, const T &> const_iterator;
 
-    T *_start;
-    T *_finish;
-    T *_end_of_storage;
-  public:
     vector() : _start(0), _finish(0), _end_of_storage(0) {}
     template <typename InputIterator>
     vector(InputIterator first, InputIterator last);
@@ -327,6 +342,7 @@ namespace std {
       T data;
       __item *prev, *next;
     } *_start, *_finish;
+
   public:
     typedef T value_type;
     typedef size_t size_type;
@@ -393,15 +409,16 @@ namespace std {
 
   template<typename T>
   class deque {
+    T *_start;
+    T *_finish;
+    T *_end_of_storage;
+
+  public:
     typedef T value_type;
     typedef size_t size_type;
     typedef __deque_iterator<T, T *, T &> iterator;
     typedef __deque_iterator<T, const T *, const T &> const_iterator;
 
-    T *_start;
-    T *_finish;
-    T *_end_of_storage;
-  public:
     deque() : _start(0), _finish(0), _end_of_storage(0) {}
     template <typename InputIterator>
     deque(InputIterator first, InputIterator last);
@@ -477,6 +494,7 @@ namespace std {
       T data;
       __item *next;
     } *_start;
+
   public:
     typedef T value_type;
     typedef size_t size_type;

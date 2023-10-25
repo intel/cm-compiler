@@ -199,10 +199,11 @@ OptFenceLower::getExtractedFunctions(const WorkListBBTy &WL) {
                  [](WorkListBBTy::const_reference Work) {
                    std::vector<BasicBlock *> ExtractArea =
                        getAreaToExtract(Work.first, Work.second);
+                   CodeExtractorAnalysisCache Cache{*Work.first->getParent()};
                    return CodeExtractor(ExtractArea, nullptr, false, nullptr,
                                         nullptr, nullptr, false, false,
                                         SNewFunctionIdentifier)
-                       .extractCodeRegion();
+                       .extractCodeRegion(Cache);
                  });
 
   if (llvm::any_of(Result, [](Function *F) { return F == nullptr; }))

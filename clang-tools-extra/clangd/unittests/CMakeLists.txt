@@ -1,5 +1,6 @@
 set(LLVM_LINK_COMPONENTS
   support
+  AllTargetsInfos
   )
 
 get_filename_component(CLANGD_SOURCE_DIR
@@ -28,9 +29,10 @@ add_unittest(ClangdUnitTests ClangdTests
   CancellationTests.cpp
   CanonicalIncludesTests.cpp
   ClangdTests.cpp
-  ClangdUnitTests.cpp
   CodeCompleteTests.cpp
   CodeCompletionStringsTests.cpp
+  CollectMacrosTests.cpp
+  CompileCommandsTests.cpp
   ContextTests.cpp
   DexTests.cpp
   DiagnosticsTests.cpp
@@ -39,6 +41,7 @@ add_unittest(ClangdUnitTests ClangdTests
   FileDistanceTests.cpp
   FileIndexTests.cpp
   FindSymbolsTests.cpp
+  FindTargetTests.cpp
   FormattedStringTests.cpp
   FormatTests.cpp
   FSTests.cpp
@@ -46,15 +49,20 @@ add_unittest(ClangdUnitTests ClangdTests
   FuzzyMatchTests.cpp
   GlobalCompilationDatabaseTests.cpp
   HeadersTests.cpp
+  HeaderSourceSwitchTests.cpp
+  HoverTests.cpp
   IndexActionTests.cpp
   IndexTests.cpp
   JSONTransportTests.cpp
+  ParsedASTTests.cpp
+  PathMappingTests.cpp
   PrintASTTests.cpp
   QualityTests.cpp
   RenameTests.cpp
   RIFFTests.cpp
   SelectionTests.cpp
   SemanticHighlightingTests.cpp
+  SemanticSelectionTests.cpp
   SerializationTests.cpp
   SourceCodeTests.cpp
   SymbolCollectorTests.cpp
@@ -68,28 +76,33 @@ add_unittest(ClangdUnitTests ClangdTests
   TraceTests.cpp
   TypeHierarchyTests.cpp
   TweakTests.cpp
+  TweakTesting.cpp
   URITests.cpp
   XRefsTests.cpp
 
   $<TARGET_OBJECTS:obj.clangDaemonTweaks>
   )
 
-target_link_libraries(ClangdTests
+clang_target_link_libraries(ClangdTests
   PRIVATE
   clangAST
   clangBasic
-  clangDaemon
   clangFormat
   clangFrontend
   clangIndex
   clangLex
   clangSema
   clangSerialization
-  clangTidy
   clangTooling
   clangToolingCore
   clangToolingInclusions
+  clangToolingRefactoring
   clangToolingSyntax
+  )
+target_link_libraries(ClangdTests
+  PRIVATE
+  clangDaemon
+  clangTidy
   LLVMSupport
   LLVMTestingSupport
   )

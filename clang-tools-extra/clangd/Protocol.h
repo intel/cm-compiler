@@ -30,6 +30,7 @@
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 #include <bitset>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -422,6 +423,10 @@ struct ClientCapabilities {
   /// The content format that should be used for Hover requests.
   /// textDocument.hover.contentEncoding
   MarkupKind HoverContentFormat = MarkupKind::PlainText;
+
+  /// The client supports testing for validity of rename operations
+  /// before execution.
+  bool RenamePrepareSupport = false;
 };
 bool fromJSON(const llvm::json::Value &, ClientCapabilities &);
 
@@ -676,7 +681,7 @@ llvm::json::Value toJSON(const Diagnostic &);
 
 /// A LSP-specific comparator used to find diagnostic in a container like
 /// std:map.
-/// We only use the required fields of Diagnostic to do the comparsion to avoid
+/// We only use the required fields of Diagnostic to do the comparison to avoid
 /// any regression issues from LSP clients (e.g. VScode), see
 /// https://git.io/vbr29
 struct LSPDiagnosticCompare {
@@ -869,6 +874,12 @@ struct ApplyWorkspaceEditParams {
 };
 llvm::json::Value toJSON(const ApplyWorkspaceEditParams &);
 
+struct ApplyWorkspaceEditResponse {
+  bool applied = true;
+  llvm::Optional<std::string> failureReason;
+};
+bool fromJSON(const llvm::json::Value &, ApplyWorkspaceEditResponse &);
+
 struct TextDocumentPositionParams {
   /// The text document.
   TextDocumentIdentifier textDocument;
@@ -983,6 +994,13 @@ struct CompletionItem {
 
   /// Indicates if this item is deprecated.
   bool deprecated = false;
+
+  /// This is Clangd extension.
+  /// The score that Clangd calculates to rank completion items. This score can
+  /// be used to adjust the ranking on the client side.
+  /// NOTE: This excludes fuzzy matching score which is typically calculated on
+  /// the client side.
+  float score = 0.f;
 
   // TODO(krasimir): The following optional fields defined by the language
   // server protocol are unsupported:
@@ -1195,9 +1213,14 @@ llvm::json::Value toJSON(const FileStatus &FStatus);
 /// specific line of the text document.
 struct SemanticHighlightingInformation {
   /// The line these highlightings belong to.
-  int Line;
+  int Line = 0;
   /// The base64 encoded string of highlighting tokens.
   std::string Tokens;
+  /// Is the line in an inactive preprocessor branch?
+  /// This is a clangd extension.
+  /// An inactive line can still contain highlighting tokens as well;
+  /// clients should combine line style and token style if possible.
+  bool IsInactive = false;
 };
 bool operator==(const SemanticHighlightingInformation &Lhs,
                 const SemanticHighlightingInformation &Rhs);
@@ -1211,6 +1234,61 @@ struct SemanticHighlightingParams {
   std::vector<SemanticHighlightingInformation> Lines;
 };
 llvm::json::Value toJSON(const SemanticHighlightingParams &Highlighting);
+
+struct SelectionRangeParams {
+  /// The text document.
+  TextDocumentIdentifier textDocument;
+
+  /// The positions inside the text document.
+  std::vector<Position> positions;
+};
+bool fromJSON(const llvm::json::Value &, SelectionRangeParams &);
+
+struct SelectionRange {
+  /**
+   * The range of this selection range.
+   */
+  Range range;
+  /**
+   * The parent selection range containing this range. Therefore `parent.range`
+   * must contain `this.range`.
+   */
+  std::unique_ptr<SelectionRange> parent;
+};
+llvm::json::Value toJSON(const SelectionRange &);
+
+/// Parameters for the document link request.
+struct DocumentLinkParams {
+  /// The document to provide document links for.
+  TextDocumentIdentifier textDocument;
+};
+bool fromJSON(const llvm::json::Value &, DocumentLinkParams &);
+
+/// A range in a text document that links to an internal or external resource,
+/// like another text document or a web site.
+struct DocumentLink {
+  /// The range this link applies to.
+  Range range;
+
+  /// The uri this link points to. If missing a resolve request is sent later.
+  URIForFile target;
+
+  // TODO(forster): The following optional fields defined by the language
+  // server protocol are unsupported:
+  //
+  // data?: any - A data entry field that is preserved on a document link
+  //              between a DocumentLinkRequest and a
+  //              DocumentLinkResolveRequest.
+
+  friend bool operator==(const DocumentLink &LHS, const DocumentLink &RHS) {
+    return LHS.range == RHS.range && LHS.target == RHS.target;
+  }
+
+  friend bool operator!=(const DocumentLink &LHS, const DocumentLink &RHS) {
+    return !(LHS == RHS);
+  }
+};
+llvm::json::Value toJSON(const DocumentLink &DocumentLink);
 
 } // namespace clangd
 } // namespace clang

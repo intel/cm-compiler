@@ -78,7 +78,7 @@ config.substitutions.append( ('CHECK-%os', ("CHECK-" + config.host_os)))
 config.substitutions.append( ("%deflake ", os.path.join(os.path.dirname(__file__), "deflake.bash") + " "))
 
 # Default test suffixes.
-config.suffixes = ['.c', '.cc', '.cpp', '.m', '.mm']
+config.suffixes = ['.c', '.cpp', '.m', '.mm']
 
 if config.host_os not in ['FreeBSD', 'Linux', 'Darwin', 'NetBSD']:
   config.unsupported = True
@@ -88,3 +88,6 @@ if config.android:
 
 if not config.parallelism_group:
   config.parallelism_group = 'shadow-memory'
+
+if config.host_os == 'NetBSD':
+  config.substitutions.insert(0, ('%run', config.netbsd_noaslr_prefix))

@@ -13,8 +13,8 @@
 #ifndef _OMPTARGET_DEVICE_H
 #define _OMPTARGET_DEVICE_H
 
+#include <cassert>
 #include <cstddef>
-#include <climits>
 #include <list>
 #include <map>
 #include <mutex>
@@ -25,9 +25,6 @@ struct RTLInfoTy;
 struct __tgt_bin_desc;
 struct __tgt_target_table;
 
-#define INF_REF_CNT (LONG_MAX>>1) // leave room for additions/subtractions
-#define CONSIDERED_INF(x) (x > (INF_REF_CNT>>1))
-
 /// Map between host data and target data.
 struct HostDataToTargetTy {
   uintptr_t HstPtrBase; // host info.
@@ -36,18 +33,48 @@ struct HostDataToTargetTy {
 
   uintptr_t TgtPtrBegin; // target info.
 
-  long RefCount;
+private:
+  uint64_t RefCount;
+  static const uint64_t INFRefCount = ~(uint64_t)0;
 
-  HostDataToTargetTy()
-      : HstPtrBase(0), HstPtrBegin(0), HstPtrEnd(0),
-        TgtPtrBegin(0), RefCount(0) {}
-  HostDataToTargetTy(uintptr_t BP, uintptr_t B, uintptr_t E, uintptr_t TB)
-      : HstPtrBase(BP), HstPtrBegin(B), HstPtrEnd(E),
-        TgtPtrBegin(TB), RefCount(1) {}
+public:
   HostDataToTargetTy(uintptr_t BP, uintptr_t B, uintptr_t E, uintptr_t TB,
-      long RF)
+      bool IsINF = false)
       : HstPtrBase(BP), HstPtrBegin(B), HstPtrEnd(E),
-        TgtPtrBegin(TB), RefCount(RF) {}
+        TgtPtrBegin(TB), RefCount(IsINF ? INFRefCount : 1) {}
+
+  uint64_t getRefCount() const {
+    return RefCount;
+  }
+
+  uint64_t resetRefCount() {
+    if (RefCount != INFRefCount)
+      RefCount = 1;
+
+    return RefCount;
+  }
+
+  uint64_t incRefCount() {
+    if (RefCount != INFRefCount) {
+      ++RefCount;
+      assert(RefCount < INFRefCount && "refcount overflow");
+    }
+
+    return RefCount;
+  }
+
+  uint64_t decRefCount() {
+    if (RefCount != INFRefCount) {
+      assert(RefCount > 0 && "refcount underflow");
+      --RefCount;
+    }
+
+    return RefCount;
+  }
+
+  bool isRefCountInf() const {
+    return RefCount == INFRefCount;
+  }
 };
 
 typedef std::list<HostDataToTargetTy> HostDataToTargetListTy;
@@ -100,13 +127,10 @@ struct DeviceTy {
   // moved into the target task in libomp.
   std::map<int32_t, uint64_t> LoopTripCnt;
 
-  int64_t RTLRequiresFlags;
-
   DeviceTy(RTLInfoTy *RTL)
       : DeviceID(-1), RTL(RTL), RTLDeviceID(-1), IsInit(false), InitFlag(),
-        HasPendingGlobals(false), HostDataToTargetMap(),
-        PendingCtorsDtors(), ShadowPtrMap(), DataMapMtx(), PendingGlobalsMtx(),
-        ShadowMtx(), RTLRequiresFlags(0) {}
+        HasPendingGlobals(false), HostDataToTargetMap(), PendingCtorsDtors(),
+        ShadowPtrMap(), DataMapMtx(), PendingGlobalsMtx(), ShadowMtx() {}
 
   // The existence of mutexes makes DeviceTy non-copyable. We need to
   // provide a copy constructor and an assignment operator explicitly.
@@ -115,9 +139,8 @@ struct DeviceTy {
         IsInit(d.IsInit), InitFlag(), HasPendingGlobals(d.HasPendingGlobals),
         HostDataToTargetMap(d.HostDataToTargetMap),
         PendingCtorsDtors(d.PendingCtorsDtors), ShadowPtrMap(d.ShadowPtrMap),
-        DataMapMtx(), PendingGlobalsMtx(),
-        ShadowMtx(), LoopTripCnt(d.LoopTripCnt),
-        RTLRequiresFlags(d.RTLRequiresFlags) {}
+        DataMapMtx(), PendingGlobalsMtx(), ShadowMtx(),
+        LoopTripCnt(d.LoopTripCnt) {}
 
   DeviceTy& operator=(const DeviceTy &d) {
     DeviceID = d.DeviceID;
@@ -129,19 +152,20 @@ struct DeviceTy {
     PendingCtorsDtors = d.PendingCtorsDtors;
     ShadowPtrMap = d.ShadowPtrMap;
     LoopTripCnt = d.LoopTripCnt;
-    RTLRequiresFlags = d.RTLRequiresFlags;
 
     return *this;
   }
 
-  long getMapEntryRefCnt(void *HstPtrBegin);
+  uint64_t getMapEntryRefCnt(void *HstPtrBegin);
   LookupResult lookupMapping(void *HstPtrBegin, int64_t Size);
   void *getOrAllocTgtPtr(void *HstPtrBegin, void *HstPtrBase, int64_t Size,
-      bool &IsNew, bool IsImplicit, bool UpdateRefCount = true);
+      bool &IsNew, bool &IsHostPtr, bool IsImplicit, bool UpdateRefCount = true,
+      bool HasCloseModifier = false);
   void *getTgtPtrBegin(void *HstPtrBegin, int64_t Size);
   void *getTgtPtrBegin(void *HstPtrBegin, int64_t Size, bool &IsLast,
-      bool UpdateRefCount);
-  int deallocTgtPtr(void *TgtPtrBegin, int64_t Size, bool ForceDelete);
+      bool UpdateRefCount, bool &IsHostPtr);
+  int deallocTgtPtr(void *TgtPtrBegin, int64_t Size, bool ForceDelete,
+                    bool HasCloseModifier = false);
   int associatePtr(void *HstPtrBegin, void *TgtPtrBegin, int64_t Size);
   int disassociatePtr(void *HstPtrBegin);
 

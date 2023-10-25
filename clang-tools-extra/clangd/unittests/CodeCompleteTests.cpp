@@ -18,6 +18,7 @@
 #include "TestFS.h"
 #include "TestIndex.h"
 #include "TestTU.h"
+#include "Threading.h"
 #include "index/Index.h"
 #include "index/MemIndex.h"
 #include "clang/Sema/CodeCompleteConsumer.h"
@@ -27,6 +28,8 @@
 #include "llvm/Testing/Support/Error.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <condition_variable>
+#include <mutex>
 
 namespace clang {
 namespace clangd {
@@ -94,7 +97,7 @@ std::unique_ptr<SymbolIndex> memIndex(std::vector<Symbol> Symbols) {
 }
 
 CodeCompleteResult completions(ClangdServer &Server, llvm::StringRef TestCode,
-                               Position point,
+                               Position Point,
                                std::vector<Symbol> IndexSymbols = {},
                                clangd::CodeCompleteOptions Opts = {}) {
   std::unique_ptr<SymbolIndex> OverrideIndex;
@@ -107,7 +110,7 @@ CodeCompleteResult completions(ClangdServer &Server, llvm::StringRef TestCode,
   auto File = testPath("foo.cpp");
   runAddDocument(Server, File, TestCode);
   auto CompletionList =
-      llvm::cantFail(runCodeComplete(Server, File, point, Opts));
+      llvm::cantFail(runCodeComplete(Server, File, Point, Opts));
   return CompletionList;
 }
 
@@ -138,6 +141,8 @@ CodeCompleteResult completions(llvm::StringRef Text,
                                PathRef FilePath = "foo.cpp") {
   MockFSProvider FS;
   MockCompilationDatabase CDB;
+  // To make sure our tests for completiopns inside templates work on Windows.
+  CDB.ExtraClangFlags = {"-fno-delayed-template-parsing"};
   IgnoreDiagnostics DiagConsumer;
   ClangdServer Server(CDB, FS, DiagConsumer, ClangdServer::optsForTest());
   return completions(Server, Text, std::move(IndexSymbols), std::move(Opts),
@@ -206,7 +211,7 @@ TEST(CompletionTest, Filter) {
               AllOf(Has("Car"), Not(Has("MotorCar"))));
 }
 
-void TestAfterDotCompletion(clangd::CodeCompleteOptions Opts) {
+void testAfterDotCompletion(clangd::CodeCompleteOptions Opts) {
   auto Results = completions(
       R"cpp(
       int global_var;
@@ -261,7 +266,7 @@ void TestAfterDotCompletion(clangd::CodeCompleteOptions Opts) {
              Contains(IsDocumented()));
 }
 
-void TestGlobalScopeCompletion(clangd::CodeCompleteOptions Opts) {
+void testGlobalScopeCompletion(clangd::CodeCompleteOptions Opts) {
   auto Results = completions(
       R"cpp(
       int global_var;
@@ -310,8 +315,8 @@ void TestGlobalScopeCompletion(clangd::CodeCompleteOptions Opts) {
 
 TEST(CompletionTest, CompletionOptions) {
   auto Test = [&](const clangd::CodeCompleteOptions &Opts) {
-    TestAfterDotCompletion(Opts);
-    TestGlobalScopeCompletion(Opts);
+    testAfterDotCompletion(Opts);
+    testGlobalScopeCompletion(Opts);
   };
   // We used to test every combination of options, but that got too slow (2^N).
   auto Flags = {
@@ -423,6 +428,48 @@ TEST(CompletionTest, Snippets) {
       Results.Completions,
       HasSubsequence(Named("a"),
                      SnippetSuffix("(${1:int i}, ${2:const float f})")));
+}
+
+TEST(CompletionTest, NoSnippetsInUsings) {
+  clangd::CodeCompleteOptions Opts;
+  Opts.EnableSnippets = true;
+  auto Results = completions(
+      R"cpp(
+      namespace ns {
+        int func(int a, int b);
+      }
+
+      using ns::^;
+      )cpp",
+      /*IndexSymbols=*/{}, Opts);
+  EXPECT_THAT(Results.Completions,
+              ElementsAre(AllOf(Named("func"), Labeled("func(int a, int b)"),
+                                SnippetSuffix(""))));
+
+  // Check index completions too.
+  auto Func = func("ns::func");
+  Func.CompletionSnippetSuffix = "(${1:int a}, ${2: int b})";
+  Func.Signature = "(int a, int b)";
+  Func.ReturnType = "void";
+
+  Results = completions(R"cpp(
+      namespace ns {}
+      using ns::^;
+  )cpp",
+                        /*IndexSymbols=*/{Func}, Opts);
+  EXPECT_THAT(Results.Completions,
+              ElementsAre(AllOf(Named("func"), Labeled("func(int a, int b)"),
+                                SnippetSuffix(""))));
+
+  // Check all-scopes completions too.
+  Opts.AllScopes = true;
+  Results = completions(R"cpp(
+      using ^;
+  )cpp",
+                        /*IndexSymbols=*/{Func}, Opts);
+  EXPECT_THAT(Results.Completions,
+              Contains(AllOf(Named("func"), Labeled("ns::func(int a, int b)"),
+                             SnippetSuffix(""))));
 }
 
 TEST(CompletionTest, Kinds) {
@@ -629,7 +676,7 @@ TEST(CompletionTest, IncludeInsertionPreprocessorIntegrationTests) {
   Symbol Sym = cls("ns::X");
   Sym.CanonicalDeclaration.FileURI = BarURI.c_str();
   Sym.IncludeHeaders.emplace_back(BarURI, 1);
-  // Shoten include path based on search dirctory and insert.
+  // Shoten include path based on search directory and insert.
   auto Results = completions(Server,
                              R"cpp(
           int main() { ns::^ }
@@ -672,7 +719,7 @@ TEST(CompletionTest, NoIncludeInsertionWhenDeclFoundInFile) {
   SymY.CanonicalDeclaration.FileURI = BarURI.c_str();
   SymX.IncludeHeaders.emplace_back("<bar>", 1);
   SymY.IncludeHeaders.emplace_back("<bar>", 1);
-  // Shoten include path based on search dirctory and insert.
+  // Shoten include path based on search directory and insert.
   auto Results = completions(Server,
                              R"cpp(
           namespace ns {
@@ -827,6 +874,33 @@ TEST(CompletionTest, Documentation) {
               Contains(AllOf(Named("baz"), Doc("Multi-line\nblock comment"))));
 }
 
+TEST(CompletionTest, CommentsFromSystemHeaders) {
+  MockFSProvider FS;
+  MockCompilationDatabase CDB;
+  IgnoreDiagnostics DiagConsumer;
+
+  auto Opts = ClangdServer::optsForTest();
+  Opts.BuildDynamicSymbolIndex = true;
+
+  ClangdServer Server(CDB, FS, DiagConsumer, Opts);
+
+  FS.Files[testPath("foo.h")] = R"cpp(
+    #pragma GCC system_header
+
+    // This comment should be retained!
+    int foo();
+  )cpp";
+
+  auto Results = completions(Server,
+                             R"cpp(
+#include "foo.h"
+int x = foo^
+     )cpp");
+  EXPECT_THAT(
+      Results.Completions,
+      Contains(AllOf(Named("foo"), Doc("This comment should be retained!"))));
+}
+
 TEST(CompletionTest, GlobalCompletionFiltering) {
 
   Symbol Class = cls("XYZ");
@@ -939,6 +1013,35 @@ TEST(CompletionTest, IgnoreCompleteInExcludedPPBranchWithRecoveryContext) {
 
   EXPECT_TRUE(Results.Completions.empty());
 }
+
+TEST(CompletionTest, DefaultArgs) {
+  clangd::CodeCompleteOptions Opts;
+  std::string Context = R"cpp(
+    int X(int A = 0);
+    int Y(int A, int B = 0);
+    int Z(int A, int B = 0, int C = 0, int D = 0);
+  )cpp";
+  EXPECT_THAT(completions(Context + "int y = X^", {}, Opts).Completions,
+              UnorderedElementsAre(Labeled("X(int A = 0)")));
+  EXPECT_THAT(completions(Context + "int y = Y^", {}, Opts).Completions,
+              UnorderedElementsAre(AllOf(Labeled("Y(int A, int B = 0)"),
+                                         SnippetSuffix("(${1:int A})"))));
+  EXPECT_THAT(completions(Context + "int y = Z^", {}, Opts).Completions,
+              UnorderedElementsAre(
+                  AllOf(Labeled("Z(int A, int B = 0, int C = 0, int D = 0)"),
+                        SnippetSuffix("(${1:int A})"))));
+}
+
+TEST(CompletionTest, NoCrashWithTemplateParamsAndPreferredTypes) {
+  auto Completions = completions(R"cpp(
+template <template <class> class TT> int foo() {
+  int a = ^
+}
+)cpp")
+                         .Completions;
+  EXPECT_THAT(Completions, Contains(Named("TT")));
+}
+
 SignatureHelp signatures(llvm::StringRef Text, Position Point,
                          std::vector<Symbol> IndexSymbols = {}) {
   std::unique_ptr<SymbolIndex> Index;
@@ -1093,16 +1196,19 @@ public:
   bool
   fuzzyFind(const FuzzyFindRequest &Req,
             llvm::function_ref<void(const Symbol &)> Callback) const override {
-    std::lock_guard<std::mutex> Lock(Mut);
+    std::unique_lock<std::mutex> Lock(Mut);
     Requests.push_back(Req);
+    ReceivedRequestCV.notify_one();
     return true;
   }
 
   void lookup(const LookupRequest &,
               llvm::function_ref<void(const Symbol &)>) const override {}
 
-  void refs(const RefsRequest &,
-            llvm::function_ref<void(const Ref &)>) const override {}
+  bool refs(const RefsRequest &,
+            llvm::function_ref<void(const Ref &)>) const override {
+    return false;
+  }
 
   void relations(const RelationsRequest &,
                  llvm::function_ref<void(const SymbolID &, const Symbol &)>)
@@ -1112,8 +1218,10 @@ public:
   // isn't used in production code.
   size_t estimateMemoryUsage() const override { return 0; }
 
-  const std::vector<FuzzyFindRequest> consumeRequests() const {
-    std::lock_guard<std::mutex> Lock(Mut);
+  const std::vector<FuzzyFindRequest> consumeRequests(size_t Num) const {
+    std::unique_lock<std::mutex> Lock(Mut);
+    EXPECT_TRUE(wait(Lock, ReceivedRequestCV, timeoutSeconds(30),
+                     [this, Num] { return Requests.size() == Num; }));
     auto Reqs = std::move(Requests);
     Requests = {};
     return Reqs;
@@ -1121,16 +1229,21 @@ public:
 
 private:
   // We need a mutex to handle async fuzzy find requests.
+  mutable std::condition_variable ReceivedRequestCV;
   mutable std::mutex Mut;
   mutable std::vector<FuzzyFindRequest> Requests;
 };
 
-std::vector<FuzzyFindRequest> captureIndexRequests(llvm::StringRef Code) {
+// Clients have to consume exactly Num requests.
+std::vector<FuzzyFindRequest> captureIndexRequests(llvm::StringRef Code,
+                                                   size_t Num = 1) {
   clangd::CodeCompleteOptions Opts;
   IndexRequestCollector Requests;
   Opts.Index = &Requests;
   completions(Code, {}, Opts);
-  return Requests.consumeRequests();
+  const auto Reqs = Requests.consumeRequests(Num);
+  EXPECT_EQ(Reqs.size(), Num);
+  return Reqs;
 }
 
 TEST(CompletionTest, UnqualifiedIdQuery) {
@@ -1530,6 +1643,7 @@ TEST(CompletionTest, Render) {
   Include.Header = "\"foo.h\"";
   C.Kind = CompletionItemKind::Method;
   C.Score.Total = 1.0;
+  C.Score.ExcludingName = .5;
   C.Origin = SymbolOrigin::AST | SymbolOrigin::Static;
 
   CodeCompleteOptions Opts;
@@ -1547,6 +1661,7 @@ TEST(CompletionTest, Render) {
   EXPECT_THAT(R.additionalTextEdits, IsEmpty());
   EXPECT_EQ(R.sortText, sortText(1.0, "x"));
   EXPECT_FALSE(R.deprecated);
+  EXPECT_EQ(R.score, .5f);
 
   Opts.EnableSnippets = true;
   R = C.render(Opts);
@@ -1761,7 +1876,10 @@ TEST(CompletionTest, CompletionTokenRange) {
     Annotations TestCode(Text);
     auto Results = completions(Server, TestCode.code(), TestCode.point());
 
-    EXPECT_EQ(Results.Completions.size(), 1u);
+    if (Results.Completions.size() != 1) {
+      ADD_FAILURE() << "Results.Completions.size() != 1";
+      continue;
+    }
     EXPECT_THAT(Results.Completions.front().CompletionTokenRange,
                 TestCode.range());
   }
@@ -2079,18 +2197,15 @@ TEST(CompletionTest, EnableSpeculativeIndexRequest) {
 
   auto CompleteAtPoint = [&](StringRef P) {
     cantFail(runCodeComplete(Server, File, Test.point(P), Opts));
-    // Sleep for a while to make sure asynchronous call (if applicable) is also
-    // triggered before callback is invoked.
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   };
 
   CompleteAtPoint("1");
-  auto Reqs1 = Requests.consumeRequests();
+  auto Reqs1 = Requests.consumeRequests(1);
   ASSERT_EQ(Reqs1.size(), 1u);
   EXPECT_THAT(Reqs1[0].Scopes, UnorderedElementsAre("ns1::"));
 
   CompleteAtPoint("2");
-  auto Reqs2 = Requests.consumeRequests();
+  auto Reqs2 = Requests.consumeRequests(1);
   // Speculation succeeded. Used speculative index result.
   ASSERT_EQ(Reqs2.size(), 1u);
   EXPECT_EQ(Reqs2[0], Reqs1[0]);
@@ -2098,18 +2213,18 @@ TEST(CompletionTest, EnableSpeculativeIndexRequest) {
   CompleteAtPoint("3");
   // Speculation failed. Sent speculative index request and the new index
   // request after sema.
-  auto Reqs3 = Requests.consumeRequests();
+  auto Reqs3 = Requests.consumeRequests(2);
   ASSERT_EQ(Reqs3.size(), 2u);
 }
 
 TEST(CompletionTest, InsertTheMostPopularHeader) {
   std::string DeclFile = URI::create(testPath("foo")).toString();
-  Symbol sym = func("Func");
-  sym.CanonicalDeclaration.FileURI = DeclFile.c_str();
-  sym.IncludeHeaders.emplace_back("\"foo.h\"", 2);
-  sym.IncludeHeaders.emplace_back("\"bar.h\"", 1000);
+  Symbol Sym = func("Func");
+  Sym.CanonicalDeclaration.FileURI = DeclFile.c_str();
+  Sym.IncludeHeaders.emplace_back("\"foo.h\"", 2);
+  Sym.IncludeHeaders.emplace_back("\"bar.h\"", 1000);
 
-  auto Results = completions("Fun^", {sym}).Completions;
+  auto Results = completions("Fun^", {Sym}).Completions;
   assert(!Results.empty());
   EXPECT_THAT(Results[0], AllOf(Named("Func"), InsertInclude("\"bar.h\"")));
   EXPECT_EQ(Results[0].Includes.size(), 2u);
@@ -2126,13 +2241,13 @@ TEST(CompletionTest, NoInsertIncludeIfOnePresent) {
   ClangdServer Server(CDB, FS, DiagConsumer, ClangdServer::optsForTest());
 
   std::string DeclFile = URI::create(testPath("foo")).toString();
-  Symbol sym = func("Func");
-  sym.CanonicalDeclaration.FileURI = DeclFile.c_str();
-  sym.IncludeHeaders.emplace_back("\"foo.h\"", 2);
-  sym.IncludeHeaders.emplace_back("\"bar.h\"", 1000);
+  Symbol Sym = func("Func");
+  Sym.CanonicalDeclaration.FileURI = DeclFile.c_str();
+  Sym.IncludeHeaders.emplace_back("\"foo.h\"", 2);
+  Sym.IncludeHeaders.emplace_back("\"bar.h\"", 1000);
 
   EXPECT_THAT(
-      completions(Server, "#include \"foo.h\"\nFun^", {sym}).Completions,
+      completions(Server, "#include \"foo.h\"\nFun^", {Sym}).Completions,
       UnorderedElementsAre(
           AllOf(Named("Func"), HasInclude("\"foo.h\""), Not(InsertInclude()))));
 }
@@ -2355,6 +2470,26 @@ TEST(CompletionTest, NoCompletionsForNewNames) {
   EXPECT_THAT(Results.Completions, UnorderedElementsAre());
 }
 
+TEST(CompletionTest, Lambda) {
+  clangd::CodeCompleteOptions Opts = {};
+
+  auto Results = completions(R"cpp(
+    void function() {
+      auto Lambda = [](int a, const double &b) {return 1.f;};
+      Lam^
+    }
+  )cpp",
+                             {}, Opts);
+
+  ASSERT_EQ(Results.Completions.size(), 1u);
+  const auto &A = Results.Completions.front();
+  EXPECT_EQ(A.Name, "Lambda");
+  EXPECT_EQ(A.Signature, "(int a, const double &b) const");
+  EXPECT_EQ(A.Kind, CompletionItemKind::Variable);
+  EXPECT_EQ(A.ReturnType, "float");
+  EXPECT_EQ(A.SnippetSuffix, "(${1:int a}, ${2:const double &b})");
+}
+
 TEST(CompletionTest, ObjectiveCMethodNoArguments) {
   auto Results = completions(R"objc(
       @interface Foo
@@ -2527,6 +2662,36 @@ TEST(CompletionTest, NamespaceDoubleInsertion) {
               UnorderedElementsAre(AllOf(Qualifier(""), Named("ABCDE"))));
 }
 
+TEST(CompletionTest, DerivedMethodsAreAlwaysVisible) {
+  // Despite the fact that base method matches the ref-qualifier better,
+  // completion results should only include the derived method.
+  auto Completions = completions(R"cpp(
+    struct deque_base {
+      float size();
+      double size() const;
+    };
+    struct deque : deque_base {
+        int size() const;
+    };
+
+    auto x = deque().^
+  )cpp")
+                         .Completions;
+  EXPECT_THAT(Completions,
+              ElementsAre(AllOf(ReturnType("int"), Named("size"))));
+}
+
+TEST(CompletionTest, NoCrashWithIncompleteLambda) {
+  auto Completions = completions("auto&& x = []{^").Completions;
+  // The completion of x itself can cause a problem: in the code completion
+  // callback, its type is not known, which affects the linkage calculation.
+  // A bad linkage value gets cached, and subsequently updated.
+  EXPECT_THAT(Completions, Contains(Named("x")));
+
+  auto Signatures = signatures("auto x() { x(^").signatures;
+  EXPECT_THAT(Signatures, Contains(Sig("x() -> auto")));
+}
+
 TEST(NoCompileCompletionTest, Basic) {
   auto Results = completionsNoCompile(R"cpp(
     void func() {
@@ -2567,6 +2732,7 @@ TEST(NoCompileCompletionTest, WithIndex) {
         void foo() {
         xx^
         }
+        }
       )cpp",
       Syms);
   EXPECT_THAT(Results.Completions,
@@ -2583,6 +2749,7 @@ TEST(NoCompileCompletionTest, WithIndex) {
         using namespace b;
         void foo() {
         xx^
+        }
         }
       )cpp",
       Syms, Opts);
@@ -2601,6 +2768,7 @@ TEST(NoCompileCompletionTest, WithIndex) {
         void foo() {
         b::xx^
         }
+        }
       )cpp",
       Syms, Opts);
   EXPECT_THAT(Results.Completions,
@@ -2613,6 +2781,7 @@ TEST(NoCompileCompletionTest, WithIndex) {
         using namespace b;
         void foo() {
         ::a::xx^
+        }
         }
       )cpp",
       Syms, Opts);

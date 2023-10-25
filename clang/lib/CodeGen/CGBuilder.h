@@ -115,7 +115,7 @@ public:
   llvm::StoreInst *CreateStore(llvm::Value *Val, Address Addr,
                                bool IsVolatile = false) {
     return CreateAlignedStore(Val, Addr.getPointer(),
-                              Addr.getAlignment().getQuantity(), IsVolatile);
+                              Addr.getAlignment().getAsAlign(), IsVolatile);
   }
 
   using CGBuilderBaseTy::CreateAlignedStore;
@@ -285,22 +285,22 @@ public:
   using CGBuilderBaseTy::CreateMemCpy;
   llvm::CallInst *CreateMemCpy(Address Dest, Address Src, llvm::Value *Size,
                                bool IsVolatile = false) {
-    return CreateMemCpy(Dest.getPointer(), Dest.getAlignment().getQuantity(),
-                        Src.getPointer(), Src.getAlignment().getQuantity(),
-                        Size,IsVolatile);
+    return CreateMemCpy(Dest.getPointer(), Dest.getAlignment().getAsAlign(),
+                        Src.getPointer(), Src.getAlignment().getAsAlign(), Size,
+                        IsVolatile);
   }
   llvm::CallInst *CreateMemCpy(Address Dest, Address Src, uint64_t Size,
                                bool IsVolatile = false) {
-    return CreateMemCpy(Dest.getPointer(), Dest.getAlignment().getQuantity(),
-                        Src.getPointer(), Src.getAlignment().getQuantity(),
-                        Size, IsVolatile);
+    return CreateMemCpy(Dest.getPointer(), Dest.getAlignment().getAsAlign(),
+                        Src.getPointer(), Src.getAlignment().getAsAlign(), Size,
+                        IsVolatile);
   }
 
   using CGBuilderBaseTy::CreateMemMove;
   llvm::CallInst *CreateMemMove(Address Dest, Address Src, llvm::Value *Size,
                                 bool IsVolatile = false) {
-    return CreateMemMove(Dest.getPointer(), Dest.getAlignment().getQuantity(),
-                         Src.getPointer(), Src.getAlignment().getQuantity(),
+    return CreateMemMove(Dest.getPointer(), Dest.getAlignment().getAsAlign(),
+                         Src.getPointer(), Src.getAlignment().getAsAlign(),
                          Size, IsVolatile);
   }
 
@@ -308,7 +308,7 @@ public:
   llvm::CallInst *CreateMemSet(Address Dest, llvm::Value *Value,
                                llvm::Value *Size, bool IsVolatile = false) {
     return CreateMemSet(Dest.getPointer(), Value, Size,
-                        Dest.getAlignment().getQuantity(), IsVolatile);
+                        Dest.getAlignment().getAsAlign(), IsVolatile);
   }
 
   using CGBuilderBaseTy::CreatePreserveStructAccessIndex;
@@ -321,7 +321,7 @@ public:
     const llvm::StructLayout *Layout = DL.getStructLayout(ElTy);
     auto Offset = CharUnits::fromQuantity(Layout->getElementOffset(Index));
 
-    return Address(CreatePreserveStructAccessIndex(Addr.getPointer(),
+    return Address(CreatePreserveStructAccessIndex(ElTy, Addr.getPointer(),
                                                    Index, FieldIndex, DbgInfo),
                    Addr.getAlignment().alignmentAtOffset(Offset));
   }

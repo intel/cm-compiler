@@ -31,8 +31,7 @@ using namespace sema;
 
 static Attr *handleFallThroughAttr(Sema &S, Stmt *St, const ParsedAttr &A,
                                    SourceRange Range) {
-  FallThroughAttr Attr(A.getRange(), S.Context,
-                       A.getAttributeSpellingListIndex());
+  FallThroughAttr Attr(S.Context, A);
   if (!isa<NullStmt>(St)) {
     S.Diag(A.getRange().getBegin(), diag::err_fallthrough_attr_wrong_target)
         << Attr.getSpelling() << St->getBeginLoc();
@@ -53,10 +52,10 @@ static Attr *handleFallThroughAttr(Sema &S, Stmt *St, const ParsedAttr &A,
   // about using it as an extension.
   if (!S.getLangOpts().CPlusPlus17 && A.isCXX11Attribute() &&
       !A.getScopeName())
-    S.Diag(A.getLoc(), diag::ext_cxx17_attr) << A.getName();
+    S.Diag(A.getLoc(), diag::ext_cxx17_attr) << A;
 
   FnScope->setHasFallthroughStmt();
-  return ::new (S.Context) auto(Attr);
+  return ::new (S.Context) FallThroughAttr(S.Context, A);
 }
 
 static Attr *handleSuppressAttr(Sema &S, Stmt *St, const ParsedAttr &A,
@@ -79,8 +78,7 @@ static Attr *handleSuppressAttr(Sema &S, Stmt *St, const ParsedAttr &A,
   }
 
   return ::new (S.Context) SuppressAttr(
-      A.getRange(), S.Context, DiagnosticIdentifiers.data(),
-      DiagnosticIdentifiers.size(), A.getAttributeSpellingListIndex());
+      S.Context, A, DiagnosticIdentifiers.data(), DiagnosticIdentifiers.size());
 }
 
 static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
@@ -109,8 +107,6 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
     return nullptr;
   }
 
-  LoopHintAttr::Spelling Spelling =
-      LoopHintAttr::Spelling(A.getAttributeSpellingListIndex());
   LoopHintAttr::OptionType Option;
   LoopHintAttr::LoopHintState State;
 
@@ -145,6 +141,7 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
                  .Case("vectorize", LoopHintAttr::Vectorize)
                  .Case("vectorize_width", LoopHintAttr::VectorizeWidth)
                  .Case("interleave", LoopHintAttr::Interleave)
+                 .Case("vectorize_predicate", LoopHintAttr::VectorizePredicate)
                  .Case("interleave_count", LoopHintAttr::InterleaveCount)
                  .Case("unroll", LoopHintAttr::Unroll)
                  .Case("unroll_count", LoopHintAttr::UnrollCount)
@@ -163,6 +160,7 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
       State = LoopHintAttr::Numeric;
     } else if (Option == LoopHintAttr::Vectorize ||
                Option == LoopHintAttr::Interleave ||
+               Option == LoopHintAttr::VectorizePredicate ||
                Option == LoopHintAttr::Unroll ||
                Option == LoopHintAttr::Distribute ||
                Option == LoopHintAttr::PipelineDisabled) {
@@ -181,8 +179,7 @@ static Attr *handleLoopHintAttr(Sema &S, Stmt *St, const ParsedAttr &A,
       llvm_unreachable("bad loop hint");
   }
 
-  return LoopHintAttr::CreateImplicit(S.Context, Spelling, Option, State,
-                                      ValueExpr, A.getRange());
+  return LoopHintAttr::CreateImplicit(S.Context, Option, State, ValueExpr, A);
 }
 
 static void
@@ -201,7 +198,8 @@ CheckForIncompatibleAttributes(Sema &S,
     const LoopHintAttr *StateAttr;
     const LoopHintAttr *NumericAttr;
   } HintAttrs[] = {{nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr},
-                   {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}};
+                   {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr},
+                   {nullptr, nullptr}};
 
   for (const auto *I : Attrs) {
     const LoopHintAttr *LH = dyn_cast<LoopHintAttr>(I);
@@ -217,7 +215,8 @@ CheckForIncompatibleAttributes(Sema &S,
       Unroll,
       UnrollAndJam,
       Distribute,
-      Pipeline
+      Pipeline,
+      VectorizePredicate
     } Category;
     switch (Option) {
     case LoopHintAttr::Vectorize:
@@ -244,6 +243,9 @@ CheckForIncompatibleAttributes(Sema &S,
     case LoopHintAttr::PipelineInitiationInterval:
       Category = Pipeline;
       break;
+    case LoopHintAttr::VectorizePredicate:
+      Category = VectorizePredicate;
+      break;
     };
 
     assert(Category < sizeof(HintAttrs) / sizeof(HintAttrs[0]));
@@ -252,6 +254,7 @@ CheckForIncompatibleAttributes(Sema &S,
     if (Option == LoopHintAttr::Vectorize ||
         Option == LoopHintAttr::Interleave || Option == LoopHintAttr::Unroll ||
         Option == LoopHintAttr::UnrollAndJam ||
+        Option == LoopHintAttr::VectorizePredicate ||
         Option == LoopHintAttr::PipelineDisabled ||
         Option == LoopHintAttr::Distribute) {
       // Enable|Disable|AssumeSafety hint.  For example, vectorize(enable).
@@ -334,7 +337,7 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
     S.Diag(A.getLoc(), A.isDeclspecAttribute()
                            ? (unsigned)diag::warn_unhandled_ms_attribute_ignored
                            : (unsigned)diag::warn_unknown_attribute_ignored)
-        << A.getName();
+        << A;
     return nullptr;
   case ParsedAttr::AT_FallThrough:
     return handleFallThroughAttr(S, St, A, Range);
@@ -348,7 +351,7 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
     // if we're here, then we parsed a known attribute, but didn't recognize
     // it as a statement attribute => it is declaration attribute
     S.Diag(A.getRange().getBegin(), diag::err_decl_attribute_invalid_on_stmt)
-        << A.getName() << St->getBeginLoc();
+        << A << St->getBeginLoc();
     return nullptr;
   }
 }

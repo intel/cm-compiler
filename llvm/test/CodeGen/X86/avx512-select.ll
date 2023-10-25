@@ -74,7 +74,7 @@ define float @select02(float %a, float %b, float %c, float %eps) {
 ; X64-LABEL: select02:
 ; X64:       # %bb.0:
 ; X64-NEXT:    vcmpless %xmm0, %xmm3, %k1
-; X64-NEXT:    vmovss %xmm2, %xmm0, %xmm1 {%k1}
+; X64-NEXT:    vmovss %xmm2, %xmm1, %xmm1 {%k1}
 ; X64-NEXT:    vmovaps %xmm1, %xmm0
 ; X64-NEXT:    retq
   %cmp = fcmp oge float %a, %eps
@@ -96,7 +96,7 @@ define double @select03(double %a, double %b, double %c, double %eps) {
 ; X64-LABEL: select03:
 ; X64:       # %bb.0:
 ; X64-NEXT:    vcmplesd %xmm0, %xmm3, %k1
-; X64-NEXT:    vmovsd %xmm2, %xmm0, %xmm1 {%k1}
+; X64-NEXT:    vmovsd %xmm2, %xmm1, %xmm1 {%k1}
 ; X64-NEXT:    vmovapd %xmm1, %xmm0
 ; X64-NEXT:    retq
   %cmp = fcmp oge double %a, %eps
@@ -436,32 +436,30 @@ define <16 x i16> @pr31515(<16 x i1> %a, <16 x i1> %b, <16 x i16> %c) nounwind {
 define <32 x i16> @pr42355_v32i16(i1 %c, <32 x i16> %x, <32 x i16> %y) {
 ; X86-AVX512F-LABEL: pr42355_v32i16:
 ; X86-AVX512F:       # %bb.0:
-; X86-AVX512F-NEXT:    pushl %ebp
-; X86-AVX512F-NEXT:    .cfi_def_cfa_offset 8
-; X86-AVX512F-NEXT:    .cfi_offset %ebp, -8
-; X86-AVX512F-NEXT:    movl %esp, %ebp
-; X86-AVX512F-NEXT:    .cfi_def_cfa_register %ebp
-; X86-AVX512F-NEXT:    andl $-32, %esp
-; X86-AVX512F-NEXT:    subl $32, %esp
-; X86-AVX512F-NEXT:    testb $1, 8(%ebp)
-; X86-AVX512F-NEXT:    jne .LBB14_2
-; X86-AVX512F-NEXT:  # %bb.1:
-; X86-AVX512F-NEXT:    vmovaps 40(%ebp), %ymm1
-; X86-AVX512F-NEXT:    vmovaps %ymm2, %ymm0
-; X86-AVX512F-NEXT:  .LBB14_2:
-; X86-AVX512F-NEXT:    movl %ebp, %esp
-; X86-AVX512F-NEXT:    popl %ebp
-; X86-AVX512F-NEXT:    .cfi_def_cfa %esp, 4
+; X86-AVX512F-NEXT:    testb $1, {{[0-9]+}}(%esp)
+; X86-AVX512F-NEXT:    jne .LBB14_1
+; X86-AVX512F-NEXT:  # %bb.2:
+; X86-AVX512F-NEXT:    vextractf64x4 $1, %zmm1, %ymm2
+; X86-AVX512F-NEXT:    vmovaps %ymm1, %ymm0
+; X86-AVX512F-NEXT:    vinsertf64x4 $1, %ymm2, %zmm0, %zmm0
+; X86-AVX512F-NEXT:    retl
+; X86-AVX512F-NEXT:  .LBB14_1:
+; X86-AVX512F-NEXT:    vextractf64x4 $1, %zmm0, %ymm2
+; X86-AVX512F-NEXT:    vinsertf64x4 $1, %ymm2, %zmm0, %zmm0
 ; X86-AVX512F-NEXT:    retl
 ;
 ; X64-AVX512F-LABEL: pr42355_v32i16:
 ; X64-AVX512F:       # %bb.0:
 ; X64-AVX512F-NEXT:    testb $1, %dil
-; X64-AVX512F-NEXT:    jne .LBB14_2
-; X64-AVX512F-NEXT:  # %bb.1:
-; X64-AVX512F-NEXT:    vmovaps %ymm2, %ymm0
-; X64-AVX512F-NEXT:    vmovaps %ymm3, %ymm1
-; X64-AVX512F-NEXT:  .LBB14_2:
+; X64-AVX512F-NEXT:    jne .LBB14_1
+; X64-AVX512F-NEXT:  # %bb.2:
+; X64-AVX512F-NEXT:    vextractf64x4 $1, %zmm1, %ymm2
+; X64-AVX512F-NEXT:    vmovaps %ymm1, %ymm0
+; X64-AVX512F-NEXT:    vinsertf64x4 $1, %ymm2, %zmm0, %zmm0
+; X64-AVX512F-NEXT:    retq
+; X64-AVX512F-NEXT:  .LBB14_1:
+; X64-AVX512F-NEXT:    vextractf64x4 $1, %zmm0, %ymm2
+; X64-AVX512F-NEXT:    vinsertf64x4 $1, %ymm2, %zmm0, %zmm0
 ; X64-AVX512F-NEXT:    retq
 ;
 ; X86-AVX512BW-LABEL: pr42355_v32i16:
@@ -488,32 +486,30 @@ define <32 x i16> @pr42355_v32i16(i1 %c, <32 x i16> %x, <32 x i16> %y) {
 define <64 x i8> @pr42355_v64i8(i1 %c, <64 x i8> %x, <64 x i8> %y) {
 ; X86-AVX512F-LABEL: pr42355_v64i8:
 ; X86-AVX512F:       # %bb.0:
-; X86-AVX512F-NEXT:    pushl %ebp
-; X86-AVX512F-NEXT:    .cfi_def_cfa_offset 8
-; X86-AVX512F-NEXT:    .cfi_offset %ebp, -8
-; X86-AVX512F-NEXT:    movl %esp, %ebp
-; X86-AVX512F-NEXT:    .cfi_def_cfa_register %ebp
-; X86-AVX512F-NEXT:    andl $-32, %esp
-; X86-AVX512F-NEXT:    subl $32, %esp
-; X86-AVX512F-NEXT:    testb $1, 8(%ebp)
-; X86-AVX512F-NEXT:    jne .LBB15_2
-; X86-AVX512F-NEXT:  # %bb.1:
-; X86-AVX512F-NEXT:    vmovaps 40(%ebp), %ymm1
-; X86-AVX512F-NEXT:    vmovaps %ymm2, %ymm0
-; X86-AVX512F-NEXT:  .LBB15_2:
-; X86-AVX512F-NEXT:    movl %ebp, %esp
-; X86-AVX512F-NEXT:    popl %ebp
-; X86-AVX512F-NEXT:    .cfi_def_cfa %esp, 4
+; X86-AVX512F-NEXT:    testb $1, {{[0-9]+}}(%esp)
+; X86-AVX512F-NEXT:    jne .LBB15_1
+; X86-AVX512F-NEXT:  # %bb.2:
+; X86-AVX512F-NEXT:    vextractf64x4 $1, %zmm1, %ymm2
+; X86-AVX512F-NEXT:    vmovaps %ymm1, %ymm0
+; X86-AVX512F-NEXT:    vinsertf64x4 $1, %ymm2, %zmm0, %zmm0
+; X86-AVX512F-NEXT:    retl
+; X86-AVX512F-NEXT:  .LBB15_1:
+; X86-AVX512F-NEXT:    vextractf64x4 $1, %zmm0, %ymm2
+; X86-AVX512F-NEXT:    vinsertf64x4 $1, %ymm2, %zmm0, %zmm0
 ; X86-AVX512F-NEXT:    retl
 ;
 ; X64-AVX512F-LABEL: pr42355_v64i8:
 ; X64-AVX512F:       # %bb.0:
 ; X64-AVX512F-NEXT:    testb $1, %dil
-; X64-AVX512F-NEXT:    jne .LBB15_2
-; X64-AVX512F-NEXT:  # %bb.1:
-; X64-AVX512F-NEXT:    vmovaps %ymm2, %ymm0
-; X64-AVX512F-NEXT:    vmovaps %ymm3, %ymm1
-; X64-AVX512F-NEXT:  .LBB15_2:
+; X64-AVX512F-NEXT:    jne .LBB15_1
+; X64-AVX512F-NEXT:  # %bb.2:
+; X64-AVX512F-NEXT:    vextractf64x4 $1, %zmm1, %ymm2
+; X64-AVX512F-NEXT:    vmovaps %ymm1, %ymm0
+; X64-AVX512F-NEXT:    vinsertf64x4 $1, %ymm2, %zmm0, %zmm0
+; X64-AVX512F-NEXT:    retq
+; X64-AVX512F-NEXT:  .LBB15_1:
+; X64-AVX512F-NEXT:    vextractf64x4 $1, %zmm0, %ymm2
+; X64-AVX512F-NEXT:    vinsertf64x4 $1, %ymm2, %zmm0, %zmm0
 ; X64-AVX512F-NEXT:    retq
 ;
 ; X86-AVX512BW-LABEL: pr42355_v64i8:

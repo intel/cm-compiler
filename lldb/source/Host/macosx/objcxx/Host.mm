@@ -10,8 +10,8 @@
 
 #include <AvailabilityMacros.h>
 
-#if !defined(MAC_OS_X_VERSION_10_7) ||                                         \
-    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7
+// On device doesn't have supporty for XPC.
+#if defined(__APPLE__) && (defined(__arm64__) || defined(__aarch64__))
 #define NO_XPC_SERVICES 1
 #endif
 
@@ -59,7 +59,6 @@
 #include "lldb/Host/ProcessLaunchInfo.h"
 #include "lldb/Host/ThreadLauncher.h"
 #include "lldb/Utility/ArchSpec.h"
-#include "lldb/Utility/CleanUp.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/DataExtractor.h"
 #include "lldb/Utility/Endian.h"
@@ -71,8 +70,9 @@
 #include "lldb/Utility/StructuredData.h"
 #include "lldb/lldb-defines.h"
 
-#include "llvm/Support/FileSystem.h"
+#include "llvm/ADT/ScopeExit.h"
 #include "llvm/Support/Errno.h"
+#include "llvm/Support/FileSystem.h"
 
 #include "../cfcpp/CFCBundle.h"
 #include "../cfcpp/CFCMutableArray.h"
@@ -363,10 +363,9 @@ bool Host::OpenFileInExternalEditor(const FileSpec &file_spec,
   CFCReleaser<CFURLRef> file_URL(::CFURLCreateWithFileSystemPath(
       NULL, file_cfstr.get(), kCFURLPOSIXPathStyle, false));
 
-  if (log)
-    log->Printf(
-        "Sending source file: \"%s\" and line: %d to external editor.\n",
-        file_path, line_no);
+  LLDB_LOGF(log,
+            "Sending source file: \"%s\" and line: %d to external editor.\n",
+            file_path, line_no);
 
   long error;
   BabelAESelInfo file_and_line_info = {
@@ -385,8 +384,7 @@ bool Host::OpenFileInExternalEditor(const FileSpec &file_spec,
                          &(file_and_line_desc.descContent));
 
   if (error != noErr) {
-    if (log)
-      log->Printf("Error creating AEDesc: %ld.\n", error);
+    LLDB_LOGF(log, "Error creating AEDesc: %ld.\n", error);
     return false;
   }
 
@@ -403,8 +401,7 @@ bool Host::OpenFileInExternalEditor(const FileSpec &file_spec,
   char *external_editor = ::getenv("LLDB_EXTERNAL_EDITOR");
 
   if (external_editor) {
-    if (log)
-      log->Printf("Looking for external editor \"%s\".\n", external_editor);
+    LLDB_LOGF(log, "Looking for external editor \"%s\".\n", external_editor);
 
     if (g_app_name.empty() ||
         strcmp(g_app_name.c_str(), external_editor) != 0) {
@@ -415,10 +412,9 @@ bool Host::OpenFileInExternalEditor(const FileSpec &file_spec,
       // If we found the app, then store away the name so we don't have to
       // re-look it up.
       if (error != noErr) {
-        if (log)
-          log->Printf(
-              "Could not find External Editor application, error: %ld.\n",
-              error);
+        LLDB_LOGF(log,
+                  "Could not find External Editor application, error: %ld.\n",
+                  error);
         return false;
       }
     }
@@ -434,8 +430,7 @@ bool Host::OpenFileInExternalEditor(const FileSpec &file_spec,
   AEDisposeDesc(&(file_and_line_desc.descContent));
 
   if (error != noErr) {
-    if (log)
-      log->Printf("LSOpenURLsWithRole failed, error: %ld.\n", error);
+    LLDB_LOGF(log, "LSOpenURLsWithRole failed, error: %ld.\n", error);
 
     return false;
   }
@@ -473,6 +468,12 @@ static bool GetMacOSXProcessCPUType(ProcessInstanceInfo &process_info) {
 #if defined(CPU_TYPE_ARM64) && defined(CPU_SUBTYPE_ARM64_ALL)
       case CPU_TYPE_ARM64:
         sub = CPU_SUBTYPE_ARM64_ALL;
+        break;
+#endif
+
+#if defined(CPU_TYPE_ARM64_32) && defined(CPU_SUBTYPE_ARM64_32_ALL)
+      case CPU_TYPE_ARM64_32:
+        sub = CPU_SUBTYPE_ARM64_32_ALL;
         break;
 #endif
 
@@ -682,14 +683,16 @@ uint32_t Host::FindProcesses(const ProcessInstanceInfoMatch &match_info,
       process_info.SetEffectiveGroupID(UINT32_MAX);
 
     // Make sure our info matches before we go fetch the name and cpu type
-    if (match_info.Matches(process_info)) {
-      // Get CPU type first so we can know to look for iOS simulator is we have
-      // x86 or x86_64
-      if (GetMacOSXProcessCPUType(process_info)) {
-        if (GetMacOSXProcessArgs(&match_info, process_info)) {
-          if (match_info.Matches(process_info))
-            process_infos.Append(process_info);
-        }
+    if (!match_info.UserIDsMatch(process_info) ||
+        !match_info.ProcessIDsMatch(process_info))
+      continue;
+
+    // Get CPU type first so we can know to look for iOS simulator is we have
+    // x86 or x86_64
+    if (GetMacOSXProcessCPUType(process_info)) {
+      if (GetMacOSXProcessArgs(&match_info, process_info)) {
+        if (match_info.Matches(process_info))
+          process_infos.Append(process_info);
       }
     }
   }
@@ -1010,7 +1013,7 @@ static bool AddPosixSpawnFileAction(void *_file_actions, const FileAction *info,
     return false;
 
   posix_spawn_file_actions_t *file_actions =
-      reinterpret_cast<posix_spawn_file_actions_t *>(_file_actions);
+      static_cast<posix_spawn_file_actions_t *>(_file_actions);
 
   switch (info->GetAction()) {
   case FileAction::eFileActionNone:
@@ -1097,7 +1100,8 @@ static Status LaunchProcessPosixSpawn(const char *exe_path,
   }
 
   // Make sure we clean up the posix spawn attributes before exiting this scope.
-  CleanUp cleanup_attr(posix_spawnattr_destroy, &attr);
+  auto cleanup_attr =
+      llvm::make_scope_exit([&]() { posix_spawnattr_destroy(&attr); });
 
   sigset_t no_signals;
   sigset_t all_signals;
@@ -1126,7 +1130,7 @@ static Status LaunchProcessPosixSpawn(const char *exe_path,
   // --arch <ARCH> as part of the shell invocation
   // to do that job on OSX.
 
-  if (launch_info.GetShell() == nullptr) {
+  if (launch_info.GetShell() == FileSpec()) {
     // We don't need to do this for ARM, and we really shouldn't now that we
     // have multiple CPU subtypes and no posix_spawnattr call that allows us
     // to set which CPU subtype to launch...
@@ -1200,7 +1204,8 @@ static Status LaunchProcessPosixSpawn(const char *exe_path,
     }
 
     // Make sure we clean up the posix file actions before exiting this scope.
-    CleanUp cleanup_fileact(posix_spawn_file_actions_destroy, &file_actions);
+    auto cleanup_fileact = llvm::make_scope_exit(
+        [&]() { posix_spawn_file_actions_destroy(&file_actions); });
 
     for (size_t i = 0; i < num_file_actions; ++i) {
       const FileAction *launch_file_action =
@@ -1369,9 +1374,12 @@ Status Host::ShellExpandArguments(ProcessLaunchInfo &launch_info) {
     }
     bool run_in_default_shell = true;
     bool hide_stderr = true;
-    RunShellCommand(expand_command, cwd, &status, nullptr, &output,
-                    std::chrono::seconds(10), run_in_default_shell,
-                    hide_stderr);
+    Status e = RunShellCommand(expand_command, cwd, &status, nullptr, &output,
+                               std::chrono::seconds(10), run_in_default_shell,
+                               hide_stderr);
+
+    if (e.Fail())
+      return e;
 
     if (status != 0) {
       error.SetErrorStringWithFormat("lldb-argdumper exited with error %d",
@@ -1434,12 +1442,12 @@ llvm::Expected<HostThread> Host::StartMonitoringChildProcess(
       DISPATCH_SOURCE_TYPE_PROC, pid, mask,
       ::dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
 
-  if (log)
-    log->Printf("Host::StartMonitoringChildProcess "
-                "(callback, pid=%i, monitor_signals=%i) "
-                "source = %p\n",
-                static_cast<int>(pid), monitor_signals,
-                reinterpret_cast<void *>(source));
+  LLDB_LOGF(log,
+            "Host::StartMonitoringChildProcess "
+            "(callback, pid=%i, monitor_signals=%i) "
+            "source = %p\n",
+            static_cast<int>(pid), monitor_signals,
+            static_cast<void *>(source));
 
   if (source) {
     Host::MonitorChildProcessCallback callback_copy = callback;
@@ -1473,10 +1481,10 @@ llvm::Expected<HostThread> Host::StartMonitoringChildProcess(
           status_cstr = "???";
         }
 
-        if (log)
-          log->Printf("::waitpid (pid = %llu, &status, 0) => pid = %i, status "
-                      "= 0x%8.8x (%s), signal = %i, exit_status = %i",
-                      pid, wait_pid, status, status_cstr, signal, exit_status);
+        LLDB_LOGF(log,
+                  "::waitpid (pid = %llu, &status, 0) => pid = %i, status "
+                  "= 0x%8.8x (%s), signal = %i, exit_status = %i",
+                  pid, wait_pid, status, status_cstr, signal, exit_status);
 
         if (callback_copy)
           cancel = callback_copy(pid, exited, signal, exit_status);

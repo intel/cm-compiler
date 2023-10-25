@@ -765,82 +765,6 @@ int d;
   }
 }
 
-TEST_F(ClangdVFSTest, CheckSourceHeaderSwitch) {
-  MockFSProvider FS;
-  ErrorCheckingDiagConsumer DiagConsumer;
-  MockCompilationDatabase CDB;
-  ClangdServer Server(CDB, FS, DiagConsumer, ClangdServer::optsForTest());
-
-  auto SourceContents = R"cpp(
-  #include "foo.h"
-  int b = a;
-  )cpp";
-
-  auto FooCpp = testPath("foo.cpp");
-  auto FooH = testPath("foo.h");
-  auto Invalid = testPath("main.cpp");
-
-  FS.Files[FooCpp] = SourceContents;
-  FS.Files[FooH] = "int a;";
-  FS.Files[Invalid] = "int main() { \n return 0; \n }";
-
-  Optional<Path> PathResult = Server.switchSourceHeader(FooCpp);
-  EXPECT_TRUE(PathResult.hasValue());
-  ASSERT_EQ(PathResult.getValue(), FooH);
-
-  PathResult = Server.switchSourceHeader(FooH);
-  EXPECT_TRUE(PathResult.hasValue());
-  ASSERT_EQ(PathResult.getValue(), FooCpp);
-
-  SourceContents = R"c(
-  #include "foo.HH"
-  int b = a;
-  )c";
-
-  // Test with header file in capital letters and different extension, source
-  // file with different extension
-  auto FooC = testPath("bar.c");
-  auto FooHH = testPath("bar.HH");
-
-  FS.Files[FooC] = SourceContents;
-  FS.Files[FooHH] = "int a;";
-
-  PathResult = Server.switchSourceHeader(FooC);
-  EXPECT_TRUE(PathResult.hasValue());
-  ASSERT_EQ(PathResult.getValue(), FooHH);
-
-  // Test with both capital letters
-  auto Foo2C = testPath("foo2.C");
-  auto Foo2HH = testPath("foo2.HH");
-  FS.Files[Foo2C] = SourceContents;
-  FS.Files[Foo2HH] = "int a;";
-
-  PathResult = Server.switchSourceHeader(Foo2C);
-  EXPECT_TRUE(PathResult.hasValue());
-  ASSERT_EQ(PathResult.getValue(), Foo2HH);
-
-  // Test with source file as capital letter and .hxx header file
-  auto Foo3C = testPath("foo3.C");
-  auto Foo3HXX = testPath("foo3.hxx");
-
-  SourceContents = R"c(
-  #include "foo3.hxx"
-  int b = a;
-  )c";
-
-  FS.Files[Foo3C] = SourceContents;
-  FS.Files[Foo3HXX] = "int a;";
-
-  PathResult = Server.switchSourceHeader(Foo3C);
-  EXPECT_TRUE(PathResult.hasValue());
-  ASSERT_EQ(PathResult.getValue(), Foo3HXX);
-
-  // Test if asking for a corresponding file that doesn't exist returns an empty
-  // string.
-  PathResult = Server.switchSourceHeader(Invalid);
-  EXPECT_FALSE(PathResult.hasValue());
-}
-
 TEST_F(ClangdThreadingTest, NoConcurrentDiagnostics) {
   class NoConcurrentAccessDiagConsumer : public DiagnosticsConsumer {
   public:
@@ -1035,28 +959,6 @@ TEST(ClangdTests, PreambleVFSStatCache) {
 }
 #endif
 
-TEST_F(ClangdVFSTest, FlagsWithPlugins) {
-  MockFSProvider FS;
-  ErrorCheckingDiagConsumer DiagConsumer;
-  MockCompilationDatabase CDB;
-  CDB.ExtraClangFlags = {
-      "-Xclang",
-      "-add-plugin",
-      "-Xclang",
-      "random-plugin",
-  };
-  OverlayCDB OCDB(&CDB);
-  ClangdServer Server(OCDB, FS, DiagConsumer, ClangdServer::optsForTest());
-
-  auto FooCpp = testPath("foo.cpp");
-  const auto SourceContents = "int main() { return 0; }";
-  FS.Files[FooCpp] = FooCpp;
-  Server.addDocument(FooCpp, SourceContents);
-  auto Result = dumpASTWithoutMemoryLocs(Server, FooCpp);
-  EXPECT_TRUE(Server.blockUntilIdleForTest()) << "Waiting for diagnostics";
-  EXPECT_NE(Result, "<no-ast>");
-}
-
 TEST_F(ClangdVFSTest, FallbackWhenPreambleIsNotReady) {
   MockFSProvider FS;
   ErrorCheckingDiagConsumer DiagConsumer;
@@ -1159,6 +1061,27 @@ TEST_F(ClangdVFSTest, FallbackWhenWaitingForCompileCommand) {
                   .Completions,
               ElementsAre(AllOf(Field(&CodeCompletion::Name, "xyz"),
                                 Field(&CodeCompletion::Scope, "ns::"))));
+}
+
+TEST_F(ClangdVFSTest, TestStackOverflow) {
+  MockFSProvider FS;
+  ErrorCheckingDiagConsumer DiagConsumer;
+  MockCompilationDatabase CDB;
+  ClangdServer Server(CDB, FS, DiagConsumer, ClangdServer::optsForTest());
+
+  const char *SourceContents = R"cpp(
+    constexpr int foo() { return foo(); }
+    static_assert(foo());
+  )cpp";
+
+  auto FooCpp = testPath("foo.cpp");
+  FS.Files[FooCpp] = SourceContents;
+
+  Server.addDocument(FooCpp, SourceContents);
+  ASSERT_TRUE(Server.blockUntilIdleForTest()) << "Waiting for diagnostics";
+  // check that we got a constexpr depth error, and not crashed by stack
+  // overflow
+  EXPECT_TRUE(DiagConsumer.hadErrorInLastDiags());
 }
 
 } // namespace

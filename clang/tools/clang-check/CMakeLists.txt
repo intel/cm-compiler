@@ -13,7 +13,7 @@ set( LLVM_LINK_COMPONENTS
   Support
   )
 
-add_clang_executable(clang-check
+add_clang_tool(clang-check
   ClangCheck.cpp
   )
 
@@ -28,6 +28,3 @@ clang_target_link_libraries(clang-check
   clangStaticAnalyzerFrontend
   clangTooling
   )
-
-install(TARGETS clang-check
-  RUNTIME DESTINATION bin)

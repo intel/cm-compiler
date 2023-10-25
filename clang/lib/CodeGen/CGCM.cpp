@@ -24,11 +24,11 @@ SPDX-License-Identifier: MIT
 using namespace clang;
 using namespace CodeGen;
 
-CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base, unsigned vSize,
+CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CGF, unsigned vSize,
                                unsigned vStride, unsigned hSize,
                                unsigned hStride, llvm::Value *vOffset,
                                llvm::Value *hOffset)
-    : Kind(Kind), Base(Base) {
+    : Kind(Kind), CGF(CGF), Base(Base) {
   setVSize(vSize);
   setVStride(vStride);
   setHSize(hSize);
@@ -37,9 +37,9 @@ CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base, unsigned vSize,
   setHOffset(hOffset);
 }
 
-CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base, unsigned Size,
+CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CGF, unsigned Size,
                                unsigned Stride, llvm::Value *Offset)
-    : Kind(Kind), Base(Base) {
+    : Kind(Kind), CGF(CGF), Base(Base) {
   setSize(Size);
   setStride(Stride);
   setVOffset(Offset);
@@ -49,8 +49,8 @@ CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base, unsigned Size,
   Indices[1] = 0;
 }
 
-CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base)
-    : Kind(Kind), Base(Base) {
+CGCMRegionInfo::CGCMRegionInfo(RegionKind Kind, LValue Base, CodeGenFunction &CGF)
+    : Kind(Kind), CGF(CGF), Base(Base) {
   // fill zeros for other fields.
   Dims[0] = Dims[1] = Dims[2] = Dims[3] = 0;
   Indices[0] = Indices[1] = 0;
@@ -86,7 +86,7 @@ void CGCMRegionInfo::print(raw_ostream &OS) const {
 
   OS << "{ ";
   if (Base.isSimple())
-    OS << Base.getAddress().getPointer()  << "(base)";
+    OS << Base.getPointer(CGF)  << "(base)";
   else if (Base.isCMRegion())
     OS << Base.getCMRegionAddr() << "(nested)";
 
@@ -118,9 +118,9 @@ static unsigned EmitAsConstantInt(CodeGenFunction &CGF, const Expr *E) {
   return static_cast<unsigned>(cast<llvm::ConstantInt>(Val)->getZExtValue());
 }
 
-static llvm::Value *getBaseAddr(LValue Base) {
+static llvm::Value *getBaseAddr(LValue Base, CodeGenFunction &CGF) {
   if (Base.isSimple())
-    return Base.getAddress().getPointer();
+    return Base.getPointer(CGF);
   else if (Base.isCMRegion())
     return Base.getCMRegionAddr();
 
@@ -146,10 +146,10 @@ LValue CGCMRuntime::EmitSelect(CodeGenFunction &CGF, const CMSelectExpr *E,
     assert(hOffset && hOffset->getType()->isIntegerTy());
 
     const CGCMRegionInfo &RI = addRegionInfo(
-        new CGCMRegionInfo(CGCMRegionInfo::RK_select, Base, vSize, vStride,
+        new CGCMRegionInfo(CGCMRegionInfo::RK_select, Base, CGF, vSize, vStride,
                            hSize, hStride, vOffset, hOffset));
 
-    return LValue::MakeCMRegion(getBaseAddr(Base), RI, E->getType(),
+    return LValue::MakeCMRegion(getBaseAddr(Base, CGF), RI, E->getType(),
                                 Base.getAlignment());
   }
 
@@ -163,9 +163,9 @@ LValue CGCMRuntime::EmitSelect(CodeGenFunction &CGF, const CMSelectExpr *E,
   assert(Offset && Offset->getType()->isIntegerTy());
 
   const CGCMRegionInfo &RI = addRegionInfo(new CGCMRegionInfo(
-      CGCMRegionInfo::RK_select, Base, Size, Stride, Offset));
+      CGCMRegionInfo::RK_select, Base, CGF, Size, Stride, Offset));
 
-  return LValue::MakeCMRegion(getBaseAddr(Base), RI, E->getType(),
+  return LValue::MakeCMRegion(getBaseAddr(Base, CGF), RI, E->getType(),
                               Base.getAlignment());
 }
 
@@ -187,9 +187,9 @@ LValue CGCMRuntime::EmitRowColumnSelect(CodeGenFunction &CGF,
     llvm::Value *Index = CGF.EmitAnyExpr(E->getRowExpr()).getScalarVal();
     llvm::Value *Zero = llvm::Constant::getNullValue(Index->getType());
     const CGCMRegionInfo &RI = addRegionInfo(new CGCMRegionInfo(
-        CGCMRegionInfo::RK_select, Base, 1, 0, Width, 1, Index, Zero));
+        CGCMRegionInfo::RK_select, Base, CGF, 1, 0, Width, 1, Index, Zero));
 
-    return LValue::MakeCMRegion(getBaseAddr(Base), RI, E->getType(),
+    return LValue::MakeCMRegion(getBaseAddr(Base, CGF), RI, E->getType(),
                                 Base.getAlignment());
   }
 
@@ -201,9 +201,9 @@ LValue CGCMRuntime::EmitRowColumnSelect(CodeGenFunction &CGF,
   llvm::Value *Index = CGF.EmitAnyExpr(E->getColumnExpr()).getScalarVal();
   llvm::Value *Zero = llvm::Constant::getNullValue(Index->getType());
   const CGCMRegionInfo &RI = addRegionInfo(new CGCMRegionInfo(
-      CGCMRegionInfo::RK_select, Base, Height, 1, 1, 1, Zero, Index));
+      CGCMRegionInfo::RK_select, Base, CGF, Height, 1, 1, 1, Zero, Index));
 
-  return LValue::MakeCMRegion(getBaseAddr(Base), RI, E->getType(),
+  return LValue::MakeCMRegion(getBaseAddr(Base, CGF), RI, E->getType(),
                               Base.getAlignment());
 }
 
@@ -216,9 +216,9 @@ LValue CGCMRuntime::EmitElementSelect(CodeGenFunction &CGF,
   if (E->is1D()) {
     llvm::Value *Index = CGF.EmitAnyExpr(E->getIndex()).getScalarVal();
     const CGCMRegionInfo &RI = addRegionInfo(
-        new CGCMRegionInfo(CGCMRegionInfo::RK_select, Base, 1, 0, Index));
+        new CGCMRegionInfo(CGCMRegionInfo::RK_select, Base, CGF, 1, 0, Index));
 
-    return LValue::MakeCMRegion(getBaseAddr(Base), RI, E->getType(),
+    return LValue::MakeCMRegion(getBaseAddr(Base, CGF), RI, E->getType(),
                                 Base.getAlignment());
   }
 
@@ -229,9 +229,9 @@ LValue CGCMRuntime::EmitElementSelect(CodeGenFunction &CGF,
   llvm::Value *RowIndex = CGF.EmitAnyExpr(E->getRowIndex()).getScalarVal();
   llvm::Value *ColIndex = CGF.EmitAnyExpr(E->getColumnIndex()).getScalarVal();
   const CGCMRegionInfo &RI = addRegionInfo(new CGCMRegionInfo(
-      CGCMRegionInfo::RK_select, Base, 1, 0, 1, 0, RowIndex, ColIndex));
+      CGCMRegionInfo::RK_select, Base, CGF, 1, 0, 1, 0, RowIndex, ColIndex));
 
-  return LValue::MakeCMRegion(getBaseAddr(Base), RI, E->getType(),
+  return LValue::MakeCMRegion(getBaseAddr(Base, CGF), RI, E->getType(),
                               Base.getAlignment());
 }
 
@@ -244,9 +244,9 @@ LValue CGCMRuntime::EmitSubscriptSelect(CodeGenFunction &CGF,
   if (E->is1D()) {
     llvm::Value *Index = CGF.EmitAnyExpr(E->getSubscriptIndex()).getScalarVal();
     const CGCMRegionInfo &RI = addRegionInfo(
-        new CGCMRegionInfo(CGCMRegionInfo::RK_select, Base, 1, 0, Index));
+        new CGCMRegionInfo(CGCMRegionInfo::RK_select, Base, CGF, 1, 0, Index));
 
-    return LValue::MakeCMRegion(getBaseAddr(Base), RI, E->getType(),
+    return LValue::MakeCMRegion(getBaseAddr(Base, CGF), RI, E->getType(),
                                 Base.getAlignment());
   }
 
@@ -261,9 +261,9 @@ LValue CGCMRuntime::EmitSubscriptSelect(CodeGenFunction &CGF,
   llvm::Value *Index = CGF.EmitAnyExpr(E->getSubscriptIndex()).getScalarVal();
   llvm::Value *Zero = llvm::Constant::getNullValue(Index->getType());
   const CGCMRegionInfo &RI = addRegionInfo(new CGCMRegionInfo(
-      CGCMRegionInfo::RK_select, Base, 1, 0, Width, 1, Index, Zero));
+      CGCMRegionInfo::RK_select, Base, CGF, 1, 0, Width, 1, Index, Zero));
 
-  return LValue::MakeCMRegion(getBaseAddr(Base), RI, E->getType(),
+  return LValue::MakeCMRegion(getBaseAddr(Base, CGF), RI, E->getType(),
                               Base.getAlignment());
 }
 
@@ -343,9 +343,9 @@ LValue CGCMRuntime::EmitCMFormatExprLValue(CodeGenFunction &CGF,
   LValue BaseLV = CGF.EmitLValue(Base);
 
   const CGCMRegionInfo &RI =
-      addRegionInfo(new CGCMRegionInfo(CGCMRegionInfo::RK_format, BaseLV));
+      addRegionInfo(new CGCMRegionInfo(CGCMRegionInfo::RK_format, BaseLV, CGF));
 
-  return LValue::MakeCMRegion(getBaseAddr(BaseLV), RI, E->getType(),
+  return LValue::MakeCMRegion(getBaseAddr(BaseLV, CGF), RI, E->getType(),
                               BaseLV.getAlignment());
 }
 
@@ -1571,6 +1571,6 @@ llvm::Value *CGCMRuntime::EmitElementSelectAsPointer(CodeGenFunction &CGF,
     Index = CGF.Builder.CreateAdd(Index, HOffset);
   }
   auto *Zero = llvm::ConstantInt::get(Index->getType(), 0);
-  auto *GEP = CGF.Builder.CreateGEP(getBaseAddr(Base), {Zero, Index});
+  auto *GEP = CGF.Builder.CreateGEP(getBaseAddr(Base, CGF), {Zero, Index});
   return GEP;
 }

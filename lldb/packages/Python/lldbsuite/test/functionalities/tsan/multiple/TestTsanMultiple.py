@@ -2,8 +2,6 @@
 Test ThreadSanitizer when multiple different issues are found.
 """
 
-import os
-import time
 import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
@@ -25,10 +23,6 @@ class TsanMultipleTestCase(TestBase):
     def test(self):
         self.build()
         self.tsan_tests()
-
-    def setUp(self):
-        # Call super's setUp().
-        TestBase.setUp(self)
 
     def tsan_tests(self):
         exe = self.getBuildArtifact("a.out")

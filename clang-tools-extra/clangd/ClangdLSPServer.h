@@ -10,6 +10,7 @@
 #define LLVM_CLANG_TOOLS_EXTRA_CLANGD_CLANGDLSPSERVER_H
 
 #include "ClangdServer.h"
+#include "Context.h"
 #include "DraftStore.h"
 #include "Features.inc"
 #include "FindSymbols.h"
@@ -43,6 +44,7 @@ public:
                   llvm::Optional<Path> CompileCommandsDir, bool UseDirBasedCDB,
                   llvm::Optional<OffsetEncoding> ForcedOffsetEncoding,
                   const ClangdServer::Options &Opts);
+  /// The destructor blocks on any outstanding background tasks.
   ~ClangdLSPServer();
 
   /// Run LSP server loop, communicating with the Transport provided in the
@@ -95,6 +97,8 @@ private:
   void onCommand(const ExecuteCommandParams &, Callback<llvm::json::Value>);
   void onWorkspaceSymbol(const WorkspaceSymbolParams &,
                          Callback<std::vector<SymbolInformation>>);
+  void onPrepareRename(const TextDocumentPositionParams &,
+                       Callback<llvm::Optional<Range>>);
   void onRename(const RenameParams &, Callback<WorkspaceEdit>);
   void onHover(const TextDocumentPositionParams &,
                Callback<llvm::Optional<Hover>>);
@@ -105,6 +109,10 @@ private:
   void onChangeConfiguration(const DidChangeConfigurationParams &);
   void onSymbolInfo(const TextDocumentPositionParams &,
                     Callback<std::vector<SymbolDetails>>);
+  void onSelectionRange(const SelectionRangeParams &,
+                        Callback<std::vector<SelectionRange>>);
+  void onDocumentLink(const DocumentLinkParams &,
+                      Callback<std::vector<DocumentLink>>);
 
   std::vector<Fix> getFixes(StringRef File, const clangd::Diagnostic &D);
 
@@ -127,24 +135,55 @@ private:
   void publishDiagnostics(const URIForFile &File,
                           std::vector<clangd::Diagnostic> Diagnostics);
 
+  /// Since initialization of CDBs and ClangdServer is done lazily, the
+  /// following context captures the one used while creating ClangdLSPServer and
+  /// passes it to above mentioned object instances to make sure they share the
+  /// same state.
+  Context BackgroundContext;
+
   /// Used to indicate that the 'shutdown' request was received from the
   /// Language Server client.
   bool ShutdownRequestReceived = false;
+
+  /// Used to indicate the ClangdLSPServer is being destroyed.
+  std::atomic<bool> IsBeingDestroyed = {false};
 
   std::mutex FixItsMutex;
   typedef std::map<clangd::Diagnostic, std::vector<Fix>, LSPDiagnosticCompare>
       DiagnosticToReplacementMap;
   /// Caches FixIts per file and diagnostics
   llvm::StringMap<DiagnosticToReplacementMap> FixItsMap;
+  std::mutex HighlightingsMutex;
+  llvm::StringMap<std::vector<HighlightingToken>> FileToHighlightings;
 
   // Most code should not deal with Transport directly.
   // MessageHandler deals with incoming messages, use call() etc for outgoing.
   clangd::Transport &Transp;
   class MessageHandler;
   std::unique_ptr<MessageHandler> MsgHandler;
-  std::atomic<int> NextCallID = {0};
   std::mutex TranspWriter;
-  void call(StringRef Method, llvm::json::Value Params);
+
+  template <typename Response>
+  void call(StringRef Method, llvm::json::Value Params, Callback<Response> CB) {
+    // Wrap the callback with LSP conversion and error-handling.
+    auto HandleReply =
+        [CB = std::move(CB), Ctx = Context::current().clone()](
+            llvm::Expected<llvm::json::Value> RawResponse) mutable {
+          Response Rsp;
+          if (!RawResponse) {
+            CB(RawResponse.takeError());
+          } else if (fromJSON(*RawResponse, Rsp)) {
+            CB(std::move(Rsp));
+          } else {
+            elog("Failed to decode {0} response", *RawResponse);
+            CB(llvm::make_error<LSPError>("failed to decode reponse",
+                                          ErrorCode::InvalidParams));
+          }
+        };
+    callRaw(Method, std::move(Params), std::move(HandleReply));
+  }
+  void callRaw(StringRef Method, llvm::json::Value Params,
+               Callback<llvm::json::Value> CB);
   void notify(StringRef Method, llvm::json::Value Params);
 
   const FileSystemProvider &FSProvider;
@@ -173,13 +212,12 @@ private:
   bool UseDirBasedCDB;                     // FIXME: make this a capability.
   llvm::Optional<Path> CompileCommandsDir; // FIXME: merge with capability?
   std::unique_ptr<GlobalCompilationDatabase> BaseCDB;
-  // CDB is BaseCDB plus any comands overridden via LSP extensions.
+  // CDB is BaseCDB plus any commands overridden via LSP extensions.
   llvm::Optional<OverlayCDB> CDB;
-  // The ClangdServer is created by the "initialize" LSP method.
-  // It is destroyed before run() returns, to ensure worker threads exit.
   ClangdServer::Options ClangdServerOpts;
-  llvm::Optional<ClangdServer> Server;
   llvm::Optional<OffsetEncoding> NegotiatedOffsetEncoding;
+  // The ClangdServer is created by the "initialize" LSP method.
+  llvm::Optional<ClangdServer> Server;
 };
 } // namespace clangd
 } // namespace clang

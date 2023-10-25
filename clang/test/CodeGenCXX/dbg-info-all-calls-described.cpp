@@ -22,6 +22,13 @@
 // RUN: | FileCheck %s -check-prefix=HAS-ATTR \
 // RUN:     -implicit-check-not=DIFlagAllCallsDescribed
 
+// Supported: DWARF4 + LLDB tuning by using '-femit-debug-entry-values'
+// RUN: %clang_cc1 -femit-debug-entry-values -emit-llvm -triple x86_64-linux-gnu \
+// RUN:   %s -o - -O1 -disable-llvm-passes -debugger-tuning=lldb \
+// RUN:   -debug-info-kind=standalone -dwarf-version=4 \
+// RUN: | FileCheck %s -check-prefix=HAS-ATTR \
+// RUN:     -implicit-check-not=DIFlagAllCallsDescribed
+
 // Unsupported: -O0 + '-femit-debug-entry-values'
 // RUN: %clang_cc1 -femit-debug-entry-values -emit-llvm -triple x86_64-linux-gnu \
 // RUN:   %s -o - -O0 -disable-llvm-passes -debugger-tuning=gdb \
@@ -49,6 +56,7 @@
 
 // NO-ATTR-NOT: FlagAllCallsDescribed
 
+// HAS-ATTR-DAG: DISubprogram(name: "declaration1", {{.*}}, flags: DIFlagPrototyped
 // HAS-ATTR-DAG: DISubprogram(name: "declaration2", {{.*}}, flags: DIFlagPrototyped | DIFlagAllCallsDescribed, spFlags: DISPFlagDefinition
 // HAS-ATTR-DAG: DISubprogram(name: "struct1", {{.*}}, flags: DIFlagPrototyped, spFlags: DISPFlagOptimized)
 // HAS-ATTR-DAG: DISubprogram(name: "struct1", {{.*}}, flags: DIFlagPrototyped | DIFlagAllCallsDescribed, spFlags: DISPFlagDefinition

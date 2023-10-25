@@ -12,8 +12,6 @@ from __future__ import print_function
 
 # System modules
 import os
-import platform
-import subprocess
 
 
 # Third-party modules
@@ -27,16 +25,18 @@ import lldbsuite
 suite = unittest2.TestSuite()
 
 # The list of categories we said we care about
-categoriesList = None
+categories_list = None
 # set to true if we are going to use categories for cherry-picking test cases
-useCategories = False
+use_categories = False
 # Categories we want to skip
-skipCategories = ["darwin-log"]
+skip_categories = ["darwin-log"]
+# Categories we expect to fail
+xfail_categories = []
 # use this to track per-category failures
-failuresPerCategory = {}
+failures_per_category = {}
 
 # The path to LLDB.framework is optional.
-lldbFrameworkPath = None
+lldb_framework_path = None
 
 # Test suite repeat count.  Can be overwritten with '-# count'.
 count = 1
@@ -44,6 +44,13 @@ count = 1
 # The 'arch' and 'compiler' can be specified via command line.
 arch = None        # Must be initialized after option parsing
 compiler = None    # Must be initialized after option parsing
+
+# The overriden dwarf verison.
+dwarf_version = 0
+
+# Any overridden settings.
+# Always disable default dynamic types for testing purposes.
+settings = [('target.prefer-dynamic-value', 'no-dynamic-values')]
 
 # Path to the FileCheck testing tool. Not optional.
 filecheck = None
@@ -55,13 +62,6 @@ cflags_extras = ''
 
 # The filters (testclass.testmethod) used to admit tests into our test suite.
 filters = []
-
-# By default, we skip long running test case.  Use '-l' option to override.
-skip_long_running_test = True
-
-# Parsable mode silences headers, and any other output this script might generate, and instead
-# prints machine-readable output similar to what clang tests produce.
-parsable = False
 
 # The regular expression pattern to match against eligible filenames as
 # our test cases.
@@ -112,20 +112,18 @@ lldb_platform_working_dir = None
 # The base directory in which the tests are being built.
 test_build_dir = None
 
+# The clang module cache directory used by lldb.
+lldb_module_cache_dir = None
+# The clang module cache directory used by clang.
+clang_module_cache_dir = None
+
 # The only directory to scan for tests. If multiple test directories are
 # specified, and an exclusive test subdirectory is specified, the latter option
 # takes precedence.
 exclusive_test_subdir = None
 
-# Parallel execution settings
-is_inferior_test_runner = False
-num_threads = None
-no_multiprocess_test_runner = False
-test_runner_name = None
-
 # Test results handling globals
 results_filename = None
-results_port = None
 results_formatter_name = None
 results_formatter_object = None
 results_formatter_options = None
@@ -133,19 +131,18 @@ test_result = None
 
 # Test rerun configuration vars
 rerun_all_issues = False
-rerun_max_file_threhold = 0
 
 # The names of all tests. Used to assert we don't have two tests with the
 # same base name.
 all_tests = set()
 
 def shouldSkipBecauseOfCategories(test_categories):
-    if useCategories:
+    if use_categories:
         if len(test_categories) == 0 or len(
-                categoriesList & set(test_categories)) == 0:
+                categories_list & set(test_categories)) == 0:
             return True
 
-    for category in skipCategories:
+    for category in skip_categories:
         if category in test_categories:
             return True
 

@@ -30,11 +30,13 @@ llvm_canonicalize_cmake_booleans(
   CLANG_BUILD_EXAMPLES
   CLANG_ENABLE_ARCMT
   CLANG_ENABLE_STATIC_ANALYZER
+  CLANG_SPAWN_CC1
   ENABLE_BACKTRACES
   ENABLE_EXPERIMENTAL_NEW_PASS_MANAGER
   HAVE_LIBZ
   LLVM_ENABLE_PER_TARGET_RUNTIME_DIR
-  LLVM_ENABLE_PLUGINS)
+  LLVM_ENABLE_PLUGINS
+  LLVM_ENABLE_THREADS)
 
 configure_lit_site_cfg(
   ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in
@@ -122,9 +124,11 @@ if( NOT CLANG_BUILT_STANDALONE )
     llvm-cxxfilt
     llvm-dis
     llvm-dwarfdump
+    llvm-ifs
     llvm-lto2
     llvm-modextract
     llvm-nm
+    llvm-objcopy
     llvm-objdump
     llvm-profdata
     llvm-readelf
@@ -147,6 +151,11 @@ if (CLANG_ENABLE_STATIC_ANALYZER)
       )
   endif()
 endif()
+
+# Copy gen_ast_dump_json_test.py to the clang build dir. This allows invoking
+# it without having to pass the --clang= argument
+configure_file(AST/gen_ast_dump_json_test.py
+  ${CLANG_BINARY_DIR}/bin/gen_ast_dump_json_test.py COPYONLY)
 
 add_custom_target(clang-test-depends DEPENDS ${CLANG_TEST_DEPS})
 set_target_properties(clang-test-depends PROPERTIES FOLDER "Clang tests")

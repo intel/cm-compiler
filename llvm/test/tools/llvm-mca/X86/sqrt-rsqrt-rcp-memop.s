@@ -3,6 +3,7 @@
 # RUN: llvm-mca -mtriple=x86_64-unknown-unknown -mcpu=bdver2 -iterations=1 -all-views=false -timeline < %s | FileCheck %s -check-prefix=ALL -check-prefix=BDVER2
 # RUN: llvm-mca -mtriple=x86_64-unknown-unknown -mcpu=btver2 -iterations=1 -all-views=false -timeline < %s | FileCheck %s -check-prefix=ALL -check-prefix=BTVER2
 # RUN: llvm-mca -mtriple=x86_64-unknown-unknown -mcpu=znver1 -iterations=1 -all-views=false -timeline < %s | FileCheck %s -check-prefix=ALL -check-prefix=ZNVER1
+# RUN: llvm-mca -mtriple=x86_64-unknown-unknown -mcpu=znver2 -iterations=1 -all-views=false -timeline < %s | FileCheck %s -check-prefix=ALL -check-prefix=ZNVER2
 # RUN: llvm-mca -mtriple=x86_64-unknown-unknown -mcpu=haswell -iterations=1 -all-views=false -timeline < %s | FileCheck %s -check-prefix=ALL -check-prefix=HASWELL
 # RUN: llvm-mca -mtriple=x86_64-unknown-unknown -mcpu=broadwell -iterations=1 -all-views=false -timeline < %s | FileCheck %s -check-prefix=ALL -check-prefix=BROADWELL
 # RUN: llvm-mca -mtriple=x86_64-unknown-unknown -mcpu=skylake -iterations=1 -all-views=false -timeline < %s | FileCheck %s -check-prefix=ALL -check-prefix=SKYLAKE
@@ -52,6 +53,9 @@ rcpss (%rax), %xmm1
 # ZNVER1-NEXT:                        0123456789          0
 # ZNVER1-NEXT:    Index     0123456789          0123456789
 
+# ZNVER2-NEXT:                        0123456789          0
+# ZNVER2-NEXT:    Index     0123456789          0123456789
+
 # BARCELONA:      [0,0]     DeER .    .    .    .  .   leaq	8(%rsp,%rdi,2), %rax
 # BARCELONA-NEXT: [0,1]     D=eeeeeeeeeeeeeeeeeeeeER   sqrtss	(%rax), %xmm1
 
@@ -73,6 +77,9 @@ rcpss (%rax), %xmm1
 # ZNVER1:         [0,0]     DeER .    .    .    .    .    .   leaq	8(%rsp,%rdi,2), %rax
 # ZNVER1-NEXT:    [0,1]     D=eeeeeeeeeeeeeeeeeeeeeeeeeeeER   sqrtss	(%rax), %xmm1
 
+# ZNVER2:         [0,0]     DeER .    .    .    .    .    .   leaq	8(%rsp,%rdi,2), %rax
+# ZNVER2-NEXT:    [0,1]     D=eeeeeeeeeeeeeeeeeeeeeeeeeeeER   sqrtss	(%rax), %xmm1
+
 # ALL:            Average Wait times (based on the timeline view):
 # ALL-NEXT:       [0]: Executions
 # ALL-NEXT:       [1]: Average time spent waiting in a scheduler's queue
@@ -83,12 +90,28 @@ rcpss (%rax), %xmm1
 # ALL-NEXT:       0.     1     1.0    1.0    0.0       leaq	8(%rsp,%rdi,2), %rax
 
 # BARCELONA-NEXT: 1.     1     2.0    0.0    0.0       sqrtss	(%rax), %xmm1
+# BARCELONA-NEXT:        1     1.5    0.5    0.0       <total>
+
 # BDVER2-NEXT:    1.     1     2.0    0.0    0.0       sqrtss	(%rax), %xmm1
+# BDVER2-NEXT:           1     1.5    0.5    0.0       <total>
+
 # BROADWELL-NEXT: 1.     1     2.0    0.0    0.0       sqrtss	(%rax), %xmm1
+# BROADWELL-NEXT:        1     1.5    0.5    0.0       <total>
+
 # BTVER2-NEXT:    1.     1     3.0    0.0    0.0       sqrtss	(%rax), %xmm1
+# BTVER2-NEXT:           1     2.0    0.5    0.0       <total>
+
 # HASWELL-NEXT:   1.     1     2.0    0.0    0.0       sqrtss	(%rax), %xmm1
+# HASWELL-NEXT:          1     1.5    0.5    0.0       <total>
+
 # SKYLAKE-NEXT:   1.     1     2.0    0.0    0.0       sqrtss	(%rax), %xmm1
+# SKYLAKE-NEXT:          1     1.5    0.5    0.0       <total>
+
 # ZNVER1-NEXT:    1.     1     2.0    0.0    0.0       sqrtss	(%rax), %xmm1
+# ZNVER1-NEXT:           1     1.5    0.5    0.0       <total>
+
+# ZNVER2-NEXT:    1.     1     2.0    0.0    0.0       sqrtss	(%rax), %xmm1
+# ZNVER2-NEXT:           1     1.5    0.5    0.0       <total>
 
 # ALL:            [1] Code Region - test_sqrtsd
 
@@ -115,6 +138,9 @@ rcpss (%rax), %xmm1
 # ZNVER1-NEXT:                        0123456789          0
 # ZNVER1-NEXT:    Index     0123456789          0123456789
 
+# ZNVER2-NEXT:                        0123456789          0
+# ZNVER2-NEXT:    Index     0123456789          0123456789
+
 # BARCELONA:      [0,0]     DeER .    .    .    .    .    .   leaq	8(%rsp,%rdi,2), %rax
 # BARCELONA-NEXT: [0,1]     D=eeeeeeeeeeeeeeeeeeeeeeeeeeeER   sqrtsd	(%rax), %xmm1
 
@@ -136,6 +162,9 @@ rcpss (%rax), %xmm1
 # ZNVER1:         [0,0]     DeER .    .    .    .    .    .   leaq	8(%rsp,%rdi,2), %rax
 # ZNVER1-NEXT:    [0,1]     D=eeeeeeeeeeeeeeeeeeeeeeeeeeeER   sqrtsd	(%rax), %xmm1
 
+# ZNVER2:         [0,0]     DeER .    .    .    .    .    .   leaq	8(%rsp,%rdi,2), %rax
+# ZNVER2-NEXT:    [0,1]     D=eeeeeeeeeeeeeeeeeeeeeeeeeeeER   sqrtsd	(%rax), %xmm1
+
 # ALL:            Average Wait times (based on the timeline view):
 # ALL-NEXT:       [0]: Executions
 # ALL-NEXT:       [1]: Average time spent waiting in a scheduler's queue
@@ -146,12 +175,28 @@ rcpss (%rax), %xmm1
 # ALL-NEXT:       0.     1     1.0    1.0    0.0       leaq	8(%rsp,%rdi,2), %rax
 
 # BARCELONA-NEXT: 1.     1     2.0    0.0    0.0       sqrtsd	(%rax), %xmm1
+# BARCELONA-NEXT:        1     1.5    0.5    0.0       <total>
+
 # BDVER2-NEXT:    1.     1     2.0    0.0    0.0       sqrtsd	(%rax), %xmm1
+# BDVER2-NEXT:           1     1.5    0.5    0.0       <total>
+
 # BROADWELL-NEXT: 1.     1     2.0    0.0    0.0       sqrtsd	(%rax), %xmm1
+# BROADWELL-NEXT:        1     1.5    0.5    0.0       <total>
+
 # BTVER2-NEXT:    1.     1     3.0    0.0    0.0       sqrtsd	(%rax), %xmm1
+# BTVER2-NEXT:           1     2.0    0.5    0.0       <total>
+
 # HASWELL-NEXT:   1.     1     2.0    0.0    0.0       sqrtsd	(%rax), %xmm1
+# HASWELL-NEXT:          1     1.5    0.5    0.0       <total>
+
 # SKYLAKE-NEXT:   1.     1     2.0    0.0    0.0       sqrtsd	(%rax), %xmm1
+# SKYLAKE-NEXT:          1     1.5    0.5    0.0       <total>
+
 # ZNVER1-NEXT:    1.     1     2.0    0.0    0.0       sqrtsd	(%rax), %xmm1
+# ZNVER1-NEXT:           1     1.5    0.5    0.0       <total>
+
+# ZNVER2-NEXT:    1.     1     2.0    0.0    0.0       sqrtsd	(%rax), %xmm1
+# ZNVER2-NEXT:           1     1.5    0.5    0.0       <total>
 
 # ALL:            [2] Code Region - test_rsqrtss
 
@@ -164,6 +209,7 @@ rcpss (%rax), %xmm1
 # HASWELL-NEXT:                       0123
 # SKYLAKE-NEXT:                       012
 # ZNVER1-NEXT:                        012345
+# ZNVER2-NEXT:                        012345
 
 # ALL-NEXT:       Index     0123456789
 
@@ -188,6 +234,9 @@ rcpss (%rax), %xmm1
 # ZNVER1:         [0,0]     DeER .    .    .   leaq	8(%rsp,%rdi,2), %rax
 # ZNVER1-NEXT:    [0,1]     D=eeeeeeeeeeeeER   rsqrtss	(%rax), %xmm1
 
+# ZNVER2:         [0,0]     DeER .    .    .   leaq	8(%rsp,%rdi,2), %rax
+# ZNVER2-NEXT:    [0,1]     D=eeeeeeeeeeeeER   rsqrtss	(%rax), %xmm1
+
 # ALL:            Average Wait times (based on the timeline view):
 # ALL-NEXT:       [0]: Executions
 # ALL-NEXT:       [1]: Average time spent waiting in a scheduler's queue
@@ -198,12 +247,28 @@ rcpss (%rax), %xmm1
 # ALL-NEXT:       0.     1     1.0    1.0    0.0       leaq	8(%rsp,%rdi,2), %rax
 
 # BARCELONA-NEXT: 1.     1     2.0    0.0    0.0       rsqrtss	(%rax), %xmm1
+# BARCELONA-NEXT:        1     1.5    0.5    0.0       <total>
+
 # BDVER2-NEXT:    1.     1     2.0    0.0    0.0       rsqrtss	(%rax), %xmm1
+# BDVER2-NEXT:           1     1.5    0.5    0.0       <total>
+
 # BROADWELL-NEXT: 1.     1     2.0    0.0    0.0       rsqrtss	(%rax), %xmm1
+# BROADWELL-NEXT:        1     1.5    0.5    0.0       <total>
+
 # BTVER2-NEXT:    1.     1     3.0    0.0    0.0       rsqrtss	(%rax), %xmm1
+# BTVER2-NEXT:           1     2.0    0.5    0.0       <total>
+
 # HASWELL-NEXT:   1.     1     2.0    0.0    0.0       rsqrtss	(%rax), %xmm1
+# HASWELL-NEXT:          1     1.5    0.5    0.0       <total>
+
 # SKYLAKE-NEXT:   1.     1     2.0    0.0    0.0       rsqrtss	(%rax), %xmm1
+# SKYLAKE-NEXT:          1     1.5    0.5    0.0       <total>
+
 # ZNVER1-NEXT:    1.     1     2.0    0.0    0.0       rsqrtss	(%rax), %xmm1
+# ZNVER1-NEXT:           1     1.5    0.5    0.0       <total>
+
+# ZNVER2-NEXT:    1.     1     2.0    0.0    0.0       rsqrtss	(%rax), %xmm1
+# ZNVER2-NEXT:           1     1.5    0.5    0.0       <total>
 
 # ALL:            [3] Code Region - test_rcp
 
@@ -216,6 +281,7 @@ rcpss (%rax), %xmm1
 # HASWELL-NEXT:                       0123
 # SKYLAKE-NEXT:                       012
 # ZNVER1-NEXT:                        012345
+# ZNVER2-NEXT:                        012345
 
 # ALL-NEXT:       Index     0123456789
 
@@ -240,6 +306,9 @@ rcpss (%rax), %xmm1
 # ZNVER1:         [0,0]     DeER .    .    .   leaq	8(%rsp,%rdi,2), %rax
 # ZNVER1-NEXT:    [0,1]     D=eeeeeeeeeeeeER   rcpss	(%rax), %xmm1
 
+# ZNVER2:         [0,0]     DeER .    .    .   leaq	8(%rsp,%rdi,2), %rax
+# ZNVER2-NEXT:    [0,1]     D=eeeeeeeeeeeeER   rcpss	(%rax), %xmm1
+
 # ALL:            Average Wait times (based on the timeline view):
 # ALL-NEXT:       [0]: Executions
 # ALL-NEXT:       [1]: Average time spent waiting in a scheduler's queue
@@ -250,9 +319,25 @@ rcpss (%rax), %xmm1
 # ALL-NEXT:       0.     1     1.0    1.0    0.0       leaq	8(%rsp,%rdi,2), %rax
 
 # BARCELONA-NEXT: 1.     1     2.0    0.0    0.0       rcpss	(%rax), %xmm1
+# BARCELONA-NEXT:        1     1.5    0.5    0.0       <total>
+
 # BDVER2-NEXT:    1.     1     2.0    0.0    0.0       rcpss	(%rax), %xmm1
+# BDVER2-NEXT:           1     1.5    0.5    0.0       <total>
+
 # BROADWELL-NEXT: 1.     1     2.0    0.0    0.0       rcpss	(%rax), %xmm1
+# BROADWELL-NEXT:        1     1.5    0.5    0.0       <total>
+
 # BTVER2-NEXT:    1.     1     3.0    0.0    0.0       rcpss	(%rax), %xmm1
+# BTVER2-NEXT:           1     2.0    0.5    0.0       <total>
+
 # HASWELL-NEXT:   1.     1     2.0    0.0    0.0       rcpss	(%rax), %xmm1
+# HASWELL-NEXT:          1     1.5    0.5    0.0       <total>
+
 # SKYLAKE-NEXT:   1.     1     2.0    0.0    0.0       rcpss	(%rax), %xmm1
+# SKYLAKE-NEXT:          1     1.5    0.5    0.0       <total>
+
 # ZNVER1-NEXT:    1.     1     2.0    0.0    0.0       rcpss	(%rax), %xmm1
+# ZNVER1-NEXT:           1     1.5    0.5    0.0       <total>
+
+# ZNVER2-NEXT:    1.     1     2.0    0.0    0.0       rcpss	(%rax), %xmm1
+# ZNVER2-NEXT:           1     1.5    0.5    0.0       <total>

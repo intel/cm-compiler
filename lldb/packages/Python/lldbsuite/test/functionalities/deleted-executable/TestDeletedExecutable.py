@@ -2,11 +2,9 @@
 Test process attach when executable was deleted.
 """
 
-from __future__ import print_function
 
 
 import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -18,7 +16,9 @@ class TestDeletedExecutable(TestBase):
     NO_DEBUG_INFO_TESTCASE = True
 
     @skipIfWindows # cannot delete a running executable
-    @expectedFailureAll(oslist=["linux"]) # determining the architecture of the process fails
+    @expectedFailureAll(oslist=["linux"],
+        triple=no_match('aarch64-.*-android'))
+        # determining the architecture of the process fails
     @expectedFailureNetBSD
     def test(self):
         self.build()

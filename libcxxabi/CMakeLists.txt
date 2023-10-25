@@ -21,7 +21,7 @@ if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR OR LIBCXXABI_STANDALONE_B
   project(libcxxabi CXX C)
 
   set(PACKAGE_NAME libcxxabi)
-  set(PACKAGE_VERSION 9.0.1)
+  set(PACKAGE_VERSION 10.0.1)
   set(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
   set(PACKAGE_BUGREPORT "llvm-bugs@lists.llvm.org")
 
@@ -77,6 +77,11 @@ set(LIBCXXABI_TARGET_TRIPLE "" CACHE STRING "Target triple for cross compiling."
 set(LIBCXXABI_GCC_TOOLCHAIN "" CACHE PATH "GCC toolchain for cross compiling.")
 set(LIBCXXABI_SYSROOT "" CACHE PATH "Sysroot for cross compiling.")
 set(LIBCXXABI_LIBCXX_LIBRARY_PATH "" CACHE PATH "The path to libc++ library.")
+set(LIBCXXABI_LIBRARY_VERSION "1.0" CACHE STRING
+"Version of libc++abi. This will be reflected in the name of the shared \
+library produced. For example, -DLIBCXXABI_LIBRARY_VERSION=x.y will \
+result in the library being named libc++abi.x.y.dylib, along with the \
+usual symlinks pointing to that.")
 
 # Default to building a shared library so that the default options still test
 # the libc++abi that is being built. There are two problems with testing a
@@ -86,6 +91,14 @@ set(LIBCXXABI_LIBCXX_LIBRARY_PATH "" CACHE PATH "The path to libc++ library.")
 # system over a static libc++abi from the output directory.
 option(LIBCXXABI_ENABLE_SHARED "Build libc++abi as a shared library." ON)
 option(LIBCXXABI_ENABLE_STATIC "Build libc++abi as a static library." ON)
+
+option(LIBCXXABI_LINK_TESTS_WITH_SHARED_LIBCXXABI
+       "Whether the libc++abi tests should link with the shared libc++abi library"
+       ${LIBCXXABI_ENABLE_SHARED})
+
+option(LIBCXXABI_LINK_TESTS_WITH_SHARED_LIBCXX
+       "Whether the libc++abi tests should link with the shared libc++ library"
+       ${LIBCXX_ENABLE_SHARED})
 
 cmake_dependent_option(LIBCXXABI_INSTALL_STATIC_LIBRARY
   "Install the static libc++abi library." ON
@@ -108,6 +121,26 @@ option(LIBCXXABI_SILENT_TERMINATE "Set this to make the terminate handler defaul
 
 if (NOT LIBCXXABI_ENABLE_SHARED AND NOT LIBCXXABI_ENABLE_STATIC)
   message(FATAL_ERROR "libc++abi must be built as either a shared or static library.")
+endif()
+
+if(LIBCXXABI_LINK_TESTS_WITH_SHARED_LIBCXXABI AND NOT LIBCXXABI_ENABLE_SHARED)
+  message(FATAL_ERROR "LIBCXXABI_LINK_TESTS_WITH_SHARED_LIBCXXABI being ON requires LIBCXXABI_ENABLE_SHARED to be ON")
+endif()
+
+if(NOT LIBCXXABI_LINK_TESTS_WITH_SHARED_LIBCXXABI AND NOT LIBCXXABI_ENABLE_STATIC)
+  message(FATAL_ERROR "LIBCXXABI_LINK_TESTS_WITH_SHARED_LIBCXXABI being OFF requires LIBCXXABI_ENABLE_STATIC to be ON")
+endif()
+
+if(DEFINED LIBCXX_ENABLE_SHARED 
+   AND LIBCXXABI_LINK_TESTS_WITH_SHARED_LIBCXX
+   AND NOT LIBCXX_ENABLE_SHARED)
+  message(FATAL_ERROR "LIBCXXABI_LINK_TESTS_WITH_SHARED_LIBCXX being ON requires LIBCXX_ENABLE_SHARED to be ON")
+endif()
+
+if(DEFINED LIBCXX_ENABLE_STATIC
+   AND NOT LIBCXXABI_LINK_TESTS_WITH_SHARED_LIBCXX 
+   AND NOT LIBCXX_ENABLE_STATIC)
+  message(FATAL_ERROR "LIBCXXABI_LINK_TESTS_WITH_SHARED_LIBCXX being OFF requires LIBCXX_ENABLE_STATIC to be ON")
 endif()
 
 if (LLVM_EXTERNAL_LIBCXX_SOURCE_DIR)
@@ -204,7 +237,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${LIBCXXABI_LIBRARY_DIR})
 # directory.
 if (NOT LIBCXXABI_LIBCXX_LIBRARY_PATH)
   set(LIBCXXABI_LIBCXX_LIBRARY_PATH "${LIBCXXABI_LIBRARY_DIR}" CACHE PATH
-      "The path to libc++ library.")
+      "The path to libc++ library." FORCE)
 endif()
 
 # Check that we can build with 32 bits if requested.
@@ -265,6 +298,13 @@ include(config-ix)
 
 if (LIBCXXABI_HAS_NOSTDINCXX_FLAG)
   list(APPEND LIBCXXABI_COMPILE_FLAGS -nostdinc++)
+  # cmake 3.14 and above remove system include paths that are explicitly
+  # passed on the command line.  We build with -nostdinc++ and explicitly add
+  # just the libcxx system include paths with -I on the command line.
+  # Setting CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES effectively prevents cmake
+  # from removing these.
+  # See: https://gitlab.kitware.com/cmake/cmake/issues/19227
+  set(CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES "")
   # Remove -stdlib flags to prevent them from causing an unused flag warning.
   string(REPLACE "-stdlib=libc++" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   string(REPLACE "-stdlib=libstdc++" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
@@ -444,7 +484,9 @@ if (LIBCXXABI_BAREMETAL)
 endif()
 
 if (LIBCXXABI_HAS_COMMENT_LIB_PRAGMA)
-  add_definitions(-D_LIBCXXABI_HAS_COMMENT_LIB_PRAGMA)
+  if (LIBCXXABI_HAS_PTHREAD_LIB)
+    add_definitions(-D_LIBCXXABI_LINK_PTHREAD_LIB)
+  endif()
 endif()
 
 string(REPLACE ";" " " LIBCXXABI_CXX_FLAGS "${LIBCXXABI_CXX_FLAGS}")

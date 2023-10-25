@@ -3,12 +3,8 @@ Test that the debugger handles loops in std::list (which can appear as a result 
 corruption).
 """
 
-from __future__ import print_function
 
 
-import os
-import time
-import re
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *

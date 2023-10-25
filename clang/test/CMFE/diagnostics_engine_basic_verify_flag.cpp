@@ -10,4 +10,4 @@ SPDX-License-Identifier: MIT
 
 // RUN: %cmc -emit-llvm -march=SKL -Xclang -verify -- %s
 
-int foo() {} // expected-warning{{control reaches end of non-void function}}
+int foo() {} // expected-warning{{non-void function does not return a value}}

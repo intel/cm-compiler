@@ -2,16 +2,12 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.decorators import *
 import lldbsuite.test.lldbutil as lldbutil
-import os
 import unittest2
 
 
 class TestObjCXXHideRuntimeSupportValues(TestBase):
 
     mydir = TestBase.compute_mydir(__file__)
-
-    def setUp(self):
-        TestBase.setUp(self)
 
     @skipIfFreeBSD
     @skipIfLinux

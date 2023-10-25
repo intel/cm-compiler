@@ -54,7 +54,7 @@ public:
   Kind kind() const { return fileKind; }
 
   // An archive file name if this file is created from an archive.
-  StringRef archiveName;
+  std::string archiveName;
 
   ArrayRef<Symbol *> getSymbols() const { return symbols; }
 
@@ -161,6 +161,10 @@ public:
   void parse();
   std::unique_ptr<llvm::lto::InputFile> obj;
 };
+
+inline bool isBitcode(MemoryBufferRef mb) {
+  return identify_magic(mb.getBuffer()) == llvm::file_magic::bitcode;
+}
 
 // Will report a fatal() error if the input buffer is not a valid bitcode
 // or wasm object file.

@@ -5,7 +5,6 @@ DW_OP_constu(X < 32) to DW_OP_litX which broke the debugger because
 it didn't read the value as an unsigned.
 """
 
-from __future__ import print_function
 
 
 from lldbsuite.test.decorators import *
@@ -25,6 +24,7 @@ class LocalVariablesTestCase(TestBase):
         self.line = line_number(
             self.source, '// Set break point at this line.')
 
+    @skipIfWindows
     def test_c_local_variables(self):
         """Test local variable value."""
         self.build()

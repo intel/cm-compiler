@@ -102,9 +102,9 @@ CM_NODEBUG CM_INLINE void cm_slm_read_scaled(uint slmBuffer,
 template <typename T, int N>
 CM_NODEBUG CM_INLINE void cm_slm_read_scaled(uint slmBuffer,
                                              vector<ushort, N> vAddr,
-                                             vector_ref<T, N> vDst) {
-  CM_DEPRECATED(
-      "Please use 'cm_slm_read_scaled' with 'uint' as the element offset type!")
+                                             vector_ref<T, N> vDst)
+    CM_DEPRECATED("Please use 'cm_slm_read_scaled' with 'uint' as the element "
+                  "offset type!") {
   vector<uint, N> _VAddr = vAddr;
   cm_slm_read_scaled(slmBuffer, _VAddr, vDst);
 }
@@ -120,9 +120,9 @@ CM_NODEBUG CM_INLINE void cm_slm_read(uint slmBuffer, vector<uint, N> vAddr,
 // Deprecated gathering read. Offsets are in element size.
 template <typename T, int N>
 CM_NODEBUG CM_INLINE void cm_slm_read(uint slmBuffer, vector<ushort, N> vAddr,
-                                      vector_ref<T, N> vDst) {
-  CM_DEPRECATED(
-      "Please use 'cm_slm_read_scaled' with 'uint' as the element offset type!")
+                                      vector_ref<T, N> vDst)
+    CM_DEPRECATED("Please use 'cm_slm_read_scaled' with 'uint' as the element "
+                  "offset type!") {
   vector<uint, N> _VAddr = vAddr;
   cm_slm_read(slmBuffer, _VAddr, vDst);
 }
@@ -143,11 +143,10 @@ cm_slm_write_scaled(uint slmBuffer, vector<uint, N> vAddr, vector<T, N> vSrc) {
 
 // Deprecated scattering write. Offsets are in bytes.
 template <typename T, int N>
-CM_NODEBUG CM_INLINE void cm_slm_write_scaled(uint slmBuffer,
-                                              vector<ushort, N> vAddr,
-                                              vector<T, N> vSrc) {
-  CM_DEPRECATED("Please use 'cm_slm_write_scaled' with 'uint' as the element "
-                "offset type!");
+CM_NODEBUG CM_INLINE void
+cm_slm_write_scaled(uint slmBuffer, vector<ushort, N> vAddr, vector<T, N> vSrc)
+    CM_DEPRECATED("Please use 'cm_slm_write_scaled' with 'uint' as the element "
+                  "offset type!") {
   vector<uint, N> _VAddr = vAddr;
   cm_slm_write_scaled(slmBuffer, _VAddr, vSrc);
 }
@@ -163,9 +162,9 @@ CM_NODEBUG CM_INLINE void cm_slm_write(uint slmBuffer, vector<uint, N> vAddr,
 // Deprecated scattering write. Offsets are in element size.
 template <typename T, int N>
 CM_NODEBUG CM_INLINE void cm_slm_write(uint slmBuffer, vector<ushort, N> vAddr,
-                                       vector<T, N> vSrc) {
-  CM_DEPRECATED("Please use 'cm_slm_write_scaled' with 'uint' as the element "
-                "offset type!")
+                                       vector<T, N> vSrc)
+    CM_DEPRECATED("Please use 'cm_slm_write_scaled' with 'uint' as the element "
+                  "offset type!") {
   vector<uint, N> _VAddr = vAddr;
   cm_slm_write(slmBuffer, _VAddr, vSrc);
 }

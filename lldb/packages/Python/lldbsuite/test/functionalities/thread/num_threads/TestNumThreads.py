@@ -2,11 +2,8 @@
 Test number of threads.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
@@ -25,7 +22,6 @@ class NumberOfThreadsTestCase(TestBase):
         self.thread3_notify_all_line = line_number('main.cpp', '// Set thread3 break point on notify_all at this line.')
         self.thread3_before_lock_line = line_number('main.cpp', '// thread3-before-lock')
 
-    @expectedFailureNetBSD
     def test_number_of_threads(self):
         """Test number of threads."""
         self.build()

@@ -7,6 +7,7 @@
 #============================ end_copyright_notice =============================
 
 set(LLVM_LINK_COMPONENTS
+  FrontendOpenMP
   MC
   MCParser
   Support

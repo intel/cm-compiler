@@ -18,7 +18,6 @@
 #define LLVM_CLANG_TOOLS_EXTRA_CLANGD_TRACE_H_
 
 #include "Context.h"
-#include "Function.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
@@ -28,7 +27,7 @@ namespace clangd {
 namespace trace {
 
 /// A consumer of trace events. The events are produced by Spans and trace::log.
-/// Implmentations of this interface must be thread-safe.
+/// Implementations of this interface must be thread-safe.
 class EventTracer {
 public:
   virtual ~EventTracer() = default;

@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT
 
 #include <cm/cm.h>
 
-_GENX_MAIN_ void kernelA(__private float *ptr) { // expected-error{{unsupported function parameter type 'float *'}}
+_GENX_MAIN_ void kernelA(__private float *ptr) { // expected-error{{unsupported function parameter type '__private float *'}}
 }
 
 _GENX_MAIN_ void kernelB(__generic float *ptr) { // expected-error{{unsupported function parameter type '__generic float *'}}

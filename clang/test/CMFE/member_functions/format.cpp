@@ -50,7 +50,7 @@ void test() {
   matrix_ref<short,8,2> r23 = v1.format<short,8,2>();                     // OK
   vector_ref<short,16> r24 = v1.template format<short>();                 // OK
   vector_ref<int,8> r25 = v1.format<char>().format<int>();                // OK
-  matrix_ref<short, 2, 2> r26 = m.format<char,4,2>().format<short,2,2>(); // result too small // expected-error{{format matrix size 8 does not match the source size 32 in bytes}} // expected-error{{expected '(' for function-style cast or type construction}} // expected-error{{expected unqualified-id}} // expected-error{{expected ';' at end of declaration}}
+  matrix_ref<short, 2, 2> r26 = m.format<char,4,2>().format<short,2,2>(); // result too small // expected-error{{format matrix size 8 does not match the source size 32 in bytes}}
 
   int r27 = s1.format;                                                    // no member format in s1 // expected-error{{no member named 'format' in 'S1'}}
   int r28 = s1.format();                                                  // no member format in s1 // expected-error{{no member named 'format' in 'S1'}}

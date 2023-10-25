@@ -410,7 +410,7 @@
 ...
 ---
 name:            test_v2i64_eq
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -443,7 +443,7 @@ body:             |
 ...
 ---
 name:            test_v4i32_eq
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -476,7 +476,7 @@ body:             |
 ...
 ---
 name:            test_v2i32_eq
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -508,7 +508,7 @@ body:             |
 ...
 ---
 name:            test_v2i16_eq
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -571,7 +571,7 @@ body:             |
 ...
 ---
 name:            test_v8i16_eq
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -604,7 +604,7 @@ body:             |
 ...
 ---
 name:            test_v4i16_eq
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -636,7 +636,7 @@ body:             |
 ...
 ---
 name:            test_v16i8_eq
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -668,7 +668,7 @@ body:             |
 ...
 ---
 name:            test_v8i8_eq
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -700,7 +700,7 @@ body:             |
 ...
 ---
 name:            test_v2i64_ne
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -734,7 +734,7 @@ body:             |
 ...
 ---
 name:            test_v4i32_ne
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -768,7 +768,7 @@ body:             |
 ...
 ---
 name:            test_v2i32_ne
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -801,7 +801,7 @@ body:             |
 ...
 ---
 name:            test_v2i16_ne
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -865,7 +865,7 @@ body:             |
 ...
 ---
 name:            test_v8i16_ne
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -899,7 +899,7 @@ body:             |
 ...
 ---
 name:            test_v4i16_ne
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -932,7 +932,7 @@ body:             |
 ...
 ---
 name:            test_v16i8_ne
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -965,7 +965,7 @@ body:             |
 ...
 ---
 name:            test_v8i8_ne
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -998,7 +998,7 @@ body:             |
 ...
 ---
 name:            test_v2i64_ugt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1031,7 +1031,7 @@ body:             |
 ...
 ---
 name:            test_v4i32_ugt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1064,7 +1064,7 @@ body:             |
 ...
 ---
 name:            test_v2i32_ugt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1096,7 +1096,7 @@ body:             |
 ...
 ---
 name:            test_v2i16_ugt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1159,7 +1159,7 @@ body:             |
 ...
 ---
 name:            test_v8i16_ugt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1192,7 +1192,7 @@ body:             |
 ...
 ---
 name:            test_v4i16_ugt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1224,7 +1224,7 @@ body:             |
 ...
 ---
 name:            test_v16i8_ugt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1256,7 +1256,7 @@ body:             |
 ...
 ---
 name:            test_v8i8_ugt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1288,7 +1288,7 @@ body:             |
 ...
 ---
 name:            test_v2i64_uge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1321,7 +1321,7 @@ body:             |
 ...
 ---
 name:            test_v4i32_uge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1354,7 +1354,7 @@ body:             |
 ...
 ---
 name:            test_v2i32_uge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1386,7 +1386,7 @@ body:             |
 ...
 ---
 name:            test_v2i16_uge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1449,7 +1449,7 @@ body:             |
 ...
 ---
 name:            test_v8i16_uge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1482,7 +1482,7 @@ body:             |
 ...
 ---
 name:            test_v4i16_uge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1514,7 +1514,7 @@ body:             |
 ...
 ---
 name:            test_v16i8_uge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1546,7 +1546,7 @@ body:             |
 ...
 ---
 name:            test_v8i8_uge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1578,7 +1578,7 @@ body:             |
 ...
 ---
 name:            test_v2i64_ult
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1611,7 +1611,7 @@ body:             |
 ...
 ---
 name:            test_v4i32_ult
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1644,7 +1644,7 @@ body:             |
 ...
 ---
 name:            test_v2i32_ult
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1676,7 +1676,7 @@ body:             |
 ...
 ---
 name:            test_v2i16_ult
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1739,7 +1739,7 @@ body:             |
 ...
 ---
 name:            test_v8i16_ult
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1772,7 +1772,7 @@ body:             |
 ...
 ---
 name:            test_v4i16_ult
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1804,7 +1804,7 @@ body:             |
 ...
 ---
 name:            test_v16i8_ult
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1836,7 +1836,7 @@ body:             |
 ...
 ---
 name:            test_v8i8_ult
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1868,7 +1868,7 @@ body:             |
 ...
 ---
 name:            test_v2i64_ule
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1901,7 +1901,7 @@ body:             |
 ...
 ---
 name:            test_v4i32_ule
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1934,7 +1934,7 @@ body:             |
 ...
 ---
 name:            test_v2i32_ule
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -1966,7 +1966,7 @@ body:             |
 ...
 ---
 name:            test_v2i16_ule
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2029,7 +2029,7 @@ body:             |
 ...
 ---
 name:            test_v8i16_ule
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2062,7 +2062,7 @@ body:             |
 ...
 ---
 name:            test_v4i16_ule
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2094,7 +2094,7 @@ body:             |
 ...
 ---
 name:            test_v16i8_ule
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2126,7 +2126,7 @@ body:             |
 ...
 ---
 name:            test_v8i8_ule
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2158,7 +2158,7 @@ body:             |
 ...
 ---
 name:            test_v2i64_sgt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2191,7 +2191,7 @@ body:             |
 ...
 ---
 name:            test_v4i32_sgt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2224,7 +2224,7 @@ body:             |
 ...
 ---
 name:            test_v2i32_sgt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2256,7 +2256,7 @@ body:             |
 ...
 ---
 name:            test_v2i16_sgt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2293,17 +2293,17 @@ body:             |
     ; CHECK: [[INSERT_SUBREG:%[0-9]+]]:fpr128 = INSERT_SUBREG [[DEF]], [[MOVi32imm]], %subreg.ssub
     ; CHECK: [[INSvi32gpr:%[0-9]+]]:fpr128 = INSvi32gpr [[INSERT_SUBREG]], 1, [[MOVi32imm]]
     ; CHECK: [[COPY2:%[0-9]+]]:fpr64 = COPY [[INSvi32gpr]].dsub
-    ; CHECK: [[USHLv2i32_:%[0-9]+]]:fpr64 = USHLv2i32 [[COPY]], [[COPY2]]
+    ; CHECK: [[SHLv2i32_shift:%[0-9]+]]:fpr64 = SHLv2i32_shift [[COPY]], 16
     ; CHECK: [[NEGv2i32_:%[0-9]+]]:fpr64 = NEGv2i32 [[COPY2]]
-    ; CHECK: [[SSHLv2i32_:%[0-9]+]]:fpr64 = SSHLv2i32 [[USHLv2i32_]], [[NEGv2i32_]]
+    ; CHECK: [[SSHLv2i32_:%[0-9]+]]:fpr64 = SSHLv2i32 [[SHLv2i32_shift]], [[NEGv2i32_]]
     ; CHECK: [[MOVi32imm1:%[0-9]+]]:gpr32 = MOVi32imm 16
     ; CHECK: [[DEF1:%[0-9]+]]:fpr128 = IMPLICIT_DEF
     ; CHECK: [[INSERT_SUBREG1:%[0-9]+]]:fpr128 = INSERT_SUBREG [[DEF1]], [[MOVi32imm1]], %subreg.ssub
     ; CHECK: [[INSvi32gpr1:%[0-9]+]]:fpr128 = INSvi32gpr [[INSERT_SUBREG1]], 1, [[MOVi32imm1]]
     ; CHECK: [[COPY3:%[0-9]+]]:fpr64 = COPY [[INSvi32gpr1]].dsub
-    ; CHECK: [[USHLv2i32_1:%[0-9]+]]:fpr64 = USHLv2i32 [[COPY1]], [[COPY3]]
+    ; CHECK: [[SHLv2i32_shift1:%[0-9]+]]:fpr64 = SHLv2i32_shift [[COPY1]], 16
     ; CHECK: [[NEGv2i32_1:%[0-9]+]]:fpr64 = NEGv2i32 [[COPY3]]
-    ; CHECK: [[SSHLv2i32_1:%[0-9]+]]:fpr64 = SSHLv2i32 [[USHLv2i32_1]], [[NEGv2i32_1]]
+    ; CHECK: [[SSHLv2i32_1:%[0-9]+]]:fpr64 = SSHLv2i32 [[SHLv2i32_shift1]], [[NEGv2i32_1]]
     ; CHECK: [[CMGTv2i32_:%[0-9]+]]:fpr64 = CMGTv2i32 [[SSHLv2i32_]], [[SSHLv2i32_1]]
     ; CHECK: $d0 = COPY [[CMGTv2i32_]]
     ; CHECK: RET_ReallyLR implicit $d0
@@ -2327,7 +2327,7 @@ body:             |
 ...
 ---
 name:            test_v8i16_sgt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2360,7 +2360,7 @@ body:             |
 ...
 ---
 name:            test_v4i16_sgt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2392,7 +2392,7 @@ body:             |
 ...
 ---
 name:            test_v16i8_sgt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2424,7 +2424,7 @@ body:             |
 ...
 ---
 name:            test_v8i8_sgt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2456,7 +2456,7 @@ body:             |
 ...
 ---
 name:            test_v2i64_sge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2489,7 +2489,7 @@ body:             |
 ...
 ---
 name:            test_v4i32_sge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2522,7 +2522,7 @@ body:             |
 ...
 ---
 name:            test_v2i32_sge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2554,7 +2554,7 @@ body:             |
 ...
 ---
 name:            test_v2i16_sge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2591,17 +2591,17 @@ body:             |
     ; CHECK: [[INSERT_SUBREG:%[0-9]+]]:fpr128 = INSERT_SUBREG [[DEF]], [[MOVi32imm]], %subreg.ssub
     ; CHECK: [[INSvi32gpr:%[0-9]+]]:fpr128 = INSvi32gpr [[INSERT_SUBREG]], 1, [[MOVi32imm]]
     ; CHECK: [[COPY2:%[0-9]+]]:fpr64 = COPY [[INSvi32gpr]].dsub
-    ; CHECK: [[USHLv2i32_:%[0-9]+]]:fpr64 = USHLv2i32 [[COPY]], [[COPY2]]
+    ; CHECK: [[SHLv2i32_shift:%[0-9]+]]:fpr64 = SHLv2i32_shift [[COPY]], 16
     ; CHECK: [[NEGv2i32_:%[0-9]+]]:fpr64 = NEGv2i32 [[COPY2]]
-    ; CHECK: [[SSHLv2i32_:%[0-9]+]]:fpr64 = SSHLv2i32 [[USHLv2i32_]], [[NEGv2i32_]]
+    ; CHECK: [[SSHLv2i32_:%[0-9]+]]:fpr64 = SSHLv2i32 [[SHLv2i32_shift]], [[NEGv2i32_]]
     ; CHECK: [[MOVi32imm1:%[0-9]+]]:gpr32 = MOVi32imm 16
     ; CHECK: [[DEF1:%[0-9]+]]:fpr128 = IMPLICIT_DEF
     ; CHECK: [[INSERT_SUBREG1:%[0-9]+]]:fpr128 = INSERT_SUBREG [[DEF1]], [[MOVi32imm1]], %subreg.ssub
     ; CHECK: [[INSvi32gpr1:%[0-9]+]]:fpr128 = INSvi32gpr [[INSERT_SUBREG1]], 1, [[MOVi32imm1]]
     ; CHECK: [[COPY3:%[0-9]+]]:fpr64 = COPY [[INSvi32gpr1]].dsub
-    ; CHECK: [[USHLv2i32_1:%[0-9]+]]:fpr64 = USHLv2i32 [[COPY1]], [[COPY3]]
+    ; CHECK: [[SHLv2i32_shift1:%[0-9]+]]:fpr64 = SHLv2i32_shift [[COPY1]], 16
     ; CHECK: [[NEGv2i32_1:%[0-9]+]]:fpr64 = NEGv2i32 [[COPY3]]
-    ; CHECK: [[SSHLv2i32_1:%[0-9]+]]:fpr64 = SSHLv2i32 [[USHLv2i32_1]], [[NEGv2i32_1]]
+    ; CHECK: [[SSHLv2i32_1:%[0-9]+]]:fpr64 = SSHLv2i32 [[SHLv2i32_shift1]], [[NEGv2i32_1]]
     ; CHECK: [[CMGEv2i32_:%[0-9]+]]:fpr64 = CMGEv2i32 [[SSHLv2i32_]], [[SSHLv2i32_1]]
     ; CHECK: $d0 = COPY [[CMGEv2i32_]]
     ; CHECK: RET_ReallyLR implicit $d0
@@ -2625,7 +2625,7 @@ body:             |
 ...
 ---
 name:            test_v8i16_sge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2658,7 +2658,7 @@ body:             |
 ...
 ---
 name:            test_v4i16_sge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2690,7 +2690,7 @@ body:             |
 ...
 ---
 name:            test_v16i8_sge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2722,7 +2722,7 @@ body:             |
 ...
 ---
 name:            test_v8i8_sge
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2754,7 +2754,7 @@ body:             |
 ...
 ---
 name:            test_v2i64_slt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2787,7 +2787,7 @@ body:             |
 ...
 ---
 name:            test_v4i32_slt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2820,7 +2820,7 @@ body:             |
 ...
 ---
 name:            test_v2i32_slt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2852,7 +2852,7 @@ body:             |
 ...
 ---
 name:            test_v2i16_slt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2889,17 +2889,17 @@ body:             |
     ; CHECK: [[INSERT_SUBREG:%[0-9]+]]:fpr128 = INSERT_SUBREG [[DEF]], [[MOVi32imm]], %subreg.ssub
     ; CHECK: [[INSvi32gpr:%[0-9]+]]:fpr128 = INSvi32gpr [[INSERT_SUBREG]], 1, [[MOVi32imm]]
     ; CHECK: [[COPY2:%[0-9]+]]:fpr64 = COPY [[INSvi32gpr]].dsub
-    ; CHECK: [[USHLv2i32_:%[0-9]+]]:fpr64 = USHLv2i32 [[COPY]], [[COPY2]]
+    ; CHECK: [[SHLv2i32_shift:%[0-9]+]]:fpr64 = SHLv2i32_shift [[COPY]], 16
     ; CHECK: [[NEGv2i32_:%[0-9]+]]:fpr64 = NEGv2i32 [[COPY2]]
-    ; CHECK: [[SSHLv2i32_:%[0-9]+]]:fpr64 = SSHLv2i32 [[USHLv2i32_]], [[NEGv2i32_]]
+    ; CHECK: [[SSHLv2i32_:%[0-9]+]]:fpr64 = SSHLv2i32 [[SHLv2i32_shift]], [[NEGv2i32_]]
     ; CHECK: [[MOVi32imm1:%[0-9]+]]:gpr32 = MOVi32imm 16
     ; CHECK: [[DEF1:%[0-9]+]]:fpr128 = IMPLICIT_DEF
     ; CHECK: [[INSERT_SUBREG1:%[0-9]+]]:fpr128 = INSERT_SUBREG [[DEF1]], [[MOVi32imm1]], %subreg.ssub
     ; CHECK: [[INSvi32gpr1:%[0-9]+]]:fpr128 = INSvi32gpr [[INSERT_SUBREG1]], 1, [[MOVi32imm1]]
     ; CHECK: [[COPY3:%[0-9]+]]:fpr64 = COPY [[INSvi32gpr1]].dsub
-    ; CHECK: [[USHLv2i32_1:%[0-9]+]]:fpr64 = USHLv2i32 [[COPY1]], [[COPY3]]
+    ; CHECK: [[SHLv2i32_shift1:%[0-9]+]]:fpr64 = SHLv2i32_shift [[COPY1]], 16
     ; CHECK: [[NEGv2i32_1:%[0-9]+]]:fpr64 = NEGv2i32 [[COPY3]]
-    ; CHECK: [[SSHLv2i32_1:%[0-9]+]]:fpr64 = SSHLv2i32 [[USHLv2i32_1]], [[NEGv2i32_1]]
+    ; CHECK: [[SSHLv2i32_1:%[0-9]+]]:fpr64 = SSHLv2i32 [[SHLv2i32_shift1]], [[NEGv2i32_1]]
     ; CHECK: [[CMGTv2i32_:%[0-9]+]]:fpr64 = CMGTv2i32 [[SSHLv2i32_1]], [[SSHLv2i32_]]
     ; CHECK: $d0 = COPY [[CMGTv2i32_]]
     ; CHECK: RET_ReallyLR implicit $d0
@@ -2923,7 +2923,7 @@ body:             |
 ...
 ---
 name:            test_v8i16_slt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2956,7 +2956,7 @@ body:             |
 ...
 ---
 name:            test_v4i16_slt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -2988,7 +2988,7 @@ body:             |
 ...
 ---
 name:            test_v16i8_slt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -3020,7 +3020,7 @@ body:             |
 ...
 ---
 name:            test_v8i8_slt
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -3052,7 +3052,7 @@ body:             |
 ...
 ---
 name:            test_v2i64_sle
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -3085,7 +3085,7 @@ body:             |
 ...
 ---
 name:            test_v4i32_sle
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -3118,7 +3118,7 @@ body:             |
 ...
 ---
 name:            test_v2i32_sle
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -3150,7 +3150,7 @@ body:             |
 ...
 ---
 name:            test_v2i16_sle
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -3187,17 +3187,17 @@ body:             |
     ; CHECK: [[INSERT_SUBREG:%[0-9]+]]:fpr128 = INSERT_SUBREG [[DEF]], [[MOVi32imm]], %subreg.ssub
     ; CHECK: [[INSvi32gpr:%[0-9]+]]:fpr128 = INSvi32gpr [[INSERT_SUBREG]], 1, [[MOVi32imm]]
     ; CHECK: [[COPY2:%[0-9]+]]:fpr64 = COPY [[INSvi32gpr]].dsub
-    ; CHECK: [[USHLv2i32_:%[0-9]+]]:fpr64 = USHLv2i32 [[COPY]], [[COPY2]]
+    ; CHECK: [[SHLv2i32_shift:%[0-9]+]]:fpr64 = SHLv2i32_shift [[COPY]], 16
     ; CHECK: [[NEGv2i32_:%[0-9]+]]:fpr64 = NEGv2i32 [[COPY2]]
-    ; CHECK: [[SSHLv2i32_:%[0-9]+]]:fpr64 = SSHLv2i32 [[USHLv2i32_]], [[NEGv2i32_]]
+    ; CHECK: [[SSHLv2i32_:%[0-9]+]]:fpr64 = SSHLv2i32 [[SHLv2i32_shift]], [[NEGv2i32_]]
     ; CHECK: [[MOVi32imm1:%[0-9]+]]:gpr32 = MOVi32imm 16
     ; CHECK: [[DEF1:%[0-9]+]]:fpr128 = IMPLICIT_DEF
     ; CHECK: [[INSERT_SUBREG1:%[0-9]+]]:fpr128 = INSERT_SUBREG [[DEF1]], [[MOVi32imm1]], %subreg.ssub
     ; CHECK: [[INSvi32gpr1:%[0-9]+]]:fpr128 = INSvi32gpr [[INSERT_SUBREG1]], 1, [[MOVi32imm1]]
     ; CHECK: [[COPY3:%[0-9]+]]:fpr64 = COPY [[INSvi32gpr1]].dsub
-    ; CHECK: [[USHLv2i32_1:%[0-9]+]]:fpr64 = USHLv2i32 [[COPY1]], [[COPY3]]
+    ; CHECK: [[SHLv2i32_shift1:%[0-9]+]]:fpr64 = SHLv2i32_shift [[COPY1]], 16
     ; CHECK: [[NEGv2i32_1:%[0-9]+]]:fpr64 = NEGv2i32 [[COPY3]]
-    ; CHECK: [[SSHLv2i32_1:%[0-9]+]]:fpr64 = SSHLv2i32 [[USHLv2i32_1]], [[NEGv2i32_1]]
+    ; CHECK: [[SSHLv2i32_1:%[0-9]+]]:fpr64 = SSHLv2i32 [[SHLv2i32_shift1]], [[NEGv2i32_1]]
     ; CHECK: [[CMGEv2i32_:%[0-9]+]]:fpr64 = CMGEv2i32 [[SSHLv2i32_1]], [[SSHLv2i32_]]
     ; CHECK: $d0 = COPY [[CMGEv2i32_]]
     ; CHECK: RET_ReallyLR implicit $d0
@@ -3221,7 +3221,7 @@ body:             |
 ...
 ---
 name:            test_v8i16_sle
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -3254,7 +3254,7 @@ body:             |
 ...
 ---
 name:            test_v4i16_sle
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -3286,7 +3286,7 @@ body:             |
 ...
 ---
 name:            test_v16i8_sle
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true
@@ -3318,7 +3318,7 @@ body:             |
 ...
 ---
 name:            test_v8i8_sle
-alignment:       2
+alignment:       4
 legalized:       true
 regBankSelected: true
 tracksRegLiveness: true

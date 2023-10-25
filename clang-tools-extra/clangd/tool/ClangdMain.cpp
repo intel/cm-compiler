@@ -10,7 +10,9 @@
 #include "CodeComplete.h"
 #include "Features.inc"
 #include "Path.h"
+#include "PathMapping.h"
 #include "Protocol.h"
+#include "Shutdown.h"
 #include "Trace.h"
 #include "Transport.h"
 #include "index/Background.h"
@@ -27,12 +29,17 @@
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
+#include <chrono>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 namespace clang {
 namespace clangd {
@@ -263,6 +270,16 @@ list<std::string> TweakList{
     CommaSeparated,
 };
 
+opt<bool> CrossFileRename{
+    "cross-file-rename",
+    cat(Features),
+    desc("Enable cross-file rename feature. Note that this feature is "
+         "experimental and may lead to broken code or incomplete rename "
+         "results"),
+    init(false),
+    Hidden,
+};
+
 opt<unsigned> WorkerThreadsCount{
     "j",
     cat(Misc),
@@ -334,6 +351,18 @@ opt<bool> EnableTestScheme{
     Hidden,
 };
 
+opt<std::string> PathMappingsArg{
+    "path-mappings",
+    cat(Protocol),
+    desc(
+        "Translates between client paths (as seen by a remote editor) and "
+        "server paths (where clangd sees files on disk). "
+        "Comma separated list of '<client_path>=<server_path>' pairs, the "
+        "first entry matching a given path is used. "
+        "e.g. /home/project/incl=/opt/include,/home/project=/workarea/project"),
+    init(""),
+};
+
 opt<Path> InputMirrorFile{
     "input-mirror-file",
     cat(Protocol),
@@ -360,7 +389,9 @@ opt<OffsetEncoding> ForceOffsetEncoding{
     values(
         clEnumValN(OffsetEncoding::UTF8, "utf-8", "Offsets are in UTF-8 bytes"),
         clEnumValN(OffsetEncoding::UTF16, "utf-16",
-                   "Offsets are in UTF-16 code units")),
+                   "Offsets are in UTF-16 code units"),
+        clEnumValN(OffsetEncoding::UTF32, "utf-32",
+                   "Offsets are in unicode codepoints")),
     init(OffsetEncoding::UnsupportedEncoding),
 };
 
@@ -371,7 +402,7 @@ opt<bool> PrettyPrint{
     init(false),
 };
 
-/// \brief Supports a test URI scheme with relaxed constraints for lit tests.
+/// Supports a test URI scheme with relaxed constraints for lit tests.
 /// The path in a test URI will be combined with a platform-specific fake
 /// directory to form an absolute path. For example, test:///a.cpp is resolved
 /// C:\clangd-test\a.cpp on Windows and /clangd-test/a.cpp on Unix.
@@ -432,6 +463,7 @@ int main(int argc, char *argv[]) {
 
   llvm::InitializeAllTargetInfos();
   llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
+  llvm::sys::SetInterruptFunction(&requestShutdown);
   llvm::cl::SetVersionPrinter([](llvm::raw_ostream &OS) {
     OS << clang::getClangToolFullVersion("clangd") << "\n";
   });
@@ -453,8 +485,12 @@ clangd accepts flags on the commandline, and in the CLANGD_FLAGS environment var
     InputStyle = JSONStreamStyle::Delimited;
     LogLevel = Logger::Verbose;
     PrettyPrint = true;
+    // Disable background index on lit tests by default to prevent disk writes.
+    if (!EnableBackgroundIndex.getNumOccurrences())
+      EnableBackgroundIndex = false;
     // Ensure background index makes progress.
-    BackgroundQueue::preventThreadStarvationInTests();
+    else if (EnableBackgroundIndex)
+      BackgroundQueue::preventThreadStarvationInTests();
   }
   if (Test || EnableTestScheme) {
     static URISchemeRegistry::Add<TestScheme> X(
@@ -524,6 +560,10 @@ clangd accepts flags on the commandline, and in the CLANGD_FLAGS environment var
   LoggingSession LoggingSession(Logger);
   // Write some initial logs before we start doing any real work.
   log("{0}", clang::getClangToolFullVersion("clangd"));
+// FIXME: abstract this better, and print PID on windows too.
+#ifndef _WIN32
+  log("PID: {0}", getpid());
+#endif
   {
     SmallString<128> CWD;
     if (auto Err = llvm::sys::fs::current_path(CWD))
@@ -578,7 +618,7 @@ clangd accepts flags on the commandline, and in the CLANGD_FLAGS environment var
   if (EnableIndex && !IndexFile.empty()) {
     // Load the index asynchronously. Meanwhile SwapIndex returns no results.
     SwapIndex *Placeholder;
-    StaticIdx.reset(Placeholder = new SwapIndex(llvm::make_unique<MemIndex>()));
+    StaticIdx.reset(Placeholder = new SwapIndex(std::make_unique<MemIndex>()));
     AsyncIndexLoad = runAsync<void>([Placeholder] {
       if (auto Idx = loadIndex(IndexFile, /*UseDex=*/true))
         Placeholder->reset(std::move(Idx));
@@ -588,6 +628,7 @@ clangd accepts flags on the commandline, and in the CLANGD_FLAGS environment var
   }
   Opts.StaticIndex = StaticIdx.get();
   Opts.AsyncThreadsCount = WorkerThreadsCount;
+  Opts.CrossFileRename = CrossFileRename;
 
   clangd::CodeCompleteOptions CCOpts;
   CCOpts.IncludeIneligibleResults = IncludeIneligibleResults;
@@ -626,7 +667,15 @@ clangd accepts flags on the commandline, and in the CLANGD_FLAGS environment var
         InputMirrorStream ? InputMirrorStream.getPointer() : nullptr,
         PrettyPrint, InputStyle);
   }
-
+  if (!PathMappingsArg.empty()) {
+    auto Mappings = parsePathMappings(PathMappingsArg);
+    if (!Mappings) {
+      elog("Invalid -path-mappings: {0}", Mappings.takeError());
+      return 1;
+    }
+    TransportLayer = createPathMappingTransport(std::move(TransportLayer),
+                                                std::move(*Mappings));
+  }
   // Create an empty clang-tidy option.
   std::mutex ClangTidyOptMu;
   std::unique_ptr<tidy::ClangTidyOptionsProvider>
@@ -634,7 +683,7 @@ clangd accepts flags on the commandline, and in the CLANGD_FLAGS environment var
   if (EnableClangTidy) {
     auto OverrideClangTidyOptions = tidy::ClangTidyOptions::getDefaults();
     OverrideClangTidyOptions.Checks = ClangTidyChecks;
-    ClangTidyOptProvider = llvm::make_unique<tidy::FileOptionsProvider>(
+    ClangTidyOptProvider = std::make_unique<tidy::FileOptionsProvider>(
         tidy::ClangTidyGlobalOptions(),
         /* Default */ tidy::ClangTidyOptions::getDefaults(),
         /* Override */ OverrideClangTidyOptions, FSProvider.getFileSystem());
@@ -664,6 +713,19 @@ clangd accepts flags on the commandline, and in the CLANGD_FLAGS environment var
       /*UseDirBasedCDB=*/CompileArgsFrom == FilesystemCompileArgs,
       OffsetEncodingFromFlag, Opts);
   llvm::set_thread_name("clangd.main");
-  return LSPServer.run() ? 0
-                         : static_cast<int>(ErrorResultCode::NoShutdownRequest);
+  int ExitCode = LSPServer.run()
+                     ? 0
+                     : static_cast<int>(ErrorResultCode::NoShutdownRequest);
+  log("LSP finished, exiting with status {0}", ExitCode);
+
+  // There may still be lingering background threads (e.g. slow requests
+  // whose results will be dropped, background index shutting down).
+  //
+  // These should terminate quickly, and ~ClangdLSPServer blocks on them.
+  // However if a bug causes them to run forever, we want to ensure the process
+  // eventually exits. As clangd isn't directly user-facing, an editor can
+  // "leak" clangd processes. Crashing in this case contains the damage.
+  abortAfterTimeout(std::chrono::minutes(5));
+
+  return ExitCode;
 }

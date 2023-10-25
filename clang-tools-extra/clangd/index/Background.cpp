@@ -7,12 +7,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "index/Background.h"
-#include "ClangdUnit.h"
 #include "Compiler.h"
 #include "Context.h"
 #include "FSProvider.h"
 #include "Headers.h"
 #include "Logger.h"
+#include "ParsedAST.h"
 #include "Path.h"
 #include "SourceCode.h"
 #include "Symbol.h"
@@ -69,13 +69,7 @@ public:
   llvm::StringRef resolve(llvm::StringRef FileURI) {
     auto I = URIToPathCache.try_emplace(FileURI);
     if (I.second) {
-      auto U = URI::parse(FileURI);
-      if (!U) {
-        elog("Failed to parse URI {0}: {1}", FileURI, U.takeError());
-        assert(false && "Failed to parse URI");
-        return "";
-      }
-      auto Path = URI::resolve(*U, HintPath);
+      auto Path = URI::resolve(FileURI, HintPath);
       if (!Path) {
         elog("Failed to resolve URI {0}: {1}", FileURI, Path.takeError());
         assert(false && "Failed to resolve URI");
@@ -144,7 +138,7 @@ BackgroundIndex::BackgroundIndex(
     Context BackgroundContext, const FileSystemProvider &FSProvider,
     const GlobalCompilationDatabase &CDB,
     BackgroundIndexStorage::Factory IndexStorageFactory, size_t ThreadPoolSize)
-    : SwapIndex(llvm::make_unique<MemIndex>()), FSProvider(FSProvider),
+    : SwapIndex(std::make_unique<MemIndex>()), FSProvider(FSProvider),
       CDB(CDB), BackgroundContext(std::move(BackgroundContext)),
       Rebuilder(this, &IndexedSymbols, ThreadPoolSize),
       IndexStorageFactory(std::move(IndexStorageFactory)),
@@ -211,11 +205,7 @@ BackgroundIndex::indexFileTask(tooling::CompileCommand Cmd) {
 }
 
 void BackgroundIndex::boostRelated(llvm::StringRef Path) {
-  namespace types = clang::driver::types;
-  auto Type =
-      types::lookupTypeForExtension(llvm::sys::path::extension(Path).substr(1));
-  // is this a header?
-  if (Type != types::TY_INVALID && types::onlyPrecompileType(Type))
+  if (isHeaderFile(Path))
     Queue.boost(filenameWithoutExtension(Path), IndexBoostedFile);
 }
 
@@ -300,10 +290,10 @@ void BackgroundIndex::update(
       Refs.insert(RefToIDs[R], *R);
     for (const auto *Rel : FileIt.second.Relations)
       Relations.insert(*Rel);
-    auto SS = llvm::make_unique<SymbolSlab>(std::move(Syms).build());
-    auto RS = llvm::make_unique<RefSlab>(std::move(Refs).build());
-    auto RelS = llvm::make_unique<RelationSlab>(std::move(Relations).build());
-    auto IG = llvm::make_unique<IncludeGraph>(
+    auto SS = std::make_unique<SymbolSlab>(std::move(Syms).build());
+    auto RS = std::make_unique<RefSlab>(std::move(Refs).build());
+    auto RelS = std::make_unique<RelationSlab>(std::move(Relations).build());
+    auto IG = std::make_unique<IncludeGraph>(
         getSubGraph(URI::create(Path), Index.Sources.getValue()));
 
     // We need to store shards before updating the index, since the latter
@@ -369,11 +359,11 @@ llvm::Error BackgroundIndex::index(tooling::CompileCommand Cmd) {
   Inputs.FS = std::move(FS);
   Inputs.FS->setCurrentWorkingDirectory(Cmd.Directory);
   Inputs.CompileCommand = std::move(Cmd);
-  auto CI = buildCompilerInvocation(Inputs);
+  IgnoreDiagnostics IgnoreDiags;
+  auto CI = buildCompilerInvocation(Inputs, IgnoreDiags);
   if (!CI)
     return llvm::createStringError(llvm::inconvertibleErrorCode(),
                                    "Couldn't build compiler invocation");
-  IgnoreDiagnostics IgnoreDiags;
   auto Clang = prepareCompilerInstance(std::move(CI), /*Preamble=*/nullptr,
                                        std::move(*Buf), Inputs.FS, IgnoreDiags);
   if (!Clang)
@@ -466,14 +456,14 @@ BackgroundIndex::loadProject(std::vector<std::string> MainFiles) {
         continue;
       auto SS =
           LS.Shard->Symbols
-              ? llvm::make_unique<SymbolSlab>(std::move(*LS.Shard->Symbols))
+              ? std::make_unique<SymbolSlab>(std::move(*LS.Shard->Symbols))
               : nullptr;
       auto RS = LS.Shard->Refs
-                    ? llvm::make_unique<RefSlab>(std::move(*LS.Shard->Refs))
+                    ? std::make_unique<RefSlab>(std::move(*LS.Shard->Refs))
                     : nullptr;
       auto RelS =
           LS.Shard->Relations
-              ? llvm::make_unique<RelationSlab>(std::move(*LS.Shard->Relations))
+              ? std::make_unique<RelationSlab>(std::move(*LS.Shard->Relations))
               : nullptr;
       ShardVersion &SV = ShardVersions[LS.AbsolutePath];
       SV.Digest = LS.Digest;

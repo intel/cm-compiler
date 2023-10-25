@@ -1,12 +1,20 @@
-// RUN: %clang_cc1 -verify -fopenmp -o - %s -Wno-openmp-target -Wuninitialized
-// RUN: %clang_cc1 -verify -fopenmp -std=c++98 -o - %s -Wno-openmp-target -Wuninitialized
-// RUN: %clang_cc1 -verify -fopenmp -std=c++11 -o - %s -Wno-openmp-target -Wuninitialized
+// RUN: %clang_cc1 -verify -fopenmp -o - %s -Wno-openmp-mapping -Wuninitialized
+// RUN: %clang_cc1 -verify -fopenmp -std=c++98 -o - %s -Wno-openmp-mapping -Wuninitialized
+// RUN: %clang_cc1 -verify -fopenmp -std=c++11 -o - %s -Wno-openmp-mapping -Wuninitialized
 
-// RUN: %clang_cc1 -verify -fopenmp-simd -o - %s -Wno-openmp-target -Wuninitialized
-// RUN: %clang_cc1 -verify -fopenmp-simd -std=c++98 -o - %s -Wno-openmp-target -Wuninitialized
-// RUN: %clang_cc1 -verify -fopenmp-simd -std=c++11 -o - %s -Wno-openmp-target -Wuninitialized
+// RUN: %clang_cc1 -verify -fopenmp-simd -o - %s -Wno-openmp-mapping -Wuninitialized
+// RUN: %clang_cc1 -verify -fopenmp-simd -std=c++98 -o - %s -Wno-openmp-mapping -Wuninitialized
+// RUN: %clang_cc1 -verify -fopenmp-simd -std=c++11 -o - %s -Wno-openmp-mapping -Wuninitialized
 
 extern int omp_default_mem_alloc;
+void xxx(int argc) {
+  int fp; // expected-note {{initialize the variable 'fp' to silence this warning}}
+#pragma omp target
+#pragma omp teams reduction(+:fp) // expected-warning {{variable 'fp' is uninitialized when used here}}
+  for (int i = 0; i < 10; ++i)
+    ;
+}
+
 void foo() {
 }
 

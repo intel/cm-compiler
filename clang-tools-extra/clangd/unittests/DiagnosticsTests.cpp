@@ -7,8 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "Annotations.h"
-#include "ClangdUnit.h"
 #include "Diagnostics.h"
+#include "ParsedAST.h"
 #include "Path.h"
 #include "Protocol.h"
 #include "SourceCode.h"
@@ -19,6 +19,7 @@
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticSema.h"
 #include "llvm/Support/ScopedPrinter.h"
+#include "llvm/Support/TargetSelect.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include <algorithm>
@@ -265,6 +266,33 @@ TEST(DiagnosticsTest, ClangTidy) {
           ));
 }
 
+TEST(DiagnosticTest, NoMultipleDiagnosticInFlight) {
+  Annotations Main(R"cpp(
+    template <typename T> struct Foo {
+      T *begin();
+      T *end();
+    };
+    struct LabelInfo {
+      int a;
+      bool b;
+    };
+
+    void f() {
+      Foo<LabelInfo> label_info_map;
+      [[for]] (auto it = label_info_map.begin(); it != label_info_map.end(); ++it) {
+        auto S = *it;
+      }
+    }
+  )cpp");
+  TestTU TU = TestTU::withCode(Main.code());
+  TU.ClangTidyChecks = "modernize-loop-convert";
+  EXPECT_THAT(
+      TU.build().getDiagnostics(),
+      UnorderedElementsAre(::testing::AllOf(
+          Diag(Main.range(), "use range-based for loop instead"),
+          DiagSource(Diag::ClangTidy), DiagName("modernize-loop-convert"))));
+}
+
 TEST(DiagnosticTest, ClangTidySuppressionComment) {
   Annotations Main(R"cpp(
     int main() {
@@ -403,6 +431,15 @@ TEST(DiagnosticsTest, NoFixItInMacro) {
   EXPECT_THAT(TU.build().getDiagnostics(),
               ElementsAre(AllOf(Diag(Test.range(), "'main' must return 'int'"),
                                 Not(WithFix(_)))));
+}
+
+TEST(ClangdTest, MSAsm) {
+  // Parsing MS assembly tries to use the target MCAsmInfo, which we don't link.
+  // We used to crash here. Now clang emits a diagnostic, which we filter out.
+  llvm::InitializeAllTargetInfos(); // As in ClangdMain
+  auto TU = TestTU::withCode("void fn() { __asm { cmp cl,64 } }");
+  TU.ExtraArgs = {"-fms-extensions"};
+  EXPECT_THAT(TU.build().getDiagnostics(), IsEmpty());
 }
 
 TEST(DiagnosticsTest, ToLSP) {
@@ -709,7 +746,10 @@ void bar(X *x) {
 
   auto Parsed = TU.build();
   for (const auto &D : Parsed.getDiagnostics()) {
-    EXPECT_EQ(D.Fixes.size(), 1u);
+    if (D.Fixes.size() != 1) {
+      ADD_FAILURE() << "D.Fixes.size() != 1";
+      continue;
+    }
     EXPECT_EQ(D.Fixes[0].Message,
               std::string("Add include \"a.h\" for symbol X"));
   }
@@ -721,7 +761,10 @@ $insert[[]]namespace ns {
 }
 void g() {  ns::$[[scope]]::X_Y();  }
   )cpp");
-  auto TU = TestTU::withCode(Test.code());
+  TestTU TU;
+  TU.Code = Test.code();
+  // FIXME: Figure out why this is needed and remove it, PR43662.
+  TU.ExtraArgs.push_back("-fno-ms-compatibility");
   auto Index = buildIndexWithSymbol(
       SymbolWithHeader{"ns::scope::X_Y", "unittest:///x.h", "\"x.h\""});
   TU.ExternalIndex = Index.get();
@@ -744,7 +787,10 @@ void f() {
 }
 }
   )cpp");
-  auto TU = TestTU::withCode(Test.code());
+  TestTU TU;
+  TU.Code = Test.code();
+  // FIXME: Figure out why this is needed and remove it, PR43662.
+  TU.ExtraArgs.push_back("-fno-ms-compatibility");
   auto Index = buildIndexWithSymbol(
       {SymbolWithHeader{"clang::clangd::X", "unittest:///x.h", "\"x.h\""},
        SymbolWithHeader{"clang::clangd::ns::Y", "unittest:///y.h", "\"y.h\""}});
@@ -935,7 +981,7 @@ TEST(DiagsInHeaders, OnlyErrorOrFatal) {
                   WithNote(Diag(Header.range(), "error occurred here")))));
 }
 
-TEST(IgnoreDiags, FromNonWrittenSources) {
+TEST(DiagsInHeaders, FromNonWrittenSources) {
   Annotations Main(R"cpp(
     #include [["a.h"]]
     void foo() {})cpp");
@@ -945,11 +991,49 @@ TEST(IgnoreDiags, FromNonWrittenSources) {
   TestTU TU = TestTU::withCode(Main.code());
   TU.AdditionalFiles = {{"a.h", Header.code()}};
   TU.ExtraArgs = {"-DFOO=NOOO"};
-  EXPECT_THAT(TU.build().getDiagnostics(), UnorderedElementsAre());
+  EXPECT_THAT(TU.build().getDiagnostics(),
+              UnorderedElementsAre(AllOf(
+                  Diag(Main.range(),
+                       "in included file: use of undeclared identifier 'NOOO'"),
+                  WithNote(Diag(Header.range(), "error occurred here")))));
+}
+
+TEST(DiagsInHeaders, ErrorFromMacroExpansion) {
+  Annotations Main(R"cpp(
+  void bar() {
+    int fo;
+    #include [["a.h"]]
+  })cpp");
+  Annotations Header(R"cpp(
+  #define X foo
+  X;)cpp");
+  TestTU TU = TestTU::withCode(Main.code());
+  TU.AdditionalFiles = {{"a.h", Header.code()}};
+  EXPECT_THAT(TU.build().getDiagnostics(),
+              UnorderedElementsAre(
+                  Diag(Main.range(), "in included file: use of undeclared "
+                                     "identifier 'foo'; did you mean 'fo'?")));
+}
+
+TEST(DiagsInHeaders, ErrorFromMacroArgument) {
+  Annotations Main(R"cpp(
+  void bar() {
+    int fo;
+    #include [["a.h"]]
+  })cpp");
+  Annotations Header(R"cpp(
+  #define X(arg) arg
+  X(foo);)cpp");
+  TestTU TU = TestTU::withCode(Main.code());
+  TU.AdditionalFiles = {{"a.h", Header.code()}};
+  EXPECT_THAT(TU.build().getDiagnostics(),
+              UnorderedElementsAre(
+                  Diag(Main.range(), "in included file: use of undeclared "
+                                     "identifier 'foo'; did you mean 'fo'?")));
 }
 
 TEST(IgnoreDiags, FromNonWrittenInclude) {
-  TestTU TU = TestTU::withCode("");
+  TestTU TU;
   TU.ExtraArgs.push_back("--include=a.h");
   TU.AdditionalFiles = {{"a.h", "void main();"}};
   // The diagnostic "main must return int" is from the header, we don't attempt
@@ -957,7 +1041,29 @@ TEST(IgnoreDiags, FromNonWrittenInclude) {
   EXPECT_THAT(TU.build().getDiagnostics(), UnorderedElementsAre());
 }
 
-} // namespace
+TEST(ToLSPDiag, RangeIsInMain) {
+  ClangdDiagnosticOptions Opts;
+  clangd::Diag D;
+  D.Range = {pos(1, 2), pos(3, 4)};
+  D.Notes.emplace_back();
+  Note &N = D.Notes.back();
+  N.Range = {pos(2, 3), pos(3, 4)};
 
+  D.InsideMainFile = true;
+  N.InsideMainFile = false;
+  toLSPDiags(D, {}, Opts,
+             [&](clangd::Diagnostic LSPDiag, ArrayRef<clangd::Fix>) {
+               EXPECT_EQ(LSPDiag.range, D.Range);
+             });
+
+  D.InsideMainFile = false;
+  N.InsideMainFile = true;
+  toLSPDiags(D, {}, Opts,
+             [&](clangd::Diagnostic LSPDiag, ArrayRef<clangd::Fix>) {
+               EXPECT_EQ(LSPDiag.range, N.Range);
+             });
+}
+
+} // namespace
 } // namespace clangd
 } // namespace clang

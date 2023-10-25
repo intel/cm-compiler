@@ -2,12 +2,8 @@
 Make sure the getting a variable path works and doesn't crash.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
-import re
 import lldb
 import lldbsuite.test.lldbutil as lldbutil
 from lldbsuite.test.lldbtest import *
@@ -25,10 +21,6 @@ class TestVarPath(TestBase):
     def test_frame_var(self):
         self.build()
         self.do_test()
-
-    def setUp(self):
-        # Call super's setUp().
-        TestBase.setUp(self)
 
     def verify_point(self, frame, var_name, var_typename, x_value, y_value):
         v = frame.GetValueForVariablePath(var_name)

@@ -3,11 +3,8 @@
 Test that the expression parser returns proper Unicode strings.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *

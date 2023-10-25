@@ -257,7 +257,7 @@ SymbolKind indexSymbolKindToSymbolKind(index::SymbolKind Kind) {
     return SymbolKind::Property;
   case index::SymbolKind::Constructor:
   case index::SymbolKind::Destructor:
-    return SymbolKind::Method;
+    return SymbolKind::Constructor;
   case index::SymbolKind::ConversionFunction:
     return SymbolKind::Function;
   case index::SymbolKind::Parameter:
@@ -330,6 +330,10 @@ bool fromJSON(const llvm::json::Value &Params, ClientCapabilities &R) {
             R.OffsetsInSignatureHelp = *OffsetSupport;
         }
       }
+    }
+    if (auto *Rename = TextDocument->getObject("rename")) {
+      if (auto RenameSupport = Rename->getBoolean("prepareSupport"))
+        R.RenamePrepareSupport = *RenameSupport;
     }
   }
   if (auto *Workspace = O->getObject("workspace")) {
@@ -666,6 +670,15 @@ llvm::json::Value toJSON(const ApplyWorkspaceEditParams &Params) {
   return llvm::json::Object{{"edit", Params.edit}};
 }
 
+bool fromJSON(const llvm::json::Value &Response,
+              ApplyWorkspaceEditResponse &R) {
+  llvm::json::ObjectMapper O(Response);
+  if (!O || !O.map("applied", R.applied))
+    return false;
+  O.map("failureReason", R.failureReason);
+  return true;
+}
+
 bool fromJSON(const llvm::json::Value &Params, TextDocumentPositionParams &R) {
   llvm::json::ObjectMapper O(Params);
   return O && O.map("textDocument", R.textDocument) &&
@@ -813,6 +826,7 @@ llvm::json::Value toJSON(const CompletionItem &CI) {
     Result["additionalTextEdits"] = llvm::json::Array(CI.additionalTextEdits);
   if (CI.deprecated)
     Result["deprecated"] = CI.deprecated;
+  Result["score"] = CI.score;
   return std::move(Result);
 }
 
@@ -1050,13 +1064,40 @@ bool operator==(const SemanticHighlightingInformation &Lhs,
 
 llvm::json::Value toJSON(const SemanticHighlightingInformation &Highlighting) {
   return llvm::json::Object{{"line", Highlighting.Line},
-                            {"tokens", Highlighting.Tokens}};
+                            {"tokens", Highlighting.Tokens},
+                            {"isInactive", Highlighting.IsInactive}};
 }
 
 llvm::json::Value toJSON(const SemanticHighlightingParams &Highlighting) {
   return llvm::json::Object{
       {"textDocument", Highlighting.TextDocument},
       {"lines", std::move(Highlighting.Lines)},
+  };
+}
+
+bool fromJSON(const llvm::json::Value &Params, SelectionRangeParams &P) {
+  llvm::json::ObjectMapper O(Params);
+  return O && O.map("textDocument", P.textDocument) &&
+         O.map("positions", P.positions);
+}
+
+llvm::json::Value toJSON(const SelectionRange &Out) {
+  if (Out.parent) {
+    return llvm::json::Object{{"range", Out.range},
+                              {"parent", toJSON(*Out.parent)}};
+  }
+  return llvm::json::Object{{"range", Out.range}};
+}
+
+bool fromJSON(const llvm::json::Value &Params, DocumentLinkParams &R) {
+  llvm::json::ObjectMapper O(Params);
+  return O && O.map("textDocument", R.textDocument);
+}
+
+llvm::json::Value toJSON(const DocumentLink &DocumentLink) {
+  return llvm::json::Object{
+      {"range", DocumentLink.range},
+      {"target", DocumentLink.target},
   };
 }
 

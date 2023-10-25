@@ -215,7 +215,7 @@ static void genMarkdown(const RecordInfo &I, llvm::raw_ostream &OS) {
 
   if (!I.Members.empty()) {
     writeHeader("Members", 2, OS);
-    for (const auto Member : I.Members) {
+    for (const auto &Member : I.Members) {
       std::string Access = getAccess(Member.Access);
       if (Access != "")
         writeLine(Access + " " + Member.Type.Name + " " + Member.Name, OS);
@@ -250,12 +250,14 @@ class MDGenerator : public Generator {
 public:
   static const char *Format;
 
-  llvm::Error generateDocForInfo(Info *I, llvm::raw_ostream &OS) override;
+  llvm::Error generateDocForInfo(Info *I, llvm::raw_ostream &OS,
+                                 const ClangDocContext &CDCtx) override;
 };
 
 const char *MDGenerator::Format = "md";
 
-llvm::Error MDGenerator::generateDocForInfo(Info *I, llvm::raw_ostream &OS) {
+llvm::Error MDGenerator::generateDocForInfo(Info *I, llvm::raw_ostream &OS,
+                                            const ClangDocContext &CDCtx) {
   switch (I->IT) {
   case InfoType::IT_namespace:
     genMarkdown(*static_cast<clang::doc::NamespaceInfo *>(I), OS);
@@ -270,8 +272,8 @@ llvm::Error MDGenerator::generateDocForInfo(Info *I, llvm::raw_ostream &OS) {
     genMarkdown(*static_cast<clang::doc::FunctionInfo *>(I), OS);
     break;
   case InfoType::IT_default:
-    return llvm::make_error<llvm::StringError>("Unexpected info type.\n",
-                                               llvm::inconvertibleErrorCode());
+    return createStringError(llvm::inconvertibleErrorCode(),
+                             "unexpected InfoType");
   }
   return llvm::Error::success();
 }

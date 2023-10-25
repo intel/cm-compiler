@@ -2,12 +2,8 @@
 Read in a library with a version number of 0.0.0, make sure we produce a good version.
 """
 
-from __future__ import print_function
 
 
-import os
-import time
-import re
 import lldb
 from lldbsuite.test import decorators
 import lldbsuite.test.lldbutil as lldbutil
@@ -27,10 +23,6 @@ class TestGetVersionForZero(TestBase):
         """Read in a library with a version of 0.0.0.  Test SBModule::GetVersion"""
         self.yaml2obj("libDylib.dylib.yaml", self.getBuildArtifact("libDylib.dylib"))
         self.do_test()
-
-    def setUp(self):
-        # Call super's setUp().
-        TestBase.setUp(self)
 
     def do_test(self):
         lib_name = "libDylib.dylib"

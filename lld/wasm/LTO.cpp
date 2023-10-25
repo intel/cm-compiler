@@ -36,9 +36,9 @@
 #include <vector>
 
 using namespace llvm;
-using namespace lld;
-using namespace lld::wasm;
 
+namespace lld {
+namespace wasm {
 static std::unique_ptr<lto::LTO> createLTO() {
   lto::Config c;
   c.Options = initTargetOptionsFromCodeGenFlags();
@@ -67,7 +67,7 @@ static std::unique_ptr<lto::LTO> createLTO() {
   lto::ThinBackend backend;
   if (config->thinLTOJobs != -1U)
     backend = lto::createInProcessThinBackend(config->thinLTOJobs);
-  return llvm::make_unique<lto::LTO>(std::move(c), backend,
+  return std::make_unique<lto::LTO>(std::move(c), backend,
                                      config->ltoPartitions);
 }
 
@@ -77,9 +77,8 @@ BitcodeCompiler::~BitcodeCompiler() = default;
 
 static void undefine(Symbol *s) {
   if (auto f = dyn_cast<DefinedFunction>(s))
-    replaceSymbol<UndefinedFunction>(f, f->getName(), f->getName(),
-                                     defaultModule, 0,
-                                     f->getFile(), f->signature);
+    replaceSymbol<UndefinedFunction>(f, f->getName(), "", "", 0, f->getFile(),
+                                     f->signature);
   else if (isa<DefinedData>(s))
     replaceSymbol<UndefinedData>(s, s->getName(), 0, s->getFile());
   else
@@ -105,6 +104,7 @@ void BitcodeCompiler::add(BitcodeFile &f) {
     // be removed.
     r.Prevailing = !objSym.isUndefined() && sym->getFile() == &f;
     r.VisibleToRegularObj = config->relocatable || sym->isUsedInRegularObj ||
+                            sym->isNoStrip() ||
                             (r.Prevailing && sym->isExported());
     if (r.Prevailing)
       undefine(sym);
@@ -137,8 +137,8 @@ std::vector<StringRef> BitcodeCompiler::compile() {
 
   checkError(ltoObj->run(
       [&](size_t task) {
-        return llvm::make_unique<lto::NativeObjectStream>(
-            llvm::make_unique<raw_svector_ostream>(buf[task]));
+        return std::make_unique<lto::NativeObjectStream>(
+            std::make_unique<raw_svector_ostream>(buf[task]));
       },
       cache));
 
@@ -164,3 +164,6 @@ std::vector<StringRef> BitcodeCompiler::compile() {
 
   return ret;
 }
+
+} // namespace wasm
+} // namespace lld

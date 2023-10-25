@@ -412,9 +412,8 @@ void SystemRuntimeMacOSX::ReadLibdispatchTSDIndexes() {
 #endif
 
     ClangASTContext *ast_ctx =
-        m_process->GetTarget().GetScratchClangASTContext();
-    if (ast_ctx->getASTContext() &&
-        m_dispatch_tsd_indexes_addr != LLDB_INVALID_ADDRESS) {
+        ClangASTContext::GetScratch(m_process->GetTarget());
+    if (m_dispatch_tsd_indexes_addr != LLDB_INVALID_ADDRESS) {
       CompilerType uint16 =
           ast_ctx->GetBuiltinTypeForEncodingAndBitSize(eEncodingUint, 16);
       CompilerType dispatch_tsd_indexes_s = ast_ctx->CreateRecordType(
@@ -579,9 +578,9 @@ bool SystemRuntimeMacOSX::BacktraceRecordingHeadersInitialized() {
   static ConstString introspection_dispatch_queue_info_version(
       "__introspection_dispatch_queue_info_version");
   SymbolContextList sc_list;
-  if (m_process->GetTarget().GetImages().FindSymbolsWithNameAndType(
-          introspection_dispatch_queue_info_version, eSymbolTypeData, sc_list) >
-      0) {
+  m_process->GetTarget().GetImages().FindSymbolsWithNameAndType(
+      introspection_dispatch_queue_info_version, eSymbolTypeData, sc_list);
+  if (!sc_list.IsEmpty()) {
     SymbolContext sc;
     sc_list.GetContextAtIndex(0, sc);
     AddressRange addr_range;
@@ -593,9 +592,9 @@ bool SystemRuntimeMacOSX::BacktraceRecordingHeadersInitialized() {
 
   static ConstString introspection_dispatch_queue_info_data_offset(
       "__introspection_dispatch_queue_info_data_offset");
-  if (m_process->GetTarget().GetImages().FindSymbolsWithNameAndType(
-          introspection_dispatch_queue_info_data_offset, eSymbolTypeData,
-          sc_list) > 0) {
+  m_process->GetTarget().GetImages().FindSymbolsWithNameAndType(
+      introspection_dispatch_queue_info_data_offset, eSymbolTypeData, sc_list);
+  if (!sc_list.IsEmpty()) {
     SymbolContext sc;
     sc_list.GetContextAtIndex(0, sc);
     AddressRange addr_range;
@@ -607,9 +606,9 @@ bool SystemRuntimeMacOSX::BacktraceRecordingHeadersInitialized() {
 
   static ConstString introspection_dispatch_item_info_version(
       "__introspection_dispatch_item_info_version");
-  if (m_process->GetTarget().GetImages().FindSymbolsWithNameAndType(
-          introspection_dispatch_item_info_version, eSymbolTypeData, sc_list) >
-      0) {
+  m_process->GetTarget().GetImages().FindSymbolsWithNameAndType(
+      introspection_dispatch_item_info_version, eSymbolTypeData, sc_list);
+  if (!sc_list.IsEmpty()) {
     SymbolContext sc;
     sc_list.GetContextAtIndex(0, sc);
     AddressRange addr_range;
@@ -621,9 +620,9 @@ bool SystemRuntimeMacOSX::BacktraceRecordingHeadersInitialized() {
 
   static ConstString introspection_dispatch_item_info_data_offset(
       "__introspection_dispatch_item_info_data_offset");
-  if (m_process->GetTarget().GetImages().FindSymbolsWithNameAndType(
-          introspection_dispatch_item_info_data_offset, eSymbolTypeData,
-          sc_list) > 0) {
+  m_process->GetTarget().GetImages().FindSymbolsWithNameAndType(
+      introspection_dispatch_item_info_data_offset, eSymbolTypeData, sc_list);
+  if (!sc_list.IsEmpty()) {
     SymbolContext sc;
     sc_list.GetContextAtIndex(0, sc);
     AddressRange addr_range;
@@ -927,13 +926,13 @@ void SystemRuntimeMacOSX::PopulateQueuesUsingLibBTR(
       offset_t start_of_next_item = start_of_this_item + offset_to_next;
       offset = start_of_next_item;
 
-      if (log)
-        log->Printf("SystemRuntimeMacOSX::PopulateQueuesUsingLibBTR added "
-                    "queue with dispatch_queue_t 0x%" PRIx64
-                    ", serial number 0x%" PRIx64
-                    ", running items %d, pending items %d, name '%s'",
-                    queue, serialnum, running_work_items_count,
-                    pending_work_items_count, queue_label);
+      LLDB_LOGF(log,
+                "SystemRuntimeMacOSX::PopulateQueuesUsingLibBTR added "
+                "queue with dispatch_queue_t 0x%" PRIx64
+                ", serial number 0x%" PRIx64
+                ", running items %d, pending items %d, name '%s'",
+                queue, serialnum, running_work_items_count,
+                pending_work_items_count, queue_label);
 
       QueueSP queue_sp(
           new Queue(m_process->shared_from_this(), serialnum, queue_label));

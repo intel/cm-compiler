@@ -1,11 +1,9 @@
 """
 Test breakpoint command with AT_comp_dir set to symbolic link.
 """
-from __future__ import print_function
 
 
 import os
-import shutil
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *

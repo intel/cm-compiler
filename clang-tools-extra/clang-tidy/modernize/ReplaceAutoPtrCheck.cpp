@@ -24,7 +24,7 @@ namespace {
 static const char AutoPtrTokenId[] = "AutoPrTokenId";
 static const char AutoPtrOwnershipTransferId[] = "AutoPtrOwnershipTransferId";
 
-/// \brief Matches expressions that are lvalues.
+/// Matches expressions that are lvalues.
 ///
 /// In the following example, a[0] matches expr(isLValue()):
 /// \code
@@ -114,7 +114,7 @@ void ReplaceAutoPtrCheck::registerMatchers(MatchFinder *Finder) {
                      this);
 
   // Find ownership transfers via copy construction and assignment.
-  // AutoPtrOwnershipTransferId is bound to the the part that has to be wrapped
+  // AutoPtrOwnershipTransferId is bound to the part that has to be wrapped
   // into std::move().
   //   std::auto_ptr<int> i, j;
   //   i = j;
@@ -140,7 +140,7 @@ void ReplaceAutoPtrCheck::registerPPCallbacks(const SourceManager &SM,
   // benign.
   if (!getLangOpts().CPlusPlus)
     return;
-  Inserter = llvm::make_unique<utils::IncludeInserter>(SM, getLangOpts(),
+  Inserter = std::make_unique<utils::IncludeInserter>(SM, getLangOpts(),
                                                        IncludeStyle);
   PP->addPPCallbacks(Inserter->CreatePPCallbacks());
 }

@@ -20,7 +20,7 @@
 #include <string>
 #include <memory>
 
-#include "variant_test_helpers.hpp"
+#include "variant_test_helpers.h"
 
 int main(int, char**)
 {
@@ -40,4 +40,5 @@ int main(int, char**)
   static_assert(!std::is_assignable<std::variant<bool>, std::unique_ptr<char> >::value, "");
   static_assert(!std::is_assignable<std::variant<bool>, decltype(nullptr)>::value, "");
 
+  return 0;
 }

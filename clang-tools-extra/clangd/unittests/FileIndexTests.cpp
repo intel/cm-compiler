@@ -8,7 +8,8 @@
 
 #include "AST.h"
 #include "Annotations.h"
-#include "ClangdUnit.h"
+#include "Compiler.h"
+#include "ParsedAST.h"
 #include "SyncAPI.h"
 #include "TestFS.h"
 #include "TestTU.h"
@@ -67,7 +68,7 @@ std::unique_ptr<SymbolSlab> numSlab(int Begin, int End) {
   SymbolSlab::Builder Slab;
   for (int i = Begin; i <= End; i++)
     Slab.insert(symbol(std::to_string(i)));
-  return llvm::make_unique<SymbolSlab>(std::move(Slab).build());
+  return std::make_unique<SymbolSlab>(std::move(Slab).build());
 }
 
 std::unique_ptr<RefSlab> refSlab(const SymbolID &ID, const char *Path) {
@@ -76,7 +77,7 @@ std::unique_ptr<RefSlab> refSlab(const SymbolID &ID, const char *Path) {
   R.Location.FileURI = Path;
   R.Kind = RefKind::Reference;
   Slab.insert(ID, R);
-  return llvm::make_unique<RefSlab>(std::move(Slab).build());
+  return std::make_unique<RefSlab>(std::move(Slab).build());
 }
 
 TEST(FileSymbolsTest, UpdateAndGet) {
@@ -106,7 +107,7 @@ TEST(FileSymbolsTest, MergeOverlap) {
   auto OneSymboSlab = [](Symbol Sym) {
     SymbolSlab::Builder S;
     S.insert(Sym);
-    return llvm::make_unique<SymbolSlab>(std::move(S).build());
+    return std::make_unique<SymbolSlab>(std::move(S).build());
   };
   auto X1 = symbol("x");
   X1.CanonicalDeclaration.FileURI = "file:///x1";
@@ -280,7 +281,8 @@ TEST(FileIndexTest, RebuildWithPreamble) {
   )cpp";
 
   // Rebuild the file.
-  auto CI = buildCompilerInvocation(PI);
+  IgnoreDiagnostics IgnoreDiags;
+  auto CI = buildCompilerInvocation(PI, IgnoreDiags);
 
   FileIndex Index;
   bool IndexUpdated = false;
@@ -343,6 +345,40 @@ TEST(FileIndexTest, Refs) {
                              FileURI("unittest:///test2.cc"))}));
 }
 
+TEST(FileIndexTest, MacroRefs) {
+  Annotations HeaderCode(R"cpp(
+    #define $def1[[HEADER_MACRO]](X) (X+1)
+  )cpp");
+  Annotations MainCode(R"cpp(
+  #define $def2[[MAINFILE_MACRO]](X) (X+1)
+  void f() {
+    int a = $ref1[[HEADER_MACRO]](2);
+    int b = $ref2[[MAINFILE_MACRO]](1);
+  }
+  )cpp");
+
+  FileIndex Index;
+  // Add test.cc
+  TestTU Test;
+  Test.HeaderCode = HeaderCode.code();
+  Test.Code = MainCode.code();
+  Test.Filename = "test.cc";
+  auto AST = Test.build();
+  Index.updateMain(Test.Filename, AST);
+
+  auto HeaderMacro = findSymbol(Test.headerSymbols(), "HEADER_MACRO");
+  EXPECT_THAT(getRefs(Index, HeaderMacro.ID),
+              RefsAre({AllOf(RefRange(MainCode.range("ref1")),
+                             FileURI("unittest:///test.cc"))}));
+
+  auto MainFileMacro = findSymbol(Test.headerSymbols(), "MAINFILE_MACRO");
+  EXPECT_THAT(getRefs(Index, MainFileMacro.ID),
+              RefsAre({AllOf(RefRange(MainCode.range("def2")),
+                             FileURI("unittest:///test.cc")),
+                       AllOf(RefRange(MainCode.range("ref2")),
+                             FileURI("unittest:///test.cc"))}));
+}
+
 TEST(FileIndexTest, CollectMacros) {
   FileIndex M;
   update(M, "f", "#define CLANGD 1");
@@ -362,7 +398,7 @@ TEST(FileIndexTest, Relations) {
   uint32_t Results = 0;
   RelationsRequest Req;
   Req.Subjects.insert(A);
-  Req.Predicate = index::SymbolRole::RelationBaseOf;
+  Req.Predicate = RelationKind::BaseOf;
   Index.relations(Req, [&](const SymbolID &, const Symbol &) { ++Results; });
   EXPECT_EQ(Results, 1u);
 }

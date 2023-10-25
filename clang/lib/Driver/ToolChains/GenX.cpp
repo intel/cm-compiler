@@ -140,6 +140,7 @@ GenX::GenX(const Driver &D, const llvm::Triple &Triple, const ArgList &Args)
 }
 
 Tool *GenX::buildAssembler() const { return new tools::GenX::Assemble(*this); }
+Tool *GenX::buildLinker() const { return new tools::GenX::Linker(*this); }
 
 bool GenX::isPICDefaultForced() const { return false; }
 

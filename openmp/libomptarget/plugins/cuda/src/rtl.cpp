@@ -34,24 +34,22 @@ static int DebugLevel = 0;
       DEBUGP("Target " GETNAME(TARGET_NAME) " RTL", __VA_ARGS__); \
     } \
   } while (false)
+
+// Utility for retrieving and printing CUDA error string.
+#define CUDA_ERR_STRING(err) \
+  do { \
+    if (DebugLevel > 0) { \
+      const char *errStr; \
+      cuGetErrorString(err, &errStr); \
+      DEBUGP("Target " GETNAME(TARGET_NAME) " RTL", "CUDA error is: %s\n", errStr); \
+    } \
+  } while (false)
 #else // OMPTARGET_DEBUG
 #define DP(...) {}
+#define CUDA_ERR_STRING(err) {}
 #endif // OMPTARGET_DEBUG
 
 #include "../../common/elf_common.c"
-
-// Utility for retrieving and printing CUDA error string.
-#ifdef CUDA_ERROR_REPORT
-#define CUDA_ERR_STRING(err)                                                   \
-  do {                                                                         \
-    const char *errStr;                                                        \
-    cuGetErrorString(err, &errStr);                                            \
-    DP("CUDA error is: %s\n", errStr);                                         \
-  } while (0)
-#else
-#define CUDA_ERR_STRING(err)                                                   \
-  {}
-#endif
 
 /// Keep entries table per device.
 struct FuncOrGblEntryTy {
@@ -66,7 +64,7 @@ enum ExecutionModeType {
   NONE
 };
 
-/// Use a single entity to encode a kernel and a set of flags
+/// Use a single entity to encode a kernel and a set of flags.
 struct KernelTy {
   CUfunction Func;
 
@@ -79,7 +77,7 @@ struct KernelTy {
       : Func(_Func), ExecutionMode(_ExecutionMode) {}
 };
 
-/// Device envrionment data
+/// Device environment data
 /// Manually sync with the deviceRTL side for now, move to a dedicated header file later.
 struct omptarget_device_environmentTy {
   int32_t debug_level;
@@ -453,7 +451,7 @@ __tgt_target_table *__tgt_rtl_load_binary(int32_t device_id,
       // memory is activated via the requires directive, the variable
       // can be used directly from the host in both cases.
       // TODO: when variables types other than to or link are added,
-      // the below condition should be changed to explicitely
+      // the below condition should be changed to explicitly
       // check for to and link variables types:
       //  (DeviceInfo.RequiresFlags & OMP_REQ_UNIFIED_SHARED_MEMORY &&
       //   (e->flags & OMP_DECLARE_TARGET_LINK ||
@@ -567,7 +565,7 @@ __tgt_target_table *__tgt_rtl_load_binary(int32_t device_id,
       DP("Sending global device environment data %zu bytes\n", (size_t)cusize);
     } else {
       DP("Finding global device environment '%s' - symbol missing.\n", device_env_Name);
-      DP("Continue, considering this is a device RTL which does not accept envrionment setting.\n");
+      DP("Continue, considering this is a device RTL which does not accept environment setting.\n");
     }
   }
 

@@ -1,10 +1,5 @@
 """Test printing ivars and ObjC objects captured in blocks that are made in methods of an ObjC class."""
 
-from __future__ import print_function
-
-
-import os
-import time
 import lldb
 from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
