@@ -452,13 +452,17 @@ CM_INLINE void cm_vector_assign(vector_ref<T, Size> v, int InitValue, int Step);
  * are macros! */
 #define cm_matrix(M, T, R, C, I, S)                                            \
   matrix<T, R, C> M(cmtl::__CM_init_array_0_7);                                \
-  cmtl::__VectorInit<(R * C / 8) * 8, T, R * C, I, S> Init;                    \
-  Init.__CM_vector_init(M.format<T>());
+  do {                                                                         \
+    cmtl::__VectorInit<(R * C / 8) * 8, T, R * C, I, S> Init;                  \
+    Init.__CM_vector_init(M.format<T>());                                      \
+  } while (0)
 
 #define cm_vector(V, T, N, I, S)                                               \
   vector<T, N> V(cmtl::__CM_init_array_0_7);                                   \
-  cmtl::__VectorInit<(N / 8) * 8, T, N, I, S> Init;                            \
-  Init.__CM_vector_init(V);
+  do {                                                                         \
+    cmtl::__VectorInit<(N / 8) * 8, T, N, I, S> Init;                          \
+    Init.__CM_vector_init(V);                                                  \
+  } while (0)
 
 /* ------------------------- Extended Math Routines
  * ----------------------------------------------*/
