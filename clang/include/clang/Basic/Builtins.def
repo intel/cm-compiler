@@ -16,6 +16,8 @@ SPDX-License-Identifier: MIT
 //
 // This file defines the standard builtin function database.  Users of this file
 // must define the BUILTIN macro to make use of this information.
+//
+//===----------------------------------------------------------------------===//
 
 // FIXME: This should really be a .td file, but that requires modifying tblgen.
 // Perhaps tblgen should have plugins.

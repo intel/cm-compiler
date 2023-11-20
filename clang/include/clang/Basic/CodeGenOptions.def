@@ -19,6 +19,8 @@ SPDX-License-Identifier: MIT
 // Optionally, the user may also define ENUM_CODEGENOPT (for options
 // that have enumeration type and VALUE_CODEGENOPT is a code
 // generation option that describes a value rather than a flag.
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef CODEGENOPT
 #  error Define the CODEGENOPT macro to handle language options

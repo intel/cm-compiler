@@ -16,6 +16,8 @@ SPDX-License-Identifier: MIT
 //
 // This file defines the ParsedAttr class, which is used to collect
 // parsed attributes.
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_SEMA_ATTRIBUTELIST_H
 #define LLVM_CLANG_SEMA_ATTRIBUTELIST_H

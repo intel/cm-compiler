@@ -37,6 +37,8 @@ SPDX-License-Identifier: MIT
 //
 //    SHARED_SINGLETON_TYPE(Expansion) - The given expansion corresponds
 //    to a builtin which uses a shared singleton type.
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef SIGNED_TYPE
 #define SIGNED_TYPE(Id, SingletonId) BUILTIN_TYPE(Id, SingletonId)

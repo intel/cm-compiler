@@ -16,6 +16,8 @@ SPDX-License-Identifier: MIT
 //
 // This file defines the driver type information. Users of this file
 // must define the TYPE macro to make use of this information.
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef TYPE
 #error "Define TYPE prior to including this file!"

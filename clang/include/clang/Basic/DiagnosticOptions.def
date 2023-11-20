@@ -21,6 +21,8 @@ SPDX-License-Identifier: MIT
 // describe a value rather than a flag). The SEMANTIC_* variants of these macros
 // indicate options that affect the processing of the program, rather than
 // simply the output.
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef DIAGOPT
 #  error Define the DIAGOPT macro to handle language options

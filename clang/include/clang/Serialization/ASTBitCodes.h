@@ -15,9 +15,12 @@ SPDX-License-Identifier: MIT
 //===----------------------------------------------------------------------===//
 //
 // This header defines Bitcode enum values for Clang serialized AST files.
+//
 // The enum values defined in this file should be considered permanent.  If
 // new features are added, they should have values added at the end of the
 // respective lists.
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_SERIALIZATION_ASTBITCODES_H
 #define LLVM_CLANG_SERIALIZATION_ASTBITCODES_H

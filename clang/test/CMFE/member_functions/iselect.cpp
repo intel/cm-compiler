@@ -52,8 +52,8 @@ void test() {
   vector<int,6> r23 = m.iselect(idx1,idx3).iselect(idx3);       // OK // expected-error{{matrix iselect row and column index size must be the same, 4 != 6}}
   vector<int,6> r24 = m.iselect(idx1,idx2).iselect(idx2,idx1);  // one index expected // expected-error{{vector iselect expects 1 index expression}}
 
-  v.iselect(idx3);                                      // expression result unused // fixme-expected-warning{{expression result unused}}
-  m.iselect(idx1,idx2);                                 // expression result unused // fixme-expected-warning{{expression result unused}}
+  v.iselect(idx3);                                      // expression result unused // expected-warning{{expression result unused}}
+  m.iselect(idx1,idx2);                                 // expression result unused // expected-warning{{expression result unused}}
   v.iselect(idx1) = 9;                                  // not assignable // expected-error{{expression is not assignable}}
   m.iselect(idx1,idx2) = 1;                             // not assignable // expected-error{{expression is not assignable}}
 

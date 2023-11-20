@@ -8,6 +8,8 @@
 //
 // Statement/expression deserialization.  This implements the
 // ASTReader::ReadStmt method.
+//
+//===----------------------------------------------------------------------===//
 
 #include "clang/AST/ASTConcept.h"
 #include "clang/AST/ASTContext.h"

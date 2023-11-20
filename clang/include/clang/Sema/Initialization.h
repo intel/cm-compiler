@@ -15,6 +15,8 @@ SPDX-License-Identifier: MIT
 //===----------------------------------------------------------------------===//
 //
 // This file provides supporting data types for initialization of objects.
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_SEMA_INITIALIZATION_H
 #define LLVM_CLANG_SEMA_INITIALIZATION_H

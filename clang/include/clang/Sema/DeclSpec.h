@@ -6,18 +6,26 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// This file defines the classes used to store parsed information about
-// declaration-specifiers and declarators.
 //===--- DeclSpec.h - Parsed declaration specifiers -------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-//   static const int volatile x, *y, *(*(*z)[10])(const void *x);
-//   ------------------------- -  --  ---------------------------
-//     declaration-specifiers  \  |   /
-//                            declarators
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file defines the classes used to store parsed information about
+/// declaration-specifiers and declarators.
+///
+/// \verbatim
+///   static const int volatile x, *y, *(*(*z)[10])(const void *x);
+///   ------------------------- -  --  ---------------------------
+///     declaration-specifiers  \  |   /
+///                            declarators
+/// \endverbatim
+///
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_SEMA_DECLSPEC_H
 #define LLVM_CLANG_SEMA_DECLSPEC_H

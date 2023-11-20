@@ -1882,8 +1882,16 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
     if (!Value.isInvalid()) {
       if (ForEach)
         FirstPart = Actions.ActOnForEachLValueExpr(Value.get());
-      else
-        FirstPart = Actions.ActOnExprStmt(Value);
+      else {
+        // We already know this is not an init-statement within a for loop, so
+        // if we are parsing a C++11 range-based for loop, we should treat this
+        // expression statement as being a discarded value expression because
+        // we will err below. This way we do not warn on an unused expression
+        // that was an error in the first place, like with: for (expr : expr);
+        bool IsRangeBasedFor =
+            getLangOpts().CPlusPlus11 && !ForEach && Tok.is(tok::colon);
+        FirstPart = Actions.ActOnExprStmt(Value, !IsRangeBasedFor);
+      }
     }
 
     if (Tok.is(tok::semi)) {

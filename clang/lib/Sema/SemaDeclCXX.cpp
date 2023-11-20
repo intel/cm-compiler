@@ -16069,7 +16069,6 @@ Decl *Sema::BuildStaticAssertDeclaration(SourceLocation StaticAssertLoc,
       } else {
         Diag(StaticAssertLoc, diag::err_static_assert_failed)
           << !AssertMessage << Msg.str() << AssertExpr->getSourceRange();
-        Failed = true;
 
         Expr *InnerCond = nullptr;
         std::string InnerCondDescription;
@@ -16083,8 +16082,8 @@ Decl *Sema::BuildStaticAssertDeclaration(SourceLocation StaticAssertLoc,
           Diag(StaticAssertLoc, diag::err_static_assert_failed)
             << !AssertMessage << Msg.str() << AssertExpr->getSourceRange();
         }
-        Failed = true;
       }
+      Failed = true;
     }
   } else {
     ExprResult FullAssertExpr = ActOnFinishFullExpr(AssertExpr, StaticAssertLoc,

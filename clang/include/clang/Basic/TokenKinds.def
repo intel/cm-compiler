@@ -19,6 +19,8 @@ SPDX-License-Identifier: MIT
 // languages.  Users of this file must optionally #define the TOK, KEYWORD,
 // CXX11_KEYWORD, CONCEPTS_KEYWORD, ALIAS, or PPKEYWORD macros to make use of
 // this file.
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef TOK
 #define TOK(X)

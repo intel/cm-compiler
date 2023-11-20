@@ -13,18 +13,19 @@ SPDX-License-Identifier: MIT
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-//
-// Provides the Expression parsing implementation.
-//
-// Expressions in C99 basically consist of a bunch of binary operators with
-// unary operators and other random stuff at the leaves.
-//
-// In the C99 grammar, these unary operators bind tightest and are represented
-// as the 'cast-expression' production.  Everything else is either a binary
-// operator (e.g. '/') or a ternary operator ("?:").  The unary leaves are
-// handled by ParseCastExpression, the higher level pieces are handled by
-// ParseBinaryExpression.
-//
+///
+/// \file
+/// Provides the Expression parsing implementation.
+///
+/// Expressions in C99 basically consist of a bunch of binary operators with
+/// unary operators and other random stuff at the leaves.
+///
+/// In the C99 grammar, these unary operators bind tightest and are represented
+/// as the 'cast-expression' production.  Everything else is either a binary
+/// operator (e.g. '/') or a ternary operator ("?:").  The unary leaves are
+/// handled by ParseCastExpression, the higher level pieces are handled by
+/// ParseBinaryExpression.
+///
 //===----------------------------------------------------------------------===//
 
 #include "clang/Parse/Parser.h"

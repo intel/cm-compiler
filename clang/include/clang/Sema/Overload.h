@@ -16,6 +16,8 @@ SPDX-License-Identifier: MIT
 //
 // This file defines the data structures and types used in C++
 // overload resolution.
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_SEMA_OVERLOAD_H
 #define LLVM_CLANG_SEMA_OVERLOAD_H

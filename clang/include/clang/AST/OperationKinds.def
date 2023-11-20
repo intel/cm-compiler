@@ -16,7 +16,9 @@ SPDX-License-Identifier: MIT
 //
 // This file enumerates the different kinds of operations that can be
 // performed by various expressions.
-
+//
+//===----------------------------------------------------------------------===//
+//
 /// @file OperationKinds.def
 ///
 /// In this file, each of the C/C++ operations is enumerated CAST_OPERATION,

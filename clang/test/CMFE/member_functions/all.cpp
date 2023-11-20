@@ -31,8 +31,8 @@ void test() {
   unsigned short r9 = s1.all;            // OK
   unsigned short r10 = s1.template all;  // not a template // expected-error{{'all' following the 'template' keyword does not refer to a template}}
   unsigned short r11 = s2.all();         // no member all // expected-error{{no member named 'all' in 'S2'}}
-  m.all();                               // expression result unused // fixme-expected-warning{{expression result unused}}
-  v.all();                               // expression result unused // fixme-expected-warning{{expression result unused}}
+  m.all();                               // expression result unused // expected-warning{{expression result unused}}
+  v.all();                               // expression result unused // expected-warning{{expression result unused}}
   m.all() = 1;                           // not assignable // expected-error{{expression is not assignable}}
   v.all() = 0;                           // not assignable // expected-error{{expression is not assignable}}
   v.all().all();                         // ushort not a structure or union // expected-error{{member reference base type 'unsigned short' is not a structure or union}}

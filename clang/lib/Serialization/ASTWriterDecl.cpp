@@ -2458,7 +2458,7 @@ void ASTRecordWriter::AddFunctionDefinition(const FunctionDecl *FD) {
 
   assert(FD->doesThisDeclarationHaveABody());
   bool ModulesCodegen = false;
-  if (Writer->WritingModule && !FD->isDependentContext()) {
+  if (!FD->isDependentContext()) {
     Optional<GVALinkage> Linkage;
     if (Writer->WritingModule &&
         Writer->WritingModule->Kind == Module::ModuleInterfaceUnit) {
