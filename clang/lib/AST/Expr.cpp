@@ -1676,33 +1676,14 @@ CMMemberExpr::CMMemberExpr(const ASTContext &C, StmtClass SC, Expr *Base,
   SubExprs = new (C) Stmt *[NumSubExprs];
   SubExprs[0] = Base;
 
-  ExprDependence Deps = ExprDependence::None;
-
-  if (Base->isTypeDependent())
-    Deps |= ExprDependence::Type;
-  if (Base->isValueDependent())
-    Deps |= ExprDependence::Value;
-  if (Base->isInstantiationDependent())
-    Deps |= ExprDependence::Instantiation;
-  if (Base->containsUnexpandedParameterPack())
-    Deps |= ExprDependence::UnexpandedPack;
-
-  if (T->isDependentType())
-    Deps |= ExprDependence::Type;
-  if (T->isInstantiationDependentType())
-    Deps |= ExprDependence::Instantiation;
+  auto Deps = getDependence();
+  Deps |= Base->getDependence();
+  Deps |= toExprDependence(T->getDependence());
 
   for (unsigned i = 0; i != Args.size(); ++i) {
-    if (Args[i]->isTypeDependent())
-      Deps |= ExprDependence::Type;
-    if (Args[i]->isValueDependent())
-      Deps |= ExprDependence::Value;
-    if (Args[i]->isInstantiationDependent())
-      Deps |= ExprDependence::Instantiation;
-    if (Args[i]->containsUnexpandedParameterPack())
-      Deps |= ExprDependence::UnexpandedPack;
-
-    SubExprs[1 + i] = Args[i];
+    auto *Arg = Args[i];
+    Deps |= Arg->getDependence();
+    SubExprs[1 + i] = Arg;
   }
 
   setDependence(Deps);
