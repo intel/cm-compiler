@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2020-2022 Intel Corporation
+Copyright (C) 2020-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -18,43 +18,48 @@ static_assert(0, "CM:w:cm_srnd.h should not be included explicitly - only "
 #include "cm_has_instr.h"
 #include "cm_internal.h"
 
-template <typename T0, int N, typename T1>
-CM_NODEBUG CM_INLINE vector<T0, N>
-cm_srnd(vector<T1, N> src1, vector<T1, N> src2) {
+template <typename ResTy, typename SrcTy, typename BiasTy, int Width>
+CM_NODEBUG CM_INLINE vector<ResTy, Width> cm_srnd(vector<SrcTy, Width> src,
+                                                  vector<BiasTy, Width> bias) {
   CM_HAS_STOCHASTIC_ROUNDING_CONTROL;
 
-  constexpr bool is_hf16_fp32 =
-      details::is_half_type<T0>::value && details::is_float_type<T1>::value;
-  CM_STATIC_ERROR(is_hf16_fp32, "unsupported srnd type");
+  constexpr bool is_hf16_fp32 = details::is_half_type<ResTy>::value &&
+                                details::is_float_type<SrcTy>::value;
+  CM_STATIC_ERROR(is_hf16_fp32, "Unsupported stochastic rounding operation");
 
-  vector<T0, N> _Result;
+  constexpr bool is_bias_type_valid =
+      std::is_same<SrcTy, BiasTy>::value ||
+      (std::is_integral<BiasTy>::value && sizeof(BiasTy) == sizeof(ResTy));
+  CM_STATIC_ERROR(is_bias_type_valid,
+                  "Unsupported stochastic rounding bias type");
 
-  vector<T1, N> _Src1 = src1;
-  vector<T1, N> _Src2 = src2;
-  _Result = details::__cm_intrinsic_impl_srnd<T0, N, T1>(_Src1, _Src2);
+vector<ResTy, Width> _res;
 
-  return _Result;
+  _res = details::__cm_intrinsic_impl_srnd<ResTy>(src, bias);
+
+  return _res;
 }
 
-template <typename T0, int N, int M, typename T1>
-CM_NODEBUG CM_INLINE matrix<T0, N, M>
-cm_srnd(matrix<T1, N, M> src1, matrix<T1, N, M> src2) {
-  vector<T1, N *M> _Src1 = src1;
-  vector<T1, N *M> _Src2 = src2;
+template <typename ResTy, typename SrcTy, typename BiasTy, int Height,
+          int Width>
+CM_NODEBUG CM_INLINE matrix<ResTy, Height, Width>
+cm_srnd(matrix<SrcTy, Height, Width> src,
+        matrix<BiasTy, Height, Width> bias) {
+  vector<SrcTy, Height * Width> _src = src;
+  vector<BiasTy, Height * Width> _bias = bias;
 
-  return cm_srnd<T0>(_Src1, _Src2);
+  return cm_srnd<ResTy>(_src, _bias);
 }
 
-template <typename T0, typename T1>
-CM_NODEBUG CM_INLINE T0
-cm_srnd(T1 src1, T1 src2) {
-  vector<T1, 1> _Src1 = src1;
-  vector<T1, 1> _Src2 = src2;
-  vector<T0, 1> _Res;
+template <typename ResTy, typename SrcTy, typename BiasTy>
+CM_NODEBUG CM_INLINE ResTy
+cm_srnd(SrcTy src, BiasTy bias) {
+  vector<SrcTy, 1> _src = src;
+  vector<BiasTy, 1> _bias = bias;
 
-  _Res = cm_srnd<T0>(_Src1, _Src2);
+  vector<ResTy, 1> _res = cm_srnd<ResTy>(_src, _bias);
 
-  return _Res[0];
+  return _res[0];
 }
 
 #endif // _CLANG_CM_SRND_H_

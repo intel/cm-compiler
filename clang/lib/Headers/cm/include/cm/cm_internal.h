@@ -374,8 +374,8 @@ vector<T, N> __cm_intrinsic_impl_dpasw_nosrc0(int dummy,
                                               vector<T2, N2> src2);
 
 
-template <typename T0, int N, typename T1>
-vector<T0, N> __cm_intrinsic_impl_srnd(vector<T1, N> src1, vector<T1, N> src2);
+template <typename T0, typename T1, typename T2, int N>
+vector<T0, N> __cm_intrinsic_impl_srnd(vector<T1, N> src1, vector<T2, N> src2);
 
 // ----------------------------------------------------------------------------
 //

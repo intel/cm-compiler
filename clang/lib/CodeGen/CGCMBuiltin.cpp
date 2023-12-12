@@ -7166,9 +7166,9 @@ llvm::Value *CGCMRuntime::HandleBuiltinTF32CVTImpl(CMCallInfo &CallInfo,
 
 /// \brief Postprocess builtin cm_srnd.
 ///
-/// template <typename T, typename T0, int N>
-/// vector<T, N>
-/// __cm_intrinsic_impl_srnd(vector<T0, N> src0, vector<T0,N> src1)
+/// template <typename T0, typename T1, typename T2, int N>
+/// vector<T0, N> __cm_intrinsic_impl_srnd(vector<T1, N> src0,
+///                                        vector<T2, N> src1)
 ///
 llvm::Value *CGCMRuntime::HandleBuiltinSRNDImpl(CMCallInfo &CallInfo,
                                                 CMBuiltinKind Kind) {
