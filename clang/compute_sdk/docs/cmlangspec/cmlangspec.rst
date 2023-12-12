@@ -19,7 +19,8 @@ George, Weiyu Chen, Alexander Yermolovich, Puyan Lotfi, Gang Chen,
 Julia Gould, Wei Pan, David Stuttard, Tim Renouf, Tim Corringham,
 Stephen Thomas, Vladimirov Konstantin, Us Alexander, Parshintsev
 Anatoly, Sidorenko Anton, Zabaznov Anton, Bezzubikov Alexader,
-Ryabtsev Dmitry, Rudenko Nikita, Mustya Victor, Shelegov Maksim.
+Ryabtsev Dmitry, Rudenko Nikita, Mustya Victor, Shelegov Maksim,
+Korovin Vladislav.
 
 Legal Notices and Disclaimers
 =============================
@@ -3148,12 +3149,7 @@ cm_slm_write
              vector_ref<ushort, N> v_Addr,
              vector_ref<TYPE, N> v_Src);
 
-Where:
-
-* N = 8, 16, or 32;
-* TYPE could be of size byte, word or dword.
-
-Write N data elements (byte, word, or dword) given in the
+Write N data elements (byte, word, dword or qword) given in the
 vector 'v_Src' into the SLM buffer 'slmBuffer' at the element-
 offsets specified in 'v_Addr'. Note that the addresses are in
 units of element size.
@@ -3238,12 +3234,7 @@ cm_slm_read
                    vector_ref<ushort, N> v_Addr,
                    vector_ref<TYPE, N> v_Dst);
 
-Where:
-
-* N = 8, 16, or 32;
-* TYPE could be of size byte, word or dword.
-
-Read N data elements (byte, word, or dword) from the
+Read N data elements (byte, word, dword or qword) from the
 SLM buffer 'slmBuffer' at the element-offsets specified in
 'v_Addr', and write back into the vector 'v_Dst'. Note that the
 addresses are in units of element size.
@@ -3408,75 +3399,61 @@ depends on the atomic operation.
 SLM Block Read/Write
 ^^^^^^^^^^^^^^^^^^^^^^
 
-C for Metal provides the following qualifiers for specifying the input usage options:
-
-=================== ================================================================
-Qualifier
-=================== ================================================================
-DWALIGNED           indicates that the offset is DWord aligned.
-MODIFIED_DWALIGNED  deprecated: same as DWALIGNED, as there is no modified bit in
-                    current hardware.
-=================== ================================================================
-
 Out-of-bound reads return zero, while out-of-bound writes are dropped.
-
-Note: C for Metal currently only supports read/write operations of SLM Block data with
-size <= 128 bytes.
-
 
 cm_slm_block_read
 """""""""""""""""
 
 .. code-block:: c++
 
-  void cm_slm_block_read(uint slmBuffer, int offset, vector_ref v);
+  void cm_slm_block_read(uint slmBuffer, CmBufferAttrib attr, int offset, vector_ref<T, N> v);
+
+Reads N data elements (byte, word, dword, qword) from a single block starting at
+(slmBuffer + offset) address to the N addresses given in the vector ‘v’.
 
 =============== ================================================================
 Parameters
 =============== ================================================================
 slmBuffer
                 must correspond to a SLM-buffer
-                (optionally qualified as specified above)
+
+attr
+                attribute to specify the offset alignment
+                can have the following values: GENX_NONE, GENX_DWALIGNED.
 
 offset
-                zero based offset of the input buffer in *bytes*.  Must be
-                OWord (i.e. 16 bytes) aligned, but need be only DWord (i.e. 4
-                bytes) aligned if the DWALIGNED or MODIFIED_DWALIGNED modifier
-                is present.
+                zero based offset of the input buffer in *bytes*. Must be
+                OWord (i.e. 16 bytes) aligned for GENX_NONE attribute, but need be only
+                DWord (i.e. 4 bytes) aligned for GENX_DWALIGNED attribute.
 
 v
-                the data location to be read / written:
-                the width of vector v must be OWord (i.e. 16 bytes) aligned.
+                the data location to be read into.
 =============== ================================================================
 
-Usage example:
-
-.. code-block:: c++
-
-  read (DWALIGNED(slmBuffer), ...)  // the offset ind is DWord aligned
-  read(ind, ...)                    // the offset ind is OWord aligned
+Note: If dword aligned SLM block load is not supported by HW a gather will be generated instead.
 
 cm_slm_block_write
 """"""""""""""""""
 
 .. code-block:: c++
 
-  void cm_slm_block_write(uint slmBuffer, int offset, const vector v);
+  void cm_slm_block_write(uint slmBuffer, int offset, const vector<T, N> v);
+
+Write N data elements (byte, word, dword, qword) given in the vector 'v' as a 
+single block starting at (slmBuffer + offset) address. 
 
 =============== ================================================================
 Parameters
 =============== ================================================================
 slmBuffer
                 must correspond to a SLM-buffer
-                (optionally qualified as specified above)
 
 offset
                 zero based offset of the input buffer in *bytes*;
                 must be OWord (i.e. 16 bytes) aligned.
 
 v
-                the data location to be read / written:
-                the width of vector v can be only 1, 2, 4 or 8 OWords.
+                the data to be written.
 =============== ================================================================
 
 
@@ -6622,11 +6599,9 @@ cm_svm_block_read
   template <typename Type, int N>
   void cm_svm_block_read(svmptr_t v_Addr, vector_ref<TYPE, N> v_Src);
 
-Read N data elements (byte, word, dword, qword, total data
-size up to 128 bytes) into the vector 'v_Src' from a single block
-starting at address 'v_Addr'. The address must be oword (16-
-byte) aligned. The total size of the vector must be 1, 2, 4 or 8
-owords (16, 32, 64 or 128 bytes).
+Read N data elements (byte, word, dword, qword) into the vector
+'v_Src' from a single block starting at address 'v_Addr'.
+The address must be oword (16-byte) aligned.
 
 cm_svm_block_read_unaligned
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -6636,11 +6611,9 @@ cm_svm_block_read_unaligned
   template <typename Type, int N>
   void cm_svm_block_read_unaligned(svmptr_t v_Addr, vector_ref<TYPE, N> v_Src);
 
-Read N data elements (byte, word, dword, qword, total data
-size up to 128 bytes) into the vector 'v_Src' from a single block
-starting at address 'v_Addr'. The address must be dword (4-
-byte) aligned. The total size of the vector must be 1, 2, 4 or 8
-owords (16, 32, 64 or 128 bytes).
+Read N data elements (byte, word, dword, qword) into the vector
+'v_Src' from a single block starting at address 'v_Addr'.
+The address must be dword (4-byte) aligned.
 
 cm_svm_scatter_read
 ^^^^^^^^^^^^^^^^^^^
@@ -6650,9 +6623,8 @@ cm_svm_scatter_read
   template <typename Type, int N>
   void cm_svm_scatter_read(vector_ref<svmptr_t, N> v_Addr, vector_ref<TYPE, N> v_Src);
 
-(where N = 8, 16 or 32):
-Read N data elements (byte, dword, qword) into the vector
-'v_Src' from the 8 addresses given in the vector 'v_Addr'.
+Read N data elements (byte, word, dword, qword) into the vector
+'v_Src' from the N addresses given in the vector 'v_Addr'.
 
 cm_svm_block_write
 ^^^^^^^^^^^^^^^^^^
@@ -6660,13 +6632,11 @@ cm_svm_block_write
 .. code-block:: c++
 
   template <typename Type, int N>
-  void cm_svm_block_write(svmptr_t  v_Addr, vector_ref<TYPE, N> v_Src);
+  void cm_svm_block_write(svmptr_t v_Addr, vector<TYPE, N> v_Src);
 
-Write N data elements (byte, word, dword, qword, total data
-size up to 128 bytes) given in the vector 'v_Src' as a single block
-starting at address 'v_Addr'. The address must be oword (16-
-byte) aligned. The total size of the vector must be 1, 2, 4 or 8
-owords (16, 32, 64 or 128 bytes).
+Write N data elements (byte, word, dword, qword) given in the vector
+'v_Src' as a single block starting at address 'v_Addr'.
+The address must be oword (16-byte) aligned.
 
 cm_svm_scatter_write
 ^^^^^^^^^^^^^^^^^^^^
@@ -6674,11 +6644,10 @@ cm_svm_scatter_write
 .. code-block:: c++
 
   template <typename Type, int N>
-  void cm_svm_scatter_write(vector_ref<svmptr_t, N> v_Addr, vector_ref<TYPE, N> v_Src);
+  void cm_svm_scatter_write(vector<svmptr_t, N> v_Addr, vector<TYPE, N> v_Src);
 
-(where N = 8, 16 or 32):
 Write N data elements (byte, dword, qword) given in the vector
-'v_Src' to the 8 addresses given in the vector 'v_Addr'.
+'v_Src' to the N addresses given in the vector 'v_Addr'.
 
 Note: Writes to overlapping addresses will have undefined
 write ordering.
