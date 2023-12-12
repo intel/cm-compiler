@@ -9025,6 +9025,280 @@ x
   // Set up the x values in some way ...
   matrix<float, 4, 4> result = cmtl::cm_tanh_cody_waite(v_x);
 
+7 Address spaces
+==============================
+
+The C for Metal programming language supports the utilization of the subsequent address space qualifiers:
+
+.. code-block:: c++
+
+  __private
+  __global
+  __constant
+  __local
+  __generic
+
+Variables declared as pointers are considered to point to the private address space if
+an address space qualifier is not specified.
+
+7.1 Conversions
+------------------------
+
+The following conversion rules between pointers to different address spaces apply in C for Metal:
+
+* A pointer to the generic address space can be cast to a pointer to global, local or private address space.
+
+* A pointer to a global, local or private address space can be cast to a pointer to the generic address space.
+
+* A pointer to a global, local or private address space can be implicitly converted to a pointer to the generic address space, but the inverse implicit conversion is not allowed.
+
+* A pointer to a named address space can not be directly implicitly converted or cast to a pointer of a different named address space
+
+**Example:** 
+
+.. code-block:: c++
+
+  __generic int *genptr; // points to generic address space
+
+  // generic -> named address space conversions
+  __private int *privptr = reinterpret_cast<__private int *>(genptr); // ok
+  __private int *privptr = genptr; // error
+
+  // named -> generic address space conversion
+  __generic int *newgenptr = privptr; // ok
+
+  // disjoint address space conversion
+  __constant int *constptr = reinterpret_cast<__constant int *>(genptr); // error
+
+7.2 Address Space Qualifier Functions
+-------------------------------------
+
+**Description:** Returns a pointer that points to a region in the named address space if the function 
+can cast a pointer to the named address space. Otherwise it returns a null pointer.
+
+**Functions:** 
+
+.. code-block:: c++
+
+  template <typename T> __private T *cm_to_private(__generic T *ptr);
+  template <typename T> __global T *cm_to_global(__generic T *ptr);
+  template <typename T> __local T *cm_to_local(__generic T *ptr);
+
+**Note:** Both address space qualifier functions and reinterpret_cast are permitted to convert a generic
+pointer to a private/local/global pointer. Nonetheless, address space qualifier functions will generate
+additional runtime code to identify any address space mismatch. The following example shows the difference
+between reinterpret_cast and cm_to_local() function:
+
+**Example:** 
+
+.. code-block:: c++
+
+  void bar(__global int *gptr) {
+    __generic int *genptr = gptr;
+    // The generic pointer encapsulates pointer to __global address space.
+    // When it is cast to a pointer to __local we get an invalid pointer as
+    // a result since global and local address spaces are disjoint.
+    __local int *lptr = reinterpret_cast<__local int *>(genptr); 
+  }
+
+  void foo(__global int *gptr) {
+    __generic int *genptr = gptr;
+    __local int *lptr = cm_to_local(genptr); // lptr is null
+  }
+
+7.3 Qualifiers for kernel arguments
+-----------------------------------
+
+In C for Metal, pointers provided as kernel arguments can target the __local, __global
+or __constant address spaces.
+
+**Example:**
+
+.. code-block:: c++
+
+  _GENX_MAIN_ void kernel(__global int *gptr, __local float *lptr, __constant int *cptr) {...}
+
+7.4 Variables in global, local and constant memory
+--------------------------------------------------
+
+7.4.1 Global/Constant
+^^^^^^^^^^^^^^^^^^^^^
+
+In C for Metal variables allocated in global or constant address spaces must be defined in program scope.
+Variables allocated in constant address space must be explicitly initialized at definition.
+The values of these variables persist between kernels.
+
+**Example:**
+
+.. code-block:: c++
+
+ __global int globalGV; // ok
+ __global int globalGVInit = 42; // ok
+
+ __constant int constGV; // error
+ __constant int constGVInit = 55; // ok
+
+ void foo() {
+   static __global int globalGVInScope; // ok
+   static __constant int constGVInScope = 56; // ok
+
+  __global int varInGlobal; // error
+  __constant int varInConst = 57; // error
+ }
+
+7.4.2 Local
+^^^^^^^^^^^
+In C for Metal variables in the local address space may only be declared in the outermost scope of a kernel
+function and can be defined with any C or matrix/vector type. They may not have initializers.
+
+**Example:**
+
+.. code-block:: c++
+
+  __local int globalScope; // error
+
+  void foo() {
+    __local int funcScope; // error
+  }
+
+  _GENX_MAIN_ void kernel(__global int *p) {
+    __local float localVar; // ok
+
+    __local int initVar = 5; // error
+    if(*p == 0xff) {
+      __local float ifScope; // error
+    }
+  }
+
+7.5 Vector and matrices with elements of a pointer type
+-----------------------------------------------------
+
+Vectors and matrices can contain elements of a pointer type with an optional address space qualifier.
+Vector/matrix of elements of an integral type can be cast to a vector/matrix of elements of a pointer type
+and vice versa.
+
+The conversion between vectors and matrices of pointers to different address spaces is determined
+by the rules governing the conversion of their individual elements, as specified in section 7.1.
+
+**Example:**
+
+.. code-block:: c++
+
+  void foo(vector<svmptr_t, 4> in) {
+    // integer to pointer conversion
+    vector<__global int *, 4> v = reinterpret_cast<vector<__global int *, 4> >(in);
+    
+    // address space implicit conversion
+    vector<__generic int *, 4> genVPtrs = v; 
+
+    // conversion of disjoint address spaces
+    vector<__local int *, 4> localVPtrs = v; // error
+  }
+
+7.6 Unified memory interface
+---------------------------------------
+A unified memory interface has been introduced in C for Metal to facilitate memory
+manipulations by using of gather, scatter, load and store LLVM instructions.
+
+gather and scatter
+^^^^^^^^^^^^^^^^^^
+
+**Description:**
+
+Gather: Reads scalar values from arbitrary memory locations and returns them as a single
+vector/matrix.
+
+Scatter: Writes scalar values to arbitrary memory locations.
+
+**Functions:**
+
+.. code-block:: c++
+
+  template <typename T, int N, int A = Align::ELEM_SIZE>
+  vector<T, N> gather(vector<_AS T *, N> ptrs, vector<ushort, N> mask = 1);
+  template <typename T, int N, int A = Align::ELEM_SIZE>
+  vector<T, N> gather(vector<_AS T *, N> ptrs, vector<ushort, N> mask,
+                      vector<T, N> passthru);
+
+  template <typename T, int N, int M, int A = Align::ELEM_SIZE>
+  matrix<T, N, M> gather(matrix<_AS T *, N, M> ptrs, matrix<ushort, N, M> mask = 1);
+  template <typename T, int N, int M, int A = Align::ELEM_SIZE>
+  matrix<T, N, M> gather(matrix<_AS T *, N, M> ptrs, matrix<ushort, N, M> mask,
+                         matrix<T, N, M> passthru);
+
+  template <typename T, int N, int A = Align::ELEM_SIZE>
+  void scatter(vector<T, N> src, vector<_AS T *, N> ptrs, 
+               vector<ushort, N> mask = 1) 
+  template <typename T, int N, int M, int A = Align::ELEM_SIZE>
+  void scatter(matrix<T, N, M> src, matrix<_AS T *, N, M> ptrs,
+               matrix<ushort, N, M> mask = 1)
+
+=============== ============================================================
+Parameters
+=============== ============================================================
+T
+                Element type of matrix/vector.
+N
+                Number of elements (vector variant).
+N
+                Number of rows (matrix variant).
+M
+                Number of columns (matrix variant).
+A
+                Alignment of memory addresses. If not explicitly specified,
+                it is assumed to be the size of an element of type T.
+_AS
+                Optional address space qualifier. Can be one of the following
+                values: __private, __global, __local, __constant(only for gather)
+                or __generic.
+ptrs
+                Vector/matrix of pointers which provides the memory locations
+                to read(gather)/write(scatter).
+mask
+                Mask to prevent the memory accesses to the masked-off lanes.
+passthru
+                Gather-only: the masked-off lanes in the result vector/matrix
+                are taken from the corresponding lanes of the ‘passthru’ operand
+                if it is specified. Otherwise, masked-off lanes in the resulted
+                vector/matrix will be undefined.
+=============== ============================================================
+
+load and store
+^^^^^^^^^^^^^^
+
+**Description:**
+
+load: Reads data from memory and returns the result.
+
+store: Writes data to memory.
+
+**Functions:**
+
+.. code-block:: c++
+
+  template <typename T, int A = Align::ELEM_SIZE>
+  T load(_AS const T *const ptr);
+
+  template <typename T, int A = Align::ELEM_SIZE>
+  void store(T val, _AS T *const ptr);
+
+=============== ============================================================
+Parameters
+=============== ============================================================
+T
+                Type to store or load. Can be matrix/vector.
+A
+                Alignment of the memory address. If not explicitly specified,
+                it is assumed to be the size of an of type T if T is a scalar
+                type or the size of the element of matrix/vector otherwise.
+_AS
+                Optional address space qualifier. Can be one of the following
+                values: __private, __global, __local, __constant(only for load)
+                or __generic.
+ptr
+                Pointer which holds the address of memory to be written/readen.
+=============== ============================================================
+
 Appendix A Media Kernel Example
 ===============================
 
