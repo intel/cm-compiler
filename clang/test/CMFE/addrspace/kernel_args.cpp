@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: %cmc -fcm-pointer -march=skl -emit-llvm -o %t.bc -- %s
+// RUN: %cmc -march=skl -emit-llvm -o %t.bc -- %s
 
 #include <cm/cm.h>
 

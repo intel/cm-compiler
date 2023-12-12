@@ -152,6 +152,8 @@ def binary_format_eq : Joined<["-"], "binary-format=">, Group<cm_Group>,
 
 def fcmocl : CMIgnoredFlag<"fcmocl">;
 
+def fcm_pointer : CMIgnoredFlag<"fcm-pointer">;
+
 def mCM_no_vector_decomposition : CMCC1CompileFlag<"mCM_no_vector_decomposition">, HelpText<"Disable vector decomposition optimization">;
 
 def mCM_disable_jmpi : CMCC1CompileFlag<"mCM_disable_jmpi">, HelpText<"disable jmpi (only available if -Qxcm_jit_target=... is also specified)">;
@@ -212,10 +214,6 @@ def cm_asm_name : CMCC1<"cm-asm-name">;
 
 def mCM_old_asm_name : Flag<["-", "/"], "mCM_old_asm_name">, Group<cm_Group>,
   HelpText<"Emit the kernel asm name in old style (<filename>_<idx>.(visa)asm)">,
-  Flags<[CMOption, CC1Option]>;
-
-def fcm_pointer : Flag<["-", "/"], "fcm-pointer">, Group<cm_Group>,
-  HelpText<"enable experimental pointer support in CM">,
   Flags<[CMOption, CC1Option]>;
 
 def mCM_enforce_disable_free : Flag<["-", "/"], "mCM_enforce_disable_free">, Group<cm_Group>,

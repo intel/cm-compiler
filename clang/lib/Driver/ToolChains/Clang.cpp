@@ -4852,8 +4852,6 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-fvolatile-global");
     if (Args.getLastArg(options::OPT_mCM_reverse_kernels))
       CmdArgs.push_back("-mCM_reverse_kernels");
-    if (Args.getLastArg(options::OPT_fcm_pointer))
-      CmdArgs.push_back("-fcm-pointer");
     if (Args.getLastArg(options::OPT_mCM_enable_stackcalls))
       CmdArgs.push_back("-mCM_enable_stackcalls");
     if (Args.getLastArg(options::OPT_mCM_no_emulate_i64))

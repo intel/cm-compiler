@@ -9841,11 +9841,11 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
 
           // Allow pointer arguments.
           // TODO, only allow certain pointers?
-          if (getLangOpts().CMPointer && ParamTy->isPointerType()) {
+          if (ParamTy->isPointerType()) {
             if (!IsGenxMain)
               continue;
-            // A kernel function argument cannot be declared as a
-            // pointer to a pointer type.
+            // A kernel function argument cannot be declared as a pointer to
+            // a pointer type.
             QualType PointeeType = ParamTy->getPointeeType();
             if (!PointeeType->isPointerType())
               // Allow a pointer argument to reside in default address space

@@ -148,12 +148,6 @@ Option                        Description
 
 -binary-format=<value>        Alias for -binary-format <value>
 
--fcm-pointer                  Enables experimental pointer support in CM.
-
--fcmocl                       Alias for -binary-format=ze.
-
--femulate_i64                 Emulates all 64-bit integer operations.
-
 -fvolatile-global             Treats global variables as volatile, do not promote them
                               to registers early.
 
