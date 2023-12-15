@@ -73,6 +73,20 @@ namespace CheckVersion {
 #endif
 
 
+//DPAS
+#ifdef CM_HAS_DPAS
+  #define CM_HAS_DPAS_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_DPAS_CONTROL CM_HAS_CONTROL(false)
+#endif
+
+//DPASW
+#ifdef CM_HAS_DPASW
+  #define CM_HAS_DPASW_CONTROL CM_HAS_CONTROL(true)
+#else
+  #define CM_HAS_DPASW_CONTROL CM_HAS_CONTROL(false)
+#endif
+
 //ACC_BF16 and ACC_HALF
 #if (CM_GENX >= 1280) //>= PVC
   #define CM_HAS_DPAS_ACC_HALF 1
@@ -92,14 +106,6 @@ namespace CheckVersion {
   #define CM_HAS_BF16_CONTROL CM_HAS_CONTROL(false)
 #endif
 
-//DPAS
-#if (CM_GENX >= 1270 && CM_GENX != 1275) //>= XEHP_SDV && != MTL
-  #define CM_HAS_DPAS 1
-  #define CM_HAS_DPAS_CONTROL CM_HAS_CONTROL(true)
-#else
-  #define CM_HAS_DPAS_CONTROL CM_HAS_CONTROL(false)
-#endif
-
 #define CM_HAS_DPAS_INT_MIX 1
 #define CM_HAS_DPAS_INT_MIX_CONTROL CM_HAS_CONTROL(true)
 
@@ -115,15 +121,6 @@ namespace CheckVersion {
 
 //DPAS_ODD
 #define CM_HAS_DPAS_ODD 1
-
-//DPASW
-//>= XEHP_SDV && < PVC, except MTL
-#if ((CM_GENX >= 1270 && CM_GENX < 1280) && (CM_GENX != 1275))
-  #define CM_HAS_DPASW 1
-  #define CM_HAS_DPASW_CONTROL CM_HAS_CONTROL(true)
-#else
-  #define CM_HAS_DPASW_CONTROL CM_HAS_CONTROL(false)
-#endif
 
 //Gateway event
 #if (CM_GENX >= 1150 && CM_GENX <= 1280) //>= ICLLP && <= PVC
