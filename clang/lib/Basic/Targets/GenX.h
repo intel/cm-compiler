@@ -109,6 +109,8 @@ public:
     }
   }
 
+  const char *getBFloat16Mangling() const override { return "u6__bf16"; };
+
 private:
   void setCPUProperties();
 

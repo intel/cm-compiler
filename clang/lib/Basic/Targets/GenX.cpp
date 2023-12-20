@@ -69,6 +69,11 @@ GenXTargetInfo::GenXTargetInfo(const llvm::Triple &Triple,
   default:
     llvm_unreachable("TargetPointerWidth must be 32 or 64");
   }
+
+  // BFloat16 support is target-dependent
+  HasBFloat16 = false;
+  BFloat16Width = BFloat16Align = 16;
+  BFloat16Format = &llvm::APFloat::BFloat();
 }
 
 void GenXTargetInfo::adjustTargetOptions(const CodeGenOptions &CGOpts,
@@ -124,6 +129,8 @@ void GenXTargetInfo::getTargetDefines(const LangOptions &Opts,
 
   if (HasFP64)
     Builder.defineMacro("CM_HAS_DOUBLE", "1");
+  if (HasBFloat16)
+    Builder.defineMacro("CM_HAS_BF16", "1");
   if (HasDpas)
     Builder.defineMacro("CM_HAS_DPAS", "1");
   if (HasDpasw)

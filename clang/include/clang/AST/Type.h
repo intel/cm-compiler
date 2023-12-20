@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2012-2021 Intel Corporation
+Copyright (C) 2012-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -7071,7 +7071,7 @@ inline bool Type::isUndeducedAutoType() const {
 /// types are:
 ///
 /// (1) char, unsigned char (uchar), short, unsigned short (ushort),
-///     int, unsigned int (uint), half, float, double;
+///     int, unsigned int (uint), half, float, double, __bf16;
 ///
 /// (2) long, unsigned long, unsigned long long (Gen 8+) are 64 bit integers;
 ///
@@ -7092,13 +7092,14 @@ inline bool Type::isCMElementType(bool AllowNonArithmetic) const {
      case BuiltinType::UShort:
      case BuiltinType::Int:
      case BuiltinType::UInt:
-     case BuiltinType::Half:
-     case BuiltinType::Float:
-     case BuiltinType::Double:
      case BuiltinType::Long:
      case BuiltinType::ULong:
      case BuiltinType::LongLong:
      case BuiltinType::ULongLong:
+     case BuiltinType::Half:
+     case BuiltinType::Float:
+     case BuiltinType::Double:
+     case BuiltinType::BFloat16:
        return true;
      case BuiltinType::CMSurfaceIndex:
      case BuiltinType::CMSamplerIndex:
@@ -7124,13 +7125,14 @@ inline bool Type::isCMScalarType() const {
     case BuiltinType::UShort:
     case BuiltinType::Int:
     case BuiltinType::UInt:
-    case BuiltinType::Half:
-    case BuiltinType::Float:
-    case BuiltinType::Double:
     case BuiltinType::Long:
     case BuiltinType::ULong:
     case BuiltinType::LongLong:
     case BuiltinType::ULongLong:
+    case BuiltinType::Half:
+    case BuiltinType::Float:
+    case BuiltinType::Double:
+    case BuiltinType::BFloat16:
       return true;
     }
   }

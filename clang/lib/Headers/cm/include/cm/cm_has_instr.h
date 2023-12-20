@@ -99,8 +99,7 @@ namespace CheckVersion {
 #endif
 
 //BF16
-#if (CM_GENX >= 1270) && (CM_GENX != 1275) //>= XEHP_SDV && != MTL
-  #define CM_HAS_BF16 1
+#if defined(CM_HAS_BF16)
   #define CM_HAS_BF16_CONTROL CM_HAS_CONTROL(true)
 #else
   #define CM_HAS_BF16_CONTROL CM_HAS_CONTROL(false)
