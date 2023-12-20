@@ -2227,6 +2227,11 @@ bool Type::isRealType() const {
 }
 
 bool Type::isArithmeticType() const {
+  // __bf16 is arithmetic type for CM
+  if (isBFloat16Type())
+    return true; // Context.getLangOpts().MdfCM
+
+
   if (const auto *BT = dyn_cast<BuiltinType>(CanonicalType))
     return BT->getKind() >= BuiltinType::Bool &&
            BT->getKind() <= BuiltinType::Float128 &&

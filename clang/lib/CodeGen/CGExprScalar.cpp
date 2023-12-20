@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2021 Intel Corporation
+Copyright (C) 2014-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -1383,6 +1383,14 @@ Value *ScalarExprEmitter::EmitScalarConversion(Value *Src, QualType SrcType,
       unsigned SrcNumElts = SrcVecTy->getNumElements();
       llvm::Type *SrcEltTy = SrcVecTy->getElementType();
       if (SrcNumElts == DstNumElts && !Opts.IsSaturated) {
+        // half->__bf16 or __bf16->half.
+        if ((DstEltTy->isBFloatTy() && SrcEltTy->isHalfTy()) ||
+            (DstEltTy->isHalfTy() && SrcEltTy->isBFloatTy())) {
+          auto *InterTy = llvm::FixedVectorType::get(Builder.getFloatTy(), SrcNumElts);
+          auto *Ext = Builder.CreateFPExt(Src, InterTy, "conv.ext");
+          return Builder.CreateFPTrunc(Ext, DstTy, "conv.trunc");
+        }
+
         // float->double or double->float.
         if (DstEltTy->isFloatingPointTy() && SrcEltTy->isFloatingPointTy())
           return (DstEltTy->getTypeID() < SrcEltTy->getTypeID())
@@ -1557,6 +1565,24 @@ Value *ScalarExprEmitter::EmitScalarConversion(Value *Src, QualType SrcType,
   } else {
     assert(SrcTy->isFloatingPointTy() && DstTy->isFloatingPointTy() &&
            "Unknown real conversion");
+    // Direct half<->bfloat conversion operation is not defined, so we should
+    // emit fpext to float and then fptrunc to the target type.
+    if ((DstTy->isHalfTy() && SrcTy->isBFloatTy()) ||
+        (DstTy->isBFloatTy() && SrcTy->isHalfTy())) {
+      Src = Builder.CreateFPExt(Src, Builder.getFloatTy(), "conv.ext");
+      SrcTy = Src->getType();
+    }
+
+    // LLVM-11 has missing bfloat case in fpext/fptrunc constant folding.
+    // Working this issue around here.
+    auto *FPC = dyn_cast<llvm::ConstantFP>(Src);
+    if (FPC && DstTy->isBFloatTy()) {
+      bool ignored = false;
+      auto Val = FPC->getValueAPF();
+      Val.convert(llvm::APFloat::BFloat(), llvm::APFloat::rmNearestTiesToEven,
+                  &ignored);
+      Res = llvm::ConstantFP::get(Src->getContext(), Val);
+    } else // Keep line break here
     if (DstTy->getTypeID() < SrcTy->getTypeID())
       Res = Builder.CreateFPTrunc(Src, DstTy, "conv");
     else

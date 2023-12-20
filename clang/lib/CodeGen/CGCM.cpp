@@ -1282,6 +1282,13 @@ void CGCMRuntime::EmitCMConstantInitializer(
           NewSrcTy->getNumElements());
       Src = CGF.Builder.CreateFPToSI(Src, InterTy);
       CastOp = llvm::Instruction::Trunc;
+    } else if ((DstTy->isBFloatTy() && NewSrcTy->isHalfTy()) ||
+               (DstTy->isHalfTy() && NewSrcTy->isBFloatTy())) {
+      auto *InterTy = llvm::FixedVectorType::get(
+          llvm::Type::getFloatTy(DstTy->getContext()),
+          NewSrcTy->getNumElements());
+      Src = CGF.Builder.CreateFPExt(Src, InterTy);
+      CastOp = llvm::Instruction::FPTrunc;
     }
     Src = CGF.Builder.CreateCast(CastOp, Src, NewSrcTy);
   }

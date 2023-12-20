@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2013-2021 Intel Corporation
+Copyright (C) 2013-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -1906,7 +1906,8 @@ static bool IsStandardConversion(Sema &S, Expr* From, QualType ToType,
 
     // Conversions between bfloat and other floats are not permitted.
     if (FromType == S.Context.BFloat16Ty || ToType == S.Context.BFloat16Ty)
-      return false;
+      if (!S.getLangOpts().MdfCM) // CM allows bfloat conversions
+        return false;
     if (&S.Context.getFloatTypeSemantics(FromType) !=
         &S.Context.getFloatTypeSemantics(ToType)) {
       bool Float128AndLongDouble = ((FromType == S.Context.Float128Ty &&
@@ -1927,7 +1928,8 @@ static bool IsStandardConversion(Sema &S, Expr* From, QualType ToType,
               ToType->isRealFloatingType())) {
     // Conversions between bfloat and int are not permitted.
     if (FromType->isBFloat16Type() || ToType->isBFloat16Type())
-      return false;
+      if (!S.getLangOpts().MdfCM) // CM allows bfloat conversions
+        return false;
 
     // Floating-integral conversions (C++ 4.9).
     SCS.Second = ICK_Floating_Integral;

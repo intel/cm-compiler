@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2013-2021 Intel Corporation
+Copyright (C) 2013-2023 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -1474,6 +1474,26 @@ static void checkEnumArithmeticConversions(Sema &S, Expr *LHS, Expr *RHS,
   }
 }
 
+static QualType handleHalfAndBFloat16MixConsersions(Sema &S, ExprResult &LHS,
+                                                    ExprResult &RHS,
+                                                    QualType LHSType,
+                                                    QualType RHSType) {
+  assert(S.getLangOpts().MdfCM);
+
+  bool LHSHalf = LHSType->isHalfType();
+  bool RHSHalf = RHSType->isHalfType();
+
+  bool LHSBFloat16 = LHSType->isBFloat16Type();
+  bool RHSBFloat16 = RHSType->isBFloat16Type();
+
+  assert((LHSHalf && RHSBFloat16) || (LHSBFloat16 && RHSHalf));
+
+  auto CommonType = S.Context.FloatTy;
+  RHS = S.ImpCastExprToType(RHS.get(), CommonType, CK_FloatingCast);
+  LHS = S.ImpCastExprToType(LHS.get(), CommonType, CK_FloatingCast);
+  return CommonType;
+}
+
 /// UsualArithmeticConversions - Performs various conversions that are common to
 /// binary operators (C99 6.3.1.8). If both operands aren't arithmetic, this
 /// routine returns the first non-arithmetic type found. The client is
@@ -1507,6 +1527,14 @@ QualType Sema::UsualArithmeticConversions(ExprResult &LHS, ExprResult &RHS,
   // If both types are identical, no conversion is needed.
   if (LHSType == RHSType)
     return LHSType;
+
+  // CM supports bfloat conversions
+  if (getLangOpts().MdfCM &&
+      ((LHSType->isBFloat16Type() && RHSType->isHalfType()) ||
+       (LHSType->isHalfType() && RHSType->isBFloat16Type()))) {
+    return handleHalfAndBFloat16MixConsersions(*this, LHS, RHS, LHSType,
+                                               RHSType);
+  }
 
   // If either side is a non-arithmetic type (e.g. a pointer), we are done.
   // The caller can deal with this (e.g. pointer + int).
