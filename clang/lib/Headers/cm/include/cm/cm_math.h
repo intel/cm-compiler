@@ -20,7 +20,7 @@ static_assert(0, "CM:w:cm_math.h should not be included explicitly - only "
 #include "cm_internal.h"
 #include "cm_traits.h"
 
-#include "spirv/builtins.h"
+#include "spirv/ocl.h"
 
 
 ////////////////////////////////////////////////////////////////////////////////

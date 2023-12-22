@@ -15,7 +15,7 @@ static_assert(0, "CM:w:cm_addrspace.h should not be included explicitly - only "
 #define _CM_ADDRSPACE_H_
 
 #include "cm_common.h"
-#include "spirv/builtins.h"
+#include "spirv/conversion.h"
 
 template <typename T>
 CM_INLINE CM_NODEBUG __private T *cm_to_private(__generic T *ptr) {

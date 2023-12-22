@@ -19,6 +19,8 @@ static_assert(0, "CM:w:cm_cvt.h should not be included explicitly - only "
 #include "cm_traits.h"
 #include "cm_has_instr.h"
 
+#include "spirv/extensions/intel/bfloat16_conversion.h"
+
 
 // float<->bfloat16 conversion
 template <typename DstTy, typename SrcTy, int Width>

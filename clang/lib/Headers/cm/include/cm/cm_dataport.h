@@ -17,6 +17,8 @@ static_assert(0, "CM:w:cm_dataport.h should not be included explicitly - only "
 #include "cm_util.h"
 #include "cm_internal.h"
 
+#include "spirv/barrier.h"
+
 typedef enum _CmFenceMask_ {
   CM_GLOBAL_COHERENT_FENCE = 0x1,
   CM_L3_FLUSH_INSTRUCTIONS = 0x2,

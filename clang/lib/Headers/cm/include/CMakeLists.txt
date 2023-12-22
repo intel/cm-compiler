@@ -1,6 +1,6 @@
 #=========================== begin_copyright_notice ============================
 #
-# Copyright (C) 2020-2022 Intel Corporation
+# Copyright (C) 2020-2023 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 #
@@ -58,12 +58,19 @@ set(CM_HEADERS
   cm/gen7_5_vme.h
   cm/gen8_vme.h
   cm/gen9_vme.h
-  cm/spirv/builtins.h
   cm/cm_addrspace.h
   cm/cm_memory.h
   cm/cm_slm.h
   cm/cm_pointer.h
-   
+
+  # SPIR-V function definitions
+  cm/spirv/barrier.h
+  cm/spirv/builtins.h
+  cm/spirv/conversion.h
+  cm/spirv/ocl.h
+  # SPIR-V extensions
+  cm/spirv/extensions/intel/bfloat16_conversion.h
+
   opencl-c-common.h
   )
 
