@@ -132,6 +132,16 @@ _CM_INTRINSIC_DEF(float, rsqrt, rsqrt)
 _CM_INTRINSIC_DEF(float, sin, sin)
 _CM_INTRINSIC_DEF(float, cos, cos)
 
+#ifdef CM_HAS_BF16
+_CM_INTRINSIC_DEF(__bf16, inv, recip)
+_CM_INTRINSIC_DEF(__bf16, log, log2)
+_CM_INTRINSIC_DEF(__bf16, exp, exp2)
+_CM_INTRINSIC_DEF(__bf16, sqrt, sqrt)
+_CM_INTRINSIC_DEF(__bf16, rsqrt, rsqrt)
+_CM_INTRINSIC_DEF(__bf16, sin, sin)
+_CM_INTRINSIC_DEF(__bf16, cos, cos)
+#endif // CM_HAS_BF16
+
 #undef _CM_INTRINSIC_DEF
 
 // div_ieee
@@ -239,6 +249,10 @@ _CM_INTRINSIC_DEF(double, div_ieee)
 
 _CM_INTRINSIC_DEF(half, pow, powr)
 _CM_INTRINSIC_DEF(float, pow, powr)
+
+#ifdef CM_HAS_BF16
+_CM_INTRINSIC_DEF(__bf16, pow, powr)
+#endif // CM_HAS_BF16
 
 #undef _CM_INTRINSIC_DEF
 

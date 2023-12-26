@@ -42,6 +42,18 @@ _DECL_OCL_OP1(native_sqrt, half)
 _DECL_OCL_OP2(native_powr, float)
 _DECL_OCL_OP2(native_powr, half)
 
+#ifdef CM_HAS_BF16
+_DECL_OCL_OP1(native_cos, __bf16)
+_DECL_OCL_OP1(native_exp2, __bf16)
+_DECL_OCL_OP1(native_log2, __bf16)
+_DECL_OCL_OP1(native_recip, __bf16)
+_DECL_OCL_OP1(native_rsqrt, __bf16)
+_DECL_OCL_OP1(native_sin, __bf16)
+_DECL_OCL_OP1(native_sqrt, __bf16)
+
+_DECL_OCL_OP2(native_powr, __bf16)
+#endif // CM_HAS_BF16
+
 #undef _DECL_OCL_OP1
 #undef _DECL_OCL_OP2
 
