@@ -43,6 +43,10 @@ SPDX-License-Identifier: MIT
 #include "cm_abs.h"
 #include "cm_math.h"
 
+#if defined(CM_HAS_BF16)
+using bfloat16 = __bf16;
+#endif // defined(CM_HAS_BF16)
+
 // cm_add
 template <typename T0, typename T1, int SZ, typename U>
 CM_NODEBUG CM_INLINE vector<T0, SZ> cm_add(vector<T1, SZ> src0, U src1,
