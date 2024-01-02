@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2021 Intel Corporation
+Copyright (C) 2014-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -273,64 +273,6 @@ template <typename T = void> constexpr int lsc_default_simt() {
 template <typename T> constexpr bool lsc_check_atomic_src() {
   // 8-bit atomics are unsupported
   return sizeof(T) >= 2;
-}
-
-template <CacheHint mHint> class CacheHintWrap {
-  template <CacheHint...> class is_one_of_t;
-  template <CacheHint Last>
-  struct is_one_of_t<Last>
-      : std::conditional<Last == mHint, std::true_type, std::false_type>::type {
-  };
-  template <CacheHint Head, CacheHint... Tail>
-  struct is_one_of_t<Head, Tail...>
-      : std::conditional<Head == mHint, std::true_type,
-                         is_one_of_t<Tail...>>::type {};
-
-public:
-  constexpr operator CacheHint() const { return mHint; }
-  template <CacheHint... Hints> constexpr bool is_one_of() const {
-    return is_one_of_t<Hints...>::value;
-  }
-};
-
-constexpr bool are_both(CacheHint First, CacheHint Second, CacheHint Val) {
-  return First == Val && Second == Val;
-}
-
-enum class LSCAction { Prefetch, Load, Store, Atomic };
-
-template <LSCAction Act, CacheHint L1, CacheHint L3>
-constexpr bool lsc_check_cache_hint() {
-  constexpr auto L1H = CacheHintWrap<L1>{};
-  constexpr auto L3H = CacheHintWrap<L3>{};
-  switch (Act) {
-  case LSCAction::Prefetch:
-    return L1H.is_one_of<CacheHint::Cached, CacheHint::Uncached,
-                         CacheHint::Streaming>() &&
-               L3H.is_one_of<CacheHint::Cached, CacheHint::Uncached>() &&
-               !are_both(L1H, L3H, CacheHint::Uncached)
-        ;
-  case LSCAction::Load:
-    return are_both(L1H, L3H, CacheHint::Default) ||
-           (L1H.is_one_of<CacheHint::Uncached, CacheHint::Cached,
-                          CacheHint::Streaming>() &&
-            L3H.is_one_of<CacheHint::Uncached, CacheHint::Cached>())
-#ifdef CM_HAS_LSC_LOAD_L1RI_L3CA_HINT
-           || (L1H == CacheHint::ReadInvalidate && L3H == CacheHint::Cached)
-#endif // CM_HAS_LSC_LOAD_L1RI_L3CA_HINT
-        ;
-  case LSCAction::Store:
-    return are_both(L1H, L3H, CacheHint::Default) ||
-           are_both(L1H, L3H, CacheHint::WriteBack) ||
-           (L1H.is_one_of<CacheHint::Uncached, CacheHint::WriteThrough,
-                          CacheHint::Streaming>() &&
-            L3H.is_one_of<CacheHint::Uncached, CacheHint::WriteBack>());
-
-  case LSCAction::Atomic:
-    return are_both(L1H, L3H, CacheHint::Default) ||
-           (L1H == CacheHint::Uncached &&
-            L3H.is_one_of<CacheHint::Uncached, CacheHint::WriteBack>());
-  }
 }
 
 template <ChannelMaskType Mask>

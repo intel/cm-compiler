@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2022-2023 Intel Corporation
+Copyright (C) 2022-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -195,6 +195,7 @@ namespace CheckVersion {
   #define CM_HAS_LSC_SYS_FENCE 1
 #endif
 #if (CM_GENX <= 1280)
+  #define CM_HAS_LSC_LOAD_L1RI_L2CA_HINT 1
   #define CM_HAS_LSC_LOAD_L1RI_L3CA_HINT 1
 #endif
 
