@@ -123,9 +123,9 @@ bool Sema::IsCMVectorConversion(QualType FromType, QualType ToType,
     QualType FromEltType = FromType->getCMVectorMatrixElementType();
     QualType ToEltType = ToType->getCMVectorMatrixElementType();
 
-    if (FromEltType->isPointerType() && ToEltType->isPointerType()) {
-      const PointerType *FromEltPtrType = FromEltType->getAs<PointerType>();
-      const PointerType *ToEltPtrType = ToEltType->getAs<PointerType>();
+    const PointerType *FromEltPtrType = FromEltType->getAs<PointerType>();
+    const PointerType *ToEltPtrType = ToEltType->getAs<PointerType>();
+    if (FromEltPtrType && ToEltPtrType) {
 
       QualType FromEltPointeeTy =
           FromEltPtrType->getPointeeType().getCanonicalType();
@@ -147,7 +147,7 @@ bool Sema::IsCMVectorConversion(QualType FromType, QualType ToType,
     }
 
     // Implicit ptrtoint or inttoptr conversions are not supported.
-    if (FromEltType->isPointerType() || ToEltType->isPointerType())
+    if (FromEltPtrType || ToEltPtrType)
       return false;
 
     if (Context.hasSameUnqualifiedType(FromEltType, ToEltType)) {
