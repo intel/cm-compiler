@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2023 Intel Corporation
+Copyright (C) 2016-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -964,15 +964,16 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
         {
             {SPIRV::ExtensionID::SPV_EXT_relaxed_printf_string_address_space,
              true},
-            {SPIRV::ExtensionID::SPV_INTEL_masked_gather_scatter, true},
             {SPIRV::ExtensionID::SPV_INTEL_bfloat16_conversion, true},
             {SPIRV::ExtensionID::SPV_INTEL_fast_composite, true},
             {SPIRV::ExtensionID::SPV_INTEL_float_controls2, true},
             {SPIRV::ExtensionID::SPV_INTEL_hw_thread_queries, true},
             {SPIRV::ExtensionID::SPV_INTEL_inline_assembly, true},
+            {SPIRV::ExtensionID::SPV_INTEL_masked_gather_scatter, true},
             {SPIRV::ExtensionID::SPV_INTEL_split_barrier, true},
             {SPIRV::ExtensionID::SPV_INTEL_vector_compute, true},
             {SPIRV::ExtensionID::SPV_KHR_float_controls, true},
+            {SPIRV::ExtensionID::SPV_KHR_no_integer_wrap_decoration, true},
         }};
     Opts.setSPIRVAllowUnknownIntrinsics({"llvm.genx"});
     Opts.setDebugInfoEIS(SPIRV::DebugInfoEIS::OpenCL_DebugInfo_100);
