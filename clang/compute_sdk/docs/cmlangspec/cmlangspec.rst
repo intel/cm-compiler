@@ -3439,8 +3439,8 @@ cm_slm_block_write
 
   void cm_slm_block_write(uint slmBuffer, int offset, const vector<T, N> v);
 
-Write N data elements (byte, word, dword, qword) given in the vector 'v' as a 
-single block starting at (slmBuffer + offset) address. 
+Write N data elements (byte, word, dword, qword) given in the vector 'v' as a
+single block starting at (slmBuffer + offset) address.
 
 =============== ================================================================
 Parameters
@@ -9054,7 +9054,7 @@ The following conversion rules between pointers to different address spaces appl
 
 * A pointer to a named address space can not be directly implicitly converted or cast to a pointer of a different named address space
 
-**Example:** 
+**Example:**
 
 .. code-block:: c++
 
@@ -9073,10 +9073,10 @@ The following conversion rules between pointers to different address spaces appl
 7.2 Address Space Qualifier Functions
 -------------------------------------
 
-**Description:** Returns a pointer that points to a region in the named address space if the function 
+**Description:** Returns a pointer that points to a region in the named address space if the function
 can cast a pointer to the named address space. Otherwise it returns a null pointer.
 
-**Functions:** 
+**Functions:**
 
 .. code-block:: c++
 
@@ -9089,7 +9089,7 @@ pointer to a private/local/global pointer. Nonetheless, address space qualifier 
 additional runtime code to identify any address space mismatch. The following example shows the difference
 between reinterpret_cast and cm_to_local() function:
 
-**Example:** 
+**Example:**
 
 .. code-block:: c++
 
@@ -9098,7 +9098,7 @@ between reinterpret_cast and cm_to_local() function:
     // The generic pointer encapsulates pointer to __global address space.
     // When it is cast to a pointer to __local we get an invalid pointer as
     // a result since global and local address spaces are disjoint.
-    __local int *lptr = reinterpret_cast<__local int *>(genptr); 
+    __local int *lptr = reinterpret_cast<__local int *>(genptr);
   }
 
   void foo(__global int *gptr) {
@@ -9187,9 +9187,9 @@ by the rules governing the conversion of their individual elements, as specified
   void foo(vector<svmptr_t, 4> in) {
     // integer to pointer conversion
     vector<__global int *, 4> v = reinterpret_cast<vector<__global int *, 4> >(in);
-    
+
     // address space implicit conversion
-    vector<__generic int *, 4> genVPtrs = v; 
+    vector<__generic int *, 4> genVPtrs = v;
 
     // conversion of disjoint address spaces
     vector<__local int *, 4> localVPtrs = v; // error
@@ -9227,8 +9227,8 @@ Scatter: Writes scalar values to arbitrary memory locations.
                          matrix<T, N, M> passthru);
 
   template <typename T, int N, int A = Align::ELEM_SIZE>
-  void scatter(vector<T, N> src, vector<_AS T *, N> ptrs, 
-               vector<ushort, N> mask = 1) 
+  void scatter(vector<T, N> src, vector<_AS T *, N> ptrs,
+               vector<ushort, N> mask = 1)
   template <typename T, int N, int M, int A = Align::ELEM_SIZE>
   void scatter(matrix<T, N, M> src, matrix<_AS T *, N, M> ptrs,
                matrix<ushort, N, M> mask = 1)
