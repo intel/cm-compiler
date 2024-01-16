@@ -127,7 +127,8 @@ static_assert(0, "CM:w:cm_target.h should not be included explicitly - only "
 #endif
 
 // PVC
-#if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(12, 60, 0)
+#if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(12, 60, 0) || \
+    __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(12, 61, 0)
 #define CM_GENX 1280
 #define CM_XEHPC
 #endif
