@@ -1,6 +1,6 @@
 .. ========================= begin_copyright_notice ============================
 
-  Copyright (C) 2021-2023 Intel Corporation
+  Copyright (C) 2021-2024 Intel Corporation
 
   SPDX-License-Identifier: MIT
 
@@ -191,7 +191,7 @@ Changes since C for Metal 6.0
   supported by hardware.
 
 * Added new _GENX_FLOAT_CONTROL_ support to extend floating point control from just rounding modes
-  (that _GENX_ROUNDING_MODE_ implements). The new support includes denorm control and ALT/IEEE for
+  (that _GENX_ROUNDING_MODE_ implements). The new support includes denorm control and IEEE for
   single precision float.
 
 * Added half-precision floating-point (half) as one of basic scalar data types.
@@ -6798,7 +6798,6 @@ CM_DENORM_F_ALLOW        Set float to allow denorms
 CM_DENORM_HF_ALLOW       Set half to allow denorms
 CM_DENORM_ALLOW          Set all float types (double, float, half) to allow denorms
 CM_FLOAT_MODE_IEEE       Set single float mode to IEEE (default)
-CM_FLOAT_MODE_ALT        Set single float mode to ALT
 ======================== ============================================================
 
 
@@ -6859,9 +6858,6 @@ Float mode behaviour
   _GENX_MAIN_ _GENX_FLOAT_CONTROL_(CM_FLOAT_MODE_IEEE) void float_ieee_kernel(SurfaceIndex ExampleBuffer) {
   ...
   }
-  _GENX_MAIN_ _GENX_FLOAT_CONTROL_(CM_FLOAT_MODE_ALT) void float_alt_kernel(SurfaceIndex ExampleBuffer) {
-  ...
-  }
 
 Mixed control examples
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -6871,7 +6867,7 @@ Mixed control examples
   _GENX_MAIN_ _GENX_FLOAT_CONTROL_(CM_DENORM_F_ALLOW | CM_RTN) void denorm_and_round_kernel(SurfaceIndex ExampleBuffer) {
   ...
   }
-  _GENX_MAIN_ _GENX_FLOAT_CONTROL_(CM_DENORM_ALLOW | CM_RTN | CM_FLOAT_MODE_ALT) void multiple_settings_kernel(SurfaceIndex ExampleBuffer) {
+  _GENX_MAIN_ _GENX_FLOAT_CONTROL_(CM_DENORM_ALLOW | CM_RTN | CM_FLOAT_MODE_IEEE) void multiple_settings_kernel(SurfaceIndex ExampleBuffer) {
   ...
   }
 

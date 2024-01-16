@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2023 Intel Corporation
+Copyright (C) 2014-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -448,8 +448,7 @@ enum CmFloatControl {
   _CM_DENORM_F_ALLOW  = 1 << 7,   // Denorm mode float allow
   _CM_DENORM_HF_ALLOW = 1 << 10,  // Denorm mode half allow
 
-  _CM_FLOAT_MODE_IEEE    = 0,     // Single precision float IEEE mode
-  _CM_FLOAT_MODE_ALT     = 1      // Single precision float ALT mode
+  _CM_FLOAT_MODE_IEEE = 0 // Single precision float IEEE mode
 };
 
 #define CM_RTE CmFloatControl::_CM_RTE
@@ -467,7 +466,6 @@ enum CmFloatControl {
    CmFloatControl::_CM_DENORM_HF_ALLOW)
 
 #define CM_FLOAT_MODE_IEEE  CmFloatControl::_CM_FLOAT_MODE_IEEE
-#define CM_FLOAT_MODE_ALT   CmFloatControl::_CM_FLOAT_MODE_ALT
 
 // dpas helpers
 enum class CmPrecisionType {
