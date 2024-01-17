@@ -78,8 +78,8 @@ constexpr bool lsc_check_cache_hint_store() {
   constexpr CacheHintWrap<L2> L2H;
   return are_all_equal_to<CacheHint::Default>(L1H, L2H) ||
          are_all_equal_to<CacheHint::WriteBack>(L1H, L2H) ||
-         (L1H.is_one_of<CacheHint::Uncached, CacheHint::WriteThrough,
-                        CacheHint::Streaming>() &&
+         (L1H.is_one_of<CacheHint::Uncached, CacheHint::WriteBack,
+                        CacheHint::WriteThrough, CacheHint::Streaming>() &&
           L2H.is_one_of<CacheHint::Uncached, CacheHint::WriteBack>());
 }
 
