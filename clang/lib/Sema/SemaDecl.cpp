@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2013-2023 Intel Corporation
+Copyright (C) 2013-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -9822,60 +9822,77 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
     }
 
     if (IsGenx || IsGenxMain) {
-      for (FunctionDecl::param_iterator PI = NewFD->param_begin(),
-                                        PE = NewFD->param_end();
-           PI != PE; ++PI) {
-        ParmVarDecl *Param = *PI;
-        QualType ParamTy = Param->getType()->getCanonicalTypeUnqualified();
-        // CM spec 4.2.
+      auto It = llvm::find_if_not(NewFD->parameters(), [IsGenxMain](auto *P) {
+        QualType Ty = P->getType()->getCanonicalTypeUnqualified();
+
+        // A kernel parameter cannot be vector_ref and matrix_ref, because we
+        // cannot pass kernel vector/matrix arguments by reference.
+        if (IsGenxMain && Ty->isCMReferenceType())
+          return false;
+
+        // Allow references to basic types as parameters for non-kernel functions.
+        if (!IsGenxMain && Ty->isReferenceType()) {
+          QualType PointeeTy = Ty->getPointeeType();
+          return PointeeTy->isBooleanType() || PointeeTy->isEnumeralType() ||
+                 PointeeTy->isCMScalarType();
+        }
+
+        if (Ty->isPointerType()) {
+          // Allow any pointers as parameters for non-kernel functions.
+          if (!IsGenxMain)
+            return true;
+
+          QualType PointeeTy = Ty->getPointeeType();
+
+          // Don't allow pointers to pointers as kernel parameters.
+          if (PointeeTy->isPointerType())
+            return false;
+
+          switch (PointeeTy.getAddressSpace()) {
+          default:
+            return false;
+          // Allow a pointer argument to reside in default address space
+          // for backwards compatibility with existing kernels.
+          case LangAS::Default:
+          case LangAS::opencl_global:
+          case LangAS::opencl_constant:
+          case LangAS::opencl_local:
+            return true;
+          }
+          llvm_unreachable("bad pointer type");
+        }
+
+        // CM language reference, 4.2
         //
         // Parameters to a user-defined CM function may have scalar type,
         // vector/matrix type, or SurfaceIndex/SamplerIndex/VmeIndex type.
         //
         // Note that Enum and boolean types should be allowed, but spec does
         // not.
-        if (!ParamTy->isCMScalarType() && !ParamTy->isCMVectorMatrixType() &&
-            !ParamTy->isCMVmeIndexType() && !ParamTy->isCMSurfaceIndexType() &&
-            !ParamTy->isCMSamplerIndexType() && !ParamTy->isEnumeralType() &&
-            !ParamTy->isBooleanType() && !ParamTy->isTemplateTypeParmType()) {
+        if (Ty->isBooleanType() || Ty->isEnumeralType() ||
+            Ty->isCMScalarType() || Ty->isCMVectorMatrixType() ||
+            Ty->isCMVmeIndexType() || Ty->isCMSurfaceIndexType() ||
+            Ty->isCMSamplerIndexType() || Ty->isTemplateTypeParmType())
+          return true;
 
-          // Allow pointer arguments.
-          // TODO, only allow certain pointers?
-          if (ParamTy->isPointerType()) {
-            if (!IsGenxMain)
-              continue;
-            // A kernel function argument cannot be declared as a pointer to
-            // a pointer type.
-            QualType PointeeType = ParamTy->getPointeeType();
-            if (!PointeeType->isPointerType())
-              // Allow a pointer argument to reside in default address space
-              // for backwards compatibility for now.
-              if (PointeeType.getAddressSpace() == LangAS::Default ||
-                  PointeeType.getAddressSpace() == LangAS::opencl_global ||
-                  PointeeType.getAddressSpace() == LangAS::opencl_constant ||
-                  PointeeType.getAddressSpace() == LangAS::opencl_local)
-                continue;
-          }
+        return false;
+      });
 
-          Diag(Param->getLocation(), diag::err_cm_invalid_param_type)
-              << Param->getType();
-          D.setInvalidType();
-        }
-
-        // In addition, vector_ref and matrix_ref types may not be used to
-        // pass a vector/matrix object by reference.
-        if (IsGenxMain && ParamTy->isCMReferenceType()) {
-          Diag(Param->getLocation(), diag::err_cm_kernel_no_ref_param_type)
-              << ParamTy;
-          D.setInvalidType();
-        }
+      // Unsupported parameter type is found, emit an error
+      if (It != NewFD->param_end()) {
+        auto *P = *It;
+        QualType Ty = P->getType()->getCanonicalTypeUnqualified();
+        auto IsKernelRef =  IsGenxMain && Ty->isCMReferenceType();
+        auto ErrKind = IsKernelRef ? diag::err_cm_kernel_no_ref_param_type : diag::err_cm_invalid_param_type;
+        Diag(P->getLocation(), ErrKind) << Ty;
+        D.setInvalidType();
       }
     }
-  }
 
-  if (NewFD->hasAttr<CMFloatControlAttr>()) {
-    if (!NewFD->hasAttr<CMGenxMainAttr>() && !NewFD->hasAttr<NoInlineAttr>())
-      Diag(NewFD->getLocation(), diag::err_cm_invalid_float_control_use);
+    if (NewFD->hasAttr<CMFloatControlAttr>()) {
+      if (!NewFD->hasAttr<CMGenxMainAttr>() && !NewFD->hasAttr<NoInlineAttr>())
+        Diag(NewFD->getLocation(), diag::err_cm_invalid_float_control_use);
+    }
   }
 
   if (getLangOpts().CPlusPlus) {
