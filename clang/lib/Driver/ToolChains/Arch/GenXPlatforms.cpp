@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2023 Intel Corporation
+Copyright (C) 2023-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -21,7 +21,7 @@ static const std::unordered_map<std::string, uint32_t> ReleaseId = {
   {"xe-hpc", encodeGmdId(12, 60, 7)},
   {"xe-hpg", encodeGmdId(12, 57, 0)},
   {"xe-hp", encodeGmdId(12, 50, 4)},
-  {"gen12lp", encodeGmdId(12, 10, 0)},
+  {"xe-lp", encodeGmdId(12, 10, 0)},
   {"gen11", encodeGmdId(11, 2, 0)},
   {"gen9", encodeGmdId(9, 7, 0)},
   {"gen8", encodeGmdId(8, 0, 0)},

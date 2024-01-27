@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2018-2023 Intel Corporation
+Copyright (C) 2018-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -44,6 +44,7 @@ static uint32_t getGenXTargetCPUId(const std::string &CPU, int RevId) {
                 .Cases("gen9_5", "gen9p5", "kbl")
                 .Cases("gen9_5lp", "gen9p5lp", "glk")
                 .Case("gen11lp", "gen11")
+                .Case("gen12lp", "xe-lp")
                 .Case("tgl", "tgllp")
                 .Case("adls", "adl-s")
                 .Case("adlp", "adl-p")
