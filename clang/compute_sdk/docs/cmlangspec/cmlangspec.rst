@@ -1878,12 +1878,20 @@ operand is equal to 0 and the type is unsigned, returns 0xFFFFFFFF. If the
 source operand is equal to 0 or 0xFFFFFFFF and the type is signed, returns
 0xFFFFFFFF.
 
+cm_clock
+^^^^^^^^
+
+Returns the low and high parts of the 64-bit timestamp as a vector of 2 32-bit
+values.
+
 cm_rdtsc
 ^^^^^^^^
 
 Returns time stamp information as a vector of 4 32bit values: 1st and 2nd are
 the low and high bits of the 64bit timestamp, 3rd contain a bit that is set
 when a context switch occurs, and the 4th is unused.
+
+Note: The function is deprecated. cm_clock should be used instead.
 
 * Return: vector
 

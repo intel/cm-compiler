@@ -1,6 +1,6 @@
 #=========================== begin_copyright_notice ============================
 #
-# Copyright (C) 2020-2023 Intel Corporation
+# Copyright (C) 2020-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 #
@@ -70,6 +70,7 @@ set(CM_HEADERS
   cm/spirv/ocl.h
   # SPIR-V extensions
   cm/spirv/extensions/intel/bfloat16_conversion.h
+  cm/spirv/extensions/khr/shader_clock.h
 
   opencl-c-common.h
   )

@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2023 Intel Corporation
+Copyright (C) 2014-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -42,6 +42,8 @@ SPDX-License-Identifier: MIT
 
 #include "cm_abs.h"
 #include "cm_math.h"
+
+#include "spirv/extensions/khr/shader_clock.h"
 
 #if defined(CM_HAS_BF16)
 using bfloat16 = __bf16;
@@ -1721,7 +1723,15 @@ cm_fbh(T src) {
   return _Result(0);
 }
 
-template <typename T = void> vector<uint, 4> cm_rdtsc();
+/// Get the timestamp value.
+CM_NODEBUG CM_INLINE vector<uint, 2> cm_clock() {
+  constexpr uint InvocationScope = 4;
+  return __spirv_ReadClockKHR(InvocationScope);
+}
+
+template <typename T = void>
+CM_DEPRECATED("Please use 'cm_clock' to get the timestamp value instead!")
+vector<uint, 4> cm_rdtsc();
 
 //////////////////////////////////////////
 // Legacy f16 to f32 and vice versa

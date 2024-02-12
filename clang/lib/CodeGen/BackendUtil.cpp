@@ -974,6 +974,7 @@ void EmitAssemblyHelper::EmitAssembly(BackendAction Action,
             {SPIRV::ExtensionID::SPV_INTEL_vector_compute, true},
             {SPIRV::ExtensionID::SPV_KHR_float_controls, true},
             {SPIRV::ExtensionID::SPV_KHR_no_integer_wrap_decoration, true},
+            {SPIRV::ExtensionID::SPV_KHR_shader_clock, true},
         }};
     Opts.setSPIRVAllowUnknownIntrinsics({"llvm.genx"});
     Opts.setDebugInfoEIS(SPIRV::DebugInfoEIS::OpenCL_DebugInfo_100);
