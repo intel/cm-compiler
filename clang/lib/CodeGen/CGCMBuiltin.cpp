@@ -281,6 +281,18 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
                         CMBK_cm_block_load2d_flat_impl)
             .StartsWith("__cm_intrinsic_impl_block_store2d_flat",
                         CMBK_cm_block_store2d_flat_impl)
+            .StartsWith("__cm_intrinsic_impl_load4_typed_bti",
+                        CMBK_cm_load4_typed_impl)
+            .StartsWith("__cm_intrinsic_impl_store4_typed_bti",
+                        CMBK_cm_store4_typed_impl)
+            .StartsWith("__cm_intrinsic_impl_prefetch4_typed_bti",
+                        CMBK_cm_prefetch4_typed_impl)
+            .StartsWith("__cm_intrinsic_impl_prefetch2d_bti",
+                        CMBK_cm_prefetch2d_bti_impl)
+            .StartsWith("__cm_intrinsic_impl_load2d_bti",
+                        CMBK_cm_load2d_bti_impl)
+            .StartsWith("__cm_intrinsic_impl_store2d_bti",
+                        CMBK_cm_store2d_bti_impl)
             .StartsWith("__cm_intrinsic_impl_lsc_atomic_bti",
                         CMBK_cm_atomic_bti_impl)
             .StartsWith("__cm_intrinsic_impl_lsc_atomic_slm",
@@ -1121,6 +1133,18 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_cm_block_store2d_flat_impl:
   case CMBK_cm_block_prefetch2d_flat_impl:
     HandleBuiltinLSC2dImpl(getCurCMCallInfo(), Kind);
+    return RValue::get(0);
+  case CMBK_cm_load4_typed_impl:
+    return RValue::get(HandleBuiltinLSCTypedImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_store4_typed_impl:
+  case CMBK_cm_prefetch4_typed_impl:
+    HandleBuiltinLSCTypedImpl(getCurCMCallInfo(), Kind);
+    return RValue::get(0);
+  case CMBK_cm_load2d_bti_impl:
+    return RValue::get(HandleBuiltinLSCTyped2DImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_store2d_bti_impl:
+  case CMBK_cm_prefetch2d_bti_impl:
+    HandleBuiltinLSCTyped2DImpl(getCurCMCallInfo(), Kind);
     return RValue::get(0);
   case CMBK_cm_lsc_fence_impl:
     HandleBuiltinLscFenceImpl(getCurCMCallInfo(), Kind);
@@ -7490,6 +7514,175 @@ llvm::Value *CGCMRuntime::HandleBuiltinLSCImpl(CMCallInfo &CallInfo,
   return NewCI;
 }
 
+/// \brief Postprocess LSC Xe2+ typed implementation builtins.
+///
+/// template <ChannelMaskType Mask, CacheHint L1H, CacheHint L3H, int N,
+///           typename RetTy>
+/// RetTy __cm_intrinsic_impl_load4_typed_bti(
+///     vector<ushort, N> Pred, SurfaceIndex Image, vector<unsigned, N> U,
+///     vector<unsigned, N> V, vector<unsigned, N> R, vector<unsigned, N> LOD,
+///     RetTy MergeData);
+/// template <ChannelMaskType Mask, CacheHint L1H, CacheHint L3H, int N,
+///           typename DataTy>
+/// void __cm_intrinsic_impl_store4_typed_bti(
+///     vector<ushort, N> Pred, SurfaceIndex Image, vector<unsigned, N> U,
+///     vector<unsigned, N> V, vector<unsigned, N> R, vector<unsigned, N> LOD,
+///     DataTy StoreData);
+/// template <ChannelMaskType Mask, CacheHint L1H, CacheHint L3H, int N>
+/// void __cm_intrinsic_impl_prefetch4_typed_bti(
+///     vector<ushort, N> Pred, SurfaceIndex Image, vector<unsigned, N> U,
+///     vector<unsigned, N> V, vector<unsigned, N> R, vector<unsigned, N> LOD);
+///
+llvm::Value *CGCMRuntime::HandleBuiltinLSCTypedImpl(CMCallInfo &CallInfo,
+                                                    CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_load4_typed_impl ||
+         Kind == CMBK_cm_prefetch4_typed_impl ||
+         Kind == CMBK_cm_store4_typed_impl);
+
+  const FunctionDecl *FD = CallInfo.CE->getDirectCallee();
+  assert(FD && FD->isTemplateInstantiation());
+
+  llvm::CallInst *CI = CallInfo.CI;
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  unsigned ChMask = getIntegralValue(FD, 0);
+  unsigned L1H = getIntegralValue(FD, 1);
+  unsigned L3H = getIntegralValue(FD, 2);
+  unsigned SimdWidth = getIntegralValue(FD, 3);
+
+  llvm::Value *Pred = CI->getArgOperand(0);
+  llvm::Value *BTI = CI->getArgOperand(1);
+  llvm::Value *U = CI->getArgOperand(2);
+  llvm::Value *V = CI->getArgOperand(3);
+  llvm::Value *R = CI->getArgOperand(4);
+  llvm::Value *LOD = CI->getArgOperand(5);
+
+  llvm::Type *PredTy =
+      llvm::FixedVectorType::get(Builder.getInt1Ty(), SimdWidth);
+  llvm::Type *AddrTy = U->getType();
+  llvm::Type *DataTy = nullptr;
+
+  SmallVector<llvm::Value *, 10> Args = {
+      Builder.CreateTrunc(Pred, PredTy),
+      Builder.getInt8(L1H),
+      Builder.getInt8(L3H),
+      Builder.getInt8(ChMask),
+      BTI,
+      U,
+      V,
+      R,
+      LOD,
+  };
+
+  if (Kind != CMBK_cm_prefetch4_typed_impl) {
+    llvm::Value *Src = CI->getArgOperand(6);
+    DataTy = Src->getType();
+    Args.push_back(Src);
+    assert(DataTy->isVectorTy());
+  }
+
+  llvm::Function *F = nullptr;
+  switch (Kind) {
+  default:
+    llvm_unreachable("Unsupported function");
+  case CMBK_cm_load4_typed_impl:
+    F = getGenXIntrinsic(
+        llvm::GenXIntrinsic::genx_lsc_load_merge_quad_typed_bti,
+        {DataTy, PredTy, AddrTy});
+    break;
+  case CMBK_cm_store4_typed_impl:
+    F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_lsc_store_quad_typed_bti,
+                         {PredTy, AddrTy, DataTy});
+    break;
+  case CMBK_cm_prefetch4_typed_impl:
+    F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_lsc_prefetch_quad_typed_bti,
+                         {PredTy, AddrTy});
+    break;
+  }
+
+  auto *NewCI = Builder.CreateCall(F, Args);
+  NewCI->setDebugLoc(CI->getDebugLoc());
+  if (!CI->getType()->isVoidTy())
+    CI->replaceAllUsesWith(NewCI);
+  CI->eraseFromParent();
+
+  return NewCI;
+}
+
+/// \brief Postprocess LSC Xe2+ typed 2d implementation builtins.
+///        It is separate handler because message is different and unfication
+///        is rather hard. To rethink unification across messages
+///
+/// template <typename T, int Width, int Height, CacheHint L1H, CacheHint L3H>
+/// matrix<T, Width, Height>
+/// __cm_intrinsic_impl_load2d_bti(SurfaceIndex, int, int);
+///
+/// template <typename T, int Width, int Height, CacheHint L1H, CacheHint L3H>
+/// void
+/// __cm_intrinsic_impl_prefetch2d_bti(SurfaceIndex, int, int);
+///
+/// template <typename T, int Width, int Height, CacheHint L1H, CacheHint L3H>
+/// void
+/// __cm_intrinsic_impl_store2d_bti(SurfaceIndex, int, int, matrix<T, Width,
+/// Height>);
+///
+llvm::Value *CGCMRuntime::HandleBuiltinLSCTyped2DImpl(CMCallInfo &CallInfo,
+                                                      CMBuiltinKind Kind) {
+
+  assert(Kind == CMBK_cm_load2d_bti_impl ||
+         Kind == CMBK_cm_prefetch2d_bti_impl ||
+         Kind == CMBK_cm_store2d_bti_impl);
+
+  const FunctionDecl *FD = CallInfo.CE->getDirectCallee();
+  assert(FD && FD->isTemplateInstantiation());
+
+  llvm::CallInst *CI = CallInfo.CI;
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  unsigned Height = getIntegralValue(FD, 1);
+  unsigned Width = getIntegralValue(FD, 2);
+  unsigned char L1H = getIntegralValue(FD, 3);
+  unsigned char L3H = getIntegralValue(FD, 4);
+  llvm::Value *Surface = CI->getArgOperand(0);
+  llvm::Value *XOff = CI->getArgOperand(1);
+  llvm::Value *YOff = CI->getArgOperand(2);
+  llvm::Value *Data = nullptr;
+
+  if (Kind == CMBK_cm_store2d_bti_impl)
+    Data = CI->getArgOperand(3);
+
+  auto ID = llvm::GenXIntrinsic::genx_lsc_load2d_typed_bti;
+  if (Kind == CMBK_cm_store2d_bti_impl)
+    ID = llvm::GenXIntrinsic::genx_lsc_store2d_typed_bti;
+
+  SmallVector<llvm::Type *, 1> Tys;
+
+  if (Kind == CMBK_cm_load2d_bti_impl)
+    Tys.push_back(CI->getType());
+  else if (Kind == CMBK_cm_store2d_bti_impl)
+    Tys.push_back(Data->getType());
+
+  llvm::Function *F = getGenXIntrinsic(ID, Tys);
+
+  SmallVector<llvm::Value *, 8> Args;
+  Args.push_back(Builder.getInt8(L1H));
+  Args.push_back(Builder.getInt8(L3H));
+  Args.push_back(Surface);
+  Args.push_back(Builder.getInt32(Height));
+  Args.push_back(Builder.getInt32(Width));
+  Args.push_back(XOff);
+  Args.push_back(YOff);
+
+  if (Kind == CMBK_cm_store2d_bti_impl)
+    Args.push_back(Data);
+
+  auto NewCI = Builder.CreateCall(F, Args);
+  NewCI->setDebugLoc(CI->getDebugLoc());
+  if (!CI->getType()->isVoidTy())
+    CI->replaceAllUsesWith(NewCI);
+  CI->eraseFromParent();
+  return NewCI;
+}
 
 /// \brief Postprocess cm_fence implementation builtins.
 //

@@ -55,6 +55,10 @@ constexpr bool lsc_check_cache_hint_prefetch() {
                            CacheHint::Streaming>() &&
              L2H.is_one_of<CacheHint::Uncached, CacheHint::Cached>() &&
              !are_all_equal_to<CacheHint::Uncached>(L1H, L2H);
+#ifdef CM_HAS_LSC_L1L3CC_HINT
+  Res = Res || (L1H.is_one_of<CacheHint::Uncached, CacheHint::Cached>() &&
+                L2H == CacheHint::ConstCached);
+#endif // CM_HAS_LSC_L1L3CC_HINT
   return Res;
 }
 
@@ -66,6 +70,13 @@ constexpr bool lsc_check_cache_hint_load() {
              (L1H.is_one_of<CacheHint::Uncached, CacheHint::Cached,
                             CacheHint::Streaming>() &&
               L2H.is_one_of<CacheHint::Uncached, CacheHint::Cached>());
+#ifdef CM_HAS_LSC_L1L3CC_HINT
+  Res = Res || (L1H.is_one_of<CacheHint::Uncached, CacheHint::Cached>() &&
+                L2H == CacheHint::ConstCached);
+#endif // CM_HAS_LSC_L1L3CC_HINT
+#ifdef CM_HAS_LSC_LOAD_L1RI_L3RI_HINT
+  Res = Res || are_all_equal_to<CacheHint::ReadInvalidate>(L1H, L2H);
+#endif // CM_HAS_LSC_LOAD_L1RI_L3RI_HINT
 #ifdef CM_HAS_LSC_LOAD_L1RI_L3CA_HINT
   Res = Res || (L1H == CacheHint::ReadInvalidate && L2H == CacheHint::Cached);
 #endif // CM_HAS_LSC_LOAD_L1RI_L3CA_HINT
@@ -972,6 +983,149 @@ cm_store(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
                                               SurfacePitch, X, Y, Data);
 }
 
+// typed bti load4/store4/prefetch4 are Xe2+
+template <ChannelMaskType ChMask, CacheHint L1Hint = CacheHint::Default,
+          CacheHint L2Hint = CacheHint::Default, typename T = unsigned,
+          int SimdWidth = 16>
+CM_NODEBUG CM_INLINE std::enable_if_t<details::is_fp_or_dword_type<T>::value>
+cm_load4_typed(
+    matrix_ref<T, details::lsc_get_num_elements_from_channel_mask<ChMask>(),
+               SimdWidth>
+        Output,
+    vector<uint16_t, SimdWidth> Pred, SurfaceIndex Image,
+    vector<unsigned, SimdWidth> U, vector<unsigned, SimdWidth> V = 0,
+    vector<unsigned, SimdWidth> R = 0, vector<unsigned, SimdWidth> LOD = 0) {
+  using namespace details;
+  CM_HAS_LSC_TYPED_CONTROL;
+  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1Hint, L2Hint>()),
+                  "unsupported cache hint");
+  Output = __cm_intrinsic_impl_load4_typed_bti<ChMask, L1Hint, L2Hint>(
+      Pred, Image, U, V, R, LOD, Output);
+}
+
+template <ChannelMaskType ChMask, CacheHint L1Hint = CacheHint::Default,
+          CacheHint L2Hint = CacheHint::Default, typename T = unsigned,
+          int SimdWidth = 16>
+CM_NODEBUG CM_INLINE std::enable_if_t<details::is_fp_or_dword_type<T>::value>
+cm_load4_typed(
+    matrix_ref<T, details::lsc_get_num_elements_from_channel_mask<ChMask>(),
+               SimdWidth>
+        Output,
+    SurfaceIndex Image, vector<unsigned, SimdWidth> U,
+    vector<unsigned, SimdWidth> V = 0, vector<unsigned, SimdWidth> R = 0,
+    vector<unsigned, SimdWidth> LOD = 0) {
+  vector<uint16_t, SimdWidth> Pred = 1;
+  cm_load4_typed<ChMask, L1Hint, L2Hint>(Output, Pred, Image, U, V, R, LOD);
+}
+
+template <ChannelMaskType ChMask, CacheHint L1Hint = CacheHint::Default,
+          CacheHint L2Hint = CacheHint::Default, typename T = unsigned,
+          int SimdWidth = 16>
+CM_NODEBUG CM_INLINE std::enable_if_t<details::is_fp_or_dword_type<T>::value>
+cm_store4_typed(
+    matrix<T, details::lsc_get_num_elements_from_channel_mask<ChMask>(),
+           SimdWidth>
+        Data,
+    vector<uint16_t, SimdWidth> Pred, SurfaceIndex Image,
+    vector<unsigned, SimdWidth> U, vector<unsigned, SimdWidth> V = 0,
+    vector<unsigned, SimdWidth> R = 0, vector<unsigned, SimdWidth> LOD = 0) {
+  using namespace details;
+  CM_HAS_LSC_TYPED_CONTROL;
+  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1Hint, L2Hint>()),
+                  "unsupported cache hint");
+  CM_STATIC_ERROR(ChMask == CM_R_ENABLE || ChMask == CM_GR_ENABLE ||
+                      ChMask == CM_BGR_ENABLE || ChMask == CM_ABGR_ENABLE,
+                  "Only contiguous channel masks are supported");
+  __cm_intrinsic_impl_store4_typed_bti<ChMask, L1Hint, L2Hint>(Pred, Image, U,
+                                                               V, R, LOD, Data);
+}
+
+template <ChannelMaskType ChMask, CacheHint L1Hint = CacheHint::Default,
+          CacheHint L2Hint = CacheHint::Default, typename T = unsigned,
+          int SimdWidth = 16>
+CM_NODEBUG CM_INLINE std::enable_if_t<details::is_fp_or_dword_type<T>::value>
+cm_store4_typed(
+    matrix<T, details::lsc_get_num_elements_from_channel_mask<ChMask>(),
+           SimdWidth>
+        Data,
+    SurfaceIndex Image, vector<unsigned, SimdWidth> U,
+    vector<unsigned, SimdWidth> V = 0, vector<unsigned, SimdWidth> R = 0,
+    vector<unsigned, SimdWidth> LOD = 0) {
+  vector<uint16_t, SimdWidth> Pred = 1;
+  cm_store4_typed<ChMask, L1Hint, L2Hint>(Data, Pred, Image, U, V, R, LOD);
+}
+
+template <ChannelMaskType ChMask, CacheHint L1Hint, CacheHint L2Hint,
+          int SimdWidth = 16>
+CM_NODEBUG CM_INLINE void cm_prefetch4_typed(
+    vector<uint16_t, SimdWidth> Pred, SurfaceIndex Image,
+    vector<unsigned, SimdWidth> U, vector<unsigned, SimdWidth> V = 0,
+    vector<unsigned, SimdWidth> R = 0, vector<unsigned, SimdWidth> LOD = 0) {
+  using namespace details;
+  CM_HAS_LSC_TYPED_CONTROL;
+  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1Hint, L2Hint>()),
+                  "unsupported cache hint");
+  __cm_intrinsic_impl_prefetch4_typed_bti<ChMask, L1Hint, L2Hint>(Pred, Image,
+                                                                  U, V, R, LOD);
+}
+
+template <ChannelMaskType ChMask, CacheHint L1Hint, CacheHint L2Hint,
+          int SimdWidth = 16>
+CM_NODEBUG CM_INLINE void
+cm_prefetch4_typed(SurfaceIndex Image, vector<unsigned, SimdWidth> U,
+                   vector<unsigned, SimdWidth> V = 0,
+                   vector<unsigned, SimdWidth> R = 0,
+                   vector<unsigned, SimdWidth> LOD = 0) {
+  vector<uint16_t, SimdWidth> Pred = 1;
+  cm_prefetch4_typed<ChMask, L1Hint, L2Hint>(Pred, Image, U, V, R, LOD);
+}
+
+// 2d typed bti loads/stores are Xe2+
+
+/// \brief 2D load (BTI)
+///        basic cm_load interface for stateful access
+///        T, N, M may be inferred from matrix type just like in read()
+template <typename T, int Height, int Width, CacheHint L1H = CacheHint::Default,
+          CacheHint L2H = CacheHint::Default>
+CM_NODEBUG CM_INLINE void cm_load(SurfaceIndex Idx, int X, int Y,
+                                  matrix_ref<T, Height, Width> Output) {
+  CM_HAS_LSC_TYPED_2D_CONTROL;
+
+  using namespace details;
+  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H>()),
+                  "unsupported cache hint");
+  Output =
+      __cm_intrinsic_impl_load2d_bti<T, Height, Width, L1H, L2H>(Idx, X, Y);
+}
+
+/// \brief 2D prefetch (BTI)
+///        basic cm_prefetch interface for stateful access
+///        T, N, M may be inferred from matrix type just like in read()
+template <typename T, int Height, int Width, CacheHint L1H = CacheHint::Cached,
+          CacheHint L2H = CacheHint::Cached>
+CM_NODEBUG CM_INLINE void cm_prefetch(SurfaceIndex Idx, int X, int Y) {
+  CM_HAS_LSC_TYPED_2D_CONTROL;
+
+  using namespace details;
+  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H>()),
+                  "unsupported cache hint");
+  __cm_intrinsic_impl_prefetch2d_bti<T, Height, Width, L1H, L2H>(Idx, X, Y);
+}
+
+/// \brief 2D store (BTI)
+///        basic cm_store interface for stateful access
+///        T, N, M may be inferred from matrix type just like in write()
+template <typename T, int Height, int Width, CacheHint L1H = CacheHint::Default,
+          CacheHint L2H = CacheHint::Default>
+CM_NODEBUG CM_INLINE void cm_store(SurfaceIndex Idx, int X, int Y,
+                                   matrix<T, Height, Width> Input) {
+  CM_HAS_LSC_TYPED_2D_CONTROL;
+
+  using namespace details;
+  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H>()),
+                  "unsupported cache hint");
+  __cm_intrinsic_impl_store2d_bti<T, Height, Width, L1H, L2H>(Idx, X, Y, Input);
+}
 
 /// \brief LSC Atomic.
 ///

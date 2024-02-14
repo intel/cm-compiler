@@ -2152,6 +2152,213 @@ ATOMIC_PREDEC           old_dst - 1                             new_dst
 ----------------------
 
 
+Typed LSC Surface load/store/prefetch {Xe2+}
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+cm_load4_typed
+""""""""""""""
+
+.. code-block:: c++
+
+  template <ChannelMaskType ChannelMask, CacheHint L1Hint = Default,
+            CacheHint L2Hint = Default>
+  void cm_load4_typed(matrix_ref<T, N, M> Data, SurfaceIndex Surface,
+                      vector<unsigned, M> U, vector<unsigned, M> V = 0,
+                      vector<unsigned, M> R = 0, vector<unsigned, M> LOD = 0);
+
+  template <ChannelMaskType ChannelMask, CacheHint L1Hint = Default,
+            CacheHint L2Hint = Default>
+  void cm_load4_typed(matrix_ref<T, N, M> Data, vector<uint16_t, M> Pred,
+                      SurfaceIndex Surface, vector<unsigned, M> U,
+                      vector<unsigned, M> V = 0, vector<unsigned, M> R = 0,
+                      vector<unsigned, M> LOD = 0);
+
+The compiler generates code for the hardware to perform gathering read from
+the given offsets. The results are returned in ``Data`` matrix with each
+enabled channel returned in the next row of the matrix. The enabled channels
+are returned in RGBA order with no gap for disabled channels. Out-of-bound
+load operations return zero.
+
+=============== ============================================================
+Parameter       Description
+=============== ============================================================
+ChannelMask
+                Mask for enabled channels.
+
+L1Hint, L2Hint
+                Load cache hints. Not all the combinations are supported.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments. Should be both present or both omitted.
+
+Data
+                The matrix_ref object to store return values. The ``T`` type
+                must be of size of DWord (i.e., int, unsigned or float).
+
+                The size ``N`` must be equal to the number of enabled
+                channels.
+
+                The size ``M`` may have any value. HW supports native SIMD
+                sizes of 16 or 32. All other sizes will be split and/or
+                extended by the compiler into a sequence of SIMD16 and
+                SIMD32 load operations.
+
+Pred (optional)
+                The execution predicate for conditional load.
+
+Surface
+                Surface index corresponding to 1D, 2D or 3D image surface.
+
+U
+                The x coordinates of the data elements (in unit of texels)
+                to be loaded from the surface.
+
+V
+                The y coordinates of the data elements to be loaded from
+                non-1D images. Ignored otherwise. Optional, default value
+                is zero.
+
+R
+                The z coordinates of the data elements to be loaded from
+                3D images. Ignored otherwise. Optional, default value is
+                zero.
+
+LOD
+                The w coordinates of the data elements to be loaded from
+                images. Ignored otherwise. Optional, default value is zero.
+=============== ============================================================
+
+cm_store4_typed
+"""""""""""""""
+
+.. code-block:: c++
+
+  template <ChannelMaskType ChannelMask, CacheHint L1Hint = Default,
+            CacheHint L2Hint = Default>
+  void cm_store4_typed(matrix<T, N, M> Data, SurfaceIndex Surface,
+                       vector<unsigned, M> U, vector<unsigned, M> V = 0,
+                       vector<unsigned, M> R = 0, vector<unsigned, M> LOD = 0);
+
+  template <ChannelMaskType ChannelMask, CacheHint L1Hint = Default,
+            CacheHint L2Hint = Default>
+  void cm_store4_typed(matrix<T, N, M> Data, vector<uint16_t, M> Pred,
+                       SurfaceIndex Surface, vector<unsigned, M> U,
+                       vector<unsigned, M> V = 0, vector<unsigned, M> R = 0,
+                       vector<unsigned, M> LOD = 0);
+
+The compiler generates code for the hardware to perform scattered write to
+the given offsets. If a required pixel channel (as per Surface State pixel
+format) is missing from the channel mask setting, then the memory write
+data will be undefined. In other words, the channel mask setting must have
+all channels that are present in the Surface's pixel format in memory.
+Out-of-bound write operations are ignored by hardware and have no side
+effects.
+
+=============== ============================================================
+Parameter       Description
+=============== ============================================================
+ChannelMask
+                Mask for enabled channels. Only contiguous channel masks are
+                supported (R, GR, BGR and ABGR).
+
+L1Hint, L2Hint
+                Store cache hints. Not all the combinations are supported.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments. Should be both present or both omitted.
+
+Data
+                The matrix holding data to be written. The ``T`` type must
+                be of size of DWord (i.e., int, unsigned or float).
+
+                The size ``N`` must be equal to the number of enabled
+                channels.
+
+                The size ``M`` may have any value. HW supports native SIMD
+                sizes of 16 or 32. All other sizes will be split and/or
+                extended by the compiler into a sequence of SIMD16 and
+                SIMD32 store operations.
+
+Pred (optional)
+                The execution predicate for conditional store.
+
+Surface
+                Surface index corresponding to 1D, 2D or 3D image surface.
+
+U
+                The x coordinates of the data elements (in unit of texels)
+                to be loaded from the surface.
+
+V
+                The y coordinates of the data elements to be stored into
+                non-1D images. Ignored otherwise. Optional, default value
+                is zero.
+
+R
+                The z coordinates of the data elements to be stored into
+                3D images. Ignored otherwise. Optional, default value is
+                zero.
+
+LOD
+                The w coordinates of the data elements to be stored into
+                images. Ignored otherwise. Optional, default value is zero.
+=============== ============================================================
+
+cm_prefetch4_typed
+""""""""""""""""""
+
+.. code-block:: c++
+
+  template <ChannelMaskType ChannelMask, CacheHint L1Hint = Default,
+            CacheHint L2Hint = Default>
+  void cm_prefetch4_typed(SurfaceIndex Surface,
+                          vector<unsigned, M> U, vector<unsigned, M> V = 0,
+                          vector<unsigned, M> R = 0, vector<unsigned, M> LOD = 0);
+
+  template <ChannelMaskType ChannelMask, CacheHint L1Hint = Default,
+            CacheHint L2Hint = Default>
+  void cm_prefetch4_typed(vector<uint16_t, M> Pred, SurfaceIndex Surface,
+                          vector<unsigned, M> U, vector<unsigned, M> V = 0,
+                          vector<unsigned, M> R = 0, vector<unsigned, M> LOD = 0);
+
+The compiler generates code for the hardware to perform gathering prefetch from
+the given offsets to L1 and/or L2 cache. No results returned. This operation
+has no side effects except subsequent loads latency.
+
+=============== ============================================================
+Parameter       Description
+=============== ============================================================
+ChannelMask
+                Mask for enabled channels.
+
+L1Hint, L2Hint
+                Prefech cache hints. Not all the combinations are supported.
+                The compiler will emit an error when invalid hints are set.
+                Must be present.
+
+Pred (optional)
+                The execution predicate for conditional load.
+
+Surface
+                Surface index corresponding to 1D, 2D or 3D image surface.
+
+U
+                The x coordinates of the data elements (in unit of texels)
+                to be fetched from the surface.
+
+V
+                The y coordinates of the data elements to be fetched from
+                non-1D images. Ignored otherwise. Optional, default value
+                is zero.
+
+R
+                The z coordinates of the data elements to be fetched from
+                3D images. Ignored otherwise. Optional, default value is
+                zero.
+
+LOD
+                The w coordinates of the data elements to be fetched from
+                images. Ignored otherwise. Optional, default value is zero.
+=============== ============================================================
+
 Media Block Read/Write
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -3840,11 +4047,11 @@ in the order they are expected.
    ============================================ =======================================================
    CM_3D_LOAD                                   u, v, lod, r
    CM_3D_LOAD_LZ                                u, v, r
+   CM_3D_LOAD_L {Xe2+}                          u, v, r, lod
    CM_3D_LOAD_2DMS_W (type uint)                si, mcsl, mcsh, u, v, r, lod
    CM_3D_LOAD_2DMS_W (type ushort) {ICL+}       si, mcs0, mcs1, mcs2, mcs3, u, v, r, lod
    CM_3D_LOAD_MCS                               u, v, r, lod
    ============================================ =======================================================
-
 
 Each of the values above can be composed with CM_3D_LOAD_NULLMASK_ENABLE
 using the | operation to enable a variant of the operation that also
@@ -3860,10 +4067,10 @@ The following table lists surface types supported for each operation:
    ==================== =======================
    CM_3D_LOAD           1D, 2D, 3D, BUFFER
    CM_3D_LOAD_LZ        1D, 2D, 3D, BUFFER
+   CM_3D_LOAD_L         1D, 2D, 3D, BUFFER
    CM_3D_LOAD_2DMS_W    2D
    CM_3D_LOAD_MCS       2D
    ==================== =======================
-
 
 The following table lists how the common "u", "v", "r", and "ai" arguments are interpreted
 against different surface types:

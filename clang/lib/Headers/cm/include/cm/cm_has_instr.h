@@ -63,6 +63,11 @@ namespace CheckVersion {
   #define CM_HAS_BIT_ROTATE_CONTROL CM_HAS_CONTROL(false)
 #endif
 
+// Help to detect if a GPU supports legacy messages to pass correct compiler
+// flags during online compilation.
+#if __CM_INTEL_TARGET_MAJOR >= 20
+#define CM_REQUIRES_LEGACY_TRANSLATION 1
+#endif
 
 //BFN
 #if (CM_GENX >= 1270) //>= XEHP_SDV
@@ -130,14 +135,15 @@ namespace CheckVersion {
 #endif
 
 //IEEE
-#if (CM_GENX == 800  || /*BWD*/         \
-     CM_GENX == 900  || /*SKL*/         \
-     CM_GENX == 950  || /*KBL*/         \
-     CM_GENX == 1150 || /*ICLLP*/       \
-     CM_GENX == 1270 || /*XeHP_SDV*/    \
-     CM_GENX == 1280    /*PVC*/         )
-  #define CM_HAS_IEEE_DIV_SQRT 1
-  #define CM_HAS_IEEE_DIV_SQRT_CONTROL CM_HAS_CONTROL(true)
+#if (CM_GENX == 800 ||  /*BWD*/                                                \
+     CM_GENX == 900 ||  /*SKL*/                                                \
+     CM_GENX == 950 ||  /*KBL*/                                                \
+     CM_GENX == 1150 || /*ICLLP*/                                              \
+     CM_GENX == 1270 || /*XeHP_SDV*/                                           \
+     CM_GENX >= 1280    /*PVC*/                                                \
+)
+#define CM_HAS_IEEE_DIV_SQRT 1
+#define CM_HAS_IEEE_DIV_SQRT_CONTROL CM_HAS_CONTROL(true)
 #else  //IEEE
   #define CM_HAS_IEEE_DIV_SQRT_CONTROL CM_HAS_CONTROL(false)
 #endif //IEEE
@@ -150,6 +156,16 @@ namespace CheckVersion {
   #define CM_HAS_LSC_CONTROL CM_HAS_CONTROL(false)
 #endif
 
+//LSC_TYPED_2D
+#if __CM_INTEL_TARGET_MAJOR >= 20
+#define CM_HAS_LSC_TYPED 1
+#define CM_HAS_LSC_TYPED_2D 1
+#define CM_HAS_LSC_TYPED_CONTROL CM_HAS_CONTROL(true)
+#define CM_HAS_LSC_TYPED_2D_CONTROL CM_HAS_CONTROL(true)
+#else
+#define CM_HAS_LSC_TYPED_CONTROL CM_HAS_CONTROL(false)
+#define CM_HAS_LSC_TYPED_2D_CONTROL CM_HAS_CONTROL(false)
+#endif
 
 //LSC_UNTYPED_2D
 #if (CM_GENX >= 1280) //>= PVC
@@ -194,10 +210,19 @@ namespace CheckVersion {
 #if (CM_GENX >= 1280) // >= PVC
   #define CM_HAS_LSC_SYS_FENCE 1
 #endif
-#if (CM_GENX <= 1280)
+
+#if __CM_INTEL_TARGET_MAJOR >= 20
+  #define CM_HAS_LSC_L1L2CC_HINT 1
+  #define CM_HAS_LSC_L1L3CC_HINT 1
+  #define CM_HAS_LSC_LOAD_L1RI_L2RI_HINT 1
+  #define CM_HAS_LSC_LOAD_L1RI_L3RI_HINT 1
+#endif
+
+#if __CM_INTEL_TARGET_MAJOR < 20
   #define CM_HAS_LSC_LOAD_L1RI_L2CA_HINT 1
   #define CM_HAS_LSC_LOAD_L1RI_L3CA_HINT 1
 #endif
+
 
 #ifdef CM_HAS_SLM_CAS_INT64
 #define CM_HAS_SLM_CAS_INT64_CONTROL CM_HAS_CONTROL(true)
@@ -205,7 +230,7 @@ namespace CheckVersion {
 #define CM_HAS_SLM_CAS_INT64_CONTROL CM_HAS_CONTROL(false)
 #endif // CM_HAS_SLM_CAS_INT64
 
-#if (CM_GENX >= 900) // >=SKL
+#if __CM_INTEL_TARGET_MAJOR >= 9 && __CM_INTEL_TARGET_MAJOR < 20
 #define CM_HAS_TYPED_ATOMIC 1
 #define CM_HAS_TYPED_ATOMIC_CONTROL CM_HAS_CONTROL(true)
 #else

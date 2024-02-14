@@ -645,6 +645,13 @@ private:
                                         CMBuiltinKind Kind);
   /// \brief Postprocess block 2d builtins load/store/prefetch.
   llvm::Value *HandleBuiltinLSC2dImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+
+  llvm::Value *HandleBuiltinLSCTypedImpl(CMCallInfo &CallInfo,
+                                         CMBuiltinKind Kind);
+  /// \brief Postprocess Xe2+ typed 2d load/store
+  llvm::Value *HandleBuiltinLSCTyped2DImpl(CMCallInfo &CallInfo,
+                                           CMBuiltinKind Kind);
+
   /// \brief Postprocess BTI-based load/store/prefetch
   llvm::Value *HandleBuiltinLSCImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
 

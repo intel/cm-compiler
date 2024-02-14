@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2023 Intel Corporation
+Copyright (C) 2014-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -167,6 +167,12 @@ enum CMBuiltinKind {
   CMBK_cm_block_prefetch2d_flat_impl,
   CMBK_cm_block_load2d_flat_impl,
   CMBK_cm_block_store2d_flat_impl,
+  CMBK_cm_load4_typed_impl,
+  CMBK_cm_store4_typed_impl,
+  CMBK_cm_prefetch4_typed_impl,
+  CMBK_cm_prefetch2d_bti_impl,
+  CMBK_cm_load2d_bti_impl,
+  CMBK_cm_store2d_bti_impl,
   CMBK_cm_load_slm_impl,
   CMBK_cm_load4_slm_impl,
   CMBK_cm_store_slm_impl,

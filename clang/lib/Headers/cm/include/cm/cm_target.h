@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2023 Intel Corporation
+Copyright (C) 2016-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -133,11 +133,23 @@ static_assert(0, "CM:w:cm_target.h should not be included explicitly - only "
 #define CM_XEHPC
 #endif
 
-// MTL
+// MTL, ARL-S
 #if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(12, 70, 0) ||                  \
     __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(12, 71, 0)
 #define CM_GENX 1275
 #define CM_XELPG
+#endif
+
+// ARL-H
+#if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(12, 74, 0)
+#define CM_GENX 1276
+#define CM_XELPGPLUS
+#endif
+
+// LNL
+#if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(20, 4, 0)
+#define CM_GENX 1295
+#define CM_XE2_LPG
 #endif
 
 #define CM_GENX_REVID __CM_INTEL_TARGET_REVISION

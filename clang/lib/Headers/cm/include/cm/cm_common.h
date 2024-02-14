@@ -417,6 +417,7 @@ inline constexpr CM3DSampleOp& operator |= (CM3DSampleOp &lhs, CM3DSampleOp rhs)
 enum class CM3DLoadOp : int {
   _CM_3D_LOAD = 7,
   _CM_3D_LOAD_LZ = 26,
+  _CM_3D_LOAD_L = 27,
   _CM_3D_LOAD_2DMS_W = 28,
   _CM_3D_LOAD_MCS = 29,
   _CM_3D_LOAD_NULLMASK_ENABLE = 32
@@ -433,6 +434,7 @@ inline CM3DLoadOp& operator |= (CM3DLoadOp &lhs, CM3DLoadOp rhs) {
 
 #define CM_3D_LOAD CM3DLoadOp::_CM_3D_LOAD
 #define CM_3D_LOAD_LZ CM3DLoadOp::_CM_3D_LOAD_LZ
+#define CM_3D_LOAD_L CM3DLoadOp::_CM_3D_LOAD_L
 #define CM_3D_LOAD_2DMS_W CM3DLoadOp::_CM_3D_LOAD_2DMS_W
 #define CM_3D_LOAD_MCS CM3DLoadOp::_CM_3D_LOAD_MCS
 #define CM_3D_LOAD_NULLMASK_ENABLE CM3DLoadOp::_CM_3D_LOAD_NULLMASK_ENABLE
@@ -657,6 +659,7 @@ enum class CacheHint : uint8_t {
   WriteThrough = 4,
   Streaming = 5,
   ReadInvalidate = 6,
+  ConstCached = 7,
 };
 
 // Data size or format to read or store.

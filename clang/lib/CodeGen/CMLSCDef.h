@@ -57,6 +57,7 @@ enum class CacheHint : uint8_t {
   WriteThrough = 4,
   Streaming = 5,
   ReadInvalidate = 6,
+  ConstCached = 7,
 };
 
 // Data size or format to read or store.

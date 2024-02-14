@@ -113,8 +113,7 @@ CM_NODEBUG CM_INLINE void write_region(vector_ref<T, size> vec,
 }
 
 static inline constexpr unsigned getMaxNumOfOWordSLM() {
-#if defined(CM_GEN12) || defined(CM_GEN12_2) || defined(CM_XEHP) ||            \
-    defined(CM_XEHPC) || defined(CM_XEHPG)
+#if __CM_INTEL_TARGET_CORE >= 12
   return 16;
 #else
   return 8;

@@ -15,6 +15,8 @@ using clang::driver::tools::GenX::encodeGmdId;
 
 // clang-format off
 static const std::unordered_map<std::string, uint32_t> ReleaseId = {
+  {"xe2-v3-lpg-md", encodeGmdId(20, 4, 4)},
+  {"xe-lpgplus-lg", encodeGmdId(12, 74, 4)},
   {"xe-lpg-lg", encodeGmdId(12, 71, 4)},
   {"xe-lpg-md", encodeGmdId(12, 70, 4)},
   {"xe-hpc-vg", encodeGmdId(12, 61, 7)},
@@ -28,8 +30,11 @@ static const std::unordered_map<std::string, uint32_t> ReleaseId = {
 };
 
 static const std::unordered_map<std::string, uint32_t> DeviceId = {
+  {"lnl-m", encodeGmdId(20, 4, 4)},
+  {"arl-h", encodeGmdId(12, 74, 4)},
   {"mtl-p", encodeGmdId(12, 71, 4)},
   {"mtl-u", encodeGmdId(12, 70, 4)},
+  {"arl-s", encodeGmdId(12, 70, 4)},
   {"pvc-vg", encodeGmdId(12, 61, 7)},
   {"pvc", encodeGmdId(12, 60, 7)},
   {"pvc-sdv", encodeGmdId(12, 60, 1)},
@@ -62,6 +67,14 @@ static const std::unordered_map<std::string, uint32_t> DeviceId = {
 };
 
 static const std::unordered_map<std::string, uint32_t> PciId {
+  {"0x6420", encodeGmdId(20, 4, 4)},
+  {"0x64a0", encodeGmdId(20, 4, 4)},
+  {"0x64b0", encodeGmdId(20, 4, 4)},
+  {"0x7d41", encodeGmdId(12, 74, 4)},
+  {"0x7d51", encodeGmdId(12, 74, 4)},
+  {"0x7d52", encodeGmdId(12, 74, 4)},
+  {"0x7dd1", encodeGmdId(12, 74, 4)},
+  {"0x7dd2", encodeGmdId(12, 74, 4)},
   {"0x7d55", encodeGmdId(12, 71, 4)},
   {"0x7d57", encodeGmdId(12, 71, 4)},
   {"0x7dd5", encodeGmdId(12, 71, 4)},
@@ -69,6 +82,7 @@ static const std::unordered_map<std::string, uint32_t> PciId {
   {"0x7d40", encodeGmdId(12, 70, 4)},
   {"0x7d45", encodeGmdId(12, 70, 4)},
   {"0x7d60", encodeGmdId(12, 70, 4)},
+  {"0x7d67", encodeGmdId(12, 70, 4)},
   {"0x0bd4", encodeGmdId(12, 61, 7)},
   {"0x0b69", encodeGmdId(12, 60, 7)},
   {"0x0bd5", encodeGmdId(12, 60, 7)},

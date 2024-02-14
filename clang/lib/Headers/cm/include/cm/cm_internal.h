@@ -519,6 +519,32 @@ void __cm_intrinsic_impl_block_prefetch2d_flat(uintptr_t BaseAddr,
     unsigned SurfaceWidth, unsigned SurfaceHeight, unsigned SurfacePitch,
     int X, int Y);
 
+template <ChannelMaskType Mask, CacheHint L1H, CacheHint L2H, int N, typename T,
+          int M>
+matrix<T, M, N> __cm_intrinsic_impl_load4_typed_bti(
+    vector<ushort, N> Pred, SurfaceIndex Image, vector<unsigned, N> U,
+    vector<unsigned, N> V, vector<unsigned, N> R, vector<unsigned, N> LOD,
+    matrix<T, M, N>);
+template <ChannelMaskType Mask, CacheHint L1H, CacheHint L2H, int N, typename T,
+          int M>
+void __cm_intrinsic_impl_store4_typed_bti(
+    vector<ushort, N> Pred, SurfaceIndex Image, vector<unsigned, N> U,
+    vector<unsigned, N> V, vector<unsigned, N> R, vector<unsigned, N> LOD,
+    matrix<T, M, N> StoreData);
+template <ChannelMaskType Mask, CacheHint L1H, CacheHint L2H, int N>
+void __cm_intrinsic_impl_prefetch4_typed_bti(
+    vector<ushort, N> Pred, SurfaceIndex Image, vector<unsigned, N> U,
+    vector<unsigned, N> V, vector<unsigned, N> R, vector<unsigned, N> LOD);
+
+template <typename T, int Height, int Width, CacheHint L1H, CacheHint L2H>
+matrix<T, Height, Width> __cm_intrinsic_impl_load2d_bti(SurfaceIndex, int, int);
+
+template <typename T, int Height, int Width, CacheHint L1H, CacheHint L2H>
+void __cm_intrinsic_impl_prefetch2d_bti(SurfaceIndex, int, int);
+
+template <typename T, int Height, int Width, CacheHint L1H, CacheHint L2H>
+void __cm_intrinsic_impl_store2d_bti(SurfaceIndex, int, int,
+                                     matrix<T, Height, Width>);
 
 template <AtomicOp Op, DataSize DS, VectorSize VS, bool Transposed,
           CacheHint L1H, CacheHint L2H, typename RetTy, int N, typename... Args>
