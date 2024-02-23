@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2020-2023 Intel Corporation
+Copyright (C) 2020-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -131,21 +131,19 @@ static void invokeBE(const std::vector<char> &SPIRV, const std::string &NeoCPU,
 
   const char *SpvFileName = "cmoc_spirv";
 
-  std::vector<const char *> OclocArgs;
-  OclocArgs.push_back("ocloc");
-  OclocArgs.push_back("compile");
-  OclocArgs.push_back("-device");
-  OclocArgs.push_back(NeoCPU.c_str());
-  OclocArgs.push_back("-spirv_input");
-  OclocArgs.push_back("-file");
-  OclocArgs.push_back(SpvFileName);
-  OclocArgs.push_back("-options");
-  OclocArgs.push_back(Options.c_str());
-  OclocArgs.push_back("-internal_options");
-  OclocArgs.push_back(InternalOptions.c_str());
-
-  // we make ocloc always return gen file in list of outputs
-  OclocArgs.push_back("-gen_file");
+  std::vector<const char *> OclocArgs = {
+      "ocloc",
+      "compile",
+      "-device",
+      NeoCPU.c_str(),
+      "-spirv_input",
+      "-file",
+      SpvFileName,
+      "-options",
+      Options.c_str(),
+      "-internal_options",
+      InternalOptions.c_str(),
+  };
 
   if (isCmocDebugEnabled()) {
     llvm::errs() << "oclocInvoke options: ";
@@ -160,15 +158,31 @@ static void invokeBE(const std::vector<char> &SPIRV, const std::string &NeoCPU,
   static_assert(alignof(uint8_t) == alignof(char), "Possible unaligned access");
   auto *SpvSource = reinterpret_cast<const uint8_t *>(SPIRV.data());
   const uint64_t SpvLen = SPIRV.size();
-  if (LibOcloc.invoke(OclocArgs.size(), OclocArgs.data(), 1, &SpvSource,
+
+  auto Status =
+      LibOcloc.invoke(OclocArgs.size(), OclocArgs.data(), 1, &SpvSource,
                       &SpvLen, &SpvFileName, 0, nullptr, nullptr, nullptr,
-                      &NumOutputs, &DataOutputs, &LenOutputs, &NameOutputs)) {
+                      &NumOutputs, &DataOutputs, &LenOutputs, &NameOutputs);
+
+  auto *NameOutputsEnd = NameOutputs + NumOutputs;
+  auto LogP =
+      std::find(NameOutputs, NameOutputsEnd, llvm::StringRef("stdout.log"));
+  if (LogP != NameOutputsEnd) {
+    auto LogIndex = LogP - NameOutputs;
+    llvm::StringRef Log{reinterpret_cast<char *>(DataOutputs[LogIndex]),
+                        static_cast<size_t>(LenOutputs[LogIndex])};
+    llvm::errs() << Log;
+  }
+
+  if (Status != 0) {
     // no need to print build log here if -q option is not passed
     // and now it is not
     FatalError("Call to oclocInvoke failed");
   }
+
   saveOutputs(NumOutputs, DataOutputs, LenOutputs, NameOutputs,
               RequiredExtension, Result);
+
   if (LibOcloc.freeOutput(&NumOutputs, &DataOutputs, &LenOutputs, &NameOutputs))
     FatalError("Call to oclocFreeOutput failed");
 }
