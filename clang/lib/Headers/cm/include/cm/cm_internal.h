@@ -601,6 +601,10 @@ void __cm_builtin_impl_svm_scatter(typename simd_type<T, n>::type src,
                                    typename simd_type<uint64_t, n>::type addrs,
                                    typename simd_type<ushort, n>::type mask);
 
+void __cm_intrinsic_impl_nbarrier_arrive(uchar BarrierId, uchar Role,
+                                         uchar NumProducers,
+                                         uchar NumConsumers);
+
 } // namespace details
 
 

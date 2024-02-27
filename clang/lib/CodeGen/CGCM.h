@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2023 Intel Corporation
+Copyright (C) 2014-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -584,6 +584,9 @@ private:
 
   /// \brief Postprocess builtin cm_raw_send.
   llvm::Value *HandleBuiltinRawSendImpl(CMCallInfo &CallInfo);
+
+  /// \brief Prostprocess builtin cm_nbarrier_signal
+  void HandleBuiltinNamedBarrierArriveImpl(CMCallInfo &CallInfo);
 
   /// \brief Postprocess builtin cm_get_r0.
   llvm::Value *HandleBuiltinGetR0Impl(CMCallInfo &CallInfo);

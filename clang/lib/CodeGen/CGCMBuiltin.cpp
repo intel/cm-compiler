@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2023 Intel Corporation
+Copyright (C) 2014-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -390,6 +390,7 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
                         CMBK_cm_svm_atomic_impl)
             .StartsWith("__cm_intrinsic_impl_rdregion", CMBK_rdregion)
             .StartsWith("__cm_intrinsic_impl_wrregion", CMBK_wrregion)
+            .StartsWith("__cm_intrinsic_impl_nbarrier_arrive", CMBK_cm_nbarrier_arrive)
             .Default(CMBK_none);
   }
   // Handle other builtin implementations.
@@ -991,6 +992,9 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(HandleBuiltinSendsImpl(getCurCMCallInfo()));
   case CMBK_cm_raw_send:
     return RValue::get(HandleBuiltinRawSendImpl(getCurCMCallInfo()));
+  case CMBK_cm_nbarrier_arrive:
+    HandleBuiltinNamedBarrierArriveImpl(getCurCMCallInfo());
+    return RValue::get(0);
   case CMBK_cm_get_r0:
     return RValue::get(HandleBuiltinGetR0Impl(getCurCMCallInfo()));
   case CMBK_cm_get_sr0:
@@ -4472,6 +4476,22 @@ llvm::Value *CGCMRuntime::HandleBuiltinRawSendImpl(CMCallInfo &CallInfo) {
 
   CallInfo.CI->eraseFromParent();
   return NewCI;
+}
+
+/// cm_nbarrier_signal()
+///
+void CGCMRuntime::HandleBuiltinNamedBarrierArriveImpl(CMCallInfo &CallInfo) {
+  CodeGenFunction &CGF = *CallInfo.CGF;
+  auto *CI = CallInfo.CI;
+
+  llvm::SmallVector<llvm::Value *, 4> Args{CI->arg_begin(), CI->arg_end()};
+
+  constexpr auto IID = llvm::GenXIntrinsic::genx_nbarrier_arrive;
+  auto *Func = llvm::GenXIntrinsic::getAnyDeclaration(CI->getModule(), IID, {});
+  auto *NewCI = CGF.Builder.CreateCall(Func, Args);
+  NewCI->takeName(CI);
+  CI->replaceAllUsesWith(NewCI);
+  CI->eraseFromParent();
 }
 
 /// template <typename T> vector<uint, 8> cm_get_r0();

@@ -269,7 +269,8 @@ enum CMBuiltinKind {
   CMBK_rdregion,
   CMBK_wrregion,
   CMBK_cm_label,
-  CMBK_predefined_surface
+  CMBK_predefined_surface,
+  CMBK_cm_nbarrier_arrive,
 };
 
 } // namespace CodeGen

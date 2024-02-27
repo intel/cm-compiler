@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2021 Intel Corporation
+Copyright (C) 2015-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -267,34 +267,11 @@ CM_INLINE void cm_signal() {
 
 template <typename T>
 CM_NODEBUG CM_INLINE
-typename std::enable_if<details::is_dword_type<T>::value,
-  void>::type
-cm_nbarrier_signal(
-  T barrierId,
-  T producerConsumerMode,
-  T numProducers,
-  T numConsumers)
-{
-  constexpr unsigned gateway = 3;
-  constexpr unsigned barrier = 4;
-
-  constexpr unsigned descriptor =
-    1 << 25 |  // Message length: 1 register
-    0 << 12 |  // Fence Data Ports: No fence
-    barrier;   // Barrier subfunction
-
-  vector<unsigned, 8> payload = 0;
-#ifndef CMRT_EMU
-  payload = cm_get_r0<unsigned>();
-#endif // CMRT_EMU
-
-  payload(2) =
-    (numConsumers & 0xff) << 24 |
-    (numProducers & 0xff) << 16 |
-    producerConsumerMode << 14 |
-    (barrierId & 0b11111) << 0;
-
-  cm_send(NULL, payload, gateway, descriptor, /* sendc = */ 0);
+    typename std::enable_if<details::is_dword_type<T>::value, void>::type
+    cm_nbarrier_signal(T barrierId, T producerConsumerMode, T numProducers,
+                       T numConsumers) {
+  details::__cm_intrinsic_impl_nbarrier_arrive(barrierId, producerConsumerMode,
+                                               numProducers, numConsumers);
 }
 
 #endif /* _CLANG_CM_GATEWAY_H */
