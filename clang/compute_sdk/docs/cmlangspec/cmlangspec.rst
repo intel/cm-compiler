@@ -1801,6 +1801,17 @@ Division with IEEE compliant semantics.
 
 Only single or double precision floating-point type arguments are supported.
 
+cm_frem
+^^^^^^^
+
+The floating-point remainder with correctly rounded IEEE compliant semantics.
+
+* Parameter 1: matrix(_ref), vector(_ref) or scalar
+* Parameter 2: matrix(_ref), vector(_ref) or scalar
+* Return: vector or scalar.
+
+Only single or double precision floating-point type arguments are supported.
+
 
 cm_imul
 ^^^^^^^

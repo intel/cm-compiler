@@ -39,4 +39,6 @@ template <typename T, int Width>
 details::ResVector<T, Width> __spirv_ISubBorrow(vector<T, Width> A,
                                                 vector<T, Width> B);
 
+template <typename T> T __spirv_FRem(T A, T B);
+
 #endif // _CLANG_CM_SPIRV_BUILTINS_H_

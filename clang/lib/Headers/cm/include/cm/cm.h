@@ -44,6 +44,8 @@ SPDX-License-Identifier: MIT
 #include "dpas/dpas.h"
 #include "dpas/dpasw.h"
 
+// float/double reminder
+#include "intrinsics/frem.h"
 #include "intrinsics/srnd.h"
 
 #include "spirv/extensions/khr/shader_clock.h"
