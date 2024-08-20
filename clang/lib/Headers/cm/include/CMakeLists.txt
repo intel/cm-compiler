@@ -65,6 +65,7 @@ set(CM_HEADERS
   cm/dpas/dpas.h
   cm/dpas/dpasw.h
 
+  cm/intrinsics/rsqrt.h
   cm/intrinsics/frem.h
   cm/intrinsics/srnd.h
 

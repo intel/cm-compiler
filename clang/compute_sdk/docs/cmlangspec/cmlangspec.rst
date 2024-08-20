@@ -1677,7 +1677,7 @@ dst = 1.0/sqrt(src).
 * Parameter 2: flags (default is 0; use SAT for saturation)
 * Return: vector or scalar
 
-Only half or single precision floating-point type arguments are supported.
+Half, single and double precision floating-point type arguments are supported.
 
 cm_pow
 ^^^^^^

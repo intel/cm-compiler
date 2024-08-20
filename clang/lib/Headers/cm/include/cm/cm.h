@@ -44,6 +44,7 @@ SPDX-License-Identifier: MIT
 #include "dpas/dpas.h"
 #include "dpas/dpasw.h"
 
+#include "intrinsics/rsqrt.h"
 // float/double reminder
 #include "intrinsics/frem.h"
 #include "intrinsics/srnd.h"

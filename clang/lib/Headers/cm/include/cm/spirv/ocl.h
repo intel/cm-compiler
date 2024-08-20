@@ -24,6 +24,8 @@ SPDX-License-Identifier: MIT
                                          vector<type, Width>);
 
 
+_DECL_OCL_OP1(rsqrt, double)
+
 _DECL_OCL_OP1(native_cos, float)
 _DECL_OCL_OP1(native_cos, half)
 _DECL_OCL_OP1(native_exp2, float)
