@@ -48,6 +48,9 @@ SPDX-License-Identifier: MIT
 #include "intrinsics/frem.h"
 #include "intrinsics/srnd.h"
 
+#include "sampler/load.h"
+#include "sampler/sample.h"
+
 #include "spirv/extensions/khr/shader_clock.h"
 #include "spirv/math.h"
 

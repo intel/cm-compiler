@@ -174,9 +174,7 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
           .StartsWith("_Z7cm_prod", CMBK_cm_prod)
           .StartsWith("_Z14cm_reduced_min", CMBK_cm_reduced_min)
           .StartsWith("_Z14cm_reduced_max", CMBK_cm_reduced_max)
-          .StartsWith("_Z8sample16", CMBK_sample16)
           .StartsWith("_Z8sample32", CMBK_sample32)
-          .StartsWith("_Z6load16", CMBK_load16)
           .StartsWith("_Z18write_atomic_typed", CMBK_write_atomic_typed)
           .StartsWith("_Z12write_atomic", CMBK_write_atomic)
           .StartsWith("_Z8cm_rdtsc", CMBK_cm_rdtsc)
@@ -355,9 +353,7 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
                         CMBK_cm_reduced_min_impl)
             .StartsWith("__cm_intrinsic_impl_reduced_max",
                         CMBK_cm_reduced_max_impl)
-            .StartsWith("__cm_intrinsic_impl_sample16", CMBK_sample16_impl)
             .StartsWith("__cm_intrinsic_impl_sample32", CMBK_sample32_impl)
-            .StartsWith("__cm_intrinsic_impl_load16", CMBK_load16_impl)
             .StartsWith("__cm_intrinsic_impl_atomic_write_typed",
                         CMBK_write_atomic_typed_impl)
             .StartsWith("__cm_intrinsic_impl_atomic_write",
@@ -836,9 +832,7 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_cm_prod:
   case CMBK_cm_reduced_min:
   case CMBK_cm_reduced_max:
-  case CMBK_sample16:
   case CMBK_sample32:
-  case CMBK_load16:
   case CMBK_write_atomic:
   case CMBK_write_atomic_typed:
   case CMBK_cm_slm_read:
@@ -963,16 +957,12 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_cm_reduced_min_impl:
   case CMBK_cm_reduced_max_impl:
     return RValue::get(HandleBuiltinReductionImpl(getCurCMCallInfo(), Kind));
-  case CMBK_sample16_impl:
-    return RValue::get(HandleBuiltinSample16Impl(getCurCMCallInfo(), Kind));
   case CMBK_sample32_impl:
     return RValue::get(HandleBuiltinSample32Impl(getCurCMCallInfo(), Kind));
   case CMBK_cm_3d_sample:
   case CMBK_cm_3d_load:
     HandleBuiltin3dOperationImpl(getCurCMCallInfo(), Kind);
     return RValue::get(0);
-  case CMBK_load16_impl:
-    return RValue::get(HandleBuiltinLoad16Impl(getCurCMCallInfo(), Kind));
   case CMBK_write_atomic_impl:
     return RValue::get(HandleBuiltinWriteAtomicImpl(getCurCMCallInfo(), Kind));
   case CMBK_write_atomic_typed_impl:
@@ -2473,14 +2463,8 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
   case CMBK_cm_srnd:
     ID = llvm::GenXIntrinsic::genx_srnd;
     break;
-  case CMBK_sample16_impl:
-    ID = llvm::GenXIntrinsic::genx_sample;
-    break;
   case CMBK_sample32_impl:
     ID = llvm::GenXIntrinsic::genx_sample_unorm;
-    break;
-  case CMBK_load16_impl:
-    ID = llvm::GenXIntrinsic::genx_load;
     break;
   case CMBK_cm_3d_sample:
     ID = llvm::GenXIntrinsic::genx_3d_sample;
@@ -3480,43 +3464,6 @@ void CGCMRuntime::HandleBuiltinMediaWritePlane(CMCallInfo &Info) {
   Info.CI->eraseFromParent();
 }
 
-/// \brief Postprocess builtin sample16.
-/// template<typename T, int N, ChannelMaskType Mask>
-/// matrix<T, N, 16>
-/// __cm_intrinsic_impl_sample16(SamplerIndex sampIndex, SurfaceIndex surfIndex,
-/// vector<float, 16> u, vector<float, 16> v, vector<float, 16> r);
-///
-llvm::Value *CGCMRuntime::HandleBuiltinSample16Impl(CMCallInfo &CallInfo,
-                                                    CMBuiltinKind Kind) {
-  assert(Kind == CMBK_sample16_impl);
-  unsigned ID = GetGenxIntrinsicID(CallInfo, Kind);
-
-  // Overload with its return type and the vector offset type.
-  llvm::Function *Fn = CallInfo.CI->getCalledFunction();
-  llvm::Type *Tys[] = {Fn->getReturnType(),
-                       Fn->getFunctionType()->getParamType(2)};
-  llvm::Function *GenxFn = getGenXIntrinsic(ID, Tys);
-
-  assert(CallInfo.CI->getNumArgOperands() == 5);
-  llvm::CallInst *CI = CallInfo.CI;
-
-  // Collect arguments.
-  SmallVector<llvm::Value *, 8> Args;
-  llvm::Type *MaskType = GenxFn->getFunctionType()->getParamType(0);
-  unsigned MaskValue = getIntegralValue(CallInfo.CE->getDirectCallee(), 2);
-  Args.push_back(llvm::ConstantInt::get(MaskType, MaskValue));
-  for (unsigned I = 0, N = CI->getNumArgOperands(); I != N; ++I)
-    Args.push_back(CI->getArgOperand(I));
-
-  // Call genx intrinsic.
-  llvm::CallInst *NewCI = CallInfo.CGF->Builder.CreateCall(GenxFn, Args);
-  NewCI->setName(CI->getName());
-  NewCI->setDebugLoc(CI->getDebugLoc());
-
-  CI->eraseFromParent();
-  return NewCI;
-}
-
 /// \brief Postprocess builtin sample32.
 /// template<int N, ChannelMaskType Mask, OutputFormatControl Ofc>
 /// matrix<ushort, N, 32>
@@ -3556,77 +3503,89 @@ llvm::Value *CGCMRuntime::HandleBuiltinSample32Impl(CMCallInfo &CallInfo,
   return NewCI;
 }
 
-/// \brief Postprocess builtin cm_3d_sample, cm_3d_load.
+/// \brief Postprocess cm_3d_sample and cm_3d_load built-in functions.
+///
 /// template <CM3DSampleOp Op, ChannelMaskType Ch, typename T, int N,
-/// typename... Args> void cm_3d_sample(vector_ref<T, N> dst, ushort Aoffimmi,
-/// SamplerIndex sampIndex, SurfaceIndex surfIndex, Args... args); template
-/// <CM3DLoadOp Op, ChannelMaskType Ch, typename T, int N, typename... Args>
-/// void cm_3d_load(vector_ref<T, N> dst, ushort Aofimmi, SurfaceIndex
-/// surfIndex, Args... args);
+///           typename... Args>
+/// void cm_3d_sample(vector_ref<T, N> Dst, uint16_t AOffImmI,
+///                   SamplerIndex Sampler, SurfaceIndex Image, Args... Srcs);
+///
+/// template <CM3DLoadOp Op, ChannelMaskType Ch, typename T, int N,
+///           typename... Args>
+/// void cm_3d_load(vector_ref<T, N> Dst, uint16_t AOffImmI, SurfaceIndex Image,
+///                 Args... Srcs);
 ///
 void CGCMRuntime::HandleBuiltin3dOperationImpl(CMCallInfo &CallInfo,
                                                CMBuiltinKind Kind) {
   assert(Kind == CMBK_cm_3d_sample || Kind == CMBK_cm_3d_load);
   CodeGenFunction &CGF = *CallInfo.CGF;
 
-  unsigned VariantArgStart = Kind == CMBK_cm_3d_sample ? 4 : 3;
+  const unsigned VarArgStart = Kind == CMBK_cm_3d_sample ? 4 : 3;
 
-  unsigned NumArgs = CallInfo.CI->getNumArgOperands();
-  assert(NumArgs >= VariantArgStart + 1 && NumArgs <= VariantArgStart + 15);
+  const unsigned NumArgs = CallInfo.CI->getNumArgOperands();
+  assert(NumArgs >= VarArgStart + 1 && NumArgs <= VarArgStart + 15);
 
   // Determine the overloaded intrinsic function and assemble arguments
-  SmallVector<llvm::Type *, 16> Tys;
-  SmallVector<llvm::Value *, 16> Args;
-  const FunctionDecl *FD = CallInfo.CE->getDirectCallee();
+  const auto *FD = CallInfo.CE->getDirectCallee();
 
   // Determine the SIMD width, based off the number of elements in the
   // first of the variant parameters.
-  QualType VMT = CallInfo.CE->getArg(VariantArgStart)->getType();
+  const auto VMT = CallInfo.CE->getArg(VarArgStart)->getType();
   assert(VMT->isCMVectorMatrixType());
+
   unsigned SimdWidth;
   if (VMT->isCMMatrixType()) {
     auto MT = VMT->castAs<CMMatrixType>();
     SimdWidth = MT->getNumRows() * MT->getNumColumns();
-  } else
+  } else {
     SimdWidth = VMT->castAs<CMVectorType>()->getNumElements();
-
-  // The vISA spec says that the additional arguments only need to
-  // have at least the SIMD Width elements in, rather than exactly.
-  // So, if they appear to have more, do not fault it, just make
-  // sure the closest valid SIMD width is chosen.
-  if (SimdWidth < 8)
-    CGF.CGM.Error(CallInfo.CE->getArg(3)->getExprLoc(),
-                  "cm_3d_sample argument must have at least 8 elements");
-  else if (SimdWidth < 16)
-    SimdWidth = 8;
-  else
-    SimdWidth = 16;
+  }
 
   auto MaskType = getMaskType(CGF.getLLVMContext(), SimdWidth);
 
-  llvm::Value *Dst = CallInfo.CI->getArgOperand(0);
-  llvm::Type *DstTy = Dst->getType();
+  auto *Dst = CallInfo.CI->getArgOperand(0);
+  auto *DstTy = Dst->getType();
   assert(DstTy->isPointerTy() &&
          "pointer type expected for destination argument");
-  Tys.push_back(DstTy->getPointerElementType());
-  Tys.push_back(MaskType);
 
-  Args.push_back(
-      llvm::ConstantInt::get(CGF.Int32Ty, getIntegralValue(FD, 0))); // Opcode
-  Args.push_back(llvm::Constant::getAllOnesValue(
-      MaskType)); // Predicate, used to determine execution size
-  Args.push_back(llvm::ConstantInt::get(
-      CGF.Int32Ty, getIntegralValue(FD, 1))); // Channel mask
-  for (unsigned SI = 1; SI < VariantArgStart; ++SI)
-    Args.push_back(CallInfo.CI->getArgOperand(
-        SI)); // Any required Aofimmi value, and sampler and surface indices
-  Tys.push_back(CallInfo.CI->getArgOperand(VariantArgStart)
-                    ->getType()); // First argument type
-  Args.push_back(CallInfo.CI->getArgOperand(VariantArgStart)); // First argument
+  auto *DstVTy = cast<llvm::FixedVectorType>(DstTy->getPointerElementType());
 
-  // Remaining optional arguments
+  constexpr unsigned NullMask = 32;
+  const auto Opcode = getIntegralValue(FD, 0);
+
+  const auto ChannelMask = getIntegralValue(FD, 1);
+  const auto NumChannels = llvm::countPopulation(ChannelMask);
+
+  auto RequiredDstSize = SimdWidth * NumChannels;
+  if ((Opcode & NullMask) != 0)
+    RequiredDstSize += SimdWidth;
+
+  if (DstVTy->getNumElements() < RequiredDstSize)
+    CGF.CGM.Error(CallInfo.CE->getExprLoc(),
+                  "destination vector too small for operation");
+
+  // First address/index operand
+  auto *Src0 = CallInfo.CI->getArgOperand(VarArgStart);
+  auto *SrcTy = Src0->getType();
+
+  SmallVector<llvm::Type *, 16> Tys = {DstVTy, MaskType, SrcTy};
+
+  SmallVector<llvm::Value *, 16> Args = {
+      llvm::ConstantInt::get(CGF.Int32Ty, Opcode),
+      llvm::Constant::getAllOnesValue(MaskType), // Predicate
+      llvm::ConstantInt::get(CGF.Int32Ty, ChannelMask),
+  };
+
+  // Any required AOffImmI value, sampler and surface indices
+  for (unsigned I = 1; I < VarArgStart; ++I)
+    Args.push_back(CallInfo.CI->getArgOperand(I));
+
+  // First source operand
+  Args.push_back(Src0);
+
+  // Remaining optional source operands
   unsigned I;
-  for (I = VariantArgStart + 1; I < NumArgs; ++I) {
+  for (I = VarArgStart + 1; I < NumArgs; ++I) {
     // Validate that each of the variadic arguments is a vector or matrix with
     // at least the number of elements as required by the execution size.
 
@@ -3644,23 +3603,23 @@ void CGCMRuntime::HandleBuiltin3dOperationImpl(CMCallInfo &CallInfo,
       CGF.CGM.Error(CallInfo.CE->getArg(I)->getExprLoc(),
                     "matrix or vector contains too few elements");
 
-    Tys.push_back(CallInfo.CI->getArgOperand(I)->getType());
-    Args.push_back(CallInfo.CI->getArgOperand(I));
+    auto *Src = CallInfo.CI->getArgOperand(I);
+    Args.push_back(Src);
+    Tys.push_back(Src->getType());
   }
 
   // Pad out remaining intrinsic operands with zero
-  llvm::Type *PadTy = llvm::FixedVectorType::get(CGF.FloatTy, SimdWidth);
-  llvm::Value *PadVal = llvm::Constant::getNullValue(PadTy);
-  for (; I < VariantArgStart + 15; ++I) {
-    Tys.push_back(PadTy);
+  auto *PadVal = llvm::Constant::getNullValue(SrcTy);
+  for (; I < VarArgStart + 15; ++I) {
     Args.push_back(PadVal);
+    Tys.push_back(SrcTy);
   }
 
   unsigned ID = GetGenxIntrinsicID(CallInfo, Kind);
-  llvm::Function *GenxFn = getGenXIntrinsic(ID, Tys);
+  auto *F = getGenXIntrinsic(ID, Tys);
 
   // Call the intrinsic
-  llvm::CallInst *NewCI = CGF.Builder.CreateCall(GenxFn, Args);
+  auto *NewCI = CGF.Builder.CreateCall(F, Args);
   NewCI->setName(CallInfo.CI->getName());
   NewCI->setDebugLoc(CallInfo.CI->getDebugLoc());
 
@@ -3668,43 +3627,6 @@ void CGCMRuntime::HandleBuiltin3dOperationImpl(CMCallInfo &CallInfo,
   CGF.Builder.CreateDefaultAlignedStore(NewCI, Dst);
 
   CallInfo.CI->eraseFromParent();
-}
-
-/// \brief Postprocess builtin load16.
-/// template<typename T, int N, ChannelMaskType Mask>
-/// matrix<T, N, 16>
-/// __cm_intrinsic_impl_load16(SurfaceIndex surfIndex, vector<float, 16> u,
-/// vector<float, 16> v, vector<float, 16> r);
-///
-llvm::Value *CGCMRuntime::HandleBuiltinLoad16Impl(CMCallInfo &CallInfo,
-                                                  CMBuiltinKind Kind) {
-  assert(Kind == CMBK_load16_impl);
-  unsigned ID = GetGenxIntrinsicID(CallInfo, Kind);
-
-  // Overload with its return type and the vector offset type.
-  llvm::Function *Fn = CallInfo.CI->getCalledFunction();
-  llvm::Type *Tys[] = {Fn->getReturnType(),
-                       Fn->getFunctionType()->getParamType(1)};
-  llvm::Function *GenxFn = getGenXIntrinsic(ID, Tys);
-
-  assert(CallInfo.CI->getNumArgOperands() == 4);
-  llvm::CallInst *CI = CallInfo.CI;
-
-  // Collect arguments.
-  SmallVector<llvm::Value *, 8> Args;
-  unsigned MaskValue = getIntegralValue(CallInfo.CE->getDirectCallee(), 2);
-  llvm::Type *MaskType = GenxFn->getFunctionType()->getParamType(0);
-  Args.push_back(llvm::ConstantInt::get(MaskType, MaskValue));
-  for (unsigned I = 0, N = CI->getNumArgOperands(); I != N; ++I)
-    Args.push_back(CI->getArgOperand(I));
-
-  // Call genx intrinsic.
-  llvm::CallInst *NewCI = CallInfo.CGF->Builder.CreateCall(GenxFn, Args);
-  NewCI->setName(CI->getName());
-  NewCI->setDebugLoc(CI->getDebugLoc());
-
-  CI->eraseFromParent();
-  return NewCI;
 }
 
 namespace {

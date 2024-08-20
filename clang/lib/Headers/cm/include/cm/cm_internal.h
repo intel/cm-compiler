@@ -227,21 +227,10 @@ template <typename T, int N, int M, int _M, CmBufferAttrib attr,
 void __cm_intrinsic_impl_write_plane(SurfaceIndex index, int X, int Y,
                                      matrix<T, N, _M> src);
 
-template <typename T, int N, ChannelMaskType Mask>
-matrix<T, N, 16>
-__cm_intrinsic_impl_sample16(SamplerIndex sampIndex, SurfaceIndex surfIndex,
-                             vector<float, 16> u, vector<float, 16> v,
-                             vector<float, 16> r);
-
 template <int N, ChannelMaskType Mask, OutputFormatControl Ofc>
 matrix<ushort, N, 32>
 __cm_intrinsic_impl_sample32(SamplerIndex sampIndex, SurfaceIndex surfIndex,
                              float u, float v, float deltaU, float deltaV);
-
-template <typename T, int N, ChannelMaskType Mask>
-matrix<T, N, 16>
-__cm_intrinsic_impl_load16(SurfaceIndex surfIndex, vector<uint, 16> u,
-                           vector<uint, 16> v, vector<uint, 16> r);
 
 template <CmAtomicOpType Op, int N, typename T>
 vector<T, N> __cm_intrinsic_impl_atomic_write(vector<ushort, N> mask,

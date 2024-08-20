@@ -68,6 +68,10 @@ set(CM_HEADERS
   cm/intrinsics/frem.h
   cm/intrinsics/srnd.h
 
+  cm/sampler/helper.h
+  cm/sampler/load.h
+  cm/sampler/sample.h
+
   # SPIR-V function definitions
   cm/spirv/barrier.h
   cm/spirv/builtins.h

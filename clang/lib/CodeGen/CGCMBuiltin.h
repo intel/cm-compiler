@@ -208,13 +208,9 @@ enum CMBuiltinKind {
   CMBK_cm_slm_read4_scaled,
   CMBK_cm_slm_atomic,
   // Sampler interface.
-  CMBK_sample16,
-  CMBK_sample16_impl,
   CMBK_sample32,
   CMBK_sample32_impl,
   CMBK_cm_3d_sample,
-  CMBK_load16,
-  CMBK_load16_impl,
   CMBK_cm_3d_load,
   // Shared virtual memory interface
   CMBK_cm_svm_read4_impl,

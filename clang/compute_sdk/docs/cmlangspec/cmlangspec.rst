@@ -3830,98 +3830,74 @@ CM_SURFACE_FORMAT_NV12 {Gen7_5+}  2D      Cr  Y   Cb      float
 cm_3d_sample
 ^^^^^^^^^^^^
 
-{Only for new cm-llvm compiler cmc on SKL+ - not supported for legacy cm-icl compiler - icl}
-
 .. code-block:: c++
 
-  template <CM3DSampleOp Op, ChannelMaskType Ch, typename T, int N,
+  template <CM3DSampleOp Op, ChannelMaskType ChannelMask, typename T, int N,
             typename... Args>
-  void cm_3d_sample(vector_ref<T, N> dst, ushort Aoffimmi,
-                    SamplerIndex sampIndex, SurfaceIndex surfIndex,
-                    Args... args);
+  void cm_3d_sample(vector_ref<T, N> Dst, ushort AOffImmI, SamplerIndex Sampler,
+                    SurfaceIndex Image, Args... Srcs);
 
 =============== =========================================================================
 Parameters
 =============== =========================================================================
-Op
-                sample operation. Please refer to the table below to see what
-                operations are available
+Op              Sample operation. Please refer to the table below to see what operations
+                are available.
 
-Ch
-                channel mask selection. See section 4.4 for the permitted
-                values.
+ChannelMask     Channel mask selection. See section 4.4 for the permitted values.
 
-args
-                between 1 and 15 variadic arguments, each of which must be
-                a same type and be a vector or matrix of type float (half is
-                permitted on CNL+). The number of elements in this type
-                determines if the operation is performed in SIMD8 or SIMD16
-                mode. If the number of less than 16, only the first 8
-                elements are significant and the operation is performed in
-                SIMD8 mode. If there are 16 or more elements, the first 16
-                only are significant and the operation is performed in SIMD16
-                mode. There must be at least 8 elements in this type.
+Srcs            Between 1 and 15 variadic arguments, each of which must be the same type
+                and be a vector or matrix of type ``float`` (``half`` is permitted on
+                Gen11 and newer).
+
+                The number of elements in each vector or matrix determines the SIMD
+                width of the operation.
 
                 The precise number of arguments depends on the sample operation being
                 performed, see the table below for details of what needs to be
                 supplied.
 
-dst
-                a reference to the destination vector, where the results of
-                the sample are stored. This is a vector of type  half, float,
-                ushort, short, int or uint.
+Dst             A reference to the destination vector or matrix, where the results of
+                the sample operation are stored. This is a vector of type ``half``,
+                ``float``, ``ushort``, ``short``, ``int`` or ``uint``.
 
-                For 32-bit return types (float, int, uint):
+                For 32-bit return types (``float``, ``int`` or ``uint``):
 
-                For each enabled channel in Ch up to 8 or 16 values are returned
-                starting from R, dependent on the SIMD width. Disabled channels
-                are skipped in the results, with only enabled channels being
+                For each enabled channel in ``ChannelMask`` the values are returned
+                starting from the ``R`` channel, dependent on the SIMD width. Disabled
+                channels are skipped in the results, with only enabled channels being
                 written.
 
-                For 16-bit return types (half, short and ushort):
+                For 16-bit return types (``half``, ``short`` or ``ushort``):
 
-                For each enabled channel in Ch 16 elements are written to the
-                destination starting from R. Disabled channels are skipped
-                in the results, with only the enabled pixels being written.
-                In SIMD8 mode the upper 8 elements for each returned channel
-                are undefined.
+                For each enabled channel in ``ChannelMask``, elements are written to
+                the destination starting from the ``R`` channel. Disabled channels are
+                skipped in the results, with only the enabled pixels being written.
 
-                For LOD operations the R channel contains the clamped LOD
-                values while the G channel contains the unclamped LOD values. The
-                B and A channels have undefined values and should be masked out.
+                For ``LOD`` operations the ``R`` channel contains the clamped LOD
+                values while the ``G`` channel contains the unclamped LOD values. The
+                ``B`` and ``A`` channels have undefined values and should be masked out.
 
-                For all operations, if CM_3D_SAMPLE_NULL_MASK_ENABLE is enabled
-                in Op then an additional GRF's worth of data is written after
-                the sampler data, with 8 or 16 bits (dependent on the SIMD width)
-                of the first ushort containing pixel null mask values: all bits
-                contain 1 except for those where a null page was source for at
-                least one texel.
-
-Aofimmi
-                a ushort value containing the Aofimmi modifier, where:
-
-                * Bit 0-3: The R offset
-                * Bit 4-7: The V offset
-                * Bit 8-11: The U offset
+AOffImmI        A ushort value containing the Aofimmi modifier, where:
+                  * Bit 0-3: The R offset
+                  * Bit 4-7: The V offset
+                  * Bit 8-11: The U offset
 
                 These offsets must be in the range [-8,7]. Bit 12-15 are reserved
                 and must be zero.
 
-sampIndex
-                the sampler index
+Sampler         The sampler index
 
-surfIndex
-                the surface index
+Image           The surface index
 =============== =========================================================================
 
-This samples "surfIndex" using the sampler state "sampIndex". LOD, bias, ref,
+This samples ``Image`` using the sampler state ``Sampler``. LOD, bias, ref,
 and gradients are computed differently based on the sampler operation.
 
-The type CM3DSampleOp defines what sample operations are supported and
-how any variadic arguments supplied are interpreted according to each
-specific operation. For any of the variadic arguments it is
-possible to give 0 to indicate a default, all zeros argument, and
-any missing trailing variadic arguments will be defaulted to 0 anyway.
+The type ``CM3DSampleOp`` defines what sample operations are supported and
+how any variadic arguments supplied are interpreted according to each specific
+operation. For any of the variadic arguments it is possible to give 0 to
+indicate a default, all zeros argument, and any missing trailing variadic
+arguments will be defaulted to 0 anyway.
 
 The table below lists the operations available and the arguments expected,
 in the order they are expected.
@@ -3942,7 +3918,7 @@ CM_3D_SAMPLE_LZ      u, v, r, ai
 CM_3D_SAMPLE_C_LZ    ref, u, v, r, ai
 ==================== =======================================================
 
-Each of the values above can be composed with CM_3D_SAMPLE_NULLMASK_ENABLE
+Each of the values above can be composed with ``CM_3D_SAMPLE_NULLMASK_ENABLE``
 using the | operation to enable a variant of the operation that also
 returns pixel null mask information.
 
@@ -3982,84 +3958,60 @@ cm_3d_load
 
 .. code-block:: c++
 
-  template <CM3DLoadOp Op, ChannelMaskType Ch, typename T, int N,
+  template <CM3DLoadOp Op, ChannelMaskType ChannelMask, typename T, int N,
             typename... Args>
-  void cm_3d_load(vector_ref<T, N> dst, ushort Aofimmi, SurfaceIndex surfIndex,
-                  Args... args);
+  void cm_3d_load(vector_ref<T, N> Dst, ushort AOffImmI, SurfaceIndex Image,
+                  Args... Srcs);
 
 =============== =========================================================================
 Parameters
 =============== =========================================================================
-Op
-                load operation. Please refer to the table below to see what
-                operations are available
+Op              Load operation. Please refer to the table below to see what operations
+                are available.
 
-Ch
-                channel mask selection. See section 4.4 for the permitted
-                values.
+ChannelMask     Channel mask selection. See section 4.4 for the permitted values.
 
-args
-                between 1 and 15 variadic arguments, each of which must be
-                a same type and be a vector or matrix of type uint or ushort
-                The number of elements in this type determines if the operation
-                is performed in SIMD8 or SIMD16 mode. If the number of less than
-                16, only the first 8 elements are significant and the operation
-                is performed in SIMD8 mode. If there are 16 or more elements, the
-                first 16 only are significant and the operation is performed in
-                SIMD16 mode. There must be at least 8 elements in this type.
+Srcs            Between 1 and 15 variadic arguments, each of which must be the same type
+                and be a vector or matrix of type uint or ushort The number of elements
+                in this type determines the SIMD width for the operation.  The precise
+                number of arguments depends on the load operation being performed, see
+                the table below for details of what needs to be supplied.
 
-                The precise number of arguments depends on the load operation being
-                performed, see the table below for details of what needs to be
-                supplied.
+Dst             A reference to the destination vector, where the results of the load
+                are stored. This is a vector of type ``half``, ``float``, ``ushort``,
+                ``short``, ``int`` or ``uint``.
 
-dst
-                a reference to the destination vector, where the results of
-                the load are stored. This is a vector of type half, float, ushort,
-                short, int or uint.
+                For 32-bit return types (``float``, ``int`` or ``uint``):
 
-                For 32-bit return types (float, int, uint):
-
-                For each enabled channel in Ch up to 8 or 16 values are returned
-                starting from R, dependent on the SIMD width. Disabled channels
-                are skipped in the results, with only enabled channels being
+                For each enabled channel in ``ChannelMask`` the values are returned
+                starting from the ``R`` channel, dependent on the SIMD width. Disabled
+                channels are skipped in the results, with only enabled channels being
                 written.
 
-                For 16-bit return types (half, short and ushort):
+                For 16-bit return types (``half``, ``short`` or ``ushort``):
 
-                For each enabled channel in Ch 16 elements are written to the
-                destination starting from R. Disabled channels are skipped
-                in the results, with only the enabled pixels being written.
-                In SIMD8 mode the upper 8 elements for each returned channel
-                are undefined.
+                For each enabled channel in ``ChannelMask``, elements are written to
+                the destination starting from the ``R`` channel. Disabled channels are
+                skipped in the results, with only the enabled pixels being written.
 
-                For all operations, if CM_3D_LOAD_NULL_MASK_ENABLE is enabled
-                in Op then an additional GRF's worth of data is written after
-                the sampler data, with 8 or 16 bits (dependent on the SIMD width)
-                of the first ushort containing pixel null mask values: all bits
-                contain 1 except for those where a null page was source for at
-                least one texel.
-
-Aofimmi
-                a ushort value containing the Aofimmi modifier, where:
-
-                * Bit 0-3: The R offset
-                * Bit 4-7: The V offset
-                * Bit 8-11: The U offset
+AOffImmI        A ushort value containing the Aofimmi modifier, where:
+                  * Bit 0-3: The R offset
+                  * Bit 4-7: The V offset
+                  * Bit 8-11: The U offset
 
                 These offsets must be in the range [-8,7]. Bit 12-15 are reserved
                 and must be zero.
 
-surfIndex
-                the surface index
+Image           The surface index
 =============== =========================================================================
 
-This loads data from "surfIndex" at the given integer texel addresses
+This loads data from ``Image`` at the given integer texel addresses.
 
-The type CM3DLoadOp defines what load operations are supported and
-how any variadic arguments supplied are interpreted according to each
-specific operation. For any of the variadic arguments it is
-possible to give 0 to indicate a default, all zeros argument, and
-any missing trailing variadic arguments will defaulted to 0 anyway.
+The type ``CM3DLoadOp`` defines what load operations are supported and how
+any variadic arguments supplied are interpreted according to each specific
+operation. For any of the variadic arguments it is possible to give 0 to
+indicate a default, all zeros argument, and any missing trailing variadic
+arguments will defaulted to 0 anyway.
 
 The table below lists the operations available and the arguments expected,
 in the order they are expected.
@@ -4073,12 +4025,12 @@ in the order they are expected.
    CM_3D_LOAD                                   u, v, lod, r
    CM_3D_LOAD_LZ                                u, v, r
    CM_3D_LOAD_L {Xe2+}                          u, v, r, lod
-   CM_3D_LOAD_2DMS_W (type uint)                si, mcsl, mcsh, u, v, r, lod
-   CM_3D_LOAD_2DMS_W (type ushort) {ICL+}       si, mcs0, mcs1, mcs2, mcs3, u, v, r, lod
+   CM_3D_LOAD_2DMS_W (type ``uint``)            si, mcsl, mcsh, u, v, r, lod
+   CM_3D_LOAD_2DMS_W (type ``ushort``) {ICL+}   si, mcs0, mcs1, mcs2, mcs3, u, v, r, lod
    CM_3D_LOAD_MCS                               u, v, r, lod
    ============================================ =======================================================
 
-Each of the values above can be composed with CM_3D_LOAD_NULLMASK_ENABLE
+Each of the values above can be composed with ``CM_3D_LOAD_NULLMASK_ENABLE``
 using the | operation to enable a variant of the operation that also
 returns pixel null mask information.
 

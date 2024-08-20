@@ -547,17 +547,9 @@ private:
   llvm::Value *HandleBuiltinReductionImpl(CMCallInfo &CallInfo,
                                           CMBuiltinKind Kind);
 
-  /// \brief Postprocess builtin sample16.
-  llvm::Value *HandleBuiltinSample16Impl(CMCallInfo &CallInfo,
-                                         CMBuiltinKind Kind);
-
   /// \brief Postprocess builtin sample32.
   llvm::Value *HandleBuiltinSample32Impl(CMCallInfo &CallInfo,
                                          CMBuiltinKind Kind);
-
-  /// \brief Postprocess builtin load16.
-  llvm::Value *HandleBuiltinLoad16Impl(CMCallInfo &CallInfo,
-                                       CMBuiltinKind Kind);
 
   /// \brief Postprocess builtin atomic write.
   llvm::Value *HandleBuiltinWriteAtomicImpl(CMCallInfo &CallInfo,
