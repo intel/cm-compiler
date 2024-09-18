@@ -31,22 +31,32 @@ template <typename Ty> using rsqrt_t = typename rsqrt<Ty>::type;
 
 template <typename T, int SZ>
 CM_NODEBUG __SPIRV_WRITER_INLINE_WA vector<details::rsqrt_t<T>, SZ>
-cm_rsqrt(vector<T, SZ> src) {
-  return __spirv_ocl_rsqrt(src);
+cm_rsqrt(vector<T, SZ> src, int Flag = _GENX_NOSAT) {
+  using res_type = vector<T, SZ>;
+  res_type Res = __spirv_ocl_rsqrt(src);
+  if (Flag != _GENX_NOSAT) {
+    Res = details::__cm_intrinsic_impl_sat<res_type>(Res);
+  }
+  return Res;
 }
 
 // Scalar
 template <typename T>
-CM_NODEBUG __SPIRV_WRITER_INLINE_WA details::rsqrt_t<T> cm_rsqrt(T src) {
-  vector<T, 1> _Result = __spirv_ocl_rsqrt(src);
-  return _Result(0);
+CM_NODEBUG __SPIRV_WRITER_INLINE_WA details::rsqrt_t<T>
+cm_rsqrt(T src, int Flag = _GENX_NOSAT) {
+  using res_type = vector<T, 1>;
+  res_type Res = __spirv_ocl_rsqrt(src);
+  if (Flag != _GENX_NOSAT) {
+    Res = details::__cm_intrinsic_impl_sat<res_type>(Res);
+  }
+  return Res(0);
 }
 
 template <typename T, int N1, int N2>
 CM_NODEBUG __SPIRV_WRITER_INLINE_WA matrix<details::rsqrt_t<T>, N1, N2>
-cm_rsqrt(matrix<T, N1, N2> src) {
+cm_rsqrt(matrix<T, N1, N2> src, int Flag = _GENX_NOSAT) {
   vector<T, N1 *N2> Src = src;
-  return cm_rsqrt(Src);
+  return cm_rsqrt(Src, Flag);
 }
 
 #endif // _CLANG_CM_INTRINSICS_RSQRT_H_
