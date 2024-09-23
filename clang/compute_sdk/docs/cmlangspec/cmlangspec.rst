@@ -17,10 +17,10 @@ Primary Author(s): Kai Yu Chen, Guei-Yuan Lueh
 Contributor(s): Chu-cheow Lim, Somnath Ghosh, Chunling Hu, Biju
 George, Weiyu Chen, Alexander Yermolovich, Puyan Lotfi, Gang Chen,
 Julia Gould, Wei Pan, David Stuttard, Tim Renouf, Tim Corringham,
-Stephen Thomas, Vladimirov Konstantin, Us Alexander, Parshintsev
-Anatoly, Sidorenko Anton, Zabaznov Anton, Bezzubikov Alexader,
-Ryabtsev Dmitry, Rudenko Nikita, Mustya Victor, Shelegov Maksim,
-Korovin Vladislav.
+Stephen Thomas, Konstantin Vladimirov, Alexander Us, Anatoly Parshintsev,
+Anton Sidorenko, Anton Zabaznov, Alexader Bezzubikov,
+Dmitry Ryabtsev, Nikita Rudenko, Victor Mustya, Maksim Shelegov,
+Vladislav Korovin, Vadim Semenov.
 
 Legal Notices and Disclaimers
 =============================
