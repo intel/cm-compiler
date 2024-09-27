@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2021 Intel Corporation
+Copyright (C) 2014-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -16,9 +16,18 @@ static_assert(0, "CM:w:cm_send.h should not be included explicitly - only "
 
 #include "cm_common.h"
 #include "cm_traits.h"
+#include "cm_util.h"
+
+namespace details {
+template <typename T, unsigned Width>
+using PayloadRegTy =
+    std::enable_if_t<is_dword_type<T>::value && isPowerOf2(Width, CM_GRF_WIDTH),
+                     vector<T, Width> >;
+} // namespace details
 
 /// Access the thread payload register r0.
-template <typename T = void> vector<uint, 8> cm_get_r0();
+template <typename T = uint32_t, unsigned Width = 8>
+details::PayloadRegTy<T, Width> cm_get_r0();
 
 /// Access the thread status register sr0.
 template <typename T = void> vector<uint, 4> cm_get_sr0();

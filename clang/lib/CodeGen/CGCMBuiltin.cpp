@@ -4363,7 +4363,7 @@ void CGCMRuntime::HandleBuiltinNamedBarrierArriveImpl(CMCallInfo &CallInfo) {
   CI->eraseFromParent();
 }
 
-/// template <typename T> vector<uint, 8> cm_get_r0();
+/// template <typename T, unsigned N> vector<T, N> cm_get_r0();
 ///
 llvm::Value *CGCMRuntime::HandleBuiltinGetR0Impl(CMCallInfo &CallInfo) {
   unsigned ID = llvm::GenXIntrinsic::genx_r0;

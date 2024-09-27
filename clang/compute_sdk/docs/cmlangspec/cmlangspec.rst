@@ -6692,10 +6692,13 @@ cm_get_r0
 
 .. code-block:: c++
 
-  vector<uint, 8> cm_get_r0();
+  template <typename T = uint, unsigned Width = 8>
+  vector<T, Width> cm_get_r0();
 
 This intrinsic can be used to access the thread payload register R0, needed to assemble the raw
-send message's payload.
+send message's payload. The return data is a vector of the specified type and width. The supported
+element types are ``uint``, ``int``, ``float``. The width must be a power of 2, and the default is 8.
+The width must not exceed the general-purpose register width for the target architecture.
 
 
 4.16 C for Metal label function
