@@ -219,6 +219,8 @@ void GenX::addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
     CC1Args.push_back("-mCM_no_vector_decomposition");
   if (DriverArgs.hasArg(options::OPT_mCM_translate_legacy))
     CC1Args.push_back("-mCM_translate_legacy");
+  if (DriverArgs.hasArg(options::OPT_mCM_collect_cost_info))
+    CC1Args.push_back("-mCM_collect_cost_info");
 
   ArgStringList CompatibilityArgs =
       constructCompatibilityFinalizerOptions(DriverArgs, Drv);

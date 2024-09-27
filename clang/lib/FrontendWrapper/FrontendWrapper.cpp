@@ -288,6 +288,8 @@ static std::string getVCApiOptions(const llvm::opt::InputArgList &Args,
     VCApiOptions += " -ze-no-vector-decomposition";
   if (Args.hasArg(clang::driver::options::OPT_mCM_translate_legacy))
     VCApiOptions += " -ftranslate-legacy-memory-intrinsics";
+  if (Args.hasArg(clang::driver::options::OPT_mCM_collect_cost_info))
+    VCApiOptions += " -ze-collect-cost-info";
 
   if (auto *Arg = Args.getLastArg(
           clang::driver::options::OPT_Qxcm_register_file_size)) {

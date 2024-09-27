@@ -181,6 +181,8 @@ Option                        Description
 -mCM_warn_callable            Generates warning instead of error if callable is
                               called in the middle.
 
+-mCM_collect_cost_info        Enable loop cost information gathering.  
+
 -mdump_asm                    Requests creation of assembly dumps for the
                               compiled kernels. It's recommended to use shader
                               dumps instead of this option.

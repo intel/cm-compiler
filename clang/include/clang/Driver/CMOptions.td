@@ -164,6 +164,8 @@ def mCM_warn_callable : CMCompileFlag<"mCM_warn_callable">, HelpText<"Generate w
 
 def mCM_translate_legacy : CMCC1CompileFlag<"mCM_translate_legacy">, HelpText<"Translate legacy intrinsics.">;
 
+def mCM_collect_cost_info : CMCC1CompileFlag<"mCM_collect_cost_info">, HelpText<"Collect loops cost information">;
+
 // Passed to cc1 to specify the file name for importing builtin-function module
 def mCM_import_bif : CMCC1<"mCM_import_bif">;
 
