@@ -282,6 +282,10 @@ static std::string getVCApiOptions(const llvm::opt::InputArgList &Args,
 
   if (Args.hasArg(clang::driver::options::OPT_vc_use_plain_2d_images))
     VCApiOptions += " -vc-use-plain-2d-images";
+  if (Args.hasArg(clang::driver::options::OPT_vc_use_bindless_buffers))
+    VCApiOptions += " -vc-use-bindless-buffers";
+  if (Args.hasArg(clang::driver::options::OPT_vc_use_bindless_images))
+    VCApiOptions += " -vc-use-bindless-images";
   if (Args.hasArg(clang::driver::options::OPT_mCM_disable_jmpi))
     VCApiOptions += " -fno-jump-tables";
   if (Args.hasArg(clang::driver::options::OPT_mCM_no_vector_decomposition))

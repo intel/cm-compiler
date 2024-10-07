@@ -214,6 +214,10 @@ Option                        Description
 -vc-use-plain-2d-images       Treat "image2d_t" annotated surfaces as non-media
                               2D images.
 
+-vc-use-bindless-buffers      Enable bindless buffer access.
+
+-vc-use-bindless-images       Enable bindless image access.
+
 -###                          This option causes the cmc driver to print the
                               commands that would be used to perform the
                               compilation.

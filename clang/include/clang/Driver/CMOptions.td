@@ -279,6 +279,14 @@ def vc_use_plain_2d_images : Flag<["-"], "vc-use-plain-2d-images">,
   Group<cm_Group>, HelpText<"Treat image2d_t annotations as non-media images">,
   Flags<[CMOption, CC1Option]>;
 
+def vc_use_bindless_buffers : Flag<["-"], "vc-use-bindless-buffers">,
+  Group<cm_Group>, HelpText<"Enable bindless buffer access">,
+  Flags<[CMOption, CC1Option]>;
+
+def vc_use_bindless_images : Flag<["-"], "vc-use-bindless-images">,
+  Group<cm_Group>, HelpText<"Enable bindless image access">,
+  Flags<[CMOption, CC1Option]>;
+
 def cm_disable_strong_inline : Flag<["-"], "cm_disable_strong_inline">,
   Group<cm_Group>, HelpText<"Disable treating of <inline> directives as "
                             "<always_inline>">,
