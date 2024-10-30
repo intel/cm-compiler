@@ -117,7 +117,7 @@ public:
 };
 
 CmocContext::CmocContext(int Argc, const char **Argv)
-    : FE{IGC::AdaptorCM::Frontend::makeFEWrapper(FatalError).getValue()} {
+    : FE{IGC::AdaptorCM::Frontend::makeFEWrapper(FatalError).value()} {
 
   if (DebugEnabled) {
     std::vector<llvm::StringRef> Args(Argv, Argv + Argc);

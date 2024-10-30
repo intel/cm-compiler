@@ -26,6 +26,8 @@ target_link_libraries(clangFEWrapper PRIVATE CmEmbeddedHeaders)
 set_target_properties(clangFEWrapper PROPERTIES LINK_DEPENDS "${VERSION_SCRIPT}")
 target_compile_definitions(clangFEWrapper PUBLIC INTEL_CM_CLANGFE_LIB)
 
+set_property(TARGET clangFEWrapper PROPERTY CXX_STANDARD 17)
+
 # Helper interface target for interaction with created module.
 add_library(CMFrontendWrapper INTERFACE)
 target_include_directories(CMFrontendWrapper

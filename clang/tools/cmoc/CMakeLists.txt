@@ -50,6 +50,8 @@ target_compile_definitions(${CMC_TOOL_NAME}
   "LIBOCLOC_NAME=\"${LIBOCLOC}\""
   )
 
+set_property(TARGET ${CMC_TOOL_NAME} PROPERTY CXX_STANDARD 17)
+
 target_link_libraries(${CMC_TOOL_NAME}
   PRIVATE
   CMFrontendWrapper
