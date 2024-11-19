@@ -389,6 +389,17 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
             .StartsWith("__cm_intrinsic_impl_wrregion", CMBK_wrregion)
             .StartsWith("__cm_intrinsic_impl_nbarrier_arrive",
                         CMBK_cm_nbarrier_arrive)
+            // LSC 2D block load/store/prefetch intrinsics
+            .StartsWith("__cm_intrinsic_impl_load_2d_ugm_desc_vnni",
+                        CMBK_cm_load_2d_ugm_desc_vnni_impl)
+            .StartsWith("__cm_intrinsic_impl_load_2d_ugm_desc_transpose",
+                        CMBK_cm_load_2d_ugm_desc_transpose_impl)
+            .StartsWith("__cm_intrinsic_impl_load_2d_ugm_desc",
+                        CMBK_cm_load_2d_ugm_desc_impl)
+            .StartsWith("__cm_intrinsic_impl_prefetch_2d_ugm_desc",
+                        CMBK_cm_prefetch_2d_ugm_desc_impl)
+            .StartsWith("__cm_intrinsic_impl_store_2d_ugm_desc",
+                        CMBK_cm_store_2d_ugm_desc_impl)
             .Default(CMBK_none);
   }
   // Handle other builtin implementations.
@@ -1141,6 +1152,15 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(0);
   case CMBK_cm_lsc_fence_impl:
     HandleBuiltinLscFenceImpl(getCurCMCallInfo(), Kind);
+    return RValue::get(0);
+  case CMBK_cm_load_2d_ugm_desc_impl:
+  case CMBK_cm_load_2d_ugm_desc_transpose_impl:
+  case CMBK_cm_load_2d_ugm_desc_vnni_impl:
+    return RValue::get(
+        HandleBuiltinLsc2dUgmDescImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_prefetch_2d_ugm_desc_impl:
+  case CMBK_cm_store_2d_ugm_desc_impl:
+    HandleBuiltinLsc2dUgmDescImpl(getCurCMCallInfo(), Kind);
     return RValue::get(0);
   case CMBK_scatter_impl:
   case CMBK_scatter_svm_impl:
@@ -7622,6 +7642,89 @@ llvm::Value *CGCMRuntime::HandleBuiltinLscFenceImpl(CMCallInfo &CallInfo,
   }
   CI->eraseFromParent();
   return Result;
+}
+
+/// \brief Postprocess lsc 2d block load operations with matrix descriptor passed.
+///
+/// See Headers/cm/include/cm/lsc/block2d.h for details.
+///
+llvm::Value *CGCMRuntime::HandleBuiltinLsc2dUgmDescImpl(CMCallInfo &CallInfo,
+                                                        CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_load_2d_ugm_desc_impl ||
+         Kind == CMBK_cm_load_2d_ugm_desc_transpose_impl ||
+         Kind == CMBK_cm_load_2d_ugm_desc_vnni_impl ||
+         Kind == CMBK_cm_prefetch_2d_ugm_desc_impl ||
+         Kind == CMBK_cm_store_2d_ugm_desc_impl);
+  using namespace llvm;
+
+  auto *CI = CallInfo.CI;
+  const auto *FD = CallInfo.CE->getDirectCallee();
+  assert(FD && FD->isTemplateInstantiation());
+
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  unsigned BlockHeight = getIntegralValue(FD, 1);
+  unsigned BlockWidth = getIntegralValue(FD, 2);
+  unsigned NumBlocks = getIntegralValue(FD, 3);
+
+  auto *Pred = CI->getArgOperand(0);
+  auto *CacheHints = CI->getArgOperand(1);
+  auto *Desc = CI->getArgOperand(2);
+  auto *OffsetX = CI->getArgOperand(3);
+  auto *OffsetY = CI->getArgOperand(4);
+  auto *Src = CI->getArgOperand(5);
+
+  auto *Ty = CI->getType();
+  SmallVector<llvm::Type *, 2> Tys;
+
+  if (!Ty->isVoidTy())
+    Tys.push_back(Ty);
+  Tys.push_back(CacheHints->getType());
+
+  auto IID = GenXIntrinsic::not_any_intrinsic;
+  switch (Kind) {
+  default:
+    llvm_unreachable("Unsupported builtin kind");
+    break;
+  case CMBK_cm_load_2d_ugm_desc_impl:
+    IID = GenXIntrinsic::genx_lsc_load_2d_ugm_desc;
+    break;
+  case CMBK_cm_load_2d_ugm_desc_transpose_impl:
+    IID = GenXIntrinsic::genx_lsc_load_2d_ugm_desc_transpose;
+    break;
+  case CMBK_cm_load_2d_ugm_desc_vnni_impl:
+    IID = GenXIntrinsic::genx_lsc_load_2d_ugm_desc_vnni;
+    break;
+  case CMBK_cm_prefetch_2d_ugm_desc_impl:
+    IID = GenXIntrinsic::genx_lsc_prefetch_2d_ugm_desc;
+    Tys.push_back(Src->getType());
+    break;
+  case CMBK_cm_store_2d_ugm_desc_impl:
+    IID = GenXIntrinsic::genx_lsc_store_2d_ugm_desc;
+    Tys.push_back(Src->getType());
+    break;
+  }
+
+  SmallVector<Value *, 10> Args = {
+      Builder.CreateTrunc(Pred, Builder.getInt1Ty()),
+      CacheHints,
+      Builder.getInt8(NumBlocks),
+      Builder.getInt16(BlockWidth),
+      Builder.getInt16(BlockHeight),
+      Desc,
+      OffsetX,
+      OffsetY,
+      Src,
+  };
+
+  auto *F = getGenXIntrinsic(IID, Tys);
+  auto *NewCI = Builder.CreateCall(F, Args);
+  NewCI->setDebugLoc(CI->getDebugLoc());
+  if (!Ty->isVoidTy())
+    CI->replaceAllUsesWith(NewCI);
+  CI->eraseFromParent();
+
+  return NewCI;
 }
 
 /// \brief Postprocess scatter implementation.

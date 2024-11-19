@@ -52,6 +52,8 @@ SPDX-License-Identifier: MIT
 #include "sampler/load.h"
 #include "sampler/sample.h"
 
+#include "lsc/block2d.h"
+
 #include "spirv/extensions/khr/shader_clock.h"
 #include "spirv/math.h"
 

@@ -654,6 +654,11 @@ private:
   llvm::Value *HandleBuiltinLscFenceImpl(CMCallInfo &CallInfo,
                                          CMBuiltinKind Kind);
 
+  /// \brief Postprocess lsc 2d block load operations with matrix descriptor
+  /// passed.
+  llvm::Value *HandleBuiltinLsc2dUgmDescImpl(CMCallInfo &CallInfo,
+                                             CMBuiltinKind Kind);
+
   /// \brief Postprocess scatter implementation.
   void HandleBuiltinScatterImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
 

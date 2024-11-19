@@ -73,6 +73,9 @@ set(CM_HEADERS
   cm/sampler/load.h
   cm/sampler/sample.h
 
+  cm/lsc/helpers.h
+  cm/lsc/block2d.h
+
   # SPIR-V function definitions
   cm/spirv/barrier.h
   cm/spirv/builtins.h

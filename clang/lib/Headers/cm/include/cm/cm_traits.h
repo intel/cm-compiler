@@ -87,9 +87,15 @@ template <typename T>
 struct is_floating_point
     : integral_constant<
           bool,
-          std::is_same<half,  typename std::remove_const<T>::type>::value ||
-          std::is_same<float,  typename std::remove_const<T>::type>::value ||
-          std::is_same<double, typename std::remove_const<T>::type>::value> {};
+          std::is_same<half, typename std::remove_const<T>::type>::value ||
+#ifdef CM_HAS_BF16
+              std::is_same<__bf16,
+                           typename std::remove_const<T>::type>::value ||
+#endif // CM_HAS_BF16
+              std::is_same<float, typename std::remove_const<T>::type>::value ||
+              std::is_same<double,
+                           typename std::remove_const<T>::type>::value> {
+};
 
 template<typename T> struct is_pointer_impl : false_type {};
 template<typename T> struct is_pointer_impl<T*> : true_type {};
@@ -189,8 +195,11 @@ struct is_cm_scalar
           std::is_same<float, typename std::remove_const<T>::type>::value ||
               std::is_same<double,
                            typename std::remove_const<T>::type>::value ||
-              std::is_same<half,
+              std::is_same<half, typename std::remove_const<T>::type>::value ||
+#ifdef CM_HAS_BF16
+              std::is_same<__bf16,
                            typename std::remove_const<T>::type>::value ||
+#endif CM_HAS_BF16
               std::is_same<char, typename std::remove_const<T>::type>::value ||
               std::is_same<signed char,
                            typename std::remove_const<T>::type>::value ||
@@ -208,7 +217,8 @@ struct is_cm_scalar
               std::is_same<long long,
                            typename std::remove_const<T>::type>::value ||
               std::is_same<unsigned long long,
-                           typename std::remove_const<T>::type>::value> {};
+                           typename std::remove_const<T>::type>::value> {
+};
 
 template <typename T>
 struct is_dword_type

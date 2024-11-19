@@ -195,6 +195,7 @@ namespace CheckVersion {
 #endif
 
 
+
 #else  // CM_HAS_CONTROL
   CM_STATIC_ERROR(0, "Redeclaration of CM_HAS_CONTROL! It's used for control version of features!");
 #endif // CM_HAS_CONTROL

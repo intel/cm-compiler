@@ -2082,8 +2082,8 @@ Each source1's 32-bit channel value and source2's 32-bit channel value is
 treated as four element vector of 8-bit integer values. cm_dp4a performs a
 32-bit precision dot product of those four bytes and adds it with source0.
 
-These functions are target-dependent and only available when:
-* ``CM_HAS_DP4A`` macro is defined.
+These functions are target-dependent and only available
+when ``CM_HAS_DP4A`` macro is defined.
 
 cm_bf_cvt
 ^^^^^^^^^
@@ -2102,8 +2102,8 @@ destination must be half.
 Mixed mode operation can be enabled by using cm_bf_cvt to convert a Bfloat16
 type operand to Float type, then use the converted operand in a FP operation.
 
-These functions are target-dependent and only available when:
-* ``CM_HAS_BF16`` macro is defined.
+These functions are target-dependent and only available
+when ``CM_HAS_BF16`` macro is defined.
 
 cm_bf8_cvt
 ^^^^^^^^^^
@@ -2119,8 +2119,8 @@ BF8 to HF or HF to BF8 conversion.
 Only uchar (used to represent BF8 internally) and HF type are supported. If
 source is uchar, destination must be HF. Otherwise destination must be uchar.
 
-These functions are target-dependent and only available when:
-* ``CM_HAS_BF8`` macro is defined.
+These functions are target-dependent and only available
+when ``CM_HAS_BF8`` macro is defined.
 
 cm_hf8_cvt
 ^^^^^^^^^^
@@ -2136,8 +2136,8 @@ HF8 to HF or HF to HF8 conversion.
 Only char (used to represent HF8 internally) and HF type are supported. If
 source is char, destination must be HF. Otherwise destination must be char.
 
-These functions are target-dependent and only available when:
-* ``CM_HAS_HF8`` macro is defined.
+These functions are target-dependent and only available
+when ``CM_HAS_HF8`` macro is defined.
 
 cm_tf32_cvt
 ^^^^^^^^^^^
@@ -2161,8 +2161,8 @@ Usage Examples:
   // convert float -> ctf32
   vector<int, 16> tf32_out = cm_tf32_cvt<float>(float_val);
 
-These functions are target-dependent and only available when:
-* ``CM_HAS_TF32`` macro is defined.
+These functions are target-dependent and only available
+when ``CM_HAS_TF32`` macro is defined.
 
 cm_srnd
 ^^^^^^^
@@ -2198,8 +2198,8 @@ Usage Examples:
   // Stochastic convert f32 -> half (f16)
   vector<half, 16> F_srnd_out2 = cm_srnd<half>(F_srnd12, F_srnd22);
 
-These functions are target-dependent and only available when:
-* ``CM_HAS_STOCHASTIC_ROUNDING`` macro is defined.
+These functions are target-dependent and only available
+when ``CM_HAS_STOCHASTIC_ROUNDING`` macro is defined.
 
 
 cm_srnd_bf8
@@ -2239,7 +2239,7 @@ Flag           Saturation flag, default is 0. Use SAT for saturation.
 ============== =================================================================
 
 These functions are target-dependent and only available when:
-* ``CM_HAS_SRND_FP16_TO_BF8`` macro is defined and ``SrcTy`` is ``float`` or  ``half``.
+``CM_HAS_SRND_FP16_TO_BF8`` macro is defined and ``SrcTy`` is ``float`` or  ``half``.
 
 
 cm_bfn {XEHP_SDV+}
@@ -2340,6 +2340,697 @@ ATOMIC_PREDEC           old_dst - 1                             new_dst
 
 4.5 Dataport Interface
 ----------------------
+
+
+Untyped LSC 2D block load/store/prefetch
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+cm_ptr_load
+"""""""""""
+.. code-block:: c++
+
+  template <typename T, int Width, int Height = 1, int NumBlocks = 1,
+            bool Transposed = false, bool Transformed = false,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+  vector<T, N> cm_ptr_load(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
+                           unsigned SurfacePitch, int X, int Y);
+
+
+The compiler generates code for the hardware to perform 2D block read from
+an array of rectangular block(s) in memory. The rectangular blocks in
+the array are assumed to be stacked horizontally in memory.
+The underlying surface must be linear (non-tiled) and raw (untyped).
+Any byte(s) of the accessed 2D block which is outside of the specified
+2D Surface bounds (Width, Height) are considered to be "out-of-bound".
+Hardware will return 0 for the out-of-bound bytes.
+
+For normal load (Transpose = false and Transform = false) the block Width
+is padded up to the next power-of-two value in the GRF.
+E.g. if the 2D block width is 12, and sizeof(T) is 8,
+the space allocated in the GRF will be 16 bytes per row (next power-of-two number).
+
+For Transpose load (Transpose = true and Transform = false)
+the pre-operation block Height is padded up to the next power-of-two value
+(minimum 4 bytes). E.g. if the 2D block height is 12, and sizeof(T) is 8,
+the space allocated in the GRF will be 16 bytes (next power-of-two number).
+The operation loads a column of elements, and put them back to back in a GRF.
+This is useful matrix dA load in backward pass Weight gradient.
+
+For VNNI Transform load (Transpose = false and Transform = true)
+the pre-operation Block Height is padded up to multiple of N,
+where N = 4 / sizeof(element). The pre-operation block Width is
+padded up to next power-of-two value. The padded bytes will be returned as 0.
+E.g if the input block is 11x7, the block will be padded up to 12x8
+before the VNNI Transform operation. The operation loads N elements
+from a column and put back to back in the same GRF.
+This transform lays out the GRF that is friendly to the EU Systolic
+instruction. Useful for matrix B load in forward pass.
+
+The compiler eliminates the padding by generating extra MOV instructions.
+
+These functions are target-dependent and only available
+when ``CM_HAS_LSC_UNTYPED_2D`` macro is defined.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+                For normal load byte, 2-byte, 4-byte and 8-byte types are allowed.
+                For Transpose load only 4-byte and 8-byte types are allowed.
+                For VNNI Transform load only byte and 2-byte types are allowed.
+
+Width           Specifies the width in number of data elements
+                for this rectangular region.
+                The compiler will emit an error when invalid value is set.
+                See the table below for the restrictions.
+
+Height          Specifies the height in number of data elements
+                for this rectangular region.
+                The compiler will emit an error when invalid value is set.
+                See the table below for the restrictions.
+
+NumBlocks       Specifies Array Length.
+                The compiler will emit an error when invalid value is set.
+                See the table below for the restrictions.
+
+Transposed      Enable Transpose.
+                Only 4-byte and 8-byte types are allowed.
+                See the table below for the restrictions.
+
+Transformed     Enable VNNI Transform.
+                Only byte and 2-byte types are allowed.
+                See the table below for the restrictions.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+SurfaceWidth    Surface Width minus 1 in bytes of the 2D surface.
+                Surface Width must be equal or greater than 64B.
+                Surface Width must be DWord (i.e. 4 bytes) aligned.
+
+SurfaceHeight   Surface Height minus 1 in number of data elements
+                of the Untyped 2D surface.
+
+SurfacePitch    Surface Pitch minus 1 in bytes of the 2D surface.
+                Surface Pitch must be greater or equal to Surface Width.
+                Surface Pitch must be equal or greater than 64B.
+                Surface Pitch must be OWord (i.e. 16 bytes) aligned.
+
+X               Block start X coordinate.
+                Specifies the signed X offset in number of data elements
+                from the 2D surface base address for this rectangular region.
+                For byte data types, it must be a multiple of 4.
+                For 2-byte data types, it must be a multiple of 2.
+
+Y               Block start Y coordinate.
+                Specifies the signed Y offset in number of data elements
+                from the 2D surface base address for this rectangular region.
+
+Data            The data vector read from memory.
+                The size ``N`` is a number of elements.
+                ``N`` must be equal to ``Width`` X ``Height`` X ``NumBlocks``.
+                For VNNI Transform, it must be
+                ``Width`` X ``RoundHeight`` X ``NumBlocks``,
+                where ``RoundHeight`` is ``Height`` rounded
+                up to be multiple of (4 / sizeof(T))
+=============== ==================================================================
+
+
+
+Normal load restrictions:
+``Width`` X ``NumBlocks`` must not exceed 64 bytes.
+
+========= ========== ========= =============
+Data Size ``Height`` ``Width`` ``NumBlocks``
+========= ========== ========= =============
+byte      1 - 32     4 - 64    1, 2, 4
+
+2-byte    1 - 32     2 - 32    1, 2, 4
+
+4-byte    1 - 32     1 - 16    1, 2
+
+8-byte    1 - 32     1 - 8     1
+========= ========== ========= =============
+
+Transpose load restrictions:
+
+========= ========== ============ =============
+Data Size ``Height`` ``Width``    ``NumBlocks``
+========= ========== ============ =============
+4-byte    1 - 32     1 - 8        1
+
+8-byte    8          1, 2, 4      1
+========= ========== ============ =============
+
+
+VNNI Transform load restrictions:
+``Width`` X ``NumBlocks`` must not exceed 64 bytes.
+
+========= ========== ========= =============
+Data Size ``Height`` ``Width`` ``NumBlocks``
+========= ========== ========= =============
+byte      4 - 32     4 - 64    1, 2, 4
+
+2-byte    2 - 32     2 - 32    1, 2, 4
+========= ========== ========= =============
+
+
+cm_ptr_store
+""""""""""""
+
+.. code-block:: c++
+
+  template <typename T, int Width, int Height = 1,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  void cm_ptr_store(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
+                    unsigned SurfacePitch, int X, int Y, vector<T, N> Data);
+
+
+The compiler generates code for the hardware to perform
+2D block write from rectangular block in memory.
+The underlying surface must be linear (non-tiled) and raw (untyped).
+Any byte(s) of the accessed 2D block which is outside of the specified
+2D Surface bounds (Width, Height) are considered to be "out-of-bound".
+Hardware will not update the out-of-bound bytes in memory.
+
+These functions are target-dependent and only available
+when ``CM_HAS_LSC_UNTYPED_2D`` macro is defined.
+
+=============== =============================================================
+Parameter       Description
+=============== =============================================================
+T               Data type.
+                Byte, 2-byte, 4-byte and 8-byte types are allowed.
+
+Width           Specifies the width in number of data elements
+                for this rectangular region.
+                The compiler will emit an error when invalid value is set.
+                See the table below for the restrictions.
+
+Height          Specifies the height in number of data elements
+                for this rectangular region.
+                The compiler will emit an error when invalid value is set.
+                See the table below for the restrictions.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                The compiler will emit an error when invalid hint is set.
+                Optional arguments.
+
+SurfaceWidth    Surface Width minus 1 in bytes of the 2D surface.
+                Surface Width must be equal or greater than 64B.
+                Surface Width must be DWord (i.e. 4 bytes) aligned.
+
+SurfaceHeight   Surface Height minus 1 in number of data elements
+                of the Untyped 2D surface.
+
+SurfacePitch    Surface Pitch minus 1 in bytes of the 2D surface.
+                Surface Pitch must be greater or equal to Surface Width.
+                Surface Pitch must be equal or greater than 64B.
+                Surface Pitch must be OWord (i.e. 16 bytes) aligned.
+
+X               Block start X coordinate.
+                Specifies the signed X offset in number of data elements
+                from the 2D surface base address for this rectangular region.
+                For byte data types, it must be a multiple of 4.
+                For 2-byte data types, it must be a multiple of 2.
+
+Y               Block start Y coordinate.
+                Specifies the signed Y offset in number of data elements
+                from the 2D surface base address for this rectangular region.
+
+Data            The vector holding data to be written.
+                The size ``N`` is a number of elements.
+                ``N`` must be ``Width`` X ``Height``.
+=============== =============================================================
+
+
+Store restrictions:
+
+========= ========== =========
+Data Size ``Height`` ``Width``
+========= ========== =========
+byte      1 - 8        4 - 64
+
+2-byte    1 - 8        2 - 32
+
+4-byte    1 - 8        1 - 16
+
+8-byte    1 - 8        1 - 8
+========= ========== =========
+
+
+cm_ptr_prefetch
+"""""""""""""""
+
+.. code-block:: c++
+
+  template <typename T, int Width, int Height = 1, int NumBlocks = 1,
+            CacheHint L1H = CacheHint::Cached,
+            CacheHint L2H = CacheHint::Cached>
+  void cm_ptr_prefetch(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
+                      unsigned SurfacePitch, int X, int Y);
+
+
+
+The compiler generates code for the hardware to perform 2D block prefetch from
+an array of rectangular block(s) in memory. The rectangular blocks in
+the array are assumed to be stacked horizontally in memory.
+The underlying surface must be linear (non-tiled) and raw (untyped).
+
+These functions are target-dependent and only available
+when ``CM_HAS_LSC_UNTYPED_2D`` macro is defined.
+
+=============== =============================================================
+Parameter       Description
+=============== =============================================================
+T               Data type.
+                Byte, 2-byte, 4-byte and 8-byte types are allowed.
+
+Width           Specifies the width in number of data elements
+                for this rectangular region.
+                The compiler will emit an error when invalid value is set.
+                See the table below for the restrictions.
+
+Height          Specifies the height in number of data elements
+                for this rectangular region.
+                The compiler will emit an error when invalid value is set.
+                See the table below for the restrictions.
+
+NumBlocks       Specifies Array Length.
+                See the table below for the restrictions.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                The compiler will emit an error when invalid hint is set.
+                Optional arguments.
+
+SurfaceWidth    Surface Width minus 1 in bytes of the 2D surface.
+                Surface Width must be equal or greater than 64B.
+                Surface Width must be DWord (i.e. 4 bytes) aligned.
+
+SurfaceHeight   Surface Height minus 1 in number of data elements
+                of the Untyped 2D surface.
+
+SurfacePitch    Surface Pitch minus 1 in bytes of the 2D surface.
+                Surface Pitch must be greater or equal to Surface Width.
+                Surface Pitch must be equal or greater than 64B.
+                Surface Pitch must be OWord (i.e. 16 bytes) aligned.
+
+X               Block start X coordinate.
+                Specifies the signed X offset in number of data elements
+                from the 2D surface base address for this rectangular region.
+                For byte data types, it must be a multiple of 4.
+                For 2-byte data types, it must be a multiple of 2.
+
+Y               Block start Y coordinate.
+                Specifies the signed Y offset in number of data elements
+                from the 2D surface base address for this rectangular region.
+=============== =============================================================
+
+
+Prefetch restrictions:
+
+========= ============ =============== =============
+Data Size ``Height``   ``Width``       ``NumBlocks``
+========= ============ =============== =============
+byte      1 - 32       4 - 64          1, 2, 4
+
+2-byte    1 - 32       2 - 32          1, 2, 4
+
+4-byte    1 - 32       1 - 16          1, 2
+
+8-byte    1 - 32       1 - 8           1
+========= ============ =============== =============
+
+
+
+Untyped descriptor based LSC 2D block load/store/prefetch {pvc, Xe2+}
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Unlike the regular untyped LSC 2D block load/store/prefetch above,
+the descriptor based ones keep padding as-is in GRF so user should
+take care of extra data returned by load. User may initialize
+the descriptor only once and use it many times eliminating
+the need of creating the descriptor for every operation which removes
+extra move instructions.
+
+Block 2D Descriptor
+""""""""""""""""""
+
+.. code-block:: c++
+
+  namespace lsc {
+  template <typename T, unsigned NumBlocks, unsigned BlockHeight,
+            unsigned BlockWidth>
+  struct block_2d_desc {
+
+    block_2d_desc(T *Ptr, unsigned Height, unsigned Width,
+                  unsigned Pitch, int BlockX, int BlockY);
+
+    block_2d_desc(__global T *Ptr, unsigned Height, unsigned Width,
+                 unsigned Pitch, int BlockX, int BlockY);
+
+    block_2d_desc(uint64_t Base, unsigned Height, unsigned Width,
+                            unsigned Pitch, int BlockX, int BlockY);
+
+    block_2d_desc &set_base(uint64_t value);
+    block_2d_desc &set_width(uint32_t value);
+    block_2d_desc &set_height(uint32_t value);
+    block_2d_desc &set_pitch(uint32_t value);
+    block_2d_desc &set_block_x(int32_t value);
+    block_2d_desc &set_block_y(int32_t value);
+
+    uint64_t get_base() const;
+    uint32_t get_width() const;
+    uint32_t get_height() const;
+    uint32_t get_pitch() const;
+    int32_t get_block_x() const;
+    int32_t get_block_y() const;
+
+    block_2d_desc &set_base_ptr(T *Ptr);
+    T *get_base_ptr() const;
+
+    vector<uint32_t, 16> get_raw_desc();
+  };
+  } // namespace lsc
+
+=============== ===============================================================
+Parameter       Description
+=============== ===============================================================
+T               Data type.
+                Byte, 2-byte, 4-byte and 8-byte types are allowed.
+                For Transpose load only 4-byte and 8-byte types are allowed.
+                For VNNI Transform load only byte and 2-byte types are allowed.
+
+NumBlocks       Specifies Array Length.
+                The compiler will emit an error when invalid value is set.
+
+BlockHeight     Specifies the height in number of data elements
+                for this rectangular region.
+                The compiler will emit an error when invalid value is set.
+
+BlockWidth      Specifies the width in number of data elements
+                for this rectangular region.
+                The compiler will emit an error when invalid value is set.
+
+Width           Surface Width minus 1 in bytes of the 2D surface.
+                Surface Width must be equal or greater than 64B.
+                Surface Width must be DWord (i.e. 4 bytes) aligned.
+
+Height          Surface Height minus 1 in number of data elements
+                of the Untyped 2D surface.
+
+Pitch           Surface Pitch minus 1 in bytes of the 2D surface.
+                Surface Pitch must be greater or equal to Surface Width.
+                Surface Pitch must be equal or greater than 64B.
+                Surface Pitch must be OWord (i.e. 16 bytes) aligned.
+
+BlockX          Block start X coordinate.
+                Specifies the signed X offset in number of data elements
+                from the 2D surface base address for this rectangular region.
+                For byte data types, it must be a multiple of 4.
+                For 2-byte data types, it must be a multiple of 2.
+
+BlockY          Block start Y coordinate.
+                Specifies the signed Y offset in number of data elements
+                from the 2D surface base address for this rectangular region.
+=============== ===============================================================
+
+
+.. code-block:: c++
+
+  namespace lsc {
+  enum LoadOp {
+    Normal = 0,
+    Transpose = 1,
+    VNNI = 2,
+  };
+  } // namespace lsc
+
+  // determines how many GRF are occupied by the data
+  template <typename T>
+  constexpr unsigned get_lsc_grf_elements(lsc::LoadOp Op, unsigned BlockW,
+                                        unsigned BlockH, unsigned NumBlocks);
+
+cm_load
+"""""""
+
+.. code-block:: c++
+
+  // returned data vector_ref
+  template <typename T, unsigned BlockH, unsigned BlockW, unsigned NumBlocks = 1,
+            lsc::LoadOp Op = lsc::LoadOp::Normal>
+  using Block2DRefTy =
+      vector_ref<T, get_lsc_grf_elements<T>(Op, BlockW, BlockH, NumBlocks)>;
+
+  template <lsc::LoadOp Op = lsc::LoadOp::Normal,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            int OffsetX = 0, int OffsetY = 0>
+  void cm_load(details::Block2DRefTy<T, BlockH, BlockW, NBlocks, Op> Res,
+              const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc,
+              int16_t Pred = 1);
+
+
+The compiler generates code for the hardware to perform 2D block read from
+an array of rectangular block(s) in memory. The rectangular blocks in
+the array are assumed to be stacked horizontally in memory.
+The underlying surface must be linear (non-tiled) and raw (untyped).
+Any byte(s) of the accessed 2D block which is outside of the specified
+2D Surface bounds (Width, Height) are considered to be "out-of-bound".
+Hardware will return 0 for the out-of-bound bytes.
+
+For normal load the block Width is padded up to the next power-of-two value
+in the GRF. E.g. if the 2D block width is 12, and sizeof(T) is 8,
+the space allocated in the GRF will be 16 bytes
+per row (next power-of-two number).
+
+For Transpose load the pre-operation block Height is padded up to the next
+power-of-two value (minimum 4 bytes). E.g. if the 2D block height is 12,
+and sizeof(T) is 8, the space allocated in the GRF will be
+16 bytes (next power-of-two number).
+The operation loads a column of elements, and put them back to back in a GRF.
+This is useful matrix dA load in backward pass Weight gradient.
+
+For VNNI Transform load the pre-operation Block Height is padded up to
+multiple of N, where N = 4 / sizeof(element). The pre-operation block Width is
+padded up to next power-of-two value. The padded bytes will be returned as 0.
+E.g if the input block is 11x7, the block will be padded up to 12x8
+before the VNNI Transform operation. The operation loads N elements
+from a column and put back to back in the same GRF.
+This transform lays out the GRF that is friendly to the EU Systolic
+instruction. Useful for matrix B load in forward pass.
+
+These functions are target-dependent and only available
+when ``CM_HAS_LSC_UNTYPED_2D`` macro is defined.
+
+=============== ===============================================================
+Parameter       Description
+=============== ===============================================================
+Op              Load operation type (derived):
+                ``lsc::Normal`` is for normal load.
+                ``lsc::Transpose`` is for Transpose load.
+                ``lsc::VNNI`` is for VNNI Transform load.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                The compiler will emit an error when invalid hint is set.
+                Optional arguments.
+
+OffsetX         Block offset X coordinate in addition to block start X
+                coordinate set in the descriptor.
+                For byte data types, it must be a multiple of 4.
+                For 2-byte data types, it must be a multiple of 2.
+
+OffsetY         Block start Y coordinate in addition to block start Y
+                coordinate set in the descriptor.
+
+Desc            Block 2D descriptor. Must be initialized.
+                See ``lsc::block_2d_desc`` for more info.
+                See the table below for the restrictions
+                per each load operation.
+
+Res             The data vector read from memory. The vector size
+                determined by ``Op``, ``BlockW``, ``BlockH`` and ``NumBlocks``
+                template parameters. See ``Block2DRefTy`` for info.
+
+Pred            Predicate.
+                if set to 1, ``Res`` data will be loaded with data from memory.
+                if set to 0, ``Res`` data won't be updated.
+=============== ===============================================================
+
+
+Normal load restrictions:
+``Width`` X ``NumBlocks`` must not exceed 64 bytes.
+
+========= ========== ========= =============
+Data Size ``Height`` ``Width`` ``NumBlocks``
+========= ========== ========= =============
+byte      1 - 32     4 - 64    1, 2, 4
+
+2-byte    1 - 32     2 - 32    1, 2, 4
+
+4-byte    1 - 32     1 - 16    1, 2
+
+8-byte    1 - 32     1 - 8     1
+========= ========== ========= =============
+
+Transpose load restrictions:
+
+========= ========== ============ =============
+Data Size ``Height`` ``Width``    ``NumBlocks``
+========= ========== ============ =============
+4-byte    1 - 32     1 - 8        1
+
+8-byte    8          1, 2, 4      1
+========= ========== ============ =============
+
+
+VNNI Transform load restrictions:
+``Width`` X ``NumBlocks`` must not exceed 64 bytes.
+
+========= ========== ========= =============
+Data Size ``Height`` ``Width`` ``NumBlocks``
+========= ========== ========= =============
+byte      4 - 32     4 - 64    1, 2, 4
+
+2-byte    2 - 32     2 - 32    1, 2, 4
+========= ========== ========= =============
+
+
+cm_store
+""""""""
+
+.. code-block:: c++
+
+  // data vector
+  template <typename T, unsigned BlockH, unsigned BlockW>
+  using Block2DTy =
+      vector<T, get_lsc_grf_elements<T>(lsc::LoadOp::Normal, BlockW, BlockH, 1)>;
+
+  template <CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            int OffsetX = 0, int OffsetY = 0>
+  void cm_store(const lsc::block_2d_desc<T, 1, BlockH, BlockW> &Desc,
+                details::Block2DTy<T, BlockH, BlockW> Src, int16_t Pred = 1);
+
+
+The compiler generates code for the hardware to perform
+2D block write from rectangular block in memory.
+The underlying surface must be linear (non-tiled) and raw (untyped).
+Any byte(s) of the accessed 2D block which is outside of the specified
+2D Surface bounds (Width, Height) are considered to be "out-of-bound".
+Hardware will not update the out-of-bound bytes in memory.
+
+These functions are target-dependent and only available
+when ``CM_HAS_LSC_UNTYPED_2D`` macro is defined.
+
+=============== ===========================================================
+Parameter       Description
+=============== ===========================================================
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+OffsetX         Block offset X coordinate in addition to block start X
+                coordinate set in the descriptor.
+                For byte data types, it must be a multiple of 4.
+                For 2-byte data types, it must be a multiple of 2.
+
+OffsetY         Block start Y coordinate in addition to block start Y
+                coordinate set in the descriptor.
+
+Desc            Block 2D descriptor. Must be initialized.
+                See ``lsc::block_2d_desc`` for more info.
+                See the table below for the restrictions.
+
+Src             The data vector written to memory.
+                The vector size determined by ``BlockW`` and ``BlockH``
+                template parameters. See ``Block2DTy`` for info.
+
+Pred            Predicate.
+                if set to 1, ``Src`` data will be written to the memory.
+                if set to 0, the memory won't be updated.
+=============== ===========================================================
+
+
+Store restrictions:
+
+========= ========== =========
+Data Size ``Height`` ``Width``
+========= ========== =========
+byte      1 - 8      4 - 64
+
+2-byte    1 - 8      2 - 32
+
+4-byte    1 - 8      1 - 16
+
+8-byte    1 - 8      1 - 8
+========= ========== =========
+
+
+cm_prefetch
+""""""""""""
+
+.. code-block:: c++
+
+  template <CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            int OffsetX = 0, int OffsetY = 0, typename T = int,
+            unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
+  void cm_prefetch(const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc,
+                   int16_t Pred = 1);
+
+
+
+The compiler generates code for the hardware to perform 2D block prefetch from
+an array of rectangular block(s) in memory. The rectangular blocks in
+the array are assumed to be stacked horizontally in memory.
+The underlying surface must be linear (non-tiled) and raw (untyped).
+
+These functions are target-dependent and only available
+when ``CM_HAS_LSC_UNTYPED_2D`` macro is defined.
+
+=============== ===========================================================
+Parameter       Description
+=============== ===========================================================
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                The compiler will emit an error when invalid hint is set.
+                Optional arguments.
+
+OffsetX         Block offset X coordinate in addition to block start X
+                coordinate set in the descriptor.
+                For byte data types, it must be a multiple of 4.
+                For 2-byte data types, it must be a multiple of 2.
+
+OffsetY         Block start Y coordinate in addition to block start Y
+                coordinate set in the descriptor.
+
+Desc            Block 2D descriptor. Must be initialized.
+                See ``lsc::block_2d_desc`` for more info.
+                See the table below for the restrictions.
+
+Pred            Predicate.
+                if set to 1, cache data will be pre-loaded with data
+                from memory. if set to 0, cache data won't be updated.
+=============== ===========================================================
+
+
+Prefetch restrictions:
+
+========= ============ =============== =============
+Data Size ``Height``   ``Width``       ``NumBlocks``
+========= ============ =============== =============
+byte      1 - 32       4 - 64          1, 2, 4
+
+2-byte    1 - 32       2 - 32          1, 2, 4
+
+4-byte    1 - 32       1 - 16          1, 2
+
+8-byte    1 - 32       1 - 8           1
+========= ============ =============== =============
+
 
 
 Typed LSC Surface load/store/prefetch {Xe2+}

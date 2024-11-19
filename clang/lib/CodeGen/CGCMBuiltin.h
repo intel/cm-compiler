@@ -268,6 +268,11 @@ enum CMBuiltinKind {
   CMBK_cm_label,
   CMBK_predefined_surface,
   CMBK_cm_nbarrier_arrive,
+  CMBK_cm_load_2d_ugm_desc_impl,
+  CMBK_cm_load_2d_ugm_desc_transpose_impl,
+  CMBK_cm_load_2d_ugm_desc_vnni_impl,
+  CMBK_cm_prefetch_2d_ugm_desc_impl,
+  CMBK_cm_store_2d_ugm_desc_impl,
 };
 
 } // namespace CodeGen
