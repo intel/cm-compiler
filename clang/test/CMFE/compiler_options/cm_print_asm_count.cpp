@@ -1,12 +1,10 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2021 Intel Corporation
+Copyright (C) 2015-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
-
-#include <cm/cm.h>
 
 #ifdef CM_GENX
 #warning CM_GENX defined
@@ -67,6 +65,6 @@ void test2(SurfaceIndex S) {
 // CHECK-BDW: cm_print_asm_count.cpp(14,2):  warning: CM_GEN8 defined [-W#warnings]
 // CHECK-BDW: 2 warnings generated.
 // CHECK-BDW: -platform BDW
-// CHECK-BDW: Kernel cm_print_asm_count_0 : {{[0-9]+}} asm_count 
-// CHECK-BDW: Kernel cm_print_asm_count_1 : {{[0-9]+}} asm_count 
+// CHECK-BDW: Kernel cm_print_asm_count_0 : {{[0-9]+}} asm_count
+// CHECK-BDW: Kernel cm_print_asm_count_1 : {{[0-9]+}} asm_count
 // CHECK-BDW-NOT: asm_count

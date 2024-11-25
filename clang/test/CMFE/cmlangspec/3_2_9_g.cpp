@@ -1,14 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2021 Intel Corporation
+Copyright (C) 2016-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
 // expected-no-diagnostics
-
-#include <cm/cm.h>
 
 //A template function that multiplies an arbitrary matrix by 3
 template <typename T, uint R, uint C>
@@ -17,7 +15,7 @@ mult3(matrix_ref<T, R, C> par)
 {
   par = par * 3;
 }
-   
+
 _GENX_MAIN_ void
 kern(matrix<int, 4, 2> p)
 {

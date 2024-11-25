@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -35,8 +35,6 @@ SPDX-License-Identifier: MIT
 // DEFAULT_ADDC_ATTRS_INLINE_WA: attributes #[[ADDC_ATTRS]] = {
 // DEFAULT_ADDC_ATTRS_INLINE_WA-NOT: alwaysinline
 // DEFAULT_ADDC_ATTRS_INLINE_WA-SAME: }
-
-#include <cm/cm.h>
 
 _GENX_MAIN_ void test() {
   printf("%s\n", "Hello darkness, my old friend");

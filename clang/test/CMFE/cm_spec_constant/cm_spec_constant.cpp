@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021-2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,9 +8,6 @@ SPDX-License-Identifier: MIT
 
 // RUN: %cmc -march=skl -emit-llvm -S -o %t.ll -- %s
 // RUN: FileCheck %s --input-file %t.ll
-
-
-#include <cm/cm.h>
 
 // CHECK-LABEL: @test_spec_constant
 extern "C" _GENX_MAIN_ void test_spec_constant() {

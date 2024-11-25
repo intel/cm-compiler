@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,8 +8,6 @@ SPDX-License-Identifier: MIT
 
 // RUN: %cmc -S -emit-llvm -march=SKL -o %t.ll -- %s
 // RUN: FileCheck %s --input-file %t.ll
-
-#include <cm/cm.h>
 
 int       init_0_7[]   = {0,1,2,3,4,5,6,7};
 const int init_0_7_c[] = {0,1,2,3,4,5,6,7};

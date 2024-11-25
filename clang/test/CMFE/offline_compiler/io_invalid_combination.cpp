@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2020-2021 Intel Corporation
+Copyright (C) 2020-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -21,9 +21,6 @@ SPDX-License-Identifier: MIT
 //
 
 // CHECK: not supported
-
-
-#include <cm/cm.h>
 
 extern "C" _GENX_MAIN_
 void test_kernel() {

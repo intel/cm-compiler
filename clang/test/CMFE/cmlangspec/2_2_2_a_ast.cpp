@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -9,8 +9,6 @@ SPDX-License-Identifier: MIT
 // RUN: %cmc -march=SKL %dump-ast-for test_func -- %s 2>&1 | FileCheck %s
 
 // Check that row() returns vector_ref to matrix row.
-
-#include <cm/cm.h>
 
 extern "C"
 _GENX_ void test_func() {

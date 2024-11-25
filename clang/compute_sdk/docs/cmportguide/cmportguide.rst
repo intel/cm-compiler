@@ -1,9 +1,9 @@
 .. ========================= begin_copyright_notice ============================
-  
-  Copyright (C) 2021 Intel Corporation
-  
+
+  Copyright (C) 2021-2024 Intel Corporation
+
   SPDX-License-Identifier: MIT
-  
+
   =========================== end_copyright_notice =============================
 
 =========================
@@ -55,9 +55,6 @@ are worth highlighting here.
 
 2.1 Header files
 ----------------
-
-cmc (and cm-icl for that matter) only requires kernels to include ``cm/cm.h`` to have all language
-features and APIs available, provided an appropriate target is specified
 
 * Manually including ``genx_vme.h``, ``genx_sample.h`` or *worse* a header for a specific Gen target,
   for example, is not necessary or supported.

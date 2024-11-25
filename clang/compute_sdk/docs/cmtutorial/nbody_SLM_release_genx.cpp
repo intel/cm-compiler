@@ -1,12 +1,10 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
-
-#include <cm/cm.h>
 
 #define BODIES_CHUNK 32
 #define ELEMS_BODY 4 // pos.xyz + mass

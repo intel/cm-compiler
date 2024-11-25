@@ -1,14 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2024 Intel Corporation
+Copyright (C) 2024-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
 // RUN: %cmc -march=tgllp -Xclang -verify -emit-llvm -- %s
-
-#include <cm/cm.h>
 
 _GENX_MAIN_ void kernel_lref_arg(int &) {}  // expected-error{{unsupported function parameter type 'int &'}}
 _GENX_MAIN_ void kernel_rref_arg(int &&) {} // expected-error{{unsupported function parameter type 'int &&'}}

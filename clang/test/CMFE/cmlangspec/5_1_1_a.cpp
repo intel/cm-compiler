@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2021 Intel Corporation
+Copyright (C) 2016-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,7 +8,6 @@ SPDX-License-Identifier: MIT
 
 // expected-no-diagnostics
 
-#include <cm/cm.h>
 #include <cm/cmtl.h>
 
 #define WIDTH 4

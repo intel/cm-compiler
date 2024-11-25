@@ -1,14 +1,13 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2023 Intel Corporation
+Copyright (C) 2023-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
 #if (__INCLUDE_LEVEL__ == 1)
-static_assert(0, "CM:w:cm_memory.h should not be included explicitly - only "
-                 "<cm/cm.h> is required");
+static_assert(0, "CM:w:cm_memory.h should not be included explicitly");
 #endif
 
 #ifndef _CLANG_CM_MEMORY_H_
@@ -166,7 +165,7 @@ _CM_SCATTER_WITH_AS_DEFS(__generic)
     }                                                                          \
   }                                                                            \
   template <typename T, int N, int M, int A = Align::ELEM_SIZE>                \
-  CM_NODEBUG CM_INLINE matrix<T, N, M>                                         \ 
+  CM_NODEBUG CM_INLINE matrix<T, N, M>                                         \
   gather(matrix<_AS T *, N, M> ptrs, matrix<ushort, N, M> mask,                \
          matrix<T, N, M> passthru) {                                           \
     constexpr unsigned VS = N * M;                                             \

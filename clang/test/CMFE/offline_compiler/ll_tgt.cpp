@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2020-2023 Intel Corporation
+Copyright (C) 2020-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -16,8 +16,6 @@ SPDX-License-Identifier: MIT
 // CHECK-SKL: "target-cpu"="9.0.9"
 // CHECK-TGL: "target-cpu"="12.0.0"
 // CHECK-PVC: "target-cpu"="12.60.7"
-
-#include <cm/cm.h>
 
 extern "C" _GENX_MAIN_
 void test_kernel() {

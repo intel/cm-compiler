@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,8 +8,6 @@ SPDX-License-Identifier: MIT
 
 // RUN: %cmc -g0 -march=SKL -emit-llvm -S -o %t.ll -- %s
 // RUN: FileCheck %s --input-file %t.ll
-
-#include <cm/cm.h>
 
 _GENX_ void test_func() {
   vector<unsigned short, 8> vec = {1, 2, 3, 5, 7, 11, 13, 17};

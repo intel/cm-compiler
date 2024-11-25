@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2022 Intel Corporation
+Copyright (C) 2022-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,8 +8,6 @@ SPDX-License-Identifier: MIT
 
 // RUN: %cmc -march=SKL -S -emit-llvm -o %t.ll -- %s
 // RUN: FileCheck %s --input-file %t.ll
-
-#include <cm/cm.h>
 
 // CHECK-NOT: __cm_optfence_begin__
 // CHECK-NOT: __cm_optfence_end__

@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2023 Intel Corporation
+Copyright (C) 2023-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,8 +8,6 @@ SPDX-License-Identifier: MIT
 
 // RUN: %cmc -march=skl -g0 -S -emit-llvm -o %t.ll -- %s
 // RUN: FileCheck %s --input-file %t.ll
-
-#include <cm/cm.h>
 
 // COM: Check that local automatic variable is translated as global variable.
 // CHECK: @_ZZ6kernelvE14LocalAutomatic = internal addrspace(3)

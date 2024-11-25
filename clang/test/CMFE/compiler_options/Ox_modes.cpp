@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -22,8 +22,6 @@ SPDX-License-Identifier: MIT
 // MODE_O0: attributes #[[SUBGROUP_ATTR]] = {
 // MODE_O0_NOINLINE-SAME: noinline
 // MODE_O0_OPTNONE-SAME: optnone
-
-#include <cm/cm.h>
 
 int S1(vector<int, 8> v_out) {
   return v_out[0];

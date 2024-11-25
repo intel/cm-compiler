@@ -1,14 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2021 Intel Corporation
+Copyright (C) 2015-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
 // RUN: %cmc -march=SKL -emit-llvm -ferror-limit=99 -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
-
-#include <cm/cm.h>
 
 matrix<int,10,6> m;
 vector<int,8> v;

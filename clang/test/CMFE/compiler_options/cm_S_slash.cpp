@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2021 Intel Corporation
+Copyright (C) 2015-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -10,8 +10,6 @@ SPDX-License-Identifier: MIT
 // The /Qxcm_S option is ignored
 // XFAIL: *
 // RUN: %cmc -emit-llvm /Qxcm_S -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
-
-#include <cm/cm.h>
 
 _GENX_MAIN_
 void test() {

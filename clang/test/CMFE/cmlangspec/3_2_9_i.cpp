@@ -1,12 +1,10 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2021 Intel Corporation
+Copyright (C) 2016-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
-
-#include <cm/cm.h>
 
 int init_a[] = { 0, 2, 4, 6, 8, 10, 12, 14};
 int init_b[] = {0, 2, 3};

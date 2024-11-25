@@ -1,14 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2021 Intel Corporation
+Copyright (C) 2016-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
 // expected-no-diagnostics
-
-#include <cm/cm.h>
 
 _GENX_MAIN_ void printf_demo_genx()
 {

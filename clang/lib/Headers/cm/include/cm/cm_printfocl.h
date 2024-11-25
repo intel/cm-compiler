@@ -1,14 +1,13 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2020-2022 Intel Corporation
+Copyright (C) 2020-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
 #if (__INCLUDE_LEVEL__ == 1)
-static_assert(0, "CM:w:cm_printfocl.h should not be included explicitly - only "
-               "<cm/cm.h> is required");
+static_assert(0, "CM:w:cm_printfocl.h should not be included explicitly");
 #endif
 
 #ifndef _CM_PRINTFOCL_H_

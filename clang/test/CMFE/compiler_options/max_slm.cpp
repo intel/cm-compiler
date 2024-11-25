@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -19,8 +19,6 @@ SPDX-License-Identifier: MIT
 // ERRX: use slm, but slm size is too large
 // GOODX-NOT: use slm, but slm size is too large
 // XFAIL: *
-
-#include <cm/cm.h>
 
 constexpr unsigned slm_size = 200 * 1024;
 

@@ -1,14 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
 // RUN: %cmc -march=SKL -emit-llvm -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
-
-#include <cm/cm.h>
 
 _GENX_ void test_func() {
   vector<unsigned short, 4> v1 = {};                    // OK

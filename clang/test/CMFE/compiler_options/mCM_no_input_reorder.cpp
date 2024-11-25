@@ -1,12 +1,10 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2021 Intel Corporation
+Copyright (C) 2016-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
-
-#include <cm/cm.h>
 
 _GENX_MAIN_ void foo(SurfaceIndex ibuf, SurfaceIndex obuf, char val, uint h_pos, uint v_pos)
 {
@@ -14,7 +12,7 @@ _GENX_MAIN_ void foo(SurfaceIndex ibuf, SurfaceIndex obuf, char val, uint h_pos,
     matrix<uchar, 6, 24> out;
     matrix<float, 6, 24> m;
 
-    read(ibuf, h_pos*24, v_pos*6, in); 
+    read(ibuf, h_pos*24, v_pos*6, in);
 
     m  = in.select<6,1,24,1>(1,3);
 
@@ -32,7 +30,7 @@ _GENX_MAIN_ void foo(SurfaceIndex ibuf, SurfaceIndex obuf, char val, uint h_pos,
 
     out = m * 0.111f;
 
-    write(obuf, h_pos*24, v_pos*6, out); 
+    write(obuf, h_pos*24, v_pos*6, out);
 }
 
 // RUN: %cmc -emit-llvm -march=BDW -mCM_no_input_reorder -- %s | FileCheck %s

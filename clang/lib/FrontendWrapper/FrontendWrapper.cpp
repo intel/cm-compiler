@@ -571,6 +571,8 @@ IntelCMClangFECompile(const Intel::CM::ClangFE::IInputArgs *InArgs) {
   auto CStrCompOpts = wrapper::getCompOpts<const char *>(InArgs);
   // TODO: consider moving O0 enforcement to AdaptorCM
   CStrCompOpts.push_back("-O0");
+  CStrCompOpts.push_back("-include");
+  CStrCompOpts.push_back("cm/cm.h");
 
   // Facilities to pass extra -cc1 options for debug purposes.
   // Options are expected to be separated by ';'.

@@ -1,12 +1,10 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
-
-#include <cm/cm.h>
 
 const short init_0_7_[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 

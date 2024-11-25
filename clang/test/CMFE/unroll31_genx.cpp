@@ -1,20 +1,18 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2021 Intel Corporation
+Copyright (C) 2015-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// This test originally formed part of the CM unroll test suite, but is 
+// This test originally formed part of the CM unroll test suite, but is
 // intended to check that the compiler notices a static out-of-bounds
 // access within an unrolled loop.
 // The icl-cm compiler generated a warning for this, but cmc generates
 // an error - so the test has been move to the CM diagnostics suite.
 //
 // RUN: %cmc -march=SKL -emit-llvm -- %s 2>&1 | FileCheck %s
-
-#include <cm/cm.h>
 
 extern "C" _GENX_MAIN_
 void test(SurfaceIndex pInputIndex,SurfaceIndex pOutputIndex ) {

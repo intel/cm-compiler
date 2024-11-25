@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2022 Intel Corporation
+Copyright (C) 2022-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -11,8 +11,6 @@ SPDX-License-Identifier: MIT
 // XFAIL: *
 
 // CHECK: OptFenceLowering cannot be global or not stack object
-
-#include <cm/cm.h>
 
 _GENX_MAIN_ void test_uint_SZ7(SurfaceIndex Buffer) {
   cm::CMOptimizationsFence *fence1 = new cm::CMOptimizationsFence;

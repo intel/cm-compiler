@@ -1,14 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2021 Intel Corporation
+Copyright (C) 2015-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
 // XFAIL: *
-
-#include <cm/cm.h>
 
 _GENX_MAIN_
 void test() {
@@ -25,7 +23,7 @@ void test() {
 // RUN: %cmc -emit-llvm -march=skl /Qxcm_noschedule -- %s 2>&1 | FileCheck --check-prefix=NOSCHED %s
 
 // SCHED-NOT: -noschedule
-// SCHED: -platform SKL 
+// SCHED: -platform SKL
 
 // NOSCHED: -noschedule
-// NOSCHED-SAME: -platform SKL 
+// NOSCHED-SAME: -platform SKL

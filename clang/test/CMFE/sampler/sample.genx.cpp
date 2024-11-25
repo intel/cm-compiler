@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2022 Intel Corporation
+Copyright (C) 2022-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,8 +8,6 @@ SPDX-License-Identifier: MIT
 
 // RUN: %cmc -emit-llvm -march=SKL -- %s | FileCheck -allow-empty --implicit-check-not error %s
 // RUN: not %cmc -S -emit-llvm -march=XEHP_SDV -- %s 2>&1 | FileCheck --check-prefix=XEHP_SDV %s
-
-#include <cm/cm.h>
 
 extern "C" _GENX_MAIN_ void
 test_sample32(SamplerIndex SamplerConfig,

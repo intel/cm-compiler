@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2020-2021 Intel Corporation
+Copyright (C) 2020-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -17,8 +17,6 @@ SPDX-License-Identifier: MIT
 // RUN: %cmc -emit-llvm -mcpu=SKL -mCM_genx_assembler="%genxir" -mllvm -finalizer-opts="-nocompaction" %s
 // RUN: FileCheck --input-file %W_0.asm %s
 // CHECK: -nocompaction
-
-#include <cm/cm.h>
 
 _GENX_MAIN_
 void hacked_name() {

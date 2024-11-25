@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,8 +8,6 @@ SPDX-License-Identifier: MIT
 
 // RUN: %cmc -march=SKL -g0 -S -emit-llvm -o %t.ll -- %s
 // RUN: FileCheck %s --input-file %t.ll
-
-#include <cm/cm.h>
 
 template<typename dstTy, typename srcTy>
 _GENX_MAIN_ void kernel(dstTy, srcTy)

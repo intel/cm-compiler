@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2021 Intel Corporation
+Copyright (C) 2016-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -9,8 +9,6 @@ SPDX-License-Identifier: MIT
 // For some reason this test fails if the RUN lines are at the
 // end of the file - why?
 // RUN: %cmc -march=SKL -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
-
-#include <cm/cm.h>
 
 _GENX_ void test1()
 {

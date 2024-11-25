@@ -6,8 +6,6 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-#include <cm/cm.h>
-
 constexpr auto src1_precision = CmPrecisionType::CM_Precision_BF16;
 constexpr auto src2_precision = CmPrecisionType::CM_Precision_BF16;
 

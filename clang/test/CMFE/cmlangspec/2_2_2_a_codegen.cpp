@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -10,8 +10,6 @@ SPDX-License-Identifier: MIT
 // RUN: FileCheck %s --input-file %t.ll
 
 // Check that row() generates rdregion from matrix that is stored to vector.
-
-#include <cm/cm.h>
 
 // CHECK-LABEL: @test_func(
 extern "C"

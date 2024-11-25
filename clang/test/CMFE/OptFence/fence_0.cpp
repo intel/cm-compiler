@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2022 Intel Corporation
+Copyright (C) 2022-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -12,8 +12,6 @@ SPDX-License-Identifier: MIT
 // CHECK-NOT: __cm_optfence_begin__
 // CHECK-NOT: __cm_optfence_end__
 // CHECK-NOT: constant [{{[^ ]*}} x i8] c"Fence must be used at function scope!\00"
-
-#include <cm/cm.h>
 
 _GENX_MAIN_ void test_uint_SZ7(SurfaceIndex Buffer) {
   // CHECK-LABEL: test_uint_SZ7

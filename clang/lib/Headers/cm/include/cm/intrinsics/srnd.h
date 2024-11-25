@@ -7,8 +7,7 @@ SPDX-License-Identifier: MIT
 ============================= end_copyright_notice ===========================*/
 
 #if (__INCLUDE_LEVEL__ == 1)
-static_assert(0, "CM:w:intrinsics/srnd.h should not be included explicitly - "
-                 "only <cm/cm.h> is required");
+static_assert(0, "CM:w:intrinsics/srnd.h should not be included explicitly");
 #endif
 
 #ifndef _CLANG_INTRINSICS_SRND_H_

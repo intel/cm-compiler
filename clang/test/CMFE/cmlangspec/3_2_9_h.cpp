@@ -1,12 +1,10 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2021 Intel Corporation
+Copyright (C) 2016-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
-
-#include <cm/cm.h>
 
 _GENX_ void test1()
 {
@@ -20,13 +18,13 @@ _GENX_ void test1()
 
   outVector = inVector.select<8,1>(0);
   //Now: outVector = {0,0,0,19,0,0,0,19}
- 
+
   idx = 7; idx(0) = 2; idx(2) = 4; idx(3) = 10;
   // Now: idx = {2,7,4,10,7,7,7,7,7,7,7,7}
 
   tempVector = inVector.iselect(idx);
   // Now: tempVector = {0,19,19,0,19,19,0,0,0,0}
-  
+
   tempVector = tempVector * 2;
   // Now: tempVector = {0,38,38,0,38,38, ... }
 

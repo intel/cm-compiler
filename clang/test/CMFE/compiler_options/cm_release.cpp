@@ -1,14 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2021 Intel Corporation
+Copyright (C) 2015-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
 // XFAIL: *
-
-#include <cm/cm.h>
 
 #ifdef CM_GENX
 #warning CM_GENX defined // expected-warning{{CM_GENX defined}}
@@ -53,7 +51,7 @@ void test1(SurfaceIndex S, vector<uchar,64> i) {
   write(S,0,0,v);
 }
 
-// The Finalizer is called so we generate an .asm file, which should 
+// The Finalizer is called so we generate an .asm file, which should
 // contain some debug information as we haven't specified -Qxcm_release.
 // RUN: %cmc -emit-llvm -march=BDW -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
 

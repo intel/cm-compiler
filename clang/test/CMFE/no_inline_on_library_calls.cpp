@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -21,8 +21,6 @@ SPDX-License-Identifier: MIT
 // LIB_CALLS_INLINED: attributes #[[F_ATTR]] = {
 // LIB_CALLS_INLINED-SAME: alwaysinline
 // LIB_CALLS_INLINED-SAME: }
-
-#include <cm/cm.h>
 
 _GENX_MAIN_ void test() {
   auto x = cm_linear_global_id();

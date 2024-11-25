@@ -1,14 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2021 Intel Corporation
+Copyright (C) 2015-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-#include <cm/cm.h>
-
-typedef enum { 
+typedef enum {
   twenty = 20,
   twenty_one = 21,
   twenty_two = 22,
@@ -23,7 +21,7 @@ _GENX_ signed char func_signed_char(int a) { return a; }
 
 _GENX_ uchar func_uchar(int a) { return a; }
 
-_GENX_ unsigned char func_unsigned_char(int a) { return a; } 
+_GENX_ unsigned char func_unsigned_char(int a) { return a; }
 
 _GENX_ short func_short(int a) { return a; }
 
@@ -143,7 +141,7 @@ _GENX_MAIN_ void foo(SurfaceIndex idx)
     vector<int,4> r30 = func_vector_ref(30);
 }
 
-// CM vector and matrix types are (currently) limited to less than 4096 bytes - we generate a 
+// CM vector and matrix types are (currently) limited to less than 4096 bytes - we generate a
 // helpful front-end error in order to avoid a more obscure error from the finalizer.
 // RUN: %cmc -march=SKL -emit-llvm -ferror-limit=999 -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
 

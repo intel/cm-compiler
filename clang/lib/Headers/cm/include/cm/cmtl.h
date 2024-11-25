@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2023 Intel Corporation
+Copyright (C) 2014-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -23,8 +23,6 @@ SPDX-License-Identifier: MIT
 #pragma once
 #ifndef _CMTL_H_
 #define _CMTL_H_
-
-#include <cm/cm.h>
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wcm-bounds-check"

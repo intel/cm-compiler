@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,7 +8,6 @@ SPDX-License-Identifier: MIT
 
 // The header define CM intrinsics and macros.
 // Note that std library headers are not supported.
-#include <cm/cm.h>
 
 // extern "C" is used to avoid C++ name mangling.
 //

@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2023 Intel Corporation
+Copyright (C) 2023-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,8 +8,6 @@ SPDX-License-Identifier: MIT
 
 // RUN: %cmc -march=skl -g0 -S -emit-llvm -o %t.ll -- %s
 // RUN: FileCheck %s --input-file %t.ll
-
-#include <cm/cm.h>
 
 void check_sg_vector(vector<__local int *, 4> fromVec, vector<__global int *, 4> toVec) {
   // CHECK: call <4 x i32> @llvm.masked.gather.v4i32.v4p3i32(<4 x i32 addrspace(3)*> %{{[^,]+}}, i32 8

@@ -1,14 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2021 Intel Corporation
+Copyright (C) 2016-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
 // expected-no-diagnostics
-
-#include <cm/cm.h>
 
 const short init_v_B[2][4] = {1, 9, 17, 25, 33, 41, 49, 57};
 const short init_Table[5][16] = {{4,6,8},{0,1,1,0,0},{8,9,7,6},{23},{45}};

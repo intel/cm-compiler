@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -10,8 +10,6 @@ SPDX-License-Identifier: MIT
 // RUN: FileCheck %s --input-file %t.skl.ll --check-prefix SKL-CHECK
 // RUN: %cmc -g0 -mcpu=tgllp -S -emit-llvm -o %t.lp.ll -- %s
 // RUN: FileCheck %s --input-file %t.lp.ll --check-prefix LP-CHECK
-
-#include <cm/cm.h>
 
 extern "C" void foo(...) {}
 

@@ -8181,10 +8181,9 @@ cm_assert
 
   #define cm_assert(condition) /* unspecified */
 
-The definition of the ``cm_assert`` macro depends on another macro, ``CM_ENABLE_ASSERTS``.
-
-If ``CM_ENABLE_ASSERTS`` is **not** defined as a macro name at the point in the
-source code where the ``cm/cm.h`` header is included, the ``cm_assert`` does nothing.
+The definition of the ``cm_assert`` macro depends on another macro ``CM_ENABLE_ASSERTS``,
+which should set over as a command line option ``-D CM_ENABLE_ASSERTS=1``.
+if it is not set, the ``cm_assert`` does nothing.
 
 Otherwise, the assertion is enabled. The ``cm_assert`` checks if its argument
 (which must have scalar type) compares equal to zero. If it does, the assertion
@@ -8488,8 +8487,6 @@ CM Inline assembly supports immediate constraints such as 'i', 'F' and 'n'.
 
 .. code-block:: c++
 
-  #include <cm/cm.h>
-
   const short init_0_7[8] = {0,1,2,3,4,5,6,7};
 
   _GENX_MAIN_ void imm_test(SurfaceIndex dst_surf, SurfaceIndex src_surf) {
@@ -8512,8 +8509,6 @@ Results in:
 'n' stands for compile-time known constant which is written into inline assembly string in decimal representation. It can be used to specify execution size of instruction:
 
 .. code-block:: c++
-
-  #include <cm/cm.h>
 
   template <typename T, unsigned EXEC_SIZE>
   inline _GENX_ vector<T, EXEC_SIZE> madd(vector<T, EXEC_SIZE> s1,
@@ -8581,10 +8576,9 @@ use it. To some extent this will also better enable code to cope with future var
 The C for Metal Template Library uses a namespace to stop pollution of the global namespace as much as
 possible. The namespace used for the C for Metal Template Library is cmtl. Here is an example:
 
-#include <cm/cm.h>
-#include <cm/cmtl.h>
-
 .. code-block:: c++
+
+  #include <cm/cmtl.h>
 
   _GENX_MAIN_ void my_func(SurfaceIndex ibuf, SurfaceIndex obuf) {
     matrix<short, HEIGHT, WIDTH> io;
@@ -9147,7 +9141,6 @@ MaxSize
 
 .. code-block:: c++
 
-  #include <cm/cm.h>
   #include <cm/cmtl.h>
 
   #define ALIGN_CACHELINE_SHORT(x) (((x) + 64 - 1) & (~ (64 - 1)))

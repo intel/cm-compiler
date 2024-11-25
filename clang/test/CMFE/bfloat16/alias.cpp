@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2023 Intel Corporation
+Copyright (C) 2023-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,8 +8,6 @@ SPDX-License-Identifier: MIT
 
 // RUN: %cmc -emit-llvm -march=dg2 -Xclang -verify -- %s
 // RUN: %cmc -emit-llvm -march=pvc -Xclang -verify -- %s
-
-#include <cm/cm.h>
 
 _GENX_MAIN_ void kernel() {
   static_assert(std::is_same<bfloat16, __bf16>::value, "Internal error: invalid bfloat16 type definition"); // expect-no-diagnostics

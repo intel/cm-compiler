@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2021 Intel Corporation
+Copyright (C) 2015-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -10,8 +10,6 @@ SPDX-License-Identifier: MIT
 
 // The Finalizer should not be called as we haven't specified a target
 // RUN: %cmc -emit-llvm -mCM_opt_mask=0 -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
-
-#include <cm/cm.h>
 
 _GENX_MAIN_
 void test() {

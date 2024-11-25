@@ -6,8 +6,6 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-#include <cm/cm.h>
-
 _GENX_MAIN_
 void test() {
 }

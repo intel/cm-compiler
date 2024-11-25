@@ -9,8 +9,6 @@ SPDX-License-Identifier: MIT
 // RUN: %cmc -march=SKL -g0 -S -emit-llvm -o %t.ll -- %s
 // RUN: FileCheck %s --input-file %t.ll
 
-#include <cm/cm.h>
-
 // CHECK: [[RES_V_STRUCT64:%[^ ]+]] = type { <16 x i64>, <16 x i64> }
 // CHECK: [[RES_S_STRUCT64:%[^ ]+]] = type { i64, i64 }
 

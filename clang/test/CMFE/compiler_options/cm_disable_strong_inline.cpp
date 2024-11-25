@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -21,8 +21,6 @@ SPDX-License-Identifier: MIT
 // NO_ALWAYS_INLINE: attributes #[[F_ATTR]] = {
 // NO_ALWAYS_INLINE-NOT: alwaysinline
 // NO_ALWAYS_INLINE-SAME: }
-
-#include <cm/cm.h>
 
 inline void someFunction() {
 }

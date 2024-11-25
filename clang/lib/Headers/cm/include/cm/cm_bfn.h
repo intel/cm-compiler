@@ -1,14 +1,13 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2020-2021 Intel Corporation
+Copyright (C) 2020-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
 #if (__INCLUDE_LEVEL__ == 1)
-static_assert(0, "CM:w:cm_bfn.h should not be included explicitly - only "
-                 "<cm/cm.h> is required");
+static_assert(0, "CM:w:cm_bfn.h should not be included explicitly - only");
 #endif
 
 #ifndef _CLANG_CM_BFN_H_
@@ -75,7 +74,7 @@ static constexpr BFNT operator^(BFNT x, BFNT y) {
 template <BFNT BVAL, typename T>
 typename std::enable_if<details::is_cm_scalar<T>::value, T>::type
 cm_bfn(T s0, T s1, T s2) {
-  CM_HAS_BFN_CONTROL; 
+  CM_HAS_BFN_CONTROL;
 
   return details::__cm_intrinsic_impl_bfn(s0, s1, s2, static_cast<unsigned char>(BVAL));
 }

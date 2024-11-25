@@ -8,8 +8,7 @@ SPDX-License-Identifier: MIT
 
 #if (__INCLUDE_LEVEL__ == 1)
 static_assert(0,
-              "CM:w:intrinsics/frem.h should not be included explicitly - only "
-              "<cm/cm.h> is required");
+              "CM:w:intrinsics/frem.h should not be included explicitly");
 #endif
 
 #ifndef _CLANG_CM_INTRINSICS_FREM_H_

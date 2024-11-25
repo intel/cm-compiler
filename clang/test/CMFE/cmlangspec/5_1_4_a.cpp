@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2021 Intel Corporation
+Copyright (C) 2016-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,7 +8,6 @@ SPDX-License-Identifier: MIT
 
 // expected-no-diagnostics
 
-#include <cm/cm.h>
 #include <cm/cmtl.h>
 
 #define WIDTH 4
@@ -17,7 +16,7 @@ _GENX_MAIN_ void test(SurfaceIndex obuf)
 {
   // SurfaceIndex obuf passed in as parameter
   // WIDTH previously defined
- 
+
   vector<int, WIDTH> block;
   int x = get_thread_origin_x() * WIDTH;
 

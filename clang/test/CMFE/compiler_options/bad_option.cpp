@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2021 Intel Corporation
+Copyright (C) 2015-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -9,8 +9,6 @@ SPDX-License-Identifier: MIT
 // XFAIL: *
 
 // RUN: %cmc -emit-llvm -bad-option -- %s 2>&1 | FileCheck %s
-
-#include <cm/cm.h>
 
 _GENX_MAIN_
 void test() {

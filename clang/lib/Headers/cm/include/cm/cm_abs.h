@@ -1,14 +1,13 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2023 Intel Corporation
+Copyright (C) 2023-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
 #if (__INCLUDE_LEVEL__ == 1)
-static_assert(0, "CM:w:cm_abs.h should not be included explicitly - only "
-                 "<cm/cm.h> is required");
+static_assert(0, "CM:w:cm_abs.h should not be included explicitly");
 #endif
 
 #ifndef CM_ABS_H

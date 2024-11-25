@@ -8,8 +8,6 @@ SPDX-License-Identifier: MIT
 
 // RUN: %cmc -march=SKL -emit-llvm -Xclang -verify -Xclang -verify-ignore-unexpected -ferror-limit=0 -- %s
 
-#include <cm/cm.h>
-
 _GENX_MAIN_ void test1() {
   vector<float, 16> a1;
   vector<float, 16> b1;

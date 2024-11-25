@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2021 Intel Corporation
+Copyright (C) 2015-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -10,8 +10,6 @@ SPDX-License-Identifier: MIT
 
 // We check that the specified path is used to build the invocation of the finalizer
 // RUN: %cmc -emit-llvm -### -march=gen11 /mCM_genx_assembler=path/to/genx/finalizer -- %s 2>&1 | FileCheck %s
-
-#include <cm/cm.h>
 
 _GENX_MAIN_
 void test() {

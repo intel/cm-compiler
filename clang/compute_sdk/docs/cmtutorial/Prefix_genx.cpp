@@ -1,12 +1,11 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021 Intel Corporation
+Copyright (C) 2021-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-#include "cm/cm.h"
 #include "Prefix.h"
 
 // Code copied from ../cmut/cmutility_genx.h so we can disable loop unrolling.

@@ -97,20 +97,15 @@ appear for new features.
 The cmc compiler implicitly knows the path to the C for Metal header files, so
 no option needs to be used to specify the path.
 
-Only the main header file cm/cm.h needs to be included in C for Metal kernels
-unless cmtl functions are required, in which case cm/cmtl.h should also be
-included - all other header files will be included as needed, depending on the
-Gen variant specified.
+The main header file cm/cm.h is included implicitly so it does not have to be
+included in C for Metal kernels anymore.
 
-The include statement should appear in each C for Metal source file as follows:
-
-``#include <cm/cm.h>``
-
-or if C for Metal Template Library functions are required
-
-``#include <cm/cm.h>``
+If cmtl functions are required, cm/cmtl.h must be included:
 
 ``#include <cm/cmtl.h>``
+
+All other header files will be included as needed, depending on the
+Gen variant specified.
 
 4 Compiler Options
 ==================

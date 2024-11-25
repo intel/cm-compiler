@@ -1,13 +1,11 @@
 
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2009-2021 Intel Corporation
+Copyright (C) 2009-2024 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
-
-#include <cm/cm.h>
 
 extern "C" _GENX_MAIN_ void
 BufferTest(SurfaceIndex ibuf [[type("buffer_t")]], SurfaceIndex obuf [[type("buffer_t")]])
