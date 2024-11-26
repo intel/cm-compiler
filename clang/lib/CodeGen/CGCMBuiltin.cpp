@@ -241,6 +241,9 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
             .StartsWith("__cm_intrinsic_impl_dpas", CMBK_cm_dpas2_impl)
             .StartsWith("__cm_intrinsic_impl_tf32_cvt", CMBK_cm_tf32_cvt_impl)
             .StartsWith("__cm_intrinsic_impl_srnd", CMBK_cm_srnd_impl)
+            .StartsWith("__cm_intrinsic_impl_qf_cvt", CMBK_cm_qf_cvt_impl)
+            .StartsWith("__cm_intrinsic_impl_hf8_cvt", CMBK_cm_hf8_cvt_impl)
+            .StartsWith("__cm_intrinsic_impl_bf8_srnd", CMBK_cm_srnd_bf8_impl)
             .StartsWith("__cm_intrinsic_impl_prefetch_bti",
                         CMBK_cm_prefetch_impl)
             .StartsWith("__cm_intrinsic_impl_block_prefetch_bti",

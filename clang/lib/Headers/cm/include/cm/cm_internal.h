@@ -329,7 +329,10 @@ T __cm_intrinsic_impl_bfn(T s0, T s1, T s2, unsigned char bfval);
 // Conversions to special types
 //
 // ----------------------------------------------------------------------------
-
+template <typename T, typename T0, int N>
+vector<T, N> __cm_intrinsic_impl_qf_cvt(vector<T0, N> src0);
+template <typename T, typename T0, int N>
+vector<T, N> __cm_intrinsic_impl_hf8_cvt(vector<T0, N> src0);
 template <typename T, typename T0, int N>
 vector<T, N> __cm_intrinsic_impl_tf32_cvt(vector<T0, N> src0);
 

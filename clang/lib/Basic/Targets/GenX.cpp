@@ -146,6 +146,14 @@ void GenXTargetInfo::getTargetDefines(const LangOptions &Opts,
   if (HasDpasw)
     Builder.defineMacro("CM_HAS_DPASW", "1");
 
+  if (HasMoveBf8)
+    Builder.defineMacro("CM_HAS_BF8", "1");
+  if (HasSrndFp16ToBf8)
+    Builder.defineMacro("CM_HAS_SRND_FP16_TO_BF8", "1");
+
+  if (HasMoveHf8)
+    Builder.defineMacro("CM_HAS_HF8", "1");
+
   if (HasSLMCasInt64)
     Builder.defineMacro("CM_HAS_SLM_CAS_INT64", "1");
 

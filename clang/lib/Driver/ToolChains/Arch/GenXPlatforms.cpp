@@ -30,6 +30,8 @@ static const std::unordered_map<std::string, uint32_t> ReleaseId = {
 };
 
 static const std::unordered_map<std::string, uint32_t> DeviceId = {
+  {"ptl-u", encodeGmdId(30, 1, 1)},
+  {"ptl-h", encodeGmdId(30, 0, 4)},
   {"lnl-m", encodeGmdId(20, 4, 4)},
   {"bmg-g21", encodeGmdId(20, 1, 0)},
   {"arl-h", encodeGmdId(12, 74, 4)},
@@ -75,6 +77,13 @@ static const std::unordered_map<std::string, uint32_t> DeviceId = {
 };
 
 static const std::unordered_map<std::string, uint32_t> PciId {
+  {"0xb090", encodeGmdId(30, 1, 1)},
+  {"0xb080", encodeGmdId(30, 0, 4)},
+  {"0xb081", encodeGmdId(30, 0, 4)},
+  {"0xb082", encodeGmdId(30, 0, 4)},
+  {"0xb083", encodeGmdId(30, 0, 4)},
+  {"0xb08f", encodeGmdId(30, 0, 4)},
+  {"0xb0a0", encodeGmdId(30, 0, 4)},
   {"0x6420", encodeGmdId(20, 4, 4)},
   {"0x64a0", encodeGmdId(20, 4, 4)},
   {"0x64b0", encodeGmdId(20, 4, 4)},

@@ -158,6 +158,13 @@ static_assert(0, "CM:w:cm_target.h should not be included explicitly - only "
 #define CM_XE2_LPG
 #endif
 
+// PTL
+#if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(30, 0, 0) ||                   \
+    __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(30, 1, 0)
+#define CM_GENX 1300
+#define CM_XE3_LPG
+#endif
+
 #define CM_GENX_REVID __CM_INTEL_TARGET_REVISION
 
 #if (CM_GENX >= 900 && CM_GENX <= 1150)

@@ -79,6 +79,7 @@ XeHPC     PVC      CM_XEHPC     1280          0
 ...       PVCXT    CM_XEHPC     1280          5
 Xe2LPG    LNL      CM_XE2_LPG   1295          0
 Xe2HPG    BMG      CM_XE2_HPG   1290          0
+Xe3LPG    PTL      CM_XE3_LPG   1300          0
 ========= ======== ============ ============= ===================
 
 
@@ -181,7 +182,7 @@ Option                        Description
 -mCM_warn_callable            Generates warning instead of error if callable is
                               called in the middle.
 
--mCM_collect_cost_info        Enable loop cost information gathering.  
+-mCM_collect_cost_info        Enable loop cost information gathering.
 
 -mdump_asm                    Requests creation of assembly dumps for the
                               compiled kernels. It's recommended to use shader
@@ -268,6 +269,12 @@ CM_HAS_DP4A                    Defined (with value 1) if the specifed target sup
 CM_HAS_BFN                     Defined (with value 1) if the specifed target supports
                                the ``cm_bfn`` built-in function.
 
+CM_HAS_BF8                     Defined (with value 1) if the specifed target supports
+                               the BFloat8 data type and ``cm_bf8_cvt`` built-in.
+
+CM_HAS_HF8                     Defined (with value 1) if the specifed target supports
+                               the HFloat8 data type and ``cm_hf8_cvt`` built-in.
+
 CM_HAS_BF16                    Defined (with value 1) if the specifed target supports
                                the BFloat16 data type and ``cm_bf_cvt`` built-in.
 
@@ -312,6 +319,10 @@ CM_HAS_UNTYPED_2D              Defined (with value 1) if the specifed target sup
 
 CM_HAS_SAMPLE_UNORM            Defined (with value 1) if the specifed target supports
                                media sample32 function.
+
+CM_HAS_SRND_FP16_TO_BF8        Defined (with value 1) if the specified target supports
+                               operation for converting ``half`` type values into
+                               ``bfloat8`` with stochastic rounding.
 
 CM_HAS_STOCHASTIC_ROUNDING     Defined (with value 1) if the specifed target supports
                                the ``cm_srnd`` built-in function.

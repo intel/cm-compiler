@@ -136,6 +136,11 @@ private:
 
   bool HasSrndFp32ToFp16 = false;
 
+  bool HasMoveBf8 = false;
+  bool HasMoveHf8 = false;
+
+  bool HasSrndFp16ToBf8 = false;
+
   unsigned GrfWidth = 256;
   std::unordered_set<unsigned> SupportedGrfNums;
 

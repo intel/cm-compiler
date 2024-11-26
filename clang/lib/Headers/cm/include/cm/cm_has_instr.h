@@ -61,6 +61,17 @@ namespace CheckVersion {
 #define CM_HAS_TF32_CONTROL CM_HAS_CONTROL(false)
 #endif // CM_HAS_TF32
 
+#ifdef CM_HAS_BF8
+#define CM_HAS_BF8_CONTROL CM_HAS_CONTROL(true)
+#else // CM_HAS_BF8
+#define CM_HAS_BF8_CONTROL CM_HAS_CONTROL(false)
+#endif // CM_HAS_BF8
+
+#ifdef CM_HAS_HF8
+#define CM_HAS_HF8_CONTROL CM_HAS_CONTROL(true)
+#else // CM_HAS_HF8
+#define CM_HAS_HF8_CONTROL CM_HAS_CONTROL(false)
+#endif // CM_HAS_HF8
 
 #ifdef CM_HAS_BFN
 #define CM_HAS_BFN_CONTROL CM_HAS_CONTROL(true)

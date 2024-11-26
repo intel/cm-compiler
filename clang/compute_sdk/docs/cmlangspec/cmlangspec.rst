@@ -2065,6 +2065,182 @@ supported.
 * Parameter 3: src (vector)
 * Return: vector
 
+cm_dp4a
+^^^^^^^
+
+Four-wide integer dot product and accumulate operation.
+
+* Parameter 1: vector(_ref)
+* Parameter 2: vector(_ref)
+* Parameter 3: vector(_ref)
+* Parameter 3: flags (default is 0; use SAT for saturation)
+* Return: vector
+
+Only int/uint type arguments are supported
+
+Each source1's 32-bit channel value and source2's 32-bit channel value is
+treated as four element vector of 8-bit integer values. cm_dp4a performs a
+32-bit precision dot product of those four bytes and adds it with source0.
+
+These functions are target-dependent and only available when:
+* ``CM_HAS_DP4A`` macro is defined.
+
+cm_bf_cvt
+^^^^^^^^^
+
+Bfloat16 to Float or Float to Bfloat16 conversion.
+
+* Template parameter 1: Destination type
+
+* Parameter 1: vector/matrix/scalar
+* Return: vector
+
+Only half (used to represent bfloat16 internally) and float type are
+supported. If source is half, destination must be float. Otherwise
+destination must be half.
+
+Mixed mode operation can be enabled by using cm_bf_cvt to convert a Bfloat16
+type operand to Float type, then use the converted operand in a FP operation.
+
+These functions are target-dependent and only available when:
+* ``CM_HAS_BF16`` macro is defined.
+
+cm_bf8_cvt
+^^^^^^^^^^
+
+BF8 to HF or HF to BF8 conversion.
+
+* Template parameter 1: Destination type
+
+* Parameter 1: vector/matrix/scalar
+* Parameter 2: flags (default is 0; use SAT for saturation);
+* Return: vector
+
+Only uchar (used to represent BF8 internally) and HF type are supported. If
+source is uchar, destination must be HF. Otherwise destination must be uchar.
+
+These functions are target-dependent and only available when:
+* ``CM_HAS_BF8`` macro is defined.
+
+cm_hf8_cvt
+^^^^^^^^^^
+
+HF8 to HF or HF to HF8 conversion.
+
+* Template parameter 1: Destination type
+
+* Parameter 1: vector/matrix/scalar
+* Parameter 2: flags (default is 0; use SAT for saturation);
+* Return: vector
+
+Only char (used to represent HF8 internally) and HF type are supported. If
+source is char, destination must be HF. Otherwise destination must be char.
+
+These functions are target-dependent and only available when:
+* ``CM_HAS_HF8`` macro is defined.
+
+cm_tf32_cvt
+^^^^^^^^^^^
+
+Float to Tfloat32 conversion.
+
+* Template parameter 1: Destination type
+
+* Parameter 1: vector/matrix/scalar
+* Return: vector
+
+Only int (used to represent tf32 internally) and float type are
+supported.
+
+Usage Examples:
+
+.. code-block:: c++
+
+  vector<float, 16> float_val;
+  read(IN, 0, float_val);
+  // convert float -> ctf32
+  vector<int, 16> tf32_out = cm_tf32_cvt<float>(float_val);
+
+These functions are target-dependent and only available when:
+* ``CM_HAS_TF32`` macro is defined.
+
+cm_srnd
+^^^^^^^
+
+Stochastic converts f32->fp16, fp16->bf8 (Xe3+), f32->bf8 (Xe3+)
+
+* Template parameter T: Destination type (char or half)
+
+* Parameter 1: Data to convert vector/matrix/scalar (float or half)
+
+* Parameter 2: "random" data, type is the same as parameter 1 or
+  integer of the same bit width as destination type;
+
+* Parameter 3: flags (default is 0; use SAT for saturation);
+
+* Return: vector<T, N>
+
+Usage Examples:
+
+.. code-block:: c++
+
+  vector<half, 16> H_srnd12;
+  vector<char, 16> H_srnd22;
+  read(IN, 0, H_srnd12);
+  read(IN, 8, H_srnd22);
+  // Stochastic convert half -> bf8
+  vector<char, 16> H_srnd_out2 = cm_srnd<char>(H_srnd12, H_srnd22);
+
+  vector<float, 16> F_srnd12;
+  vector<short, 16> F_srnd22;
+  read(IN, 0, F_srnd12);
+  read(IN, 8, F_srnd22);
+  // Stochastic convert f32 -> half (f16)
+  vector<half, 16> F_srnd_out2 = cm_srnd<half>(F_srnd12, F_srnd22);
+
+These functions are target-dependent and only available when:
+* ``CM_HAS_STOCHASTIC_ROUNDING`` macro is defined.
+
+
+cm_srnd_bf8
+^^^^^^^^^^^
+
+Operation for converting ``float`` and  ``half`` type values into ``bfloat8``
+with stochastic rounding.
+
+
+.. code-block:: c++
+
+  template <typename SrcTy, unsigned Width>
+  vector<uint8_t, Width> cm_srnd_bf8(vector<SrcTy, Width> Src,
+                                    vector<uint8_t, Width> Bias,
+                                    int Flag);
+
+  template <typename SrcTy, unsigned Height, unsigned Width>
+  matrix<uint8_t, Height, Width> cm_srnd_bf8(matrix<SrcTy, Height, Width> Src,
+                                             matrix<uint8_t, Height, Width> Bias,
+                                             int Flag);
+
+  template <typename SrcTy>
+  uint8_t cm_srnd_bf8(SrcTy Src, uint8_t Bias, int Flag);
+
+============== =================================================================
+Parameters     Description
+============== =================================================================
+SrcTy          Source type, must be ``float`` or  ``half``.
+
+Width          SIMD width of the operation.
+
+Height         Height of input and output matrices.
+
+Bias           Stochastic rounding bias.
+
+Flag           Saturation flag, default is 0. Use SAT for saturation.
+============== =================================================================
+
+These functions are target-dependent and only available when:
+* ``CM_HAS_SRND_FP16_TO_BF8`` macro is defined and ``SrcTy`` is ``float`` or  ``half``.
+
 
 cm_bfn {XEHP_SDV+}
 ^^^^^^^^^^^^^^^^^^
