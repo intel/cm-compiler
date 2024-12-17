@@ -1,6 +1,6 @@
 .. ========================= begin_copyright_notice ============================
 
-  Copyright (C) 2021-2024 Intel Corporation
+  Copyright (C) 2021-2025 Intel Corporation
 
   SPDX-License-Identifier: MIT
 
@@ -117,7 +117,23 @@ Thread      An instance of a kernel program that is executed on a GenX hardware
 LSB         Least Significant Bit
 GRF         General Register File, a set of general-purpose registers available in GenX
 DWORD       Double-word, represents 4 bytes for GenX
+F32         Single precision floating point data type
+F64         Double precision floating point data type
+U8          8-bit unsigned integer
+S8          8-bit signed integer
+U16         16-bit unsigned integer
+S16         16-bit signed integer
+U32         32-bit unsigned integer
+S32         32-bit signed integer
+U64         64-bit unsigned integer
+S64         64-bit signed integer
+HF or F16   16-bit floating point in IEEE-754 binary16 format
+BF or BF16  16-bit floating point format with 7-bit exponent and 8-bit mantissa
+BF8         8-bit floating point format with 5-bit exponent and 2-bit mantissa
+HF8         8-bit floating point format with 4-bit exponent and 3-bit mantissa
+TF32        Tensor 32-bit precision floating point data type
 =========== ====================================================================
+
 
 1.3 References and Related Information
 --------------------------------------
@@ -209,7 +225,6 @@ Changes since C for Metal 6.0
   require extra temp-registers, hence negaively impact the total registers that
   user code can use.
 
-
 2 Data Types
 ============
 
@@ -248,6 +263,11 @@ C for Metal supports the following basic scalar data types defined in C++:
   declaring a struct that is in SVM, use svmptr_t for a pointer field. The size of svmptr_t is set by
   compiler options /DCM_PTRSIZE=32 or /DCM_PTRSIZE=64; use the size appropriate to whether the
   C for Metal program will be run from a 32 bit or 64 bit application. See :ref:`SharedVirtualMemory`.
+
+* tfloat32: tensor floating point data type is only supported for Gen12+ hardware platforms,
+  when CM_HAS_TF32 macro is defined. It's not a real data type meaning C for Metal compiler
+  treats ``int`` as a tensor floating point data type for a function expecting a tensor parameter.
+
 
 The C for Metal compiler will issue an error message for unsupported data types.
 
@@ -2208,7 +2228,6 @@ cm_srnd_bf8
 Operation for converting ``float`` and  ``half`` type values into ``bfloat8``
 with stochastic rounding.
 
-
 .. code-block:: c++
 
   template <typename SrcTy, unsigned Width>
@@ -2228,6 +2247,8 @@ with stochastic rounding.
 Parameters     Description
 ============== =================================================================
 SrcTy          Source type, must be ``float`` or  ``half``.
+               When source type is ``float``, it's converted to ``half`` first,
+               and then ``half`` to ``bfloat8``.
 
 Width          SIMD width of the operation.
 
@@ -2238,12 +2259,12 @@ Bias           Stochastic rounding bias.
 Flag           Saturation flag, default is 0. Use SAT for saturation.
 ============== =================================================================
 
-These functions are target-dependent and only available when:
-``CM_HAS_SRND_FP16_TO_BF8`` macro is defined and ``SrcTy`` is ``float`` or  ``half``.
+These functions are target-dependent and only available when
+``CM_HAS_SRND_FP16_TO_BF8`` macro is defined.
 
 
-cm_bfn {XEHP_SDV+}
-^^^^^^^^^^^^^^^^^^
+cm_bfn
+^^^^^^
 
 Boolean function calculation.
 
@@ -2265,6 +2286,8 @@ Parameters must be either all scalars of short/ushort/int/uint type or
 all vectors of such types. All parameter types must be the same. Mix
 of vector and vector_ref is allowed -- vector_ref will be implicitly
 converted to vector type.
+
+The function is only available when the ``CM_HAS_BFN`` macro is defined.
 
 Example:
 
@@ -2338,12 +2361,954 @@ ATOMIC_CMPXCHG          (src1 == old_dst) ? src0 : old_dst      old_dst
 ATOMIC_PREDEC           old_dst - 1                             new_dst
 ======================= ======================================= ====================
 
-4.5 Dataport Interface
-----------------------
+4.5 New (LSC) Dataport Interface
+--------------------------------
+
+New (LSC) Dataport Interface is available when CM_HAS_LSC macro is defined.
+
+Load cache control policy
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The table below defines the valid combinations of cache controls used by
+load intrinsics.
+
+=============== ================
+L1H             L2H
+=============== ================
+Default         Default
+Uncached        Cached/Uncached
+Cached          Cached/Uncached
+Streaming       Cached/Uncached
+=============== ================
+
+The following combinations are also available when CM_HAS_LSC_L1L3CC_HINT macro is defined.
+
+=============== ===============
+L1H             L2H
+=============== ===============
+Uncached        ConstCached
+Cached          ConstCached
+=============== ===============
+
+The following combination is also availablewhen CM_HAS_LSC_LOAD_L1RI_L3RI_HINT macro is defined.
+
+=============== ===============
+L1H             L2H
+=============== ===============
+ReadInvalidate  ReadInvalidate
+=============== ===============
+
+The following combination is also available when CM_HAS_LSC_LOAD_L1RI_L3CA_HINT macro is defined.
+
+=============== ===============
+L1H             L2H
+=============== ===============
+ReadInvalidate  Cached
+=============== ===============
 
 
-Untyped LSC 2D block load/store/prefetch
+
+
+Prefetch cache control policy
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The table below defines the valid combinations of cache controls used by
+prefetch intrinsics.
+
+=============== ================
+L1H             L2H
+=============== ================
+Default         Default
+Uncached        Cached
+Cached          Cached/Uncached
+Streaming       Cached/Uncached
+=============== ================
+
+The following combinations are also available when CM_HAS_LSC_L1L3CC_HINT macro is defined.
+
+=============== ===============
+L1H             L2H
+=============== ===============
+Cached/Uncached ConstCached
+=============== ===============
+
+
+
+Store cache control policy
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The table below defines the valid combinations of cache controls used by
+store intrinsics.
+
+============= =============
+L1H           L2H
+============= =============
+Default       Default
+WriteBack     WriteBack
+Uncached      WriteBack
+WriteThrough  WriteBack
+Streaming     WriteBack
+Uncached      Uncached
+WriteThrough  Uncached
+Streaming     Uncached
+============= =============
+
+
+
+Atomic cache control policy
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The table below defines the valid combinations of cache controls used by
+Atomic intrinsics.
+
+============= =============
+L1H           L2H
+============= =============
+Default       Default
+Uncached      Uncached
+Uncached      WriteBack
+============= =============
+
+
+
+Statefull block load/store/prefetch
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+cm_load
+"""""""
+.. code-block:: c++
+
+  template <typename T, int NElts, DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  vector<RetTy, NElts> cm_load(SurfaceIndex Idx, unsigned Offset);
+
+
+The compiler generates code for the hardware to perform block read from
+memory. The underlying surface must be a buffer.
+Any byte(s) of the accessed block which is outside of the specified
+buffer bounds are considered to be "out-of-bound". Hardware will return 0
+for the out-of-bound bytes.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+NElts           Specifies number of elements to be read.
+                Allowed values are: 1, 2, 3, 4, 8, 16, 32, 64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Load cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+RetTy           Return data type, obtained from ``T`` and ``DS``.
+                When ``DS`` is DataSize::Default, ``RetTy`` is same as ``T``.
+                When ``DS`` is DataSize::U32, ``RetTy`` is U32.
+                When ``DS`` is DataSize::U64, ``RetTy`` is U64.
+                Only DataSize::U32 or DataSize::U64 are allowed.
+
+Idx             Surface index corresponding to buffer surface.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned.
+=============== ==================================================================
+
+
+
+cm_store
+""""""""
+.. code-block:: c++
+
+  template <typename T, int NElts, DataSize DS = DataSize::Default,
+          CacheHint L1H = CacheHint::Default,
+          CacheHint L2H = CacheHint::Default>
+  void cm_store(SurfaceIndex Idx, unsigned Offset, vector<T, NElts> Data);
+
+
+The compiler generates code for the hardware to perform block write to memory.
+The underlying surface must be a buffer.
+Any byte(s) of the accessed block which is outside of the specified
+buffer are considered to be "out-of-bound".
+Hardware will not update the out-of-bound bytes in memory.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+NElts           Specifies number of elements to be written.
+                Allowed values are: 1, 2, 3, 4, 8, 16, 32, 64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+                When DS is DataSize::Default, it's obtained from ``T`` data type.
+                Else DataSize::U32 or DataSize::U64 are allowed.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Store cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Idx             Surface index corresponding to buffer surface.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned.
+=============== ==================================================================
+
+
+
+cm_prefetch
+"""""""""""
+.. code-block:: c++
+
+  template <int NElts, DataSize DS = DataSize::U32,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  void cm_prefetch(SurfaceIndex Idx, unsigned Offset);
+
+
+The compiler generates code for the hardware to perform block prefetch from
+memory. The underlying surface must be a buffer.
+
+=============== ===========================================================
+Parameter       Description
+=============== ===========================================================
+NElts           Specifies number of elements to be prefetched.
+                Allowed values are: 1, 2, 3, 4, 8, 16, 32, 64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+                Only DataSize::U32 or DataSize::U64 are allowed.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Prefetch cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Idx             Surface index corresponding to buffer surface.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned.
+=============== ===========================================================
+
+
+
+Statefull gather/scatter/prefetch/atomic
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+cm_load
+"""""""
+.. code-block:: c++
+
+  template <typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  vector<RetTy, M> Data cm_load(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                                vector<ushort, N> Pred = 1);
+
+
+The compiler generates code for the hardware to perform gather read from
+memory. The underlying surface must be a buffer.
+Any byte(s) of the accessed block which is outside of the specified
+buffer bounds are considered to be "out-of-bound". Hardware will return 0
+for the out-of-bound bytes.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+VS              Specifies number of elements to be read for each offset element.
+                Allowed values are: VectorSize::N1, VectorSize::N2,
+                VectorSize::N3, VectorSize::N4, VectorSize::N8, VectorSize::N16,
+                VectorSize::N32, VectorSize::N64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+                When DS is DataSize::Default, it's obtained from ``T`` data type.
+                Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
+                DataSize::U64.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Load cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+RetTy           Return data type, obtained from ``T`` and ``DS``.
+                When ``DS`` is DataSize::Default, ``RetTy`` is same as ``T``.
+                When ``DS`` is DataSize::U8, ``RetTy`` is U8.
+                When ``DS`` is DataSize::U16, ``RetTy`` is U16.
+                When ``DS`` is DataSize::U32, ``RetTy`` is U32.
+                When ``DS`` is DataSize::U64, ``RetTy`` is U64.
+                The compiler will emit an error when invalid value is set.
+
+Idx             Surface index corresponding to buffer surface.
+
+N               Number of the vectors.
+
+M               Total number of data elements to be written.
+                It must be equal to
+                :math:`\text{N} \times \text{VS}`.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned when ``VS`` is not VectorSize::N1.
+
+Pred            Predicate. if 0, certain element vector won't be loaded
+                from the memory. Optional argument.
+=============== ==================================================================
+
+
+
+cm_store
+""""""""
+.. code-block:: c++
+
+  template <typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  void cm_store(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                vector<T, M> Data, vector<ushort, N> Pred = 1);
+
+
+The compiler generates code for the hardware to perform scatter write to memory.
+The underlying surface must be a buffer.
+Any byte(s) of the accessed block which is outside of the specified
+buffer are considered to be "out-of-bound".
+Hardware will not update the out-of-bound bytes in memory.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+VS              Specifies number of elements to be written for each offset element.
+                Allowed values are: VectorSize::N1, VectorSize::N2,
+                VectorSize::N3, VectorSize::N4, VectorSize::N8, VectorSize::N16,
+                VectorSize::N32, VectorSize::N64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+                When DS is DataSize::Default, it's obtained from ``T`` data type.
+                Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
+                DataSize::U64.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Store cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Idx             Surface index corresponding to buffer surface.
+
+N               Number of the vectors.
+
+M               Total number of data elements to be written.
+                It must be equal to
+                :math:`\text{N} \times \text{VS}`.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned when ``VS`` is not VectorSize::N1.
+
+Pred            Predicate. if 0, certain element vector won't be written
+                to the memory. Optional argument.
+=============== ==================================================================
+
+
+
+cm_prefetch
+"""""""""""
+.. code-block:: c++
+
+  template <VectorSize VS = VectorSize::N1, DataSize DS = DataSize::U32,
+            CacheHint L1H = CacheHint::Cached,
+            CacheHint L2H = CacheHint::Cached>
+  void cm_prefetch(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                                      vector<ushort, N> Pred = 1);
+
+
+The compiler generates code for the hardware to perform gather prefetch from
+memory. The underlying surface must be a buffer.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+VS              Specifies number of elements to be prefetched
+                for each offset element.
+                Allowed values are: VectorSize::N1, VectorSize::N2,
+                VectorSize::N3, VectorSize::N4, VectorSize::N8, VectorSize::N16,
+                VectorSize::N32, VectorSize::N64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+                Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
+                DataSize::U64.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Prefetch cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Idx             Surface index corresponding to buffer surface.
+
+N               Number of the vectors.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned when ``VS`` is not VectorSize::N1.
+
+Pred            Predicate. if 0, certain element vector won't be prefetched
+                from the memory. Optional argument.
+=============== ==================================================================
+
+
+cm_atomic
+"""""""""
+
+.. code-block:: c++
+
+  template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  vector<RetTy, M> cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                             vector<ushort, N> Pred = 1);
+
+  template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  vector<RetTy, M> cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                             vector<T, M> Src0, vector<ushort, N> Pred = 1);
+
+  template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  vector<RetTy, M> cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                             vector<T, M> Src0, vector<T, M> Src1,
+                             vector<ushort, N> Pred = 1);
+
+
+The compiler generates code for the hardware to perform atomic memory operation
+that modifies memory and returns the original memory data.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+Op              Atomic memory operation kind. See the table below.
+
+T               Data type.
+
+VS              Specifies number of elements to be modified
+                for each offset element.
+                Allowed values are: VectorSize::N1, VectorSize::N2,
+                VectorSize::N3, VectorSize::N4, VectorSize::N8, VectorSize::N16,
+                VectorSize::N32, VectorSize::N64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+                Allowed values are DataSize::Default, DataSize::U16,
+                DataSize::U32 and DataSize::U64.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Atomic cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional argument.
+
+RetTy           Return data type, obtained from ``T`` and ``DS``.
+                When ``DS`` is DataSize::Default, ``RetTy`` is same as ``T``.
+                When ``DS`` is DataSize::U16, ``RetTy`` is U16.
+                When ``DS`` is DataSize::U32, ``RetTy`` is U32.
+                When ``DS`` is DataSize::U64, ``RetTy`` is U64.
+                The compiler will emit an error when invalid value is set.
+
+Idx             Surface index corresponding to buffer surface.
+
+N               Number of the vectors.
+
+M               Total number of data elements to be modified.
+                It must be equal to
+                :math:`\text{N} \times \text{VS}`.
+
+Src0            First Operand. It must be set unless ``Op`` is AtomicOp::IINC,
+                AtomicOp::IDEC or AtomicOp::LOAD
+
+Src1            Second operand. It must be set if ``Op`` is AtomicOp::ICAS or
+                AtomicOp::FCAS
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned when ``VS`` is not VectorSize::N1.
+
+Pred            Predicate. if 0, certain element vector won't be prefetched
+                from the memory. Optional argument.
+=============== ==================================================================
+
+Supported atomic operations:
+
+================ ============================== ============== ===============
+Kind             Supported Data types           First Operand  Second Operand
+================ ============================== ============== ===============
+AtomicOp::IINC   U16, U32, U64                  N              N
+
+AtomicOp::IDEC   U16, U32, U64                  N              N
+
+AtomicOp::LOAD   U16, U32, U64, F16, F32, F64   N              N
+
+AtomicOp::STORE  U16, U32, U64, F16, F32, F64   Y              N
+
+AtomicOp::IADD   U16, U32, U64                  Y              N
+
+AtomicOp::ISUB   U16, U32, U64                  Y              N
+
+AtomicOp::SMIN   U16, U32, U64                  Y              N
+
+AtomicOp::SMAX   U16, U32, U64                  Y              N
+
+AtomicOp::UMIN   U16, U32, U64                  Y              N
+
+AtomicOp::UMAX   U16, U32, U64                  Y              N
+
+AtomicOp::AND    U16, U32, U64                  Y              N
+
+AtomicOp::OR     U16, U32, U64                  Y              N
+
+AtomicOp::XOR    U16, U32, U64                  Y              N
+
+AtomicOp::FADD   F16, F32, F64                  Y              N
+
+AtomicOp::FSUB   F16, F32, F64                  Y              N
+
+AtomicOp::FMIN   F16, F32, F64                  Y              N
+
+AtomicOp::FMAX   F16, F32, F64                  Y              N
+
+AtomicOp::ICAS   F16, U32, U64                  Y              Y
+
+AtomicOp::FCAS   F16, F32, F64                  Y              Y
+================ ============================== ============== ===============
+
+
+
+Stateless block load/store/prefetch
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+cm_ptr_load
+"""""""""""
+.. code-block:: c++
+
+  template <typename T, int NElts, DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  vector<RetTy, NElts> cm_ptr_load(const T *const Ptr, unsigned Offset);
+
+
+The compiler generates code for the hardware to perform block read from
+memory. The underlying surface must be a buffer.
+Any byte(s) of the accessed block which is outside of the specified
+buffer bounds are considered to be "out-of-bound". Hardware will return 0
+for the out-of-bound bytes.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+NElts           Specifies number of elements to be read.
+                Allowed values are: 1, 2, 3, 4, 8, 16, 32, 64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Load cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+RetTy           Return data type, obtained from ``T`` and ``DS``.
+                When ``DS`` is DataSize::Default, ``RetTy`` is same as ``T``.
+                When ``DS`` is DataSize::U32, ``RetTy`` is U32.
+                When ``DS`` is DataSize::U64, ``RetTy`` is U64.
+                Only DataSize::U32 or DataSize::U64 are allowed.
+
+Ptr             Pointer which holds the address of a buffer in the memory.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned.
+=============== ==================================================================
+
+
+
+cm_ptr_store
+""""""""""""
+.. code-block:: c++
+
+  template <typename T, int NElts, DataSize DS = DataSize::Default,
+          CacheHint L1H = CacheHint::Default,
+          CacheHint L2H = CacheHint::Default>
+  void cm_ptr_store(T *Ptr, unsigned Offset, vector<T, NElts> Data);
+
+
+The compiler generates code for the hardware to perform block write to memory.
+The underlying surface must be a buffer.
+Any byte(s) of the accessed block which is outside of the specified
+buffer are considered to be "out-of-bound".
+Hardware will not update the out-of-bound bytes in memory.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+NElts           Specifies number of elements to be written.
+                Allowed values are: 1, 2, 3, 4, 8, 16, 32, 64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+                When DS is DataSize::Default, it's obtained from ``T`` data type.
+                Else DataSize::U32 or DataSize::U64 are allowed.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Store cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Ptr             Pointer which holds the address of a buffer in the memory.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned.
+=============== ==================================================================
+
+
+
+cm_ptr_prefetch
+"""""""""""""""
+.. code-block:: c++
+
+  template <int NElts, DataSize DS = DataSize::U32,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  void cm_ptr_prefetch(const void *const Ptr, unsigned Offset);
+
+
+The compiler generates code for the hardware to perform block prefetch from
+memory. The underlying surface must be a buffer.
+
+=============== ===========================================================
+Parameter       Description
+=============== ===========================================================
+NElts           Specifies number of elements to be prefetched.
+                Allowed values are: 1, 2, 3, 4, 8, 16, 32, 64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+                Only DataSize::U32 or DataSize::U64 are allowed.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Prefetch cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Ptr             Pointer which holds the address of a buffer in the memory.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned.
+=============== ===========================================================
+
+
+
+Stateless gather/scatter/prefetch/atomic
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+cm_ptr_load
+"""""""""""
+.. code-block:: c++
+
+  template <typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  auto cm_ptr_load(const T *const Ptr, vector<unsigned, N> Offset,
+                                   vector<ushort, N> Pred = 1);
+
+
+The compiler generates code for the hardware to perform gather read from
+memory. The underlying surface must be a buffer.
+Any byte(s) of the accessed block which is outside of the specified
+buffer bounds are considered to be "out-of-bound". Hardware will return 0
+for the out-of-bound bytes.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+VS              Specifies number of elements to be read for each offset element.
+                Allowed values are: VectorSize::N1, VectorSize::N2,
+                VectorSize::N3, VectorSize::N4, VectorSize::N8, VectorSize::N16,
+                VectorSize::N32, VectorSize::N64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+                When DS is DataSize::Default, it's obtained from ``T`` data type.
+                Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
+                DataSize::U64.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Load cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Ptr             Pointer which holds the address of a buffer in the memory.
+
+N               Number of the vectors.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned when ``VS`` is not VectorSize::N1.
+
+Pred            Predicate. if 0, certain element vector won't be loaded
+                from the memory. Optional argument.
+=============== ==================================================================
+
+
+
+cm_ptr_store
+""""""""""""
+.. code-block:: c++
+
+  template <typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  void cm_ptr_store(T *Ptr, vector<unsigned, N> Offset,
+                    vector<T, M> Data, vector<ushort, N> Pred = 1);
+
+
+The compiler generates code for the hardware to perform scatter write to memory.
+The underlying surface must be a buffer.
+Any byte(s) of the accessed block which is outside of the specified
+buffer are considered to be "out-of-bound".
+Hardware will not update the out-of-bound bytes in memory.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+VS              Specifies number of elements to be written for each offset element.
+                Allowed values are: VectorSize::N1, VectorSize::N2,
+                VectorSize::N3, VectorSize::N4, VectorSize::N8, VectorSize::N16,
+                VectorSize::N32, VectorSize::N64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+                When DS is DataSize::Default, it's obtained from ``T`` data type.
+                Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
+                DataSize::U64.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Store cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Ptr             Pointer which holds the address of a buffer in the memory.
+
+M               Total number of data elements to be written.
+                It must be equal to
+                :math:`\text{N} \times \text{VS}`.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned when ``VS`` is not VectorSize::N1.
+
+Pred            Predicate. if 0, certain element vector won't be written
+                to the memory. Optional argument.
+=============== ==================================================================
+
+
+
+cm_ptr_prefetch
+"""""""""""""""
+.. code-block:: c++
+
+  template <VectorSize VS = VectorSize::N1, DataSize DS = DataSize::U32,
+            CacheHint L1H = CacheHint::Cached,
+            CacheHint L2H = CacheHint::Cached>
+  void cm_ptr_prefetch(const void *const Ptr, vector<unsigned, N> Offset,
+                                      vector<ushort, N> Pred = 1);
+
+
+The compiler generates code for the hardware to perform gather prefetch from
+memory. The underlying surface must be a buffer.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+VS              Specifies number of elements to be prefetched
+                for each offset element.
+                Allowed values are: VectorSize::N1, VectorSize::N2,
+                VectorSize::N3, VectorSize::N4, VectorSize::N8, VectorSize::N16,
+                VectorSize::N32, VectorSize::N64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+                Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
+                DataSize::U64.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Prefetch cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Ptr             Pointer which holds the address of a buffer in the memory.
+
+N               Number of the vectors.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned when ``VS`` is not VectorSize::N1.
+
+Pred            Predicate. if 0, certain element vector won't be prefetched
+                from the memory. Optional argument.
+=============== ==================================================================
+
+
+cm_ptr_atomic
+"""""""""""""
+
+.. code-block:: c++
+
+  template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  vector<RetTy, M> cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
+                                 vector<ushort, N> Pred = 1);
+
+  template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  vector<RetTy, M> cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
+                                 vector<T, M> Src0,
+                                 vector<ushort, N> Pred = 1);
+
+  template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  vector<RetTy, M> cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
+                                 vector<T, M> Src0, vector<T, M> Src1,
+                                 vector<ushort, N> Pred = 1);
+
+
+The compiler generates code for the hardware to perform atomic memory operation
+that modifies memory and returns the original memory data.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+Op              Atomic memory operation kind. See the table below.
+
+T               Data type.
+
+VS              Specifies number of elements to be modified
+                for each offset element.
+                Allowed values are: VectorSize::N1, VectorSize::N2,
+                VectorSize::N3, VectorSize::N4, VectorSize::N8, VectorSize::N16,
+                VectorSize::N32, VectorSize::N64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+                Allowed values are DataSize::Default, DataSize::U16,
+                DataSize::U32 and DataSize::U64.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Atomic cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+RetTy           Return data type, obtained from ``T`` and ``DS``.
+                When ``DS`` is DataSize::Default, ``RetTy`` is same as ``T``.
+                When ``DS`` is DataSize::U16, ``RetTy`` is U16.
+                When ``DS`` is DataSize::U32, ``RetTy`` is U32.
+                When ``DS`` is DataSize::U64, ``RetTy`` is U64.
+                The compiler will emit an error when invalid value is set.
+
+Ptr             Pointer which holds the address of a buffer in the memory.
+
+N               Number of the vectors.
+
+M               Total number of data elements to be modified.
+                It must be equal to
+                :math:`\text{N} \times \text{VS}`.
+
+Src0            First Operand. It must be set unless ``Op`` is AtomicOp::IINC,
+                AtomicOp::IDEC or AtomicOp::LOAD
+
+Src1            Second operand. It must be set if ``Op`` is AtomicOp::ICAS or
+                AtomicOp::FCAS
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned when ``VS`` is not VectorSize::N1.
+
+Pred            Predicate. if 0, certain element vector won't be prefetched
+                from the memory. Optional argument.
+=============== ==================================================================
+
+Supported atomic operations:
+
+================ ============================== ============== ===============
+Kind             Supported Data types           First Operand  Second Operand
+================ ============================== ============== ===============
+AtomicOp::IINC   U16, U32, U64                  N              N
+
+AtomicOp::IDEC   U16, U32, U64                  N              N
+
+AtomicOp::LOAD   U16, U32, U64, F16, F32, F64   N              N
+
+AtomicOp::STORE  U16, U32, U64, F16, F32, F64   Y              N
+
+AtomicOp::IADD   U16, U32, U64                  Y              N
+
+AtomicOp::ISUB   U16, U32, U64                  Y              N
+
+AtomicOp::SMIN   U16, U32, U64                  Y              N
+
+AtomicOp::SMAX   U16, U32, U64                  Y              N
+
+AtomicOp::UMIN   U16, U32, U64                  Y              N
+
+AtomicOp::UMAX   U16, U32, U64                  Y              N
+
+AtomicOp::AND    U16, U32, U64                  Y              N
+
+AtomicOp::OR     U16, U32, U64                  Y              N
+
+AtomicOp::XOR    U16, U32, U64                  Y              N
+
+AtomicOp::FADD   F16, F32, F64                  Y              N
+
+AtomicOp::FSUB   F16, F32, F64                  Y              N
+
+AtomicOp::FMIN   F16, F32, F64                  Y              N
+
+AtomicOp::FMAX   F16, F32, F64                  Y              N
+
+AtomicOp::ICAS   F16, U32, U64                  Y              Y
+
+AtomicOp::FCAS   F16, F32, F64                  Y              Y
+================ ============================== ============== ===============
+
+
+
+Untyped 2D block load/store/prefetch
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These functions are target-dependent and only available
+when ``CM_HAS_LSC_UNTYPED_2D`` macro is defined.
 
 cm_ptr_load
 """""""""""
@@ -2389,9 +3354,6 @@ instruction. Useful for matrix B load in forward pass.
 
 The compiler eliminates the padding by generating extra MOV instructions.
 
-These functions are target-dependent and only available
-when ``CM_HAS_LSC_UNTYPED_2D`` macro is defined.
-
 =============== ==================================================================
 Parameter       Description
 =============== ==================================================================
@@ -2423,8 +3385,12 @@ Transformed     Enable VNNI Transform.
                 See the table below for the restrictions.
 
 L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Load cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
+
+Ptr             Pointer which holds the address of raw (untyped) data
+                in the memory.
 
 SurfaceWidth    Surface Width minus 1 in bytes of the 2D surface.
                 Surface Width must be equal or greater than 64B.
@@ -2450,9 +3416,10 @@ Y               Block start Y coordinate.
 
 Data            The data vector read from memory.
                 The size ``N`` is a number of elements.
-                ``N`` must be equal to ``Width`` X ``Height`` X ``NumBlocks``.
-                For VNNI Transform, it must be
-                ``Width`` X ``RoundHeight`` X ``NumBlocks``,
+                ``N`` must be equal to
+                :math:`\text{Width} \times \text{Height} \times \text{NumBlocks}`.
+                For VNNI Transform, it must be equal to
+                :math:`\text{Width} \times \text{RoundHeight} \times \text{NumBlocks}`,
                 where ``RoundHeight`` is ``Height`` rounded
                 up to be multiple of (4 / sizeof(T))
 =============== ==================================================================
@@ -2516,9 +3483,6 @@ Any byte(s) of the accessed 2D block which is outside of the specified
 2D Surface bounds (Width, Height) are considered to be "out-of-bound".
 Hardware will not update the out-of-bound bytes in memory.
 
-These functions are target-dependent and only available
-when ``CM_HAS_LSC_UNTYPED_2D`` macro is defined.
-
 =============== =============================================================
 Parameter       Description
 =============== =============================================================
@@ -2536,8 +3500,12 @@ Height          Specifies the height in number of data elements
                 See the table below for the restrictions.
 
 L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Store cache control policy` table.
                 The compiler will emit an error when invalid hint is set.
                 Optional arguments.
+
+Ptr             Pointer which holds the address of raw (untyped) data
+                in the memory.
 
 SurfaceWidth    Surface Width minus 1 in bytes of the 2D surface.
                 Surface Width must be equal or greater than 64B.
@@ -2563,7 +3531,8 @@ Y               Block start Y coordinate.
 
 Data            The vector holding data to be written.
                 The size ``N`` is a number of elements.
-                ``N`` must be ``Width`` X ``Height``.
+                ``N`` must be equal to
+                :math:`\text{Width} \times \text{Height}`.
 =============== =============================================================
 
 
@@ -2600,9 +3569,6 @@ an array of rectangular block(s) in memory. The rectangular blocks in
 the array are assumed to be stacked horizontally in memory.
 The underlying surface must be linear (non-tiled) and raw (untyped).
 
-These functions are target-dependent and only available
-when ``CM_HAS_LSC_UNTYPED_2D`` macro is defined.
-
 =============== =============================================================
 Parameter       Description
 =============== =============================================================
@@ -2623,8 +3589,12 @@ NumBlocks       Specifies Array Length.
                 See the table below for the restrictions.
 
 L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Prefetch cache control policy` table.
                 The compiler will emit an error when invalid hint is set.
                 Optional arguments.
+
+Ptr             Pointer which holds the address of raw (untyped) data
+                in the memory.
 
 SurfaceWidth    Surface Width minus 1 in bytes of the 2D surface.
                 Surface Width must be equal or greater than 64B.
@@ -2666,8 +3636,11 @@ byte      1 - 32       4 - 64          1, 2, 4
 
 
 
-Untyped descriptor based LSC 2D block load/store/prefetch {pvc, Xe2+}
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Untyped descriptor based 2D block load/store/prefetch
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These functions are target-dependent and only available
+when ``CM_HAS_LSC_UNTYPED_2D`` macro is defined.
 
 Unlike the regular untyped LSC 2D block load/store/prefetch above,
 the descriptor based ones keep padding as-is in GRF so user should
@@ -2677,7 +3650,7 @@ the need of creating the descriptor for every operation which removes
 extra move instructions.
 
 Block 2D Descriptor
-""""""""""""""""""
+"""""""""""""""""""
 
 .. code-block:: c++
 
@@ -2735,12 +3708,17 @@ BlockWidth      Specifies the width in number of data elements
                 for this rectangular region.
                 The compiler will emit an error when invalid value is set.
 
-Width           Surface Width minus 1 in bytes of the 2D surface.
-                Surface Width must be equal or greater than 64B.
-                Surface Width must be DWord (i.e. 4 bytes) aligned.
+Ptr             Pointer which holds the address of raw (untyped) data
+                in the memory.
+
+Base            Base address of raw (untyped) data in the memory.
 
 Height          Surface Height minus 1 in number of data elements
                 of the Untyped 2D surface.
+
+Width           Surface Width minus 1 in bytes of the 2D surface.
+                Surface Width must be equal or greater than 64B.
+                Surface Width must be DWord (i.e. 4 bytes) aligned.
 
 Pitch           Surface Pitch minus 1 in bytes of the 2D surface.
                 Surface Pitch must be greater or equal to Surface Width.
@@ -2823,9 +3801,6 @@ from a column and put back to back in the same GRF.
 This transform lays out the GRF that is friendly to the EU Systolic
 instruction. Useful for matrix B load in forward pass.
 
-These functions are target-dependent and only available
-when ``CM_HAS_LSC_UNTYPED_2D`` macro is defined.
-
 =============== ===============================================================
 Parameter       Description
 =============== ===============================================================
@@ -2835,6 +3810,7 @@ Op              Load operation type (derived):
                 ``lsc::VNNI`` is for VNNI Transform load.
 
 L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Load cache control policy` table.
                 The compiler will emit an error when invalid hint is set.
                 Optional arguments.
 
@@ -2923,9 +3899,6 @@ Any byte(s) of the accessed 2D block which is outside of the specified
 2D Surface bounds (Width, Height) are considered to be "out-of-bound".
 Hardware will not update the out-of-bound bytes in memory.
 
-These functions are target-dependent and only available
-when ``CM_HAS_LSC_UNTYPED_2D`` macro is defined.
-
 =============== ===========================================================
 Parameter       Description
 =============== ===========================================================
@@ -2971,7 +3944,7 @@ byte      1 - 8      4 - 64
 
 
 cm_prefetch
-""""""""""""
+"""""""""""
 
 .. code-block:: c++
 
@@ -2989,13 +3962,11 @@ an array of rectangular block(s) in memory. The rectangular blocks in
 the array are assumed to be stacked horizontally in memory.
 The underlying surface must be linear (non-tiled) and raw (untyped).
 
-These functions are target-dependent and only available
-when ``CM_HAS_LSC_UNTYPED_2D`` macro is defined.
-
 =============== ===========================================================
 Parameter       Description
 =============== ===========================================================
 L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Store cache control policy` table.
                 The compiler will emit an error when invalid hint is set.
                 Optional arguments.
 
@@ -3033,22 +4004,25 @@ byte      1 - 32       4 - 64          1, 2, 4
 
 
 
-Typed LSC Surface load/store/prefetch {Xe2+}
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Typed load/store/prefetch
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These functions are target-dependent and only available
+when ``CM_HAS_LSC_TYPED`` macro is defined.
 
 cm_load4_typed
 """"""""""""""
 
 .. code-block:: c++
 
-  template <ChannelMaskType ChannelMask, CacheHint L1Hint = Default,
-            CacheHint L2Hint = Default>
+  template <ChannelMaskType ChannelMask, CacheHint L1H = Default,
+            CacheHint L2H = Default>
   void cm_load4_typed(matrix_ref<T, N, M> Data, SurfaceIndex Surface,
                       vector<unsigned, M> U, vector<unsigned, M> V = 0,
                       vector<unsigned, M> R = 0, vector<unsigned, M> LOD = 0);
 
-  template <ChannelMaskType ChannelMask, CacheHint L1Hint = Default,
-            CacheHint L2Hint = Default>
+  template <ChannelMaskType ChannelMask, CacheHint L1H = Default,
+            CacheHint L2H = Default>
   void cm_load4_typed(matrix_ref<T, N, M> Data, vector<uint16_t, M> Pred,
                       SurfaceIndex Surface, vector<unsigned, M> U,
                       vector<unsigned, M> V = 0, vector<unsigned, M> R = 0,
@@ -3066,8 +4040,9 @@ Parameter       Description
 ChannelMask
                 Mask for enabled channels.
 
-L1Hint, L2Hint
+L1H, L2H
                 Load cache hints. Not all the combinations are supported.
+                See `Load cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments. Should be both present or both omitted.
 
@@ -3083,8 +4058,9 @@ Data
                 extended by the compiler into a sequence of SIMD16 and
                 SIMD32 load operations.
 
-Pred (optional)
+Pred
                 The execution predicate for conditional load.
+                Optional, default value is one.
 
 Surface
                 Surface index corresponding to 1D, 2D or 3D image surface.
@@ -3113,14 +4089,14 @@ cm_store4_typed
 
 .. code-block:: c++
 
-  template <ChannelMaskType ChannelMask, CacheHint L1Hint = Default,
-            CacheHint L2Hint = Default>
+  template <ChannelMaskType ChannelMask, CacheHint L1H = Default,
+            CacheHint L2H = Default>
   void cm_store4_typed(matrix<T, N, M> Data, SurfaceIndex Surface,
                        vector<unsigned, M> U, vector<unsigned, M> V = 0,
                        vector<unsigned, M> R = 0, vector<unsigned, M> LOD = 0);
 
-  template <ChannelMaskType ChannelMask, CacheHint L1Hint = Default,
-            CacheHint L2Hint = Default>
+  template <ChannelMaskType ChannelMask, CacheHint L1H = Default,
+            CacheHint L2H = Default>
   void cm_store4_typed(matrix<T, N, M> Data, vector<uint16_t, M> Pred,
                        SurfaceIndex Surface, vector<unsigned, M> U,
                        vector<unsigned, M> V = 0, vector<unsigned, M> R = 0,
@@ -3141,8 +4117,9 @@ ChannelMask
                 Mask for enabled channels. Only contiguous channel masks are
                 supported (R, GR, BGR and ABGR).
 
-L1Hint, L2Hint
+L1H, L2H
                 Store cache hints. Not all the combinations are supported.
+                See `Store cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments. Should be both present or both omitted.
 
@@ -3158,8 +4135,9 @@ Data
                 extended by the compiler into a sequence of SIMD16 and
                 SIMD32 store operations.
 
-Pred (optional)
+Pred
                 The execution predicate for conditional store.
+                Optional, default value is one.
 
 Surface
                 Surface index corresponding to 1D, 2D or 3D image surface.
@@ -3188,14 +4166,14 @@ cm_prefetch4_typed
 
 .. code-block:: c++
 
-  template <ChannelMaskType ChannelMask, CacheHint L1Hint = Default,
-            CacheHint L2Hint = Default>
+  template <ChannelMaskType ChannelMask, CacheHint L1H = Default,
+            CacheHint L2H = Default>
   void cm_prefetch4_typed(SurfaceIndex Surface,
                           vector<unsigned, M> U, vector<unsigned, M> V = 0,
                           vector<unsigned, M> R = 0, vector<unsigned, M> LOD = 0);
 
-  template <ChannelMaskType ChannelMask, CacheHint L1Hint = Default,
-            CacheHint L2Hint = Default>
+  template <ChannelMaskType ChannelMask, CacheHint L1H = Default,
+            CacheHint L2H = Default>
   void cm_prefetch4_typed(vector<uint16_t, M> Pred, SurfaceIndex Surface,
                           vector<unsigned, M> U, vector<unsigned, M> V = 0,
                           vector<unsigned, M> R = 0, vector<unsigned, M> LOD = 0);
@@ -3210,8 +4188,9 @@ Parameter       Description
 ChannelMask
                 Mask for enabled channels.
 
-L1Hint, L2Hint
+L1H, L2H
                 Prefech cache hints. Not all the combinations are supported.
+                See `Prefetch cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Must be present.
 
@@ -3239,6 +4218,143 @@ LOD
                 The w coordinates of the data elements to be fetched from
                 images. Ignored otherwise. Optional, default value is zero.
 =============== ============================================================
+
+Typed 2D block load/store
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These functions are target-dependent and only available
+when ``CM_HAS_LSC_TYPED_2D`` macro is defined.
+
+
+cm_load
+"""""""
+
+.. code-block:: c++
+
+  template <typename T, int Height, int Width, CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  void cm_load(SurfaceIndex Idx, int X, int Y, matrix_ref<T, Height, Width> Data);
+
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+                Byte, 2-byte, 4-byte and 8-byte types are allowed.
+
+Width           Specifies the width in number of data elements
+                for this rectangular region.
+
+Height          Specifies the height in number of data elements
+                for this rectangular region.
+                ``Height`` X ``Width`` must not exceed 256 bytes.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Load cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Idx             Surface index corresponding to 2D image surface.
+
+X               Block start X coordinate.
+                Specifies the signed X offset in bytes.
+
+Y               Block start Y coordinate.
+                Specifies the signed Y offset in number of data elements.
+
+Data            The data vector read from memory.
+=============== ==================================================================
+
+cm_store
+""""""""
+
+.. code-block:: c++
+
+  template <typename T, int Height, int Width, CacheHint L1H = CacheHint::Default,
+             CacheHint L2H = CacheHint::Default>
+  void cm_store(SurfaceIndex Idx, int X, int Y, matrix<T, Height, Width> Input);
+
+The Typed 2D Block store writes to one rectangular block of a Typed 2D surface.
+Raw pixels are written to memory without any hardware format conversion.
+The underlying surface must be Surface 2D and Typed.
+
+Any byte(s) of the accesed 2D block which is outside of the specified 2D Surface
+bounds (Width, Height) are considered to be "out-of-bound".
+For stores, hardware will not write to the out-of-bound addresses in the memory.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+                Byte, 2-byte, 4-byte and 8-byte types are allowed.
+
+Width           Specifies the width in number of data elements
+                for this rectangular region.
+
+Height          Specifies the height in number of data elements
+                for this rectangular region.
+                ``Height`` X ``Width`` must not exceed 256 bytes.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Store cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Idx             Surface index corresponding to 2D image surface.
+
+X               Block start X coordinate.
+                Specifies the signed X offset in bytes.
+
+Y               Block start Y coordinate.
+                Specifies the signed Y offset in number of data elements.
+
+Data            The data vector written into memory.
+=============== ==================================================================
+
+cm_prefetch
+"""""""""""
+
+.. code-block:: c++
+
+  template <typename T, int Height, int Width, CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  void cm_prefetch(SurfaceIndex Idx, int X, int Y);
+
+The compiler generates code for the hardware to perform 2D block prefetch from one
+rectangular block in memory. The underlying surface must be Surface 2D and Typed.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+                Byte, 2-byte, 4-byte and 8-byte types are allowed.
+
+Width           Specifies the width in number of data elements
+                for this rectangular region.
+
+Height          Specifies the height in number of data elements
+                for this rectangular region.
+                ``Height`` X ``Width`` must not exceed 256 bytes.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Prefetch cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Idx             Surface index corresponding to 2D image surface.
+
+X               Block start X coordinate.
+                Specifies the signed X offset in bytes.
+
+Y               Block start Y coordinate.
+                Specifies the signed Y offset in number of data elements.
+=============== ==================================================================
+
+4.6 Dataport Interface
+----------------------
+
+Starting with Xe2, these intrinsics are considered obsolete and thus
+translated into LSC intrinsics.
 
 Media Block Read/Write
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -3734,68 +4850,6 @@ Format                    Type    Notes
 N/A                       Buffer
 ========================= ======= =======================================================
 
-Transpose Read {Gen8+}
-^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: c++
-
-  void read_transpose(SurfaceIndex IND, CM_READ_SIZE height, CM_READ_SIZE width,
-    int X, int Y, matrix_ref m);
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-IND
-                surface index, which must correspond to a 2D type surface
-
-height
-                The block height. Valid values:
-
-                * CM_READ_1 (1 row)
-                * CM_READ_2 (2 row)
-                * CM_READ_4 (4 row)
-                * CM_READ_8 (8 row)
-
-width
-                The block width. Valid values:
-
-                * CM_READ_1 (1 DWord)
-                * CM_READ_2 (2 DWord)
-                * CM_READ_4 (4 DWord)
-                * CM_READ_8 (8 DWord)
-
-X
-                zero based X-coordinate in unit of block width.
-
-Y
-                zero based Y-coordinate in unit of block height.
-
-m
-                the data location to be read.  The width and height of the
-                matrix must be the transpose of the width and height
-                parameters.  Width in bytes of the matrix must be equal to the
-                number of dwords read after transpose.
-=============== ============================================================
-
-If the address is out-of-bound, it is clamped to the nearest edge of the surface, and the pixel in that
-position is returned.
-
-Supported Surfaces:
-
-========================= ======= =======================================================
-Format                    Type    Notes
-========================= ======= =======================================================
-Any                       2D
-========================= ======= =======================================================
-
-Usage example:
-
-.. code-block:: c++
-
-  matrix<int, 8, 2> m;
-  read_transpose(ind, CM_READ_2, CM_READ_8, 2,  1, m)  //x offset = 16 bytes, y offset = 2 rows
-
-
 Untyped Surface Read/Write {Gen7+}
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -4060,7 +5114,7 @@ CM_SURFACE_FORMAT_R32_SINT  1D/2D/3D/CUBE/BUFFER                  Integer
 
 
 
-4.6 Shared Local Memory (SLM) and Groups Interface {Gen7+}
+4.7 Shared Local Memory (SLM) and Groups Interface {Gen7+}
 ----------------------------------------------------------
 
 
@@ -4504,7 +5558,7 @@ optional sources, 'v_Src0' and 'v_Src1', are needed also
 depends on the atomic operation.
 
 SLM Block Read/Write
-^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^
 
 Out-of-bound reads return zero, while out-of-bound writes are dropped.
 
@@ -4565,7 +5619,7 @@ v
 
 
 
-4.7 Sampler Interface
+4.8 Sampler Interface
 ---------------------
 
 C for Metal provides the user with the following sampler function support:
@@ -4927,7 +5981,7 @@ Surface Type    u                         v                            r
 3D              Unnormalized x coordinate Unnormalized y coordinate    Unnormalized z coordinate
 =============== ========================= ============================ ============================
 
-4.8 Adaptive Video Scaling
+4.9 Adaptive Video Scaling
 --------------------------
 
 cm_avs_sampler
@@ -5086,11 +6140,11 @@ CM_SURFACE_FORMAT_NV12            2D      Cr  Y   Cb
 ================================= ======= === === === === =======================================
 
 
-4.9 Video Analytics Functions (Gen8+)
+4.10 Video Analytics Functions (Gen8+)
 -------------------------------------
 
-4.9.1 2d Convolve
-^^^^^^^^^^^^^^^^^
+4.10.1 2d Convolve
+^^^^^^^^^^^^^^^^^^
 
 .. code-block:: c++
 
@@ -5150,8 +6204,8 @@ CM_SURFACE_FORMAT_V8U8  2D    Signed planar
 CM_SURFACE_FORMAT_A8    2D    Planar
 ======================= ===== ============================
 
-4.9.2 Min Max Filter
-^^^^^^^^^^^^^^^^^^^^
+4.10.2 Min Max Filter
+^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: c++
 
@@ -5243,8 +6297,8 @@ CM_SURFACE_FORMAT_A8    2D    Planar
 ======================= ===== ============================
 
 
-4.9.3 Min Max
-^^^^^^^^^^^^^
+4.10.3 Min Max
+^^^^^^^^^^^^^^
 
 .. code-block:: c++
 
@@ -5303,8 +6357,8 @@ CM_SURFACE_FORMAT_A8    2D    Planar
 ======================= ===== ============================
 
 
-4.9.4 Erode
-^^^^^^^^^^^
+4.10.4 Erode
+^^^^^^^^^^^^
 
 .. code-block:: c++
 
@@ -5364,8 +6418,8 @@ CM_SURFACE_FORMAT_A8R8G8B8  2D    Planar 1 bit per pixel format
 CM_SURFACE_FORMAT_X8R8G8B8  2D    Planar 1 bit per pixel format
 =========================== ===== ============================
 
-4.9.5 Dilate
-^^^^^^^^^^^^
+4.10.5 Dilate
+^^^^^^^^^^^^^
 
 .. code-block:: c++
 
@@ -5425,8 +6479,8 @@ CM_SURFACE_FORMAT_A8R8G8B8  2D    Planar 1 bit per pixel format
 CM_SURFACE_FORMAT_X8R8G8B8  2D    Planar 1 bit per pixel format
 =========================== ===== ============================
 
-4.9.6 Centroid
-^^^^^^^^^^^^^^
+4.10.6 Centroid
+^^^^^^^^^^^^^^^
 
 .. code-block:: c++
 
@@ -5471,8 +6525,8 @@ CM_SURFACE_FORMAT_A8    2D    Planar
 ======================= ===== ============================
 
 
-4.9.7 Boolean Centroid
-^^^^^^^^^^^^^^^^^^^^^^
+4.10.7 Boolean Centroid
+^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: c++
 
@@ -5521,10 +6575,10 @@ CM_SURFACE_FORMAT_X8R8G8B8  2D    Planar 1 bit per pixel format
 =========================== ===== ============================
 
 
-4.10 Video Analytics Functions (Gen9+)
+4.11 Video Analytics Functions (Gen9+)
 --------------------------------------
 
-4.10.1 1d Convolve
+4.11.1 1d Convolve
 ^^^^^^^^^^^^^^^^^^
 
 .. code-block:: c++
@@ -5585,7 +6639,7 @@ CM_SURFACE_FORMAT_V8U8  2D    Signed planar
 CM_SURFACE_FORMAT_A8    2D    Planar
 ======================= ===== ============================
 
-4.10.2 1Pixel Convolve
+4.11.2 1Pixel Convolve
 ^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: c++
@@ -5646,7 +6700,7 @@ CM_SURFACE_FORMAT_V8U8  2D    Signed planar
 CM_SURFACE_FORMAT_A8    2D    Unsigned planar
 ======================= ===== ============================
 
-4.10.3 LBP Creation
+4.11.3 LBP Creation
 ^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: c++
@@ -5699,7 +6753,7 @@ CM_SURFACE_FORMAT_A8    2D    Unsigned planar
 ======================= ===== ============================
 
 
-4.10.4 LBP Correlation
+4.11.4 LBP Correlation
 ^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: c++
@@ -5740,7 +6794,7 @@ Format                  Type  Notes
 CM_SURFACE_FORMAT_A8    2D    Unsigned planar
 ======================= ===== ============================
 
-4.10.5 Flood Fill
+4.11.5 Flood Fill
 ^^^^^^^^^^^^^^^^^
 
 .. code-block:: c++
@@ -5784,7 +6838,7 @@ loopCount
 =============== ============================================================
 
 
-4.10.6 Correlation Search
+4.11.6 Correlation Search
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: c++
@@ -5849,13 +6903,13 @@ CM_SURFACE_FORMAT_A8    2D    Unsigned planar
 ======================= ===== ============================
 
 
-4.11 Video Analytics Functions HDC Write {Gen9+}
+4.12 Video Analytics Functions HDC Write {Gen9+}
 ------------------------------------------------
 
 These variants of VA functions write their output to another surface directly instead of GRF.  The output
 surface must have the same dimension (width*height in pixels) as the input surface.
 
-4.11.1 2d Convolve
+4.13.1 2d Convolve
 ^^^^^^^^^^^^^^^^^^
 
 .. code-block:: c++
@@ -5922,7 +6976,7 @@ CM_SURFACE_FORMAT_R8_UINT   2D    Unsigned
 =========================== ===== ============================
 
 
-4.11.2 Min Max Filter
+4.13.2 Min Max Filter
 ^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: c++
@@ -5993,7 +7047,7 @@ CM_SURFACE_FORMAT_R8_UINT   2D    Unsigned
 =========================== ===== ============================
 
 
-4.11.3 Erode
+4.13.3 Erode
 ^^^^^^^^^^^^
 
 .. code-block:: c++
@@ -6048,7 +7102,7 @@ CM_SURFACE_FORMAT_R8_UINT   2D    Unsigned
 =========================== ===== ============================
 
 
-4.11.4 Dilate
+4.13.4 Dilate
 ^^^^^^^^^^^^^
 
 .. code-block:: c++
@@ -6103,7 +7157,7 @@ CM_SURFACE_FORMAT_R8_UINT   2D    Unsigned
 =========================== ===== ============================
 
 
-4.11.5 1d Convolve
+4.13.5 1d Convolve
 ^^^^^^^^^^^^^^^^^^
 
 .. code-block:: c++
@@ -6173,7 +7227,7 @@ CM_SURFACE_FORMAT_R8_UINT   2D    Unsigned
 =========================== ===== ============================
 
 
-4.11.6 1Pixel Convolve
+4.13.6 1Pixel Convolve
 ^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: c++
@@ -6241,7 +7295,7 @@ CM_SURFACE_FORMAT_R8_UINT   2D    Unsigned
 =========================== ===== ============================
 
 
-4.11.7 LBP Creation
+4.13.7 LBP Creation
 ^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: c++
@@ -6300,7 +7354,7 @@ CM_SURFACE_FORMAT_R8_UINT   2D    Unsigned
 =========================== ===== ============================
 
 
-4.11.8 LBP Correlation
+4.13.8 LBP Correlation
 ^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: c++
@@ -6355,10 +7409,10 @@ CM_SURFACE_FORMAT_R8_UINT   2D    Unsigned
 =========================== ===== ============================
 
 
-4.12 VME Interface
+4.13 VME Interface
 ------------------
 
-4.12.1 Gen6 VME Interface
+4.13.1 Gen6 VME Interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 C for Metal provides the user with the following Video Motion Estimation (VME) function support for Gen6
@@ -6463,7 +7517,7 @@ run_vme_all
 The compiler generates code for GenX hardware to perform VME functions in both inter- and intra-search
 enabled mode.
 
-4.12.2 Gen7 VME Interface
+4.13.2 Gen7 VME Interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 C for Metal provides the user with the following Video Motion Estimation (VME) function support for Gen7
@@ -6652,7 +7706,7 @@ mOutput
 =============== ============================================================
 
 
-4.12.3 Gen7_5 VME Interface
+4.13.3 Gen7_5 VME Interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 C for Metal provides the following Video Motion Estimation (VME) APIs for Gen7_5 architecture.
@@ -6853,7 +7907,7 @@ UNIOutput
 =============== ============================================================
 
 
-4.12.4 Gen8 VME Interface
+4.13.4 Gen8 VME Interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 C for Metal provides the following Video Motion Estimation (VME) APIs for Gen8 architecture.
@@ -7090,7 +8144,7 @@ IDMOutput
 =============== ============================================================
 
 
-4.12.5 Gen10 HEVC VME Interface
+4.13.5 Gen10 HEVC VME Interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 C for Metal provides the following HEVC-specific Video Motion Estimation (VME) APIs for the Gen10 architecture
@@ -7344,7 +8398,7 @@ SRMOutput
 =============== ============================================================
 
 
-4.13 Media Walker Interface
+4.14 Media Walker Interface
 ---------------------------
 
 To support the Media Walker functionality, C for Metal provides the following intrinsic functions for a kernel to
@@ -7384,7 +8438,7 @@ predefined thread space color value - 1.
 
 If thread space is not defined by C for Metal runtime host, the default thread space width is fixed at 511.
 
-4.14 Synchronization Functions
+4.15 Synchronization Functions
 ------------------------------
 
 C for Metal provides the following intrinsic functions for synchronization:
@@ -7465,7 +8519,7 @@ length
 =============== ============================================================
 
 
-4.15 Raw Send Functions
+4.16 Raw Send Functions
 -----------------------
 
 C for Metal provides the following APIs for issuing raw send messages to GenX shared functions.
@@ -7524,6 +8578,99 @@ When the destination is not present, the first parameter can be specified as "NU
 supported by overloaded API with other parameters unchanged.
 
 
+cm_raw_send
+^^^^^^^^^^^
+
+.. code-block:: c++
+
+  void cm_raw_send(matrix_ref<T1, N1, N2> rspVar,
+                   matrix<T2, N3, N4> msgVar,
+                   matrix<T3, N5, N6> msgVar2,
+                   uint exDesc, uint msgDesc,
+                   uchar execSize, uchar sfid,
+                   uchar numSrc0, uchar numSrc1, uchar numDst,
+                   uchar isEOT, uchar isSendc,
+                   vector<ushort, N> mask);
+
+The formal parameters are described below:
+
+=============== ============================================================
+Parameters
+=============== ============================================================
+rspVar
+                the matrix that stores the message response data.
+
+msgVar
+                the matrix that stores the first message payload data.
+
+msgVar2
+                the matrix that stores the second message payload data.
+
+exDesc
+                the extended message descriptor for the send.
+
+msgDesc
+                the message descriptor for the send.
+
+execSize
+                The execution size, which must be a compile time constant that conforms to the following format:
+                Bit[2..0]: size of the region for source and destination operands
+
+                * 0b000: 1 element (scalar)
+                * 0b001: 2 elements
+                * 0b010: 4 elements
+                * 0b011: 8 elements
+                * 0b100: 16 elements
+                * 0b101: 32 elements
+
+                Bit[7..4]: execution mask (explicit control over the enabled channels)
+
+                * 0b0000: M1
+                * 0b0001: M2
+                * 0b0010: M3
+                * 0b0011: M4
+                * 0b0100: M5
+                * 0b0101: M6
+                * 0b0110: M7
+                * 0b0111: M8
+                * 0b1000: M1_NM
+                * 0b1001: M2_NM
+                * 0b1010: M3_NM
+                * 0b1011: M4_NM
+                * 0b1100: M5_NM
+                * 0b1101: M6_NM
+                * 0b1110: M7_NM
+                * 0b1111: M8_NM
+
+sfid
+                the shared function ID. It must be a compile time constant.
+
+numSrc0
+                the number of GRF registers for payload 0. It must be a compile time constant.
+
+numSrc1
+                the number of GRF registers for payload 1. It must be a compile time constant.
+
+numDst
+                the number of GRF registers for destination. It must be a compile time constant.
+
+isEOT
+                the flag that indicates whether this is also EOT message. It must be a compile
+                time constant (optional - default to 0)..
+
+isSendc
+                the flag that indicates whether sendc should be used. It must be a compile time
+                constant (optional - default to 0).
+
+mask
+                the predicate to specify enabled channels (optional - default to on).
+=============== ============================================================
+
+Note: This replaces the cm_send/cm_sends API above to provide a more flexible
+programming interface for raw send. When there is no Dst/Src1 present,
+rspVar/msgVar2 may be specified as NULL, in which case numDst/numSrc1 must be 0.
+
+
 **Cm-icl compiler only:**
 
 The SIMD width of the resulting ``send`` or ``sends`` instruction is always SIMD16.
@@ -7568,15 +8715,15 @@ element types are ``uint``, ``int``, ``float``. The width must be a power of 2, 
 The width must not exceed the general-purpose register width for the target architecture.
 
 
-4.16 C for Metal label function
+4.17 C for Metal label function
 -------------------------------
 
 The cm_label function is deprecated in cmc. For backwards compatibility it is ignored if used.
 
-4.17 Formatted Output
+4.18 Formatted Output
 ---------------------
 
-4.17.1 printf
+4.18.1 printf
 ^^^^^^^^^^^^^
 
 Starting with version 3.0, C for Metal includes support for calling printf in-kernel: it prints formatted output
@@ -7628,7 +8775,7 @@ For a kernel with four threads the following would print (not necessarily in the
 
 .. _SharedVirtualMemory:
 
-4.18 Shared Virtual Memory (SVM)
+4.19 Shared Virtual Memory (SVM)
 --------------------------------
 
 Shared Virtual Memory allows the C for Metal program and the host application to share complex pointer-
@@ -7816,7 +8963,7 @@ Write N 4-element vectors, say {R,G,B,A}, where each element is of
 size dword and is also referred to as a channel, from 'v_Src' into
 shared virtual memory. 'v_Src' must be aligned.
 
-4.19 Xe Matrix Extension (XMX) Functions
+4.20 Xe Matrix Extension (XMX) Functions
 ----------------------------------------
 
 C for Metal defines a set of builtin functions that are used to perform matrix
@@ -7891,13 +9038,11 @@ Src1Ty          The storage type for the elements in matrix B. The matrix B
 
                 The ``Src1Ty`` parameter must be ``int`` or ``uint``.
 
-
 Src2Ty          The storage type for the elements in matrix A. The matrix A
                 is stored in a vector of this type. The matrix elements are
                 present in the row-major order in the vector.
 
                 The ``Src2Ty`` parameter must be ``int`` or ``uint``.
-
 
 AccSize         The number of elements in the C and D matrices. The number
                 of elements in the C and D matrices is equal to the product
@@ -7911,7 +9056,6 @@ Src1Size        The number of elements in the ``Src1`` argument, derived
                 The ``Src1Size`` parameter must be equal to
                 :math:`\frac{\text{SystolicDepth} \times \text{Src1PrecisionBits} \times \text{OpsPerChannel}}{32} \times \text{ExecSize}`.
 
-
 Src2Size        The number of elements in the ``Src2`` argument, derived
                 from the number of matrix A elements. The number of elements
                 in the matrix A is equal to the product of the matrix
@@ -7919,7 +9063,6 @@ Src2Size        The number of elements in the ``Src2`` argument, derived
 
                 The ``Src1Size`` parameter must be equal to
                 :math:`\text{RepeatCount} \times \frac{\text{SystolicDepth} \times \text{Src2PrecisionBits} \times \text{OpsPerChannel}}{32}`.
-
 
 Acc             The matrix C, which is the accumulator matrix. It's represented
                 as a vector of ``AccSize`` elements of type ``AccTy`` in
@@ -7966,8 +9109,8 @@ the macros defined in the table.
 ===================== ================== ============= ========================
 
 
-cm_dpas (gen12+)
-^^^^^^^^^^^^^^^^
+cm_dpas
+^^^^^^^
 
 Dot Product Accumulate Systolic (DPAS) operation is a matrix multiplication
 operation that supports the following interface:
@@ -8035,7 +9178,7 @@ thread group size) or in divergent code. In such cases the behavior is undefined
 
 
 
-4.20 Preprocessor Directives
+4.21 Preprocessor Directives
 ----------------------------
 
 Currently C for Metal supports the following preprocessor directives (pragmas):
@@ -8052,7 +9195,7 @@ for n times. The C for Metal compiler may still not unroll the loop if infeasibl
 This pragma may be specified immediately before a loop to instruct the C for Metal compiler to completely
 unroll a loop. The C for Metal compiler may not unroll the loop if infeasible.
 
-4.21 Rounding mode and float control support
+4.22 Rounding mode and float control support
 --------------------------------------------
 
 C for Metal supports setting of floating point rounding mode and other floating point control on a per-kernel
@@ -8155,7 +9298,7 @@ Mixed control examples
   }
 
 
-4.22 Miscellaneous Functions
+4.23 Miscellaneous Functions
 ----------------------------
 
 cm_get_hwid
@@ -11049,7 +12192,7 @@ further information on the output content and the data field description, please
 | VME Interface Access Macros for Gen7
 |
 | The formats of input/output access macros are similar to those defined for Gen6. The types of
-| input/output data variables are specified in Section 4.12.2.
+| input/output data variables are specified in Section 4.13.2.
 |
 | List of Input Access Macros:
 |
@@ -11546,7 +12689,7 @@ VME Interface Access Macros for Gen7_5
 --------------------------------------
 
 The formats of input/output access macros are similar to those defined for Gen6. The types of
-input/output data variables are specified in Section 4.12.3.
+input/output data variables are specified in Section 4.13.3.
 
 List of Input Access Macros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -12398,7 +13541,7 @@ VME Interface Access Macros for Gen8
 ------------------------------------
 
 The formats of input/output access macros are similar to those defined for Gen6. The types of
-input/output data variables are specified in Section 4.12.4.
+input/output data variables are specified in Section 4.13.4.
 
 List of Input Access Macros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
