@@ -1106,6 +1106,8 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(HandleBuiltinTF32CVTImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_srnd_impl:
     return RValue::get(HandleBuiltinSRNDImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_srnd_bf8_impl:
+    return RValue::get(HandleBuiltinSRNDFP8Impl(getCurCMCallInfo(), Kind));
   case CMBK_cm_load_impl:
   case CMBK_cm_load4_impl:
   case CMBK_cm_block_load_impl:
@@ -7135,6 +7137,37 @@ llvm::Value *CGCMRuntime::HandleBuiltinSRNDImpl(CMCallInfo &CallInfo,
   Result->setDebugLoc(CI->getDebugLoc());
   CallInfo.CI->eraseFromParent();
   return Result;
+}
+
+
+/// \brief Postprocess builtin cm_srnd_fp8
+///
+/// template <typename InputTy, typename BiasTy, unsigned Width>
+/// vector<uint8_t, Width>
+/// __cm_intrinsic_impl_bf8_srnd(vector<InputTy, Width> Src,
+///                              vector<BiasTy, Width> Bias);
+///
+llvm::Value *CGCMRuntime::HandleBuiltinSRNDFP8Impl(CMCallInfo &CallInfo,
+                                                   CMBuiltinKind Kind) {
+  auto IID = llvm::GenXIntrinsic::genx_biased_rounding_bf8;
+
+  assert(Kind == CMBK_cm_srnd_bf8_impl);
+
+  auto *CI = CallInfo.CI;
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  auto *Src = CI->getArgOperand(0);
+  auto *Bias = CI->getArgOperand(1);
+  auto *SrcTy = Src->getType();
+  auto *Ty = CI->getType();
+
+  auto *F = getGenXIntrinsic(IID, {Ty, SrcTy});
+  auto *NewCI = Builder.CreateCall(F, {Src, Bias});
+  NewCI->takeName(CI);
+  NewCI->setDebugLoc(CI->getDebugLoc());
+
+  CI->eraseFromParent();
+  return NewCI;
 }
 
 
