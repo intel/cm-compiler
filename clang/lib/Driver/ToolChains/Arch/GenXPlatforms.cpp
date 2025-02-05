@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2023-2024 Intel Corporation
+Copyright (C) 2023-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -92,6 +92,8 @@ static const std::unordered_map<std::string, uint32_t> PciId {
   {"0xe20c", encodeGmdId(20, 1, 0)},
   {"0xe20d", encodeGmdId(20, 1, 0)},
   {"0xe212", encodeGmdId(20, 1, 0)},
+  {"0xe215", encodeGmdId(20, 1, 0)},
+  {"0xe216", encodeGmdId(20, 1, 0)},
   {"0x7d51", encodeGmdId(12, 74, 4)},
   {"0x7dd1", encodeGmdId(12, 74, 4)},
   {"0x7d55", encodeGmdId(12, 71, 4)},
