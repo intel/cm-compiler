@@ -19,6 +19,10 @@ CM_NODEBUG CM_INLINE uint cm_local_id(uint dim) {
   return __spirv_BuiltInLocalInvocationId(dim);
 }
 
+CM_NODEBUG CM_INLINE uint cm_global_id(uint dim) {
+  return __spirv_BuiltInGlobalInvocationId(dim);
+}
+
 CM_NODEBUG CM_INLINE uint cm_local_size(uint dim) {
   return __spirv_BuiltInWorkgroupSize(dim);
 }

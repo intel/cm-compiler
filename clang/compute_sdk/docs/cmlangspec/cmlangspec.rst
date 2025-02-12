@@ -5259,6 +5259,14 @@ cm_linear_global_size
 
 Get the total number of threads.
 
+cm_global_id
+""""""""""""
+.. code-block:: c++
+
+  uint cm_global_id (uint dim);
+
+Get the global thread ID of this thread along dimension 'dim'.
+
 
 SLM Functions
 ^^^^^^^^^^^^^
