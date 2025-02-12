@@ -635,6 +635,11 @@ private:
   llvm::Value *HandleBuiltinDPASImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
   /// \brief Postprocess dpas2 implementation builtin.
   llvm::Value *HandleBuiltinDPAS2Impl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+  /// \brief Postprocess builtin cm_qf_cvt.
+  llvm::Value *HandleBuiltinQFCVTImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+  /// \brief Postprocess builtin cm_hf8_cvt.
+  llvm::Value *HandleBuiltinHF8CVTImpl(CMCallInfo &CallInfo,
+                                       CMBuiltinKind Kind);
   /// \brief Postprocess builtin cm_srnd
   llvm::Value *HandleBuiltinSRNDFP8Impl(CMCallInfo &CallInfo,
                                         CMBuiltinKind Kind);

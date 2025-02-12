@@ -1108,6 +1108,10 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(HandleBuiltinSRNDImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_srnd_bf8_impl:
     return RValue::get(HandleBuiltinSRNDFP8Impl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_qf_cvt_impl:
+    return RValue::get(HandleBuiltinQFCVTImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_hf8_cvt_impl:
+    return RValue::get(HandleBuiltinHF8CVTImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_load_impl:
   case CMBK_cm_load4_impl:
   case CMBK_cm_block_load_impl:
@@ -7139,6 +7143,51 @@ llvm::Value *CGCMRuntime::HandleBuiltinSRNDImpl(CMCallInfo &CallInfo,
   return Result;
 }
 
+/// \brief Postprocess builtin cm_qf_cvt.
+///
+/// template <typename T, typename T0, int N>
+/// vector<T, N>
+/// __cm_intrinsic_impl_qf_cvt(vector<T0, N> src0)
+///
+llvm::Value *CGCMRuntime::HandleBuiltinQFCVTImpl(CMCallInfo &CallInfo,
+                                                 CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_qf_cvt_impl);
+
+  llvm::CallInst *CI = CallInfo.CI;
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  llvm::Type *Tys[] = {CI->getType(), CI->getOperand(0)->getType()};
+  llvm::Function *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_qf_cvt, Tys);
+  llvm::CallInst *Result =
+      Builder.CreateCall(F, CI->getOperand(0), CI->getName());
+  Result->setDebugLoc(CI->getDebugLoc());
+
+  CI->eraseFromParent();
+  return Result;
+}
+
+/// \brief Postprocess builtin cm_hf8_cvt.
+///
+/// template <typename T, typename T0, int N>
+/// vector<T, N>
+/// __cm_intrinsic_impl_hf8_cvt(vector<T0, N> src0)
+///
+llvm::Value *CGCMRuntime::HandleBuiltinHF8CVTImpl(CMCallInfo &CallInfo,
+                                                  CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_hf8_cvt_impl);
+
+  llvm::CallInst *CI = CallInfo.CI;
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  llvm::Type *Tys[] = {CI->getType(), CI->getOperand(0)->getType()};
+  llvm::Function *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_hf8_cvt, Tys);
+  llvm::CallInst *Result =
+      Builder.CreateCall(F, CI->getOperand(0), CI->getName());
+  Result->setDebugLoc(CI->getDebugLoc());
+
+  CI->eraseFromParent();
+  return Result;
+}
 
 /// \brief Postprocess builtin cm_srnd_fp8
 ///

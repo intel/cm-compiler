@@ -37,7 +37,7 @@ CM_NODEBUG CM_INLINE vector<T, N> cm_qf_cvt(vector<T0, N> src0,
       details::is_one_of_v<T, float> && details::is_one_of_v<T0, uchar>;
 
   CM_STATIC_ERROR((is_bf8_hf16 || is_hf16_bf8 || emu_bf8_fp32 || emu_fp32_bf8),
-                  "unssupported cm_qf_cvt type: "
+                  "unsupported cm_qf_cvt type: "
                   "src->dst must be uchar->half, "
                   "half->uchar for straight conversion or "
                   "float->uchar, "
