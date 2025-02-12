@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2019-2024 Intel Corporation
+Copyright (C) 2019-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -27,7 +27,7 @@ static_assert(0, "CM:w:cm_lsc.h should not be included explicitly");
 ///
 /// @param L1H L1 cache hint
 ///
-/// @param L2H L2 chache hint
+/// @param L2H L2 cache hint
 ///
 /// @param N The number of channels (platform dependent)
 ///
@@ -165,7 +165,7 @@ CM_NODEBUG CM_INLINE void cm_ptr_prefetch(const unsigned *const Ptr,
 ///
 /// @param L1H L1 cache hint
 ///
-/// @param L2H L2 chache hint
+/// @param L2H L2 cache hint
 ///
 /// @param Pred Predicate
 ///
@@ -384,7 +384,7 @@ CM_NODEBUG CM_INLINE auto cm_ptr_load4(const T *const Ptr,
 ///
 /// @param L1H L1 cache hint
 ///
-/// @param L2H L2 chache hint
+/// @param L2H L2 cache hint
 ///
 /// @param Pred Predicate
 ///
@@ -719,7 +719,7 @@ CM_NODEBUG CM_INLINE void cm_store4_slm(
 ///
 /// @param L1H L1 cache hint
 ///
-/// @param L2H L2 chache hint
+/// @param L2H L2 cache hint
 ///
 /// @param Ptr Surface base address
 ///
@@ -1052,7 +1052,7 @@ CM_NODEBUG CM_INLINE void cm_store(SurfaceIndex Idx, int X, int Y,
 ///
 /// @param L1H L1 cache hint
 ///
-/// @param L2H L2 chache hint
+/// @param L2H L2 cache hint
 ///
 /// @param Pred Predicate
 ///
@@ -1339,7 +1339,7 @@ cm_atomic_slm(vector<unsigned, N> Offset,
 ///
 /// @param N The number of channels (platform dependent)
 ///
-/// @param Sfid shaded funnction
+/// @param Sfid shaded function
 ///
 /// @param FenceOp
 ///

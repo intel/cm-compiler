@@ -1,6 +1,6 @@
 .. ========================= begin_copyright_notice ============================
 
-  Copyright (C) 2021-2024 Intel Corporation
+  Copyright (C) 2021-2025 Intel Corporation
 
   SPDX-License-Identifier: MIT
 
@@ -88,7 +88,7 @@ specified. Default revision id is 0.
 
 Preferable way is to use CM_GENX and CM_GENX_REVID only
 
-Macros like CM_GEN12, etc, will be deprecated soon and will probnably not
+Macros like CM_GEN12, etc, will be deprecated soon and will probably not
 appear for new features.
 
 3 C for Metal Header Files
@@ -236,13 +236,13 @@ __CM                           Always defined (without a value) to indicate that
 __CMC                          Always defined (without a value) to indicate that the
                                compiler is cmc.
 
-CM_HAS_LONG_LONG               Defined (with value 1) if the specifed target supports
+CM_HAS_LONG_LONG               Defined (with value 1) if the specified target supports
                                the ``long long`` type.
 
-CM_HAS_DOUBLE                  Defined (with value 1) if the specifed target supports
+CM_HAS_DOUBLE                  Defined (with value 1) if the specified target supports
                                the ``double`` type.
 
-CM_HAS_IEEE_DIV_SQRT           Defined (with value 1) if the specifed target supports
+CM_HAS_IEEE_DIV_SQRT           Defined (with value 1) if the specified target supports
                                IEEE-compliant division and square root operations.
 
 CM_HAS_VA                      Defined (with value 1) if BDW+ video analytics features
@@ -251,78 +251,78 @@ CM_HAS_VA                      Defined (with value 1) if BDW+ video analytics fe
 CM_HAS_VA_PLUS                 Defined (with value 1) if SKL+ video analytics features
                                are available on the specified target.
 
-CM_HAS_BIT_ROTATE              Defined (with value 1) if the specifed target supports
+CM_HAS_BIT_ROTATE              Defined (with value 1) if the specified target supports
                                the ``cm_rol`` and ``cm_ror`` built-in functions.
 
-CM_HAS_BIT_ROTATE_64BIT        Defined (with value 1) if the specifed target supports
+CM_HAS_BIT_ROTATE_64BIT        Defined (with value 1) if the specified target supports
                                64-bit integer data types for the ``cm_rol`` and
                                ``cm_ror`` built-in functions.
 
-CM_HAS_DP4A                    Defined (with value 1) if the specifed target supports
+CM_HAS_DP4A                    Defined (with value 1) if the specified target supports
                                the ``cm_dp4a`` built-in function.
 
-CM_HAS_BFN                     Defined (with value 1) if the specifed target supports
+CM_HAS_BFN                     Defined (with value 1) if the specified target supports
                                the ``cm_bfn`` built-in function.
 
-CM_HAS_BF8                     Defined (with value 1) if the specifed target supports
+CM_HAS_BF8                     Defined (with value 1) if the specified target supports
                                the BFloat8 data type and ``cm_bf8_cvt`` built-in.
 
-CM_HAS_HF8                     Defined (with value 1) if the specifed target supports
+CM_HAS_HF8                     Defined (with value 1) if the specified target supports
                                the HFloat8 data type and ``cm_hf8_cvt`` built-in.
 
-CM_HAS_BF16                    Defined (with value 1) if the specifed target supports
+CM_HAS_BF16                    Defined (with value 1) if the specified target supports
                                the BFloat16 data type and ``cm_bf_cvt`` built-in.
 
-CM_HAS_TF32                    Defined (with value 1) if the specifed target supports
+CM_HAS_TF32                    Defined (with value 1) if the specified target supports
                                the TFloat32 data type and ``cm_tf32_cvt`` built-in.
 
-CM_HAS_DPAS                    Defined (with value 1) if the specifed target supports
+CM_HAS_DPAS                    Defined (with value 1) if the specified target supports
                                the ``cm_dpas`` built-in function.
 
-CM_HAS_DPAS_INT2               Defined (with value 1) if the specifed target supports
+CM_HAS_DPAS_INT2               Defined (with value 1) if the specified target supports
                                the 2-bit integer data as sources for ``cm_dpas``
                                built-in function.
 
-CM_HAS_DPAS_INT4               Defined (with value 1) if the specifed target supports
+CM_HAS_DPAS_INT4               Defined (with value 1) if the specified target supports
                                the 4-bit integer data as sources for ``cm_dpas``
                                built-in function.
 
-CM_HAS_DPAS_INT8               Defined (with value 1) if the specifed target supports
+CM_HAS_DPAS_INT8               Defined (with value 1) if the specified target supports
                                the 8-bit integer data as sources for ``cm_dpas``
                                built-in function.
 
-CM_HAS_DPAS_INT_MIX            Defined (with value 1) if the specifed target supports
+CM_HAS_DPAS_INT_MIX            Defined (with value 1) if the specified target supports
                                the mix of integer data types as sources for
                                ``cm_dpas`` built-in function.
 
-CM_HAS_DPAS_ACC_HALF           Defined (with value 1) if the specifed target supports
+CM_HAS_DPAS_ACC_HALF           Defined (with value 1) if the specified target supports
                                the ``half`` data type as an accumulator for the
                                ``cm_dpas`` built-in function.
 
-CM_HAS_DPAS_ACC_BF16           Defined (with value 1) if the specifed target supports
+CM_HAS_DPAS_ACC_BF16           Defined (with value 1) if the specified target supports
                                the BFloat16 data type as an accumulator for the
                                ``cm_dpas`` built-in function.
 
-CM_HAS_DPASW                   Defined (with value 1) if the specifed target supports
+CM_HAS_DPASW                   Defined (with value 1) if the specified target supports
                                the ``cm_dpasw`` built-in function.
 
-CM_HAS_LSC                     Defined (with value 1) if the specifed target supports
+CM_HAS_LSC                     Defined (with value 1) if the specified target supports
                                LSC data port messages.
 
-CM_HAS_UNTYPED_2D              Defined (with value 1) if the specifed target supports
+CM_HAS_UNTYPED_2D              Defined (with value 1) if the specified target supports
                                Untyped 2D block LSC data port messages.
 
-CM_HAS_SAMPLE_UNORM            Defined (with value 1) if the specifed target supports
+CM_HAS_SAMPLE_UNORM            Defined (with value 1) if the specified target supports
                                media sample32 function.
 
 CM_HAS_SRND_FP16_TO_BF8        Defined (with value 1) if the specified target supports
                                operation for converting ``half`` type values into
                                ``bfloat8`` with stochastic rounding.
 
-CM_HAS_STOCHASTIC_ROUNDING     Defined (with value 1) if the specifed target supports
+CM_HAS_STOCHASTIC_ROUNDING     Defined (with value 1) if the specified target supports
                                the ``cm_srnd`` built-in function.
 
-CM_HAS_GATEWAY_EVENT           Defined (with value 1) if the specifed target supports
+CM_HAS_GATEWAY_EVENT           Defined (with value 1) if the specified target supports
                                the gateway event functions.
 
 CM_HAS_LSC_LOAD_L1RI_L3CA_HINT Defined (with value 1) if the specified target supports

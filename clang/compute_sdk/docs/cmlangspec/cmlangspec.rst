@@ -222,7 +222,7 @@ Changes since C for Metal 6.0
   and atomic functions are also extended to allow SIMD-32. However,
   since SIMD-32 messages may not be natively supported by the target machine,
   compiler may split them into SIMD-16 or SIMD-8. Splitting and merging may
-  require extra temp-registers, hence negaively impact the total registers that
+  require extra temp-registers, hence negatively impact the total registers that
   user code can use.
 
 2 Data Types
@@ -1423,7 +1423,7 @@ Fraction.
 * Parameter 1: matrix(_ref), vector(_ref)
 * Return: vector
 
-Only floating-point type arguments are supported.
+Only single precision floating-point type arguments are supported.
 
 This function returns a vector that contains the fractional portion of each component in the
 input vector/matrix.
@@ -1580,8 +1580,10 @@ Sum of all elements.
 In a SIMD control flow context reduction functions will perform reduction only
 on active channels of its source as determined by its context's SIMD mask.
 
-The order of continuant scalar operation is not guaranteed and the
+Note: The order of continuant scalar operation is not guaranteed and the
 correctness of result should not depend on computation order.
+
+Note: The saturation has a known issue and does not guarantee the correct result.
 
 cm_reduced_min<T>
 ^^^^^^^^^^^^^^^^^
@@ -1872,8 +1874,8 @@ The vector/matrix data type must be unsigned short, and the size must be 8, 16, 
 
 This operation is currently not supported in the SIMD control flow context.
 
-cm_cbit {Gen7+}
-^^^^^^^^^^^^^^^
+cm_cbit
+^^^^^^^
 
 Count component-wise the total bits set in source operand .
 
@@ -1883,8 +1885,8 @@ Count component-wise the total bits set in source operand .
 The source operand must be of "int" type. The destination operand must be of
 "unsigned int" type.
 
-cm_fbl {Gen7+}
-^^^^^^^^^^^^^^
+cm_fbl
+^^^^^^
 
 Find component-wise the first bit from LSB side.
 
@@ -1895,8 +1897,8 @@ The source operand must be of integer type.
 The destination operand must be of "unsigned int" type.
 If the source operand is equal to 0, returns 0xFFFFFFFF.
 
-cm_fbh {Gen7+}
-^^^^^^^^^^^^^^
+cm_fbh
+^^^^^^
 
 Find component-wise the first bit from MSB side.
 
@@ -2142,6 +2144,9 @@ source is uchar, destination must be HF. Otherwise destination must be uchar.
 These functions are target-dependent and only available
 when ``CM_HAS_BF8`` macro is defined.
 
+Note: SAT must be compiler time constant for saturation.
+
+
 cm_hf8_cvt
 ^^^^^^^^^^
 
@@ -2158,6 +2163,9 @@ source is char, destination must be HF. Otherwise destination must be char.
 
 These functions are target-dependent and only available
 when ``CM_HAS_HF8`` macro is defined.
+
+Note: SAT must be compiler time constant for saturation.
+
 
 cm_tf32_cvt
 ^^^^^^^^^^^
@@ -2266,26 +2274,38 @@ These functions are target-dependent and only available when
 cm_bfn
 ^^^^^^
 
+.. code-block:: c++
+
+  template <BFNT BVAL, typename Ty>
+  Ty cm_bfn(Ty Src0, Ty Src1, Ty Src2);
+
+  template <BFNT BVAL, typename Ty, int N>
+  vector<Ty, N> cm_bfn(vector<Ty, N> Src0, vector<Ty, N> Src1, vector<Ty, N> Src2);
+
 Boolean function calculation.
 
 Performs specified boolean logical operation with 3 sources.
 
-* Template parameter: function index (boolean expression from BFNT
-  enum values)
+========== ====================================================================
+Parameters Description
+========== ====================================================================
+Ty         Type of the boolean function. Must be ``short``, ``ushort``, ``int``
+           or ``uint``. May be omitted.
 
-  BFNT values: BFN_X, BFN_Y, BFN_Z (correspond to s0, s1 and s2). Any
-  boolean expression with these values and ~, &, | and ^ operators is
-  allowed.
+BVAL       Function index (boolean expression from BFNT enum values).
+           BFNT values: BFN_X, BFN_Y, BFN_Z (correspond to s0, s1 and s2). Any
+           boolean expression with these values and ~, &, | and ^ operators is
+           allowed.
 
-* Parameter 1: s0 (scalar or vector)
-* Parameter 2: s1 (scalar or vector)
-* Parameter 3: s2 (scalar or vector)
-* Return: scalar or vector (depending on parameter types)
+Src0       The first input. Must be of the same type as ``Ty``.
 
-Parameters must be either all scalars of short/ushort/int/uint type or
-all vectors of such types. All parameter types must be the same. Mix
-of vector and vector_ref is allowed -- vector_ref will be implicitly
-converted to vector type.
+Src1       The second input. Must be of the same type as ``Ty``.
+
+Src2       The third input. Must be of the same type as ``Ty``.
+========== ====================================================================
+
+All parameter types must be the same. Mix of vector and vector_ref is allowed
+-- vector_ref will be implicitly converted to vector type.
 
 The function is only available when the ``CM_HAS_BFN`` macro is defined.
 
@@ -2298,11 +2318,41 @@ Example:
 cm_bf_reverse
 ^^^^^^^^^^^^^
 
-Bitfield reverse.
-Bitwise reverse of unsigned 32 bit src operand.
+.. code-block:: c++
 
-* Parameter 1: src (vector)
-* Return: vector
+  template <typename T0, typename T1, int SZ>
+  vector<T0, SZ> cm_bf_reverse(vector<T1, SZ> src);
+
+  template <typename T0, typename T1, int N1, int N2>
+  vector<T0, N1 *N2> cm_bf_reverse(matrix<T1, N1, N2> src);
+
+  template <typename T0, typename T1>
+  T0 cm_bf_reverse(T1 src);
+
+Bitfield reverse.
+
+========== ====================================================================
+Parameters Description
+========== ====================================================================
+T0         Output type. It's unsigned 32-bit function, so if the output type
+           is not ``uint``, ``uint`` will be converted to the output type.
+           The template parameter can be omitted.
+
+T1         Input type. It's unsigned 32-bit function, so if the input type
+           is not ``uint``, it will be converted ``uint`` first.
+           The template parameter can be omitted.
+
+SZ         Vector size.
+           The template parameter can be omitted.
+
+N1         Matrix height.
+           The template parameter can be omitted.
+
+N2         Matrix width.
+           The template parameter can be omitted.
+
+src        The input. Must be of the same type as ``T0``.
+========== ====================================================================
 
 An example of intrinsic function usage:
 
@@ -2613,6 +2663,7 @@ cm_load
                                 vector<ushort, N> Pred = 1);
 
 
+
 The compiler generates code for the hardware to perform gather read from
 memory. The underlying surface must be a buffer.
 Any byte(s) of the accessed block which is outside of the specified
@@ -2658,6 +2709,55 @@ M               Total number of data elements to be written.
 
 Offset          Zero based offset of the input buffer in *bytes*. Must be
                 ``DS`` aligned when ``VS`` is not VectorSize::N1.
+
+Pred            Predicate. if 0, certain element vector won't be loaded
+                from the memory. Optional argument.
+=============== ==================================================================
+
+
+cm_load4
+""""""""
+.. code-block:: c++
+
+  template <typename T, ChannelMaskType Mask,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  auto cm_load4(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                vector<ushort, N> Pred = 1);
+
+
+
+The compiler generates code for the hardware to perform gather read from
+memory. The underlying surface must be a buffer.
+Any byte(s) of the accessed block which is outside of the specified
+buffer bounds are considered to be "out-of-bound". Hardware will return 0
+for the out-of-bound bytes.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+Mask            Mask for enabled channels. Specifies number of elements
+                to be read for each offset element.
+
+DS              Data size.
+                When DS is DataSize::Default, it's obtained from ``T`` data type.
+                Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
+                DataSize::U64.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Load cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Idx             Surface index corresponding to buffer surface.
+
+N               Number of the vectors.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned when ``Mask`` is not a single channel.
 
 Pred            Predicate. if 0, certain element vector won't be loaded
                 from the memory. Optional argument.
@@ -2714,6 +2814,58 @@ M               Total number of data elements to be written.
 
 Offset          Zero based offset of the input buffer in *bytes*. Must be
                 ``DS`` aligned when ``VS`` is not VectorSize::N1.
+
+Pred            Predicate. if 0, certain element vector won't be written
+                to the memory. Optional argument.
+=============== ==================================================================
+
+
+
+cm_store4
+"""""""""
+.. code-block:: c++
+
+  template <typename T, ChannelMaskType Mask,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  void cm_store4(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                vector<T, N * M> Data, vector<ushort, N> Pred = 1);
+
+
+The compiler generates code for the hardware to perform scatter write to memory.
+The underlying surface must be a buffer.
+Any byte(s) of the accessed block which is outside of the specified
+buffer are considered to be "out-of-bound".
+Hardware will not update the out-of-bound bytes in memory.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+Mask            Mask for enabled channels. Only contiguous channel masks are
+                supported (R, GR, BGR and ABGR).
+
+DS              Data size.
+                When DS is DataSize::Default, it's obtained from ``T`` data type.
+                Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
+                DataSize::U64.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Store cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Idx             Surface index corresponding to buffer surface.
+
+N               Number of the vectors.
+
+M               The size ``M`` must be equal to the number of enabled
+                channels.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned when ``Mask`` is not a single channel.
 
 Pred            Predicate. if 0, certain element vector won't be written
                 to the memory. Optional argument.
@@ -2910,8 +3062,8 @@ cm_ptr_load
 The compiler generates code for the hardware to perform block read from
 memory. The underlying surface must be a buffer.
 Any byte(s) of the accessed block which is outside of the specified
-buffer bounds are considered to be "out-of-bound". Hardware will return 0
-for the out-of-bound bytes.
+buffer bounds are illegal, and the behavior is *undefined*.
+
 
 =============== ==================================================================
 Parameter       Description
@@ -2956,8 +3108,7 @@ cm_ptr_store
 The compiler generates code for the hardware to perform block write to memory.
 The underlying surface must be a buffer.
 Any byte(s) of the accessed block which is outside of the specified
-buffer are considered to be "out-of-bound".
-Hardware will not update the out-of-bound bytes in memory.
+buffer are illegal, and the behavior is *undefined*.
 
 =============== ==================================================================
 Parameter       Description
@@ -2996,7 +3147,9 @@ cm_ptr_prefetch
 
 
 The compiler generates code for the hardware to perform block prefetch from
-memory. The underlying surface must be a buffer.
+memory. The underlying surface must be a buffer. Any byte(s) of the accessed
+block which is outside of the specified buffer bounds are illegal,
+and the behavior is *undefined*.
 
 =============== ===========================================================
 Parameter       Description
@@ -3038,9 +3191,9 @@ cm_ptr_load
 
 The compiler generates code for the hardware to perform gather read from
 memory. The underlying surface must be a buffer.
+
 Any byte(s) of the accessed block which is outside of the specified
-buffer bounds are considered to be "out-of-bound". Hardware will return 0
-for the out-of-bound bytes.
+buffer bounds are illegal, and the behavior is *undefined*.
 
 =============== ==================================================================
 Parameter       Description
@@ -3075,6 +3228,53 @@ Pred            Predicate. if 0, certain element vector won't be loaded
 =============== ==================================================================
 
 
+cm_ptr_load4
+""""""""""""
+.. code-block:: c++
+
+  template <typename T, ChannelMaskType Mask,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  auto cm_ptr_load4(const T *const Ptr, vector<unsigned, N> Offset,
+                                   vector<ushort, N> Pred = 1);
+
+
+The compiler generates code for the hardware to perform gather read from
+memory. The underlying surface must be a buffer.
+Any byte(s) of the accessed block which is outside of the specified
+buffer bounds are illegal, and the behavior is *undefined*.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+Mask            Mask for enabled channels. Specifies number of elements
+                to be read for each offset element.
+
+DS              Data size.
+                When DS is DataSize::Default, it's obtained from ``T`` data type.
+                Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
+                DataSize::U64.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Load cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Ptr             Pointer which holds the address of a buffer in the memory.
+
+N               Number of the vectors.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned when ``Mask`` is not a single channel.
+
+Pred            Predicate. if 0, certain element vector won't be loaded
+                from the memory. Optional argument.
+=============== ==================================================================
+
+
 
 cm_ptr_store
 """"""""""""
@@ -3091,8 +3291,7 @@ cm_ptr_store
 The compiler generates code for the hardware to perform scatter write to memory.
 The underlying surface must be a buffer.
 Any byte(s) of the accessed block which is outside of the specified
-buffer are considered to be "out-of-bound".
-Hardware will not update the out-of-bound bytes in memory.
+buffer are illegal, and the behavior is *undefined*.
 
 =============== ==================================================================
 Parameter       Description
@@ -3129,6 +3328,58 @@ Pred            Predicate. if 0, certain element vector won't be written
 =============== ==================================================================
 
 
+cm_ptr_store4
+"""""""""""""
+.. code-block:: c++
+
+  template <typename T, ChannelMaskType Mask,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default>
+  void cm_ptr_store(T *Ptr, vector<unsigned, N> Offset,
+                    vector<T, N * M> Data, vector<ushort, N> Pred = 1);
+
+
+The compiler generates code for the hardware to perform scatter write to memory.
+The underlying surface must be a buffer.
+Any byte(s) of the accessed block which is outside of the specified
+buffer are illegal, and the behavior is *undefined*.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+Mask            Mask for enabled channels. Only contiguous channel masks are
+                supported (R, GR, BGR and ABGR).
+
+DS              Data size.
+                When DS is DataSize::Default, it's obtained from ``T`` data type.
+                Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
+                DataSize::U64.
+
+L1H, L2H        Cache hints. Not all the combinations are supported.
+                See `Store cache control policy` table.
+                The compiler will emit an error when invalid hints are set.
+                Optional arguments.
+
+Ptr             Pointer which holds the address of a buffer in the memory.
+
+
+N               Number of the vectors.
+
+M               The size ``M`` must be equal to the number of enabled
+                channels.
+
+Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned when ``Mask`` is not a single channel.
+
+Pred            Predicate. if 0, certain element vector won't be written
+                to the memory. Optional argument.
+=============== ==================================================================
+
+
+
 
 cm_ptr_prefetch
 """""""""""""""
@@ -3142,7 +3393,9 @@ cm_ptr_prefetch
 
 
 The compiler generates code for the hardware to perform gather prefetch from
-memory. The underlying surface must be a buffer.
+memory. The underlying surface must be a buffer. Any byte(s) of the accessed
+block which is outside of the specified buffer are illegal,
+and the behavior is *undefined*.
 
 =============== ==================================================================
 Parameter       Description
@@ -3205,7 +3458,9 @@ cm_ptr_atomic
 
 
 The compiler generates code for the hardware to perform atomic memory operation
-that modifies memory and returns the original memory data.
+that modifies memory and returns the original memory data. The underlying surface
+must be a buffer. Any byte(s) of the accessed block which is outside
+of the specified buffer are illegal, and the behavior is *undefined*.
 
 =============== ==================================================================
 Parameter       Description
@@ -3252,6 +3507,278 @@ Src1            Second operand. It must be set if ``Op`` is AtomicOp::ICAS or
                 AtomicOp::FCAS
 
 Offset          Zero based offset of the input buffer in *bytes*. Must be
+                ``DS`` aligned when ``VS`` is not VectorSize::N1.
+
+Pred            Predicate. if 0, certain element vector won't be prefetched
+                from the memory. Optional argument.
+=============== ==================================================================
+
+Supported atomic operations:
+
+================ ============================== ============== ===============
+Kind             Supported Data types           First Operand  Second Operand
+================ ============================== ============== ===============
+AtomicOp::IINC   U16, U32, U64                  N              N
+
+AtomicOp::IDEC   U16, U32, U64                  N              N
+
+AtomicOp::LOAD   U16, U32, U64, F16, F32, F64   N              N
+
+AtomicOp::STORE  U16, U32, U64, F16, F32, F64   Y              N
+
+AtomicOp::IADD   U16, U32, U64                  Y              N
+
+AtomicOp::ISUB   U16, U32, U64                  Y              N
+
+AtomicOp::SMIN   U16, U32, U64                  Y              N
+
+AtomicOp::SMAX   U16, U32, U64                  Y              N
+
+AtomicOp::UMIN   U16, U32, U64                  Y              N
+
+AtomicOp::UMAX   U16, U32, U64                  Y              N
+
+AtomicOp::AND    U16, U32, U64                  Y              N
+
+AtomicOp::OR     U16, U32, U64                  Y              N
+
+AtomicOp::XOR    U16, U32, U64                  Y              N
+
+AtomicOp::FADD   F16, F32, F64                  Y              N
+
+AtomicOp::FSUB   F16, F32, F64                  Y              N
+
+AtomicOp::FMIN   F16, F32, F64                  Y              N
+
+AtomicOp::FMAX   F16, F32, F64                  Y              N
+
+AtomicOp::ICAS   F16, U32, U64                  Y              Y
+
+AtomicOp::FCAS   F16, F32, F64                  Y              Y
+================ ============================== ============== ===============
+
+
+Shared local memory gather/scatter/atomic
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+cm_load_slm
+"""""""""""
+.. code-block:: c++
+
+  template <typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default>
+  auto cm_load_slm(vector<unsigned, N> Offset,
+                   vector<ushort, N> Pred = 1);
+
+The compiler generates code for the hardware to perform gather read from
+the shared local memory.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+VS              Specifies number of elements to be read for each offset element.
+                Allowed values are: VectorSize::N1, VectorSize::N2,
+                VectorSize::N3, VectorSize::N4, VectorSize::N8, VectorSize::N16,
+                VectorSize::N32, VectorSize::N64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+                When DS is DataSize::Default, it's obtained from ``T`` data type.
+                Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
+                DataSize::U64.
+
+N               Number of the vectors.
+
+Offset          Zero based offset of the shared local memory in *bytes*. Must be
+                ``DS`` aligned when ``VS`` is not VectorSize::N1.
+
+Pred            Predicate. if 0, certain element vector won't be loaded
+                from the memory. Optional argument.
+=============== ==================================================================
+
+
+cm_load_slm4
+""""""""""""
+.. code-block:: c++
+
+  template <typename T, ChannelMaskType Mask,
+            DataSize DS = DataSize::Default>
+  auto cm_load_slm4(vector<unsigned, N> Offset,
+                   vector<ushort, N> Pred = 1);
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+Mask            Mask for enabled channels. Specifies number of elements
+                to be read for each offset element.
+
+DS              Data size.
+                When DS is DataSize::Default, it's obtained from ``T`` data type.
+                Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
+                DataSize::U64.
+
+N               Number of the vectors.
+
+Offset          Zero based offset of the shared local memory in *bytes*. Must be
+                ``DS`` aligned when ``Mask`` is not a single channel.
+
+Pred            Predicate. if 0, certain element vector won't be loaded
+                from the memory. Optional argument.
+=============== ==================================================================
+
+
+cm_store_slm
+""""""""""""
+.. code-block:: c++
+
+  template <typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default>
+  void cm_store_slm(vector<unsigned, N> Offset,
+                    vector<T, N * M> Data,
+                    vector<ushort, N> Pred = 1);
+
+  template <typename T, int NElts,
+            DataSize DS = DataSize::Default>
+  void cm_store_slm(vector<unsigned, N> Offset,
+                    vector<T, N * M> Data,
+                    vector<ushort, N> Pred = 1);
+
+The compiler generates code for the hardware to perform scatter write to the shared
+local memory.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+VS              Specifies number of elements to be written for each offset element.
+                Allowed values are: VectorSize::N1, VectorSize::N2,
+                VectorSize::N3, VectorSize::N4, VectorSize::N8, VectorSize::N16,
+                VectorSize::N32, VectorSize::N64.
+                The compiler will emit an error when invalid value is set.
+
+NElts           Specifies number of elements to be written.
+                Allowed values are: 1, 2, 3, 4, 8, 16, 32, 64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+                When DS is DataSize::Default, it's obtained from ``T`` data type.
+                Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
+                DataSize::U64.
+
+M               The size ``M`` must be equal to the number of elements
+                to be written.
+
+Offset          Zero based offset of the shared local memory in *bytes*. Must be
+                ``DS`` aligned when ``VS`` is not VectorSize::N1.
+
+Pred            Predicate. if 0, certain element vector won't be written
+                to the memory. Optional argument.
+=============== ==================================================================
+
+cm_store_slm4
+"""""""""""""
+.. code-block:: c++
+
+  template <typename T, ChannelMaskType Mask,
+            DataSize DS = DataSize::Default>
+  void cm_store_slm(vector<unsigned, N> Offset,
+                    vector<T, N * M> Data,
+                    vector<ushort, N> Pred = 1);
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+T               Data type.
+
+Mask            Mask for enabled channels. Only contiguous channel masks are
+                supported (R, GR, BGR and ABGR).
+
+DS              Data size.
+                When DS is DataSize::Default, it's obtained from ``T`` data type.
+                Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
+                DataSize::U64.
+
+N               Number of the vectors.
+
+M               The size ``M`` must be equal to the number of enabled
+                channels.
+
+Offset          Zero based offset of the shared local memory in *bytes*. Must be
+                ``DS`` aligned when ``Mask`` is not a single channel.
+
+Pred            Predicate. if 0, certain element vector won't be written
+                to the memory. Optional argument.
+=============== ==================================================================
+
+cm_atomic_slm
+"""""""""""""
+
+.. code-block:: c++
+
+  template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
+          DataSize DS = DataSize::Default>
+  vector<RetTy, M> cm_atomic_slm(vector<unsigned, N> Offset,
+                                 vector<ushort, N> Pred = 1);
+
+  template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
+          DataSize DS = DataSize::Default>
+  vector<RetTy, M> cm_atomic_slm(vector<unsigned, N> Offset,
+                                 vector<T, M> Src0,
+                                 vector<ushort, N> Pred = 1);
+
+  template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
+          DataSize DS = DataSize::Default>
+  vector<RetTy, M> cm_atomic_slm(vector<unsigned, N> Offset,
+                                 vector<T, M> Src0,
+                                 vector<T, M> Src1,
+                                 vector<ushort, N> Pred = 1);
+
+The compiler generates code for the hardware to perform atomic memory operation
+that modifies the shared local memory and returns the original memory data.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+Op              Atomic memory operation kind. See the table below.
+
+T               Data type.
+
+VS              Specifies number of elements to be modified
+                for each offset element.
+                Allowed values are: VectorSize::N1, VectorSize::N2,
+                VectorSize::N3, VectorSize::N4, VectorSize::N8, VectorSize::N16,
+                VectorSize::N32, VectorSize::N64.
+                The compiler will emit an error when invalid value is set.
+
+DS              Data size.
+                Allowed values are DataSize::Default, DataSize::U16,
+                DataSize::U32 and DataSize::U64.
+
+RetTy           Return data type, obtained from ``T`` and ``DS``.
+                When ``DS`` is DataSize::Default, ``RetTy`` is same as ``T``.
+                When ``DS`` is DataSize::U16, ``RetTy`` is U16.
+                When ``DS`` is DataSize::U32, ``RetTy`` is U32.
+                When ``DS`` is DataSize::U64, ``RetTy`` is U64.
+                The compiler will emit an error when invalid value is set.
+
+N               Number of the vectors.
+
+M               Total number of data elements to be modified.
+                It must be equal to
+                :math:`\text{N} \times \text{VS}`.
+
+Src0            First Operand. It must be set unless ``Op`` is AtomicOp::IINC,
+                AtomicOp::IDEC or AtomicOp::LOAD
+
+Src1            Second operand. It must be set if ``Op`` is AtomicOp::ICAS or
+                AtomicOp::FCAS
+
+Offset          Zero based offset of the shared local memory in *bytes*. Must be
                 ``DS`` aligned when ``VS`` is not VectorSize::N1.
 
 Pred            Predicate. if 0, certain element vector won't be prefetched
@@ -4350,6 +4877,98 @@ Y               Block start Y coordinate.
                 Specifies the signed Y offset in number of data elements.
 =============== ==================================================================
 
+Fence
+^^^^^
+
+cm_fence
+""""""""
+.. code-block:: c++
+
+  template <LSC_SFID Sfid = LSC_SFID::LSC_UGM,
+          LSC_FENCE_OP FenceOp = LSC_FENCE_OP::LSC_FENCE_OP_NONE,
+          LSC_SCOPE Scope = LSC_SCOPE::LSC_SCOPE_GROUP>
+  void cm_fence(vector<ushort, N> Pred = 1);
+
+The compiler generates code for the hardware to perform a fence operation that is
+used to order memory transactions from the point of view of the calling thread.
+The calling thread must wait for the fence operation to complete to guarantee
+that pending writes, and any flushes, have completed before continuing execution.
+
+=============== ==================================================================
+Parameter       Description
+=============== ==================================================================
+Sfid            Specifies the memory port: LSC_SFID::LSC_UGM, LSC_SFID::LSC_TGM,
+                LSC_SFID::LSC_SLM.
+
+FenceOp         Defines what caches and how should be flushed:
+                See the table below for supported values.
+
+Scope           Defines where any memory transactions from the issuing thread are
+                guaranteed to be observable once the fence is complete.
+                See the table below for supported values.
+                The compiler will emit an error when invalid scope is specified.
+=============== ==================================================================
+
+Supported FenceOp:
+
+======================================== =========================================
+FenceOp                                  Description
+======================================== =========================================
+LSC_FENCE_OP::LSC_FENCE_OP_NONE          No caches are flushed
+
+LSC_FENCE_OP::LSC_FENCE_OP_EVICT         Evict dirty lines and invalidate
+                                         clean linesNo caches are flushed
+
+LSC_FENCE_OP::LSC_FENCE_OP_INVALIDATE    Invalidate clean lines in the cache
+
+LSC_FENCE_OP::LSC_FENCE_OP_DISCARD       Invalidate dirty lines without write-back
+                                         to next level
+
+LSC_FENCE_OP::LSC_FENCE_OP_CLEAN         Write-back dirty lines to the next level,
+                                         but keep in the cache as clean.
+                                         Lines that were already marked valid stay
+                                         in the valid state.
+
+LSC_FENCE_OP::LSC_FENCE_OP_FLUSHL3       Flush read-write section of the L3 cache,
+                                         but leave L1 and L2 caches untouched
+======================================== =========================================
+
+Supported Scope:
+
+================================== ===============================================
+Scope                              Description
+================================== ===============================================
+LSC_SCOPE::LSC_SCOPE_GROUP         Wait until all previous memory transactions
+                                   from this thread are observed within
+                                   the local thread-group
+
+LSC_SCOPE::LSC_SCOPE_LOCAL         Wait until all previous memory transactions
+                                   from this thread are observed within
+                                   the local sub-slice
+
+LSC_SCOPE::LSC_SCOPE_TILE          Wait until all previous memory transactions
+                                   from this thread are observed in the local tile
+
+LSC_SCOPE::LSC_SCOPE_GPU           Wait until all previous memory transactions
+                                   from this thread are observed in the local GPU
+
+LSC_SCOPE::LSC_SCOPE_GPUS          Wait until all previous memory transactions
+                                   from this thread are observed across all GPUs
+                                   in the system.
+
+LSC_SCOPE::LSC_SCOPE_SYSTEM        Wait until all previous memory transactions
+                                   from this thread are observed at the system
+                                   level. This scope is available for UGM
+                                   data-port only.
+
+LSC_SCOPE::LSC_SCOPE_SYSACQ        For GPUs that do not follow PCIe Write ordering
+                                   for downstream writes targeting device memory,
+                                   it will commit to device memory all downstream
+                                   and peer writes that have reached the device.
+                                   This scope is available for UGM data-port only.
+======================================== =========================================
+
+
 4.6 Dataport Interface
 ----------------------
 
@@ -4405,7 +5024,7 @@ read
 
 .. code-block:: c++
 
-  void read (SurfaceIndex IND, int X, int Y, matrix_ref<TYPE, M, N> m);
+  void read(SurfaceIndex IND, int X, int Y, matrix_ref<TYPE, M, N> m);
 
 =============== ============================================================
 Parameters
@@ -4436,7 +5055,7 @@ Usage example:
 
 .. code-block:: c++
 
-  read (TOP_FIELD(ind), ...)  // only reads top field surface data
+  read(TOP_FIELD(ind), ...)  // only reads top field surface data
 
 write
 """""
@@ -4623,8 +5242,8 @@ Usage example:
 
 .. code-block:: c++
 
-  read (DWALIGNED(ind), ...)  // the offset ind is DWord aligned
-  read(ind, ...)              // the offset ind is OWord aligned
+  read(DWALIGNED(ind), ...)  // the offset ind is DWord aligned
+  read(ind, ...)             // the offset ind is OWord aligned
 
 write
 """""
@@ -5032,8 +5651,8 @@ r
 The compiler generates code for GenX hardware to perform scattered write to the
 given offsets. Only enabled channels are written to the surface.
 
-Typed Surface Atomic Write {Gen9+}
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Typed Surface Atomic Write
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 {Only for new cm-llvm compiler cmc - not supported for legacy cm-icl compiler - icl}
 
@@ -5114,8 +5733,8 @@ CM_SURFACE_FORMAT_R32_SINT  1D/2D/3D/CUBE/BUFFER                  Integer
 
 
 
-4.7 Shared Local Memory (SLM) and Groups Interface {Gen7+}
-----------------------------------------------------------
+4.7 Shared Local Memory (SLM) and Groups Interface
+--------------------------------------------------
 
 
 The shared local memory (SLM) is a high bandwidth memory that is not backed up by system memory.  It
@@ -5276,7 +5895,7 @@ cm_slm_init
 
 .. code-block:: c++
 
-  void cm_slm_init (uint slmSize);
+  void cm_slm_init(uint slmSize);
 
 Initializes SLM for the kernel. SLM size (in Bytes) needed per
 group has to be specified in 'slmSize'. Maximum SLM size per
@@ -5287,7 +5906,7 @@ cm_slm_alloc
 
 .. code-block:: c++
 
-  uint cm_slm_alloc (uint bufferSize);
+  uint cm_slm_alloc(uint bufferSize);
 
 Allocate a SLM buffer of size 'bufferSize' in current-group's SLM
 -- this is allocated once per group; Maximum of all SLM
@@ -5303,7 +5922,7 @@ cm_slm_write
 
 .. code-block:: c++
 
-  void cm_slm_write (uint slmBuffer,
+  void cm_slm_write(uint slmBuffer,
              vector_ref<ushort, N> v_Addr,
              vector_ref<TYPE, N> v_Src);
 
@@ -5323,7 +5942,7 @@ cm_slm_write4
 
 .. code-block:: c++
 
-  void cm_slm_write4 (uint slmBuffer,
+  void cm_slm_write4(uint slmBuffer,
              vector_ref<uint, N> v_Addr,
              vector_ref<TYPE, M> v_Src,
              SLM_ChannelMaskType mask);
@@ -5466,7 +6085,7 @@ cm_slm_fence
 
 .. code-block:: c++
 
-  void cm_slm_fence (unsigned char mask);
+  void cm_slm_fence(unsigned char mask);
 
 For Gen10+, cm_slm_fence(CM_GLOBAL_COHERENT_FENCE) must be
 added before a barrier to enforce read/write ordering.
@@ -5476,7 +6095,7 @@ cm_barrier
 
 .. code-block:: c++
 
-  void cm_barrier (void);
+  void cm_barrier(void);
 
 Inserts a barrier to ensure all writes to SLM before this point
 would be henceforth visible to other threads in the same
@@ -5487,7 +6106,7 @@ cm_global_barrier
 
 .. code-block:: c++
 
-  void cm_global_barrier (void);
+  void cm_global_barrier(void);
 
 Inserts a barrier to synchronize all work-items executing the
 kernel. The barrier should only be used in cooperative kernels,
@@ -5498,7 +6117,7 @@ cm_sbarrier
 
 .. code-block:: c++
 
-  void cm_sbarrier (uint flag);
+  void cm_sbarrier(uint flag);
 
 Split a barrier into two separate events: 1) signal: cm_sbarrier(1);
 2) wait: cm_sbarrier(0). The input parameter flag must be a compile-time constant.
@@ -8524,6 +9143,58 @@ Parameters
 =============== ============================================================
 length
                 number of 32 cycle chunks to pause for
+=============== ============================================================
+
+cm_nbarrier_init {PVC+}
+^^^^^^^^^^^^^^^^^^^^^^^
+
+void cm_nbarrier_init (uchar count);
+
+Initialize named barrier.
+
+=============== ============================================================
+Parameters
+=============== ============================================================
+count
+                The count of named barriers (must be a compile-time constant)
+=============== ============================================================
+
+cm_nbarrier_signal {PVC+}
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+void cm_nbarrier_signal (uint barrierId, uint prodConsMode, uint numProducers, uint numConsumers);
+
+Perform signal operation for the given named barrier.
+
+=============== ============================================================
+Parameters
+=============== ============================================================
+barrierId
+                The named barrier id (it's value cannot exceed the total count of initialized named barriers)
+
+prodConsMode
+                A 2-bit flag to indicate if it's producer mode (0x1) or consumer mode (0x2). Programmer must
+                ensure the input value is set in correct range and higher order bits are cleared.
+
+numProducers
+                Number of producers
+
+numConsumers
+                Number of consumers
+=============== ============================================================
+
+cm_nbarrier_wait {PVC+}
+^^^^^^^^^^^^^^^^^^^^^^^
+
+void cm_nbarrier_wait (uchar id);
+
+Wait on a named barrier.
+
+=============== ============================================================
+Parameters
+=============== ============================================================
+id
+                The named barrier id (it's value cannot exceed the total count of initialized named barriers)
 =============== ============================================================
 
 
