@@ -163,7 +163,7 @@ namespace CheckVersion {
   #define CM_HAS_BIT_ROTATE_64BIT_CONTROL CM_HAS_CONTROL(false)
 #endif
 
-#if (CM_GENX >= 1280) // >= PVC
+#if (CM_GENX == 1280) // == PVC
   #define CM_HAS_LSC_SYS_FENCE 1
 #endif
 
