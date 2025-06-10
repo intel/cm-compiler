@@ -34,6 +34,7 @@ static const std::unordered_map<std::string, uint32_t> DeviceId = {
   {"ptl-u", encodeGmdId(30, 1, 0)},
   {"ptl-h", encodeGmdId(30, 0, 4)},
   {"lnl-m", encodeGmdId(20, 4, 4)},
+  {"bmg-g31", encodeGmdId(20, 2, 0)},
   {"bmg-g21", encodeGmdId(20, 1, 0)},
   {"arl-h", encodeGmdId(12, 74, 4)},
   {"mtl-h", encodeGmdId(12, 71, 4)},
