@@ -16,7 +16,7 @@ using clang::driver::tools::GenX::encodeGmdId;
 // clang-format off
 static const std::unordered_map<std::string, uint32_t> ReleaseId = {
   {"xe2-lpg", encodeGmdId(20, 4, 4)},
-  {"xe2-hpg", encodeGmdId(20, 1, 0)},
+  {"xe2-hpg", encodeGmdId(20, 2, 0)},
   {"xe-lpgplus", encodeGmdId(12, 74, 4)},
   {"xe-lpg", encodeGmdId(12, 71, 4)},
   {"xe-hpc-vg", encodeGmdId(12, 61, 7)},
@@ -101,6 +101,7 @@ static const std::unordered_map<std::string, uint32_t> PciId {
   {"0xe223", encodeGmdId(20, 2, 0)},
   {"0xe202", encodeGmdId(20, 1, 0)},
   {"0xe20b", encodeGmdId(20, 1, 0)},
+  {"0xe209", encodeGmdId(20, 1, 0)},
   {"0xe20c", encodeGmdId(20, 1, 0)},
   {"0xe20d", encodeGmdId(20, 1, 0)},
   {"0xe210", encodeGmdId(20, 1, 0)},
