@@ -4752,7 +4752,6 @@ Typed 2D block load/store
 These functions are target-dependent and only available
 when ``CM_HAS_LSC_TYPED_2D`` macro is defined.
 
-
 cm_load
 """""""
 
@@ -4762,6 +4761,13 @@ cm_load
             CacheHint L2H = CacheHint::Default>
   void cm_load(SurfaceIndex Idx, int X, int Y, matrix_ref<T, Height, Width> Data);
 
+
+Any byte(s) of the accessed 2D block which is outside of the specified
+2D Surface bounds (Width, Height) are considered to be "out-of-bound".
+Hardware will return 0 for the out-of-bound bytes.
+
+Note: out-of-bound accesses crossing top and/or left borders cause
+an undefined behavior, when executed under NEO runtime.
 
 =============== ==================================================================
 Parameter       Description
@@ -4809,6 +4815,9 @@ Any byte(s) of the accesed 2D block which is outside of the specified 2D Surface
 bounds (Width, Height) are considered to be "out-of-bound".
 For stores, hardware will not write to the out-of-bound addresses in the memory.
 
+Note: out-of-bound accesses crossing top and/or left borders cause
+an undefined behavior, when executed under NEO runtime.
+
 =============== ==================================================================
 Parameter       Description
 =============== ==================================================================
@@ -4849,6 +4858,12 @@ cm_prefetch
 
 The compiler generates code for the hardware to perform 2D block prefetch from one
 rectangular block in memory. The underlying surface must be Surface 2D and Typed.
+
+Any byte(s) of the accessed 2D block which is outside of the specified
+2D Surface bounds (Width, Height) are considered to be "out-of-bound".
+
+Note: out-of-bound accesses crossing top and/or left borders cause
+an undefined behavior, when executed under NEO runtime.
 
 =============== ==================================================================
 Parameter       Description
