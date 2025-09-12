@@ -11,7 +11,7 @@ SPDX-License-Identifier: MIT
 
 #include "../cm_traits.h"
 
-/* cm/cmtl/numbers.h is a library with predefined numeric constans.
+/* cm/cmtl/numbers.h is a library with predefined numeric constants.
  * It is an analog of <numbers> in C++20 standard library.
  */
 

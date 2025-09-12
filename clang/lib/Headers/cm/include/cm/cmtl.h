@@ -82,8 +82,8 @@ void Boundaries(SurfaceIndex buf_id, int x_pos_bytes, int y_pos_bytes,
                 int surface_width_bytes);
 #endif
 
-// Read a pixel block of size HEIGHT x WIDTH  from surface, all input are in
-// pixel sizes. HEIGHT and WIDTH can be any integer
+// Read a pixel block of size R x C from surface, all input are in
+// pixel sizes. R and C can be any integer
 // Note: to enable efficient IO segmentation set the following define (default
 // is disabled due
 // to CM Compiler bug when using multiple select)
@@ -94,20 +94,19 @@ void Boundaries(SurfaceIndex buf_id, int x_pos_bytes, int y_pos_bytes,
 // h_pix_pos    - horizontal offset in pixel size
 // v_pix_pos    - vertical offset in pixel size
 // matrix_ref   - ref to output matrix
-// surfaceWidth - surface width  in pixel size, when set ReadBlock will properly
-// pixels across
-//                right hand side boundary, for non-dword aligned surfaces)
-template <typename T, int HEIGHT, int WIDTH>
+// surfaceWidth - surface width in pixel size, when set ReadBlock will properly
+//                pixels across right hand side boundary
+//                for non-dword aligned surfaces
+template <typename T, int R, int C>
 void ReadBlock(SurfaceIndex obuf, int h_pix_pos, int v_pix_pos,
-               matrix_ref<T, HEIGHT, WIDTH> block, uint surfaceWidth = 0);
+               matrix_ref<T, R, C> block, uint surfaceWidth = 0);
 
-template <typename T, int HEIGHT, int WIDTH>
+template <typename T, int R, int C>
 void ReadBlock(SurfaceIndex obuf, CmBufferAttrib buf_attrib, int h_pos,
-               int v_pos, matrix_ref<T, HEIGHT, WIDTH> block,
-               uint surfaceWidth = 0);
+               int v_pos, matrix_ref<T, R, C> block, uint surfaceWidth = 0);
 
-// Write a pixel block of size HEIGHT x WIDTH from surface, all inputs are in
-// pixel sizes. HEIGHT and WIDTH can be any integer
+// Write a pixel block of size R x C from surface, all inputs are in
+// pixel sizes. R and C can be any integer
 // Note: to enable efficient IO segmentation set the following define (default
 // is disabled due to CM Compiler bug when using multiple select)
 //
@@ -116,52 +115,50 @@ void ReadBlock(SurfaceIndex obuf, CmBufferAttrib buf_attrib, int h_pos,
 // Parameters:
 // h_pix_pos - horizontal offset in pixel size
 // v_pix_pos - vertical offset in pixel size
-template <typename T, int HEIGHT, int WIDTH>
+template <typename T, int R, int C>
 void WriteBlock(SurfaceIndex obuf, int h_pix_pos, int v_pix_pos,
-                matrix_ref<T, HEIGHT, WIDTH> block);
+                matrix_ref<T, R, C> block);
 
-/* Read a pixel vector of size WIDTH from linear buffer, all inputs are in pixel
-   sizes. WIDTH can be any integer
+/* Read a pixel vector of size N from linear buffer, all inputs are in pixel
+   sizes. N can be any integer
    h_pix_pos - horizontal offset in pixel size
 */
-template <typename T, int WIDTH>
-void ReadLinear(SurfaceIndex ibuf, int pix_pos, vector_ref<T, WIDTH> block);
+template <typename T, int N>
+void ReadLinear(SurfaceIndex ibuf, int pix_pos, vector_ref<T, N> block);
 
-/* Write a pixel vector of size WIDTH to linear buffer, all inputs are in pixel
-   sizes. WIDTH can be any integer
+/* Write a pixel vector of size N to linear buffer, all inputs are in pixel
+   sizes. N can be any integer
    h_pix_pos - horizontal offset in pixel size
 */
-template <typename T, int WIDTH>
-void WriteLinear(SurfaceIndex obuf, int pix_pos, vector_ref<T, WIDTH> block);
+template <typename T, int N>
+void WriteLinear(SurfaceIndex obuf, int pix_pos, vector_ref<T, N> block);
 
 /* ------------------------- Vectorization Routines
  * ---------------------------------------------*/
 
-/* Creates a nighborhood matrix of a 2D Kernel, whereby for each pixel in src,
-   nighbor (i,j) is
+/* Creates a neighborhood matrix of a 2D Kernel, whereby for each pixel in src,
+   neighbor (i,j) is
    located at row(_2D2_1D<KRNL_SZ>(i,j)) "above it".
    Useful to ensure register alignment irrespective of pixel offset (since we
    create copies for every offset),
    src - matrix representing pixel line and rows above / below it that fit into
    the kernel
-   dst - output matrix including vectorized kernel nighborhood.
+   dst - output matrix including vectorized kernel neighborhood.
 */
-template <typename Tsrc, typename Tdst, uint KRNL_SZ, uint SIMD_SZ>
-void Vectorize2DKRNL(matrix_ref<Tsrc, KRNL_SZ, SIMD_SZ + KRNL_SZ - 1> src,
-                     matrix_ref<Tdst, KRNL_SZ *KRNL_SZ, SIMD_SZ> dst);
+template <typename T, typename D, uint KRNL_SZ, uint SIMD_SZ>
+void Vectorize2DKRNL(matrix_ref<T, KRNL_SZ, SIMD_SZ + KRNL_SZ - 1> src,
+                     matrix_ref<D, KRNL_SZ * KRNL_SZ, SIMD_SZ> dst);
 
 /* updatea a single "row" into a vectorized kernel segment of KRNL_SZ rows
-   src - input vector for update
-   dstRow the row segment to update in dst
+   src - input vector for update dstRow the row segment to update in dst
 */
-template <typename Tsrc, typename Tdst, uint KRNL_SZ, uint SIMD_SZ>
-void Vectorize2DKRNLRow(vector_ref<Tsrc, SIMD_SZ + KRNL_SZ - 1> src,
-                        matrix_ref<Tdst, KRNL_SZ *KRNL_SZ, SIMD_SZ> dst,
+template <typename T, typename D, uint KRNL_SZ, uint SIMD_SZ>
+void Vectorize2DKRNLRow(vector_ref<T, SIMD_SZ + KRNL_SZ - 1> src,
+                        matrix_ref<D, KRNL_SZ * KRNL_SZ, SIMD_SZ> dst,
                         int dstRow);
 
-/* translates a matrix representation into vector represnetaiton, use when
-   accessing elements in a
-   vectorized kernel
+/* translates a matrix representation into vector representation, use when
+   accessing elements in a vectorized kernel
 */
 template <uint KRNL_SZ> int _2Dto1D(uint x, uint y);
 
@@ -246,7 +243,7 @@ void Pack(vector_ref<Tpackd, WD> src1, vector_ref<Tpackd, WD> src2,
    a GRF based Cache for top of stack elements
    top of stack pointer can be different for different channels.
    with current implement: Push() will update all channels, a masked Pop() is
-   used to conditionaly pop values from stack channels.
+   used to conditionally pop values from stack channels.
    See the distance transform kernel in sample directory for a working example
 */
 
@@ -257,10 +254,10 @@ void Pack(vector_ref<Tpackd, WD> src1, vector_ref<Tpackd, WD> src2,
    T - type of elements stored in stack
    W - number of channels (SIMD) for a single element on stack
    function params:
-   context, context_ii - internaly used by CachedStack to maintain cache
+   context, context_ii - internally used by CachedStack to maintain cache
    pointers, caller must not modify this params.
    MaxSize - maximum number of elements on stack for a single channel.
-   Caller must allocate the linaer surface with size >=
+   Caller must allocate the linear surface with size >=
    MaxSize*NumThreads*W*Sizeof(T)
    Optimization note: MaxSize should be aligned to: ( CACHELINE / sizeof(T))
    (CACHELINE = 64 bytes)
@@ -272,8 +269,8 @@ void CachedStackInit(matrix_ref<short, 3, W> context,
 /* CachedStackTop - Returns the element from top of Stack, w/o removing from
    stack:
    function params:
-   surf - pointer to linear sruface used for stack
-   context, context_ii - internaly used by CachedStack to maintain cache
+   surf - pointer to linear surface used for stack
+   context, context_ii - internally used by CachedStack to maintain cache
    pointers, caller must not modify this params.
    stack - user allocated stack cache
    element - returned top element
@@ -284,12 +281,12 @@ void CachedStackTop(SurfaceIndex surf, matrix_ref<short, 2, W> context,
                     matrix_ref<T, W, CACHESIZE> stack,
                     vector_ref<T, W> element);
 
-/* CachedStackPop - Conditionaly Pop the top element form that stack based on
+/* CachedStackPop - Conditionally Pop the top element form that stack based on
    mask, for channels with a 0 mask
    pixel element is returned to caller but not Poped (see CacheStackTop)
    function params:
-   surf - pointer to linear sruface used for stack
-   context, context_ii - internaly used by CachedStack to maintain cache
+   surf - pointer to linear surface used for stack
+   context, context_ii - internally used by CachedStack to maintain cache
    pointers, caller must not modify this params.
    stack - user allocated stack cache
    element - returned top element for all channels.
@@ -312,8 +309,8 @@ void CachedStackPop(SurfaceIndex surf, matrix_ref<short, 2, W> context,
 
 /* CachedStackPush - Push an element to top of Stack
    function params:
-   surf - pointer to linear sruface used for stack
-   context, context_ii - internaly used by CachedStack to maintain cache
+   surf - pointer to linear surface used for stack
+   context, context_ii - internally used by CachedStack to maintain cache
    pointers, caller must not modify this params.
    stack - user allocated stack cache
    element - element to push.
@@ -342,7 +339,7 @@ void CachedStackEmpty(matrix_ref<short, 2, W> context,
    CACHESIZE: size in pixel of Stack cached stored in GRF, currently MUST be:
    (CACHESIZE *sizeof(T)*STACKCOUNT) % 128 == 0 (preferable for optimal IO)
    MaxSize - maximum number of elements on stack for a single channel.
-   Caller must allocate the linaer surface with size >=
+   Caller must allocate the linear surface with size >=
    MaxSize*NumThreads*W*Sizeof(T)*STACKCOUNT
    Optimization note: MaxSize should be aligned to: ( CACHELINE /
    (sizeof(T)*STACKCOUNT)  (CACHELINE = 64 bytes)
@@ -351,48 +348,49 @@ void CachedStackEmpty(matrix_ref<short, 2, W> context,
 */
 
 template <typename T, int W, uint CACHESIZE, uint STACKCOUNT>
-void CachedStackInit(matrix_ref<short, 2, W *STACKCOUNT> context,
+void CachedStackInit(matrix_ref<short, 2, W * STACKCOUNT> context,
                      matrix_ref<int, 2, W> context_ii, uint MaxSize);
 
 template <typename T, int W, uint CACHESIZE, uint STACKCOUNT>
 void CachedStackTop(SurfaceIndex surf,
-                    matrix_ref<short, 2, W *STACKCOUNT> context,
+                    matrix_ref<short, 2, W * STACKCOUNT> context,
                     matrix_ref<int, 2, W> context_ii,
-                    matrix_ref<T, W, CACHESIZE *STACKCOUNT> stack,
+                    matrix_ref<T, W, CACHESIZE * STACKCOUNT> stack,
                     matrix_ref<T, STACKCOUNT, W> element);
 
 /* retrieve element only from the specified stack index */
 template <typename T, int W, uint CACHESIZE, uint STACKCOUNT>
 void CachedStackTop(SurfaceIndex surf,
-                    matrix_ref<short, 2, W *STACKCOUNT> context,
+                    matrix_ref<short, 2, W * STACKCOUNT> context,
                     matrix_ref<int, 2, W> context_ii,
-                    matrix_ref<T, W, CACHESIZE *STACKCOUNT> stack,
+                    matrix_ref<T, W, CACHESIZE * STACKCOUNT> stack,
                     vector_ref<T, W> element, int index);
 
 template <typename T, int W, uint CACHESIZE, uint STACKCOUNT>
-void
-CachedStackPop(SurfaceIndex surf, matrix_ref<short, 2, W *STACKCOUNT> context,
-               matrix_ref<int, 2, W> context_ii,
-               matrix_ref<T, W, CACHESIZE *STACKCOUNT> stack,
-               matrix_ref<T, STACKCOUNT, W> element, vector_ref<short, W> mask);
+void CachedStackPop(SurfaceIndex surf,
+                    matrix_ref<short, 2, W * STACKCOUNT> context,
+                    matrix_ref<int, 2, W> context_ii,
+                    matrix_ref<T, W, CACHESIZE * STACKCOUNT> stack,
+                    matrix_ref<T, STACKCOUNT, W> element,
+                    vector_ref<short, W> mask);
 
 /* pop but don't return top elements */
 template <typename T, int W, uint CACHESIZE, uint STACKCOUNT>
 void CachedStackPop(SurfaceIndex surf,
-                    matrix_ref<short, 2, W *STACKCOUNT> context,
+                    matrix_ref<short, 2, W * STACKCOUNT> context,
                     matrix_ref<int, 2, W> context_ii,
-                    matrix_ref<T, W, CACHESIZE *STACKCOUNT> stack,
+                    matrix_ref<T, W, CACHESIZE * STACKCOUNT> stack,
                     vector_ref<short, W> mask);
 
 template <typename T, int W, uint CACHESIZE, uint STACKCOUNT>
 void CachedStackPush(SurfaceIndex surf,
-                     matrix_ref<short, 2, W *STACKCOUNT> context,
+                     matrix_ref<short, 2, W * STACKCOUNT> context,
                      matrix_ref<int, 2, W> context_ii,
-                     matrix_ref<T, W, CACHESIZE *STACKCOUNT> stack,
+                     matrix_ref<T, W, CACHESIZE * STACKCOUNT> stack,
                      matrix_ref<T, STACKCOUNT, W> element);
 
 template <int W, uint STACKCOUNT>
-void CachedStackEmpty(matrix_ref<short, 2, W *STACKCOUNT> context,
+void CachedStackEmpty(matrix_ref<short, 2, W * STACKCOUNT> context,
                       matrix_ref<int, 2, W> context_ii,
                       vector_ref<short, W> isEmpty);
 
@@ -428,7 +426,7 @@ void Transpose_8x8(matrix_ref<T, 8, 8> in, matrix_ref<T, 8, 8> out);
 */
 template <typename T, int W>
 void Map(matrix_ref<T, W, W> in, matrix_ref<T, W, W> out,
-         vector_ref<ushort, W *W> mapping);
+         vector_ref<ushort, W * W> mapping);
 
 /* ------------------------- Init / Assignment Routines
  * ----------------------------------*/
@@ -463,14 +461,14 @@ CM_INLINE void cm_vector_assign(vector_ref<T, Size> v, int InitValue, int Step);
   0.00001f /* smallest such that 1.0+CM_DBL_EPSILON != 1.0 */
 
 template <typename RT, int R, int C>
-CM_INLINE vector<RT, R *C> cm_floor(const matrix<float, R, C> src0,
-                                    const uint flags = 0) {
-  return cm_rndd<RT, R *C>(src0, flags);
+CM_INLINE vector<RT, R * C> cm_floor(const matrix<float, R, C> src0,
+                                     const uint flags = 0) {
+  return cm_rndd<RT, R * C>(src0, flags);
 }
 template <typename RT, int R, int C>
-CM_INLINE vector<RT, R *C> cm_floor(const matrix_ref<float, R, C> src0,
-                                    const uint flags = 0) {
-  return cm_rndd<RT, R *C>(src0, flags);
+CM_INLINE vector<RT, R * C> cm_floor(const matrix_ref<float, R, C> src0,
+                                     const uint flags = 0) {
+  return cm_rndd<RT, R * C>(src0, flags);
 }
 
 template <typename RT, int SZ>
@@ -490,14 +488,14 @@ CM_INLINE RT cm_floor(const float &src0, const uint flags = 0) {
 }
 
 template <typename RT, int R, int C>
-CM_INLINE vector<RT, R *C> cm_ceil(const matrix<float, R, C> src0,
-                                   const uint flags = 0) {
-  return cm_rndu<RT, R *C>(src0, flags);
+CM_INLINE vector<RT, R * C> cm_ceil(const matrix<float, R, C> src0,
+                                    const uint flags = 0) {
+  return cm_rndu<RT, R * C>(src0, flags);
 }
 template <typename RT, int R, int C>
-CM_INLINE vector<RT, R *C> cm_ceil(const matrix_ref<float, R, C> src0,
-                                   const uint flags = 0) {
-  return cm_rndu<RT, R *C>(src0, flags);
+CM_INLINE vector<RT, R * C> cm_ceil(const matrix_ref<float, R, C> src0,
+                                    const uint flags = 0) {
+  return cm_rndu<RT, R * C>(src0, flags);
 }
 
 template <typename RT, int SZ>
@@ -613,8 +611,7 @@ template <typename T> float cm_cos_emu(T x, const uint flags = 0);
 /* float input */
 float cm_tanh_cody_waite(float x);
 /* vector input */
-template <int N>
-vector<float, N> cm_tanh_cody_waite(vector<float, N> x);
+template <int N> vector<float, N> cm_tanh_cody_waite(vector<float, N> x);
 /* matrix input */
 template <int R, int C>
 matrix<float, R, C> cm_tanh_cody_waite(matrix<float, R, C> x);
@@ -622,19 +619,16 @@ matrix<float, R, C> cm_tanh_cody_waite(matrix<float, R, C> x);
 /* float input */
 float cm_tanh(float x);
 /* vector input */
-template <int N>
-vector<float, N> cm_tanh(vector<float, N> x);
+template <int N> vector<float, N> cm_tanh(vector<float, N> x);
 /* matrix input */
-template <int R, int C>
-matrix<float, R, C> cm_tanh(matrix<float, R, C> x);
-
+template <int R, int C> matrix<float, R, C> cm_tanh(matrix<float, R, C> x);
 
 /* ------------------------- Support Routines
  * ---------------------------------------------------*/
 
 template <typename T, int SZ> void cm_assert_range(vector<T, SZ>, float, float);
 
-const ushort __CM_init_array_0_7[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+const ushort __CM_init_array_0_7[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 template <uint RemSize, typename T, uint Size> struct __RemainderInit;
 template <uint Size8x, typename T, uint Size, int InitValue, int Step>
 struct __VectorInit;
@@ -717,13 +711,13 @@ CM_INLINE void vectorMaskFirstZerosThenOnes(vector_ref<T, SZ> v,
 //      to read beyond the surface's edge).
 //   surface_width_pixels:
 //      Surface width in *pixels*. The surface width in bytes will be deduced
-//      by multiplying this with sizeof(SUFF_TYPE).
+//      by multiplying this with sizeof(SURF_TYPE).
 template <typename MAT_TYPE, int R, int C>
 CM_INLINE void _Read4Borders(SurfaceIndex buf_id, int x_pos_bytes,
                              int y_pos_bytes, matrix_ref<MAT_TYPE, R, C> in,
                              int surface_width_pixels) {
   // Compile-time check whether the fix is necessary; if not, we do a simple
-  // read and return. The compile-time check has been seperated from the
+  // read and return. The compile-time check has been separated from the
   // run-time check in the hope that the compiler will just optimize this
   // whole function away if it is unnecessary.
   if (sizeof(MAT_TYPE) % 4 == 0) {
@@ -790,30 +784,29 @@ CM_INLINE void _Read4Borders(SurfaceIndex buf_id, int x_pos_bytes,
                 surface_width_pixels);
 }
 
-template <typename T, int HEIGHT, int WIDTH>
-CM_INLINE void
-_ReadWrapper(SurfaceIndex obuf, CmBufferAttrib buf_attrib, int h_pos, int v_pos,
-             matrix_ref<T, HEIGHT, WIDTH> block, uint surfaceWidth) {
+template <typename T, int R, int C>
+CM_INLINE void _ReadWrapper(SurfaceIndex obuf, CmBufferAttrib buf_attrib,
+                            int h_pos, int v_pos, matrix_ref<T, R, C> block,
+                            uint surfaceWidth) {
   if (buf_attrib == GENX_NUM_BUFFER_ATTRIB)
     _Read4Borders(obuf, h_pos, v_pos, block, surfaceWidth);
   if (buf_attrib != GENX_NUM_BUFFER_ATTRIB)
-    // read modified is not supported with replicate bounderies.
+    // read modified is not supported with replicate boundaries.
     read(obuf, buf_attrib, h_pos, v_pos, block);
 }
 
 /*
-  Block Width (bytes) Maximum Block Height (rows)
+  Block width (bytes)    Maximum Block R (rows)
   1-4                    64
   5-8                    32
-  9-16                16
-  17-32                8
-  33-64 {BDW+}        4
+  9-16                   16
+  17-32                  8
+  33-64 {BDW+}           4
 */
 
-template <typename T, int HEIGHT, int WIDTH, uint OP_TYPE>
+template <typename T, int R, int C, uint OP_TYPE>
 CM_INLINE void _ioOp(SurfaceIndex iobuf, CmBufferAttrib buf_attrib, int h_pos,
-                     int v_pos, matrix_ref<T, HEIGHT, WIDTH> block,
-                     uint surfaceWidth) {
+                     int v_pos, matrix_ref<T, R, C> block, uint surfaceWidth) {
   cm_assert(OP_TYPE == IO_READ || OP_TYPE == IO_WRITE);
   if (OP_TYPE == IO_WRITE)
     write(iobuf, h_pos, v_pos, block);
@@ -821,137 +814,131 @@ CM_INLINE void _ioOp(SurfaceIndex iobuf, CmBufferAttrib buf_attrib, int h_pos,
     _ReadWrapper(iobuf, buf_attrib, h_pos, v_pos, block, surfaceWidth);
 }
 
-template <typename T, int HEIGHT, int WIDTH, int H_STRIDE, int MAX_V_STRIDE,
-          int OP_TYPE>
-CM_INLINE void IoFixedStrideBlock(SurfaceIndex iobuf, CmBufferAttrib buf_attrib,
-                                  int h_pos, int v_pos,
-                                  matrix_ref<T, HEIGHT, WIDTH> block,
-                                  uint surfaceWidth) {
+template <typename T, int R, int C, int H_STRIDE, int MAX_V_STRIDE, int OP_TYPE>
+CM_INLINE void
+IoFixedStrideBlock(SurfaceIndex iobuf, CmBufferAttrib buf_attrib, int h_pos,
+                   int v_pos, matrix_ref<T, R, C> block, uint surfaceWidth) {
   int vblock, hblock;
   int h_pos_abs = sizeof(T) * h_pos;
 
 #pragma unroll
-  for (vblock = 0; vblock < (int)HEIGHT - (MAX_V_STRIDE - 1);
-       vblock += MAX_V_STRIDE) {
+  for (vblock = 0; vblock < R - (MAX_V_STRIDE - 1); vblock += MAX_V_STRIDE) {
 #pragma unroll
-    for (hblock = 0; hblock < (int)WIDTH - (H_STRIDE - 1); hblock += H_STRIDE) {
+    for (hblock = 0; hblock < C - (H_STRIDE - 1); hblock += H_STRIDE) {
       _ioOp<T, MAX_V_STRIDE, H_STRIDE, OP_TYPE>(
           iobuf, buf_attrib, sizeof(T) * hblock + h_pos_abs, v_pos + vblock,
           block.template select<MAX_V_STRIDE, 1, H_STRIDE, 1>(vblock, hblock),
           surfaceWidth);
     }
-    if (WIDTH % H_STRIDE) {
-      _ioOp<T, MAX_V_STRIDE, _CMTL_SAFE_SIZE(WIDTH % H_STRIDE), OP_TYPE>(
+    if (C % H_STRIDE) {
+      _ioOp<T, MAX_V_STRIDE, _CMTL_SAFE_SIZE(C % H_STRIDE), OP_TYPE>(
           iobuf, buf_attrib, sizeof(T) * hblock + h_pos_abs, v_pos + vblock,
-          block.template select<MAX_V_STRIDE, 1,
-                                _CMTL_SAFE_SIZE(WIDTH % H_STRIDE), 1>(vblock,
-                                                                      hblock),
+          block.template select<MAX_V_STRIDE, 1, _CMTL_SAFE_SIZE(C % H_STRIDE),
+                                1>(vblock, hblock),
           surfaceWidth);
     }
   }
-  if (HEIGHT % MAX_V_STRIDE) {
+  if (R % MAX_V_STRIDE) {
 #pragma unroll
-    for (hblock = 0; hblock < (int)WIDTH - (H_STRIDE - 1); hblock += H_STRIDE) {
-      _ioOp<T, _CMTL_SAFE_SIZE(HEIGHT % MAX_V_STRIDE), H_STRIDE, OP_TYPE>(
+    for (hblock = 0; hblock < C - (H_STRIDE - 1); hblock += H_STRIDE) {
+      _ioOp<T, _CMTL_SAFE_SIZE(R % MAX_V_STRIDE), H_STRIDE, OP_TYPE>(
           iobuf, buf_attrib, sizeof(T) * hblock + h_pos_abs, v_pos + vblock,
-          block.template select<_CMTL_SAFE_SIZE(HEIGHT % MAX_V_STRIDE), 1,
-                                H_STRIDE, 1>(vblock, hblock),
+          block.template select<_CMTL_SAFE_SIZE(R % MAX_V_STRIDE), 1, H_STRIDE,
+                                1>(vblock, hblock),
           surfaceWidth);
     }
-    if (WIDTH % H_STRIDE) {
-      _ioOp<T, _CMTL_SAFE_SIZE(HEIGHT % MAX_V_STRIDE),
-            _CMTL_SAFE_SIZE(WIDTH % H_STRIDE), OP_TYPE>(
-          iobuf, buf_attrib, sizeof(T) * hblock + h_pos_abs, v_pos + vblock,
-          block.template select<_CMTL_SAFE_SIZE(HEIGHT % MAX_V_STRIDE), 1,
-                                _CMTL_SAFE_SIZE(WIDTH % H_STRIDE), 1>(vblock,
-                                                                      hblock),
-          surfaceWidth);
+    if (C % H_STRIDE) {
+      _ioOp<T, _CMTL_SAFE_SIZE(R % MAX_V_STRIDE), _CMTL_SAFE_SIZE(C % H_STRIDE),
+            OP_TYPE>(iobuf, buf_attrib, sizeof(T) * hblock + h_pos_abs,
+                     v_pos + vblock,
+                     block.template select<_CMTL_SAFE_SIZE(R % MAX_V_STRIDE), 1,
+                                           _CMTL_SAFE_SIZE(C % H_STRIDE), 1>(
+                         vblock, hblock),
+                     surfaceWidth);
     }
   }
 }
 
 // TODO add support for double
 // TODO support 64 byte stride for BDW +
-template <typename T, int HEIGHT, int WIDTH, int OP_TYPE>
+template <typename T, int R, int C, int OP_TYPE>
 CM_INLINE void IoBlock(SurfaceIndex iobuf, CmBufferAttrib buf_attrib, int h_pos,
-                       int v_pos, matrix_ref<T, HEIGHT, WIDTH> block,
+                       int v_pos, matrix_ref<T, R, C> block,
                        uint surfaceWidth = 0) {
   cm_assert(sizeof(T) <= 4);
-  if (_CMTL_PIXEL_DELTA(WIDTH, T) > 0) {
-    IoFixedStrideBlock<T, HEIGHT, _CMTL_SAFE_PIXEL_DELTA(WIDTH, T),
+  if (_CMTL_PIXEL_DELTA(C, T) > 0) {
+    IoFixedStrideBlock<T, R, _CMTL_SAFE_PIXEL_DELTA(C, T),
                        _CMTL_PIXEL_STRIDE(32, T), 8, OP_TYPE>(
         iobuf, buf_attrib, h_pos, v_pos,
-        block.template select<HEIGHT, 1, _CMTL_SAFE_PIXEL_DELTA(WIDTH, T), 1>(
-            0, 0),
+        block.template select<R, 1, _CMTL_SAFE_PIXEL_DELTA(C, T), 1>(0, 0),
         surfaceWidth);
-    h_pos += _CMTL_PIXEL_DELTA(WIDTH, T);
+    h_pos += _CMTL_PIXEL_DELTA(C, T);
   }
 
   // deal with left over
-  if (_CMTL_PIXEL_MOD_GT(WIDTH, 16, T)) {
-    IoFixedStrideBlock<T, HEIGHT, _CMTL_SAFE_PIXEL_MOD(WIDTH, T),
+  if (_CMTL_PIXEL_MOD_GT(C, 16, T)) {
+    IoFixedStrideBlock<T, R, _CMTL_SAFE_PIXEL_MOD(C, T),
                        _CMTL_PIXEL_STRIDE(32, T), 8, OP_TYPE>(
         iobuf, buf_attrib, h_pos, v_pos,
-        block.template select<HEIGHT, 1, _CMTL_SAFE_PIXEL_MOD(WIDTH, T), 1>(
-            0, _CMTL_PIXEL_DELTA(WIDTH, T)),
+        block.template select<R, 1, _CMTL_SAFE_PIXEL_MOD(C, T), 1>(
+            0, _CMTL_PIXEL_DELTA(C, T)),
         surfaceWidth);
   }
 
-  if (_CMTL_PIXEL_MOD_GT(WIDTH, 8, T) && _CMTL_PIXEL_MOD_LTE(WIDTH, 16, T)) {
-    IoFixedStrideBlock<T, HEIGHT, _CMTL_SAFE_PIXEL_MOD(WIDTH, T),
+  if (_CMTL_PIXEL_MOD_GT(C, 8, T) && _CMTL_PIXEL_MOD_LTE(C, 16, T)) {
+    IoFixedStrideBlock<T, R, _CMTL_SAFE_PIXEL_MOD(C, T),
                        _CMTL_PIXEL_STRIDE(16, T), 16, OP_TYPE>(
         iobuf, buf_attrib, h_pos, v_pos,
-        block.template select<HEIGHT, 1, _CMTL_SAFE_PIXEL_MOD(WIDTH, T), 1>(
-            0, _CMTL_PIXEL_DELTA(WIDTH, T)),
+        block.template select<R, 1, _CMTL_SAFE_PIXEL_MOD(C, T), 1>(
+            0, _CMTL_PIXEL_DELTA(C, T)),
         surfaceWidth);
   }
 
-  if (_CMTL_PIXEL_MOD_GT(WIDTH, 4, T) && _CMTL_PIXEL_MOD_LTE(WIDTH, 8, T)) {
-    IoFixedStrideBlock<T, HEIGHT, _CMTL_SAFE_PIXEL_MOD(WIDTH, T),
+  if (_CMTL_PIXEL_MOD_GT(C, 4, T) && _CMTL_PIXEL_MOD_LTE(C, 8, T)) {
+    IoFixedStrideBlock<T, R, _CMTL_SAFE_PIXEL_MOD(C, T),
                        _CMTL_PIXEL_STRIDE(8, T), 32, OP_TYPE>(
         iobuf, buf_attrib, h_pos, v_pos,
-        block.template select<HEIGHT, 1, _CMTL_SAFE_PIXEL_MOD(WIDTH, T), 1>(
-            0, _CMTL_PIXEL_DELTA(WIDTH, T)),
+        block.template select<R, 1, _CMTL_SAFE_PIXEL_MOD(C, T), 1>(
+            0, _CMTL_PIXEL_DELTA(C, T)),
         surfaceWidth);
   }
 
-  if (_CMTL_PIXEL_MOD_GT(WIDTH, 0, T) && _CMTL_PIXEL_MOD_LTE(WIDTH, 4, T)) {
-    IoFixedStrideBlock<T, HEIGHT, _CMTL_SAFE_PIXEL_MOD(WIDTH, T),
+  if (_CMTL_PIXEL_MOD_GT(C, 0, T) && _CMTL_PIXEL_MOD_LTE(C, 4, T)) {
+    IoFixedStrideBlock<T, R, _CMTL_SAFE_PIXEL_MOD(C, T),
                        _CMTL_PIXEL_STRIDE(4, T), 64, OP_TYPE>(
         iobuf, buf_attrib, h_pos, v_pos,
-        block.template select<HEIGHT, 1, _CMTL_SAFE_PIXEL_MOD(WIDTH, T), 1>(
-            0, _CMTL_PIXEL_DELTA(WIDTH, T)),
+        block.template select<R, 1, _CMTL_SAFE_PIXEL_MOD(C, T), 1>(
+            0, _CMTL_PIXEL_DELTA(C, T)),
         surfaceWidth);
   }
 }
 
-template <typename T, int HEIGHT, int WIDTH>
+template <typename T, int R, int C>
 CM_INLINE void ReadBlock(SurfaceIndex iobuf, int h_pos, int v_pos,
-                         matrix_ref<T, HEIGHT, WIDTH> block,
+                         matrix_ref<T, R, C> block, uint surfaceWidth) {
+  IoBlock<T, R, C, IO_READ>(iobuf, GENX_NUM_BUFFER_ATTRIB, h_pos, v_pos, block,
+                            surfaceWidth);
+}
+
+template <typename T, int R, int C>
+CM_INLINE void ReadBlock(SurfaceIndex iobuf, CmBufferAttrib buf_attrib,
+                         int h_pos, int v_pos, matrix_ref<T, R, C> block,
                          uint surfaceWidth) {
-  IoBlock<T, HEIGHT, WIDTH, IO_READ>(iobuf, GENX_NUM_BUFFER_ATTRIB, h_pos,
-                                     v_pos, block, surfaceWidth);
-}
-
-template <typename T, int HEIGHT, int WIDTH>
-CM_INLINE void
-ReadBlock(SurfaceIndex iobuf, CmBufferAttrib buf_attrib, int h_pos, int v_pos,
-          matrix_ref<T, HEIGHT, WIDTH> block, uint surfaceWidth) {
   cm_assert(buf_attrib != GENX_NUM_BUFFER_ATTRIB);
-  IoBlock<T, HEIGHT, WIDTH, IO_READ>(iobuf, buf_attrib, h_pos, v_pos, block,
-                                     surfaceWidth);
+  IoBlock<T, R, C, IO_READ>(iobuf, buf_attrib, h_pos, v_pos, block,
+                            surfaceWidth);
 }
 
-template <typename T, int HEIGHT, int WIDTH>
+template <typename T, int R, int C>
 CM_INLINE void WriteBlock(SurfaceIndex iobuf, int h_pos, int v_pos,
-                          matrix_ref<T, HEIGHT, WIDTH> block) {
-  IoBlock<T, HEIGHT, WIDTH, IO_WRITE>(iobuf, GENX_NUM_BUFFER_ATTRIB, h_pos,
-                                      v_pos, block);
+                          matrix_ref<T, R, C> block) {
+  IoBlock<T, R, C, IO_WRITE>(iobuf, GENX_NUM_BUFFER_ATTRIB, h_pos, v_pos,
+                             block);
 }
 
-template <typename T, int WIDTH, uint OP_TYPE>
+template <typename T, int C, uint OP_TYPE>
 CM_INLINE void _ioLinearOp(SurfaceIndex iobuf, int h_pos,
-                           vector_ref<T, WIDTH> block) {
+                           vector_ref<T, C> block) {
   // cm_assert(OP_TYPE == IO_READ || OP_TYPE == IO_WRITE);
   if (OP_TYPE == IO_WRITE)
     write(iobuf, h_pos, block);
@@ -963,37 +950,37 @@ CM_INLINE void _ioLinearOp(SurfaceIndex iobuf, int h_pos,
 
 #define _CMTL_MAXIOLINEAR(TYPE) (128 / sizeof(TYPE))
 
-template <typename T, int WIDTH, uint PIX_STRD, uint OP_TYPE>
+template <typename T, int C, uint PIX_STRD, uint OP_TYPE>
 CM_INLINE void IOLinear(SurfaceIndex iobuf, int pix_pos,
-                        vector_ref<T, WIDTH> block) {
+                        vector_ref<T, C> block) {
   int hblock;
   int h_pos_abs = sizeof(T) * pix_pos;
 
-  if constexpr (WIDTH >= PIX_STRD) {
+  if constexpr (C >= PIX_STRD) {
 #pragma unroll
-    for (hblock = 0; hblock < (int)WIDTH - (PIX_STRD - 1); hblock += PIX_STRD) {
+    for (hblock = 0; hblock < (int)C - (PIX_STRD - 1); hblock += PIX_STRD) {
       _ioLinearOp<T, PIX_STRD, OP_TYPE>(
           iobuf, sizeof(T) * hblock + h_pos_abs,
           block.template select<PIX_STRD, 1>(hblock));
     }
   }
-  if constexpr (WIDTH % PIX_STRD != 0) {
-    _ioLinearOp<T, _CMTL_SAFE_SIZE(WIDTH % PIX_STRD), OP_TYPE>(
+  if constexpr (C % PIX_STRD != 0) {
+    _ioLinearOp<T, _CMTL_SAFE_SIZE(C % PIX_STRD), OP_TYPE>(
         iobuf, sizeof(T) * hblock + h_pos_abs,
-        block.template select<_CMTL_SAFE_SIZE(WIDTH % PIX_STRD), 1>(hblock));
+        block.template select<_CMTL_SAFE_SIZE(C % PIX_STRD), 1>(hblock));
   }
 }
 
-template <typename T, int WIDTH>
+template <typename T, int C>
 CM_INLINE void WriteLinear(SurfaceIndex obuf, int pix_pos,
-                           vector_ref<T, WIDTH> block) {
-  IOLinear<T, WIDTH, _CMTL_MAXIOLINEAR(T), IO_WRITE>(obuf, pix_pos, block);
+                           vector_ref<T, C> block) {
+  IOLinear<T, C, _CMTL_MAXIOLINEAR(T), IO_WRITE>(obuf, pix_pos, block);
 }
 
-template <typename T, int WIDTH>
+template <typename T, int C>
 CM_INLINE void ReadLinear(SurfaceIndex ibuf, int pix_pos,
-                          vector_ref<T, WIDTH> block) {
-  IOLinear<T, WIDTH, _CMTL_MAXIOLINEAR(T), IO_READ>(ibuf, pix_pos, block);
+                          vector_ref<T, C> block) {
+  IOLinear<T, C, _CMTL_MAXIOLINEAR(T), IO_READ>(ibuf, pix_pos, block);
 }
 
 /* ------------------------- Vectorization Routines
@@ -1002,11 +989,10 @@ template <uint KRNL_SZ> CM_INLINE int _2Dto1D(int x, int y) {
   return x * KRNL_SZ + y;
 }
 
-template <typename Tsrc, typename Tdst, uint KRNL_SZ, uint SIMD_SZ>
-CM_INLINE void
-Vectorize2DKRNLRow(vector_ref<Tsrc, SIMD_SZ + KRNL_SZ - 1> src,
-                   matrix_ref<Tdst, KRNL_SZ *KRNL_SZ, SIMD_SZ> dst,
-                   int dstRow) {
+template <typename T, typename D, uint KRNL_SZ, uint SIMD_SZ>
+CM_INLINE void Vectorize2DKRNLRow(vector_ref<T, SIMD_SZ + KRNL_SZ - 1> src,
+                                  matrix_ref<D, KRNL_SZ * KRNL_SZ, SIMD_SZ> dst,
+                                  int dstRow) {
   cm_assert(KRNL_SZ % 2 == 1);
   cm_assert(dstRow < KRNL_SZ * KRNL_SZ);
   int radius = KRNL_SZ / 2;
@@ -1018,25 +1004,22 @@ Vectorize2DKRNLRow(vector_ref<Tsrc, SIMD_SZ + KRNL_SZ - 1> src,
   }
 }
 
-template <typename Tsrc, typename Tdst, uint KRNL_SZ, uint SIMD_SZ, int OFFSET>
-CM_INLINE void glue_vector(vector_ref<Tsrc, SIMD_SZ> src_1,
-                           vector_ref<Tsrc, KRNL_SZ - 1> src_2,
-                           vector_ref<Tdst, SIMD_SZ> dst) {
+template <typename T, typename D, uint KRNL_SZ, uint SIMD_SZ, int OFFSET>
+CM_INLINE void glue_vector(vector_ref<T, SIMD_SZ> src_1,
+                           vector_ref<T, KRNL_SZ - 1> src_2,
+                           vector_ref<D, SIMD_SZ> dst) {
   dst.template select<SIMD_SZ - OFFSET, 1>(0) =
       src_1.template select<SIMD_SZ - OFFSET, 1>(OFFSET);
   dst.template select<OFFSET, 1>(SIMD_SZ - OFFSET) =
       src_2.template select<OFFSET, 1>(0);
 }
 
-template <typename Tsrc, typename Tdst, uint KRNL_SZ, uint SIMD_SZ>
+template <typename T, typename D, uint KRNL_SZ, uint SIMD_SZ>
 CM_INLINE void
-Vectorize2DKRNLRow(/*vector_ref<Tsrc, SIMD_SZ> src,
-                          vector_ref<Tsrc, KRNL_SZ -1> src_2,*/
-                   matrix_ref<Tsrc,
-                              _CMTL_ROWS_P_LINE(Tsrc, SIMD_SZ + KRNL_SZ - 1),
-                              _CMTL_PIXEL_REG(Tsrc)> src,
-                   matrix_ref<Tdst, KRNL_SZ *KRNL_SZ, SIMD_SZ> dst,
-                   int dstRow) {
+Vectorize2DKRNLRow(matrix_ref<T, _CMTL_ROWS_P_LINE(T, SIMD_SZ + KRNL_SZ - 1),
+                              _CMTL_PIXEL_REG(T)>
+                       src,
+                   matrix_ref<D, KRNL_SZ * KRNL_SZ, SIMD_SZ> dst, int dstRow) {
   cm_assert(KRNL_SZ % 2 == 1);
   cm_assert(dstRow < (int)KRNL_SZ * KRNL_SZ);
   cm_assert(SIMD_SZ % 8 == 0);
@@ -1045,31 +1028,30 @@ Vectorize2DKRNLRow(/*vector_ref<Tsrc, SIMD_SZ> src,
 
 #pragma unroll
   for (int clmn = -radius; clmn < radius + 1; clmn++) {
-    // vector<Tsrc, SIMD_SZ + KRNL_SZ -1> glue;
-    vector<Tsrc, _CMTL_ROWS_P_LINE(Tsrc, SIMD_SZ + KRNL_SZ -
-                                             1) *_CMTL_PIXEL_REG(Tsrc)> glue =
-        src;
+    // vector<T, SIMD_SZ + KRNL_SZ -1> glue;
+    vector<T, _CMTL_ROWS_P_LINE(T, SIMD_SZ + KRNL_SZ - 1) * _CMTL_PIXEL_REG(T)>
+        glue = src;
 
     dst.row(_2Dto1D<KRNL_SZ>(dstRow, clmn + anchor)) =
         glue.template select<SIMD_SZ, 1>(clmn + anchor);
 
     /* not working yet, limited to 3x3
-    int clmn = -1; //glue_vector<Tsrc, Tdst, KRNL_SZ, SIMD_SZ,0>(src, src_2,
+    int clmn = -1; //glue_vector<T, D, KRNL_SZ, SIMD_SZ,0>(src, src_2,
         dst.row(_2Dto1D<KRNL_SZ>(dstRow, clmn + anchor)) = src;
 
-    clmn = 0; glue_vector<Tsrc, Tdst, KRNL_SZ, SIMD_SZ,1>(src, src_2,
+    clmn = 0; glue_vector<T, D, KRNL_SZ, SIMD_SZ,1>(src, src_2,
         dst.row(_2Dto1D<KRNL_SZ>(dstRow, clmn + anchor)));
 
-    clmn = 1; glue_vector<Tsrc, Tdst, KRNL_SZ, SIMD_SZ,2>(src, src_2,
+    clmn = 1; glue_vector<T, D, KRNL_SZ, SIMD_SZ,2>(src, src_2,
         dst.row(_2Dto1D<KRNL_SZ>(dstRow, clmn + anchor)));
     */
   }
 }
 
-template <typename Tsrc, typename Tdst, uint KRNL_SZ, uint SIMD_SZ>
+template <typename T, typename D, uint KRNL_SZ, uint SIMD_SZ>
 CM_INLINE void
-Vectorize2DKRNL(matrix_ref<Tsrc, KRNL_SZ, SIMD_SZ + KRNL_SZ - 1> src,
-                matrix_ref<Tdst, KRNL_SZ *KRNL_SZ, SIMD_SZ> dst) {
+Vectorize2DKRNL(matrix_ref<T, KRNL_SZ, SIMD_SZ + KRNL_SZ - 1> src,
+                matrix_ref<D, KRNL_SZ * KRNL_SZ, SIMD_SZ> dst) {
   cm_assert(KRNL_SZ % 2 == 1);
 
   int radius = KRNL_SZ / 2;
@@ -1086,9 +1068,9 @@ Vectorize2DKRNL(matrix_ref<Tsrc, KRNL_SZ, SIMD_SZ + KRNL_SZ - 1> src,
   }
 }
 
-template <typename Tsrc, typename Tdst, uint ROWS, uint KRNL_SZ, uint SIMD_SZ>
-CM_INLINE void Vectorize2DKRNLRow(vector_ref<Tsrc, SIMD_SZ + KRNL_SZ - 1> src,
-                                  matrix_ref<Tdst, ROWS *KRNL_SZ, SIMD_SZ> dst,
+template <typename T, typename D, uint ROWS, uint KRNL_SZ, uint SIMD_SZ>
+CM_INLINE void Vectorize2DKRNLRow(vector_ref<T, SIMD_SZ + KRNL_SZ - 1> src,
+                                  matrix_ref<D, ROWS * KRNL_SZ, SIMD_SZ> dst,
                                   int dstRow) {
   cm_assert(KRNL_SZ % 2 == 1);
   cm_assert(dstRow < ROWS * KRNL_SZ);
@@ -1104,7 +1086,7 @@ CM_INLINE void Vectorize2DKRNLRow(vector_ref<Tsrc, SIMD_SZ + KRNL_SZ - 1> src,
 
 template <typename T, uint ROWS, uint KRNL_SZ, uint SIMD_SZ>
 CM_INLINE void Vectorize2DKRNLRow(vector_ref<T, SIMD_SZ + KRNL_SZ - 1> src,
-                                  matrix_ref<T, ROWS *KRNL_SZ, SIMD_SZ> dst,
+                                  matrix_ref<T, ROWS * KRNL_SZ, SIMD_SZ> dst,
                                   int dstRow) {
   Vectorize2DKRNLRow<T, T, ROWS, KRNL_SZ, SIMD_SZ>(src, dst, dstRow);
 }
@@ -1114,8 +1096,8 @@ CM_INLINE void Vectorize2DKRNLRow(vector_ref<T, SIMD_SZ + KRNL_SZ - 1> src,
 
 // Addresses are in units of element size. The offset indicate a write location
 // of 16 bytes.
-static const ushort init_slm_offsets[] = { 0, 1, 2,  3,  4,  5,  6,  7,
-                                           8, 9, 10, 11, 12, 13, 14, 15 };
+static const ushort init_slm_offsets[] = {0, 1, 2,  3,  4,  5,  6,  7,
+                                          8, 9, 10, 11, 12, 13, 14, 15};
 
 // data read from SLM using the cm_slm_read4 is organized per channel:
 // i.e. RGBARGBARGBA ... data in SLM is returned as
@@ -1140,7 +1122,7 @@ CM_INLINE void TransposeToSLM(vector_ref<uint, N * 4> dst,
 
 #pragma unroll
   for (int i = 0; i < 4; i++)
-    dst.template select<N, 1>(N *i) = src.template select<N, 4>(i);
+    dst.template select<N, 1>(N * i) = src.template select<N, 4>(i);
 }
 
 CM_INLINE void DumpSLM(uint slmX, SurfaceIndex slmDebugSurface, uint size) {
@@ -1241,10 +1223,10 @@ CM_INLINE void Pack(vector_ref<Tpackd, WD> src1, vector_ref<Tpackd, WD> src2,
 
 #define _CMTL_CSTK_DECIPHER_CONTEXT(cntxt)                                     \
   vector_ref<short, W> k = cntxt.row(_CMTL_CSTK_K).template select<W, 1>(0);   \
-  vector_ref<short, W *STACKCOUNT> chnls_ = cntxt.row(_CMTL_CSTK_CHNL);        \
-  vector_ref<short, W *STACKCOUNT> k_dup = cntxt.row(_CMTL_CSTK_K);
+  vector_ref<short, W * STACKCOUNT> chnls_ = cntxt.row(_CMTL_CSTK_CHNL);       \
+  vector_ref<short, W * STACKCOUNT> k_dup = cntxt.row(_CMTL_CSTK_K);
 
-#define _CMTL_NUM_IO(T) ((CACHESIZE *STACKCOUNT) / _CMTL_MAXIOLINEAR(T))
+#define _CMTL_NUM_IO(T) ((CACHESIZE * STACKCOUNT) / _CMTL_MAXIOLINEAR(T))
 
 template <typename T, int W, uint CACHESIZE, uint STACKCOUNT>
 CM_INLINE void
@@ -1272,11 +1254,10 @@ CM_INLINE void _CSTKAssert(matrix_ref<short, _CMTL_CNTXT_SIZE> context,
 }
 
 template <typename T, int W, uint CACHESIZE, uint STACKCOUNT>
-CM_INLINE void
-_CSTKWriteBuffers(SurfaceIndex surf,
-                  matrix_ref<short, _CMTL_CNTXT_SIZE> context,
-                  matrix_ref<int, 2, W> context_ii,
-                  matrix_ref<T, _CMTL_STACK_SIZE> stack) {
+CM_INLINE void _CSTKWriteBuffers(SurfaceIndex surf,
+                                 matrix_ref<short, _CMTL_CNTXT_SIZE> context,
+                                 matrix_ref<int, 2, W> context_ii,
+                                 matrix_ref<T, _CMTL_STACK_SIZE> stack) {
   _CMTL_CSTK_DECIPHER_CONTEXT(context);
   vector_ref<int, W> surf_pos = context_ii.row(_CMTL_CNTX_II_OFFSET_DYNAMIC);
   matrix<int, _CMTL_NUM_IO(T), W> surf_offset;
@@ -1330,8 +1311,8 @@ CM_INLINE void _CSTKReadBuffers(SurfaceIndex surf,
   _CSTKAssert<W, STACKCOUNT>(context, context_ii);
 }
 
-const static int _CSTK_c_channels[16] = { 0, 1, 2,  3,  4,  5,  6,  7,
-                                          8, 9, 10, 11, 12, 13, 14, 15 };
+const static int _CSTK_c_channels[16] = {0, 1, 2,  3,  4,  5,  6,  7,
+                                         8, 9, 10, 11, 12, 13, 14, 15};
 
 template <typename T, int W, uint CACHESIZE, uint STACKCOUNT>
 CM_INLINE void CachedStackInit(matrix_ref<short, _CMTL_CNTXT_SIZE> context,
@@ -1344,7 +1325,7 @@ CM_INLINE void CachedStackInit(matrix_ref<short, _CMTL_CNTXT_SIZE> context,
 
 #pragma unroll
   for (int s = 0; s < (int)STACKCOUNT; s++) {
-    chnls_.template select<W, 1>(s *W) = _chnls.template select<W, 1>(0);
+    chnls_.template select<W, 1>(s * W) = _chnls.template select<W, 1>(0);
   }
 
   k = -1;
@@ -1387,7 +1368,9 @@ CM_INLINE void CachedStackTop(SurfaceIndex surf,
   cm_assert_range<short, W>(k, 0, CACHESIZE - 1);
 
   int s = index * W;
-  { k_dup.template select<W, 1>(s) = k + CACHESIZE * index; }
+  {
+    k_dup.template select<W, 1>(s) = k + CACHESIZE * index;
+  }
 
   element = stack.iselect(chnls_.template select<W, 1>(0),
                           k_dup.template select<W, 1>(s));
@@ -1443,11 +1426,11 @@ CM_INLINE void CachedStackPush(SurfaceIndex surf,
     _CSTKWriteBuffers<T, W, CACHESIZE, STACKCOUNT>(surf, context, context_ii,
                                                    stack);
   }
-  vector<short, W *STACKCOUNT> k_sat;
+  vector<short, W * STACKCOUNT> k_sat;
 
 #pragma unroll
   for (int s = 0; s < (int)STACKCOUNT; s++) {
-    k_sat.template select<W, 1>(s *W) =
+    k_sat.template select<W, 1>(s * W) =
         k_dup.template select<W, 1>(0) + CACHESIZE * s;
   }
 
@@ -1525,7 +1508,7 @@ CM_INLINE void mirror_horizontal_16x16(matrix_ref<uchar, 16, 16> in,
 
   matrix_ref<uchar, 8, 32> out_temp1 = out.format<uchar, 8, 32>();
   matrix_ref<uchar, 8, 32> out_temp2 = out_temp.format<uchar, 8, 32>();
-// matrix_ref <uint, 8, 8> out_temp = out_temp1.format<uint, 8, 8>();;
+  // matrix_ref <uint, 8, 8> out_temp = out_temp1.format<uint, 8, 8>();;
 
 #pragma unroll
   for (int i = 0; i < 8; i++) {
@@ -1683,7 +1666,7 @@ CM_INLINE void ReverseTranspose_16x16(matrix_ref<T, 16, 16> in,
 
 template <typename T, int W>
 CM_INLINE void Map(matrix_ref<T, W, W> in, matrix_ref<T, W, W> out,
-                   vector_ref<ushort, W *W> mapping) {
+                   vector_ref<ushort, W * W> mapping) {
   out = in.template format<T>().iselect(mapping);
 }
 
@@ -1699,9 +1682,7 @@ CM_INLINE void cm_vector_assign(vector_ref<T, Size> v, int InitValue,
   v.template select<8, 1>(0) += InitValue;
   nextInitValue = 8 * Step;
 
-  enum {
-    Size8x = (Size / 8) * 8
-  };
+  enum { Size8x = (Size / 8) * 8 };
 
 #pragma unroll
   for (int i = 0; i < (Size8x - 8); i += 8) {
@@ -1719,11 +1700,11 @@ CM_INLINE void cm_vector_assign(vector_ref<T, Size> v, int InitValue,
 template <int R, int C>
 CM_INLINE matrix<float, R, C>
 cm_atan2_fast(matrix<float, R, C> y, matrix<float, R, C> x, const uint flags) {
-  vector<float, R *C> a0;
-  vector<float, R *C> a1;
+  vector<float, R * C> a0;
+  vector<float, R * C> a1;
   matrix<float, R, C> atan2;
 
-  vector<unsigned short, R *C> mask = (y >= 0);
+  vector<unsigned short, R * C> mask = (y >= 0);
   a0.merge(CM_CONST_PI * 0.5, CM_CONST_PI * 1.5, mask);
   a1.merge(0, CM_CONST_PI * 2, mask);
 
@@ -1746,11 +1727,11 @@ template <int R, int C>
 CM_INLINE matrix<float, R, C> cm_atan2_fast(matrix_ref<float, R, C> y,
                                             matrix_ref<float, R, C> x,
                                             const uint flags) {
-  vector<float, R *C> a0;
-  vector<float, R *C> a1;
+  vector<float, R * C> a0;
+  vector<float, R * C> a1;
   matrix<float, R, C> atan2;
 
-  vector<unsigned short, R *C> mask = (y >= 0);
+  vector<unsigned short, R * C> mask = (y >= 0);
   a0.merge(CM_CONST_PI * 0.5, CM_CONST_PI * 1.5, mask);
   a1.merge(0, CM_CONST_PI * 2, mask);
 
@@ -1838,10 +1819,10 @@ template <> CM_INLINE float cm_atan2_fast(float y, float x, const uint flags) {
 template <int R, int C>
 CM_INLINE matrix<float, R, C>
 cm_atan2(matrix<float, R, C> y, matrix<float, R, C> x, const uint flags) {
-  vector<float, R *C> v_distance;
-  vector<float, R *C> v_y0;
+  vector<float, R * C> v_distance;
+  vector<float, R * C> v_y0;
   matrix<float, R, C> atan2;
-  vector<unsigned short, R *C> mask;
+  vector<unsigned short, R * C> mask;
 
   mask = (x < 0);
   v_y0.merge(CM_CONST_PI, 0, mask);
@@ -1859,10 +1840,10 @@ template <int R, int C>
 CM_INLINE matrix<float, R, C> cm_atan2(matrix_ref<float, R, C> y,
                                        matrix_ref<float, R, C> x,
                                        const uint flags) {
-  vector<float, R *C> v_distance;
-  vector<float, R *C> v_y0;
+  vector<float, R * C> v_distance;
+  vector<float, R * C> v_y0;
   matrix<float, R, C> atan2;
-  vector<unsigned short, R *C> mask;
+  vector<unsigned short, R * C> mask;
 
   mask = (x < 0);
   v_y0.merge(CM_CONST_PI, 0, mask);
@@ -1938,10 +1919,10 @@ template <> CM_INLINE float cm_atan2(float y, float x, const uint flags) {
 template <int R, int C>
 CM_INLINE matrix<float, R, C> cm_fmod(matrix<float, R, C> y,
                                       matrix<float, R, C> x, const uint flags) {
-  vector<int, R *C> v_quot;
+  vector<int, R * C> v_quot;
   matrix<float, R, C> fmod;
 
-  v_quot = vector<int, R *C>(y / x);
+  v_quot = vector<int, R * C>(y / x);
   fmod = y - x * matrix<float, R, C>(v_quot);
   if (flags & SAT)
     fmod = matrix<float, R, C>(fmod, SAT);
@@ -1954,10 +1935,10 @@ template <int R, int C>
 CM_INLINE matrix<float, R, C> cm_fmod(matrix_ref<float, R, C> y,
                                       matrix_ref<float, R, C> x,
                                       const uint flags) {
-  vector<int, R *C> v_quot;
+  vector<int, R * C> v_quot;
   matrix<float, R, C> fmod;
 
-  v_quot = vector<int, R *C>(y / x);
+  v_quot = vector<int, R * C>(y / x);
   fmod = y - x * matrix<float, R, C>(v_quot);
   if (flags & SAT)
     fmod = matrix<float, R, C>(fmod, SAT);
@@ -2008,66 +1989,14 @@ template <> CM_INLINE float cm_fmod(float y, float x, const uint flags) {
   return fmod(0);
 }
 
-#define CMPI			3.14159265f
+#define CMPI 3.14159265f
 
 // cm_sin_emu - EU emulation for sin(x)
 
 // For matrix input
 template <int R, int C>
-CM_INLINE matrix<float, R, C> cm_sin_emu(matrix<float, R, C> x, const uint flags) {
-  matrix<float, R, C> x1;
-  matrix<float, R, C> x2;
-  matrix<float, R, C> t3;
-
-  matrix<float, R, C> sign;
-  matrix<float, R, C> fTrig;
-  matrix <float, R, C> TwoPI(6.2831853f);
-
-  x = cm_fmod(x, TwoPI);
-
-  // 1st quadrant: sin(x) = sin(x)
-  // 2nd quadrant: sin(x) = sin(PI-x)
-  // 3rd quadrant: sin(x) = -sin(x-PI)
-  // 4th quadrant: sin(x) = -sin(2*PI-x)
-  x1.merge(CMPI -x, x- CMPI, (x <= CMPI));
-  x1.merge(x, (x <= CMPI*0.5f));
-  x1.merge(2* CMPI -x, (x > CMPI*1.5f));
-
-  sign.merge(-1, 1, (x > CMPI));
-
-  // Sine Taylor series
-  x2 = x1 * x1;
-  t3 = x2 * x1 * 0.1666667f;	// 1/6 = 0.1666667f
-
-  //t5 = t3 * x2/20;
-  //t7 = t5 * x2/42;
-  //t9 = t7 * x2/72;
-  //t11 = t9 * x2/110;
-  //fTrig = x1 - t3 + t5 - t7 + t9 - t11;
-
-  // Optimized:
-  //fTrig = x - t3 + t5 - t7 + t9 - t11;
-  //fTrig = x - t3 + (x2/20 * t3) - (x2/42 * x2/20 * t3) + (x2/72 * x2/42 * x2/20 * t3) - (x2/110 * x2/72 * x2/42 * x2/20 * t3);
-  //fTrig = x + t3*(-1 + x2/20 - x2/42 * x2/20 + x2/72 * x2/42 * x2/20 - x2/110 * x2/72 * x2/42 * x2/20);
-  //fTrig = x + t3*(-1 + x2/20 * (1 - x2/42 + x2/72 * x2/42 - x2/110 * x2/72 * x2/42));
-  //fTrig = x + t3*(-1 + x2/20 * (1 + x2/42 * (-1 + x2/72 - x2/110 * x2/72)));
-  //fTrig = x + t3*(-1 + x2/20 * (1 + x2/42 * (-1 + x2/72 *(1 - x2/110))));
-  // 1/20 = 0.05f
-  // 1/42 = 0.0238095f
-  // 1/72 = 0.0138889f
-  // 1/110 = 0.0090909f
-  fTrig = x1 + t3 * (-1 + x2*0.05f * (1 + x2*0.0238095f * (-1 + x2*0.0138889f * (1 - x2*0.0090909f))));
-  fTrig *= sign;
-
-  if (flags & SAT)
-    fTrig = matrix<float, R, C>(fTrig, SAT);
-
-  return fTrig;
-}
-
-// matrix_ref input
-template <int R, int C>
-CM_INLINE matrix<float, R, C> cm_sin_emu(matrix_ref<float, R, C> x, const uint flags) {
+CM_INLINE matrix<float, R, C> cm_sin_emu(matrix<float, R, C> x,
+                                         const uint flags) {
   matrix<float, R, C> x1;
   matrix<float, R, C> x2;
   matrix<float, R, C> t3;
@@ -2078,16 +2007,80 @@ CM_INLINE matrix<float, R, C> cm_sin_emu(matrix_ref<float, R, C> x, const uint f
 
   x = cm_fmod(x, TwoPI);
 
-  x1.merge(CMPI -x, x- CMPI, (x <= CMPI));
-  x1.merge(x, (x <= CMPI*0.5f));
-  x1.merge(2* CMPI -x, (x > CMPI*1.5f));
+  // 1st quadrant: sin(x) = sin(x)
+  // 2nd quadrant: sin(x) = sin(PI-x)
+  // 3rd quadrant: sin(x) = -sin(x-PI)
+  // 4th quadrant: sin(x) = -sin(2*PI-x)
+  x1.merge(CMPI - x, x - CMPI, (x <= CMPI));
+  x1.merge(x, (x <= CMPI * 0.5f));
+  x1.merge(2 * CMPI - x, (x > CMPI * 1.5f));
+
+  sign.merge(-1, 1, (x > CMPI));
+
+  // Sine Taylor series
+  x2 = x1 * x1;
+  t3 = x2 * x1 * 0.1666667f; // 1/6 = 0.1666667f
+
+  // t5 = t3 * x2/20;
+  // t7 = t5 * x2/42;
+  // t9 = t7 * x2/72;
+  // t11 = t9 * x2/110;
+  // fTrig = x1 - t3 + t5 - t7 + t9 - t11;
+
+  // Optimized:
+  // fTrig = x - t3 + t5 - t7 + t9 - t11;
+  // fTrig = x - t3 + (x2/20 * t3) - (x2/42 * x2/20 * t3) + (x2/72 * x2/42 *
+  // x2/20 * t3) - (x2/110 * x2/72 * x2/42 * x2/20 * t3); fTrig = x + t3*(-1 +
+  // x2/20 - x2/42 * x2/20 + x2/72 * x2/42 * x2/20 - x2/110 * x2/72 * x2/42 *
+  // x2/20); fTrig = x + t3*(-1 + x2/20 * (1 - x2/42 + x2/72 * x2/42 - x2/110 *
+  // x2/72 * x2/42)); fTrig = x + t3*(-1 + x2/20 * (1 + x2/42 * (-1 + x2/72 -
+  // x2/110 * x2/72))); fTrig = x + t3*(-1 + x2/20 * (1 + x2/42 * (-1 + x2/72
+  // *(1 - x2/110))));
+  // 1/20 = 0.05f
+  // 1/42 = 0.0238095f
+  // 1/72 = 0.0138889f
+  // 1/110 = 0.0090909f
+  fTrig =
+      x1 +
+      t3 * (-1 + x2 * 0.05f *
+                     (1 + x2 * 0.0238095f *
+                              (-1 + x2 * 0.0138889f * (1 - x2 * 0.0090909f))));
+  fTrig *= sign;
+
+  if (flags & SAT)
+    fTrig = matrix<float, R, C>(fTrig, SAT);
+
+  return fTrig;
+}
+
+// matrix_ref input
+template <int R, int C>
+CM_INLINE matrix<float, R, C> cm_sin_emu(matrix_ref<float, R, C> x,
+                                         const uint flags) {
+  matrix<float, R, C> x1;
+  matrix<float, R, C> x2;
+  matrix<float, R, C> t3;
+
+  matrix<float, R, C> sign;
+  matrix<float, R, C> fTrig;
+  matrix<float, R, C> TwoPI(6.2831853f);
+
+  x = cm_fmod(x, TwoPI);
+
+  x1.merge(CMPI - x, x - CMPI, (x <= CMPI));
+  x1.merge(x, (x <= CMPI * 0.5f));
+  x1.merge(2 * CMPI - x, (x > CMPI * 1.5f));
 
   sign.merge(-1, 1, (x > CMPI));
 
   x2 = x1 * x1;
   t3 = x2 * x1 * 0.1666667f;
 
-  fTrig = x1 + t3 * (-1 + x2*0.05f * (1 + x2*0.0238095f * (-1 + x2*0.0138889f * (1 - x2*0.0090909f))));
+  fTrig =
+      x1 +
+      t3 * (-1 + x2 * 0.05f *
+                     (1 + x2 * 0.0238095f *
+                              (-1 + x2 * 0.0138889f * (1 - x2 * 0.0090909f))));
   fTrig *= sign;
 
   if (flags & SAT)
@@ -2110,15 +2103,19 @@ CM_INLINE vector<float, N> cm_sin_emu(vector<float, N> x, const uint flags) {
   x = cm_fmod(x, TwoPI);
 
   x1.merge(CMPI - x, x - CMPI, (x <= CMPI));
-  x1.merge(x, (x <= CMPI*0.5f));
-  x1.merge(2 * CMPI - x, (x > CMPI*1.5f));
+  x1.merge(x, (x <= CMPI * 0.5f));
+  x1.merge(2 * CMPI - x, (x > CMPI * 1.5f));
 
   sign.merge(-1, 1, (x > CMPI));
 
   x2 = x1 * x1;
   t3 = x2 * x1 * 0.1666667f;
 
-  fTrig = x1 + t3 * (-1 + x2*0.05f * (1 + x2*0.0238095f * (-1 + x2*0.0138889f * (1 - x2*0.0090909f))));
+  fTrig =
+      x1 +
+      t3 * (-1 + x2 * 0.05f *
+                     (1 + x2 * 0.0238095f *
+                              (-1 + x2 * 0.0138889f * (1 - x2 * 0.0090909f))));
   fTrig *= sign;
 
   if (flags & SAT)
@@ -2129,7 +2126,8 @@ CM_INLINE vector<float, N> cm_sin_emu(vector<float, N> x, const uint flags) {
 
 // vector_ref input
 template <int N>
-CM_INLINE  vector<float, N> cm_sin_emu(vector_ref<float, N> x, const uint flags) {
+CM_INLINE vector<float, N> cm_sin_emu(vector_ref<float, N> x,
+                                      const uint flags) {
   vector<float, N> x1;
   vector<float, N> x2;
   vector<float, N> t3;
@@ -2141,15 +2139,19 @@ CM_INLINE  vector<float, N> cm_sin_emu(vector_ref<float, N> x, const uint flags)
   x = cm_fmod(x, TwoPI);
 
   x1.merge(CMPI - x, x - CMPI, (x <= CMPI));
-  x1.merge(x, (x <= CMPI*0.5f));
-  x1.merge(2 * CMPI - x, (x > CMPI*1.5f));
+  x1.merge(x, (x <= CMPI * 0.5f));
+  x1.merge(2 * CMPI - x, (x > CMPI * 1.5f));
 
   sign.merge(-1, 1, (x > CMPI));
 
   x2 = x1 * x1;
   t3 = x2 * x1 * 0.1666667f;
 
-  fTrig = x1 + t3 * (-1 + x2*0.05f * (1 + x2*0.0238095f * (-1 + x2*0.0138889f * (1 - x2*0.0090909f))));
+  fTrig =
+      x1 +
+      t3 * (-1 + x2 * 0.05f *
+                     (1 + x2 * 0.0238095f *
+                              (-1 + x2 * 0.0138889f * (1 - x2 * 0.0090909f))));
   fTrig *= sign;
 
   if (flags & SAT)
@@ -2159,28 +2161,31 @@ CM_INLINE  vector<float, N> cm_sin_emu(vector_ref<float, N> x, const uint flags)
 }
 
 // scalar Input
-template <typename T>
-CM_INLINE float cm_sin_emu(T x, const uint flags) {
+template <typename T> CM_INLINE float cm_sin_emu(T x, const uint flags) {
   vector<float, 1> x1;
   vector<float, 1> x2;
   vector<float, 1> t3;
 
   vector<float, 1> sign;
   vector<float, 1> fTrig;
-  float TwoPI = CMPI*2.0f;
+  float TwoPI = CMPI * 2.0f;
 
   x = cm_fmod(x, TwoPI);
 
   x1.merge(CMPI - x, x - CMPI, (x <= CMPI));
-  x1.merge(x, (x <= CMPI*0.5f));
-  x1.merge(2 * CMPI - x, (x > CMPI*1.5f));
+  x1.merge(x, (x <= CMPI * 0.5f));
+  x1.merge(2 * CMPI - x, (x > CMPI * 1.5f));
 
   sign.merge(-1, 1, (x > CMPI));
 
   x2 = x1 * x1;
   t3 = x2 * x1 * 0.1666667f;
 
-  fTrig = x1 + t3 * (-1 + x2*0.05f * (1 + x2*0.0238095f * (-1 + x2*0.0138889f * (1 - x2*0.0090909f))));
+  fTrig =
+      x1 +
+      t3 * (-1 + x2 * 0.05f *
+                     (1 + x2 * 0.0238095f *
+                              (-1 + x2 * 0.0138889f * (1 - x2 * 0.0090909f))));
   fTrig *= sign;
 
   if (flags & SAT)
@@ -2193,7 +2198,8 @@ CM_INLINE float cm_sin_emu(T x, const uint flags) {
 
 // For matrix input
 template <int R, int C>
-CM_INLINE matrix<float, R, C> cm_cos_emu(matrix<float, R, C> x, const uint flags) {
+CM_INLINE matrix<float, R, C> cm_cos_emu(matrix<float, R, C> x,
+                                         const uint flags) {
   matrix<float, R, C> x1;
   matrix<float, R, C> x2;
   matrix<float, R, C> t2;
@@ -2201,7 +2207,7 @@ CM_INLINE matrix<float, R, C> cm_cos_emu(matrix<float, R, C> x, const uint flags
 
   matrix<float, R, C> sign;
   matrix<float, R, C> fTrig;
-  matrix <float, R, C> TwoPI(6.2831853f);
+  matrix<float, R, C> TwoPI(6.2831853f);
 
   x = cmtl::cm_fmod(x, TwoPI);
 
@@ -2210,16 +2216,20 @@ CM_INLINE matrix<float, R, C> cm_cos_emu(matrix<float, R, C> x, const uint flags
   // 2nd quadrant: cos(x) = -sin(x-PI/2)
   // 3rd quadrant: cos(x) = -sin(PI*3/2-x)
   // 4th quadrant: cos(x) = sin(x-PI*3/2)
-  x1.merge(x - CMPI*0.5f, CMPI*1.5f - x, (x <= CMPI));
-  x1.merge(CMPI*0.5f - x, (x <= CMPI*0.5f));
-  x1.merge(x - CMPI*1.5f, (x > CMPI*1.5f));
+  x1.merge(x - CMPI * 0.5f, CMPI * 1.5f - x, (x <= CMPI));
+  x1.merge(CMPI * 0.5f - x, (x <= CMPI * 0.5f));
+  x1.merge(x - CMPI * 1.5f, (x > CMPI * 1.5f));
 
-  sign.merge(1, -1, ((x < CMPI*0.5f) | (x >= CMPI*1.5f)));
+  sign.merge(1, -1, ((x < CMPI * 0.5f) | (x >= CMPI * 1.5f)));
 
   // Sine Taylor series
   x2 = x1 * x1;
-  t3 = x2 * x1 * 0.1666667f;	// 1/6 = 0.1666667f
-  fTrig = x1 + t3 * (-1 + x2*0.05f * (1 + x2*0.0238095f * (-1 + x2*0.0138889f * (1 - x2*0.0090909f))));
+  t3 = x2 * x1 * 0.1666667f; // 1/6 = 0.1666667f
+  fTrig =
+      x1 +
+      t3 * (-1 + x2 * 0.05f *
+                     (1 + x2 * 0.0238095f *
+                              (-1 + x2 * 0.0138889f * (1 - x2 * 0.0090909f))));
   fTrig *= sign;
 
   if (flags & SAT)
@@ -2230,7 +2240,8 @@ CM_INLINE matrix<float, R, C> cm_cos_emu(matrix<float, R, C> x, const uint flags
 
 // matrix_ref input
 template <int R, int C>
-CM_INLINE matrix<float, R, C> cm_cos_emu(matrix_ref<float, R, C> x, const uint flags) {
+CM_INLINE matrix<float, R, C> cm_cos_emu(matrix_ref<float, R, C> x,
+                                         const uint flags) {
   matrix<float, R, C> x1;
   matrix<float, R, C> x2;
   matrix<float, R, C> t2;
@@ -2238,19 +2249,23 @@ CM_INLINE matrix<float, R, C> cm_cos_emu(matrix_ref<float, R, C> x, const uint f
 
   matrix<float, R, C> sign;
   matrix<float, R, C> fTrig;
-  matrix <float, R, C> TwoPI(6.2831853f);
+  matrix<float, R, C> TwoPI(6.2831853f);
 
   x = cmtl::cm_fmod(x, TwoPI);
 
-  x1.merge(x - CMPI*0.5f, CMPI*1.5f - x, (x <= CMPI));
-  x1.merge(CMPI*0.5f - x, (x <= CMPI*0.5f));
-  x1.merge(x - CMPI*1.5f, (x > CMPI*1.5f));
+  x1.merge(x - CMPI * 0.5f, CMPI * 1.5f - x, (x <= CMPI));
+  x1.merge(CMPI * 0.5f - x, (x <= CMPI * 0.5f));
+  x1.merge(x - CMPI * 1.5f, (x > CMPI * 1.5f));
 
-  sign.merge(1, -1, ((x < CMPI*0.5f) | (x >= CMPI*1.5f)));
+  sign.merge(1, -1, ((x < CMPI * 0.5f) | (x >= CMPI * 1.5f)));
 
   x2 = x1 * x1;
   t3 = x2 * x1 * 0.1666667f;
-  fTrig = x1 + t3 * (-1 + x2*0.05f * (1 + x2*0.0238095f * (-1 + x2*0.0138889f * (1 - x2*0.0090909f))));
+  fTrig =
+      x1 +
+      t3 * (-1 + x2 * 0.05f *
+                     (1 + x2 * 0.0238095f *
+                              (-1 + x2 * 0.0138889f * (1 - x2 * 0.0090909f))));
   fTrig *= sign;
 
   if (flags & SAT)
@@ -2273,15 +2288,19 @@ CM_INLINE vector<float, N> cm_cos_emu(vector<float, N> x, const uint flags) {
 
   x = cmtl::cm_fmod(x, TwoPI);
 
-  x1.merge(x - CMPI*0.5f, CMPI*1.5f - x, (x <= CMPI));
-  x1.merge(CMPI*0.5f - x, (x <= CMPI*0.5f));
-  x1.merge(x - CMPI*1.5f, (x > CMPI*1.5f));
+  x1.merge(x - CMPI * 0.5f, CMPI * 1.5f - x, (x <= CMPI));
+  x1.merge(CMPI * 0.5f - x, (x <= CMPI * 0.5f));
+  x1.merge(x - CMPI * 1.5f, (x > CMPI * 1.5f));
 
-  sign.merge(1, -1, ((x < CMPI*0.5f) | (x >= CMPI*1.5f)));
+  sign.merge(1, -1, ((x < CMPI * 0.5f) | (x >= CMPI * 1.5f)));
 
   x2 = x1 * x1;
   t3 = x2 * x1 * 0.1666667f;
-  fTrig = x1 + t3 * (-1 + x2*0.05f * (1 + x2*0.0238095f * (-1 + x2*0.0138889f * (1 - x2*0.0090909f))));
+  fTrig =
+      x1 +
+      t3 * (-1 + x2 * 0.05f *
+                     (1 + x2 * 0.0238095f *
+                              (-1 + x2 * 0.0138889f * (1 - x2 * 0.0090909f))));
   fTrig *= sign;
 
   if (flags & SAT)
@@ -2292,7 +2311,8 @@ CM_INLINE vector<float, N> cm_cos_emu(vector<float, N> x, const uint flags) {
 
 // vector_ref input
 template <int N>
-CM_INLINE  vector<float, N> cm_cos_emu(vector_ref<float, N> x, const uint flags) {
+CM_INLINE vector<float, N> cm_cos_emu(vector_ref<float, N> x,
+                                      const uint flags) {
   vector<float, N> x1;
   vector<float, N> x2;
   vector<float, N> t3;
@@ -2303,15 +2323,19 @@ CM_INLINE  vector<float, N> cm_cos_emu(vector_ref<float, N> x, const uint flags)
 
   x = cmtl::cm_fmod(x, TwoPI);
 
-  x1.merge(x - CMPI*0.5f, CMPI*1.5f - x, (x <= CMPI));
-  x1.merge(CMPI*0.5f - x, (x <= CMPI*0.5f));
-  x1.merge(x - CMPI*1.5f, (x > CMPI*1.5f));
+  x1.merge(x - CMPI * 0.5f, CMPI * 1.5f - x, (x <= CMPI));
+  x1.merge(CMPI * 0.5f - x, (x <= CMPI * 0.5f));
+  x1.merge(x - CMPI * 1.5f, (x > CMPI * 1.5f));
 
-  sign.merge(1, -1, ((x < CMPI*0.5f) | (x >= CMPI*1.5f)));
+  sign.merge(1, -1, ((x < CMPI * 0.5f) | (x >= CMPI * 1.5f)));
 
   x2 = x1 * x1;
   t3 = x2 * x1 * 0.1666667f;
-  fTrig = x1 + t3 * (-1 + x2*0.05f * (1 + x2*0.0238095f * (-1 + x2*0.0138889f * (1 - x2*0.0090909f))));
+  fTrig =
+      x1 +
+      t3 * (-1 + x2 * 0.05f *
+                     (1 + x2 * 0.0238095f *
+                              (-1 + x2 * 0.0138889f * (1 - x2 * 0.0090909f))));
   fTrig *= sign;
 
   if (flags & SAT)
@@ -2321,27 +2345,30 @@ CM_INLINE  vector<float, N> cm_cos_emu(vector_ref<float, N> x, const uint flags)
 }
 
 // scalar Input
-template <typename T>
-CM_INLINE float cm_cos_emu(T x, const uint flags) {
+template <typename T> CM_INLINE float cm_cos_emu(T x, const uint flags) {
   vector<float, 1> x1;
   vector<float, 1> x2;
   vector<float, 1> t3;
 
   vector<float, 1> sign;
   vector<float, 1> fTrig;
-  float TwoPI = CMPI*2.0f;
+  float TwoPI = CMPI * 2.0f;
 
   x = cmtl::cm_fmod(x, TwoPI);
 
-  x1.merge(x - CMPI*0.5f, CMPI*1.5f - x, (x <= CMPI));
-  x1.merge(CMPI*0.5f - x, (x <= CMPI*0.5f));
-  x1.merge(x - CMPI*1.5f, (x > CMPI*1.5f));
+  x1.merge(x - CMPI * 0.5f, CMPI * 1.5f - x, (x <= CMPI));
+  x1.merge(CMPI * 0.5f - x, (x <= CMPI * 0.5f));
+  x1.merge(x - CMPI * 1.5f, (x > CMPI * 1.5f));
 
-  sign.merge(1, -1, ((x < CMPI*0.5f) | (x >= CMPI*1.5f)));
+  sign.merge(1, -1, ((x < CMPI * 0.5f) | (x >= CMPI * 1.5f)));
 
   x2 = x1 * x1;
   t3 = x2 * x1 * 0.1666667f;
-  fTrig = x1 + t3 * (-1 + x2*0.05f * (1 + x2*0.0238095f * (-1 + x2*0.0138889f * (1 - x2*0.0090909f))));
+  fTrig =
+      x1 +
+      t3 * (-1 + x2 * 0.05f *
+                     (1 + x2 * 0.0238095f *
+                              (-1 + x2 * 0.0138889f * (1 - x2 * 0.0090909f))));
   fTrig *= sign;
 
   if (flags & SAT)
@@ -2350,32 +2377,27 @@ CM_INLINE float cm_cos_emu(T x, const uint flags) {
   return fTrig(0);
 }
 
-namespace detail
-{
+namespace detail {
 
 template <int N>
-CM_INLINE vector<float, N> cm_tanh_cody_waite_impl(vector<float, N> x)
-{
-/*
- *      0           x_small             x_medium            x_large
- *  |   x   | rational polynomial | 1 - 2/(1 + exp(2*x)) |  1
- *
- * rational polynomial for single precision = x + x * (g * (p(1) * g + p(0)) / (g + q(0))
- * g = x^2
- * p0 = -0.82377 28127 E+00
- * p1 = -0.38310 10665 E-02
- * q0 = 0.24713 19654 E+01
- * q1 = 1.00000 00000 E+00
- *
- */
+CM_INLINE vector<float, N> cm_tanh_cody_waite_impl(vector<float, N> x) {
+  /*
+   *      0           x_small             x_medium            x_large
+   *  |   x   | rational polynomial | 1 - 2/(1 + exp(2*x)) |  1
+   *
+   * rational polynomial for single precision = x + x * (g * (p(1) * g + p(0)) /
+   * (g + q(0)) g = x^2 p0 = -0.82377 28127 E+00 p1 = -0.38310 10665 E-02 q0 =
+   * 0.24713 19654 E+01 q1 = 1.00000 00000 E+00
+   *
+   */
 
   constexpr float p0 = -0.8237728127E+00f;
   constexpr float p1 = -0.3831010665E-02f;
   constexpr float q0 = 0.2471319654E+01f;
   constexpr float q1 = 1.0000000000E+00f;
-  constexpr float xsmall =  4.22863966691620432990E-04f;
+  constexpr float xsmall = 4.22863966691620432990E-04f;
   constexpr float xmedium = 0.54930614433405484570f;
-  constexpr float xlarge =  8.66433975699931636772f;
+  constexpr float xlarge = 8.66433975699931636772f;
   constexpr float log2E = 1.442695f; // same as cm_log(e)
 
   using RT = vector<float, N>;
@@ -2399,14 +2421,12 @@ CM_INLINE vector<float, N> cm_tanh_cody_waite_impl(vector<float, N> x)
   return res;
 }
 
-template <int N>
-CM_INLINE vector<float, N> cm_tanh_impl(vector<float, N> x)
-{
-/*
- *      0                       x_small                          x_large
- * |    x    |  ( exp(x) - exp(-x) ) / ( exp(x) + exp(-x) )  |      1
- *
- */
+template <int N> CM_INLINE vector<float, N> cm_tanh_impl(vector<float, N> x) {
+  /*
+   *      0                       x_small                          x_large
+   * |    x    |  ( exp(x) - exp(-x) ) / ( exp(x) + exp(-x) )  |      1
+   *
+   */
 
   constexpr float xsmall = 0.000045f; // same as exp(-10.0f)
   constexpr float xlarge = 88.f;
@@ -2427,47 +2447,39 @@ CM_INLINE vector<float, N> cm_tanh_impl(vector<float, N> x)
   RT exp;
   exp = cm_exp(2.f * log2E * absX);
 
-  res.merge( ((exp - 1.f)/(exp + 1.f)) * sign, (absX > xsmall) & !isLarge);
+  res.merge(((exp - 1.f) / (exp + 1.f)) * sign, (absX > xsmall) & !isLarge);
 
   return res;
 }
 } // namespace detail
 
-
 /* cm_tanh_cody_waite - Cody-Waite implementation for tanh(x) */
 /* float input */
-CM_INLINE float cm_tanh_cody_waite(float x)
-{
+CM_INLINE float cm_tanh_cody_waite(float x) {
   return detail::cm_tanh_cody_waite_impl(vector<float, 1>(x))[0];
 }
 /* vector input */
 template <int N>
-CM_INLINE vector<float, N> cm_tanh_cody_waite(vector<float, N> x)
-{
+CM_INLINE vector<float, N> cm_tanh_cody_waite(vector<float, N> x) {
   return detail::cm_tanh_cody_waite_impl(x);
 }
 /* matrix input */
 template <int R, int C>
-CM_INLINE matrix<float, R, C> cm_tanh_cody_waite(matrix<float, R, C> x)
-{
+CM_INLINE matrix<float, R, C> cm_tanh_cody_waite(matrix<float, R, C> x) {
   return detail::cm_tanh_cody_waite_impl(vector<float, R * C>(x));
 }
 /* cm_tanh - opencl like implementation for tanh(x) */
 /* float input */
-CM_INLINE float cm_tanh(float x)
-{
+CM_INLINE float cm_tanh(float x) {
   return detail::cm_tanh_impl(vector<float, 1>(x))(0);
 }
 /* vector input */
-template <int N>
-CM_INLINE vector<float, N> cm_tanh(vector<float, N> x)
-{
+template <int N> CM_INLINE vector<float, N> cm_tanh(vector<float, N> x) {
   return detail::cm_tanh_impl(x);
 }
 /* matrix input */
 template <int R, int C>
-CM_INLINE matrix<float, R, C> cm_tanh(matrix<float, R, C> x)
-{
+CM_INLINE matrix<float, R, C> cm_tanh(matrix<float, R, C> x) {
   return detail::cm_tanh_impl(vector<float, R * C>(x));
 }
 
@@ -2492,7 +2504,7 @@ template <uint RemSize, typename T, uint Size> struct __RemainderInit {
 };
 
 template <typename T, uint Size> struct __RemainderInit<0, T, Size> {
-  CM_INLINE void __CM_remainder_init(vector_ref<T, Size> v, int Value){};
+  CM_INLINE void __CM_remainder_init(vector_ref<T, Size> v, int Value) {};
 };
 
 template <uint Size8x, typename T, uint Size, int InitValue, int Step>

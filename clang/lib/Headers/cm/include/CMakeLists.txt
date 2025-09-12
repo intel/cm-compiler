@@ -46,6 +46,12 @@ set(CM_HEADERS
   cm/cmtl/math/round.h
   cm/cmtl/math/utils.h
   cm/cmtl/numbers.h
+  cm/cmtl/dataport.h
+  cm/cmtl/dataport/svm.h
+  cm/cmtl/dataport/svm_atomic.h
+  cm/cmtl/dataport/svm_scatter.h
+  cm/cmtl/dataport/slm.h
+  cm/cmtl/dataport/typed.h
   cm/cm_traits.h
   cm/cm_util.h
   cm/cm_vme.h
