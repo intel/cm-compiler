@@ -146,7 +146,8 @@ static_assert(0, "CM:w:cm_target.h should not be included explicitly");
 #endif
 
 // BMG
-#if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(20, 1, 0)
+#if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(20, 1, 0) ||                   \
+    __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(20, 2, 0)
 #define CM_GENX 1290
 #define CM_XE2_HPG
 #endif
