@@ -9,7 +9,7 @@ SPDX-License-Identifier: MIT
 #ifndef CM_CMTL_DATAPORT_SLM_H
 #define CM_CMTL_DATAPORT_SLM_H
 
-#include "cm/cmtl/dataport/svm.h"
+#include "svm.h"
 
 namespace cmtl {
 namespace dataport {
