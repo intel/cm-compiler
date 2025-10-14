@@ -99,7 +99,7 @@ namespace CheckVersion {
 #endif
 
 //Gateway event
-#if (CM_GENX >= 1150 && CM_GENX <= 1280) //>= ICLLP && <= PVC
+#if __CM_INTEL_TARGET_MAJOR == 12
   #define CM_HAS_GATEWAY_EVENT
   #define CM_HAS_GATEWAY_EVENT_CONTROL CM_HAS_CONTROL(true)
 #else
@@ -180,6 +180,9 @@ namespace CheckVersion {
   #define CM_HAS_LSC_LOAD_L1RI_L3CA_HINT 1
 #endif
 
+#if __CM_INTEL_TARGET_MAJOR >= 20
+  #define CM_HAS_SYSTOLIC_DENORMALS 1
+#endif
 
 #ifdef CM_HAS_SLM_CAS_INT64
 #define CM_HAS_SLM_CAS_INT64_CONTROL CM_HAS_CONTROL(true)
