@@ -15,7 +15,9 @@ static_assert(0, "CM:w:gen12_vme.h should not be included explicitly");
 
 #include "cm_send.h"
 #include "cm_util.h"
-#include "gen9_vme.h" // Included to obtain legacy functionality
+
+#define __SFID_VME 8
+#define __SFID_CRE 13
 
 typedef enum _VMEMsgTypeHEVC_ {
   __VME_HEVC_SKIP_RDE_MSG = 0,

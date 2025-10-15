@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2024 Intel Corporation
+Copyright (C) 2016-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -16,4 +16,4 @@ _GENX_ void test1()
   v1[m2[0][3]] += 1;
 }
 
-// RUN: %cmc -march=SKL -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
+// RUN: %cmc -march=pvc -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s

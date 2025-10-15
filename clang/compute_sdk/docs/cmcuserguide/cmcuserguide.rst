@@ -57,21 +57,12 @@ The targets supported by cmc, and the corresponding macros, are given in the tab
 ========= ======== ============ ============= ===================
 Gen/Xe    Name     Macro        CM_GENX value CM_GENX_REVID value
 ========= ======== ============ ============= ===================
-GEN7_5    HSW      CM_GEN7_5    750           0
-GEN8      BDW      CM_GEN8      800           0
-GEN8_5    CHV      CM_GEN8_5    850           0
-GEN9      SKL      CM_GEN9      900           0
-..        BXT      CM_GEN9      920           0
-GEN9_5    KBL      CM_GEN9_5    950           0
-..        GLK      CM_GEN9_5    970           0
-GEN11     ICLLP    CM_GEN11     1150          0
 GEN12     TGLLP    CM_GEN12     1200          0
 ...       RKL      CM_GEN12     1201          0
 ...       DG1      CM_GEN12     1210          0
 ...       ADLP     CM_GEN12     1220          0
 ...       ADLS     CM_GEN12     1230          0
 ...       ADLN     CM_GEN12     1240          0
-XEHP_SDV  XEHP_SDV CM_XEHP      1270          0
 XeHPG     DG2      CM_XEHPG     1271          0
 XeLPG     MTL      CM_XELPG     1275          0
 XeLPG+    ARL-H    CM_XELPGPLUS 1276          0
@@ -128,13 +119,13 @@ Option                        Description
 -march=\ *gen*                Specifies the Gen/Xe target
 
                               This may use numeric or mnemonic notations, e.g.
-                              gen8 and bdw both specify a Broadwell target.
+                              gen12 and tgllp both specify a Tiger Lake target.
                               Case is not significant.
 
                               The macros CM_GENX and CM_GEN<x> will be
                               predefined according to the target that is
-                              specified - e.g. for BDW, CM_GENX will have
-                              a value of 800, and CM_GEN8 will be defined
+                              specified - e.g. for Tiger Lake, CM_GENX will have
+                              a value of 1200, and CM_GEN12 will be defined
                               (without a value).
 
 -binary-format <value>        Sets in which format should be generated binary;
@@ -244,12 +235,6 @@ CM_HAS_DOUBLE                  Defined (with value 1) if the specified target su
 
 CM_HAS_IEEE_DIV_SQRT           Defined (with value 1) if the specified target supports
                                IEEE-compliant division and square root operations.
-
-CM_HAS_VA                      Defined (with value 1) if BDW+ video analytics features
-                               are available on the specified target.
-
-CM_HAS_VA_PLUS                 Defined (with value 1) if SKL+ video analytics features
-                               are available on the specified target.
 
 CM_HAS_BIT_ROTATE              Defined (with value 1) if the specified target supports
                                the ``cm_rol`` and ``cm_ror`` built-in functions.

@@ -147,37 +147,7 @@ form which looks as follows::
 
 Note that this new form will not work on the cm-icl compiler.
 
-4.5 CM_STATIC_BUFFER_n
-----------------------
-
-cm_icl defined various ``CM_STATIC_BUFFER_n`` macros to refer to a number of global
-reserved surface indexes. **These are not defined in cmc.** Instead, cmc supports
-``SurfaceIndex`` constant values with numeric literal initializers (which represent
-specific binding table indices), which allows the same sort of functionality in a
-more flexible way (but remember to use ``SetSurfaceBTI()`` in the application host
-code to associate a surface with the index). If you have a substantial kernel that uses these
-macros and you want to minimize the number of edits you can add the following code near the
-start of your kernel::
-
-  #ifdef __CMC
-  // Macro definitions only used on cmc. cm-icl already has them built into the
-  // compiler.
-  #if CM_GENX < 900
-  // BDW and earlier
-  #define CM_STATIC_BUFFER_0 (SurfaceIndex)0xf3
-  #define CM_STATIC_BUFFER_1 (SurfaceIndex)0xf4
-  #define CM_STATIC_BUFFER_2 (SurfaceIndex)0xf5
-  #define CM_STATIC_BUFFER_3 (SurfaceIndex)0xf6
-  #else
-  // SKL+
-  #define CM_STATIC_BUFFER_0 (SurfaceIndex)1
-  #define CM_STATIC_BUFFER_1 (SurfaceIndex)2
-  #define CM_STATIC_BUFFER_2 (SurfaceIndex)3
-  #define CM_STATIC_BUFFER_3 (SurfaceIndex)4
-  #endif
-  #endif
-
-4.6 #pragma cm_nonstrict
+4.5 #pragma cm_nonstrict
 ------------------------
 
 The cmc compiler will implicitly use a narrower integer type for computation whenever that is

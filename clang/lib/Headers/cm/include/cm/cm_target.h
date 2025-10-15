@@ -36,46 +36,6 @@ static_assert(0, "CM:w:cm_target.h should not be included explicitly");
 #define __CM_INTEL_TARGET_CORE                                                 \
   __CM_INTEL_TARGET(__CM_INTEL_TARGET_MAJOR, __CM_INTEL_TARGET_MINOR, 0)
 
-// BDW
-#if __CM_INTEL_TARGET_MAJOR == 8
-#define CM_GENX 800
-#define CM_GEN8
-#endif
-
-// SKL
-#if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(9, 0, 0)
-#define CM_GENX 900
-#define CM_GEN9
-#endif
-
-// KBL, CFL, WHL, AML, CML
-#if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(9, 1, 0) ||                    \
-    __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(9, 2, 0) ||                    \
-    __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(9, 5, 0) ||                    \
-    __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(9, 6, 0) ||                    \
-    __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(9, 7, 0)
-#define CM_GENX 950
-#define CM_GEN9_5
-#endif
-
-// APL, BXT
-#if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(9, 3, 0)
-#define CM_GENX 920
-#define CM_GEN9
-#endif
-
-// GLK
-#if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(9, 4, 0)
-#define CM_GENX 970
-#define CM_GEN9_5
-#endif
-
-// ICLLP, EHL, JSL
-#if __CM_INTEL_TARGET_MAJOR == 11
-#define CM_GENX 1150
-#define CM_GEN11
-#endif
-
 // TGLLP
 #if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(12, 0, 0)
 #define CM_GENX 1200
@@ -110,12 +70,6 @@ static_assert(0, "CM:w:cm_target.h should not be included explicitly");
 #if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(12, 10, 0)
 #define CM_GENX 1210
 #define CM_GEN12
-#endif
-
-// XE-HP-SDV
-#if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(12, 50, 0)
-#define CM_GENX 1270
-#define CM_XEHP
 #endif
 
 #if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(12, 55, 0) ||                  \
@@ -167,29 +121,21 @@ static_assert(0, "CM:w:cm_target.h should not be included explicitly");
 
 #define CM_GENX_REVID __CM_INTEL_TARGET_REVISION
 
-#if (CM_GENX >= 900 && CM_GENX <= 1150)
-  #define CM_HAS_VA 1
-#endif //(CM_GENX >= 900 && CM_GENX <= 1150)
+// DG2 or newer
+#if __CM_INTEL_TARGET_MAJOR >= 20 ||                                           \
+    (__CM_INTEL_TARGET_MAJOR == 12 && __CM_INTEL_TARGET_MINOR >= 55)
+#define __CM_INTEL_TARGET_DG2_OR_ABOVE
+#endif
 
-#if (CM_GENX >= 900 && CM_GENX <= 1150)
-  #define CM_HAS_VA_PLUS 1
-#endif //(CM_GENX >= 900 && CM_GENX <= 1150)
-
-#if 1 // !(CM_GENX == 1280 && CM_GENX_REVID <= 2) //PVC
-#define CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT
-#endif // !(CM_GENX == 1280 && CM_GENX_REVID <= 2)
-
-// On PVC non-transpose LSC messages have SIMD32 layout
-// So 16-channels non-transposed lsc messages with VectorSze != 1
-// aren't supported on PVC
-#if !defined(CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT)
-#define CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS) \
-  CM_STATIC_ERROR(                                                             \
-      N == details::lsc_default_simt() || VS == VectorSize::N1,                \
-      "unexpected number of channels for non-transpose lsc message");
+// PVC or newer
+#if __CM_INTEL_TARGET_MAJOR >= 20 ||                                           \
+    (__CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(12, 60, 0) ||                 \
+     __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(12, 61, 0))
+#define __CM_INTEL_TARGET_PVC_OR_ABOVE
+#define __CM_DEFAULT_SIMT 32
 #else
-#define CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS)
-#endif //!defined(CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT)
+#define __CM_DEFAULT_SIMT 16
+#endif
 
 // Make Gen target specific warnings into errors
 #pragma clang diagnostic error "-Wgen-target"

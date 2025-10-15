@@ -18,7 +18,7 @@ CM_INLINE void read(SurfaceIndex idx, int X, int Y,
                     matrix_ref<T, N, M> output) {
   auto new_X = X + x_offset;
   auto new_Y = Y + y_offset;
-#if (CM_GENX < 1290) // before Xe2
+#if __CM_INTEL_TARGET_MAJOR < 20
   ::read(idx, new_X * sizeof(T), new_Y, output);
 #else
   output = 0;

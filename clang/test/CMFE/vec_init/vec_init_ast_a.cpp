@@ -1,12 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021-2024 Intel Corporation
+Copyright (C) 2021-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: %cmc -march=SKL %dump-ast-for test_func -- %s 2>&1 | FileCheck %s
+// RUN: %cmc -march=pvc %dump-ast-for test_func -- %s 2>&1 | FileCheck %s
 
 _GENX_ void test_func() {
   vector<unsigned short, 8> vec = {1, 2, 3, 5, 7, 11, 13, 17};

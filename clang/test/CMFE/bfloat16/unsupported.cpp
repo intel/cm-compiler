@@ -1,13 +1,11 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2023-2024 Intel Corporation
+Copyright (C) 2023-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: %cmc -emit-llvm -march=skl -Xclang -verify -- %s
-// RUN: %cmc -emit-llvm -march=icllp -Xclang -verify -- %s
 // RUN: %cmc -emit-llvm -march=tgllp -Xclang -verify -- %s
 // RUN: %cmc -emit-llvm -march=mtl -Xclang -verify -- %s
 

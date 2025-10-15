@@ -191,9 +191,7 @@ CM_INLINE void cm_slm_load(uint slmBuffer, svmptr_t addr, uint offset,
     threadOffsetInSLM += numGroups * 256;
   }
 
-#if CM_GENX > 900
   cm_slm_fence(CM_GLOBAL_COHERENT_FENCE);
-#endif
   cm_barrier();
 }
 

@@ -1,12 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2023-2024 Intel Corporation
+Copyright (C) 2023-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: %cmc -march=skl -g0 -S -emit-llvm -o %t.ll -- %s
+// RUN: %cmc -march=pvc -g0 -S -emit-llvm -o %t.ll -- %s
 // RUN: FileCheck %s --input-file %t.ll
 
 void to_generic(__private void *p_ptr, __local void *l_ptr, __global void *g_ptr) {

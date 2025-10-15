@@ -1,22 +1,22 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2020-2024 Intel Corporation
+Copyright (C) 2020-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: %cmc -march=SKL -emit-spirv   -o %t.spv -mcpu=SKL -- %s
-// RUN: %cmc -march=SKL -emit-llvm    -o %t.bc -mcpu=SKL -- %s
-// RUN: %cmc -march=SKL -emit-llvm -S -o %t.ll -mcpu=SKL -- %s
+// RUN: %cmc -march=pvc -emit-spirv   -o %t.spv -mcpu=pvc -- %s
+// RUN: %cmc -march=pvc -emit-llvm    -o %t.bc -mcpu=pvc -- %s
+// RUN: %cmc -march=pvc -emit-llvm -S -o %t.ll -mcpu=pvc -- %s
 
-// RUN: %cmc -march=SKL -emit-spirv -o output 2>&1 -- %t.spv \
+// RUN: %cmc -march=pvc -emit-spirv -o output 2>&1 -- %t.spv \
 // RUN:         | FileCheck %s
 //
-// RUN: %cmc -march=SKL -emit-llvm -o output 2>&1 -- %t.bc \
+// RUN: %cmc -march=pvc -emit-llvm -o output 2>&1 -- %t.bc \
 // RUN:         | FileCheck %s
 
-// RUN: %cmc -march=SKL -emit-llvm -S -o output 2>&1 -- %t.bc \
+// RUN: %cmc -march=pvc -emit-llvm -S -o output 2>&1 -- %t.bc \
 // RUN:         | FileCheck %s
 //
 

@@ -1,16 +1,14 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2022-2024 Intel Corporation
+Copyright (C) 2022-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: not %cmc -march=skl -- %s 2> %t.txt
-// RUN: FileCheck %s --input-file %t.txt
-// XFAIL: *
+// RUN: not %cmc -S -emit-llvm -march=pvc -- %s 2>&1 | FileCheck %s
 
-// CHECK: (24,1): error: Fence must be used at function scope!
+// CHECK: error: Fence must be used at function scope!
 CM_OPTIMIZATIONS_FENCE;
 
 _GENX_MAIN_ void test_uint_SZ7(SurfaceIndex Buffer) {

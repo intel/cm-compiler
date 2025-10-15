@@ -39,12 +39,11 @@ namespace CheckVersion {
 
 //-----------------------------------------------
 //-----------------------------------------------
-/// CM_HAS_<Feature>_CONTROL macors
+/// CM_HAS_<Feature>_CONTROL macros
 /// -------------------------------
 /// Create static_assert if feature isn't supported for this platform.
 /// Otherwise, do nothing.
 ///
-/// CM_GENX value of platforms sets according to Frontend/InitPreprocessor.cpp.
 //===----------------------------------------------------------------------===//
 
 #define CM_HAS_LONG_LONG 1
@@ -85,12 +84,7 @@ namespace CheckVersion {
 #define CM_HAS_DP4A_CONTROL CM_HAS_CONTROL(false)
 #endif // CM_HAS_DP4A
 
-#if (CM_GENX >= 1150) //>= ICLLP
-  #define CM_HAS_BIT_ROTATE 1
-  #define CM_HAS_BIT_ROTATE_CONTROL CM_HAS_CONTROL(true)
-#else
-  #define CM_HAS_BIT_ROTATE_CONTROL CM_HAS_CONTROL(false)
-#endif
+#define CM_HAS_BIT_ROTATE 1
 
 // Help to detect if a GPU supports legacy messages to pass correct compiler
 // flags during online compilation.
@@ -107,13 +101,7 @@ namespace CheckVersion {
 #endif
 
 //IEEE
-#if (CM_GENX == 800 ||  /*BWD*/                                                \
-     CM_GENX == 900 ||  /*SKL*/                                                \
-     CM_GENX == 950 ||  /*KBL*/                                                \
-     CM_GENX == 1150 || /*ICLLP*/                                              \
-     CM_GENX == 1270 || /*XeHP_SDV*/                                           \
-     CM_GENX >= 1280    /*PVC*/                                                \
-)
+#ifdef __CM_INTEL_TARGET_PVC_OR_ABOVE
 #define CM_HAS_IEEE_DIV_SQRT 1
 #define CM_HAS_IEEE_DIV_SQRT_CONTROL CM_HAS_CONTROL(true)
 #else  //IEEE
@@ -121,7 +109,7 @@ namespace CheckVersion {
 #endif //IEEE
 
 //LSC
-#if (CM_GENX >= 1271) //>= DG2
+#ifdef __CM_INTEL_TARGET_DG2_OR_ABOVE
   #define CM_HAS_LSC 1
   #define CM_HAS_LSC_CONTROL CM_HAS_CONTROL(true)
 #else
@@ -140,7 +128,7 @@ namespace CheckVersion {
 #endif
 
 //LSC_UNTYPED_2D
-#if (CM_GENX >= 1280) //>= PVC
+#ifdef __CM_INTEL_TARGET_PVC_OR_ABOVE
   #define CM_HAS_LSC_UNTYPED_2D 1
   #define CM_HAS_LSC_UNTYPED_2D_CONTROL CM_HAS_CONTROL(true)
 #else
@@ -148,7 +136,7 @@ namespace CheckVersion {
 #endif
 
 // Sample unorm
-#if (CM_GENX < 1270) // < XEHP_SDV
+#ifndef __CM_INTEL_TARGET_DG2_OR_ABOVE
   #define CM_HAS_SAMPLE_UNORM 1
   #define CM_HAS_SAMPLE_UNORM_CONTROL CM_HAS_CONTROL(true)
 #else
@@ -156,15 +144,19 @@ namespace CheckVersion {
 #endif
 
 //BitRotate64
-#if (CM_GENX >= 1280) //>= PVC
+#ifdef __CM_INTEL_TARGET_PVC_OR_ABOVE
   #define CM_HAS_BIT_ROTATE_64BIT 1
   #define CM_HAS_BIT_ROTATE_64BIT_CONTROL CM_HAS_CONTROL(true)
 #else
   #define CM_HAS_BIT_ROTATE_64BIT_CONTROL CM_HAS_CONTROL(false)
 #endif
 
-#if (CM_GENX == 1280) // == PVC
+#ifdef __CM_INTEL_TARGET_PVC_OR_ABOVE
   #define CM_HAS_LSC_SYS_FENCE 1
+#endif
+
+#if __CM_INTEL_TARGET_MAJOR >= 20
+  #define CM_HAS_3D_LOAD_L 1
 #endif
 
 #if __CM_INTEL_TARGET_MAJOR >= 20
@@ -190,7 +182,7 @@ namespace CheckVersion {
 #define CM_HAS_SLM_CAS_INT64_CONTROL CM_HAS_CONTROL(false)
 #endif // CM_HAS_SLM_CAS_INT64
 
-#if __CM_INTEL_TARGET_MAJOR >= 9 && __CM_INTEL_TARGET_MAJOR < 20
+#if __CM_INTEL_TARGET_MAJOR < 20
 #define CM_HAS_TYPED_ATOMIC 1
 #define CM_HAS_TYPED_ATOMIC_CONTROL CM_HAS_CONTROL(true)
 #else

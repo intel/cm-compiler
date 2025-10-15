@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2024 Intel Corporation
+Copyright (C) 2016-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -23,4 +23,4 @@ kern(matrix<int, 4, 2> p)
   mult3(m.select_all());  // m = p * 3;
 }
 
-// RUN: %cmc -emit-llvm -march=SKL -Xclang -verify -- %s
+// RUN: %cmc -emit-llvm -march=pvc -Xclang -verify -- %s

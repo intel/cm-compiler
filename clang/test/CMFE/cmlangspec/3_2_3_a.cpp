@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2024 Intel Corporation
+Copyright (C) 2016-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -21,4 +21,4 @@ _GENX_MAIN_ void test1(SurfaceIndex OUT, int index)
   // ...
 }
 
-// RUN: %cmc -emit-llvm -march=SKL -Xclang -verify -- %s
+// RUN: %cmc -emit-llvm -march=pvc -Xclang -verify -- %s

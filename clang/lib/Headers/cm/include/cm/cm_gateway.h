@@ -138,9 +138,9 @@ CM_INLINE void monitor_no_event(void) {
 /// timer_value passed in as the timeout. Only the bottom 10 bits are valid.
 /// Only one event may be monitored/waited on at a time
 ///
-#if (CM_GENX >= 1270) // >= XeHP_SDV
+#ifdef __CM_INTEL_TARGET_DG2_OR_ABOVE
 #define CM_WAIT_EVENT_SBARRIER
-#endif // >= XeHP_SDV
+#endif // __CM_INTEL_TARGET_DG2_OR_ABOVE
 
 #ifdef CM_WAIT_EVENT_SBARRIER
 CM_INLINE void wait_event(unsigned short timer_value) {

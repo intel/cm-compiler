@@ -1024,9 +1024,7 @@ CM_INLINE void cm_slm_load(uint slmBuffer, SurfaceIndex index, uint offset,
     vOffsets += numGroups * 64;
   }
 
-#if CM_GENX > 900
   cm_slm_fence(CM_GLOBAL_COHERENT_FENCE);
-#endif
   cm_barrier();
 }
 

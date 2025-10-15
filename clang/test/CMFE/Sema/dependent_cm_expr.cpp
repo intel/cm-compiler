@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2022 Intel Corporation
+Copyright (C) 2022-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 
 // Check that dependent CM expressions do not cause compiler crash.
 
-// RUN: %cmc -march=SKL -S -emit-llvm -- %s
+// RUN: %cmc -march=pvc -S -emit-llvm -- %s
 
 template<int N>
 int vec_size(vector<int, N> x) {

@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2024 Intel Corporation
+Copyright (C) 2016-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -18,5 +18,5 @@ _GENX_MAIN_ void foo(SurfaceIndex S, short a, short b, short c, short d)
 
 
 // warning expected for use of #pragma cm_nonstrict
-// RUN: %cmc -emit-llvm -march=SKL -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
+// RUN: %cmc -emit-llvm -march=pvc -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
 //

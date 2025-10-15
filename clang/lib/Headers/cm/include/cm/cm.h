@@ -409,7 +409,6 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
     std::is_integral<T0>::value && std::is_integral<T1>::value,
     vector<T0, SZ> >::type
 cm_rol(vector<T1, SZ> src0, vector<T1, SZ> src1) {
-  CM_HAS_BIT_ROTATE_CONTROL;
   if constexpr (sizeof(T0) == sizeof(long long) || sizeof(T1) == sizeof(long long))
     CM_HAS_BIT_ROTATE_64BIT_CONTROL;
   return details::__cm_intrinsic_impl_rol<T0, T1, SZ>(src0, src1);
@@ -425,7 +424,6 @@ cm_rol(vector<T1, SZ> src0, U src1) {
   ComputationTy;
   typename details::vector_type<ComputationTy>::type _Src0 = src0;
   typename details::vector_type<ComputationTy>::type _Src1 = src1;
-  CM_HAS_BIT_ROTATE_CONTROL;
   if constexpr (sizeof(T0) == sizeof(long long) || sizeof(T1) == sizeof(long long))
     CM_HAS_BIT_ROTATE_64BIT_CONTROL;
   return details::__cm_intrinsic_impl_rol<T0>(_Src0, _Src1);
@@ -461,7 +459,6 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
     std::is_integral<T0>::value && std::is_integral<T1>::value,
     vector<T0, SZ> >::type
 cm_ror(vector<T1, SZ> src0, vector<T1, SZ> src1) {
-  CM_HAS_BIT_ROTATE_CONTROL;
   if constexpr (sizeof(T0) == sizeof(long long) || sizeof(T1) == sizeof(long long))
     CM_HAS_BIT_ROTATE_64BIT_CONTROL;
   return details::__cm_intrinsic_impl_ror<T0, T1, SZ>(src0, src1);
@@ -477,7 +474,6 @@ cm_ror(vector<T1, SZ> src0, U src1) {
   ComputationTy;
   typename details::vector_type<ComputationTy>::type _Src0 = src0;
   typename details::vector_type<ComputationTy>::type _Src1 = src1;
-  CM_HAS_BIT_ROTATE_CONTROL;
   if constexpr (sizeof(T0) == sizeof(long long) || sizeof(T1) == sizeof(long long))
     CM_HAS_BIT_ROTATE_64BIT_CONTROL;
   return details::__cm_intrinsic_impl_ror<T0>(_Src0, _Src1);
@@ -915,136 +911,6 @@ cm_min(T1 src0, T2 src1, int flag = _GENX_NOSAT) {
   return _Result(0);
 }
 
-// Dot product builtins
-#if defined(CM_GEN7_5) || defined(CM_GEN8) || defined(CM_GEN8_5) ||            \
-    defined(CM_GEN9) || defined(CM_GEN9_5)
-template <typename T0, typename T1, int SZ, typename U>
-CM_NODEBUG CM_INLINE vector<T0, SZ> cm_dp2(vector<T1, SZ> src0, U src1,
-                                           int flag = _GENX_NOSAT) {
-  CM_STATIC_ERROR(SZ % 4 == 0, "result size is not a multiple of 4");
-  vector<float, SZ> _Src0 = src0;
-  vector<float, SZ> _Src1 = src1;
-  vector<float, SZ> _Result = details::__cm_intrinsic_impl_dp2(_Src0, _Src1);
-  if (flag != _GENX_SAT)
-    return _Result;
-
-  return details::__cm_intrinsic_impl_sat<T0>(_Result);
-}
-template <typename T0, typename T1, int N1, int N2, typename U>
-CM_NODEBUG CM_INLINE vector<T0, N1 *N2> cm_dp2(matrix<T1, N1, N2> src0, U src1,
-                                               int flag = _GENX_NOSAT) {
-  vector<float, N1 *N2> _Src0 = src0;
-  return cm_dp2<T0>(_Src0, src1, flag);
-}
-
-template <typename T0, typename T1, int SZ, typename U>
-CM_NODEBUG CM_INLINE vector<T0, SZ> cm_dp3(vector<T1, SZ> src0, U src1,
-                                           int flag = _GENX_NOSAT) {
-  CM_STATIC_ERROR(SZ % 4 == 0, "result size is not a multiple of 4");
-  vector<float, SZ> _Src0 = src0;
-  vector<float, SZ> _Src1 = src1;
-  vector<float, SZ> _Result = details::__cm_intrinsic_impl_dp3(_Src0, _Src1);
-  if (flag != _GENX_SAT)
-    return _Result;
-
-  return details::__cm_intrinsic_impl_sat<T0>(_Result);
-}
-template <typename T0, typename T1, int N1, int N2, typename U>
-CM_NODEBUG CM_INLINE vector<T0, N1 *N2> cm_dp3(matrix<T1, N1, N2> src0, U src1,
-                                               int flag = _GENX_NOSAT) {
-  vector<float, N1 *N2> _Src0 = src0;
-  return cm_dp3<T0>(_Src0, src1, flag);
-}
-
-template <typename T0, typename T1, int SZ, typename U>
-CM_NODEBUG CM_INLINE vector<T0, SZ> cm_dp4(vector<T1, SZ> src0, U src1,
-                                           int flag = _GENX_NOSAT) {
-  CM_STATIC_ERROR(SZ % 4 == 0, "result size is not a multiple of 4");
-  vector<float, SZ> _Src0 = src0;
-  vector<float, SZ> _Src1 = src1;
-  vector<float, SZ> _Result = details::__cm_intrinsic_impl_dp4(_Src0, _Src1);
-  if (flag != _GENX_SAT)
-    return _Result;
-
-  return details::__cm_intrinsic_impl_sat<T0>(_Result);
-}
-template <typename T0, typename T1, int N1, int N2, typename U>
-CM_NODEBUG CM_INLINE vector<T0, N1 *N2> cm_dp4(matrix<T1, N1, N2> src0, U src1,
-                                               int flag = _GENX_NOSAT) {
-  vector<float, N1 *N2> _Src0 = src0;
-  return cm_dp4<T0>(_Src0, src1, flag);
-}
-
-template <typename T0, typename T1, typename U, int SZ>
-CM_NODEBUG CM_INLINE vector<T0, SZ> cm_dph(vector<T1, SZ> src0, U src1,
-                                           int flag = _GENX_NOSAT) {
-  CM_STATIC_ERROR(SZ % 4 == 0, "result size is not a multiple of 4");
-  vector<float, SZ> _Src0 = src0;
-  vector<float, SZ> _Src1 = src1;
-  vector<float, SZ> _Result = details::__cm_intrinsic_impl_dph(_Src0, _Src1);
-  if (flag != _GENX_SAT)
-    return _Result;
-
-  return details::__cm_intrinsic_impl_sat<T0>(_Result);
-}
-
-template <typename T0, typename T1, typename U, int N1, int N2>
-CM_NODEBUG CM_INLINE vector<T0, N1 *N2> cm_dph(matrix<T1, N1, N2> src0, U src1,
-                                               int flag = _GENX_NOSAT) {
-  vector<float, N1 *N2> _Src0 = src0;
-  return cm_dph<T0>(_Src0, src1, flag);
-}
-
-template <typename RT, typename T1, typename T2, int SZ>
-CM_NODEBUG CM_INLINE vector<RT, SZ>
-cm_line(vector<T1, 4> src0, vector<T2, SZ> src1, int flag = _GENX_NOSAT) {
-  CM_STATIC_ERROR(SZ % 4 == 0, "result size is not a multiple of 4");
-
-  vector<float, 4> _Src0 = src0;
-  vector<float, SZ> _Src1 = src1;
-  vector<float, SZ> _Result = details::__cm_intrinsic_impl_line(_Src0, _Src1);
-
-  vector<RT, SZ> Result;
-  if (flag == _GENX_SAT)
-    Result = details::__cm_intrinsic_impl_sat<RT>(_Result);
-  else
-    Result = _Result;
-
-  return Result;
-}
-
-template <typename RT, typename T1, typename T2, int N1, int N2>
-CM_NODEBUG CM_INLINE vector<RT, N1 *N2>
-cm_line(vector<T1, 4> src0, matrix<T2, N1, N2> src1, int flag = _GENX_NOSAT) {
-  vector<T2, N1 *N2> _Src1 = src1;
-  return cm_line<RT>(src0, _Src1, flag);
-}
-
-template <typename RT, typename T1, typename T2, int N1, int N2>
-CM_NODEBUG CM_INLINE vector<RT, N1 *N2> cm_line(matrix<T1, 1, 4> src0,
-                                                matrix<T2, N1, N2> src1,
-                                                int flag = _GENX_NOSAT) {
-  vector<T1, 4> _Src0 = src0;
-  vector<T2, N1 *N2> _Src1 = src1;
-  return cm_line<RT>(_Src0, _Src1, flag);
-}
-
-template <typename RT, typename T, int SZ>
-CM_NODEBUG CM_INLINE vector<RT, SZ>
-cm_line(float P, float Q, vector<T, SZ> src1, int flag = _GENX_NOSAT) {
-  vector<float, 4> _Src0 = P;
-  _Src0(3) = Q;
-  return cm_line<RT>(_Src0, src1, flag);
-}
-
-template <typename RT, typename T, int N1, int N2>
-CM_NODEBUG CM_INLINE vector<RT, N1 *N2>
-cm_line(float P, float Q, matrix<T, N1, N2> src1, int flag = _GENX_NOSAT) {
-  vector<T, N1 *N2> _Src1 = src1;
-  return cm_line<RT>(P, Q, _Src1, flag);
-}
-
-#else
 // The old implementation is to generate vISA IRs for dp2/dp3/dp4/dph/line.
 // Now We change to use direct mul/add, and hope to generate mad instructions
 // at the end, to still get the performance as good as HW solution.
@@ -1063,9 +929,6 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
     vector<T0, SZ> >::type
 cm_dp2(vector<T1, SZ> src0, U src1, int flag = _GENX_NOSAT) {
   CM_STATIC_ERROR(SZ % 4 == 0, "result size is not a multiple of 4");
-#if !defined(CM_GENX)
-  CM_STATIC_WARNING(0, "GEN not specified so cm_dp2() code may not be optimal");
-#endif
   vector<float, SZ> _Src1 = src1;
   vector<float, SZ> _Result;
 #pragma unroll
@@ -1097,9 +960,6 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
     vector<T0, SZ> >::type
 cm_dp3(vector<T1, SZ> src0, U src1, int flag = _GENX_NOSAT) {
   CM_STATIC_ERROR(SZ % 4 == 0, "result size is not a multiple of 4");
-#if !defined(CM_GENX)
-  CM_STATIC_WARNING(0, "GEN not specified so cm_dp3() code may not be optimal");
-#endif
   vector<float, SZ> _Src1 = src1;
   vector<float, SZ> _Result;
 #pragma unroll
@@ -1132,9 +992,6 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
     vector<T0, SZ> >::type
 cm_dp4(vector<T1, SZ> src0, U src1, int flag = _GENX_NOSAT) {
   CM_STATIC_ERROR(SZ % 4 == 0, "result size is not a multiple of 4");
-#if !defined(CM_GENX)
-  CM_STATIC_WARNING(0, "GEN not specified so cm_dp4() code may not be optimal");
-#endif
   vector<T1, SZ> _Src1 = src1;
   vector<float, SZ> _Result;
 #pragma unroll
@@ -1167,9 +1024,6 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
     vector<T, SZ> >::type
 cm_dph(vector<T, SZ> src0, U src1, int flag = _GENX_NOSAT) {
   CM_STATIC_ERROR(SZ % 4 == 0, "result size is not a multiple of 4");
-#if !defined(CM_GENX)
-  CM_STATIC_WARNING(0, "GEN not specified so cm_dph() code may not be optimal");
-#endif
   vector<float, SZ> _Src1 = src1;
   vector<float, SZ> _Result;
 #pragma unroll
@@ -1200,9 +1054,6 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
     vector<T, SZ> >::type
 cm_line(vector<T, 4> src0, vector<T, SZ> src1, int flag = _GENX_NOSAT) {
   CM_STATIC_ERROR(SZ % 4 == 0, "result size is not a multiple of 4");
-#if !defined(CM_GENX)
-  CM_STATIC_WARNING(0, "GEN not specified so cm_line() code may not be optimal");
-#endif
 
   vector<T, SZ> _Src1 = src1;
   vector<T, SZ> _Result;
@@ -1244,8 +1095,6 @@ cm_line(float P, float Q, matrix<T, N1, N2> src1, int flag = _GENX_NOSAT) {
   vector<T, N1 *N2> _Src1 = src1;
   return cm_line<T>(P, Q, _Src1, flag);
 }
-
-#endif
 
 template <typename T, int SZ>
 CM_NODEBUG CM_INLINE vector<T, SZ> cm_frc(vector<T, SZ> src0) {
@@ -1459,27 +1308,6 @@ cm_sada2(T1 src0, T2 src1, T3 src2, int flag = _GENX_NOSAT) {
 }
 
 // cm_lrp
-#if defined(CM_GEN7_5) || defined(CM_GEN8) || defined(CM_GEN8_5) ||            \
-    defined(CM_GEN9) || defined(CM_GEN9_5)
-
-template <int SZ, typename U, typename V>
-CM_NODEBUG CM_INLINE vector<float, SZ> cm_lrp(vector<float, SZ> src0, U src1,
-                                              V src2, int flag = _GENX_NOSAT) {
-  CM_STATIC_ERROR(SZ >= 4 && (SZ & 0x3) == 0,
-                  "vector size must be a multiple of 4");
-  vector<float, SZ> _Src1 = src1;
-  vector<float, SZ> _Src2 = src2;
-  vector<float, SZ> _Result =
-      details::__cm_intrinsic_impl_lrp<SZ>(src0, _Src1, _Src2);
-
-  if (flag != _GENX_SAT)
-    return _Result;
-
-  return details::__cm_intrinsic_impl_sat<float>(_Result);
-}
-
-#else
-
 // The old implementation is to generate vISA IRs for lrp.
 // Now We change to use direct mul/add, and hope to generate mad instructions
 // at the end, to still get the performance as good as HW solution.
@@ -1496,9 +1324,6 @@ CM_NODEBUG CM_INLINE typename std::enable_if<
             std::is_floating_point<U>::value,
     vector<T, SZ> >::type
 cm_lrp(vector<T, SZ> src0, U src1, V src2, int flag = _GENX_NOSAT) {
-#if !defined(CM_GENX)
-  CM_STATIC_WARNING(0, "GEN not specified so cm_lrp() code may not be optimal");
-#endif
   vector<float, SZ> _Src1 = src1;
   vector<float, SZ> _Src2 = src2;
   vector<float, SZ> _Result;
@@ -1507,7 +1332,6 @@ cm_lrp(vector<T, SZ> src0, U src1, V src2, int flag = _GENX_NOSAT) {
     return _Result;
   return details::__cm_intrinsic_impl_sat<T>(_Result);
 }
-#endif
 
 template <int N1, int N2, typename U, typename V>
 CM_NODEBUG CM_INLINE vector<float, N1 *N2>

@@ -1,12 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2023-2024 Intel Corporation
+Copyright (C) 2023-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: %cmc -g0 -march=skl -emit-llvm -o %t.bc -Xclang -verify -- %s
+// RUN: %cmc -g0 -march=pvc -emit-llvm -o %t.bc -Xclang -verify -- %s
 
 __local uint32_t LocalGV;       // expected-error{{program scope variable must reside in global, constant or private address space}}
 __constant uint32_t ConstantGV; // expected-error{{variable in constant address space must be initialized}}

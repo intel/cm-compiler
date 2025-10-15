@@ -1,12 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2023-2024 Intel Corporation
+Copyright (C) 2023-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: %cmc -march=skl -g0 -S -emit-llvm -o %t.ll -- %s
+// RUN: %cmc -march=pvc -g0 -S -emit-llvm -o %t.ll -- %s
 // RUN: FileCheck %s --input-file %t.ll
 
 void check_sg_vector(vector<__local int *, 4> fromVec, vector<__global int *, 4> toVec) {

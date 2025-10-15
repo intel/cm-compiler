@@ -1,12 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021-2024 Intel Corporation
+Copyright (C) 2021-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: %cmc -march=SKL %dump-ast-for test_func -- %s 2>&1 | FileCheck %s
+// RUN: %cmc -march=pvc %dump-ast-for test_func -- %s 2>&1 | FileCheck %s
 
 // Check that row() returns vector_ref to matrix row.
 

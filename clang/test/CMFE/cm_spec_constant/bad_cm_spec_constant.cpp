@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: not %cmc -march=skl -emit-llvm -S -o %t.ll -- %s 2>&1 | FileCheck %s
+// RUN: not %cmc -march=dg2 -emit-llvm -S -o %t.ll -- %s 2>&1 | FileCheck %s
 
 extern "C" _GENX_MAIN_ void test_spec_constant() {
   auto sp1 = cm_spec_constant<bool, 0>();

@@ -1,12 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021-2024 Intel Corporation
+Copyright (C) 2021-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: %cmc -g0 -march=SKL -emit-llvm -S -o %t.ll -- %s
+// RUN: %cmc -g0 -march=pvc -emit-llvm -S -o %t.ll -- %s
 // RUN: FileCheck %s --input-file %t.ll
 
 // Check that uninitialized vector elements default to 0

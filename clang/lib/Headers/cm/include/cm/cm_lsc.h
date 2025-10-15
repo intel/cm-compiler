@@ -185,7 +185,6 @@ CM_NODEBUG CM_INLINE auto cm_load(SurfaceIndex Idx, vector<unsigned, N> Offset,
   using namespace details;
   CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H>()),
                   "unsupported cache hint");
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
   using _MessTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
@@ -210,7 +209,6 @@ CM_NODEBUG CM_INLINE auto cm_ptr_load(const T *const Ptr,
   using namespace details;
   CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H>()),
                   "unsupported cache hint");
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
   using _MessTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
@@ -330,7 +328,6 @@ CM_NODEBUG CM_INLINE auto cm_load4(SurfaceIndex Idx, vector<unsigned, N> Offset,
                   "unsupported cache hint");
   constexpr VectorSize _VS =
       details::lsc_get_vector_size_from_channel_mask<Mask>();
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, _VS);
   using _MessTy = decltype(lsc_data_type_ext<T, N, _VS>());
   using _RetTy = decltype(lsc_data_type<T, N, _VS>());
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
@@ -357,7 +354,6 @@ CM_NODEBUG CM_INLINE auto cm_ptr_load4(const T *const Ptr,
                   "unsupported cache hint");
   constexpr VectorSize _VS =
       details::lsc_get_vector_size_from_channel_mask<Mask>();
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, _VS);
   using _MessTy = decltype(lsc_data_type_ext<T, N, _VS>());
   using _RetTy = decltype(lsc_data_type_ext<T, N, _VS>());
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
@@ -407,7 +403,6 @@ cm_store(SurfaceIndex Idx, vector<unsigned, N> Offset,
   using namespace details;
   CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H>()),
                   "unsupported cache hint");
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
   constexpr DataSize _DS = lsc_expand_ds(details::lsc_data_size<T, DS>());
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = false;
@@ -432,7 +427,6 @@ cm_ptr_store(T *Ptr, vector<unsigned, N> Offset,
   using namespace details;
   CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H>()),
                   "unsupported cache hint");
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
   constexpr DataSize _DS = lsc_expand_ds(details::lsc_data_size<T, DS>());
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = false;
@@ -464,7 +458,6 @@ CM_NODEBUG CM_INLINE void cm_store4(
                   "unsupported cache hint");
   constexpr VectorSize _VS =
       details::lsc_get_vector_size_from_channel_mask<Mask>();
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, _VS);
   constexpr DataSize _DS = lsc_expand_ds(details::lsc_data_size<T, DS>());
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = false;
@@ -493,7 +486,6 @@ CM_NODEBUG CM_INLINE void cm_ptr_store4(
                   "unsupported cache hint");
   constexpr VectorSize _VS =
       details::lsc_get_vector_size_from_channel_mask<Mask>();
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, _VS);
   constexpr DataSize _DS = lsc_expand_ds(details::lsc_data_size<T, DS>());
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = false;
@@ -575,7 +567,6 @@ CM_NODEBUG CM_INLINE auto cm_load_slm(vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
   using _MessTy = decltype(details::lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
   constexpr DataSize _DS = lsc_expand_ds(details::lsc_data_size<T, DS>());
@@ -597,7 +588,6 @@ CM_NODEBUG CM_INLINE auto cm_load4_slm(vector<unsigned, N> Offset,
   using namespace details;
   constexpr VectorSize _VS =
       details::lsc_get_vector_size_from_channel_mask<Mask>();
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, _VS);
   using _MessTy = decltype(details::lsc_data_type_ext<T, N, _VS>());
   using _RetTy = decltype(lsc_data_type<T, N, _VS>());
   constexpr DataSize DS_ = lsc_expand_ds(details::lsc_data_size<T, DS>());
@@ -641,7 +631,6 @@ cm_store_slm(vector<unsigned, N> Offset,
   CM_STATIC_WARNING(details::always_false<decltype(VS)>(),
                     "Please use new interface with explicit NElts");
   using namespace details;
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, VS);
   constexpr DataSize _DS = lsc_expand_ds(details::lsc_data_size<T, DS>());
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = false;
@@ -663,8 +652,6 @@ cm_store_slm(vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(
-      N, details::lsc_vector_size<NElts>());
   constexpr DataSize DS_ = lsc_expand_ds(details::lsc_data_size<T, DS>());
   constexpr int ImmOffset = 0;
   constexpr bool Transposed = false;
@@ -690,7 +677,6 @@ CM_NODEBUG CM_INLINE void cm_store4_slm(
   constexpr DataSize _DS = lsc_expand_ds(details::lsc_data_size<T, DS>());
   constexpr VectorSize _VS =
       details::lsc_get_vector_size_from_channel_mask<Mask>();
-  CM_HAS_LSC_NON_TRANSPOSE_MESSAGES_WITH_NON_DEFAULT_SIMT_CONTROL(N, _VS);
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = false;
   using _StTy = decltype(lsc_data_type_ext<T, N, _VS>());

@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2021 Intel Corporation
+Copyright (C) 2016-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -15,4 +15,4 @@ void foo() {
   // ...
 }
 
-// RUN: %cmc -march=SKL -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
+// RUN: %cmc -march=pvc -emit-llvm -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s

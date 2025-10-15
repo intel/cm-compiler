@@ -1,12 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021-2024 Intel Corporation
+Copyright (C) 2021-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: %cmc -march=SKL -g0 -S -emit-llvm -o %t.ll -- %s
+// RUN: %cmc -march=pvc -g0 -S -emit-llvm -o %t.ll -- %s
 // RUN: FileCheck %s --input-file %t.ll
 
 // CHECK: [[RES_V_STRUCT32:%[^ ]+]] = type { <16 x i32>, <16 x i32> }

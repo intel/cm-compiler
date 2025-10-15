@@ -1,12 +1,12 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021-2024 Intel Corporation
+Copyright (C) 2021-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: %cmc -S -emit-llvm -march=SKL -o %t.ll -- %s
+// RUN: %cmc -S -emit-llvm -march=pvc -o %t.ll -- %s
 // RUN: FileCheck %s --input-file %t.ll
 
 int       init_0_7[]   = {0,1,2,3,4,5,6,7};

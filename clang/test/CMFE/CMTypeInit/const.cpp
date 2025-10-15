@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2021-2024 Intel Corporation
+Copyright (C) 2021-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -8,7 +8,7 @@ SPDX-License-Identifier: MIT
 
 // This test checks that initialized vector has constant restrictions
 
-// RUN: %cmc -emit-llvm -march=SKL -Xclang -verify-ignore-unexpected -Xclang -verify -emit-llvm -ferror-limit=100 -- %s
+// RUN: %cmc -emit-llvm -march=pvc -Xclang -verify-ignore-unexpected -Xclang -verify -emit-llvm -ferror-limit=100 -- %s
 
 const int init_0_7[] = {0,1,2,3,4,5,6,7};
 

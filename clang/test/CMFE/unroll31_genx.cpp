@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2015-2024 Intel Corporation
+Copyright (C) 2015-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -12,7 +12,7 @@ SPDX-License-Identifier: MIT
 // The icl-cm compiler generated a warning for this, but cmc generates
 // an error - so the test has been move to the CM diagnostics suite.
 //
-// RUN: %cmc -march=SKL -emit-llvm -- %s 2>&1 | FileCheck %s
+// RUN: %cmc -march=tgllp -emit-llvm -- %s 2>&1 | FileCheck %s
 
 extern "C" _GENX_MAIN_
 void test(SurfaceIndex pInputIndex,SurfaceIndex pOutputIndex ) {

@@ -8,6 +8,6 @@ SPDX-License-Identifier: MIT
 
 // Check that -verify option is respected and diagnostic emission is checked.
 
-// RUN: %cmc -emit-llvm -march=SKL -Xclang -verify -- %s
+// RUN: %cmc -emit-llvm -march=pvc -Xclang -verify -- %s
 
 int foo() {} // expected-warning{{non-void function does not return a value}}

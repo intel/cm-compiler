@@ -56,12 +56,7 @@ set(CM_HEADERS
   cm/cm_util.h
   cm/cm_vme.h
   cm/cm_vs2013.h
-  cm/gen10_vme.h
-  cm/gen11_vme.h
   cm/gen12_vme.h
-  cm/gen7_5_vme.h
-  cm/gen8_vme.h
-  cm/gen9_vme.h
   cm/cm_addrspace.h
   cm/cm_memory.h
   cm/cm_slm.h

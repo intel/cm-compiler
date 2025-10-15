@@ -260,11 +260,7 @@ constexpr int getRoundedWidthFor2dTypedLSC(int Width) {
 
 // Return the default SIMT width.
 template <typename T = void> constexpr int lsc_default_simt() {
-#if CM_GENX >= 1280
-  return 32; // SIMD32: PVC and later
-#else        // CM_GENX < 1280
-  return 16; // SIMD16: DG2
-#endif       // CM_GENX >= 1280
+  return __CM_DEFAULT_SIMT;
 }
 
 // Check for valid type for atomic source and dest arguments

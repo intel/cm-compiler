@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2024 Intel Corporation
+Copyright (C) 2016-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -16,4 +16,4 @@ linear(vector<SurfaceIndex, 2> surf_ids, uint h_pos, uint v_pos, int i, int j)
   write(surf_ids(j), h_pos*24, v_pos*6, out); // expected-warning{{variable 'out' is uninitialized when used here}}
 }
 
-// RUN: %cmc -march=SKL -emit-llvm -Xclang -verify -Xclang -verify-ignore-unexpected -- %s
+// RUN: %cmc -march=pvc -emit-llvm -Xclang -verify -Xclang -verify-ignore-unexpected -- %s

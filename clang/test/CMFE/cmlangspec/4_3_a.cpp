@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2016-2024 Intel Corporation
+Copyright (C) 2016-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -35,4 +35,4 @@ _GENX_ void test()
   v8 = cm_line<float>(v6, v7); // v8 = {0.5, 0.6, 0.8, 1.2, 2.0, 3.6, 6.8, 13.2}
 }
 
-// RUN: %cmc -emit-llvm -march=SKL -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s
+// RUN: %cmc -emit-llvm -march=pvc -- %s 2>&1 | FileCheck -allow-empty --implicit-check-not error %s

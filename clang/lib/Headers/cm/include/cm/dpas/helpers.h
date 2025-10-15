@@ -21,7 +21,7 @@ static_assert(0, "CM:w:dpas/helpers.h should not be included explicitly");
 #define CM_HAS_DPAS_INT4 1
 #define CM_HAS_DPAS_INT8 1
 
-#if (CM_GENX >= 1280) //>= PVC
+#ifdef __CM_INTEL_TARGET_PVC_OR_ABOVE
 // FIXME: get these macros from the platforms table
 #define CM_HAS_DPAS_ACC_HALF 1
 #define CM_HAS_DPAS_ACC_BF16 1

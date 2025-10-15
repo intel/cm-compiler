@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 
 ============================= end_copyright_notice ===========================*/
 
-// RUN: %cmc -march=skl -emit-llvm -S -o %t.ll -- %s
+// RUN: %cmc -march=pvc -emit-llvm -S -o %t.ll -- %s
 // RUN: FileCheck %s --input-file %t.ll
 
 // CHECK-LABEL: @test_spec_constant
