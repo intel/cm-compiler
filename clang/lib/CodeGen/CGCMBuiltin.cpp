@@ -2683,6 +2683,7 @@ void CMReductionEmitter::init() {
     V1 = OpVal;
     V2 = 0;
   } else {
+    assert(N > 0);
     unsigned N1 = 1u << llvm::Log2_32(N);
     assert(N > N1);
     V1 = readRegion(OpVal, N1);
@@ -4755,7 +4756,7 @@ void CGCMRuntime::HandleBuiltinSLMRead4(CMCallInfo &CallInfo,
   // Use scaled message for any platform since scale is 0.
   auto NewCI =
       EmitGatherScaled(CGF, llvm::GenXIntrinsic::genx_gather4_masked_scaled2,
-                       Mask,                          // channel mask
+                       std::move(Mask),               // channel mask
                        0,                             // scale
                        getSLMSurfaceIndex(CGF),       // SLM surface index
                        CallInfo.CI->getArgOperand(0), // global offset in bytes
@@ -4823,7 +4824,7 @@ void CGCMRuntime::HandleBuiltinSLMWrite4(CMCallInfo &CallInfo,
   // Use scaled message for any platform since scale is 0.
   auto NewCI =
       EmitScatterScaled(CGF, llvm::GenXIntrinsic::genx_scatter4_scaled,
-                        Mask,                          // channel mask
+                        std::move(Mask),               // channel mask
                         0,                             // scale
                         getSLMSurfaceIndex(CGF),       // SLM surface index
                         CallInfo.CI->getArgOperand(0), // global offset in bytes

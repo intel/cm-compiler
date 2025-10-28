@@ -159,7 +159,7 @@ constexpr int ILLEGAL_NONTEMPLATE = 15;
 
 // data structure for basic LSC parameters
 struct LSCParams {
-  llvm::Value *Ty_;
+  llvm::Value *Ty_ = nullptr;
   const FunctionDecl *FD_;
   llvm::CallInst *CI_;
   const int *Config_;
@@ -416,6 +416,7 @@ static int getLSCIntrinsic(CMBuiltinKind Kind) {
   default:
     assert(0 && "Kind not supported");
   }
+  return 0;
 }
 
 // config from kind
@@ -447,6 +448,7 @@ static const int *getConfig(CMBuiltinKind Kind) {
   default:
     assert(0 && "Not a valid builtin");
   }
+  return 0;
 }
 
 // subop from kind (except atomics)
@@ -479,6 +481,7 @@ static LSC_SubOpcode getSubOp(CMBuiltinKind Kind) {
   default:
     assert(0 && "Not a valid builtin");
   }
+  return (LSC_SubOpcode)0xff;
 }
 
 // optype from kind
@@ -514,6 +517,7 @@ static LDTYPE getOpType(CMBuiltinKind Kind) {
   default:
     assert(0 && "Not a valid builtin");
   }
+  return (LDTYPE)0xff;
 }
 
 // surface from kind
@@ -548,6 +552,7 @@ static SFTYPE getSFType(CMBuiltinKind Kind) {
   default:
     assert(0 && "Not a valid builtin");
   }
+  return (SFTYPE)0xff;
 }
 
 // is block or not
@@ -581,6 +586,7 @@ static bool getBlock(CMBuiltinKind Kind) {
   default:
     assert(0 && "Not a valid builtin");
   }
+  return false;
 }
 
 #endif

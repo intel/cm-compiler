@@ -160,17 +160,17 @@ void GenX::addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
   }
 
   // Emit asm files with old style
-  if (DriverArgs.getLastArg(options::OPT_mCM_old_asm_name)||
-      llvm::sys::Process::GetEnv("CM_FORCE_ASSEMBLY_DUMP")) {
+  if (DriverArgs.getLastArg(options::OPT_mCM_old_asm_name) ||
+      llvm::sys::Process::GetEnv("CM_FORCE_ASSEMBLY_DUMP"))
     // AsmName := <base-filename> + '_' + <index> + ".(visa)asm"
-    auto Input = DriverArgs.getLastArg(options::OPT_INPUT);
-    StringRef BaseName = llvm::sys::path::stem(Input->getValue());
-    std::string AsmName = BaseName.str();
-    auto ArgStr = "-asm-name=" + AsmName;
-    const char *AsmNameC = DriverArgs.MakeArgString(ArgStr);
-    CC1Args.push_back("-mllvm");
-    CC1Args.push_back(AsmNameC);
-  }
+    if (const Arg *Input = DriverArgs.getLastArg(options::OPT_INPUT)) {
+      StringRef BaseName = llvm::sys::path::stem(Input->getValue());
+      std::string AsmName = BaseName.str();
+      auto ArgStr = "-asm-name=" + AsmName;
+      const char *AsmNameC = DriverArgs.MakeArgString(ArgStr);
+      CC1Args.push_back("-mllvm");
+      CC1Args.push_back(AsmNameC);
+    }
 
   auto AsmNameArg = DriverArgs.getLastArg(options::OPT__SLASH_Fa);
   if (!AsmNameArg)

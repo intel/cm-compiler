@@ -45,16 +45,15 @@ SPDX-License-Identifier: MIT
 
 using namespace llvm;
 
-static cl::list<std::string> InputFiles(cl::Positional, cl::OneOrMore,
-                                        cl::desc("[file]..."));
+cl::list<std::string> InputFiles(cl::Positional, cl::OneOrMore,
+                                 cl::desc("[file]..."));
 
-static cl::opt<std::string>
+cl::opt<std::string>
     OutputFile("output",
                cl::desc("Output file containing C code for embedding"));
 
-static cl::opt<unsigned>
-    MaxChunkSize("chunk-size", cl::init(1024),
-                 cl::desc("Maximum size of string chunks"));
+cl::opt<unsigned> MaxChunkSize("chunk-size", cl::init(1024),
+                               cl::desc("Maximum size of string chunks"));
 
 static void writeAsOctalSequence(unsigned char C, raw_ostream &Out) {
   char Buf[4];

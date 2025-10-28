@@ -25,6 +25,7 @@ See LICENSE.TXT for details.
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/Compiler.h"
 
+#include <limits>
 #include <unordered_set>
 
 namespace clang {
@@ -116,9 +117,9 @@ private:
 
   static const Builtin::Info BuiltinInfo[];
 
-  uint32_t Major;
-  uint32_t Minor;
-  uint32_t Revision;
+  uint32_t Major = 0;
+  uint32_t Minor = std::numeric_limits<uint32_t>::max();
+  uint32_t Revision = 0;
 
   std::string CPU;
 
