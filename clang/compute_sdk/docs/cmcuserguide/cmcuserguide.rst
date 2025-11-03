@@ -28,59 +28,56 @@ For information about the C for Metal language see the :title:`C for Metal Langu
 
 .. _SupportedGenTargets:
 
-2 Supported Gen Targets
+2 Supported Xe Targets
 =======================
 
-By default the cmc compiler produces a GenISA/XeISA file that is targeted a specific
-Gen/Xe variant.
-Gen mostly used to specify obsolete platforms (before Iris Xe).
-Xe used to specify Iris Xe+ and Arc platforms.
+The cmc compiler produces a GenISA/XeISA file for a specific Xe target. 
+Some C for Metal language features are inherently platform-specific and
+are only available when a specific platform is specified. For example,
+DPAS instructions are not available on all target platforms.
 
-Some C for Metal language features are by their nature platform specific,
-and are only available when a specific platform is specified.
-For example, DPAS instructions are not available on all target platforms.
+A specific target may be specified by use of the '-march' command line option,
+whose parameter can be one of the following:
+  - IP version - a dot separated a three-part number: major.minor.revision,
+    e.g. 12.55.8
+  - Device ID - a string id assigned when a target gets available to public, dg2-g10
+  - Alias - a shorter string id, mapped to a specific IP version,
+    e.g. dg2 (alias for 12.55.8)
 
-A specific target may be specified by use of the -march=\ *gen* compiler
-option. This option implicitly predefines several macros that can be used
-within C for Metal kernels to control conditional compilation, and also
-includes appropriate header files.
-
-The Gen/Xe target may be specified using a codename (e.g. TGLLP) or number (e.g. gen12).
-The case is not significant, so tgllp, TGLLP, and Tgllp are all equivalent.
-
-When a Gen/Xe target is specified, two macros are predefined.
-The macro CM_GENX is given a value which identifies the target.
-For Gen targets only, macro of the form CM_GEN\ *n* is defined (without a value).
-For Xe targets special macros are predefined with Xe name, like CM_XEHP.
-The targets supported by cmc, and the corresponding macros, are given in the table below.
-
-========= ======== ============ ============= ===================
-Gen/Xe    Name     Macro        CM_GENX value CM_GENX_REVID value
-========= ======== ============ ============= ===================
-GEN12     TGLLP    CM_GEN12     1200          0
-...       RKL      CM_GEN12     1201          0
-...       DG1      CM_GEN12     1210          0
-...       ADLP     CM_GEN12     1220          0
-...       ADLS     CM_GEN12     1230          0
-...       ADLN     CM_GEN12     1240          0
-XeHPG     DG2      CM_XEHPG     1271          0
-XeLPG     MTL      CM_XELPG     1275          0
-XeLPG+    ARL-H    CM_XELPGPLUS 1276          0
-XeHPC     PVC      CM_XEHPC     1280          0
-...       PVCXT    CM_XEHPC     1280          5
-Xe2LPG    LNL      CM_XE2_LPG   1295          0
-Xe2HPG    BMG      CM_XE2_HPG   1290          0
-Xe3LPG    PTL      CM_XE3_LPG   1300          0
-========= ======== ============ ============= ===================
+See the table below for the targets supported by the compiler.
 
 
-Also you may use CM_GENX_REVID to query revision id for given platform if
-specified. Default revision id is 0.
+Supplying '-march' command line option implicitly defines several macros
+that can be used within C for Metal kernels to identify the target,
+control conditional compilation, and include the appropriate header files:
 
-Preferable way is to use CM_GENX and CM_GENX_REVID only
+============================ ======== ===============================================
+Macro                        Value    Description
+============================ ======== ===============================================
+__CM_INTEL_TARGET_MAJOR      Integer  Specifies the target platform major version
+                                      (the first number in IP version, e.g. 12)
+__CM_INTEL_TARGET_MINOR      Integer  Specifies the target platform minor version
+                                      (the second number in IP version, e.g. 55)
+__CM_INTEL_TARGET_REVISION   Integer  Specifies the target platform revision
+                                      (the third number in IP version, e.g. 8)
+CM_GENX                      Integer  Identifies the target platform in 4-digit
+                                      format (e.g. 1271). *Deprecated*.
+CM_GEN12                     N/A      Identifies the target platform. *Deprecated*
+CM_XE{name}                  N/A      Identifies the target platform (e.g. CM_XELPG).
+                                      *Deprecated*.
+============================ ======== ===============================================
 
-Macros like CM_GEN12, etc, will be deprecated soon and will probably not
-appear for new features.
+Please note that the combination of __CM_INTEL_TARGET_MAJOR, __CM_INTEL_TARGET_MINOR,
+and __CM_INTEL_TARGET_REVISION uniquely identifies the target platform.
+
+See the table below for the targets supported by the compiler.
+
+Note: device IDs with '*' are subject to re-assign to another IP version
+in the future compiler release.
+
+.. include:: platforms.rst
+
+
 
 3 C for Metal Header Files
 ==========================
@@ -116,17 +113,7 @@ Option                        Description
 -help                         Prints a list of compiler options - note that not
                               all options are applicable to CM.
 
--march=\ *gen*                Specifies the Gen/Xe target
-
-                              This may use numeric or mnemonic notations, e.g.
-                              gen12 and tgllp both specify a Tiger Lake target.
-                              Case is not significant.
-
-                              The macros CM_GENX and CM_GEN<x> will be
-                              predefined according to the target that is
-                              specified - e.g. for Tiger Lake, CM_GENX will have
-                              a value of 1200, and CM_GEN12 will be defined
-                              (without a value).
+-march=<target>               Specifies the Xe target
 
 -binary-format <value>        Sets in which format should be generated binary;
                               values: 'cm', 'ocl' or 'ze'

@@ -86,6 +86,20 @@ static const std::unordered_map<std::string, uint32_t> DeviceId = {
   {"bdw", encodeGmdId(8, 0, 0)},
 };
 
+static const std::unordered_map<std::string, uint32_t> AliasId = {
+  {"ptl", encodeGmdId(30, 0, 4)},
+  {"lnl", encodeGmdId(20, 4, 4)},
+  {"bmg", encodeGmdId(20, 1, 0)},
+  {"arl", encodeGmdId(12, 74, 4)},
+  {"mtl", encodeGmdId(12, 71, 0)},
+  {"pvcxt", encodeGmdId(12, 60, 7)},
+  {"dg2", encodeGmdId(12, 55, 8)},
+  {"adln", encodeGmdId(12, 4, 0)},
+  {"adlp", encodeGmdId(12, 3, 0)},
+  {"adls", encodeGmdId(12, 2, 0)},
+};
+
+
 static const std::unordered_map<std::string, uint32_t> PciId {
   {"0x674c", encodeGmdId(35, 11, 0)},
   {"0xd741", encodeGmdId(30, 5, 4)},
@@ -420,6 +434,9 @@ static const std::unordered_map<std::string, uint32_t> PciId {
 // clang-format on
 
 uint32_t clang::driver::tools::GenX::getDeviceId(const std::string &Name) {
+  auto AliasIt = AliasId.find(Name);
+  if (AliasIt != AliasId.end())
+    return AliasIt->second;
   auto ReleaseIt = ReleaseId.find(Name);
   if (ReleaseIt != ReleaseId.end())
     return ReleaseIt->second;

@@ -40,23 +40,6 @@ static uint32_t getGenXTargetCPUId(const std::string &CPU, int RevId) {
   std::transform(CPUName.begin(), CPUName.end(), CPUName.begin(), ::tolower);
 
   CPUName = llvm::StringSwitch<std::string>(CPUName)
-                .Case("gen9lp", "bxt")
-                .Cases("gen9_5", "gen9p5", "kbl")
-                .Cases("gen9_5lp", "gen9p5lp", "glk")
-                .Case("gen11lp", "gen11")
-                .Case("gen12lp", "xe-lp")
-                .Case("adls", "adl-s")
-                .Case("adlp", "adl-p")
-                .Case("adln", "adl-n")
-                .Cases("xehp", "xehp_sdv", "xe_hp_sdv", "xehp-sdv", "xe-hp-sdv",
-                       "xe-hp")
-                .Case("dg2", "acm-g10")
-                .Case("mtl", "mtl-h")
-                .Case("arl", "arl-h")
-                .Case("pvcxt", "pvc")
-                .Case("lnl", "lnl-m")
-                .Case("bmg", "bmg-g21")
-                .Case("ptl", "ptl-h")
                 .Default(CPUName);
 
   uint32_t CPUId = GenX::getDeviceId(CPUName);
