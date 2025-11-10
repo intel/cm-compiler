@@ -37,44 +37,44 @@ static_assert(0, "CM:w:cm_lsc.h should not be included explicitly");
 ///
 /// @param Pred Predicate
 ///
-template <VectorSize VS = VectorSize::N1, DataSize DS = DataSize::U32,
-          CacheHint L1H = CacheHint::Cached, CacheHint L2H = CacheHint::Cached,
-          int N = details::lsc_default_simt()>
+template <VectorSize VS, DataSize DS, CacheHint L1H, CacheHint L2H,
+          CacheHint L3H, int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE void cm_prefetch(SurfaceIndex Idx,
                                       vector<unsigned, N> Offset,
                                       vector<ushort, N> Pred = 1) {
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr int ImmOffset = 0;
-  __cm_intrinsic_impl_prefetch_bti<DS, VS, ImmOffset, L1H, L2H, N>(Idx, Offset,
-                                                                   Pred);
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
+  __cm_intrinsic_impl_prefetch_bti<DS, VS, ImmOffset, L1H, L2L3H, N>(
+      Idx, Offset, Pred);
 }
 
 /// flat-address prefetch
-template <VectorSize VS = VectorSize::N1, DataSize DS = DataSize::U32,
-          CacheHint L1H = CacheHint::Cached, CacheHint L2H = CacheHint::Cached,
-          int N = details::lsc_default_simt()>
+template <VectorSize VS, DataSize DS, CacheHint L1H, CacheHint L2H,
+          CacheHint L3H, int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE void cm_ptr_prefetch(const void *const Ptr,
                                           vector<unsigned, N> Offset,
                                           vector<ushort, N> Pred = 1) {
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr int ImmOffset = 0;
   uint64_t Addr = (uint64_t)Ptr;
-  __cm_intrinsic_impl_prefetch_flat<DS, VS, ImmOffset, L1H, L2H, N>(
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
+  __cm_intrinsic_impl_prefetch_flat<DS, VS, ImmOffset, L1H, L2L3H, N>(
       Addr, Offset, Pred);
 }
 
 /// Surface-based Block prefetch.
 template <VectorSize VS, DataSize DS = DataSize::U32,
           CacheHint L1H = CacheHint::Cached,
-          CacheHint L2H = CacheHint::Cached>
+          CacheHint L2H = CacheHint::Cached, CacheHint L3H = CacheHint::Default>
 CM_NODEBUG CM_INLINE void cm_prefetch(SurfaceIndex Idx, unsigned Offset) {
   using namespace details;
   CM_HAS_LSC_CONTROL;
@@ -84,17 +84,18 @@ CM_NODEBUG CM_INLINE void cm_prefetch(SurfaceIndex Idx, unsigned Offset) {
   CM_STATIC_ERROR(
       DS == DataSize::U32 || DS == DataSize::U64,
       "Transposed prefetch can work only with U32 and U64 data sizes");
-  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr int _ImmOffset = 0;
-  details::__cm_intrinsic_impl_block_prefetch_bti<DS, VS, _ImmOffset, L1H, L2H>(
-      Idx, Offset);
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
+  details::__cm_intrinsic_impl_block_prefetch_bti<DS, VS, _ImmOffset, L1H,
+                                                  L2L3H>(Idx, Offset);
 }
 
 // Surface-based block prefetch, new interface
 template <int NElts, DataSize DS = DataSize::U32,
           CacheHint L1H = CacheHint::Cached,
-          CacheHint L2H = CacheHint::Cached>
+          CacheHint L2H = CacheHint::Cached, CacheHint L3H = CacheHint::Default>
 CM_NODEBUG CM_INLINE void cm_prefetch(SurfaceIndex Idx, unsigned Offset) {
   using namespace details;
   CM_HAS_LSC_CONTROL;
@@ -102,18 +103,19 @@ CM_NODEBUG CM_INLINE void cm_prefetch(SurfaceIndex Idx, unsigned Offset) {
   CM_STATIC_ERROR(
       DS == DataSize::U32 || DS == DataSize::U64,
       "Transposed prefetch can work only with U32 and U64 data sizes");
-  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr int _ImmOffset = 0;
   constexpr VectorSize VS = details::lsc_vector_size<NElts>();
-  details::__cm_intrinsic_impl_block_prefetch_bti<DS, VS, _ImmOffset, L1H, L2H>(
-      Idx, Offset);
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
+  details::__cm_intrinsic_impl_block_prefetch_bti<DS, VS, _ImmOffset, L1H,
+                                                  L2L3H>(Idx, Offset);
 }
 
 /// Flat-address Block prefetch.
 template <VectorSize VS, DataSize DS = DataSize::U32,
           CacheHint L1H = CacheHint::Cached,
-          CacheHint L2H = CacheHint::Cached>
+          CacheHint L2H = CacheHint::Cached, CacheHint L3H = CacheHint::Default>
 CM_NODEBUG CM_INLINE void cm_ptr_prefetch(const unsigned *const Ptr,
                                           unsigned Offset) {
   using namespace details;
@@ -124,7 +126,7 @@ CM_NODEBUG CM_INLINE void cm_ptr_prefetch(const unsigned *const Ptr,
   CM_STATIC_ERROR(
       DS == DataSize::U32 || DS == DataSize::U64,
       "Transposed prefetch can work only with U32 and U64 data sizes");
-  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr int _ImmOffset = 0;
   uint64_t _Addr = (uint64_t)Ptr;
@@ -135,7 +137,7 @@ CM_NODEBUG CM_INLINE void cm_ptr_prefetch(const unsigned *const Ptr,
 /// Flat-address Block prefetch, new interface
 template <int NElts, DataSize DS = DataSize::U32,
           CacheHint L1H = CacheHint::Cached,
-          CacheHint L2H = CacheHint::Cached>
+          CacheHint L2H = CacheHint::Cached, CacheHint L3H = CacheHint::Default>
 CM_NODEBUG CM_INLINE void cm_ptr_prefetch(const unsigned *const Ptr,
                                           unsigned Offset) {
   using namespace details;
@@ -144,13 +146,14 @@ CM_NODEBUG CM_INLINE void cm_ptr_prefetch(const unsigned *const Ptr,
   CM_STATIC_ERROR(
       DS == DataSize::U32 || DS == DataSize::U64,
       "Transposed prefetch can work only with U32 and U64 data sizes");
-  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr int ImmOffset = 0;
   constexpr VectorSize VS = details::lsc_vector_size<NElts>();
   uint64_t Addr = (uint64_t)Ptr;
-  details::__cm_intrinsic_impl_block_prefetch_flat<DS, VS, ImmOffset, L1H, L2H>(
-      Addr, Offset);
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
+  details::__cm_intrinsic_impl_block_prefetch_flat<DS, VS, ImmOffset, L1H,
+                                                   L2L3H>(Addr, Offset);
 }
 
 /// \brief Data Read.
@@ -174,40 +177,37 @@ CM_NODEBUG CM_INLINE void cm_ptr_prefetch(const unsigned *const Ptr,
 /// @param Offset zero based offset of the input buffer in bytes.
 ///
 /// BTI non-transposed load
-template <typename T, VectorSize VS = VectorSize::N1,
-          DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
-          CacheHint L2H = CacheHint::Default,
-          int N = details::lsc_default_simt()>
+template <typename T, VectorSize VS, DataSize DS, CacheHint L1H, CacheHint L2H,
+          CacheHint L3H, int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE auto cm_load(SurfaceIndex Idx, vector<unsigned, N> Offset,
                                   vector<ushort, N> Pred = 1) {
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   using _MessTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = false;
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   auto _TmpRes =
-      __cm_intrinsic_impl_load_bti<_MessTy, _DS, VS, _ImmOffset, L1H, L2H,
+      __cm_intrinsic_impl_load_bti<_MessTy, _DS, VS, _ImmOffset, L1H, L2L3H,
                                    _Transposed, N>(Idx, Offset, Pred);
   return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
 }
 
 /// Flat-address non-transposed load
-template <typename T, VectorSize VS = VectorSize::N1,
-          DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
-          CacheHint L2H = CacheHint::Default,
-          int N = details::lsc_default_simt()>
+template <typename T, VectorSize VS, DataSize DS, CacheHint L1H, CacheHint L2H,
+          CacheHint L3H, int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE auto cm_ptr_load(const T *const Ptr,
                                       vector<unsigned, N> Offset,
                                       vector<ushort, N> Pred = 1) {
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   using _MessTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
@@ -215,8 +215,9 @@ CM_NODEBUG CM_INLINE auto cm_ptr_load(const T *const Ptr,
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = false;
   uint64_t _Addr = (uint64_t)Ptr;
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   auto _TmpRes =
-      __cm_intrinsic_impl_load_flat<_MessTy, _DS, VS, _ImmOffset, L1H, L2H,
+      __cm_intrinsic_impl_load_flat<_MessTy, _DS, VS, _ImmOffset, L1H, L2L3H,
                                     _Transposed, N>(_Addr, Offset, Pred);
   return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
 }
@@ -224,14 +225,15 @@ CM_NODEBUG CM_INLINE auto cm_ptr_load(const T *const Ptr,
 // Block-load with a SurfaceIndex
 template <typename T, VectorSize VS, DataSize DS = DataSize::Default,
           CacheHint L1H = CacheHint::Default,
-          CacheHint L2H = CacheHint::Default>
+          CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default>
 CM_NODEBUG CM_INLINE auto cm_load(SurfaceIndex Idx, unsigned Offset) {
   using namespace details;
   CM_HAS_LSC_CONTROL;
 
   CM_STATIC_WARNING(details::always_false<decltype(VS)>(),
                     "Please use new interface with explicit NElts");
-  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   using _RetTy = decltype(details::lsc_data_type<T, 1, VS>());
   static_assert(VS != VectorSize::N0, "invalid vector size");
@@ -240,19 +242,21 @@ CM_NODEBUG CM_INLINE auto cm_load(SurfaceIndex Idx, unsigned Offset) {
                   "Transposed load can work only with U32 and U64 data sizes");
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = true;
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   return details::__cm_intrinsic_impl_block_load_bti<
-      _RetTy, _DS, VS, _ImmOffset, L1H, L2H, _Transposed>(Idx, Offset);
+      _RetTy, _DS, VS, _ImmOffset, L1H, L2L3H, _Transposed>(Idx, Offset);
 }
 
 // Block-load with a SurfaceIndex, new interface
 template <typename T, int NElts, DataSize DS = DataSize::Default,
           CacheHint L1H = CacheHint::Default,
-          CacheHint L2H = CacheHint::Default>
+          CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default>
 CM_NODEBUG CM_INLINE auto cm_load(SurfaceIndex Idx, unsigned Offset) {
   using namespace details;
   CM_HAS_LSC_CONTROL;
 
-  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr VectorSize VS = details::lsc_vector_size<NElts>();
   using _RetTy = decltype(details::lsc_data_type<T, 1, VS>());
@@ -262,19 +266,21 @@ CM_NODEBUG CM_INLINE auto cm_load(SurfaceIndex Idx, unsigned Offset) {
                   "Transposed load can work only with U32 and U64 data sizes");
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = true;
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   return details::__cm_intrinsic_impl_block_load_bti<
-      _RetTy, _DS, VS, _ImmOffset, L1H, L2H, _Transposed>(Idx, Offset);
+      _RetTy, _DS, VS, _ImmOffset, L1H, L2L3H, _Transposed>(Idx, Offset);
 }
 
 // Block-load with a base-pointer to the buffer
 template <typename T, VectorSize VS, DataSize DS = DataSize::Default,
           CacheHint L1H = CacheHint::Default,
-          CacheHint L2H = CacheHint::Default>
+          CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default>
 CM_NODEBUG CM_INLINE auto cm_ptr_load(const T *const Ptr, unsigned Offset) {
   using namespace details;
   CM_HAS_LSC_CONTROL;
 
-  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   CM_STATIC_WARNING(details::always_false<decltype(VS)>(),
                     "Please use new interface with explicit NElts");
@@ -286,18 +292,20 @@ CM_NODEBUG CM_INLINE auto cm_ptr_load(const T *const Ptr, unsigned Offset) {
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = true;
   uint64_t _Addr = (uint64_t)Ptr;
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   return details::__cm_intrinsic_impl_block_load_flat<
-      _RetTy, _DS, VS, _ImmOffset, L1H, L2H, _Transposed>(_Addr, Offset);
+      _RetTy, _DS, VS, _ImmOffset, L1H, L2L3H, _Transposed>(_Addr, Offset);
 }
 // Block-load with a base-pointer to the buffer, new interface
 template <typename T, int NElts, DataSize DS = DataSize::Default,
           CacheHint L1H = CacheHint::Default,
-          CacheHint L2H = CacheHint::Default>
+          CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default>
 CM_NODEBUG CM_INLINE auto cm_ptr_load(const T *const Ptr, unsigned Offset) {
   using namespace details;
   CM_HAS_LSC_CONTROL;
 
-  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr VectorSize VS = details::lsc_vector_size<NElts>();
   using _RetTy = decltype(details::lsc_data_type<T, 1, VS>());
@@ -308,23 +316,22 @@ CM_NODEBUG CM_INLINE auto cm_ptr_load(const T *const Ptr, unsigned Offset) {
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = true;
   uint64_t _Addr = (uint64_t)Ptr;
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   return details::__cm_intrinsic_impl_block_load_flat<
-      _RetTy, _DS, VS, _ImmOffset, L1H, L2H, _Transposed>(_Addr, Offset);
+      _RetTy, _DS, VS, _ImmOffset, L1H, L2L3H, _Transposed>(_Addr, Offset);
 }
 
 /// BTI non-transposed quad load
 ///   * vector size is always 4 for quad so it is not specified
 ///   * store is always transposed, so no block version
-template <typename T, ChannelMaskType Mask, DataSize DS = DataSize::Default,
-          CacheHint L1H = CacheHint::Default,
-          CacheHint L2H = CacheHint::Default,
-          int N = details::lsc_default_simt()>
+template <typename T, ChannelMaskType Mask, DataSize DS, CacheHint L1H,
+          CacheHint L2H, CacheHint L3H, int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE auto cm_load4(SurfaceIndex Idx, vector<unsigned, N> Offset,
                                    vector<ushort, N> Pred = 1) {
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr VectorSize _VS =
       details::lsc_get_vector_size_from_channel_mask<Mask>();
@@ -333,24 +340,23 @@ CM_NODEBUG CM_INLINE auto cm_load4(SurfaceIndex Idx, vector<unsigned, N> Offset,
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = false;
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   auto _TmpRes =
-      __cm_intrinsic_impl_load4_bti<_MessTy, _DS, _VS, _ImmOffset, L1H, L2H,
+      __cm_intrinsic_impl_load4_bti<_MessTy, _DS, _VS, _ImmOffset, L1H, L2L3H,
                                     _Transposed, N>(Idx, Offset, Pred, Mask);
   return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
 }
 
 /// Flat-address non-transposed quad load
-template <typename T, ChannelMaskType Mask, DataSize DS = DataSize::Default,
-          CacheHint L1H = CacheHint::Default,
-          CacheHint L2H = CacheHint::Default,
-          int N = details::lsc_default_simt()>
+template <typename T, ChannelMaskType Mask, DataSize DS, CacheHint L1H,
+          CacheHint L2H, CacheHint L3H, int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE auto cm_ptr_load4(const T *const Ptr,
                                        vector<unsigned, N> Offset,
                                        vector<ushort, N> Pred = 1) {
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr VectorSize _VS =
       details::lsc_get_vector_size_from_channel_mask<Mask>();
@@ -360,8 +366,9 @@ CM_NODEBUG CM_INLINE auto cm_ptr_load4(const T *const Ptr,
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = false;
   uint64_t _Addr = (uint64_t)Ptr;
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   auto _TmpRes =
-      __cm_intrinsic_impl_load4_flat<_MessTy, _DS, _VS, _ImmOffset, L1H, L2H,
+      __cm_intrinsic_impl_load4_flat<_MessTy, _DS, _VS, _ImmOffset, L1H, L2L3H,
                                      _Transposed, N>(_Addr, Offset, Pred, Mask);
   return lsc_format_ret<T, _MessTy, _RetTy>(_TmpRes);
 }
@@ -390,10 +397,8 @@ CM_NODEBUG CM_INLINE auto cm_ptr_load4(const T *const Ptr,
 ///
 /// @param Data data to write.
 ///
-template <typename T, VectorSize VS = VectorSize::N1,
-          DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
-          CacheHint L2H = CacheHint::Default,
-          int N = details::lsc_default_simt()>
+template <typename T, VectorSize VS, DataSize DS, CacheHint L1H, CacheHint L2H,
+          CacheHint L3H, int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE void
 cm_store(SurfaceIndex Idx, vector<unsigned, N> Offset,
          vector<T, N * details::lsc_vector_size<VS>()> Data,
@@ -401,7 +406,7 @@ cm_store(SurfaceIndex Idx, vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_expand_ds(details::lsc_data_size<T, DS>());
   constexpr int _ImmOffset = 0;
@@ -414,10 +419,8 @@ cm_store(SurfaceIndex Idx, vector<unsigned, N> Offset,
                                          N>(Idx, Offset, _TmpData, Pred);
 }
 /// Flat-address store using a base-address to a buffer
-template <typename T, VectorSize VS = VectorSize::N1,
-          DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
-          CacheHint L2H = CacheHint::Default,
-          int N = details::lsc_default_simt()>
+template <typename T, VectorSize VS, DataSize DS, CacheHint L1H, CacheHint L2H,
+          CacheHint L3H, int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE void
 cm_ptr_store(T *Ptr, vector<unsigned, N> Offset,
              vector<T, N * details::lsc_vector_size<VS>()> Data,
@@ -425,7 +428,7 @@ cm_ptr_store(T *Ptr, vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_expand_ds(details::lsc_data_size<T, DS>());
   constexpr int _ImmOffset = 0;
@@ -434,8 +437,9 @@ cm_ptr_store(T *Ptr, vector<unsigned, N> Offset,
   using _StTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _CastTy = typename lsc_bitcast_type<T>::type;
   _StTy _TmpData = Data.format<_CastTy>();
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   details::__cm_intrinsic_impl_store_flat<typename lsc_expand_type<T>::type,
-                                          _DS, VS, _ImmOffset, L1H, L2H,
+                                          _DS, VS, _ImmOffset, L1H, L2L3H,
                                           _Transposed, N>(_Addr, Offset,
                                                           _TmpData, Pred);
 }
@@ -443,10 +447,8 @@ cm_ptr_store(T *Ptr, vector<unsigned, N> Offset,
 /// Quad version of BTI store:
 ///   * vector size is always 4 for quad so it is not specified
 ///   * store is always transposed, so no block version
-template <typename T, ChannelMaskType Mask, DataSize DS = DataSize::Default,
-          CacheHint L1H = CacheHint::Default,
-          CacheHint L2H = CacheHint::Default,
-          int N = details::lsc_default_simt()>
+template <typename T, ChannelMaskType Mask, DataSize DS, CacheHint L1H,
+          CacheHint L2H, CacheHint L3H, int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE void cm_store4(
     SurfaceIndex Idx, vector<unsigned, N> Offset,
     vector<T, N * details::lsc_get_num_elements_from_channel_mask<Mask>()> Data,
@@ -454,7 +456,7 @@ CM_NODEBUG CM_INLINE void cm_store4(
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr VectorSize _VS =
       details::lsc_get_vector_size_from_channel_mask<Mask>();
@@ -464,17 +466,16 @@ CM_NODEBUG CM_INLINE void cm_store4(
   using _StTy = decltype(lsc_data_type_ext<T, N, _VS>());
   using _CastTy = typename lsc_bitcast_type<T>::type;
   _StTy _TmpData = Data.format<_CastTy>();
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   details::__cm_intrinsic_impl_store4_bti<typename lsc_expand_type<T>::type,
-                                          _DS, _VS, _ImmOffset, L1H, L2H,
+                                          _DS, _VS, _ImmOffset, L1H, L2L3H,
                                           _Transposed, N>(Idx, Offset, _TmpData,
                                                           Pred, Mask);
 }
 
 /// Quad version of flat store
-template <typename T, ChannelMaskType Mask, DataSize DS = DataSize::Default,
-          CacheHint L1H = CacheHint::Default,
-          CacheHint L2H = CacheHint::Default,
-          int N = details::lsc_default_simt()>
+template <typename T, ChannelMaskType Mask, DataSize DS, CacheHint L1H,
+          CacheHint L2H, CacheHint L3H, int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE void cm_ptr_store4(
     T *Ptr, vector<unsigned, N> Offset,
     vector<T, N * details::lsc_get_num_elements_from_channel_mask<Mask>()> Data,
@@ -482,7 +483,7 @@ CM_NODEBUG CM_INLINE void cm_ptr_store4(
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr VectorSize _VS =
       details::lsc_get_vector_size_from_channel_mask<Mask>();
@@ -493,8 +494,9 @@ CM_NODEBUG CM_INLINE void cm_ptr_store4(
   using _StTy = decltype(lsc_data_type_ext<T, N, _VS>());
   using _CastTy = typename lsc_bitcast_type<T>::type;
   _StTy _TmpData = Data.format<_CastTy>();
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   details::__cm_intrinsic_impl_store4_flat<typename lsc_expand_type<T>::type,
-                                           _DS, _VS, _ImmOffset, L1H, L2H,
+                                           _DS, _VS, _ImmOffset, L1H, L2L3H,
                                            _Transposed, N>(
       _Addr, Offset, _TmpData, Pred, Mask);
 }
@@ -502,13 +504,14 @@ CM_NODEBUG CM_INLINE void cm_ptr_store4(
 /// Block store with a SurfaceIndex.
 template <typename T, int NElts, DataSize DS = DataSize::Default,
           CacheHint L1H = CacheHint::Default,
-          CacheHint L2H = CacheHint::Default>
+          CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default>
 CM_NODEBUG CM_INLINE void cm_store(SurfaceIndex Idx, unsigned Offset,
                                    vector<T, NElts> Data) {
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_data_size<T, DS>();
   CM_STATIC_ERROR(_DS == DataSize::U32 || _DS == DataSize::U64,
@@ -517,20 +520,22 @@ CM_NODEBUG CM_INLINE void cm_store(SurfaceIndex Idx, unsigned Offset,
   static_assert(_VS != VectorSize::N0, "invalid vector size");
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = true;
-  __cm_intrinsic_impl_block_store_bti<T, _DS, _VS, _ImmOffset, L1H, L2H,
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
+  __cm_intrinsic_impl_block_store_bti<T, _DS, _VS, _ImmOffset, L1H, L2L3H,
                                       _Transposed>(Idx, Offset, Data);
 }
 
 /// Block store with a base pointer.
 template <typename T, int NElts, DataSize DS = DataSize::Default,
           CacheHint L1H = CacheHint::Default,
-          CacheHint L2H = CacheHint::Default>
+          CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default>
 CM_NODEBUG CM_INLINE void cm_ptr_store(T *ptr, unsigned Offset,
                                        vector<T, NElts> Data) {
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_data_size<T, DS>();
   CM_STATIC_ERROR(_DS == DataSize::U32 || _DS == DataSize::U64,
@@ -540,7 +545,8 @@ CM_NODEBUG CM_INLINE void cm_ptr_store(T *ptr, unsigned Offset,
   constexpr int _ImmOffset = 0;
   constexpr bool _Transposed = true;
   uint64_t _Addr = (uint64_t)ptr;
-  __cm_intrinsic_impl_block_store_flat<T, _DS, _VS, _ImmOffset, L1H, L2H,
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
+  __cm_intrinsic_impl_block_store_flat<T, _DS, _VS, _ImmOffset, L1H, L2L3H,
                                        _Transposed>(_Addr, Offset, Data);
 }
 
@@ -728,6 +734,7 @@ template <typename T, int Width, int Height = 1, int NBlks = 1,
           bool Transposed = false, bool Transformed = false,
           CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default,
           int N = details::getBlock2dDataSize<T, NBlks, Height, Width,
                                               Transposed, Transformed>()>
 CM_NODEBUG CM_INLINE vector<T, N>
@@ -740,7 +747,7 @@ cm_ptr_load(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
                   "Transposed and transformed is not supported");
   CM_STATIC_ERROR(!Transposed || (Transposed && NBlks == 1),
                   "Transposed expected to be 1 block only");
-  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   uintptr_t Base = reinterpret_cast<uintptr_t>(Ptr);
 
@@ -765,9 +772,12 @@ cm_ptr_load(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
   CM_STATIC_ERROR(N == grf_elements || N == dst_elements,
                   "Incorrect element count");
 
-  vector<T, grf_elements> raw = details::__cm_intrinsic_impl_block_load2d_flat<
-      T, NBlks, Width, Height, Transposed, Transformed, L1H, L2H, grf_elements>(
-      Base, SurfaceWidth, SurfaceHeight, SurfacePitch, X, Y);
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
+  vector<T, grf_elements> raw =
+      details::__cm_intrinsic_impl_block_load2d_flat<T, NBlks, Width, Height,
+                                                     Transposed, Transformed,
+                                                     L1H, L2L3H, grf_elements>(
+          Base, SurfaceWidth, SurfaceHeight, SurfacePitch, X, Y);
 
   // If no padding is observed, then return as read
   if constexpr (grf_elements == N)
@@ -799,40 +809,44 @@ template <typename T, int Width, int Height = 1, int NBlks = 1,
           bool Transposed = false, bool Transformed = false,
           CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default,
           int N = details::getBlock2dDataSize<T, NBlks, Height, Width,
                                               Transposed, Transformed>()>
 CM_NODEBUG CM_INLINE vector<T, N> cm_load(T *Ptr, unsigned SurfaceWidth,
                                           unsigned SurfaceHeight,
                                           unsigned SurfacePitch, int X, int Y) {
   return cm_ptr_load<T, Width, Height, NBlks, Transposed, Transformed, L1H, L2H,
-                     N>(Ptr, SurfaceWidth, SurfaceHeight, SurfacePitch, X, Y);
+                     L3H, N>(Ptr, SurfaceWidth, SurfaceHeight, SurfacePitch, X,
+                             Y);
 }
 
 /// \brief 2D Block Prefetch (flat)
 template <typename T, int Width, int Height = 1, int NBlks = 1,
           CacheHint L1H = CacheHint::Cached,
-          CacheHint L2H = CacheHint::Cached>
+          CacheHint L2H = CacheHint::Cached, CacheHint L3H = CacheHint::Default>
 CM_NODEBUG CM_INLINE void cm_ptr_prefetch(T *Ptr, unsigned SurfaceWidth,
                                           unsigned SurfaceHeight,
                                           unsigned SurfacePitch, int X, int Y) {
   CM_HAS_LSC_UNTYPED_2D_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   uintptr_t Base = reinterpret_cast<uintptr_t>(Ptr);
-  __cm_intrinsic_impl_block_prefetch2d_flat<T, NBlks, Width, Height, L1H, L2H>(
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
+  __cm_intrinsic_impl_block_prefetch2d_flat<T, NBlks, Width, Height, L1H,
+                                            L2L3H>(
       Base, SurfaceWidth, SurfaceHeight, SurfacePitch, X, Y);
 }
 
 /// convenient overload to not break legacy
 template <typename T, int Width, int Height = 1, int NBlks = 1,
           CacheHint L1H = CacheHint::Cached,
-          CacheHint L2H = CacheHint::Cached>
+          CacheHint L2H = CacheHint::Cached, CacheHint L3H = CacheHint::Default>
 CM_NODEBUG CM_INLINE void cm_prefetch(T *Ptr, unsigned SurfaceWidth,
                                       unsigned SurfaceHeight,
                                       unsigned SurfacePitch, int X, int Y) {
-  return cm_ptr_prefetch<T, Width, Height, NBlks, L1H, L2H>(
+  return cm_ptr_prefetch<T, Width, Height, NBlks, L1H, L2H, L3H>(
       Ptr, SurfaceWidth, SurfaceHeight, SurfacePitch, X, Y);
 }
 
@@ -840,6 +854,7 @@ CM_NODEBUG CM_INLINE void cm_prefetch(T *Ptr, unsigned SurfaceWidth,
 template <typename T, int Width, int Height = 1,
           CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default,
           int N = details::getBlock2dDataSize<T, 1 /*NBlks*/, Height, Width,
                                               false /*Transposed*/,
                                               false /*Transformed*/>()>
@@ -849,7 +864,7 @@ cm_ptr_store(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
   CM_HAS_LSC_UNTYPED_2D_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr int NBlks = 1;
   uintptr_t Base = reinterpret_cast<uintptr_t>(Ptr);
@@ -864,7 +879,8 @@ cm_ptr_store(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
     raw.template select<Height, 1, Width, 1>(0, 0) = data_2d;
   }
 
-  __cm_intrinsic_impl_block_store2d_flat<T, NBlks, Width, Height, L1H, L2H,
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
+  __cm_intrinsic_impl_block_store2d_flat<T, NBlks, Width, Height, L1H, L2L3H,
                                          raw.n_elems()>(
       Base, SurfaceWidth, SurfaceHeight, SurfacePitch, X, Y,
       raw.template format<T>());
@@ -874,14 +890,15 @@ cm_ptr_store(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
 template <typename T, int Width, int Height = 1,
           CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default,
           int N = details::getBlock2dDataSize<T, 1 /*NBlks*/, Height, Width,
                                               false /*Transposed*/,
                                               false /*Transformed*/>()>
 CM_NODEBUG CM_INLINE void
 cm_store(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
          unsigned SurfacePitch, int X, int Y, vector<T, N> Data) {
-  cm_ptr_store<T, Width, Height, L1H, L2H, N>(Ptr, SurfaceWidth, SurfaceHeight,
-                                              SurfacePitch, X, Y, Data);
+  cm_ptr_store<T, Width, Height, L1H, L2H, L3H, N>(
+      Ptr, SurfaceWidth, SurfaceHeight, SurfacePitch, X, Y, Data);
 }
 
 // typed bti load4/store4/prefetch4 are Xe2+
@@ -1049,6 +1066,7 @@ CM_NODEBUG CM_INLINE void cm_store(SurfaceIndex Idx, int X, int Y,
 template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
           DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default,
           int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE auto cm_atomic(SurfaceIndex Idx,
                                     vector<unsigned, N> Offset,
@@ -1059,14 +1077,15 @@ CM_NODEBUG CM_INLINE auto cm_atomic(SurfaceIndex Idx,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_atomic<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_atomic<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   constexpr bool _Transposed = false;
   using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   auto _TmpRes =
-      __cm_intrinsic_impl_lsc_atomic_bti<Op, _DS, VS, _Transposed, L1H, L2H,
+      __cm_intrinsic_impl_lsc_atomic_bti<Op, _DS, VS, _Transposed, L1H, L2L3H,
                                          _IntRetTy, N>(Pred, Idx, Offset);
   return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
 }
@@ -1074,6 +1093,7 @@ CM_NODEBUG CM_INLINE auto cm_atomic(SurfaceIndex Idx,
 template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
           DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default,
           int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE auto
 cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
@@ -1084,7 +1104,7 @@ cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_atomic<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_atomic<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
                   "unsupported type for lsc atomic source or dest arguments");
@@ -1095,8 +1115,9 @@ cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
   using _CastTy = typename lsc_bitcast_type<T>::type;
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
   _SrcTy _TmpSrc0 = Src0.format<_CastTy>();
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   auto _TmpRes = __cm_intrinsic_impl_lsc_atomic_bti<Op, _DS, VS, _Transposed,
-                                                    L1H, L2H, _IntRetTy, N>(
+                                                    L1H, L2L3H, _IntRetTy, N>(
       Pred, Idx, Offset, _TmpSrc0);
   return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
 }
@@ -1104,6 +1125,7 @@ cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
 template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
           DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default,
           int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE auto
 cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
@@ -1115,7 +1137,7 @@ cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_atomic<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_atomic<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
                   "unsupported type for lsc atomic source or dest arguments");
@@ -1127,8 +1149,9 @@ cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
   _SrcTy _TmpSrc0 = Src0.format<_CastTy>();
   _SrcTy _TmpSrc1 = Src1.format<_CastTy>();
   constexpr bool _Transposed = false;
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   auto _TmpRes = __cm_intrinsic_impl_lsc_atomic_bti<Op, _DS, VS, _Transposed,
-                                                    L1H, L2H, _IntRetTy, N>(
+                                                    L1H, L2L3H, _IntRetTy, N>(
       Pred, Idx, Offset, _TmpSrc0, _TmpSrc1);
   return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
 }
@@ -1137,6 +1160,7 @@ cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
 template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
           DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default,
           int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE auto cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
                                         vector<ushort, N> Pred = 1) ->
@@ -1146,15 +1170,16 @@ CM_NODEBUG CM_INLINE auto cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
   CM_HAS_LSC_CONTROL;
 
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_atomic<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_atomic<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   constexpr DataSize _DS = lsc_expand_ds(lsc_data_size<T, DS>());
   constexpr bool _Transposed = false;
   uint64_t _Addr = (uint64_t)Ptr;
   using _IntRetTy = decltype(lsc_data_type_ext<T, N, VS>());
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   auto _TmpRes =
-      __cm_intrinsic_impl_lsc_atomic_flat<Op, _DS, VS, _Transposed, L1H, L2H,
+      __cm_intrinsic_impl_lsc_atomic_flat<Op, _DS, VS, _Transposed, L1H, L2L3H,
                                           _IntRetTy, N>(Pred, _Addr, Offset);
   return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
 }
@@ -1162,6 +1187,7 @@ CM_NODEBUG CM_INLINE auto cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
 template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
           DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default,
           int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE auto
 cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
@@ -1171,8 +1197,11 @@ cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
                             decltype(Src0)>::type {
   CM_HAS_LSC_CONTROL;
 
+  if constexpr (is_bfloat16_atomic(Op))
+    CM_HAS_BF16_ATOMIC_CONTROL;
+
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_atomic<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_atomic<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
                   "unsupported type for lsc atomic source or dest arguments");
@@ -1184,8 +1213,9 @@ cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
   using _RetTy = decltype(lsc_data_type<T, N, VS>());
   using _CastTy = typename lsc_bitcast_type<T>::type;
   _SrcTy _TmpSrc0 = Src0.format<_CastTy>();
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   auto _TmpRes = __cm_intrinsic_impl_lsc_atomic_flat<Op, _DS, VS, _Transposed,
-                                                     L1H, L2H, _IntRetTy, N>(
+                                                     L1H, L2L3H, _IntRetTy, N>(
       Pred, _Addr, Offset, _TmpSrc0);
   return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
 }
@@ -1193,6 +1223,7 @@ cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
 template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
           DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default,
           int N = details::lsc_default_simt()>
 CM_NODEBUG CM_INLINE auto
 cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
@@ -1203,8 +1234,11 @@ cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
                             decltype(Src0)>::type {
   CM_HAS_LSC_CONTROL;
 
+  if constexpr (is_bfloat16_atomic(Op))
+    CM_HAS_BF16_ATOMIC_CONTROL;
+
   using namespace details;
-  CM_STATIC_ERROR((lsc_check_cache_hint_atomic<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_atomic<L1H, L2H, L3H>()),
                   "unsupported cache hint");
   CM_STATIC_ERROR(lsc_check_atomic_src<T>(),
                   "unsupported type for lsc atomic source or dest arguments");
@@ -1217,8 +1251,9 @@ cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
   _SrcTy _TmpSrc1 = Src1.format<_CastTy>();
   constexpr bool _Transposed = false;
   uint64_t _Addr = (uint64_t)Ptr;
+  constexpr auto L2L3H = details::lsc_combine_l2_l3_hints(L2H, L3H);
   auto _TmpRes = __cm_intrinsic_impl_lsc_atomic_flat<Op, _DS, VS, _Transposed,
-                                                     L1H, L2H, _IntRetTy, N>(
+                                                     L1H, L2L3H, _IntRetTy, N>(
       Pred, _Addr, Offset, _TmpSrc0, _TmpSrc1);
   return lsc_format_ret<T, _IntRetTy, _RetTy>(_TmpRes);
 }
@@ -1262,6 +1297,9 @@ cm_atomic_slm(vector<unsigned, N> Offset,
                             decltype(Src0)>::type {
   CM_HAS_LSC_CONTROL;
 
+  if constexpr (is_bfloat16_atomic(Op))
+    CM_HAS_BF16_ATOMIC_CONTROL;
+
   if constexpr (sizeof(T) == sizeof(long long) || sizeof(T) == sizeof(double))
     CM_HAS_SLM_CAS_INT64_CONTROL;
 
@@ -1298,6 +1336,9 @@ cm_atomic_slm(vector<unsigned, N> Offset,
 
   if constexpr (sizeof(T) == sizeof(long long) || sizeof(T) == sizeof(double))
     CM_HAS_SLM_CAS_INT64_CONTROL;
+
+  if constexpr (is_bfloat16_atomic(Op))
+    CM_HAS_BF16_ATOMIC_CONTROL;
 
   using namespace details;
   CM_STATIC_ERROR(L1H == CacheHint::Default && L2H == CacheHint::Default,
@@ -1345,6 +1386,115 @@ CM_NODEBUG CM_INLINE void cm_fence(vector<ushort, N> Pred = 1) {
                   "unsupported system fence type");
 #endif
   __cm_intrinsic_impl_lsc_fence<Sfid, FenceOp, Scope, N>(Pred);
+}
+
+// Gather/scatter versions supporting 2 cache levels to keep compatibility with
+// the existing kernels
+template <VectorSize VS = VectorSize::N1, DataSize DS = DataSize::U32,
+          CacheHint L1H = CacheHint::Cached, CacheHint L2H = CacheHint::Cached,
+          int N = details::lsc_default_simt()>
+CM_NODEBUG CM_INLINE void cm_prefetch(SurfaceIndex Idx,
+                                      vector<unsigned, N> Offset,
+                                      vector<ushort, N> Pred = 1) {
+  cm_prefetch<VS, DS, L1H, L2H, CacheHint::Default, N>(Idx, Offset, Pred);
+}
+
+template <VectorSize VS = VectorSize::N1, DataSize DS = DataSize::U32,
+          CacheHint L1H = CacheHint::Cached, CacheHint L2H = CacheHint::Cached,
+          int N = details::lsc_default_simt()>
+CM_NODEBUG CM_INLINE void cm_ptr_prefetch(const void *const Ptr,
+                                          vector<unsigned, N> Offset,
+                                          vector<ushort, N> Pred = 1) {
+  cm_ptr_prefetch<VS, DS, L1H, L2H, CacheHint::Default, N>(Ptr, Offset, Pred);
+}
+
+template <typename T, VectorSize VS = VectorSize::N1,
+          DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
+          CacheHint L2H = CacheHint::Default,
+          int N = details::lsc_default_simt()>
+CM_NODEBUG CM_INLINE auto cm_load(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                                  vector<ushort, N> Pred = 1) {
+  return cm_load<T, VS, DS, L1H, L2H, CacheHint::Default, N>(Idx, Offset, Pred);
+}
+
+template <typename T, VectorSize VS = VectorSize::N1,
+          DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
+          CacheHint L2H = CacheHint::Default,
+          int N = details::lsc_default_simt()>
+CM_NODEBUG CM_INLINE auto cm_ptr_load(const T *const Ptr,
+                                      vector<unsigned, N> Offset,
+                                      vector<ushort, N> Pred = 1) {
+  return cm_ptr_load<T, VS, DS, L1H, L2H, CacheHint::Default, N>(Ptr, Offset,
+                                                                 Pred);
+}
+
+template <typename T, ChannelMaskType Mask, DataSize DS = DataSize::Default,
+          CacheHint L1H = CacheHint::Default,
+          CacheHint L2H = CacheHint::Default,
+          int N = details::lsc_default_simt()>
+CM_NODEBUG CM_INLINE auto cm_load4(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                                   vector<ushort, N> Pred = 1) {
+  return cm_load4<T, Mask, DS, L1H, L2H, CacheHint::Default, N>(Idx, Offset,
+                                                                    Pred);
+}
+
+template <typename T, ChannelMaskType Mask, DataSize DS = DataSize::Default,
+          CacheHint L1H = CacheHint::Default,
+          CacheHint L2H = CacheHint::Default,
+          int N = details::lsc_default_simt()>
+CM_NODEBUG CM_INLINE auto cm_ptr_load4(const T *const Ptr,
+                                       vector<unsigned, N> Offset,
+                                       vector<ushort, N> Pred = 1) {
+  return cm_ptr_load4<T, Mask, DS, L1H, L2H, CacheHint::Default, N>(Ptr, Offset,
+                                                                    Pred);
+}
+
+template <typename T, VectorSize VS = VectorSize::N1,
+          DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
+          CacheHint L2H = CacheHint::Default,
+          int N = details::lsc_default_simt()>
+CM_NODEBUG CM_INLINE void
+cm_store(SurfaceIndex Idx, vector<unsigned, N> Offset,
+         vector<T, N * details::lsc_vector_size<VS>()> Data,
+         vector<ushort, N> Pred = 1) {
+  cm_store<T, VS, DS, L1H, L2H, CacheHint::Default, N>(Idx, Offset, Data, Pred);
+}
+
+template <typename T, VectorSize VS = VectorSize::N1,
+          DataSize DS = DataSize::Default, CacheHint L1H = CacheHint::Default,
+          CacheHint L2H = CacheHint::Default,
+          int N = details::lsc_default_simt()>
+CM_NODEBUG CM_INLINE void
+cm_ptr_store(T *Ptr, vector<unsigned, N> Offset,
+             vector<T, N * details::lsc_vector_size<VS>()> Data,
+             vector<ushort, N> Pred = 1) {
+  cm_ptr_store<T, VS, DS, L1H, L2H, CacheHint::Default, N>(Ptr, Offset, Data,
+                                                           Pred);
+}
+
+template <typename T, ChannelMaskType Mask, DataSize DS = DataSize::Default,
+          CacheHint L1H = CacheHint::Default,
+          CacheHint L2H = CacheHint::Default,
+          int N = details::lsc_default_simt()>
+CM_NODEBUG CM_INLINE void cm_store4(
+    SurfaceIndex Idx, vector<unsigned, N> Offset,
+    vector<T, N * details::lsc_get_num_elements_from_channel_mask<Mask>()>
+        Data,
+    vector<ushort, N> Pred = 1) {
+  cm_store4<T, Mask, DS, L1H, L2H, CacheHint::Default, N>(Idx, Offset, Data, Pred);
+}
+
+template <typename T, ChannelMaskType Mask, DataSize DS = DataSize::Default,
+          CacheHint L1H = CacheHint::Default,
+          CacheHint L2H = CacheHint::Default,
+          int N = details::lsc_default_simt()>
+CM_NODEBUG CM_INLINE void cm_ptr_store4(
+    T *Ptr, vector<unsigned, N> Offset,
+    vector<T, N * details::lsc_get_num_elements_from_channel_mask<Mask>()>
+        Data,
+    vector<ushort, N> Pred = 1) {
+  cm_ptr_store4<T, Mask, DS, L1H, L2H, CacheHint::Default, N>(Ptr, Offset, Data,
+                                                              Pred);
 }
 
 #endif // _CLANG_CM_LSC_H_

@@ -15,8 +15,10 @@ static_assert(0, "CM:w:dpas/helpers.h should not be included explicitly");
 
 #include <cm/cm_common.h>
 
+#if __CM_INTEL_TARGET_MAJOR < 35
 #define CM_HAS_DPAS_INT_MIX 1
 #define CM_HAS_DPAS_INT2 1
+#endif
 
 #define CM_HAS_DPAS_INT4 1
 #define CM_HAS_DPAS_INT8 1
@@ -36,7 +38,10 @@ enum class CmPrecisionType {
   CM_Precision_S8 = 7,   // signed 8 bits
   CM_Precision_BF16 = 8, // bfloat16
   CM_Precision_FP16 = 9, // half float
+  CM_Precision_BF8 = 10, // bfloat8
   CM_Precision_TF32 = 11, // tensorfloat 32
+  CM_Precision_HF8 = 13,  // hfloat8
+  CM_Precision_E2M1 = 14, // fp4, 2-bit exponent, 1-bit mantissa
 };
 
 #define CM_PRECISION_U2 CmPrecisionType::CM_Precision_U2
@@ -49,6 +54,10 @@ enum class CmPrecisionType {
 #define CM_PRECISION_HF CmPrecisionType::CM_Precision_FP16
 #define CM_PRECISION_TF32 CmPrecisionType::CM_Precision_TF32
 
+#define CM_PRECISION_BF8 CmPrecisionType::CM_Precision_BF8
+#define CM_PRECISION_HF8 CmPrecisionType::CM_Precision_HF8
+#define CM_PRECISION_E2M1 CmPrecisionType::CM_Precision_E2M1
+
 namespace details {
 inline constexpr unsigned get_dpas_precision_bits(CmPrecisionType Ty) {
   switch (Ty) {
@@ -57,9 +66,12 @@ inline constexpr unsigned get_dpas_precision_bits(CmPrecisionType Ty) {
     return 2;
   case CmPrecisionType::CM_Precision_U4:
   case CmPrecisionType::CM_Precision_S4:
+  case CmPrecisionType::CM_Precision_E2M1:
     return 4;
   case CmPrecisionType::CM_Precision_U8:
   case CmPrecisionType::CM_Precision_S8:
+  case CmPrecisionType::CM_Precision_BF8:
+  case CmPrecisionType::CM_Precision_HF8:
     return 8;
   case CmPrecisionType::CM_Precision_BF16:
   case CmPrecisionType::CM_Precision_FP16:
@@ -181,11 +193,54 @@ constexpr bool is_valid_dpas_tf32(CmPrecisionType Src1Ty,
 }
 
 template <typename ResTy, typename AccTy>
+constexpr bool is_valid_dpas_fp8(CmPrecisionType Src1Ty,
+                                 CmPrecisionType Src2Ty) {
+  // FIXME: add support for __bf16 accumulator
+  auto IsValid = is_one_of_v<ResTy, float> && is_one_of_v<AccTy, float>;
+
+  bool IsSrc1Valid = false;
+  bool IsSrc2Valid = false;
+
+#if defined(CM_HAS_DPAS_BF8)
+  IsSrc1Valid = Src1Ty == CmPrecisionType::CM_Precision_BF8;
+  IsSrc2Valid = Src2Ty == CmPrecisionType::CM_Precision_BF8;
+#endif // defined(CM_HAS_DPAS_BF8)
+
+#if defined(CM_HAS_DPAS_HF8)
+  IsSrc1Valid |= Src1Ty == CmPrecisionType::CM_Precision_HF8;
+  IsSrc2Valid |= Src2Ty == CmPrecisionType::CM_Precision_HF8;
+#endif // defined(CM_HAS_DPAS_HF8)
+
+  IsValid &= IsSrc1Valid && IsSrc2Valid;
+
+  return IsValid;
+}
+
+template <typename ResTy, typename AccTy>
+constexpr bool is_valid_dpas_fp4(CmPrecisionType Src1Ty,
+                                 CmPrecisionType Src2Ty) {
+#ifdef CM_HAS_DPAS_FP4
+  // FIXME: add support for __bf16 accumulator
+  bool IsValid = is_one_of_v<ResTy, float> && is_one_of_v<AccTy, float>;
+
+  IsValid &= Src1Ty == CmPrecisionType::CM_Precision_E2M1;
+
+  IsValid &= Src2Ty == CmPrecisionType::CM_Precision_E2M1;
+
+  return IsValid;
+#else // CM_HAS_DPAS_FP4
+  return false;
+#endif // CM_HAS_DPAS_FP4
+}
+
+template <typename ResTy, typename AccTy>
 constexpr bool is_valid_dpas(CmPrecisionType Src1Ty, CmPrecisionType Src2Ty) {
   bool IsValid = is_valid_dpas_int<ResTy, AccTy>(Src1Ty, Src2Ty);
   IsValid |= is_valid_dpas_fp16<ResTy, AccTy>(Src1Ty, Src2Ty);
   IsValid |= is_valid_dpas_bf16<ResTy, AccTy>(Src1Ty, Src2Ty);
   IsValid |= is_valid_dpas_tf32<ResTy, AccTy>(Src1Ty, Src2Ty);
+  IsValid |= is_valid_dpas_fp8<ResTy, AccTy>(Src1Ty, Src2Ty);
+  IsValid |= is_valid_dpas_fp4<ResTy, AccTy>(Src1Ty, Src2Ty);
 
   return IsValid;
 }

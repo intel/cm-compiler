@@ -154,6 +154,40 @@ void GenXTargetInfo::getTargetDefines(const LangOptions &Opts,
   if (HasMoveHf8)
     Builder.defineMacro("CM_HAS_HF8", "1");
 
+  if (HasBF16Atomic)
+    Builder.defineMacro("CM_HAS_BF16_ATOMIC", "1");
+
+  if (HasShuffleIndex4)
+    Builder.defineMacro("CM_HAS_UPCONVERT_4BIT_LUT", "1");
+  if (HasDownScale)
+    Builder.defineMacro("CM_HAS_DOWNSCALE_4BIT", "1");
+  if (HasLfsr)
+    Builder.defineMacro("CM_HAS_LFSR", "1");
+
+  if (HasTanh)
+    Builder.defineMacro("CM_HAS_TANH", "1");
+  if (HasSigmoid)
+    Builder.defineMacro("CM_HAS_SIGMOID", "1");
+
+  if (HasBdpas)
+    Builder.defineMacro("CM_HAS_BDPAS", "1");
+  if (HasDpasFp4)
+    Builder.defineMacro("CM_HAS_DPAS_FP4", "1");
+
+  // BF8 support
+  if (HasSrndBf16ToBf8)
+    Builder.defineMacro("CM_HAS_SRND_BF16_TO_BF8", "1");
+  if (HasDpasBf8)
+    Builder.defineMacro("CM_HAS_DPAS_BF8", "1");
+
+  // HF8 support
+  if (HasSrndBf16ToHf8)
+    Builder.defineMacro("CM_HAS_SRND_BF16_TO_HF8", "1");
+  if (HasSrndFp16ToHf8)
+    Builder.defineMacro("CM_HAS_SRND_FP16_TO_HF8", "1");
+  if (HasDpasHf8)
+    Builder.defineMacro("CM_HAS_DPAS_HF8", "1");
+
   if (HasSLMCasInt64)
     Builder.defineMacro("CM_HAS_SLM_CAS_INT64", "1");
 

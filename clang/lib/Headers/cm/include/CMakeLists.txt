@@ -65,7 +65,11 @@ set(CM_HEADERS
   cm/dpas/helpers.h
   cm/dpas/dpas.h
   cm/dpas/dpasw.h
+  cm/dpas/bdpas.h
 
+  cm/intrinsics/downscale.h
+  cm/intrinsics/lfsr.h
+  cm/intrinsics/mxfp_reduce.h
   cm/intrinsics/rsqrt.h
   cm/intrinsics/frem.h
   cm/intrinsics/srnd.h
@@ -86,6 +90,7 @@ set(CM_HEADERS
   # SPIR-V extensions
   cm/spirv/extensions/intel/bfloat16_conversion.h
   cm/spirv/extensions/khr/shader_clock.h
+  cm/spirv/extensions/intel/sigmoid.h
 
   opencl-c-common.h
   )

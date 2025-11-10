@@ -237,4 +237,39 @@ CM_NODEBUG CM_INLINE
   return _Result(0);
 }
 
+namespace details {
+template <typename Ty, unsigned Width>
+CM_NODEBUG vector<uint32_t, Width>
+__cm_intrinsic_impl_packed_4bit_upconvert_lut(vector<uint32_t, 16> LookupTable,
+                                              vector<Ty, Width> Src);
+
+template <typename Ty>
+constexpr unsigned get_packed_4bit_upconvert_width(unsigned NumSrcElements) {
+  unsigned Stride = sizeof(uint32_t) / sizeof(Ty);
+  return NumSrcElements / Stride;
+}
+} // namespace details
+
+template <int Index, typename SrcTy, unsigned NumSrcElements>
+CM_NODEBUG CM_INLINE vector<
+    uint32_t, details::get_packed_4bit_upconvert_width<SrcTy>(NumSrcElements)>
+cm_upconvert_4bit_lut(vector<uint32_t, 16> LookupTable,
+                      vector<SrcTy, NumSrcElements> Src) {
+  using namespace details;
+  constexpr unsigned Width =
+      get_packed_4bit_upconvert_width<SrcTy>(NumSrcElements);
+  constexpr unsigned Stride = sizeof(uint32_t) / sizeof(SrcTy);
+
+  CM_HAS_UPCONVERT_4BIT_LUT_CONTROL;
+  CM_STATIC_ERROR((Width == 16 || Width == 32),
+                  "Only 16 or 32 elements are supported");
+  CM_STATIC_ERROR((is_byte_type<SrcTy>::value || is_word_type<SrcTy>::value),
+                  "Only byte and word inputs are supported");
+  CM_STATIC_ERROR(Index * sizeof(SrcTy) < sizeof(uint32_t),
+                  "Index of the operation must be within dword size");
+
+  vector_ref<SrcTy, Width> _Src = Src.template select<Width, Stride>(Index);
+  return __cm_intrinsic_impl_packed_4bit_upconvert_lut(LookupTable, _Src);
+}
+
 #endif // _CLANG_CM_CVT_H_

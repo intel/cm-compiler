@@ -268,6 +268,19 @@ C for Metal supports the following basic scalar data types defined in C++:
   when CM_HAS_TF32 macro is defined. It's not a real data type meaning C for Metal compiler
   treats ``int`` as a tensor floating point data type for a function expecting a tensor parameter.
 
+* bfloat16: brain 16-bit floating point data type is only supported for Gen12+ hardware platforms,
+  when CM_HAS_BF16 macro is defined.
+
+* bfloat8: brain 8-bit floating point data type is only supported for Xe3+ hardware platforms,
+  when CM_HAS_BF8 macro is defined. It's not a real data type meaning C for Metal compiler
+  treats ``unsigned char`` as a brain 8-bit floating point data type for functions expecting
+  a parameter of the bfloat8 type.
+
+* hfloat8: half 8-bit floating point data type is only supported for Xe3p+ hardware platforms,
+  when CM_HAS_HF8 macro is defined. It's not a real data type meaning C for Metal compiler
+  treats ``char`` as a half 8-bit floating point data type for functions expecting a parameter
+  of the hfloat8 type.
+
 
 The C for Metal compiler will issue an error message for unsupported data types.
 
@@ -1834,6 +1847,36 @@ The floating-point remainder with correctly rounded IEEE compliant semantics.
 
 Only single or double precision floating-point type arguments are supported.
 
+cm_tanh
+^^^^^^^
+
+Hyperbolic tangent.
+
+* Parameter 1: matrix(_ref), vector(_ref) or scalar
+* Parameter 2: flags (default is 0; use SAT for saturation).
+* Return: vector or scalar
+
+Only half and single precision floating-point type arguments are supported.
+
+These functions are target-dependent and only available
+when the ``CM_HAS_TANH`` macro is defined.
+
+cm_sigmoid
+^^^^^^^^^^
+
+Sigmoid function:
+
+.. math::
+  \sigma(x) = 1 \over {1 + e^{-x}}
+
+* Parameter 1: matrix(_ref), vector(_ref) or scalar
+* Parameter 2: flags (default is 0; use SAT for saturation)
+* Return: vector or scalar
+
+Only half and single precision floating-point type arguments are supported.
+
+These functions are target-dependent and only available
+when the ``CM_HAS_SIGMOID`` macro is defined.
 
 cm_imul
 ^^^^^^^
@@ -2254,7 +2297,7 @@ with stochastic rounding.
 ============== =================================================================
 Parameters     Description
 ============== =================================================================
-SrcTy          Source type, must be ``float`` or  ``half``.
+SrcTy          Source type, must be ``float``, ``half`` or ``bfloat16``.
                When source type is ``float``, it's converted to ``half`` first,
                and then ``half`` to ``bfloat8``.
 
@@ -2267,8 +2310,358 @@ Bias           Stochastic rounding bias.
 Flag           Saturation flag, default is 0. Use SAT for saturation.
 ============== =================================================================
 
+These functions are target-dependent and only available when:
+``CM_HAS_SRND_BF16_TO_BF8`` macro is defined and ``SrcTy`` is ``bfloat16``.
+``CM_HAS_SRND_FP16_TO_BF8`` macro is defined and ``SrcTy`` is ``float`` or  ``half``.
+
+cm_srnd_hf8
+^^^^^^^^^^^
+
+Operation for converting ``float``,  ``half`` and ``bfloat16`` type values into ``hfloat8``
+with stochastic rounding.
+
+.. code-block:: c++
+
+  template <typename SrcTy, unsigned Width>
+  vector<uint8_t, Width> cm_srnd_hf8(vector<SrcTy, Width> Src,
+                                    vector<uint8_t, Width> Bias,
+                                    int Flag);
+
+  template <typename SrcTy, unsigned Height, unsigned Width>
+  matrix<uint8_t, Height, Width> cm_srnd_hf8(matrix<SrcTy, Height, Width> Src,
+                                             matrix<uint8_t, Height, Width> Bias,
+                                             int Flag);
+
+  template <typename SrcTy>
+  uint8_t cm_srnd_hf8(SrcTy Src, uint8_t Bias, int Flag);
+
+============== =================================================================
+Parameters     Description
+============== =================================================================
+SrcTy          Source type, must be ``float``,  ``half`` and ``bfloat16``.
+
+Width          SIMD width of the operation.
+
+Height         Height of input and output matrices.
+
+Bias           Stochastic rounding bias.
+
+Flag           Saturation flag, default is 0. Use SAT for saturation.
+============== =================================================================
+
+These functions are target-dependent and only available when:
+``CM_HAS_SRND_BF16_TO_HF8`` macro is defined and ``SrcTy`` is ``bfloat16``.
+``CM_HAS_SRND_FP16_TO_HF8`` macro is defined and ``SrcTy`` is ``float`` or  ``half``.
+
+
+cm_upconvert_4bit_lut
+^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: c++
+
+  template <int Index, typename SrcTy, unsigned NumSrcElements>
+  vector<uint32_t, Width> cm_upconvert_4bit_lut(vector<uint32_t, 16> LUT,
+                                                vector<SrcTy, NumSrcElements> Src);
+
+Up-conversion from 4-bit (fp4 or int4) into 8 or 16-bit values using lookup table.
+The operation performs strided access to the packed 4-bit source operand.
+
+============== =================================================================
+Parameters     Description
+============== =================================================================
+Index          The source element index within a DWord. Must be compile-time
+               constant.
+
+SrcTy          Storage type for packed 4-bit input values. Must be ``uchar`` for
+               4-to-16 bit conversion or ``ushort`` for 4-to-8 bit conversion.
+
+NumSrcElements Number of elements of SrcTy in the source vector. Shouldn't be
+               passed explicitly, as it is deduced from the source vector type.
+               Should be equal to ``Stride * Width``.
+
+Stride         Source vector access stride. The operation access single element
+               of ``SrcTy`` per dword, so the ``Stride`` value must be equal to
+               number of ``SrcTy`` elements in dword. Deduced. Cannot be passed
+               explicitly. When ``SrcTy`` is ``uchar``, the stride is 4. When
+               ``SrcTy`` is ``ushort``, the stride is 2.
+
+Width          SIMD width of the operation. The only supported values are 16
+               and 32. Cannot be passed explicitly. Deduced as the number of
+               elements in the source vector divided by the stride.
+
+LUT            Lookup table used for the upconvert operation. The table must
+               contain 16 elements.
+
+Src            Vector of the packed input values.
+============== =================================================================
+
 These functions are target-dependent and only available when
-``CM_HAS_SRND_FP16_TO_BF8`` macro is defined.
+``CM_HAS_UPCONVERT_4BIT_LUT`` macro is defined.
+
+Usage example: upconvert VNNI-packed 8x16 fp4 block into bfloat16.
+
+.. code-block:: c++
+
+  vector<uint32_t, 16> LUT = {0x00000000, 0x3f803f80, 0x40004000, 0x40804080,
+                              0x41004100, 0x41804180, 0x42004200, 0x42804280,
+                              0x7fff7fff, 0xbf80bf80, 0xc000c000, 0xc080c080,
+                              0xc100c100, 0xc180c180, 0xc200c200, 0xc280c280};
+  vector<uint32_t, 16> Src;
+  matrix<uint32_t, 4, 16> Dst;
+
+  vector_ref<uint8_t, 16 * 4> SrcByte = Src.template format<uint8_t>();
+
+  Dst.row(0) = cm_upconvert_4bit_lut<0>(LUT, SrcByte);
+  Dst.row(1) = cm_upconvert_4bit_lut<1>(LUT, SrcByte);
+  Dst.row(2) = cm_upconvert_4bit_lut<2>(LUT, SrcByte);
+  Dst.row(3) = cm_upconvert_4bit_lut<3>(LUT, SrcByte);
+
+Usage example: upconvert VNNI-packed 8x16 fp4 block into bfloat8.
+
+.. code-block:: c++
+
+  vector<uint32_t, 16> LUT = {0x00000000, 0x3c3c3c3c, 0x40404040, 0x44444444,
+                              0x48484848, 0x4c4c4c4c, 0x50505050, 0x54545454,
+                              0x7f7f7f7f, 0xbcbcbcbc, 0xc0c0c0c0, 0xc4c4c4c4,
+                              0xc8c8c8c8, 0xcccccccc, 0xd0d0d0d0, 0xd4d4d4d4};
+  vector<uint32_t, 16> Src;
+  matrix<uint32_t, 2, 16> Dst;
+
+  vector_ref<uint16_t, 16 * 2> SrcWord = Src.template format<uint16_t>();
+
+  Dst.row(0) = cm_upconvert_4bit_lut<0>(LUT, SrcWord);
+  Dst.row(1) = cm_upconvert_4bit_lut<1>(LUT, SrcWord);
+
+Usage example: upconvert VNNI-packed 8x32 fp4 block into bfloat8.
+
+.. code-block:: c++
+
+  vector<uint32_t, 16> LUT = {0x00000000, 0x3c3c3c3c, 0x40404040, 0x44444444,
+                              0x48484848, 0x4c4c4c4c, 0x50505050, 0x54545454,
+                              0x7f7f7f7f, 0xbcbcbcbc, 0xc0c0c0c0, 0xc4c4c4c4,
+                              0xc8c8c8c8, 0xcccccccc, 0xd0d0d0d0, 0xd4d4d4d4};
+  vector<uint32_t, 32> Src;
+  matrix<uint32_t, 2, 32> Dst;
+
+  vector_ref<uint16_t, 32 * 2> SrcWord = Src.template format<uint16_t>();
+
+  Dst.row(0) = cm_upconvert_4bit_lut<0>(LUT, SrcWord);
+  Dst.row(1) = cm_upconvert_4bit_lut<1>(LUT, SrcWord);
+
+
+cm_downscale
+^^^^^^^^^^^^
+
+.. code-block:: c++
+
+  template <downscale::Type OutputTy, downscale::Mode Mode, typename InputTy,
+            unsigned Width>
+  vector<uint32_t, Width / 2> cm_downscale(vector<InputTy, Width> Src0,
+                                           vector<InputTy, Width> Src1);
+
+  template <downscale::Type OutputTy, downscale::Mode Mode, typename InputTy,
+            unsigned Width>
+  vector<uint32_t, Width / 2> cm_downscale(vector<InputTy, Width> Src0,
+                                           vector<InputTy, Width> Src1,
+                                           vector<uint32_t, Width / 2> Bias);
+
+Downscale operation for converting ``half`` and ``bfloat16`` values into 4-bit
+floating point or integer values.
+
+============== =================================================================
+Parameters     Description
+============== =================================================================
+OutputTy       Output type of the downscale operation. Must be one of the
+               following:
+
+               * ``downscale::E2M1`` - 4-bit floating point with 1 sign bit, 2
+                 exponent bits and 1 mantissa bit.
+               * ``downscale::Int4`` - 4-bit signed integer.
+
+Mode           Downscale mode (see the pseudocode below). Must be one of the
+               following:
+
+               * ``downscale::Mode0``
+               * ``downscale::Mode1``
+               * ``downscale::Mode2``
+               * ``downscale::Mode3``
+
+InputTy        Input type of the downscale operation. Must be ``half``,
+               ``bfloat16`` or ``int16_t``. The ``int16_t`` is used as
+               a storage for ``bfloat16`` values. Can be omitted.
+
+Width          The width of the input vectors. Must be multiple of 2. Can be
+               omitted.
+
+Src0           The first input vector. Must be of the same type as the
+               ``InputTy`` template parameter.
+
+Src1           The second input vector. Must be of the same type as the
+               ``InputTy`` template parameter.
+
+Bias           The bias vector. The width of the bias vector must be equal to
+               half the width of the Src0 and Src1 vectors. Optional. If the
+               Bias is present, the stochastic/biased rounding is performed. If
+               the Bias is omitted, the rounding to nearest or even is
+               performed.
+============== =================================================================
+
+These functions are target-dependent and only available when
+``CM_HAS_DOWNSCALE_4BIT`` macro is defined.
+
+The downscale operation converts the input vectors into 4-bit floating point or
+integer values. The operation is performed in the following way:
+
+.. code-block:: c++
+
+  if (Bias is present) {
+    Rounding = Stochastic;
+  } else {
+    Rounding = NearestOrEven;
+    Bias = Undefined;
+  }
+
+  for (int I = 0; I < Width / 2; I++) {
+    BiasLow = Bias[I] & 0x0000FFFF;
+    BiasHigh = Bias[I] >> 16;
+
+    switch (Mode) {
+    case downscale::Mode0:
+      Res[I] = Downscale(Src0[2 * I], BiasLow, Rounding)
+             | Downscale(Src0[2 * I + 1], BiasHigh, Rounding) << 4
+             | Downscale(Src1[2 * I], BiasLow, Rounding) << 16
+             | Downscale(Src1[2 * I + 1], BiasHigh, Rounding) << 20;
+      break;
+    case downscale::Mode1:
+      Res[I] = Downscale(Src0[2 * I], BiasLow, Rounding)
+             | Downscale(Src1[2 * I], BiasHigh, Rounding) << 4
+             | Downscale(Src0[2 * I + 1], BiasLow, Rounding) << 16
+             | Downscale(Src1[2 * I + 1], BiasHigh, Rounding) << 20;
+      break;
+    case downscale::Mode2:
+      Res[I] = Downscale(Src0[2 * I], BiasLow, Rounding) << 8
+             | Downscale(Src0[2 * I + 1], BiasHigh, Rounding) << 12
+             | Downscale(Src1[2 * I], BiasLow, Rounding) << 24
+             | Downscale(Src1[2 * I + 1], BiasHigh, Rounding) << 28;
+      break;
+    case downscale::Mode3:
+      Res[I] = Downscale(Src0[2 * I], BiasLow, Rounding) << 8
+             | Downscale(Src1[2 * I], BiasHigh, Rounding) << 12
+             | Downscale(Src0[2 * I + 1], BiasLow, Rounding) << 24
+             | Downscale(Src1[2 * I + 1], BiasHigh, Rounding) << 28;
+      break;
+    }
+  }
+
+cm_mxfp_reduce
+^^^^^^^^^^^^^^
+
+.. code-block:: c++
+
+  template <typename Ty>
+  vector<Ty, 32> cm_mxfp_reduce(matrix<Ty, 32, 32> Src);
+
+Block max reduction operation for 32x32 matrix. The operation calculates the
+maximum of absolute values for each 32-element row of the input matrix.
+The result is a 32-element vector. The supported types are ``half`` and
+``bfloat16``. The order of the elements in the result vector is determined by
+a predefined interleaved indexing pattern.
+
+The operation is performed in the following way:
+
+.. code-block:: c++
+
+  const vector<int, 32> Indices = {
+    0, 16, 8, 24, 4, 20, 12, 28, 2, 18, 10, 26, 6, 22, 14, 30,
+    1, 17, 9, 25, 5, 21, 13, 29, 3, 19, 11, 27, 7, 23, 15, 31,
+  };
+
+  vector<Ty, 32> Res;
+  for (int I = 0; I < 32; I++) {
+    auto Index = Indices[I];
+    auto Row = Src.row(Index);
+    Res[I] = cm_reduced_max<Ty>(cm_abs<Ty>(Row));
+  }
+
+The function is only available when the ``CM_HAS_MXFP_REDUCE`` macro is defined.
+
+cm_mxfp_linearize
+^^^^^^^^^^^^^^^^^
+
+.. code-block:: c++
+
+  template <typename Ty>
+  vector<Ty, 32> cm_mxfp_linearize(vector<Ty, 32> Src);
+
+Linearization operation for 32-element vector. The operation shuffles the
+vector produced by the ``cm_mxfp_reduce`` operation to get the linear order
+of the elements. The supported types are ``half`` and ``bfloat16``.
+
+The operation is performed in the following way:
+
+.. code-block:: c++
+
+  const vector<int, 32> Indices = {
+    0, 16, 8, 24, 4, 20, 12, 28, 2, 18, 10, 26, 6, 22, 14, 30,
+    1, 17, 9, 25, 5, 21, 13, 29, 3, 19, 11, 27, 7, 23, 15, 31,
+  };
+
+  vector<Ty, 32> Res = Src.iselect(Indices);
+
+The function is only available when the ``CM_HAS_MXFP_REDUCE`` macro is defined.
+
+cm_lfsr
+^^^^^^^
+
+.. code-block:: c++
+
+  template <typename Ty, unsigned Width>
+  vector<Ty, Width> cm_lfsr(vector<Ty, Width> Seed, vector<Ty, Width> Poly);
+
+  template <typename Ty, unsigned Width>
+  vector<Ty, Width> cm_lfsr(vector<Ty, Width> Seed,
+                            vector<Ty, sizeof(uint) / sizeof(Ty)> Poly);
+
+  template <typename Ty, unsigned Width>
+  vector<Ty, Width> cm_lfsr(vector<Ty, Width> Seed, Ty Poly);
+
+Linear Feedback Shift Register (LFSR) operation. The function performs a step
+of the Galois LFSR with the given polynomial. For each element of the input,
+the function calculates the next state of the LFSR and returns it as follows:
+
+.. code-block:: c++
+
+  for (int I = 0; I < Width; I++) {
+    LSB = Seed[I] & 1;
+    Seed[I] >>= 1;
+    if (LSB)
+      Seed[I] ^= Poly[I];
+  }
+
+========== ====================================================================
+Parameters Description
+========== ====================================================================
+Ty         Type of the LFSR seed and polynomial. Must be ``char``, ``uchar``,
+           ``short``, ``ushort``, ``int`` or ``uint``. May be omitted.
+
+Width      SIMD width of the operation. May be omitted. The ``Width``
+           multiplied by ``sizeof(Ty)`` must be multiple of 4.
+
+Seed       Initial LFSR state. The seed must be non-zero.
+
+Poly       LFSR polynomial. The polynomial is represented as a bitmask of
+           the polynomial coefficients. The polynomial must be non-zero.
+           The polynomial can be one of the following:
+
+           * A vector of the same type as the seed with the same width.
+
+           * A vector of the same type as the seed with the width equal to
+             the number of elements which can fit in a DWord.
+
+           * A scalar of the same type as the seed.
+========== ====================================================================
+
+The function is only available when the ``CM_HAS_LFSR`` macro is defined.
 
 
 cm_bfn
@@ -2419,7 +2812,7 @@ New (LSC) Dataport Interface is available when CM_HAS_LSC macro is defined.
 Load cache control policy
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The table below defines the valid combinations of cache controls used by
+The table below defines the valid combinations of two-level cache controls used by
 load intrinsics.
 
 =============== ================
@@ -2456,13 +2849,24 @@ L1H             L2H
 ReadInvalidate  Cached
 =============== ===============
 
+The table below defines the valid combinations of three-level cache controls 
+when CM_HAS_LSC_L1L2L3_CACHE macro is defined.
 
+================ ================ ========================
+L1H              L2H              L3H
+================ ================ ========================
+Default          Default          Default
+Cached           Cached/Uncached  Cached/Uncached/Default
+Uncached         Cached/Uncached  Cached/Uncached/Default
+Streaming        Cached/Uncached  Cached/Uncached/Default
+ReadInvalidate   ReadInvalidate   ReadInvalidate
+================ ================ ========================
 
 
 Prefetch cache control policy
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The table below defines the valid combinations of cache controls used by
+The table below defines the valid combinations of two-level cache controls used by
 prefetch intrinsics.
 
 =============== ================
@@ -2482,12 +2886,23 @@ L1H             L2H
 Cached/Uncached ConstCached
 =============== ===============
 
+Three levels of cache level control are available when CM_HAS_LSC_L1L2L3_CACHE macro is defined.
+
+================ ================ =======================
+L1H              L2H              L3H
+================ ================ =======================
+Default          Default          Default
+Uncached         Uncached         Cached/Default
+Uncached         Cached           Cached/Uncached/Default
+Cached           Cached/Uncached  Cached/Uncached/Default
+Streaming        Cached/Uncached  Cached/Uncached/Default
+================ ================ =======================
 
 
 Store cache control policy
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The table below defines the valid combinations of cache controls used by
+The table below defines the valid combinations of two-level cache controls used by
 store intrinsics.
 
 ============= =============
@@ -2503,13 +2918,29 @@ WriteThrough  Uncached
 Streaming     Uncached
 ============= =============
 
+The table below defines the valid combinations of three-level cache controls 
+when CM_HAS_LSC_L1L2L3_CACHE macro is defined.
+
+=============== =============== ===========================
+L1H             L2H             L3H
+=============== =============== ===========================
+Default         Default         Default
+Uncached        Uncached        WriteBack/Uncached/Default
+Uncached        WriteBack       Uncached/Default
+WriteThrough    Uncached        WriteBack/Uncached/Default
+WriteThrough    WriteBack       Uncached/Default
+Streaming       Uncached        WriteBack/Uncached/Default
+Streaming       WriteBack       Uncached/Default
+WriteBack       Uncached        WriteBack/Uncached/Default
+WriteBack       WriteBack       Uncached/Default
+=============== =============== ===========================
 
 
 Atomic cache control policy
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The table below defines the valid combinations of cache controls used by
-Atomic intrinsics.
+The table below defines the valid combinations of two-level cache controls used by
+atomic intrinsics.
 
 ============= =============
 L1H           L2H
@@ -2519,6 +2950,16 @@ Uncached      Uncached
 Uncached      WriteBack
 ============= =============
 
+The table below defines the valid combinations of three-level cache controls 
+when CM_HAS_LSC_L1L2L3_CACHE macro is defined.
+
+=============== =============== ===========================
+L1H             L2H             L3H
+=============== =============== ===========================
+Default         Default         Default
+Uncached        Uncached        WriteBack/Uncached/Default
+Uncached        WriteBack       Uncached/Default
+=============== =============== ===========================
 
 
 Statefull block load/store/prefetch
@@ -2533,6 +2974,11 @@ cm_load
             CacheHint L2H = CacheHint::Default>
   vector<RetTy, NElts> cm_load(SurfaceIndex Idx, unsigned Offset);
 
+  template <typename T, int NElts, DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
+  vector<RetTy, NElts> cm_load(SurfaceIndex Idx, unsigned Offset);
 
 The compiler generates code for the hardware to perform block read from
 memory. The underlying surface must be a buffer.
@@ -2551,7 +2997,7 @@ NElts           Specifies number of elements to be read.
 
 DS              Data size.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Load cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -2569,7 +3015,6 @@ Offset          Zero based offset of the input buffer in *bytes*. Must be
 =============== ==================================================================
 
 
-
 cm_store
 """"""""
 .. code-block:: c++
@@ -2577,6 +3022,12 @@ cm_store
   template <typename T, int NElts, DataSize DS = DataSize::Default,
           CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default>
+  void cm_store(SurfaceIndex Idx, unsigned Offset, vector<T, NElts> Data);
+
+  template <typename T, int NElts, DataSize DS = DataSize::Default,
+          CacheHint L1H = CacheHint::Default,
+          CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default>
   void cm_store(SurfaceIndex Idx, unsigned Offset, vector<T, NElts> Data);
 
 
@@ -2599,7 +3050,7 @@ DS              Data size.
                 When DS is DataSize::Default, it's obtained from ``T`` data type.
                 Else DataSize::U32 or DataSize::U64 are allowed.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Store cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -2611,7 +3062,6 @@ Offset          Zero based offset of the input buffer in *bytes*. Must be
 =============== ==================================================================
 
 
-
 cm_prefetch
 """""""""""
 .. code-block:: c++
@@ -2621,6 +3071,11 @@ cm_prefetch
             CacheHint L2H = CacheHint::Default>
   void cm_prefetch(SurfaceIndex Idx, unsigned Offset);
 
+  template <int NElts, DataSize DS = DataSize::U32,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
+  void cm_prefetch(SurfaceIndex Idx, unsigned Offset);
 
 The compiler generates code for the hardware to perform block prefetch from
 memory. The underlying surface must be a buffer.
@@ -2635,7 +3090,7 @@ NElts           Specifies number of elements to be prefetched.
 DS              Data size.
                 Only DataSize::U32 or DataSize::U64 are allowed.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Prefetch cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -2645,7 +3100,6 @@ Idx             Surface index corresponding to buffer surface.
 Offset          Zero based offset of the input buffer in *bytes*. Must be
                 ``DS`` aligned.
 =============== ===========================================================
-
 
 
 Statefull gather/scatter/prefetch/atomic
@@ -2662,7 +3116,13 @@ cm_load
   vector<RetTy, M> Data cm_load(SurfaceIndex Idx, vector<unsigned, N> Offset,
                                 vector<ushort, N> Pred = 1);
 
-
+  template <typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
+  vector<RetTy, M> Data cm_load(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                                vector<ushort, N> Pred = 1);
 
 The compiler generates code for the hardware to perform gather read from
 memory. The underlying surface must be a buffer.
@@ -2686,7 +3146,7 @@ DS              Data size.
                 Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
                 DataSize::U64.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Load cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -2726,7 +3186,13 @@ cm_load4
   auto cm_load4(SurfaceIndex Idx, vector<unsigned, N> Offset,
                 vector<ushort, N> Pred = 1);
 
-
+  template <typename T, ChannelMaskType Mask,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
+  auto cm_load4(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                vector<ushort, N> Pred = 1);
 
 The compiler generates code for the hardware to perform gather read from
 memory. The underlying surface must be a buffer.
@@ -2747,7 +3213,7 @@ DS              Data size.
                 Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
                 DataSize::U64.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Load cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -2764,7 +3230,6 @@ Pred            Predicate. if 0, certain element vector won't be loaded
 =============== ==================================================================
 
 
-
 cm_store
 """"""""
 .. code-block:: c++
@@ -2773,6 +3238,14 @@ cm_store
             DataSize DS = DataSize::Default,
             CacheHint L1H = CacheHint::Default,
             CacheHint L2H = CacheHint::Default>
+  void cm_store(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                vector<T, M> Data, vector<ushort, N> Pred = 1);
+
+  template <typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
   void cm_store(SurfaceIndex Idx, vector<unsigned, N> Offset,
                 vector<T, M> Data, vector<ushort, N> Pred = 1);
 
@@ -2799,7 +3272,7 @@ DS              Data size.
                 Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
                 DataSize::U64.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Store cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -2820,7 +3293,6 @@ Pred            Predicate. if 0, certain element vector won't be written
 =============== ==================================================================
 
 
-
 cm_store4
 """""""""
 .. code-block:: c++
@@ -2829,6 +3301,14 @@ cm_store4
             DataSize DS = DataSize::Default,
             CacheHint L1H = CacheHint::Default,
             CacheHint L2H = CacheHint::Default>
+  void cm_store4(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                vector<T, N * M> Data, vector<ushort, N> Pred = 1);
+
+  template <typename T, ChannelMaskType Mask,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
   void cm_store4(SurfaceIndex Idx, vector<unsigned, N> Offset,
                 vector<T, N * M> Data, vector<ushort, N> Pred = 1);
 
@@ -2852,7 +3332,7 @@ DS              Data size.
                 Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
                 DataSize::U64.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Store cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -2872,7 +3352,6 @@ Pred            Predicate. if 0, certain element vector won't be written
 =============== ==================================================================
 
 
-
 cm_prefetch
 """""""""""
 .. code-block:: c++
@@ -2880,6 +3359,13 @@ cm_prefetch
   template <VectorSize VS = VectorSize::N1, DataSize DS = DataSize::U32,
             CacheHint L1H = CacheHint::Cached,
             CacheHint L2H = CacheHint::Cached>
+  void cm_prefetch(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                                      vector<ushort, N> Pred = 1);
+
+  template <VectorSize VS = VectorSize::N1, DataSize DS = DataSize::U32,
+            CacheHint L1H = CacheHint::Cached,
+            CacheHint L2H = CacheHint::Cached,
+            CacheHint L3H = CacheHint::Cached>
   void cm_prefetch(SurfaceIndex Idx, vector<unsigned, N> Offset,
                                       vector<ushort, N> Pred = 1);
 
@@ -2901,7 +3387,7 @@ DS              Data size.
                 Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
                 DataSize::U64.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Prefetch cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -2945,6 +3431,31 @@ cm_atomic
                              vector<T, M> Src0, vector<T, M> Src1,
                              vector<ushort, N> Pred = 1);
 
+  template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
+  vector<RetTy, M> cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                 vector<ushort, N> Pred = 1);
+
+  template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
+  vector<RetTy, M> cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                 vector<T, M> Src0, vector<ushort, N> Pred = 1);
+
+  template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
+  vector<RetTy, M> cm_atomic(SurfaceIndex Idx, vector<unsigned, N> Offset,
+                 vector<T, M> Src0, vector<T, M> Src1,
+                 vector<ushort, N> Pred = 1);
+
 
 The compiler generates code for the hardware to perform atomic memory operation
 that modifies memory and returns the original memory data.
@@ -2967,7 +3478,7 @@ DS              Data size.
                 Allowed values are DataSize::Default, DataSize::U16,
                 DataSize::U32 and DataSize::U64.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Atomic cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional argument.
@@ -3042,8 +3553,20 @@ AtomicOp::FMAX   F16, F32, F64                  Y              N
 AtomicOp::ICAS   F16, U32, U64                  Y              Y
 
 AtomicOp::FCAS   F16, F32, F64                  Y              Y
+
+AtomicOp::BFADD  BF16                           Y              N
+
+AtomicOp::BFSUB  BF16                           Y              N
+
+AtomicOp::BFMIN  BF16                           Y              N
+
+AtomicOp::BFMAX  BF16                           Y              N
+
+AtomicOp::BFCAS  BF16                           Y              Y
 ================ ============================== ============== ===============
 
+These ``bfloat16`` data types are target-dependent and only available
+when ``CM_HAS_BF16_ATOMIC`` macro is defined.
 
 
 Stateless block load/store/prefetch
@@ -3056,6 +3579,12 @@ cm_ptr_load
   template <typename T, int NElts, DataSize DS = DataSize::Default,
             CacheHint L1H = CacheHint::Default,
             CacheHint L2H = CacheHint::Default>
+  vector<RetTy, NElts> cm_ptr_load(const T *const Ptr, unsigned Offset);
+
+  template <typename T, int NElts, DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
   vector<RetTy, NElts> cm_ptr_load(const T *const Ptr, unsigned Offset);
 
 
@@ -3076,7 +3605,7 @@ NElts           Specifies number of elements to be read.
 
 DS              Data size.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Load cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -3094,7 +3623,6 @@ Offset          Zero based offset of the input buffer in *bytes*. Must be
 =============== ==================================================================
 
 
-
 cm_ptr_store
 """"""""""""
 .. code-block:: c++
@@ -3102,6 +3630,12 @@ cm_ptr_store
   template <typename T, int NElts, DataSize DS = DataSize::Default,
           CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default>
+  void cm_ptr_store(T *Ptr, unsigned Offset, vector<T, NElts> Data);
+
+  template <typename T, int NElts, DataSize DS = DataSize::Default,
+          CacheHint L1H = CacheHint::Default,
+          CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default>
   void cm_ptr_store(T *Ptr, unsigned Offset, vector<T, NElts> Data);
 
 
@@ -3123,7 +3657,7 @@ DS              Data size.
                 When DS is DataSize::Default, it's obtained from ``T`` data type.
                 Else DataSize::U32 or DataSize::U64 are allowed.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H    Cache hints. Not all the combinations are supported.
                 See `Store cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -3135,7 +3669,6 @@ Offset          Zero based offset of the input buffer in *bytes*. Must be
 =============== ==================================================================
 
 
-
 cm_ptr_prefetch
 """""""""""""""
 .. code-block:: c++
@@ -3143,6 +3676,12 @@ cm_ptr_prefetch
   template <int NElts, DataSize DS = DataSize::U32,
             CacheHint L1H = CacheHint::Default,
             CacheHint L2H = CacheHint::Default>
+  void cm_ptr_prefetch(const void *const Ptr, unsigned Offset);
+
+  template <int NElts, DataSize DS = DataSize::U32,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
   void cm_ptr_prefetch(const void *const Ptr, unsigned Offset);
 
 
@@ -3161,7 +3700,7 @@ NElts           Specifies number of elements to be prefetched.
 DS              Data size.
                 Only DataSize::U32 or DataSize::U64 are allowed.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Prefetch cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -3171,7 +3710,6 @@ Ptr             Pointer which holds the address of a buffer in the memory.
 Offset          Zero based offset of the input buffer in *bytes*. Must be
                 ``DS`` aligned.
 =============== ===========================================================
-
 
 
 Stateless gather/scatter/prefetch/atomic
@@ -3187,6 +3725,14 @@ cm_ptr_load
             CacheHint L2H = CacheHint::Default>
   auto cm_ptr_load(const T *const Ptr, vector<unsigned, N> Offset,
                                    vector<ushort, N> Pred = 1);
+
+  template <typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
+  auto cm_ptr_load(const T *const Ptr, vector<unsigned, N> Offset,
+                                  vector<ushort, N> Pred = 1);
 
 
 The compiler generates code for the hardware to perform gather read from
@@ -3211,7 +3757,7 @@ DS              Data size.
                 Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
                 DataSize::U64.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Load cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -3239,6 +3785,14 @@ cm_ptr_load4
   auto cm_ptr_load4(const T *const Ptr, vector<unsigned, N> Offset,
                                    vector<ushort, N> Pred = 1);
 
+  template <typename T, ChannelMaskType Mask,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
+  auto cm_ptr_load4(const T *const Ptr, vector<unsigned, N> Offset,
+                                  vector<ushort, N> Pred = 1);
+
 
 The compiler generates code for the hardware to perform gather read from
 memory. The underlying surface must be a buffer.
@@ -3258,7 +3812,7 @@ DS              Data size.
                 Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
                 DataSize::U64.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Load cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -3275,7 +3829,6 @@ Pred            Predicate. if 0, certain element vector won't be loaded
 =============== ==================================================================
 
 
-
 cm_ptr_store
 """"""""""""
 .. code-block:: c++
@@ -3284,6 +3837,14 @@ cm_ptr_store
             DataSize DS = DataSize::Default,
             CacheHint L1H = CacheHint::Default,
             CacheHint L2H = CacheHint::Default>
+  void cm_ptr_store(T *Ptr, vector<unsigned, N> Offset,
+                    vector<T, M> Data, vector<ushort, N> Pred = 1);
+
+  template <typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
   void cm_ptr_store(T *Ptr, vector<unsigned, N> Offset,
                     vector<T, M> Data, vector<ushort, N> Pred = 1);
 
@@ -3309,7 +3870,7 @@ DS              Data size.
                 Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
                 DataSize::U64.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Store cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -3339,6 +3900,14 @@ cm_ptr_store4
   void cm_ptr_store(T *Ptr, vector<unsigned, N> Offset,
                     vector<T, N * M> Data, vector<ushort, N> Pred = 1);
 
+  template <typename T, ChannelMaskType Mask,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
+  void cm_ptr_store(T *Ptr, vector<unsigned, N> Offset,
+                    vector<T, N * M> Data, vector<ushort, N> Pred = 1);
+
 
 The compiler generates code for the hardware to perform scatter write to memory.
 The underlying surface must be a buffer.
@@ -3358,7 +3927,7 @@ DS              Data size.
                 Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
                 DataSize::U64.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Store cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -3379,8 +3948,6 @@ Pred            Predicate. if 0, certain element vector won't be written
 =============== ==================================================================
 
 
-
-
 cm_ptr_prefetch
 """""""""""""""
 .. code-block:: c++
@@ -3388,6 +3955,13 @@ cm_ptr_prefetch
   template <VectorSize VS = VectorSize::N1, DataSize DS = DataSize::U32,
             CacheHint L1H = CacheHint::Cached,
             CacheHint L2H = CacheHint::Cached>
+  void cm_ptr_prefetch(const void *const Ptr, vector<unsigned, N> Offset,
+                                      vector<ushort, N> Pred = 1);
+
+  template <VectorSize VS = VectorSize::N1, DataSize DS = DataSize::U32,
+            CacheHint L1H = CacheHint::Cached,
+            CacheHint L2H = CacheHint::Cached,
+            CacheHint L3H = CacheHint::Cached>
   void cm_ptr_prefetch(const void *const Ptr, vector<unsigned, N> Offset,
                                       vector<ushort, N> Pred = 1);
 
@@ -3411,7 +3985,7 @@ DS              Data size.
                 Allowed values are: DataSize::U8, DataSize::U16, DataSize::U32 and
                 DataSize::U64.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Prefetch cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -3456,6 +4030,32 @@ cm_ptr_atomic
                                  vector<T, M> Src0, vector<T, M> Src1,
                                  vector<ushort, N> Pred = 1);
 
+  template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
+  vector<RetTy, M> cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
+                                 vector<ushort, N> Pred = 1);
+
+  template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
+  vector<RetTy, M> cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
+                                 vector<T, M> Src0,
+                                 vector<ushort, N> Pred = 1);
+
+  template <AtomicOp Op, typename T, VectorSize VS = VectorSize::N1,
+            DataSize DS = DataSize::Default,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
+  vector<RetTy, M> cm_ptr_atomic(T *Ptr, vector<unsigned, N> Offset,
+                                 vector<T, M> Src0, vector<T, M> Src1,
+                                 vector<ushort, N> Pred = 1);
+
 
 The compiler generates code for the hardware to perform atomic memory operation
 that modifies memory and returns the original memory data. The underlying surface
@@ -3480,7 +4080,7 @@ DS              Data size.
                 Allowed values are DataSize::Default, DataSize::U16,
                 DataSize::U32 and DataSize::U64.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Atomic cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -3555,7 +4155,20 @@ AtomicOp::FMAX   F16, F32, F64                  Y              N
 AtomicOp::ICAS   F16, U32, U64                  Y              Y
 
 AtomicOp::FCAS   F16, F32, F64                  Y              Y
+
+AtomicOp::BFADD  BF16                           Y              N
+
+AtomicOp::BFSUB  BF16                           Y              N
+
+AtomicOp::BFMIN  BF16                           Y              N
+
+AtomicOp::BFMAX  BF16                           Y              N
+
+AtomicOp::BFCAS  BF16                           Y              Y
 ================ ============================== ============== ===============
+
+These ``bfloat16`` data types are target-dependent and only available
+when ``CM_HAS_BF16_ATOMIC`` macro is defined.
 
 
 Shared local memory gather/scatter/atomic
@@ -3827,8 +4440,20 @@ AtomicOp::FMAX   F16, F32, F64                  Y              N
 AtomicOp::ICAS   F16, U32, U64                  Y              Y
 
 AtomicOp::FCAS   F16, F32, F64                  Y              Y
+
+AtomicOp::BFADD  BF16                           Y              N
+
+AtomicOp::BFSUB  BF16                           Y              N
+
+AtomicOp::BFMIN  BF16                           Y              N
+
+AtomicOp::BFMAX  BF16                           Y              N
+
+AtomicOp::BFCAS  BF16                           Y              Y
 ================ ============================== ============== ===============
 
+These ``bfloat16`` data types are target-dependent and only available
+when ``CM_HAS_BF16_ATOMIC`` macro is defined.
 
 
 Untyped 2D block load/store/prefetch
@@ -3845,6 +4470,14 @@ cm_ptr_load
             bool Transposed = false, bool Transformed = false,
             CacheHint L1H = CacheHint::Default,
             CacheHint L2H = CacheHint::Default,
+  vector<T, N> cm_ptr_load(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
+                           unsigned SurfacePitch, int X, int Y);
+
+  template <typename T, int Width, int Height = 1, int NumBlocks = 1,
+            bool Transpose = false, bool Transform = false,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
   vector<T, N> cm_ptr_load(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
                            unsigned SurfacePitch, int X, int Y);
 
@@ -3911,7 +4544,7 @@ Transformed     Enable VNNI Transform.
                 Only byte and 2-byte types are allowed.
                 See the table below for the restrictions.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Load cache control policy` table.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
@@ -3929,7 +4562,8 @@ SurfaceHeight   Surface Height minus 1 in number of data elements
 SurfacePitch    Surface Pitch minus 1 in bytes of the 2D surface.
                 Surface Pitch must be greater or equal to Surface Width.
                 Surface Pitch must be equal or greater than 64B.
-                Surface Pitch must be OWord (i.e. 16 bytes) aligned.
+                Surface Pitch must be OWord (i.e. 16 bytes) aligned before Xe3P.
+                Surface Pitch must be DWord (i.e. 4 bytes) aligned for Xe3P+.
 
 X               Block start X coordinate.
                 Specifies the signed X offset in number of data elements
@@ -3950,8 +4584,6 @@ Data            The data vector read from memory.
                 where ``RoundHeight`` is ``Height`` rounded
                 up to be multiple of (4 / sizeof(T))
 =============== ==================================================================
-
-
 
 Normal load restrictions:
 ``Width`` X ``NumBlocks`` must not exceed 64 bytes.
@@ -3978,6 +4610,16 @@ Data Size ``Height`` ``Width``    ``NumBlocks``
 8-byte    8          1, 2, 4      1
 ========= ========== ============ =============
 
+The above restrictions are relaxed 
+when ``CM_HAS_LSC_2D_LARGE`` macro is defined:
+
+========= ========== ============ =============
+Data Size ``Height`` ``Width``    ``NumBlocks``
+========= ========== ============ =============
+4-byte    1 - 32     1 - 8, 16    1
+
+8-byte    8          1, 2, 4, 8   1
+========= ========== ============ =============
 
 VNNI Transform load restrictions:
 ``Width`` X ``NumBlocks`` must not exceed 64 bytes.
@@ -3999,6 +4641,13 @@ cm_ptr_store
   template <typename T, int Width, int Height = 1,
             CacheHint L1H = CacheHint::Default,
             CacheHint L2H = CacheHint::Default>
+  void cm_ptr_store(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
+                    unsigned SurfacePitch, int X, int Y, vector<T, N> Data);
+
+  template <typename T, int Width, int Height = 1,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default>
   void cm_ptr_store(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
                     unsigned SurfacePitch, int X, int Y, vector<T, N> Data);
 
@@ -4026,7 +4675,7 @@ Height          Specifies the height in number of data elements
                 The compiler will emit an error when invalid value is set.
                 See the table below for the restrictions.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Store cache control policy` table.
                 The compiler will emit an error when invalid hint is set.
                 Optional arguments.
@@ -4044,7 +4693,8 @@ SurfaceHeight   Surface Height minus 1 in number of data elements
 SurfacePitch    Surface Pitch minus 1 in bytes of the 2D surface.
                 Surface Pitch must be greater or equal to Surface Width.
                 Surface Pitch must be equal or greater than 64B.
-                Surface Pitch must be OWord (i.e. 16 bytes) aligned.
+                Surface Pitch must be OWord (i.e. 16 bytes) aligned before Xe3P.
+                Surface Pitch must be DWord (i.e. 4 bytes) aligned for Xe3P+.
 
 X               Block start X coordinate.
                 Specifies the signed X offset in number of data elements
@@ -4061,7 +4711,6 @@ Data            The vector holding data to be written.
                 ``N`` must be equal to
                 :math:`\text{Width} \times \text{Height}`.
 =============== =============================================================
-
 
 Store restrictions:
 
@@ -4089,6 +4738,12 @@ cm_ptr_prefetch
   void cm_ptr_prefetch(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
                       unsigned SurfacePitch, int X, int Y);
 
+  template <typename T, int Width, int Height = 1, int NumBlocks = 1,
+            CacheHint L1H = CacheHint::Cached,
+            CacheHint L2H = CacheHint::Cached,
+            CacheHint L3H = CacheHint::Default>
+  void cm_ptr_prefetch(T *Ptr, unsigned SurfaceWidth, unsigned SurfaceHeight,
+                      unsigned SurfacePitch, int X, int Y);
 
 
 The compiler generates code for the hardware to perform 2D block prefetch from
@@ -4115,7 +4770,7 @@ Height          Specifies the height in number of data elements
 NumBlocks       Specifies Array Length.
                 See the table below for the restrictions.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Prefetch cache control policy` table.
                 The compiler will emit an error when invalid hint is set.
                 Optional arguments.
@@ -4133,7 +4788,8 @@ SurfaceHeight   Surface Height minus 1 in number of data elements
 SurfacePitch    Surface Pitch minus 1 in bytes of the 2D surface.
                 Surface Pitch must be greater or equal to Surface Width.
                 Surface Pitch must be equal or greater than 64B.
-                Surface Pitch must be OWord (i.e. 16 bytes) aligned.
+                Surface Pitch must be OWord (i.e. 16 bytes) aligned before Xe3P.
+                Surface Pitch must be DWord (i.e. 4 bytes) aligned for Xe3P+.
 
 X               Block start X coordinate.
                 Specifies the signed X offset in number of data elements
@@ -4145,7 +4801,6 @@ Y               Block start Y coordinate.
                 Specifies the signed Y offset in number of data elements
                 from the 2D surface base address for this rectangular region.
 =============== =============================================================
-
 
 Prefetch restrictions:
 
@@ -4161,6 +4816,19 @@ byte      1 - 32       4 - 64          1, 2, 4
 8-byte    1 - 32       1 - 8           1
 ========= ============ =============== =============
 
+The above restrictions are relaxed when ``CM_HAS_LSC_2D_LARGE`` macro is defined:
+
+========= ============ ================== =============
+Data Size ``Height``   ``Width``         ``NumBlocks``
+========= ============ ================== =============
+byte      1 - 32       4 - 64 , 128, 256  1, 2, 4
+
+2-byte    1 - 32       2 - 32, 64, 128    1, 2, 4
+
+4-byte    1 - 32       1 - 16, 32, 64     1, 2, 4
+
+8-byte    1 - 32       1 - 8, 16, 32      1, 2, 4
+========= ============ ================== =============
 
 
 Untyped descriptor based 2D block load/store/prefetch
@@ -4250,7 +4918,8 @@ Width           Surface Width minus 1 in bytes of the 2D surface.
 Pitch           Surface Pitch minus 1 in bytes of the 2D surface.
                 Surface Pitch must be greater or equal to Surface Width.
                 Surface Pitch must be equal or greater than 64B.
-                Surface Pitch must be OWord (i.e. 16 bytes) aligned.
+                Surface Pitch must be OWord (i.e. 16 bytes) aligned before Xe3P.
+                Surface Pitch must be DWord (i.e. 4 bytes) aligned for Xe3P+.
 
 BlockX          Block start X coordinate.
                 Specifies the signed X offset in number of data elements
@@ -4262,7 +4931,6 @@ BlockY          Block start Y coordinate.
                 Specifies the signed Y offset in number of data elements
                 from the 2D surface base address for this rectangular region.
 =============== ===============================================================
-
 
 .. code-block:: c++
 
@@ -4293,6 +4961,15 @@ cm_load
   template <lsc::LoadOp Op = lsc::LoadOp::Normal,
             CacheHint L1H = CacheHint::Default,
             CacheHint L2H = CacheHint::Default,
+            int OffsetX = 0, int OffsetY = 0>
+  void cm_load(details::Block2DRefTy<T, BlockH, BlockW, NBlocks, Op> Res,
+              const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc,
+              int16_t Pred = 1);
+
+  template <lsc::LoadOp Op = lsc::LoadOp::Normal,
+            CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default,
             int OffsetX = 0, int OffsetY = 0>
   void cm_load(details::Block2DRefTy<T, BlockH, BlockW, NBlocks, Op> Res,
               const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc,
@@ -4336,7 +5013,7 @@ Op              Load operation type (derived):
                 ``lsc::Transpose`` is for Transpose load.
                 ``lsc::VNNI`` is for VNNI Transform load.
 
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Load cache control policy` table.
                 The compiler will emit an error when invalid hint is set.
                 Optional arguments.
@@ -4363,7 +5040,6 @@ Pred            Predicate.
                 if set to 0, ``Res`` data won't be updated.
 =============== ===============================================================
 
-
 Normal load restrictions:
 ``Width`` X ``NumBlocks`` must not exceed 64 bytes.
 
@@ -4389,6 +5065,15 @@ Data Size ``Height`` ``Width``    ``NumBlocks``
 8-byte    8          1, 2, 4      1
 ========= ========== ============ =============
 
+The above restrictions are relaxed when ``CM_HAS_LSC_2D_LARGE`` macro is defined:
+
+========= ========== ============ =============
+Data Size ``Height`` ``Width``    ``NumBlocks``
+========= ========== ============ =============
+4-byte    1 - 32     1 - 8, 16    1
+
+8-byte    8          1, 2, 4, 8   1
+========= ========== ============ =============
 
 VNNI Transform load restrictions:
 ``Width`` X ``NumBlocks`` must not exceed 64 bytes.
@@ -4418,6 +5103,13 @@ cm_store
   void cm_store(const lsc::block_2d_desc<T, 1, BlockH, BlockW> &Desc,
                 details::Block2DTy<T, BlockH, BlockW> Src, int16_t Pred = 1);
 
+  template <CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default,
+            int OffsetX = 0, int OffsetY = 0>
+  void cm_store(const lsc::block_2d_desc<T, 1, BlockH, BlockW> &Desc,
+                details::Block2DTy<T, BlockH, BlockW> Src, int16_t Pred = 1);
+
 
 The compiler generates code for the hardware to perform
 2D block write from rectangular block in memory.
@@ -4429,7 +5121,7 @@ Hardware will not update the out-of-bound bytes in memory.
 =============== ===========================================================
 Parameter       Description
 =============== ===========================================================
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 The compiler will emit an error when invalid hints are set.
                 Optional arguments.
 
@@ -4453,7 +5145,6 @@ Pred            Predicate.
                 if set to 1, ``Src`` data will be written to the memory.
                 if set to 0, the memory won't be updated.
 =============== ===========================================================
-
 
 Store restrictions:
 
@@ -4482,7 +5173,13 @@ cm_prefetch
   void cm_prefetch(const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc,
                    int16_t Pred = 1);
 
-
+  template <CacheHint L1H = CacheHint::Default,
+            CacheHint L2H = CacheHint::Default,
+            CacheHint L3H = CacheHint::Default,
+            int OffsetX = 0, int OffsetY = 0, typename T = int,
+            unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
+  void cm_prefetch(const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc,
+                   int16_t Pred = 1);
 
 The compiler generates code for the hardware to perform 2D block prefetch from
 an array of rectangular block(s) in memory. The rectangular blocks in
@@ -4492,7 +5189,7 @@ The underlying surface must be linear (non-tiled) and raw (untyped).
 =============== ===========================================================
 Parameter       Description
 =============== ===========================================================
-L1H, L2H        Cache hints. Not all the combinations are supported.
+L1H, L2H, L3H   Cache hints. Not all the combinations are supported.
                 See `Store cache control policy` table.
                 The compiler will emit an error when invalid hint is set.
                 Optional arguments.
@@ -4514,7 +5211,6 @@ Pred            Predicate.
                 from memory. if set to 0, cache data won't be updated.
 =============== ===========================================================
 
-
 Prefetch restrictions:
 
 ========= ============ =============== =============
@@ -4529,6 +5225,19 @@ byte      1 - 32       4 - 64          1, 2, 4
 8-byte    1 - 32       1 - 8           1
 ========= ============ =============== =============
 
+The above restrictions are relaxed when ``CM_HAS_LSC_2D_LARGE`` macro is defined:
+
+========= ============ ================== =============
+Data Size ``Height``   ``Width``         ``NumBlocks``
+========= ============ ================== =============
+byte      1 - 32       4 - 64 , 128, 256  1, 2, 4
+
+2-byte    1 - 32       2 - 32, 64, 128    1, 2, 4
+
+4-byte    1 - 32       1 - 16, 32, 64     1, 2, 4
+
+8-byte    1 - 32       1 - 8, 16, 32      1, 2, 4
+========= ============ ================== =============
 
 
 Typed load/store/prefetch
@@ -9382,6 +10091,105 @@ If the ``SIMD_IF_BEGIN`` has a vector condition that evaluates
 to all channels true, then the SIMD control flow code is optimized away but the
 SIMD width of the ``send`` or ``sends`` instruction is adjusted anyway.
 
+Note: cm_send and cm_sends are deprecated for PVC+.
+
+cm_raw_sendg {Xe3P+}
+^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: c++
+
+  template <uint8_t SFID, uint64_t Desc, int ExecSize>
+  void cm_raw_sendg(vector_ref<DstT, DstWidth> Dst,
+                    vector<Src0T, Src0Width> Src0,
+                    vector<Src1T, Src1Width> Src1,
+                    vector<uint16_t, ExecSize> Mask = 1);
+
+  template <uint8_t SFID, uint64_t Desc, int ExecSize>
+  void cm_raw_sendg(int Dst,
+                    vector<Src0T, Src0Width> Src0,
+                    vector<Src1T, Src1Width> Src1,
+                    vector<uint16_t, ExecSize> Mask = 1);
+
+  template <uint8_t SFID, uint64_t Desc, int ExecSize>
+  void cm_raw_sendg(vector_ref<DstT, DstWidth> Dst,
+                    vector<Src0T, Src0Width> Src0,
+                    int Src1,
+                    vector<uint16_t, ExecSize> Mask = 1);
+
+  template <uint8_t SFID, uint64_t Desc, int ExecSize>
+  void cm_raw_sendg(int Dst,
+                    vector<Src0T, Src0Width> Src0,
+                    int Src1,
+                    vector<uint16_t, ExecSize> Mask = 1);
+
+  template <uint8_t SFID, uint64_t Desc, int ExecSize>
+  void cm_raw_sendg(vector_ref<DstT, DstWidth> Dst,
+                    vector<Src0T, Src0Width> Src0,
+                    vector<Src1T, Src1Width> Src1,
+                    uint64_t Ind0,
+                    vector<uint16_t, ExecSize> Mask = 1);
+
+  template <uint8_t SFID, uint64_t Desc, int ExecSize>
+  void cm_raw_sendg(int Dst,
+                    vector<Src0T, Src0Width> Src0,
+                    vector<Src1T, Src1Width> Src1,
+                    uint64_t Ind0,
+                    vector<uint16_t, ExecSize> Mask = 1);
+
+  template <uint8_t SFID, uint64_t Desc, int ExecSize>
+  void cm_raw_sendg(vector_ref<DstT, DstWidth> Dst,
+                    vector<Src0T, Src0Width> Src0,
+                    int Src1,
+                    uint64_t Ind0,
+                    vector<uint16_t, ExecSize> Mask = 1);
+
+  template <uint8_t SFID, uint64_t Desc, int ExecSize>
+  void cm_raw_sendg(int Dst,
+                    vector<Src0T, Src0Width> Src0,
+                    int Src1,
+                    uint64_t Ind0,
+                    vector<uint16_t, ExecSize> Mask = 1);
+
+This built-in function represents raw sendg instruction for a low-level shared
+functions access.
+
+Note: When using raw sendg API, in general, it is the users's responsibility to
+ensure that the input parameters match the hardware requirement for a specific
+shared function message (e.g., payload size, alignment, descriptor value, etc).
+The compiler doesn't check correctness of the parameters for the
+``cm_raw_sendg`` function calls.
+
+The formal parameters are described below:
+
+========== ====================================================================
+Parameters
+========== ====================================================================
+SFID       The shared function ID. Must be compile-time constant.
+
+Desc       64-bit message descriptor. Must be compile-time constant.
+
+ExecSize   SIMD width of the operation. Must be compile-time constant. If the
+           ``Mask`` parameter is specified, the definition of ``ExecSize``
+           value can be omitted. In this case the ``ExecSize`` value is
+           implicitly set to match the ``Mask`` width. If both ``ExecMask`` and
+           ``Mask`` are specified, the ``Mask`` vector width must match
+           ``ExecSize``.
+
+Dst        Target to write the message response to. Must be ``vector_ref`` or
+           ``NULL``.
+
+Src0       Vector holding the first message payload source.
+
+Src1       Vector holding the second (optional) message payload source.
+           Is allowed to be ``NULL``, which means no source is present.
+
+Ind0       Indirect message descriptor. Optional, default is ``null`` register.
+
+Mask       Execution mask. Optional, default is "all lanes enabled". The
+           ``Mask`` vector width must match ``ExecSize`` value if it's
+           explicitly specified.
+
+========== ====================================================================
 
 cm_get_value
 ^^^^^^^^^^^^
@@ -9688,6 +10496,9 @@ represented by enum values and passed as template parameters:
 * ``CM_PRECISION_BF`` - 16-bit floating point in bfloat16 format.
 * ``CM_PRECISION_HF`` - 16-bit floating point in IEEE-754 binary16 format.
 * ``CM_PRECISION_TF32`` - TensorFloat32 (TF32) format.
+* ``CM_PRECISION_BF8`` - 8-bit floating point format with 5-bit exponent and 2-bit mantissa.
+* ``CM_PRECISION_HF8`` - 8-bit floating point format with 4-bit exponent and 3-bit mantissa.
+* ``CM_PRECISION_E2M1`` - 4-bit floating point format with 2-bit exponent and 1-bit mantissa.
 
 
 All the XMX functions depend on the ``ExecSize`` implicit parameter, which
@@ -9800,6 +10611,11 @@ the macros defined in the table.
 ``float``, ``half``   CM_PRECISION_HF          2       ``CM_HAS_DPAS_ACC_HALF``
 
 ``float``             CM_PRECISION_TF32        1       ``CM_HAS_TF32``
+
+``float``             CM_PRECISION_BF8,        4       ``CM_HAS_DPAS_BF8``,
+                      CM_PRECISION_HF8                 ``CM_HAS_DPAS_HF8``
+
+``float``             CM_PRECISION_E2M1        8       ``CM_HAS_DPAS_FP4``
 ===================== ================== ============= ========================
 
 
@@ -9870,6 +10686,109 @@ cm_dpasw should not be used in partially fused thread groups (e.g., with odd
 thread group size) or in divergent code. In such cases the behavior is undefined.
 
 
+cm_bdpas
+^^^^^^^^
+
+Block Scaling Dot Product Accumulate Systolic (BDPAS) operation is a matrix multiplication
+operation using block scaling format that supports the following interface:
+
+.. code-block:: c++
+
+  template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
+            int SystolicDepth, int RepeatCount, typename ResTy>
+  vector<ResTy, AccSize> cm_bdpas(vector<AccTy, AccSize> Acc,
+                                  vector<Src1Ty, Src1Size> Src1,
+                                  vector<Src2Ty, Src2Size> Src2,
+                                  vector<uint8_t, Src1ScaleSize> Src1Scale,
+                                  vector<uint8_t, Src2ScaleSize> Src2Scale);
+
+  template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
+            int SystolicDepth, int RepeatCount>
+  vector<AccTy, AccSize> cm_bdpas(vector<AccTy, AccSize> Acc,
+                                  vector<Src1Ty, Src1Size> Src1,
+                                  vector<Src2Ty, Src2Size> Src2,
+                                  vector<uint8_t, Src1ScaleSize> Src1Scale,
+                                  vector<uint8_t, Src2ScaleSize> Src2Scale);
+
+  template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
+            int SystolicDepth, int RepeatCount, typename ResTy>
+  vector<ResTy, AccSize> cm_bdpas(vector<AccTy, AccSize> Acc,
+                                  vector<Src1Ty, Src1Size> Src1,
+                                  vector<Src2Ty, Src2Size> Src2,
+                                  int NullSrc1Scale, // dummy parameter, must be NULL
+                                  vector<uint8_t, Src2ScaleSize> Src2Scale);
+
+  template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
+            int SystolicDepth, int RepeatCount>
+  vector<AccTy, AccSize> cm_bdpas(vector<AccTy, AccSize> Acc,
+                                  vector<Src1Ty, Src1Size> Src1,
+                                  vector<Src2Ty, Src2Size> Src2,
+                                  int NullSrc1Scale, // dummy parameter, must be NULL
+                                  vector<uint8_t, Src2ScaleSize> Src2Scale);
+
+  template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
+            int SystolicDepth, int RepeatCount, typename ResTy>
+  vector<ResTy, AccSize> cm_bdpas(vector<AccTy, AccSize> Acc,
+                                  vector<Src1Ty, Src1Size> Src1,
+                                  vector<Src2Ty, Src2Size> Src2,
+                                  vector<uint8_t, Src1ScaleSize> Src1Scale);
+
+  template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
+            int SystolicDepth, int RepeatCount>
+  vector<AccTy, AccSize> cm_bdpas(vector<AccTy, AccSize> Acc,
+                                  vector<Src1Ty, Src1Size> Src1,
+                                  vector<Src2Ty, Src2Size> Src2,
+                                  vector<uint8_t, Src1ScaleSize> Src1Scale);
+
+  template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
+            int SystolicDepth, int RepeatCount, typename ResTy, typename Src1Ty,
+            typename Src2Ty, int AccSize>
+  vector<ResTy, AccSize> cm_bdpas(int Null,  // dummy parameter, must be NULL
+                                  vector<Src1Ty, Src1Size> Src1,
+                                  vector<Src2Ty, Src2Size> Src2,
+                                  vector<uint8_t, Src1ScaleSize> Src1Scale,
+                                  vector<uint8_t, Src2ScaleSize> Src2Scale);
+
+  template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
+            int SystolicDepth, int RepeatCount, typename ResTy, typename Src1Ty,
+            typename Src2Ty, int AccSize>
+  vector<ResTy, AccSize> cm_bdpas(int Null,
+                                  vector<Src1Ty, Src1Size> Src1,
+                                  vector<Src2Ty, Src2Size> Src2,
+                                  int NullSrc1Scale, // dummy parameter, must be NULL
+                                  vector<uint8_t, Src2ScaleSize> Src2Scale);
+
+  template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
+            int SystolicDepth, int RepeatCount, typename ResTy, typename Src1Ty,
+            typename Src2Ty, int AccSize>
+  vector<ResTy, AccSize> cm_bdpas(int Null,  // dummy parameter, must be NULL
+                                  vector<Src1Ty, Src1Size> Src1,
+                                  vector<Src2Ty, Src2Size> Src2,
+                                  vector<uint8_t, Src1ScaleSize> Src1Scale);
+
+=============== ===============================================================
+Parameter       Description
+=============== ===============================================================
+Src1Scale       Scaling factor for matrix B in E8M0 format.
+                When NULL the scaling elements are 1.0f.
+
+Src2Scale       Scaling factor for matrix A in E8M0 format.
+                When NULL or omitted the scaling elements are 1.0f.
+
+Src1ScaleSize   Must be equal to number of columns in the matrix B.
+                Doubled for the 4-bit floating point formats.
+
+Src2ScaleSize   Must be equal to number of rows in the matrix A.
+                Doubled for the 4-bit floating point formats.
+=============== ===============================================================
+
+The following restrictions are applied to the functions:
+* RepeatCount must be 8.
+* Only the 16-bit, 8-bit and 4-bit floating point formats are supported.
+* Both Src1Scale and Src2Scale cannot be NULL.
+
+These functions are target-dependent and only available when the ``CM_HAS_BDPAS``
+macro is defined.
 
 
 4.21 Preprocessor Directives

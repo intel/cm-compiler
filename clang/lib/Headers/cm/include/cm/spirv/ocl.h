@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2023 Intel Corporation
+Copyright (C) 2023-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -23,6 +23,11 @@ SPDX-License-Identifier: MIT
   vector<type, Width> __spirv_ocl_##name(vector<type, Width>,                  \
                                          vector<type, Width>);
 
+_DECL_OCL_OP1(tanh, half)
+_DECL_OCL_OP1(tanh, float)
+#ifdef CM_HAS_BF16
+_DECL_OCL_OP1(tanh, __bf16)
+#endif // CM_HAS_BF16
 
 _DECL_OCL_OP1(rsqrt, double)
 

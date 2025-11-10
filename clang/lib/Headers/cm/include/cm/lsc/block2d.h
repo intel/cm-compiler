@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2024 Intel Corporation
+Copyright (C) 2024-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -150,11 +150,12 @@ constexpr unsigned get_lsc_grf_elements(lsc::LoadOp Op, unsigned BlockW,
 }
 
 template <lsc::LoadOp Op, CacheHint L1H, CacheHint L2H,
+          CacheHint L3H,
           typename T, int NumBlocks, int BlockHeight, int BlockWidth>
 CM_INLINE CM_NODEBUG void check_lsc_block_2d_load_desc() {
   CM_HAS_LSC_UNTYPED_2D_CONTROL;
 
-  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_load<L1H, L2H, L3H>()),
                   "unsupported cache hint");
 
   CM_STATIC_ERROR(NumBlocks == 1 || NumBlocks == 2 || NumBlocks == 4,
@@ -171,11 +172,13 @@ CM_INLINE CM_NODEBUG void check_lsc_block_2d_load_desc() {
                     "Transpose load is supported only for a single block");
 
     if constexpr (sizeof(T) == DWORD) {
-      CM_STATIC_ERROR(BlockWidth <= 8, "Block width is unsupported");
+      CM_STATIC_ERROR(BlockWidth <= 8 ||
+                          (CM_HAS_LSC_2D_LARGE && BlockWidth == 16),
+                      "Block width is unsupported");      
       CM_STATIC_ERROR(BlockHeight <= 32, "Block height is unsupported");
     } else if constexpr (sizeof(T) == QWORD) {
-      CM_STATIC_ERROR(BlockHeight == 8, "Block height is unsupported");
-      CM_STATIC_ERROR(BlockWidth == 1 || BlockWidth == 2 || BlockWidth == 4,
+      CM_STATIC_ERROR(BlockWidth == 1 || BlockWidth == 2 || BlockWidth == 4 ||
+                          (CM_HAS_LSC_2D_LARGE && BlockWidth == 8),
                       "Block width is unsupported");
     }
   } else if constexpr (Op == lsc::LoadOp::VNNI) {
@@ -204,11 +207,12 @@ CM_INLINE CM_NODEBUG void check_lsc_block_2d_load_desc() {
 }
 
 template <CacheHint L1H, CacheHint L2H,
+          CacheHint L3H,
           typename T, int NumBlocks, int BlockHeight, int BlockWidth>
 CM_INLINE CM_NODEBUG void check_lsc_block_2d_prefetch_desc() {
   CM_HAS_LSC_UNTYPED_2D_CONTROL;
 
-  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_prefetch<L1H, L2H, L3H>()),
                   "unsupported cache hint");
 
   CM_STATIC_ERROR(NumBlocks == 1 || NumBlocks == 2 || NumBlocks == 4,
@@ -219,23 +223,28 @@ CM_INLINE CM_NODEBUG void check_lsc_block_2d_prefetch_desc() {
 
   constexpr auto WidthBytes = NumBlocks * BlockWidth * sizeof(T);
 
-  CM_STATIC_ERROR(WidthBytes <= 64, "Block width is too large");
+  CM_STATIC_ERROR(WidthBytes <= 64 ||
+                      (CM_HAS_LSC_2D_LARGE && WidthBytes == 256),
+                  "Block width is too large");
 
-  if constexpr (sizeof(T) == DWORD)
-    CM_STATIC_ERROR(NumBlocks == 1 || NumBlocks == 2,
-                    "Unsupported number of blocks");
-  else if constexpr (sizeof(T) == QWORD)
-    CM_STATIC_ERROR(NumBlocks == 1, "Unsupported number of blocks");
+  if constexpr (WidthBytes <= 64) {
+    if constexpr (sizeof(T) == DWORD)
+      CM_STATIC_ERROR(NumBlocks == 1 || NumBlocks == 2,
+                      "Unsupported number of blocks");
+    else if constexpr (sizeof(T) == QWORD)
+      CM_STATIC_ERROR(NumBlocks == 1, "Unsupported number of blocks");
+  }
 
   CM_STATIC_ERROR(BlockHeight <= 32, "Block height is too large");
 }
 
 template <CacheHint L1H, CacheHint L2H,
+          CacheHint L3H,
           typename T, int BlockHeight, int BlockWidth>
 CM_INLINE CM_NODEBUG void check_lsc_block_2d_store_desc() {
   CM_HAS_LSC_UNTYPED_2D_CONTROL;
 
-  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H>()),
+  CM_STATIC_ERROR((lsc_check_cache_hint_store<L1H, L2H, L3H>()),
                   "unsupported cache hint");
 
   CM_STATIC_ERROR(sizeof(T) * BlockWidth % 4 == 0,
@@ -254,11 +263,13 @@ template <typename T, unsigned BlockH, unsigned BlockW, unsigned NumBlocks = 1,
 using Block2DRefTy =
     vector_ref<T, get_lsc_grf_elements<T>(Op, BlockW, BlockH, NumBlocks)>;
 
-using CacheHintsTy = vector<uint8_t, 2>;
+using CacheHintsTy = vector<uint8_t, 3>;
 CM_INLINE CM_NODEBUG CacheHintsTy get_cache_hint_vector(CacheHint L1H,
-                                                        CacheHint L2H) {
+                                                        CacheHint L2H,
+                                                        CacheHint L3H) {
   CacheHintsTy CacheHints = {static_cast<uint8_t>(L1H),
-                             static_cast<uint8_t>(L2H)};
+                             static_cast<uint8_t>(L2H),
+                             static_cast<uint8_t>(L3H)};
   return CacheHints;
 }
 
@@ -300,6 +311,7 @@ void __cm_intrinsic_impl_store_2d_ugm_desc(
 template <lsc::LoadOp Op = lsc::LoadOp::Normal,
           CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default,
           int OffsetX = 0, int OffsetY = 0, typename T = int,
           unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
 CM_NODEBUG CM_INLINE void
@@ -309,8 +321,8 @@ cm_load(details::Block2DRefTy<T, BlockH, BlockW, NBlocks, Op> Res,
   using namespace details;
   using namespace lsc;
 
-  check_lsc_block_2d_load_desc<Op, L1H, L2H, T, NBlocks, BlockH, BlockW>();
-  auto CacheHints = get_cache_hint_vector(L1H, L2H);
+  check_lsc_block_2d_load_desc<Op, L1H, L2H, L3H, T, NBlocks, BlockH, BlockW>();
+  auto CacheHints = get_cache_hint_vector(L1H, L2H, L3H);
 
   auto Payload = Desc.get_raw_desc();
 
@@ -330,18 +342,20 @@ cm_load(details::Block2DRefTy<T, BlockH, BlockW, NBlocks, Op> Res,
 
 template <CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default,
           int OffsetX = 0, int OffsetY = 0, typename T = int,
           unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
 CM_NODEBUG CM_INLINE void
 cm_load(details::Block2DRefTy<T, BlockH, BlockW, NBlocks> Res,
         const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc,
         int16_t Pred = 1) {
-  cm_load<lsc::LoadOp::Normal, L1H, L2H, OffsetX, OffsetY, T, NBlocks, BlockH,
-          BlockW>(Res, Desc, Pred);
+  cm_load<lsc::LoadOp::Normal, L1H, L2H, L3H, OffsetX, OffsetY, T, NBlocks,
+          BlockH, BlockW>(Res, Desc, Pred);
 }
 
 template <CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default,
           int OffsetX = 0, int OffsetY = 0, typename T = int,
           unsigned NBlocks = 1, unsigned BlockH = 1, unsigned BlockW = 1>
 CM_NODEBUG CM_INLINE void
@@ -350,8 +364,8 @@ cm_prefetch(const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc,
   using namespace details;
   using namespace lsc;
 
-  check_lsc_block_2d_prefetch_desc<L1H, L2H, T, NBlocks, BlockH, BlockW>();
-  auto CacheHints = get_cache_hint_vector(L1H, L2H);
+  check_lsc_block_2d_prefetch_desc<L1H, L2H, L3H, T, NBlocks, BlockH, BlockW>();
+  auto CacheHints = get_cache_hint_vector(L1H, L2H, L3H);
 
   T Dummy; // Dummy variable to pass to the intrinsic. It is not used. It's left
            // uninitialized on purpose.
@@ -363,6 +377,7 @@ cm_prefetch(const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc,
 
 template <CacheHint L1H = CacheHint::Default,
           CacheHint L2H = CacheHint::Default,
+          CacheHint L3H = CacheHint::Default,
           int OffsetX = 0, int OffsetY = 0, typename T = int,
           unsigned BlockH = 1, unsigned BlockW = 1>
 CM_NODEBUG CM_INLINE void
@@ -371,13 +386,52 @@ cm_store(const lsc::block_2d_desc<T, 1, BlockH, BlockW> &Desc,
   using namespace details;
   using namespace lsc;
 
-  check_lsc_block_2d_store_desc<L1H, L2H, T, BlockH, BlockW>();
-  auto CacheHints = get_cache_hint_vector(L1H, L2H);
+  check_lsc_block_2d_store_desc<L1H, L2H, L3H, T, BlockH, BlockW>();
+  auto CacheHints = get_cache_hint_vector(L1H, L2H, L3H);
 
   auto Payload = Desc.get_raw_desc();
 
   __cm_intrinsic_impl_store_2d_ugm_desc<T, BlockH, BlockW, 1>(
       Pred, CacheHints, Payload, OffsetX, OffsetY, Src);
+}
+
+template <lsc::LoadOp Op, CacheHint L1H, CacheHint L2H, int OffsetX,
+          int OffsetY, typename T, unsigned NBlocks, unsigned BlockH,
+          unsigned BlockW>
+CM_NODEBUG CM_INLINE void
+cm_load(details::Block2DRefTy<T, BlockH, BlockW, NBlocks, Op> Res,
+        const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc,
+        int16_t Pred = 1) {
+  cm_load<Op, L1H, L2H, CacheHint::Default, OffsetX, OffsetY, T, NBlocks,
+          BlockH, BlockW>(Res, Desc, Pred);
+}
+
+template <CacheHint L1H, CacheHint L2H, int OffsetX, int OffsetY, typename T,
+          unsigned NBlocks, unsigned BlockH, unsigned BlockW>
+CM_NODEBUG CM_INLINE void
+cm_load(details::Block2DRefTy<T, BlockH, BlockW, NBlocks> Res,
+        const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc,
+        int16_t Pred = 1) {
+  cm_load<L1H, L2H, CacheHint::Default, OffsetX, OffsetY, T, NBlocks, BlockH,
+          BlockW>(Res, Desc, Pred);
+}
+
+template <CacheHint L1H, CacheHint L2H, int OffsetX, int OffsetY, typename T,
+          unsigned NBlocks, unsigned BlockH, unsigned BlockW>
+CM_NODEBUG CM_INLINE void
+cm_prefetch(const lsc::block_2d_desc<T, NBlocks, BlockH, BlockW> &Desc,
+            int16_t Pred = 1) {
+  cm_prefetch<L1H, L2H, CacheHint::Default, OffsetX, OffsetY, T, NBlocks,
+              BlockH, BlockW>(Desc, Pred);
+}
+
+template <CacheHint L1H, CacheHint L2H, int OffsetX, int OffsetY, typename T,
+          unsigned BlockH, unsigned BlockW>
+CM_NODEBUG CM_INLINE void
+cm_store(const lsc::block_2d_desc<T, 1, BlockH, BlockW> &Desc,
+         details::Block2DTy<T, BlockH, BlockW> Src, int16_t Pred = 1) {
+  cm_store<L1H, L2H, CacheHint::Default, OffsetX, OffsetY, T, BlockH, BlockW>(
+      Desc, Src, Pred);
 }
 
 #endif // _CLANG_CM_LSC_BLOCK2D_H_

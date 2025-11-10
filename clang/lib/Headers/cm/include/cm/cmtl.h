@@ -2471,15 +2471,24 @@ CM_INLINE matrix<float, R, C> cm_tanh_cody_waite(matrix<float, R, C> x) {
 /* cm_tanh - opencl like implementation for tanh(x) */
 /* float input */
 CM_INLINE float cm_tanh(float x) {
+#if defined(CM_HAS_TANH)
+  return ::cm_tanh(x);
+#endif // defined(CM_HAS_TANH)
   return detail::cm_tanh_impl(vector<float, 1>(x))(0);
 }
 /* vector input */
 template <int N> CM_INLINE vector<float, N> cm_tanh(vector<float, N> x) {
+#if defined(CM_HAS_TANH)
+  return ::cm_tanh(x);
+#endif // defined(CM_HAS_TANH)
   return detail::cm_tanh_impl(x);
 }
 /* matrix input */
 template <int R, int C>
 CM_INLINE matrix<float, R, C> cm_tanh(matrix<float, R, C> x) {
+#if defined(CM_HAS_TANH)
+  return ::cm_tanh(x);
+#endif // defined(CM_HAS_TANH)
   return detail::cm_tanh_impl(vector<float, R * C>(x));
 }
 

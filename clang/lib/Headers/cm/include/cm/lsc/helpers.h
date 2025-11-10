@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2024 Intel Corporation
+Copyright (C) 2024-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -17,6 +17,12 @@ static_assert(0, "CM:w:lsc/helpers.h should not be included explicitly - only "
 #include <cm/cm_common.h>
 
 namespace details {
+constexpr CacheHint lsc_combine_l2_l3_hints(CacheHint L2H, CacheHint L3H) {
+  int l2h = static_cast<int>(L2H);
+  int l3h = static_cast<int>(L3H);
+  int combined = l2h | (l3h << 4);
+  return static_cast<CacheHint>(combined);
+}
 
 template <CacheHint Hint> class CacheHintWrap {
 private:
@@ -45,6 +51,12 @@ constexpr bool are_all_equal_to(CacheHint First, CacheHint Second) {
   return First == Val && Second == Val;
 }
 
+template <CacheHint Val>
+constexpr bool are_all_equal_to(CacheHint First, CacheHint Second,
+                                CacheHint Third) {
+  return First == Val && Second == Val && Third == Val;
+}
+
 template <CacheHint L1, CacheHint L2>
 constexpr bool lsc_check_cache_hint_prefetch() {
   constexpr CacheHintWrap<L1> L1H;
@@ -58,6 +70,24 @@ constexpr bool lsc_check_cache_hint_prefetch() {
   Res = Res || (L1H.is_one_of<CacheHint::Uncached, CacheHint::Cached>() &&
                 L2H == CacheHint::ConstCached);
 #endif // CM_HAS_LSC_L1L3CC_HINT
+  return Res;
+}
+
+template <CacheHint L1, CacheHint L2, CacheHint L3>
+constexpr bool lsc_check_cache_hint_prefetch() {
+  constexpr CacheHintWrap<L1> L1H;
+  constexpr CacheHintWrap<L2> L2H;
+  constexpr CacheHintWrap<L3> L3H;
+  bool Res = lsc_check_cache_hint_prefetch<L1H, L2H>();
+#ifdef CM_HAS_LSC_L1L2L3_CACHE
+  Res = are_all_equal_to<CacheHint::Default>(L1H, L2H, L3H) ||
+        (Res && L3H.is_one_of<CacheHint::Default, CacheHint::Uncached,
+                              CacheHint::Cached>());
+  Res = Res || (are_all_equal_to<CacheHint::Uncached>(L1H, L2H) &&
+                L3 == CacheHint::Cached);
+#else  // CM_HAS_LSC_L1L2L3_CACHE
+  Res = Res && L3H == CacheHint::Default;
+#endif // CM_HAS_LSC_L1L2L3_CACHE
   return Res;
 }
 
@@ -82,6 +112,24 @@ constexpr bool lsc_check_cache_hint_load() {
   return Res;
 }
 
+template <CacheHint L1, CacheHint L2, CacheHint L3>
+constexpr bool lsc_check_cache_hint_load() {
+  constexpr CacheHintWrap<L1> L1H;
+  constexpr CacheHintWrap<L2> L2H;
+  constexpr CacheHintWrap<L3> L3H;
+  bool Res = lsc_check_cache_hint_load<L1H, L2H>();
+#ifdef CM_HAS_LSC_L1L2L3_CACHE
+  Res = are_all_equal_to<CacheHint::Default>(L1H, L2H, L3H) ||
+        (Res && !are_all_equal_to<CacheHint::Default>(L1H, L2H) &&
+         L3H.is_one_of<CacheHint::Default, CacheHint::Uncached,
+                       CacheHint::Cached>());
+  Res = Res || are_all_equal_to<CacheHint::ReadInvalidate>(L1H, L2H, L3H);
+#else  // CM_HAS_LSC_L1L2L3_CACHE
+  Res = Res && L3H == CacheHint::Default;
+#endif // CM_HAS_LSC_L1L2L3_CACHE
+  return Res;
+}
+
 template <CacheHint L1, CacheHint L2>
 constexpr bool lsc_check_cache_hint_store() {
   constexpr CacheHintWrap<L1> L1H;
@@ -93,6 +141,24 @@ constexpr bool lsc_check_cache_hint_store() {
           L2H.is_one_of<CacheHint::Uncached, CacheHint::WriteBack>());
 }
 
+template <CacheHint L1, CacheHint L2, CacheHint L3>
+constexpr bool lsc_check_cache_hint_store() {
+  constexpr CacheHintWrap<L1> L1H;
+  constexpr CacheHintWrap<L2> L2H;
+  constexpr CacheHintWrap<L3> L3H;
+#ifdef CM_HAS_LSC_L1L2L3_CACHE
+  return are_all_equal_to<CacheHint::Default>(L1H, L2H, L3H) ||
+         (L1H.is_one_of<CacheHint::Uncached, CacheHint::WriteBack,
+                        CacheHint::WriteThrough, CacheHint::Streaming>() &&
+          L2H.is_one_of<CacheHint::Uncached, CacheHint::WriteBack>() &&
+          L3H.is_one_of<CacheHint::Default, CacheHint::Uncached,
+                        CacheHint::WriteBack>() &&
+          !are_all_equal_to<CacheHint::WriteBack>(L2H, L3H));
+#else  // CM_HAS_LSC_L1L2L3_CACHE
+  return lsc_check_cache_hint_store<L1H, L2H>() && L3H == CacheHint::Default;
+#endif // CM_HAS_LSC_L1L2L3_CACHE
+}
+
 template <CacheHint L1, CacheHint L2>
 constexpr bool lsc_check_cache_hint_atomic() {
   constexpr CacheHintWrap<L1> L1H;
@@ -100,6 +166,23 @@ constexpr bool lsc_check_cache_hint_atomic() {
   return are_all_equal_to<CacheHint::Default>(L1H, L2H) ||
          (L1H == CacheHint::Uncached &&
           L2H.is_one_of<CacheHint::Uncached, CacheHint::WriteBack>());
+}
+
+template <CacheHint L1, CacheHint L2, CacheHint L3>
+constexpr bool lsc_check_cache_hint_atomic() {
+  constexpr CacheHintWrap<L1> L1H;
+  constexpr CacheHintWrap<L2> L2H;
+  constexpr CacheHintWrap<L3> L3H;
+#ifdef CM_HAS_LSC_L1L2L3_CACHE
+  return are_all_equal_to<CacheHint::Default>(L1H, L2H, L3H) ||
+         (L1H == CacheHint::Uncached &&
+          L2H.is_one_of<CacheHint::Uncached, CacheHint::WriteBack>() &&
+          L3H.is_one_of<CacheHint::Default, CacheHint::Uncached,
+                        CacheHint::WriteBack>() &&
+          !are_all_equal_to<CacheHint::WriteBack>(L2H, L3H));
+#else  // CM_HAS_LSC_L1L2L3_CACHE
+  return lsc_check_cache_hint_atomic<L1H, L2H>() && L3H == CacheHint::Default;
+#endif // CM_HAS_LSC_L1L2L3_CACHE
 }
 } // namespace details
 

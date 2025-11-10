@@ -561,7 +561,18 @@ enum class AtomicOp : uint8_t {
   AND = 0x18,
   OR = 0x19,
   XOR = 0x1A,
+  BFADD = 0x21,
+  BFSUB = 0x22,
+  BFMIN = 0x23,
+  BFMAX = 0x24,
+  BFCAS = 0x25,
 };
+
+constexpr bool is_bfloat16_atomic(AtomicOp Op) {
+  return Op == AtomicOp::BFADD || Op == AtomicOp::BFSUB ||
+         Op == AtomicOp::BFMIN || Op == AtomicOp::BFMAX ||
+         Op == AtomicOp::BFCAS;
+}
 
 enum class LSC_SCOPE : uint8_t {
   LSC_SCOPE_GROUP,

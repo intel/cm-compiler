@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2024 Intel Corporation
+Copyright (C) 2014-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -43,6 +43,18 @@ SPDX-License-Identifier: MIT
 
 #include "dpas/dpas.h"
 #include "dpas/dpasw.h"
+// Block-scale dot product accumulate systolic
+#include "dpas/bdpas.h"
+
+
+// 4-bit downscale
+#include "intrinsics/downscale.h"
+
+// Linear Feedback Shift Register
+#include "intrinsics/lfsr.h"
+
+// MXFP reduction
+#include "intrinsics/mxfp_reduce.h"
 
 #include "intrinsics/rsqrt.h"
 // float/double reminder

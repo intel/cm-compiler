@@ -577,6 +577,9 @@ private:
   /// \brief Postprocess builtin cm_raw_send.
   llvm::Value *HandleBuiltinRawSendImpl(CMCallInfo &CallInfo);
 
+  /// \brief Postprocess builtin cm_raw_sendg.
+  llvm::Value *HandleBuiltinRawSendgImpl(CMCallInfo &CallInfo);
+
   /// \brief Prostprocess builtin cm_nbarrier_signal
   void HandleBuiltinNamedBarrierArriveImpl(CMCallInfo &CallInfo);
 
@@ -640,6 +643,18 @@ private:
   /// \brief Postprocess builtin cm_hf8_cvt.
   llvm::Value *HandleBuiltinHF8CVTImpl(CMCallInfo &CallInfo,
                                        CMBuiltinKind Kind);
+  /// \brief Postprocess cm_bdpas implementation builtin.
+  llvm::Value *HandleBuiltinBDPASImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+
+  llvm::Value *HandleBuiltinPackedUpconv4BitLut(CMCallInfo &CallInfo,
+                                                CMBuiltinKind Kind);
+  llvm::Value *HandleBuiltinDownconv4Bit(CMCallInfo &CallInfo,
+                                         CMBuiltinKind Kind);
+  llvm::Value *HandleBuiltinLfsrImpl(CMCallInfo &CallInfo, CMBuiltinKind Kind);
+  llvm::Value *HandleBuiltinMxfpReduceImpl(CMCallInfo &CallInfo,
+                                           CMBuiltinKind Kind);
+  llvm::Value *HandleBuiltinMxfpLinearizeImpl(CMCallInfo &CallInfo,
+                                              CMBuiltinKind Kind);
   /// \brief Postprocess builtin cm_srnd
   llvm::Value *HandleBuiltinSRNDFP8Impl(CMCallInfo &CallInfo,
                                         CMBuiltinKind Kind);

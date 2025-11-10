@@ -65,11 +65,29 @@ CM_NODEBUG CM_INLINE details::EnableIfHalfType<ResTy> cm_srnd(SrcTy Src,
   return _Res[0];
 }
 
+#if CM_HAS_SRND_FP16_TO_HF8
+#define CM_HAS_SRND_FP16_TO_HF8_CONTROL CM_HAS_CONTROL(true)
+#else // CM_HAS_SRND_FP16_TO_HF8
+#define CM_HAS_SRND_FP16_TO_HF8_CONTROL CM_HAS_CONTROL(false)
+#endif // CM_HAS_SRND_FP16_TO_HF8
+
+#if CM_HAS_SRND_BF16_TO_HF8
+#define CM_HAS_SRND_BF16_TO_HF8_CONTROL CM_HAS_CONTROL(true)
+#else // CM_HAS_SRND_BF16_TO_HF8
+#define CM_HAS_SRND_BF16_TO_HF8_CONTROL CM_HAS_CONTROL(false)
+#endif // CM_HAS_SRND_BF16_TO_HF8
+
 #if CM_HAS_SRND_FP16_TO_BF8
 #define CM_HAS_SRND_FP16_TO_BF8_CONTROL CM_HAS_CONTROL(true)
 #else // CM_HAS_SRND_FP16_TO_BF8
 #define CM_HAS_SRND_FP16_TO_BF8_CONTROL CM_HAS_CONTROL(false)
 #endif // CM_HAS_SRND_FP16_TO_BF8
+
+#if CM_HAS_SRND_BF16_TO_BF8
+#define CM_HAS_SRND_BF16_TO_BF8_CONTROL CM_HAS_CONTROL(true)
+#else // CM_HAS_SRND_BF16_TO_BF8
+#define CM_HAS_SRND_BF16_TO_BF8_CONTROL CM_HAS_CONTROL(false)
+#endif // CM_HAS_SRND_BF16_TO_BF8
 
 namespace details {
 template <typename SrcTy>
@@ -87,12 +105,67 @@ using EnableIfByteType =
 template <typename InputTy, unsigned Width>
 vector<uint8_t, Width> __cm_intrinsic_impl_bf8_srnd(vector<InputTy, Width> Src,
                                                     vector<uint8_t, Width> Bias);
+
+template <typename InputTy, unsigned Width>
+vector<uint8_t, Width> __cm_intrinsic_impl_hf8_srnd(vector<InputTy, Width> Src,
+                                                    vector<uint8_t, Width> Bias);
 } // namespace details
+
+template <typename SrcTy, unsigned Width>
+CM_NODEBUG CM_INLINE vector<uint8_t, Width>
+cm_srnd_hf8(vector<SrcTy, Width> Src, vector<uint8_t, Width> Bias,
+            int Flag = _GENX_NOSAT) {
+#ifdef CM_HAS_BF16
+  if constexpr (std::is_same<SrcTy, __bf16>::value)
+    CM_HAS_SRND_BF16_TO_HF8_CONTROL;
+  else
+#endif // CM_HAS_BF16
+    CM_HAS_SRND_FP16_TO_HF8_CONTROL;
+
+  CM_STATIC_ERROR(details::IsValidTypeForSRND<SrcTy>,
+                  "Unsupported stochastic rounding operation");
+
+  vector<int8_t, Width> Res;
+
+  if constexpr (details::is_float_type<SrcTy>::value) {
+    vector<half, Width> _Src = Src;
+    Res = details::__cm_intrinsic_impl_hf8_srnd(_Src, Bias);
+  } else {
+    Res = details::__cm_intrinsic_impl_hf8_srnd(Src, Bias);
+  }
+
+  if (Flag != _GENX_NOSAT)
+    return details::__cm_intrinsic_impl_sat<int8_t>(Res);
+
+  return Res;
+}
+
+template <typename SrcTy, unsigned Height, unsigned Width>
+CM_NODEBUG CM_INLINE matrix<uint8_t, Height, Width>
+cm_srnd_hf8(matrix<SrcTy, Height, Width> Src,
+            matrix<uint8_t, Height, Width> Bias, int Flag = _GENX_NOSAT) {
+  return cm_srnd_hf8(Src.template format<SrcTy>(),
+                     Bias.template format<uint8_t>(), Flag);
+}
+
+template <typename SrcTy>
+CM_NODEBUG CM_INLINE uint8_t cm_srnd_hf8(SrcTy Src, uint8_t Bias,
+                                         int Flag = _GENX_NOSAT) {
+  vector<SrcTy, 1> _Src = Src;
+  vector<uint8_t, 1> _Bias = Bias;
+  vector<uint8_t, 1> _Res = cm_srnd_hf8(_Src, _Bias, Flag);
+  return _Res[0];
+}
 
 template <typename SrcTy, unsigned Width>
 CM_NODEBUG CM_INLINE vector<uint8_t, Width>
 cm_srnd_bf8(vector<SrcTy, Width> Src, vector<uint8_t, Width> Bias,
             int Flag = _GENX_NOSAT) {
+#ifdef CM_HAS_BF16
+  if constexpr (std::is_same<SrcTy, __bf16>::value)
+    CM_HAS_SRND_BF16_TO_BF8_CONTROL;
+  else
+#endif // CM_HAS_BF16
   CM_HAS_SRND_FP16_TO_BF8_CONTROL;
 
   CM_STATIC_ERROR(details::IsValidTypeForSRND<SrcTy>,
@@ -136,6 +209,11 @@ CM_DEPRECATED(
 CM_NODEBUG CM_INLINE vector<details::EnableIfByteType<ResTy>, Width> cm_srnd(
     vector<SrcTy, Width> Src, vector<BiasTy, Width> Bias,
     int Flag = _GENX_NOSAT) {
+#ifdef CM_HAS_BF16
+  if constexpr (std::is_same<SrcTy, __bf16>::value)
+    CM_HAS_SRND_BF16_TO_BF8_CONTROL;
+  else
+#endif // CM_HAS_BF16
   CM_HAS_SRND_FP16_TO_BF8_CONTROL;
 
   CM_STATIC_ERROR(details::IsValidTypeForSRND<SrcTy>,

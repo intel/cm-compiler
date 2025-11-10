@@ -244,6 +244,17 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
             .StartsWith("__cm_intrinsic_impl_qf_cvt", CMBK_cm_qf_cvt_impl)
             .StartsWith("__cm_intrinsic_impl_hf8_cvt", CMBK_cm_hf8_cvt_impl)
             .StartsWith("__cm_intrinsic_impl_bf8_srnd", CMBK_cm_srnd_bf8_impl)
+            .StartsWith("__cm_intrinsic_impl_hf8_srnd", CMBK_cm_srnd_hf8_impl)
+            .StartsWith("__cm_intrinsic_impl_packed_4bit_upconvert_lut",
+                        CMBK_cm_packed_upconvert_4bit_lut_impl)
+            .StartsWith("__cm_intrinsic_impl_downconvert_4bit",
+                        CMBK_cm_downconvert_4bit_impl)
+            .StartsWith("__cm_intrinsic_impl_lfsr", CMBK_cm_lfsr_impl)
+            .StartsWith("__cm_intrinsic_impl_mxfp_reduce",
+                        CMBK_cm_mxfp_reduce_impl)
+            .StartsWith("__cm_intrinsic_impl_mxfp_linearize",
+                        CMBK_cm_mxfp_linearize_impl)
+            .StartsWith("__cm_intrinsic_impl_bdpas", CMBK_cm_bdpas_impl)
             .StartsWith("__cm_intrinsic_impl_prefetch_bti",
                         CMBK_cm_prefetch_impl)
             .StartsWith("__cm_intrinsic_impl_block_prefetch_bti",
@@ -387,6 +398,7 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
                         CMBK_cm_svm_atomic_impl)
             .StartsWith("__cm_intrinsic_impl_rdregion", CMBK_rdregion)
             .StartsWith("__cm_intrinsic_impl_wrregion", CMBK_wrregion)
+            .StartsWith("__cm_intrinsic_impl_raw_sendg", CMBK_cm_raw_sendg)
             .StartsWith("__cm_intrinsic_impl_nbarrier_arrive",
                         CMBK_cm_nbarrier_arrive)
             // LSC 2D block load/store/prefetch intrinsics
@@ -855,6 +867,8 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
   case CMBK_cm_bfn:
   case CMBK_cm_dpas: // old variant
   case CMBK_cm_dpas2:
+  case CMBK_cm_qf_cvt:
+  case CMBK_cm_hf8_cvt:
     HandleBuiltinInterface(getCurCMCallInfo());
     return RV;
   case CMBK_oword_read_impl:
@@ -992,6 +1006,8 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(HandleBuiltinSendsImpl(getCurCMCallInfo()));
   case CMBK_cm_raw_send:
     return RValue::get(HandleBuiltinRawSendImpl(getCurCMCallInfo()));
+  case CMBK_cm_raw_sendg:
+    return RValue::get(HandleBuiltinRawSendgImpl(getCurCMCallInfo()));
   case CMBK_cm_nbarrier_arrive:
     HandleBuiltinNamedBarrierArriveImpl(getCurCMCallInfo());
     return RValue::get(0);
@@ -1112,6 +1128,21 @@ RValue CGCMRuntime::EmitCMCallExpr(CodeGenFunction &CGF, const CallExpr *E,
     return RValue::get(HandleBuiltinQFCVTImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_hf8_cvt_impl:
     return RValue::get(HandleBuiltinHF8CVTImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_srnd_hf8_impl:
+    return RValue::get(HandleBuiltinSRNDFP8Impl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_packed_upconvert_4bit_lut_impl:
+    return RValue::get(
+        HandleBuiltinPackedUpconv4BitLut(getCurCMCallInfo(), Kind));
+  case CMBK_cm_downconvert_4bit_impl:
+    return RValue::get(HandleBuiltinDownconv4Bit(getCurCMCallInfo(), Kind));
+  case CMBK_cm_lfsr_impl:
+    return RValue::get(HandleBuiltinLfsrImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_mxfp_reduce_impl:
+    return RValue::get(HandleBuiltinMxfpReduceImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_mxfp_linearize_impl:
+    return RValue::get(HandleBuiltinMxfpLinearizeImpl(getCurCMCallInfo(), Kind));
+  case CMBK_cm_bdpas_impl:
+    return RValue::get(HandleBuiltinBDPASImpl(getCurCMCallInfo(), Kind));
   case CMBK_cm_load_impl:
   case CMBK_cm_load4_impl:
   case CMBK_cm_block_load_impl:
@@ -2486,11 +2517,20 @@ unsigned CGCMRuntime::GetGenxIntrinsicID(CMCallInfo &CallInfo,
   case CMBK_cm_dpasw_nosrc0_impl:
     ID = llvm::GenXIntrinsic::genx_dpasw_nosrc0;
     break;
+  case CMBK_cm_bdpas_impl:
+    ID = llvm::GenXIntrinsic::genx_bdpas;
+    break;
   case CMBK_cm_tf32_cvt:
     ID = llvm::GenXIntrinsic::genx_tf32_cvt;
     break;
   case CMBK_cm_srnd:
     ID = llvm::GenXIntrinsic::genx_srnd;
+    break;
+  case CMBK_cm_qf_cvt:
+    ID = llvm::GenXIntrinsic::genx_qf_cvt;
+    break;
+  case CMBK_cm_hf8_cvt:
+    ID = llvm::GenXIntrinsic::genx_hf8_cvt;
     break;
   case CMBK_sample32_impl:
     ID = llvm::GenXIntrinsic::genx_sample_unorm;
@@ -4374,6 +4414,38 @@ llvm::Value *CGCMRuntime::HandleBuiltinRawSendImpl(CMCallInfo &CallInfo) {
   }
 
   CallInfo.CI->eraseFromParent();
+  return NewCI;
+}
+
+/// cm_raw_sendg()
+///
+llvm::Value *CGCMRuntime::HandleBuiltinRawSendgImpl(CMCallInfo &CallInfo) {
+  CodeGenFunction &CGF = *CallInfo.CGF;
+  auto *CI = CallInfo.CI;
+
+  constexpr auto IID = llvm::GenXIntrinsic::genx_raw_sendg;
+  constexpr int PredIndex = 4;
+  constexpr int Src0Index = 5;
+  constexpr int Src1Index = 7;
+
+  llvm::SmallVector<llvm::Value *, 13> Args{CI->arg_begin(), CI->arg_end()};
+
+  auto *Pred = CI->getArgOperand(PredIndex);
+  auto *PredTy = cast<llvm::FixedVectorType>(Pred->getType());
+  auto *MaskTy = getMaskType(CGF.getLLVMContext(), PredTy->getNumElements());
+  Args[PredIndex] = CGF.Builder.CreateIntCast(Pred, MaskTy, false);
+
+  auto *DstTy = CI->getType();
+  auto *Src0Ty = Args[Src0Index]->getType();
+  auto *Src1Ty = Args[Src1Index]->getType();
+
+  auto *Func = llvm::GenXIntrinsic::getAnyDeclaration(
+      CI->getModule(), IID, {DstTy, MaskTy, Src0Ty, Src1Ty});
+  auto *NewCI = CGF.Builder.CreateCall(Func, Args);
+  NewCI->takeName(CI);
+  CI->replaceAllUsesWith(NewCI);
+  CI->eraseFromParent();
+
   return NewCI;
 }
 
@@ -7080,6 +7152,74 @@ llvm::Value *CGCMRuntime::HandleBuiltinDPASImpl(CMCallInfo &CallInfo,
   return Result;
 }
 
+/// \brief Postprocess builtin cm_bdpas.
+///
+/// template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
+///           int SystolicDepth, int RepeatCount, typename ResTy, typename
+///           AccTy, typename Src1Ty, typename Src2Ty, int AccSize, int
+///           Src1Size, int Src2Size>
+/// vector<ResTy, AccSize> __cm_intrinsic_impl_bdpas(
+///     vector<AccTy, AccSize> Acc, vector<Src1Ty, Src1Size> Src1,
+///     vector<Src2Ty, Src2Size> Src2,
+///     BDpasSrc1ScaleType<SystolicDepth, Src1Precision> Src1Scale,
+///     BDpasSrc2ScaleType<SystolicDepth, RepeatCount, Src2Precision>
+///         Src2Scale);
+///
+llvm::Value *CGCMRuntime::HandleBuiltinBDPASImpl(CMCallInfo &CallInfo,
+                                                 CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_bdpas_impl);
+
+  const auto *CE = CallInfo.CE;
+  auto &CGF = *CallInfo.CGF;
+
+  assert(CE->getType()->isCMVectorType());
+  assert(CE->getNumArgs() == 5);
+
+  auto *CI = CallInfo.CI;
+
+  auto *Acc = CI->getArgOperand(0);
+  auto *Src1 = CI->getArgOperand(1);
+  auto *Src2 = CI->getArgOperand(2);
+  auto *Src1Scale = CI->getArgOperand(3);
+  auto *Src2Scale = CI->getArgOperand(4);
+
+  auto Src1Precision = getIntegralValue(CE->getDirectCallee(), 0) + 1;
+  auto Src2Precision = getIntegralValue(CE->getDirectCallee(), 1) + 1;
+  auto SystolicDepth = getIntegralValue(CE->getDirectCallee(), 2);
+  auto RepeatCount = getIntegralValue(CE->getDirectCallee(), 3);
+
+  auto *ResTy = CI->getType();
+  auto *AccTy = Acc->getType();
+  auto *Src1Ty = Src1->getType();
+  auto *Src2Ty = Src2->getType();
+  auto *Src1ScaleTy = Src1Scale->getType();
+  auto *Src2ScaleTy = Src2Scale->getType();
+
+  auto *F = getGenXIntrinsic(
+      llvm::GenXIntrinsic::genx_bdpas,
+      {ResTy, AccTy, Src1Ty, Src2Ty, Src1ScaleTy, Src2ScaleTy});
+
+  CGBuilderTy Builder(CGF, CI);
+
+  SmallVector<llvm::Value *, 9> Args = {
+      Acc,
+      Src1,
+      Src2,
+      Src1Scale,
+      Src2Scale,
+      Builder.getInt32(Src1Precision),
+      Builder.getInt32(Src2Precision),
+      Builder.getInt32(SystolicDepth),
+      Builder.getInt32(RepeatCount),
+  };
+
+  auto *NewCI = Builder.CreateCall(F, Args, CI->getName());
+  NewCI->setDebugLoc(CI->getDebugLoc());
+  CI->eraseFromParent();
+
+  return NewCI;
+}
+
 /// \brief Postprocess builtin cm_tf32_cvt.
 ///
 /// template <typename T, typename T0, int N>
@@ -7197,11 +7337,17 @@ llvm::Value *CGCMRuntime::HandleBuiltinHF8CVTImpl(CMCallInfo &CallInfo,
 /// __cm_intrinsic_impl_bf8_srnd(vector<InputTy, Width> Src,
 ///                              vector<BiasTy, Width> Bias);
 ///
+/// template <typename InputTy, typename BiasTy, unsigned Width>
+/// vector<uint8_t, Width>
+/// __cm_intrinsic_impl_hf8_srnd(vector<InputTy, Width> Src,
+///                              vector<BiasTy, Width> Bias);
 llvm::Value *CGCMRuntime::HandleBuiltinSRNDFP8Impl(CMCallInfo &CallInfo,
                                                    CMBuiltinKind Kind) {
   auto IID = llvm::GenXIntrinsic::genx_biased_rounding_bf8;
 
-  assert(Kind == CMBK_cm_srnd_bf8_impl);
+  assert(Kind == CMBK_cm_srnd_bf8_impl || Kind == CMBK_cm_srnd_hf8_impl);
+  if (Kind == CMBK_cm_srnd_hf8_impl)
+    IID = llvm::GenXIntrinsic::genx_biased_rounding_hf8;
 
   auto *CI = CallInfo.CI;
   CGBuilderTy Builder(*CallInfo.CGF, CI);
@@ -7220,6 +7366,131 @@ llvm::Value *CGCMRuntime::HandleBuiltinSRNDFP8Impl(CMCallInfo &CallInfo,
   return NewCI;
 }
 
+/// \brief Postprocess builtin cm_upconvert_4bit_lut_step
+///
+/// template <typename T, int Stride = sizeof(uint32_t) / sizeof(T)>
+/// vector<uint32_t, 16>
+/// __cm_intrinsic_impl_packed_4bit_upconvert_lut(
+///     vector<uint32_t, 16> LookupTable,
+///     vector<T, 16 * Stride> Src);
+///
+llvm::Value *CGCMRuntime::HandleBuiltinPackedUpconv4BitLut(CMCallInfo &CallInfo,
+                                                           CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_packed_upconvert_4bit_lut_impl);
+
+  llvm::CallInst *CI = CallInfo.CI;
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  auto *Lut = CI->getArgOperand(0);
+  auto *Src = CI->getArgOperand(1);
+  auto *SrcTy = Src->getType();
+  auto *Ty = CI->getType();
+
+  auto *F = getGenXIntrinsic(
+      llvm::GenXIntrinsic::genx_packed_4bit_upconvert_lut, {Ty, SrcTy});
+
+  auto *NewCI = Builder.CreateCall(F, {Lut, Src});
+  NewCI->takeName(CI);
+  NewCI->setDebugLoc(CI->getDebugLoc());
+
+  CI->eraseFromParent();
+  return NewCI;
+}
+
+/// \brief Postprocess builtin cm_downconvert
+///
+/// template <unsigned Width>
+/// vector<uint32_t, Width>
+/// __cm_intrinsic_impl_downconvert_4bit(vector<uint32_t, Width> Src0,
+///                                      vector<uint32_t, Width> Src1,
+///                                      vector<uint32_t, Width> Bias,
+///                                      uint8_t CvtType, uint8_t Mode,
+///                                      uint8_t RoundingMode);
+llvm::Value *CGCMRuntime::HandleBuiltinDownconv4Bit(CMCallInfo &CallInfo,
+                                                    CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_downconvert_4bit_impl);
+
+  llvm::CallInst *CI = CallInfo.CI;
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  SmallVector<llvm::Value *, 6> Args = {CI->arg_begin(), CI->arg_end()};
+
+  auto *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_4bit_downconvert,
+                             {CI->getType()});
+  auto *NewCI = Builder.CreateCall(F, Args);
+  NewCI->takeName(CI);
+  NewCI->setDebugLoc(CI->getDebugLoc());
+
+  CI->eraseFromParent();
+  return NewCI;
+}
+
+/// \brief Postprocess builtin cm_lfsr
+///
+/// template <unsigned Size>
+/// vector<uint32_t> __cm_intrinsic_impl_lfsr(vector<uint32_t, Width> Seed,
+///                                           vector<uint32_t, Width> Poly,
+///                                           uint8_t Mode);
+///
+llvm::Value *CGCMRuntime::HandleBuiltinLfsrImpl(CMCallInfo &CallInfo,
+                                                CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_lfsr_impl);
+
+  llvm::CallInst *CI = CallInfo.CI;
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  auto *Seed = CI->getArgOperand(0);
+  auto *Poly = CI->getArgOperand(1);
+  auto *Mode = CI->getArgOperand(2);
+  auto *Ty = CI->getType();
+
+  auto *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_lfsr, {Ty});
+
+  auto *NewCI = Builder.CreateCall(F, {Seed, Poly, Mode});
+  NewCI->takeName(CI);
+  NewCI->setDebugLoc(CI->getDebugLoc());
+
+  CI->eraseFromParent();
+  return NewCI;
+}
+
+/// \brief Prostprocess cm_mxfp_reduce
+///
+/// template <typename T>
+/// vector<T, 32> __cm_intrinsic_impl_mxfp_reduce(matrix<T, 32, 32> Src);
+///
+llvm::Value *CGCMRuntime::HandleBuiltinMxfpReduceImpl(CMCallInfo &CallInfo,
+                                                      CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_mxfp_reduce_impl);
+
+  auto *CI = CallInfo.CI;
+  CGBuilderTy Builder(*CallInfo.CGF, CI);
+
+  auto *Src = CI->getArgOperand(0);
+  auto *SrcTy = Src->getType();
+  auto *ResTy = CI->getType();
+
+  auto *F = getGenXIntrinsic(llvm::GenXIntrinsic::genx_mxfp_reduce_32x32,
+                             {ResTy, SrcTy});
+  auto *NewCI = Builder.CreateCall(F, {Src});
+  NewCI->takeName(CI);
+  NewCI->setDebugLoc(CI->getDebugLoc());
+
+  CI->eraseFromParent();
+  return NewCI;
+}
+
+/// \brief Postprocess cm_mxfp_linearize
+///
+/// template <typename T>
+/// vector<T, 32> __cm_intrinsic_impl_mxfp_linearize(vector<T, 32> Src);
+///
+llvm::Value *CGCMRuntime::HandleBuiltinMxfpLinearizeImpl(CMCallInfo &CallInfo,
+                                                         CMBuiltinKind Kind) {
+  assert(Kind == CMBK_cm_mxfp_linearize_impl);
+  return EmitBuiltinCommonOneArg(
+      *this, llvm::GenXIntrinsic::genx_mxfp_linearize, CallInfo);
+}
 
 #define LSCINC
 #include "CMLSCDef.h"

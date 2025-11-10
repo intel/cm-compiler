@@ -159,7 +159,7 @@ namespace CheckVersion {
   #define CM_HAS_3D_LOAD_L 1
 #endif
 
-#if __CM_INTEL_TARGET_MAJOR >= 20
+#if __CM_INTEL_TARGET_MAJOR >= 20 && __CM_INTEL_TARGET_MAJOR < 35
   #define CM_HAS_LSC_L1L2CC_HINT 1
   #define CM_HAS_LSC_L1L3CC_HINT 1
 #endif
@@ -189,7 +189,39 @@ namespace CheckVersion {
 #define CM_HAS_TYPED_ATOMIC_CONTROL CM_HAS_CONTROL(false)
 #endif
 
+#ifdef CM_HAS_BF16_ATOMIC
+#define CM_HAS_BF16_ATOMIC_CONTROL CM_HAS_CONTROL(true)
+#else
+#define CM_HAS_BF16_ATOMIC_CONTROL CM_HAS_CONTROL(false)
+#endif // CM_HAS_BF16_ATOMIC
 
+#ifdef CM_HAS_UPCONVERT_4BIT_LUT
+#define CM_HAS_UPCONVERT_4BIT_LUT_CONTROL CM_HAS_CONTROL(true)
+#else // CM_HAS_UPCONVERT_4BIT_LUT
+#define CM_HAS_UPCONVERT_4BIT_LUT_CONTROL CM_HAS_CONTROL(false)
+#endif // CM_HAS_UPCONVERT_4BIT_LUT
+
+#ifdef CM_HAS_TANH
+#define CM_HAS_TANH_CONTROL CM_HAS_CONTROL(true)
+#else // CM_HAS_TANH
+#define CM_HAS_TANH_CONTROL CM_HAS_CONTROL(false)
+#endif // CM_HAS_TANH
+
+#ifdef CM_HAS_SIGMOID
+#define CM_HAS_SIGMOID_CONTROL CM_HAS_CONTROL(true)
+#else // CM_HAS_SIGMOID
+#define CM_HAS_SIGMOID_CONTROL CM_HAS_CONTROL(false)
+#endif // CM_HAS_SIGMOID
+
+#if __CM_INTEL_TARGET_MAJOR >= 35
+#define CM_HAS_LSC_L1L2L3_CACHE
+#endif
+
+#if __CM_INTEL_TARGET_MAJOR >= 35
+#define CM_HAS_LSC_2D_LARGE 1
+#else
+#define CM_HAS_LSC_2D_LARGE 0
+#endif
 
 #else  // CM_HAS_CONTROL
   CM_STATIC_ERROR(0, "Redeclaration of CM_HAS_CONTROL! It's used for control version of features!");

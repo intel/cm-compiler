@@ -142,6 +142,24 @@ private:
 
   bool HasSrndFp16ToBf8 = false;
 
+  bool HasDpasBf8 = false;
+  bool HasDpasHf8 = false;
+  bool HasDpasFp4 = false;
+  bool HasBdpas = false;
+
+  bool HasBF16Atomic = false;
+
+  bool HasShuffleIndex4 = false;
+  bool HasDownScale = false;
+  bool HasLfsr = false;
+
+  bool HasTanh = false;
+  bool HasSigmoid = false;
+
+  bool HasSrndBf16ToBf8 = false;
+  bool HasSrndBf16ToHf8 = false;
+  bool HasSrndFp16ToHf8 = false;
+
   unsigned GrfWidth = 256;
   std::unordered_set<unsigned> SupportedGrfNums;
 

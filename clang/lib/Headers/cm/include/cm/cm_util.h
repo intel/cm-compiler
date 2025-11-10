@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2014-2024 Intel Corporation
+Copyright (C) 2014-2025 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -235,9 +235,14 @@ template <AtomicOp Op> constexpr int lsc_atomic_nsrcs() {
   case AtomicOp::AND:
   case AtomicOp::OR:
   case AtomicOp::XOR:
+  case AtomicOp::BFSUB:
+  case AtomicOp::BFMIN:
+  case AtomicOp::BFMAX:
+  case AtomicOp::BFADD:
     return 1;
   case AtomicOp::ICAS:
   case AtomicOp::FCAS:
+  case AtomicOp::BFCAS:
     return 2;
   default:
     break;
