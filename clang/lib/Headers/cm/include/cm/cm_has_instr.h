@@ -151,8 +151,9 @@ namespace CheckVersion {
   #define CM_HAS_BIT_ROTATE_64BIT_CONTROL CM_HAS_CONTROL(false)
 #endif
 
-#ifdef __CM_INTEL_TARGET_PVC_OR_ABOVE
-  #define CM_HAS_LSC_SYS_FENCE 1
+#if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(12, 60, 0) ||                  \
+    __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(12, 61, 0)
+#define CM_HAS_LSC_SYS_FENCE 1
 #endif
 
 #if __CM_INTEL_TARGET_MAJOR >= 20
