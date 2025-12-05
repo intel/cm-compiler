@@ -9,6 +9,11 @@
      - Device ID
      - Macro (deprecated)
      - CM_GENX (deprecated)
+   * - 35.11.0
+     - cri
+     - cri*
+     - CM_XE3P_XPC
+     - 1380
    * - 30.5.4
      - ...
      - nvl-u*, nvl-h*
@@ -194,11 +199,6 @@
      - ...
      - CM_XEHPG
      - 1271
-   * - 12.50.4
-     - ...
-     - ...
-     - ...
-     - ...
    * - 12.10.0
      - ...
      - dg1
