@@ -10,7 +10,7 @@
      - Macro (deprecated)
      - CM_GENX (deprecated)
    * - 35.11.0
-     - cri
+     - ...
      - cri*
      - CM_XE3P_XPC
      - 1380
