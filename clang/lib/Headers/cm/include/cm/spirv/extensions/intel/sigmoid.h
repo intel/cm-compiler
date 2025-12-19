@@ -9,9 +9,6 @@ SPDX-License-Identifier: MIT
 #ifndef _CLANG_CM_SPIRV_EXT_INTEL_SIGMOID_H_
 #define _CLANG_CM_SPIRV_EXT_INTEL_SIGMOID_H_
 
-// SPV_INTEL_sigmoid extension draft:
-// https://github.com/intel-innersource/documentation.xpu.architecture.spirv-extension-drafts/pull/140
-
 half __spirv_FSigmoidINTEL(half);
 template <int Width>
 vector<half, Width> __spirv_FSigmoidINTEL(vector<half, Width>);

@@ -1327,6 +1327,11 @@ void CGCMRuntime::EmitCMConstantInitializer(
 //      1 = input
 //      2 = output
 //      3 = input and output
+//  * <argtype_desc> is a metadata node describing N strings where N is the
+//    number of kernel arguments, each string describing argument type in
+//    OpenCL.
+//  * <nbarrier_cnt> is the named barrier count for this kernel
+//  * <barrier_cnt> is the regular barrier count for this kernel
 //
 void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
                                        llvm::Function *Fn) {

@@ -21,6 +21,7 @@ static_assert(0, "CM:w:cm_math.h should not be included explicitly");
 
 #include "spirv/ocl.h"
 
+#include "spirv/extensions/intel/sigmoid.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // CM arithmetic intrinsics:
@@ -87,6 +88,49 @@ _CM_INTRINSIC_WITH_CONTROL_DEF(float, sqrt_ieee, CM_HAS_IEEE_DIV_SQRT_CONTROL)
 _CM_INTRINSIC_DEF(double, sqrt_ieee)
 
 #undef _CM_INTRINSIC_DEF
+#undef _CM_INTRINSIC_WITH_CONTROL_DEF
+
+#define _CM_INTRINSIC_WITH_CONTROL_DEF(type, name, spv, control)               \
+  template <typename T = void>                                                 \
+  CM_NODEBUG CM_INLINE type cm_##name(type src0, int flag = _GENX_NOSAT) {     \
+    type _Result = __spirv_##spv(src0);                                        \
+    if (flag != _GENX_SAT)                                                     \
+      return _Result;                                                          \
+    return details::__cm_intrinsic_impl_sat<type>(_Result);                    \
+  }                                                                            \
+  template <int SZ>                                                            \
+  CM_NODEBUG CM_INLINE vector<type, SZ> cm_##name(vector<type, SZ> src0,       \
+                                                  int flag = _GENX_NOSAT) {    \
+    control;                                                                   \
+    if constexpr (SZ == 1)                                                     \
+      return cm_##name(src0[0], flag);                                         \
+    vector<type, SZ> _Result = __spirv_##spv(src0);                            \
+    if (flag != _GENX_SAT)                                                     \
+      return _Result;                                                          \
+    return details::__cm_intrinsic_impl_sat<type>(_Result);                    \
+  }                                                                            \
+  template <int N1, int N2>                                                    \
+  CM_NODEBUG CM_INLINE vector<type, N1 * N2> cm_##name(                        \
+      matrix<type, N1, N2> src0, int flag = _GENX_NOSAT) {                     \
+    vector<type, N1 * N2> _Src0 = src0;                                        \
+    return cm_##name(_Src0, flag);                                             \
+  }
+
+_CM_INTRINSIC_WITH_CONTROL_DEF(float, tanh, ocl_tanh, CM_HAS_TANH_CONTROL)
+_CM_INTRINSIC_WITH_CONTROL_DEF(half, tanh, ocl_tanh, CM_HAS_TANH_CONTROL)
+#ifdef CM_HAS_BF16
+_CM_INTRINSIC_WITH_CONTROL_DEF(__bf16, tanh, ocl_tanh, CM_HAS_TANH_CONTROL)
+#endif // CM_HAS_BF16
+
+_CM_INTRINSIC_WITH_CONTROL_DEF(float, sigmoid, FSigmoidINTEL,
+                               CM_HAS_SIGMOID_CONTROL)
+_CM_INTRINSIC_WITH_CONTROL_DEF(half, sigmoid, FSigmoidINTEL,
+                               CM_HAS_SIGMOID_CONTROL)
+#ifdef CM_HAS_BF16
+_CM_INTRINSIC_WITH_CONTROL_DEF(__bf16, sigmoid, FSigmoidINTEL,
+                               CM_HAS_SIGMOID_CONTROL)
+#endif // CM_HAS_BF16
+
 #undef _CM_INTRINSIC_WITH_CONTROL_DEF
 
 // inv, log, exp, sqrt, rsqrt, sin, cos

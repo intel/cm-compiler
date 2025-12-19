@@ -243,6 +243,8 @@ def dump_stats_cwd : Flag<["-"], "dump-stats">, Group<cm_Group>,
 
 def Qxcm_register_file_size : CMCC1Joined<"Qxcm_register_file_size=">,
   HelpText<"Specifies number of registers to use for regalloc in backend. "
+           "Xe3P platforms: allowed values are 32, 64, 96, 128, 160, 192, 256, 512 and auto. "
+           "Xe3 platforms: allowed values are 32, 64, 96, 128, 160, 192, 256 and auto. "
            "Allowed values are 128, 256 and auto for XeHP and further platforms. "
            "For pre-XeHP platforms the only supported value is 128.">;
 
