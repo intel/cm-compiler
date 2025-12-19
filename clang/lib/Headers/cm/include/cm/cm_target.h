@@ -119,6 +119,20 @@ static_assert(0, "CM:w:cm_target.h should not be included explicitly");
 #define CM_XE3_LPG
 #endif
 
+// WCL, NVL-S, NVL-U
+#if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(30, 3, 0) ||                   \
+    __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(30, 4, 0) ||                   \
+    __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(30, 5, 0)
+#define CM_GENX 1300
+#define CM_XE3_LPG
+#endif
+
+// CRI
+#if __CM_INTEL_TARGET_CORE == __CM_INTEL_TARGET(35, 11, 0)
+#define CM_GENX 1380
+#define CM_XE3P_CRI
+#endif
+
 #define CM_GENX_REVID __CM_INTEL_TARGET_REVISION
 
 // DG2 or newer
