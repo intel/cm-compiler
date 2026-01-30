@@ -173,15 +173,16 @@ Option                        Description
 
 -Qxcm_release                 Strips debug information from generated .isa file
 
--Qxcm_register_file_size=<N>  Specifies number of registers to use for register
-                              allocation. The values allowed with this option
-                              are *128*, *256* and *auto* for XeHP and further
-                              platforms. For pre-XeHP platforms *128* is the
-                              only allowed value. Auto value enables compiler
-                              heuristics to determine the number of registers.
-
-
-                              The default value is *128*.
+-Qxcm_register_file_size=<N>  Controls the register file size for allocation.
+                              Supported values vary by platform:
+                               - Pre-XeHP: *128* only
+                               - XeHP through Xe2: additionally *256* or *auto*
+                               - Xe3: additionally *32*, *64*, *96*, *160* or *192*
+                               - Xe3P: additionally *512*
+                               - Xe3PLPG: additionally *320* or *448*
+                              Use *auto* to enable compiler heuristics for
+                              automatic register allocation optimization.
+                              Default: *128*.
 
 -Qxcm_doubleGRF               Alias for ``-Qxcm_register_file_size=256``.
 
@@ -275,6 +276,14 @@ CM_HAS_DPAS_ACC_BF16           Defined (with value 1) if the specified target su
                                the BFloat16 data type as an accumulator for the
                                ``cm_dpas`` built-in function.
 
+CM_HAS_DPAS_BF8                Defined (with value 1) if the specified target supports
+                               the BFloat8 data type as an input for the ``cm_dpas``
+                               built-in function.
+
+CM_HAS_DPAS_HF8                Defined (with value 1) if the specified target supports
+                               the HFloat8 data type as an input for the ``cm_dpas``
+                               built-in function.
+
 CM_HAS_DPASW                   Defined (with value 1) if the specified target supports
                                the ``cm_dpasw`` built-in function.
 
@@ -304,7 +313,60 @@ CM_HAS_LSC_LOAD_L1RI_L3CA_HINT Defined (with value 1) if the specified target su
 CM_HAS_LSC_SYS_FENCE           Defined (with value 1) if the specified target supports
                                system fence messages.
 
+CM_HAS_LSC_TYPED               Defined (with value 1) if the specified target supports
+                               Typed LSC data port messages.
+
+CM_HAS_LSC_TYPED_2D            Defined (with value 1) if the specified target supports
+                               Typed 2D block LSC data port messages.
+
 CM_MAX_SLM_SIZE                Maximum shared local memory per group.
+
+CM_HAS_3D_LOAD_L               Defined (with value 1) if cm_3d_load supports
+                               CM_3D_LOAD_L opcode.
+
+CM_HAS_LSC_L1L3CC_HINT         Defined (with value 1) if the specified target supports
+                               "const cached" hint for both L1 and L3.
+
+CM_HAS_LSC_LOAD_L1RI_L3RI_HINT Defined (with value 1) if the specified target supports
+                               L1 "read invalidate" and L3 "read invalidate" cache
+                               hints combination.
+
+CM_HAS_SLM_CAS_INT64           Defined (with value 1) if the specified target supports
+                               integer 64-bit SLM compare exchange.
+
+CM_HAS_BF16_ATOMIC             Defined (with value 1) if the specified target supports
+                               bfloat16 atomic operations.
+
+CM_HAS_UPCONVERT_4BIT_LUT      Defined (with value 1) if the specified target supports
+                               the ``cm_upconvert_4bit_lut`` built-in function.
+
+CM_HAS_DOWNSCALE_4BIT          Defined (with value 1) if the specified target supports
+                               the ``cm_downscale`` built-in function.
+
+CM_HAS_LFSR                    Defined (with value 1) if the specified target supports
+                               the ``cm_lfsr`` built-in function.
+
+CM_HAS_TANH                    Defined (with value 1) if the specified target supports
+                               the ``cm_tanh`` built-in function.
+
+CM_HAS_SIGMOID                 Defined (with value 1) if the specified target supports
+                               the ``cm_sigmoid`` built-in function.
+
+CM_HAS_MXFP_REDUCE             Defined (with value 1) if the specified target supports
+                               the ``cm_mxfp_reduce`` and ``cm_mxfp_linearize``
+                               built-in functions.
+
+CM_HAS_SRND_BF16_TO_BF8        Defined (with value 1) if the specified target supports
+                               operation for converting ``bfloat16`` type values into
+                               ``bfloat8`` with stochastic rounding.
+
+CM_HAS_SRND_BF16_TO_HF8        Defined (with value 1) if the specified target supports
+                               operation for converting ``half`` type values into
+                               ``hfloat8`` with stochastic rounding.
+
+CM_HAS_SRND_BF16_TO_HF8        Defined (with value 1) if the specified target supports
+                               operation for converting ``bfloat16`` type values into
+                               ``hfloat8`` with stochastic rounding.
 
 ============================== =======================================================
 

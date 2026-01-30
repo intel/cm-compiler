@@ -212,4 +212,181 @@ typename std::enable_if<sizeof(U2) * N3 * N4 % 32 == 0>::type
     uchar isEOT = 0, uchar isSendc = 0,
     vector<ushort, N> mask = 1);
 
+#if __CM_INTEL_TARGET_MAJOR >= 35
+namespace details {
+
+template <int ExecSize, typename DstTy, int DstWidth, typename Src0Ty,
+          int Src0Width, typename Src1Ty, int Src1Width>
+vector<DstTy, DstWidth> __cm_intrinsic_impl_raw_sendg(
+    uint16_t DstBytes, bool IsConditional, bool IsEOT, uint8_t SFID,
+    vector<ushort, ExecSize> Pred, vector<Src0Ty, Src0Width> Src0,
+    uint16_t Src0Bytes, vector<Src1Ty, Src1Width> Src1, uint16_t Src1Bytes,
+    uint64_t Ind0, uint64_t Ind1, uint64_t Desc,
+    vector<DstTy, DstWidth> Passthru);
+} // namespace details
+
+template <uint8_t SFID, uint64_t Desc, int ExecSize, typename DstTy,
+          int DstWidth, typename Src0Ty, int Src0Width, typename Src1Ty,
+          int Src1Width>
+CM_NODEBUG CM_INLINE void cm_raw_sendg(vector_ref<DstTy, DstWidth> Dst,
+                                       vector<Src0Ty, Src0Width> Src0,
+                                       vector<Src1Ty, Src1Width> Src1,
+                                       vector<uint16_t, ExecSize> Mask = 1) {
+  using namespace details;
+  constexpr uint16_t DstSize = sizeof(DstTy) * DstWidth;
+  constexpr uint16_t Src0Size = sizeof(Src0Ty) * Src0Width;
+  constexpr uint16_t Src1Size = sizeof(Src1Ty) * Src1Width;
+
+  uint64_t Undef; // It's explicitly uninitialized
+
+  bool IsConditional = false;
+  bool IsEOT = false;
+
+  Dst = __cm_intrinsic_impl_raw_sendg(DstSize, IsConditional, IsEOT, SFID, Mask,
+                                      Src0, Src0Size, Src1, Src1Size, Undef,
+                                      Undef, Desc, Dst);
+}
+
+template <uint8_t SFID, uint64_t Desc, int ExecSize, typename Src0Ty,
+          int Src0Width, typename Src1Ty, int Src1Width>
+CM_NODEBUG CM_INLINE void cm_raw_sendg(int NullDst,
+                                       vector<Src0Ty, Src0Width> Src0,
+                                       vector<Src1Ty, Src1Width> Src1,
+                                       vector<uint16_t, ExecSize> Mask = 1) {
+  using namespace details;
+  constexpr uint16_t Src0Size = sizeof(Src0Ty) * Src0Width;
+  constexpr uint16_t Src1Size = sizeof(Src1Ty) * Src1Width;
+
+  vector<int, 16> UndefVector; // It's explicitly uninitialized
+  uint64_t Undef;              // It's explicitly uninitialized
+
+  bool IsConditional = false;
+  bool IsEOT = false;
+
+  __cm_intrinsic_impl_raw_sendg(0, IsConditional, IsEOT, SFID, Mask, Src0,
+                                Src0Size, Src1, Src1Size, Undef, Undef, Desc,
+                                UndefVector);
+}
+
+template <uint8_t SFID, uint64_t Desc, int ExecSize, typename DstTy,
+          int DstWidth, typename Src0Ty, int Src0Width>
+CM_NODEBUG CM_INLINE void
+cm_raw_sendg(vector_ref<DstTy, DstWidth> Dst, vector<Src0Ty, Src0Width> Src0,
+             int NullSrc1 = 0, vector<uint16_t, ExecSize> Mask = 1) {
+  using namespace details;
+  constexpr uint16_t DstSize = sizeof(DstTy) * DstWidth;
+  constexpr uint16_t Src0Size = sizeof(Src0Ty) * Src0Width;
+
+  vector<int, 16> UndefVector; // It's explicitly uninitialized
+  uint64_t Undef;              // It's explicitly uninitialized
+
+  bool IsConditional = false;
+  bool IsEOT = false;
+
+  Dst = __cm_intrinsic_impl_raw_sendg(DstSize, IsConditional, IsEOT, SFID, Mask,
+                                      Src0, Src0Size, UndefVector, 0, Undef,
+                                      Undef, Desc, Dst);
+}
+
+template <uint8_t SFID, uint64_t Desc, int ExecSize, typename Src0Ty,
+          int Src0Width>
+CM_NODEBUG CM_INLINE void
+cm_raw_sendg(int NullDst, vector<Src0Ty, Src0Width> Src0, int NullSrc1,
+             vector<uint16_t, ExecSize> Mask = 1) {
+  using namespace details;
+  constexpr uint16_t Src0Size = sizeof(Src0Ty) * Src0Width;
+
+  vector<int, 16> UndefVector; // It's explicitly uninitialized
+  uint64_t Undef;              // It's explicitly uninitialized
+
+  bool IsConditional = false;
+  bool IsEOT = false;
+
+  __cm_intrinsic_impl_raw_sendg(0, IsConditional, IsEOT, SFID, Mask, Src0,
+                                Src0Size, UndefVector, 0, Undef, Undef, Desc,
+                                UndefVector);
+}
+
+template <uint8_t SFID, uint64_t Desc, int ExecSize, typename DstTy,
+          int DstWidth, typename Src0Ty, int Src0Width, typename Src1Ty,
+          int Src1Width>
+CM_NODEBUG CM_INLINE void
+cm_raw_sendg(vector_ref<DstTy, DstWidth> Dst, vector<Src0Ty, Src0Width> Src0,
+             vector<Src1Ty, Src1Width> Src1, uint64_t Ind0,
+             vector<uint16_t, ExecSize> Mask = 1) {
+  using namespace details;
+  constexpr uint16_t DstSize = sizeof(DstTy) * DstWidth;
+  constexpr uint16_t Src0Size = sizeof(Src0Ty) * Src0Width;
+  constexpr uint16_t Src1Size = sizeof(Src1Ty) * Src1Width;
+
+  uint64_t Undef; // It's explicitly uninitialized
+
+  bool IsConditional = false;
+  bool IsEOT = false;
+
+  Dst = __cm_intrinsic_impl_raw_sendg(DstSize, IsConditional, IsEOT, SFID, Mask,
+                                      Src0, Src0Size, Src1, Src1Size, Ind0,
+                                      Undef, Desc, Dst);
+}
+
+template <uint8_t SFID, uint64_t Desc, int ExecSize, typename Src0Ty,
+          int Src0Width, typename Src1Ty, int Src1Width>
+CM_NODEBUG CM_INLINE void
+cm_raw_sendg(int NullDst, vector<Src0Ty, Src0Width> Src0,
+             vector<Src1Ty, Src1Width> Src1, uint64_t Ind0,
+             vector<uint16_t, ExecSize> Mask = 1) {
+  using namespace details;
+  constexpr uint16_t Src0Size = sizeof(Src0Ty) * Src0Width;
+  constexpr uint16_t Src1Size = sizeof(Src1Ty) * Src1Width;
+
+  vector<int, 16> UndefVector; // It's explicitly uninitialized
+  uint64_t Undef;              // It's explicitly uninitialized
+
+  bool IsConditional = false;
+  bool IsEOT = false;
+
+  __cm_intrinsic_impl_raw_sendg(0, IsConditional, IsEOT, SFID, Mask, Src0,
+                                Src0Size, Src1, Src1Size, Ind0, Undef, Desc,
+                                UndefVector);
+}
+
+template <uint8_t SFID, uint64_t Desc, int ExecSize, typename DstTy,
+          int DstWidth, typename Src0Ty, int Src0Width>
+CM_NODEBUG CM_INLINE void
+cm_raw_sendg(vector_ref<DstTy, DstWidth> Dst, vector<Src0Ty, Src0Width> Src0,
+             int NullSrc1, uint64_t Ind0, vector<uint16_t, ExecSize> Mask = 1) {
+  using namespace details;
+  constexpr uint16_t DstSize = sizeof(DstTy) * DstWidth;
+  constexpr uint16_t Src0Size = sizeof(Src0Ty) * Src0Width;
+
+  vector<int, 16> UndefVector; // It's explicitly uninitialized
+  uint64_t Undef;              // It's explicitly uninitialized
+
+  bool IsConditional = false;
+  bool IsEOT = false;
+
+  Dst = __cm_intrinsic_impl_raw_sendg(DstSize, IsConditional, IsEOT, SFID, Mask,
+                                      Src0, Src0Size, UndefVector, 0, Ind0,
+                                      Undef, Desc, Dst);
+}
+
+template <uint8_t SFID, uint64_t Desc, int ExecSize, typename Src0Ty,
+          int Src0Width>
+CM_NODEBUG CM_INLINE void
+cm_raw_sendg(int NullDst, vector<Src0Ty, Src0Width> Src0, int NullSrc1,
+             uint64_t Ind0, vector<uint16_t, ExecSize> Mask = 1) {
+  using namespace details;
+  constexpr uint16_t Src0Size = sizeof(Src0Ty) * Src0Width;
+
+  vector<int, 16> UndefVector; // It's explicitly uninitialized
+  uint64_t Undef;              // It's explicitly uninitialized
+
+  bool IsConditional = false;
+  bool IsEOT = false;
+
+  __cm_intrinsic_impl_raw_sendg(0, IsConditional, IsEOT, SFID, Mask, Src0,
+                                Src0Size, UndefVector, 0, Ind0, Undef, Desc,
+                                UndefVector);
+}
+#endif // __CM_INTEL_TARGET_MAJOR >= 35
 #endif

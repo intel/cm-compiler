@@ -7052,7 +7052,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinDPAS2Impl(CMCallInfo &CallInfo,
   llvm::Value *ValSrc0Sign = llvm::ConstantInt::get(CGF.Int32Ty, Src0Sign);
   CGBuilderTy Builder(*CallInfo.CGF, CI);
   unsigned IntrinsicID = GetGenxIntrinsicID(CallInfo, Kind);
-  assert(IntrinsicID == llvm::GenXIntrinsic::genx_dpas2); // error if return
+  assert(IntrinsicID == llvm::GenXIntrinsic::genx_dpas2);
 
   SmallVector<llvm::Type *, 8> Tys;
   Tys.push_back(CI->getType());
