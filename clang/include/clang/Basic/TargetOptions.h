@@ -95,6 +95,9 @@ public:
   /// For CM
   bool CMIEFByPass = false;
 
+  /// For CM
+  bool CMIsBufferSupported = false;
+
   // The code model to be used as specified by the user. Corresponds to
   // CodeModel::Model enum defined in include/llvm/Support/CodeGen.h, plus
   // "default" for the case when the user has not explicitly specified a

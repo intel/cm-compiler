@@ -86,6 +86,7 @@ void GenXTargetInfo::adjustTargetOptions(const CodeGenOptions &CGOpts,
   TargetOpts.CMGrfWidth = GrfWidth;
   if (SupportedGrfNums.count(CGOpts.NumGrf))
     TargetOpts.CMNumGrf = CGOpts.NumGrf;
+  TargetOpts.CMIsBufferSupported = Major <= 12 && Minor != 60 && Minor != 61;
 }
 
 /// handleTargetFeatures - Perform initialization based on the user
