@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2018-2023 Intel Corporation
+Copyright (C) 2018-2026 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -159,6 +159,11 @@ private:
   bool HasSrndBf16ToBf8 = false;
   bool HasSrndBf16ToHf8 = false;
   bool HasSrndFp16ToHf8 = false;
+
+  bool HasDpasIntMix = false;
+  bool HasDpasInt2 = false;
+  bool HasDpasHalfAcc = false;
+  bool HasDpasBF16Acc = false;
 
   unsigned GrfWidth = 256;
   std::unordered_set<unsigned> SupportedGrfNums;

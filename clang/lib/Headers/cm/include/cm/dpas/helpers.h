@@ -15,30 +15,19 @@ static_assert(0, "CM:w:dpas/helpers.h should not be included explicitly");
 
 #include <cm/cm_common.h>
 
-#if __CM_INTEL_TARGET_MAJOR < 35
-#define CM_HAS_DPAS_INT_MIX 1
-#define CM_HAS_DPAS_INT2 1
-#endif
-
 #define CM_HAS_DPAS_INT4 1
 #define CM_HAS_DPAS_INT8 1
 
-#ifdef __CM_INTEL_TARGET_PVC_OR_ABOVE
-// FIXME: get these macros from the platforms table
-#define CM_HAS_DPAS_ACC_HALF 1
-#define CM_HAS_DPAS_ACC_BF16 1
-#endif
-
 enum class CmPrecisionType {
-  CM_Precision_U2 = 2,   // unsigned 2 bits
-  CM_Precision_S2 = 3,   // signed 2 bits
-  CM_Precision_U4 = 4,   // unsigned 4 bits
-  CM_Precision_S4 = 5,   // signed 4 bits
-  CM_Precision_U8 = 6,   // unsigned 8 bits
-  CM_Precision_S8 = 7,   // signed 8 bits
-  CM_Precision_BF16 = 8, // bfloat16
-  CM_Precision_FP16 = 9, // half float
-  CM_Precision_BF8 = 10, // bfloat8
+  CM_Precision_U2 = 2,    // unsigned 2 bits
+  CM_Precision_S2 = 3,    // signed 2 bits
+  CM_Precision_U4 = 4,    // unsigned 4 bits
+  CM_Precision_S4 = 5,    // signed 4 bits
+  CM_Precision_U8 = 6,    // unsigned 8 bits
+  CM_Precision_S8 = 7,    // signed 8 bits
+  CM_Precision_BF16 = 8,  // bfloat16
+  CM_Precision_FP16 = 9,  // half float
+  CM_Precision_BF8 = 10,  // bfloat8
   CM_Precision_TF32 = 11, // tensorfloat 32
   CM_Precision_HF8 = 13,  // hfloat8
   CM_Precision_E2M1 = 14, // fp4, 2-bit exponent, 1-bit mantissa
@@ -195,8 +184,12 @@ constexpr bool is_valid_dpas_tf32(CmPrecisionType Src1Ty,
 template <typename ResTy, typename AccTy>
 constexpr bool is_valid_dpas_fp8(CmPrecisionType Src1Ty,
                                  CmPrecisionType Src2Ty) {
-  // FIXME: add support for __bf16 accumulator
   auto IsValid = is_one_of_v<ResTy, float> && is_one_of_v<AccTy, float>;
+#if defined(CM_HAS_BF16)
+  IsValid |=
+      is_one_of_v<ResTy, __bf16, short> && is_one_of_v<AccTy, __bf16, short>;
+#endif // defined(CM_HAS_BF16)
+
 
   bool IsSrc1Valid = false;
   bool IsSrc2Valid = false;
@@ -220,15 +213,16 @@ template <typename ResTy, typename AccTy>
 constexpr bool is_valid_dpas_fp4(CmPrecisionType Src1Ty,
                                  CmPrecisionType Src2Ty) {
 #ifdef CM_HAS_DPAS_FP4
-  // FIXME: add support for __bf16 accumulator
-  bool IsValid = is_one_of_v<ResTy, float> && is_one_of_v<AccTy, float>;
+  auto IsValid =
+      (is_one_of_v<ResTy, float> && is_one_of_v<AccTy, float>) ||
+      (is_one_of_v<ResTy, __bf16, short> && is_one_of_v<AccTy, __bf16, short>);
 
   IsValid &= Src1Ty == CmPrecisionType::CM_Precision_E2M1;
 
   IsValid &= Src2Ty == CmPrecisionType::CM_Precision_E2M1;
 
   return IsValid;
-#else // CM_HAS_DPAS_FP4
+#else  // CM_HAS_DPAS_FP4
   return false;
 #endif // CM_HAS_DPAS_FP4
 }

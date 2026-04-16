@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2018-2023 Intel Corporation
+Copyright (C) 2018-2026 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -188,6 +188,15 @@ void GenXTargetInfo::getTargetDefines(const LangOptions &Opts,
     Builder.defineMacro("CM_HAS_SRND_FP16_TO_HF8", "1");
   if (HasDpasHf8)
     Builder.defineMacro("CM_HAS_DPAS_HF8", "1");
+
+  if (HasDpasIntMix)
+    Builder.defineMacro("CM_HAS_DPAS_INT_MIX", "1");
+  if (HasDpasInt2)
+    Builder.defineMacro("CM_HAS_DPAS_INT2", "1");
+  if (HasDpasHalfAcc)
+    Builder.defineMacro("CM_HAS_DPAS_ACC_HALF", "1");
+  if (HasDpasBF16Acc)
+    Builder.defineMacro("CM_HAS_DPAS_ACC_BF16", "1");
 
   if (HasSLMCasInt64)
     Builder.defineMacro("CM_HAS_SLM_CAS_INT64", "1");
