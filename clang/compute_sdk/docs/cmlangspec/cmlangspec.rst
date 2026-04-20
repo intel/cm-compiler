@@ -10612,10 +10612,10 @@ the macros defined in the table.
 
 ``float``             CM_PRECISION_TF32        1       ``CM_HAS_TF32``
 
-``float``             CM_PRECISION_BF8,        4       ``CM_HAS_DPAS_BF8``,
+``float``, ``bfloat`` CM_PRECISION_BF8,        4       ``CM_HAS_DPAS_BF8``,
                       CM_PRECISION_HF8                 ``CM_HAS_DPAS_HF8``
 
-``float``             CM_PRECISION_E2M1        8       ``CM_HAS_DPAS_FP4``
+``float``, ``bfloat`` CM_PRECISION_E2M1        8       ``CM_HAS_DPAS_FP4``
 ===================== ================== ============= ========================
 
 
