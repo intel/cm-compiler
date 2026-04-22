@@ -3268,7 +3268,7 @@ def warn_attribute_wrong_annoation : Warning<
   InGroup<IgnoredAttributes>;
 def warn_buffer_not_supported_on_target : Warning<
   "stateful buffer '%0' is not supported by the level zero runtime on the given target">,
-  InGroup<IgnoredAttributes>;
+  InGroup<CMBufferNotSupported>;
 def warn_type_attribute_wrong_type : Warning<
   "'%0' only applies to %select{function|pointer|"
   "Objective-C object or block pointer}1 types; type here is %2">,

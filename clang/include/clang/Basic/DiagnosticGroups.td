@@ -664,6 +664,7 @@ def NSReturnsMismatch : DiagGroup<"nsreturns-mismatch">;
 def IndependentClassAttribute : DiagGroup<"IndependentClass-attribute">;
 def UnknownAttributes : DiagGroup<"unknown-attributes">;
 def IgnoredAttributes : DiagGroup<"ignored-attributes">;
+def CMBufferNotSupported : DiagGroup<"cm-buffer-not-supported">;
 def Attributes : DiagGroup<"attributes", [UnknownAttributes,
                                           IgnoredAttributes]>;
 def UnknownSanitizers : DiagGroup<"unknown-sanitizers">;
