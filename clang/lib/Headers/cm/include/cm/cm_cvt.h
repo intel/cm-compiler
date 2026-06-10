@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2020-2024 Intel Corporation
+Copyright (C) 2020-2026 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -14,17 +14,17 @@ static_assert(0, "CM:w:cm_cvt.h should not be included explicitly");
 #define _CLANG_CM_CVT_H_
 
 #include "cm_common.h"
+#include "cm_has_instr.h"
 #include "cm_internal.h"
 #include "cm_traits.h"
-#include "cm_has_instr.h"
 
 #include "spirv/extensions/intel/bfloat16_conversion.h"
 
 template <typename T, typename T0, int N>
 CM_NODEBUG CM_INLINE vector<T, N> cm_qf_cvt(vector<T0, N> src0,
                                             int flag = _GENX_NOSAT) {
-  //Check: platform has bf8 type.
-  //qf is an alias of bf8.
+  // Check: platform has bf8 type.
+  // qf is an alias of bf8.
   CM_HAS_BF8_CONTROL;
 
   constexpr bool is_bf8_hf16 =
@@ -67,7 +67,7 @@ CM_NODEBUG CM_INLINE vector<T, N> cm_qf_cvt(vector<T0, N> src0,
 template <typename T, typename T0, int N1, int N2>
 CM_NODEBUG CM_INLINE vector<T, N1 * N2> cm_qf_cvt(matrix<T0, N1, N2> src,
                                                   int flag = _GENX_NOSAT) {
-  vector<T0, N1 *N2> _Src = src;
+  vector<T0, N1 * N2> _Src = src;
   return cm_qf_cvt<T>(_Src, flag);
 }
 
@@ -99,7 +99,7 @@ CM_NODEBUG CM_INLINE vector<T, N1 * N2> cm_bf8_cvt(matrix<T0, N1, N2> src,
                                                    int flag = _GENX_NOSAT) {
   CM_HAS_BF8_CONTROL;
 
-  vector<T0, N1 *N2> _Src = src;
+  vector<T0, N1 * N2> _Src = src;
   return cm_qf_cvt<T>(_Src, flag);
 }
 
@@ -128,8 +128,9 @@ CM_NODEBUG CM_INLINE vector<T, N> cm_hf8_cvt(vector<T0, N> src0,
       details::is_one_of_v<T, half> && details::is_one_of_v<T0, char>;
 
   CM_STATIC_ERROR((is_hf8_hf16 || is_hf16_hf8),
-                  "unsupported cm_hf8_cvt type: src->dst must be char->half or "
-                  "half->char for conversion ");
+                  "unsupported cm_hf8_cvt type: "
+                  "src->dst must be char->half or "
+                  "half->char for conversion");
 
   vector<T0, N> _Src0 = src0;
   vector<T, N> _Result = details::__cm_intrinsic_impl_hf8_cvt<T>(_Src0);
@@ -143,7 +144,7 @@ CM_NODEBUG CM_INLINE vector<T, N> cm_hf8_cvt(vector<T0, N> src0,
 template <typename T, typename T0, int N1, int N2>
 CM_NODEBUG CM_INLINE vector<T, N1 * N2> cm_hf8_cvt(matrix<T0, N1, N2> src,
                                                    int flag = _GENX_NOSAT) {
-  vector<T0, N1 *N2> _Src = src;
+  vector<T0, N1 * N2> _Src = src;
   return cm_hf8_cvt<T>(_Src, flag);
 }
 
@@ -194,10 +195,10 @@ cm_bf_cvt(matrix<SrcTy, Height, Width> Src) {
 
 template <typename DstTy, typename SrcTy>
 CM_NODEBUG CM_INLINE
-typename std::enable_if<details::is_cm_scalar<DstTy>::value &&
-                        details::is_cm_scalar<SrcTy>::value,
-                        typename std::remove_const<DstTy>::type>::type
-cm_bf_cvt(SrcTy Src) {
+    typename std::enable_if<details::is_cm_scalar<DstTy>::value &&
+                                details::is_cm_scalar<SrcTy>::value,
+                            typename std::remove_const<DstTy>::type>::type
+    cm_bf_cvt(SrcTy Src) {
   vector<SrcTy, 1> _Src = Src;
   vector<DstTy, 1> _Result = cm_bf_cvt<DstTy>(_Src);
   return _Result[0];
@@ -216,11 +217,10 @@ CM_NODEBUG CM_INLINE vector<T, N> cm_tf32_cvt(vector<T0, N> src0) {
 }
 
 template <typename T, typename T0, int N1, int N2>
-CM_NODEBUG CM_INLINE vector<T, N1 * N2>
-cm_tf32_cvt(matrix<T0, N1, N2> src) {
+CM_NODEBUG CM_INLINE vector<T, N1 * N2> cm_tf32_cvt(matrix<T0, N1, N2> src) {
   CM_HAS_TF32_CONTROL;
 
-  vector<T0, N1 *N2> _Src = src;
+  vector<T0, N1 * N2> _Src = src;
   return cm_tf32_cvt<T>(_Src);
 }
 

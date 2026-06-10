@@ -1,6 +1,6 @@
 /*========================== begin_copyright_notice ============================
 
-Copyright (C) 2024 Intel Corporation
+Copyright (C) 2026 Intel Corporation
 
 SPDX-License-Identifier: MIT
 
@@ -70,6 +70,16 @@ template <downscale::Type OutputTy>
 struct Downscale4bitCvtType<int16_t, OutputTy>
     : std::integral_constant<uint8_t, OutputTy> {};
 
+template <typename InputTy> struct IsDownscale4bitInputType : std::false_type {};
+
+template <> struct IsDownscale4bitInputType<half> : std::true_type {};
+
+#ifdef CM_HAS_BF16
+template <> struct IsDownscale4bitInputType<__bf16> : std::true_type {};
+#endif // CM_HAS_BF16
+
+template <> struct IsDownscale4bitInputType<int16_t> : std::true_type {};
+
 enum RoundingMode {
   Biased = 0,
   RTNE = 1,
@@ -80,26 +90,24 @@ template <downscale::Type OutputTy, downscale::Mode Mode, typename InputTy,
 CM_NODEBUG CM_INLINE void downscale_check() {
   CM_HAS_DOWNSCALE_4BIT_CONTROL;
 
-  constexpr bool IsValidInputTy = is_one_of_v<InputTy, half,
-#ifdef CM_HAS_BF16
-                                              __bf16,
-#endif // CM_HAS_BF16
-                                              int16_t>;
+  constexpr bool IsValidInputTy = IsDownscale4bitInputType<InputTy>::value;
+  CM_STATIC_ERROR(IsValidInputTy,
+                  "Such InputTy is not supported");
 
   CM_STATIC_ERROR(OutputTy == downscale::E2M1 || OutputTy == downscale::Int4,
-                  "downscale::E2M1 or downscale::Int4");
+                  "OutputTy must be downscale::E2M1 or downscale::Int4");
   CM_STATIC_ERROR(Mode == downscale::Mode0 || Mode == downscale::Mode1 ||
-                      Mode == downscale::Mode2 || Mode == downscale::Mode3,
+                  Mode == downscale::Mode2 || Mode == downscale::Mode3,
                   "Mode must be downscale::Mode0, downscale::Mode1, "
                   "downscale::Mode2 or downscale::Mode3");
-  CM_STATIC_ERROR(IsValidInputTy, "InputTy must be half, bfloat16 or int16_t");
   CM_STATIC_ERROR(Width % 2 == 0, "Width must be even");
 }
 } // namespace details
 
 template <downscale::Type OutputTy, downscale::Mode Mode, typename InputTy,
-          unsigned Width>
-CM_NODEBUG CM_INLINE vector<uint32_t, Width / 2>
+          unsigned Width,
+          unsigned IntrWidth = Width * sizeof(InputTy) / sizeof(uint32_t)>
+CM_NODEBUG CM_INLINE vector<uint32_t, IntrWidth>
 cm_downscale(vector<InputTy, Width> Src0, vector<InputTy, Width> Src1) {
   details::downscale_check<OutputTy, Mode, InputTy, Width>();
 
@@ -108,20 +116,23 @@ cm_downscale(vector<InputTy, Width> Src0, vector<InputTy, Width> Src1) {
 
   auto _Src0 = Src0.template format<uint32_t>();
   auto _Src1 = Src1.template format<uint32_t>();
-  vector<uint32_t, Width / 2> Undef;
+  vector<uint32_t, IntrWidth> Undef;
 
   return details::__cm_intrinsic_impl_downconvert_4bit(
       _Src0, _Src1, Undef, CvtType, Mode, details::RTNE);
 }
 
 template <downscale::Type OutTy, downscale::Mode Mode, typename Ty,
-          unsigned Width>
-CM_NODEBUG CM_INLINE vector<uint32_t, Width / 2>
+          unsigned Width, unsigned BiasWidth>
+CM_NODEBUG CM_INLINE vector<uint32_t, BiasWidth>
 cm_downscale(vector<Ty, Width> Src0, vector<Ty, Width> Src1,
-             vector<uint32_t, Width / 2> Bias) {
+             vector<uint32_t, BiasWidth> Bias) {
   details::downscale_check<OutTy, Mode, Ty, Width>();
 
   constexpr auto CvtType = details::Downscale4bitCvtType<Ty, OutTy>::value;
+  constexpr unsigned IntrWidth = Width * sizeof(Ty) / sizeof(uint32_t);
+  static_assert(IntrWidth == BiasWidth,
+                "Bias width must match formatted input width");
 
   auto _Src0 = Src0.template format<uint32_t>();
   auto _Src1 = Src1.template format<uint32_t>();

@@ -1,6 +1,6 @@
 .. ========================= begin_copyright_notice ============================
 
-  Copyright (C) 2021-2025 Intel Corporation
+  Copyright (C) 2021-2026 Intel Corporation
 
   SPDX-License-Identifier: MIT
 
@@ -102,9 +102,9 @@ further information.
 1.2 Definitions, Acronyms, and Abbreviation
 -------------------------------------------
 
-=========== ====================================================================
+=========== ============================================================================
 Term        Description
-=========== ====================================================================
+=========== ============================================================================
 C++  FE     Standard Intel(R) C++ Compiler Front-End
 CM FE       C for Metal Compiler Front-End
 SIMD        Single Instruction Multiple Data
@@ -129,10 +129,13 @@ U64         64-bit unsigned integer
 S64         64-bit signed integer
 HF or F16   16-bit floating point in IEEE-754 binary16 format
 BF or BF16  16-bit floating point format with 7-bit exponent and 8-bit mantissa
-BF8         8-bit floating point format with 5-bit exponent and 2-bit mantissa
-HF8         8-bit floating point format with 4-bit exponent and 3-bit mantissa
-TF32        Tensor 32-bit precision floating point data type
-=========== ====================================================================
+BF8 or E5M2 8-bit floating point format with 5-bit exponent and 2-bit mantissa
+HF8 or E4M3 8-bit floating point format with 4-bit exponent and 3-bit mantissa
+TF32        32-bit tensor precision floating point data type
+E8M0        8-bit unsigned floating point format with 8-bit exponent and no mantissa
+E2M1        4-bit floating point format with 2-bit exponent and 1-bit mantissa
+=========== ============================================================================
+
 
 
 1.3 References and Related Information
@@ -2194,7 +2197,6 @@ cm_hf8_cvt
 ^^^^^^^^^^
 
 HF8 to HF or HF to HF8 conversion.
-
 * Template parameter 1: Destination type
 
 * Parameter 1: vector/matrix/scalar
@@ -2455,15 +2457,17 @@ cm_downscale
 .. code-block:: c++
 
   template <downscale::Type OutputTy, downscale::Mode Mode, typename InputTy,
-            unsigned Width>
-  vector<uint32_t, Width / 2> cm_downscale(vector<InputTy, Width> Src0,
+            unsigned Width,
+            unsigned IntrWidth = Width * sizeof(InputTy) / sizeof(uint32_t)>
+  vector<uint32_t, IntrWidth> cm_downscale(vector<InputTy, Width> Src0,
                                            vector<InputTy, Width> Src1);
 
   template <downscale::Type OutputTy, downscale::Mode Mode, typename InputTy,
-            unsigned Width>
-  vector<uint32_t, Width / 2> cm_downscale(vector<InputTy, Width> Src0,
+            unsigned Width,
+            unsigned IntrWidth = Width * sizeof(InputTy) / sizeof(uint32_t)>
+    vector<uint32_t, IntrWidth> cm_downscale(vector<InputTy, Width> Src0,
                                            vector<InputTy, Width> Src1,
-                                           vector<uint32_t, Width / 2> Bias);
+                                           vector<uint32_t, IntrWidth> Bias);
 
 Downscale operation for converting ``half`` and ``bfloat16`` values into 4-bit
 floating point or integer values.
@@ -10485,7 +10489,7 @@ The matrix parameters are defined as follows:
 * K - number of columns in matrix A and rows in matrix B.
 
 The matrix multiplication operations support the following data types,
-represented by enum values and passed as template parameters:
+represented by ``CmPrecisionType`` enum values and passed as template parameters:
 
 * ``CM_PRECISION_U2`` - 2-bit unsigned integer.
 * ``CM_PRECISION_S2`` - 2-bit signed integer.
@@ -10695,7 +10699,8 @@ operation using block scaling format that supports the following interface:
 .. code-block:: c++
 
   template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
-            int SystolicDepth, int RepeatCount, typename ResTy>
+            int SystolicDepth, int RepeatCount, typename ResTy, 
+            CmBlockScaleType ScaleTy = CM_BLOCK_SCALE_E8M0>
   vector<ResTy, AccSize> cm_bdpas(vector<AccTy, AccSize> Acc,
                                   vector<Src1Ty, Src1Size> Src1,
                                   vector<Src2Ty, Src2Size> Src2,
@@ -10703,7 +10708,8 @@ operation using block scaling format that supports the following interface:
                                   vector<uint8_t, Src2ScaleSize> Src2Scale);
 
   template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
-            int SystolicDepth, int RepeatCount>
+            int SystolicDepth, int RepeatCount,
+            CmBlockScaleType ScaleTy = CM_BLOCK_SCALE_E8M0>
   vector<AccTy, AccSize> cm_bdpas(vector<AccTy, AccSize> Acc,
                                   vector<Src1Ty, Src1Size> Src1,
                                   vector<Src2Ty, Src2Size> Src2,
@@ -10711,7 +10717,8 @@ operation using block scaling format that supports the following interface:
                                   vector<uint8_t, Src2ScaleSize> Src2Scale);
 
   template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
-            int SystolicDepth, int RepeatCount, typename ResTy>
+            int SystolicDepth, int RepeatCount, typename ResTy,
+            CmBlockScaleType ScaleTy = CM_BLOCK_SCALE_E8M0>
   vector<ResTy, AccSize> cm_bdpas(vector<AccTy, AccSize> Acc,
                                   vector<Src1Ty, Src1Size> Src1,
                                   vector<Src2Ty, Src2Size> Src2,
@@ -10719,7 +10726,8 @@ operation using block scaling format that supports the following interface:
                                   vector<uint8_t, Src2ScaleSize> Src2Scale);
 
   template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
-            int SystolicDepth, int RepeatCount>
+            int SystolicDepth, int RepeatCount,
+            CmBlockScaleType ScaleTy = CM_BLOCK_SCALE_E8M0>
   vector<AccTy, AccSize> cm_bdpas(vector<AccTy, AccSize> Acc,
                                   vector<Src1Ty, Src1Size> Src1,
                                   vector<Src2Ty, Src2Size> Src2,
@@ -10727,14 +10735,16 @@ operation using block scaling format that supports the following interface:
                                   vector<uint8_t, Src2ScaleSize> Src2Scale);
 
   template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
-            int SystolicDepth, int RepeatCount, typename ResTy>
+            int SystolicDepth, int RepeatCount, typename ResTy,
+            CmBlockScaleType ScaleTy = CM_BLOCK_SCALE_E8M0>
   vector<ResTy, AccSize> cm_bdpas(vector<AccTy, AccSize> Acc,
                                   vector<Src1Ty, Src1Size> Src1,
                                   vector<Src2Ty, Src2Size> Src2,
                                   vector<uint8_t, Src1ScaleSize> Src1Scale);
 
   template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
-            int SystolicDepth, int RepeatCount>
+            int SystolicDepth, int RepeatCount,
+            CmBlockScaleType ScaleTy = CM_BLOCK_SCALE_E8M0>
   vector<AccTy, AccSize> cm_bdpas(vector<AccTy, AccSize> Acc,
                                   vector<Src1Ty, Src1Size> Src1,
                                   vector<Src2Ty, Src2Size> Src2,
@@ -10742,7 +10752,8 @@ operation using block scaling format that supports the following interface:
 
   template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
             int SystolicDepth, int RepeatCount, typename ResTy, typename Src1Ty,
-            typename Src2Ty, int AccSize>
+            typename Src2Ty, int AccSize,
+            CmBlockScaleType ScaleTy = CM_BLOCK_SCALE_E8M0>
   vector<ResTy, AccSize> cm_bdpas(int Null,  // dummy parameter, must be NULL
                                   vector<Src1Ty, Src1Size> Src1,
                                   vector<Src2Ty, Src2Size> Src2,
@@ -10751,7 +10762,8 @@ operation using block scaling format that supports the following interface:
 
   template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
             int SystolicDepth, int RepeatCount, typename ResTy, typename Src1Ty,
-            typename Src2Ty, int AccSize>
+            typename Src2Ty, int AccSize,
+            CmBlockScaleType ScaleTy = CM_BLOCK_SCALE_E8M0>
   vector<ResTy, AccSize> cm_bdpas(int Null,
                                   vector<Src1Ty, Src1Size> Src1,
                                   vector<Src2Ty, Src2Size> Src2,
@@ -10760,35 +10772,82 @@ operation using block scaling format that supports the following interface:
 
   template <CmPrecisionType Src1Precision, CmPrecisionType Src2Precision,
             int SystolicDepth, int RepeatCount, typename ResTy, typename Src1Ty,
-            typename Src2Ty, int AccSize>
+            typename Src2Ty, int AccSize,
+            CmBlockScaleType ScaleTy = CM_BLOCK_SCALE_E8M0>
   vector<ResTy, AccSize> cm_bdpas(int Null,  // dummy parameter, must be NULL
                                   vector<Src1Ty, Src1Size> Src1,
                                   vector<Src2Ty, Src2Size> Src2,
                                   vector<uint8_t, Src1ScaleSize> Src1Scale);
 
-=============== ===============================================================
-Parameter       Description
-=============== ===============================================================
-Src1Scale       Scaling factor for matrix B in E8M0 format.
-                When NULL the scaling elements are 1.0f.
+==================== ========================================================================
+Parameter            Description
+==================== ========================================================================
+Src1Precision        Precision of the elements in matrix B, passed as Src1.
+                     Must be one of the ``CM_PRECISION_*`` enum values.
+                     Only the 16-bit, 8-bit and 4-bit floating point formats are supported.
 
-Src2Scale       Scaling factor for matrix A in E8M0 format.
-                When NULL or omitted the scaling elements are 1.0f.
+Src2Precision        Precision of the elements in matrix A, passed as Src2.
+                     Must be one of the ``CM_PRECISION_*`` enum values.
+                     Only the 16-bit, 8-bit and 4-bit floating point formats are supported.
 
-Src1ScaleSize   Must be equal to number of columns in the matrix B.
-                Doubled for the 4-bit floating point formats.
+RepeatCount          The matrix multiplication *M* dimension, i.e. the number of
+                     rows in A, C and D matrices. Must be 8.
 
-Src2ScaleSize   Must be equal to number of rows in the matrix A.
-                Doubled for the 4-bit floating point formats.
-=============== ===============================================================
+SystolicDepth        Systolic depth of the matrix multiplication operation. 
+                     The systolic depth is used to calculate the matrix multiplication *K* 
+                     dimension. The *K* dimension is calculated as the product of the systolic
+                     depth and the number of operations per channel ``OpsPerChannel``.
 
-The following restrictions are applied to the functions:
-* RepeatCount must be 8.
-* Only the 16-bit, 8-bit and 4-bit floating point formats are supported.
-* Both Src1Scale and Src2Scale cannot be NULL.
+                     The *K* dimension is equal to the number of columns in
+                     matrix A and the number of rows in matrix B.
+
+                     The systolic depth must be equal to 8.
+
+ScaleTy              Scaling factor type. See ``CmBlockScaleType`` enum values below. 
+
+Src1Scale            Scaling factor for matrix B in ``ScaleTy`` format.
+                     When NULL the scaling elements are 1.0f.
+                     Both Src1Scale and Src2Scale cannot be NULL.
+
+Src2Scale            Scaling factor for matrix A in ``ScaleTy`` format.
+                     When NULL or omitted the scaling elements are 1.0f.
+                     Both Src1Scale and Src2Scale cannot be NULL.
+
+Src1ScaleSize        Depends on ``SystolicDepth``, ``Src1Precision`` and ``ScaleTy``:
+                     ``max(1, K / BDpasScaleBlockSize(ScaleTy)) * ExecSize``.
+
+Src2ScaleSize        Depends on ``SystolicDepth``, ``RepeatCount``, ``Src2Precision`` and
+                     ``ScaleTy``: ``max(1, K / BDpasScaleBlockSize(ScaleTy)) * RepeatCount``.
+
+ExecSize             The number of 32-bit elements per register.
+
+BDpasScaleBlockSize  The block size for the scaling factors, depends on 
+                     the ``ScaleTy`` value. it's 32 for ``CM_BLOCK_SCALE_E8M0``
+==================== ========================================================================
+
+OpsPerChannel per source precision is calculated as follows:
+
+=========================== =============
+Precision                   OpsPerChannel
+=========================== =============
+``CM_PRECISION_BF``         2
+``CM_PRECISION_HF``         2
+``CM_PRECISION_BF8``        4
+``CM_PRECISION_HF8``        4
+``CM_PRECISION_E2M1``       8
+=========================== =============
 
 These functions are target-dependent and only available when the ``CM_HAS_BDPAS``
 macro is defined.
+
+Scaling factor type is represented by ``CmBlockScaleType`` enum values and 
+passed as template parameters:
+
+* ``CM_BLOCK_SCALE_E8M0`` - E8M0 floating-point format.
+
+For backward compatibility, ``ScaleTy`` may also be provided as the 6th explicitly
+specified template argument in forms such as
+``cm_bdpas<Src1Precision, Src2Precision, SystolicDepth, RepeatCount, ResTy, ScaleTy>(...)``.
 
 
 4.21 Preprocessor Directives
