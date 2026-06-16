@@ -2197,14 +2197,37 @@ cm_hf8_cvt
 ^^^^^^^^^^
 
 HF8 to HF or HF to HF8 conversion.
-* Template parameter 1: Destination type
 
-* Parameter 1: vector/matrix/scalar
-* Parameter 2: flags (default is 0; use SAT for saturation);
-* Return: vector
+.. code-block:: c++
 
-Only char (used to represent HF8 internally) and HF type are supported. If
-source is char, destination must be HF. Otherwise destination must be char.
+  template <typename DstTy>
+  vector<DstTy, N> cm_hf8_cvt(vector<SrcTy, N> src0, int flag = _GENX_NOSAT);
+
+  template <typename DstTy>
+  vector<DstTy, N1 * N2> cm_hf8_cvt(matrix<SrcTy, N1, N2> src, int flag = _GENX_NOSAT);
+
+  template <typename DstTy>
+  DstTy cm_hf8_cvt(SrcTy src, int flag = _GENX_NOSAT);
+
+
+============== =================================================================
+Parameters     Description
+============== =================================================================
+DstTy          Destination type, must be ``half`` or ``char``.
+               The latter is used to represent HF8 internally.
+               When destination type is ``half``, source must be ``char``.
+
+SrcTy          Source type, must be ``half`` or ``char``.
+               The latter is used to represent HF8 internally.
+               When source type is ``char``, destination must be ``half``.
+
+N              SIMD width of the operation.
+
+N1, N2         Height and width of input matrix respectively.
+               The size of the matrix (N1*N2) must be equal to SIMD width N.
+
+flag           Saturation flag, default is 0. Use SAT for saturation.
+============== =================================================================
 
 These functions are target-dependent and only available
 when ``CM_HAS_HF8`` macro is defined.
@@ -2503,11 +2526,10 @@ Src0           The first input vector. Must be of the same type as the
 Src1           The second input vector. Must be of the same type as the
                ``InputTy`` template parameter.
 
-Bias           The bias vector. The width of the bias vector must be equal to
-               half the width of the Src0 and Src1 vectors. Optional. If the
-               Bias is present, the stochastic/biased rounding is performed. If
-               the Bias is omitted, the rounding to nearest or even is
-               performed.
+Bias           The bias vector. The width of the bias vector must be half the
+               width of the Src0 and Src1 vectors. Optional. If provided,
+               stochastic/biased rounding is performed. If omitted, rounding to
+               nearest even is performed.
 ============== =================================================================
 
 These functions are target-dependent and only available when
@@ -10651,6 +10673,7 @@ operation that supports the following interface:
 
 The following restrictions are applied to the functions:
 * RepeatCount must be from 1 to 8.
+
 
 These functions are target-dependent and only available when the ``CM_HAS_DPAS``
 macro is defined.
