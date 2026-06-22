@@ -40,7 +40,7 @@ CM_NODEBUG CM_INLINE void dpasw_check_common() {
   CM_STATIC_ERROR((is_valid_dpas<AccTy, AccTy>(Src1Ty, Src2Ty)),
                   "Invalid combination of DPASW data types");
 
-  CM_STATIC_ERROR(is_valid_repeat_count(RepeatCount, Src1Ty),
+  CM_STATIC_ERROR(is_valid_repeat_count(RepeatCount, Src1Ty, Src2Ty),
                   "Invalid repeat count for DPASW operation");
   CM_STATIC_ERROR(SystolicDepth == 8,
                   "Systolic depth must be 8 for DPASW operation");

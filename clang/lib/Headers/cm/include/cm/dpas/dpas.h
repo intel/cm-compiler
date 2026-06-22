@@ -41,7 +41,7 @@ CM_NODEBUG CM_INLINE void dpas_check_common() {
   constexpr bool IsValidDpas = is_valid_dpas<ResTy, AccTy>(Src1Ty, Src2Ty);
   CM_STATIC_ERROR(IsValidDpas, "Invalid combination of DPAS data types");
 
-  CM_STATIC_ERROR(is_valid_repeat_count(RepeatCount, Src1Ty),
+  CM_STATIC_ERROR(is_valid_repeat_count(RepeatCount, Src1Ty, Src2Ty),
                   "Invalid repeat count for DPAS operation");
   CM_STATIC_ERROR(SystolicDepth == 8,
                   "Systolic depth must be 8 for DPAS operation");

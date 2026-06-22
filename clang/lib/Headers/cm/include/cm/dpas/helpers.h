@@ -71,6 +71,7 @@ inline constexpr unsigned get_dpas_precision_bits(CmPrecisionType Ty) {
   return 0;
 }
 
+
 inline constexpr unsigned get_dpas_ops_per_channel(CmPrecisionType Src1Ty,
                                                    CmPrecisionType Src2Ty) {
   auto Src1Bits = get_dpas_precision_bits(Src1Ty);
@@ -127,9 +128,11 @@ constexpr bool is_valid_dpas_int(CmPrecisionType Src1Ty,
                  is_one_of_v<ResTy, int, unsigned> &&
                  is_one_of_v<AccTy, int, unsigned>;
 
-#if !defined(CM_HAS_DPAS_INT_MIX)
-  IsValid &= get_dpas_precision_bits(Src1Ty) == get_dpas_precision_bits(Src2Ty);
-#endif // !defined(CM_HAS_DPAS_INT_MIX)
+#ifndef CM_HAS_DPAS_INT_MIX
+  bool IsSamePrecision =
+      get_dpas_precision_bits(Src1Ty) == get_dpas_precision_bits(Src2Ty);
+  IsValid &= IsSamePrecision;
+#endif // CM_HAS_DPAS_INT_MIX
 
   return IsValid;
 }
@@ -239,9 +242,10 @@ constexpr bool is_valid_dpas(CmPrecisionType Src1Ty, CmPrecisionType Src2Ty) {
   return IsValid;
 }
 
-constexpr bool is_valid_repeat_count(int RepeatCount,
-                                     CmPrecisionType Precision) {
-  (void)Precision;
+constexpr bool is_valid_repeat_count(int RepeatCount, CmPrecisionType Src1Ty,
+                                     CmPrecisionType Src2Ty) {
+  (void)Src1Ty;
+  (void)Src2Ty;
   return RepeatCount >= 1 && RepeatCount <= 8;
 }
 
