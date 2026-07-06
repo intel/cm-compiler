@@ -54,10 +54,69 @@ inline constexpr CM3DSampleOp &operator|=(CM3DSampleOp &L, CM3DSampleOp R) {
 #define CM_3D_SAMPLE_CPS_LOD_COMP_ENABLE                                       \
   CM3DSampleOp::_CM_3D_SAMPLE_CPS_LOD_COMP_ENABLE
 
+namespace details {
 template <CM3DSampleOp Op, ChannelMaskType Ch, typename T, int N,
           typename... Args>
-void cm_3d_sample(vector_ref<T, N> Dst, uint16_t AOffImmI, SamplerIndex Sampler,
-                  SurfaceIndex Image, Args... Srcs);
+void __cm_intrinsic_impl_3d_sample(vector_ref<T, N> Dst, uint16_t AOffImmI,
+                                   SamplerIndex Sampler, SurfaceIndex Image,
+                                   Args... Srcs);
+} // namespace details
+
+template <CM3DSampleOp Op, ChannelMaskType Ch, typename T, int N,
+          typename... Args>
+CM_NODEBUG CM_INLINE void
+cm_3d_sample(vector_ref<T, N> Dst, uint16_t AOffImmI, SamplerIndex Sampler,
+             SurfaceIndex Image, Args... Srcs) {
+  details::__cm_intrinsic_impl_3d_sample<Op, Ch>(Dst, AOffImmI, Sampler, Image,
+                                                  Srcs...);
+}
+
+#ifdef CM_HAS_3D_SAMPLE_HALF
+#define CM_HAS_3D_SAMPLE_HALF_CONTROL CM_HAS_CONTROL(true)
+#else
+#define CM_HAS_3D_SAMPLE_HALF_CONTROL CM_HAS_CONTROL(false)
+#endif // CM_HAS_3D_SAMPLE_HALF
+
+template <CM3DSampleOp Op, ChannelMaskType Ch, typename T, int N, int M,
+          typename... Args>
+CM_NODEBUG CM_INLINE void
+cm_3d_sample(vector_ref<T, N> Dst, uint16_t AOffImmI, SamplerIndex Sampler,
+             SurfaceIndex Image, vector<half, M> Src0, Args... Srcs) {
+  CM_HAS_3D_SAMPLE_HALF_CONTROL;
+  details::__cm_intrinsic_impl_3d_sample<Op, Ch>(Dst, AOffImmI, Sampler, Image,
+                                                  Src0, Srcs...);
+}
+
+template <CM3DSampleOp Op, ChannelMaskType Ch, typename T, int N, int M,
+          typename... Args>
+CM_NODEBUG CM_INLINE void
+cm_3d_sample(vector_ref<T, N> Dst, uint16_t AOffImmI, SamplerIndex Sampler,
+             SurfaceIndex Image, vector_ref<half, M> Src0, Args... Srcs) {
+  CM_HAS_3D_SAMPLE_HALF_CONTROL;
+  details::__cm_intrinsic_impl_3d_sample<Op, Ch>(Dst, AOffImmI, Sampler, Image,
+                                                  Src0, Srcs...);
+}
+
+template <CM3DSampleOp Op, ChannelMaskType Ch, typename T, int N, int M1,
+          int M2, typename... Args>
+CM_NODEBUG CM_INLINE void
+cm_3d_sample(vector_ref<T, N> Dst, uint16_t AOffImmI, SamplerIndex Sampler,
+             SurfaceIndex Image, matrix<half, M1, M2> Src0, Args... Srcs) {
+  CM_HAS_3D_SAMPLE_HALF_CONTROL;
+  details::__cm_intrinsic_impl_3d_sample<Op, Ch>(Dst, AOffImmI, Sampler, Image,
+                                                  Src0, Srcs...);
+}
+
+template <CM3DSampleOp Op, ChannelMaskType Ch, typename T, int N, int M1,
+          int M2, typename... Args>
+CM_NODEBUG CM_INLINE void
+cm_3d_sample(vector_ref<T, N> Dst, uint16_t AOffImmI, SamplerIndex Sampler,
+             SurfaceIndex Image, matrix_ref<half, M1, M2> Src0,
+             Args... Srcs) {
+  CM_HAS_3D_SAMPLE_HALF_CONTROL;
+  details::__cm_intrinsic_impl_3d_sample<Op, Ch>(Dst, AOffImmI, Sampler, Image,
+                                                  Src0, Srcs...);
+}
 
 template <typename T, int N>
 CM_NODEBUG CM_INLINE std::enable_if_t<details::is_fp_or_dword_type<T>::value>

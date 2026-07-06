@@ -7144,8 +7144,10 @@ Op              Sample operation. Please refer to the table below to see what op
 ChannelMask     Channel mask selection. See section 4.4 for the permitted values.
 
 Srcs            Between 1 and 15 variadic arguments, each of which must be the same type
-                and be a vector or matrix of type ``float`` (``half`` is permitted on
-                Gen11 and newer).
+                and be a vector or matrix of type ``float`` or ``half``.
+
+                ``half`` support is target-dependent and only available when
+                the ``CM_HAS_3D_SAMPLE_HALF`` macro is defined.
 
                 The number of elements in each vector or matrix determines the SIMD
                 width of the operation.

@@ -368,6 +368,10 @@ CM_HAS_SRND_BF16_TO_HF8        Defined (with value 1) if the specified target su
                                operation for converting ``bfloat16`` type values into
                                ``hfloat8`` with stochastic rounding.
 
+CM_HAS_3D_SAMPLE_HALF          Defined (with value 1) if the specified target supports
+                               ``half`` data type as an input for the ``cm_3d_sample``
+                               built-in function.
+
 ============================== =======================================================
 
 

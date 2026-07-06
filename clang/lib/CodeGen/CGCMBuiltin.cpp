@@ -250,6 +250,7 @@ CMBuiltinKind CGCMRuntime::getCMBuiltinKind(StringRef MangledName) const {
             .StartsWith("__cm_intrinsic_impl_downconvert_4bit",
                         CMBK_cm_downconvert_4bit_impl)
             .StartsWith("__cm_intrinsic_impl_lfsr", CMBK_cm_lfsr_impl)
+            .StartsWith("__cm_intrinsic_impl_3d_sample", CMBK_cm_3d_sample)
             .StartsWith("__cm_intrinsic_impl_mxfp_reduce",
                         CMBK_cm_mxfp_reduce_impl)
             .StartsWith("__cm_intrinsic_impl_mxfp_linearize",
