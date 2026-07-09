@@ -123,18 +123,17 @@ constexpr bool is_valid_dpas_int_precision(CmPrecisionType Ty) {
 template <typename ResTy, typename AccTy>
 constexpr bool is_valid_dpas_int(CmPrecisionType Src1Ty,
                                  CmPrecisionType Src2Ty) {
-  bool IsValid = is_valid_dpas_int_precision(Src1Ty) &&
-                 is_valid_dpas_int_precision(Src2Ty) &&
-                 is_one_of_v<ResTy, int, unsigned> &&
-                 is_one_of_v<AccTy, int, unsigned>;
+  bool IsValidPrecision = is_valid_dpas_int_precision(Src1Ty) &&
+                          is_valid_dpas_int_precision(Src2Ty);
 
 #ifndef CM_HAS_DPAS_INT_MIX
-  bool IsSamePrecision =
+  // Without general int mixing, Src1 and Src2 must have the same precision...
+  IsValidPrecision &=
       get_dpas_precision_bits(Src1Ty) == get_dpas_precision_bits(Src2Ty);
-  IsValid &= IsSamePrecision;
 #endif // CM_HAS_DPAS_INT_MIX
 
-  return IsValid;
+  return IsValidPrecision && is_one_of_v<ResTy, int, unsigned> &&
+         is_one_of_v<AccTy, int, unsigned>;
 }
 
 template <typename ResTy, typename AccTy>
