@@ -4488,6 +4488,13 @@ Untyped 2D block load/store/prefetch
 These functions are target-dependent and only available
 when ``CM_HAS_LSC_UNTYPED_2D`` macro is defined.
 
+.. note::
+   Using these functions may have a negative performance impact, as the
+   descriptor needs to be built for every call. It is recommended to use
+   `Untyped descriptor based 2D block load/store/prefetch`_ instead, which
+   allows the descriptor to be built once and reused across multiple
+   operations.
+
 cm_ptr_load
 """""""""""
 .. code-block:: c++
