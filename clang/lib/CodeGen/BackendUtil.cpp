@@ -812,6 +812,11 @@ void EmitAssemblyHelper::CreatePasses(legacy::PassManager &MPM,
 }
 
 static void setCommandLineOpts(const CodeGenOptions &CodeGenOpts) {
+  // Parsing writes process-global cl::opt state, so skip it entirely when there
+  // is nothing to set and concurrent compilations would otherwise race.
+  if (CodeGenOpts.DebugPass.empty() && CodeGenOpts.LimitFloatPrecision.empty())
+    return;
+
   SmallVector<const char *, 16> BackendArgs;
   BackendArgs.push_back("clang"); // Fake program name.
   if (!CodeGenOpts.DebugPass.empty()) {
@@ -1487,8 +1492,11 @@ void EmitAssemblyHelper::EmitAssemblyWithNewPassManager(
     break;
 
   case Backend_EmitSPIRV:
-    assert(0);
-    break;
+    // An assert would vanish in release builds and silently emit nothing.
+    Diags.Report(Diags.getCustomDiagID(
+        DiagnosticsEngine::Error,
+        "SPIR-V emission is only supported by the legacy pass manager"));
+    return;
 
   case Backend_EmitAssembly:
   case Backend_EmitMCNull:
@@ -1771,3 +1779,4 @@ void clang::EmbedBitcode(llvm::Module *M, const CodeGenOptions &CGOpts,
       CGOpts.getEmbedBitcode() != CodeGenOptions::Embed_Bitcode,
       &CGOpts.CmdArgs);
 }
+

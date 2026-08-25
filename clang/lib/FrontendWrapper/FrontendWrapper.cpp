@@ -28,11 +28,13 @@ SPDX-License-Identifier: MIT
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/VirtualFileSystem.h"
 
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -109,6 +111,22 @@ createBuiltinMemoryFileSystem() {
 llvm::IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> getHeadersFileSystem() {
   static auto MemFS = createBuiltinMemoryFileSystem();
   return MemFS;
+}
+
+// Removes every "-mllvm <value>" pair from Opts and returns the values.
+std::vector<const char *> extractLLVMArgs(std::vector<const char *> &Opts) {
+  std::vector<const char *> LLVMArgs;
+  std::vector<const char *> Kept;
+  for (size_t I = 0, E = Opts.size(); I != E; ++I) {
+    // A trailing "-mllvm" without a value is kept so that cc1 diagnoses it.
+    if (llvm::StringRef(Opts[I]) == "-mllvm" && I + 1 != E) {
+      LLVMArgs.push_back(Opts[++I]);
+      continue;
+    }
+    Kept.push_back(Opts[I]);
+  }
+  Opts = std::move(Kept);
+  return LLVMArgs;
 }
 
 // These code is deceptive. It extracts filename from command line
@@ -576,23 +594,28 @@ IntelCMClangFECompile(const Intel::CM::ClangFE::IInputArgs *InArgs) {
 
   // Facilities to pass extra -cc1 options for debug purposes.
   // Options are expected to be separated by ';'.
-  // Example: "-mllvm;-debug-pass=Structure"
+  // Example: "-fno-discard-value-names;-v"
   llvm::BumpPtrAllocator Alloc;
   llvm::StringSaver Saver(Alloc);
-  auto Cc1Extra = llvm::sys::Process::GetEnv("IGC_CMFE_CC1_EXTRA");
-  if (Cc1Extra) {
-
+  if (auto Cc1Extra = llvm::sys::Process::GetEnv("IGC_CMFE_CC1_EXTRA")) {
     if (DebugEnabled)
-      llvm::errs() << "Extra CC1 options passed: " << Cc1Extra.getValue() << "\n";
+      llvm::errs() << "Extra CC1 options passed: " << Cc1Extra.getValue()
+                   << "\n";
 
     llvm::SmallVector<llvm::StringRef, 4> ExtraArgs;
     llvm::StringRef(Cc1Extra.getValue()).split(ExtraArgs, ';');
     std::transform(ExtraArgs.begin(), ExtraArgs.end(),
                    std::back_inserter(CStrCompOpts),
-                   [&Saver](const llvm::StringRef& S) {
+                   [&Saver](const llvm::StringRef &S) {
                      return Saver.save(S).data();
                    });
   }
+
+  // -mllvm writes process-global cl::opt state, which cannot hold a different
+  // value per concurrent compilation, so it is reported and dropped.
+  for (const char *LLVMArg : extractLLVMArgs(CStrCompOpts))
+    *error_stream << "warning: ignoring '-mllvm " << LLVMArg
+                  << "': LLVM options are not supported by the CM frontend\n";
 
   if (DebugEnabled)
     std::for_each(CStrCompOpts.begin(), CStrCompOpts.end(), [](const char* p) {
@@ -611,6 +634,11 @@ IntelCMClangFECompile(const Intel::CM::ClangFE::IInputArgs *InArgs) {
     llvm::errs() << "FEWrapper fatal error: could not create compilerInvocation\n";
     return nullptr;
   }
+
+  // Clang fills these in itself (e.g. -pgo-warn-misexpect). Honoring them would
+  // write process-global cl::opt state once per compilation, which both races
+  // with other threads and accumulates occurrences until the option rejects it.
+  Clang.getFrontendOpts().LLVMArgs.clear();
 
   // At this time header search options were filled with arguments so
   // embedded headers will have lowest priority in search.
@@ -638,7 +666,6 @@ IntelCMClangFECompile(const Intel::CM::ClangFE::IInputArgs *InArgs) {
     return nullptr;
   }
 
-  llvm::cl::ResetAllOptionOccurrences();
   Clang.setVerboseOutputStream(*error_stream);
   auto success = clang::ExecuteCompilerInvocation(&Clang);
   OutArgsBuilder.setStatus(success);
