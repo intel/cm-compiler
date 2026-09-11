@@ -29,6 +29,10 @@ namespace driver {
 namespace tools {
 namespace GenX {
 
+// Oldest GPU generation still supported; anything older is rejected as an
+// invalid architecture.
+constexpr uint32_t MinSupportedGmdIdMajor = 12;
+
 // get CPU from args
 uint32_t getGenXTargetCPU(const llvm::opt::ArgList &Args,
                           const Driver *Drv = nullptr);

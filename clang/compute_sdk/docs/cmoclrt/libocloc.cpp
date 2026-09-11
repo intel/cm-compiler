@@ -7,7 +7,7 @@ SPDX-License-Identifier: MIT
 ============================= end_copyright_notice ===========================*/
 
 const char *mainFileName = "vadd_genx.cpp";
-const char *argv[] = { "ocloc", "compile", "-device", "skl", "-file", mainFileName, "-options", "-cmc /c /Qxcm /mCM_emit_common_isa -v -fcmocl -m64"};
+const char *argv[] = { "ocloc", "compile", "-device", "tgllp", "-file", mainFileName, "-options", "-cmc /c /Qxcm /mCM_emit_common_isa -v -fcmocl -m64"};
 const unsigned char *sources[] = { reinterpret_cast<const unsigned char*>(kernelSourceValid) };
 size_t sourcesLengths[] = { strlen(kernelSourceValid) + 1 };
 const char *sourcesNames[] = { mainFileName };

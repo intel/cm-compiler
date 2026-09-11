@@ -102,12 +102,6 @@ bool GenXTargetInfo::setCPU(const std::string &Name) {
     return false;
   setCPUProperties();
 
-  // FIXME: get rid of this stuff
-  if (Major < 12)
-    HasIEFByPass = false;
-  if (Major >= 12)
-    MaxOWordBlock = 16;
-
   return true;
 }
 

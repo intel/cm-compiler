@@ -266,8 +266,8 @@ SPIR-V output with option "-emit-spirv".
 To be compiled for OpenCL runtime, the option "-fcmocl" is required.
 Please see the CM user manual for more cmc options.
 
-cmc vadd.cpp -isystem <path-to-cm-header> -fcmocl -march=SKL -m64
-cmc vadd.cpp -isystem <path-to-cm-header> -fcmocl -march=SKL -m64 -emit-spirv
+cmc vadd.cpp -isystem <path-to-cm-header> -fcmocl -march=tgllp -m64
+cmc vadd.cpp -isystem <path-to-cm-header> -fcmocl -march=tgllp -m64 -emit-spirv
 
 The list of CPU strings supported can be found in :doc:`../cmcuserguide/cmcuserguide`.
 
@@ -277,14 +277,12 @@ The list of CPU strings supported can be found in :doc:`../cmcuserguide/cmcuserg
 ocloc offline compiler could be used to compile both CM source
 and SPIR-V out of cmc into OpenCL binaries
 
-ocloc.exe -file vadd.cpp -device skl  -options "-cmc"
+ocloc.exe -file vadd.cpp -device tgllp  -options "-cmc"
 
-ocloc.exe -file vadd.spv -device skl -spirv_input -options "-vc-codegen" -internal_options "-dumpvisa"
+ocloc.exe -file vadd.spv -device tgllp -spirv_input -options "-vc-codegen" -internal_options "-dumpvisa"
 
 The list of device strings supported are:
 
-* skl,kbl,glk,cfl
-* icllp
 * tgllp
 
 4.3 libocloc.so

@@ -381,12 +381,9 @@ CM_HAS_3D_SAMPLE_HALF          Defined (with value 1) if the specified target su
 ====================== =========================================================
 Environment variable   Description
 ====================== =========================================================
-ENABLE_IGA             By default the GenX finalizer uses the legacy assembler
-                       syntax for the assembly files it generates for platforms
-                       before Gen11. If the ENABLE_IGA environment variable has
-                       a non-zero value then IGA assembler syntax will be used.
-                       This is equivalent to specifying the -menableiga compiler
-                       option.
+ENABLE_IGA             This variable is obsolete: the GenX finalizer always
+                       generates IGA assembler syntax on supported platforms,
+                       so setting it has no effect.
 
 CM_FORCE_ASSEMBLY_DUMP Enables "-mCM_old_asm_name -mdump_asm" options if set.
 

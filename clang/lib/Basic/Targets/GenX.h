@@ -172,7 +172,7 @@ private:
 
   // FIXME: get rid of this stuff
   bool HasIEFByPass = false;
-  unsigned MaxOWordBlock = 8;
+  unsigned MaxOWordBlock = 16;
 };
 
 } // namespace targets

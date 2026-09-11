@@ -12,7 +12,7 @@ fseek(fp, 0, SEEK_END);
 size_t sz = ftell(fp);
 fclose(fp);
 
-const char *argv[] = { "ocloc", "compile", "-device", "skl", "-file", name, "-options", "-cmc /c /Qxcm /mCM_emit_common_isa -v -fcmocl -m64"};
+const char *argv[] = { "ocloc", "compile", "-device", "tgllp", "-file", name, "-options", "-cmc /c /Qxcm /mCM_emit_common_isa -v -fcmocl -m64"};
 const unsigned char *sources[] = {  };
 size_t sourcesLengths[] = { sz + 1 };
 const char *sourcesNames[] = { mainFileName };

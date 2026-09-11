@@ -242,8 +242,7 @@ C for Metal supports the following basic scalar data types defined in C++:
   * C for Metal supports IEEE-754 conformant 16-bit half-precision floating point type.
     To enable this, use namespace "half_float" for host code, and keyword "half" for variable declaration.
 
-* double: double-precision floating-point data type is only supported for Gen7+ hardware platform,
-  with the following usage restrictions:
+* double: double-precision floating-point data type has the following usage restrictions:
 
   * Double operands can be used with usual C for Metal operators where floating-point operands are
     allowed, except division.
@@ -252,7 +251,7 @@ C for Metal supports the following basic scalar data types defined in C++:
   * Double operands cannot be used in DWord scattered read/write and DWord atomic write.
 
 * unsigned long long, long long: unsigned and signed long long data types are 64-bit integers that are
-  supported for Gen8+ hardware platform with strict restrictions:
+  supported with strict restrictions:
 
   * unsigned long long and long long operands can be used with usual C for Metal operators where long
     long operands are allowed, except multiplication and division.
@@ -260,7 +259,7 @@ C for Metal supports the following basic scalar data types defined in C++:
   * Unsigned long long and long long operands cannot be used in DWord scattered read/write
     and DWord atomic write.
 
-* svmptr_t: represents an integer of pointer size for SVM (shared virtual memory, Gen8+). When
+* svmptr_t: represents an integer of pointer size for SVM (shared virtual memory). When
   declaring a struct that is in SVM, use svmptr_t for a pointer field. The size of svmptr_t is set by
   compiler options /DCM_PTRSIZE=32 or /DCM_PTRSIZE=64; use the size appropriate to whether the
   C for Metal program will be run from a 32 bit or 64 bit application. See :ref:`SharedVirtualMemory`.
@@ -1721,8 +1720,7 @@ cm_pow
 Power.
 
 * Parameter 1: matrix(_ref), vector(_ref) or scalar
-* Parameter 2: scalar for Gen6, matrix(_ref),
-  vector(_ref) or scalar for Gen6.
+* Parameter 2: matrix(_ref), vector(_ref) or scalar
 * Parameter 3: flags (default is 0; use SAT for saturation).
 * Return: vector or scalar
 
@@ -5758,7 +5756,7 @@ Block Width (bytes)     Maximum Block Height (rows)
 5-8                     32
 9-16                    16
 17-32                   8
-33-64 {BDW+}            4
+33-64                   4
 ======================= ===========================
 
 Supported Surfaces:
@@ -6224,8 +6222,8 @@ Format                    Type    Notes
 N/A                       Buffer
 ========================= ======= =======================================================
 
-Untyped Surface Read/Write {Gen7+}
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Untyped Surface Read/Write
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Out-of-bound reads return zero, while out-of-bound writes are dropped.
 
@@ -6304,8 +6302,8 @@ The compiler generates code for GenX hardware to perform scattered write to
 offsets given by u. Only enabled channels are written to the surface.
 
 
-Typed Surface Read/Write {Gen7+}
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Typed Surface Read/Write
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 Out-of-bound reads return zero, while out-of-bound writes are dropped.
 
@@ -6492,8 +6490,8 @@ CM_SURFACE_FORMAT_R32_SINT  1D/2D/3D/CUBE/BUFFER                  Integer
 --------------------------------------------------
 
 
-The shared local memory (SLM) is a high bandwidth memory that is not backed up by system memory.  It
-is only supported for Gen7+. Its contents are uninitialized after creation, and its contents disappear when
+The shared local memory (SLM) is a high bandwidth memory that is not backed up by system memory.
+Its contents are uninitialized after creation, and its contents disappear when
 de-allocated.
 
 The host program needs to organize all the threads into groups (collection of threads) by specifying the
@@ -6529,7 +6527,7 @@ there is a single call to cm_slm_alloc().
 
 Note on Performance: Use cm_slm_read4() and cm_slm_write4() instead of cm_slm_read() and
 cm_slm_write() whenever possible, as read4 and write4 versions provide much higher read/write
-bandwidth (an order of magnitude higher) on Gen7. Read4 and write4 versions can read/write 4 dwords
+bandwidth (an order of magnitude higher). Read4 and write4 versions can read/write 4 dwords
 per address -- even if all 4 dwords per address are not needed, use read4/write4 (with appropriate mask
 argument) for higher performance. Also note that, data read or written using read4/write4 intrinsics are
 transposed by the hardware -- the application should try to take advantage of this; otherwise, it would
@@ -6654,7 +6652,7 @@ cm_slm_init
 
 Initializes SLM for the kernel. SLM size (in Bytes) needed per
 group has to be specified in 'slmSize'. Maximum SLM size per
-group that can be specified here is 64 KB on Gen7.
+group that can be specified here is 64 KB.
 
 cm_slm_alloc
 """"""""""""
@@ -6747,7 +6745,7 @@ enabled), and v_Src is B7B6B5B4B3B2B1B0 R7R6R5R4R3R2R1R0,
 R0) -  where 'x' means the value is not written.
 
 Note: cm_slm_write4() provides an order of magnitude more
-bandwidth than cm_slm_write() on Gen7 hardware. Whenever
+bandwidth than cm_slm_write(). Whenever
 possible, cm_slm_write4() should be used instead of
 cm_slm_write() to achieve higher performance.
 
@@ -6828,7 +6826,7 @@ read from SLM at the addresses specified in v_Addr, where 'x'
 means the value is not read.
 
 Note: This provides much more (order of magnitude) read
-bandwidth than cm_slm_read() on Gen7 hardware. Whenever
+bandwidth than cm_slm_read(). Whenever
 possible, cm_slm_read4() should be used instead of
 cm_slm_read() to achieve higher performance.
 
@@ -6842,7 +6840,7 @@ cm_slm_fence
 
   void cm_slm_fence(unsigned char mask);
 
-For Gen10+, cm_slm_fence(CM_GLOBAL_COHERENT_FENCE) must be
+cm_slm_fence(CM_GLOBAL_COHERENT_FENCE) must be
 added before a barrier to enforce read/write ordering.
 
 cm_barrier
@@ -7069,7 +7067,7 @@ Format                            Type    R   G   B   A   Return Type
 CM_SURFACE_FORMAT_A8R8G8B8        2D/3D   R   G   B   A   float
 CM_SURFACE_FORMAT_A8              2D/3D               A   float
 CM_SURFACE_FORMAT_YUY2            2D      V   Y   U       float
-CM_SURFACE_FORMAT_NV12 {Gen7_5+}  2D      Cr  Y   Cb      float
+CM_SURFACE_FORMAT_NV12            2D      Cr  Y   Cb      float
 ================================= ======= === === === === =======================================
 
 
@@ -7127,7 +7125,7 @@ Format                            Type    R   G   B   A   Return Type
 CM_SURFACE_FORMAT_A8R8G8B8        2D/3D   R   G   B   A   float
 CM_SURFACE_FORMAT_A8              2D/3D               A   float
 CM_SURFACE_FORMAT_YUY2            2D      V   Y   U       float
-CM_SURFACE_FORMAT_NV12 {Gen7_5+}  2D      Cr  Y   Cb      float
+CM_SURFACE_FORMAT_NV12            2D      Cr  Y   Cb      float
 ================================= ======= === === === === =======================================
 
 cm_3d_sample
@@ -7259,8 +7257,6 @@ CUBE            Normalized x coordinate   Normalized y coordinate      Normalize
 cm_3d_load
 ^^^^^^^^^^
 
-{Only for new cm-llvm compiler cmc on SKL+ - not supported for legacy cm-icl compiler - icl}
-
 .. code-block:: c++
 
   template <CM3DLoadOp Op, ChannelMaskType ChannelMask, typename T, int N,
@@ -7365,6 +7361,7 @@ Surface Type    u                         v                            r
 3D              Unnormalized x coordinate Unnormalized y coordinate    Unnormalized z coordinate
 =============== ========================= ============================ ============================
 
+
 4.9 Adaptive Video Scaling
 --------------------------
 
@@ -7414,16 +7411,14 @@ u2d
                 X direction
 
 GroupID
-                This field is valid and must be set for Gen7+, for all
-                previous platforms this field is ignored.  This parameter
+                This field is valid and must be set.  This parameter
                 will be used to group messages for reorder for sample_8x8
                 messages.  For all messages with the same Group ID they must
                 have the following in common: Surface state, Sampler State,
                 GRFID, M0, and M1 except for Block number.
 
 VertBlockNumber
-                This field is valid and must be set for Gen7+, for all
-                previous platforms this field is ignored. This field will
+                This field is valid and must be set. This field will
                 specify the vertical block offset being sent for this
                 sample_8x8 messages.  This will be equal to the vertical
                 pixel offset from the given address divided by 4.
@@ -7440,30 +7435,30 @@ cntrl
 
                 * CM_16_FULL: two bytes will be returned for each pixel
                   channel, and TYPE of m must be short or unsigned short.
-                * CM_16_DOWN_SAMPLE {Gen7.5+}: like previous, except that
+                * CM_16_DOWN_SAMPLE: like previous, except that
                   only the even pixels in R and B channels are returned.
-                * CM_8_FULL {Gen7.5+}: one byte will be returned for each
+                * CM_8_FULL: one byte will be returned for each
                   pixel channel, and TYPE of m must be char or unsigned
                   char.
-                * CM_8_DOWN_SAMPLE {Gen7.5+}: like previous, except that
+                * CM_8_DOWN_SAMPLE: like previous, except that
                   only the even pixels in R and B channels are returned.
 
 v2d
                 Defines the change in the delta V for adjacent pixels in the
-                Y direction. This parameter is for Gen8+ only, ignored for
-                previous architectures.
+                Y direction.
 
 execMode
                 an enumeration constant that determines the number of pixels
                 to be returned.
 
                 * CM_AVS_16x4
-                * CM_AVS_16x8 {Gen8+}
-                * CM_AVS_8x4 {Gen9+} output shuffle must be set
-                * CM_AVS_4x4 {Gen9+} output shuffle must be set
+                * CM_AVS_16x8
+                * CM_AVS_8x4 output shuffle must be set
+                * CM_AVS_4x4 output shuffle must be set
 
 IEFBypass
-                Gen8 only, this field enables EIF pass. Default is 0.
+                Enables EIF pass. Not supported by the current targets: it
+                is forced to 0 unless -mCM_iefbypass is specified.
 =============== ============================================================
 
 The results are returned
@@ -7488,7 +7483,7 @@ shuffle is enabled in the sampler state.
   size as well as whether the odd pixels will be skipped for
   the R and B channels.
 
-* If output shuffle is on {Gen9+}:
+* If output shuffle is on:
 
   The format of CM_AVS_16x4 mode becomes
 
@@ -7524,8 +7519,8 @@ CM_SURFACE_FORMAT_NV12            2D      Cr  Y   Cb
 ================================= ======= === === === === =======================================
 
 
-4.10 Video Analytics Functions (Gen8+)
--------------------------------------
+4.10 Video Analytics Functions
+------------------------------
 
 4.10.1 2d Convolve
 ^^^^^^^^^^^^^^^^^^
@@ -7569,7 +7564,7 @@ execMode
                 * CM_CONV_16x1
 
 big_kernel
-                Gen9+ functionality. For Gen8 this value is ignored. Set to
+                Set to
                 true when size of the kernel is larger then  15x15.
 =============== ============================================================
 
@@ -7959,8 +7954,8 @@ CM_SURFACE_FORMAT_X8R8G8B8  2D    Planar 1 bit per pixel format
 =========================== ===== ============================
 
 
-4.11 Video Analytics Functions (Gen9+)
---------------------------------------
+4.11 Video Analytics Functions Extended
+---------------------------------------
 
 4.11.1 1d Convolve
 ^^^^^^^^^^^^^^^^^^
@@ -8287,8 +8282,8 @@ CM_SURFACE_FORMAT_A8    2D    Unsigned planar
 ======================= ===== ============================
 
 
-4.12 Video Analytics Functions HDC Write {Gen9+}
-------------------------------------------------
+4.12 Video Analytics Functions HDC Write
+----------------------------------------
 
 These variants of VA functions write their output to another surface directly instead of GRF.  The output
 surface must have the same dimension (width*height in pixels) as the input surface.
@@ -8793,995 +8788,6 @@ CM_SURFACE_FORMAT_R8_UINT   2D    Unsigned
 =========================== ===== ============================
 
 
-4.13 VME Interface
-------------------
-
-4.13.1 Gen6 VME Interface
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-C for Metal provides the user with the following Video Motion Estimation (VME) function support for Gen6
-architecture. More detailed information on the VME functionality is provided in reference [4].
-
-The formal parameters for all three functions below are described here:
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-mInput
-                the matrix that stores the VME payload data.  For detailed
-                description of the payload content, please refer to [4]. The
-                input matrix type "vme_InputMrfType" is defined as
-                matrix<unsigned char, 4, 32>.
-
-surfIndex
-                surface index. This is an abstract handle that represents
-                the surface created by C for Metal host runtime [6] and must be
-                passed through kernel function parameters. C for Metal does not allow
-                the explicit use of local/global variable or modification of
-                such abstract data types in kernel functions, except used as
-                function call argument.
-
-SPIndex
-                search path LUT index. This is an abstract handle that
-                represents the VME state created by C for Metal host runtime [6] and
-                must be passed through kernel function parameters. C for Metal does
-                not allow the explicit use of local/global variable or
-                modification of such abstract data types in kernel
-                functions, except used as function call argument.
-
-lutSubIndex
-                the index into the RDLUT state table, with a range of [0-3].
-
-srcMB
-                The position of the left-top integer corner of the source
-                macroblock or block located in the surface (in unit of
-                pixels, relative to the surface origin).
-
-ref0
-                The position of the left-top integer corner of the first
-                reference window located in the first reference surface (in
-                unit of pixels, relative to the surface origin).
-
-ref1
-                The position of the left-top integer corner of the second
-                reference window located in the second reference surface (in
-                unit of pixels, relative to the surface origin; ignored in
-                single reference mode).
-
-topMinus8Pels
-                The positions of the top neighborhood pixels. Please refer
-                to reference [4] for more detailed description of the data
-                members.
-
-leftPels
-                The positions of the left neighborhood pixels. Please refer
-                to [4] for more detailed description of the data members.
-
-mOutput
-                the matrix that stores the VME output data.  For detailed
-                description of the output content, refer to [4]. For
-                "run_vme_intra", the output matrix type
-                vme_OutputGrfShortType" is defined as
-                matrix<unsigned char, 1, 32>. For "run_vme_inter" and
-                "run_vme_all", the output matrix type vme_OutputGrfType" is
-                defined as matrix<unsigned char, 4, 32>.
-=============== ============================================================
-
-run_vme_intra
-"""""""""""""
-
-.. code-block:: c++
-
-  void run_vme_intra(vme_InputMrfType mInput, SurfaceIndex surfIndex, VmeIndex SPIndex,
-    uint lutSubIndex, vector<ushort, 2> srcMB, vector<ushort, 2> ref0, vector<ushort, 2> ref1,
-    vector<uchar, 32> topMinus8Pels, vector<uchar, 16> leftPels, vme_OutputGrfShortType mOutput);
-
-The compiler generates code for GenX hardware to perform VME function in intra-search only mode.
-
-run_vme_inter
-"""""""""""""
-
-.. code-block:: c++
-
-  void run_vme_inter(vme_InputMrfType mInput, SurfaceIndex surfIndex, VmeIndex SPIndex,
-    uint lutSubIndex, vector<ushort, 2> srcMB, vector<ushort, 2> ref0, vector<ushort, 2> ref1,
-    vector<uchar, 32> topMinus8Pels, vector<uchar, 16> leftPels, vme_OutputGrfType mOutput);
-
-The compiler generates code for GenX hardware to perform VME function in inter-search only mode.
-
-run_vme_all
-"""""""""""
-
-.. code-block:: c++
-
-  void run_vme_all(vme_InputMrfType mInput, SurfaceIndex surfIndex, VmeIndex SPIndex,
-    uint lutSubIndex, vector<ushort, 2> srcMB, vector<ushort, 2> ref0, vector<ushort, 2> ref1,
-    vector<uchar, 32> topMinus8Pels, vector<uchar, 16> leftPels, vme_OutputGrfType mOutput);
-
-The compiler generates code for GenX hardware to perform VME functions in both inter- and intra-search
-enabled mode.
-
-4.13.2 Gen7 VME Interface
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-C for Metal provides the user with the following Video Motion Estimation (VME) function support for Gen7
-architecture.
-
-run_vme_intra
-"""""""""""""
-
-.. code-block:: c++
-
-  void run_vme_intra(matrix<uchar, 5, 32> mInput, VMEStreamMode streamMode,
-    VMESearchCtrl searchCtrl, SurfaceIndex surfIndex, VmeIndex SPIndex, uint lutSubIndex,
-    vector<ushort, 2> srcMB, vector<ushort, 2> ref0, vector<ushort, 2> ref1,
-    vector<uchar, 32> topMinus8Pels, vector<uchar, 16> leftPels, matrix_ref<uchar, 1, 32> mOutput);
-
-The compiler generates code for GenX hardware to perform VME function in intra-search only mode.
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-mInput
-                the matrix that stores the VME payload data.
-
-streamMode
-                VME stream mode, which must be set to VME_STREAM_DISABLE for
-                run_vme_intra function.
-
-searchCtrl
-                VME search control, which must be set to
-                VME_SEARCH_SINGLE_REF_SINGLE_REC_SINGLE_START for
-                run_vme_intra function.
-
-surfIndex
-                surface index. This is an abstract handle that represents
-                the surface created by C for Metal host runtime [6] and must be
-                passed through kernel function parameters. C for Metal does not allow
-                the explicit use of local/global variable or modification of
-                such abstract data types in kernel functions, except used as
-                function call argument.
-
-SPIndex
-                search path LUT index. This is an abstract handle that
-                represents the VME state created by C for Metal host runtime [6] and
-                must be passed through kernel function parameters. C for Metal does
-                not allow the explicit use of local/global variable or
-                modification of such abstract data types in kernel
-                functions, except used as function call argument.
-
-lutSubIndex
-                the index into the RDLUT state table, with a range of [0-3].
-
-srcMB
-                The position of the left-top integer corner of the source
-                macroblock or block located in the surface (in unit of
-                pixels, relative to the picture origin).
-
-ref0
-                The position of the left-top integer corner of the first
-                reference window located in the first reference surface (in
-                unit of pixels, relative to source MB location).
-
-ref1
-                The position of the left-top integer corner of the second
-                reference window located in the second reference surface (in
-                unit of pixels, relative to source MB location; ignored in
-                single reference mode).
-
-topMinus8Pels
-                The positions of the top neighborhood pixels.
-
-leftPels
-                The positions of the left neighborhood pixels.
-
-mOutput
-                the matrix that stores the VME output data.
-=============== ============================================================
-
-run_vme_inter
-"""""""""""""
-
-.. code-block:: c++
-
-  void run_vme_inter(matrix<uchar, N1, 32> mInput, VMEStreamMode streamMode,
-    VMESearchCtrl searchCtrl, SurfaceIndex surfIndex, VmeIndex SPIndex, uint lutSubIndex,
-    vector<ushort, 2> srcMB, vector<ushort, 2> ref0, vector<ushort, 2> ref1,
-    vector<uchar, 32> topMinus8Pels, vector<uchar, 16> leftPels, matrix_ref<uchar, N2, 32> mOutput);
-
-The compiler generates code for GenX hardware to perform VME function in inter-search only mode.
-
-run_vme_all
-"""""""""""
-
-.. code-block:: c++
-
-  void run_vme_all(matrix<uchar, N1, 32> mInput, VMEStreamMode streamMode,
-    VMESearchCtrl searchCtrl, SurfaceIndex surfIndex, VmeIndex SPIndex, uint lutSubIndex,
-    vector<ushort, 2> srcMB, vector<ushort, 2> ref0, vector<ushort, 2> ref1,
-    vector<uchar, 32> topMinus8Pels, vector<uchar, 16> leftPels, matrix_ref<uchar, N2, 32> mOutput);
-
-The compiler generates code for GenX hardware to perform VME functions in both inter- and intra-search
-enabled mode.
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-mInput
-                the matrix that stores the VME payload data, where N1 can be
-                the following values:
-
-                * N1 = 5 if stream-in is disabled.
-                * N1 = 9 if stream-in is enabled and search ctrl is set to
-                  dual-record and dual-reference.
-                * N1 = 7 if stream-in is enabled and search ctrl is set to
-                  other type.
-
-streamMode
-                VME stream mode, which is an enumeration type with 4
-                possible values, as listed below.  It must be a compile time
-                constant.
-
-                * VME_STREAM_DISABLE
-                * VME_STREAM_OUT
-                * VME_STREAM_IN
-                * VME_STREAM_IN_OUT
-
-searchCtrl
-                VME search control, which is an enumeration type with 4
-                possible values, as listed below. It must be a compile time
-                constant.
-
-                * VME_SEARCH_SINGLE_REF_SINGLE_REC_SINGLE_START
-                * VME_SEARCH_SINGLE_REF_SINGLE_REC_DUAL_START
-                * VME_SEARCH_SINGLE_REF_DUAL_REC
-                * VME_SEARCH_DUAL_REF_DUAL_REC
-
-surfIndex
-                surface index. This is an abstract handle that represents
-                the surface created by C for Metal host runtime [6] and must be
-                passed through kernel function parameters. C for Metal does not allow
-                the explicit use of local/global variable or modification of
-                such abstract data types in kernel functions, except used as
-                function call argument.
-
-SPIndex
-                search path LUT index. This is an abstract handle that
-                represents the VME state created by C for Metal host runtime [6] and
-                must be passed through kernel function parameters. C for Metal does
-                not allow the explicit use of local/global variable or
-                modification of such abstract data types in kernel
-                functions, except used as function call argument.
-
-lutSubIndex
-                the index into the RDLUT state table, with a range of [0-3].
-
-srcMB
-                The position of the left-top integer corner of the source
-                macroblock or block located in the surface (in unit of
-                pixels, relative to the picture origin).
-
-ref0
-                The position of the left-top integer corner of the first
-                reference window located in the first reference surface (in
-                unit of pixels, relative to source MB location).
-
-ref1
-                The position of the left-top integer corner of the second
-                reference window located in the second reference surface (in
-                unit of pixels, relative to source MB location; ignored in
-                single reference mode).
-
-topMinus8Pels
-                The positions of the top neighborhood pixels.
-
-leftPels
-                The positions of the left neighborhood pixels.
-
-mOutput
-                the matrix that stores the VME output data, where N2 can be
-                the following values:
-
-                * N2 = 6 if stream-out is disabled.
-                * N2 = 10 if stream-out is enabled and search ctrl is set to
-                  dual-record and dual-reference.
-                * N2 = 8 if stream-out is enabled and search ctrl is set to
-                  other type.
-=============== ============================================================
-
-
-4.13.3 Gen7_5 VME Interface
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-C for Metal provides the following Video Motion Estimation (VME) APIs for Gen7_5 architecture.
-
-run_vme_ime
-"""""""""""
-
-.. code-block:: c++
-
-  void run_vme_ime(matrix<uchar, 3, 32> UNIInput, matrix<uchar, N1, 32> IMEInput,
-    VMEStreamMode streamMode, VMESearchCtrl searchCtrl, SurfaceIndex curSurfIndex,
-    vector<short, 2> ref0, vector<short, 2> ref1, vector<ushort, 4> costCenter,
-    matrix_ref<uchar, N2, 32> IMEOutput);
-
-The compiler generates code for GenX hardware to perform Integer Motion Estimation (IME). The formal
-parameters are described below:
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-UNIInput
-                the matrix that stores the universal VME payload data.
-
-IMEInput
-                the matrix that stores the IME specific payload data, where
-                N1 can be the following values:
-
-                * N1 = 2 if stream-in is disabled.
-                * N1 = 6 if stream-in is enabled and search ctrl is set to
-                  dual-record and dual-reference.
-                * N1 = 4 if stream-in is enabled and search ctrl is set to
-                  other type.
-
-streamMode
-                VME stream mode, which is an enumeration type with 4
-                possible values, as listed below.  It must be a compile time
-                constant.
-
-                * VME_STREAM_DISABLE
-                * VME_STREAM_OUT
-                * VME_STREAM_IN
-                * VME_STREAM_IN_OUT
-
-searchCtrl
-                VME search control, which is an enumeration type with 4
-                possible values, as listed below. It must be a compile time
-                constant.
-
-                * VME_SEARCH_SINGLE_REF_SINGLE_REC_SINGLE_START
-                * VME_SEARCH_SINGLE_REF_SINGLE_REC_DUAL_START
-                * VME_SEARCH_SINGLE_REF_DUAL_REC
-                * VME_SEARCH_DUAL_REF_DUAL_REC
-
-curSurfIndex
-                surface index. This is an abstract handle that represents
-                the surface created by C for Metal host runtime [6] and must be
-                passed through kernel function parameters. C for Metal does not allow
-                the explicit use of local/global variable or modification of
-                such abstract data types in kernel functions, except used as
-                function call argument.
-
-ref0
-                The position of the left-top integer corner of the first
-                reference window located in the first reference surface (in
-                unit of pixels, relative to the source MB).
-
-ref1
-                The position of the left-top integer corner of the second
-                reference window located in the second reference surface (in
-                unit of pixels, relative to the source MB; ignored in single
-                reference mode).
-
-costCenter
-                The coordinates for the cost centers relative to the picture
-                source MB. The coordinates are specified in the following
-                order: {CostCenter0X, CostCenter0Y, CostCenter1X,
-                CostCenter1Y}.
-
-IMEOutput
-                the matrix that stores the IME output data, where N2 can be
-                the following values:
-
-                * N2 = 7 if stream-out is disabled.
-                * N2 = 11 if stream-out is enabled and search ctrl is set to
-                  dual-record and dual-reference.
-                * N2 = 9 if stream-out is enabled and search ctrl is set to
-                  other type.
-=============== ============================================================
-
-run_vme_sic
-"""""""""""
-
-.. code-block:: c++
-
-  void run_vme_sic(matrix<uchar, 3, 32> UNIInput, matrix<uchar, 4, 32> SICInput,
-    SurfaceIndex curSurfIndex, matrix_ref<uchar, 7, 32> UNIOutput);
-
-The compiler generates code for GenX hardware to perform Skip and Intra Check (SIC). The formal
-parameters are described below:
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-UNIInput
-                the matrix that stores the universal VME payload data.
-
-SICInput
-                the matrix that stores the SIC specific payload data.
-
-curSurfIndex
-                surface index. This is an abstract handle that represents
-                the surface created by C for Metal host runtime [6] and must be
-                passed through kernel function parameters. C for Metal does not allow
-                the explicit use of local/global variable or modification of
-                such abstract data types in kernel functions, except used as
-                function call argument.
-
-UNIOutput
-                the matrix that stores the SIC output data (same structure
-                as universal VME output data).
-=============== ============================================================
-
-run_vme_fbr
-"""""""""""
-
-.. code-block:: c++
-
-  void run_vme_fbr(matrix<uchar, 3, 32> UNIInput, matrix<uchar, 4, 32> FBRInput,
-    SurfaceIndex curSurfIndex, uchar FBRMbMode, uchar FBRSubMbShape, uchar FBRSubPredMode,
-    matrix_ref<uchar, 7, 32> UNIOutput);
-
-The compiler generates code for GenX hardware to perform Fractional and Bidirectional Refinement (FBR).
-The formal parameters are described below:
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-UNIInput
-                the matrix that stores the universal VME payload data.
-
-FBRInput
-                the matrix that stores the FBR specific payload data.
-
-curSurfIndex
-                surface index. This is an abstract handle that represents
-                the surface created by C for Metal host runtime [6] and must be
-                passed through kernel function parameters. C for Metal does not allow
-                the explicit use of local/global variable or modification of
-                such abstract data types in kernel functions, except used as
-                function call argument.
-
-FBRMbMode
-                the inter macroblock type, which can be the following 2-bit
-                values:
-
-                * 00: 16x16
-                * 01: 16x8
-                * 10: 8x16
-                * 11: 8x8
-
-FBRSubMbShape
-                the subshape per block for fractional and bidirectional
-                refinement, which can be the following combination of 8-bit
-                values:
-
-                * Bits [1:0]: SubMbShape[0]
-                * Bits [3:2]: SubMbShape[1]
-                * Bits [5:4]: SubMbShape[2]
-                * Bits [7:6]: SubMbShape[3]
-
-                where each 2-bit correspond to the following shapes:
-
-                * 00: 8x8
-                * 01: 8x4
-                * 10: 4x8
-                * 11: 4x4
-
-FBRSubPredMode
-                the selection of shapes from the input message for
-                performing FME, which can be the following combination of
-                8-bit values:
-
-                * Bits [1:0]: SubMbPredMode[0]
-                * Bits [3:2]: SubMbPredMode[1]
-                * Bits [5:4]: SubMbPredMode[2]
-                * Bits [7:6]: SubMbPredMode[3]
-
-                where each 2-bit correspond to the following selections:
-
-                * 00: Forward
-                * 01: Backward
-                * 10: Bidirectional
-                * 11: Illegal
-
-UNIOutput
-                the matrix that stores the FBR output data (same structure
-                as universal VME output data).
-=============== ============================================================
-
-
-4.13.4 Gen8 VME Interface
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-C for Metal provides the following Video Motion Estimation (VME) APIs for Gen8 architecture.
-
-run_vme_ime
-"""""""""""
-
-.. code-block:: c++
-
-  void run_vme_ime(matrix<uchar, 4, 32> UNIInput, matrix<uchar, N1, 32> IMEInput,
-    VMEStreamMode streamMode, VMESearchCtrl searchCtrl, SurfaceIndex curSurfIndex,
-    vector<short, 2> ref0, vector<short, 2> ref1, vector<ushort, 16> costCenter,
-    matrix_ref<uchar, N2, 32> IMEOutput);
-
-The compiler generates code for GenX hardware to perform Integer Motion Estimation (IME). The formal
-parameters are described below:
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-UNIInput
-                the matrix that stores the universal VME payload data.
-
-IMEInput
-                the matrix that stores the IME specific payload data, where
-                N1 can be the following values:
-
-                * N1 = 2 if stream-in is disabled.
-                * N1 = 6 if stream-in is enabled and search ctrl is set to
-                  dual-record and dual-reference.
-                * N1 = 4 if stream-in is enabled and search ctrl is set to
-                  other type.
-
-streamMode
-                VME stream mode, which is an enumeration type with 4
-                possible values, as listed below.  It must be a compile time
-                constant.
-
-                * VME_STREAM_DISABLE
-                * VME_STREAM_OUT
-                * VME_STREAM_IN
-                * VME_STREAM_IN_OUT
-
-searchCtrl
-                VME search control, which is an enumeration type with 4
-                possible values, as listed below. It must be a compile time
-                constant.
-
-                * VME_SEARCH_SINGLE_REF_SINGLE_REC_SINGLE_START
-                * VME_SEARCH_SINGLE_REF_SINGLE_REC_DUAL_START
-                * VME_SEARCH_SINGLE_REF_DUAL_REC
-                * VME_SEARCH_DUAL_REF_DUAL_REC
-
-curSurfIndex
-                surface index. This is an abstract handle that represents
-                the surface created by C for Metal host runtime [6] and must be
-                passed through kernel function parameters. C for Metal does not allow
-                the explicit use of local/global variable or modification of
-                such abstract data types in kernel functions, except used as
-                function call argument.
-
-ref0
-                The position of the left-top integer corner of the first
-                reference window located in the first reference surface (in
-                unit of pixels, relative to the source MB).
-
-ref1
-                The position of the left-top integer corner of the second
-                reference window located in the second reference surface (in
-                unit of pixels, relative to the source MB; ignored in single
-                reference mode).
-
-costCenter
-                The coordinates for the cost centers relative to the picture
-                source MB. The coordinates are specified in the following
-                order: {FWDCostCenter0X, FWDCostCenter0Y, BWDCostCenter0X,
-                BWDCostCenter0Y, FWDCostCenter1X, FWDCostCenter1Y,
-                BWDCostCenter1X, BWDCostCenter1Y, FWDCostCenter2X,
-                FWDCostCenter2Y, BWDCostCenter2X, BWDCostCenter2Y,
-                FWDCostCenter3X, FWDCostCenter3Y, BWDCostCenter3X,
-                BWDCostCenter3Y}
-
-IMEOutput
-                the matrix that stores the IME output data, where N2 can be
-                the following values:
-
-                * N2 = 7 if stream-out is disabled.
-                * N2 = 11 if stream-out is enabled and search ctrl is set to
-                  dual-record and dual-reference.
-                * N2 = 9 if stream-out is enabled and search ctrl is set to
-                  other type.
-=============== ============================================================
-
-run_vme_sic
-"""""""""""
-
-.. code-block:: c++
-
-  void run_vme_sic(matrix<uchar, 4, 32> UNIInput, matrix<uchar, 4, 32> SICInput,
-    SurfaceIndex curSurfIndex, matrix_ref<uchar, 7, 32> UNIOutput);
-
-The compiler generates code for GenX hardware to perform Skip and Intra Check (SIC). The formal
-parameters are described below:
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-UNIInput
-                the matrix that stores the universal VME payload data.
-
-SICInput
-                the matrix that stores the SIC specific payload data.
-
-curSurfIndex
-                surface index. This is an abstract handle that represents
-                the surface created by C for Metal host runtime [6] and must be
-                passed through kernel function parameters. C for Metal does not allow
-                the explicit use of local/global variable or modification of
-                such abstract data types in kernel functions, except used as
-                function call argument.
-
-UNIOutput
-                the matrix that stores the SIC output data (same structure
-                as universal VME output data).
-=============== ============================================================
-
-run_vme_fbr
-"""""""""""
-
-.. code-block:: c++
-
-  void run_vme_fbr(matrix<uchar, 4, 32> UNIInput, matrix<uchar, 4, 32> FBRInput,
-    SurfaceIndex curSurfIndex, uchar FBRMbMode, uchar FBRSubMbShape, uchar FBRSubPredMode,
-    matrix_ref<uchar, 7, 32> UNIOutput);
-
-The compiler generates code for GenX hardware to perform Fractional and Bidirectional Refinement (FBR).
-The formal parameters are described below:
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-UNIInput
-                the matrix that stores the universal VME payload data.
-
-FBRInput
-                the matrix that stores the FBR specific payload data.
-
-curSurfIndex
-                surface index. This is an abstract handle that represents
-                the surface created by C for Metal host runtime [6] and must be
-                passed through kernel function parameters. C for Metal does not allow
-                the explicit use of local/global variable or modification of
-                such abstract data types in kernel functions, except used as
-                function call argument.
-
-FBRMbMode
-                the inter macroblock type, which can be the following 2-bit
-                values:
-
-                * 00: 16x16
-                * 01: 16x8
-                * 10: 8x16
-                * 11: 8x8
-
-FBRSubMbShape
-                the subshape per block for fractional and bidirectional
-                refinement, which can be the following combination of 8-bit
-                values:
-
-                * Bits [1:0]: SubMbShape[0]
-                * Bits [3:2]: SubMbShape[1]
-                * Bits [5:4]: SubMbShape[2]
-                * Bits [7:6]: SubMbShape[3]
-
-                where each 2-bit correspond to the following shapes:
-
-                * 00: 8x8
-                * 01: 8x4
-                * 10: 4x8
-                * 11: 4x4
-
-FBRSubPredMode
-                the selection of shapes from the input message for
-                performing FME, which can be the following combination of
-                8-bit values:
-
-                * Bits [1:0]: SubMbPredMode[0]
-                * Bits [3:2]: SubMbPredMode[1]
-                * Bits [5:4]: SubMbPredMode[2]
-                * Bits [7:6]: SubMbPredMode[3]
-
-                where each 2-bit correspond to the following selections:
-
-                * 00: Forward
-                * 01: Backward
-                * 10: Bidirectional
-                * 11: Illegal
-
-UNIOutput
-                the matrix that stores the FBR output data (same structure
-                as universal VME output data).
-=============== ============================================================
-
-run_vme_idm
-"""""""""""
-
-.. code-block:: c++
-
-  void run_vme_idm(matrix<uchar, 4, 32> UNIInput, matrix<uchar, 1, 32> IDMInput,
-    SurfaceIndex curSurfIndex, matrix_ref<uchar, 16, 32> IDMOutput);
-
-The compiler generates code for GenX hardware to generate distortion mesh output (IDM). The formal
-parameters are described below:
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-UNIInput
-                the matrix that stores the universal VME payload data.
-
-IDMInput
-                the matrix that stores the IDM specific payload data.
-
-curSurfIndex
-                surface index. This is an abstract handle that represents
-                the surface created by C for Metal host runtime [6] and must be
-                passed through kernel function parameters. C for Metal does not allow
-                the explicit use of local/global variable or modification of
-                such abstract data types in kernel functions, except used as
-                function call argument.
-
-IDMOutput
-                the matrix that stores the IDM output data.
-=============== ============================================================
-
-
-4.13.5 Gen10 HEVC VME Interface
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-C for Metal provides the following HEVC-specific Video Motion Estimation (VME) APIs for the Gen10 architecture
-
-cm_vme_hevc_ime
-"""""""""""""""
-
-.. code-block:: c++
-
-  void cm_vme_hevc_ime (matrix<uchar, 5, 32> IMEInput, matrix<uchar, 10, 32> StreamInput,
-    int LenStreamInput, SurfaceIndex curSurfIndex, matrix_ref<uchar, 12, 32> IMEOutput);
-
-These generate code to perform an HEVC Integer Motion Estimation (IME) operation in GenX hardware.
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-IMEInput
-                this holds the universal VME and search path (IME) input
-                payloads.
-
-LenStreamInput
-                the length of Stream Input, it could be either 0 (for an
-                IME-F operation) or 10 (for an IME-S operation) .
-
-StreamInput
-                this holds the stream-in major shape motion-vector and
-                distortion (SISO)  input payload.  Unused if
-                LengthStreamInput is 0.
-
-curSurfIndex
-                the surface index.
-
-IMEOutput
-                this holds the output payload, comprising the universal VME
-                return data and the stream out motion-vector and distortion
-                data (SISO).
-=============== ============================================================
-
-cm_vme_hevc_sic, cm_vme_hevc_sc
-"""""""""""""""""""""""""""""""
-
-.. code-block:: c++
-
-  void cm_vme_hevc_sic(matrix_ref<uchar, 5, 32> SICInput, matrix_ref<uchar, 8, 32> NPInput,
-    int LengthNP, SurfaceIndex curSurfIndex, matrix_ref<uchar, 22, 32> SICOutput);
-
-  void cm_vme_hevc_sc(matrix_ref<uchar, 5, 32> SICInput, SurfaceIndex curSurfIndex,
-    matrix_ref<uchar, 2, 32> SICOutput);
-
-These generate code to perform an HEVC Skip and/or Intra Check (SIC, IC, SC) operation in GenX
-hardware.
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-SICInput
-                this hold the universal VME and SIC input payloads.
-
-NPInput
-                this holds the neighbor pixel (NP) input payload. Not used
-                if LengthNP is 0.
-
-LengthNP
-                the size of Neighbor Pixel payload, 8 for SIC or IC
-                operations, 0 for SC operations.  curSurfIndex -  the
-                surface index.
-
-SICOutput
-                this stores the SIC output payload, comprising the universal
-                VME return data followed the intra steam-in steam-out data
-                (SSRA) and Coding Unit (CU) data (these latter two data
-                groups are only meaningful if an Intra Check was performed).
-=============== ============================================================
-
-cm_vme_hevc_sc() should be used in situations where it is always the case that there will be no need for
-an Intra Check. This avoids having to create NPInput matrix just to satisfy the parameter requirements for
-cm_vme_hevc_sic() even though it will be unused, and to avoid having SICOutput be unnecessarily large.
-
-cm_vme_hevc_hpm_u
-"""""""""""""""""
-
-.. code-block:: c++
-
-  void cm_vme_hevc_hpm_u (matrix_ref<uchar, 12, 32> HPMInput, matrix_ref<uchar, 10, 32> StreamInpInter,
-    SurfaceIndex curSurfIndex,  matrix_ref<uchar, 23, 32> HPMOutput);
-
-These generate code to perform an HEVC Partitioning Message (HPM) with single-directional inter
-prediction in GenX hardware.
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-HPMInput
-                this holds the universal VME, Skip Intra Check (SIC),
-                IntraPred and distortion (SSRA) and Neighbor Motion Vector
-                (NMV) input payloads.
-
-StreamInpInter
-                this holds the stream-in major shape motion vector and
-                distortion data (SISO).
-
-curSurfIndex
-                the surface index.
-
-HPMOutput
-                the matrix that hold the output payload, comprising the
-                universal VME return data and major shape stream out data
-                (CU).
-=============== ============================================================
-
-cm_vme_hevc_hpm_b
-"""""""""""""""""
-
-.. code-block:: c++
-
-  void cm_vme_hevc_hpm_b (matrix<uchar, 12, 32> HPMInput, matrix<uchar, 20, 32> StreamInpInter,
-    int LenStrmInpInter, SurfaceIndex curSurfIndex,  matrix_ref<uchar, 23, 32> HPMOutput);
-
-These generate code to perform HEVC Partitioning Message (HPM) with single- or bi-directional Inter
-Prediction in GenX hardware.
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-HPMInput
-                this holds the universal VME, Skip Intra Check (SIC),
-                IntraPred and distortion (SSRA) and Neighbor Motion Vector
-                (NMV) input payloads.
-
-StreamInpInter
-                this holds the stream-in major shape motion vector and
-                distortion data (SISO).
-
-LenStrmInpInter
-                the size of StreamInputInter payload, 10 for
-                single-directional, 20 for bi-directional.
-
-curSurfIndex
-                the surface index
-
-HPMOutput
-                this  holds the output payload, comprising the universal VME
-                return data and major shape stream out data (CU).
-=============== ============================================================
-
-cm_vme_hevc_fbr
-"""""""""""""""
-
-.. code-block:: c++
-
-  void cm_vme_hevc_fbr(matrix<uchar, 3, 32> UNIInput, matrix<uchar, 16, 32> CUInput,
-    int ValidCULength, SurfaceIndex curSurfIndex, matrix_ref<uchar, 18, 32> FBROutput);
-
-  void cm_vme_hevc_fbr(matrix_ref<uchar, 3, 32> UNIInput, matrix_ref<uchar, 16, 32> CUInput,
-    int ValidCULength, SurfaceIndex curSurfIndex, matrix_ref<uchar, 18, 32> FBROutput);
-
-These generate code to perform a Fractional and Bidirectional Refinement (FBR) operation in GenX
-hardware.
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-UNIInput
-                this holds the universal VME input payload.
-
-CUInput
-                this holds the Coding Unit (CU) input payload.
-
-ValidCULength
-                the size of CUInput. Legal value are: 1, 2, 4, 5, 6, 7, 8,
-                9, 10, 11, 12, 13, 14, or 16.
-
-curSurfIndex
-                the surface index.
-
-FBROutput
-                this holds the FBR output payload, comprising the universal
-                VME return data and the FBR applied Coding Unit data (CU).
-=============== ============================================================
-
-cm_vme_hevc_rpm
-"""""""""""""""
-
-.. code-block:: c++
-
-  void cm_vme_hevc_rpm(matrix<uchar, 7, 32> UNIInput, matrix<uchar, 16, 32> CUInput,
-    int ValidCULength, SurfaceIndex curSurfIndex, matrix_ref<uchar, 8, 32> RPMOutput);
-
-  void cm_vme_hevc_rpm(matrix_ref<uchar, 7, 32> UNIInput, matrix_ref<uchar, 16, 32> CUInput,
-    int ValidCULength, SurfaceIndex curSurfIndex, matrix_ref<uchar, 8, 32> RPMOutput);
-
-These generate code to perform a Residual Prediction Message (RPM) operation in GenX.
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-RPMInput
-                this holds the universal VME and Spatial Neighbor Pixel (NP)
-                input payloads.
-
-CUInput
-                this holds the Coding Unit input payload.
-
-ValidCULength
-                the size of CUInput. Legal values are: 1, 4, 7, 10, 13, or
-                16.
-
-curSurfIndex
-                the surface index.
-
-RPMOutput
-                this stores the 4x4 z-order based approximate predicted
-                residual value or approximate predicted pixel for 32x32 data
-                area (RPM).
-=============== ============================================================
-
-cm_vme_hevc_srm
-"""""""""""""""
-
-.. code-block:: c++
-
-  void cm_vme_hevc_srm(matrix<uchar, 8, 32> SRMInput, matrix<uchar, 16, 32> CUInput,
-    int ValidCULength, SurfaceIndex curSurfIndex, matrix_ref<uchar, 18, 32> SRMOutput);
-
-  void cm_vme_hevc_srm(matrix_ref<uchar, 8, 32> SRMInput, matrix_ref<uchar, 16, 32> CUInput,
-    int ValidCULength, SurfaceIndex curSurfIndex, matrix_ref<uchar, 18, 32> SRMOutput);
-
-These generate code to perform a Skip Replacement Message (SRM) operation in GenX hardware.
-
-=============== ============================================================
-Parameters
-=============== ============================================================
-SRMInput
-                this holds the universal VME and Neighbor Motion Vector
-                input payloads.
-
-CUInput
-                this holds the Coding Unit input payload.
-
-ValidCULength
-                the size of CUInput, the legal value as follows: 1, 4, 7,
-                10, 13, or 16.
-
-curSurfIndex
-                the surface index.
-
-SRMOutput
-                this holds the SRM output payload, comprising the universal
-                VME return data and SRM applied Coding Unit data (CU).
-=============== ============================================================
-
-
 4.14 Media Walker Interface
 ---------------------------
 
@@ -9862,7 +8868,7 @@ have been globally observed.
 Parameters
 =============== ============================================================
 mask
-                {Gen8+} a bit mask that controls additional cache flush or
+                a bit mask that controls additional cache flush or
                 fence behavior. Valid masks are:
 
                 * CM_GLOBAL_COHERENT_FENCE: enables commit enable setting
@@ -9875,9 +8881,6 @@ mask
                 * CM_SW_BARRIER: enables software scheduling barrier
 
                 The masks may be combined if more than one cache is to be
-                flushed.
-
-                {pre-Gen8}  The field is ignored and the cache will not be
                 flushed.
 =============== ============================================================
 
@@ -9892,8 +8895,7 @@ cm_pause
 This function causes thread to pause for a length of time specified by
 "length". The value is decremented by the hardware thread control every 32 EU
 cycles. Note that the EU clock frequency is variable so the pause is at best an
-approximate pause. Generally it will be longer than the value written. For
-architectures that don't support (pre Gen10) the call will have no effect.
+approximate pause. Generally it will be longer than the value written.
 
 =============== ============================================================
 Parameters
@@ -9969,8 +8971,8 @@ cm_send
                matrix<T2, N3, N4> msgVar,
                uint exDesc, uint msgDesc, uint sendc);
 
-cm_sends {Gen9+}
-^^^^^^^^^^^^^^^^
+cm_sends
+^^^^^^^^
 
 .. code-block:: c++
 
@@ -9992,7 +8994,7 @@ msgVar
 
 msg2Var
                 the matrix that stores the second part of the message
-                payload data in a split send (Gen9+)
+                payload data in a split send
 
 exDesc
                 the extended message descriptor, which must be a compile
@@ -11778,7 +10780,7 @@ be:
 * short/ushort -> uint
 * int/uint -> double
 
-Pack into double is supported on HSW+
+Pack into double is supported.
 
 **Author:** Dori Eldar
 
@@ -11825,7 +10827,7 @@ UnPack a compisite element previously generated through Pack(), into 2 elements
 * short/ushort -> uint
 * int/uint -> double
 
-Pack into double is supported on HSW+
+Pack into double is supported.
 
 **Author:** Dori Eldar
 
@@ -11878,7 +10880,7 @@ is required. Typically packing would be:
 * short/ushort -> uint
 * int/uint -> double
 
-Pack into double is supported on HSW+
+Pack into double is supported.
 
 **Author:** Dori Eldar
 
@@ -13488,4 +12490,3 @@ C for Metal implementation
   // Write the result to dataport
       write(obuf, h_pos*24, v_pos*6, out);
   }
-

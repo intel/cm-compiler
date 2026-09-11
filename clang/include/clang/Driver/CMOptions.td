@@ -82,7 +82,7 @@ def Qxcm_forcefirstfit : CMIgnoredFlag<"Qxcm_forcefirstfit">;
 def Qxcm_inst_compaction : CMIgnoredFlag<"Qxcm_inst_compaction">;
 
 def Qxcm_jit_target : CMJoined<"Qxcm_jit_target">,
-  HelpText<"specify the target architecture: hsw | bdw | chv | skl | bxt | kbl | cnl | icl">;
+  HelpText<"specify the target architecture: tgllp | rkl | adl-s | adl-p | adl-n | dg1 | dg2 | pvc | mtl | arl | bmg | lnl | ptl">;
 
 def Qxcm_no_cr_fix : CMIgnoredFlag<"Qxcm_no_cr_fix">;
 
@@ -130,9 +130,6 @@ def Qxcm_S : CMIgnoredFlag<"Qxcm_S">;
 def Qxcm_symbolreg : CMIgnoredFlag<"Qxcm_symbolreg">;
 
 def mCM_unique_labels : CMIgnoredJoined<"mCM_unique_labels">;
-
-def Qxcm_vme_arch : CMJoined<"Qxcm_vme_arch">,
-  HelpText<"specify the target vme architecture: gen7_5 | gen8 | gen9 | gen9_5 | gen10 | gen11">;
 
 def Qxdisable_clang_cm : CMIgnoredFlag<"Qxdisable_clang_cm">;
 
