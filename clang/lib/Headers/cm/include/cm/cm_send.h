@@ -33,8 +33,7 @@ template <typename T = void> vector<uint, 4> cm_get_sr0();
 
 template <typename T>
 typename std::enable_if<std::is_same<T, SurfaceIndex>::value ||
-                            std::is_same<T, SamplerIndex>::value ||
-                            std::is_same<T, VmeIndex>::value,
+                            std::is_same<T, SamplerIndex>::value,
                         uint>::type
 cm_get_value(T index);
 

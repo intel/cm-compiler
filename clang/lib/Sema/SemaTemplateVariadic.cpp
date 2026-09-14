@@ -898,7 +898,6 @@ bool Sema::containsUnexpandedParameterPacks(Declarator &D) {
   case TST_cm_vector:
   case TST_SurfaceIndex:
   case TST_SamplerIndex:
-  case TST_VmeIndex:
   case TST_error:
     break;
   }

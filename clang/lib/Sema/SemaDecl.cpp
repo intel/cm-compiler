@@ -9812,11 +9812,10 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
       // matrix_ref values.
       Diag(D.getIdentifierLoc(), diag::err_cm_invalid_return_type) << RetType;
       D.setInvalidType();
-    } else if (IsGenx &&
-               (RetTy->isCMVmeIndexType() || RetTy->isCMSamplerIndexType() ||
-                RetTy->isCMSurfaceIndexType())) {
-      // For _GENX_ functions we don't allow to return SurfaceIndex,
-      // SamplerIndex or VmeIndex values.
+    } else if (IsGenx && (RetTy->isCMSamplerIndexType() ||
+                          RetTy->isCMSurfaceIndexType())) {
+      // For _GENX_ functions we don't allow to return SurfaceIndex or
+      // SamplerIndex values.
       Diag(D.getIdentifierLoc(), diag::err_cm_invalid_return_type) << RetType;
       D.setInvalidType();
     }
@@ -9865,14 +9864,14 @@ Sema::ActOnFunctionDeclarator(Scope *S, Declarator &D, DeclContext *DC,
         // CM language reference, 4.2
         //
         // Parameters to a user-defined CM function may have scalar type,
-        // vector/matrix type, or SurfaceIndex/SamplerIndex/VmeIndex type.
+        // vector/matrix type, or SurfaceIndex/SamplerIndex type.
         //
         // Note that Enum and boolean types should be allowed, but spec does
         // not.
         if (Ty->isBooleanType() || Ty->isEnumeralType() ||
             Ty->isCMScalarType() || Ty->isCMVectorMatrixType() ||
-            Ty->isCMVmeIndexType() || Ty->isCMSurfaceIndexType() ||
-            Ty->isCMSamplerIndexType() || Ty->isTemplateTypeParmType())
+            Ty->isCMSurfaceIndexType() || Ty->isCMSamplerIndexType() ||
+            Ty->isTemplateTypeParmType())
           return true;
 
         return false;

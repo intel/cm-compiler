@@ -1546,7 +1546,6 @@ ExprResult Parser::ParseCastExpression(CastParseKind ParseKind,
   case tok::kw___vector:
   case tok::kw_SurfaceIndex:
   case tok::kw_SamplerIndex:
-  case tok::kw_VmeIndex:
   case tok::kw__CM_Vector:
   case tok::kw__CM_Matrix:
   case tok::kw__CM_VectorRef:

@@ -1728,9 +1728,6 @@ static QualType ConvertDeclSpecToType(TypeProcessingState &state) {
     Result = Context.CMSamplerIndexTy;
     break;
 
-  case DeclSpec::TST_VmeIndex:
-    Result = Context.CMVmeIndexTy;
-    break;
 #define GENERIC_IMAGE_TYPE(ImgType, Id)                                        \
   case DeclSpec::TST_##ImgType##_t:                                            \
     switch (getImageAccess(DS.getAttributes())) {                              \

@@ -2092,10 +2092,6 @@ void MicrosoftCXXNameMangler::mangleType(const BuiltinType *T, Qualifiers,
     Out << "PA";
     mangleArtificialTagType(TTK_Struct, "cm_sampler_index");
     break;
-  case BuiltinType::CMVmeIndex:
-    Out << "PA";
-    mangleArtificialTagType(TTK_Struct, "cm_vme_index");
-    break;
 
   case BuiltinType::NullPtr:
     Out << "$$T";

@@ -250,7 +250,6 @@ BUILTIN_TYPE(ObjCSel, ObjCBuiltinSelTy)
 // CM builtin types.
 BUILTIN_TYPE(CMSurfaceIndex, CMSurfaceIndexTy)
 BUILTIN_TYPE(CMSamplerIndex, CMSamplerIndexTy)
-BUILTIN_TYPE(CMVmeIndex, CMVmeIndexTy)
 
 // OpenCL sampler_t.
 BUILTIN_TYPE(OCLSampler, OCLSamplerTy)

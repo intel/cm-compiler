@@ -319,7 +319,6 @@ public:
   static const TST TST_cm_matrix = clang::TST_cm_matrix;
   static const TST TST_SurfaceIndex = clang::TST_SurfaceIndex;
   static const TST TST_SamplerIndex = clang::TST_SamplerIndex;
-  static const TST TST_VmeIndex = clang::TST_VmeIndex;
 #define GENERIC_IMAGE_TYPE(ImgType, Id) \
   static const TST TST_##ImgType##_t = clang::TST_##ImgType##_t;
 #include "clang/Basic/OpenCLImageTypes.def"

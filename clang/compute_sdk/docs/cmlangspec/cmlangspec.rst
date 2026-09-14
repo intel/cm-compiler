@@ -406,8 +406,6 @@ between typed and untyped accesses may not be guaranteed by either compiler or h
 
 * SamplerIndex: represents a Sampler state object used in Sampler functions.
 
-* VmeIndex: represents a VME state object used in VME functions.
-
 C for Metal supports the use of vector of SurfaceIndex in kernel function, which must be passed from host as
 kernel function parameters. C for Metal does not allow modification, reference, or sub-vector select/iselect
 operation of SurfaceIndex vector (only basic member select operation vector(i) is allowed).
@@ -1142,7 +1140,7 @@ same file.
 --------------------------
 
 C for Metal supports user-defined function calls without recursion.  Parameters to a user-defined C for Metal function
-may have scalar type, vector/matrix type, or  SurfaceIndex/SamplerIndex/VmeIndex type.  In addition,
+may have scalar type, vector/matrix type, or  SurfaceIndex/SamplerIndex type.  In addition,
 vector_ref and matrix_ref types may be used to pass a vector/matrix object by reference.  A user-defined
 function can return scalar values or vector/matrix types. vector_ref/matrix_ref return types are not
 supported.
@@ -9235,7 +9233,7 @@ cm_get_value
 
 This intrinsic can be used to assemble the message descriptor, since C for Metal does not allow direct
 manipulation of abstract handles such as SurfaceIndex. The input parameter must be one of the
-abstract data types (SurfaceIndex, SamplerIndex or VmeIndex). The return data is the encapsulated
+abstract data types (SurfaceIndex or SamplerIndex). The return data is the encapsulated
 index value.
 
 cm_get_r0

@@ -3096,7 +3096,6 @@ static bool TypeInfoIsInStandardLibrary(const BuiltinType *Ty) {
     case BuiltinType::OCLEvent:
     case BuiltinType::CMSurfaceIndex:
     case BuiltinType::CMSamplerIndex:
-    case BuiltinType::CMVmeIndex:
       return true;
     case BuiltinType::OCLClkEvent:
     case BuiltinType::OCLQueue:

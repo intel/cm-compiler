@@ -730,7 +730,6 @@ llvm::DIType *CGDebugInfo::CreateType(const BuiltinType *BT) {
 
   case BuiltinType::CMSurfaceIndex:
   case BuiltinType::CMSamplerIndex:
-  case BuiltinType::CMVmeIndex:
     Encoding = llvm::dwarf::DW_ATE_unsigned;
     break;
 #define SVE_TYPE(Name, Id, SingletonId) case BuiltinType::Id:

@@ -79,7 +79,6 @@ class CGDebugInfo {
   llvm::DIType *SelTy = nullptr;
   llvm::DIType *CMSurfaceIndexTy = nullptr;
   llvm::DIType *CMSamplerIndexTy = nullptr;
-  llvm::DIType *CMVmeIndexTy = nullptr;
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix)                   \
   llvm::DIType *SingletonId = nullptr;
 #include "clang/Basic/OpenCLImageTypes.def"

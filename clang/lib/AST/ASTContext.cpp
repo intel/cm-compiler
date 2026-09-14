@@ -1430,7 +1430,6 @@ void ASTContext::InitBuiltinTypes(const TargetInfo &Target,
   if (LangOpts.MdfCM) {
     InitBuiltinType(CMSurfaceIndexTy, BuiltinType::CMSurfaceIndex);
     InitBuiltinType(CMSamplerIndexTy, BuiltinType::CMSamplerIndex);
-    InitBuiltinType(CMVmeIndexTy, BuiltinType::CMVmeIndex);
   }
 
   if (Target.hasAArch64SVETypes()) {
@@ -2149,7 +2148,6 @@ TypeInfo ASTContext::getTypeInfoImpl(const Type *T) const {
       break;
     case BuiltinType::CMSurfaceIndex:
     case BuiltinType::CMSamplerIndex:
-    case BuiltinType::CMVmeIndex:
       Width = Target->getIntWidth();
       Align = Target->getIntAlign();
       break;
@@ -7438,7 +7436,6 @@ static char getObjCEncodingForPrimitiveType(const ASTContext *C,
     case BuiltinType::OCLSampler:
     case BuiltinType::CMSurfaceIndex:
     case BuiltinType::CMSamplerIndex:
-    case BuiltinType::CMVmeIndex:
     case BuiltinType::Dependent:
 #define BUILTIN_TYPE(KIND, ID)
 #define PLACEHOLDER_TYPE(KIND, ID) \

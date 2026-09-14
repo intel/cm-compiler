@@ -65,8 +65,6 @@ _GENX_ SamplerIndex func_SamplerIndex(int a) { return a; }  // Unsupported retur
 
 _GENX_ SurfaceIndex func_SurfaceIndex(int a) { return a; }  // Unsupported return type // expected-error{{unsupported function return type 'SurfaceIndex'}}
 
-_GENX_ VmeIndex func_VmeIndex(int a) { VmeIndex vi; return vi; }  // Unsupported return type // expected-error{{unsupported function return type 'VmeIndex'}}
-
 _GENX_ matrix<int,4,4> func_matrix(int a) { return a; }
 
 _GENX_ matrix_ref<int,4,4> func_matrix_ref(int a) { matrix<int,4,4> r = a; return r; }  // Unsupported return type // expected-error{{unsupported function return type 'matrix_ref<int,4,4>'}}
@@ -129,8 +127,6 @@ _GENX_MAIN_ void foo(SurfaceIndex idx)
     SamplerIndex r24 = func_SamplerIndex(24);
 
     SurfaceIndex r25 = func_SurfaceIndex(25);
-
-    VmeIndex r26 = func_VmeIndex(26);
 
     matrix<int,4,4> r27 = func_matrix(27);
 

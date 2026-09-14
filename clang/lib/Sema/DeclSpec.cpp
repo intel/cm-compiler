@@ -381,7 +381,6 @@ bool Declarator::isDeclarationOfFunction() const {
     case TST_cm_matrix:
     case TST_SurfaceIndex:
     case TST_SamplerIndex:
-    case TST_VmeIndex:
 #define GENERIC_IMAGE_TYPE(ImgType, Id) case TST_##ImgType##_t:
 #include "clang/Basic/OpenCLImageTypes.def"
       return false;
@@ -585,7 +584,6 @@ const char *DeclSpec::getSpecifierName(DeclSpec::TST T,
   case DeclSpec::TST_cm_matrix: return "matrix";
   case DeclSpec::TST_SurfaceIndex: return "SurfaceIndex";
   case DeclSpec::TST_SamplerIndex: return "SamplerIndex";
-  case DeclSpec::TST_VmeIndex: return "VmeIndex";
 #define GENERIC_IMAGE_TYPE(ImgType, Id) \
   case DeclSpec::TST_##ImgType##_t: \
     return #ImgType "_t";

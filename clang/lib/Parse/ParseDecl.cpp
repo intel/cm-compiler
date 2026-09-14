@@ -3963,10 +3963,6 @@ void Parser::ParseDeclarationSpecifiers(DeclSpec &DS,
       isInvalid = DS.SetTypeSpecType(DeclSpec::TST_SamplerIndex, Loc,
                                      PrevSpec, DiagID, Policy);
       break;
-    case tok::kw_VmeIndex:
-      isInvalid = DS.SetTypeSpecType(DeclSpec::TST_VmeIndex, Loc,
-                                     PrevSpec, DiagID, Policy);
-      break;
 
     case tok::kw__CM_Vector:
     case tok::kw__CM_VectorRef:
@@ -4851,7 +4847,6 @@ bool Parser::isKnownToBeTypeSpecifier(const Token &Tok) const {
     // CM specific types:
   case tok::kw_SurfaceIndex:
   case tok::kw_SamplerIndex:
-  case tok::kw_VmeIndex:
 
     // struct-or-union-specifier (C99) or class-specifier (C++)
   case tok::kw_class:
@@ -4937,7 +4932,6 @@ bool Parser::isTypeSpecifierQualifier() {
     // CM specific types:
   case tok::kw_SurfaceIndex:
   case tok::kw_SamplerIndex:
-  case tok::kw_VmeIndex:
 
     // struct-or-union-specifier (C99) or class-specifier (C++)
   case tok::kw_class:
@@ -5108,7 +5102,6 @@ bool Parser::isDeclarationSpecifier(bool DisambiguatingWithExpression) {
     // CM specific types:
   case tok::kw_SurfaceIndex:
   case tok::kw_SamplerIndex:
-  case tok::kw_VmeIndex:
 
     // struct-or-union-specifier (C99) or class-specifier (C++)
   case tok::kw_class:

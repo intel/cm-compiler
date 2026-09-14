@@ -213,9 +213,6 @@ serialization::TypeIdxFromBuiltin(const BuiltinType *BT) {
   case BuiltinType::CMSamplerIndex:
     ID = PREDEF_TYPE_SAMPLER_INDEX_ID;
     break;
-  case BuiltinType::CMVmeIndex:
-    ID = PREDEF_TYPE_VME_INDEX_ID;
-    break;
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
   case BuiltinType::Id: \
     ID = PREDEF_TYPE_##Id##_ID; \

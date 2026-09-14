@@ -4622,7 +4622,6 @@ static void handleCMOpenCLTypeAttr(Sema &S, Decl *D,
       if (!desc0.equals("svmptr_t"))
         S.Diag(D->getLocation(), diag::warn_attribute_wrong_annoation)
             << PVD->getNameAsString() << desc0 << "svmptr_t";
-    } else if (T->isCMVmeIndexType()) {
     } else {
       if (!desc0.equals("buffer_t") && !desc0.equals("const") &&
           !desc0.equals("svmptr_t"))

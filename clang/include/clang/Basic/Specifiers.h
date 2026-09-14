@@ -107,7 +107,6 @@ namespace clang {
     TST_cm_matrix,        // CM matrix
     TST_SurfaceIndex,     // CM SurfaceIndex
     TST_SamplerIndex,     // CM SamplerIndex
-    TST_VmeIndex,         // CM VmeIndex
 #define GENERIC_IMAGE_TYPE(ImgType, Id) TST_##ImgType##_t, // OpenCL image types
 #include "clang/Basic/OpenCLImageTypes.def"
     TST_error // erroneous type

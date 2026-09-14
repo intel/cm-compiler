@@ -3129,8 +3129,6 @@ StringRef BuiltinType::getName(const PrintingPolicy &Policy) const {
     return "SurfaceIndex";
   case CMSamplerIndex:
     return "SamplerIndex";
-  case CMVmeIndex:
-    return "VmeIndex";
   case IncompleteMatrixIdx:
     return "<incomplete matrix index type>";
   case OMPArraySection:
@@ -4152,7 +4150,6 @@ bool Type::canHaveNullability(bool ResultIfUnknown) const {
     case BuiltinType::ObjCId:
     case BuiltinType::ObjCClass:
     case BuiltinType::ObjCSel:
-    case BuiltinType::CMVmeIndex:
     case BuiltinType::CMSamplerIndex:
     case BuiltinType::CMSurfaceIndex:
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \

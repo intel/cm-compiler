@@ -4522,8 +4522,7 @@ llvm::Value *CGCMRuntime::HandleBuiltinUnmaskEndImpl(CMCallInfo &CallInfo) {
 ///
 llvm::Value *CGCMRuntime::HandleBuiltinGetValueImpl(CMCallInfo &CallInfo) {
   assert(CallInfo.CE->getArg(0)->getType()->isCMSurfaceIndexType() ||
-         CallInfo.CE->getArg(0)->getType()->isCMSamplerIndexType() ||
-         CallInfo.CE->getArg(0)->getType()->isCMVmeIndexType());
+         CallInfo.CE->getArg(0)->getType()->isCMSamplerIndexType());
 
   // Nothing to emit. Just return its argument value.
   llvm::Value *Arg = CallInfo.CI->getArgOperand(0);

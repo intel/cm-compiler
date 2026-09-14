@@ -2809,9 +2809,6 @@ void CXXNameMangler::mangleType(const BuiltinType *T) {
   case BuiltinType::CMSamplerIndex:
     Out << "15cm_samplerindex";
     break;
-  case BuiltinType::CMVmeIndex:
-    Out << "11cm_vmeindex";
-    break;
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
   case BuiltinType::Id: \
     type_name = "ocl_" #ImgType "_" #Suffix; \

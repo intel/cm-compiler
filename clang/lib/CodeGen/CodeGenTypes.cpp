@@ -530,7 +530,6 @@ llvm::Type *CodeGenTypes::ConvertType(QualType T) {
 
     case BuiltinType::CMSurfaceIndex:
     case BuiltinType::CMSamplerIndex:
-    case BuiltinType::CMVmeIndex:
       ResultType = llvm::IntegerType::get(getLLVMContext(), 32);
       break;
 

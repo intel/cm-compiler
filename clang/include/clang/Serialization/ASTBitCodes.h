@@ -1083,8 +1083,9 @@ public:
       /// \brief CM SamplerIndex type.
       PREDEF_TYPE_SAMPLER_INDEX_ID = 75,
 
-      /// \brief CM VmeIndex type.
-      PREDEF_TYPE_VME_INDEX_ID = 76,
+      /// \brief Retired CM VmeIndex type. The slot stays reserved so that the
+      /// auto-numbered ids below keep their values.
+      PREDEF_TYPE_RETIRED_76 = 76,
 
       /// OpenCL image types with auto numeration
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \

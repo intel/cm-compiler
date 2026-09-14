@@ -736,7 +736,6 @@ void USRGenerator::VisitType(QualType T) {
         case BuiltinType::OCLSampler:
         case BuiltinType::CMSurfaceIndex:
         case BuiltinType::CMSamplerIndex:
-        case BuiltinType::CMVmeIndex:
 #define SVE_TYPE(Name, Id, SingletonId) \
         case BuiltinType::Id:
 #include "clang/Basic/AArch64SVEACLETypes.def"

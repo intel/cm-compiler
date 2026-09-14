@@ -7000,9 +7000,6 @@ QualType ASTReader::GetType(TypeID ID) {
     case PREDEF_TYPE_SAMPLER_INDEX_ID:
       T = Context.CMSamplerIndexTy;
       break;
-    case PREDEF_TYPE_VME_INDEX_ID:
-      T = Context.CMVmeIndexTy;
-      break;
 #define IMAGE_TYPE(ImgType, Id, SingletonId, Access, Suffix) \
     case PREDEF_TYPE_##Id##_ID: \
       T = Context.SingletonId; \

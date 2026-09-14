@@ -1402,7 +1402,7 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
   llvm::SmallVector<llvm::Metadata *, 8> ArgKinds;
   llvm::SmallVector<llvm::Metadata *, 8> ArgInOutKinds;
   llvm::SmallVector<llvm::Metadata *, 8> ArgTypeDescs;
-  enum { AK_NORMAL, AK_SAMPLER, AK_SURFACE, AK_VME };
+  enum { AK_NORMAL, AK_SAMPLER, AK_SURFACE };
   for (FunctionDecl::param_const_iterator i = FD->param_begin(),
                                           e = FD->param_end();
        i != e; ++i) {
@@ -1429,8 +1429,7 @@ void CGCMRuntime::EmitCMKernelMetadata(const FunctionDecl *FD,
         Kind = AK_SURFACE;
       else if (VT->getElementType()->isCMSamplerIndexType())
         Kind = AK_SAMPLER;
-    } else if (T->isCMVmeIndexType())
-      Kind = AK_VME;
+    }
     ArgKinds.push_back(getMD(llvm::ConstantInt::get(I32Ty, Kind)));
 
     enum { IK_NORMAL, IK_INPUT, IK_OUTPUT, IK_INPUT_OUTPUT, IK_FIXED };

@@ -2164,7 +2164,6 @@ public:
 
   bool isCMSurfaceIndexType() const;            // CM SurfaceIndex type
   bool isCMSamplerIndexType() const;            // CM SamplerIndex type
-  bool isCMVmeIndexType() const;                // CM VmeIndex type
 
   /// Determines if this type, which must satisfy
   /// isObjCLifetimeType(), is implicitly __unsafe_unretained rather
@@ -7075,7 +7074,7 @@ inline bool Type::isUndeducedAutoType() const {
 ///
 /// (2) long, unsigned long, unsigned long long (Gen 8+) are 64 bit integers;
 ///
-/// (3) SurfaceIndex, SampleIndex, VmeIndex.
+/// (3) SurfaceIndex, SampleIndex.
 ///
 /// (4) FunctionPointer
 ///
@@ -7103,7 +7102,6 @@ inline bool Type::isCMElementType(bool AllowNonArithmetic) const {
        return true;
      case BuiltinType::CMSurfaceIndex:
      case BuiltinType::CMSamplerIndex:
-     case BuiltinType::CMVmeIndex:
        return AllowNonArithmetic;
      }
   } else if (isFunctionPointerType())
@@ -7250,10 +7248,6 @@ inline bool Type::isCMSurfaceIndexType() const {
 
 inline bool Type::isCMSamplerIndexType() const {
   return isSpecificBuiltinType(BuiltinType::CMSamplerIndex);
-}
-
-inline bool Type::isCMVmeIndexType() const {
-  return isSpecificBuiltinType(BuiltinType::CMVmeIndex);
 }
 
 inline bool Type::isTemplateTypeParmType() const {
