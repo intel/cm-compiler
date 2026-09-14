@@ -369,51 +369,6 @@ private:
   /// \brief Postprocess cm_slm_atomic variants.
   void HandleBuiltinSLMAtomic(CMCallInfo &Info);
 
-  /// \brief Postprocess cm_avs_sampler.
-  void HandleBuiltinAVSSampler(CMCallInfo &Info);
-
-  /// \brief Postprocess cm_va_2d_convolve.
-  void HandleBuiltinVA2dConvolve(CMCallInfo &Info, CMBuiltinKind Kind);
-
-  /// \brief Postprocess cm_va_dilate and cm_va_erode.
-  void HandleBuiltinVAErodeDilate(CMCallInfo &Info, CMBuiltinKind Kind);
-
-  /// \brief Postprocess cm_va_dilate_hdc and cm_va_erode_hdc.
-  void HandleBuiltinVAErodeDilateHdc(CMCallInfo &Info, CMBuiltinKind Kind);
-
-  /// \brief Postprocess cm_va_min_max.
-  void HandleBuiltinVAMinMax(CMCallInfo &Info);
-
-  /// \brief Postprocess cm_va_min_max_filter.
-  void HandleBuiltinVAMinMaxFilter(CMCallInfo &Info);
-
-  /// \brief Postprocess cm_va_min_max_filter_hdc.
-  void HandleBuiltinVAMinMaxFilterHdc(CMCallInfo &Info);
-
-  /// \brief Postprocess cm_va_centroid and cm_va_boolean_centroid.
-  void HandleBuiltinVACentroid(CMCallInfo &Info, CMBuiltinKind Kind);
-
-  /// \brief Postprocess cm_va_1d_convolution and cm_va_1d_convolution_hdc.
-  void HandleBuiltinVA1dConvolution(CMCallInfo &Info, CMBuiltinKind Kind);
-
-  /// \brief Postprocess cm_va_1pixel_convolve.
-  void HandleBuiltinVA1PixelConvolve(CMCallInfo &Info);
-
-  /// \brief Postprocess cm_va_lbp_creation and cm_va_lbp_creation_hdc.
-  void HandleBuiltinVALbpCreation(CMCallInfo &Info, CMBuiltinKind);
-
-  /// \brief Postprocess cm_va_1pixel_convolve_hdc.
-  void HandleBuiltinVA1PixelConvolveHdc(CMCallInfo &Info);
-
-  /// \brief Postprocess cm_va_lbp_correlation and cm_va_lbp_correlation_hdc.
-  void HandleBuiltinVALbpCorrelation(CMCallInfo &Info, CMBuiltinKind Kind);
-
-  /// \brief Postprocess cm_va_correlation_search.
-  void HandleBuiltinVACorrelationSearch(CMCallInfo &Info);
-
-  /// \brief Postprocess cm_va_flood_fill.
-  void HandleBuiltinVAFloodFill(CMCallInfo &Info);
-
   /// \brief Postprocess oword read implementations.
   llvm::Value *HandleBuiltinOWordReadImpl(CMCallInfo &Info, CMBuiltinKind Kind);
 
